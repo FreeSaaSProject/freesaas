@@ -1,0 +1,152 @@
+{
+  "id": "core",
+  "name": "core.module.name",
+  "version": "0.3.0",
+  "type": "platform",
+  "requires": {},
+  "optionalRequires": {},
+  "provides": [
+    "core.auth",
+    "core.modules",
+    "core.dashboard",
+    "core.news",
+    "core.users",
+    "core.statuses",
+    "core.settings"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "core.home", "label": "core.perm.home" },
+    { "id": "core.modules", "label": "core.perm.modules" },
+    { "id": "core.migrate", "label": "core.perm.migrate" },
+    { "id": "core.users", "label": "core.perm.users" },
+    { "id": "core.statuses", "label": "core.perm.statuses" },
+    { "id": "core.news", "label": "core.perm.news" },
+    { "id": "core.settings", "label": "core.perm.settings" }
+  ],
+  "routes": {
+    "pages": [
+      "/",
+      "/login",
+      "/locale",
+      "/logout",
+      "/modules",
+      "/migrate",
+      "/users",
+      "/users/{id}",
+      "/users/{id}/edit",
+      "/statuses",
+      "/statuses/new",
+      "/statuses/{id}/edit",
+      "/news",
+      "/news/new",
+      "/news/{id}",
+      "/news/{id}/edit",
+      "/settings"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.desktop",
+      "num": 1,
+      "path": "/",
+      "title": "core.menu.home"
+    },
+    {
+      "group": "core.menu.group.desktop",
+      "num": 2,
+      "path": "/news?type=2",
+      "title": "core.menu.news"
+    },
+    {
+      "group": "core.menu.group.team",
+      "num": 10,
+      "path": "/users",
+      "title": "core.menu.users"
+    },
+    {
+      "group": "core.menu.group.team",
+      "num": 11,
+      "path": "/statuses",
+      "title": "core.menu.statuses"
+    },
+    {
+      "group": "core.menu.group.system",
+      "num": 20,
+      "path": "/settings",
+      "title": "core.menu.settings"
+    },
+    {
+      "group": "core.menu.group.system",
+      "num": 21,
+      "path": "/modules",
+      "title": "core.menu.modules"
+    }
+  ],
+  "configSchema": {
+    "app": {
+      "name": {
+        "type": "string",
+        "default": "FreeSaaS"
+      },
+      "instance": {
+        "type": "string",
+        "default": ""
+      },
+      "locale": {
+        "type": "string",
+        "default": "ru"
+      }
+    }
+  },
+  "tables": [
+    "base_users",
+    "base_system",
+    "base_modules",
+    "base_schema_migrations",
+    "base_news",
+    "base_news_statuses",
+    "base_admin_statuses",
+    "base_views"
+  ],
+  "migrators": [
+    {
+      "id": "phpshop_users_to_base_users",
+      "mode": "replace",
+      "source": [
+        "phpshop_users"
+      ],
+      "target": [
+        "base_users"
+      ]
+    },
+    {
+      "id": "phpshop_system_to_base_system",
+      "mode": "replace",
+      "source": [
+        "phpshop_system"
+      ],
+      "target": [
+        "base_system"
+      ]
+    }
+  ],
+  "hooks": {
+    "subscribe": [
+      "comments.form.ticket_controls",
+      "comments.prepare_add"
+    ],
+    "publish": [
+      "core.auth.after_login",
+      "core.dashboard.widgets",
+      "core.menu.collect",
+      "core.notices.collect",
+      "core.news_item.handle_post",
+      "core.news_item.meta",
+      "core.news_item.section",
+      "core.user_edit.sections",
+      "core.user_edit.save"
+    ]
+  }
+}

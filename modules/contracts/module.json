@@ -1,0 +1,51 @@
+{
+  "id": "contracts",
+  "name": "contracts.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "comments": ">=0.1.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "contracts.offer",
+    "contracts.list"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "contracts.list", "label": "contracts.perm.list" },
+    { "id": "contracts.manage", "label": "contracts.perm.manage" }
+  ],
+  "routes": {
+    "pages": [
+      "/contracts",
+      "/contracts/action"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.desktop",
+      "num": 5,
+      "path": "/contracts",
+      "title": "contracts.menu.list"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_comments",
+    "base_news"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [
+      "comments.render_actions",
+      "comments.form.offer_fields",
+      "comments.prepare_add",
+      "core.dashboard.widgets",
+      "core.notices.collect"
+    ],
+    "publish": []
+  }
+}

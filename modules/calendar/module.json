@@ -1,0 +1,55 @@
+{
+  "id": "calendar",
+  "name": "calendar.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "clients": ">=0.1.0",
+    "catalog": ">=0.1.0",
+    "procedures": ">=0.1.0",
+    "orders": ">=0.1.0",
+    "workweeks": ">=0.1.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "calendar.week",
+    "calendar.day"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "calendar.view", "label": "calendar.perm.view" },
+    { "id": "calendar.edit", "label": "calendar.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/calendar",
+      "/calendar/week/{date}",
+      "/calendar/day/{date}",
+      "/calendar/events/new",
+      "/calendar/events/{id}/edit",
+      "/calendar/nazop"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "calendar.menu.group",
+      "num": 1,
+      "path": "/calendar",
+      "title": "calendar.menu.week"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_events",
+    "base_events_changes"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "calendar.day embeds workweeks panel; consumes orders.for_day and procedures day range"
+    ]
+  }
+}

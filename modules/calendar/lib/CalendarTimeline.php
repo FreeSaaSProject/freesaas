@@ -1,0 +1,407 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Oper-style calendar timeline: vertical hour axis, absolute-positioned chips,
+ * staff as horizontal stacks inside each day cell.
+ */
+final class CalendarTimeline
+{
+    public const PX_PER_HOUR = 56;
+    public const MIN_CHIP_PX = 14;
+
+    /** @var array{start:?int,end:?int}|null */
+    private static $hoursCache = null;
+
+    /**
+     * @return array{start:int,end:int}
+     */
+    private static function resolveHours(): array
+    {
+        if (self::$hoursCache !== null) {
+            return [
+                'start' => (int)self::$hoursCache['start'],
+                'end' => (int)self::$hoursCache['end'],
+            ];
+        }
+        $start = null;
+        $end = null;
+        if (Database::tableExists('base_system')
+            && Database::columnExists('base_system', 'work_hour_start')
+            && Database::columnExists('base_system', 'work_hour_end')
+        ) {
+            $row = Database::pdo()->query(
+                'SELECT work_hour_start, work_hour_end FROM base_system ORDER BY id ASC LIMIT 1'
+            )->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $start = (int)$row['work_hour_start'];
+                $end = (int)$row['work_hour_end'];
+            }
+        }
+        if ($start === null) {
+            $start = (int)Config::get('calendar', 'hour_start', 9);
+        }
+        if ($end === null) {
+            $end = (int)Config::get('calendar', 'hour_end', 22);
+        }
+        $start = max(0, min(23, $start));
+        $end = max(0, min(23, $end));
+        if ($end < $start) {
+            $end = $start;
+        }
+        self::$hoursCache = ['start' => $start, 'end' => $end];
+        return ['start' => $start, 'end' => $end];
+    }
+
+    public static function hourStart(): int
+    {
+        return self::resolveHours()['start'];
+    }
+
+    public static function hourEnd(): int
+    {
+        return self::resolveHours()['end'];
+    }
+
+    /** Hours shown on the axis (inclusive start..end). */
+    public static function hours(): array
+    {
+        $out = [];
+        for ($i = self::hourStart(); $i <= self::hourEnd(); $i++) {
+            $out[] = $i;
+        }
+        return $out;
+    }
+
+    public static function gridHeight(): int
+    {
+        return count(self::hours()) * self::PX_PER_HOUR;
+    }
+
+    public static function pxPerMinute(): float
+    {
+        return self::PX_PER_HOUR / 60.0;
+    }
+
+    /**
+     * @return array{top:int,height:int}
+     */
+    public static function position(int $dayStart, int $dtStart, int $dtEnd): array
+    {
+        $offsetSec = self::hourStart() * 3600;
+        $gridStart = $dayStart + $offsetSec;
+        $koef = self::pxPerMinute();
+
+        $start = $dtStart > 0 ? $dtStart : $gridStart;
+        $end = $dtEnd > $start ? $dtEnd : ($start + 1800);
+
+        $top = (int)round(($start - $gridStart) * $koef / 60);
+        $durSec = max(60, $end - $start);
+        $height = (int)round($durSec * $koef / 60);
+        if ($height < self::MIN_CHIP_PX) {
+            $height = self::MIN_CHIP_PX;
+        }
+
+        $maxH = self::gridHeight();
+        if ($top < 0) {
+            $height += $top;
+            $top = 0;
+        }
+        if ($top + $height > $maxH) {
+            $height = max(self::MIN_CHIP_PX, $maxH - $top);
+        }
+        if ($height < 1) {
+            $height = self::MIN_CHIP_PX;
+        }
+
+        return ['top' => $top, 'height' => $height];
+    }
+
+    /**
+     * Staff column layout inside a day cell (oper steks_left).
+     *
+     * @param list<int> $operatorIds unique, order preserved after sort
+     * @return array{width:float,lefts:array<int,float>}
+     */
+    public static function staffStacks(array $operatorIds): array
+    {
+        $ids = [];
+        foreach ($operatorIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+        $list = array_keys($ids);
+        sort($list, SORT_NUMERIC);
+        $n = count($list);
+        if ($n < 1) {
+            return ['width' => 95.0, 'lefts' => [0 => 0.0]];
+        }
+        $width = round((100 - 5) / $n, 2);
+        if ($n > 5) {
+            $width -= 0.57;
+        }
+        $lefts = [];
+        $i = 0;
+        foreach ($list as $oid) {
+            $lefts[$oid] = round(($width + 1) * $i, 2);
+            $i++;
+        }
+        return ['width' => $width, 'lefts' => $lefts];
+    }
+
+    /**
+     * Past-time overlay for a day cell (oper events-timeline-passed).
+     *
+     * @return array{height:int,is_now:bool}|null
+     */
+    public static function passedOverlay(int $dayStart, ?int $now = null): ?array
+    {
+        $now = $now ?? time();
+        $hStart = self::hourStart();
+        $hEnd = self::hourEnd();
+        $gridStart = $dayStart + $hStart * 3600;
+        $gridEnd = $dayStart + ($hEnd + 1) * 3600;
+        $koef = self::pxPerMinute();
+
+        if ($gridEnd <= $now) {
+            $h = (int)round(($gridEnd - $gridStart) * $koef / 60);
+            return ['height' => max(0, $h), 'is_now' => false];
+        }
+        if ($gridStart < $now) {
+            $h = (int)round(($now - $gridStart) * $koef / 60);
+            return ['height' => max(0, $h), 'is_now' => true];
+        }
+        return null;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $events
+     * @param list<array<string,mixed>> $procedures
+     * @param array<int,array{bg:string,fg:string}> $colors
+     * @return list<array<string,mixed>>
+     */
+    public static function chipsForDay(
+        int $dayStart,
+        array $events,
+        array $procedures,
+        array $stacks,
+        array $colors,
+        bool $canEditEvents
+    ): array {
+        $width = (float)($stacks['width'] ?? 95);
+        $lefts = $stacks['lefts'] ?? [0 => 0.0];
+        $chips = [];
+
+        foreach ($procedures as $pr) {
+            $op = (int)($pr['id_operator'] ?? 0);
+            $pos = self::position($dayStart, (int)($pr['dtstart'] ?? 0), (int)($pr['dtend'] ?? 0));
+            $title = trim((string)($pr['product_name'] ?? $pr['type_name'] ?? ''));
+            if ($title === '') {
+                $title = '#' . (int)$pr['id'];
+            }
+            $client = trim((string)($pr['client_name'] ?? ''));
+            $label = date('H:i', (int)($pr['dtstart'] ?? 0)) . '–' . date('H:i', (int)($pr['dtend'] ?? 0));
+            if ($client !== '') {
+                $label .= ' ' . $client;
+            }
+            $label .= ' ' . $title;
+            $color = $colors[$op] ?? ['bg' => 'var(--accent-soft)', 'fg' => 'var(--text)'];
+            $info = '<div class="calendar-info-head">' . $title . '</div>'
+                . '<div>' . date('H:i', (int)($pr['dtstart'] ?? 0)) . ' – ' . date('H:i', (int)($pr['dtend'] ?? 0)) . '</div>';
+            if ($client !== '') {
+                $info .= '<div>' . $client . '</div>';
+            }
+            if (!empty($pr['operator_name'])) {
+                $info .= '<div class="muted">' . (string)$pr['operator_name'] . '</div>';
+            }
+            if (isset($pr['summ'])) {
+                $info .= '<div><b>' . number_format((float)$pr['summ'], 0, '.', ' ') . '</b></div>';
+            }
+            $chips[] = [
+                'kind' => 'proc',
+                'id' => (int)$pr['id'],
+                'href' => '/procedures/' . (int)$pr['id'] . '/edit',
+                'top' => $pos['top'],
+                'height' => $pos['height'],
+                'left' => $lefts[$op] ?? 0.0,
+                'width' => $width,
+                'bg' => $color['bg'],
+                'fg' => $color['fg'],
+                'is_block' => false,
+                'label' => $label,
+                'title' => $label,
+                'info' => $info,
+            ];
+        }
+
+        foreach ($events as $ev) {
+            $op = (int)($ev['id_operator'] ?? 0);
+            $pos = self::position($dayStart, (int)($ev['dtstart'] ?? 0), (int)($ev['dtend'] ?? 0));
+            $isBlock = !empty($ev['is_block']);
+            $client = trim((string)($ev['client_name'] ?? ''));
+            if ($client === '') {
+                $client = trim((string)($ev['name'] ?? ''));
+            }
+            if ($client === '') {
+                $client = $isBlock
+                    ? t('calendar.day.block')
+                    : ((int)($ev['id_user'] ?? 0) > 0 ? ('#' . (int)$ev['id_user']) : ('#' . (int)$ev['id']));
+            }
+            $label = date('H:i', (int)$ev['dtstart']) . '–' . date('H:i', (int)$ev['dtend']) . ' ' . $client;
+            $color = $colors[$op] ?? ['bg' => 'var(--accent-soft)', 'fg' => 'var(--text)'];
+            if ($isBlock) {
+                $safeBg = self::safeCssColor($color['bg'], '#444');
+                $color = [
+                    'bg' => 'repeating-linear-gradient(45deg,#222 0 6px,' . $safeBg . ' 6px 12px)',
+                    'fg' => '#fff',
+                ];
+            }
+            $href = $canEditEvents
+                ? '/calendar/events/' . (int)$ev['id'] . '/edit'
+                : '/calendar/day/' . date('Y-m-d', $dayStart);
+            $info = '<div class="calendar-info-head">#' . (int)$ev['id']
+                . ($isBlock ? ' · ' . t('calendar.day.block') : '') . '</div>'
+                . '<div>' . date('H:i', (int)$ev['dtstart']) . ' – ' . date('H:i', (int)$ev['dtend']) . '</div>'
+                . '<div>' . $client . '</div>';
+            if (!empty($ev['phone'])) {
+                $info .= '<div class="muted">' . (string)$ev['phone'] . '</div>';
+            }
+            if (!empty($ev['operator_name'])) {
+                $info .= '<div class="muted">' . (string)$ev['operator_name'] . '</div>';
+            }
+            if (!$isBlock && isset($ev['real_summ'])) {
+                $info .= '<div><b>' . number_format((float)$ev['real_summ'], 0, '.', ' ') . '</b></div>';
+            }
+            if (!empty($ev['descr'])) {
+                $info .= '<div class="muted">' . mb_substr((string)$ev['descr'], 0, 160) . '</div>';
+            }
+            $chips[] = [
+                'kind' => $isBlock ? 'block' : 'event',
+                'id' => (int)$ev['id'],
+                'href' => $href,
+                'top' => $pos['top'],
+                'height' => $pos['height'],
+                'left' => $lefts[$op] ?? 0.0,
+                'width' => $width,
+                'bg' => $color['bg'],
+                'fg' => $color['fg'],
+                'is_block' => $isBlock,
+                'label' => $label,
+                'title' => $label,
+                'info' => $info,
+            ];
+        }
+
+        return $chips;
+    }
+
+    /**
+     * Collect operator ids present in items.
+     *
+     * @param list<array<string,mixed>> ...$itemLists
+     * @return list<int>
+     */
+    public static function collectOperatorIds(array ...$itemLists): array
+    {
+        $ids = [];
+        foreach ($itemLists as $list) {
+            foreach ($list as $row) {
+                $op = (int)($row['id_operator'] ?? 0);
+                if ($op > 0) {
+                    $ids[$op] = true;
+                }
+            }
+        }
+        return array_keys($ids);
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array<int,array{bg:string,fg:string}>
+     */
+    public static function operatorColors(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if (!$ids || !Database::tableExists('base_users')) {
+            return [];
+        }
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT id, color, color_text FROM base_users WHERE id IN ($placeholders)"
+        );
+        $st->execute($ids);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $bg = trim((string)($row['color'] ?? ''));
+            $fg = trim((string)($row['color_text'] ?? ''));
+            if ($bg === '') {
+                $bg = 'var(--accent-soft)';
+            } else {
+                $bg = self::safeCssColor($bg, 'var(--accent-soft)');
+            }
+            if ($fg === '') {
+                $fg = 'var(--text)';
+            } else {
+                $fg = self::safeCssColor($fg, 'var(--text)');
+            }
+            $out[(int)$row['id']] = ['bg' => $bg, 'fg' => $fg];
+        }
+        return $out;
+    }
+
+    public static function safeCssColor(string $raw, string $fallback): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return $fallback;
+        }
+        if (preg_match(
+            '/^(?:#[0-9a-fA-F]{3,8}|rgba?\([^;<>{}]+\)|hsla?\([^;<>{}]+\)|[a-zA-Z]{1,30}|var\(--[a-zA-Z0-9\-]+\))$/',
+            $raw
+        )) {
+            return $raw;
+        }
+        return $fallback;
+    }
+
+    public static function shortName(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return '';
+        }
+        $parts = preg_split('/\s+/u', $name) ?: [];
+        if (count($parts) <= 1) {
+            return $parts[0] ?? $name;
+        }
+        $out = $parts[0];
+        if (isset($parts[1]) && $parts[1] !== '') {
+            $out .= ' ' . mb_substr($parts[1], 0, 1) . '.';
+        }
+        return $out;
+    }
+
+    /** Oper ShortName($name, 1): initials of each word, e.g. "Иванов Иван" → "ИИ". */
+    public static function acronym(string $name): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return '?';
+        }
+        $parts = preg_split('/\s+/u', $name) ?: [];
+        $out = '';
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+            $ch = mb_substr($part, 0, 1, 'UTF-8');
+            if ($ch !== '') {
+                $out .= mb_strtoupper($ch, 'UTF-8');
+            }
+        }
+        return $out !== '' ? $out : '?';
+    }
+}

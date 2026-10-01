@@ -1,0 +1,17 @@
+Options -Indexes
+DirectorySlash Off
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # /modules collides with the on-disk modules/ directory (Apache 403 with -Indexes).
+  # Always send it (and anything under it) to the front controller; never serve PHP from there.
+  RewriteRule ^modules/?$ index.php [L,QSA]
+  RewriteRule ^modules/ index.php [L,QSA]
+
+  # Block direct web access to internals
+  RewriteRule ^(app|cfg|bin|docs)/ - [F,L]
+
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.php [L]
+</IfModule>

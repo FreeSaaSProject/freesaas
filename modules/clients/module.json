@@ -1,0 +1,92 @@
+{
+  "id": "clients",
+  "name": "clients.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "clients.list",
+    "clients.statuses",
+    "clients.tags"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "clients.view", "label": "clients.perm.view" },
+    { "id": "clients.edit", "label": "clients.perm.edit" },
+    { "id": "clients.statuses", "label": "clients.perm.statuses" },
+    { "id": "clients.tags", "label": "clients.perm.tags" }
+  ],
+  "routes": {
+    "pages": [
+      "/clients",
+      "/clients/new",
+      "/clients/{id}",
+      "/clients/{id}/edit",
+      "/client-statuses",
+      "/client-statuses/new",
+      "/client-statuses/{id}/edit",
+      "/client-tags",
+      "/client-tags/new",
+      "/client-tags/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "clients.menu.group",
+      "num": 1,
+      "path": "/clients",
+      "title": "clients.menu.base"
+    },
+    {
+      "group": "clients.menu.group",
+      "num": 2,
+      "path": "/client-statuses",
+      "title": "clients.menu.statuses"
+    },
+    {
+      "group": "clients.menu.group",
+      "num": 3,
+      "path": "/client-tags",
+      "title": "clients.menu.tags"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_clients",
+    "base_client_statuses",
+    "base_shopusers_tags",
+    "base_client_tag_links"
+  ],
+  "migrators": [
+    {
+      "id": "phpshop_shopusers_status_to_base_client_statuses",
+      "mode": "replace",
+      "source": ["phpshop_shopusers_status"],
+      "target": ["base_client_statuses"]
+    },
+    {
+      "id": "phpshop_shopusers_to_base_clients",
+      "mode": "replace",
+      "source": ["phpshop_shopusers"],
+      "target": ["base_clients"]
+    },
+    {
+      "id": "phpshop_shopusers_tags_to_base_client_tag_links",
+      "mode": "replace",
+      "source": ["phpshop_shopusers"],
+      "target": ["base_client_tag_links"]
+    }
+  ],
+  "hooks": {
+    "subscribe": [
+      "core.dashboard.widgets"
+    ],
+    "publish": [
+      "clients bulk actions via BulkActions (list_id=clients, client_tags)"
+    ]
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "cabinets",
+  "name": "cabinets.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "cabinets.list"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "cabinets.view", "label": "cabinets.perm.view" },
+    { "id": "cabinets.edit", "label": "cabinets.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/cabinets",
+      "/cabinets/new",
+      "/cabinets/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "cabinets.menu.group",
+      "num": 3,
+      "path": "/cabinets",
+      "title": "cabinets.menu.list"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_cabinets"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "cabinets bulk actions via BulkActions (list_id=cabinets)"
+    ]
+  }
+}

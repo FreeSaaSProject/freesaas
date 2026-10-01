@@ -1,0 +1,45 @@
+{
+  "id": "units",
+  "name": "units.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "units.list"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "units.view", "label": "units.perm.view" },
+    { "id": "units.edit", "label": "units.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/units",
+      "/units/new",
+      "/units/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "units.menu.group",
+      "num": 1,
+      "path": "/units",
+      "title": "units.menu.list"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_units"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "units bulk actions via BulkActions (list_id=units)"
+    ]
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "workweeks",
+  "name": "workweeks.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "workweeks.day"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "workweeks.view", "label": "workweeks.perm.view" },
+    { "id": "workweeks.edit", "label": "workweeks.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/workweeks",
+      "/workweeks/day/{date}"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.team",
+      "num": 12,
+      "path": "/workweeks",
+      "title": "workweeks.menu.day"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_workweeks"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "workweeks.day (WorkweeksRepository::listForDay — calendar and analytics)"
+    ]
+  }
+}

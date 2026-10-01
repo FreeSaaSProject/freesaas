@@ -1,0 +1,74 @@
+{
+  "id": "catalog",
+  "name": "catalog.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {
+    "units": ">=0.1.0",
+    "suppliers": ">=0.1.0",
+    "procedures": ">=0.1.0"
+  },
+  "provides": [
+    "catalog.products",
+    "catalog.categories"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "catalog.view", "label": "catalog.perm.view" },
+    { "id": "catalog.edit", "label": "catalog.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/catalog",
+      "/catalog/{id}",
+      "/categories/new",
+      "/categories/{id}/edit",
+      "/products/new",
+      "/products/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "catalog.menu.group",
+      "num": 1,
+      "path": "/catalog",
+      "title": "catalog.menu.browse"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_categories",
+    "base_products",
+    "base_product_relations"
+  ],
+  "migrators": [
+    {
+      "id": "phpshop_categories_to_base_categories",
+      "mode": "replace",
+      "source": ["phpshop_categories"],
+      "target": ["base_categories"]
+    },
+    {
+      "id": "phpshop_products_to_base_products",
+      "mode": "replace",
+      "source": ["phpshop_products"],
+      "target": ["base_products"]
+    },
+    {
+      "id": "phpshop_product_relations_to_base_product_relations",
+      "mode": "replace",
+      "source": ["phpshop_product_relations"],
+      "target": ["base_product_relations"]
+    }
+  ],
+  "hooks": {
+    "subscribe": [
+      "core.bulk.check_item"
+    ],
+    "publish": []
+  }
+}

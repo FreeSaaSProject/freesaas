@@ -1,0 +1,89 @@
+<?php
+/** @var array $row */
+/** @var array $tree */
+/** @var int $commentCount */
+/** @var array $commentLikes */
+/** @var array $commentLiked */
+/** @var int $uid */
+/** @var bool $canManageTicket */
+/** @var array $statuses */
+/** @var ?array $status */
+/** @var array $respIds */
+/** @var array $staff */
+/** @var bool $contractLocked */
+
+require_once __DIR__ . '/_comment_tree.php';
+
+$nid = (int)$row['ID'];
+$isTicket = (int)$row['TYPE'] === 2;
+$hasDeadline = (int)$row['DT_DEADLINE'] > 0;
+$offerDefaultDl = date('Y-m-d', time() + 4 * 86400);
+$locked = !empty($row['COMMENTS_LOCKED']);
+?>
+<section class="comments" id="comments">
+  <div class="section-head">
+    <h2><?= te('comments.title', ['n' => (int)$commentCount]) ?></h2>
+    <a class="btn-ghost" href="#top">↑ <?= te('comments.to_top') ?></a>
+  </div>
+
+  <div class="comment-list">
+    <?php if ($tree): ?>
+      <?php render_comment_tree($tree, $commentLikes, $commentLiked, $uid, $nid); ?>
+    <?php else: ?>
+      <div class="muted"><?= te('comments.empty') ?></div>
+    <?php endif; ?>
+  </div>
+
+  <?php if (!$locked): ?>
+  <form method="post" class="comment-form widget" style="margin-top:1rem" id="comment-form">
+    <input type="hidden" name="action" value="comment">
+    <input type="hidden" name="reply_pid" id="reply_pid" value="0">
+    <h3><?= te('comments.leave') ?></h3>
+    <p class="muted reply-hint" id="reply-hint" hidden></p>
+
+    <?php
+      $ticketFields = EventBus::emit('comments.form.ticket_controls', [
+          'html' => '',
+          'row' => $row,
+          'is_ticket' => $isTicket,
+          'can_manage' => !empty($canManageTicket),
+          'statuses' => $statuses ?? [],
+          'status' => $status ?? null,
+          'resp_ids' => $respIds ?? [],
+          'staff' => $staff ?? [],
+          'contract_locked' => !empty($contractLocked),
+          'has_deadline' => $hasDeadline,
+          'uid' => $uid,
+      ]);
+      if (is_array($ticketFields) && !empty($ticketFields['html'])) {
+          echo $ticketFields['html'];
+      }
+    ?>
+
+    <label><?= te('comments.text') ?>
+      <textarea name="text" id="comment-field" rows="4" placeholder="<?= te('comments.placeholder') ?>"></textarea>
+    </label>
+
+    <?php
+      $offerFields = EventBus::emit('comments.form.offer_fields', [
+          'html' => '',
+          'row' => $row,
+          'is_ticket' => $isTicket,
+          'offer_default_dl' => $offerDefaultDl,
+          'uid' => $uid,
+      ]);
+      if (is_array($offerFields) && !empty($offerFields['html'])) {
+          echo $offerFields['html'];
+      }
+    ?>
+
+    <div class="page-actions">
+      <button class="btn-primary" type="submit"><?= te('comments.send') ?></button>
+      <button class="btn-secondary" type="button" id="reply-clear"><?= te('comments.clear_reply') ?></button>
+      <a class="btn-secondary" href="#top">↑ <?= te('comments.to_top') ?></a>
+    </div>
+  </form>
+  <?php else: ?>
+    <div class="flash flash-warn"><?= te('comments.locked') ?></div>
+  <?php endif; ?>
+</section>
