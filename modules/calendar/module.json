@@ -43,7 +43,22 @@
       "title": "calendar.menu.week"
     }
   ],
-  "configSchema": {},
+  "configSchema": {
+    "calendar": {
+      "manual_create": {
+        "type": "boolean",
+        "default": true
+      },
+      "hour_start": {
+        "type": "integer",
+        "default": 9
+      },
+      "hour_end": {
+        "type": "integer",
+        "default": 21
+      }
+    }
+  },
   "tables": [
     "base_events",
     "base_events_changes"

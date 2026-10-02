@@ -44,7 +44,9 @@
   "hooks": {
     "subscribe": [
       "core.notices.collect",
-      "core.bulk.check_item"
+      "core.bulk.check_item",
+      "core.dashboard.catalog",
+      "core.dashboard.widgets"
     ],
     "publish": [
       "orders.for_day (OrdersRepository::listForDayRange — consumed by calendar day view)"

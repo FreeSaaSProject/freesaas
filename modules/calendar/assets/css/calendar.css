@@ -119,6 +119,12 @@ tr.is-block td { opacity: 0.75; }
   gap: 0.4rem;
   align-items: center;
 }
+.page-head-compact {
+  margin-bottom: 0.75rem;
+}
+.page-head-compact .page-actions {
+  width: 100%;
+}
 .calendar-period-nav select#calendar-week-select {
   min-width: 16rem;
   max-width: 22rem;
@@ -412,4 +418,52 @@ tr.is-block td { opacity: 0.75; }
     flex: 1 1 8rem;
     max-width: 100%;
   }
+}
+
+/* Home mini day board */
+.calendar-board-wrap {
+  margin: 0.35rem 0 0;
+  overflow: auto;
+  max-height: 22rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+.calendar-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  min-width: 16rem;
+}
+.calendar-board-axis,
+.calendar-board-cell {
+  position: relative;
+}
+.calendar-board-hour {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border-top: 1px solid var(--line);
+  font-size: 0.65rem;
+  color: var(--muted);
+  padding: 0.05rem 0.15rem;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.calendar-board-slot {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.15);
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.calendar-board-chip {
+  cursor: pointer;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  text-align: left;
+  font: inherit;
+}
+.calendar-tl-chip-order {
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35);
 }

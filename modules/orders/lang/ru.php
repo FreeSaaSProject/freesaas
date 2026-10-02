@@ -98,5 +98,9 @@ return [
     'orders.notice.future_short' => 'ЗакБуд:{n}',
     'orders.notice.future_title' => 'Оформленные заказы (включая будущие)',
 
+    'orders.widget.quick.title' => 'Заказы',
+    'orders.widget.quick.today' => 'Сегодня',
+    'orders.widget.quick.future' => 'Все будущие',
+
     'orders.bulk.client_in_use' => 'Есть заказы ({n})',
 ];

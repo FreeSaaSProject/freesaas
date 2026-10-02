@@ -23,59 +23,16 @@ if ($myOnly) {
 }
 $staffFilter = $staffId > 0 ? $staffId : null;
 
+$canAssign = class_exists('WorkweeksRepository', false) && WorkweeksRepository::canAssign();
 $shiftFlash = '';
 $shiftError = '';
-$canAssign = class_exists('WorkweeksRepository', false) && WorkweeksRepository::canAssign();
-
-if ($canAssign && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['shift_action'])) {
-    $retStaff = (int)($_POST['staff'] ?? $staffId);
-    try {
-        $shiftFlash = WorkweeksRepository::handleDayPost($dayStart, $_POST);
-        $url = '/calendar/day/' . rawurlencode($dateParam);
-        $parts = [];
-        if ($retStaff > 0 && !$myOnly) {
-            $parts[] = 'staff=' . $retStaff;
-        }
-        $parts[] = 'shift_ok=1';
-        $url .= '?' . implode('&', $parts);
-        redirect($url);
-        return;
-    } catch (Throwable $e) {
-        $shiftError = $e->getMessage();
-    }
-}
-
 if (isset($_GET['shift_ok'])) {
     $shiftFlash = t('workweeks.msg.saved');
 }
 
 $events = EventsRepository::listForDayRange($dayStart, $dayEnd, $staffFilter);
-$orders = OrdersRepository::listForDayRange($dayStart - 1, $dayEnd, $staffFilter);
 $procedures = ProceduresRepository::listForDayRange($dayStart, $dayEnd, $staffFilter);
 $shifts = WorkweeksRepository::listForDay($dayStart);
-
-$procSum = 0.0;
-foreach ($procedures as $p) {
-    $procSum += (float)($p['summ'] ?? 0);
-}
-
-$staffOptions = [];
-foreach (UsersRepository::listForCopy() as $u) {
-    $label = trim((string)$u['name']);
-    if ($label === '') {
-        $label = (string)$u['login'];
-    }
-    $staffOptions[(int)$u['id']] = $label;
-}
-
-$assignableStaff = [];
-foreach (WorkweeksRepository::listAssignableStaff() as $sid => $info) {
-    $assignableStaff[$sid] = $info['label'];
-}
-$assignedIds = [];
-foreach ($shifts as $sh) {
-    $assignedIds[(int)$sh['id_operator']] = true;
-}
 
 $dateLabel = date('d.m.Y', $dayStart);
 $canEdit = Auth::can('calendar.edit');
@@ -144,7 +101,13 @@ $dayColumns = [[
     'shifts' => $shiftLabels,
     'chips' => $chips,
     'passed' => CalendarTimeline::passedOverlay($dayStart),
+    'manage' => $canAssign,
 ]];
+
+$openShiftDay = trim((string)($_GET['shift_day'] ?? ''));
+if ($openShiftDay !== 'all' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $openShiftDay)) {
+    $openShiftDay = '';
+}
 
 View::render('day', [
     'title' => t('calendar.day.title', ['date' => $dateLabel]),
@@ -159,24 +122,16 @@ View::render('day', [
     'nextDate' => $nextDate,
     'today' => $today,
     'staffId' => $staffId,
-    'staffOptions' => $myOnly ? [] : $staffOptions,
     'staffLocked' => $myOnly,
-    'orders' => $orders,
-    'procSum' => $procSum,
-    'eventsCount' => count($events),
-    'proceduresCount' => count($procedures),
-    'shifts' => $shifts,
-    'assignableStaff' => $assignableStaff,
-    'assignedIds' => $assignedIds,
     'canAssign' => $canAssign,
     'shiftFlash' => $shiftFlash,
     'shiftError' => $shiftError,
-    'canEdit' => $canEdit,
     'canCreate' => $canCreate,
     'dayColumns' => $dayColumns,
     'hours' => CalendarTimeline::hours(),
     'gridHeight' => CalendarTimeline::gridHeight(),
     'pxPerHour' => CalendarTimeline::PX_PER_HOUR,
     'retUrl' => $retDay,
+    'openShiftDay' => $openShiftDay,
     'main_flush' => true,
 ], 'layout', 'calendar');

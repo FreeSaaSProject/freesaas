@@ -83,10 +83,93 @@ final class Config
         self::persistModulesSection();
     }
 
+    /**
+     * Set a config value in memory and rewrite that key in cfg/config.ini.
+     * Preserves other lines/comments in the section.
+     */
+    public static function set(string $section, string $key, $value): void
+    {
+        $section = trim($section);
+        $key = trim($key);
+        if ($section === '' || $key === '' || !preg_match('/^[A-Za-z0-9_.-]+$/', $section)
+            || !preg_match('/^[A-Za-z0-9_.-]+$/', $key)
+        ) {
+            throw new InvalidArgumentException('Invalid config section/key');
+        }
+        if (self::$path === '' || !is_file(self::$path)) {
+            throw new RuntimeException(t('app.config.err.not_loaded'));
+        }
+        if (!isset(self::$data[$section]) || !is_array(self::$data[$section])) {
+            self::$data[$section] = [];
+        }
+        $str = is_bool($value) ? ($value ? '1' : '0') : (string)$value;
+        self::$data[$section][$key] = $str;
+        self::persistSectionKey($section, $key, $str);
+    }
+
     private static function truthyFlag($value): bool
     {
         $v = strtolower(trim((string)$value));
         return !in_array($v, ['0', 'false', 'off', 'no'], true);
+    }
+
+    /** Upsert one key inside [section]; create section at EOF if missing. */
+    private static function persistSectionKey(string $section, string $key, string $value): void
+    {
+        $raw = file_get_contents(self::$path);
+        if ($raw === false) {
+            throw new RuntimeException(t('app.config.err.read'));
+        }
+        $lines = preg_split("/\r\n|\n|\r/", $raw) ?: [];
+        $out = [];
+        $inSection = false;
+        $sectionFound = false;
+        $keyWritten = false;
+        $assignment = $key . '=' . $value;
+        $secLower = strtolower($section);
+
+        foreach ($lines as $line) {
+            if (preg_match('/^\s*\[([^\]]+)\]\s*$/', $line, $m)) {
+                if ($inSection && !$keyWritten) {
+                    $out[] = $assignment;
+                    $keyWritten = true;
+                }
+                $inSection = strtolower(trim($m[1])) === $secLower;
+                if ($inSection) {
+                    $sectionFound = true;
+                }
+                $out[] = $line;
+                continue;
+            }
+            if ($inSection && preg_match('/^\s*([A-Za-z0-9_.-]+)\s*=/', $line, $km)
+                && strcasecmp($km[1], $key) === 0
+            ) {
+                $out[] = $assignment;
+                $keyWritten = true;
+                continue;
+            }
+            $out[] = $line;
+        }
+        if ($inSection && !$keyWritten) {
+            $out[] = $assignment;
+            $keyWritten = true;
+        }
+        if (!$sectionFound) {
+            while ($out && end($out) === '') {
+                array_pop($out);
+            }
+            if ($out) {
+                $out[] = '';
+            }
+            $out[] = '[' . $section . ']';
+            $out[] = $assignment;
+        }
+        while ($out && end($out) === '') {
+            array_pop($out);
+        }
+        if (file_put_contents(self::$path, implode("\n", $out) . "\n") === false) {
+            throw new RuntimeException(t('app.config.err.write'));
+        }
     }
 
     private static function persistModulesSection(): void

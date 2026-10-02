@@ -35,8 +35,17 @@
       <?php elseif (isset($w['body']) && (string)$w['body'] !== ''): ?>
         <p><?= e((string)$w['body']) ?></p>
       <?php endif; ?>
-      <?php if (!empty($w['href'])): ?>
-        <a class="widget-link" href="<?= e((string)$w['href']) ?>"><?= te('core.home.open') ?></a>
+      <?php if (!empty($w['href']) || !empty($w['href_mobile'])): ?>
+        <?php
+          $hrefDesk = (string)($w['href'] ?? $w['href_mobile'] ?? '');
+          $hrefMob = (string)($w['href_mobile'] ?? $w['href'] ?? '');
+        ?>
+        <?php if ($hrefDesk !== '' && $hrefMob !== '' && $hrefDesk !== $hrefMob): ?>
+          <a class="widget-link widget-link-wide" href="<?= e($hrefDesk) ?>"><?= te('core.home.open') ?></a>
+          <a class="widget-link widget-link-narrow" href="<?= e($hrefMob) ?>"><?= te('core.home.open') ?></a>
+        <?php elseif ($hrefDesk !== ''): ?>
+          <a class="widget-link" href="<?= e($hrefDesk) ?>"><?= te('core.home.open') ?></a>
+        <?php endif; ?>
       <?php endif; ?>
     </article>
   <?php endforeach; ?>

@@ -34,6 +34,53 @@ EventBus::on('core.notices.collect', static function ($notices) {
     return $notices;
 });
 
+EventBus::on('core.dashboard.catalog', static function ($catalog) {
+    if (!is_array($catalog)) {
+        $catalog = [];
+    }
+    if (!Auth::can('orders.view') || !Database::tableExists('base_orders')) {
+        return $catalog;
+    }
+    $catalog[] = [
+        'id' => 'orders.quick',
+        'title' => t('orders.widget.quick.title'),
+        'module' => 'orders',
+        'default_order' => 12,
+        'default_on' => true,
+        'settings' => [],
+    ];
+    return $catalog;
+});
+
+EventBus::on('core.dashboard.widgets', static function ($widgets) {
+    if (!is_array($widgets)) {
+        $widgets = [];
+    }
+    if (!Auth::can('orders.view') || !Database::tableExists('base_orders')) {
+        return $widgets;
+    }
+    if (!DashboardWidgets::isEnabled('orders.quick')) {
+        return $widgets;
+    }
+
+    $todayN = (int)(OrdersRepository::list(['status' => 'newToday', 'limit' => 1])['total'] ?? 0);
+    $futureN = (int)(OrdersRepository::list(['status' => 'new', 'limit' => 1])['total'] ?? 0);
+
+    $html = View::capture('_widget_quick', [
+        'todayCount' => $todayN,
+        'futureCount' => $futureN,
+    ], 'orders');
+
+    $widgets[] = [
+        'id' => 'orders.quick',
+        'title' => t('orders.widget.quick.title'),
+        'html' => $html,
+        'tone' => ($todayN + $futureN) > 0 ? 'warn' : 'neutral',
+        'size' => 'sm',
+    ];
+    return $widgets;
+});
+
 EventBus::on('core.bulk.check_item', static function (array $payload): array {
     if (!empty($payload['blocked'])) {
         return $payload;

@@ -42,23 +42,18 @@ foreach ($dayColumns as $col) {
     }
 }
 ?>
-<section class="page-head">
-  <div class="page-head-row">
-    <div>
-      <h1><?= te('calendar.week.title', ['range' => $rangeLabel]) ?></h1>
-    </div>
-    <div class="page-actions calendar-period-nav" data-calendar-nav="week"
-         data-prev="<?= e($weekUrl($prevWeek)) ?>"
-         data-next="<?= e($weekUrl($nextWeek)) ?>">
-      <a class="btn-secondary" href="<?= e($weekUrl($prevWeek)) ?>" title="<?= te('calendar.week.prev') ?>" aria-label="<?= te('calendar.week.prev') ?>">«</a>
-      <select id="calendar-week-select" aria-label="<?= te('calendar.week.pick') ?>">
-        <?php foreach ($weekOptions as $opt): ?>
-          <option value="<?= e($opt['value']) ?>"<?= $opt['value'] === $monday ? ' selected' : '' ?><?= !empty($opt['current']) ? ' class="is-current-week"' : '' ?>><?= e($opt['label']) ?></option>
-        <?php endforeach; ?>
-      </select>
-      <a class="btn-secondary" href="<?= e($weekUrl($nextWeek)) ?>" title="<?= te('calendar.week.next') ?>" aria-label="<?= te('calendar.week.next') ?>">»</a>
-      <a class="btn-secondary" href="<?= e($dayUrl($dayLinkDate)) ?>"><?= te('calendar.week.to_day') ?></a>
-    </div>
+<section class="page-head page-head-compact">
+  <div class="page-actions calendar-period-nav" data-calendar-nav="week"
+       data-prev="<?= e($weekUrl($prevWeek)) ?>"
+       data-next="<?= e($weekUrl($nextWeek)) ?>">
+    <a class="btn-secondary" href="<?= e($weekUrl($prevWeek)) ?>" title="<?= te('calendar.week.prev') ?>" aria-label="<?= te('calendar.week.prev') ?>">«</a>
+    <select id="calendar-week-select" aria-label="<?= te('calendar.week.pick') ?>">
+      <?php foreach ($weekOptions as $opt): ?>
+        <option value="<?= e($opt['value']) ?>"<?= $opt['value'] === $monday ? ' selected' : '' ?><?= !empty($opt['current']) ? ' class="is-current-week"' : '' ?>><?= e($opt['label']) ?></option>
+      <?php endforeach; ?>
+    </select>
+    <a class="btn-secondary" href="<?= e($weekUrl($nextWeek)) ?>" title="<?= te('calendar.week.next') ?>" aria-label="<?= te('calendar.week.next') ?>">»</a>
+    <a class="btn-secondary" href="<?= e($dayUrl($dayLinkDate)) ?>"><?= te('calendar.week.to_day') ?></a>
   </div>
 </section>
 

@@ -520,6 +520,10 @@ final class EventsRepository
     /** Whether current user may create events (module perm + status flag). */
     public static function canCreate(): bool
     {
+        $manual = strtolower(trim((string)Config::get('calendar', 'manual_create', '1')));
+        if (in_array($manual, ['0', 'false', 'off', 'no'], true)) {
+            return false;
+        }
         return Auth::can('calendar.edit') && Auth::capability('EVT_CREATE_NEW');
     }
 

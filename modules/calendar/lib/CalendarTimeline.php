@@ -298,6 +298,83 @@ final class CalendarTimeline
     }
 
     /**
+     * Compact home-widget board: procedures + events (no blocks) + orders,
+     * full-width columns (no staff lanes). Chip click opens popup (href=#).
+     *
+     * @param list<array<string,mixed>> $events
+     * @param list<array<string,mixed>> $procedures
+     * @param list<array<string,mixed>> $orders
+     * @return list<array<string,mixed>>
+     */
+    public static function chipsForBoard(int $dayStart, array $events, array $procedures, array $orders): array
+    {
+        $events = array_values(array_filter(
+            $events,
+            static fn(array $ev): bool => empty($ev['is_block'])
+        ));
+        $opIds = self::collectOperatorIds($events, $procedures);
+        $colors = self::operatorColors($opIds);
+        $stacks = ['width' => 96.0, 'lefts' => [0 => 2.0]];
+        foreach ($opIds as $oid) {
+            $stacks['lefts'][$oid] = 2.0;
+        }
+
+        $chips = self::chipsForDay($dayStart, $events, $procedures, $stacks, $colors, Auth::can('calendar.edit'));
+        foreach ($chips as &$chip) {
+            $chip['left'] = 2.0;
+            $chip['width'] = 96.0;
+            $chip['href'] = '#';
+        }
+        unset($chip);
+
+        foreach ($orders as $ord) {
+            $ts = (int)($ord['dt_event'] ?? 0);
+            if ($ts <= 0) {
+                continue;
+            }
+            $pos = self::position($dayStart, $ts, $ts + 1800);
+            $phone = trim((string)($ord['phone'] ?? ''));
+            $status = trim((string)($ord['status'] ?? ''));
+            $label = date('H:i', $ts) . ' ' . t('calendar.widget.board.order');
+            if ($phone !== '') {
+                $label .= ' ' . $phone;
+            }
+            $info = '<div class="calendar-info-head">' . t('calendar.widget.board.order')
+                . ' #' . (int)($ord['id'] ?? 0) . '</div>'
+                . '<div>' . date('H:i', $ts) . '</div>';
+            if ($phone !== '') {
+                $info .= '<div>' . $phone . '</div>';
+            }
+            if ($status !== '') {
+                $info .= '<div class="muted">' . $status . '</div>';
+            }
+            if (isset($ord['summ_real'])) {
+                $info .= '<div><b>' . number_format((float)$ord['summ_real'], 0, '.', ' ') . '</b></div>';
+            }
+            $chips[] = [
+                'kind' => 'order',
+                'id' => (int)($ord['id'] ?? 0),
+                'href' => '#',
+                'top' => $pos['top'],
+                'height' => $pos['height'],
+                'left' => 2.0,
+                'width' => 96.0,
+                'bg' => 'rgba(251, 191, 36, 0.35)',
+                'fg' => 'var(--text)',
+                'is_block' => false,
+                'label' => $label,
+                'title' => $label,
+                'info' => $info,
+            ];
+        }
+
+        usort($chips, static function (array $a, array $b): int {
+            return ((int)$a['top'] <=> (int)$b['top']) ?: ((int)$a['id'] <=> (int)$b['id']);
+        });
+        return $chips;
+    }
+
+    /**
      * Collect operator ids present in items.
      *
      * @param list<array<string,mixed>> ...$itemLists

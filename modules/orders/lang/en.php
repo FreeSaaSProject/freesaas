@@ -98,5 +98,9 @@ return [
     'orders.notice.future_short' => 'OrdSoon:{n}',
     'orders.notice.future_title' => 'Placed orders (including future)',
 
+    'orders.widget.quick.title' => 'Orders',
+    'orders.widget.quick.today' => 'Today',
+    'orders.widget.quick.future' => 'All upcoming',
+
     'orders.bulk.client_in_use' => 'Has orders ({n})',
 ];
