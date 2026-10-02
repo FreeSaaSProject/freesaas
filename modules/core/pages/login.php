@@ -19,7 +19,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $brand = (string)Config::get('app', 'name', 'FreeSaaS');
-$instance = (string)Config::get('app', 'instance', '');
+$instance = SystemRepository::companyName();
 View::render('login', [
     'title' => t('core.login.title'),
     'error' => $error,

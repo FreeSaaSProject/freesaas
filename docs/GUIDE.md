@@ -184,6 +184,8 @@ modules/<id>/
 | **comments** | Дерево комментариев на карточке новости; likes; prepare_add / form hooks |
 | **contracts** | Список контрактов, офферы в форме комментария, actions на комментариях, виджеты/нотисы |
 | **clients** | Клиентская база (`base_clients`) и статусы клиентов (`base_client_statuses`) |
+| **rates** / **procents** / **payments** / **vacations** | Бухгалтерия: ставки, начисления, взаиморасчёты, отпуска |
+| **ledger** / **funds** / **finance** | Финансы (планируется, волна 2) |
 
 ---
 
@@ -220,6 +222,7 @@ modules/<id>/
 
 | Событие | Кто emit | Зачем |
 |---------|----------|--------|
+| `core.dashboard.catalog` | home / dashboard | Каталог виджетов рабочего стола |
 | `core.dashboard.widgets` | home | Виджеты на главной |
 | `core.notices.collect` | layout | Колокольчик / notices |
 | `core.news_item.handle_post` | news_item | POST-actions (like, comment…) |
@@ -231,6 +234,8 @@ modules/<id>/
 | `comments.render_actions` | comments view | Кнопки на комментарии (contracts) |
 | `core.auth.after_login` | Auth | После успешного входа |
 | `core.bulk.check_item` | BulkActions | Перед id в групповой операции: `blocked` / `reason` |
+| `core.settings.sections` | settings | HTML-блоки модулей на `/settings` |
+| `core.settings.save` | settings | Сохранение полей, добавленных модулями |
 
 Слушатели регистрируются в `bootstrap.php` модуля. Порядок = порядок boot модулей (сортировка по id).
 

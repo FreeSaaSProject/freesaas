@@ -111,12 +111,29 @@ EventBus::on('core.notices.collect', static function ($notices) {
     return $notices;
 });
 
+EventBus::on('core.dashboard.catalog', static function ($catalog) {
+    if (!is_array($catalog)) {
+        $catalog = [];
+    }
+    if (Auth::userId() < 1) {
+        return $catalog;
+    }
+    $catalog[] = [
+        'id' => 'contracts.mine',
+        'title' => t('contracts.menu.list'),
+        'module' => 'contracts',
+        'default_order' => 20,
+        'default_on' => true,
+    ];
+    return $catalog;
+});
+
 EventBus::on('core.dashboard.widgets', static function ($widgets) {
     if (!is_array($widgets)) {
         $widgets = [];
     }
     $uid = Auth::userId();
-    if ($uid < 1) {
+    if ($uid < 1 || !DashboardWidgets::isEnabled('contracts.mine')) {
         return $widgets;
     }
     $open = ContractsRepository::countRaw(
@@ -134,14 +151,13 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             [time()]
         );
     }
-    if ($open > 0 || $newCount > 0) {
-        $widgets[] = [
-            'id' => 'contracts.mine',
-            'title' => t('contracts.menu.list'),
-            'body' => t('contracts.widget.body', ['open' => $open, 'new' => $newCount]),
-            'tone' => $open > 0 ? 'warn' : 'ok',
-            'href' => '/contracts',
-        ];
-    }
+    $widgets[] = [
+        'id' => 'contracts.mine',
+        'title' => t('contracts.menu.list'),
+        'body' => t('contracts.widget.body', ['open' => $open, 'new' => $newCount]),
+        'tone' => $open > 0 ? 'warn' : 'ok',
+        'href' => '/contracts',
+        'size' => 'sm',
+    ];
     return $widgets;
 });

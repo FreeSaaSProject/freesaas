@@ -1,0 +1,79 @@
+{
+  "id": "stickers",
+  "name": "stickers.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "stocks": ">=0.1.0",
+    "catalog": ">=0.1.0"
+  },
+  "optionalRequires": {
+    "suppliers": ">=0.1.0",
+    "units": ">=0.1.0"
+  },
+  "provides": [
+    "stickers.receipts",
+    "stickers.writeoff"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "stickers.view", "label": "stickers.perm.view" },
+    { "id": "stickers.edit", "label": "stickers.perm.edit" },
+    { "id": "stickers.writeoff", "label": "stickers.perm.writeoff" }
+  ],
+  "routes": {
+    "pages": [
+      "/stickers/receipts",
+      "/stickers/receipts/new",
+      "/stickers/receipts/{id}/edit",
+      "/stickers/ins",
+      "/stickers/ins/new",
+      "/stickers/ins/{id}/edit",
+      "/stickers/outs",
+      "/stickers/writeoffs",
+      "/stickers/writeoffs/new",
+      "/stickers/writeoffs/{id}/edit",
+      "/stickers/writeoff"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.warehouse",
+      "num": 2,
+      "path": "/stickers/receipts",
+      "title": "stickers.menu.receipts"
+    },
+    {
+      "group": "core.menu.group.warehouse",
+      "num": 3,
+      "path": "/stickers/ins",
+      "title": "stickers.menu.ins"
+    },
+    {
+      "group": "core.menu.group.warehouse",
+      "num": 4,
+      "path": "/stickers/writeoffs",
+      "title": "stickers.menu.writeoffs"
+    },
+    {
+      "group": "core.menu.group.warehouse",
+      "num": 5,
+      "path": "/stickers/outs",
+      "title": "stickers.menu.outs"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_acts2_in",
+    "base_acts2_out",
+    "base_good_sticker_ins",
+    "base_good_sticker_outs"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": []
+  }
+}

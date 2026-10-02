@@ -107,4 +107,13 @@ return [
     'calendar.event.err.no_create' => 'Нет права создавать события',
     'calendar.event.err.no_modify' => 'Нет права изменять событие',
     'calendar.event.err.no_delete' => 'Нет права удалять событие',
+    'calendar.widget.upcoming.title' => 'Ближайшие события',
+    'calendar.widget.upcoming.empty' => 'На ближайшие 7 дней событий нет',
+    'calendar.widget.upcoming.scope_mine' => 'Только ваши события',
+    'calendar.widget.upcoming.scope_all' => 'Все события',
+    'calendar.widget.upcoming.unnamed' => 'Без названия',
+    'calendar.settings.work_hours' => 'Рабочие часы календаря',
+    'calendar.settings.work_hours_hint' => 'Ось времени в календаре (включительно). Источник: base_system.work_hour_start / work_hour_end.',
+    'calendar.settings.field_hour_start' => 'Час начала',
+    'calendar.settings.field_hour_end' => 'Час окончания',
 ];

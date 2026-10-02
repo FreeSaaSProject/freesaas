@@ -261,3 +261,15 @@ $backHref = $backHref ?? '/catalog';
   <button class="btn-secondary" type="submit"><?= te('catalog.rel.recalc_btn') ?></button>
 </form>
 <?php endif; ?>
+
+<?php
+$extra = EventBus::emit('catalog.product_edit.after', [
+    'product_id' => $pid,
+    'is_new' => $isNew,
+    'row' => $row,
+    'html' => '',
+]);
+if (!empty($extra['html'])) {
+    echo $extra['html'];
+}
+?>

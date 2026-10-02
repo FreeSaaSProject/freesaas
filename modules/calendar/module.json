@@ -11,7 +11,10 @@
     "orders": ">=0.1.0",
     "workweeks": ">=0.1.0"
   },
-  "optionalRequires": {},
+  "optionalRequires": {
+    "cabinets": ">=0.1.0",
+    "tables": ">=0.1.0"
+  },
   "provides": [
     "calendar.week",
     "calendar.day"
@@ -47,7 +50,12 @@
   ],
   "migrators": [],
   "hooks": {
-    "subscribe": [],
+    "subscribe": [
+      "core.dashboard.catalog",
+      "core.dashboard.widgets",
+      "core.settings.sections",
+      "core.settings.save"
+    ],
     "publish": [
       "calendar.day embeds workweeks panel; consumes orders.for_day and procedures day range"
     ]

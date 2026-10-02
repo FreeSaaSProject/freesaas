@@ -302,11 +302,11 @@ final class ProceduresRepository
         return $row ?: null;
     }
 
-    /** Cabinets off → station id is always 1. */
+    /** Tables module off → massage-table id is always 1. */
     public static function normalizeTableId(int $idTable): int
     {
-        if (!ModuleManager::isEnabled('cabinets') || !Database::tableExists('base_cabinets')) {
-            return 1;
+        if (class_exists('TablesRepository', false)) {
+            return TablesRepository::normalizeId($idTable);
         }
         return $idTable > 0 ? $idTable : 1;
     }

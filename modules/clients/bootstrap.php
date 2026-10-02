@@ -112,11 +112,28 @@ BulkActions::register('client_tags', 'delete', [
     },
 ]);
 
+EventBus::on('core.dashboard.catalog', static function ($catalog) {
+    if (!is_array($catalog)) {
+        $catalog = [];
+    }
+    if (!Database::tableExists('base_clients')) {
+        return $catalog;
+    }
+    $catalog[] = [
+        'id' => 'clients.count',
+        'title' => t('clients.widget.title'),
+        'module' => 'clients',
+        'default_order' => 80,
+        'default_on' => false,
+    ];
+    return $catalog;
+});
+
 EventBus::on('core.dashboard.widgets', static function ($widgets) {
     if (!is_array($widgets)) {
         $widgets = [];
     }
-    if (!Database::tableExists('base_clients')) {
+    if (!Database::tableExists('base_clients') || !DashboardWidgets::isEnabled('clients.count')) {
         return $widgets;
     }
     $active = 0;
@@ -133,6 +150,7 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
         'body' => t('clients.widget.body', ['n' => $active]),
         'tone' => 'ok',
         'href' => '/clients',
+        'size' => 'sm',
     ];
     return $widgets;
 });

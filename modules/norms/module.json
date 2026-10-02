@@ -1,0 +1,46 @@
+{
+  "id": "norms",
+  "name": "norms.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "catalog": ">=0.1.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "norms.list"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "norms.view", "label": "norms.perm.view" },
+    { "id": "norms.edit", "label": "norms.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/norms",
+      "/norms/new",
+      "/norms/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.warehouse",
+      "num": 6,
+      "path": "/norms",
+      "title": "norms.menu.list"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_good_defaults"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [
+      "catalog.product_edit.after"
+    ],
+    "publish": []
+  }
+}

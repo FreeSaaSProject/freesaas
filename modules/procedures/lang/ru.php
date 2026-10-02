@@ -49,7 +49,7 @@ return [
     'procedures.view.dtcreate' => 'Создана',
     'procedures.view.dtend_plan' => 'План конца',
     'procedures.view.summ_default' => 'Сумма по умолчанию',
-    'procedures.view.id_table' => 'Стол / место',
+    'procedures.view.id_table' => 'Массажный стол',
     'procedures.view.id_terminal' => 'Терминал',
     'procedures.view.id_event_parent' => 'Родительское событие',
     'procedures.view.onec_id' => '1C ID',

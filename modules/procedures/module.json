@@ -8,7 +8,9 @@
     "clients": ">=0.1.0",
     "catalog": ">=0.1.0"
   },
-  "optionalRequires": {},
+  "optionalRequires": {
+    "tables": ">=0.1.0"
+  },
   "provides": [
     "procedures.list",
     "procedures.types"

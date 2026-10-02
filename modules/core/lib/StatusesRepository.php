@@ -35,6 +35,13 @@ final class StatusesRepository
                 ],
             ],
             [
+                'title' => 'core.statuses.group.accounting',
+                'when' => 'always',
+                'fields' => [
+                    ['key' => 'CAN_SEE_SUM_OTHERS', 'label' => 'core.statuses.field.CAN_SEE_SUM_OTHERS', 'type' => 'checkbox'],
+                ],
+            ],
+            [
                 'title' => 'core.statuses.group.news',
                 'when' => 'always',
                 'fields' => [

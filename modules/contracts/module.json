@@ -27,7 +27,7 @@
   "menu": [
     {
       "group": "core.menu.group.desktop",
-      "num": 5,
+      "num": 3,
       "path": "/contracts",
       "title": "contracts.menu.list"
     }
@@ -43,6 +43,7 @@
       "comments.render_actions",
       "comments.form.offer_fields",
       "comments.prepare_add",
+      "core.dashboard.catalog",
       "core.dashboard.widgets",
       "core.notices.collect"
     ],

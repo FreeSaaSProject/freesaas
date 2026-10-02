@@ -2,8 +2,9 @@
 /** @var string $content */
 /** @var string $title */
 $brand = (string)Config::get('app', 'name', 'FreeSaaS');
-$instance = (string)Config::get('app', 'instance', '');
-$menuGrouped = ModuleManager::menuGrouped();
+$instance = SystemRepository::companyName();
+$titleSuffix = $instance !== '' ? $instance : $brand;
+$menuItemsFlat = ModuleManager::menuItems();
 $path = request_path();
 $userName = Auth::check() ? Auth::displayName() : '';
 $userId = Auth::check() ? Auth::userId() : 0;
@@ -42,7 +43,11 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?= e($title ?? t('core.menu.home')) ?> · <?= e($brand) ?></title>
+  <title><?= e($title ?? t('core.menu.home')) ?> · <?= e($titleSuffix) ?></title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180">
   <script>
   (function () {
     try {
@@ -69,10 +74,7 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
     <button type="button" class="topbar-menu" id="nav-open" aria-label="<?= te('core.layout.open_menu') ?>" aria-controls="rail" aria-expanded="false">
       <span class="topbar-menu-icon" aria-hidden="true"></span>
     </button>
-    <a class="topbar-brand" href="/"><?= e($brand) ?></a>
-    <?php if ($instance !== ''): ?>
-      <span class="topbar-instance"><?= e($instance) ?></span>
-    <?php endif; ?>
+    <?php $brandClass = 'topbar-brand'; require __DIR__ . '/_brand.php'; ?>
     <div class="topbar-spacer"></div>
     <?php require __DIR__ . '/_lang_switch.php'; ?>
     <div class="theme-switch" data-theme-switch role="group" aria-label="<?= te('core.layout.theme') ?>">
@@ -90,28 +92,64 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
 
   <aside class="rail" id="rail">
     <div class="rail-top">
-      <a class="rail-brand" href="/"><?= e($brand) ?></a>
+      <?php $brandClass = 'rail-brand'; require __DIR__ . '/_brand.php'; ?>
       <button type="button" class="rail-toggle" id="rail-toggle" title="<?= te('core.layout.hide_menu') ?>" aria-label="<?= te('core.layout.hide_menu') ?>">‹</button>
       <button type="button" class="rail-close" id="nav-close" title="<?= te('core.layout.close_menu') ?>" aria-label="<?= te('core.layout.close_menu') ?>">×</button>
     </div>
-    <?php if ($instance !== ''): ?>
-      <div class="rail-instance"><?= e($instance) ?></div>
-    <?php endif; ?>
-    <nav class="rail-nav">
-      <?php foreach ($menuGrouped as $group => $items): ?>
-        <div class="rail-group">
-          <div class="rail-group-title"><?= e($group) ?></div>
-          <?php foreach ($items as $item): ?>
-            <?php
-              $itemPath = parse_url((string)$item['path'], PHP_URL_PATH);
-              $itemPath = is_string($itemPath) && $itemPath !== '' ? $itemPath : (string)$item['path'];
-              $active = ($path === $itemPath)
+    <nav class="rail-nav" id="rail-nav">
+      <?php
+        $railGroups = [];
+        foreach ($menuItemsFlat as $item) {
+            $groupLabel = (string)$item['group'];
+            $groupKey = (string)($item['group_key'] ?? $groupLabel);
+            $itemPath = parse_url((string)$item['path'], PHP_URL_PATH);
+            $itemPath = is_string($itemPath) && $itemPath !== '' ? $itemPath : (string)$item['path'];
+            $active = ($path === $itemPath)
                 || ($itemPath !== '/' && strpos($path, rtrim($itemPath, '/') . '/') === 0);
-            ?>
-            <a href="<?= e($item['path']) ?>"<?= $active ? ' class="is-active"' : '' ?> title="<?= e($item['title']) ?>">
-              <span class="rail-link-text"><?= e($item['title']) ?></span>
-            </a>
-          <?php endforeach; ?>
+            $last = count($railGroups) - 1;
+            if ($last < 0 || $railGroups[$last]['label'] !== $groupLabel) {
+                $railGroups[] = [
+                    'key' => $groupKey,
+                    'label' => $groupLabel,
+                    'has_active' => false,
+                    'items' => [],
+                ];
+                $last = count($railGroups) - 1;
+            }
+            if ($active) {
+                $railGroups[$last]['has_active'] = true;
+            }
+            $railGroups[$last]['items'][] = [
+                'path' => (string)$item['path'],
+                'title' => (string)$item['title'],
+                'active' => $active,
+            ];
+        }
+        $openIndex = null;
+        foreach ($railGroups as $i => $g) {
+            if ($g['has_active']) {
+                $openIndex = $i;
+                break;
+            }
+        }
+        foreach ($railGroups as $i => $g):
+            $isOpen = ($openIndex !== null && $i === $openIndex);
+      ?>
+        <div class="rail-group<?= $isOpen ? ' is-open' : '' ?>" data-group-key="<?= e($g['key']) ?>">
+          <button type="button"
+                  class="rail-group-toggle"
+                  aria-expanded="<?= $isOpen ? 'true' : 'false' ?>"
+                  aria-label="<?= te('core.layout.menu_group_toggle', ['group' => $g['label']]) ?>">
+            <span class="rail-group-title"><?= e($g['label']) ?></span>
+            <span class="rail-group-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="rail-group-body">
+            <?php foreach ($g['items'] as $link): ?>
+              <a href="<?= e($link['path']) ?>"<?= $link['active'] ? ' class="is-active"' : '' ?> title="<?= e($link['title']) ?>">
+                <span class="rail-link-text"><?= e($link['title']) ?></span>
+              </a>
+            <?php endforeach; ?>
+          </div>
         </div>
       <?php endforeach; ?>
     </nav>

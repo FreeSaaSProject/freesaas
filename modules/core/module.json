@@ -27,6 +27,7 @@
   "routes": {
     "pages": [
       "/",
+      "/dashboard",
       "/login",
       "/locale",
       "/logout",
@@ -61,25 +62,25 @@
     },
     {
       "group": "core.menu.group.team",
-      "num": 10,
+      "num": 1,
       "path": "/users",
       "title": "core.menu.users"
     },
     {
       "group": "core.menu.group.team",
-      "num": 11,
+      "num": 2,
       "path": "/statuses",
       "title": "core.menu.statuses"
     },
     {
       "group": "core.menu.group.system",
-      "num": 20,
+      "num": 1,
       "path": "/settings",
       "title": "core.menu.settings"
     },
     {
       "group": "core.menu.group.system",
-      "num": 21,
+      "num": 2,
       "path": "/modules",
       "title": "core.menu.modules"
     }
@@ -100,7 +101,7 @@
       }
     }
   },
-  "tables": [
+    "tables": [
     "base_users",
     "base_system",
     "base_modules",
@@ -108,7 +109,8 @@
     "base_news",
     "base_news_statuses",
     "base_admin_statuses",
-    "base_views"
+    "base_views",
+    "base_user_prefs"
   ],
   "migrators": [
     {
@@ -139,6 +141,7 @@
     ],
     "publish": [
       "core.auth.after_login",
+      "core.dashboard.catalog",
       "core.dashboard.widgets",
       "core.menu.collect",
       "core.notices.collect",
@@ -146,7 +149,9 @@
       "core.news_item.meta",
       "core.news_item.section",
       "core.user_edit.sections",
-      "core.user_edit.save"
+      "core.user_edit.save",
+      "core.settings.sections",
+      "core.settings.save"
     ]
   }
 }

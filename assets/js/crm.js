@@ -203,6 +203,8 @@
   var body = document.body;
   var toggle = document.getElementById('rail-toggle');
   var expand = document.getElementById('rail-expand');
+  var RAIL_GROUP_KEY = 'freesaas.rail.group';
+  var railNav = document.getElementById('rail-nav');
 
   function isMobileNav() {
     return window.matchMedia('(max-width: 900px)').matches;
@@ -213,6 +215,115 @@
     body.classList.toggle('rail-collapsed', !!on);
     if (expand) expand.hidden = !on;
     try { localStorage.setItem(RAIL_KEY, on ? '1' : '0'); } catch (e) {}
+  }
+
+  function applyRailGroupOpen(isOpenFn, persistEl) {
+    if (!railNav) return;
+    var groups = railNav.querySelectorAll('.rail-group');
+    groups.forEach(function (g) {
+      var open = !!isOpenFn(g);
+      g.classList.toggle('is-open', open);
+      var btn = g.querySelector('.rail-group-toggle');
+      if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    if (persistEl) {
+      var key = persistEl.getAttribute('data-group-key') || '';
+      if (key) {
+        try { localStorage.setItem(RAIL_GROUP_KEY, key); } catch (e) {}
+      }
+    }
+  }
+
+  if (railNav) {
+    function findPinnedRailGroup() {
+      var activeLink = railNav.querySelector('a.is-active');
+      if (activeLink) return activeLink.closest('.rail-group');
+      var open = railNav.querySelector('.rail-group.is-open');
+      if (open) return open;
+      var saved = null;
+      try { saved = localStorage.getItem(RAIL_GROUP_KEY); } catch (e) {}
+      var groups = railNav.querySelectorAll('.rail-group');
+      if (saved) {
+        for (var i = 0; i < groups.length; i++) {
+          if (groups[i].getAttribute('data-group-key') === saved) return groups[i];
+        }
+      }
+      return groups[0] || null;
+    }
+
+    var pinnedGroup = findPinnedRailGroup();
+
+    function showOnlyPinned(persist) {
+      if (!pinnedGroup) return;
+      applyRailGroupOpen(function (g) { return g === pinnedGroup; }, persist ? pinnedGroup : null);
+    }
+
+    function peekRailGroup(groupEl) {
+      if (!groupEl) return;
+      applyRailGroupOpen(function (g) {
+        return g === groupEl || g === pinnedGroup;
+      }, null);
+    }
+
+    if (pinnedGroup) showOnlyPinned(!railNav.querySelector('a.is-active'));
+
+    function canHoverRail() {
+      return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    }
+
+    var peekTimer = null;
+    var peekPending = null;
+    var PEEK_DELAY_MS = 500;
+
+    function clearPeekTimer() {
+      if (peekTimer) {
+        clearTimeout(peekTimer);
+        peekTimer = null;
+      }
+      peekPending = null;
+    }
+
+    function schedulePeek(group) {
+      if (group === peekPending) return;
+
+      if (group === pinnedGroup) {
+        clearPeekTimer();
+        showOnlyPinned(false);
+        return;
+      }
+
+      if (group.classList.contains('is-open')) return;
+
+      clearPeekTimer();
+      peekPending = group;
+      peekTimer = setTimeout(function () {
+        peekTimer = null;
+        peekPending = null;
+        peekRailGroup(group);
+      }, PEEK_DELAY_MS);
+    }
+
+    railNav.addEventListener('mouseover', function (ev) {
+      if (!canHoverRail()) return;
+      var group = ev.target.closest('.rail-group');
+      if (!group || !railNav.contains(group)) return;
+      schedulePeek(group);
+    });
+
+    railNav.addEventListener('mouseleave', function () {
+      if (!canHoverRail()) return;
+      clearPeekTimer();
+      showOnlyPinned(false);
+    });
+
+    railNav.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('.rail-group-toggle');
+      if (!btn || !railNav.contains(btn)) return;
+      var group = btn.closest('.rail-group');
+      if (!group) return;
+      clearPeekTimer();
+      peekRailGroup(group);
+    });
   }
 
   try {
@@ -507,4 +618,58 @@
       });
     }
   });
+})();
+
+// Dashboard sortable lists (widgets + menu)
+(function () {
+  function bindSortable(list) {
+    var dragEl = null;
+
+    function items() {
+      return Array.prototype.slice.call(list.children).filter(function (el) {
+        return el.classList.contains('dashboard-layout-item');
+      });
+    }
+
+    list.addEventListener('dragstart', function (e) {
+      var handle = e.target.closest('.dashboard-drag-handle');
+      if (!handle || !list.contains(handle)) return;
+      var li = handle.closest('.dashboard-layout-item');
+      if (!li || !list.contains(li)) return;
+      dragEl = li;
+      li.classList.add('is-dragging');
+      try {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', '1');
+      } catch (err) {}
+    });
+
+    list.addEventListener('dragend', function () {
+      if (dragEl) dragEl.classList.remove('is-dragging');
+      items().forEach(function (el) { el.classList.remove('is-drag-over'); });
+      dragEl = null;
+    });
+
+    list.addEventListener('dragover', function (e) {
+      if (!dragEl) return;
+      e.preventDefault();
+      var over = e.target.closest('.dashboard-layout-item');
+      if (!over || over === dragEl || !list.contains(over)) return;
+      items().forEach(function (el) { el.classList.toggle('is-drag-over', el === over); });
+      var rect = over.getBoundingClientRect();
+      var before = (e.clientY - rect.top) < rect.height / 2;
+      if (before) {
+        list.insertBefore(dragEl, over);
+      } else {
+        list.insertBefore(dragEl, over.nextSibling);
+      }
+    });
+
+    list.addEventListener('drop', function (e) {
+      e.preventDefault();
+      items().forEach(function (el) { el.classList.remove('is-drag-over'); });
+    });
+  }
+
+  document.querySelectorAll('[data-sortable]').forEach(bindSortable);
 })();

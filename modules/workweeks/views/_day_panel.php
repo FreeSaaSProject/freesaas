@@ -17,9 +17,9 @@ $canAssign = !empty($canAssign);
 $formAction = (string)($formAction ?? '/workweeks/day/' . ($date ?? date('Y-m-d')));
 $staffId = (int)($staffId ?? 0);
 $showHeading = $showHeading ?? true;
-$cabinetsOn = WorkweeksRepository::cabinetsActive();
-$cabinetOptions = $cabinetsOn ? UsersRepository::cabinets() : [];
-$colCount = ($cabinetsOn ? 4 : 3) + ($canAssign ? 1 : 0);
+$tablesOn = WorkweeksRepository::tablesActive();
+$tableOptions = $tablesOn && class_exists('TablesRepository', false) ? TablesRepository::names(true) : [];
+$colCount = ($tablesOn ? 4 : 3) + ($canAssign ? 1 : 0);
 $shiftDateField = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($shiftDate ?? $date ?? ''))
     ? (string)($shiftDate ?? $date)
     : '';
@@ -34,7 +34,7 @@ $shiftDateField = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($shiftDate ?? $da
         <th><?= te('workweeks.col.staff') ?></th>
         <th><?= te('workweeks.col.price') ?></th>
         <th><?= te('workweeks.col.mas_max') ?></th>
-        <?php if ($cabinetsOn): ?>
+        <?php if ($tablesOn): ?>
           <th><?= te('workweeks.col.table') ?></th>
         <?php endif; ?>
         <?php if ($canAssign): ?><th></th><?php endif; ?>
@@ -85,15 +85,15 @@ $shiftDateField = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($shiftDate ?? $da
               <input type="hidden" name="shift_id" value="<?= (int)$sh['id'] ?>">
               <input type="number" min="1" max="5" name="price_col" value="<?= (int)$sh['price_col'] ?>" title="<?= te('workweeks.col.price') ?>">
               <input type="number" min="1" name="mas_max" value="<?= (int)$sh['mas_max'] ?>" title="<?= te('workweeks.col.mas_max') ?>">
-              <?php if ($cabinetsOn): ?>
+              <?php if ($tablesOn): ?>
                 <select name="id_table" title="<?= te('workweeks.col.table') ?>">
                   <?php
                   $curTable = WorkweeksRepository::normalizeTableId((int)$sh['id_table']);
-                  foreach ($cabinetOptions as $cid => $clabel):
+                  foreach ($tableOptions as $tid => $tlabel):
                   ?>
-                    <option value="<?= (int)$cid ?>"<?= $curTable === (int)$cid ? ' selected' : '' ?>><?= e($clabel) ?></option>
+                    <option value="<?= (int)$tid ?>"<?= $curTable === (int)$tid ? ' selected' : '' ?>><?= e($tlabel) ?></option>
                   <?php endforeach; ?>
-                  <?php if ($cabinetOptions === []): ?>
+                  <?php if ($tableOptions === []): ?>
                     <option value="1" selected>1</option>
                   <?php endif; ?>
                 </select>
@@ -108,8 +108,11 @@ $shiftDateField = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($shiftDate ?? $da
         <?php else: ?>
           <td><?= (int)$sh['price_col'] ?></td>
           <td><?= (int)$sh['mas_max'] ?></td>
-          <?php if ($cabinetsOn): ?>
-            <td><?= (int)$sh['id_table'] > 0 ? (int)$sh['id_table'] : '1' ?></td>
+          <?php if ($tablesOn): ?>
+            <td><?php
+              $tid = (int)$sh['id_table'];
+              echo e($tableOptions[$tid] ?? (string)($tid > 0 ? $tid : 1));
+            ?></td>
           <?php endif; ?>
           <?php if ($canAssign): ?><td></td><?php endif; ?>
         <?php endif; ?>
@@ -139,12 +142,12 @@ $shiftDateField = preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)($shiftDate ?? $da
   </select>
   <input type="number" min="1" max="5" name="price_col" value="1" title="<?= te('workweeks.col.price') ?>" aria-label="<?= te('workweeks.col.price') ?>">
   <input type="number" min="1" name="mas_max" value="1" title="<?= te('workweeks.col.mas_max') ?>" aria-label="<?= te('workweeks.col.mas_max') ?>">
-  <?php if ($cabinetsOn): ?>
+  <?php if ($tablesOn): ?>
     <select name="id_table" aria-label="<?= te('workweeks.col.table') ?>">
-      <?php foreach ($cabinetOptions as $cid => $clabel): ?>
-        <option value="<?= (int)$cid ?>"><?= e($clabel) ?></option>
+      <?php foreach ($tableOptions as $tid => $tlabel): ?>
+        <option value="<?= (int)$tid ?>"><?= e($tlabel) ?></option>
       <?php endforeach; ?>
-      <?php if ($cabinetOptions === []): ?>
+      <?php if ($tableOptions === []): ?>
         <option value="1">1</option>
       <?php endif; ?>
     </select>

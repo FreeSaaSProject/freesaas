@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+
+return [
+    'procents.module.name' => 'Начисление процентов',
+    'procents.menu.list' => 'Начисление процентов',
+    'procents.perm.view' => 'Начисление процентов (просмотр)',
+    'procents.filter.operator' => 'Сотрудник',
+    'procents.filter.year' => 'Год',
+    'procents.filter.month' => 'Месяц',
+    'procents.filter.all_months' => 'Все месяцы периода',
+    'procents.empty' => 'Нет данных для расчёта',
+    'procents.pick_operator' => 'Выберите сотрудника',
+    'procents.rates_set' => 'Набор ставок',
+    'procents.no_rates' => 'Нет действующих ставок на период',
+    'procents.period' => 'Период',
+    'procents.col.type' => 'Тип процедур',
+    'procents.col.descr' => 'Описание',
+    'procents.col.sum' => 'Сумма',
+    'procents.col.rate' => 'Ставка',
+    'procents.col.accrued' => 'Начислено',
+    'procents.section.procedures' => 'Выполнение процедур',
+    'procents.section.terminal' => 'Терминал (регистрация)',
+    'procents.section.sales' => 'Продажи (если доступны)',
+    'procents.month_total' => 'Итого за месяц',
+    'procents.grand_total' => 'Всего начислено',
+    'procents.offers' => 'Ставка за подход',
+    'procents.soft.sales_missing' => 'Таблица продаж недоступна — секция скрыта',
+    'procents.soft.stocks_missing' => 'Стикер-склад недоступен — расходная секция скрыта',
+    'procents.soft.records_missing' => 'Аудиозаписи недоступны — секция скрыта',
+    'procents.err.forbidden' => 'Недостаточно прав для просмотра чужих начислений',
+];

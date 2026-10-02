@@ -1,0 +1,45 @@
+{
+  "id": "vacations",
+  "name": "vacations.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "vacations.list"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "vacations.view", "label": "vacations.perm.view" },
+    { "id": "vacations.edit", "label": "vacations.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/vacations",
+      "/vacations/new",
+      "/vacations/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.accounting",
+      "num": 40,
+      "path": "/vacations",
+      "title": "vacations.menu.list"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_vacations"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "vacations bulk actions via BulkActions (list_id=vacations)"
+    ]
+  }
+}

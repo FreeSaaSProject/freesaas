@@ -1,0 +1,45 @@
+{
+  "id": "tables",
+  "name": "tables.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {
+    "procedures": ">=0.1.0"
+  },
+  "provides": [
+    "tables.list"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "tables.view", "label": "tables.perm.view" },
+    { "id": "tables.edit", "label": "tables.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/tables",
+      "/tables/new",
+      "/tables/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.dictionaries",
+      "num": 6,
+      "path": "/tables",
+      "title": "tables.menu.list"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_tables"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": []
+  }
+}

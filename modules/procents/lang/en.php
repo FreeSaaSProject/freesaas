@@ -1,0 +1,32 @@
+<?php
+declare(strict_types=1);
+
+return [
+    'procents.module.name' => 'Commission accruals',
+    'procents.menu.list' => 'Commission accruals',
+    'procents.perm.view' => 'Commission accruals (view)',
+    'procents.filter.operator' => 'Staff',
+    'procents.filter.year' => 'Year',
+    'procents.filter.month' => 'Month',
+    'procents.filter.all_months' => 'All months in range',
+    'procents.empty' => 'No data to calculate',
+    'procents.pick_operator' => 'Select a staff member',
+    'procents.rates_set' => 'Rate set',
+    'procents.no_rates' => 'No effective rates for the period',
+    'procents.period' => 'Period',
+    'procents.col.type' => 'Procedure type',
+    'procents.col.descr' => 'Description',
+    'procents.col.sum' => 'Amount',
+    'procents.col.rate' => 'Rate',
+    'procents.col.accrued' => 'Accrued',
+    'procents.section.procedures' => 'Procedure completion',
+    'procents.section.terminal' => 'Terminal registration',
+    'procents.section.sales' => 'Sales (when available)',
+    'procents.month_total' => 'Month total',
+    'procents.grand_total' => 'Grand total',
+    'procents.offers' => 'Per-visit fee',
+    'procents.soft.sales_missing' => 'Sales table unavailable — section hidden',
+    'procents.soft.stocks_missing' => 'Sticker stock unavailable — COGS section hidden',
+    'procents.soft.records_missing' => 'Audio records unavailable — section hidden',
+    'procents.err.forbidden' => 'Not allowed to view other staff accruals',
+];

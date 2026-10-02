@@ -5,14 +5,19 @@ require_once __DIR__ . '/lib/NewsRepository.php';
 require_once __DIR__ . '/lib/UsersRepository.php';
 require_once __DIR__ . '/lib/StatusesRepository.php';
 require_once __DIR__ . '/lib/SystemRepository.php';
+require_once __DIR__ . '/lib/SystemLogo.php';
 require_once __DIR__ . '/lib/LikesRepository.php';
 require_once __DIR__ . '/lib/NoticesRepository.php';
 require_once __DIR__ . '/lib/Breadcrumbs.php';
+require_once __DIR__ . '/lib/UserPrefsRepository.php';
+require_once __DIR__ . '/lib/DashboardWidgets.php';
+require_once __DIR__ . '/lib/MenuOrder.php';
 
 $pages = [
     '/login' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'login.php'],
     '/logout' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'handler' => 'logout'],
     '/' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'home.php'],
+    '/dashboard' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'file' => 'dashboard.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
     '/migrate' => ['public' => true, 'permission' => 'core.migrate', 'methods' => ['GET', 'POST'], 'file' => 'migrate.php'],
     '/users' => ['permission' => 'core.users', 'methods' => ['GET'], 'file' => 'users.php'],
@@ -56,10 +61,72 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $route);
 }
 
+EventBus::on('core.dashboard.catalog', static function ($catalog) {
+    if (!is_array($catalog)) {
+        $catalog = [];
+    }
+    $catalog[] = [
+        'id' => 'core.command',
+        'title' => t('core.widget.command.title'),
+        'module' => 'core',
+        'default_order' => 5,
+        'default_on' => true,
+    ];
+    $catalog[] = [
+        'id' => 'core.tickets',
+        'title' => t('core.widget.tickets.title'),
+        'module' => 'core',
+        'default_order' => 30,
+        'default_on' => true,
+    ];
+    if (Auth::can('core.news') && Database::tableExists('base_news')) {
+        $feedOrder = 40;
+        foreach (NewsRepository::typeTabs() as $tab) {
+            $tid = (int)$tab['id'];
+            $catalog[] = [
+                'id' => 'core.feed.' . $tid,
+                'title' => (string)$tab['label'],
+                'module' => 'core',
+                'default_order' => $feedOrder,
+                'default_on' => true,
+                'settings' => DashboardWidgets::limitSettingSchema(8, 1, 40),
+            ];
+            $feedOrder += 5;
+        }
+    }
+    $catalog[] = [
+        'id' => 'core.status',
+        'title' => t('core.widget.platform.title'),
+        'module' => 'core',
+        'default_order' => 90,
+        'default_on' => false,
+    ];
+    return $catalog;
+});
+
 EventBus::on('core.dashboard.widgets', static function ($widgets) {
     if (!is_array($widgets)) {
         $widgets = [];
     }
+
+    if (DashboardWidgets::isEnabled('core.command')) {
+        $commands = [];
+        foreach (ModuleManager::menuItems() as $item) {
+            $commands[] = [
+                'path' => $item['path'],
+                'title' => $item['title'],
+                'group' => $item['group'],
+            ];
+        }
+        $widgets[] = [
+            'id' => 'core.command',
+            'title' => '',
+            'html' => View::capture('_widget_command', ['commands' => $commands], 'core'),
+            'tone' => 'neutral',
+            'size' => 'lg',
+        ];
+    }
+
     $users = 0;
     $ready = Database::tableExists('base_users');
     if ($ready) {
@@ -86,22 +153,73 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             $enabled++;
         }
     }
-    $widgets[] = [
-        'id' => 'core.status',
-        'title' => t('core.widget.platform.title'),
-        'body' => $ready
-            ? t('core.widget.platform.body', ['users' => $users, 'enabled' => $enabled, 'total' => count($mods)])
-            : t('core.widget.platform.missing'),
-        'tone' => $ready ? 'ok' : 'warn',
-        'href' => '/users',
-    ];
-    $widgets[] = [
-        'id' => 'core.tickets',
-        'title' => t('core.widget.tickets.title'),
-        'body' => t('core.widget.tickets.body', ['n' => $newsOpen]),
-        'tone' => $newsOpen > 0 ? 'warn' : 'ok',
-        'href' => '/news?type=2',
-    ];
+    if (DashboardWidgets::isEnabled('core.status')) {
+        $widgets[] = [
+            'id' => 'core.status',
+            'title' => t('core.widget.platform.title'),
+            'body' => $ready
+                ? t('core.widget.platform.body', ['users' => $users, 'enabled' => $enabled, 'total' => count($mods)])
+                : t('core.widget.platform.missing'),
+            'tone' => $ready ? 'ok' : 'warn',
+            'href' => '/users',
+            'size' => 'sm',
+        ];
+    }
+    if (DashboardWidgets::isEnabled('core.tickets')) {
+        $widgets[] = [
+            'id' => 'core.tickets',
+            'title' => t('core.widget.tickets.title'),
+            'body' => t('core.widget.tickets.body', ['n' => $newsOpen]),
+            'tone' => $newsOpen > 0 ? 'warn' : 'ok',
+            'href' => '/news?type=2',
+            'size' => 'sm',
+        ];
+    }
+
+    if (Auth::can('core.news') && Database::tableExists('base_news')) {
+        $uid = Auth::userId();
+        $statuses = NewsRepository::statuses();
+        foreach (NewsRepository::typeTabs() as $tab) {
+            $tid = (int)$tab['id'];
+            $wid = 'core.feed.' . $tid;
+            if (!DashboardWidgets::isEnabled($wid)) {
+                continue;
+            }
+            $limit = (int)DashboardWidgets::setting($wid, 'limit', 8);
+            if ($limit < 1) {
+                $limit = 8;
+            }
+            if (class_exists('StageTiming', false)) {
+                StageTiming::mark('Home: feed type ' . $tid);
+            }
+            $result = NewsRepository::list([
+                'type' => $tid,
+                'limit' => $limit,
+                'user_id' => $uid,
+            ]);
+            $ids = [];
+            foreach ($result['items'] as $n) {
+                $ids[] = (int)$n['ID'];
+            }
+            $html = View::capture('_widget_feed', [
+                'type' => $tid,
+                'label' => (string)$tab['label'],
+                'add' => $tab['add'] ?? null,
+                'addType' => $tab['addType'] ?? null,
+                'items' => $result['items'],
+                'statuses' => $statuses,
+                'commentCounts' => NewsRepository::commentCounts($ids),
+                'viewerCounts' => NewsRepository::viewerCounts($ids),
+            ], 'core');
+            $widgets[] = [
+                'id' => $wid,
+                'title' => (string)$tab['label'],
+                'html' => $html,
+                'tone' => 'neutral',
+                'size' => 'md',
+            ];
+        }
+    }
     return $widgets;
 });
 

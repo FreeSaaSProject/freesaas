@@ -30,8 +30,8 @@
   "jobs": [],
   "menu": [
     {
-      "group": "orders.menu.group",
-      "num": 1,
+      "group": "core.menu.group.desktop",
+      "num": 4,
       "path": "/orders",
       "title": "orders.menu.list"
     }

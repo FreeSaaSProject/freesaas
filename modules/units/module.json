@@ -25,8 +25,8 @@
   "jobs": [],
   "menu": [
     {
-      "group": "units.menu.group",
-      "num": 1,
+      "group": "core.menu.group.dictionaries",
+      "num": 2,
       "path": "/units",
       "title": "units.menu.list"
     }

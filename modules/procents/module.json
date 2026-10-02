@@ -1,0 +1,41 @@
+{
+  "id": "procents",
+  "name": "procents.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "rates": ">=0.1.0",
+    "procedures": ">=0.1.0",
+    "workweeks": ">=0.1.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "procents.report"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "procents.view", "label": "procents.perm.view" }
+  ],
+  "routes": {
+    "pages": [
+      "/procents"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.accounting",
+      "num": 15,
+      "path": "/procents",
+      "title": "procents.menu.list"
+    }
+  ],
+  "configSchema": {},
+  "tables": [],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": []
+  }
+}

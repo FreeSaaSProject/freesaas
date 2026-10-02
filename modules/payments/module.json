@@ -1,0 +1,58 @@
+{
+  "id": "payments",
+  "name": "payments.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "payments.list",
+    "payments.types"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "payments.view", "label": "payments.perm.view" },
+    { "id": "payments.edit", "label": "payments.perm.edit" },
+    { "id": "payments.types", "label": "payments.perm.types" }
+  ],
+  "routes": {
+    "pages": [
+      "/payments",
+      "/payments/new",
+      "/payments/{id}/edit",
+      "/payment-types",
+      "/payment-types/new",
+      "/payment-types/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.accounting",
+      "num": 20,
+      "path": "/payments",
+      "title": "payments.menu.list"
+    },
+    {
+      "group": "core.menu.group.accounting",
+      "num": 21,
+      "path": "/payment-types",
+      "title": "payments.menu.types"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_payments",
+    "base_payment_types"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "payments.create_from_contract (contracts CTA)",
+      "payments bulk actions via BulkActions"
+    ]
+  }
+}

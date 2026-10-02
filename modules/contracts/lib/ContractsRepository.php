@@ -548,6 +548,17 @@ final class ContractsRepository
         if (!empty($actions['cancel_work'])) {
             $forms .= self::actionForm($cid, $newsId, 'cancel_work_accept', t('contracts.actions.cancel_accept'), 'btn-secondary');
         }
+        $awaitingPay = (int)($comment['DT_WORK_ACCEPT'] ?? 0) > 0
+            && (int)($comment['DT_FAIL'] ?? 0) < 1
+            && (int)($comment['ID_PAYMENT'] ?? 0) < 1
+            && $price > 0;
+        if ($awaitingPay && ModuleManager::isEnabled('payments') && Auth::can('payments.edit')) {
+            $forms .= ' <a class="btn-primary" href="/payments/new?id_comment=' . $cid . '">'
+                . e(t('payments.contract.pay')) . '</a>';
+        } elseif ((int)($comment['ID_PAYMENT'] ?? 0) > 0 && ModuleManager::isEnabled('payments')) {
+            $forms .= ' <a class="btn-secondary" href="/payments/' . (int)$comment['ID_PAYMENT'] . '/edit">'
+                . e(t('payments.contract.paid')) . '</a>';
+        }
         if ($forms !== '') {
             $html .= '<div class="contract-actions">' . $forms . '</div>';
         }

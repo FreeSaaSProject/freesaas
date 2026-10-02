@@ -1,0 +1,55 @@
+{
+  "id": "sheets",
+  "name": "sheets.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "sheets.accounts",
+    "sheets.moves"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "sheets.view", "label": "sheets.perm.view" },
+    { "id": "sheets.edit", "label": "sheets.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/sheets/accounts",
+      "/sheets/accounts/new",
+      "/sheets/accounts/{id}/edit",
+      "/sheets/moves",
+      "/sheets/moves/new",
+      "/sheets/moves/{id}/edit",
+      "/sheets/transfers/new"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.warehouse",
+      "num": 10,
+      "path": "/sheets/moves",
+      "title": "sheets.menu.moves"
+    },
+    {
+      "group": "core.menu.group.warehouse",
+      "num": 11,
+      "path": "/sheets/accounts",
+      "title": "sheets.menu.accounts"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_sheet_accounts",
+    "base_sheet_moves"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": []
+  }
+}

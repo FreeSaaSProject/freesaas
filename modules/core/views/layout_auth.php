@@ -2,6 +2,8 @@
 /** @var string $content */
 /** @var string $title */
 $brand = (string)Config::get('app', 'name', 'FreeSaaS');
+$instance = SystemRepository::companyName();
+$titleSuffix = $instance !== '' ? $instance : $brand;
 $htmlLang = I18n::locale();
 $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
 ?>
@@ -10,7 +12,11 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title><?= e($title ?? t('core.login.submit')) ?> · <?= e($brand) ?></title>
+  <title><?= e($title ?? t('core.login.submit')) ?> · <?= e($titleSuffix) ?></title>
+  <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
+  <link rel="shortcut icon" href="/favicon.ico">
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" sizes="180x180">
   <script>
   (function () {
     try {

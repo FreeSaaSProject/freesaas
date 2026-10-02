@@ -1,3 +1,7 @@
 cfg/config.ini
 log/*.log
 .DS_Store
+
+# Uploaded company logos (generated variants)
+assets/uploads/logo/*
+!assets/uploads/logo/.gitkeep

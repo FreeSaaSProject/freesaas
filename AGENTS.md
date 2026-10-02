@@ -110,7 +110,7 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 - `EventBus::emit($event, $payload)` returns mutated payload; listeners must `return $payload`.
 - Prefer array payloads with clear keys; set `error` / `handled` / `html` / `redirect` as established by existing subscribers.
 - Document events in `module.json` → `hooks.publish` / `hooks.subscribe`.
-- Important existing events: `core.dashboard.widgets`, `core.notices.collect`, `core.news_item.*`, `comments.prepare_add`, `comments.form.*`, `comments.render_actions`, `comments.counts`, `core.auth.after_login`, `core.user_edit.*`, `core.bulk.check_item`.
+- Important existing events: `core.dashboard.catalog`, `core.dashboard.widgets`, `core.notices.collect`, `core.news_item.*`, `comments.prepare_add`, `comments.form.*`, `comments.render_actions`, `comments.counts`, `core.auth.after_login`, `core.user_edit.*`, `core.bulk.check_item`, `core.settings.sections`, `core.settings.save`.
 
 ## Migrations
 
@@ -129,12 +129,23 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `clients` | Client CRM (`base_clients`) + client statuses; login identity = phone |
 | `units` | Units of measure (`base_units`, shared with oper) |
 | `suppliers` | Suppliers (`base_suppliers`, shared with oper) |
-| `cabinets` | Rooms (`base_cabinets`); optional — without it station/`ID_TABLE` defaults to `1` |
+| `cabinets` | Rooms (`base_cabinets`); used by stocks `ID_CABINET` and staff `skin` |
+| `tables` | Massage tables (`base_tables`); optional — without it `ID_TABLE` defaults to `1` |
 | `workweeks` | Day shifts (`base_workweeks`); menu under Team; embedded in calendar day |
-| `catalog` | Categories, products, product relations; stock qty deferred to `stocks` |
-| `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`); restores UI deferred to settlements |
+| `catalog` | Categories, products, product relations; stock qty in `stocks`/`stickers` |
+| `stocks` | Warehouses (`base_stocks`) + leftovers report |
+| `stickers` | Receipt/writeoff acts + sticker ins/outs + writeoff service |
+| `norms` | Default consumptions (`base_good_defaults`); embed on catalog product edit |
+| `sheets` | LikeSpa linen accounts/moves (`base_sheet_*`); disableable |
+| `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`); restores UI later (EventBus → `payments`) |
 | `orders` | Website orders (`base_orders`, shared with site/oper); notice chips; `orders.for_day` for calendar |
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
+| `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
+| `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
+| `payments` | Staff settlements (`base_payments`, `base_payment_types`); contracts pay CTA; DPS stub until `ledger` |
+| `vacations` | Leave register (`base_vacations`) + sign workflow |
+
+**Planned (wave 2 finance):** `ledger` (accounts + ДПС), `funds` (+ fund movements), `finance` (balance report without inflation; no amort schedule).
 
 Prefer extending these via hooks before forking page logic.
 

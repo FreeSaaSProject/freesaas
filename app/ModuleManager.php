@@ -422,7 +422,48 @@ final class ModuleManager
      */
     public static function menuItems(): array
     {
+        $items = self::collectMenuItems();
+        if (class_exists('MenuOrder', false)) {
+            return MenuOrder::apply($items);
+        }
+        return $items;
+    }
+
+    /**
+     * Default module menu order (ignores per-user prefs).
+     *
+     * @return list<array{path:string,title:string,group:string,num:int,module:string,permission?:string}>
+     */
+    public static function menuItemsUnsorted(): array
+    {
+        return self::collectMenuItems();
+    }
+
+    /**
+     * Default rail group order (stable keys from module.json `menu[].group`).
+     *
+     * @return array<string,int>
+     */
+    public static function menuGroupWeights(): array
+    {
+        return [
+            'core.menu.group.desktop' => 10,
+            'calendar.menu.group' => 20,
+            'procedures.menu.group' => 30,
+            'clients.menu.group' => 40,
+            'core.menu.group.dictionaries' => 50,
+            'core.menu.group.team' => 60,
+            'core.menu.group.system' => 70,
+        ];
+    }
+
+    /**
+     * @return list<array{path:string,title:string,group:string,group_key:string,num:int,module:string,permission?:string}>
+     */
+    private static function collectMenuItems(): array
+    {
         $items = [];
+        $weights = self::menuGroupWeights();
         foreach (self::$modules as $id => $meta) {
             if (empty($meta['_enabled'])) {
                 continue;
@@ -440,10 +481,12 @@ final class ModuleManager
                 if ($permission !== null && (!Auth::check() || !Auth::canSeeInMenu($permission))) {
                     continue;
                 }
+                $groupKey = (string)($row['group'] ?? $id);
                 $item = [
                     'path' => $path,
                     'title' => t((string)$row['title']),
-                    'group' => t((string)($row['group'] ?? $id)),
+                    'group' => t($groupKey),
+                    'group_key' => $groupKey,
                     'num' => (int)($row['num'] ?? 100),
                     'module' => $id,
                 ];
@@ -453,13 +496,17 @@ final class ModuleManager
                 $items[] = $item;
             }
         }
-        usort($items, static function ($a, $b) {
-            $g = strcmp($a['group'], $b['group']);
-            if ($g !== 0) {
-                return $g;
+        usort($items, static function ($a, $b) use ($weights) {
+            $wa = $weights[$a['group_key']] ?? 1000;
+            $wb = $weights[$b['group_key']] ?? 1000;
+            if ($wa !== $wb) {
+                return $wa <=> $wb;
+            }
+            if ($a['group_key'] !== $b['group_key']) {
+                return strcmp($a['group_key'], $b['group_key']);
             }
             if ($a['num'] !== $b['num']) {
-                return ($a['num'] < $b['num']) ? -1 : 1;
+                return $a['num'] <=> $b['num'];
             }
             return strcmp($a['title'], $b['title']);
         });

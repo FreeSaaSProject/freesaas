@@ -3,16 +3,22 @@ declare(strict_types=1);
 
 final class WorkweeksRepository
 {
-    /** When cabinets module is off / empty, station id defaults to 1. */
+    /** When tables module is off / empty, massage-table id defaults to 1. */
+    public static function tablesActive(): bool
+    {
+        return class_exists('TablesRepository', false) && TablesRepository::isActive();
+    }
+
+    /** @deprecated use tablesActive() */
     public static function cabinetsActive(): bool
     {
-        return ModuleManager::isEnabled('cabinets') && Database::tableExists('base_cabinets');
+        return self::tablesActive();
     }
 
     public static function normalizeTableId(int $idTable): int
     {
-        if (!self::cabinetsActive()) {
-            return 1;
+        if (class_exists('TablesRepository', false)) {
+            return TablesRepository::normalizeId($idTable);
         }
         return $idTable > 0 ? $idTable : 1;
     }

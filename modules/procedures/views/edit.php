@@ -112,9 +112,16 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
     <label><?= te('procedures.col.token') ?>
       <input name="token" maxlength="32" value="<?= e((string)($row['token'] ?? '')) ?>">
     </label>
-    <?php if (ModuleManager::isEnabled('cabinets') && Database::tableExists('base_cabinets')): ?>
+    <?php if (class_exists('TablesRepository', false) && TablesRepository::isActive()): ?>
     <label><?= te('procedures.view.id_table') ?>
-      <input type="number" min="1" name="id_table" value="<?= e((string)(max(1, (int)($row['id_table'] ?? 1)))) ?>">
+      <select name="id_table">
+        <?php
+        $curTable = ProceduresRepository::normalizeTableId((int)($row['id_table'] ?? 1));
+        foreach (TablesRepository::names(true) as $tid => $tlabel):
+        ?>
+          <option value="<?= (int)$tid ?>"<?= $curTable === (int)$tid ? ' selected' : '' ?>><?= e($tlabel) ?></option>
+        <?php endforeach; ?>
+      </select>
     </label>
     <?php else: ?>
       <input type="hidden" name="id_table" value="1">

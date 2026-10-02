@@ -107,4 +107,13 @@ return [
     'calendar.event.err.no_create' => 'Not allowed to create events',
     'calendar.event.err.no_modify' => 'Not allowed to modify this event',
     'calendar.event.err.no_delete' => 'Not allowed to delete events',
+    'calendar.widget.upcoming.title' => 'Upcoming events',
+    'calendar.widget.upcoming.empty' => 'No events in the next 7 days',
+    'calendar.widget.upcoming.scope_mine' => 'Your events only',
+    'calendar.widget.upcoming.scope_all' => 'All events',
+    'calendar.widget.upcoming.unnamed' => 'Untitled',
+    'calendar.settings.work_hours' => 'Calendar working hours',
+    'calendar.settings.work_hours_hint' => 'Timeline axis in the calendar (inclusive). Source: base_system.work_hour_start / work_hour_end.',
+    'calendar.settings.field_hour_start' => 'Start hour',
+    'calendar.settings.field_hour_end' => 'End hour',
 ];

@@ -1,0 +1,36 @@
+<?php
+declare(strict_types=1);
+
+return static function (PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_sheet_accounts (
+            ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            NAME VARCHAR(30) NOT NULL DEFAULT '',
+            DESCR VARCHAR(255) NOT NULL DEFAULT '',
+            DT INT UNSIGNED NOT NULL DEFAULT 0,
+            ENABLED TINYINT UNSIGNED NOT NULL DEFAULT 1,
+            PRIMARY KEY (ID)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_sheet_moves (
+            ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            ID_ACCOUNT INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_ACCOUNT_TO INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER_CREATE INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER_UPDATE INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_MOVEMENT_LINKED INT UNSIGNED NOT NULL DEFAULT 0,
+            DIRECTION INT NOT NULL DEFAULT 0,
+            SUMM INT UNSIGNED NOT NULL DEFAULT 0,
+            DESCR VARCHAR(255) NOT NULL DEFAULT '',
+            WEIGHT FLOAT UNSIGNED NOT NULL DEFAULT 0,
+            DT INT UNSIGNED NOT NULL DEFAULT 0,
+            DT_CREATE INT UNSIGNED NOT NULL DEFAULT 0,
+            DT_UPDATE INT UNSIGNED NOT NULL DEFAULT 0,
+            DELETED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (ID),
+            KEY idx_account (ID_ACCOUNT),
+            KEY idx_linked (ID_MOVEMENT_LINKED)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+};

@@ -33,7 +33,7 @@
   "jobs": [],
   "menu": [
     {
-      "group": "catalog.menu.group",
+      "group": "core.menu.group.dictionaries",
       "num": 1,
       "path": "/catalog",
       "title": "catalog.menu.browse"
@@ -69,6 +69,8 @@
     "subscribe": [
       "core.bulk.check_item"
     ],
-    "publish": []
+    "publish": [
+      "catalog.product_edit.after"
+    ]
   }
 }

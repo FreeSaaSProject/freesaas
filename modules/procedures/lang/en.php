@@ -49,7 +49,7 @@ return [
     'procedures.view.dtcreate' => 'Created',
     'procedures.view.dtend_plan' => 'Planned end',
     'procedures.view.summ_default' => 'Default amount',
-    'procedures.view.id_table' => 'Table / station',
+    'procedures.view.id_table' => 'Massage table',
     'procedures.view.id_terminal' => 'Terminal',
     'procedures.view.id_event_parent' => 'Parent event',
     'procedures.view.onec_id' => '1C ID',
