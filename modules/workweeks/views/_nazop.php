@@ -9,6 +9,7 @@
  * @var string $retUrl
  * @var string $mode all|Y-m-d
  */
+Assets::need('workweeks');
 $matrix = $matrix ?? ['days' => [], 'operators' => [], 'assigned' => [], 'day_price' => [], 'day_mas_max' => []];
 $days = $matrix['days'] ?? [];
 $operators = $matrix['operators'] ?? [];
@@ -48,7 +49,7 @@ $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps)
   <div class="nazop-toolbar">
     <div class="nazop-toolbar-actions">
       <button type="submit" class="btn-primary btn-sm"><?= te('workweeks.nazop.save') ?></button>
-      <button type="button" class="btn-secondary btn-sm" data-nazop-close><?= te('core.common.cancel') ?></button>
+      <a class="btn-secondary btn-sm" href="<?= e($retUrl) ?>" data-nazop-close><?= te('core.common.cancel') ?></a>
       <button type="button" class="btn-secondary btn-sm" data-nazop-check="1"><?= te('workweeks.nazop.check_all') ?></button>
       <button type="button" class="btn-secondary btn-sm" data-nazop-check="0"><?= te('workweeks.nazop.uncheck_all') ?></button>
     </div>
@@ -186,7 +187,7 @@ $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps)
   </div>
   <div class="nazop-toolbar nazop-toolbar-bottom">
     <button type="submit" class="btn-primary"><?= te('workweeks.nazop.save') ?></button>
-    <button type="button" class="btn-secondary" data-nazop-close><?= te('core.common.cancel') ?></button>
+    <a class="btn-secondary" href="<?= e($retUrl) ?>" data-nazop-close><?= te('core.common.cancel') ?></a>
   </div>
   <?php endif; ?>
 </form>

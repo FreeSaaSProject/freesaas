@@ -18,6 +18,9 @@
 /** @var string $openShiftDay */
 /** @var string $weekRet */
 
+// Nazop dialog loads workweeks HTML via AJAX — queue CSS on the parent page.
+Assets::need('workweeks');
+
 $canAssign = !empty($canAssign);
 $weekOptions = $weekOptions ?? [];
 $shiftFlash = $shiftFlash ?? '';
@@ -170,9 +173,6 @@ require __DIR__ . '/_timeline.php';
 
   function bindNazop(root) {
     if (!root) return;
-    root.querySelectorAll('[data-nazop-close]').forEach(function (b) {
-      b.addEventListener('click', closeDlg);
-    });
     root.querySelectorAll('[data-nazop-ops]').forEach(function (b) {
       b.addEventListener('click', function () {
         loadNazop(currentDay, b.getAttribute('data-nazop-ops') || '');
@@ -214,6 +214,18 @@ require __DIR__ . '/_timeline.php';
   }
 
   if (closeBtn) closeBtn.addEventListener('click', closeDlg);
+  /* Delegate: form Cancel links must not navigate away while dialog is open. */
+  if (dlg) {
+    dlg.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest('[data-nazop-close]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeDlg();
+      }
+    });
+  }
   document.querySelectorAll('[data-shift-open]').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.preventDefault();
