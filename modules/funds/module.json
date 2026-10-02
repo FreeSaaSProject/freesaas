@@ -1,0 +1,54 @@
+{
+  "id": "funds",
+  "name": "funds.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "ledger": ">=0.1.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "funds.list"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "funds.view", "label": "funds.perm.view" },
+    { "id": "funds.edit", "label": "funds.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/funds",
+      "/funds/new",
+      "/funds/{id}/edit",
+      "/fund-movements",
+      "/fund-movements/new",
+      "/fund-movements/{id}/edit"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.finance",
+      "num": 40,
+      "path": "/funds",
+      "title": "funds.menu.list"
+    },
+    {
+      "group": "core.menu.group.finance",
+      "num": 50,
+      "path": "/fund-movements",
+      "title": "funds.menu.movements"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_funds",
+    "base_fund_movements"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": []
+  }
+}

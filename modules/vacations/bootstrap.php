@@ -37,3 +37,16 @@ BulkActions::register('vacations', 'sign', [
         return ['done' => VacationsRepository::signByIds($ids), 'skipped' => []];
     },
 ]);
+
+EventBus::on('core.notices.collect', static function ($notices) {
+    if (!is_array($notices)) {
+        $notices = [];
+    }
+    if (!Auth::check()) {
+        return $notices;
+    }
+    foreach (VacationsRepository::noticesForUser(Auth::userId()) as $n) {
+        $notices[] = $n;
+    }
+    return $notices;
+});

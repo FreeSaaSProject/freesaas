@@ -21,7 +21,11 @@ final class VacationsRepository
     }
 
     /**
-     * @param array{q?:string,user_id?:int,sign?:int,order?:string,limit?:int,offset?:int,scope_user_id?:int} $opts
+     * @param array{
+     *   q?:string,user_id?:int,sign?:int,id_type?:int,direction?:int,
+     *   year?:int|string,month?:int|string,show_user_only?:bool,
+     *   order?:string,limit?:int,offset?:int,scope_user_id?:int
+     * } $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function list(array $opts = []): array
@@ -37,6 +41,9 @@ final class VacationsRepository
         if ($scopeUser > 0) {
             $where[] = 'v.ID_USER = ?';
             $params[] = $scopeUser;
+        }
+        if (!empty($opts['show_user_only'])) {
+            $where[] = 'v.SHOW_USER = 1';
         }
 
         $q = trim((string)($opts['q'] ?? ''));
@@ -55,6 +62,39 @@ final class VacationsRepository
             $where[] = 'v.SIGN_REQ = 1 AND v.ID_USER_SIGN = 0';
         } elseif ($sign === 2) {
             $where[] = 'v.SIGN_REQ = 1 AND v.ID_USER_SIGN > 0';
+        }
+        $idType = (int)($opts['id_type'] ?? 0);
+        if (in_array($idType, [1, 2, 3], true)) {
+            $where[] = 'v.ID_TYPE = ?';
+            $params[] = $idType;
+        }
+        $direction = (int)($opts['direction'] ?? 0);
+        if ($direction === 1) {
+            $where[] = 'v.DIRECTION = 1';
+        } elseif ($direction === -1) {
+            $where[] = 'v.DIRECTION = -1';
+        }
+
+        $yearRaw = $opts['year'] ?? '';
+        $monthRaw = $opts['month'] ?? '';
+        $year = (is_numeric($yearRaw) && (int)$yearRaw > 0) ? (int)$yearRaw : 0;
+        $month = (is_numeric($monthRaw) && (int)$monthRaw >= 1 && (int)$monthRaw <= 12) ? (int)$monthRaw : 0;
+        if ($year > 0) {
+            if ($month > 0) {
+                $tStart = mktime(0, 0, 0, $month, 1, $year) ?: 0;
+                $tEnd = mktime(0, 0, 0, $month + 1, 1, $year) ?: 0;
+            } else {
+                $tStart = mktime(0, 0, 0, 1, 1, $year) ?: 0;
+                $tEnd = mktime(0, 0, 0, 1, 1, $year + 1) ?: 0;
+            }
+            if ($tStart > 0 && $tEnd > $tStart) {
+                // Overlap: start or end falls inside selected window (oper semantics).
+                $where[] = '((v.DT_START >= ? AND v.DT_START < ?) OR (v.DT_END >= ? AND v.DT_END < ?))';
+                $params[] = $tStart;
+                $params[] = $tEnd;
+                $params[] = $tStart;
+                $params[] = $tEnd;
+            }
         }
 
         $sqlWhere = implode(' AND ', $where);
@@ -297,6 +337,69 @@ final class VacationsRepository
         return (int)($row['user_sign'] ?? 0) > 0
             ? t('vacations.sign.done')
             : t('vacations.sign.pending');
+    }
+
+    /** Count unsigned vacation rows awaiting signature. */
+    public static function countPendingSign(?int $userId = null): int
+    {
+        if (!Database::tableExists('base_vacations')) {
+            return 0;
+        }
+        $sql = 'SELECT COUNT(*) FROM base_vacations WHERE SIGN_REQ = 1 AND ID_USER_SIGN = 0';
+        $params = [];
+        if ($userId !== null && $userId > 0) {
+            $sql .= ' AND ID_USER = ?';
+            $params[] = $userId;
+        }
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
+     * Topbar notice chips (oper НП-О / П-О).
+     *
+     * @return list<array{short:string,href:string,title:string,tone:string}>
+     */
+    public static function noticesForUser(int $uid): array
+    {
+        if ($uid < 1 || !Auth::can('vacations.view')) {
+            return [];
+        }
+        $out = [];
+        if (self::canSeeOthers()) {
+            $n = self::countPendingSign(null);
+            if ($n > 0) {
+                $out[] = [
+                    'short' => t('vacations.notice.unsigned_short', ['n' => $n]),
+                    'href' => '/vacations?sign=1',
+                    'title' => t('vacations.notice.unsigned_title'),
+                    'tone' => 'warn',
+                ];
+            }
+        } else {
+            $n = self::countPendingSign($uid);
+            if ($n > 0) {
+                $out[] = [
+                    'short' => t('vacations.notice.sign_mine_short', ['n' => $n]),
+                    'href' => '/vacations?sign=1',
+                    'title' => t('vacations.notice.sign_mine_title'),
+                    'tone' => 'warn',
+                ];
+            }
+        }
+        return $out;
+    }
+
+    /** Years for filter select (current+1 down 10 years), like oper. @return list<int> */
+    public static function yearOptions(): array
+    {
+        $y = (int)date('Y') + 1;
+        $out = [];
+        for ($i = 0; $i < 10; $i++) {
+            $out[] = $y - $i;
+        }
+        return $out;
     }
 
     private static function hasOverlap(int $userId, int $idType, int $dtStart, int $dtEnd, int $excludeId): bool

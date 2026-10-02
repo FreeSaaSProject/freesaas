@@ -478,6 +478,40 @@ final class PaymentsRepository
 
     /**
      * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function createDpsByIds(array $ids): array
+    {
+        if (!self::ledgerEnabled() || !class_exists('LedgerMovesRepository')) {
+            $skipped = [];
+            foreach (self::sanitizeIds($ids) as $id) {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.flash.dps_stub')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        $done = 0;
+        $skipped = [];
+        foreach (self::sanitizeIds($ids) as $id) {
+            $row = self::find($id);
+            if (!$row) {
+                continue;
+            }
+            try {
+                $moveId = LedgerMovesRepository::createFromPayment($row);
+                if ($moveId > 0) {
+                    $done++;
+                } else {
+                    $skipped[] = ['id' => $id, 'reason' => t('payments.flash.dps_none')];
+                }
+            } catch (Throwable $e) {
+                $skipped[] = ['id' => $id, 'reason' => $e->getMessage()];
+            }
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
+    /**
+     * @param list<int> $ids
      * @return list<int>
      */
     private static function sanitizeIds(array $ids): array

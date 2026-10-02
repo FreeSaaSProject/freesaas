@@ -1,0 +1,40 @@
+{
+  "id": "finance",
+  "name": "finance.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "ledger": ">=0.1.0"
+  },
+  "optionalRequires": {
+    "funds": ">=0.1.0"
+  },
+  "provides": [
+    "finance.balance"
+  ],
+  "permissions": [
+    { "id": "finance.view", "label": "finance.perm.view" }
+  ],
+  "routes": {
+    "pages": [
+      "/finance/balance"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.finance",
+      "num": 60,
+      "path": "/finance/balance",
+      "title": "finance.menu.balance"
+    }
+  ],
+  "configSchema": {},
+  "tables": [],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": []
+  }
+}

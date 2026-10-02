@@ -1,0 +1,72 @@
+{
+  "id": "ledger",
+  "name": "ledger.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {},
+  "provides": [
+    "ledger.accounts",
+    "ledger.moves",
+    "ledger.from_payment"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "ledger.view", "label": "ledger.perm.view" },
+    { "id": "ledger.edit", "label": "ledger.perm.edit" },
+    { "id": "ledger.types", "label": "ledger.perm.types" },
+    { "id": "ledger.reconcile", "label": "ledger.perm.reconcile" }
+  ],
+  "routes": {
+    "pages": [
+      "/accounts",
+      "/accounts/new",
+      "/accounts/{id}/edit",
+      "/account-move-types",
+      "/account-move-types/new",
+      "/account-move-types/{id}/edit",
+      "/ledger/moves",
+      "/ledger/moves/new",
+      "/ledger/moves/{id}/edit",
+      "/ledger/transfers/new"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "core.menu.group.finance",
+      "num": 10,
+      "path": "/accounts",
+      "title": "ledger.menu.accounts"
+    },
+    {
+      "group": "core.menu.group.finance",
+      "num": 20,
+      "path": "/account-move-types",
+      "title": "ledger.menu.move_types"
+    },
+    {
+      "group": "core.menu.group.finance",
+      "num": 30,
+      "path": "/ledger/moves",
+      "title": "ledger.menu.moves"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_accounts",
+    "base_account_move_types",
+    "base_account_moves",
+    "base_account_reconciliations"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "ledger.moves.from_payment",
+      "ledger bulk actions via BulkActions"
+    ]
+  }
+}

@@ -62,31 +62,44 @@ if (!PaymentsRepository::ledgerEnabled()) {
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        if (!$canSeeOthers) {
-            $_POST['user_id'] = (string)Auth::userId();
+        if (!$isNew && !empty($_POST['create_dps']) && PaymentsRepository::ledgerEnabled()) {
+            $res = PaymentsRepository::createDpsByIds([$id]);
+            if ($res['done'] > 0) {
+                $message = t('payments.flash.dps_created', ['n' => $res['done']]);
+            } else {
+                $reason = $res['skipped'][0]['reason'] ?? t('payments.flash.dps_none');
+                $error = $reason;
+            }
+            $row = PaymentsRepository::find($id) ?: $row;
+        } else {
+            if (!$canSeeOthers) {
+                $_POST['user_id'] = (string)Auth::userId();
+            }
+            $data = PaymentsRepository::dataFromPost($_POST, $isNew ? null : $row);
+            if ($isNew) {
+                $newId = PaymentsRepository::create($data);
+                redirect('/payments/' . $newId . '/edit?saved=1');
+                return;
+            }
+            PaymentsRepository::update($id, $data);
+            $message = t('core.common.saved');
+            $row = PaymentsRepository::find($id) ?: $row;
         }
-        $data = PaymentsRepository::dataFromPost($_POST, $isNew ? null : $row);
-        if ($isNew) {
-            $newId = PaymentsRepository::create($data);
-            redirect('/payments/' . $newId . '/edit?saved=1');
-            return;
-        }
-        PaymentsRepository::update($id, $data);
-        $message = t('core.common.saved');
-        $row = PaymentsRepository::find($id) ?: $row;
     } catch (Throwable $e) {
         $error = $e->getMessage();
-        $row = array_merge($row, [
-            'user_id' => (int)($_POST['user_id'] ?? $row['user_id']),
-            'dt' => (string)($_POST['dt'] ?? $row['dt']),
-            'descr' => (string)($_POST['descr'] ?? $row['descr']),
-            'direction' => (int)($_POST['direction'] ?? $row['direction']),
-            'sum' => $_POST['sum'] ?? $row['sum'],
-            'type_id' => (int)($_POST['type_id'] ?? $row['type_id']),
-            'account' => (int)($_POST['account'] ?? $row['account']),
-            'comment_id' => (int)($_POST['comment_id'] ?? $row['comment_id']),
-            'is_partner' => !empty($_POST['is_partner']) ? 1 : 0,
-        ]);
+        if (empty($_POST['create_dps'])) {
+            $row = array_merge($row, [
+                'user_id' => (int)($_POST['user_id'] ?? $row['user_id']),
+                'dt' => (string)($_POST['dt'] ?? $row['dt']),
+                'descr' => (string)($_POST['descr'] ?? $row['descr']),
+                'direction' => (int)($_POST['direction'] ?? $row['direction']),
+                'sum' => $_POST['sum'] ?? $row['sum'],
+                'type_id' => (int)($_POST['type_id'] ?? $row['type_id']),
+                'account' => (int)($_POST['account'] ?? $row['account']),
+                'comment_id' => (int)($_POST['comment_id'] ?? $row['comment_id']),
+                'is_partner' => !empty($_POST['is_partner']) ? 1 : 0,
+            ]);
+        }
     }
 }
 

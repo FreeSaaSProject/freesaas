@@ -37,7 +37,9 @@
   ],
   "migrators": [],
   "hooks": {
-    "subscribe": [],
+    "subscribe": [
+      "core.notices.collect"
+    ],
     "publish": [
       "vacations bulk actions via BulkActions (list_id=vacations)"
     ]

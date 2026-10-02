@@ -30,12 +30,12 @@ Rule: FreeSaaS code never queries `phpshop_*`. New tables use `base_*`.
 | `base_workweeks` | same | workweeks | Shift assignments (calendar + audio/video analytics); `ID_TABLE` → massage tables when `tables` enabled |
 | `base_procent_history` | same | rates | Specialist pay rates — not client `BONUS_PROCENT` |
 | `base_procedures*` | `base_procedures*` | procedures | Existing names; types+journal in FreeSaaS; restores UI later (EventBus → payments) |
-| `base_payments` / `base_payment_types` | same | payments | Staff settlements; auto-DPS deferred until ledger |
+| `base_payments` / `base_payment_types` | same | payments | Staff settlements; auto-DPS when `ledger` enabled |
 | `base_vacations` | same | vacations | Leave register + sign workflow |
 | — (read-only) | procedures + rates + workweeks (+ optional sales/stocks/records) | procents | Commission accrual report |
-| `base_accounts` / `base_account_moves*` / reconciliations | same | ledger (planned, wave 2) | Enterprise accounts + ДПС |
-| `base_funds` / `base_fund_movements` | same | funds (planned, wave 2) | Capital funds; requires ledger |
-| balance5 report (no inflation) | — | finance (planned, wave 2) | Management P&L/balance; no inflation / no amort schedule |
+| `base_accounts` / `base_account_move_types` / `base_account_moves` / `base_account_reconciliations` | same | ledger | Enterprise accounts + ДПС + reconciliations; payments auto-DPS |
+| `base_funds` / `base_fund_movements` | same | funds | Capital funds tree + CAPUSE/REFUND; requires ledger |
+| balance5 report (no inflation) | — | finance | ODDS/OPiU/Accounts/Balance/Kanal (+ Fund matrix if funds); no INFL_CAP / amort schedule |
 | `base_orders` | `base_orders` | orders | Shared with site/oper; website cart orders; `ID_EVENT_USE`→procedure; no phpshop_orders migrator |
 | `base_promopages` | `base_promopages` | likespa-promopages (planned) | Promo codes referenced by `base_orders.ID_PROMOCODE` |
 

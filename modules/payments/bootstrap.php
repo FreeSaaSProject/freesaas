@@ -81,6 +81,14 @@ BulkActions::register('payments', 'accept', [
     },
 ]);
 
+BulkActions::register('payments', 'create_dps', [
+    'label' => 'payments.bulk.create_dps',
+    'permission' => 'payments.edit',
+    'run' => static function (array $ids, array $params): array {
+        return PaymentsRepository::createDpsByIds($ids);
+    },
+]);
+
 BulkActions::register('payment_types', 'delete', [
     'label' => 'core.bulk.delete',
     'permission' => 'payments.types',

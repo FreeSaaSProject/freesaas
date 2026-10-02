@@ -143,10 +143,11 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
-| `payments` | Staff settlements (`base_payments`, `base_payment_types`); contracts pay CTA; DPS stub until `ledger` |
+| `payments` | Staff settlements (`base_payments`, `base_payment_types`); contracts pay CTA; auto-DPS when `ledger` on |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
-
-**Planned (wave 2 finance):** `ledger` (accounts + ДПС), `funds` (+ fund movements), `finance` (balance report without inflation; no amort schedule).
+| `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |
+| `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |
+| `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 
 Prefer extending these via hooks before forking page logic.
 

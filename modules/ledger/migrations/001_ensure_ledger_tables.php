@@ -1,0 +1,128 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Enterprise accounts + ДПС. Shared with legacy oper — keep uppercase columns.
+ */
+return static function (PDO $pdo): void {
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_accounts (
+            ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            NAME VARCHAR(20) NOT NULL DEFAULT '',
+            DESCR VARCHAR(255) NOT NULL DEFAULT '',
+            DT INT UNSIGNED NOT NULL DEFAULT 0,
+            ENABLED TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+            ID_TYPE TINYINT(1) UNSIGNED NOT NULL DEFAULT 2,
+            PRIMARY KEY (ID)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_account_move_types (
+            ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            NAME VARCHAR(100) NOT NULL DEFAULT '',
+            DESCR VARCHAR(255) NOT NULL DEFAULT '',
+            DT INT UNSIGNED NOT NULL DEFAULT 0,
+            PID INT UNSIGNED NOT NULL DEFAULT 0,
+            ENABLED TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+            ID_ACT_IN_ENABLED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            ID_PAYMENT_ENABLED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER_PAYMENT_ENABLED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            ID_SUPPLIER_ENABLED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            ID_INCASS_ENABLED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            ID_MOVEMENT_LINKED_ENABLED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            ID_FUND_ENABLED TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            ID_ACCOUNT INT UNSIGNED NOT NULL DEFAULT 0,
+            NUM INT NOT NULL DEFAULT 0,
+            DIRECTION TINYINT NOT NULL DEFAULT 0,
+            IS_VARIABLE TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            EXCLUDE_PL TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            IS_USNO_DISCOUNTING TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            IS_USNO_PAYING TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            ID_TYPE TINYINT(1) UNSIGNED NOT NULL DEFAULT 1,
+            IS_DIV TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (ID),
+            KEY idx_amt_pid (PID),
+            KEY idx_amt_name (NAME)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_account_moves (
+            ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            ID_ACCOUNT INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_TYPE INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_ACT_IN INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_PAYMENT INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_SUPPLIER INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER_PAYMENT INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_INCASS INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_MOVEMENT_LINKED INT UNSIGNED NOT NULL DEFAULT 0,
+            DIRECTION TINYINT(1) NOT NULL DEFAULT 0,
+            SUMM DOUBLE UNSIGNED NOT NULL DEFAULT 0,
+            DESCR MEDIUMTEXT NULL,
+            DT INT UNSIGNED NOT NULL DEFAULT 0,
+            DT_CREATE INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER_CREATE INT UNSIGNED NOT NULL DEFAULT 0,
+            UNCONFIRMED TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            UNTAKEN TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            TAKE_DESCR MEDIUMTEXT NULL,
+            DT_TAKE INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER_TAKE INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_ACCOUNT_TO INT UNSIGNED NOT NULL DEFAULT 0,
+            DELETED TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER_UPDATE INT UNSIGNED NOT NULL DEFAULT 0,
+            DT_UPDATE INT UNSIGNED NOT NULL DEFAULT 0,
+            TYPES_PROC MEDIUMTEXT NULL,
+            COUNT_AS_INDIRECT TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            AMORT_REQ TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            AMORT_MONTHS INT UNSIGNED NOT NULL DEFAULT 0,
+            AMORT_DATE_START INT UNSIGNED NOT NULL DEFAULT 0,
+            AMORT_DATE_END INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_ACT2_IN INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_ACTIVE INT UNSIGNED NOT NULL DEFAULT 0,
+            IS_VARIABLE TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            ACT2_NOT_REQ TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            DT_PROMISED INT UNSIGNED NOT NULL DEFAULT 0,
+            PROMISE_EXECUTED TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            ID_FUND_MOVEMENT INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_COMMENT INT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (ID),
+            KEY idx_am_account_dt (ID_ACCOUNT, DT),
+            KEY idx_am_payment (ID_PAYMENT),
+            KEY idx_am_deleted (DELETED),
+            KEY idx_am_type (ID_TYPE),
+            KEY idx_am_linked (ID_MOVEMENT_LINKED)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_account_reconciliations (
+            ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            ID_ACCOUNT INT UNSIGNED NOT NULL DEFAULT 0,
+            BANK_BALANCE DECIMAL(15,2) NOT NULL DEFAULT 0,
+            SYSTEM_BALANCE DECIMAL(15,2) NOT NULL DEFAULT 0,
+            DT_RECONCILIATION INT UNSIGNED NOT NULL DEFAULT 0,
+            ID_USER INT UNSIGNED NOT NULL DEFAULT 0,
+            DISABLED TINYINT(1) NOT NULL DEFAULT 0,
+            DISABLED_REASON TEXT NULL,
+            DT_DISABLED INT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (ID),
+            KEY idx_recon_account_dt (ID_ACCOUNT, DT_RECONCILIATION)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+    );
+
+    $ensureIdx = static function (PDO $pdo, string $table, string $idx, string $ddl): void {
+        $st = $pdo->prepare(
+            'SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND INDEX_NAME = ?'
+        );
+        $st->execute([$table, $idx]);
+        if ((int)$st->fetchColumn() < 1) {
+            $pdo->exec('ALTER TABLE `' . $table . '` ADD ' . $ddl);
+        }
+    };
+    $ensureIdx($pdo, 'base_account_moves', 'idx_am_account_dt', 'INDEX idx_am_account_dt (ID_ACCOUNT, DT)');
+    $ensureIdx($pdo, 'base_account_moves', 'idx_am_payment', 'INDEX idx_am_payment (ID_PAYMENT)');
+    $ensureIdx($pdo, 'base_account_moves', 'idx_am_deleted', 'INDEX idx_am_deleted (DELETED)');
+};

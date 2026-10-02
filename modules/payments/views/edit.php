@@ -99,5 +99,12 @@
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="/payments"><?= te('core.common.cancel') ?></a>
+    <?php if (!$isNew && !empty($ledgerEnabled) && (int)($row['account'] ?? 0) > 0 && (int)($row['direction'] ?? 0) < 0): ?>
+      <?php if (!empty($linkedMoves)): ?>
+        <a class="btn-secondary" href="/ledger/moves?payment_id=<?= (int)($row['id'] ?? 0) ?>"><?= te('payments.action.view_dps') ?></a>
+      <?php else: ?>
+        <button class="btn-secondary" type="submit" name="create_dps" value="1"><?= te('payments.action.create_dps') ?></button>
+      <?php endif; ?>
+    <?php endif; ?>
   </div>
 </form>
