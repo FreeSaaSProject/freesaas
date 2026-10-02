@@ -10,6 +10,7 @@
  * @var bool $canAssign
  * @var int $staffId optional hidden staff filter for calendar redirect
  */
+Assets::need('workweeks');
 $shifts = $shifts ?? [];
 $assignableStaff = $assignableStaff ?? [];
 $assignedIds = $assignedIds ?? [];

@@ -116,7 +116,7 @@ final class I18n
     }
 
     /**
-     * Subset of keys for JS (crm.js). Pass explicit keys or prefix.
+     * Subset of keys for JS (core.js / module scripts). Pass explicit keys or prefix.
      *
      * @param list<string> $keys
      * @return array<string, string>

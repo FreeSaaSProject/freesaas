@@ -44,6 +44,7 @@ Route params: `Router::param('id')`. Redirect: `redirect('/path')`. Escape outpu
 | Extend home widgets / news card / comment form | `EventBus::on(...)` in `bootstrap.php` |
 | List row selection / group ops | `BulkActions::register($listId, $action, …)` in bootstrap; view helpers `th`/`td`/`bar`; dependency blocks via `EventBus::on('core.bulk.check_item')` |
 | Breadcrumb trail UI | Page passes `breadcrumbs` (+ optional `breadcrumbs_aria`) to `View::render`; layout always draws them at top of `<main>` via `Breadcrumbs` (`modules/core/lib/Breadcrumbs.php`). If omitted, auto from menu + page title. |
+| Module CSS/JS | `modules/<id>/assets/{css,js}/` + `Assets::register($id, …)` in bootstrap. `View::render(..., $id)` auto-queues; embeds call `Assets::need('other')`. Core chrome: `assets/css/core.css`, `assets/js/core.js`. |
 
 Layouts always live in `modules/core/views/` (`layout`, `layout_auth`, `error`).
 
@@ -53,8 +54,8 @@ Create `modules/<id>/` with:
 
 1. `module.json` — required keys: `id`, `name`, `version`, `type` (`product`), `requires` (at least `"core": ">=0.3.0"`), `permissions`, `menu` (if nav), `tables`, `hooks` (document emit/subscribe), `routes.pages` (list paths for humans; real routes are in bootstrap).
 2. **i18n (required):** `lang/ru.php` + `lang/en.php` with all UI chrome strings. `module.json` `name`, `menu[].title|group`, and `permissions[].label` must be translation **keys** (e.g. `myid.menu.list`), not hardcoded language text. Views/pages/bootstrap/lib labels use `t()` / `te()` / `tj()` — never hardcode Russian or English UI copy.
-3. `bootstrap.php` — `require_once` libs; register routes; subscribe EventBus.
-4. Optional: `pages/`, `views/`, `lib/`, `migrations/`.
+3. `bootstrap.php` — `require_once` libs; `Assets::register` if the module has CSS/JS; register routes; subscribe EventBus.
+4. Optional: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`.
 5. Enable: `[modules] <id>=1` or Modules UI (runs schema migrations on enable).
 
 Do **not** translate UGC or DB reference `NAME` fields; only chrome (buttons, flashes, menu, column headers, empty states, JS prompts).
@@ -151,7 +152,7 @@ Prefer extending these via hooks before forking page logic.
 
 ## Apache / paths
 
-- `.htaccess` forces `/modules` into `index.php` (filesystem `modules/` would 403).
+- `.htaccess` forces `/modules` into `index.php` (filesystem `modules/` would 403), **except** existing files under `modules/*/assets/` with extensions `css|js|png|jpe?g|gif|svg|webp|woff2?`.
 - `app|cfg|bin|docs` are forbidden from the web.
 
 ## Testing / verify locally

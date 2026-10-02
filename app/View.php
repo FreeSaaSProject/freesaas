@@ -6,6 +6,9 @@ final class View
     /** @param array<string,mixed> $data */
     public static function render(string $name, array $data = [], string $layout = 'layout', string $module = 'core'): void
     {
+        if ($module !== '' && class_exists('Assets', false) && ModuleManager::isEnabled($module)) {
+            Assets::need($module);
+        }
         $content = self::capture($name, $data, $module);
         if (class_exists('StageTiming', false)) {
             StageTiming::mark('Page view');

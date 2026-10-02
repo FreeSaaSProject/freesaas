@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/WorkweeksRepository.php';
 
+Assets::register('workweeks', [
+    'css' => ['workweeks.css'],
+]);
+
 $pages = [
     '/workweeks' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'day.php'],
     '/workweeks/day/{date}' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'day.php'],

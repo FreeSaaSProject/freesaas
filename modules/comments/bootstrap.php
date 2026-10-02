@@ -4,6 +4,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/CommentsRepository.php';
 require_once base_path('modules/core/lib/LikesRepository.php');
 
+Assets::register('comments', [
+    'js' => ['comments.js'],
+]);
+
 EventBus::on('comments.counts', static function ($payload) {
     if (!is_array($payload)) {
         $payload = [];

@@ -10,6 +10,7 @@ require_once __DIR__ . '/I18n.php';
 require_once __DIR__ . '/ModuleManager.php';
 require_once __DIR__ . '/Router.php';
 require_once __DIR__ . '/View.php';
+require_once __DIR__ . '/Assets.php';
 require_once __DIR__ . '/ListQuery.php';
 require_once __DIR__ . '/BulkActions.php';
 require_once __DIR__ . '/SchemaMigrator.php';

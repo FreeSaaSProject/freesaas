@@ -67,7 +67,8 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/assets/css/crm.css?v=<?= (int)@filemtime(base_path('assets/css/crm.css')) ?>">
+  <link rel="stylesheet" href="/assets/css/core.css?v=<?= (int)@filemtime(base_path('assets/css/core.css')) ?>">
+  <?= Assets::cssTags() ?>
 </head>
 <body class="app-shell" data-rail="ready">
   <header class="topbar" id="topbar">
@@ -208,6 +209,7 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
       </details>
     </footer>
   </div>
-  <script src="/assets/js/crm.js?v=<?= (int)@filemtime(base_path('assets/js/crm.js')) ?>"></script>
+  <script src="/assets/js/core.js?v=<?= (int)@filemtime(base_path('assets/js/core.js')) ?>"></script>
+  <?= Assets::jsTags() ?>
 </body>
 </html>

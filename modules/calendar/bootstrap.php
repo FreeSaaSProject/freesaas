@@ -5,6 +5,10 @@ require_once __DIR__ . '/lib/EventsRepository.php';
 require_once __DIR__ . '/lib/CalendarWeek.php';
 require_once __DIR__ . '/lib/CalendarTimeline.php';
 
+Assets::register('calendar', [
+    'css' => ['calendar.css'],
+]);
+
 $pages = [
     '/calendar' => ['permission' => 'calendar.view', 'methods' => ['GET', 'POST'], 'file' => 'week.php'],
     '/calendar/week/{date}' => ['permission' => 'calendar.view', 'methods' => ['GET', 'POST'], 'file' => 'week.php'],

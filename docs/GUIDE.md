@@ -73,7 +73,8 @@ freesaas.likespa.hm/
 │   ├── comments/          # Комментарии к новостям/заявкам (без своих URL)
 │   ├── contracts/         # Контракты / офферы
 │   └── clients/           # Клиентская база + статусы клиентов
-├── assets/css|js          # Статика
+├── assets/css|js          # Ядро (core.css / core.js)
+├── modules/<id>/assets/   # CSS/JS модуля (page-scoped via Assets)
 ├── docs/                  # Документация
 └── log/                   # Логи (если используются)
 ```
@@ -323,7 +324,9 @@ return static function (PDO $pdo): void {
 ## UI / фронт
 
 - Layout: `modules/core/views/layout.php` (и `layout_auth.php` для логина).
-- Стили: `assets/css/crm.css`.
+- Ядро: `assets/css/core.css`, `assets/js/core.js` (всегда в layout).
+- Модули: `modules/<id>/assets/{css,js}/` — регистрация в `bootstrap.php` через `Assets::register('myid', ['css' => ['x.css'], 'js' => ['y.js']])`. `View::render(..., 'myid')` сам ставит модуль в очередь; эмбеды чужого UI — `Assets::need('other')`. Layout выводит теги через `Assets::cssTags()` / `Assets::jsTags()`.
+- Статика модулей отдаётся напрямую (исключение в `.htaccess` для `/modules/*/assets/*.{css,js,…}`); остальной `/modules` идёт в front controller.
 - Меню собирается из `module.json` → `ModuleManager::menuGrouped()` / событие `core.menu.collect`.
 
 ---
@@ -335,8 +338,8 @@ return static function (PDO $pdo): void {
 1. Создать каталог `modules/myfeature/`.
 2. Написать `module.json` (`id`, `version`, `requires: { "core": ">=0.3.0" }`, permissions, menu, tables, hooks). Поля `name`, `menu[].title|group`, `permissions[].label` — **ключи перевода**, не строки на одном языке.
 3. Добавить `lang/ru.php` и `lang/en.php` со всеми UI-строками модуля; во views/pages — только `t()` / `te()` / `tj()`.
-4. Добавить `bootstrap.php`: `require` репозиториев, `ModuleManager::registerRoute(...)`, `EventBus::on(...)`.
-5. При необходимости: `pages/`, `views/`, `lib/`, `migrations/`.
+4. Добавить `bootstrap.php`: `require` репозиториев, при наличии стилей/скриптов — `Assets::register(...)`, `ModuleManager::registerRoute(...)`, `EventBus::on(...)`.
+5. При необходимости: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/` (эмбеды чужого UI — `Assets::need('other')` в partial).
 6. Включить в `cfg/config.ini` `[modules] myfeature=1` или через UI `/modules` (миграции прогонятся при connect).
 7. Не ходить в `phpshop_*` из runtime; новые таблицы — `base_*`.
 8. Если нужно встроиться в существующий экран — подписаться на hook, а не править чужой page без необходимости.

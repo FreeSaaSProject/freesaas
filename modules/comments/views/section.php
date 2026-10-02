@@ -12,6 +12,8 @@
 /** @var array $staff */
 /** @var bool $contractLocked */
 
+Assets::need('comments');
+
 require_once __DIR__ . '/_comment_tree.php';
 
 $nid = (int)$row['ID'];

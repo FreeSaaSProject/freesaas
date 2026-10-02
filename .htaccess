@@ -3,6 +3,10 @@ DirectorySlash Off
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Allow static assets shipped inside modules (css/js/images/fonts only).
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^modules/[^/]+/assets/.+\.(css|js|png|jpe?g|gif|svg|webp|woff2?)$ - [L]
+
   # /modules collides with the on-disk modules/ directory (Apache 403 with -Indexes).
   # Always send it (and anything under it) to the front controller; never serve PHP from there.
   RewriteRule ^modules/?$ index.php [L,QSA]
