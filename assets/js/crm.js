@@ -139,7 +139,7 @@
     }
   });
 
-  // Pager: keyboard ←/→ and horizontal swipe
+  // Pager: keyboard ←/→ (no swipe — conflicts with horizontal table scroll on mobile)
   (function () {
     function activePager() {
       return document.querySelector('.pager[data-pager-prev], .pager[data-pager-next]');
@@ -168,28 +168,6 @@
         go('next');
       }
     });
-
-    var touchStartX = 0;
-    var touchStartY = 0;
-    var tracking = false;
-    var area = document.querySelector('.main') || document.body;
-    area.addEventListener('touchstart', function (e) {
-      if (!e.touches || e.touches.length !== 1) return;
-      if (!activePager()) return;
-      tracking = true;
-      touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    area.addEventListener('touchend', function (e) {
-      if (!tracking || !e.changedTouches || !e.changedTouches.length) return;
-      tracking = false;
-      var dx = e.changedTouches[0].clientX - touchStartX;
-      var dy = e.changedTouches[0].clientY - touchStartY;
-      if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.4) return;
-      // swipe left → next page; swipe right → prev
-      go(dx < 0 ? 'next' : 'prev');
-    }, { passive: true });
-    area.addEventListener('touchcancel', function () { tracking = false; }, { passive: true });
   })();
 
   document.querySelectorAll('select[data-auto-submit]').forEach(function (sel) {
