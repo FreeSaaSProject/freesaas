@@ -3,41 +3,62 @@ declare(strict_types=1);
 
 final class Config
 {
+    /** Platform sections always live in cfg/config.ini. */
+    private const PLATFORM_SECTIONS = ['connect', 'app', 'salts', 'modules'];
+
     /** @var array<string,mixed> */
     private static $data = [];
 
-    /** @var string */
+    /** @var string Main cfg/config.ini path */
     private static $path = '';
+
+    /** @var array<string,string> section name (lowercase) => absolute ini path that owns it */
+    private static $sectionPaths = [];
 
     public static function load(string $iniPath): void
     {
         if (!is_file($iniPath)) {
             throw new RuntimeException('Missing config: ' . $iniPath . ' (copy cfg/config.example.ini)');
         }
-        $parsed = parse_ini_file($iniPath, true, INI_SCANNER_RAW);
-        if ($parsed === false) {
-            throw new RuntimeException('Invalid config.ini');
+        $parsed = self::parseIniFile($iniPath);
+        self::$data = $parsed;
+        self::$path = $iniPath;
+        self::$sectionPaths = [];
+        foreach (array_keys($parsed) as $section) {
+            self::$sectionPaths[strtolower((string)$section)] = $iniPath;
         }
-        // strip surrounding quotes from values
-        foreach ($parsed as $section => $rows) {
-            if (!is_array($rows)) continue;
-            foreach ($rows as $k => $v) {
-                if (is_string($v)) {
-                    $v = trim($v);
-                    if (strlen($v) >= 2 && (($v[0] === '"' && substr($v, -1) === '"') || ($v[0] === "'" && substr($v, -1) === "'"))) {
-                        $v = substr($v, 1, -1);
+
+        $dir = dirname($iniPath) . '/modules';
+        if (is_dir($dir)) {
+            foreach (glob($dir . '/*.ini') ?: [] as $modPath) {
+                $mod = self::parseIniFile($modPath);
+                foreach ($mod as $section => $rows) {
+                    if (!is_array($rows)) {
+                        continue;
                     }
-                    $parsed[$section][$k] = $v;
+                    $sec = (string)$section;
+                    if (!isset(self::$data[$sec]) || !is_array(self::$data[$sec])) {
+                        self::$data[$sec] = [];
+                    }
+                    foreach ($rows as $k => $v) {
+                        self::$data[$sec][$k] = $v;
+                    }
+                    // Module files override main for section ownership on write.
+                    self::$sectionPaths[strtolower($sec)] = $modPath;
                 }
             }
         }
-        self::$data = $parsed;
-        self::$path = $iniPath;
     }
 
     public static function path(): string
     {
         return self::$path;
+    }
+
+    /** Directory for module ini files (cfg/modules). */
+    public static function modulesDir(): string
+    {
+        return dirname(self::$path) . '/modules';
     }
 
     public static function get(string $section, string $key, $default = null)
@@ -84,8 +105,9 @@ final class Config
     }
 
     /**
-     * Set a config value in memory and rewrite that key in cfg/config.ini.
-     * Preserves other lines/comments in the section.
+     * Set a config value in memory and rewrite that key on disk.
+     * Platform sections → cfg/config.ini; others → cfg/modules/{section}.ini
+     * (or the module file that already owns the section).
      */
     public static function set(string $section, string $key, $value): void
     {
@@ -104,7 +126,60 @@ final class Config
         }
         $str = is_bool($value) ? ($value ? '1' : '0') : (string)$value;
         self::$data[$section][$key] = $str;
-        self::persistSectionKey($section, $key, $str);
+        $file = self::resolvePersistPath($section);
+        self::persistSectionKey($file, $section, $key, $str);
+        self::$sectionPaths[strtolower($section)] = $file;
+    }
+
+    private static function isPlatformSection(string $section): bool
+    {
+        return in_array(strtolower($section), self::PLATFORM_SECTIONS, true);
+    }
+
+    private static function resolvePersistPath(string $section): string
+    {
+        if (self::isPlatformSection($section)) {
+            return self::$path;
+        }
+        $lower = strtolower($section);
+        if (isset(self::$sectionPaths[$lower])) {
+            $existing = self::$sectionPaths[$lower];
+            // Prefer module file; if still only in main, migrate writes to cfg/modules/{section}.ini
+            if ($existing !== self::$path) {
+                return $existing;
+            }
+        }
+        $dir = self::modulesDir();
+        if (!is_dir($dir) && !@mkdir($dir, 0755, true) && !is_dir($dir)) {
+            throw new RuntimeException(t('app.config.err.write'));
+        }
+        return $dir . '/' . $section . '.ini';
+    }
+
+    /**
+     * @return array<string,array<string,mixed>>
+     */
+    private static function parseIniFile(string $iniPath): array
+    {
+        $parsed = parse_ini_file($iniPath, true, INI_SCANNER_RAW);
+        if ($parsed === false) {
+            throw new RuntimeException('Invalid config: ' . $iniPath);
+        }
+        foreach ($parsed as $section => $rows) {
+            if (!is_array($rows)) {
+                continue;
+            }
+            foreach ($rows as $k => $v) {
+                if (is_string($v)) {
+                    $v = trim($v);
+                    if (strlen($v) >= 2 && (($v[0] === '"' && substr($v, -1) === '"') || ($v[0] === "'" && substr($v, -1) === "'"))) {
+                        $v = substr($v, 1, -1);
+                    }
+                    $parsed[$section][$k] = $v;
+                }
+            }
+        }
+        return $parsed;
     }
 
     private static function truthyFlag($value): bool
@@ -114,13 +189,13 @@ final class Config
     }
 
     /** Upsert one key inside [section]; create section at EOF if missing. */
-    private static function persistSectionKey(string $section, string $key, string $value): void
+    private static function persistSectionKey(string $filePath, string $section, string $key, string $value): void
     {
-        $raw = file_get_contents(self::$path);
+        $raw = is_file($filePath) ? file_get_contents($filePath) : '';
         if ($raw === false) {
             throw new RuntimeException(t('app.config.err.read'));
         }
-        $lines = preg_split("/\r\n|\n|\r/", $raw) ?: [];
+        $lines = $raw === '' ? [] : (preg_split("/\r\n|\n|\r/", $raw) ?: []);
         $out = [];
         $inSection = false;
         $sectionFound = false;
@@ -167,7 +242,7 @@ final class Config
         while ($out && end($out) === '') {
             array_pop($out);
         }
-        if (file_put_contents(self::$path, implode("\n", $out) . "\n") === false) {
+        if (file_put_contents($filePath, implode("\n", $out) . "\n") === false) {
             throw new RuntimeException(t('app.config.err.write'));
         }
     }
@@ -211,7 +286,6 @@ final class Config
                 $out[] = $bl;
             }
         }
-        // Drop trailing empty lines, then one newline at EOF
         while ($out && end($out) === '') {
             array_pop($out);
         }

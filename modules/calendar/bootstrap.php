@@ -5,10 +5,29 @@ require_once __DIR__ . '/lib/EventsRepository.php';
 require_once __DIR__ . '/lib/CalendarWeek.php';
 require_once __DIR__ . '/lib/CalendarTimeline.php';
 require_once __DIR__ . '/lib/CalendarWidgets.php';
+require_once __DIR__ . '/lib/CalendarDayStats.php';
 
 Assets::register('calendar', [
     'css' => ['calendar.css'],
     'js' => ['calendar.js'],
+]);
+ModuleManager::registerMenuGroup('calendar.menu.group', 20, '/calendar');
+
+StatusesRepository::registerFieldGroup([
+    'title' => 'calendar.statuses.group',
+    'when' => 'calendar',
+    'fields' => [
+        ['key' => 'EVT_MY_ONLY', 'label' => 'calendar.statuses.field.EVT_MY_ONLY', 'type' => 'checkbox'],
+        ['key' => 'EVT_OLD', 'label' => 'calendar.statuses.field.EVT_OLD', 'type' => 'checkbox'],
+        ['key' => 'EVT_MONEY_DATA', 'label' => 'calendar.statuses.field.EVT_MONEY_DATA', 'type' => 'checkbox'],
+        ['key' => 'EVT_DELETE', 'label' => 'calendar.statuses.field.EVT_DELETE', 'type' => 'checkbox'],
+        ['key' => 'EVT_CREATE_NEW', 'label' => 'calendar.statuses.field.EVT_CREATE_NEW', 'type' => 'checkbox'],
+        ['key' => 'EVT_MODIFY', 'label' => 'calendar.statuses.field.EVT_MODIFY', 'type' => 'checkbox'],
+        ['key' => 'EVT_BONUS', 'label' => 'calendar.statuses.field.EVT_BONUS', 'type' => 'checkbox'],
+        ['key' => 'EVT_CONTACT_DATA', 'label' => 'calendar.statuses.field.EVT_CONTACT_DATA', 'type' => 'checkbox'],
+        ['key' => 'EVT_DOC_LINKS', 'label' => 'calendar.statuses.field.EVT_DOC_LINKS', 'type' => 'checkbox'],
+        ['key' => 'EVT_PHOTOS', 'label' => 'calendar.statuses.field.EVT_PHOTOS', 'type' => 'checkbox'],
+    ],
 ]);
 
 $pages = [
@@ -18,18 +37,27 @@ $pages = [
     '/calendar/events/new' => ['permission' => 'calendar.edit', 'methods' => ['GET', 'POST'], 'file' => 'event_edit.php'],
     '/calendar/events/{id}/edit' => ['permission' => 'calendar.edit', 'methods' => ['GET', 'POST'], 'file' => 'event_edit.php'],
     '/calendar/nazop' => ['permission' => 'calendar.view', 'methods' => ['GET', 'POST'], 'file' => 'nazop.php'],
+    '/calendar/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
 ];
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'calendar',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/calendar/pages/' . $file);
         },
-    ]);
+    ];
+    $perm = (string)($def['permission'] ?? '');
+    if ($perm !== '') {
+        $route['permission'] = $perm;
+    }
+    $capability = (string)($def['capability'] ?? '');
+    if ($capability !== '') {
+        $route['capability'] = $capability;
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 EventBus::on('core.dashboard.catalog', static function ($catalog) {
@@ -129,44 +157,4 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
     }
 
     return $widgets;
-});
-
-EventBus::on('core.settings.sections', static function ($payload) {
-    if (!is_array($payload)) {
-        $payload = ['html' => '', 'row' => null];
-    }
-    if (!Auth::can('core.settings')) {
-        return $payload;
-    }
-    $row = is_array($payload['row'] ?? null) ? $payload['row'] : null;
-    $showHours = Database::tableExists('base_system')
-        && Database::columnExists('base_system', 'work_hour_start')
-        && Database::columnExists('base_system', 'work_hour_end');
-    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_hours', [
-        'row' => $row,
-        'showHours' => $showHours,
-        'manualCreate' => (int)Config::get('calendar', 'manual_create', 1) === 1,
-    ], 'calendar');
-    return $payload;
-});
-
-EventBus::on('core.settings.save', static function ($payload) {
-    if (!is_array($payload)) {
-        return $payload;
-    }
-    if (!Auth::can('core.settings')) {
-        return $payload;
-    }
-    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
-    if (array_key_exists('work_hour_start', $post) || array_key_exists('work_hour_end', $post)) {
-        require_once base_path('modules/core/lib/SystemRepository.php');
-        SystemRepository::updateWorkHours(
-            (int)($post['work_hour_start'] ?? 9),
-            (int)($post['work_hour_end'] ?? 22)
-        );
-    }
-    if (array_key_exists('calendar_manual_create', $post)) {
-        Config::set('calendar', 'manual_create', !empty($post['calendar_manual_create']) ? '1' : '0');
-    }
-    return $payload;
 });

@@ -161,3 +161,42 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
     ];
     return $widgets;
 });
+
+EventBus::on('core.user_edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user)) {
+        return $payload;
+    }
+    ob_start();
+    require __DIR__ . '/views/_user_edit_access.php';
+    $payload['html_access'] = ($payload['html_access'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('core.user_edit.save', static function ($payload) {
+    if (!is_array($payload) || !Database::columnExists('base_users', 'IS_ACCEPTOR')) {
+        return $payload;
+    }
+    $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $data['IS_ACCEPTOR'] = !empty($post['IS_ACCEPTOR']) ? 1 : 0;
+    $payload['data'] = $data;
+    return $payload;
+});
+
+EventBus::on('core.user_edit.profile', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user)) {
+        return $payload;
+    }
+    ob_start();
+    require __DIR__ . '/views/_user_profile_flags.php';
+    $payload['html_flags'] = ($payload['html_flags'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});

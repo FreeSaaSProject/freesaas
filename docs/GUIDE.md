@@ -23,8 +23,9 @@
 ## Быстрый старт
 
 1. Скопировать `cfg/config.example.ini` → `cfg/config.ini` (для local обычно уже есть).
-2. Направить docroot vhost на корень этого проекта.
-3. Прогнать миграции:
+2. При необходимости скопировать `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini` (audio/calendar/ledger и т.п.; секреты не в git).
+3. Направить docroot vhost на корень этого проекта.
+4. Прогнать миграции:
 
 ```bash
 php bin/schema-migrate.php
@@ -33,7 +34,7 @@ php bin/data-migrate.php
 
 Либо открыть `/migrate` после деплоя (для первого входа данные пользователей часто нужны из CLI).
 
-4. Войти логином сотрудника из oper (пароли с тем же site salt).
+5. Войти логином сотрудника из oper (пароли с тем же site salt).
 
 Включение/выключение модулей: UI `/modules` или секция `[modules]` в `cfg/config.ini`.
 
@@ -46,8 +47,9 @@ freesaas.likespa.hm/
 ├── index.php              # Front controller → Router::dispatch()
 ├── .htaccess              # Rewrite на index.php; блок app/cfg/bin/docs
 ├── cfg/
-│   ├── config.ini         # БД, соли, флаги модулей (не в git-секретах)
-│   └── config.example.ini
+│   ├── config.ini         # Платформа: connect/app/salts/modules (не в git)
+│   ├── config.example.ini
+│   └── modules/           # Live ini модулей (*.ini gitignored); примеры в modules/<id>/config.example.ini
 ├── app/                   # Ядро платформы (не модуль)
 │   ├── bootstrap.php      # Загрузка сервисов + ModuleManager
 │   ├── Config.php         # INI-конфиг, enable/disable модулей
@@ -110,7 +112,7 @@ freesaas.likespa.hm/
 
 | Класс | Назначение |
 |-------|------------|
-| **Config** | `cfg/config.ini`. `moduleEnabled` / `setModuleEnabled`. `core` всегда включён. Модуль без ключа в `[modules]` считается включённым. |
+| **Config** | Main `cfg/config.ini` (platform) + merge `cfg/modules/*.ini`. `moduleEnabled` / `setModuleEnabled`. Product `Config::set('calendar',…)` пишет в `cfg/modules/calendar.ini`. `core` всегда включён. Модуль без ключа в `[modules]` считается включённым. |
 | **Database** | Один PDO (utf8mb4). Кэш `tableExists` / `columnExists`. |
 | **Auth** | Сессия `freesaas`. Права из `base_users.status` (unserialize permissions) + флаги роли из `base_admin_statuses` (`capability`). Superadmin обходит проверки. |
 | **ModuleManager** | Discovery, зависимости semver, boot, маршруты, меню, sync в `base_modules`, UI-статус модуля. |
@@ -207,6 +209,11 @@ modules/<id>/
 2. Передать в `View::render(..., ['breadcrumbs' => $trail, 'breadcrumbs_aria' => t('…')])`. Layout рисует их **сверху** `<main>` на каждой странице.
 3. Во **view** не вызывать `Breadcrumbs::render` — иначе будет дубль. Если `breadcrumbs` не передать, layout сам соберёт `Home / пункт меню / title`.
 4. Partial: `modules/core/views/_breadcrumbs.php`. Предки — ссылки, текущий уровень — текст.
+5. **Возврат с фильтрами (`NavContext`, `app/NavContext.php`):**
+   - Ссылки list→detail: `NavContext::withReturn('/module/' . $id)` — передаёт `ret=` = текущий URL (path + query).
+   - Крошка «на уровень выше»: при рендере `NavContext::up($href)` подставляет `ret`, если path совпадает (фильтры списка сохраняются).
+   - Кнопка `[Возврат]` / `[Back]` в строке крошек: всегда ведёт на полный `ret` (модуль-источник с его фильтрами), даже если это другой модуль.
+   - POST-формы: `<?= NavContext::hiddenField() ?>`, чтобы `ret` не терялся.
 
 Права:
 
@@ -228,6 +235,7 @@ modules/<id>/
 | `core.dashboard.catalog` | home / dashboard | Каталог виджетов рабочего стола |
 | `core.dashboard.widgets` | home | Виджеты на главной |
 | `core.notices.collect` | layout | Колокольчик / notices |
+| `core.layout.gate` | layout | Перехват chrome: `blocked` + `html`, слот `chrome` (rail + topbar), доп. ключи в `js_i18n` (без product-кода в core) |
 | `core.news_item.handle_post` | news_item | POST-actions (like, comment…) |
 | `core.news_item.section` | news_item | HTML-секция под карточкой |
 | `core.news_item.meta` | news_item | Мета/счётчики в шапке |
@@ -236,9 +244,12 @@ modules/<id>/
 | `comments.form.ticket_controls` | comments form | Статус/куратор/ОЛ (core) |
 | `comments.render_actions` | comments view | Кнопки на комментарии (contracts) |
 | `core.auth.after_login` | Auth | После успешного входа |
+| `core.auth.before_logout` | Auth | Перед очисткой сессии (`user_id`) |
 | `core.bulk.check_item` | BulkActions | Перед id в групповой операции: `blocked` / `reason` |
-| `core.settings.sections` | settings | HTML-блоки модулей на `/settings` |
-| `core.settings.save` | settings | Сохранение полей, добавленных модулями |
+| `core.settings.sections` | settings | HTML-блоки модулей на `/settings` (платформенные; product-настройки — на `/<module>/settings`) |
+| `core.settings.save` | settings | Сохранение полей, добавленных модулями на `/settings` |
+| `audio.settings.sections` | audio settings | HTML-блоки на `/audio/settings` (напр. `audio_reports`) |
+| `audio.settings.save` | audio settings | Сохранение секций на `/audio/settings` |
 
 Слушатели регистрируются в `bootstrap.php` модуля. Порядок = порядок boot модулей (сортировка по id).
 
@@ -329,7 +340,10 @@ return static function (PDO $pdo): void {
 - Ядро: `assets/css/core.css`, `assets/js/core.js` (всегда в layout).
 - Модули: `modules/<id>/assets/{css,js}/` — регистрация в `bootstrap.php` через `Assets::register('myid', ['css' => ['x.css'], 'js' => ['y.js']])`. `View::render(..., 'myid')` сам ставит модуль в очередь; эмбеды чужого UI — `Assets::need('other')`. Layout выводит теги через `Assets::cssTags()` / `Assets::jsTags()`.
 - Статика модулей отдаётся напрямую (исключение в `.htaccess` для `/modules/*/assets/*.{css,js,…}`); остальной `/modules` идёт в front controller.
-- Меню собирается из `module.json` → `ModuleManager::menuGrouped()` / событие `core.menu.collect`.
+- Меню: пункты из `module.json` → `ModuleManager::menuItems()` / `menuGrouped()`. Порядок **групп** rail — `ModuleManager::registerMenuGroup('myid.menu.group', N)` в bootstrap владельца группы (не в `app/ModuleManager.php`). Shared `core.menu.group.*` — только `modules/core/bootstrap.php`. Неизвестный ключ → вес `1000`.
+- Редактирование сотрудника: core emit `core.user_edit.sections` / `save` / `profile`; product-поля только из bootstrap модулей.
+- Флаги ролей (`base_admin_statuses`): `StatusesRepository::registerFieldGroup` в bootstrap; в core только группы `when=always`.
+- Конфиг модулей: `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini`; не добавлять product-секции в `config.example.ini`.
 
 ---
 
@@ -340,9 +354,9 @@ return static function (PDO $pdo): void {
 1. Создать каталог `modules/myfeature/`.
 2. Написать `module.json` (`id`, `version`, `requires: { "core": ">=0.3.0" }`, permissions, menu, tables, hooks). Поля `name`, `menu[].title|group`, `permissions[].label` — **ключи перевода**, не строки на одном языке.
 3. Добавить `lang/ru.php` и `lang/en.php` со всеми UI-строками модуля; во views/pages — только `t()` / `te()` / `tj()`.
-4. Добавить `bootstrap.php`: `require` репозиториев, при наличии стилей/скриптов — `Assets::register(...)`, `ModuleManager::registerRoute(...)`, `EventBus::on(...)`.
-5. При необходимости: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/` (эмбеды чужого UI — `Assets::need('other')` в partial).
-6. Включить в `cfg/config.ini` `[modules] myfeature=1` или через UI `/modules` (миграции прогонятся при connect).
+4. Добавить `bootstrap.php`: `require` репозиториев, при необходимости `Assets::register` / `registerMenuGroup` / `StatusesRepository::registerFieldGroup` / `core.user_edit.*`, `ModuleManager::registerRoute(...)`, `EventBus::on(...)`.
+5. При необходимости: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `config.example.ini`.
+6. Включить в `cfg/config.ini` `[modules] myfeature=1` или через UI `/modules` (миграции прогонятся при connect). Скопировать config.example → `cfg/modules/` при наличии.
 7. Не ходить в `phpshop_*` из runtime; новые таблицы — `base_*`.
 8. Если нужно встроиться в существующий экран — подписаться на hook, а не править чужой page без необходимости.
 
@@ -353,6 +367,8 @@ return static function (PDO $pdo): void {
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/MyRepository.php';
+
+ModuleManager::registerMenuGroup('myfeature.menu.group', 45);
 
 ModuleManager::registerRoute('/myfeature', [
     'module' => 'myfeature',

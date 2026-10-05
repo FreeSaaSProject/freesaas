@@ -23,7 +23,10 @@ Rule: FreeSaaS code never queries `phpshop_*`. New tables use `base_*`.
 | `base_sheet_accounts` / `base_sheet_moves` | same | sheets | LikeSpa linen ledger (disableable) |
 | `base_tables` | same | tables | Massage tables; optional `ID_TABLE` for calendar/workweeks/procedures |
 | `1C_*` on shopusers | `base_client_onec` (planned) | onec | Deferred; not on `base_clients` |
-| `base_records*` | `base_records*` | audio | Existing names |
+| `base_records*` | `base_records*` | audio / audio_dicts / audio_pipeline / audio_reports | Shared names; split by domain |
+| — | `base_records_badges` | audio | Dictaphone badge dictionary (CODE ↔ ID_DICTOPHONE) |
+| — | `base_audio_settings` | audio | Module KV for storage paths (non-secret) |
+| `base_badge_assignments` | same | audio | Badge ↔ operator time ranges |
 | `base_video_anal*` | `base_video_anal*` | video | Existing names |
 | `base_events` / `base_events_changes` | same | calendar | Shared appointment slots + audit |
 | `base_cabinets` | same | cabinets | Rooms dictionary; staff `skin` stores cabinet ids; stocks bind via `ID_CABINET` |

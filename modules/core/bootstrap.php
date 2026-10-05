@@ -13,6 +13,15 @@ require_once __DIR__ . '/lib/UserPrefsRepository.php';
 require_once __DIR__ . '/lib/DashboardWidgets.php';
 require_once __DIR__ . '/lib/MenuOrder.php';
 
+// Shared rail groups (core.menu.group.*) — product modules register their own keys.
+ModuleManager::registerMenuGroup('core.menu.group.desktop', 10, '/');
+ModuleManager::registerMenuGroup('core.menu.group.dictionaries', 50, '/catalog');
+ModuleManager::registerMenuGroup('core.menu.group.warehouse', 52);
+ModuleManager::registerMenuGroup('core.menu.group.accounting', 55, '/payments');
+ModuleManager::registerMenuGroup('core.menu.group.finance', 58, '/ledger/moves');
+ModuleManager::registerMenuGroup('core.menu.group.team', 60, '/users');
+ModuleManager::registerMenuGroup('core.menu.group.system', 70, '/settings');
+
 $pages = [
     '/login' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'login.php'],
     '/logout' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'handler' => 'logout'],

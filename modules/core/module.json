@@ -68,6 +68,7 @@
     },
     {
       "group": "core.menu.group.team",
+      "kind": "crud",
       "num": 2,
       "path": "/statuses",
       "title": "core.menu.statuses"
@@ -150,6 +151,7 @@
       "core.news_item.section",
       "core.user_edit.sections",
       "core.user_edit.save",
+      "core.user_edit.profile",
       "core.settings.sections",
       "core.settings.save"
     ]

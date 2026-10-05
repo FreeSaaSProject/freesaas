@@ -46,7 +46,8 @@
       "core.notices.collect",
       "core.bulk.check_item",
       "core.dashboard.catalog",
-      "core.dashboard.widgets"
+      "core.dashboard.widgets",
+      "calendar.day.stats"
     ],
     "publish": [
       "orders.for_day (OrdersRepository::listForDayRange — consumed by calendar day view)"

@@ -20,6 +20,14 @@ if ($s2 > 0) {
 
 $displayName = (string)($user['name'] ?: $user['login']);
 
+$profile = EventBus::emit('core.user_edit.profile', [
+    'html_channels' => '',
+    'html_flags' => '',
+    'html_site' => '',
+    'user' => $user,
+    'id' => $id,
+]);
+
 View::render('user', [
     'title' => $displayName,
     'user' => $user,
@@ -27,6 +35,9 @@ View::render('user', [
     'partnerStatusName' => $partnerStatusName,
     'favoritesCount' => count(UsersRepository::favoriteIds($id)),
     'features' => UsersRepository::editFeatures(),
+    'profileChannelsHtml' => is_array($profile) ? (string)($profile['html_channels'] ?? '') : '',
+    'profileFlagsHtml' => is_array($profile) ? (string)($profile['html_flags'] ?? '') : '',
+    'profileSiteHtml' => is_array($profile) ? (string)($profile['html_site'] ?? '') : '',
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('core.menu.users'), 'href' => '/users'],
         ['label' => $displayName, 'current' => true],

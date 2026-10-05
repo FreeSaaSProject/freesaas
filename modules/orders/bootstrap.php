@@ -97,3 +97,49 @@ EventBus::on('core.bulk.check_item', static function (array $payload): array {
     }
     return $payload;
 });
+
+EventBus::on('calendar.day.stats', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Auth::can('orders.view') || !Database::tableExists('base_orders')) {
+        return $payload;
+    }
+    // Same gate as notice chips: administrator reference info.
+    if (!Auth::capability('SHOW_ADMINISTRATOR_DATA') && !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $days = is_array($payload['days'] ?? null) ? $payload['days'] : [];
+    foreach ($days as $date => $day) {
+        if (!is_array($day) || !empty($day['is_future'])) {
+            continue;
+        }
+        $tsStart = (int)($day['ts_start'] ?? 0);
+        $tsEnd = (int)($day['ts_end'] ?? 0);
+        if ($tsStart <= 0) {
+            continue;
+        }
+        $staffFilter = isset($day['staff_filter']) ? (int)$day['staff_filter'] : null;
+        if ($staffFilter !== null && $staffFilter < 1) {
+            $staffFilter = null;
+        }
+        $n = count(OrdersRepository::listForDayRange($tsStart, $tsEnd, $staffFilter));
+        if ($n < 1) {
+            continue;
+        }
+        $sections = is_array($day['sections'] ?? null) ? $day['sections'] : [];
+        $sections[] = [
+            'id' => 'orders.day_chip',
+            'module' => 'orders',
+            'order' => 40,
+            'html' => View::capture('_day_stats_chip', [
+                'count' => $n,
+                'date' => (string)$date,
+            ], 'orders'),
+            'data' => ['count' => $n],
+        ];
+        $day['sections'] = $sections;
+        $payload['days'][$date] = $day;
+    }
+    return $payload;
+});

@@ -109,6 +109,10 @@ if ($openShiftDay !== 'all' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $openShiftDa
     $openShiftDay = '';
 }
 
+$dayStatsHtml = CalendarDayStats::collect([
+    ['ts' => $dayStart, 'date' => $dateParam, 'is_today' => $dateParam === $today],
+], $staffFilter, 'day');
+
 View::render('day', [
     'title' => t('calendar.day.title', ['date' => $dateLabel]),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -133,5 +137,6 @@ View::render('day', [
     'pxPerHour' => CalendarTimeline::PX_PER_HOUR,
     'retUrl' => $retDay,
     'openShiftDay' => $openShiftDay,
+    'dayStatsHtml' => $dayStatsHtml,
     'main_flush' => true,
 ], 'layout', 'calendar');

@@ -103,4 +103,6 @@ return [
     'orders.widget.quick.future' => 'Все будущие',
 
     'orders.bulk.client_in_use' => 'Есть заказы ({n})',
+
+    'orders.stats.day_chip' => 'LS:{n}',
 ];

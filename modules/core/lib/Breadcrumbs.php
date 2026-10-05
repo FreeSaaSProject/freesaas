@@ -9,6 +9,10 @@ declare(strict_types=1);
  * menu match + page title so every screen has a path.
  *
  * Item shape: ['label' => string, 'href' => ?string, 'current' => bool]
+ *
+ * Ancestor hrefs are rewritten via NavContext::up() at render time so a
+ * matching `ret` query keeps list filters. Layout also shows [Return]
+ * (NavContext::returnUrl) when the user arrived from another screen.
  */
 final class Breadcrumbs
 {

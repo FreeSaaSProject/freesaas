@@ -114,4 +114,6 @@ return [
     'clients.tag.created' => 'Created',
     'clients.tag.enabled' => 'On',
     'clients.tag.empty' => 'No labels',
+    'clients.statuses.group' => 'Clients',
+    'clients.statuses.field.CLIENT_BASE' => 'Client base access',
 ];

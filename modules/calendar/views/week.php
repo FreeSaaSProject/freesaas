@@ -17,9 +17,11 @@
 /** @var string $shiftError */
 /** @var string $openShiftDay */
 /** @var string $weekRet */
+/** @var array<string,string> $dayStatsHtml */
 
 // Nazop dialog loads workweeks HTML via AJAX — queue CSS on the parent page.
 Assets::need('workweeks');
+$dayStatsHtml = $dayStatsHtml ?? [];
 
 $canAssign = !empty($canAssign);
 $weekOptions = $weekOptions ?? [];
@@ -168,16 +170,49 @@ require __DIR__ . '/_timeline.php';
 
   function bindNazop(root) {
     if (!root) return;
-    root.querySelectorAll('[data-nazop-ops]').forEach(function (b) {
+    root.querySelectorAll('button[data-nazop-ops]').forEach(function (b) {
       b.addEventListener('click', function () {
         loadNazop(currentDay, b.getAttribute('data-nazop-ops') || '');
       });
     });
-    root.querySelectorAll('[data-nazop-check]').forEach(function (b) {
+    root.querySelectorAll('button[data-nazop-check]').forEach(function (b) {
       b.addEventListener('click', function () {
         var on = b.getAttribute('data-nazop-check') === '1';
         root.querySelectorAll('.nazop-table input[type="checkbox"]:not([disabled])').forEach(function (cb) {
           cb.checked = on;
+        });
+      });
+    });
+    root.querySelectorAll('form.nazop-form').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var fd = new FormData(form);
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+        fetch(form.getAttribute('action') || '/calendar/nazop', {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        }).then(function (r) {
+          var ct = (r.headers.get('content-type') || '');
+          if (ct.indexOf('application/json') !== -1) {
+            return r.json().then(function (data) {
+              if (data && data.redirect) {
+                location.href = data.redirect;
+                return;
+              }
+              throw new Error(<?= json_encode(t('calendar.week.nazop_error'), JSON_UNESCAPED_UNICODE) ?>);
+            });
+          }
+          return r.text().then(function (html) {
+            body.innerHTML = html;
+            bindNazop(body);
+          });
+        }).catch(function () {
+          body.innerHTML = '<div class="flash flash-warn"><?= te('calendar.week.nazop_error') ?></div>';
+        }).finally(function () {
+          if (btn) btn.disabled = false;
         });
       });
     });
@@ -197,7 +232,7 @@ require __DIR__ . '/_timeline.php';
     var url = '/calendar/nazop?fragment=1&day=' + encodeURIComponent(day)
       + '&ret=' + encodeURIComponent(ret);
     if (ops) url += '&ops=' + encodeURIComponent(ops);
-    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
       .then(function (r) { return r.text(); })
       .then(function (html) {
         body.innerHTML = html;

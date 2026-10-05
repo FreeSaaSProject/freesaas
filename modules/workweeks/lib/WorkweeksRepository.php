@@ -139,24 +139,77 @@ final class WorkweeksRepository
             if (!self::canAssignOperator($id)) {
                 continue;
             }
-            $name = trim((string)($row['name'] ?? ''));
-            if ($name === '') {
-                $name = (string)($row['login'] ?? ('#' . $id));
+            $card = self::staffCardFromRow($row);
+            if ($card !== null) {
+                $out[$id] = $card;
             }
-            $bg = trim((string)($row['color'] ?? ''));
-            $fg = trim((string)($row['color_text'] ?? ''));
-            $out[$id] = [
-                'id' => $id,
-                'label' => $name,
-                'acronym' => class_exists('CalendarTimeline', false)
-                    ? CalendarTimeline::acronym($name)
-                    : mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8'),
-                'bg' => $bg !== '' ? $bg : 'var(--bg-input)',
-                'fg' => $fg !== '' ? $fg : 'var(--text)',
-                'group' => self::shiftGroupRank($row),
-            ];
+        }
+        // Managers often lack CAN_BE_ASSIGNED on their own status — still allow self.
+        $selfId = Auth::userId();
+        if ($selfId > 0 && self::canAssignOperator($selfId) && !isset($out[$selfId])) {
+            $self = self::staffCard($selfId);
+            if ($self !== null) {
+                $out[$selfId] = $self;
+            }
         }
         return $out;
+    }
+
+    /**
+     * Single staff card for nazop columns (enabled users only).
+     *
+     * @return array{id:int,label:string,acronym:string,bg:string,fg:string,group:int}|null
+     */
+    public static function staffCard(int $userId): ?array
+    {
+        if ($userId < 1 || !Database::tableExists('base_users')) {
+            return null;
+        }
+        $hasAsany = Database::tableExists('base_admin_statuses')
+            && Database::columnExists('base_admin_statuses', 'CAN_BE_ASSIGNED_ASANY');
+        $asanyCol = $hasAsany ? 'COALESCE(st.CAN_BE_ASSIGNED_ASANY, 0)' : '0';
+        $joins = $hasAsany
+            ? ' LEFT JOIN base_admin_statuses st ON st.ID = u.name_enabled'
+            : '';
+        $st = Database::pdo()->prepare(
+            "SELECT u.id, u.login, u.name, u.name_enabled, u.ASSIST_TEAM, u.IS_HIDDEN,
+                    u.color, u.color_text, $asanyCol AS can_be_assigned_asany
+             FROM base_users u
+             $joins
+             WHERE u.id = ? AND u.enabled = '1'
+             LIMIT 1"
+        );
+        $st->execute([$userId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::staffCardFromRow($row) : null;
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     * @return array{id:int,label:string,acronym:string,bg:string,fg:string,group:int}|null
+     */
+    private static function staffCardFromRow(array $row): ?array
+    {
+        $id = (int)($row['id'] ?? 0);
+        if ($id < 1) {
+            return null;
+        }
+        $name = trim((string)($row['name'] ?? ''));
+        if ($name === '') {
+            $name = (string)($row['login'] ?? ('#' . $id));
+        }
+        $bg = trim((string)($row['color'] ?? ''));
+        $fg = trim((string)($row['color_text'] ?? ''));
+        return [
+            'id' => $id,
+            'label' => $name,
+            'acronym' => class_exists('CalendarTimeline', false)
+                ? CalendarTimeline::acronym($name)
+                : mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8'),
+            'bg' => $bg !== '' ? $bg : 'var(--bg-input)',
+            'fg' => $fg !== '' ? $fg : 'var(--text)',
+            'group' => self::shiftGroupRank($row),
+        ];
     }
 
     /** @param array<string,mixed> $row */
@@ -399,13 +452,18 @@ final class WorkweeksRepository
         $assignable = self::listAssignableStaff();
         foreach ($operatorIds as $oid) {
             $oid = (int)$oid;
-            if ($oid < 1 || !isset($assignable[$oid])) {
+            if ($oid < 1 || !self::canAssignOperator($oid)) {
                 continue;
             }
-            if (!self::canAssignOperator($oid)) {
+            if (isset($assignable[$oid])) {
+                $ops[$oid] = $assignable[$oid];
                 continue;
             }
-            $ops[$oid] = $assignable[$oid];
+            // Explicit column request (e.g. +self) even if not in CAN_BE_ASSIGNED pool.
+            $card = self::staffCard($oid);
+            if ($card !== null) {
+                $ops[$oid] = $card;
+            }
         }
         // Do not auto-expand to all staff — caller picks columns (oper userManage).
 

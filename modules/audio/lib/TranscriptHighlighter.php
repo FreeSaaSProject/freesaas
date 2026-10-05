@@ -1,0 +1,305 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Parse Whisper-style transcript lines and highlight key hits from base_records_instances.
+ *
+ * Line format: [MM:SS->MM:SS]text  (STRING_NUM is 1-based explode index).
+ */
+final class TranscriptHighlighter
+{
+    /**
+     * @param list<array{string_num:int,string_position:int,id_key:int,length:int,key_name?:string,type_color?:string,type_bg?:string}> $instances
+     * @param list<string> $trashPhrases
+     * @return array{html:string,lines:int,trash:int,keys:int,trash_candidates:list<string>}
+     */
+    public static function render(string $transcription, array $instances, array $trashPhrases = [], string $search = ''): array
+    {
+        $out = [
+            'html' => '',
+            'lines' => 0,
+            'trash' => 0,
+            'keys' => 0,
+            'trash_candidates' => [],
+        ];
+        $src = (string)$transcription;
+        if ($src === '' || strpos($src, '[') === false) {
+            $out['html'] = '<p class="muted">' . te('audio.transcript.empty') . '</p>';
+            return $out;
+        }
+
+        /** @var array<int,list<array{pos:int,len:int,name:string,color:string,bg:string}>> $byLine */
+        $byLine = [];
+        foreach ($instances as $inst) {
+            $line = (int)($inst['string_num'] ?? 0);
+            if ($line < 1) {
+                continue;
+            }
+            $byLine[$line][] = [
+                'pos' => (int)($inst['string_position'] ?? 0),
+                'len' => (int)($inst['length'] ?? 0),
+                'name' => (string)($inst['key_name'] ?? ''),
+                'color' => (string)($inst['type_color'] ?? '#000'),
+                'bg' => (string)($inst['type_bg'] ?? '#ff0'),
+            ];
+        }
+
+        $parts = explode('[', $src);
+        array_shift($parts);
+        $html = '';
+        $num = 0;
+        $prevTexts = ['', '', ''];
+
+        foreach ($parts as $chunk) {
+            $num++;
+            if (strpos($chunk, ']') === false) {
+                $html .= '<div class="transcript-line is-error">' . te('audio.transcript.bad_bracket') . '</div>';
+                continue;
+            }
+            $pieces = explode(']', $chunk, 2);
+            $timeRaw = (string)($pieces[0] ?? '');
+            $text = rtrim((string)($pieces[1] ?? ''), "\r\n");
+
+            $timeStart = 0;
+            $timeEnd = 0;
+            if (strpos($timeRaw, '->') !== false) {
+                [$a, $b] = explode('->', $timeRaw, 2);
+                $timeStart = self::mmssToSeconds(trim($a));
+                $timeEnd = self::mmssToSeconds(trim($b));
+            }
+
+            if ($text !== '' && ($text === $prevTexts[0] || $text === $prevTexts[1] || $text === $prevTexts[2])) {
+                continue;
+            }
+
+            $matchedPhrase = self::matchesTrashPhrase($text, $trashPhrases);
+            $isLong = self::isLongTrashLine($text);
+            if ($matchedPhrase || $isLong) {
+                $out['trash']++;
+                if ($isLong && !$matchedPhrase) {
+                    $cand = self::trashCandidatePhrase($text);
+                    if ($cand !== '') {
+                        $out['trash_candidates'][$cand] = $cand;
+                    }
+                }
+                continue;
+            }
+
+            $hits = $byLine[$num] ?? [];
+            $highlighted = self::highlightLine($text, $hits, $out['keys']);
+
+            if ($search !== '' && mb_stripos($text, $search, 0, 'UTF-8') !== false) {
+                $highlighted .= ' <b class="transcript-search">' . e($search) . '</b>';
+            }
+
+            $attrs = '';
+            if ($timeEnd > 0) {
+                $attrs = ' data-time-start="' . $timeStart . '" data-time-end="' . $timeEnd . '"';
+            }
+            $html .= '<div class="transcript-line"' . $attrs . '>'
+                . '<span class="transcript-num">' . $num . '</span> '
+                . '<span class="transcript-time">[' . e($timeRaw) . ']</span> '
+                . '<span class="transcript-text">' . $highlighted . '</span>'
+                . '</div>';
+
+            $out['lines']++;
+            $prevTexts[2] = $prevTexts[1];
+            $prevTexts[1] = $prevTexts[0];
+            $prevTexts[0] = $text;
+        }
+
+        if ($out['trash'] > 0) {
+            $html .= '<p class="transcript-trash">' . te('audio.transcript.trash_count', ['n' => $out['trash']]) . '</p>';
+        }
+        if ($html === '') {
+            $html = '<p class="muted">' . te('audio.transcript.empty') . '</p>';
+        }
+        $out['html'] = $html;
+        $out['trash_candidates'] = array_values($out['trash_candidates']);
+        return $out;
+    }
+
+    /**
+     * Distinctive phrase for auto-adding to base_records_trashes.
+     * Prefer a mid-length token run so short common words are not stored alone.
+     */
+    public static function trashCandidatePhrase(string $text): string
+    {
+        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
+        if ($text === '') {
+            return '';
+        }
+        if (mb_strlen($text, 'UTF-8') <= 80) {
+            return $text;
+        }
+        return mb_substr($text, 0, 80, 'UTF-8');
+    }
+
+    /**
+     * Scan raw transcriptions for trash candidates not covered by existing phrases.
+     *
+     * @param list<string> $transcriptions
+     * @param list<string> $trashPhrases
+     * @return list<string>
+     */
+    public static function collectTrashCandidates(array $transcriptions, array $trashPhrases = []): array
+    {
+        $found = [];
+        foreach ($transcriptions as $src) {
+            $src = (string)$src;
+            if ($src === '' || strpos($src, '[') === false) {
+                continue;
+            }
+            $parts = explode('[', $src);
+            array_shift($parts);
+            foreach ($parts as $chunk) {
+                if (strpos($chunk, ']') === false) {
+                    continue;
+                }
+                $pieces = explode(']', $chunk, 2);
+                $text = rtrim((string)($pieces[1] ?? ''), "\r\n");
+                if ($text === '') {
+                    continue;
+                }
+                $isLong = self::isLongTrashLine($text);
+                if (!$isLong || self::matchesTrashPhrase($text, $trashPhrases)) {
+                    continue;
+                }
+                $cand = self::trashCandidatePhrase($text);
+                if ($cand === '' || self::matchesTrashPhrase($cand, $trashPhrases)) {
+                    continue;
+                }
+                $found[$cand] = $cand;
+            }
+        }
+        return array_values($found);
+    }
+
+    /**
+     * @param list<array{pos:int,len:int,name:string,color:string,bg:string}> $hits
+     */
+    private static function highlightLine(string $text, array $hits, int &$keyCount): string
+    {
+        if ($text === '') {
+            return '';
+        }
+        if (!$hits) {
+            return e($text);
+        }
+
+        usort($hits, static function ($a, $b) {
+            return $a['pos'] <=> $b['pos'];
+        });
+
+        $cursor = 0;
+        $chunks = [];
+        $lenText = mb_strlen($text, 'UTF-8');
+
+        foreach ($hits as $hit) {
+            $pos = max(0, (int)$hit['pos']);
+            $len = (int)$hit['len'];
+            if ($len < 1) {
+                $len = mb_strlen((string)$hit['name'], 'UTF-8');
+            }
+            if ($len < 1 || $pos >= $lenText) {
+                continue;
+            }
+            if (mb_substr($text, $pos, 1, 'UTF-8') === ' ') {
+                $pos++;
+            }
+            if ($pos < $cursor) {
+                continue; // overlap
+            }
+            if ($pos > $cursor) {
+                $chunks[] = e(mb_substr($text, $cursor, $pos - $cursor, 'UTF-8'));
+            }
+            $end = min($lenText, $pos + $len);
+            $frag = mb_substr($text, $pos, $end - $pos, 'UTF-8');
+            if ($frag === '') {
+                continue;
+            }
+            $title = e($hit['name'] !== '' ? $hit['name'] : $frag);
+            $style = 'background-color:' . e($hit['bg']) . ';color:' . e($hit['color']);
+            $chunks[] = '<b class="key-hit" style="' . $style . '" title="' . $title . '">' . e($frag) . '</b>';
+            $cursor = $end;
+            $keyCount++;
+        }
+        if ($cursor < $lenText) {
+            $chunks[] = e(mb_substr($text, $cursor, null, 'UTF-8'));
+        }
+        return implode('', $chunks);
+    }
+
+    /** @param list<string> $trashPhrases */
+    public static function matchesTrashPhrase(string $text, array $trashPhrases): bool
+    {
+        // strpos is UTF-8-safe for complete multi-byte needles and far cheaper than mb_strpos.
+        foreach ($trashPhrases as $sample) {
+            if ($sample !== '' && strpos($text, $sample) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Fast “>500 chars” check avoiding mb_strlen on short strings. */
+    public static function isLongTrashLine(string $text): bool
+    {
+        $bytes = strlen($text);
+        if ($bytes <= 500) {
+            return false; // cannot exceed 500 chars
+        }
+        if ($bytes > 2000) {
+            return true; // must exceed 500 UTF-8 chars
+        }
+        return mb_strlen($text, 'UTF-8') > 500;
+    }
+
+    /** @param list<string> $trashPhrases */
+    public static function isTrash(string $text, array $trashPhrases): bool
+    {
+        if (self::isLongTrashLine($text)) {
+            return true;
+        }
+        return self::matchesTrashPhrase($text, $trashPhrases);
+    }
+
+    /**
+     * KEY_TYPES: ##typeId-diversity-instances##...
+     *
+     * @return list<array{type_id:int,diversity:int,instances:int}>
+     */
+    public static function parseKeyTypes(?string $raw): array
+    {
+        $raw = trim((string)$raw);
+        if ($raw === '') {
+            return [];
+        }
+        $out = [];
+        foreach (explode('##', $raw) as $chunk) {
+            $chunk = trim(str_replace('#', '', $chunk));
+            if ($chunk === '') {
+                continue;
+            }
+            $parts = explode('-', $chunk);
+            if (count($parts) < 3) {
+                continue;
+            }
+            $out[] = [
+                'type_id' => (int)$parts[0],
+                'diversity' => (int)$parts[1],
+                'instances' => (int)$parts[2],
+            ];
+        }
+        return $out;
+    }
+
+    private static function mmssToSeconds(string $mmss): int
+    {
+        if (strpos($mmss, ':') === false) {
+            return max(0, (int)$mmss);
+        }
+        $p = explode(':', $mmss);
+        return max(0, ((int)($p[0] ?? 0)) * 60 + (int)($p[1] ?? 0));
+    }
+}

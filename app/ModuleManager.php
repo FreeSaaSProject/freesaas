@@ -9,6 +9,12 @@ final class ModuleManager
     /** @var array<string, array> */
     private static $routes = [];
 
+    /** @var array<string, int> Rail group order; filled via registerMenuGroup() — never hardcode product keys here. */
+    private static $menuGroupWeights = [];
+
+    /** @var array<string, string> Default landing path per group key (optional 3rd arg of registerMenuGroup). */
+    private static $menuGroupHomes = [];
+
     public static function discover(): void
     {
         $root = base_path('modules');
@@ -418,7 +424,7 @@ final class ModuleManager
     }
 
     /**
-     * @return list<array{path:string,title:string,group:string,num:int,module:string,permission?:string}>
+     * @return list<array{path:string,title:string,group:string,group_key:string,kind:string,num:int,module:string,permission?:string}>
      */
     public static function menuItems(): array
     {
@@ -432,7 +438,7 @@ final class ModuleManager
     /**
      * Default module menu order (ignores per-user prefs).
      *
-     * @return list<array{path:string,title:string,group:string,num:int,module:string,permission?:string}>
+     * @return list<array{path:string,title:string,group:string,group_key:string,kind:string,num:int,module:string,permission?:string}>
      */
     public static function menuItemsUnsorted(): array
     {
@@ -440,30 +446,84 @@ final class ModuleManager
     }
 
     /**
-     * Default rail group order (stable keys from module.json `menu[].group`).
+     * Register default rail position for a menu group key (module.json `menu[].group`).
+     * Optional $homePath: click on the section title navigates there (must be a visible menu item).
+     * Call from the owning module's bootstrap.php. First registration wins (shared groups: core only).
+     * Do not add product module keys to ModuleManager itself.
+     */
+    public static function registerMenuGroup(string $groupKey, int $weight, ?string $homePath = null): void
+    {
+        $groupKey = trim($groupKey);
+        if ($groupKey === '') {
+            return;
+        }
+        if (!isset(self::$menuGroupWeights[$groupKey])) {
+            self::$menuGroupWeights[$groupKey] = $weight;
+        }
+        $home = $homePath !== null ? trim($homePath) : '';
+        if ($home !== '' && !isset(self::$menuGroupHomes[$groupKey])) {
+            self::$menuGroupHomes[$groupKey] = $home;
+        }
+    }
+
+    /**
+     * Default rail group order (keys from registerMenuGroup / module bootstraps).
      *
      * @return array<string,int>
      */
     public static function menuGroupWeights(): array
     {
-        return [
-            'core.menu.group.desktop' => 10,
-            'calendar.menu.group' => 20,
-            'procedures.menu.group' => 30,
-            'clients.menu.group' => 40,
-            'core.menu.group.dictionaries' => 50,
-            'core.menu.group.team' => 60,
-            'core.menu.group.system' => 70,
-        ];
+        return self::$menuGroupWeights;
     }
 
     /**
-     * @return list<array{path:string,title:string,group:string,group_key:string,num:int,module:string,permission?:string}>
+     * Landing href for a menu group key, if registered.
+     */
+    public static function menuGroupHome(string $groupKey): ?string
+    {
+        $groupKey = trim($groupKey);
+        if ($groupKey === '' || !isset(self::$menuGroupHomes[$groupKey])) {
+            return null;
+        }
+        return self::$menuGroupHomes[$groupKey];
+    }
+
+    /**
+     * Menu item kind → rail order within a group: work, then rare CRUDs, then settings.
+     *
+     * @return array<string,int>
+     */
+    private static function menuKindWeights(): array
+    {
+        return ['work' => 0, 'crud' => 1, 'settings' => 2];
+    }
+
+    /**
+     * Resolve menu[].kind (work|crud|settings). Paths ending in /settings default to settings.
+     */
+    private static function resolveMenuKind(array $row, string $path): string
+    {
+        $kind = strtolower(trim((string)($row['kind'] ?? '')));
+        $weights = self::menuKindWeights();
+        if (isset($weights[$kind])) {
+            return $kind;
+        }
+        $pathOnly = parse_url($path, PHP_URL_PATH);
+        $pathOnly = is_string($pathOnly) && $pathOnly !== '' ? $pathOnly : $path;
+        if (preg_match('#^/[^/]+/settings/?$#', $pathOnly)) {
+            return 'settings';
+        }
+        return 'work';
+    }
+
+    /**
+     * @return list<array{path:string,title:string,group:string,group_key:string,kind:string,num:int,module:string,permission?:string}>
      */
     private static function collectMenuItems(): array
     {
         $items = [];
         $weights = self::menuGroupWeights();
+        $kindWeights = self::menuKindWeights();
         foreach (self::$modules as $id => $meta) {
             if (empty($meta['_enabled'])) {
                 continue;
@@ -477,6 +537,18 @@ final class ModuleManager
                     continue;
                 }
                 $path = (string)$row['path'];
+                $capability = isset($row['capability']) ? (string)$row['capability'] : '';
+                if ($capability === '') {
+                    $routePath = parse_url($path, PHP_URL_PATH);
+                    $routePath = is_string($routePath) && $routePath !== '' ? $routePath : $path;
+                    $route = self::$routes[$routePath] ?? null;
+                    if (is_array($route) && isset($route['capability']) && is_string($route['capability'])) {
+                        $capability = $route['capability'];
+                    }
+                }
+                if ($capability !== '' && (!Auth::check() || !Auth::capability($capability))) {
+                    continue;
+                }
                 $permission = isset($row['permission']) ? (string)$row['permission'] : self::routePermissionForPath($path);
                 if ($permission !== null && (!Auth::check() || !Auth::canSeeInMenu($permission))) {
                     continue;
@@ -487,6 +559,7 @@ final class ModuleManager
                     'title' => t((string)$row['title']),
                     'group' => t($groupKey),
                     'group_key' => $groupKey,
+                    'kind' => self::resolveMenuKind($row, $path),
                     'num' => (int)($row['num'] ?? 100),
                     'module' => $id,
                 ];
@@ -496,14 +569,39 @@ final class ModuleManager
                 $items[] = $item;
             }
         }
-        usort($items, static function ($a, $b) use ($weights) {
-            $wa = $weights[$a['group_key']] ?? 1000;
-            $wb = $weights[$b['group_key']] ?? 1000;
+
+        // Same translated label → one rail section (min weight among keys that share the label).
+        $labelWeight = [];
+        $labelKey = [];
+        foreach ($items as $item) {
+            $label = (string)$item['group'];
+            $w = $weights[$item['group_key']] ?? 1000;
+            if (!isset($labelWeight[$label]) || $w < $labelWeight[$label]) {
+                $labelWeight[$label] = $w;
+                $labelKey[$label] = (string)$item['group_key'];
+            }
+        }
+        foreach ($items as &$item) {
+            $label = (string)$item['group'];
+            if (isset($labelKey[$label])) {
+                $item['group_key'] = $labelKey[$label];
+            }
+        }
+        unset($item);
+
+        usort($items, static function ($a, $b) use ($labelWeight, $kindWeights) {
+            $wa = $labelWeight[$a['group']] ?? 1000;
+            $wb = $labelWeight[$b['group']] ?? 1000;
             if ($wa !== $wb) {
                 return $wa <=> $wb;
             }
-            if ($a['group_key'] !== $b['group_key']) {
-                return strcmp($a['group_key'], $b['group_key']);
+            if ($a['group'] !== $b['group']) {
+                return strcmp($a['group'], $b['group']);
+            }
+            $ka = $kindWeights[$a['kind']] ?? 0;
+            $kb = $kindWeights[$b['kind']] ?? 0;
+            if ($ka !== $kb) {
+                return $ka <=> $kb;
             }
             if ($a['num'] !== $b['num']) {
                 return $a['num'] <=> $b['num'];

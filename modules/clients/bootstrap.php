@@ -5,6 +5,15 @@ require_once __DIR__ . '/lib/ClientsRepository.php';
 require_once __DIR__ . '/lib/ClientStatusesRepository.php';
 require_once __DIR__ . '/lib/ClientTagsRepository.php';
 
+ModuleManager::registerMenuGroup('clients.menu.group', 40, '/clients');
+
+StatusesRepository::registerFieldGroup([
+    'title' => 'clients.statuses.group',
+    'when' => 'clients',
+    'fields' => [
+        ['key' => 'CLIENT_BASE', 'label' => 'clients.statuses.field.CLIENT_BASE', 'type' => 'checkbox'],
+    ],
+]);
 $pages = [
     '/clients' => ['permission' => 'clients.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/clients/new' => ['permission' => 'clients.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],

@@ -79,4 +79,5 @@ return [
     'contracts.sort.executor' => 'Исполнитель',
     'contracts.sort.acceptor' => 'Приёмщик',
     'contracts.sort.ticket' => 'Заявка',
+    'contracts.user_edit.acceptor' => 'Может принимать задачи (контракты)',
 ];

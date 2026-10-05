@@ -99,4 +99,18 @@ return [
     'procedures.bulk.err.admin_required' => 'Выберите админа',
     'procedures.bulk.type_in_use' => 'Есть процедуры с этим типом ({n})',
     'procedures.bulk.client_in_use' => 'Есть процедуры клиента ({n})',
+
+    'procedures.stats.proc_unit' => 'п.',
+    'procedures.stats.proc_short' => 'пр.',
+    'procedures.stats.promo_short' => 'промо',
+    'procedures.stats.bar_short' => 'в',
+    'procedures.stats.bar_long' => 'выр',
+    'procedures.stats.total' => 'Итого',
+    'procedures.stats.restored' => 'ВОССТАНОВЛЕНО',
+    'procedures.stats.salary' => 'ЗП',
+    'procedures.stats.salary_abbr' => 'ЗП',
+    'procedures.user_edit.sec_restrict' => 'Ограничения типов процедур',
+    'procedures.user_edit.restrict_types' => 'Запрет на типы процедур',
+    'procedures.user_edit.restrict_types_online' => 'Запрет на типы при онлайн-записи',
+    'procedures.user_edit.no_types' => 'Типы процедур пока не загружены.',
 ];

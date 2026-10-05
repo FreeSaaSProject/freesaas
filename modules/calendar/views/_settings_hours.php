@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings section contributed to /settings when calendar is enabled.
+ * Calendar module settings form sections.
  *
  * @var ?array $row
  * @var bool $showHours

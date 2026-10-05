@@ -43,13 +43,15 @@
     },
     {
       "group": "clients.menu.group",
-      "num": 2,
+      "kind": "crud",
+      "num": 1,
       "path": "/client-statuses",
       "title": "clients.menu.statuses"
     },
     {
       "group": "clients.menu.group",
-      "num": 3,
+      "kind": "crud",
+      "num": 2,
       "path": "/client-tags",
       "title": "clients.menu.tags"
     }

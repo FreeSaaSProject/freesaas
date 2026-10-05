@@ -31,3 +31,52 @@ BulkActions::register('stocks', 'delete', [
         return ['done' => StocksRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+
+StatusesRepository::registerFieldGroup([
+    'title' => 'stocks.statuses.group',
+    'when' => 'stocks',
+    'fields' => [
+        ['key' => 'STOCKS_DATA', 'label' => 'stocks.statuses.field.STOCKS_DATA', 'type' => 'checkbox'],
+        ['key' => 'GOOD_USE', 'label' => 'stocks.statuses.field.GOOD_USE', 'type' => 'checkbox'],
+        ['key' => 'STICKER_ADV_ACC', 'label' => 'stocks.statuses.field.STICKER_ADV_ACC', 'type' => 'checkbox'],
+    ],
+]);
+
+EventBus::on('core.user_edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user)) {
+        return $payload;
+    }
+    ob_start();
+    require __DIR__ . '/views/_user_edit_access.php';
+    $payload['html_access'] = ($payload['html_access'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('core.user_edit.save', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $data['STOCK_REVISION'] = !empty($post['STOCK_REVISION']) ? 1 : 0;
+    $payload['data'] = $data;
+    return $payload;
+});
+
+EventBus::on('core.user_edit.profile', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user)) {
+        return $payload;
+    }
+    ob_start();
+    require __DIR__ . '/views/_user_profile_flags.php';
+    $payload['html_flags'] = ($payload['html_flags'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});

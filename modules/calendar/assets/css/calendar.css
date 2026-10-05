@@ -467,3 +467,66 @@ tr.is-block td { opacity: 0.75; }
 .calendar-tl-chip-order {
   box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35);
 }
+
+/* Day footer stats (procedures / orders / future modules) */
+.calendar-tl-stats-row td {
+  vertical-align: top;
+  padding: 0.35rem 0.3rem 0.5rem;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  border-top: 1px solid var(--line);
+}
+.calendar-tl-stats.is-today {
+  background: rgba(59, 130, 246, 0.04);
+}
+.cal-day-stats {
+  min-width: 0;
+  word-break: break-word;
+}
+.cal-stat-bar {
+  border: 1px solid #000;
+  border-radius: 12px;
+  text-align: center;
+  margin-bottom: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  min-height: 1.1rem;
+}
+.cal-stat-staff {
+  margin: 0.15rem 0;
+}
+.cal-stat-staff-line {
+  display: flex;
+  gap: 0.25rem;
+  align-items: baseline;
+  margin: 0.1rem 0;
+}
+.cal-stat-staff-line.is-admin-first {
+  margin-top: 0.35rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--line);
+}
+.cal-stat-op {
+  display: inline-block;
+  min-width: 1.4rem;
+  padding: 0 0.2rem;
+  border-radius: 3px;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+.cal-stat-text {
+  min-width: 0;
+}
+.cal-stat-hr {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 0.35rem 0;
+}
+.cal-stat-totals {
+  margin-top: 0.15rem;
+}
+.cal-stat-orders a {
+  font-weight: 600;
+}

@@ -1,0 +1,101 @@
+{
+  "id": "audio_dicts",
+  "name": "audio_dicts.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "audio": ">=0.1.0"
+  },
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "audio_dicts.view", "label": "audio_dicts.perm.view" },
+    { "id": "audio_dicts.edit", "label": "audio_dicts.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/audio/types",
+      "/audio/types/new",
+      "/audio/types/{id}/edit",
+      "/audio/dicts",
+      "/audio/dicts/new",
+      "/audio/dicts/{id}/edit",
+      "/audio/keys",
+      "/audio/keys/new",
+      "/audio/keys/{id}/edit",
+      "/audio/tags",
+      "/audio/tags/new",
+      "/audio/tags/{id}/edit",
+      "/audio/trashes",
+      "/audio/trashes/new",
+      "/audio/trashes/{id}/edit",
+      "/audio/scripts",
+      "/audio/scripts/new",
+      "/audio/scripts/{id}",
+      "/audio/scripts/{id}/parts",
+      "/audio/scripts/{id}/copy"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "audio.menu.group",
+      "kind": "crud",
+      "num": 10,
+      "path": "/audio/dicts",
+      "title": "audio_dicts.menu.dicts"
+    },
+    {
+      "group": "audio.menu.group",
+      "kind": "crud",
+      "num": 11,
+      "path": "/audio/keys",
+      "title": "audio_dicts.menu.keys"
+    },
+    {
+      "group": "audio.menu.group",
+      "kind": "crud",
+      "num": 12,
+      "path": "/audio/scripts",
+      "title": "audio_dicts.menu.scripts"
+    },
+    {
+      "group": "audio.menu.group",
+      "kind": "crud",
+      "num": 13,
+      "path": "/audio/types",
+      "title": "audio_dicts.menu.types"
+    },
+    {
+      "group": "audio.menu.group",
+      "kind": "crud",
+      "num": 14,
+      "path": "/audio/trashes",
+      "title": "audio_dicts.menu.trashes"
+    },
+    {
+      "group": "audio.menu.group",
+      "kind": "crud",
+      "num": 15,
+      "path": "/audio/tags",
+      "title": "audio_dicts.menu.tags"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_records_types",
+    "base_records_dictonarys",
+    "base_records_keys",
+    "base_records_keys_tags",
+    "base_records_keys_tags_links",
+    "base_records_scripts",
+    "base_records_trashes"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [],
+    "publish": [
+      "audio_dicts.changed"
+    ]
+  }
+}

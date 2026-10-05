@@ -36,7 +36,33 @@ if ($userId > 0) {
     }
 }
 
-$jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
+$jsI18n = I18n::jsDict([
+    'crm.reply_hint',
+    'crm.link_prompt',
+    'core.layout.nav_loading',
+    'core.layout.close_menu',
+    'core.layout.menu_expand_close',
+]);
+
+$layoutGate = ['blocked' => false, 'html' => '', 'chrome' => '', 'js_i18n' => []];
+if (Auth::check()) {
+    $gatePayload = EventBus::emit('core.layout.gate', $layoutGate);
+    if (is_array($gatePayload)) {
+        $layoutGate = array_merge($layoutGate, $gatePayload);
+    }
+    if (!empty($layoutGate['js_i18n']) && is_array($layoutGate['js_i18n'])) {
+        foreach ($layoutGate['js_i18n'] as $k => $v) {
+            $jsI18n[(string)$k] = (string)$v;
+        }
+    }
+}
+$gateBlocked = !empty($layoutGate['blocked']);
+$gateHtml = (string)($layoutGate['html'] ?? '');
+// Prefer generic `chrome`; accept legacy `topbar` from early listeners.
+$gateChrome = (string)($layoutGate['chrome'] ?? '');
+if ($gateChrome === '') {
+    $gateChrome = (string)($layoutGate['topbar'] ?? '');
+}
 ?>
 <!DOCTYPE html>
 <html lang="<?= e($htmlLang) ?>">
@@ -70,13 +96,22 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
   <link rel="stylesheet" href="/assets/css/core.css?v=<?= (int)@filemtime(base_path('assets/css/core.css')) ?>">
   <?= Assets::cssTags() ?>
 </head>
-<body class="app-shell" data-rail="ready">
+<?php
+  $railPeek = false;
+  if (Auth::check() && class_exists('UserPrefsRepository', false)) {
+      $railPeek = UserPrefsRepository::get(Auth::userId(), 'rail.peek') === '1';
+  }
+?>
+<body class="app-shell<?= $gateBlocked ? ' is-layout-gate' : '' ?>" data-rail="ready" data-rail-peek="<?= $railPeek ? '1' : '0' ?>">
   <header class="topbar" id="topbar">
     <button type="button" class="topbar-menu" id="nav-open" aria-label="<?= te('core.layout.open_menu') ?>" aria-controls="rail" aria-expanded="false">
       <span class="topbar-menu-icon" aria-hidden="true"></span>
     </button>
     <?php $brandClass = 'topbar-brand'; require __DIR__ . '/_brand.php'; ?>
     <div class="topbar-spacer"></div>
+    <?php if ($gateChrome !== ''): ?>
+      <div class="topbar-extra"><?= $gateChrome ?></div>
+    <?php endif; ?>
     <?php require __DIR__ . '/_lang_switch.php'; ?>
     <div class="theme-switch" data-theme-switch role="group" aria-label="<?= te('core.layout.theme') ?>">
       <button type="button" data-theme-set="light" title="<?= te('core.layout.theme_light') ?>" aria-label="<?= te('core.layout.theme_light_aria') ?>">☀</button>
@@ -91,6 +126,13 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
 
   <div class="nav-backdrop" id="nav-backdrop" hidden></div>
 
+<?php if ($gateBlocked): ?>
+  <div class="workspace workspace-gate">
+    <main class="main main-flush">
+      <?= $gateHtml ?>
+    </main>
+  </div>
+<?php else: ?>
   <aside class="rail" id="rail">
     <div class="rail-top">
       <?php $brandClass = 'rail-brand'; require __DIR__ . '/_brand.php'; ?>
@@ -99,7 +141,9 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
     </div>
     <nav class="rail-nav" id="rail-nav">
       <?php
+        // Merge by translated label so duplicate section titles never appear.
         $railGroups = [];
+        $groupIndexByLabel = [];
         foreach ($menuItemsFlat as $item) {
             $groupLabel = (string)$item['group'];
             $groupKey = (string)($item['group_key'] ?? $groupLabel);
@@ -107,20 +151,20 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
             $itemPath = is_string($itemPath) && $itemPath !== '' ? $itemPath : (string)$item['path'];
             $active = ($path === $itemPath)
                 || ($itemPath !== '/' && strpos($path, rtrim($itemPath, '/') . '/') === 0);
-            $last = count($railGroups) - 1;
-            if ($last < 0 || $railGroups[$last]['label'] !== $groupLabel) {
+            if (!isset($groupIndexByLabel[$groupLabel])) {
+                $groupIndexByLabel[$groupLabel] = count($railGroups);
                 $railGroups[] = [
                     'key' => $groupKey,
                     'label' => $groupLabel,
                     'has_active' => false,
                     'items' => [],
                 ];
-                $last = count($railGroups) - 1;
             }
+            $idx = $groupIndexByLabel[$groupLabel];
             if ($active) {
-                $railGroups[$last]['has_active'] = true;
+                $railGroups[$idx]['has_active'] = true;
             }
-            $railGroups[$last]['items'][] = [
+            $railGroups[$idx]['items'][] = [
                 'path' => (string)$item['path'],
                 'title' => (string)$item['title'],
                 'active' => $active,
@@ -135,15 +179,47 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
         }
         foreach ($railGroups as $i => $g):
             $isOpen = ($openIndex !== null && $i === $openIndex);
+            $homeHref = null;
+            $homeActive = false;
+            $homeCandidate = ModuleManager::menuGroupHome((string)$g['key']);
+            if ($homeCandidate !== null && $homeCandidate !== '') {
+                $homePath = parse_url($homeCandidate, PHP_URL_PATH);
+                $homePath = is_string($homePath) && $homePath !== '' ? $homePath : $homeCandidate;
+                foreach ($g['items'] as $link) {
+                    $linkPath = parse_url((string)$link['path'], PHP_URL_PATH);
+                    $linkPath = is_string($linkPath) && $linkPath !== '' ? $linkPath : (string)$link['path'];
+                    if ($linkPath === $homePath) {
+                        $homeHref = (string)$link['path'];
+                        $homeActive = !empty($link['active']);
+                        break;
+                    }
+                }
+            }
       ?>
         <div class="rail-group<?= $isOpen ? ' is-open' : '' ?>" data-group-key="<?= e($g['key']) ?>">
-          <button type="button"
-                  class="rail-group-toggle"
-                  aria-expanded="<?= $isOpen ? 'true' : 'false' ?>"
-                  aria-label="<?= te('core.layout.menu_group_toggle', ['group' => $g['label']]) ?>">
-            <span class="rail-group-title"><?= e($g['label']) ?></span>
-            <span class="rail-group-chevron" aria-hidden="true"></span>
-          </button>
+          <div class="rail-group-bar">
+            <?php if ($homeHref !== null): ?>
+              <a class="rail-group-home<?= $homeActive ? ' is-active' : '' ?>"
+                 href="<?= e($homeHref) ?>"
+                 title="<?= e($g['label']) ?>">
+                <span class="rail-group-title"><?= e($g['label']) ?></span>
+              </a>
+              <button type="button"
+                      class="rail-group-toggle"
+                      aria-expanded="<?= $isOpen ? 'true' : 'false' ?>"
+                      aria-label="<?= te('core.layout.menu_group_toggle', ['group' => $g['label']]) ?>">
+                <span class="rail-group-chevron" aria-hidden="true"></span>
+              </button>
+            <?php else: ?>
+              <button type="button"
+                      class="rail-group-toggle rail-group-toggle-full"
+                      aria-expanded="<?= $isOpen ? 'true' : 'false' ?>"
+                      aria-label="<?= te('core.layout.menu_group_toggle', ['group' => $g['label']]) ?>">
+                <span class="rail-group-title"><?= e($g['label']) ?></span>
+                <span class="rail-group-chevron" aria-hidden="true"></span>
+              </button>
+            <?php endif; ?>
+          </div>
           <div class="rail-group-body">
             <?php foreach ($g['items'] as $link): ?>
               <a href="<?= e($link['path']) ?>"<?= $link['active'] ? ' class="is-active"' : '' ?> title="<?= e($link['title']) ?>">
@@ -154,6 +230,9 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
         </div>
       <?php endforeach; ?>
     </nav>
+    <button type="button" class="rail-expand-all" id="rail-expand-all">
+      <?= te('core.layout.menu_expand_all') ?>
+    </button>
     <div class="rail-foot">
       <div class="rail-foot-switches">
         <?php
@@ -168,6 +247,9 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
       </div>
       <?php if ($userId > 0): ?>
         <div class="rail-user">
+          <?php if ($gateChrome !== ''): ?>
+            <div class="rail-extra"><?= $gateChrome ?></div>
+          <?php endif; ?>
           <?= UsersRepository::badgeHtml($userId, true) ?>
           <a class="rail-logout" href="/logout"><?= te('core.layout.logout') ?></a>
         </div>
@@ -209,6 +291,7 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
       </details>
     </footer>
   </div>
+<?php endif; ?>
   <script src="/assets/js/core.js?v=<?= (int)@filemtime(base_path('assets/js/core.js')) ?>"></script>
   <?= Assets::jsTags() ?>
 </body>

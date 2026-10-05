@@ -12,10 +12,14 @@ require_once __DIR__ . '/Router.php';
 require_once __DIR__ . '/View.php';
 require_once __DIR__ . '/Assets.php';
 require_once __DIR__ . '/ListQuery.php';
+require_once __DIR__ . '/NavContext.php';
 require_once __DIR__ . '/BulkActions.php';
 require_once __DIR__ . '/SchemaMigrator.php';
 require_once __DIR__ . '/DataMigrator.php';
 require_once __DIR__ . '/StageTiming.php';
+// Status flags registry used by product modules during boot (before core routes).
+require_once dirname(__DIR__) . '/modules/core/lib/StatusesRepository.php';
+require_once dirname(__DIR__) . '/modules/core/lib/UsersRepository.php';
 
 StageTiming::reset(microtime(true));
 

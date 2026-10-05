@@ -248,6 +248,10 @@ final class Auth
 
     public static function logout(): void
     {
+        $uid = self::userId();
+        if ($uid > 0) {
+            EventBus::emit('core.auth.before_logout', ['user_id' => $uid]);
+        }
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
             $p = session_get_cookie_params();

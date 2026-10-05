@@ -17,10 +17,6 @@ $isSuper = Auth::isSuperAdmin();
 $features = UsersRepository::editFeatures();
 $permGroups = UsersRepository::availablePermissionKeys();
 
-$procedureTypes = $features['procedure_types'] ? UsersRepository::procedureTypes() : [];
-$products = $features['procedure_restrict'] ? UsersRepository::productsForRestrict() : [];
-$cabinets = $features['cabinets'] ? UsersRepository::cabinets() : [];
-
 $adminStatuses = UsersRepository::statusNamesFiltered(false);
 $partnerStatuses = UsersRepository::statusNamesFiltered(true);
 $allStatuses = UsersRepository::statusNames();
@@ -53,6 +49,8 @@ if ($turnon === '1' || $turnon === '0') {
 }
 
 /**
+ * Core-owned fields only. Product modules patch via core.user_edit.save.
+ *
  * @param array<string,mixed> $post
  * @param array<string,mixed> $current
  * @param array<string,bool> $features
@@ -91,37 +89,6 @@ $buildData = static function (array $post, array $current, bool $super, array $f
         $data['telegram_chat_id'] = trim((string)($post['telegram_chat_id'] ?? ''));
         $data['max_user_id'] = trim((string)($post['max_user_id'] ?? ''));
         $data['BOT_NO_SEND'] = !empty($post['BOT_NO_SEND']) ? 1 : 0;
-    }
-    if (!empty($features['acceptor']) && Database::columnExists('base_users', 'IS_ACCEPTOR')) {
-        $data['IS_ACCEPTOR'] = !empty($post['IS_ACCEPTOR']) ? 1 : 0;
-    }
-    if (!empty($features['stocks'])) {
-        $data['STOCK_REVISION'] = !empty($post['STOCK_REVISION']) ? 1 : 0;
-    }
-    if (!empty($features['audio'])) {
-        $data['AUDIO_ANALYTICS_ENABLED'] = !empty($post['AUDIO_ANALYTICS_ENABLED']) ? 1 : 0;
-    }
-    if (!empty($features['procedure_types'])) {
-        $data['RESTRICT_TYPES'] = UsersRepository::encodeHashIds(
-            array_map('intval', (array)($post['RESTRICT_TYPES'] ?? []))
-        );
-        $data['RESTRICT_TYPES_ONLINE'] = UsersRepository::encodeHashIds(
-            array_map('intval', (array)($post['RESTRICT_TYPES_ONLINE'] ?? []))
-        );
-    }
-    if (!empty($features['procedure_restrict'])) {
-        $data['RESTRICT_PROCS'] = UsersRepository::encodeHashIds(
-            array_map('intval', (array)($post['RESTRICT_PROCS'] ?? []))
-        );
-    }
-    if (!empty($features['cabinets'])) {
-        $data['skin'] = UsersRepository::encodeHashIds(
-            array_map('intval', (array)($post['skin'] ?? []))
-        );
-        $skinIds = UsersRepository::parseHashIds((string)$data['skin']);
-        if (count($skinIds) === 1) {
-            $data['skin'] = (string)$skinIds[0];
-        }
     }
 
     $newsAfterRaw = trim((string)($post['showNewsAfter'] ?? ''));
@@ -169,6 +136,15 @@ $buildData = static function (array $post, array $current, bool $super, array $f
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = $buildData($_POST, $user, $isSuper, $features);
+        $saved = EventBus::emit('core.user_edit.save', [
+            'post' => $_POST,
+            'user' => $user,
+            'data' => $data,
+            'id' => $id,
+        ]);
+        if (is_array($saved) && isset($saved['data']) && is_array($saved['data'])) {
+            $data = $saved['data'];
+        }
         UsersRepository::update($id, $data);
         $message = t('core.user_edit.saved');
         $user = UsersRepository::findForEdit($id) ?: $user;
@@ -195,6 +171,15 @@ if ($isSuper) {
     }
 }
 
+$sections = EventBus::emit('core.user_edit.sections', [
+    'html' => '',
+    'html_access' => '',
+    'user' => $user,
+    'id' => $id,
+]);
+$extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+$extraAccessHtml = is_array($sections) ? (string)($sections['html_access'] ?? '') : '';
+
 $displayName = (string)($user['name'] ?: $user['login']);
 
 View::render('user_edit', [
@@ -206,18 +191,13 @@ View::render('user_edit', [
     'features' => $features,
     'adminStatuses' => $adminStatuses ?: UsersRepository::statusNames(),
     'partnerStatuses' => $partnerStatuses,
-    'procedureTypes' => $procedureTypes,
-    'products' => $products,
-    'cabinets' => $cabinets,
     'permGroups' => $permGroups,
     'userPerms' => $userPerms,
     'copyUsers' => $copyUsers,
     'genPass' => $genPass,
-    'restrictTypesSelected' => UsersRepository::parseHashIds((string)($user['RESTRICT_TYPES'] ?? '')),
-    'restrictTypesOnlineSelected' => UsersRepository::parseHashIds((string)($user['RESTRICT_TYPES_ONLINE'] ?? '')),
-    'restrictProcsSelected' => UsersRepository::parseHashIds((string)($user['RESTRICT_PROCS'] ?? '')),
-    'cabinetsSelected' => UsersRepository::parseHashIds((string)($user['skin'] ?? '')),
     'favoritesCount' => count(UsersRepository::favoriteIds($id)),
+    'extraHtml' => $extraHtml,
+    'extraAccessHtml' => $extraAccessHtml,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('core.menu.users'), 'href' => '/users'],
         ['label' => $displayName, 'href' => '/users/' . $id],

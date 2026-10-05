@@ -4,8 +4,14 @@
 /** @var string $partnerStatusName */
 /** @var int $favoritesCount */
 /** @var array<string,bool> $features */
+/** @var string $profileChannelsHtml */
+/** @var string $profileFlagsHtml */
+/** @var string $profileSiteHtml */
 $uid = (int)$user['id'];
 $features = $features ?? UsersRepository::editFeatures();
+$profileChannelsHtml = (string)($profileChannelsHtml ?? '');
+$profileFlagsHtml = (string)($profileFlagsHtml ?? '');
+$profileSiteHtml = (string)($profileSiteHtml ?? '');
 ?>
 <section class="page-head">
   <div class="page-head-row">
@@ -54,28 +60,21 @@ $features = $features ?? UsersRepository::editFeatures();
       <dt>Max</dt><dd><?= e((string)($user['max_user_id'] ?: '—')) ?></dd>
       <dt><?= te('core.user.bot_off') ?></dt><dd><?= !empty($user['BOT_NO_SEND']) ? te('core.common.yes') : te('core.common.no') ?></dd>
       <?php endif; ?>
-      <?php if (!empty($features['audio'])): ?>
-      <dt>Audio</dt><dd><?= !empty($user['AUDIO_ANALYTICS_ENABLED']) ? te('core.common.on') : te('core.common.off') ?></dd>
-      <?php endif; ?>
+      <?= $profileChannelsHtml ?>
     </dl>
   </div>
   <div class="widget">
     <h2><?= te('core.user.flags') ?></h2>
     <dl class="kv">
       <dt><?= te('core.user.hidden') ?></dt><dd><?= !empty($user['IS_HIDDEN']) ? te('core.common.yes') : te('core.common.no') ?></dd>
-      <?php if (!empty($features['acceptor'])): ?>
-      <dt>Acceptor</dt><dd><?= !empty($user['IS_ACCEPTOR']) ? te('core.common.yes') : te('core.common.no') ?></dd>
-      <?php endif; ?>
       <dt>Assist team</dt><dd><?= !empty($user['ASSIST_TEAM']) ? te('core.common.yes') : te('core.common.no') ?></dd>
       <dt><?= te('core.user.not_in_team') ?></dt><dd><?= !empty($user['NOT_IN_TEAM']) ? te('core.common.yes') : te('core.common.no') ?></dd>
-      <?php if (!empty($features['stocks'])): ?>
-      <dt><?= te('core.user.stocks') ?></dt><dd><?= !empty($user['STOCK_REVISION']) ? te('core.common.yes') : te('core.common.no') ?></dd>
-      <?php endif; ?>
+      <?= $profileFlagsHtml ?>
       <dt><?= te('core.user.favorites') ?></dt><dd><?= (int)$favoritesCount ?></dd>
       <dt><?= te('core.user.news_after') ?></dt><dd><?= ((int)($user['showNewsAfter'] ?? 0) > 0) ? e(I18n::formatDate((int)$user['showNewsAfter'], 'datetime')) : '—' ?></dd>
     </dl>
   </div>
-  <?php if (!empty($features['site_profile']) || !empty($features['cabinets'])): ?>
+  <?php if (!empty($features['site_profile']) || $profileSiteHtml !== ''): ?>
   <div class="widget">
     <h2><?= te('core.user.site') ?></h2>
     <dl class="kv">
@@ -83,9 +82,7 @@ $features = $features ?? UsersRepository::editFeatures();
       <dt><?= te('core.user.photo') ?></dt><dd><?= e((string)($user['photo'] ?: '—')) ?></dd>
       <dt><?= te('core.user.description') ?></dt><dd><?= e((string)($user['site_descr'] ?: '—')) ?></dd>
       <?php endif; ?>
-      <?php if (!empty($features['cabinets'])): ?>
-      <dt><?= te('core.user.cabinets') ?></dt><dd><?= e((string)($user['skin'] ?: '—')) ?></dd>
-      <?php endif; ?>
+      <?= $profileSiteHtml ?>
     </dl>
   </div>
   <?php endif; ?>

@@ -1,0 +1,50 @@
+{
+  "id": "audio_pipeline",
+  "name": "audio_pipeline.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "audio": ">=0.1.0",
+    "audio_dicts": ">=0.1.0"
+  },
+  "optionalRequires": {
+    "procedures": ">=0.1.0"
+  },
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "audio_pipeline.view", "label": "audio_pipeline.perm.view" }
+  ],
+  "routes": {
+    "pages": [
+      "/audio/asr/claim",
+      "/audio/asr/result",
+      "/audio/asr/chunk-claim",
+      "/audio/asr/chunk-result",
+      "/audio/jobs/ingest",
+      "/audio/jobs/stem",
+      "/audio/jobs/collect"
+    ]
+  },
+  "jobs": [
+    "POST /audio/jobs/ingest",
+    "POST /audio/jobs/stem",
+    "POST /audio/jobs/collect"
+  ],
+  "menu": [],
+  "configSchema": {},
+  "tables": [
+    "base_records_instances",
+    "base_records_collections",
+    "base_records_collections_datas",
+    "base_records_stem_word_cache",
+    "base_records_stem_key_cache"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [
+      "audio_dicts.changed"
+    ],
+    "publish": []
+  }
+}

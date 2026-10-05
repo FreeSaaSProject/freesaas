@@ -42,4 +42,9 @@ return [
     'stocks.leftovers.col.min' => 'Min',
     'stocks.leftovers.col.max' => 'Max',
     'stocks.leftovers.search_good' => 'Product id',
+    'stocks.user_edit.revision' => 'Can audit stock',
+    'stocks.statuses.group' => 'Stocks',
+    'stocks.statuses.field.STOCKS_DATA' => 'Stocks data',
+    'stocks.statuses.field.GOOD_USE' => 'Goods usage',
+    'stocks.statuses.field.STICKER_ADV_ACC' => 'Advanced sticker accounting',
 ];

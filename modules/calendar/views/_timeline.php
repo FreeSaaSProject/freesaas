@@ -12,10 +12,12 @@
  * @var string $retUrl return URL for new-event links
  * @var string $ariaLabel
  * @var bool $showShiftsRow
+ * @var array<string,string> $dayStatsHtml date => html
  */
 $staffLocked = !empty($staffLocked);
 $canCreate = !empty($canCreate);
 $showShiftsRow = $showShiftsRow ?? true;
+$dayStatsHtml = is_array($dayStatsHtml ?? null) ? $dayStatsHtml : [];
 $retUrl = $retUrl ?? '/calendar';
 $ariaLabel = $ariaLabel ?? t('calendar.week.aria');
 $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
@@ -181,6 +183,32 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
           </td>
         <?php endforeach; ?>
       </tr>
+      <?php
+      $hasStats = false;
+      foreach ($dayColumns as $col) {
+          $d = (string)($col['day']['date'] ?? '');
+          if ($d !== '' && trim((string)($dayStatsHtml[$d] ?? '')) !== '') {
+              $hasStats = true;
+              break;
+          }
+      }
+      ?>
+      <?php if ($hasStats): ?>
+      <tr class="calendar-tl-stats-row">
+        <td class="calendar-tl-axis-h"></td>
+        <?php foreach ($dayColumns as $col): ?>
+          <?php
+          $d = (string)($col['day']['date'] ?? '');
+          $statsHtml = trim((string)($dayStatsHtml[$d] ?? ''));
+          ?>
+          <td class="calendar-tl-stats<?= !empty($col['day']['is_today']) ? ' is-today' : '' ?><?= !empty($col['day']['is_weekend']) ? ' is-weekend' : '' ?>">
+            <?php if ($statsHtml !== ''): ?>
+              <div class="cal-day-stats"><?= $statsHtml ?></div>
+            <?php endif; ?>
+          </td>
+        <?php endforeach; ?>
+      </tr>
+      <?php endif; ?>
     </tbody>
   </table>
 </div>

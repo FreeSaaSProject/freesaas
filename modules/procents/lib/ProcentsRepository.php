@@ -301,4 +301,68 @@ final class ProcentsRepository
         }
         return $out;
     }
+
+    /**
+     * Day footer salary bits for operators (procedures commission + fix + terminal).
+     * Soft-skips sales/audio when tables missing.
+     *
+     * @param array<int,array{sums_by_type?:array<int,float>}> $operatorStats from ProceduresRepository::dayColumnStats
+     * @return array<int,array{salary:float,salary_fix:float,salary_terminal:float,salary_sales:float,total:float}>
+     */
+    public static function dayStaffPay(int $dayStart, int $dayEnd, array $operatorStats): array
+    {
+        $out = [];
+        if ($dayEnd <= $dayStart || !Database::tableExists('base_procent_history')) {
+            return $out;
+        }
+        $mid = $dayStart + 12 * 3600;
+        foreach ($operatorStats as $oid => $op) {
+            $oid = (int)$oid;
+            if ($oid < 1) {
+                continue;
+            }
+            $rates = RatesRepository::latestForOperator($oid, $mid);
+            if (!$rates) {
+                continue;
+            }
+            $content = is_array($rates['content'] ?? null) ? $rates['content'] : [];
+            $contentTerminal = is_array($rates['content_terminal'] ?? null) ? $rates['content_terminal'] : [];
+            $contentSales = is_array($rates['content_sales'] ?? null) ? $rates['content_sales'] : [];
+            $salary = 0.0;
+            $sums = is_array($op['sums_by_type'] ?? null) ? $op['sums_by_type'] : [];
+            foreach ($sums as $tid => $sum) {
+                $rate = (float)str_replace(',', '.', (string)($content[$tid] ?? $content[(string)$tid] ?? 0));
+                $salary += round((float)$sum * $rate);
+            }
+            $salaryFix = (float)($rates['loss_fix'] ?? 0);
+            $salaryTerminal = 0.0;
+            $sumsAdmin = self::sumsByType($oid, $dayStart, $dayEnd, 'ID_ADMIN');
+            foreach ($sumsAdmin as $tid => $sum) {
+                $rate = (float)str_replace(',', '.', (string)($contentTerminal[$tid] ?? $contentTerminal[(string)$tid] ?? 0));
+                if ($rate == 2.0) {
+                    continue;
+                }
+                $salaryTerminal += round((float)$sum * $rate);
+            }
+            $salarySales = 0.0;
+            if (Database::tableExists('base_sales')) {
+                foreach (self::salesByType($oid, $dayStart, $dayEnd) as $tid => $sum) {
+                    $rate = (float)str_replace(',', '.', (string)($contentSales[$tid] ?? $contentSales[(string)$tid] ?? 0));
+                    $salarySales += round((float)$sum * $rate);
+                }
+            }
+            $total = $salary + $salaryFix + $salaryTerminal + $salarySales;
+            if ($total <= 0 && $salaryFix <= 0) {
+                continue;
+            }
+            $out[$oid] = [
+                'salary' => $salary,
+                'salary_fix' => $salaryFix,
+                'salary_terminal' => $salaryTerminal,
+                'salary_sales' => $salarySales,
+                'total' => $total,
+            ];
+        }
+        return $out;
+    }
 }

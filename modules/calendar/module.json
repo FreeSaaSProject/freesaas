@@ -31,7 +31,8 @@
       "/calendar/day/{date}",
       "/calendar/events/new",
       "/calendar/events/{id}/edit",
-      "/calendar/nazop"
+      "/calendar/nazop",
+      "/calendar/settings"
     ]
   },
   "jobs": [],
@@ -41,6 +42,14 @@
       "num": 1,
       "path": "/calendar",
       "title": "calendar.menu.week"
+    },
+    {
+      "group": "calendar.menu.group",
+      "num": 90,
+      "path": "/calendar/settings",
+      "title": "calendar.menu.settings",
+      "permission": "calendar.view",
+      "capability": "SUPERADMIN_ACCESS"
     }
   ],
   "configSchema": {
@@ -67,12 +76,11 @@
   "hooks": {
     "subscribe": [
       "core.dashboard.catalog",
-      "core.dashboard.widgets",
-      "core.settings.sections",
-      "core.settings.save"
+      "core.dashboard.widgets"
     ],
     "publish": [
-      "calendar.day embeds workweeks panel; consumes orders.for_day and procedures day range"
+      "calendar.day embeds workweeks panel; consumes orders.for_day and procedures day range",
+      "calendar.day.stats — day footer sections (modules append html via EventBus)"
     ]
   }
 }

@@ -29,3 +29,64 @@ BulkActions::register('cabinets', 'delete', [
         return ['done' => CabinetsRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+
+EventBus::on('core.user_edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user)) {
+        return $payload;
+    }
+    $cabinets = [];
+    $listed = CabinetsRepository::list(['limit' => 500]);
+    foreach ($listed['items'] as $r) {
+        $id = (int)($r['id'] ?? 0);
+        if ($id < 1) {
+            continue;
+        }
+        $label = trim((string)($r['name'] ?? ''));
+        $descr = trim((string)($r['descr'] ?? ''));
+        if ($descr !== '') {
+            $label .= ' — ' . $descr;
+        }
+        $cabinets[$id] = $label !== '' ? $label : ('#' . $id);
+    }
+    $cabSet = [];
+    foreach (UsersRepository::parseHashIds((string)($user['skin'] ?? '')) as $cid) {
+        $cabSet[(int)$cid] = true;
+    }
+    ob_start();
+    require __DIR__ . '/views/_user_edit_access.php';
+    $payload['html_access'] = ($payload['html_access'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('core.user_edit.save', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $data['skin'] = UsersRepository::encodeHashIds(array_map('intval', (array)($post['skin'] ?? [])));
+    $skinIds = UsersRepository::parseHashIds((string)$data['skin']);
+    if (count($skinIds) === 1) {
+        $data['skin'] = (string)$skinIds[0];
+    }
+    $payload['data'] = $data;
+    return $payload;
+});
+
+EventBus::on('core.user_edit.profile', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user)) {
+        return $payload;
+    }
+    ob_start();
+    require __DIR__ . '/views/_user_profile_site.php';
+    $payload['html_site'] = ($payload['html_site'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});

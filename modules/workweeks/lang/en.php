@@ -40,4 +40,11 @@ return [
     'workweeks.nazop.ops_none' => '−ALL',
     'workweeks.nazop.check_all' => 'Check all',
     'workweeks.nazop.uncheck_all' => 'Uncheck all',
+    'workweeks.statuses.group' => 'Shifts / assignments',
+    'workweeks.statuses.field.SHOW_LOAD_LEVEL' => 'Show load level',
+    'workweeks.statuses.field.SHOW_IN_LOADS' => 'Show in load charts',
+    'workweeks.statuses.field.CAN_BE_ASSIGNED' => 'Can be assigned to shifts',
+    'workweeks.statuses.field.CAN_BE_ASSIGNED_ASANY' => 'Can be assigned as any role',
+    'workweeks.statuses.field.EVT_ASSIGN' => 'Assign others to shifts',
+    'workweeks.statuses.field.EVT_ASSIGN_MY' => 'Assign self to shifts',
 ];

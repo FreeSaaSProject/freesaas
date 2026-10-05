@@ -113,6 +113,16 @@ final class Router
             return;
         }
 
+        $capability = $route['capability'] ?? null;
+        if (is_string($capability) && $capability !== '' && Auth::check() && !Auth::capability($capability)) {
+            http_response_code(403);
+            View::render('error', [
+                'title' => 'Forbidden',
+                'message' => 'Missing capability: ' . $capability,
+            ]);
+            return;
+        }
+
         $handler = $route['handler'];
         StageTiming::mark('Route match & auth');
         $handler();

@@ -38,7 +38,7 @@ $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps)
 <form method="post" action="<?= e($formAction) ?>" class="nazop-form" id="nazop-form"
       data-nazop-day="<?= e($mode) ?>"
       data-nazop-ret="<?= e($retUrl) ?>"
-      data-nazop-ops="<?= e($opsCsv) ?>">
+      data-nazop-current-ops="<?= e($opsCsv) ?>">
   <input type="hidden" name="nazop_action" value="save">
   <input type="hidden" name="ret" value="<?= e($retUrl) ?>">
   <input type="hidden" name="mode" value="<?= e($mode) ?>">

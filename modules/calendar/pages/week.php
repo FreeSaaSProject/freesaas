@@ -180,6 +180,8 @@ if ($openShiftDay !== 'all' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $openShiftDa
     $openShiftDay = '';
 }
 
+$dayStatsHtml = CalendarDayStats::collect($days, $staffFilter, 'week');
+
 View::render('week', [
     'title' => t('calendar.week.title', ['range' => $rangeLabel]),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -206,5 +208,6 @@ View::render('week', [
     'shiftError' => $shiftError,
     'openShiftDay' => $openShiftDay,
     'weekRet' => $weekRet,
+    'dayStatsHtml' => $dayStatsHtml,
     'main_flush' => true,
 ], 'layout', 'calendar');

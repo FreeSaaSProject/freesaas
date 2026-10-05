@@ -99,4 +99,18 @@ return [
     'procedures.bulk.err.admin_required' => 'Choose an admin',
     'procedures.bulk.type_in_use' => 'Procedures use this type ({n})',
     'procedures.bulk.client_in_use' => 'Client has procedures ({n})',
+
+    'procedures.stats.proc_unit' => 'p.',
+    'procedures.stats.proc_short' => 'pr.',
+    'procedures.stats.promo_short' => 'promo',
+    'procedures.stats.bar_short' => 'r',
+    'procedures.stats.bar_long' => 'rev',
+    'procedures.stats.total' => 'Total',
+    'procedures.stats.restored' => 'RESTORED',
+    'procedures.stats.salary' => 'Pay',
+    'procedures.stats.salary_abbr' => 'Pay',
+    'procedures.user_edit.sec_restrict' => 'Procedure type restrictions',
+    'procedures.user_edit.restrict_types' => 'Blocked procedure types',
+    'procedures.user_edit.restrict_types_online' => 'Blocked types for online booking',
+    'procedures.user_edit.no_types' => 'Procedure types are not loaded yet.',
 ];

@@ -40,4 +40,11 @@ return [
     'workweeks.nazop.ops_none' => '−ВСЕ',
     'workweeks.nazop.check_all' => 'Все вкл',
     'workweeks.nazop.uncheck_all' => 'Все откл',
+    'workweeks.statuses.group' => 'Смены / назначения',
+    'workweeks.statuses.field.SHOW_LOAD_LEVEL' => 'Показывать уровень загрузки',
+    'workweeks.statuses.field.SHOW_IN_LOADS' => 'Показывать в графиках загрузки',
+    'workweeks.statuses.field.CAN_BE_ASSIGNED' => 'Может быть назначен на смены',
+    'workweeks.statuses.field.CAN_BE_ASSIGNED_ASANY' => 'Может быть назначен в любой роли',
+    'workweeks.statuses.field.EVT_ASSIGN' => 'Назначать других на смены',
+    'workweeks.statuses.field.EVT_ASSIGN_MY' => 'Назначать себя на смены',
 ];

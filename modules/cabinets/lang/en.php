@@ -21,4 +21,6 @@ return [
     'cabinets.err.name_required' => 'Name is required',
     'cabinets.err.name_too_long' => 'Name is too long',
     'cabinets.err.limits' => 'Minimum limit cannot exceed maximum',
+    'cabinets.user_edit.cabinets' => 'Rooms',
+    'cabinets.user_edit.no_cabinets' => 'The rooms list is empty.',
 ];

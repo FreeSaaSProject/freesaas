@@ -11,8 +11,9 @@ New modular Core next to legacy `oper.likespa.hm`.
 ## Quick start
 
 1. Copy `cfg/config.example.ini` → `cfg/config.ini` (already present for local).
-2. Point vhost docroot at this folder.
-3. Run schema + data migrators:
+2. For module settings (audio/calendar/ledger/…): copy `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini` (secrets stay out of git).
+3. Point vhost docroot at this folder.
+4. Run schema + data migrators:
 
 ```bash
 php bin/schema-migrate.php
@@ -21,7 +22,7 @@ php bin/data-migrate.php
 
 Or open `/migrate` after first deploy (login may need data import first — run CLI).
 
-4. Sign in with an oper staff login (passwords use the same site salt).
+5. Sign in with an oper staff login (passwords use the same site salt).
 
 ## Rules
 

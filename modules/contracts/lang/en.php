@@ -79,4 +79,5 @@ return [
     'contracts.sort.executor' => 'Executor',
     'contracts.sort.acceptor' => 'Acceptor',
     'contracts.sort.ticket' => 'Ticket',
+    'contracts.user_edit.acceptor' => 'Can accept tasks (contracts)',
 ];

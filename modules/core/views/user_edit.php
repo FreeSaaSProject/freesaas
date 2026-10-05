@@ -6,20 +6,17 @@
 /** @var array<string,bool> $features */
 /** @var array<int,string> $adminStatuses */
 /** @var array<int,string> $partnerStatuses */
-/** @var array<int,string> $procedureTypes */
-/** @var array<int,string> $products */
-/** @var array<int,string> $cabinets */
 /** @var array<string,array{name:string,keys:list<string>}> $permGroups */
 /** @var array<string,int> $userPerms */
 /** @var list<array{id:int,login:string,name:string}> $copyUsers */
 /** @var string $genPass */
-/** @var list<int> $restrictTypesSelected */
-/** @var list<int> $restrictTypesOnlineSelected */
-/** @var list<int> $restrictProcsSelected */
-/** @var list<int> $cabinetsSelected */
 /** @var int $favoritesCount */
+/** @var string $extraHtml */
+/** @var string $extraAccessHtml */
 
 $uid = (int)$user['id'];
+$extraHtml = (string)($extraHtml ?? '');
+$extraAccessHtml = (string)($extraAccessHtml ?? '');
 $color = trim((string)($user['color'] ?? ''));
 if ($color === '' || $color[0] !== '#') {
     $colorHex = '#64748b';
@@ -43,22 +40,6 @@ $newsAfterTs = (int)($user['showNewsAfter'] ?? 0);
 if ($newsAfterTs > 0) {
     $newsAfterVal = date('Y-m-d\TH:i', $newsAfterTs);
 }
-
-$selSet = static function (array $ids): array {
-    $s = [];
-    foreach ($ids as $id) {
-        $s[(int)$id] = true;
-    }
-    return $s;
-};
-$rtSet = $selSet($restrictTypesSelected);
-$rtoSet = $selSet($restrictTypesOnlineSelected);
-$rpSet = $selSet($restrictProcsSelected);
-$cabSet = $selSet($cabinetsSelected);
-
-$showTypes = !empty($features['procedure_types']);
-$showProcs = !empty($features['procedure_restrict']);
-$showRestrictBlock = $showTypes || $showProcs;
 ?>
 <section class="page-head">
   <h1><?= te('core.user_edit.heading') ?></h1>
@@ -139,52 +120,7 @@ $showRestrictBlock = $showTypes || $showProcs;
     </div>
   </label>
 
-  <?php if ($showRestrictBlock): ?>
-  <h2 class="form-section-title"><?= te('core.user_edit.sec_restrict') ?></h2>
-  <?php if ($showTypes): ?>
-  <fieldset class="check-fieldset">
-    <legend><?= te('core.user_edit.restrict_types') ?></legend>
-    <div class="check-grid">
-      <?php foreach ($procedureTypes as $tid => $label): ?>
-        <label class="check">
-          <input type="checkbox" name="RESTRICT_TYPES[]" value="<?= (int)$tid ?>"<?= isset($rtSet[$tid]) ? ' checked' : '' ?>>
-          <?= e($label) ?>
-        </label>
-      <?php endforeach; ?>
-      <?php if (!$procedureTypes): ?>
-        <p class="form-hint"><?= te('core.user_edit.no_types') ?></p>
-      <?php endif; ?>
-    </div>
-  </fieldset>
-  <fieldset class="check-fieldset">
-    <legend><?= te('core.user_edit.restrict_types_online') ?></legend>
-    <div class="check-grid">
-      <?php foreach ($procedureTypes as $tid => $label): ?>
-        <label class="check">
-          <input type="checkbox" name="RESTRICT_TYPES_ONLINE[]" value="<?= (int)$tid ?>"<?= isset($rtoSet[$tid]) ? ' checked' : '' ?>>
-          <?= e($label) ?>
-        </label>
-      <?php endforeach; ?>
-    </div>
-  </fieldset>
-  <?php endif; ?>
-  <?php if ($showProcs): ?>
-  <fieldset class="check-fieldset">
-    <legend><?= te('core.user_edit.restrict_procs') ?></legend>
-    <div class="check-grid check-grid-tall">
-      <?php foreach ($products as $pid => $label): ?>
-        <label class="check">
-          <input type="checkbox" name="RESTRICT_PROCS[]" value="<?= (int)$pid ?>"<?= isset($rpSet[$pid]) ? ' checked' : '' ?>>
-          <?= e($label) ?>
-        </label>
-      <?php endforeach; ?>
-      <?php if (!$products): ?>
-        <p class="form-hint"><?= t('core.user_edit.no_products') ?></p>
-      <?php endif; ?>
-    </div>
-  </fieldset>
-  <?php endif; ?>
-  <?php endif; ?>
+  <?= $extraHtml ?>
 
   <?php if (!empty($features['site_profile'])): ?>
   <h2 class="form-section-title"><?= te('core.user_edit.sec_site') ?></h2>
@@ -201,12 +137,6 @@ $showRestrictBlock = $showTypes || $showProcs;
     <input type="checkbox" name="enabled" value="1"<?= ((string)$user['enabled'] === '1') ? ' checked' : '' ?>>
     <?= te('core.user_edit.active') ?>
   </label>
-  <?php if (!empty($features['acceptor'])): ?>
-  <label class="check">
-    <input type="checkbox" name="IS_ACCEPTOR" value="1"<?= !empty($user['IS_ACCEPTOR']) ? ' checked' : '' ?>>
-    <?= te('core.user_edit.acceptor') ?>
-  </label>
-  <?php endif; ?>
   <label class="check">
     <input type="checkbox" name="ASSIST_TEAM" value="1"<?= !empty($user['ASSIST_TEAM']) ? ' checked' : '' ?>>
     <?= te('core.user_edit.assist_team') ?>
@@ -215,22 +145,11 @@ $showRestrictBlock = $showTypes || $showProcs;
     <input type="checkbox" name="NOT_IN_TEAM" value="1"<?= !empty($user['NOT_IN_TEAM']) ? ' checked' : '' ?>>
     <?= te('core.user_edit.not_in_team') ?>
   </label>
-  <?php if (!empty($features['stocks'])): ?>
-  <label class="check">
-    <input type="checkbox" name="STOCK_REVISION" value="1"<?= !empty($user['STOCK_REVISION']) ? ' checked' : '' ?>>
-    <?= te('core.user_edit.stock_revision') ?>
-  </label>
-  <?php endif; ?>
   <label class="check">
     <input type="checkbox" name="IS_HIDDEN" value="1"<?= !empty($user['IS_HIDDEN']) ? ' checked' : '' ?>>
     <?= te('core.user_edit.hidden_mode') ?>
   </label>
-  <?php if (!empty($features['audio'])): ?>
-  <label class="check">
-    <input type="checkbox" name="AUDIO_ANALYTICS_ENABLED" value="1"<?= !empty($user['AUDIO_ANALYTICS_ENABLED']) ? ' checked' : '' ?>>
-    <?= te('core.user_edit.audio_analytics') ?>
-  </label>
-  <?php endif; ?>
+  <?= $extraAccessHtml ?>
 
   <label><?= te('core.user_edit.admin_status') ?>
     <select name="name_enabled">
@@ -248,23 +167,6 @@ $showRestrictBlock = $showTypes || $showProcs;
       <?php endforeach; ?>
     </select>
   </label>
-  <?php endif; ?>
-
-  <?php if (!empty($features['cabinets'])): ?>
-  <fieldset class="check-fieldset">
-    <legend><?= te('core.user_edit.cabinets') ?></legend>
-    <div class="check-grid">
-      <?php foreach ($cabinets as $cid => $label): ?>
-        <label class="check">
-          <input type="checkbox" name="skin[]" value="<?= (int)$cid ?>"<?= isset($cabSet[$cid]) ? ' checked' : '' ?>>
-          <?= e($label) ?>
-        </label>
-      <?php endforeach; ?>
-      <?php if (!$cabinets): ?>
-        <p class="form-hint"><?= te('core.user_edit.no_cabinets') ?></p>
-      <?php endif; ?>
-    </div>
-  </fieldset>
   <?php endif; ?>
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_news') ?></h2>

@@ -49,95 +49,11 @@ final class UsersRepository
         return $out;
     }
 
-    /** @return array<int,string> id => label */
-    public static function procedureTypes(): array
-    {
-        if (!Database::tableExists('base_procedure_types')) {
-            return [];
-        }
-        $out = [];
-        $rows = Database::pdo()->query(
-            'SELECT ID, TYPE, DESCR FROM base_procedure_types ORDER BY TYPE'
-        )->fetchAll() ?: [];
-        foreach ($rows as $r) {
-            $label = trim((string)$r['TYPE']);
-            $descr = trim((string)($r['DESCR'] ?? ''));
-            if ($descr !== '') {
-                $label .= ' — ' . $descr;
-            }
-            $out[(int)$r['ID']] = $label;
-        }
-        return $out;
-    }
-
     /**
-     * Products for RESTRICT_PROCS — always base_products (never phpshop_*).
-     * Empty table → empty list.
-     * @return array<int,string>
-     */
-    public static function productsForRestrict(): array
-    {
-        if (!Database::tableExists('base_products')) {
-            return [];
-        }
-        $out = [];
-        $where = '1=1';
-        if (Database::columnExists('base_products', 'enabled')) {
-            $where .= ' AND enabled = 1';
-        }
-        if (Database::columnExists('base_products', 'is_material')) {
-            $where .= ' AND NOT is_material';
-        } elseif (Database::columnExists('base_products', 'IS_MATERIAL')) {
-            $where .= ' AND NOT IS_MATERIAL';
-        }
-        $order = Database::columnExists('base_products', 'name') ? 'name' : 'id';
-        if (Database::columnExists('base_products', 'category')) {
-            $order = 'category, ' . $order;
-        }
-        $idCol = Database::columnExists('base_products', 'id') ? 'id' : 'ID';
-        $nameCol = Database::columnExists('base_products', 'name') ? 'name' : $idCol;
-        $sql = "SELECT `$idCol` AS id, `$nameCol` AS name FROM base_products WHERE $where ORDER BY $order LIMIT 2000";
-        foreach (Database::pdo()->query($sql)->fetchAll() ?: [] as $r) {
-            $out[(int)$r['id']] = (string)$r['name'];
-        }
-        return $out;
-    }
-
-    /** @return array<int,string> id => label */
-    public static function cabinets(): array
-    {
-        if (!Database::tableExists('base_cabinets')) {
-            return [];
-        }
-        $out = [];
-        $rows = Database::pdo()->query(
-            'SELECT ID, NAME, DESCR FROM base_cabinets ORDER BY ID'
-        )->fetchAll() ?: [];
-        foreach ($rows as $r) {
-            $label = trim((string)$r['NAME']);
-            $descr = trim((string)($r['DESCR'] ?? ''));
-            if ($descr !== '') {
-                $label .= ' — ' . $descr;
-            }
-            $out[(int)$r['ID']] = $label !== '' ? $label : ('#' . (int)$r['ID']);
-        }
-        return $out;
-    }
-
-    /**
-     * Which staff-edit sections belong to enabled product modules.
-     * Core always owns profile/password/colors/news/permissions; module UIs stay hidden until modules exist.
+     * Legacy feature gates for modules that do not exist yet in FreeSaaS.
+     * Product modules own their user_edit UI via EventBus (core.user_edit.*).
      *
-     * @return array{
-     *   procedure_types:bool,
-     *   procedure_restrict:bool,
-     *   cabinets:bool,
-     *   acceptor:bool,
-     *   audio:bool,
-     *   stocks:bool,
-     *   employee_bot:bool,
-     *   site_profile:bool
-     * }
+     * @return array{employee_bot:bool,site_profile:bool}
      */
     public static function editFeatures(): array
     {
@@ -150,14 +66,6 @@ final class UsersRepository
             return false;
         };
         return [
-            // types from base_procedure_types
-            'procedure_types' => $mod('procedures', 'likespa-procedures'),
-            // RESTRICT_PROCS from base_products (catalog); empty table → empty UI
-            'procedure_restrict' => $mod('catalog'),
-            'cabinets' => $mod('cabinets'),
-            'acceptor' => $mod('contracts'),
-            'audio' => $mod('audio'),
-            'stocks' => $mod('likespa-stocks', 'stocks'),
             'employee_bot' => $mod('employee-bot', 'likespa-employee-bot'),
             'site_profile' => $mod('likespa-promopages', 'likespa-site'),
         ];

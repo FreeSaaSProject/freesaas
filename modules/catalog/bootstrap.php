@@ -63,3 +63,47 @@ EventBus::on('core.bulk.check_item', static function (array $payload): array {
     }
     return $payload;
 });
+
+EventBus::on('core.user_edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user)) {
+        return $payload;
+    }
+    $products = [];
+    $listed = ProductsRepository::list([
+        'enabled' => '1',
+        'is_material' => '0',
+        'limit' => 2000,
+        'order' => 'p.category ASC, p.name ASC',
+    ]);
+    foreach ($listed['items'] as $r) {
+        $id = (int)($r['id'] ?? 0);
+        if ($id < 1) {
+            continue;
+        }
+        $products[$id] = (string)($r['name'] ?? ('#' . $id));
+    }
+    $rpSet = [];
+    foreach (UsersRepository::parseHashIds((string)($user['RESTRICT_PROCS'] ?? '')) as $pid) {
+        $rpSet[(int)$pid] = true;
+    }
+    $withHeading = true;
+    ob_start();
+    require __DIR__ . '/views/_user_edit_restrict.php';
+    $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('core.user_edit.save', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $data['RESTRICT_PROCS'] = UsersRepository::encodeHashIds(array_map('intval', (array)($post['RESTRICT_PROCS'] ?? [])));
+    $payload['data'] = $data;
+    return $payload;
+});

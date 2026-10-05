@@ -99,20 +99,15 @@ final class EventsRepository
         return $ts !== false ? (int)$ts : 0;
     }
 
-    /** Safe return URL back to calendar week or day. */
+    /** Safe return URL (same-origin); fallback when missing/invalid. */
     public static function sanitizeReturnUrl(?string $raw): string
     {
-        $raw = trim((string)$raw);
-        if ($raw === '' || $raw[0] !== '/') {
+        $safe = NavContext::sanitize($raw);
+        if ($safe === '') {
             return '/calendar';
         }
-        if (strpos($raw, '://') !== false || strpos($raw, '//') === 0) {
-            return '/calendar';
-        }
-        if (!preg_match('#^/calendar(?:/(?:day|week)/\d{4}-\d{2}-\d{2})?(?:\?|$)#', $raw)) {
-            return '/calendar';
-        }
-        return $raw;
+        NavContext::setReturnUrl($safe);
+        return $safe;
     }
 
     public static function dayUrl(int $ts, int $staffId = 0): string

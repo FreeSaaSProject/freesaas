@@ -5,7 +5,7 @@ $brand = (string)Config::get('app', 'name', 'FreeSaaS');
 $instance = SystemRepository::companyName();
 $titleSuffix = $instance !== '' ? $instance : $brand;
 $htmlLang = I18n::locale();
-$jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt']);
+$jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt', 'core.layout.nav_loading']);
 ?>
 <!DOCTYPE html>
 <html lang="<?= e($htmlLang) ?>">

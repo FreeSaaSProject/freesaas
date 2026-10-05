@@ -15,12 +15,14 @@ final class BulkActions
     /**
      * @param array{
      *   label:string,
+     *   group?:string,
      *   permission?:string,
      *   capability?:string,
      *   confirm?:string,
      *   fields?:list<array{name:string,type?:string,label?:string,options?:array<int|string,string>|callable}>,
      *   run:callable
      * } $def
+     * Optional `group` is an i18n key for an <optgroup> label (oper-style action buckets).
      */
     public static function register(string $listId, string $actionId, array $def): void
     {
@@ -286,14 +288,41 @@ final class BulkActions
         $html = '<div class="bulk-bar" data-bulk-bar>';
         $html .= '<select name="bulk_action" data-bulk-action aria-label="' . te('core.bulk.with_selected') . '">';
         $html .= '<option value="0">' . te('core.bulk.with_selected') . '</option>';
+
+        $ungrouped = [];
+        $grouped = [];
         foreach ($actions as $id => $def) {
+            $groupKey = trim((string)($def['group'] ?? ''));
+            if ($groupKey === '') {
+                $ungrouped[$id] = $def;
+                continue;
+            }
+            if (!isset($grouped[$groupKey])) {
+                $grouped[$groupKey] = [];
+            }
+            $grouped[$groupKey][$id] = $def;
+        }
+
+        $renderOption = static function (string $id, array $def): string {
             $confirm = trim((string)($def['confirm'] ?? ''));
             $attrs = ' value="' . e($id) . '"';
             if ($confirm !== '') {
                 $attrs .= ' data-confirm="' . te($confirm) . '"';
             }
-            $html .= '<option' . $attrs . '>' . te((string)$def['label']) . '</option>';
+            return '<option' . $attrs . '>' . te((string)$def['label']) . '</option>';
+        };
+
+        foreach ($ungrouped as $id => $def) {
+            $html .= $renderOption($id, $def);
         }
+        foreach ($grouped as $groupKey => $items) {
+            $html .= '<optgroup label="' . te($groupKey) . '">';
+            foreach ($items as $id => $def) {
+                $html .= $renderOption($id, $def);
+            }
+            $html .= '</optgroup>';
+        }
+
         $html .= '</select>';
 
         foreach ($actions as $id => $def) {

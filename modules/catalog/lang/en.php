@@ -113,4 +113,7 @@ return [
     'catalog.bulk.unit_in_use' => 'Unit is used by products ({n})',
     'catalog.bulk.supplier_in_use' => 'Supplier is used by products ({n})',
     'catalog.bulk.type_in_use' => 'Type is used by catalog products ({n})',
+    'catalog.user_edit.sec_restrict' => 'Procedure restrictions',
+    'catalog.user_edit.restrict_procs' => 'Blocked procedures',
+    'catalog.user_edit.no_products' => 'The <code>base_products</code> catalog is empty — nothing to block.',
 ];

@@ -21,4 +21,6 @@ return [
     'cabinets.err.name_required' => 'Название обязательно',
     'cabinets.err.name_too_long' => 'Название слишком длинное',
     'cabinets.err.limits' => 'Минимальный лимит не может быть больше максимального',
+    'cabinets.user_edit.cabinets' => 'Кабинеты',
+    'cabinets.user_edit.no_cabinets' => 'Список кабинетов пуст.',
 ];

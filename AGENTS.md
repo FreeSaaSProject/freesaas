@@ -6,7 +6,7 @@ Instructions for coding agents working in this repository. Human guide: [`docs/G
 
 - PHP 7.4+/8.x style with `declare(strict_types=1);`, no Composer framework.
 - Front controller: `index.php` → `app/bootstrap.php` → `Router::dispatch()`.
-- MySQL via PDO (`app/Database.php`). Config: `cfg/config.ini`.
+- MySQL via PDO (`app/Database.php`). Platform config: `cfg/config.ini`; module settings: `cfg/modules/<id>.ini`.
 - Modules under `modules/<id>/` with `module.json` + `bootstrap.php`.
 
 ## Hard rules (do not violate)
@@ -16,8 +16,9 @@ Instructions for coding agents working in this repository. Human guide: [`docs/G
 3. **Do not invent a second routing/DI layer.** Register routes in module `bootstrap.php` via `ModuleManager::registerRoute`. Use `View::render`, `EventBus`, existing repositories.
 4. **Cross-module UI/behavior goes through EventBus**, not by hard-coupling pages of another module when a hook already exists (see `hooks` in each `module.json`).
 5. **UI chrome via i18n (mandatory for every module):** use `t('module.key')` / `te()` / `tj()`; catalogs in `modules/<id>/lang/{ru,en}.php` (and `app/lang/` for shared). New modules ship both locales from day one. Do not hardcode UI language in views/pages/`module.json` labels. English for code identifiers; short focused diffs; no drive-by refactors or unsolicited markdown docs. UGC and DB status `NAME` values are not translated.
-6. **Do not commit secrets** (`cfg/config.ini` with real passwords). Prefer editing `config.example.ini` only when documenting new keys.
+6. **Do not commit secrets** (`cfg/config.ini`, `cfg/modules/*.ini` with real passwords). Platform keys go in `config.example.ini`; product keys in `modules/<id>/config.example.ini` only.
 7. **Do not disable or remove `core`.** Module enable/disable is via `Config::setModuleEnabled` / UI `/modules` / `[modules]` in ini.
+8. **Do not hardcode product module UI/config into `app/` or core views.** Rail group weights: `ModuleManager::registerMenuGroup`. Module CSS/JS: `Assets::register`. Staff edit fields: `EventBus` `core.user_edit.sections` / `save` / `profile`. Role flags: `StatusesRepository::registerFieldGroup`. Module ini sections: `cfg/modules/<section>.ini` (not new blocks in `config.example.ini`). Shared `core.menu.group.*` weights only in `modules/core/bootstrap.php`.
 
 ## Request flow (mental model)
 
@@ -43,8 +44,13 @@ Route params: `Router::param('id')`. Redirect: `redirect('/path')`. Escape outpu
 | One-time legacy copy | `modules/<id>/migrators/<id>.php` + entry in `module.json` `migrators` |
 | Extend home widgets / news card / comment form | `EventBus::on(...)` in `bootstrap.php` |
 | List row selection / group ops | `BulkActions::register($listId, $action, …)` in bootstrap; view helpers `th`/`td`/`bar`; dependency blocks via `EventBus::on('core.bulk.check_item')` |
-| Breadcrumb trail UI | Page passes `breadcrumbs` (+ optional `breadcrumbs_aria`) to `View::render`; layout always draws them at top of `<main>` via `Breadcrumbs` (`modules/core/lib/Breadcrumbs.php`). If omitted, auto from menu + page title. |
+| Breadcrumb trail UI | Page passes `breadcrumbs` (+ optional `breadcrumbs_aria`) to `View::render`; layout always draws them at top of `<main>` via `Breadcrumbs` (`modules/core/lib/Breadcrumbs.php`). If omitted, auto from menu + page title. Ancestor hrefs get `NavContext::up()` (keep list filters when `ret` path matches). Layout shows `[Return]` via `NavContext::returnUrl()` when `ret` is set. |
+| Return / list filters | `app/NavContext.php`: outbound `NavContext::withReturn($href)`; forms `NavContext::hiddenField()`; sanitize via `NavContext::sanitize`. Do not invent per-module open-redirect helpers for the same job. |
 | Module CSS/JS | `modules/<id>/assets/{css,js}/` + `Assets::register($id, …)` in bootstrap. `View::render(..., $id)` auto-queues; embeds call `Assets::need('other')`. Core chrome: `assets/css/core.css`, `assets/js/core.js`. |
+| Rail menu group order | Owning module: `ModuleManager::registerMenuGroup('myid.menu.group', 35)` in bootstrap (same key as `menu[].group`). Optional 3rd arg = section landing path (title click). Shared chrome groups (`core.menu.group.*`) only in `modules/core/bootstrap.php`. Never append product keys to `app/ModuleManager.php`. Same translated group title merges into one rail section. Within a section, optional `menu[].kind`: `work` (default) → `crud` → `settings` (paths like `/module/settings` auto-`settings`), then `num`. |
+| Staff user edit fields | `EventBus::on('core.user_edit.sections'|'save'|'profile')` in owning module; do not add product checkboxes to `modules/core/views/user_edit.php`. |
+| Role status flag groups | `StatusesRepository::registerFieldGroup([...])` in owning bootstrap (`when` = module id). Core keeps only `when=always` groups. |
+| Module config / secrets | Live: `cfg/modules/<id>.ini` (gitignored). Example: `modules/<id>/config.example.ini`. Platform only in `cfg/config.ini` (`connect`/`app`/`salts`/`modules`). `Config::get/set` unchanged for callers. |
 
 Layouts always live in `modules/core/views/` (`layout`, `layout_auth`, `error`).
 
@@ -54,9 +60,9 @@ Create `modules/<id>/` with:
 
 1. `module.json` — required keys: `id`, `name`, `version`, `type` (`product`), `requires` (at least `"core": ">=0.3.0"`), `permissions`, `menu` (if nav), `tables`, `hooks` (document emit/subscribe), `routes.pages` (list paths for humans; real routes are in bootstrap).
 2. **i18n (required):** `lang/ru.php` + `lang/en.php` with all UI chrome strings. `module.json` `name`, `menu[].title|group`, and `permissions[].label` must be translation **keys** (e.g. `myid.menu.list`), not hardcoded language text. Views/pages/bootstrap/lib labels use `t()` / `te()` / `tj()` — never hardcode Russian or English UI copy.
-3. `bootstrap.php` — `require_once` libs; `Assets::register` if the module has CSS/JS; register routes; subscribe EventBus.
-4. Optional: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`.
-5. Enable: `[modules] <id>=1` or Modules UI (runs schema migrations on enable).
+3. `bootstrap.php` — `require_once` libs; `Assets::register` if CSS/JS; `ModuleManager::registerMenuGroup` if own rail group; `StatusesRepository::registerFieldGroup` if role flags; register routes; subscribe EventBus (incl. `core.user_edit.*` when adding staff fields).
+4. Optional: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `config.example.ini`.
+5. Enable: `[modules] <id>=1` or Modules UI (runs schema migrations on enable). Copy module config example → `cfg/modules/<id>.ini` if the module needs ini settings.
 
 Do **not** translate UGC or DB reference `NAME` fields; only chrome (buttons, flashes, menu, column headers, empty states, JS prompts).
 
@@ -64,12 +70,12 @@ Route registration shape:
 
 ```php
 ModuleManager::registerRoute('/path/{id}', [
-    'module' => 'myid',
-    'methods' => ['GET', 'POST'],
-    'permission' => 'myid.view', // or 'public' => true
-    'handler' => static function (): void {
-        require base_path('modules/myid/pages/foo.php');
-    },
+ 'module' => 'myid',
+ 'methods' => ['GET', 'POST'],
+ 'permission' => 'myid.view', // or 'public' => true; optional 'capability' => 'SUPERADMIN_ACCESS'
+ 'handler' => static function (): void {
+ require base_path('modules/myid/pages/foo.php');
+ },
 ]);
 ```
 
@@ -111,7 +117,7 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 - `EventBus::emit($event, $payload)` returns mutated payload; listeners must `return $payload`.
 - Prefer array payloads with clear keys; set `error` / `handled` / `html` / `redirect` as established by existing subscribers.
 - Document events in `module.json` → `hooks.publish` / `hooks.subscribe`.
-- Important existing events: `core.dashboard.catalog`, `core.dashboard.widgets`, `core.notices.collect`, `core.news_item.*`, `comments.prepare_add`, `comments.form.*`, `comments.render_actions`, `comments.counts`, `core.auth.after_login`, `core.user_edit.*`, `core.bulk.check_item`, `core.settings.sections`, `core.settings.save`.
+- Important existing events: `core.dashboard.catalog`, `core.dashboard.widgets`, `core.notices.collect`, `core.layout.gate` (layout chrome: `blocked`/`html`/`chrome`/`js_i18n` — no product keys in core), `core.news_item.*`, `comments.prepare_add`, `comments.form.*`, `comments.render_actions`, `comments.counts`, `core.auth.after_login`, `core.auth.before_logout`, `core.user_edit.*`, `core.bulk.check_item`, `core.settings.sections`, `core.settings.save`. Product module settings live on `/<id>/settings` (superadmin `capability`); sibling modules may extend via `<id>.settings.sections` / `.save` (e.g. `audio.settings.*`).
 
 ## Migrations
 
@@ -143,6 +149,10 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
+| `audio` | Audio records + badges + FileStorage; requires `workweeks` |
+| `audio_dicts` | Types/dicts/keys/scripts/trash for recognition; requires `audio` |
+| `audio_pipeline` | Ingest/ASR handshake/stem/collect workers; requires `audio` + `audio_dicts` |
+| `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `payments` | Staff settlements (`base_payments`, `base_payment_types`); contracts pay CTA; auto-DPS when `ledger` on |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
 | `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |

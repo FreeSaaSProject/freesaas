@@ -3,9 +3,46 @@ declare(strict_types=1);
 
 final class StatusesRepository
 {
+    /** @var list<array{title:string,when:string,fields:list<array{key:string,label:string,type:string}>}> */
+    private static $registeredGroups = [];
+
     /**
-     * Editable field schema grouped for the form.
-     * Each field: key, label (i18n key), type=checkbox|text|select, when=always|modules…
+     * Register a product status field group (call from owning module bootstrap).
+     * Core keeps only when=always groups in fieldGroups().
+     *
+     * @param array{title:string,when:string,fields:list<array{key:string,label:string,type:string}>} $group
+     */
+    public static function registerFieldGroup(array $group): void
+    {
+        $title = trim((string)($group['title'] ?? ''));
+        $when = trim((string)($group['when'] ?? ''));
+        $fields = $group['fields'] ?? null;
+        if ($title === '' || $when === '' || !is_array($fields) || !$fields) {
+            return;
+        }
+        $clean = [];
+        foreach ($fields as $f) {
+            if (!is_array($f) || empty($f['key']) || empty($f['label'])) {
+                continue;
+            }
+            $clean[] = [
+                'key' => (string)$f['key'],
+                'label' => (string)$f['label'],
+                'type' => (string)($f['type'] ?? 'checkbox'),
+            ];
+        }
+        if (!$clean) {
+            return;
+        }
+        self::$registeredGroups[] = [
+            'title' => $title,
+            'when' => $when,
+            'fields' => $clean,
+        ];
+    }
+
+    /**
+     * Core-owned editable field groups (when=always only).
      *
      * @return list<array{title:string,when:string,fields:list<array{key:string,label:string,type:string}>}>
      */
@@ -55,60 +92,6 @@ final class StatusesRepository
                     ['key' => 'FASTAUTH_WORKTIME_ONLY', 'label' => 'core.statuses.field.FASTAUTH_WORKTIME_ONLY', 'type' => 'checkbox'],
                 ],
             ],
-            [
-                'title' => 'core.statuses.group.workweeks',
-                'when' => 'workweeks',
-                'fields' => [
-                    ['key' => 'SHOW_LOAD_LEVEL', 'label' => 'core.statuses.field.SHOW_LOAD_LEVEL', 'type' => 'checkbox'],
-                    ['key' => 'SHOW_IN_LOADS', 'label' => 'core.statuses.field.SHOW_IN_LOADS', 'type' => 'checkbox'],
-                    ['key' => 'CAN_BE_ASSIGNED', 'label' => 'core.statuses.field.CAN_BE_ASSIGNED', 'type' => 'checkbox'],
-                    ['key' => 'CAN_BE_ASSIGNED_ASANY', 'label' => 'core.statuses.field.CAN_BE_ASSIGNED_ASANY', 'type' => 'checkbox'],
-                    ['key' => 'EVT_ASSIGN', 'label' => 'core.statuses.field.EVT_ASSIGN', 'type' => 'checkbox'],
-                    ['key' => 'EVT_ASSIGN_MY', 'label' => 'core.statuses.field.EVT_ASSIGN_MY', 'type' => 'checkbox'],
-                ],
-            ],
-            [
-                'title' => 'core.statuses.group.calendar',
-                'when' => 'calendar',
-                'fields' => [
-                    ['key' => 'EVT_MY_ONLY', 'label' => 'core.statuses.field.EVT_MY_ONLY', 'type' => 'checkbox'],
-                    ['key' => 'EVT_OLD', 'label' => 'core.statuses.field.EVT_OLD', 'type' => 'checkbox'],
-                    ['key' => 'EVT_MONEY_DATA', 'label' => 'core.statuses.field.EVT_MONEY_DATA', 'type' => 'checkbox'],
-                    ['key' => 'EVT_DELETE', 'label' => 'core.statuses.field.EVT_DELETE', 'type' => 'checkbox'],
-                    ['key' => 'EVT_CREATE_NEW', 'label' => 'core.statuses.field.EVT_CREATE_NEW', 'type' => 'checkbox'],
-                    ['key' => 'EVT_MODIFY', 'label' => 'core.statuses.field.EVT_MODIFY', 'type' => 'checkbox'],
-                    ['key' => 'EVT_BONUS', 'label' => 'core.statuses.field.EVT_BONUS', 'type' => 'checkbox'],
-                    ['key' => 'EVT_CONTACT_DATA', 'label' => 'core.statuses.field.EVT_CONTACT_DATA', 'type' => 'checkbox'],
-                    ['key' => 'EVT_DOC_LINKS', 'label' => 'core.statuses.field.EVT_DOC_LINKS', 'type' => 'checkbox'],
-                    ['key' => 'EVT_PHOTOS', 'label' => 'core.statuses.field.EVT_PHOTOS', 'type' => 'checkbox'],
-                ],
-            ],
-            [
-                'title' => 'core.statuses.group.clients',
-                'when' => 'clients',
-                'fields' => [
-                    ['key' => 'CLIENT_BASE', 'label' => 'core.statuses.field.CLIENT_BASE', 'type' => 'checkbox'],
-                    ['key' => 'SHOW_MEDINFO', 'label' => 'core.statuses.field.SHOW_MEDINFO', 'type' => 'checkbox'],
-                    ['key' => 'IS_DOCTOR', 'label' => 'core.statuses.field.IS_DOCTOR', 'type' => 'checkbox'],
-                ],
-            ],
-            [
-                'title' => 'core.statuses.group.stocks',
-                'when' => 'stocks',
-                'fields' => [
-                    ['key' => 'STOCKS_DATA', 'label' => 'core.statuses.field.STOCKS_DATA', 'type' => 'checkbox'],
-                    ['key' => 'GOOD_USE', 'label' => 'core.statuses.field.GOOD_USE', 'type' => 'checkbox'],
-                    ['key' => 'STICKER_ADV_ACC', 'label' => 'core.statuses.field.STICKER_ADV_ACC', 'type' => 'checkbox'],
-                ],
-            ],
-            [
-                'title' => 'core.statuses.group.audio',
-                'when' => 'audio',
-                'fields' => [
-                    ['key' => 'ID_AUDIO_POSITION', 'label' => 'core.statuses.field.ID_AUDIO_POSITION', 'type' => 'select_status'],
-                    ['key' => 'DISABLE_NON_PROCEDURE_TIME', 'label' => 'core.statuses.field.DISABLE_NON_PROCEDURE_TIME', 'type' => 'checkbox'],
-                ],
-            ],
         ];
     }
 
@@ -119,7 +102,7 @@ final class StatusesRepository
             return true;
         }
         if ($when === 'stocks') {
-            return ModuleManager::isEnabled('likespa-stocks') || ModuleManager::isEnabled('stocks');
+            return ModuleManager::isEnabled('stocks') || ModuleManager::isEnabled('likespa-stocks');
         }
         return ModuleManager::isEnabled($when);
     }
@@ -130,7 +113,7 @@ final class StatusesRepository
     public static function visibleFieldGroups(): array
     {
         $out = [];
-        foreach (self::fieldGroups() as $g) {
+        foreach (array_merge(self::fieldGroups(), self::$registeredGroups) as $g) {
             if (!self::groupVisible((string)$g['when'])) {
                 continue;
             }
@@ -148,7 +131,6 @@ final class StatusesRepository
         return $out;
     }
 
-    /** @return list<array> */
     /** @return array<string,string> request sort key => SQL expression */
     public static function listSortMap(): array
     {

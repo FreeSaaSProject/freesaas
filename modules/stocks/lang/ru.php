@@ -42,4 +42,9 @@ return [
     'stocks.leftovers.col.min' => 'Мин.',
     'stocks.leftovers.col.max' => 'Макс.',
     'stocks.leftovers.search_good' => 'ID товара',
+    'stocks.user_edit.revision' => 'Доступ к ревизированию складов',
+    'stocks.statuses.group' => 'Склады',
+    'stocks.statuses.field.STOCKS_DATA' => 'Данные складов',
+    'stocks.statuses.field.GOOD_USE' => 'Списание расходников',
+    'stocks.statuses.field.STICKER_ADV_ACC' => 'Расширенный учёт стикеров',
 ];

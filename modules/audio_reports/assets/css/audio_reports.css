@@ -1,0 +1,345 @@
+/* Records calendar (oper-style day grid) + summary reports */
+
+.ar-cal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ar-cal-nav form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.75rem;
+  align-items: end;
+}
+
+.ar-cal-nav label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.85rem;
+}
+
+.ar-cal-months {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.records-calendar-wrap {
+  --cal-cell-pad: 3px;
+  --cal-font-size: 11px;
+  --cal-line: 1.3;
+  --cal-border: 1px solid var(--border, #e2e8f0);
+  --cal-head-bg: var(--surface-2, #f8fafc);
+  --cal-month-bg: var(--surface-3, #1e293b);
+  --cal-month-color: #fff;
+  --cal-day-num-bg: #334155;
+  --cal-day-num-color: #fff;
+  --cal-emp-sep: var(--border, #e2e8f0);
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.records-calendar-wrap table.records-calendar {
+  width: 100%;
+  min-width: 560px;
+  border-collapse: collapse;
+  border-spacing: 0;
+  font-size: var(--cal-font-size);
+  line-height: var(--cal-line);
+  background: var(--surface, #fff);
+}
+
+.records-calendar-wrap thead tr:first-child th {
+  padding: 0.5rem 0.35rem;
+  background: var(--cal-month-bg);
+  color: var(--cal-month-color);
+  font-weight: 600;
+  font-size: 1rem;
+  text-align: center;
+}
+
+.records-calendar-wrap thead tr.days th {
+  padding: 0.25rem 0.15rem;
+  background: var(--cal-head-bg);
+  color: var(--muted, #475569);
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  border-bottom: var(--cal-border);
+}
+
+.records-calendar-wrap .cal-day-cell {
+  width: 14.2857%;
+  min-width: 0;
+  vertical-align: top;
+  padding: 0;
+  border: var(--cal-border);
+}
+
+.records-calendar-wrap .cal-day-cell--empty {
+  background: var(--surface-2, #fafafa);
+}
+
+.records-calendar-wrap .cal-day-cell--today {
+  outline: 2px solid var(--accent, #2563eb);
+  outline-offset: -2px;
+}
+
+.records-calendar-wrap .cal-day-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 2.5em;
+}
+
+.records-calendar-wrap .cal-day-num {
+  flex-shrink: 0;
+  padding: 2px 4px;
+  margin: 1px;
+  background: var(--cal-day-num-bg);
+  color: var(--cal-day-num-color);
+  font-weight: 700;
+  font-size: 0.75rem;
+  border-radius: 3px;
+  display: inline-block;
+  line-height: 1.2;
+}
+
+.records-calendar-wrap .cal-day-num a {
+  color: #93c5fd;
+  text-decoration: none;
+}
+
+.records-calendar-wrap .cal-day-num a:hover {
+  text-decoration: underline;
+}
+
+.records-calendar-wrap .cal-day-dw {
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.records-calendar-wrap .cal-day-dw--weekend {
+  color: #f87171;
+}
+
+.records-calendar-wrap .cal-day-body {
+  padding: 0 var(--cal-cell-pad) var(--cal-cell-pad);
+  font-size: var(--cal-font-size);
+  line-height: var(--cal-line);
+}
+
+.ar-cal-staff-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.15rem 0.35rem;
+  padding: 0.2rem 0;
+  border-top: 1px solid var(--cal-emp-sep);
+}
+
+.ar-cal-staff-line:first-child,
+.ar-cal-staff-line--after-pos {
+  border-top: none;
+}
+
+.ar-cal-staff-line .user-badge {
+  font-size: 0.7rem;
+  padding: 0 0.2rem;
+  text-decoration: none;
+  border-radius: 2px;
+}
+
+.ar-cal-time {
+  color: inherit;
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar-cal-time:hover {
+  text-decoration: underline;
+}
+
+.ar-cal-rate {
+  display: inline-block;
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  border-radius: 3px;
+  background: var(--surface-2, #e2e8f0);
+  color: inherit;
+  text-decoration: none;
+}
+
+.ar-cal-rate--ok {
+  background: #15803d;
+  color: #fff;
+}
+
+.ar-cal-rate--low {
+  background: #b91c1c;
+  color: #fff;
+}
+
+.ar-cal-outside {
+  color: #b45309;
+  font-size: 0.7rem;
+}
+
+.ar-cal-err {
+  color: #b91c1c;
+  font-size: 0.7rem;
+}
+
+.ar-cal-pos-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted, #64748b);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  margin-top: 0.3rem;
+  padding-top: 0.2rem;
+  border-top: 1px dashed var(--cal-emp-sep);
+}
+
+.ar-cal-pos-label:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.ar-cal-keys {
+  font-size: 0.7rem;
+  padding: 0 0.2rem;
+  border-radius: 2px;
+}
+
+.ar-cal-keys.is-ok { background: #86efac; color: #14532d; }
+.ar-cal-keys.is-mid { background: #fef08a; color: #713f12; }
+.ar-cal-keys.is-low { background: #fca5a5; color: #7f1d1d; }
+
+.ar-cal-track {
+  color: #b91c1c;
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.ar-cal-nav-hint {
+  font-size: 0.8rem;
+}
+
+.ar-cal-summary {
+  margin-top: 1rem;
+}
+
+.ar-cal-summary-title {
+  margin: 0.75rem 0 0.4rem;
+  font-size: 1rem;
+}
+
+.ar-cal-summary-pos {
+  margin: 0.75rem 0 0.35rem;
+  font-size: 0.9rem;
+}
+
+.ar-cal-summary-scroll {
+  overflow-x: auto;
+}
+
+.ar-cal-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  min-width: 420px;
+}
+
+.ar-cal-summary-table th,
+.ar-cal-summary-table td {
+  border: 1px solid var(--border, #e2e8f0);
+  padding: 0.3rem 0.45rem;
+  text-align: right;
+}
+
+.ar-cal-summary-table th:first-child,
+.ar-cal-summary-table td:first-child {
+  text-align: left;
+}
+
+.ar-cal-summary-table thead th {
+  background: var(--surface-2, #f8fafc);
+  font-weight: 600;
+}
+
+.ar-cal-summary-total td {
+  font-weight: 700;
+  background: var(--surface-2, #f1f5f9);
+}
+
+.ar-cal-track-th {
+  color: #b91c1c;
+}
+
+
+.ar-sum-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1rem;
+}
+
+.ar-sum-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.ar-sum-card {
+  border: 1px solid var(--border, #ccc);
+  padding: 0.75rem;
+}
+
+.ar-sum-card .ar-sum-card-val {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.ar-sum-card .ar-sum-card-label {
+  font-size: 0.8rem;
+  color: var(--muted, #666);
+}
+
+.ar-sum-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  margin-top: 1rem;
+}
+
+.ar-sum-table th,
+.ar-sum-table td {
+  border: 1px solid var(--border, #ccc);
+  padding: 0.35rem 0.5rem;
+  text-align: right;
+}
+
+.ar-sum-table th:first-child,
+.ar-sum-table td:first-child {
+  text-align: left;
+}
+
+.ar-sum-form label {
+  display: block;
+  margin-bottom: 0.75rem;
+}
+
+.ar-sum-form textarea {
+  width: 100%;
+  min-height: 6rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}

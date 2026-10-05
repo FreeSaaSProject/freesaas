@@ -24,20 +24,15 @@ final class ProceduresRepository
         return date('Y-m-d\TH:i', $ts);
     }
 
-    /** Safe return URL back to the procedures list (same filters). */
+    /** Safe return URL (same-origin); fallback when missing/invalid. */
     public static function sanitizeReturnUrl(?string $raw): string
     {
-        $raw = trim((string)$raw);
-        if ($raw === '' || $raw[0] !== '/') {
+        $safe = NavContext::sanitize($raw);
+        if ($safe === '') {
             return '/procedures';
         }
-        if (strpos($raw, '://') !== false || strpos($raw, '//') === 0) {
-            return '/procedures';
-        }
-        if (!preg_match('#^/procedures(?:\?|/|$)#', $raw)) {
-            return '/procedures';
-        }
-        return $raw;
+        NavContext::setReturnUrl($safe);
+        return $safe;
     }
 
     public static function localToTs(string $raw): int
@@ -627,5 +622,123 @@ final class ProceduresRepository
         $st = Database::pdo()->prepare('SELECT COUNT(*) FROM base_procedures WHERE ID_USER = ?');
         $st->execute([$clientId]);
         return (int)$st->fetchColumn();
+    }
+
+    /**
+     * Calendar day footer aggregates (oper $STATS lite).
+     * Revenue excludes RESTORED>0 and internal 1C_ID=999.
+     *
+     * @return array{
+     *   operators: array<int,array<string,mixed>>,
+     *   revenue: float,
+     *   restored: float,
+     *   proc_count: int,
+     *   promo_count: int
+     * }
+     */
+    public static function dayColumnStats(int $dayStart, int $dayEnd, ?int $staffId = null): array
+    {
+        $empty = [
+            'operators' => [],
+            'revenue' => 0.0,
+            'restored' => 0.0,
+            'proc_count' => 0,
+            'promo_count' => 0,
+        ];
+        if (!Database::tableExists('base_procedures') || $dayEnd <= $dayStart) {
+            return $empty;
+        }
+
+        $where = 'p.DTSTART >= ? AND p.DTSTART < ? AND p.ENABLED = 1';
+        $params = [$dayStart, $dayEnd];
+        if ($staffId !== null && $staffId > 0) {
+            $where .= ' AND (p.ID_OPERATOR = ? OR p.ID_ADMIN = ?)';
+            $params[] = $staffId;
+            $params[] = $staffId;
+        }
+
+        $joins = '';
+        $nameCols = 'NULL AS operator_name, NULL AS is_hidden, 0 AS name_enabled';
+        if (Database::tableExists('base_users')) {
+            $joins = ' LEFT JOIN base_users u ON u.id = p.ID_OPERATOR';
+            $nameCols = "COALESCE(NULLIF(u.name, ''), u.login) AS operator_name,
+                         COALESCE(u.IS_HIDDEN, 0) AS is_hidden,
+                         COALESCE(u.name_enabled, 0) AS name_enabled";
+        }
+
+        $st = Database::pdo()->prepare(
+            "SELECT p.ID_OPERATOR AS id_operator, p.ID_ADMIN AS id_admin,
+                    p.SUMM AS summ, p.SUMM_DEFAULT AS summ_default,
+                    p.RESTORED AS restored, p.`1C_ID` AS onec_id, p.TYPE AS type,
+                    $nameCols
+             FROM base_procedures p
+             $joins
+             WHERE $where
+             ORDER BY p.DTSTART ASC"
+        );
+        $st->execute($params);
+
+        $ops = [];
+        $revenue = 0.0;
+        $restored = 0.0;
+        $procCount = 0;
+        $promoCount = 0;
+
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $oid = (int)($row['id_operator'] ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            if (!isset($ops[$oid])) {
+                $name = trim((string)($row['operator_name'] ?? ''));
+                if ($name === '') {
+                    $name = '#' . $oid;
+                }
+                $ops[$oid] = [
+                    'id' => $oid,
+                    'label' => $name,
+                    'acronym' => class_exists('CalendarTimeline', false)
+                        ? CalendarTimeline::acronym($name)
+                        : mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8'),
+                    'is_hidden' => (int)($row['is_hidden'] ?? 0) > 0,
+                    'name_enabled' => (int)($row['name_enabled'] ?? 0),
+                    'summ' => 0.0,
+                    'proc_count' => 0,
+                    'promo_count' => 0,
+                    'sums_by_type' => [],
+                ];
+            }
+            $sum = (float)($row['summ'] ?? 0);
+            $rest = (int)($row['restored'] ?? 0);
+            $onec = trim((string)($row['onec_id'] ?? ''));
+            $tid = (int)($row['type'] ?? 0);
+
+            if ($rest > 0) {
+                $restored += $sum;
+                continue;
+            }
+            if ($onec === '999') {
+                continue;
+            }
+
+            $ops[$oid]['summ'] += $sum;
+            $ops[$oid]['proc_count']++;
+            $ops[$oid]['sums_by_type'][$tid] = ($ops[$oid]['sums_by_type'][$tid] ?? 0.0) + $sum;
+            $revenue += $sum;
+            $procCount++;
+            $def = (float)($row['summ_default'] ?? 0);
+            if ($def > 0 && abs($sum - $def) > 0.01) {
+                $ops[$oid]['promo_count']++;
+                $promoCount++;
+            }
+        }
+
+        return [
+            'operators' => $ops,
+            'revenue' => $revenue,
+            'restored' => $restored,
+            'proc_count' => $procCount,
+            'promo_count' => $promoCount,
+        ];
     }
 }

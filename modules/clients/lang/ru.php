@@ -114,4 +114,6 @@ return [
     'clients.tag.created' => 'Создан',
     'clients.tag.enabled' => 'Вкл.',
     'clients.tag.empty' => 'Ярлыков нет',
+    'clients.statuses.group' => 'Клиенты',
+    'clients.statuses.field.CLIENT_BASE' => 'Доступ к базе клиентов',
 ];

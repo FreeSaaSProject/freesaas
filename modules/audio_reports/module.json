@@ -1,0 +1,60 @@
+{
+  "id": "audio_reports",
+  "name": "audio_reports.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "audio": ">=0.1.0",
+    "audio_dicts": ">=0.1.0",
+    "workweeks": ">=0.1.0"
+  },
+  "optionalRequires": {
+    "procedures": ">=0.1.0"
+  },
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "audio_reports.view", "label": "audio_reports.perm.view" },
+    { "id": "audio_reports.edit", "label": "audio_reports.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/audio/calendar",
+      "/audio/summaries",
+      "/audio/summaries/new",
+      "/audio/summaries/{id}"
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "audio.menu.group",
+      "num": 2,
+      "path": "/audio/calendar",
+      "title": "audio_reports.menu.calendar"
+    },
+    {
+      "group": "audio.menu.group",
+      "num": 3,
+      "path": "/audio/summaries",
+      "title": "audio_reports.menu.summaries"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_records_summarys"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [
+      "audio.settings.sections",
+      "audio.settings.save"
+    ],
+    "publish": [
+      "audio_reports.calendar.cell",
+      "audio_reports.calendar.day_extras",
+      "audio_reports.summary.cards",
+      "audio_reports.summary.external"
+    ]
+  }
+}
