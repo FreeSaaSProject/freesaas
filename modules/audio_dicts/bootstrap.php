@@ -137,3 +137,24 @@ BulkActions::register('audio_scripts', 'delete', [
         return ['done' => RecordsScriptsRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+BulkActions::register('audio_scripts', 'copy', [
+    'label' => 'audio_dicts.scripts.bulk_copy',
+    'permission' => 'audio_dicts.edit',
+    'run' => static function (array $ids, array $params): array {
+        $done = 0;
+        $skipped = [];
+        foreach ($ids as $id) {
+            $id = (int)$id;
+            if ($id < 1) {
+                continue;
+            }
+            try {
+                RecordsScriptsRepository::copy($id);
+                $done++;
+            } catch (Throwable $e) {
+                $skipped[] = ['id' => $id, 'reason' => $e->getMessage()];
+            }
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    },
+]);

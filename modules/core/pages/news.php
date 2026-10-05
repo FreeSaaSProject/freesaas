@@ -10,6 +10,10 @@ if ($type === 0) {
 $status = isset($_GET['status']) && $_GET['status'] !== '' ? (int)$_GET['status'] : -1;
 $q = trim((string)($_GET['q'] ?? ''));
 $pid = (int)($_GET['pid'] ?? 0);
+$unread = isset($_GET['unread']) && (string)$_GET['unread'] === '1' && $type >= 1 && $type <= 3;
+if ($unread) {
+    $pid = 0; // flat unread list across folders (oper ANSTYPE=1)
+}
 
 $lq = ListQuery::resolve([
     'list_id' => 'news',
@@ -27,6 +31,7 @@ $result = NewsRepository::list([
     'status' => $status,
     'q' => $q,
     'pid' => $pid,
+    'unread' => $unread,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $order,
@@ -48,6 +53,7 @@ $filters = array_merge([
     'status' => $status >= 0 ? $status : '',
     'q' => $q,
     'pid' => $pid > 0 ? $pid : '',
+    'unread' => $unread ? 1 : '',
     'per_page' => $lq['per_page'],
 ], $explicitSort ? ['sort' => $lq['sort'], 'dir' => $lq['dir']] : []);
 if (!empty($lq['show_all'])) {
@@ -61,11 +67,15 @@ if ($type >= 1 && $type <= 4) {
 } else {
     $rootLabel = t('core.news.tab.2');
 }
+if ($unread) {
+    $rootLabel = t('core.news.filter_unread_heading', ['type' => $rootLabel]);
+}
 
 $typeQs = array_filter([
     'type' => $type,
     'status' => $status >= 0 ? $status : '',
     'q' => $q,
+    'unread' => $unread ? 1 : '',
 ], static function ($v) {
     return $v !== '' && $v !== null;
 });
@@ -114,6 +124,7 @@ View::render('news', [
     'status' => $status,
     'q' => $q,
     'pid' => $pid,
+    'unread' => $unread,
     'rootLabel' => $rootLabel,
     'breadcrumbs' => $breadcrumbs,
     'breadcrumbs_aria' => t('core.news.folder_aria'),

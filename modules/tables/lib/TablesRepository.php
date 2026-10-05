@@ -70,7 +70,27 @@ final class TablesRepository
         return ['items' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'total' => $total];
     }
 
-    /** @return array<int,string> */
+    /**
+     * Legacy names often store HTML like о&lt;SUB&gt;1&lt;/SUB&gt; — options cannot render tags.
+     */
+    public static function plainLabel(string $name): string
+    {
+        $name = html_entity_decode($name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $name = strip_tags($name);
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+        return trim($name);
+    }
+
+    /** Safe HTML for labels that keep &lt;sub&gt;/&lt;sup&gt; (not for &lt;option&gt; text). */
+    public static function htmlLabel(string $name): string
+    {
+        $name = html_entity_decode($name, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $name = preg_replace('#<(script|iframe|object|embed|form)[^>]*>.*?</\1>#is', '', $name) ?? $name;
+        $name = preg_replace('#</?(script|iframe|object|embed|form)[^>]*>#i', '', $name) ?? $name;
+        return strip_tags($name, '<sub><sup><b><strong><i><em>');
+    }
+
+    /** @return array<int,string> plain labels (safe for &lt;option&gt;) */
     public static function names(bool $enabledOnly = true): array
     {
         if (!Database::tableExists('base_tables')) {
@@ -83,7 +103,8 @@ final class TablesRepository
         $sql .= ' ORDER BY NAME ASC';
         $out = [];
         foreach (Database::pdo()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
-            $out[(int)$r['ID']] = (string)$r['NAME'];
+            $plain = self::plainLabel((string)$r['NAME']);
+            $out[(int)$r['ID']] = $plain !== '' ? $plain : ('#' . (int)$r['ID']);
         }
         return $out;
     }

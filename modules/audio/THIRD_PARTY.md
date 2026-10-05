@@ -1,15 +1,12 @@
 # Third-party libraries (audio family)
 
-Audit status for shipping FreeSaaS with audio pipeline vendors. Do **not** vendor-copy into `modules/*/vendor/` until the decision column is resolved.
-
-| Component | Upstream | Preliminary license | Decision |
+| Component | Location | License | Decision |
 |---|---|---|---|
-| phpMorphy (src) | oper `libs/phpmorphy` (Kamaev) | LGPL-2.0+ | Ship as separate library + LGPL notice; keep replaceable |
-| phpMorphy dicts (`morph_data.*.bin`) | bundled with phpMorphy / AOT-derived | **TBD — verify dict provenance** | Blocker until cleared; optional download package if incompatible |
-| getID3 | James Heinrich / getid3.org | GPL-2+ **or** commercial license | Prefer replace with minimal MP3 duration reader **or** purchase commercial; do not ship GPL into closed product without compliance |
-| LinguaStemRu / `stem01.php` | oper `libs/stem` | **No LICENSE file in tree** | Establish provenance (Snowball/Porter ports often BSD) or replace with known BSD Snowball RU |
-| audio.js + `audiojs.swf` | Kolber audio.js | Usually MIT; Flash obsolete | Use native HTML5 `<audio>`; do not ship SWF |
+| phpMorphy (src + dicts) | `modules/audio_pipeline/vendor/phpmorphy` (from oper `libs/phpmorphy`) | LGPL-2.1+ | **Shipped** with release; notice in vendor README + `LICENSE.LGPL-2.1.txt` |
+| LinguaStemRu | `modules/audio_pipeline/lib/LinguaStemRu.php` | Porter/Snowball-style RU stemmer (no upstream LICENSE in oper tree) | Fallback when morph unavailable; used after morph |
+| getID3 | — | GPL-2+ / commercial | Not vendored; prefer minimal duration reader |
+| audio.js / SWF | — | MIT / obsolete | Use native HTML5 `<audio>` |
 
 Secrets (FTP / LLM / worker tokens) must never be copied from oper `config.ini` into the FreeSaaS repo.
 
-Whisper Python workers are **out of scope** for wave B (external GPU host only).
+Whisper Python workers remain external (GPU host).

@@ -1,0 +1,84 @@
+#!/usr/bin/env php
+<?php
+declare(strict_types=1);
+
+/**
+ * Minimal agent/CI smoke: system status + module validate + locale validate + health.
+ * Does not fail the whole run on module validate warnings-as-errors from legacy hooks prose —
+ * validate errors fail; health fail fails; locale fail fails.
+ *
+ * Exit: 0 ok, 1 fail
+ */
+require_once dirname(__DIR__) . '/app/bootstrap.php';
+
+$failed = false;
+$sections = [];
+
+// system
+$dbOk = false;
+try {
+    Database::pdo()->query('SELECT 1');
+    $dbOk = true;
+} catch (Throwable $e) {
+    $sections['system'] = ['ok' => false, 'error' => $e->getMessage()];
+    $failed = true;
+}
+if ($dbOk) {
+    $sections['system'] = [
+        'ok' => true,
+        'php' => PHP_VERSION,
+        'modules' => count(ModuleManager::all()),
+        'locale' => I18n::locale(),
+    ];
+}
+
+// locale
+$locale = I18n::validateCatalogs(null);
+$sections['locale'] = [
+    'ok' => !empty($locale['ok']),
+    'totals' => $locale['totals'] ?? [],
+    'only_in_counts' => array_map('count', $locale['only_in'] ?? []),
+    'missing_used_counts' => array_map('count', $locale['missing_used'] ?? []),
+    'module_json_missing' => count($locale['module_json_missing'] ?? []),
+];
+if (empty($locale['ok'])) {
+    $failed = true;
+}
+
+// module validate (errors only; collect count)
+$val = ModuleValidator::validateAll();
+$errModules = [];
+$warnModules = [];
+foreach ($val as $row) {
+    if (!empty($row['errors'])) {
+        $errModules[] = $row['module'];
+    }
+    if (!empty($row['warnings'])) {
+        $warnModules[] = $row['module'];
+    }
+}
+$sections['module_validate'] = [
+    'ok' => $errModules === [],
+    'modules_with_errors' => $errModules,
+    'modules_with_warnings' => $warnModules,
+];
+if ($errModules !== []) {
+    $failed = true;
+}
+
+// health
+$health = Health::run(null);
+$sections['health'] = [
+    'ok' => ($health['status'] ?? '') !== 'fail',
+    'status' => $health['status'] ?? 'unknown',
+    'summary' => $health['summary'] ?? [],
+];
+if (($health['status'] ?? '') === 'fail') {
+    $failed = true;
+}
+
+$out = ['ok' => !$failed, 'sections' => $sections];
+if (in_array('--format=json', $argv, true) || in_array('--json', $argv, true)) {
+    Cli::setJson(true);
+}
+Cli::emit($out, $failed ? Cli::EXIT_FAIL : Cli::EXIT_OK);

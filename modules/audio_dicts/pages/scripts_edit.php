@@ -73,12 +73,14 @@ View::render('scripts_canvas', [
         'trigger' => t('audio_dicts.scripts.role.trigger'),
         'conversion' => t('audio_dicts.scripts.role.conversion'),
         'breaker' => t('audio_dicts.scripts.role.breaker'),
+        'killer' => t('audio_dicts.scripts.role.killer'),
     ],
     'roleHints' => [
         'ordinary' => t('audio_dicts.scripts.role.ordinary_hint'),
         'trigger' => t('audio_dicts.scripts.role.trigger_hint'),
         'conversion' => t('audio_dicts.scripts.role.conversion_hint'),
         'breaker' => t('audio_dicts.scripts.role.breaker_hint'),
+        'killer' => t('audio_dicts.scripts.role.killer_hint'),
     ],
     'partsUrl' => $path . '/' . $id . '/parts',
 ], 'layout', 'audio_dicts');

@@ -73,3 +73,21 @@ BulkActions::register('ledger_moves', 'soft_delete', [
         return LedgerMovesRepository::softDeleteByIds($ids);
     },
 ]);
+
+Health::register('ledger.fot_types', 'ledger', static function (): array {
+    $keys = ['fot_bank_type', 'fot_cash_type', 'fot_cash_transfer_type'];
+    $empty = [];
+    foreach ($keys as $k) {
+        if (trim((string)Config::get('ledger', $k, '')) === '') {
+            $empty[] = $k;
+        }
+    }
+    if ($empty !== []) {
+        return [
+            'status' => 'degraded',
+            'message' => 'empty ledger FOT type config: ' . implode(', ', $empty),
+            'meta' => ['empty' => $empty],
+        ];
+    }
+    return ['status' => 'ok', 'message' => 'FOT type config present'];
+}, 'Ledger FOT type names');

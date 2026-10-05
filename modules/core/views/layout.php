@@ -149,8 +149,9 @@ if ($gateChrome === '') {
             $groupKey = (string)($item['group_key'] ?? $groupLabel);
             $itemPath = parse_url((string)$item['path'], PHP_URL_PATH);
             $itemPath = is_string($itemPath) && $itemPath !== '' ? $itemPath : (string)$item['path'];
-            $active = ($path === $itemPath)
-                || ($itemPath !== '/' && strpos($path, rtrim($itemPath, '/') . '/') === 0);
+            $itemPath = rtrim($itemPath, '/') ?: '/';
+            $matches = ($path === $itemPath)
+                || ($itemPath !== '/' && strpos($path, $itemPath . '/') === 0);
             if (!isset($groupIndexByLabel[$groupLabel])) {
                 $groupIndexByLabel[$groupLabel] = count($railGroups);
                 $railGroups[] = [
@@ -161,15 +162,35 @@ if ($gateChrome === '') {
                 ];
             }
             $idx = $groupIndexByLabel[$groupLabel];
-            if ($active) {
-                $railGroups[$idx]['has_active'] = true;
-            }
             $railGroups[$idx]['items'][] = [
                 'path' => (string)$item['path'],
+                'path_key' => $itemPath,
                 'title' => (string)$item['title'],
-                'active' => $active,
+                'matches' => $matches,
+                'active' => false,
             ];
         }
+        // Only the most specific matching item in a group is highlighted
+        // (so /calendar/settings does not also light up /calendar).
+        foreach ($railGroups as &$g) {
+            $bestIdx = null;
+            $bestLen = -1;
+            foreach ($g['items'] as $i => $link) {
+                if (empty($link['matches'])) {
+                    continue;
+                }
+                $g['has_active'] = true;
+                $len = strlen((string)$link['path_key']);
+                if ($len > $bestLen) {
+                    $bestLen = $len;
+                    $bestIdx = $i;
+                }
+            }
+            if ($bestIdx !== null) {
+                $g['items'][$bestIdx]['active'] = true;
+            }
+        }
+        unset($g);
         $openIndex = null;
         foreach ($railGroups as $i => $g) {
             if ($g['has_active']) {
@@ -185,11 +206,11 @@ if ($gateChrome === '') {
             if ($homeCandidate !== null && $homeCandidate !== '') {
                 $homePath = parse_url($homeCandidate, PHP_URL_PATH);
                 $homePath = is_string($homePath) && $homePath !== '' ? $homePath : $homeCandidate;
+                $homePath = rtrim($homePath, '/') ?: '/';
                 foreach ($g['items'] as $link) {
-                    $linkPath = parse_url((string)$link['path'], PHP_URL_PATH);
-                    $linkPath = is_string($linkPath) && $linkPath !== '' ? $linkPath : (string)$link['path'];
-                    if ($linkPath === $homePath) {
+                    if ((string)$link['path_key'] === $homePath) {
                         $homeHref = (string)$link['path'];
+                        // Section title is active only on the home screen itself.
                         $homeActive = !empty($link['active']);
                         break;
                     }

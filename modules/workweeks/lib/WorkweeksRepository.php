@@ -23,6 +23,398 @@ final class WorkweeksRepository
         return $idTable > 0 ? $idTable : 1;
     }
 
+    /** @return array<string,string> */
+    public static function listSortMap(): array
+    {
+        $op = Database::tableExists('base_users')
+            ? "COALESCE(NULLIF(u.name, ''), u.login)"
+            : 'w.ID_OPERATOR';
+        return [
+            'id' => 'w.ID',
+            'dt' => 'w.DT',
+            'operator' => $op,
+            'price' => 'w.PRICE_COL',
+            'mas_max' => 'w.MAS_MAX',
+            'table' => 'w.ID_TABLE',
+            'created' => 'w.DT_CREATE',
+        ];
+    }
+
+    /**
+     * CRUD list of shift rows.
+     *
+     * @param array{
+     *   q?:string,user_id?:int,date_from?:string,date_to?:string,
+     *   order?:string,limit?:int,offset?:int
+     * } $opts
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public static function list(array $opts = []): array
+    {
+        if (!Database::tableExists('base_workweeks')) {
+            return ['items' => [], 'total' => 0];
+        }
+        $pdo = Database::pdo();
+        $where = ['1=1'];
+        $params = [];
+        $q = trim((string)($opts['q'] ?? ''));
+        $userId = (int)($opts['user_id'] ?? 0);
+        $dateFrom = trim((string)($opts['date_from'] ?? ''));
+        $dateTo = trim((string)($opts['date_to'] ?? ''));
+
+        $joins = '';
+        $extra = 'NULL AS operator_name';
+        if (Database::tableExists('base_users')) {
+            $joins = ' LEFT JOIN base_users u ON u.id = w.ID_OPERATOR';
+            $extra = "COALESCE(NULLIF(u.name, ''), u.login) AS operator_name";
+        }
+
+        if ($userId > 0) {
+            $where[] = 'w.ID_OPERATOR = ?';
+            $params[] = $userId;
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) {
+            $ts = strtotime($dateFrom . ' 00:00:00');
+            if ($ts !== false) {
+                $where[] = 'w.DT >= ?';
+                $params[] = (int)$ts;
+            }
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
+            $ts = strtotime($dateTo . ' 00:00:00');
+            if ($ts !== false) {
+                $where[] = 'w.DT <= ?';
+                $params[] = (int)$ts;
+            }
+        }
+        if ($q !== '') {
+            if (ctype_digit($q)) {
+                $where[] = '(w.ID = ? OR w.ID_OPERATOR = ? OR w.ID_TABLE = ?)';
+                $params[] = (int)$q;
+                $params[] = (int)$q;
+                $params[] = (int)$q;
+            } elseif (Database::tableExists('base_users')) {
+                $where[] = "(COALESCE(NULLIF(u.name, ''), u.login) LIKE ?)";
+                $params[] = '%' . $q . '%';
+            }
+        }
+
+        $sqlWhere = implode(' AND ', $where);
+        $stc = $pdo->prepare(
+            "SELECT COUNT(*) FROM base_workweeks w $joins WHERE $sqlWhere"
+        );
+        $stc->execute($params);
+        $total = (int)$stc->fetchColumn();
+
+        $order = trim((string)($opts['order'] ?? '')) ?: 'w.DT DESC, w.ID DESC';
+        // operator_name is an alias — MySQL allows ORDER BY alias in SELECT.
+        $limit = max(0, (int)($opts['limit'] ?? 50));
+        $offset = max(0, (int)($opts['offset'] ?? 0));
+        $sql = "SELECT w.ID AS id, w.ID_OPERATOR AS id_operator, w.ID_OPERATOR_CREATE AS id_operator_create,
+                       w.DT_CREATE AS dt_create, w.DT AS dt, w.PRICE_COL AS price_col,
+                       w.ID_TABLE AS id_table, w.MAS_MAX AS mas_max, $extra
+                FROM base_workweeks w
+                $joins
+                WHERE $sqlWhere
+                ORDER BY $order";
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $items[] = [
+                'id' => (int)$row['id'],
+                'id_operator' => (int)$row['id_operator'],
+                'id_operator_create' => (int)$row['id_operator_create'],
+                'dt_create' => (int)$row['dt_create'],
+                'dt' => (int)$row['dt'],
+                'date' => date('Y-m-d', (int)$row['dt']),
+                'date_label' => date('d.m.Y', (int)$row['dt']),
+                'price_col' => (int)$row['price_col'],
+                'id_table' => (int)$row['id_table'],
+                'mas_max' => (int)$row['mas_max'],
+                'operator_name' => (string)($row['operator_name'] ?? ''),
+            ];
+        }
+        return ['items' => $items, 'total' => $total];
+    }
+
+    /** @param array<string,mixed> $post */
+    public static function dataFromPost(array $post): array
+    {
+        $date = trim((string)($post['date'] ?? ''));
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            throw new InvalidArgumentException(t('workweeks.err.invalid'));
+        }
+        $ts = strtotime($date . ' 00:00:00');
+        if ($ts === false) {
+            throw new InvalidArgumentException(t('workweeks.err.invalid'));
+        }
+        $op = (int)($post['id_operator'] ?? 0);
+        if ($op < 1) {
+            throw new InvalidArgumentException(t('workweeks.err.invalid'));
+        }
+        return [
+            'dt' => (int)$ts,
+            'date' => $date,
+            'id_operator' => $op,
+            'price_col' => max(1, min(5, (int)($post['price_col'] ?? 1))),
+            'mas_max' => max(1, min(9, (int)($post['mas_max'] ?? 1))),
+            'id_table' => self::normalizeTableId((int)($post['id_table'] ?? 0)),
+        ];
+    }
+
+    /**
+     * @param array{dt:int,id_operator:int,price_col:int,mas_max:int,id_table:int} $data
+     */
+    public static function createFromForm(array $data): int
+    {
+        if (!self::canAssignOperator((int)$data['id_operator'])) {
+            throw new RuntimeException(t('workweeks.err.no_assign'));
+        }
+        $existing = self::findByDayOperator((int)$data['dt'], (int)$data['id_operator']);
+        if ($existing) {
+            throw new RuntimeException(t('workweeks.err.duplicate'));
+        }
+        $id = self::assign(
+            (int)$data['dt'],
+            (int)$data['id_operator'],
+            (int)$data['price_col'],
+            (int)$data['mas_max'],
+            (int)$data['id_table']
+        );
+        self::logChangeHtml(self::buildLogLine('add', [
+            'id_operator' => (int)$data['id_operator'],
+            'dt' => (int)$data['dt'],
+            'price_col' => (int)$data['price_col'],
+        ]));
+        return $id;
+    }
+
+    /**
+     * @param array{dt:int,id_operator:int,price_col:int,mas_max:int,id_table:int} $data
+     */
+    public static function updateFromForm(int $id, array $data): void
+    {
+        $row = self::find($id);
+        if (!$row) {
+            throw new RuntimeException(t('workweeks.err.not_found'));
+        }
+        if (!self::canAssignOperator((int)$row['id_operator'])
+            || !self::canAssignOperator((int)$data['id_operator'])
+        ) {
+            throw new RuntimeException(t('workweeks.err.no_assign'));
+        }
+        $dup = self::findByDayOperator((int)$data['dt'], (int)$data['id_operator']);
+        if ($dup && (int)$dup['id'] !== $id) {
+            throw new RuntimeException(t('workweeks.err.duplicate'));
+        }
+
+        $changed = (int)$row['dt'] !== (int)$data['dt']
+            || (int)$row['id_operator'] !== (int)$data['id_operator']
+            || (int)$row['price_col'] !== (int)$data['price_col']
+            || (int)$row['mas_max'] !== (int)$data['mas_max']
+            || (int)$row['id_table'] !== (int)$data['id_table'];
+
+        $st = Database::pdo()->prepare(
+            'UPDATE base_workweeks
+             SET ID_OPERATOR = ?, DT = ?, PRICE_COL = ?, MAS_MAX = ?, ID_TABLE = ?
+             WHERE ID = ?'
+        );
+        $st->execute([
+            (int)$data['id_operator'],
+            (int)$data['dt'],
+            (int)$data['price_col'],
+            (int)$data['mas_max'],
+            (int)$data['id_table'],
+            $id,
+        ]);
+
+        if ($changed) {
+            $bits = [];
+            if ((int)$row['id_operator'] !== (int)$data['id_operator']
+                || (int)$row['dt'] !== (int)$data['dt']
+            ) {
+                $bits[] = self::buildLogLine('remove', [
+                    'id_operator' => (int)$row['id_operator'],
+                    'dt' => (int)$row['dt'],
+                ]);
+                $bits[] = self::buildLogLine('add', [
+                    'id_operator' => (int)$data['id_operator'],
+                    'dt' => (int)$data['dt'],
+                    'price_col' => (int)$data['price_col'],
+                ]);
+            } else {
+                if ((int)$row['price_col'] !== (int)$data['price_col']) {
+                    $bits[] = self::buildLogLine('price', [
+                        'id_operator' => (int)$data['id_operator'],
+                        'dt' => (int)$data['dt'],
+                        'from' => (int)$row['price_col'],
+                        'to' => (int)$data['price_col'],
+                    ]);
+                }
+                if ((int)$row['mas_max'] !== (int)$data['mas_max']
+                    || (int)$row['id_table'] !== (int)$data['id_table']
+                ) {
+                    $bits[] = self::buildLogLine('update', [
+                        'id_operator' => (int)$data['id_operator'],
+                        'dt' => (int)$data['dt'],
+                        'price_col' => (int)$data['price_col'],
+                        'mas_max' => (int)$data['mas_max'],
+                        'id_table' => (int)$data['id_table'],
+                    ]);
+                }
+            }
+            if ($bits !== []) {
+                self::logChangeHtml(implode('<br>', $bits));
+            }
+        }
+    }
+
+    /** @param list<int> $ids */
+    public static function deleteByIds(array $ids): int
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
+        if ($ids === [] || !Database::tableExists('base_workweeks')) {
+            return 0;
+        }
+        $done = 0;
+        $logBits = [];
+        foreach ($ids as $id) {
+            $row = self::find($id);
+            if (!$row) {
+                continue;
+            }
+            if (!self::canAssignOperator((int)$row['id_operator'])) {
+                continue;
+            }
+            self::delete($id);
+            $logBits[] = self::buildLogLine('remove', [
+                'id_operator' => (int)$row['id_operator'],
+                'dt' => (int)$row['dt'],
+            ]);
+            $done++;
+        }
+        if ($logBits !== []) {
+            self::logChangeHtml(implode('<br>', $logBits));
+        }
+        return $done;
+    }
+
+    public static function commentsLoggingAvailable(): bool
+    {
+        return ModuleManager::isEnabled('comments')
+            && class_exists('CommentsRepository', false)
+            && Database::tableExists('base_comments');
+    }
+
+    /**
+     * Target news/ticket for schedule-change comments.
+     * Stored in cfg/modules/workweeks.ini; one-time seed from legacy base_system.NEWS_SCHEDULE_ID.
+     */
+    public static function scheduleNewsId(): int
+    {
+        if (!self::commentsLoggingAvailable()) {
+            return 0;
+        }
+        $configured = Config::get('workweeks', 'schedule_news_id', null);
+        if ($configured !== null && $configured !== '') {
+            return max(0, (int)$configured);
+        }
+        // Legacy oper value — copy into module ini once so core stays free of product keys.
+        $legacy = 0;
+        if (Database::tableExists('base_system')
+            && Database::columnExists('base_system', 'NEWS_SCHEDULE_ID')
+        ) {
+            $row = Database::pdo()->query(
+                'SELECT NEWS_SCHEDULE_ID FROM base_system ORDER BY id ASC LIMIT 1'
+            )->fetch(PDO::FETCH_ASSOC);
+            $legacy = max(0, (int)($row['NEWS_SCHEDULE_ID'] ?? 0));
+        }
+        try {
+            Config::set('workweeks', 'schedule_news_id', (string)$legacy);
+        } catch (Throwable $e) {
+            // Read-only env — still return legacy for this request.
+        }
+        return $legacy;
+    }
+
+    public static function setScheduleNewsId(int $newsId): void
+    {
+        Config::set('workweeks', 'schedule_news_id', (string)max(0, $newsId));
+    }
+
+    /**
+     * @param array{id_operator?:int,dt?:int,price_col?:int,from?:int,to?:int,mas_max?:int,id_table?:int} $meta
+     */
+    private static function buildLogLine(string $kind, array $meta): string
+    {
+        $oid = (int)($meta['id_operator'] ?? 0);
+        $badge = self::operatorLogBadge($oid);
+        $date = !empty($meta['dt']) ? date('d.m.Y', (int)$meta['dt']) : '';
+        if ($kind === 'add') {
+            $pc = (int)($meta['price_col'] ?? 1);
+            $extra = $pc > 1 ? (' (PC' . $pc . ')') : '';
+            return t('workweeks.log.added', ['who' => $badge, 'date' => $date]) . $extra;
+        }
+        if ($kind === 'remove') {
+            return t('workweeks.log.removed', ['who' => $badge, 'date' => $date]);
+        }
+        if ($kind === 'price') {
+            return t('workweeks.log.price', [
+                'who' => $badge,
+                'date' => $date,
+                'from' => (int)($meta['from'] ?? 0),
+                'to' => (int)($meta['to'] ?? 0),
+            ]);
+        }
+        return t('workweeks.log.updated', [
+            'who' => $badge,
+            'date' => $date,
+            'price' => (int)($meta['price_col'] ?? 1),
+            'mas_max' => (int)($meta['mas_max'] ?? 1),
+            'table' => (int)($meta['id_table'] ?? 1),
+        ]);
+    }
+
+    private static function operatorLogBadge(int $operatorId): string
+    {
+        $card = self::staffCard($operatorId);
+        $name = $card['label'] ?? ('#' . $operatorId);
+        $bg = e((string)($card['bg'] ?? 'var(--bg-input)'));
+        $fg = e((string)($card['fg'] ?? 'var(--text)'));
+        return '<b style="background:' . $bg . ';color:' . $fg . '">' . e($name) . '</b>';
+    }
+
+    private static function logChangeHtml(string $bodyHtml): void
+    {
+        $bodyHtml = trim($bodyHtml);
+        if ($bodyHtml === '') {
+            return;
+        }
+        $newsId = self::scheduleNewsId();
+        if ($newsId < 1) {
+            return;
+        }
+        $actor = Auth::userId();
+        $actorCard = $actor > 0 ? self::staffCard($actor) : null;
+        $actorName = $actorCard['label'] ?? (Auth::loginName() ?: ('#' . $actor));
+        $header = t('workweeks.log.header', ['who' => e($actorName)]);
+        $text = $header . '<br>' . $bodyHtml;
+        try {
+            CommentsRepository::add($newsId, $actor > 0 ? $actor : 1, $text);
+            // Prune logs older than ~9 months (oper behaviour).
+            $cutoff = time() - (3600 * 24 * 7 * 4 * 9);
+            Database::pdo()->prepare(
+                'DELETE FROM base_comments WHERE ID_OBJECT = ? AND DT < ? AND PID = 0'
+            )->execute([$newsId, $cutoff]);
+        } catch (Throwable $e) {
+            // Logging must not break schedule saves.
+        }
+    }
+
     /**
      * @return list<array<string,mixed>>
      */
@@ -391,13 +783,25 @@ final class WorkweeksRepository
             if (!self::canAssignOperator($op)) {
                 throw new RuntimeException(t('workweeks.err.no_assign'));
             }
-            self::assign(
-                $dayStart,
-                $op,
-                (int)($post['price_col'] ?? 1),
-                (int)($post['mas_max'] ?? 1),
-                (int)($post['id_table'] ?? 0)
-            );
+            $pc = (int)($post['price_col'] ?? 1);
+            $mm = (int)($post['mas_max'] ?? 1);
+            $tid = (int)($post['id_table'] ?? 0);
+            $before = self::findByDayOperator($dayStart, $op);
+            self::assign($dayStart, $op, $pc, $mm, $tid);
+            if (!$before) {
+                self::logChangeHtml(self::buildLogLine('add', [
+                    'id_operator' => $op,
+                    'dt' => $dayStart,
+                    'price_col' => max(1, min(5, $pc)),
+                ]));
+            } elseif ((int)$before['price_col'] !== max(1, min(5, $pc))) {
+                self::logChangeHtml(self::buildLogLine('price', [
+                    'id_operator' => $op,
+                    'dt' => $dayStart,
+                    'from' => (int)$before['price_col'],
+                    'to' => max(1, min(5, $pc)),
+                ]));
+            }
             return t('workweeks.msg.saved');
         }
         if ($action === 'update') {
@@ -409,12 +813,30 @@ final class WorkweeksRepository
             if (!self::canAssignOperator((int)$row['id_operator'])) {
                 throw new RuntimeException(t('workweeks.err.no_assign'));
             }
-            self::update(
-                $sid,
-                (int)($post['price_col'] ?? 1),
-                (int)($post['mas_max'] ?? 1),
-                (int)($post['id_table'] ?? 0)
-            );
+            $pc = max(1, min(5, (int)($post['price_col'] ?? 1)));
+            $mm = max(1, (int)($post['mas_max'] ?? 1));
+            $tid = self::normalizeTableId((int)($post['id_table'] ?? 0));
+            $bits = [];
+            if ((int)$row['price_col'] !== $pc) {
+                $bits[] = self::buildLogLine('price', [
+                    'id_operator' => (int)$row['id_operator'],
+                    'dt' => $dayStart,
+                    'from' => (int)$row['price_col'],
+                    'to' => $pc,
+                ]);
+            } elseif ((int)$row['mas_max'] !== $mm || (int)$row['id_table'] !== $tid) {
+                $bits[] = self::buildLogLine('update', [
+                    'id_operator' => (int)$row['id_operator'],
+                    'dt' => $dayStart,
+                    'price_col' => $pc,
+                    'mas_max' => $mm,
+                    'id_table' => $tid,
+                ]);
+            }
+            self::update($sid, $pc, $mm, $tid);
+            if ($bits !== []) {
+                self::logChangeHtml(implode('<br>', $bits));
+            }
             return t('workweeks.msg.saved');
         }
         if ($action === 'delete') {
@@ -427,6 +849,10 @@ final class WorkweeksRepository
                 throw new RuntimeException(t('workweeks.err.no_assign'));
             }
             self::delete($sid);
+            self::logChangeHtml(self::buildLogLine('remove', [
+                'id_operator' => (int)$row['id_operator'],
+                'dt' => $dayStart,
+            ]));
             return t('workweeks.msg.deleted');
         }
         throw new RuntimeException(t('workweeks.err.invalid'));
@@ -581,7 +1007,7 @@ final class WorkweeksRepository
             }
         }
 
-        $changed = 0;
+        $logBits = [];
         foreach (array_keys($dates) as $date) {
             $ts = strtotime($date . ' 00:00:00');
             if ($ts === false) {
@@ -601,16 +1027,46 @@ final class WorkweeksRepository
                 $existing = self::findByDayOperator($dayStart, $oid);
                 if (isset($want[$oid])) {
                     if ($existing) {
+                        $oldPc = (int)$existing['price_col'];
+                        $oldMm = (int)$existing['mas_max'];
+                        if ($oldPc !== $pc) {
+                            $logBits[] = self::buildLogLine('price', [
+                                'id_operator' => $oid,
+                                'dt' => $dayStart,
+                                'from' => $oldPc,
+                                'to' => $pc,
+                            ]);
+                        }
                         self::update((int)$existing['id'], $pc, $mm, (int)($existing['id_table'] ?? 1));
+                        // Re-apply MAS_MAX even when price unchanged (oper updates all rows for the day).
+                        if ($oldPc === $pc && $oldMm !== $mm) {
+                            $logBits[] = self::buildLogLine('update', [
+                                'id_operator' => $oid,
+                                'dt' => $dayStart,
+                                'price_col' => $pc,
+                                'mas_max' => $mm,
+                                'id_table' => (int)($existing['id_table'] ?? 1),
+                            ]);
+                        }
                     } else {
                         self::assign($dayStart, $oid, $pc, $mm, 1);
+                        $logBits[] = self::buildLogLine('add', [
+                            'id_operator' => $oid,
+                            'dt' => $dayStart,
+                            'price_col' => $pc,
+                        ]);
                     }
-                    $changed++;
                 } elseif ($existing) {
                     self::delete((int)$existing['id']);
-                    $changed++;
+                    $logBits[] = self::buildLogLine('remove', [
+                        'id_operator' => $oid,
+                        'dt' => $dayStart,
+                    ]);
                 }
             }
+        }
+        if ($logBits !== []) {
+            self::logChangeHtml(implode('<br>', $logBits));
         }
         return t('workweeks.msg.saved');
     }

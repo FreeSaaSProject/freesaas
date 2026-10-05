@@ -1,56 +1,60 @@
 {
-  "id": "orders",
-  "name": "orders.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "clients": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "catalog": ">=0.1.0",
-    "procedures": ">=0.1.0"
-  },
-  "provides": [
-    "orders.list",
-    "orders.for_day"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "orders.view", "label": "orders.perm.view" },
-    { "id": "orders.edit", "label": "orders.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/orders",
-      "/orders/{id}",
-      "/orders/{id}/edit"
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.desktop",
-      "num": 4,
-      "path": "/orders",
-      "title": "orders.menu.list"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_orders"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "core.notices.collect",
-      "core.bulk.check_item",
-      "core.dashboard.catalog",
-      "core.dashboard.widgets",
-      "calendar.day.stats"
+    "id": "orders",
+    "name": "orders.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "catalog": ">=0.1.0",
+        "procedures": ">=0.1.0"
+    },
+    "provides": [
+        "orders.list",
+        "orders.for_day"
     ],
-    "publish": [
-      "orders.for_day (OrdersRepository::listForDayRange — consumed by calendar day view)"
-    ]
-  }
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "orders.view",
+            "label": "orders.perm.view"
+        },
+        {
+            "id": "orders.edit",
+            "label": "orders.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/orders",
+            "/orders/{id}",
+            "/orders/{id}/edit"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.desktop",
+            "num": 4,
+            "path": "/orders",
+            "title": "orders.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_orders"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.notices.collect",
+            "core.bulk.check_item",
+            "core.dashboard.catalog",
+            "core.dashboard.widgets",
+            "calendar.day.stats"
+        ],
+        "publish": []
+    }
 }

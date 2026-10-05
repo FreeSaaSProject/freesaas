@@ -52,5 +52,46 @@ foreach ($jobRoutes as $path => $file) {
 
 EventBus::on('audio_dicts.changed', static function ($payload) {
     StemRunner::invalidateCaches();
+    $entity = is_array($payload) ? (string)($payload['entity'] ?? '') : '';
+    // Keys / dicts / types / trashes change lemma matching → full reparse backlog.
+    if (in_array($entity, ['keys', 'dicts', 'types', 'trashes'], true)) {
+        StemRunner::markAllForReparse();
+    }
+    // Script graph change → rebuild collections from existing instances.
+    if ($entity === 'scripts' && class_exists('CollectRunner', false)) {
+        // Deferred: cron /audio/jobs/collect?full=1; avoid long request on save.
+        // Mark via collections truncate so next collect rebuilds everyone.
+        if (Database::tableExists('base_records_collections_datas')) {
+            Database::pdo()->exec('TRUNCATE TABLE base_records_collections_datas');
+        }
+        if (Database::tableExists('base_records_collections')) {
+            Database::pdo()->exec('TRUNCATE TABLE base_records_collections');
+        }
+    }
     return is_array($payload) ? $payload : [];
 });
+
+Health::register('audio_pipeline.worker_token', 'audio_pipeline', static function (): array {
+    $token = trim((string)Config::get('audio', 'worker_token', ''));
+    if ($token === '' || $token === 'CHANGE_ME') {
+        return [
+            'status' => 'degraded',
+            'message' => 'audio.worker_token missing or still CHANGE_ME — ASR/jobs auth will reject',
+        ];
+    }
+    return ['status' => 'ok', 'message' => 'worker_token configured'];
+}, 'ASR/job worker token');
+
+Health::register('audio_pipeline.stem_cache', 'audio_pipeline', static function (): array {
+    $dir = base_path('var/audio_stem_cache');
+    if (!is_dir($dir)) {
+        return [
+            'status' => 'degraded',
+            'message' => 'var/audio_stem_cache missing (will be created on first stem run)',
+        ];
+    }
+    if (!is_writable($dir)) {
+        return ['status' => 'fail', 'message' => 'var/audio_stem_cache not writable'];
+    }
+    return ['status' => 'ok', 'message' => 'stem cache dir writable'];
+}, 'Stem cache directory');

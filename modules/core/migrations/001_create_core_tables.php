@@ -2,10 +2,11 @@
 declare(strict_types=1);
 
 /**
- * Core schema: base_users, base_system (copies of phpshop_*), registry tables.
+ * Core schema: base_users, base_system, module registry, schema ledger.
+ * When source oper tables exist, clone structure into base_*; otherwise create minimal DDL.
  */
 return static function (PDO $pdo): void {
-    // base_users — structural copy of phpshop_users when present
+    // base_users — structural copy from oper when present (local/transition installs)
     $src = $pdo->query("SHOW TABLES LIKE 'phpshop_users'")->fetchColumn();
     if ($src) {
         $pdo->exec('CREATE TABLE IF NOT EXISTS base_users LIKE phpshop_users');

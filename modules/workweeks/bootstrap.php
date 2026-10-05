@@ -21,18 +21,40 @@ StatusesRepository::registerFieldGroup([
 ]);
 
 $pages = [
-    '/workweeks' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'day.php'],
-    '/workweeks/day/{date}' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'day.php'],
+    '/workweeks' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
+    '/workweeks/new' => ['permission' => 'workweeks.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/workweeks/{id}/edit' => ['permission' => 'workweeks.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/workweeks/nazop' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'nazop.php'],
+    '/workweeks/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
+    // Legacy day URL → list filtered by date
+    '/workweeks/day/{date}' => ['permission' => 'workweeks.view', 'methods' => ['GET'], 'file' => 'day_redirect.php'],
 ];
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'workweeks',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/workweeks/pages/' . $file);
         },
-    ]);
+    ];
+    $perm = (string)($def['permission'] ?? '');
+    if ($perm !== '') {
+        $route['permission'] = $perm;
+    }
+    $capability = (string)($def['capability'] ?? '');
+    if ($capability !== '') {
+        $route['capability'] = $capability;
+    }
+    ModuleManager::registerRoute($path, $route);
 }
+
+BulkActions::register('workweeks', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'workweeks.edit',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return ['done' => WorkweeksRepository::deleteByIds($ids), 'skipped' => []];
+    },
+]);

@@ -6,6 +6,7 @@
 /** @var int $status */
 /** @var string $q */
 /** @var int $pid */
+/** @var bool $unread */
 /** @var string $rootLabel */
 /** @var list<array{label:string, href?:?string, current?:bool}> $breadcrumbs */
 /** @var array $counts */
@@ -22,6 +23,7 @@
 /** @var array $filters */
 $commentCounts = $commentCounts ?? [];
 $viewerCounts = $viewerCounts ?? [];
+$unread = !empty($unread);
 $sort = $sort ?? '';
 $dir = $dir ?? 'desc';
 $page = $page ?? 1;
@@ -30,12 +32,13 @@ $showAll = !empty($showAll);
 $filters = $filters ?? [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, '/news', $filters, $showAll);
 
-$qsBase = static function (array $extra = []) use ($type, $status, $q, $pid, $sort, $dir): string {
+$qsBase = static function (array $extra = []) use ($type, $status, $q, $pid, $unread, $sort, $dir): string {
     $p = array_merge([
         'type' => $type,
         'status' => $status >= 0 ? $status : '',
         'q' => $q,
         'pid' => $pid > 0 ? $pid : '',
+        'unread' => $unread ? 1 : '',
     ], $extra);
     if ($sort !== '') {
         $p['sort'] = $sort;
@@ -90,7 +93,9 @@ $sortLabels = [
   <?php foreach ($visibleTabs as $t): ?>
     <?php
       $tid = (int)$t['id'];
-      $href = $qsBase(['type' => $tid, 'pid' => '']);
+      // Unread mode only applies to types 1–3
+      $tabUnread = $unread && $tid >= 1 && $tid <= 3 ? 1 : '';
+      $href = $qsBase(['type' => $tid, 'pid' => '', 'unread' => $tabUnread]);
       $cnt = (int)($counts[$tid] ?? 0);
     ?>
     <a class="type-tab<?= $type === $tid ? ' is-active' : '' ?>" href="<?= e($href) ?>">
@@ -106,6 +111,12 @@ $sortLabels = [
   <input type="hidden" name="per_page" value="<?= (int)$perPage ?>">
   <?php if ($pid > 0): ?><input type="hidden" name="pid" value="<?= (int)$pid ?>"><?php endif; ?>
   <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= te('core.news.search_placeholder') ?>" data-filter-debounce>
+  <?php if ($type >= 1 && $type <= 3): ?>
+  <select name="unread" data-auto-submit aria-label="<?= te('core.news.filter_aria') ?>">
+    <option value=""<?= !$unread ? ' selected' : '' ?>><?= te('core.news.filter_all') ?></option>
+    <option value="1"<?= $unread ? ' selected' : '' ?>><?= te('core.news.filter_unread') ?></option>
+  </select>
+  <?php endif; ?>
   <?php if ($type === 2): ?>
   <select name="status" data-auto-submit>
     <option value=""<?= $status < 0 ? ' selected' : '' ?>><?= te('core.news.any_status') ?></option>
@@ -139,7 +150,7 @@ $sortLabels = [
 <?php if ($folders): ?>
   <div class="folder-list">
     <?php foreach ($folders as $f): ?>
-      <a class="folder-item" href="<?= e($qsBase(['pid' => (int)$f['ID'], 'type' => (int)$f['TYPE']])) ?>">
+      <a class="folder-item" href="<?= e($qsBase(['pid' => (int)$f['ID'], 'type' => (int)$f['TYPE'], 'unread' => ''])) ?>">
         <span class="folder-icon" aria-hidden="true">▸</span>
         <span class="folder-name"><?= e((string)$f['NAME']) ?></span>
       </a>

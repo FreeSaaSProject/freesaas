@@ -1,56 +1,72 @@
 {
-  "id": "stocks",
-  "name": "stocks.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0"
-  },
-  "optionalRequires": {
-    "cabinets": ">=0.1.0",
-    "stickers": ">=0.1.0",
-    "catalog": ">=0.1.0",
-    "norms": ">=0.1.0"
-  },
-  "provides": [
-    "stocks.list",
-    "stocks.leftovers"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "stocks.view", "label": "stocks.perm.view" },
-    { "id": "stocks.edit", "label": "stocks.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/stocks",
-      "/stocks/new",
-      "/stocks/{id}/edit",
-      "/stocks/leftovers"
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.dictionaries",
-      "num": 5,
-      "path": "/stocks",
-      "title": "stocks.menu.list"
+    "id": "stocks",
+    "name": "stocks.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
     },
-    {
-      "group": "core.menu.group.warehouse",
-      "num": 1,
-      "path": "/stocks/leftovers",
-      "title": "stocks.menu.leftovers"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_stocks"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [],
-    "publish": []
-  }
+    "optionalRequires": {
+        "cabinets": ">=0.1.0",
+        "stickers": ">=0.1.0",
+        "catalog": ">=0.1.0",
+        "norms": ">=0.1.0"
+    },
+    "provides": [
+        "stocks.list",
+        "stocks.leftovers"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "stocks.view",
+            "label": "stocks.perm.view"
+        },
+        {
+            "id": "stocks.edit",
+            "label": "stocks.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/stocks",
+            "/stocks/new",
+            "/stocks/{id}/edit",
+            "/stocks/leftovers"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.dictionaries",
+            "num": 5,
+            "path": "/stocks",
+            "title": "stocks.menu.list"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 1,
+            "path": "/stocks/leftovers",
+            "title": "stocks.menu.leftovers"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_stocks"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.user_edit.sections",
+            "core.user_edit.save",
+            "core.user_edit.profile"
+        ],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "stocks",
+            "action": "delete"
+        }
+    ]
 }

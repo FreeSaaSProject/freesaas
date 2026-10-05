@@ -6,26 +6,32 @@ New modular Core next to legacy `oper.likespa.hm`.
 
 - [Руководство для людей](docs/GUIDE.md) — архитектура, структура, как добавлять модули
 - [Инструкции для агентов](AGENTS.md) — жёсткие правила и чеклисты для AI
-- [Legacy → base_* map](docs/LEGACY_TABLE_MAP.md)
+- [Agent-native audit](docs/agent-native-audit.md) — готовность к агентам, требования к системе и модулям
+- [Agent runbooks](docs/agents/) — install, create/modify module, migrations, locale, remote API, debug
+- [Table ownership map](docs/TABLE_MAP.md)
 
 ## Quick start
 
 1. Copy `cfg/config.example.ini` → `cfg/config.ini` (already present for local).
 2. For module settings (audio/calendar/ledger/…): copy `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini` (secrets stay out of git).
 3. Point vhost docroot at this folder.
-4. Run schema + data migrators:
+4. Bootstrap (schema migrate + first admin + agent token), or migrate-only on an existing DB:
 
 ```bash
-php bin/schema-migrate.php
+# Greenfield
+php bin/freesaas.php bootstrap --login=admin --password='…' --agent-token='…' --format=json
+
+# Existing DB
+php bin/freesaas.php migrate run
 php bin/data-migrate.php
+# optional: php bin/smoke.php
 ```
 
-Or open `/migrate` after first deploy (login may need data import first — run CLI).
+Shared hosting without SSH: `POST /agent/bootstrap` — see [docs/agents/install.md](docs/agents/install.md).
 
-5. Sign in with an oper staff login (passwords use the same site salt).
+5. Sign in at `/login`. Ops after that: CLI or `/agent/*` with `X-FreeSaaS-Agent-Token`.
 
 ## Rules
 
-- FreeSaaS code must not query `phpshop_*`.
-- New tables: `base_*`.
+- Runtime tables: `base_*` only.
 - Modules live in `modules/<id>/` with `module.json`.

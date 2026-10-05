@@ -1,6 +1,6 @@
 # AGENTS.md — FreeSaaS (likespa)
 
-Instructions for coding agents working in this repository. Human guide: [`docs/GUIDE.md`](docs/GUIDE.md). Legacy table map: [`docs/LEGACY_TABLE_MAP.md`](docs/LEGACY_TABLE_MAP.md).
+Instructions for coding agents working in this repository. Human guide: [`docs/GUIDE.md`](docs/GUIDE.md). Table ownership: [`docs/TABLE_MAP.md`](docs/TABLE_MAP.md). Agent-native audit and platform/module requirements: [`docs/agent-native-audit.md`](docs/agent-native-audit.md). Operation runbooks: [`docs/agents/`](docs/agents/).
 
 ## Stack
 
@@ -8,10 +8,11 @@ Instructions for coding agents working in this repository. Human guide: [`docs/G
 - Front controller: `index.php` → `app/bootstrap.php` → `Router::dispatch()`.
 - MySQL via PDO (`app/Database.php`). Platform config: `cfg/config.ini`; module settings: `cfg/modules/<id>.ini`.
 - Modules under `modules/<id>/` with `module.json` + `bootstrap.php`.
+- Agent/ops CLI: `php bin/freesaas.php` (see GUIDE CLI / `docs/agent-native-audit.md`). First install: `bootstrap` or `POST /agent/bootstrap` ([`docs/agents/install.md`](docs/agents/install.md)). HTTP twin for shared hosting: `/agent/*` + `app.agent_token` ([`docs/agents/remote-api.md`](docs/agents/remote-api.md)). Smoke: `php bin/smoke.php`.
 
 ## Hard rules (do not violate)
 
-1. **Never query `phpshop_*` in runtime code** (pages, lib, views, EventBus handlers). Only data migrators under `modules/*/migrators/` may read legacy tables to copy into `base_*`.
+1. **Runtime SQL only against `base_*` tables** (and `information_schema` probes). Do not invent a second table-prefix family. Own tables go in the module’s `module.json` → `tables` and additive migrations.
 2. **New tables / columns use `base_*`.** Prefer additive migrations (`CREATE IF NOT EXISTS`, `ALTER` with existence checks).
 3. **Do not invent a second routing/DI layer.** Register routes in module `bootstrap.php` via `ModuleManager::registerRoute`. Use `View::render`, `EventBus`, existing repositories.
 4. **Cross-module UI/behavior goes through EventBus**, not by hard-coupling pages of another module when a hook already exists (see `hooks` in each `module.json`).
@@ -41,7 +42,7 @@ Route params: `Router::param('id')`. Redirect: `redirect('/path')`. Escape outpu
 | HTML for a page | `modules/<id>/views/` + `View::render($name, $data, 'layout', $moduleId)` |
 | SQL / domain logic | `modules/<id>/lib/*Repository.php` |
 | Schema change | `modules/<id>/migrations/NNN_description.php` returning `function (PDO $pdo): void` |
-| One-time legacy copy | `modules/<id>/migrators/<id>.php` + entry in `module.json` `migrators` |
+| One-time data seed/import | `modules/<id>/migrators/<id>.php` + entry in `module.json` `migrators` |
 | Extend home widgets / news card / comment form | `EventBus::on(...)` in `bootstrap.php` |
 | List row selection / group ops | `BulkActions::register($listId, $action, …)` in bootstrap; view helpers `th`/`td`/`bar`; dependency blocks via `EventBus::on('core.bulk.check_item')` |
 | Breadcrumb trail UI | Page passes `breadcrumbs` (+ optional `breadcrumbs_aria`) to `View::render`; layout always draws them at top of `<main>` via `Breadcrumbs` (`modules/core/lib/Breadcrumbs.php`). If omitted, auto from menu + page title. Ancestor hrefs get `NavContext::up()` (keep list filters when `ret` path matches). Layout shows `[Return]` via `NavContext::returnUrl()` when `ret` is set. |
@@ -123,7 +124,7 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 
 - Filename sorted lexicographically; basename without `.php` = migration id.
 - Idempotent where possible; stop module on first error (`SchemaMigrator`).
-- Run: `php bin/schema-migrate.php` / `php bin/data-migrate.php`.
+- Run: `php bin/freesaas.php migrate run` (or `--module=id`); legacy: `php bin/schema-migrate.php` / `php bin/data-migrate.php`.
 - Enabling a module via UI runs that module’s schema migrations first.
 
 ## Existing modules (do not reinvent)
@@ -168,9 +169,11 @@ Prefer extending these via hooks before forking page logic.
 
 ## Testing / verify locally
 
-- Prefer CLI migrators after schema changes.
+- After schema or module changes: `php bin/smoke.php` (system + locale + module validate + health).
+- Prefer CLI: `php bin/freesaas.php module validate <id>`, `health`, `locale validate`.
 - Smoke the affected route in browser if UI changed.
 - Keep StageTiming marks only if already used on that page path.
+- Lifecycle: uninstall is **disable-only** (tables remain); see agent-native-audit.
 
 ## Out of scope unless asked
 

@@ -7,6 +7,31 @@
   border-right: none;
 }
 
+.audio-inbox-banner {
+  background: #c62828;
+  color: #fff;
+  padding: 14px 18px;
+  margin: 0 0 12px;
+  font-weight: 700;
+  font-size: 15px;
+  border: 3px solid #8e0000;
+  box-shadow: 0 2px 8px rgba(153, 0, 0, 0.35);
+}
+.audio-inbox-banner code {
+  background: rgba(0, 0, 0, 0.15);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-weight: 700;
+}
+.audio-inbox-banner a {
+  color: #ffeb3b;
+  text-decoration: underline;
+  margin-left: 8px;
+  white-space: nowrap;
+}
+.audio-inbox-banner a:hover {
+  color: #fff59d;
+}
 .audio-filters {
   display: flex;
   flex-wrap: wrap;
@@ -102,6 +127,15 @@
   flex-wrap: wrap;
   gap: 0.25rem;
   font-size: 0.65rem;
+}
+
+.audio-meta-review {
+  color: var(--color-danger, #c00);
+  font-weight: 600;
+}
+
+.audio-meta-fav {
+  color: var(--color-warn, #c90);
 }
 
 .audio-key-chips {
@@ -336,6 +370,18 @@
   column-span: all;
   margin: 0.25rem 0 0;
   font-size: 0.65rem;
+}
+
+.transcript-line.is-intersect .transcript-text {
+  background: #ffc0cb;
+  color: #000;
+}
+
+.transcript-intersect-tag {
+  color: #9f1239;
+  font-size: 0.75em;
+  font-weight: 600;
+  margin-left: 0.25rem;
 }
 
 .add-key-popover {

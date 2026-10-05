@@ -158,3 +158,20 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
 
     return $widgets;
 });
+
+Health::register('calendar.hours', 'calendar', static function (): array {
+    $start = (int)Config::get('calendar', 'hour_start', 9);
+    $end = (int)Config::get('calendar', 'hour_end', 21);
+    if ($start < 0 || $start > 23 || $end < 1 || $end > 24 || $start >= $end) {
+        return [
+            'status' => 'fail',
+            'message' => "invalid calendar hours hour_start={$start} hour_end={$end}",
+            'meta' => ['hour_start' => $start, 'hour_end' => $end],
+        ];
+    }
+    return [
+        'status' => 'ok',
+        'message' => "hours {$start}–{$end}",
+        'meta' => ['hour_start' => $start, 'hour_end' => $end],
+    ];
+}, 'Calendar day hours');

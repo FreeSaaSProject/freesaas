@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Ensure base_users.IS_ACCEPTOR exists (legacy phpshop_users flag).
+ * Ensure base_users.IS_ACCEPTOR exists (contracts acceptor flag).
  */
 return static function (PDO $pdo): void {
     $st = $pdo->prepare(

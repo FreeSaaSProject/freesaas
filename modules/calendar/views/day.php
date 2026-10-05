@@ -170,7 +170,7 @@ require __DIR__ . '/_timeline.php';
         var fd = new FormData(form);
         var btn = form.querySelector('button[type="submit"]');
         if (btn) btn.disabled = true;
-        fetch(form.getAttribute('action') || '/calendar/nazop', {
+        fetch(form.getAttribute('action') || '/workweeks/nazop', {
           method: 'POST',
           body: fd,
           headers: { 'X-Requested-With': 'XMLHttpRequest' },
@@ -210,7 +210,7 @@ require __DIR__ . '/_timeline.php';
     body.innerHTML = '<p class="muted"><?= te('calendar.week.nazop_loading') ?></p>';
     if (typeof dlg.showModal === 'function') dlg.showModal();
     else dlg.setAttribute('open', 'open');
-    var url = '/calendar/nazop?fragment=1&day=' + encodeURIComponent(day)
+    var url = '/workweeks/nazop?fragment=1&day=' + encodeURIComponent(day)
       + '&ret=' + encodeURIComponent(ret);
     if (ops) url += '&ops=' + encodeURIComponent(ops);
     fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })

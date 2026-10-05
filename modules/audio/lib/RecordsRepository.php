@@ -24,6 +24,7 @@ final class RecordsRepository
      *   from?:int,to?:int,year?:int,month?:int,day?:int,
      *   disabled?:int,score?:int,score_lt?:int,
      *   quality?:int,errors_only?:int,unparsed?:int,
+     *   review?:string,reviewer_user_id?:int,
      *   order?:string,limit?:int,offset?:int
      * } $opts
      * @return array{items:list<array<string,mixed>>,total:int}
@@ -168,6 +169,24 @@ final class RecordsRepository
             $where[] = '(DT_PARSED < 1 OR DT_PARSED IS NULL)';
         }
 
+        $review = trim((string)($opts['review'] ?? ''));
+        if ($review !== '' && Database::tableExists('base_records_reviews')) {
+            if ($review === 'pending') {
+                $where[] = 'ID IN (SELECT ID_RECORD FROM base_records_reviews WHERE DT_REVIEW < 1)';
+            } elseif ($review === 'marked') {
+                $where[] = 'ID IN (SELECT ID_RECORD FROM base_records_reviews)';
+            } elseif ($review === 'favorites') {
+                $reviewerId = max(0, (int)($opts['reviewer_user_id'] ?? 0));
+                if ($reviewerId > 0) {
+                    $where[] = 'ID IN (SELECT ID_RECORD FROM base_records_reviews
+                        WHERE DT_SELECT > 0 AND ID_REVIEWER = ?)';
+                    $params[] = $reviewerId;
+                } else {
+                    $where[] = '0=1';
+                }
+            }
+        }
+
         return [$where, $params];
     }
 
@@ -204,13 +223,16 @@ final class RecordsRepository
             return [];
         }
         $in = implode(',', array_fill(0, count($ids), '?'));
+        $intersectCol = Database::columnExists('base_records', 'INTERSECTIONS')
+            ? ', INTERSECTIONS AS intersections'
+            : '';
         $st = Database::pdo()->prepare(
             "SELECT ID AS id, ID_ADMIN AS id_admin, ID_CLIENT AS id_client,
                     ID_DICTOPHONE AS id_dictophone, DT_RECORDED AS dt_recorded,
                     DT_PARSED AS dt_parsed, FILENAME AS filename,
                     TRANSCRIPTION AS transcription, PLAYTIME AS playtime,
                     KEY_TYPES AS key_types, SCORE AS score, DISABLED AS disabled,
-                    ERROR_TRANS AS error_trans
+                    ERROR_TRANS AS error_trans{$intersectCol}
              FROM base_records WHERE ID IN ($in)"
         );
         $st->execute($ids);

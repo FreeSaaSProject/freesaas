@@ -3,6 +3,28 @@ declare(strict_types=1);
 
 require_once base_path('modules/audio_reports/lib/CalendarAggregates.php');
 require_once base_path('modules/audio_reports/lib/CalendarHooks.php');
+require_once base_path('modules/audio/lib/RecordsReviewsRepository.php');
+
+$canReviewAdmin = Auth::capability('SUPERADMIN_ACCESS');
+$reviewFlash = '';
+$reviewOrphansFlash = '';
+if ($canReviewAdmin && RecordsReviewsRepository::tableExists()) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('audio_reports.edit')) {
+        $reviewAction = (string)($_POST['review_action'] ?? '');
+        if ($reviewAction === 'mark_all') {
+            $marked = RecordsReviewsRepository::markAllReviewed();
+            $reviewFlash = t('audio_reports.calendar.review_all_done', ['n' => $marked]);
+        } elseif ($reviewAction === 'clean_orphans') {
+            $orphans = RecordsReviewsRepository::cleanOrphans();
+            $reviewOrphansFlash = t('audio_reports.calendar.review_orphans_cleaned', ['n' => $orphans]);
+        }
+    } else {
+        $orphans = RecordsReviewsRepository::cleanOrphans();
+        if ($orphans > 0) {
+            $reviewOrphansFlash = t('audio_reports.calendar.review_orphans_cleaned', ['n' => $orphans]);
+        }
+    }
+}
 
 $year = (int)($_GET['year'] ?? date('Y'));
 if ($year < 2000 || $year > 2100) {
@@ -22,6 +44,7 @@ $calFilters = [
 ];
 
 // Always show selected month + previous (cross-year). Month 0 = whole selected year.
+// Display order: selected first, then previous (so current work is on top).
 /** @var list<array{year:int,month:int}> $periodMonths */
 $periodMonths = [];
 if ($month < 1) {
@@ -35,20 +58,23 @@ if ($month < 1) {
         $prevM = 12;
         $prevY--;
     }
-    $periodMonths[] = ['year' => $prevY, 'month' => $prevM];
     $periodMonths[] = ['year' => $year, 'month' => $month];
+    $periodMonths[] = ['year' => $prevY, 'month' => $prevM];
 }
 
-$first = $periodMonths[0];
-$last = $periodMonths[count($periodMonths) - 1];
-$rangeFrom = mktime(0, 0, 0, $first['month'], 1, $first['year']);
+// SQL range must stay chronological regardless of display order
+$rangeYearFrom = $month > 0 ? (($month === 1) ? $year - 1 : $year) : $year;
+$rangeMonthFrom = $month > 0 ? (($month === 1) ? 12 : $month - 1) : 1;
+$rangeYearTo = $year;
+$rangeMonthTo = $month > 0 ? $month : 12;
+$rangeFrom = mktime(0, 0, 0, $rangeMonthFrom, 1, $rangeYearFrom);
 $rangeTo = mktime(
     23,
     59,
     59,
-    $last['month'],
-    (int)date('t', mktime(0, 0, 0, $last['month'], 1, $last['year']) ?: time()),
-    $last['year']
+    $rangeMonthTo,
+    (int)date('t', mktime(0, 0, 0, $rangeMonthTo, 1, $rangeYearTo) ?: time()),
+    $rangeYearTo
 );
 if ($rangeFrom === false || $rangeTo === false) {
     $rangeFrom = mktime(0, 0, 0, 1, 1, $year) ?: time();
@@ -56,12 +82,32 @@ if ($rangeFrom === false || $rangeTo === false) {
 }
 
 $agg = CalendarAggregates::forRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
+$reviewsAgg = RecordsReviewsRepository::reviewsForRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
+$pendingReviewTotal = $canReviewAdmin ? RecordsReviewsRepository::countPendingUnreviewed() : 0;
 $tracking = CalendarAggregates::trackingForRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
 $trackingDicts = $tracking['dicts'];
+$scriptsAgg = CalendarAggregates::scriptsForRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
+$calendarScripts = $scriptsAgg['scripts'];
+
+// Skip missing-audio hints when badge filter is on (records subset would false-positive).
+$missingAudio = [];
+if ($badgeFilter < 1) {
+    $missingAudio = CalendarAggregates::missingAudioForRange(
+        (int)$rangeFrom,
+        (int)$rangeTo,
+        $agg['by_admin_day'],
+        $calFilters
+    );
+}
 
 $adminIdsNeeded = [];
 foreach ($agg['by_admin_day'] as $aid => $_) {
     $adminIdsNeeded[(int)$aid] = true;
+}
+foreach ($missingAudio as $dayMissing) {
+    foreach ($dayMissing as $m) {
+        $adminIdsNeeded[(int)$m['admin_id']] = true;
+    }
 }
 if ($adminFilter > 0) {
     $adminIdsNeeded = [$adminFilter => true];
@@ -120,6 +166,28 @@ $listFilterQ = static function () use ($adminFilter, $badgeFilter): string {
         $q .= '&badge=' . $badgeFilter;
     }
     return $q;
+};
+
+/**
+ * Link to script collections list with matching filters.
+ *
+ * @param array{year:int,month:int,day?:int,admin?:int,script?:int} $opts
+ */
+$collectionsHref = static function (array $opts): string {
+    $q = [
+        'year' => max(2000, (int)($opts['year'] ?? date('Y'))),
+        'month' => max(0, min(12, (int)($opts['month'] ?? 0))),
+        'day' => max(0, min(31, (int)($opts['day'] ?? 0))),
+    ];
+    $admin = max(0, (int)($opts['admin'] ?? 0));
+    $script = max(0, (int)($opts['script'] ?? 0));
+    if ($admin > 0) {
+        $q['admin'] = $admin;
+    }
+    if ($script > 0) {
+        $q['script'] = $script;
+    }
+    return '/audio/collections?' . http_build_query($q);
 };
 
 /**
@@ -209,11 +277,41 @@ foreach ($periodMonths as $period) {
                 }
             }
 
+            $scriptBits = [];
+            $dayParts = explode('-', $date);
+            $dayY = (int)($dayParts[0] ?? $y);
+            $dayM = (int)($dayParts[1] ?? $m);
+            $dayD = (int)($dayParts[2] ?? 0);
+            foreach ($calendarScripts as $sc) {
+                $cell = $scriptsAgg['by_admin_day'][$aid][$sc['id']][$date] ?? null;
+                if (!$cell || (int)$cell['starts'] < 1) {
+                    continue;
+                }
+                $scriptBits[] = [
+                    'id' => $sc['id'],
+                    'name' => $sc['name'],
+                    'short' => $sc['short'],
+                    'starts' => (int)$cell['starts'],
+                    'finishes' => (int)$cell['finishes'],
+                    'score' => (int)$cell['score'],
+                    'label' => CalendarAggregates::formatScriptCell($cell, $sc['short']),
+                    'href' => $collectionsHref([
+                        'year' => $dayY,
+                        'month' => $dayM,
+                        'day' => $dayD,
+                        'admin' => $aid,
+                        'script' => (int)$sc['id'],
+                    ]),
+                ];
+            }
+
             if (!isset($monthAdminTot[$aid])) {
                 $monthAdminTot[$aid] = [
                     'count' => 0, 'playtime' => 0, 'score_w' => 0.0, 'score_sec' => 0,
                     'errors' => 0, 'strings' => 0, 'strings_nok' => 0,
                     'tracking' => [],
+                    'scripts' => [],
+                    'script_score' => 0,
                 ];
             }
             $monthAdminTot[$aid]['count'] += (int)$cellAgg['count'];
@@ -230,6 +328,32 @@ foreach ($periodMonths as $period) {
                         ($monthAdminTot[$aid]['tracking'][$td['id']] ?? 0) + $c;
                 }
             }
+            foreach ($calendarScripts as $sc) {
+                $cell = $scriptsAgg['by_admin_day'][$aid][$sc['id']][$date] ?? null;
+                if (!$cell || (int)$cell['starts'] < 1) {
+                    continue;
+                }
+                $sid = (int)$sc['id'];
+                if (!isset($monthAdminTot[$aid]['scripts'][$sid])) {
+                    $monthAdminTot[$aid]['scripts'][$sid] = ['starts' => 0, 'finishes' => 0, 'score' => 0];
+                }
+                $monthAdminTot[$aid]['scripts'][$sid]['starts'] += (int)$cell['starts'];
+                $monthAdminTot[$aid]['scripts'][$sid]['finishes'] += (int)$cell['finishes'];
+                $monthAdminTot[$aid]['scripts'][$sid]['score'] += (int)$cell['score'];
+                $monthAdminTot[$aid]['script_score'] += (int)$cell['score'];
+            }
+
+            $revCell = $reviewsAgg['by_admin_day'][$aid][$date] ?? ['pending' => 0, 'selected' => 0];
+            $reviewPending = (int)($revCell['pending'] ?? 0);
+            $reviewPendingHref = $reviewPending > 0
+                ? NavContext::withReturn('/audio?' . http_build_query([
+                    'year' => $dayY,
+                    'month' => $dayM,
+                    'day' => $dayD,
+                    'admin' => $aid,
+                    'review' => 'pending',
+                ]))
+                : '';
 
             $staffLines[] = [
                 'admin_id' => $aid,
@@ -241,7 +365,52 @@ foreach ($periodMonths as $period) {
                 'badge_html' => UsersRepository::badgeHtml($aid, false, true),
                 'playtime_label' => CalendarAggregates::formatPlaytime((int)$cellAgg['playtime']),
                 'tracking' => $trackBits,
+                'scripts' => $scriptBits,
                 'keys_pct' => CalendarAggregates::keysPct($cellAgg),
+                'missing' => null,
+                'review_pending' => $reviewPending,
+                'review_pending_href' => $reviewPendingHref,
+            ];
+        }
+
+        // On shift + analytics, but no records that day
+        foreach ($missingAudio[$date] ?? [] as $miss) {
+            $aid = (int)$miss['admin_id'];
+            if ($adminFilter > 0 && $aid !== $adminFilter) {
+                continue;
+            }
+            $badgeCode = (string)($miss['badge'] ?? '');
+            if ($miss['kind'] === 'waiting') {
+                $label = t('audio_reports.calendar.waiting');
+                $title = t('audio_reports.calendar.waiting_hint');
+            } elseif ($badgeCode !== '') {
+                $label = t('audio_reports.calendar.no_rec_badge', ['badge' => $badgeCode]);
+                $title = t('audio_reports.calendar.no_rec_badge_hint');
+            } else {
+                $label = t('audio_reports.calendar.no_rec');
+                $title = t('audio_reports.calendar.no_rec_hint');
+            }
+            $staffLines[] = [
+                'admin_id' => $aid,
+                'position_id' => (int)($adminMeta[$aid]['position_id'] ?? 0),
+                'agg' => [
+                    'count' => 0, 'playtime' => 0, 'score_w' => 0.0, 'score_sec' => 0,
+                    'errors' => 0, 'outside' => 0, 'strings' => 0, 'strings_nok' => 0,
+                ],
+                'href' => $listHref,
+                'avg_score' => null,
+                'extra_html' => '',
+                'badge_html' => UsersRepository::badgeHtml($aid, false, true),
+                'playtime_label' => '',
+                'tracking' => [],
+                'scripts' => [],
+                'keys_pct' => null,
+                'missing' => [
+                    'kind' => (string)$miss['kind'],
+                    'label' => $label,
+                    'title' => $title,
+                    'badge' => $badgeCode,
+                ],
             ];
         }
 
@@ -254,6 +423,8 @@ foreach ($periodMonths as $period) {
             'day' => $d,
         ]);
 
+        $dayRecCount = (int)($agg['by_day'][$date]['count'] ?? 0);
+
         $week[$dow] = [
             'empty' => false,
             'day' => $d,
@@ -262,6 +433,7 @@ foreach ($periodMonths as $period) {
             'href' => $listHref,
             'is_today' => $date === $today,
             'has_data' => $staffLines !== [],
+            'has_records' => $dayRecCount > 0,
             'staff_groups' => $staffGroups,
             'extras_html' => $extras,
         ];
@@ -284,6 +456,16 @@ foreach ($periodMonths as $period) {
             $summaryGroups[$pid] = [];
         }
         $avg = CalendarAggregates::avgScore($tot);
+        $scriptHrefs = [];
+        foreach ($tot['scripts'] as $sid => $_) {
+            $scriptHrefs[(int)$sid] = $collectionsHref([
+                'year' => $y,
+                'month' => $m,
+                'day' => 0,
+                'admin' => $aid,
+                'script' => (int)$sid,
+            ]);
+        }
         $summaryGroups[$pid][] = [
             'admin_id' => $aid,
             'badge_html' => UsersRepository::badgeHtml($aid, false, true),
@@ -294,6 +476,15 @@ foreach ($periodMonths as $period) {
             'keys_pct' => CalendarAggregates::keysPct($tot),
             'strings' => (int)$tot['strings'],
             'tracking' => $tot['tracking'],
+            'scripts' => $tot['scripts'],
+            'script_hrefs' => $scriptHrefs,
+            'script_score' => (int)$tot['script_score'],
+            'script_score_href' => $collectionsHref([
+                'year' => $y,
+                'month' => $m,
+                'day' => 0,
+                'admin' => $aid,
+            ]),
             'href' => NavContext::withReturn(
                 '/audio?year=' . $y . '&month=' . $m . '&admin=' . $aid
                 . ($badgeFilter > 0 ? '&badge=' . $badgeFilter : '')
@@ -314,6 +505,9 @@ foreach ($periodMonths as $period) {
         $totStrings = 0;
         $totNok = 0;
         $totTrack = [];
+        $totScripts = [];
+        $totScriptHrefs = [];
+        $totScriptScore = 0;
         foreach ($rows as $r) {
             $aid = (int)$r['admin_id'];
             $t = $monthAdminTot[$aid];
@@ -326,6 +520,21 @@ foreach ($periodMonths as $period) {
             foreach ($t['tracking'] as $did => $c) {
                 $totTrack[$did] = ($totTrack[$did] ?? 0) + $c;
             }
+            foreach ($t['scripts'] as $sid => $scell) {
+                if (!isset($totScripts[$sid])) {
+                    $totScripts[$sid] = ['starts' => 0, 'finishes' => 0, 'score' => 0];
+                }
+                $totScripts[$sid]['starts'] += (int)$scell['starts'];
+                $totScripts[$sid]['finishes'] += (int)$scell['finishes'];
+                $totScripts[$sid]['score'] += (int)$scell['score'];
+                $totScriptHrefs[(int)$sid] = $collectionsHref([
+                    'year' => $y,
+                    'month' => $m,
+                    'day' => 0,
+                    'script' => (int)$sid,
+                ]);
+            }
+            $totScriptScore += (int)$t['script_score'];
         }
         $summaries[] = [
             'position_id' => (int)$pid,
@@ -339,6 +548,14 @@ foreach ($periodMonths as $period) {
                 'avg_score' => CalendarAggregates::avgScore(['score_w' => $totScoreW, 'score_sec' => $totScoreSec]),
                 'keys_pct' => CalendarAggregates::keysPct(['strings' => $totStrings, 'strings_nok' => $totNok]),
                 'tracking' => $totTrack,
+                'scripts' => $totScripts,
+                'script_hrefs' => $totScriptHrefs,
+                'script_score' => $totScriptScore,
+                'script_score_href' => $collectionsHref([
+                    'year' => $y,
+                    'month' => $m,
+                    'day' => 0,
+                ]),
             ],
         ];
     }
@@ -385,6 +602,47 @@ $qs = static function (int $y, int $mo, int $adm, int $badge = 0, int $position 
     return '/audio/calendar?' . http_build_query($q);
 };
 
+$canAssign = class_exists('WorkweeksRepository', false) && WorkweeksRepository::canAssign();
+$canReparse = false;
+if (Auth::can('audio_reports.edit') && ModuleManager::isEnabled('audio_pipeline')) {
+    require_once base_path('modules/audio_pipeline/lib/StemRunner.php');
+    $canReparse = StemRunner::libsAvailable();
+}
+
+require_once base_path('modules/audio/lib/InboxFiles.php');
+$inboxCount = InboxFiles::count();
+$inboxPath = InboxFiles::relativeDir();
+$canIngest = Auth::can('audio.edit') && ModuleManager::isEnabled('audio_pipeline');
+
+$reparseFlash = '';
+if (!empty($_GET['reparse_ok'])) {
+    $reparseFlash = t('audio_reports.calendar.reparse_done', [
+        'date' => (string)($_GET['reparse_date'] ?? ''),
+        'n' => (string)(int)($_GET['reparse_n'] ?? 0),
+        'records' => (string)(int)($_GET['reparse_records'] ?? 0),
+    ]);
+} elseif (!empty($_GET['reparse_err'])) {
+    $code = (string)$_GET['reparse_err'];
+    if ($code === 'busy') {
+        $reparseFlash = t('audio_reports.calendar.reparse_err_busy');
+    } elseif ($code === 'invalid_day') {
+        $reparseFlash = t('audio_reports.calendar.reparse_err_day');
+    } else {
+        $reparseFlash = t('audio_reports.calendar.reparse_err', ['code' => $code]);
+    }
+}
+
+$openShiftDay = '';
+if (!empty($_GET['shift_ok'])) {
+    // Stay on calendar after nazop save.
+}
+$shiftDayParam = trim((string)($_GET['shift_day'] ?? ''));
+if ($shiftDayParam === 'all' || preg_match('/^\d{4}-\d{2}-\d{2}$/', $shiftDayParam)) {
+    $openShiftDay = $shiftDayParam;
+}
+
+$calRet = $qs($year, $month, $adminFilter, $badgeFilter, $positionFilter);
+
 View::render('calendar', [
     'title' => t('audio_reports.menu.calendar'),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -400,8 +658,22 @@ View::render('calendar', [
     'badgeOptions' => $badgeOptions,
     'positionOptions' => $positionNames,
     'trackingDicts' => $trackingDicts,
+    'calendarScripts' => $calendarScripts,
     'months' => $months,
     'prevHref' => $qs($prevYear, $month > 0 ? $prevMonth : 0, $adminFilter, $badgeFilter, $positionFilter),
     'nextHref' => $qs($nextYear, $month > 0 ? $nextMonth : 0, $adminFilter, $badgeFilter, $positionFilter),
     'yearHref' => $qs($year, 0, $adminFilter, $badgeFilter, $positionFilter),
+    'canAssign' => $canAssign,
+    'canReparse' => $canReparse,
+    'inboxCount' => $inboxCount,
+    'inboxPath' => $inboxPath,
+    'canIngest' => $canIngest,
+    'openShiftDay' => $openShiftDay,
+    'calRet' => $calRet,
+    'shiftFlash' => !empty($_GET['shift_ok']) ? t('workweeks.msg.saved') : '',
+    'reparseFlash' => $reparseFlash,
+    'canReviewAdmin' => $canReviewAdmin,
+    'pendingReviewTotal' => $pendingReviewTotal,
+    'reviewFlash' => $reviewFlash,
+    'reviewOrphansFlash' => $reviewOrphansFlash,
 ], 'layout', 'audio_reports');

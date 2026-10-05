@@ -11,16 +11,62 @@
  * @var array<string,string> $badgeOptions
  * @var array<int,string> $positionOptions
  * @var list<array{id:int,name:string,code:string}> $trackingDicts
+ * @var list<array{id:int,name:string,short:string}> $calendarScripts
  * @var list<array{month:int,label:string,weeks:list,summaries:list}> $months
  * @var string $prevHref
  * @var string $nextHref
  * @var string $yearHref
+ * @var bool $canAssign
+ * @var bool $canReparse
+ * @var int $inboxCount
+ * @var string $inboxPath
+ * @var bool $canIngest
+ * @var string $openShiftDay
+ * @var string $calRet
+ * @var string $shiftFlash
+ * @var string $reparseFlash
+ * @var bool $canReviewAdmin
+ * @var int $pendingReviewTotal
+ * @var string $reviewFlash
+ * @var string $reviewOrphansFlash
  */
 $dowKeys = [1, 2, 3, 4, 5, 6, 7];
 $badgeFilter = (int)($badgeFilter ?? 0);
 $positionFilter = (int)($positionFilter ?? 0);
 $badgeOptions = is_array($badgeOptions ?? null) ? $badgeOptions : [];
 $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
+$calendarScripts = is_array($calendarScripts ?? null) ? $calendarScripts : [];
+$canAssign = !empty($canAssign);
+$canReparse = !empty($canReparse);
+$openShiftDay = (string)($openShiftDay ?? '');
+$calRet = (string)($calRet ?? '/audio/calendar');
+$shiftFlash = (string)($shiftFlash ?? '');
+$reparseFlash = (string)($reparseFlash ?? '');
+$canReviewAdmin = !empty($canReviewAdmin);
+$pendingReviewTotal = (int)($pendingReviewTotal ?? 0);
+$reviewFlash = (string)($reviewFlash ?? '');
+$reviewOrphansFlash = (string)($reviewOrphansFlash ?? '');
+?>
+<?php if ($shiftFlash !== ''): ?>
+  <div class="flash flash-ok"><?= e($shiftFlash) ?></div>
+<?php endif; ?>
+<?php if ($reparseFlash !== ''): ?>
+  <div class="flash <?= !empty($_GET['reparse_ok']) ? 'flash-ok' : 'flash-error' ?>"><?= e($reparseFlash) ?></div>
+<?php endif; ?>
+<?php if ($reviewFlash !== ''): ?>
+  <div class="flash flash-ok"><?= e($reviewFlash) ?></div>
+<?php endif; ?>
+<?php if ($reviewOrphansFlash !== ''): ?>
+  <div class="flash flash-ok"><?= e($reviewOrphansFlash) ?></div>
+<?php endif; ?>
+<?php
+$inboxCount = (int)($inboxCount ?? 0);
+$inboxPath = (string)($inboxPath ?? '/audio');
+$canIngest = !empty($canIngest);
+if ($inboxCount > 0) {
+    Assets::need('audio');
+    require base_path('modules/audio/views/_inbox_banner.php');
+}
 ?>
 <nav class="ar-cal-nav" data-calendar-nav="audio-month"
      data-prev="<?= e($prevHref) ?>"
@@ -69,13 +115,29 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
   </form>
 </nav>
 
+<?php if ($canAssign): ?>
+  <div class="ar-cal-shift-actions">
+    <button type="button" class="btn-primary" data-shift-open="all"
+            title="<?= te('workweeks.nazop.title_all') ?>"><?= te('workweeks.nazop.open_all') ?></button>
+    <span class="muted"><?= te('workweeks.nazop.open_all_hint') ?></span>
+  </div>
+<?php endif; ?>
+
 <div class="ar-cal-months">
   <?php foreach ($months as $block): ?>
     <section class="ar-cal-month records-calendar-wrap">
       <table class="records-calendar" aria-label="<?= e((string)$block['label']) ?>">
         <thead>
           <tr>
-            <th colspan="7"><?= e((string)$block['label']) ?></th>
+            <th colspan="7">
+              <div class="ar-cal-month-head">
+                <span><?= e((string)$block['label']) ?></span>
+                <?php if ($canAssign): ?>
+                  <button type="button" class="btn-secondary btn-sm" data-shift-open="all"
+                          title="<?= te('workweeks.nazop.title_all') ?>"><?= te('workweeks.nazop.open_all') ?></button>
+                <?php endif; ?>
+              </div>
+            </th>
           </tr>
           <tr class="days">
             <?php foreach ($dowKeys as $dowN): ?>
@@ -110,6 +172,20 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
                       <div class="cal-day-num">
                         <a href="<?= e((string)$cell['href']) ?>"><?= (int)$cell['day'] ?></a>
                         <span class="cal-day-dw<?= $weekend ? ' cal-day-dw--weekend' : '' ?>"><?= te('audio_reports.calendar.dow.' . ($dow + 1)) ?></span>
+                        <?php if ($canAssign): ?>
+                          <button type="button"
+                                  class="ar-cal-nazop"
+                                  data-shift-open="<?= e((string)$cell['date']) ?>"
+                                  title="<?= te('workweeks.nazop.open_day') ?>"><?= te('workweeks.nazop.mark') ?></button>
+                        <?php endif; ?>
+                        <?php if (!empty($canReparse) && !empty($cell['has_records'])): ?>
+                          <a class="ar-cal-reparse"
+                             href="<?= e('/audio/calendar/reparse?date=' . rawurlencode((string)$cell['date']) . '&ret=' . rawurlencode($calRet)) ?>"
+                             target="_blank"
+                             rel="noopener"
+                             title="<?= te('audio_reports.calendar.reparse_hint') ?>"
+                             onclick="return confirm(<?= tj('audio_reports.calendar.reparse_confirm') ?>);"><?= te('audio_reports.calendar.reparse') ?></a>
+                        <?php endif; ?>
                       </div>
                       <?php if (!empty($cell['extras_html'])): ?>
                         <div class="ar-cal-day-extras"><?= $cell['extras_html'] ?></div>
@@ -135,7 +211,23 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
                                 ?>
                               <div class="<?= e($lineCls) ?>">
                                 <?= $line['badge_html'] ?>
+                                <?php if (!empty($line['missing'])):
+                                    $miss = $line['missing'];
+                                    $missCls = $miss['kind'] === 'waiting' ? 'ar-cal-waiting' : 'ar-cal-norec';
+                                    if ($miss['kind'] !== 'waiting' && $canAssign): ?>
+                                  <button type="button" class="<?= e($missCls) ?>"
+                                          data-shift-open="<?= e((string)$cell['date']) ?>"
+                                          title="<?= e((string)$miss['title']) ?>"><?= e((string)$miss['label']) ?></button>
+                                    <?php else: ?>
+                                  <span class="<?= e($missCls) ?>" title="<?= e((string)$miss['title']) ?>"><?= e((string)$miss['label']) ?></span>
+                                    <?php endif; ?>
+                                <?php else: ?>
                                 <a class="ar-cal-time" href="<?= e((string)$line['href']) ?>"><?= e((string)$line['playtime_label']) ?></a>
+                                <?php if ($canReviewAdmin && !empty($line['review_pending']) && !empty($line['review_pending_href'])): ?>
+                                  <a class="ar-cal-review-pending" href="<?= e((string)$line['review_pending_href']) ?>"
+                                     target="_blank" rel="noopener"
+                                     title="<?= te('audio_reports.calendar.review_pending_hint') ?>"><?= te('audio_reports.calendar.review_pending_link') ?></a>
+                                <?php endif; ?>
                                 <?php if ($score !== null): ?>
                                   <a class="<?= e($scoreCls) ?>" href="<?= e((string)$line['href']) ?>"
                                      title="<?= te('audio_reports.calendar.score_hint') ?>"><?= '®' . e((string)$score) ?></a>
@@ -147,6 +239,15 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
                                 <?php foreach ($line['tracking'] as $tr): ?>
                                   <span class="ar-cal-track" title="<?= e((string)$tr['name']) ?>"><?= e((string)$tr['code']) ?>:<?= (int)$tr['count'] ?></span>
                                 <?php endforeach; ?>
+                                <?php foreach ($line['scripts'] as $scr):
+                                    $scrHref = (string)($scr['href'] ?? '');
+                                    $scrTitle = (string)$scr['name'] . ' — ' . t('audio_reports.calendar.script_hint');
+                                    if ($scrHref !== ''): ?>
+                                  <a class="ar-cal-script" href="<?= e($scrHref) ?>" title="<?= e($scrTitle) ?>"><?= e((string)$scr['label']) ?></a>
+                                    <?php else: ?>
+                                  <span class="ar-cal-script" title="<?= e($scrTitle) ?>"><?= e((string)$scr['label']) ?></span>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
                                 <?php if ((int)$line['agg']['outside'] > 0): ?>
                                   <span class="ar-cal-outside" title="<?= te('audio_reports.calendar.outside_hint') ?>">↗<?= e(CalendarAggregates::formatPlaytime((int)$line['agg']['outside'])) ?></span>
                                 <?php endif; ?>
@@ -155,6 +256,7 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
                                 <?php endif; ?>
                                 <?php if (!empty($line['extra_html'])): ?>
                                   <span class="ar-cal-hook"><?= $line['extra_html'] ?></span>
+                                <?php endif; ?>
                                 <?php endif; ?>
                               </div>
                             <?php endforeach; ?>
@@ -187,6 +289,12 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
                     <?php foreach ($trackingDicts as $td): ?>
                       <th class="ar-cal-track-th" title="<?= e($td['name']) ?>"><?= e($td['code']) ?></th>
                     <?php endforeach; ?>
+                    <?php foreach ($calendarScripts as $sc): ?>
+                      <th class="ar-cal-script-th" title="<?= e($sc['name']) ?>"><?= e($sc['short']) ?></th>
+                    <?php endforeach; ?>
+                    <?php if ($calendarScripts !== []): ?>
+                      <th class="ar-cal-script-th" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= te('audio_reports.calendar.col_script_score_short') ?></th>
+                    <?php endif; ?>
                   </tr>
                 </thead>
                 <tbody>
@@ -206,6 +314,19 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
                       <?php foreach ($trackingDicts as $td): ?>
                         <td class="ar-cal-track"><?= (int)($row['tracking'][$td['id']] ?? 0) ?: '' ?></td>
                       <?php endforeach; ?>
+                      <?php foreach ($calendarScripts as $scDef):
+                          $scell = $row['scripts'][$scDef['id']] ?? null;
+                          $label = $scell ? CalendarAggregates::formatScriptSummary($scell) : '';
+                          $scrHref = (string)(($row['script_hrefs'][$scDef['id']] ?? '') ?: '');
+                          ?>
+                        <td class="ar-cal-script"><?php if ($label !== '' && $scrHref !== ''): ?><a class="ar-cal-script" href="<?= e($scrHref) ?>" title="<?= e($scDef['name']) ?>"><?= e($label) ?></a><?php else: ?><?= e($label) ?><?php endif; ?></td>
+                      <?php endforeach; ?>
+                      <?php if ($calendarScripts !== []):
+                          $scoreVal = (int)($row['script_score'] ?? 0);
+                          $scoreHref = (string)($row['script_score_href'] ?? '');
+                          ?>
+                        <td class="ar-cal-script"><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
+                      <?php endif; ?>
                     </tr>
                   <?php endforeach; ?>
                   <?php
@@ -221,6 +342,19 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
                     <?php foreach ($trackingDicts as $td): ?>
                       <td><?= (int)($t['tracking'][$td['id']] ?? 0) ?: '' ?></td>
                     <?php endforeach; ?>
+                    <?php foreach ($calendarScripts as $scDef):
+                        $scell = $t['scripts'][$scDef['id']] ?? null;
+                        $label = $scell ? CalendarAggregates::formatScriptSummary($scell) : '';
+                        $scrHref = (string)(($t['script_hrefs'][$scDef['id']] ?? '') ?: '');
+                        ?>
+                      <td><?php if ($label !== '' && $scrHref !== ''): ?><a class="ar-cal-script" href="<?= e($scrHref) ?>" title="<?= e($scDef['name']) ?>"><?= e($label) ?></a><?php else: ?><?= e($label) ?><?php endif; ?></td>
+                    <?php endforeach; ?>
+                    <?php if ($calendarScripts !== []):
+                        $scoreVal = (int)($t['script_score'] ?? 0);
+                        $scoreHref = (string)($t['script_score_href'] ?? '');
+                        ?>
+                      <td><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
+                    <?php endif; ?>
                   </tr>
                 </tbody>
               </table>
@@ -231,6 +365,38 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
     </section>
   <?php endforeach; ?>
 </div>
+
+<?php if ($canReviewAdmin && $pendingReviewTotal > 0): ?>
+  <section class="ar-cal-review-admin">
+    <h3><?= te('audio_reports.calendar.review_admin_title') ?></h3>
+    <p><?= te('audio_reports.calendar.review_admin_count', ['n' => $pendingReviewTotal]) ?></p>
+    <p class="ar-cal-review-admin-actions">
+      <a class="btn-secondary" href="<?= e(NavContext::withReturn('/audio?review=pending&year=0&month=0&day=0')) ?>"
+         target="_blank" rel="noopener"><?= te('audio_reports.calendar.review_admin_open') ?></a>
+      <form method="post" action="/audio/calendar" class="inline-form"
+            onsubmit="return confirm(<?= tj('audio_reports.calendar.review_all_confirm', ['n' => $pendingReviewTotal]) ?>);">
+        <?= NavContext::hiddenField() ?>
+        <input type="hidden" name="review_action" value="mark_all">
+        <input type="hidden" name="year" value="<?= (int)$year ?>">
+        <input type="hidden" name="month" value="<?= (int)$month ?>">
+        <?php if ($adminFilter > 0): ?><input type="hidden" name="admin" value="<?= (int)$adminFilter ?>"><?php endif; ?>
+        <?php if ($badgeFilter > 0): ?><input type="hidden" name="badge" value="<?= (int)$badgeFilter ?>"><?php endif; ?>
+        <?php if ($positionFilter > 0): ?><input type="hidden" name="position" value="<?= (int)$positionFilter ?>"><?php endif; ?>
+        <button type="submit" class="btn-secondary"><?= te('audio_reports.calendar.review_all_btn', ['n' => $pendingReviewTotal]) ?></button>
+      </form>
+      <form method="post" action="/audio/calendar" class="inline-form">
+        <?= NavContext::hiddenField() ?>
+        <input type="hidden" name="review_action" value="clean_orphans">
+        <input type="hidden" name="year" value="<?= (int)$year ?>">
+        <input type="hidden" name="month" value="<?= (int)$month ?>">
+        <?php if ($adminFilter > 0): ?><input type="hidden" name="admin" value="<?= (int)$adminFilter ?>"><?php endif; ?>
+        <?php if ($badgeFilter > 0): ?><input type="hidden" name="badge" value="<?= (int)$badgeFilter ?>"><?php endif; ?>
+        <?php if ($positionFilter > 0): ?><input type="hidden" name="position" value="<?= (int)$positionFilter ?>"><?php endif; ?>
+        <button type="submit" class="btn-secondary"><?= te('audio_reports.calendar.review_clean_orphans') ?></button>
+      </form>
+    </p>
+  </section>
+<?php endif; ?>
 
 <script>
 (function () {
@@ -260,3 +426,9 @@ $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
   });
 })();
 </script>
+
+<?php if ($canAssign):
+    $retUrl = $calRet;
+    $dialogId = 'audio-shift-dialog';
+    require base_path('modules/workweeks/views/_nazop_dialog.php');
+endif; ?>

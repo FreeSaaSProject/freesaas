@@ -1,67 +1,88 @@
 {
-  "id": "procedures",
-  "name": "procedures.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "clients": ">=0.1.0",
-    "catalog": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "tables": ">=0.1.0"
-  },
-  "provides": [
-    "procedures.list",
-    "procedures.types"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "procedures.view", "label": "procedures.perm.view" },
-    { "id": "procedures.edit", "label": "procedures.perm.edit" },
-    { "id": "procedures.types", "label": "procedures.perm.types" }
-  ],
-  "routes": {
-    "pages": [
-      "/procedures",
-      "/procedures/new",
-      "/procedures/{id}",
-      "/procedures/{id}/edit",
-      "/procedure-types",
-      "/procedure-types/new",
-      "/procedure-types/{id}/edit"
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "procedures.menu.group",
-      "num": 1,
-      "path": "/procedures",
-      "title": "procedures.menu.list"
+    "id": "procedures",
+    "name": "procedures.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0",
+        "catalog": ">=0.1.0"
     },
-    {
-      "group": "procedures.menu.group",
-      "kind": "crud",
-      "num": 1,
-      "path": "/procedure-types",
-      "title": "procedures.menu.types"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_procedure_types",
-    "base_procedures",
-    "base_procedure_restores"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "core.bulk.check_item",
-      "calendar.day.stats"
+    "optionalRequires": {
+        "tables": ">=0.1.0"
+    },
+    "provides": [
+        "procedures.list",
+        "procedures.types"
     ],
-    "publish": [
-      "procedures / procedure_types bulk actions via BulkActions"
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "procedures.view",
+            "label": "procedures.perm.view"
+        },
+        {
+            "id": "procedures.edit",
+            "label": "procedures.perm.edit"
+        },
+        {
+            "id": "procedures.types",
+            "label": "procedures.perm.types"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/procedures",
+            "/procedures/new",
+            "/procedures/{id}",
+            "/procedures/{id}/edit",
+            "/procedure-types",
+            "/procedure-types/new",
+            "/procedure-types/{id}/edit"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "procedures.menu.group",
+            "num": 1,
+            "path": "/procedures",
+            "title": "procedures.menu.list"
+        },
+        {
+            "group": "procedures.menu.group",
+            "kind": "crud",
+            "num": 1,
+            "path": "/procedure-types",
+            "title": "procedures.menu.types"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_procedure_types",
+        "base_procedures",
+        "base_procedure_restores"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.bulk.check_item",
+            "calendar.day.stats"
+        ],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "procedures",
+            "action": "delete"
+        },
+        {
+            "list_id": "procedures",
+            "action": "set_admin"
+        },
+        {
+            "list_id": "procedure_types",
+            "action": "delete"
+        }
     ]
-  }
 }

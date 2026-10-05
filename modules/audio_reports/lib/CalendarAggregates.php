@@ -6,6 +6,9 @@ declare(strict_types=1);
  */
 final class CalendarAggregates
 {
+    /** Oper promoter bonus marker — excluded from ® (show_records_calendars). */
+    private const BONUS_MARKER = 'BONUS TIME';
+
     /**
      * @param array{admin?:int,badge?:int,position?:int} $filters
      * @return array{
@@ -28,10 +31,12 @@ final class CalendarAggregates
 
         $bounds = AudioDayBounds::read();
         $pdo = Database::pdo();
+        $hasDesc = Database::columnExists('base_records', 'DESCRIPTION');
         $sql = 'SELECT r.ID_ADMIN AS id_admin, r.DT_RECORDED AS dt, r.PLAYTIME AS playtime,
                        r.SCORE AS score, r.ERROR_TRANS AS error_trans, r.QUALITY AS quality,
-                       r.STRINGS AS strings, r.STRINGS_NOK AS strings_nok
-                FROM base_records r';
+                       r.STRINGS AS strings, r.STRINGS_NOK AS strings_nok'
+            . ($hasDesc ? ', r.DESCRIPTION AS description' : '')
+            . ' FROM base_records r';
         $params = [];
         if ($positionFilter > 0 && Database::tableExists('base_users')) {
             $sql .= ' INNER JOIN base_users u ON u.id = r.ID_ADMIN AND u.name_enabled = ?';
@@ -69,16 +74,29 @@ final class CalendarAggregates
             $strings = max(0, (int)($row['strings'] ?? 0));
             $stringsNok = max(0, (int)($row['strings_nok'] ?? 0));
             $isErr = !empty($row['error_trans']) || ((int)($row['quality'] ?? 0) < 2 && $play < 1);
-            $outside = self::isOutsideRecordWindow($dt, $bounds) ? $play : 0;
+            $inRecord = self::isFullyInWindow($dt, $play, $bounds, 'OffRecord');
+            $outside = $inRecord ? 0 : $play;
+            $isBonus = $hasDesc && (string)($row['description'] ?? '') === self::BONUS_MARKER;
 
-            self::bump($byDay, $dayKey, $play, $score, $isErr, $outside, $strings, $stringsNok);
+            // ® like oper: whole record in OffRecord, not bonus, and (in OffRate OR SCORE>2).
+            $scoreW = 0.0;
+            $scoreSec = 0;
+            if ($inRecord && !$isBonus) {
+                $inRate = self::isFullyInWindow($dt, $play, $bounds, 'OffRate');
+                if ($inRate || $score > 2) {
+                    $scoreW = $score * $play;
+                    $scoreSec = $play;
+                }
+            }
+
+            self::bump($byDay, $dayKey, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
             if ($adminId > 0) {
                 if (!isset($byAdminDay[$adminId])) {
                     $byAdminDay[$adminId] = [];
                     $admins[$adminId] = true;
                 }
-                self::bump($byAdminDay[$adminId], $dayKey, $play, $score, $isErr, $outside, $strings, $stringsNok);
-                self::bumpAdmin($byAdmin, $adminId, $play, $score, $isErr, $outside, $strings, $stringsNok);
+                self::bump($byAdminDay[$adminId], $dayKey, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
+                self::bumpAdmin($byAdmin, $adminId, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
             }
         }
 
@@ -186,13 +204,349 @@ final class CalendarAggregates
     }
 
     /**
+     * Script collections per admin/day (starts / finishes / score), oper calendar parity.
+     *
+     * @param array{admin?:int,badge?:int,position?:int} $filters
+     * @return array{
+     *   scripts: list<array{id:int,name:string,short:string}>,
+     *   by_admin_day: array<int, array<int, array<string, array{starts:int,finishes:int,score:int}>>>,
+     *   by_admin: array<int, array<int, array{starts:int,finishes:int,score:int}>>
+     * }
+     */
+    public static function scriptsForRange(int $fromTs, int $toTs, array $filters = []): array
+    {
+        $emptyCell = ['starts' => 0, 'finishes' => 0, 'score' => 0];
+        $out = ['scripts' => [], 'by_admin_day' => [], 'by_admin' => []];
+        if ($fromTs < 1 || $toTs < $fromTs
+            || !Database::tableExists('base_records_scripts')
+            || !Database::tableExists('base_records_collections')
+        ) {
+            return $out;
+        }
+
+        $adminFilter = max(0, (int)($filters['admin'] ?? 0));
+        $badgeFilter = max(0, (int)($filters['badge'] ?? 0));
+        $positionFilter = max(0, (int)($filters['position'] ?? 0));
+        $pdo = Database::pdo();
+
+        $roots = $pdo->query(
+            'SELECT ID AS id, NAME AS name
+             FROM base_records_scripts
+             WHERE PID = 0 AND DISABLED < 1
+             ORDER BY NUM ASC, ID ASC'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($roots === []) {
+            return $out;
+        }
+
+        /** @var array<int, int> $finishPartByScript finish part id keyed by root script id */
+        $finishPartByScript = [];
+        $stFinish = $pdo->query(
+            'SELECT ID AS id, PID AS pid
+             FROM base_records_scripts
+             WHERE PID > 0 AND FINISH > 0 AND DISABLED < 1'
+        );
+        if ($stFinish) {
+            while ($row = $stFinish->fetch(PDO::FETCH_ASSOC)) {
+                $finishPartByScript[(int)$row['pid']] = (int)$row['id'];
+            }
+        }
+
+        $sql = 'SELECT c.ID AS id, c.ID_ADMIN AS id_admin, c.ID_SCRIPT AS id_script,
+                       c.SCORE AS score, FROM_UNIXTIME(c.DT_START, \'%Y-%m-%d\') AS day_key
+                FROM base_records_collections c';
+        $params = [];
+        if ($positionFilter > 0 && Database::tableExists('base_users')) {
+            $sql .= ' INNER JOIN base_users u ON u.id = c.ID_ADMIN AND u.name_enabled = ?';
+            $params[] = $positionFilter;
+        }
+        $sql .= ' WHERE c.DT_START >= ? AND c.DT_START <= ? AND c.ID_ADMIN > 0 AND c.ID_SCRIPT > 0';
+        $params[] = $fromTs;
+        $params[] = $toTs;
+        if ($adminFilter > 0) {
+            $sql .= ' AND c.ID_ADMIN = ?';
+            $params[] = $adminFilter;
+        }
+        if ($badgeFilter > 0
+            && Database::tableExists('base_records_collections_datas')
+            && Database::tableExists('base_records_instances')
+            && Database::tableExists('base_records')
+        ) {
+            $sql .= ' AND EXISTS (
+                SELECT 1 FROM base_records_collections_datas d
+                INNER JOIN base_records_instances i ON i.ID = d.ID_INSTANCE
+                INNER JOIN base_records r ON r.ID = i.ID_RECORD
+                WHERE d.ID_COLLECTION = c.ID AND r.ID_DICTOPHONE = ?
+            )';
+            $params[] = $badgeFilter;
+        }
+
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $collections = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($collections === []) {
+            return $out;
+        }
+
+        /** @var array<int, array<int,true>> $finishPartsByCollection collectionId → finish part ids present */
+        $finishPartsByCollection = [];
+        if (Database::tableExists('base_records_collections_datas') && $finishPartByScript !== []) {
+            $ids = array_values(array_unique(array_filter(array_map(static function (array $r): int {
+                return (int)$r['id'];
+            }, $collections))));
+            $finishIn = implode(',', array_map('intval', array_unique(array_values($finishPartByScript))));
+            foreach (array_chunk($ids, 500) as $chunk) {
+                $in = implode(',', $chunk);
+                $qf = $pdo->query(
+                    "SELECT ID_COLLECTION AS id, ID_PART AS id_part
+                     FROM base_records_collections_datas
+                     WHERE ID_COLLECTION IN ($in) AND ID_PART IN ($finishIn)"
+                );
+                if ($qf) {
+                    while ($fr = $qf->fetch(PDO::FETCH_ASSOC)) {
+                        $finishPartsByCollection[(int)$fr['id']][(int)$fr['id_part']] = true;
+                    }
+                }
+            }
+        }
+
+        /** @var array<int, true> $usedScripts */
+        $usedScripts = [];
+        foreach ($collections as $row) {
+            $cid = (int)$row['id'];
+            $aid = (int)$row['id_admin'];
+            $sid = (int)$row['id_script'];
+            $day = (string)$row['day_key'];
+            $score = max(0, (int)$row['score']);
+            if ($aid < 1 || $sid < 1 || $day === '') {
+                continue;
+            }
+            $usedScripts[$sid] = true;
+            if (!isset($out['by_admin_day'][$aid][$sid][$day])) {
+                $out['by_admin_day'][$aid][$sid][$day] = $emptyCell;
+            }
+            $out['by_admin_day'][$aid][$sid][$day]['starts']++;
+            $out['by_admin_day'][$aid][$sid][$day]['score'] += $score;
+            if (!isset($out['by_admin'][$aid][$sid])) {
+                $out['by_admin'][$aid][$sid] = $emptyCell;
+            }
+            $out['by_admin'][$aid][$sid]['starts']++;
+            $out['by_admin'][$aid][$sid]['score'] += $score;
+
+            $finishPart = $finishPartByScript[$sid] ?? 0;
+            if ($finishPart > 0 && !empty($finishPartsByCollection[$cid][$finishPart])) {
+                $out['by_admin_day'][$aid][$sid][$day]['finishes']++;
+                $out['by_admin'][$aid][$sid]['finishes']++;
+            }
+        }
+
+        foreach ($roots as $r) {
+            $id = (int)$r['id'];
+            if (!isset($usedScripts[$id])) {
+                continue;
+            }
+            $name = trim((string)$r['name']);
+            $out['scripts'][] = [
+                'id' => $id,
+                'name' => $name !== '' ? $name : ('#' . $id),
+                'short' => self::scriptShortName($name !== '' ? $name : ('#' . $id)),
+            ];
+        }
+
+        return $out;
+    }
+
+    /** Oper shortName(NAME): uppercase first letter of each word (e.g. «Контроль скрипт» → «КС»). */
+    public static function scriptShortName(string $name): string
+    {
+        if (class_exists('UsersRepository', false)) {
+            $s = UsersRepository::shortName($name, 1);
+            if ($s !== '') {
+                return $s;
+            }
+        }
+        $parts = preg_split('/\s+/u', trim($name)) ?: [];
+        $out = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $out .= mb_strtoupper(mb_substr($part, 0, 1, 'UTF-8'), 'UTF-8');
+        }
+        return $out !== '' ? $out : $name;
+    }
+
+    /**
+     * @param array{starts?:int,finishes?:int,score?:int} $cell
+     */
+    public static function formatScriptCell(array $cell, string $short): string
+    {
+        $starts = (int)($cell['starts'] ?? 0);
+        if ($starts < 1) {
+            return '';
+        }
+        $finishes = (int)($cell['finishes'] ?? 0);
+        $score = (int)($cell['score'] ?? 0);
+        $label = $short . $starts . ':' . $finishes;
+        if ($score > 0) {
+            $label .= '=' . $score;
+        }
+        return $label;
+    }
+
+    /**
+     * Month summary cell: finishes/starts=pct%
+     *
+     * @param array{starts?:int,finishes?:int,score?:int} $cell
+     */
+    public static function formatScriptSummary(array $cell): string
+    {
+        $starts = (int)($cell['starts'] ?? 0);
+        if ($starts < 1) {
+            return '';
+        }
+        $finishes = (int)($cell['finishes'] ?? 0);
+        $pct = (int)round($finishes * 100 / $starts);
+        return $finishes . '/' . $starts . '=' . $pct . '%';
+    }
+
+    /**
+     * Shift staff with AUDIO_ANALYTICS_ENABLED and no records that day (oper «нет зап.» / «ожидаем»).
+     *
+     * @param array{admin?:int,position?:int} $filters
+     * @param array<int, array<string, mixed>> $byAdminDay from forRange()['by_admin_day']
+     * @return array<string, list<array{admin_id:int,badge:string,kind:string}>> date Y-m-d → missing lines
+     */
+    public static function missingAudioForRange(
+        int $fromTs,
+        int $toTs,
+        array $byAdminDay,
+        array $filters = []
+    ): array {
+        $out = [];
+        if ($fromTs < 1 || $toTs < $fromTs || !Database::tableExists('base_workweeks')) {
+            return $out;
+        }
+
+        $adminFilter = max(0, (int)($filters['admin'] ?? 0));
+        $positionFilter = max(0, (int)($filters['position'] ?? 0));
+        $pdo = Database::pdo();
+
+        $sql = 'SELECT ID_OPERATOR AS id_operator, DT AS dt FROM base_workweeks WHERE DT >= ? AND DT <= ?';
+        $params = [$fromTs, $toTs];
+        if ($adminFilter > 0) {
+            $sql .= ' AND ID_OPERATOR = ?';
+            $params[] = $adminFilter;
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        /** @var array<string, array<int,true>> $shifts */
+        $shifts = [];
+        $opIds = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $oid = (int)$row['id_operator'];
+            $dt = (int)$row['dt'];
+            if ($oid < 1 || $dt < 1) {
+                continue;
+            }
+            $day = date('Y-m-d', $dt);
+            $shifts[$day][$oid] = true;
+            $opIds[$oid] = true;
+        }
+        if ($shifts === []) {
+            return $out;
+        }
+
+        /** @var array<string, array<int,string>> $badges */
+        $badges = [];
+        if (Database::tableExists('base_badge_assignments')) {
+            $stB = $pdo->prepare(
+                'SELECT ID_OPERATOR AS id_operator, ID_BADGE AS id_badge, DT_START AS dt_start
+                 FROM base_badge_assignments
+                 WHERE DT_START >= ? AND DT_START <= ?
+                   AND ID_BADGE IS NOT NULL AND ID_BADGE <> \'\' AND ID_BADGE <> \'0\'
+                 ORDER BY DT_START DESC'
+            );
+            $stB->execute([$fromTs, $toTs]);
+            while ($row = $stB->fetch(PDO::FETCH_ASSOC)) {
+                $oid = (int)$row['id_operator'];
+                $badge = trim((string)$row['id_badge']);
+                $dt = (int)$row['dt_start'];
+                if ($oid < 1 || $badge === '' || $badge === '0' || $dt < 1) {
+                    continue;
+                }
+                $day = date('Y-m-d', $dt);
+                if (!isset($badges[$day][$oid])) {
+                    $badges[$day][$oid] = $badge;
+                }
+            }
+        }
+
+        $opList = array_map('intval', array_keys($opIds));
+        /** @var array<int, array{analytics:bool,position_id:int}> $opMeta */
+        $opMeta = [];
+        foreach (array_chunk($opList, 200) as $chunk) {
+            $in = implode(',', $chunk);
+            $cols = 'id, name_enabled';
+            if (Database::columnExists('base_users', 'AUDIO_ANALYTICS_ENABLED')) {
+                $cols .= ', AUDIO_ANALYTICS_ENABLED';
+            }
+            $uq = $pdo->query("SELECT $cols FROM base_users WHERE id IN ($in)");
+            if (!$uq) {
+                continue;
+            }
+            while ($u = $uq->fetch(PDO::FETCH_ASSOC)) {
+                $id = (int)$u['id'];
+                $opMeta[$id] = [
+                    'analytics' => !empty($u['AUDIO_ANALYTICS_ENABLED']),
+                    'position_id' => (int)($u['name_enabled'] ?? 0),
+                ];
+            }
+        }
+
+        $today = date('Y-m-d');
+        foreach ($shifts as $day => $ops) {
+            if ($day > $today) {
+                continue;
+            }
+            $kind = $day === $today ? 'waiting' : 'missing';
+            $opIdsDay = array_keys($ops);
+            sort($opIdsDay, SORT_NUMERIC);
+            foreach ($opIdsDay as $oid) {
+                $oid = (int)$oid;
+                if ($oid < 1) {
+                    continue;
+                }
+                if (!empty($byAdminDay[$oid][$day]['count'])) {
+                    continue;
+                }
+                $meta = $opMeta[$oid] ?? null;
+                if (!$meta || !$meta['analytics']) {
+                    continue;
+                }
+                if ($positionFilter > 0 && $meta['position_id'] !== $positionFilter) {
+                    continue;
+                }
+                $out[$day][] = [
+                    'admin_id' => $oid,
+                    'badge' => (string)($badges[$day][$oid] ?? ''),
+                    'kind' => $kind,
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * @param array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}> $bucket
      */
     private static function bump(
         array &$bucket,
         string $dayKey,
         int $play,
-        float $score,
+        float $scoreW,
+        int $scoreSec,
         bool $isErr,
         int $outside,
         int $strings = 0,
@@ -212,8 +566,8 @@ final class CalendarAggregates
         }
         $bucket[$dayKey]['count']++;
         $bucket[$dayKey]['playtime'] += $play;
-        $bucket[$dayKey]['score_w'] += $score * $play;
-        $bucket[$dayKey]['score_sec'] += $play;
+        $bucket[$dayKey]['score_w'] += $scoreW;
+        $bucket[$dayKey]['score_sec'] += $scoreSec;
         $bucket[$dayKey]['strings'] += $strings;
         $bucket[$dayKey]['strings_nok'] += $stringsNok;
         if ($isErr) {
@@ -229,7 +583,8 @@ final class CalendarAggregates
         array &$bucket,
         int $adminId,
         int $play,
-        float $score,
+        float $scoreW,
+        int $scoreSec,
         bool $isErr,
         int $outside,
         int $strings,
@@ -249,8 +604,8 @@ final class CalendarAggregates
         }
         $bucket[$adminId]['count']++;
         $bucket[$adminId]['playtime'] += $play;
-        $bucket[$adminId]['score_w'] += $score * $play;
-        $bucket[$adminId]['score_sec'] += $play;
+        $bucket[$adminId]['score_w'] += $scoreW;
+        $bucket[$adminId]['score_sec'] += $scoreSec;
         $bucket[$adminId]['strings'] += $strings;
         $bucket[$adminId]['strings_nok'] += $stringsNok;
         if ($isErr) {
@@ -259,32 +614,44 @@ final class CalendarAggregates
         $bucket[$adminId]['outside'] += $outside;
     }
 
-    /** @param array<string,int> $bounds */
-    public static function isOutsideRecordWindow(int $dt, array $bounds): bool
+    /**
+     * Record fully inside a day window (oper: start AND end within bounds).
+     *
+     * @param array<string,int> $bounds
+     * @param 'OffRate'|'OffRecord' $kind
+     */
+    public static function isFullyInWindow(int $dt, int $playtime, array $bounds, string $kind): bool
     {
         $y = (int)date('Y', $dt);
         $m = (int)date('n', $dt);
         $d = (int)date('j', $dt);
         $start = mktime(
-            (int)$bounds['hourStartOffRecord'],
-            (int)$bounds['minStartOffRecord'],
+            (int)$bounds['hourStart' . $kind],
+            (int)$bounds['minStart' . $kind],
             0,
             $m,
             $d,
             $y
         );
         $end = mktime(
-            (int)$bounds['hourEndOffRecord'],
-            (int)$bounds['minEndOffRecord'],
+            (int)$bounds['hourEnd' . $kind],
+            (int)$bounds['minEnd' . $kind],
             0,
             $m,
             $d,
             $y
         );
         if ($start === false || $end === false) {
-            return false;
+            return true;
         }
-        return $dt < $start || $dt > $end;
+        $dtEnd = $dt + max(0, $playtime);
+        return $dt >= $start && $dtEnd <= $end;
+    }
+
+    /** @param array<string,int> $bounds */
+    public static function isOutsideRecordWindow(int $dt, array $bounds, int $playtime = 0): bool
+    {
+        return !self::isFullyInWindow($dt, $playtime, $bounds, 'OffRecord');
     }
 
     /**

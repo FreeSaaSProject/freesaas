@@ -8,12 +8,14 @@ declare(strict_types=1);
 final class CollectRunner
 {
     /**
+     * @param list<int>|null $onlyAdminIds when set, rebuild only these admins (day-scoped reparse)
+     * @param array{start?:int,end?:int}|null $window optional DT window for instances/collections
      * @return array{ok:bool,processed:int,skipped:int,message:string,extra?:array}
      */
-    public static function run(bool $fullRebuild = false): array
+    public static function run(bool $fullRebuild = false, ?array $onlyAdminIds = null, ?array $window = null): array
     {
-        JobRunner::applyTimeLimit();
-        $deadline = JobRunner::deadline();
+        JobRunner::applyTimeLimit(isset($window['time_budget_sec']) ? (int)$window['time_budget_sec'] : null);
+        $deadline = JobRunner::deadline(isset($window['time_budget_sec']) ? (int)$window['time_budget_sec'] : null);
 
         if (!Database::tableExists('base_records_instances')
             || !Database::tableExists('base_records_collections')
@@ -23,13 +25,17 @@ final class CollectRunner
         }
 
         $pdo = Database::pdo();
+        $winStart = max(0, (int)($window['start'] ?? 0));
+        $winEnd = max(0, (int)($window['end'] ?? 0));
+        $hasWindow = ($winStart > 0 && $winEnd >= $winStart);
+
         // Orphans
         $pdo->exec(
             'DELETE FROM base_records_instances
              WHERE ID_RECORD > 0 AND ID_RECORD NOT IN (SELECT ID FROM base_records)'
         );
 
-        if ($fullRebuild) {
+        if ($fullRebuild && $onlyAdminIds === null && !$hasWindow) {
             $pdo->exec('TRUNCATE TABLE base_records_collections_datas');
             $pdo->exec('TRUNCATE TABLE base_records_collections');
         }
@@ -40,13 +46,20 @@ final class CollectRunner
         }
 
         $adminIds = [];
-        if ($fullRebuild) {
+        if ($onlyAdminIds !== null) {
+            foreach ($onlyAdminIds as $aid) {
+                $aid = (int)$aid;
+                if ($aid > 0) {
+                    $adminIds[] = $aid;
+                }
+            }
+            $adminIds = array_values(array_unique($adminIds));
+        } elseif ($fullRebuild) {
             $st = $pdo->query('SELECT DISTINCT ID_ADMIN FROM base_records_instances WHERE ID_ADMIN > 0');
             foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $aid) {
                 $adminIds[] = (int)$aid;
             }
         } else {
-            // Admins where max instance DT > max collection DT
             $sql = 'SELECT i.ID_ADMIN AS id_admin,
                            MAX(i.DT_START) AS max_i,
                            COALESCE(MAX(c.DT_START), 0) AS max_c
@@ -67,8 +80,9 @@ final class CollectRunner
             if (JobRunner::timedOut($deadline)) {
                 break;
             }
-            if (!$fullRebuild) {
-                // Clear this admin's collections then rebuild
+            if ($hasWindow) {
+                self::deleteCollectionsInWindow($pdo, $adminId, $winStart, $winEnd);
+            } elseif (!$fullRebuild || $onlyAdminIds !== null) {
                 $ids = $pdo->prepare('SELECT ID FROM base_records_collections WHERE ID_ADMIN = ?');
                 $ids->execute([$adminId]);
                 $colIds = array_map('intval', $ids->fetchAll(PDO::FETCH_COLUMN) ?: []);
@@ -78,7 +92,12 @@ final class CollectRunner
                     $pdo->prepare('DELETE FROM base_records_collections WHERE ID_ADMIN = ?')->execute([$adminId]);
                 }
             }
-            $collections += self::rebuildAdmin($adminId, $scripts);
+            $collections += self::rebuildAdmin(
+                $adminId,
+                $scripts,
+                $hasWindow ? $winStart : 0,
+                $hasWindow ? $winEnd : 0
+            );
             $processed++;
         }
 
@@ -87,8 +106,30 @@ final class CollectRunner
             'processed' => $processed,
             'skipped' => 0,
             'message' => 'collect_done',
-            'extra' => ['collections' => $collections, 'admins' => count($adminIds)],
+            'extra' => [
+                'collections' => $collections,
+                'admins' => count($adminIds),
+                'window' => $hasWindow,
+            ],
         ];
+    }
+
+    private static function deleteCollectionsInWindow(PDO $pdo, int $adminId, int $winStart, int $winEnd): void
+    {
+        $st = $pdo->prepare(
+            'SELECT ID FROM base_records_collections
+             WHERE ID_ADMIN = ?
+               AND DT_START <= ?
+               AND (DT_END = 0 OR DT_END >= ?)'
+        );
+        $st->execute([$adminId, $winEnd, $winStart]);
+        $colIds = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        if ($colIds === []) {
+            return;
+        }
+        $in = implode(',', $colIds);
+        $pdo->exec("DELETE FROM base_records_collections_datas WHERE ID_COLLECTION IN ($in)");
+        $pdo->exec("DELETE FROM base_records_collections WHERE ID IN ($in)");
     }
 
     /**
@@ -173,15 +214,25 @@ final class CollectRunner
     /**
      * @param array{by_id:array,key_to_parts:array} $scripts
      */
-    private static function rebuildAdmin(int $adminId, array $scripts): int
+    private static function rebuildAdmin(int $adminId, array $scripts, int $winStart = 0, int $winEnd = 0): int
     {
-        $st = Database::pdo()->prepare(
-            'SELECT ID, DT_START, DT_END, ID_KEY, ID_RECORD
-             FROM base_records_instances
-             WHERE ID_ADMIN = ?
-             ORDER BY DT_START ASC, ID ASC'
-        );
-        $st->execute([$adminId]);
+        if ($winStart > 0 && $winEnd >= $winStart) {
+            $st = Database::pdo()->prepare(
+                'SELECT ID, DT_START, DT_END, ID_KEY, ID_RECORD
+                 FROM base_records_instances
+                 WHERE ID_ADMIN = ? AND DT_START >= ? AND DT_START <= ?
+                 ORDER BY DT_START ASC, ID ASC'
+            );
+            $st->execute([$adminId, $winStart, $winEnd]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'SELECT ID, DT_START, DT_END, ID_KEY, ID_RECORD
+                 FROM base_records_instances
+                 WHERE ID_ADMIN = ?
+                 ORDER BY DT_START ASC, ID ASC'
+            );
+            $st->execute([$adminId]);
+        }
         $instances = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
         if ($instances === []) {
             return 0;

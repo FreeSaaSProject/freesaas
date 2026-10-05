@@ -65,9 +65,6 @@ final class StatusesRepository
                 'fields' => [
                     ['key' => 'SUPERADMIN_ACCESS', 'label' => 'core.statuses.field.SUPERADMIN_ACCESS', 'type' => 'checkbox'],
                     ['key' => 'CONTROL_ACCESS', 'label' => 'core.statuses.field.CONTROL_ACCESS', 'type' => 'checkbox'],
-                    ['key' => 'MARKET_ACCESS', 'label' => 'core.statuses.field.MARKET_ACCESS', 'type' => 'checkbox'],
-                    ['key' => 'STA_ACCESS', 'label' => 'core.statuses.field.STA_ACCESS', 'type' => 'checkbox'],
-                    ['key' => 'ZGV_ACCESS', 'label' => 'core.statuses.field.ZGV_ACCESS', 'type' => 'checkbox'],
                     ['key' => 'SHOW_ADMINISTRATOR_DATA', 'label' => 'core.statuses.field.SHOW_ADMINISTRATOR_DATA', 'type' => 'checkbox'],
                 ],
             ],
@@ -175,7 +172,7 @@ final class StatusesRepository
     /** @return array<int,string> */
     public static function optionsForAudio(int $excludeId = 0): array
     {
-        $out = [0 => t('core.statuses.audio_none')];
+        $out = [0 => t('audio.statuses.audio_none')];
         if (!Database::tableExists('base_admin_statuses')) {
             return $out;
         }

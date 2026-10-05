@@ -63,15 +63,26 @@ try {
         $partData = [
             'id' => (int)($_POST['part_id'] ?? $_POST['id'] ?? 0),
             'name' => trim((string)($_POST['name'] ?? '')),
-            'role' => (string)($_POST['role'] ?? 'ordinary'),
+            'roles' => [],
             'score' => (int)($_POST['score'] ?? 0),
             'timeout' => (int)($_POST['timeout'] ?? 0),
             'diversity' => (int)($_POST['diversity'] ?? 0),
             'instances_min' => (int)($_POST['instances_min'] ?? 0),
-            'collection_killer' => !empty($_POST['collection_killer']) ? 1 : 0,
             'disabled' => !empty($_POST['disabled']) ? 1 : 0,
             'dict_ids' => [],
         ];
+        $rolesRaw = $_POST['roles'] ?? null;
+        if (is_string($rolesRaw)) {
+            $decoded = json_decode($rolesRaw, true);
+            $rolesRaw = is_array($decoded) ? $decoded : explode(',', $rolesRaw);
+        }
+        if (is_array($rolesRaw)) {
+            $partData['roles'] = $rolesRaw;
+        } elseif (!empty($_POST['role'])) {
+            $partData['roles'] = [(string)$_POST['role']];
+        } else {
+            $partData['roles'] = ['ordinary'];
+        }
         $dicts = $_POST['dict_ids'] ?? [];
         if (is_string($dicts)) {
             $decoded = json_decode($dicts, true);

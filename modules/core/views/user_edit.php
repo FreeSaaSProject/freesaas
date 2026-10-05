@@ -94,10 +94,10 @@ if ($newsAfterTs > 0) {
   <?php if (!empty($features['employee_bot'])): ?>
   <h2 class="form-section-title"><?= te('core.user_edit.sec_bot') ?></h2>
   <p class="form-hint"><?= te('core.user_edit.bot_hint') ?></p>
-  <label>Telegram chat_id
+  <label><?= te('core.user_edit.telegram_chat_id') ?>
     <input name="telegram_chat_id" value="<?= e((string)($user['telegram_chat_id'] ?? '')) ?>">
   </label>
-  <label>Max user_id
+  <label><?= te('core.user_edit.max_user_id') ?>
     <input name="max_user_id" value="<?= e((string)($user['max_user_id'] ?? '')) ?>">
   </label>
   <label class="check">

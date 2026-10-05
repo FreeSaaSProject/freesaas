@@ -1,46 +1,64 @@
 {
-  "id": "rates",
-  "name": "rates.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "procedures": ">=0.1.0"
-  },
-  "optionalRequires": {},
-  "provides": [
-    "rates.list"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "rates.view", "label": "rates.perm.view" },
-    { "id": "rates.edit", "label": "rates.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/rates",
-      "/rates/new",
-      "/rates/{id}/edit"
+    "id": "rates",
+    "name": "rates.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "procedures": ">=0.1.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "rates.list"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "rates.view",
+            "label": "rates.perm.view"
+        },
+        {
+            "id": "rates.edit",
+            "label": "rates.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/rates",
+            "/rates/new",
+            "/rates/{id}/edit"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.accounting",
+            "num": 10,
+            "path": "/rates",
+            "title": "rates.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_procent_history"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "rates",
+            "action": "delete"
+        },
+        {
+            "list_id": "rates",
+            "action": "copy"
+        },
+        {
+            "list_id": "rates",
+            "action": "zerofill"
+        }
     ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.accounting",
-      "num": 10,
-      "path": "/rates",
-      "title": "rates.menu.list"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_procent_history"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [],
-    "publish": [
-      "rates bulk actions via BulkActions (list_id=rates)"
-    ]
-  }
 }

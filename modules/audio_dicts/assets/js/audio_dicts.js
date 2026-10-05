@@ -15,19 +15,135 @@
     return d.innerHTML;
   }
 
-  function roleBadgeHtml(part, roles, i18n) {
-    var role = part.role || 'ordinary';
-    var html = '';
-    if (role !== 'ordinary') {
-      html += '<span class="scripts-badge scripts-badge--' + esc(role) + '">' + esc(roles[role] || role) + '</span>';
+  function partRoles(part) {
+    if (Array.isArray(part.roles) && part.roles.length) {
+      return part.roles.slice();
     }
+    var out = [];
+    if (part.role && part.role !== 'ordinary') out.push(part.role);
     if (part.collection_killer || part.killer) {
-      html += '<span class="scripts-badge scripts-badge--killer">' + esc(i18n.killer || 'Killer') + '</span>';
+      if (out.indexOf('killer') < 0) out.push('killer');
     }
+    if (part.is_req) {
+      if (out.indexOf('trigger') < 0) out.push('trigger');
+    }
+    if (part.finish) {
+      if (out.indexOf('conversion') < 0) out.push('conversion');
+    }
+    if (part.break_flag || part.break) {
+      if (out.indexOf('breaker') < 0) out.push('breaker');
+    }
+    return out.length ? out : ['ordinary'];
+  }
+
+  function hasRole(part, role) {
+    return partRoles(part).indexOf(role) >= 0;
+  }
+
+  function setPartRoles(part, roles) {
+    var cleaned = [];
+    (roles || []).forEach(function (r) {
+      if (r && r !== 'ordinary' && cleaned.indexOf(r) < 0) cleaned.push(r);
+    });
+    part.roles = cleaned.length ? cleaned : ['ordinary'];
+    part.role = part.roles[0];
+    part.collection_killer = hasRole(part, 'killer') ? 1 : 0;
+  }
+
+  function togglePartRole(part, role) {
+    if (role === 'ordinary') {
+      setPartRoles(part, ['ordinary']);
+      return;
+    }
+    var cur = partRoles(part).filter(function (r) { return r !== 'ordinary'; });
+    var idx = cur.indexOf(role);
+    if (idx >= 0) {
+      cur.splice(idx, 1);
+    } else if (role === 'killer') {
+      // Killer cancels the open collection and cannot build it — exclusive.
+      cur = ['killer'];
+    } else {
+      cur = cur.filter(function (r) { return r !== 'killer'; });
+      cur.push(role);
+    }
+    setPartRoles(part, cur);
+  }
+
+  function rolesHint(part, hints) {
+    var list = partRoles(part);
+    var texts = [];
+    list.forEach(function (r) {
+      if (hints[r]) texts.push(hints[r]);
+    });
+    return texts.join(' ');
+  }
+
+  function roleBadgeHtml(part, roles) {
+    var list = partRoles(part);
+    var html = '';
+    list.forEach(function (role) {
+      if (role === 'ordinary') return;
+      html += '<span class="scripts-badge scripts-badge--' + esc(role) + '">' + esc(roles[role] || role) + '</span>';
+    });
     if (part.score) {
       html += '<span class="scripts-badge">+' + esc(part.score) + '</span>';
     }
     return html;
+  }
+
+  /** Checkbox table: trigger/conversion/breaker can combine; killer is exclusive. */
+  function roleTableHtml(part, roles, hints, i18n, canEdit) {
+    var list = partRoles(part);
+    var hasKiller = list.indexOf('killer') >= 0;
+    var order = ['trigger', 'conversion', 'breaker', 'killer'];
+    var html = '<table class="scripts-roles-table"><thead><tr>' +
+      '<th></th><th>' + esc(i18n.roleCol || i18n.role || 'Role') + '</th>' +
+      '<th>' + esc(i18n.roleHintCol || '') + '</th></tr></thead><tbody>';
+    order.forEach(function (rk) {
+      if (!roles[rk]) return;
+      var checked = list.indexOf(rk) >= 0;
+      var blocked = hasKiller && rk !== 'killer';
+      html += '<tr' + (blocked ? ' class="is-disabled-role"' : '') + '>' +
+        '<td><input type="checkbox" data-role="' + esc(rk) + '"' +
+        (checked ? ' checked' : '') +
+        (canEdit === false || blocked ? ' disabled' : '') + '></td>' +
+        '<td class="scripts-role-name">' + esc(roles[rk]) + '</td>' +
+        '<td class="scripts-role-hint-cell">' + esc(hints[rk] || '') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    html += '<p class="scripts-roles-note">' + esc(i18n.rolesNoneNote || '') + '</p>';
+    if (hasKiller) {
+      html += '<p class="scripts-roles-note">' + esc(i18n.rolesKillerExclusive || '') + '</p>';
+    }
+    return html;
+  }
+
+  function bindRoleTable(rootEl, part, onChange, canEdit) {
+    rootEl.querySelectorAll('input[data-role]').forEach(function (cb) {
+      cb.addEventListener('change', function () {
+        if (canEdit === false) return;
+        var role = cb.getAttribute('data-role');
+        var cur = partRoles(part).filter(function (r) { return r !== 'ordinary'; });
+        if (cb.checked) {
+          if (role === 'killer') {
+            cur = ['killer'];
+          } else {
+            cur = cur.filter(function (r) { return r !== 'killer'; });
+            if (cur.indexOf(role) < 0) cur.push(role);
+          }
+        } else {
+          cur = cur.filter(function (r) { return r !== role; });
+        }
+        setPartRoles(part, cur);
+        onChange();
+      });
+    });
+  }
+
+  function normalizePart(part) {
+    if (!part.dict_ids) part.dict_ids = [];
+    setPartRoles(part, partRoles(part));
+    return part;
   }
 
   function dictNames(part, dicts) {
@@ -67,7 +183,7 @@
       node.appendChild(title);
       var badges = document.createElement('div');
       badges.className = 'scripts-flow-badges';
-      badges.innerHTML = roleBadgeHtml(part, roles, i18n);
+      badges.innerHTML = roleBadgeHtml(part, roles);
       node.appendChild(badges);
       var dn = dictNames(part, dicts);
       if (dn) {
@@ -135,7 +251,7 @@
 
     function ensureParts() {
       if (!parts.length) {
-        parts.push({ name: '', dict_ids: [], role: 'ordinary', score: 0, timeout: 0, diversity: 0, instances_min: 0, collection_killer: 0 });
+        parts.push({ name: '', dict_ids: [], roles: ['ordinary'], score: 0, timeout: 0, diversity: 0, instances_min: 0 });
       }
     }
 
@@ -207,24 +323,13 @@
       var list = document.getElementById('wizard-roles-list');
       list.innerHTML = '';
       parts.forEach(function (part, idx) {
+        normalizePart(part);
         var card = document.createElement('div');
         card.className = 'scripts-block-card';
-        var chips = '';
-        Object.keys(roles).forEach(function (rk) {
-          chips += '<button type="button" class="scripts-role-chip' + (part.role === rk ? ' is-active' : '') + '" data-role="' + esc(rk) + '">' + esc(roles[rk]) + '</button>';
-        });
         card.innerHTML =
           '<h3>' + esc(part.name || ('#' + (idx + 1))) + '</h3>' +
-          '<div class="scripts-role-chips">' + chips + '</div>' +
-          '<p class="scripts-role-hint" data-hint></p>';
-        var hint = card.querySelector('[data-hint]');
-        hint.textContent = hints[part.role || 'ordinary'] || '';
-        card.querySelectorAll('[data-role]').forEach(function (btn) {
-          btn.addEventListener('click', function () {
-            parts[idx].role = btn.getAttribute('data-role');
-            renderRoles();
-          });
-        });
+          roleTableHtml(part, roles, hints, i18n, true);
+        bindRoleTable(card, parts[idx], function () { renderRoles(); }, true);
         list.appendChild(card);
       });
     }
@@ -238,20 +343,17 @@
         card.innerHTML =
           '<h3>' + esc(part.name || ('#' + (idx + 1))) + '</h3>' +
           '<label>' + esc(i18n.score) + '<input type="number" data-field="score" value="' + esc(part.score || 0) + '"></label>' +
-          '<details><summary>' + esc(i18n.advanced) + '</summary>' +
+          '<p class="scripts-field-hint">' + esc(i18n.scoreHint || '') + '</p>' +
           '<label>' + esc(i18n.timeout) + '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"></label>' +
+          '<p class="scripts-field-hint">' + esc(i18n.timeoutHint || '') + '</p>' +
           '<label>' + esc(i18n.diversity) + '<input type="number" min="0" data-field="diversity" value="' + esc(part.diversity || 0) + '"></label>' +
+          '<p class="scripts-field-hint">' + esc(i18n.diversityHint || '') + '</p>' +
           '<label>' + esc(i18n.instMin) + '<input type="number" min="0" data-field="instances_min" value="' + esc(part.instances_min || 0) + '"></label>' +
-          '<label class="logo-remove"><input type="checkbox" data-field="collection_killer"' + (part.collection_killer ? ' checked' : '') + '> ' + esc(i18n.killer) + '</label>' +
-          '</details>';
+          '<p class="scripts-field-hint">' + esc(i18n.instMinHint || '') + '</p>';
         card.querySelectorAll('[data-field]').forEach(function (inp) {
           var field = inp.getAttribute('data-field');
           inp.addEventListener('change', function () {
-            if (inp.type === 'checkbox') {
-              parts[idx][field] = inp.checked ? 1 : 0;
-            } else {
-              parts[idx][field] = parseInt(inp.value, 10) || 0;
-            }
+            parts[idx][field] = parseInt(inp.value, 10) || 0;
           });
         });
         list.appendChild(card);
@@ -287,7 +389,7 @@
     }
 
     document.getElementById('wizard-add-block').addEventListener('click', function () {
-      parts.push({ name: '', dict_ids: [], role: 'ordinary', score: 0, timeout: 0, diversity: 0, instances_min: 0, collection_killer: 0 });
+      parts.push({ name: '', dict_ids: [], roles: ['ordinary'], score: 0, timeout: 0, diversity: 0, instances_min: 0 });
       renderBlocks();
     });
 
@@ -313,11 +415,7 @@
     });
 
     if (!parts.length) ensureParts();
-    // Normalize roles
-    parts.forEach(function (p) {
-      if (!p.role) p.role = 'ordinary';
-      if (!p.dict_ids) p.dict_ids = [];
-    });
+    parts.forEach(normalizePart);
     setStep(1);
   }
 
@@ -381,11 +479,7 @@
       }
       panelEmpty.hidden = true;
       panelBody.hidden = false;
-      var part = parts[selected];
-      var chips = '';
-      Object.keys(roles).forEach(function (rk) {
-        chips += '<button type="button" class="scripts-role-chip' + ((part.role || 'ordinary') === rk ? ' is-active' : '') + '" data-role="' + esc(rk) + '"' + (canEdit ? '' : ' disabled') + '>' + esc(roles[rk]) + '</button>';
-      });
+      var part = normalizePart(parts[selected]);
       var dictChecks = '';
       Object.keys(dicts).forEach(function (did) {
         var checked = (part.dict_ids || []).map(Number).indexOf(parseInt(did, 10)) >= 0;
@@ -395,30 +489,31 @@
         '<div class="scripts-panel-section"><h3>' + esc(i18n.main) + '</h3>' +
         '<label>' + esc(i18n.name) + '<input type="text" maxlength="40" data-field="name" value="' + esc(part.name || '') + '"' + (canEdit ? '' : ' readonly') + '></label></div>' +
         '<div class="scripts-panel-section"><h3>' + esc(i18n.role) + '</h3>' +
-        '<div class="scripts-role-chips">' + chips + '</div>' +
-        '<p class="scripts-role-hint">' + esc(hints[part.role || 'ordinary'] || '') + '</p></div>' +
+        roleTableHtml(part, roles, hints, i18n, canEdit) + '</div>' +
         '<div class="scripts-panel-section"><h3>' + esc(i18n.dicts) + '</h3>' +
         '<div class="scripts-dict-grid">' + dictChecks + '</div></div>' +
         '<div class="scripts-panel-section"><h3>' + esc(i18n.thresholds) + '</h3>' +
         '<label>' + esc(i18n.score) + '<input type="number" data-field="score" value="' + esc(part.score || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.scoreHint || '') + '</p>' +
         '<label>' + esc(i18n.timeout) + '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.timeoutHint || '') + '</p>' +
         '<label>' + esc(i18n.diversity) + '<input type="number" min="0" data-field="diversity" value="' + esc(part.diversity || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-        '<label>' + esc(i18n.instMin) + '<input type="number" min="0" data-field="instances_min" value="' + esc(part.instances_min || 0) + '"' + (canEdit ? '' : ' readonly') + '></label></div>' +
-        '<div class="scripts-panel-section"><h3>' + esc(i18n.dangerous) + '</h3>' +
-        '<label class="logo-remove"><input type="checkbox" data-field="collection_killer"' + (part.collection_killer ? ' checked' : '') + (canEdit ? '' : ' disabled') + '> ' + esc(i18n.killer) + '</label>' +
-        '<p class="muted small">' + esc(i18n.killerHint || '') + '</p>' +
-        (canEdit ? '<button type="button" class="btn-secondary" data-save-part>' + esc(i18n.savePart) + '</button> ' +
-          '<button type="button" class="btn-secondary" data-delete-part>' + esc(i18n.removeBlock) + '</button>' : '') +
-        '</div>';
+        '<p class="scripts-field-hint">' + esc(i18n.diversityHint || '') + '</p>' +
+        '<label>' + esc(i18n.instMin) + '<input type="number" min="0" data-field="instances_min" value="' + esc(part.instances_min || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.instMinHint || '') + '</p></div>' +
+        (canEdit
+          ? '<div class="scripts-panel-section form-actions">' +
+            '<button type="button" class="btn-secondary" data-save-part>' + esc(i18n.savePart) + '</button> ' +
+            '<button type="button" class="btn-secondary" data-delete-part>' + esc(i18n.removeBlock) + '</button></div>'
+          : '');
 
       panelBody.querySelectorAll('[data-field]').forEach(function (inp) {
         var field = inp.getAttribute('data-field');
         inp.addEventListener('change', function () {
-          if (inp.type === 'checkbox') parts[selected][field] = inp.checked ? 1 : 0;
-          else if (inp.type === 'number') parts[selected][field] = parseInt(inp.value, 10) || 0;
+          if (inp.type === 'number') parts[selected][field] = parseInt(inp.value, 10) || 0;
           else parts[selected][field] = inp.value;
           syncHidden();
-          if (field === 'name' || field === 'score' || field === 'collection_killer') refresh();
+          if (field === 'name' || field === 'score') refresh();
         });
         if (inp.type === 'text') {
           inp.addEventListener('input', function () {
@@ -427,13 +522,7 @@
           });
         }
       });
-      panelBody.querySelectorAll('[data-role]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          if (!canEdit) return;
-          parts[selected].role = btn.getAttribute('data-role');
-          refresh();
-        });
-      });
+      bindRoleTable(panelBody, parts[selected], function () { refresh(); }, canEdit);
       panelBody.querySelectorAll('[data-dict]').forEach(function (cb) {
         cb.addEventListener('change', function () {
           var ids = [];
@@ -455,11 +544,12 @@
       if (delBtn) {
         delBtn.addEventListener('click', function () {
           if (!confirm(i18n.confirmDelete)) return;
-          var part = parts[selected];
-          if (part.id) {
-            postParts({ action: 'delete', part_id: part.id }).then(function (res) {
+          var partDel = parts[selected];
+          if (partDel.id) {
+            postParts({ action: 'delete', part_id: partDel.id }).then(function (res) {
               if (res && res.parts) {
                 parts = res.parts;
+                parts.forEach(normalizePart);
                 selected = parts.length ? Math.min(selected, parts.length - 1) : -1;
                 refresh();
               }
@@ -512,6 +602,7 @@
 
     function persistPart(part) {
       if (!canEdit) return;
+      normalizePart(part);
       if (!(part.name || '').trim()) {
         alert(i18n.needName);
         return;
@@ -520,16 +611,16 @@
         action: part.id ? 'save' : 'add',
         part_id: part.id || 0,
         name: part.name,
-        role: part.role || 'ordinary',
+        roles: partRoles(part),
         score: part.score || 0,
         timeout: part.timeout || 0,
         diversity: part.diversity || 0,
         instances_min: part.instances_min || 0,
-        collection_killer: part.collection_killer ? 1 : 0,
         dict_ids: part.dict_ids || []
       }).then(function (res) {
         if (res && res.parts) {
           parts = res.parts;
+          parts.forEach(normalizePart);
           if (res.part && res.part.id) {
             for (var i = 0; i < parts.length; i++) {
               if (parts[i].id === res.part.id) selected = i;
@@ -547,12 +638,11 @@
           id: 0,
           name: '',
           dict_ids: [],
-          role: 'ordinary',
+          roles: ['ordinary'],
           score: 0,
           timeout: 0,
           diversity: 0,
-          instances_min: 0,
-          collection_killer: 0
+          instances_min: 0
         });
         selected = parts.length - 1;
         refresh();
@@ -561,14 +651,12 @@
 
     if (form) {
       form.addEventListener('submit', function () {
+        parts.forEach(normalizePart);
         syncHidden();
       });
     }
 
-    parts.forEach(function (p) {
-      if (!p.role) p.role = 'ordinary';
-      if (!p.dict_ids) p.dict_ids = [];
-    });
+    parts.forEach(normalizePart);
     refresh();
   }
 

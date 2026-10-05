@@ -23,9 +23,13 @@ $i18n = [
     'dangerous' => t('audio_dicts.scripts.sec.dangerous'),
     'name' => t('audio_dicts.col.name'),
     'score' => t('audio_dicts.col.score_value'),
+    'scoreHint' => t('audio_dicts.scripts.field.score_hint'),
     'timeout' => t('audio_dicts.scripts.field.timeout'),
-    'diversity' => t('audio_dicts.col.diversity'),
-    'instMin' => t('audio_dicts.col.inst_min'),
+    'timeoutHint' => t('audio_dicts.scripts.field.timeout_hint'),
+    'diversity' => t('audio_dicts.scripts.field.diversity'),
+    'diversityHint' => t('audio_dicts.scripts.field.diversity_hint'),
+    'instMin' => t('audio_dicts.scripts.field.inst_min'),
+    'instMinHint' => t('audio_dicts.scripts.field.inst_min_hint'),
     'killer' => t('audio_dicts.scripts.field.killer'),
     'killerHint' => t('audio_dicts.scripts.field.killer_hint'),
     'addBlock' => t('audio_dicts.scripts.btn_add_block'),
@@ -39,6 +43,10 @@ $i18n = [
     'needName' => t('audio_dicts.err.name_required'),
     'saved' => t('audio_dicts.scripts.saved'),
     'error' => t('audio_dicts.scripts.err.save_failed'),
+    'roleCol' => t('audio_dicts.scripts.field.role_col'),
+    'roleHintCol' => t('audio_dicts.scripts.field.role_hint_col'),
+    'rolesNoneNote' => t('audio_dicts.scripts.field.roles_none'),
+    'rolesKillerExclusive' => t('audio_dicts.scripts.field.roles_killer_exclusive'),
 ];
 $selectedPos = is_array($root['position_ids'] ?? null) ? $root['position_ids'] : [];
 ?>

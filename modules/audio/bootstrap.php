@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/AudioSettingsRepository.php';
 require_once __DIR__ . '/lib/FileStorage.php';
+require_once __DIR__ . '/lib/InboxFiles.php';
 require_once __DIR__ . '/lib/BadgesRepository.php';
 require_once __DIR__ . '/lib/BadgeAssignmentsRepository.php';
 require_once __DIR__ . '/lib/RecordsRepository.php';
+require_once __DIR__ . '/lib/RecordsReviewsRepository.php';
 require_once __DIR__ . '/lib/TranscriptHighlighter.php';
 
 Assets::register('audio', [
@@ -25,6 +27,7 @@ StatusesRepository::registerFieldGroup([
 
 $pages = [
     '/audio' => ['permission' => 'audio.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
+    '/audio/ingest' => ['permission' => 'audio.edit', 'methods' => ['GET', 'POST'], 'file' => 'ingest.php'],
     '/audio/badges' => ['permission' => 'audio.badges', 'methods' => ['GET', 'POST'], 'file' => 'badges.php'],
     '/audio/assignments' => ['permission' => 'audio.badges', 'methods' => ['GET'], 'file' => 'assignments_list.php'],
     '/audio/assignments/new' => ['permission' => 'audio.badges', 'methods' => ['GET', 'POST'], 'file' => 'assignments_edit.php'],
@@ -127,6 +130,42 @@ BulkActions::register('audio_records', 'clear_text_keep_rid', [
         return ['done' => RecordsRepository::clearTranscriptionByIds($ids, true), 'skipped' => []];
     },
 ]);
+BulkActions::register('audio_records', 'review', [
+    'label' => 'audio.bulk.review',
+    'group' => 'audio.bulk.group.reviews',
+    'permission' => 'audio.edit',
+    'run' => static function (array $ids, array $params): array {
+        $uid = Auth::userId();
+        if ($uid < 1) {
+            return ['done' => 0, 'skipped' => []];
+        }
+
+        return ['done' => RecordsReviewsRepository::markReviewed($ids, $uid), 'skipped' => []];
+    },
+]);
+BulkActions::register('audio_records', 'favorite_add', [
+    'label' => 'audio.bulk.favorite_add',
+    'group' => 'audio.bulk.group.reviews',
+    'permission' => 'audio.edit',
+    'run' => static function (array $ids, array $params): array {
+        $uid = Auth::userId();
+        if ($uid < 1) {
+            return ['done' => 0, 'skipped' => []];
+        }
+
+        return ['done' => RecordsReviewsRepository::addFavorite($ids, $uid), 'skipped' => []];
+    },
+]);
+BulkActions::register('audio_records', 'favorite_remove', [
+    'label' => 'audio.bulk.favorite_remove',
+    'group' => 'audio.bulk.group.reviews',
+    'permission' => 'audio.edit',
+    'confirm' => 'audio.bulk.confirm_favorite_remove',
+    'run' => static function (array $ids, array $params): array {
+        return ['done' => RecordsReviewsRepository::removeFavorite($ids), 'skipped' => []];
+    },
+]);
+
 BulkActions::register('audio_records', 'reset_admin', [
     'label' => 'audio.bulk.reset_admin',
     'group' => 'audio.bulk.group.resetters',
@@ -181,6 +220,21 @@ BulkActions::register('audio_records', 'delete_with_files', [
         return ['done' => RecordsRepository::deleteByIds($ids, true), 'skipped' => []];
     },
 ]);
+
+EventBus::on('core.notices.collect', static function ($notices) {
+    if (!is_array($notices)) {
+        $notices = [];
+    }
+    if (!Auth::check() || !Auth::can('audio.view')) {
+        return $notices;
+    }
+    $chip = RecordsReviewsRepository::noticeChip();
+    if ($chip !== null) {
+        $notices[] = $chip;
+    }
+
+    return $notices;
+});
 
 EventBus::on('core.user_edit.sections', static function ($payload) {
     if (!is_array($payload)) {

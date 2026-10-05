@@ -1,86 +1,91 @@
 {
-  "id": "calendar",
-  "name": "calendar.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "clients": ">=0.1.0",
-    "catalog": ">=0.1.0",
-    "procedures": ">=0.1.0",
-    "orders": ">=0.1.0",
-    "workweeks": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "cabinets": ">=0.1.0",
-    "tables": ">=0.1.0"
-  },
-  "provides": [
-    "calendar.week",
-    "calendar.day"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "calendar.view", "label": "calendar.perm.view" },
-    { "id": "calendar.edit", "label": "calendar.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/calendar",
-      "/calendar/week/{date}",
-      "/calendar/day/{date}",
-      "/calendar/events/new",
-      "/calendar/events/{id}/edit",
-      "/calendar/nazop",
-      "/calendar/settings"
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "calendar.menu.group",
-      "num": 1,
-      "path": "/calendar",
-      "title": "calendar.menu.week"
+    "id": "calendar",
+    "name": "calendar.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0",
+        "catalog": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "orders": ">=0.1.0",
+        "workweeks": ">=0.1.0"
     },
-    {
-      "group": "calendar.menu.group",
-      "num": 90,
-      "path": "/calendar/settings",
-      "title": "calendar.menu.settings",
-      "permission": "calendar.view",
-      "capability": "SUPERADMIN_ACCESS"
-    }
-  ],
-  "configSchema": {
-    "calendar": {
-      "manual_create": {
-        "type": "boolean",
-        "default": true
-      },
-      "hour_start": {
-        "type": "integer",
-        "default": 9
-      },
-      "hour_end": {
-        "type": "integer",
-        "default": 21
-      }
-    }
-  },
-  "tables": [
-    "base_events",
-    "base_events_changes"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "core.dashboard.catalog",
-      "core.dashboard.widgets"
+    "optionalRequires": {
+        "cabinets": ">=0.1.0",
+        "tables": ">=0.1.0"
+    },
+    "provides": [
+        "calendar.week",
+        "calendar.day"
     ],
-    "publish": [
-      "calendar.day embeds workweeks panel; consumes orders.for_day and procedures day range",
-      "calendar.day.stats — day footer sections (modules append html via EventBus)"
-    ]
-  }
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "calendar.view",
+            "label": "calendar.perm.view"
+        },
+        {
+            "id": "calendar.edit",
+            "label": "calendar.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/calendar",
+            "/calendar/week/{date}",
+            "/calendar/day/{date}",
+            "/calendar/events/new",
+            "/calendar/events/{id}/edit",
+            "/calendar/nazop",
+            "/calendar/settings"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "calendar.menu.group",
+            "num": 1,
+            "path": "/calendar",
+            "title": "calendar.menu.week"
+        },
+        {
+            "group": "calendar.menu.group",
+            "num": 90,
+            "path": "/calendar/settings",
+            "title": "calendar.menu.settings",
+            "permission": "calendar.view",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "configSchema": {
+        "calendar": {
+            "manual_create": {
+                "type": "boolean",
+                "default": true
+            },
+            "hour_start": {
+                "type": "integer",
+                "default": 9
+            },
+            "hour_end": {
+                "type": "integer",
+                "default": 21
+            }
+        }
+    },
+    "tables": [
+        "base_events",
+        "base_events_changes"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.dashboard.catalog",
+            "core.dashboard.widgets"
+        ],
+        "publish": [
+            "calendar.day.stats"
+        ]
+    }
 }

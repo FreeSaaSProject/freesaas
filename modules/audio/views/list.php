@@ -35,7 +35,13 @@
 /** @var int $perPage */
 /** @var bool $showAll */
 /** @var array $filters */
+/** @var string $review */
+/** @var array<int,array{dt_create:int,dt_review:int,dt_select:int,id_reviewer:int}> $reviewById */
+/** @var int $currentUserId */
 $path = '/audio';
+$review = trim((string)($review ?? ''));
+$reviewById = is_array($reviewById ?? null) ? $reviewById : [];
+$currentUserId = (int)($currentUserId ?? 0);
 $listId = 'audio_records';
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
@@ -74,6 +80,13 @@ $rangeClearUrl = ListQuery::url($path, $rangeClearFilters, ['page' => 1]);
 </nav>
 <?php endif; ?>
 
+<?php
+$inboxCount = (int)($inboxCount ?? 0);
+$inboxPath = (string)($inboxPath ?? '/audio');
+$canIngest = !empty($canIngest);
+require __DIR__ . '/_inbox_banner.php';
+?>
+
 <?php if (!empty($trashAdded)): ?>
   <p class="flash"><?= te('audio.trash.auto_added', ['n' => (int)$trashAdded]) ?></p>
 <?php endif; ?>
@@ -96,21 +109,26 @@ $rangeClearUrl = ListQuery::url($path, $rangeClearFilters, ['page' => 1]);
   <?php if ($rangeTo > 0): ?><input type="hidden" name="range_to" value="<?= (int)$rangeTo ?>"><?php endif; ?>
   <?php
     $yearNow = (int)date('Y');
-    $yearFrom = min($yearNow - 8, (int)$year);
-    $yearTo = max($yearNow + 1, (int)$year);
+    $yearFrom = $yearNow - 8;
+    if ((int)$year > 0) {
+        $yearFrom = min($yearFrom, (int)$year);
+    }
+    $yearTo = max($yearNow + 1, (int)$year > 0 ? (int)$year : $yearNow);
     $daysInMonth = (int)$month >= 1 && (int)$month <= 12
-      ? (int)date('t', mktime(0, 0, 0, (int)$month, 1, max(1970, (int)$year)))
+      ? (int)date('t', mktime(0, 0, 0, (int)$month, 1, max(1970, (int)$year > 0 ? (int)$year : $yearNow)))
       : 31;
   ?>
   <label><?= te('audio.filter.year') ?>
     <select name="year">
-      <?php for ($y = $yearTo; $y >= $yearFrom; $y--): ?>
+      <option value="0"<?= (int)$year < 1 ? ' selected' : '' ?>><?= te('audio.filter.year_all') ?></option>
+      <?php for ($y = $yearTo; $y >= max(1970, $yearFrom); $y--): ?>
         <option value="<?= $y ?>"<?= (int)$year === $y ? ' selected' : '' ?>><?= $y ?></option>
       <?php endfor; ?>
     </select>
   </label>
   <label><?= te('audio.filter.month') ?>
     <select name="month">
+      <option value="0"<?= (int)$month < 1 ? ' selected' : '' ?>><?= te('audio.filter.month_all') ?></option>
       <?php for ($m = 1; $m <= 12; $m++): ?>
         <option value="<?= $m ?>"<?= (int)$month === $m ? ' selected' : '' ?>><?= sprintf('%02d', $m) ?></option>
       <?php endfor; ?>
@@ -135,6 +153,14 @@ $rangeClearUrl = ListQuery::url($path, $rangeClearFilters, ['page' => 1]);
       <?php foreach ($badgeOptions as $code => $label): ?>
         <option value="<?= e((string)$code) ?>"<?= (string)$badge === (string)$code ? ' selected' : '' ?>><?= e($label) ?></option>
       <?php endforeach; ?>
+    </select>
+  </label>
+  <label><?= te('audio.filter.review') ?>
+    <select name="review">
+      <option value=""<?= $review === '' ? ' selected' : '' ?>><?= te('audio.filter.review_all') ?></option>
+      <option value="pending"<?= $review === 'pending' ? ' selected' : '' ?>><?= te('audio.filter.review_pending') ?></option>
+      <option value="marked"<?= $review === 'marked' ? ' selected' : '' ?>><?= te('audio.filter.review_marked') ?></option>
+      <option value="favorites"<?= $review === 'favorites' ? ' selected' : '' ?>><?= te('audio.filter.review_favorites') ?></option>
     </select>
   </label>
   <label><?= te('audio.filter.disabled') ?>
@@ -198,6 +224,11 @@ $rangeClearUrl = ListQuery::url($path, $rangeClearFilters, ['page' => 1]);
         $playUrl = $playUrlById[$rid] ?? '';
         $dlUrl = $downloadUrlById[$rid] ?? '';
         $tr = $transcriptById[$rid] ?? null;
+        $rev = $reviewById[$rid] ?? null;
+        $needsReview = $rev !== null && (int)$rev['dt_review'] < 1;
+        $isFavorite = $rev !== null
+            && (int)$rev['dt_select'] > 0
+            && (int)$rev['id_reviewer'] === $currentUserId;
       ?>
       <tr class="audio-record-card<?= $rowClass ? ' ' . e(implode(' ', $rowClass)) : '' ?>"
           data-record-id="<?= $rid ?>"
@@ -209,6 +240,12 @@ $rangeClearUrl = ListQuery::url($path, $rangeClearFilters, ['page' => 1]);
             <div class="audio-meta-staff"><?= UsersRepository::badgeHtml((int)$r['id_admin'], false) ?></div>
             <code class="audio-meta-badge" title="<?= te('audio.col.badge') ?>"><?= e((string)$r['id_dictophone']) ?></code>
             <div class="audio-meta-stats muted">
+              <?php if ($needsReview): ?>
+                <span class="audio-meta-review" title="<?= te('audio.review.pending_badge') ?>"><?= te('audio.review.pending_short') ?></span>
+              <?php endif; ?>
+              <?php if ($isFavorite): ?>
+                <span class="audio-meta-fav" title="<?= te('audio.review.favorite_badge') ?>">★</span>
+              <?php endif; ?>
               <span title="<?= te('audio.col.score') ?>">S<?= (int)$r['score'] ?></span>
               <span title="<?= te('audio.col.playtime') ?>"><?= (int)$r['playtime'] ?>s</span>
               <?php if ($tr && (int)$tr['trash'] > 0): ?>

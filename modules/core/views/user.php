@@ -56,8 +56,8 @@ $profileSiteHtml = (string)($profileSiteHtml ?? '');
         }
       ?></dd>
       <?php if (!empty($features['employee_bot'])): ?>
-      <dt>Telegram</dt><dd><?= e((string)($user['telegram_chat_id'] ?: '—')) ?></dd>
-      <dt>Max</dt><dd><?= e((string)($user['max_user_id'] ?: '—')) ?></dd>
+      <dt><?= te('core.user_edit.telegram_chat_id') ?></dt><dd><?= e((string)($user['telegram_chat_id'] ?: '—')) ?></dd>
+      <dt><?= te('core.user_edit.max_user_id') ?></dt><dd><?= e((string)($user['max_user_id'] ?: '—')) ?></dd>
       <dt><?= te('core.user.bot_off') ?></dt><dd><?= !empty($user['BOT_NO_SEND']) ? te('core.common.yes') : te('core.common.no') ?></dd>
       <?php endif; ?>
       <?= $profileChannelsHtml ?>

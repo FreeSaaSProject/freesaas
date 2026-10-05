@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once base_path('modules/audio/lib/RecordsRepository.php');
+require_once base_path('modules/audio/lib/RecordsReviewsRepository.php');
 require_once base_path('modules/audio/lib/TranscriptHighlighter.php');
 
 $todayY = (int)date('Y');
@@ -12,17 +13,34 @@ $q = trim((string)($_GET['q'] ?? ''));
 $search = trim((string)($_GET['search'] ?? ''));
 $admin = (int)($_GET['admin'] ?? 0);
 $badge = (int)($_GET['badge'] ?? 0);
-$year = (int)($_GET['year'] ?? $todayY);
-$month = (int)($_GET['month'] ?? $todayM);
-// Default to today (oper-style day reading). day=0 means whole month.
-$dayRaw = $_GET['day'] ?? null;
-$day = $dayRaw === null ? $todayD : (int)$dayRaw;
-if ($day > 0 && $month >= 1 && $month <= 12 && $year >= 1970) {
-    $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, $year));
-    if ($day > $maxDay) {
-        $day = $maxDay;
+
+$reviewRaw = trim((string)($_GET['review'] ?? ''));
+$review = in_array($reviewRaw, ['pending', 'marked', 'favorites'], true) ? $reviewRaw : '';
+
+// Oper review queue (errorShow=6): no date filter when opening ?review=pending alone.
+$queueAllDates = ($review === 'pending'
+    && !array_key_exists('year', $_GET)
+    && !array_key_exists('month', $_GET)
+    && !array_key_exists('day', $_GET));
+
+if ($queueAllDates) {
+    $year = 0;
+    $month = 0;
+    $day = 0;
+} else {
+    $year = (int)($_GET['year'] ?? $todayY);
+    $month = (int)($_GET['month'] ?? $todayM);
+    // Default to today (oper-style day reading). day=0 means whole month.
+    $dayRaw = $_GET['day'] ?? null;
+    $day = $dayRaw === null ? $todayD : (int)$dayRaw;
+    if ($day > 0 && $month >= 1 && $month <= 12 && $year >= 1970) {
+        $maxDay = (int)date('t', mktime(0, 0, 0, $month, 1, $year));
+        if ($day > $maxDay) {
+            $day = $maxDay;
+        }
     }
 }
+
 $disabled = (int)($_GET['disabled'] ?? 1); // default: hide disabled
 $score = isset($_GET['score']) && $_GET['score'] !== '' ? (int)$_GET['score'] : -1;
 $scoreLt = (int)($_GET['score_lt'] ?? 0);
@@ -39,13 +57,13 @@ if ($preloadRaw === null) {
 $rangeFrom = (int)($_GET['range_from'] ?? 0);
 $rangeTo = (int)($_GET['range_to'] ?? 0);
 
-$defaultDir = $day > 0 ? 'asc' : 'desc';
+$defaultDir = ($review === 'pending' || $day > 0) ? 'asc' : 'desc';
 $lq = ListQuery::resolve([
     'list_id' => 'audio_records',
     'allowed' => RecordsRepository::listSortMap(),
     'default' => 'dt',
     'default_dir' => $defaultDir,
-    'per_page' => $day > 0 ? 100 : 50,
+    'per_page' => ($day > 0 || $review === 'pending') ? 100 : 50,
 ]);
 
 $filters = array_merge([
@@ -91,6 +109,9 @@ if ($rangeFrom > 0) {
 if ($rangeTo > 0) {
     $filters['range_to'] = (string)$rangeTo;
 }
+if ($review !== '') {
+    $filters['review'] = $review;
+}
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
 }
@@ -113,10 +134,19 @@ $result = RecordsRepository::list([
     'score_lt' => $scoreLt,
     'errors_only' => $errorsOnly,
     'unparsed' => $unparsed,
+    'review' => $review,
+    'reviewer_user_id' => Auth::userId(),
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+
+$reviewById = [];
+if ($result['items'] !== []) {
+    $reviewById = RecordsReviewsRepository::mapByRecordIds(
+        array_map(static fn ($r) => (int)$r['id'], $result['items'])
+    );
+}
 if (class_exists('StageTiming', false)) {
     StageTiming::mark('Audio: records');
 }
@@ -236,6 +266,7 @@ $isDefaultFilters = (
     && !$preload
     && $rangeFrom < 1
     && $rangeTo < 1
+    && $review === ''
 );
 
 $crumbList = ['label' => t('audio.menu.list'), 'current' => true];
@@ -274,6 +305,9 @@ View::render('list', [
     'trashAdded' => $trashAdded,
     'dayNav' => $dayNav,
     'canEdit' => Auth::can('audio.edit'),
+    'inboxCount' => InboxFiles::count(),
+    'inboxPath' => InboxFiles::relativeDir(),
+    'canIngest' => Auth::can('audio.edit') && ModuleManager::isEnabled('audio_pipeline'),
     'bulkFlash' => $bulkFlash,
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
@@ -281,6 +315,9 @@ View::render('list', [
     'perPage' => $lq['per_page'],
     'showAll' => $lq['show_all'],
     'filters' => $filters,
+    'review' => $review,
+    'reviewById' => $reviewById,
+    'currentUserId' => Auth::userId(),
     'pageStats' => RecordsRepository::pageStats($result['items']),
     'main_flush' => true,
 ], 'layout', 'audio');

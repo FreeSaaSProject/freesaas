@@ -53,9 +53,77 @@ final class RecordsScriptsRepository
             $row['position_ids'] = self::parseIds((string)($row['id_position'] ?? ''));
             $row['parts_count'] = (int)($row['parts_count'] ?? 0);
             $row['disabled'] = (int)($row['disabled'] ?? 0);
+            $row['parts'] = [];
         }
         unset($row);
+
+        $rootIds = array_map(static fn (array $r): int => (int)$r['id'], $items);
+        $partsByRoot = self::partsSummaryForRoots($rootIds);
+        foreach ($items as &$row) {
+            $row['parts'] = $partsByRoot[(int)$row['id']] ?? [];
+            $row['parts_count'] = count($row['parts']);
+        }
+        unset($row);
+
         return ['items' => $items, 'total' => $total];
+    }
+
+    /**
+     * Compact parts for list UI: name + roles, ordered by NUM.
+     *
+     * @param list<int> $rootIds
+     * @return array<int,list<array{id:int,name:string,roles:list<string>,score:int}>>
+     */
+    public static function partsSummaryForRoots(array $rootIds): array
+    {
+        $rootIds = array_values(array_filter(array_map('intval', $rootIds), static fn ($i) => $i > 0));
+        $out = [];
+        foreach ($rootIds as $rid) {
+            $out[$rid] = [];
+        }
+        if ($rootIds === [] || !Database::tableExists('base_records_scripts')) {
+            return $out;
+        }
+        $in = implode(',', array_fill(0, count($rootIds), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID AS id, PID AS pid, NAME AS name, NUM AS num,
+                    IS_REQ AS is_req, FINISH AS finish, `BREAK` AS break_flag,
+                    COLLECTION_KILLER AS collection_killer, SCORE AS score
+             FROM base_records_scripts
+             WHERE PID IN ($in)
+             ORDER BY PID ASC, NUM ASC, ID ASC"
+        );
+        $st->execute($rootIds);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $pid = (int)$row['pid'];
+            if (!isset($out[$pid])) {
+                continue;
+            }
+            $out[$pid][] = [
+                'id' => (int)$row['id'],
+                'name' => (string)$row['name'],
+                'roles' => self::rolesFromFlags(
+                    (int)$row['is_req'],
+                    (int)$row['finish'],
+                    (int)$row['break_flag'],
+                    (int)$row['collection_killer']
+                ),
+                'score' => (int)$row['score'],
+            ];
+        }
+        return $out;
+    }
+
+    public static function setDisabled(int $id, bool $disabled): void
+    {
+        if ($id < 1 || !Database::tableExists('base_records_scripts')) {
+            return;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_records_scripts SET DISABLED = ? WHERE ID = ? AND PID = 0'
+        );
+        $st->execute([$disabled ? 1 : 0, $id]);
+        EventBus::emit('audio_dicts.changed', ['entity' => 'scripts', 'id' => $id]);
     }
 
     /**
@@ -299,7 +367,13 @@ final class RecordsScriptsRepository
                 'timeout' => (int)$p['timeout'],
                 'diversity' => (int)$p['diversity'],
                 'instances_min' => (int)$p['instances_min'],
-                'role' => (string)$p['role'],
+                'role' => (string)($p['roles'][0] ?? $p['role'] ?? 'ordinary'),
+                'roles' => is_array($p['roles'] ?? null) ? $p['roles'] : self::rolesFromFlags(
+                    (int)($p['is_req'] ?? 0),
+                    (int)($p['finish'] ?? 0),
+                    (int)($p['break_flag'] ?? 0),
+                    (int)($p['collection_killer'] ?? 0)
+                ),
                 'collection_killer' => (int)$p['collection_killer'],
                 'id_position' => (string)($p['id_position'] ?? ''),
             ];
@@ -459,7 +533,17 @@ final class RecordsScriptsRepository
             if (!is_array($dictIds)) {
                 $dictIds = self::parseIds((string)$dictIds);
             }
-            $role = self::normalizeRole((string)($row['role'] ?? ''));
+            $roles = $row['roles'] ?? null;
+            if (!is_array($roles)) {
+                $roles = null;
+            }
+            if ($roles === null && isset($row['role'])) {
+                $roles = self::normalizeRoles([(string)$row['role']]);
+            }
+            if ($roles === null) {
+                $roles = ['ordinary'];
+            }
+            $roles = self::normalizeRoles($roles);
             $out[] = [
                 'id' => (int)($row['id'] ?? 0),
                 'name' => mb_substr($name, 0, 40),
@@ -469,8 +553,9 @@ final class RecordsScriptsRepository
                 'timeout' => max(0, (int)($row['timeout'] ?? 0)),
                 'diversity' => max(0, (int)($row['diversity'] ?? 0)),
                 'instances_min' => max(0, (int)($row['instances_min'] ?? 0)),
-                'role' => $role,
-                'collection_killer' => !empty($row['collection_killer']) || !empty($row['killer']) ? 1 : 0,
+                'roles' => $roles,
+                'role' => $roles[0] ?? 'ordinary',
+                'collection_killer' => in_array('killer', $roles, true) ? 1 : 0,
                 'id_position' => '',
             ];
         }
@@ -483,41 +568,88 @@ final class RecordsScriptsRepository
      */
     public static function flagsFromPart(array $part): array
     {
-        $role = self::normalizeRole((string)($part['role'] ?? ''));
-        if ($role === '' && isset($part['is_req'])) {
-            $role = self::roleFromFlags(
-                (int)($part['is_req'] ?? 0),
-                (int)($part['finish'] ?? 0),
-                (int)($part['break_flag'] ?? $part['break'] ?? 0)
-            );
+        $roles = $part['roles'] ?? null;
+        if (!is_array($roles)) {
+            $single = self::normalizeRole((string)($part['role'] ?? ''));
+            if ($single !== '' && $single !== 'ordinary') {
+                $roles = [$single];
+            } elseif (isset($part['is_req']) || isset($part['finish']) || isset($part['break_flag']) || isset($part['break']) || isset($part['collection_killer'])) {
+                $roles = self::rolesFromFlags(
+                    (int)($part['is_req'] ?? 0),
+                    (int)($part['finish'] ?? 0),
+                    (int)($part['break_flag'] ?? $part['break'] ?? 0),
+                    (int)($part['collection_killer'] ?? $part['killer'] ?? 0)
+                );
+            } else {
+                $roles = ['ordinary'];
+            }
         }
+        $roles = self::normalizeRoles($roles);
         return [
-            'is_req' => $role === 'trigger' ? 1 : 0,
-            'finish' => $role === 'conversion' ? 1 : 0,
-            'break' => $role === 'breaker' ? 1 : 0,
-            'killer' => !empty($part['collection_killer']) || !empty($part['killer']) ? 1 : 0,
+            'is_req' => in_array('trigger', $roles, true) ? 1 : 0,
+            'finish' => in_array('conversion', $roles, true) ? 1 : 0,
+            'break' => in_array('breaker', $roles, true) ? 1 : 0,
+            'killer' => in_array('killer', $roles, true) ? 1 : 0,
         ];
     }
 
-    public static function roleFromFlags(int $isReq, int $finish, int $break): string
+    /**
+     * @return list<string>
+     */
+    public static function rolesFromFlags(int $isReq, int $finish, int $break, int $killer = 0): array
     {
-        if ($break > 0) {
-            return 'breaker';
+        $roles = [];
+        if ($isReq > 0) {
+            $roles[] = 'trigger';
         }
         if ($finish > 0) {
-            return 'conversion';
+            $roles[] = 'conversion';
         }
-        if ($isReq > 0) {
-            return 'trigger';
+        if ($break > 0) {
+            $roles[] = 'breaker';
         }
-        return 'ordinary';
+        if ($killer > 0) {
+            $roles[] = 'killer';
+        }
+        return $roles === [] ? ['ordinary'] : $roles;
+    }
+
+    /** @deprecated use rolesFromFlags */
+    public static function roleFromFlags(int $isReq, int $finish, int $break): string
+    {
+        $roles = self::rolesFromFlags($isReq, $finish, $break, 0);
+        return $roles[0] ?? 'ordinary';
     }
 
     public static function normalizeRole(string $role): string
     {
         $role = strtolower(trim($role));
-        $allowed = ['ordinary', 'trigger', 'conversion', 'breaker'];
+        $allowed = ['ordinary', 'trigger', 'conversion', 'breaker', 'killer'];
         return in_array($role, $allowed, true) ? $role : 'ordinary';
+    }
+
+    /**
+     * @param list<mixed> $roles
+     * @return list<string>
+     */
+    public static function normalizeRoles(array $roles): array
+    {
+        $allowed = ['trigger', 'conversion', 'breaker', 'killer'];
+        $out = [];
+        foreach ($roles as $r) {
+            $r = self::normalizeRole((string)$r);
+            if ($r === 'ordinary') {
+                continue;
+            }
+            if (in_array($r, $allowed, true) && !in_array($r, $out, true)) {
+                $out[] = $r;
+            }
+        }
+        // Killer is exclusive: it aborts the open collection and cannot build it.
+        if (in_array('killer', $out, true)) {
+            return ['killer'];
+        }
+        return $out === [] ? ['ordinary'] : $out;
     }
 
     /** @return list<int> */
@@ -613,7 +745,9 @@ final class RecordsScriptsRepository
         $isReq = (int)($row['is_req'] ?? 0);
         $finish = (int)($row['finish'] ?? 0);
         $break = (int)($row['break_flag'] ?? $row['break'] ?? 0);
+        $killer = (int)($row['collection_killer'] ?? 0);
         $dictIds = self::parseIds((string)($row['ids_dictonarys'] ?? ''));
+        $roles = self::rolesFromFlags($isReq, $finish, $break, $killer);
         return [
             'id' => (int)$row['id'],
             'pid' => (int)$row['pid'],
@@ -632,9 +766,10 @@ final class RecordsScriptsRepository
             'timeout' => (int)($row['timeout'] ?? 0),
             'diversity' => (int)($row['diversity'] ?? 0),
             'instances_min' => (int)($row['instances_min'] ?? 0),
-            'collection_killer' => (int)($row['collection_killer'] ?? 0),
+            'collection_killer' => $killer,
             'id_position' => (string)($row['id_position'] ?? ''),
-            'role' => self::roleFromFlags($isReq, $finish, $break),
+            'roles' => $roles,
+            'role' => $roles[0] ?? 'ordinary',
         ];
     }
 

@@ -67,7 +67,7 @@ final class NoticesRepository
                 }
                 $out[] = [
                     'short' => $label . ':' . $c,
-                    'href' => '/news?type=' . $t,
+                    'href' => '/news?type=' . $t . '&unread=1',
                     'title' => $titles[$t],
                     'tone' => 'warn',
                 ];

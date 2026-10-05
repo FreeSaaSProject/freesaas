@@ -18,16 +18,17 @@ final class JobRunner
         return max(5, min(300, $n > 0 ? $n : 45));
     }
 
-    public static function applyTimeLimit(): void
+    public static function applyTimeLimit(?int $budgetSec = null): void
     {
-        $budget = self::timeBudgetSec();
-        @set_time_limit($budget + 15);
+        $budget = $budgetSec !== null ? max(5, min(600, $budgetSec)) : self::timeBudgetSec();
+        @set_time_limit($budget + 30);
         @ignore_user_abort(true);
     }
 
-    public static function deadline(): float
+    public static function deadline(?int $budgetSec = null): float
     {
-        return microtime(true) + self::timeBudgetSec();
+        $budget = $budgetSec !== null ? max(5, min(600, $budgetSec)) : self::timeBudgetSec();
+        return microtime(true) + $budget;
     }
 
     public static function timedOut(float $deadline): bool

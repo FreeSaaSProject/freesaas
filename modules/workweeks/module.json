@@ -1,44 +1,75 @@
 {
-  "id": "workweeks",
-  "name": "workweeks.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0"
-  },
-  "optionalRequires": {
-    "cabinets": ">=0.1.0",
-    "tables": ">=0.1.0"
-  },
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "workweeks.view", "label": "workweeks.perm.view" },
-    { "id": "workweeks.edit", "label": "workweeks.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/workweeks",
-      "/workweeks/day/{date}"
+    "id": "workweeks",
+    "name": "workweeks.module.name",
+    "version": "0.2.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "comments": ">=0.1.0",
+        "cabinets": ">=0.1.0",
+        "tables": ">=0.1.0"
+    },
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "workweeks.view",
+            "label": "workweeks.perm.view"
+        },
+        {
+            "id": "workweeks.edit",
+            "label": "workweeks.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/workweeks",
+            "/workweeks/new",
+            "/workweeks/{id}/edit",
+            "/workweeks/nazop",
+            "/workweeks/settings",
+            "/workweeks/day/{date}"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.team",
+            "num": 3,
+            "path": "/workweeks",
+            "title": "workweeks.menu.list"
+        },
+        {
+            "group": "core.menu.group.team",
+            "num": 90,
+            "kind": "settings",
+            "path": "/workweeks/settings",
+            "title": "workweeks.menu.settings",
+            "permission": "workweeks.view",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "configSchema": {
+        "workweeks": {
+            "schedule_news_id": {
+                "type": "integer",
+                "default": 0
+            }
+        }
+    },
+    "tables": [
+        "base_workweeks"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "workweeks",
+            "action": "delete"
+        }
     ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.team",
-      "num": 3,
-      "path": "/workweeks",
-      "title": "workweeks.menu.day"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_workweeks"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [],
-    "publish": [
-      "workweeks.day (WorkweeksRepository::listForDay — calendar and analytics)"
-    ]
-  }
 }

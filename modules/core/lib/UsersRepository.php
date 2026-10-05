@@ -551,4 +551,90 @@ final class UsersRepository
         Database::pdo()->prepare($sql)->execute($params);
         unset(self::$findCache[$id]);
     }
+
+    public static function countUsers(): int
+    {
+        if (!Database::tableExists('base_users')) {
+            return 0;
+        }
+        return (int)Database::pdo()->query('SELECT COUNT(*) FROM base_users')->fetchColumn();
+    }
+
+    public static function findByLogin(string $login): ?array
+    {
+        if (!Database::tableExists('base_users')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare('SELECT * FROM base_users WHERE login = ? LIMIT 1');
+        $st->execute([trim($login)]);
+        $row = $st->fetch();
+        return $row ?: null;
+    }
+
+    /**
+     * Create a staff user (greenfield bootstrap / admin tooling).
+     *
+     * @param array{
+     *   login:string,
+     *   password_plain:string,
+     *   name?:string,
+     *   mail?:string,
+     *   enabled?:string,
+     *   name_enabled?:int,
+     *   status_blob?:string,
+     *   locale?:string
+     * } $data
+     */
+    public static function create(array $data): int
+    {
+        if (!Database::tableExists('base_users')) {
+            throw new RuntimeException('base_users missing — run schema migrate first');
+        }
+        $login = trim((string)($data['login'] ?? ''));
+        $password = (string)($data['password_plain'] ?? '');
+        if ($login === '' || $password === '') {
+            throw new InvalidArgumentException('login and password_plain required');
+        }
+        if (self::findByLogin($login) !== null) {
+            throw new RuntimeException('login already exists: ' . $login);
+        }
+
+        $cols = [];
+        $vals = [];
+        $params = [];
+        $add = static function (string $col, $value) use (&$cols, &$vals, &$params): void {
+            if (!Database::columnExists('base_users', $col)) {
+                return;
+            }
+            $cols[] = '`' . $col . '`';
+            $vals[] = '?';
+            $params[] = $value;
+        };
+
+        $add('login', $login);
+        $add('password', Auth::hashPassword($password));
+        $add('name', trim((string)($data['name'] ?? $login)));
+        $add('mail', trim((string)($data['mail'] ?? '')));
+        $add('enabled', (string)($data['enabled'] ?? '1'));
+        $add('name_enabled', (int)($data['name_enabled'] ?? 0));
+        $add('content', (string)($data['content'] ?? ''));
+        $add('status', (string)($data['status_blob'] ?? serialize(['permissions' => []])));
+        $add('skin', '');
+        $add('skin_enabled', '0');
+        $add('color', '');
+        $add('color_text', '');
+        $add('url', '');
+        $add('retries', 0);
+        $add('expire', 0);
+        if (!empty($data['locale']) && Database::columnExists('base_users', 'locale')) {
+            $add('locale', (string)$data['locale']);
+        }
+
+        if ($cols === []) {
+            throw new RuntimeException('no writable columns on base_users');
+        }
+        $sql = 'INSERT INTO base_users (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
+        Database::pdo()->prepare($sql)->execute($params);
+        return (int)Database::pdo()->lastInsertId();
+    }
 }

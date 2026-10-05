@@ -10,7 +10,8 @@
     "workweeks": ">=0.1.0"
   },
   "optionalRequires": {
-    "procedures": ">=0.1.0"
+    "procedures": ">=0.1.0",
+    "audio_pipeline": ">=0.1.0"
   },
   "migrations": "migrations/",
   "permissions": [
@@ -20,6 +21,9 @@
   "routes": {
     "pages": [
       "/audio/calendar",
+      "/audio/calendar/reparse",
+      "/audio/collections",
+      "/audio/collections/{id}",
       "/audio/summaries",
       "/audio/summaries/new",
       "/audio/summaries/{id}"
@@ -35,7 +39,14 @@
     },
     {
       "group": "audio.menu.group",
+      "kind": "crud",
       "num": 3,
+      "path": "/audio/collections",
+      "title": "audio_reports.menu.collections"
+    },
+    {
+      "group": "audio.menu.group",
+      "num": 4,
       "path": "/audio/summaries",
       "title": "audio_reports.menu.summaries"
     }

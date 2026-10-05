@@ -11,21 +11,52 @@ final class TranscriptHighlighter
     /**
      * @param list<array{string_num:int,string_position:int,id_key:int,length:int,key_name?:string,type_color?:string,type_bg?:string}> $instances
      * @param list<string> $trashPhrases
-     * @return array{html:string,lines:int,trash:int,keys:int,trash_candidates:list<string>}
+     * @param array{
+     *   window_from?:int,
+     *   window_to?:int,
+     *   dt_recorded?:int,
+     *   intersections?:list<array{start:int,end:int,id?:int|string,match?:int|string}>,
+     *   compact?:bool
+     * } $opts Absolute unix window (oper: collection DT ±15s) filters lines via dt_recorded + line offset.
+     * @return array{html:string,lines:int,trash:int,keys:int,trash_candidates:list<string>,was_intersect:bool}
      */
-    public static function render(string $transcription, array $instances, array $trashPhrases = [], string $search = ''): array
-    {
+    public static function render(
+        string $transcription,
+        array $instances,
+        array $trashPhrases = [],
+        string $search = '',
+        array $opts = []
+    ): array {
         $out = [
             'html' => '',
             'lines' => 0,
             'trash' => 0,
             'keys' => 0,
             'trash_candidates' => [],
+            'was_intersect' => false,
         ];
         $src = (string)$transcription;
         if ($src === '' || strpos($src, '[') === false) {
             $out['html'] = '<p class="muted">' . te('audio.transcript.empty') . '</p>';
             return $out;
+        }
+
+        $windowFrom = max(0, (int)($opts['window_from'] ?? 0));
+        $windowTo = max(0, (int)($opts['window_to'] ?? 0));
+        $dtRecorded = max(0, (int)($opts['dt_recorded'] ?? 0));
+        $compact = !empty($opts['compact']);
+        /** @var list<array{start:int,end:int,id:string,match:string}> $intersections */
+        $intersections = [];
+        foreach (is_array($opts['intersections'] ?? null) ? $opts['intersections'] : [] as $ix) {
+            if (!is_array($ix)) {
+                continue;
+            }
+            $intersections[] = [
+                'start' => (int)($ix['start'] ?? 0),
+                'end' => (int)($ix['end'] ?? 0),
+                'id' => (string)($ix['id'] ?? ''),
+                'match' => (string)($ix['match'] ?? ''),
+            ];
         }
 
         /** @var array<int,list<array{pos:int,len:int,name:string,color:string,bg:string}>> $byLine */
@@ -68,6 +99,14 @@ final class TranscriptHighlighter
                 $timeEnd = self::mmssToSeconds(trim($b));
             }
 
+            $absTs = $dtRecorded > 0 ? $dtRecorded + $timeStart : 0;
+            if ($absTs > 0 && $windowFrom > 0 && $absTs < $windowFrom) {
+                continue;
+            }
+            if ($absTs > 0 && $windowTo > 0 && $absTs > $windowTo) {
+                continue;
+            }
+
             if ($text !== '' && ($text === $prevTexts[0] || $text === $prevTexts[1] || $text === $prevTexts[2])) {
                 continue;
             }
@@ -92,14 +131,35 @@ final class TranscriptHighlighter
                 $highlighted .= ' <b class="transcript-search">' . e($search) . '</b>';
             }
 
+            $ixMark = '';
+            $lineCls = 'transcript-line';
+            if ($absTs > 0 && $intersections !== []) {
+                foreach ($intersections as $ix) {
+                    if ($ix['start'] > 0 && $ix['end'] > 0 && $absTs >= $ix['start'] && $absTs <= $ix['end']) {
+                        $out['was_intersect'] = true;
+                        $lineCls .= ' is-intersect';
+                        $label = $ix['id'];
+                        if ($ix['match'] !== '') {
+                            $label .= ($label !== '' ? '-' : '') . $ix['match'] . '%';
+                        }
+                        if ($label !== '') {
+                            $ixMark = ' <span class="transcript-intersect-tag">[' . e($label) . ']</span>';
+                        }
+                        break;
+                    }
+                }
+            }
+
             $attrs = '';
             if ($timeEnd > 0) {
                 $attrs = ' data-time-start="' . $timeStart . '" data-time-end="' . $timeEnd . '"';
             }
-            $html .= '<div class="transcript-line"' . $attrs . '>'
-                . '<span class="transcript-num">' . $num . '</span> '
+            $numHtml = $compact ? '' : '<span class="transcript-num">' . $num . '</span> ';
+            $html .= '<div class="' . $lineCls . '"' . $attrs . '>'
+                . $numHtml
                 . '<span class="transcript-time">[' . e($timeRaw) . ']</span> '
                 . '<span class="transcript-text">' . $highlighted . '</span>'
+                . $ixMark
                 . '</div>';
 
             $out['lines']++;
@@ -108,7 +168,7 @@ final class TranscriptHighlighter
             $prevTexts[0] = $text;
         }
 
-        if ($out['trash'] > 0) {
+        if ($out['trash'] > 0 && !$compact) {
             $html .= '<p class="transcript-trash">' . te('audio.transcript.trash_count', ['n' => $out['trash']]) . '</p>';
         }
         if ($html === '') {
@@ -116,6 +176,41 @@ final class TranscriptHighlighter
         }
         $out['html'] = $html;
         $out['trash_candidates'] = array_values($out['trash_candidates']);
+        return $out;
+    }
+
+    /**
+     * Decode legacy serialized INTERSECTIONS blob into absolute ranges.
+     *
+     * @return list<array{start:int,end:int,id:string,match:string}>
+     */
+    public static function parseIntersections(?string $raw): array
+    {
+        $raw = trim((string)$raw);
+        if ($raw === '') {
+            return [];
+        }
+        $decoded = @unserialize($raw, ['allowed_classes' => false]);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $out = [];
+        foreach ($decoded as $id => $data) {
+            if (!is_array($data)) {
+                continue;
+            }
+            $start = (int)($data['intersectStart'] ?? $data['start'] ?? 0);
+            $end = (int)($data['intersectEnd'] ?? $data['end'] ?? 0);
+            if ($start < 1 || $end < 1) {
+                continue;
+            }
+            $out[] = [
+                'start' => $start,
+                'end' => $end,
+                'id' => (string)$id,
+                'match' => (string)($data['match'] ?? ''),
+            ];
+        }
         return $out;
     }
 

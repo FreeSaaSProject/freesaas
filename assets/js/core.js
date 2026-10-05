@@ -847,4 +847,19 @@
   }
 
   document.querySelectorAll('[data-sortable]').forEach(bindSortable);
+
+  document.querySelectorAll('[data-password-toggle]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var wrap = btn.closest('.auth-pass');
+      var input = wrap && wrap.querySelector('input');
+      if (!input) return;
+      var show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.setAttribute('aria-pressed', show ? 'true' : 'false');
+      var label = show
+        ? (btn.getAttribute('data-label-hide') || '')
+        : (btn.getAttribute('data-label-show') || '');
+      if (label) btn.setAttribute('aria-label', label);
+    });
+  });
 })();

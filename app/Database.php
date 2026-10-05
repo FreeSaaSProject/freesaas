@@ -61,4 +61,11 @@ final class Database
         $st->execute([$table, $column]);
         return self::$columnCache[$key] = (bool)$st->fetchColumn();
     }
+
+    /** Clear table/column existence caches (call after schema migrations). */
+    public static function clearSchemaCache(): void
+    {
+        self::$tableCache = [];
+        self::$columnCache = [];
+    }
 }

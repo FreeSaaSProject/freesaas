@@ -1,91 +1,158 @@
 {
-  "id": "audio",
-  "name": "audio.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "workweeks": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "clients": ">=0.1.0",
-    "audio_dicts": ">=0.1.0"
-  },
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "audio.view", "label": "audio.perm.view" },
-    { "id": "audio.edit", "label": "audio.perm.edit" },
-    { "id": "audio.badges", "label": "audio.perm.badges" }
-  ],
-  "routes": {
-    "pages": [
-      "/audio",
-      "/audio/{id}",
-      "/audio/badges",
-      "/audio/assignments",
-      "/audio/assignments/new",
-      "/audio/assignments/{id}/edit",
-      "/audio/settings",
-      "/audio/play",
-      "/audio/api/dict",
-      "/audio/api/blocks",
-      "/audio/api/badge"
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "audio.menu.group",
-      "num": 1,
-      "path": "/audio",
-      "title": "audio.menu.list"
+    "id": "audio",
+    "name": "audio.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "workweeks": ">=0.1.0"
     },
-    {
-      "group": "audio.menu.group",
-      "kind": "crud",
-      "num": 1,
-      "path": "/audio/badges",
-      "title": "audio.menu.badges"
+    "optionalRequires": {
+        "clients": ">=0.1.0",
+        "audio_dicts": ">=0.1.0"
     },
-    {
-      "group": "audio.menu.group",
-      "kind": "crud",
-      "num": 2,
-      "path": "/audio/assignments",
-      "title": "audio.menu.assignments"
-    },
-    {
-      "group": "audio.menu.group",
-      "num": 90,
-      "path": "/audio/settings",
-      "title": "audio.menu.settings",
-      "permission": "audio.view",
-      "capability": "SUPERADMIN_ACCESS"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_records",
-    "base_records_badges",
-    "base_badge_assignments",
-    "base_records_balances",
-    "base_records_reviews",
-    "base_audio_settings"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "core.user_edit.sections",
-      "core.user_edit.save",
-      "core.user_edit.profile",
-      "core.layout.gate",
-      "core.auth.before_logout"
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "audio.view",
+            "label": "audio.perm.view"
+        },
+        {
+            "id": "audio.edit",
+            "label": "audio.perm.edit"
+        },
+        {
+            "id": "audio.badges",
+            "label": "audio.perm.badges"
+        }
     ],
-    "publish": [
-      "audio.records.for_day",
-      "audio.badge.state",
-      "audio.settings.sections",
-      "audio.settings.save"
+    "routes": {
+        "pages": [
+            "/audio",
+            "/audio/ingest",
+            "/audio/{id}",
+            "/audio/badges",
+            "/audio/assignments",
+            "/audio/assignments/new",
+            "/audio/assignments/{id}/edit",
+            "/audio/settings",
+            "/audio/play",
+            "/audio/api/dict",
+            "/audio/api/blocks",
+            "/audio/api/badge"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "audio.menu.group",
+            "num": 1,
+            "path": "/audio",
+            "title": "audio.menu.list"
+        },
+        {
+            "group": "audio.menu.group",
+            "kind": "crud",
+            "num": 1,
+            "path": "/audio/badges",
+            "title": "audio.menu.badges"
+        },
+        {
+            "group": "audio.menu.group",
+            "kind": "crud",
+            "num": 2,
+            "path": "/audio/assignments",
+            "title": "audio.menu.assignments"
+        },
+        {
+            "group": "audio.menu.group",
+            "num": 90,
+            "path": "/audio/settings",
+            "title": "audio.menu.settings",
+            "permission": "audio.view",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_records",
+        "base_records_badges",
+        "base_badge_assignments",
+        "base_records_balances",
+        "base_records_reviews",
+        "base_audio_settings"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.user_edit.sections",
+            "core.user_edit.save",
+            "core.user_edit.profile",
+            "core.layout.gate",
+            "core.auth.before_logout",
+            "core.notices.collect"
+        ],
+        "publish": [
+            "audio.settings.sections",
+            "audio.settings.save"
+        ]
+    },
+    "bulkActions": [
+        {
+            "list_id": "audio_records",
+            "action": "set_admin"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "disable"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "enable"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "clear_text"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "clear_text_keep_rid"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "review"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "favorite_add"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "favorite_remove"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "reset_admin"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "reset_keys"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "reset_offers"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "reset_strings"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "delete"
+        },
+        {
+            "list_id": "audio_records",
+            "action": "delete_with_files"
+        }
     ]
-  }
 }

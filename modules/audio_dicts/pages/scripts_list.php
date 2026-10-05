@@ -4,7 +4,6 @@ declare(strict_types=1);
 $path = '/audio/scripts';
 $listId = 'audio_scripts';
 
-$q = trim((string)($_GET['q'] ?? ''));
 $lq = ListQuery::resolve([
     'list_id' => $listId,
     'allowed' => RecordsScriptsRepository::listSortMap(),
@@ -13,15 +12,31 @@ $lq = ListQuery::resolve([
     'per_page' => 50,
 ]);
 
-$filters = array_merge(['q' => $q], $lq['query']);
+$filters = $lq['query'];
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('audio_dicts.edit')) {
+    $action = trim((string)($_POST['action'] ?? ''));
+    if ($action === 'toggle_disabled') {
+        $id = (int)($_POST['id'] ?? 0);
+        // checked switch = enabled → DISABLED=0
+        $disabled = empty($_POST['enabled']);
+        try {
+            RecordsScriptsRepository::setDisabled($id, $disabled);
+        } catch (Throwable $e) {
+            // fall through
+        }
+        $qs = $_SERVER['QUERY_STRING'] ?? '';
+        redirect($path . ($qs !== '' ? '?' . $qs : ''));
+        return;
+    }
 }
 
 BulkActions::tryHandle($listId, $path, $filters);
 
 $result = RecordsScriptsRepository::listRoots([
-    'q' => $q,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
@@ -37,7 +52,6 @@ View::render('scripts_list', [
     ]),
     'items' => $result['items'],
     'total' => $result['total'],
-    'q' => $q,
     'canEdit' => Auth::can('audio_dicts.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
@@ -49,4 +63,11 @@ View::render('scripts_list', [
     'path' => $path,
     'listId' => $listId,
     'error' => $error,
+    'roleLabels' => [
+        'ordinary' => t('audio_dicts.scripts.role.ordinary'),
+        'trigger' => t('audio_dicts.scripts.role.trigger'),
+        'conversion' => t('audio_dicts.scripts.role.conversion'),
+        'breaker' => t('audio_dicts.scripts.role.breaker'),
+        'killer' => t('audio_dicts.scripts.role.killer'),
+    ],
 ], 'layout', 'audio_dicts');

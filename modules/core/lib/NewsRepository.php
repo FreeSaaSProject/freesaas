@@ -77,6 +77,7 @@ final class NewsRepository
         }
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $userId = (int)($opts['user_id'] ?? 0);
+        $unread = !empty($opts['unread']) && $type !== 4;
         $order = trim((string)($opts['order'] ?? ''));
         if ($order === '') {
             $order = ($type === 2)
@@ -96,6 +97,22 @@ final class NewsRepository
             }
             $where[] = 'ID IN (' . implode(',', array_map('intval', $favIds)) . ')';
             $where[] = 'HAS_CHILDREN = 0';
+        } elseif ($unread) {
+            // Oper ANSTYPE=1: flat unread leaves across folders (no PID root filter)
+            if ($userId < 1 || !Database::tableExists('base_views')) {
+                return ['items' => [], 'total' => 0, 'folders' => []];
+            }
+            if ($type > 0 && $type < 4) {
+                $where[] = 'TYPE = ?';
+                $params[] = $type;
+            }
+            $where[] = 'NOT EXISTS (
+                SELECT 1 FROM base_views v
+                WHERE v.ID_OBJ = base_news.ID
+                  AND v.TYPE_OBJ = \'base_news\'
+                  AND v.ID_USER = ?
+            )';
+            $params[] = $userId;
         } else {
             if ($pid > 0) {
                 $where[] = 'PID = ?';
@@ -136,9 +153,9 @@ final class NewsRepository
 
         $sqlWhere = implode(' AND ', $where);
 
-        // Folders in current scope (HAS_CHILDREN=1)
+        // Folders in current scope (HAS_CHILDREN=1); unread mode is flat leaves only
         $folders = [];
-        if ($type !== 4) {
+        if ($type !== 4 && !$unread) {
             $folderWhere = $sqlWhere . ' AND HAS_CHILDREN = 1';
             $stF = $pdo->prepare(
                 "SELECT ID, DT, ID_USER, NAME, SHORT, TYPE, STATUS, PID, HAS_CHILDREN

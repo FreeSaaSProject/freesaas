@@ -100,13 +100,64 @@
 
 .scripts-dict-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-  gap: 0.2rem 0.6rem;
-  max-height: 10rem;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.35rem 0.75rem;
+  min-height: 14rem;
+  max-height: 28rem;
   overflow: auto;
   border: 1px solid var(--border, #e2e8f0);
   border-radius: 4px;
-  padding: 0.5rem;
+  padding: 0.65rem;
+}
+
+.scripts-wizard .scripts-dict-grid {
+  min-height: 16rem;
+  max-height: 32rem;
+}
+
+.scripts-canvas-panel .scripts-dict-grid {
+  min-height: 12rem;
+  max-height: 22rem;
+}
+
+.scripts-block-card label,
+.scripts-panel-section label,
+.scripts-thresholds-edit label {
+  display: block;
+  margin: 0.4rem 0;
+}
+
+.scripts-block-card label > input[type="text"],
+.scripts-block-card label > input[type="number"],
+.scripts-panel-section label > input[type="text"],
+.scripts-panel-section label > input[type="number"],
+.scripts-thresholds-edit label > input[type="text"],
+.scripts-thresholds-edit label > input[type="number"] {
+  display: block;
+  width: 100%;
+  max-width: 20rem;
+  margin-top: 0.25rem;
+  box-sizing: border-box;
+}
+
+.scripts-block-card label.logo-remove,
+.scripts-panel-section label.logo-remove,
+.scripts-thresholds-edit label.logo-remove,
+.scripts-dict-grid label {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin: 0.15rem 0;
+}
+
+.scripts-block-card label.logo-remove > input,
+.scripts-panel-section label.logo-remove > input,
+.scripts-thresholds-edit label.logo-remove > input,
+.scripts-dict-grid label > input {
+  display: inline-block;
+  width: auto;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
 }
 
 .scripts-flow {
@@ -250,4 +301,154 @@
 
 .small {
   font-size: 0.8rem;
+}
+
+.scripts-list-parts {
+  min-width: 18rem;
+  max-width: 42rem;
+}
+
+.scripts-parts-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.scripts-part-tile {
+  display: inline-flex;
+  align-items: stretch;
+  min-width: 6.5rem;
+  max-width: 11rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.scripts-part-tile:hover {
+  border-color: var(--accent, #2563eb);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.scripts-part-tile-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  padding: 0.35rem 0.25rem;
+  background: var(--surface-2, #f1f5f9);
+  color: var(--muted, #64748b);
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-right: 1px solid var(--border, #e2e8f0);
+}
+
+.scripts-part-tile-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.scripts-part-tile-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scripts-part-tile-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem;
+}
+
+.scripts-parts-arrow {
+  align-self: center;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-top: 2px solid var(--muted, #94a3b8);
+  border-right: 2px solid var(--muted, #94a3b8);
+  transform: rotate(45deg);
+  flex: 0 0 auto;
+  opacity: 0.7;
+}
+
+.scripts-enabled-switch {
+  vertical-align: middle;
+}
+
+.scripts-enabled-label {
+  margin-left: 0.4rem;
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.scripts-field-hint {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+  margin: 0.2rem 0 0.55rem;
+  line-height: 1.35;
+  max-width: 32rem;
+}
+
+.scripts-roles-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin: 0.35rem 0 0.5rem;
+}
+
+.scripts-roles-table th,
+.scripts-roles-table td {
+  border: 1px solid var(--border, #e2e8f0);
+  padding: 0.45rem 0.55rem;
+  vertical-align: top;
+  text-align: left;
+}
+
+.scripts-roles-table th {
+  background: var(--surface-2, #f8fafc);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.scripts-roles-table td:first-child {
+  width: 2.2rem;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.scripts-roles-table .scripts-role-name {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.scripts-roles-table .scripts-role-hint-cell {
+  color: var(--muted, #64748b);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.scripts-roles-table tr.is-disabled-role {
+  opacity: 0.45;
+}
+
+.scripts-roles-note {
+  font-size: 0.8rem;
+  color: var(--muted, #64748b);
+  margin: 0.25rem 0 0;
+}
+
+tr.is-disabled .scripts-part-tile {
+  opacity: 0.65;
 }

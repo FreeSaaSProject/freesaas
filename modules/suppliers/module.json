@@ -1,45 +1,55 @@
 {
-  "id": "suppliers",
-  "name": "suppliers.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0"
-  },
-  "optionalRequires": {},
-  "provides": [
-    "suppliers.list"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "suppliers.view", "label": "suppliers.perm.view" },
-    { "id": "suppliers.edit", "label": "suppliers.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/suppliers",
-      "/suppliers/new",
-      "/suppliers/{id}/edit"
+    "id": "suppliers",
+    "name": "suppliers.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "suppliers.list"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "suppliers.view",
+            "label": "suppliers.perm.view"
+        },
+        {
+            "id": "suppliers.edit",
+            "label": "suppliers.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/suppliers",
+            "/suppliers/new",
+            "/suppliers/{id}/edit"
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.dictionaries",
+            "num": 3,
+            "path": "/suppliers",
+            "title": "suppliers.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_suppliers"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "suppliers",
+            "action": "delete"
+        }
     ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.dictionaries",
-      "num": 3,
-      "path": "/suppliers",
-      "title": "suppliers.menu.list"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_suppliers"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [],
-    "publish": [
-      "suppliers bulk actions via BulkActions (list_id=suppliers)"
-    ]
-  }
 }

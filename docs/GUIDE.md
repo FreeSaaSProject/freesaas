@@ -2,7 +2,7 @@
 
 Документ для людей: что это за проект, как устроен код, как работать и как добавлять модули.
 
-Для AI-агентов см. [`AGENTS.md`](../AGENTS.md) в корне репозитория.
+Для AI-агентов см. [`AGENTS.md`](../AGENTS.md) в корне репозитория. Аудит agent-native готовности и нормативные требования к платформе/модулям: [`agent-native-audit.md`](agent-native-audit.md). Операционные runbooks: [`agents/`](agents/).
 
 ---
 
@@ -12,11 +12,10 @@
 
 Ключевые правила:
 
-- Код FreeSaaS **не читает и не пишет** таблицы `phpshop_*`.
-- Новые таблицы — префикс `base_*`.
+- Runtime работает с таблицами **`base_*`**.
 - Функциональность делится на **модули** в `modules/<id>/` с манифестом `module.json`.
 
-Карта legacy → FreeSaaS таблиц: [`LEGACY_TABLE_MAP.md`](LEGACY_TABLE_MAP.md).
+Владение таблицами: [`TABLE_MAP.md`](TABLE_MAP.md).
 
 ---
 
@@ -25,18 +24,20 @@
 1. Скопировать `cfg/config.example.ini` → `cfg/config.ini` (для local обычно уже есть).
 2. При необходимости скопировать `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini` (audio/calendar/ledger и т.п.; секреты не в git).
 3. Направить docroot vhost на корень этого проекта.
-4. Прогнать миграции:
+4. **Автономный bootstrap** (миграции + первый суперadmin + `agent_token`):
 
 ```bash
-php bin/schema-migrate.php
-php bin/data-migrate.php
+# CLI
+php bin/freesaas.php bootstrap --login=admin --password='…' --agent-token='…' --format=json
+
+# Shared hosting (без SSH) — POST /agent/bootstrap, см. agents/install.md
 ```
 
-Либо открыть `/migrate` после деплоя (для первого входа данные пользователей часто нужны из CLI).
+Либо по шагам: `php bin/schema-migrate.php` / UI `/migrate`, затем создать пользователя вручную.
 
-5. Войти логином сотрудника из oper (пароли с тем же site salt).
+5. Войти на `/login`. Дальнейшие ops: CLI или `/agent/*` ([`agents/remote-api.md`](agents/remote-api.md)).
 
-Включение/выключение модулей: UI `/modules` или секция `[modules]` в `cfg/config.ini`.
+Включение/выключение модулей: UI `/modules`, CLI `module enable`, или секция `[modules]` в `cfg/config.ini`.
 
 ---
 
@@ -61,15 +62,20 @@ freesaas.likespa.hm/
 │   ├── EventBus.php       # Хуки между модулями
 │   ├── ModuleManager.php  # Discovery, deps, меню, registry
 │   ├── SchemaMigrator.php # DDL-миграции modules/*/migrations
-│   ├── DataMigrator.php   # Копирование данных из legacy
+│   ├── DataMigrator.php   # Опциональные одноразовые data-миграторы из манифестов
 │   ├── StageTiming.php    # Тайминги этапов запроса
 │   ├── ListQuery.php      # Пагинация и сортировка списков
 │   ├── BulkActions.php    # Выделение строк и групповые операции
 │   ├── helpers.php        # e(), t(), redirect(), safe_html(), …
 │   └── lang/              # Общие строки UI (ru/en)
 ├── bin/
+│   ├── freesaas.php       # Agent/ops CLI (system, module, migrate, locale, health)
+│   ├── smoke.php          # Minimal CI smoke
 │   ├── schema-migrate.php
-│   └── data-migrate.php
+│   ├── data-migrate.php
+│   ├── check-i18n.php
+│   ├── health.php
+│   └── module-validate.php
 ├── modules/
 │   ├── core/              # Платформа: auth, users, news, settings…
 │   ├── comments/          # Комментарии к новостям/заявкам (без своих URL)
@@ -123,7 +129,7 @@ freesaas.likespa.hm/
 | **I18n** | UI-локали `ru`/`en`: каталоги `app/lang/` + `modules/*/lang/`, `t()`/`te()`/`tj()`, cookie/session/`base_users.locale`, переключатель `/locale`. |
 | **EventBus** | `on` / `emit`: цепочка слушателей мутирует payload и возвращает его. |
 | **SchemaMigrator** | Файлы `migrations/*.php` по порядку имени; ledger `base_schema_migrations`. |
-| **DataMigrator** | Файлы `migrators/*.php` по списку в `module.json`; обычно `replace` из `phpshop_*` → `base_*` (только в migrators). |
+| **DataMigrator** | Файлы `migrators/*.php` по списку в `module.json` (одноразовый replace/seed; не часть обычного runtime). |
 
 Хелперы (`helpers.php`): экранирование (`e`, `e_nl`, `safe_html`, `comment_html`), перевод UI (`t`, `te`, `tj`), `redirect`, `request_path`, `base_path`, UI-фичи ленты (`deadline_chip`, `status_pill`, `status_comment_parts`).
 
@@ -134,7 +140,7 @@ freesaas.likespa.hm/
 - Язык: session → cookie `freesaas.locale` → `base_users.locale` (при логине) → `app.locale` в ini (дефолт `ru`).
 - Переключатель в topbar / login → `GET /locale?lang=en&return=…`.
 - Контент пользователей (новости, комментарии, клиенты) и `NAME` статусов из БД **не** переводятся.
-- Новая локаль: файлы каталогов + добавить код в `I18n::supported()`.
+- Новая локаль: добавить `app/lang/{code}.php` и `modules/*/lang/{code}.php`; список supported собирается с диска (опционально `app.locales` в ini). Проверка: `php bin/freesaas.php locale validate --locale={code}`.
 
 ---
 
@@ -319,7 +325,7 @@ return static function (PDO $pdo): void {
 
 ### Data (`migrators/<id>.php`)
 
-Только здесь допустимо читать `phpshop_*` для копирования в `base_*`. В обычном runtime-коде — нельзя.
+Опциональные одноразовые импорты/замены данных, объявленные в `module.json` → `migrators`. В обычном runtime (pages, lib, views, EventBus) — только `base_*`.
 
 ---
 
@@ -357,7 +363,7 @@ return static function (PDO $pdo): void {
 4. Добавить `bootstrap.php`: `require` репозиториев, при необходимости `Assets::register` / `registerMenuGroup` / `StatusesRepository::registerFieldGroup` / `core.user_edit.*`, `ModuleManager::registerRoute(...)`, `EventBus::on(...)`.
 5. При необходимости: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `config.example.ini`.
 6. Включить в `cfg/config.ini` `[modules] myfeature=1` или через UI `/modules` (миграции прогонятся при connect). Скопировать config.example → `cfg/modules/` при наличии.
-7. Не ходить в `phpshop_*` из runtime; новые таблицы — `base_*`.
+7. Runtime и новые таблицы — только `base_*`; владение таблицами — в `module.json` → `tables`.
 8. Если нужно встроиться в существующий экран — подписаться на hook, а не править чужой page без необходимости.
 
 Минимальный `bootstrap.php` с одним экраном:
@@ -390,10 +396,35 @@ View::render('index', ['title' => 'My feature', /* ... */], 'layout', 'myfeature
 
 ## CLI
 
+Канонический протокол для агентов и ops — [`bin/freesaas.php`](../bin/freesaas.php) (текст или `--format=json`). Коды выхода: `0` ok, `1` fail, `2` usage.
+
 | Команда | Действие |
 |---------|----------|
-| `php bin/schema-migrate.php` | DDL всех включённых модулей |
+| `php bin/freesaas.php system status` | PHP/DB/config, локаль, счётчики модулей |
+| `php bin/freesaas.php bootstrap --login=… --password=…` | Первый admin + migrate + `agent_token` (см. [`agents/install.md`](agents/install.md)) |
+| `php bin/freesaas.php module list` | Список модулей, deps, pending migrations |
+| `php bin/freesaas.php module inspect <id>` | Манифест + runtime routes + status |
+| `php bin/freesaas.php module enable\|disable <id>` | Вкл/выкл (при enable — schema migrate) |
+| `php bin/freesaas.php module validate [id]` | Структура модуля / все модули |
+| `php bin/freesaas.php migrate status\|run [--module=id]` | Статус и прогон schema-миграций |
+| `php bin/freesaas.php locale list\|validate [--locale=xx]` | Поддерживаемые локали (discovery `app/lang`) и паритет каталогов |
+| `php bin/freesaas.php health [--module=id]` | Liveness/readiness/health checks |
+| `php bin/freesaas.php i18n check` | То же, что locale validate + used-key scan |
+| `php bin/smoke.php` | Быстрый CI: system + locale + validate + health |
+| `php bin/schema-migrate.php` | Совместимость: DDL всех включённых |
 | `php bin/data-migrate.php` | Data-migrators из манифестов |
+
+Тонкие обёртки: `bin/health.php`, `bin/module-validate.php`, `bin/check-i18n.php`.
+
+HTTP (тот же `Health::run` / `AgentOps`):
+
+- `GET /health` — публичный минимальный JSON (`status`, `liveness`, `readiness`, `summary`)
+- `GET /health/detail` — полный список checks (нужен `core.modules`); `?module=id`
+- **`/agent/*`** — полный ops-API для агентов на shared hosting (токен `app.agent_token`, заголовок `X-FreeSaaS-Agent-Token`). Каталог: `GET /agent`. Первый подъём: `POST /agent/bootstrap` ([`agents/install.md`](agents/install.md)). См. [`agents/remote-api.md`](agents/remote-api.md).
+
+Health: платформенные checks (DB, ledger, config, blocked modules, agent_token) + авто-проверка `tables[]` из `module.json` + модульные `Health::register` (например `audio_pipeline.worker_token`). Модули регистрируют checks в `bootstrap.php`.
+
+Локали: список из файлов `app/lang/*.php`; опционально `app.locales` в ini. Uninstall по-прежнему = disable (таблицы остаются) — см. [`agent-native-audit.md`](agent-native-audit.md). Agent runbooks: [`agents/`](agents/).
 
 ---
 
