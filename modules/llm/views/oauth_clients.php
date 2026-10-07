@@ -32,7 +32,18 @@ $endpoints = is_array($endpoints ?? null) ? $endpoints : [];
     <?php endforeach; ?>
     </tbody>
   </table>
-  <p><?= te('llm.oauth.hint_gpt') ?></p>
+</details>
+
+<details class="muted" open>
+  <summary><?= te('llm.oauth.chatgpt_title') ?></summary>
+  <ol class="lede">
+    <li><?= te('llm.oauth.chatgpt_1') ?></li>
+    <li><?= te('llm.oauth.chatgpt_2') ?></li>
+    <li><?= te('llm.oauth.chatgpt_3') ?></li>
+    <li><?= te('llm.oauth.chatgpt_4') ?></li>
+    <li><?= te('llm.oauth.chatgpt_5') ?></li>
+  </ol>
+  <p class="muted"><?= te('llm.oauth.hint_gpt') ?></p>
 </details>
 
 <?php if ($clients === []): ?>

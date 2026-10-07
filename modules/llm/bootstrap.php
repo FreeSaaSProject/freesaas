@@ -62,7 +62,7 @@ $pages = [
     ],
     '/llm/mcp' => [
         'public' => true,
-        'methods' => ['GET', 'POST', 'OPTIONS'],
+        'methods' => ['GET', 'POST', 'DELETE', 'OPTIONS'],
         'file' => 'mcp.php',
     ],
     '/llm/api/tools' => [
@@ -124,6 +124,23 @@ ModuleManager::registerRoute('/oauth/revoke', [
         require base_path('modules/llm/pages/oauth_revoke.php');
     },
 ]);
+
+$oauthMeta = [
+    '/.well-known/oauth-authorization-server',
+    '/.well-known/openid-configuration',
+    '/.well-known/oauth-protected-resource',
+    '/.well-known/oauth-protected-resource/llm/mcp',
+];
+foreach ($oauthMeta as $metaPath) {
+    ModuleManager::registerRoute($metaPath, [
+        'module' => 'llm',
+        'methods' => ['GET', 'OPTIONS'],
+        'public' => true,
+        'handler' => static function (): void {
+            require base_path('modules/llm/pages/oauth_metadata.php');
+        },
+    ]);
+}
 
 Health::register('llm.profile', 'llm', static function (): array {
     if (LlmConfig::hasReadyProfile()) {

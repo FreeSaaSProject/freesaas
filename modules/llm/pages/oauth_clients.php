@@ -5,6 +5,18 @@ $message = '';
 $error = '';
 $newSecret = '';
 
+$base = OAuthServer::publicBaseUrl();
+$endpoints = [
+    'mcp' => OAuthServer::mcpUrl(),
+    'authorize' => OAuthServer::authorizeUrl(),
+    'token' => OAuthServer::tokenUrl(),
+    'revoke' => OAuthServer::revokeUrl(),
+    'oauth_as_metadata' => $base . '/.well-known/oauth-authorization-server',
+    'oauth_resource_metadata' => $base . '/.well-known/oauth-protected-resource',
+    'openapi' => OAuthServer::openapiUrl(),
+    'api_tools' => $base . '/llm/api/tools',
+];
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)($_POST['action'] ?? '');
     if ($action === 'delete') {
@@ -26,13 +38,7 @@ if (AgentHttp::wantsJson()) {
             unset($c['client_secret_hash']);
             return $c;
         }, $clients),
-        'endpoints' => [
-            'authorize' => OAuthServer::authorizeUrl(),
-            'token' => OAuthServer::tokenUrl(),
-            'revoke' => OAuthServer::revokeUrl(),
-            'mcp' => OAuthServer::mcpUrl(),
-            'openapi' => OAuthServer::openapiUrl(),
-        ],
+        'endpoints' => $endpoints,
     ]);
 }
 
@@ -41,14 +47,7 @@ View::render('oauth_clients', [
     'message' => $message,
     'error' => $error,
     'clients' => $clients,
-    'endpoints' => [
-        'authorize' => OAuthServer::authorizeUrl(),
-        'token' => OAuthServer::tokenUrl(),
-        'revoke' => OAuthServer::revokeUrl(),
-        'mcp' => OAuthServer::mcpUrl(),
-        'openapi' => OAuthServer::openapiUrl(),
-        'api_tools' => OAuthServer::publicBaseUrl() . '/llm/api/tools',
-    ],
+    'endpoints' => $endpoints,
     'assistant_enabled' => ModuleManager::isEnabled('assistant'),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('llm.menu.group'), 'href' => '/llm/tokens'],

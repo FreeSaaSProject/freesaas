@@ -37,14 +37,21 @@ For tool-calling (product CRM assistant), use module [`assistant`](assistant.md)
 Requires `assistant` enabled for tools. UI: **LLM → OAuth / MCP** (`/llm/oauth`, SUPERADMIN + `llm.manage`).
 
 1. Create a client; copy **client_secret** once; add exact redirect URI(s).
-2. Scopes: `ops.read` (default), optional `ops.write` (write tools run under OAuth consent — no second in-app confirm).
+2. Scopes: `ops.read` (default), optional `ops.write` (write tools under OAuth consent).
 3. Endpoints (also shown in UI):
-   - Authorize: `/oauth/authorize`
-   - Token: `/oauth/token`
-   - Revoke: `/oauth/revoke`
-   - MCP JSON-RPC: `/llm/mcp` (Bearer)
-   - OpenAPI (ChatGPT Actions): `/llm/openapi.json`
+   - MCP Streamable HTTP: `/llm/mcp` (`initialize` / `tools/list` without auth; `tools/call` needs Bearer)
+   - Authorize / token / revoke: `/oauth/authorize`, `/oauth/token`, `/oauth/revoke`
+   - Discovery: `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`
+   - OpenAPI (ChatGPT Actions fallback): `/llm/openapi.json`
    - REST: `GET /llm/api/tools`, `POST /llm/api/tools/call`
+
+### ChatGPT Custom MCP
+
+1. Connector URL = MCP endpoint (`https://…/llm/mcp`). Transport is streamable HTTP (POST JSON-RPC; GET with `Accept: text/event-stream` returns an empty SSE listen stream).
+2. ChatGPT discovers OAuth via well-known metadata; staff completes PKCE consent.
+3. Mixed auth: catalog is public; calls require Bearer. `tools/call` without token → `401` + `WWW-Authenticate` pointing at protected-resource metadata.
+4. Tool annotations include `readOnlyHint` / `destructiveHint`. `initialize` returns short `instructions` (≤512 chars).
+5. Browser `Origin` allowlist: `chatgpt.com`, `openai.com`, this host (and localhost).
 
 Optional `public_base` in `cfg/modules/llm.ini` if Host auto-detect is wrong behind a proxy.
 

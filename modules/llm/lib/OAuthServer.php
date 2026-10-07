@@ -138,9 +138,50 @@ final class OAuthServer
     public static function corsHeaders(): void
     {
         header('Access-Control-Allow-Origin: *');
-        header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-        header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept');
+        header('Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS');
+        header('Access-Control-Allow-Headers: Authorization, Content-Type, Accept, Mcp-Session-Id, Last-Event-ID, MCP-Protocol-Version');
+        header('Access-Control-Expose-Headers: Mcp-Session-Id, WWW-Authenticate');
         header('Access-Control-Max-Age: 86400');
+    }
+
+    /** RFC 8414 authorization-server metadata. */
+    public static function authorizationServerMetadata(): array
+    {
+        $base = self::publicBaseUrl();
+        return [
+            'issuer' => $base,
+            'authorization_endpoint' => self::authorizeUrl(),
+            'token_endpoint' => self::tokenUrl(),
+            'revocation_endpoint' => self::revokeUrl(),
+            'response_types_supported' => ['code'],
+            'grant_types_supported' => ['authorization_code', 'refresh_token'],
+            'code_challenge_methods_supported' => ['S256', 'plain'],
+            'token_endpoint_auth_methods_supported' => ['client_secret_post', 'client_secret_basic', 'none'],
+            'scopes_supported' => [self::SCOPE_READ, self::SCOPE_WRITE],
+        ];
+    }
+
+    /** RFC 9728 protected-resource metadata (MCP resource). */
+    public static function protectedResourceMetadata(): array
+    {
+        $base = self::publicBaseUrl();
+        return [
+            'resource' => self::mcpUrl(),
+            'authorization_servers' => [$base],
+            'scopes_supported' => [self::SCOPE_READ, self::SCOPE_WRITE],
+            'bearer_methods_supported' => ['header'],
+            'resource_documentation' => $base . '/llm/oauth',
+        ];
+    }
+
+    public static function emitJson(array $payload, int $http = 200): void
+    {
+        self::corsHeaders();
+        http_response_code($http);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        exit;
     }
 
     /** Emit OAuth error JSON and exit. */

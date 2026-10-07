@@ -43,10 +43,13 @@ final class BearerAuth
         $ctx = self::resolve();
         if ($ctx === null) {
             OAuthServer::corsHeaders();
+            $meta = OAuthServer::publicBaseUrl() . '/.well-known/oauth-protected-resource';
+            header('WWW-Authenticate: Bearer realm="freesaas", resource_metadata="' . $meta . '"');
             AgentHttp::error('invalid_token', 401, ['error' => 'invalid_token']);
         }
         if ($needScope !== null && !OAuthServer::hasScope($ctx['scope'], $needScope)) {
             OAuthServer::corsHeaders();
+            header('WWW-Authenticate: Bearer error="insufficient_scope", scope="' . $needScope . '"');
             AgentHttp::error('insufficient_scope', 403, [
                 'error' => 'insufficient_scope',
                 'scope' => $ctx['scope'],
@@ -67,5 +70,25 @@ final class BearerAuth
     {
         $ctx = $GLOBALS['freesaas_oauth_ctx'] ?? null;
         return is_array($ctx) ? $ctx : null;
+    }
+
+    /**
+     * Run $fn as the bearer user without emitting 401 (caller already resolved).
+     *
+     * @template T
+     * @param array{user_id:int,client_id:string,scope:string} $ctx
+     * @param callable():T $fn
+     * @return T
+     */
+    public static function runAsContext(array $ctx, callable $fn)
+    {
+        return Auth::runAs((int)$ctx['user_id'], static function () use ($fn, $ctx) {
+            $GLOBALS['freesaas_oauth_ctx'] = $ctx;
+            try {
+                return $fn();
+            } finally {
+                unset($GLOBALS['freesaas_oauth_ctx']);
+            }
+        });
     }
 }
