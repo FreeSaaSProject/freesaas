@@ -47,6 +47,116 @@
             "/client-tags/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "clients.list",
+                "method": "GET",
+                "path": "/clients",
+                "permission": "clients.view",
+                "description": "List clients; filters: q, enabled, status_id, tag_id"
+            },
+            {
+                "id": "clients.get",
+                "method": "GET",
+                "path": "/clients/{id}",
+                "permission": "clients.view",
+                "description": "One client card (password omitted); includes tag_ids"
+            },
+            {
+                "id": "clients.get_edit",
+                "method": "GET",
+                "path": "/clients/{id}/edit",
+                "permission": "clients.edit",
+                "description": "Client edit payload + statuses/tags dictionaries"
+            },
+            {
+                "id": "clients.create",
+                "method": "POST",
+                "path": "/clients/new",
+                "permission": "clients.edit",
+                "description": "Create client; form fields + tag_ids[]",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "tel": { "type": "string", "description": "Phone (login)" },
+                        "name": { "type": "string" },
+                        "mail": { "type": "string" },
+                        "enabled": { "type": "string", "description": "1 to enable" },
+                        "status_id": { "type": "integer" },
+                        "tag_ids": {
+                            "type": "array",
+                            "items": { "type": "integer" }
+                        }
+                    },
+                    "required": ["tel"]
+                }
+            },
+            {
+                "id": "clients.update",
+                "method": "POST",
+                "path": "/clients/{id}/edit",
+                "permission": "clients.edit",
+                "description": "Update client; empty password keeps previous"
+            },
+            {
+                "id": "clients.statuses.list",
+                "method": "GET",
+                "path": "/client-statuses",
+                "permission": "clients.statuses",
+                "description": "List client statuses"
+            },
+            {
+                "id": "clients.statuses.get",
+                "method": "GET",
+                "path": "/client-statuses/{id}/edit",
+                "permission": "clients.statuses",
+                "description": "One client status"
+            },
+            {
+                "id": "clients.statuses.create",
+                "method": "POST",
+                "path": "/client-statuses/new",
+                "permission": "clients.statuses",
+                "description": "Create client status"
+            },
+            {
+                "id": "clients.statuses.update",
+                "method": "POST",
+                "path": "/client-statuses/{id}/edit",
+                "permission": "clients.statuses",
+                "description": "Update client status"
+            },
+            {
+                "id": "clients.tags.list",
+                "method": "GET",
+                "path": "/client-tags",
+                "permission": "clients.tags",
+                "description": "List client tags; filter: q"
+            },
+            {
+                "id": "clients.tags.get",
+                "method": "GET",
+                "path": "/client-tags/{id}/edit",
+                "permission": "clients.tags",
+                "description": "One client tag"
+            },
+            {
+                "id": "clients.tags.create",
+                "method": "POST",
+                "path": "/client-tags/new",
+                "permission": "clients.tags",
+                "description": "Create client tag"
+            },
+            {
+                "id": "clients.tags.update",
+                "method": "POST",
+                "path": "/client-tags/{id}/edit",
+                "permission": "clients.tags",
+                "description": "Update client tag"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

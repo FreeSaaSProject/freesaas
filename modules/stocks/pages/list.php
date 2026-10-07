@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $type = (string)($_GET['type'] ?? '');
 if (!in_array($type, ['', '1', '2'], true)) {
@@ -42,6 +44,24 @@ if (class_exists('CabinetsRepository', false)) {
 $stockNames = StocksRepository::names();
 
 $bulkFlash = BulkActions::consumeFlash();
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'type' => $type === '' ? null : $type,
+        ],
+        'cabinets' => $cabinets,
+        'stock_names' => $stockNames,
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 View::render('list', [
     'title' => t('stocks.menu.list'),

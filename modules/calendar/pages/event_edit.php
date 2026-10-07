@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
@@ -12,6 +14,10 @@ $row = [];
 if (!$isNew) {
     $found = EventsRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('calendar.event.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -22,6 +28,10 @@ if (!$isNew) {
     $row = $found;
 } else {
     if (!EventsRepository::canCreate()) {
+        if ($wantsJson) {
+            AgentHttp::error(t('calendar.event.err.no_create'), 403);
+            return;
+        }
         http_response_code(403);
         View::render('error', [
             'title' => t('calendar.event.err.no_create'),
@@ -83,6 +93,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             $backUrl = EventsRepository::weekUrl((int)($row['dtstart'] ?? 0));
             EventsRepository::delete($id);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'id' => $id, 'deleted' => true]);
+                return;
+            }
             redirect($returnUrl !== '/calendar' ? $returnUrl : $backUrl);
             return;
         }
@@ -93,6 +107,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $result = ProceduresRepository::createFromEvent($id);
             $n = count($result['created']);
             $s = count($result['skipped']);
+            if ($wantsJson) {
+                $row = EventsRepository::find($id) ?: $row;
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $id,
+                    'procedures_created' => $n,
+                    'procedures_skipped' => $s,
+                    'item' => EventsRepository::forAgent($row),
+                ]);
+                return;
+            }
             if ($n < 1 && $s > 0) {
                 $message = t('calendar.event.msg.procedures_exist', ['n' => $s]);
             } elseif ($n > 0) {
@@ -121,6 +146,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             if ($isNew) {
                 $newId = EventsRepository::create($data);
+                if ($wantsJson) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'id' => $newId,
+                        'item' => EventsRepository::forAgent(EventsRepository::find($newId)),
+                    ]);
+                    return;
+                }
                 redirect(ListQuery::url('/calendar/events/' . $newId . '/edit', [
                     'saved' => 1,
                     'ret' => $returnUrl !== '/calendar' ? $returnUrl : EventsRepository::weekUrl((int)$data['dtstart']),
@@ -128,8 +161,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 return;
             }
             EventsRepository::update($id, $data);
-            $message = t('core.common.saved');
             $row = EventsRepository::find($id) ?: array_merge($row, $data);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $id,
+                    'item' => EventsRepository::forAgent($row),
+                ]);
+                return;
+            }
+            $message = t('core.common.saved');
             $canModify = EventsRepository::canModify($row);
             $canDelete = EventsRepository::canDelete($row);
             $canMakeProcedures = Auth::can('procedures.edit')
@@ -137,6 +178,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 && empty($row['is_block']);
         }
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         if ($action !== 'create_procedures' && $action !== 'delete') {
             $row = array_merge($row, $_POST);
@@ -226,6 +271,25 @@ $bonusSections = EventBus::emit('calendar.event.sections', [
     'bonus_error' => $bonusError,
 ]);
 $bonusExtraHtml = is_array($bonusSections) ? (string)($bonusSections['html'] ?? '') : '';
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'id' => $isNew ? 0 : $id,
+        'item' => EventsRepository::forAgent($row),
+        'can_modify' => $canModify,
+        'can_delete' => $canDelete,
+        'can_make_procedures' => $canMakeProcedures,
+        'linked_procedures' => $linkedProcedures,
+        'staff_names' => $staffNames,
+        'product_names' => $productNames,
+        'product_prices' => $productPrices,
+        'client_label' => $clientLabel,
+        'staff_locked' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
+    ]);
+    return;
+}
 
 View::render('event_edit', [
     'title' => $isNew

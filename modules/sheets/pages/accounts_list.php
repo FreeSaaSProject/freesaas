@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $enabled = (string)($_GET['enabled'] ?? '');
 $lq = ListQuery::resolve(['list_id' => 'sheet_accounts', 'allowed' => SheetAccountsRepository::listSortMap(), 'default' => 'name', 'default_dir' => 'asc', 'per_page' => 50]);
@@ -13,6 +15,23 @@ $result = SheetAccountsRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'enabled' => $enabled === '' ? null : $enabled,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
+
 View::render('accounts_list', [
     'title' => t('sheets.menu.accounts'),
     'items' => $result['items'],

@@ -37,6 +37,122 @@
       "/stickers/writeoff"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "stickers.receipts.list",
+        "method": "GET",
+        "path": "/stickers/receipts",
+        "permission": "stickers.view",
+        "description": "List receipt acts; filters q, id_stock"
+      },
+      {
+        "id": "stickers.receipts.get_edit",
+        "method": "GET",
+        "path": "/stickers/receipts/{id}/edit",
+        "permission": "stickers.edit",
+        "description": "Receipt act edit payload with sticker lines; new at /stickers/receipts/new"
+      },
+      {
+        "id": "stickers.receipts.create",
+        "method": "POST",
+        "path": "/stickers/receipts/new",
+        "permission": "stickers.edit",
+        "description": "Create receipt act"
+      },
+      {
+        "id": "stickers.receipts.update",
+        "method": "POST",
+        "path": "/stickers/receipts/{id}/edit",
+        "permission": "stickers.edit",
+        "description": "Update receipt act"
+      },
+      {
+        "id": "stickers.ins.list",
+        "method": "GET",
+        "path": "/stickers/ins",
+        "permission": "stickers.view",
+        "description": "List sticker ins; filters q, id_act, id_good"
+      },
+      {
+        "id": "stickers.ins.get_edit",
+        "method": "GET",
+        "path": "/stickers/ins/{id}/edit",
+        "permission": "stickers.edit",
+        "description": "Sticker in edit payload; new at /stickers/ins/new with optional id_act="
+      },
+      {
+        "id": "stickers.ins.create",
+        "method": "POST",
+        "path": "/stickers/ins/new",
+        "permission": "stickers.edit",
+        "description": "Create sticker in batch (may return multiple ids)"
+      },
+      {
+        "id": "stickers.ins.update",
+        "method": "POST",
+        "path": "/stickers/ins/{id}/edit",
+        "permission": "stickers.edit",
+        "description": "Update sticker in"
+      },
+      {
+        "id": "stickers.outs.list",
+        "method": "GET",
+        "path": "/stickers/outs",
+        "permission": "stickers.view",
+        "description": "List sticker outs; filters q, id_act, id_sticker"
+      },
+      {
+        "id": "stickers.outs.cancel",
+        "method": "POST",
+        "path": "/stickers/outs",
+        "permission": "stickers.writeoff",
+        "description": "Cancel a writeoff line: cancel_out_id"
+      },
+      {
+        "id": "stickers.writeoffs.list",
+        "method": "GET",
+        "path": "/stickers/writeoffs",
+        "permission": "stickers.view",
+        "description": "List writeoff acts; filters q, id_stock"
+      },
+      {
+        "id": "stickers.writeoffs.get_edit",
+        "method": "GET",
+        "path": "/stickers/writeoffs/{id}/edit",
+        "permission": "stickers.edit",
+        "description": "Writeoff act edit with out lines; new at /stickers/writeoffs/new"
+      },
+      {
+        "id": "stickers.writeoffs.create",
+        "method": "POST",
+        "path": "/stickers/writeoffs/new",
+        "permission": "stickers.edit",
+        "description": "Create writeoff act"
+      },
+      {
+        "id": "stickers.writeoffs.update",
+        "method": "POST",
+        "path": "/stickers/writeoffs/{id}/edit",
+        "permission": "stickers.edit",
+        "description": "Update writeoff act"
+      },
+      {
+        "id": "stickers.writeoff.form",
+        "method": "GET",
+        "path": "/stickers/writeoff",
+        "permission": "stickers.writeoff",
+        "description": "Writeoff form for one sticker; query id_sticker"
+      },
+      {
+        "id": "stickers.writeoff.execute",
+        "method": "POST",
+        "path": "/stickers/writeoff",
+        "permission": "stickers.writeoff",
+        "description": "Execute amount writeoff: id_sticker, amount, descr"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $message = '';
 $error = '';
 $loggingOn = WorkweeksRepository::commentsLoggingAvailable();
@@ -20,7 +22,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $newsId = WorkweeksRepository::scheduleNewsId();
         }
         $message = t('core.common.saved');
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'saved' => true,
+                'logging_on' => $loggingOn,
+                'news_id' => $newsId,
+            ]);
+            return;
+        }
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
     }
 }
@@ -34,6 +49,16 @@ if ($newsId > 0 && class_exists('NewsRepository', false)) {
             $newsLabel = '#' . $newsId;
         }
     }
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'logging_on' => $loggingOn,
+        'news_id' => $newsId,
+        'news_label' => $newsLabel,
+    ]);
+    return;
 }
 
 View::render('settings', [

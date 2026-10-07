@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $idStock = (int)($_GET['id_stock'] ?? 0);
 $lq = ListQuery::resolve([
@@ -19,6 +21,23 @@ $result = Acts2OutRepository::list([
     'order' => $lq['order_sql'],
 ]);
 $stocks = class_exists('StocksRepository', false) ? StocksRepository::names() : [];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'id_stock' => $idStock > 0 ? $idStock : null,
+        ],
+        'stocks' => $stocks,
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 View::render('writeoffs_list', [
     'title' => t('stickers.menu.writeoffs'),

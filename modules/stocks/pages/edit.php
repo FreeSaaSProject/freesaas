@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
@@ -8,6 +10,10 @@ $row = [];
 if (!$isNew) {
     $found = StocksRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('stocks.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -26,13 +32,33 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $data = StocksRepository::dataFromPost($_POST, $id);
         if ($isNew) {
             $newId = StocksRepository::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $newId,
+                    'item' => StocksRepository::find($newId),
+                ]);
+                return;
+            }
             redirect('/stocks/' . $newId . '/edit?saved=1');
             return;
         }
         StocksRepository::update($id, $data);
-        $message = t('core.common.saved');
         $row = StocksRepository::find($id) ?: $row;
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'item' => $row,
+            ]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row, [
             'name' => (string)($_POST['name'] ?? ''),
@@ -59,6 +85,17 @@ if (class_exists('CabinetsRepository', false) && ModuleManager::isEnabled('cabin
 $virtualStocks = StocksRepository::names(StocksRepository::TYPE_VIRTUAL);
 if (!$isNew) {
     unset($virtualStocks[$id]);
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'item' => $row,
+        'cabinets' => $cabinets,
+        'virtual_stocks' => $virtualStocks,
+    ]);
+    return;
 }
 
 View::render('edit', [

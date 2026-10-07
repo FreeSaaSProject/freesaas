@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $dateParam = (string)(Router::param('date') ?? ($_GET['date'] ?? ''));
 $dateParam = trim($dateParam);
 if ($dateParam === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateParam)) {
@@ -34,6 +36,11 @@ $shiftError = '';
 $weekRet = '/calendar/week/' . $mondayDate;
 if ($staffId > 0 && !$myOnly) {
     $weekRet .= '?staff=' . $staffId;
+}
+
+if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    AgentHttp::error('Use workweeks agent ops for shift changes; week JSON is GET-only.', 400);
+    return;
 }
 
 if ($canAssign && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['shift_action'])) {
@@ -181,6 +188,40 @@ if ($openShiftDay !== 'all' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $openShiftDa
 }
 
 $dayStatsHtml = CalendarDayStats::collect($days, $staffFilter, 'week');
+
+if ($wantsJson) {
+    $daysOut = [];
+    foreach ($days as $day) {
+        $d = $day['date'];
+        $dayShifts = $shiftsByDate[$d] ?? [];
+        if ($staffId > 0) {
+            $dayShifts = array_values(array_filter(
+                $dayShifts,
+                static fn(array $sh): bool => (int)$sh['id_operator'] === $staffId
+            ));
+        }
+        $daysOut[] = [
+            'date' => $d,
+            'weekday' => $day['weekday'] ?? '',
+            'is_today' => !empty($day['is_today']),
+            'events' => EventsRepository::listForAgent($eventsByDate[$d] ?? []),
+            'procedures' => $procsByDate[$d] ?? [],
+            'shifts' => WorkweeksRepository::listForAgent($dayShifts),
+        ];
+    }
+    AgentHttp::emit([
+        'ok' => true,
+        'monday' => $mondayDate,
+        'anchor_date' => $dateParam,
+        'range_label' => $rangeLabel,
+        'staff_id' => $staffFilter,
+        'staff_locked' => $myOnly,
+        'can_edit' => $canEdit,
+        'can_create' => $canCreate,
+        'days' => $daysOut,
+    ]);
+    return;
+}
 
 View::render('week', [
     'title' => t('calendar.week.title', ['range' => $rangeLabel]),

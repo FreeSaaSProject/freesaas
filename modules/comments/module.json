@@ -16,6 +16,10 @@
   "routes": {
     "pages": []
   },
+  "agent": {
+    "note": "No module HTTP routes; comment thread UI is embedded on core /news/{id} via EventBus hooks (core.news_item.*, comments.prepare_add).",
+    "ops": []
+  },
   "jobs": [],
   "menu": [],
   "configSchema": {},

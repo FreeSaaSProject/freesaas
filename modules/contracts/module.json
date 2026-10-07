@@ -23,6 +23,33 @@
       "/contracts/action"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "contracts.list",
+        "method": "GET",
+        "path": "/contracts",
+        "permission": "contracts.list",
+        "description": "List contract offers; filters: status, executor, acceptor, party (non-admin)"
+      },
+      {
+        "id": "contracts.action",
+        "method": "POST",
+        "path": "/contracts/action",
+        "permission": "contracts.manage",
+        "description": "Contract workflow on a comment: action=accept_offer|accept_work|refuse|cancel_work_accept; comment_id, optional news_id",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "action": { "type": "string" },
+            "comment_id": { "type": "integer" },
+            "news_id": { "type": "integer" }
+          },
+          "required": ["action", "comment_id"]
+        }
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $uid = Auth::userId();
 $status = (int)($_GET['status'] ?? 0);
 $executor = (int)($_GET['executor'] ?? 0);
@@ -61,6 +63,25 @@ $filters = array_merge([
 ], $lq['query']);
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'scoped' => $result['scoped'],
+        'filters' => [
+            'status' => $status,
+            'executor' => $super && $executor > 0 ? $executor : null,
+            'acceptor' => $super && $acceptor > 0 ? $acceptor : null,
+            'party' => !$super && $party !== '' ? $party : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
 }
 
 View::render('list', [

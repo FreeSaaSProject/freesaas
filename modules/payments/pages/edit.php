@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 $canSeeOthers = PaymentsRepository::canSeeOthers();
@@ -34,6 +36,10 @@ if ($isNew && $commentId > 0) {
 if (!$isNew) {
     $found = PaymentsRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('payments.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -42,6 +48,10 @@ if (!$isNew) {
         return;
     }
     if (!$canSeeOthers && (int)$found['user_id'] !== Auth::userId()) {
+        if ($wantsJson) {
+            AgentHttp::error(t('payments.err.forbidden'), 403);
+            return;
+        }
         http_response_code(403);
         View::render('error', [
             'title' => t('payments.err.forbidden'),
@@ -64,13 +74,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         if (!$isNew && !empty($_POST['create_dps']) && PaymentsRepository::ledgerEnabled()) {
             $res = PaymentsRepository::createDpsByIds([$id]);
+            $row = PaymentsRepository::find($id) ?: $row;
+            if ($wantsJson) {
+                if ($res['done'] > 0) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'action' => 'create_dps',
+                        'id' => $id,
+                        'done' => $res['done'],
+                        'row' => $row,
+                    ]);
+                } else {
+                    $reason = $res['skipped'][0]['reason'] ?? t('payments.flash.dps_none');
+                    AgentHttp::error($reason, 400, ['result' => $res]);
+                }
+                return;
+            }
             if ($res['done'] > 0) {
                 $message = t('payments.flash.dps_created', ['n' => $res['done']]);
             } else {
                 $reason = $res['skipped'][0]['reason'] ?? t('payments.flash.dps_none');
                 $error = $reason;
             }
-            $row = PaymentsRepository::find($id) ?: $row;
         } else {
             if (!$canSeeOthers) {
                 $_POST['user_id'] = (string)Auth::userId();
@@ -78,14 +103,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $data = PaymentsRepository::dataFromPost($_POST, $isNew ? null : $row);
             if ($isNew) {
                 $newId = PaymentsRepository::create($data);
+                if ($wantsJson) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'id' => $newId,
+                        'row' => PaymentsRepository::find($newId),
+                    ]);
+                    return;
+                }
                 redirect('/payments/' . $newId . '/edit?saved=1');
                 return;
             }
             PaymentsRepository::update($id, $data);
-            $message = t('core.common.saved');
             $row = PaymentsRepository::find($id) ?: $row;
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $id,
+                    'row' => $row,
+                ]);
+                return;
+            }
+            $message = t('core.common.saved');
         }
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         if (empty($_POST['create_dps'])) {
             $row = array_merge($row, [
@@ -123,6 +168,21 @@ if (!$isNew && $ledgerEnabled && class_exists('LedgerMovesRepository')) {
 $linkedMoves = $linkedMoveIds !== [];
 $showCashMarks = (int)($row['direction'] ?? 0) < 0 && (int)($row['account'] ?? 0) === 2;
 $canViewLedger = $ledgerEnabled && Auth::can('ledger.view');
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'id' => $isNew ? null : $id,
+        'row' => $row,
+        'staff' => $staff,
+        'type_names' => $typeNames,
+        'can_see_others' => $canSeeOthers,
+        'ledger_enabled' => $ledgerEnabled,
+        'linked_move_ids' => $linkedMoveIds,
+    ]);
+    return;
+}
 
 View::render('edit', [
     'title' => $isNew

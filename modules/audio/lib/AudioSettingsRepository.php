@@ -101,4 +101,14 @@ final class AudioSettingsRepository
             ),
         ];
     }
+
+    /** Storage config for AgentHttp (FTP password never exposed). */
+    public static function storageConfigForAgent(): array
+    {
+        $cfg = self::storageConfig();
+        unset($cfg['ftp_pass']);
+        $cfg['ftp_pass_configured'] = trim((string)(Config::section('storage')['ftp_pass'] ?? '')) !== '';
+
+        return $cfg;
+    }
 }

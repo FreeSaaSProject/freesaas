@@ -28,6 +28,38 @@
             "/units/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "units.list",
+                "method": "GET",
+                "path": "/units",
+                "permission": "units.view",
+                "description": "List units of measure; filter: q"
+            },
+            {
+                "id": "units.get",
+                "method": "GET",
+                "path": "/units/{id}/edit",
+                "permission": "units.edit",
+                "description": "One unit edit payload"
+            },
+            {
+                "id": "units.create",
+                "method": "POST",
+                "path": "/units/new",
+                "permission": "units.edit",
+                "description": "Create unit; fields: name, short_name, enabled"
+            },
+            {
+                "id": "units.update",
+                "method": "POST",
+                "path": "/units/{id}/edit",
+                "permission": "units.edit",
+                "description": "Update unit"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $dateParam = (string)(Router::param('date') ?? ($_GET['date'] ?? ''));
 $dateParam = trim($dateParam);
 if ($dateParam === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateParam)) {
@@ -112,6 +114,21 @@ if ($openShiftDay !== 'all' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $openShiftDa
 $dayStatsHtml = CalendarDayStats::collect([
     ['ts' => $dayStart, 'date' => $dateParam, 'is_today' => $dateParam === $today],
 ], $staffFilter, 'day');
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'date' => $dateParam,
+        'staff_id' => $staffFilter,
+        'staff_locked' => $myOnly,
+        'can_edit' => $canEdit,
+        'can_create' => $canCreate,
+        'events' => EventsRepository::listForAgent($events),
+        'procedures' => $procedures,
+        'shifts' => WorkweeksRepository::listForAgent($shifts),
+    ]);
+    return;
+}
 
 View::render('day', [
     'title' => t('calendar.day.title', ['date' => $dateLabel]),

@@ -42,6 +42,110 @@
             "/audio/api/badge"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "audio.list",
+                "method": "GET",
+                "path": "/audio",
+                "permission": "audio.view",
+                "description": "List audio records; filters: q, search, year, month, day, admin, badge, review, disabled, score"
+            },
+            {
+                "id": "audio.get",
+                "method": "GET",
+                "path": "/audio/{id}",
+                "permission": "audio.view",
+                "description": "One record; include_transcription=1 for full text; POST action=toggle_disabled (audio.edit)"
+            },
+            {
+                "id": "audio.badges.list",
+                "method": "GET",
+                "path": "/audio/badges",
+                "permission": "audio.badges",
+                "description": "List dictophone badges"
+            },
+            {
+                "id": "audio.badges.write",
+                "method": "POST",
+                "path": "/audio/badges",
+                "permission": "audio.badges",
+                "description": "Badge admin: action=sync or action=save with id, name, enabled"
+            },
+            {
+                "id": "audio.assignments.list",
+                "method": "GET",
+                "path": "/audio/assignments",
+                "permission": "audio.badges",
+                "description": "List badge shift assignments; filters: q, operator_id, badge, active"
+            },
+            {
+                "id": "audio.assignments.get_new",
+                "method": "GET",
+                "path": "/audio/assignments/new",
+                "permission": "audio.badges",
+                "description": "Blank badge assignment form payload"
+            },
+            {
+                "id": "audio.assignments.get",
+                "method": "GET",
+                "path": "/audio/assignments/{id}/edit",
+                "permission": "audio.badges",
+                "description": "One badge assignment edit payload"
+            },
+            {
+                "id": "audio.assignments.create",
+                "method": "POST",
+                "path": "/audio/assignments/new",
+                "permission": "audio.badges",
+                "description": "Create badge assignment from form fields"
+            },
+            {
+                "id": "audio.assignments.update",
+                "method": "POST",
+                "path": "/audio/assignments/{id}/edit",
+                "permission": "audio.badges",
+                "description": "Update or delete (action=delete) badge assignment"
+            },
+            {
+                "id": "audio.settings.get",
+                "method": "GET",
+                "path": "/audio/settings",
+                "permission": "audio.view",
+                "description": "Audio storage settings without FTP password (SUPERADMIN_ACCESS capability on route)"
+            },
+            {
+                "id": "audio.settings.save",
+                "method": "POST",
+                "path": "/audio/settings",
+                "permission": "audio.view",
+                "description": "Save audio storage paths and FTP host/user (password stays in ini)"
+            },
+            {
+                "id": "audio.api.blocks",
+                "method": "GET",
+                "path": "/audio/api/blocks",
+                "permission": "audio.view",
+                "assistant": false,
+                "description": "Lazy transcript HTML blocks for record ids (ids= comma-separated)"
+            },
+            {
+                "id": "audio.api.dict",
+                "method": "POST",
+                "path": "/audio/api/dict",
+                "permission": "audio.edit",
+                "assistant": false,
+                "description": "List UX: action=add_key|add_trash with text (+ optional type_id, dict_id)"
+            },
+            {
+                "id": "audio.api.badge",
+                "method": "POST",
+                "path": "/audio/api/badge",
+                "assistant": false,
+                "description": "Save current user badge selection (badge_id); session auth"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

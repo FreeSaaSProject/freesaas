@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
@@ -9,6 +11,10 @@ $selectedTagIds = [];
 if (!$isNew) {
     $found = ClientsRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('clients.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', ['title' => t('core.common.not_found'), 'message' => t('clients.err.not_found', ['id' => $id])]);
         return;
@@ -41,6 +47,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'client' => array_merge($data, ['id' => $newId]),
                 'is_new' => true,
             ]);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $newId,
+                    'item' => ClientsRepository::forAgent(ClientsRepository::find($newId), true),
+                ]);
+                return;
+            }
             redirect('/clients/' . $newId . '/edit?saved=1');
             return;
         }
@@ -52,10 +66,22 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'client' => array_merge($client, $data, ['id' => $id]),
             'is_new' => false,
         ]);
-        $message = t('core.common.saved');
         $client = ClientsRepository::find($id) ?: $client;
         $selectedTagIds = ClientsRepository::tagIdsForClient($id);
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'item' => ClientsRepository::forAgent($client, true),
+            ]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $client = array_merge($client, $_POST);
         $tagIdsRaw = $_POST['tag_ids'] ?? [];
@@ -66,6 +92,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return $tid > 0;
         })));
     }
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'item' => ClientsRepository::forAgent($client ?: null, true) ?? [
+            'tag_ids' => $selectedTagIds,
+        ],
+        'is_new' => $isNew,
+        'tag_ids' => $selectedTagIds,
+        'statuses' => ClientStatusesRepository::names(false),
+        'tags' => ClientTagsRepository::names(false),
+    ]);
+    return;
 }
 
 if (isset($_GET['saved']) && $message === '') {

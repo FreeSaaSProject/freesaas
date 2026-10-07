@@ -11,10 +11,11 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [db-backup.md](db-backup.md) | DB hub: dump/restore/maintenance (`/db`, owned for agents) |
 | [localization.md](localization.md) | New locale |
 | [remote-api.md](remote-api.md) | Shared hosting: HTTPS `/agent/*` + token |
-| [module-agent-api.md](module-agent-api.md) | Product JSON ops (`module.json` → `agent.ops`, session auth) |
+| [module-agent-api.md](module-agent-api.md) | Product JSON ops (`module.json` → `agent.ops` on all modules; session auth) |
 | [assistant.md](assistant.md) | In-system LLM harness (UI + bot, tools, confirm writes) |
 | [audio-summaries.md](audio-summaries.md) | Audio summary profiles: construct + run via JSON |
 | [llm.md](llm.md) | LLM tokens, OAuth/MCP adapter, chat op, audio studies |
+| [clients.md](clients.md) | Client CRM: list/get/create/update + statuses/tags JSON |
 | [bonuses.md](bonuses.md) | Client loyalty ledger + event apply (JSON) |
 | [ledger.md](ledger.md) | Company accounts / ДПС / recon / promised payments (JSON) |
 | [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins |

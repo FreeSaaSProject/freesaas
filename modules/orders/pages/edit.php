@@ -1,9 +1,15 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $order = OrdersRepository::find($id);
 if (!$order) {
+    if ($wantsJson) {
+        AgentHttp::error(t('orders.err.not_found', ['id' => $id]), 404);
+        return;
+    }
     http_response_code(404);
     View::render('error', [
         'title' => t('core.common.not_found'),
@@ -19,9 +25,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = OrdersRepository::dataFromPost($_POST);
         OrdersRepository::update($id, $data);
-        $message = t('core.common.saved');
         $order = OrdersRepository::find($id) ?: $order;
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'order' => $order,
+            ]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $order = array_merge($order, [
             'status' => (string)($_POST['status'] ?? $order['status'] ?? '0'),
@@ -56,6 +74,17 @@ if ($currentStatus === '') {
 }
 if (!isset($statusChoices[$currentStatus])) {
     $statusChoices[$currentStatus] = OrdersRepository::statusLabel($currentStatus);
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'id' => $id,
+        'order' => $order,
+        'staff_options' => $staffOptions,
+        'status_choices' => $statusChoices,
+    ]);
+    return;
 }
 
 View::render('edit', [

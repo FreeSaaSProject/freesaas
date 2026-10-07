@@ -1,5 +1,8 @@
 <?php
 declare(strict_types=1);
+
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $fundId = (int)($_GET['fund_id'] ?? 0);
 $typeId = (int)($_GET['type_id'] ?? ($_GET['id_fund_move_type'] ?? 0));
@@ -26,6 +29,30 @@ $result = FundMovementsRepository::list([
     'year' => $year, 'month' => $month, 'year_e' => $yearE, 'month_e' => $monthE,
     'limit' => ListQuery::sqlLimit($lq), 'offset' => $lq['offset'], 'order' => $lq['order_sql'],
 ]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'funds' => FundsRepository::names(),
+        'filters' => [
+            'q' => $q,
+            'fund_id' => $fundId > 0 ? $fundId : null,
+            'type_id' => $typeId > 0 ? $typeId : null,
+            'fund_type' => $fundType > 0 ? $fundType : null,
+            'year' => $year > 0 ? $year : null,
+            'month' => $month > 0 ? $month : null,
+            'yearE' => $yearE > 0 ? $yearE : null,
+            'monthE' => $monthE > 0 ? $monthE : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
+
 View::render('moves_list', [
     'title' => t('funds.menu.movements'),
     'breadcrumbs' => Breadcrumbs::withHome([['label' => t('funds.menu.movements'), 'current' => true]]),

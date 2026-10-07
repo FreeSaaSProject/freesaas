@@ -26,6 +26,66 @@
       "/audio/jobs/collect"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "audio_pipeline.asr.claim",
+        "method": "GET",
+        "path": "/audio/asr/claim",
+        "permission": "audio_pipeline.view",
+        "assistant": false,
+        "description": "Whisper worker: claim next file (X-Audio-Token); ?format=json for envelope"
+      },
+      {
+        "id": "audio_pipeline.asr.result",
+        "method": "POST",
+        "path": "/audio/asr/result",
+        "permission": "audio_pipeline.view",
+        "assistant": false,
+        "description": "Whisper worker: post ASR result for file_name"
+      },
+      {
+        "id": "audio_pipeline.asr.chunk_claim",
+        "method": "GET",
+        "path": "/audio/asr/chunk-claim",
+        "permission": "audio_pipeline.view",
+        "assistant": false,
+        "description": "Chunk ASR worker: claim next chunk"
+      },
+      {
+        "id": "audio_pipeline.asr.chunk_result",
+        "method": "POST",
+        "path": "/audio/asr/chunk-result",
+        "permission": "audio_pipeline.view",
+        "assistant": false,
+        "description": "Chunk ASR worker: post chunk result"
+      },
+      {
+        "id": "audio_pipeline.jobs.ingest",
+        "method": "POST",
+        "path": "/audio/jobs/ingest",
+        "permission": "audio_pipeline.view",
+        "assistant": false,
+        "description": "Cron ingest job (X-Audio-Token); optional importBrokenDate"
+      },
+      {
+        "id": "audio_pipeline.jobs.stem",
+        "method": "POST",
+        "path": "/audio/jobs/stem",
+        "permission": "audio_pipeline.view",
+        "assistant": false,
+        "description": "Cron stem/lemma job (X-Audio-Token)"
+      },
+      {
+        "id": "audio_pipeline.jobs.collect",
+        "method": "POST",
+        "path": "/audio/jobs/collect",
+        "permission": "audio_pipeline.view",
+        "assistant": false,
+        "description": "Cron script collection job (X-Audio-Token); optional full=1"
+      }
+    ]
+  },
   "jobs": [
     "POST /audio/jobs/ingest",
     "POST /audio/jobs/stem",

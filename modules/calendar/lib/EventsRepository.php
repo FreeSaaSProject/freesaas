@@ -512,6 +512,44 @@ final class EventsRepository
         return $out;
     }
 
+    /**
+     * @param array<string,mixed>|null $row
+     * @return array<string,mixed>|null
+     */
+    public static function forAgent(?array $row): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+        unset($row['ppp_log'], $row['sms']);
+        if (isset($row['dtstart'])) {
+            $row['dtstart_iso'] = self::tsToLocal((int)$row['dtstart']);
+        }
+        if (isset($row['dtend'])) {
+            $row['dtend_iso'] = self::tsToLocal((int)$row['dtend']);
+        }
+        return $row;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function listForAgent(array $items): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $normalized = self::forAgent($row);
+            if ($normalized !== null) {
+                $out[] = $normalized;
+            }
+        }
+        return $out;
+    }
+
     /** Whether current user may create events (module perm + status flag). */
     public static function canCreate(): bool
     {

@@ -21,6 +21,17 @@
       "/finance/balance"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "finance.balance",
+        "method": "GET",
+        "path": "/finance/balance",
+        "permission": "finance.view",
+        "description": "Balance and OPIU report; params: year, select, show_zeros, yoy, yoyMode, yoyAsOf, yoyChartView, yoyYears"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

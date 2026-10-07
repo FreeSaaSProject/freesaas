@@ -5,5 +5,10 @@ require_once base_path('modules/audio_pipeline/lib/AsrWorkerAuth.php');
 require_once base_path('modules/audio_pipeline/lib/AsrService.php');
 
 AsrWorkerAuth::assertToken();
+$body = AsrService::claim();
+if (AgentHttp::wantsJson()) {
+    AgentHttp::emit(['ok' => true, 'claim' => $body]);
+    return;
+}
 header('Content-Type: text/plain; charset=utf-8');
-echo AsrService::claim();
+echo $body;

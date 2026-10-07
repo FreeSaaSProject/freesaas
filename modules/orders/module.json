@@ -33,6 +33,38 @@
             "/orders/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "orders.list",
+                "method": "GET",
+                "path": "/orders",
+                "permission": "orders.view",
+                "description": "List website orders; filters: q, status, id_user, id_promocode, free_ticket"
+            },
+            {
+                "id": "orders.get",
+                "method": "GET",
+                "path": "/orders/{id}",
+                "permission": "orders.view",
+                "description": "One order with decoded cart lines and linked procedure summary if any"
+            },
+            {
+                "id": "orders.get_edit",
+                "method": "GET",
+                "path": "/orders/{id}/edit",
+                "permission": "orders.edit",
+                "description": "Order edit payload with staff options and status choices"
+            },
+            {
+                "id": "orders.update",
+                "method": "POST",
+                "path": "/orders/{id}/edit",
+                "permission": "orders.edit",
+                "description": "Update order status, cosmetologist, comment, mail, free_ticket"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

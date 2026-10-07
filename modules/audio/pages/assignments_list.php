@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $operatorId = (int)($_GET['operator_id'] ?? 0);
 $badge = trim((string)($_GET['badge'] ?? ''));
@@ -45,6 +47,27 @@ if (Database::tableExists('base_records_badges')) {
         $code = (string)$b['CODE'];
         $badgeOptions[$code] = (string)($b['NAME'] !== '' ? $b['NAME'] : $b['CODE']);
     }
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'operator_id' => $operatorId > 0 ? $operatorId : null,
+            'badge' => $badge !== '' ? $badge : null,
+            'active' => $active,
+        ],
+        'staff' => $staff,
+        'badge_options' => $badgeOptions,
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+        'can_edit' => Auth::can('audio.badges'),
+    ]);
+    return;
 }
 
 View::render('assignments_list', [

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $year = (int)($_GET['year'] ?? 0);
 $yearCount = (int)($_GET['yearCount'] ?? 0);
 $select = (int)($_GET['select'] ?? 0);
@@ -34,6 +36,25 @@ if ($yoy) {
 }
 
 $report = FinanceBalanceRepository::build($year, $select, $opts);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'report' => $report,
+        'query' => [
+            'year' => $year,
+            'yearCount' => $yearCount,
+            'select' => $select,
+            'show_zeros' => $showZeros,
+            'yoy' => $yoy,
+            'yoyMode' => $yoyMode,
+            'yoyAsOf' => $yoyAsOf,
+            'yoyChartView' => $yoyChartView,
+            'yoyYears' => $yoyYears,
+        ],
+    ]);
+    return;
+}
 
 View::render('balance', [
     'title' => t('finance.balance.title'),

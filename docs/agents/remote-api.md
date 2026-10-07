@@ -13,6 +13,8 @@ In `cfg/config.ini` (not committed):
 agent_token="a-long-random-secret"
 ```
 
+Or generate it in the UI: **Settings → Agent token** (`/settings`). Regenerating invalidates old dump links and `/agent/*` calls.
+
 Copy from `cfg/config.example.ini` comment. Empty / `CHANGE_ME` → `/agent/*` returns **503** (except virgin catalog + bootstrap).
 
 ## Auth

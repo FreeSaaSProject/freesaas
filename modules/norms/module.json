@@ -23,6 +23,38 @@
       "/norms/{id}/edit"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "norms.list",
+        "method": "GET",
+        "path": "/norms",
+        "permission": "norms.view",
+        "description": "List consumption norms; filters: id_proc, id_good"
+      },
+      {
+        "id": "norms.get",
+        "method": "GET",
+        "path": "/norms/{id}/edit",
+        "permission": "norms.edit",
+        "description": "Norm edit payload; includes products dictionary"
+      },
+      {
+        "id": "norms.create",
+        "method": "POST",
+        "path": "/norms/new",
+        "permission": "norms.edit",
+        "description": "Create norm; id_proc, id_good, qtyu2, qtyu"
+      },
+      {
+        "id": "norms.update",
+        "method": "POST",
+        "path": "/norms/{id}/edit",
+        "permission": "norms.edit",
+        "description": "Update norm"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

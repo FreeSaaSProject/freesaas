@@ -625,4 +625,35 @@ final class RecordsRepository
         $cfg = AudioSettingsRepository::storageConfig();
         return '/' . trim($cfg['audio_parsed'], '/') . '/' . $fn;
     }
+
+    /**
+     * @param array<string,mixed>|null $row
+     * @return array<string,mixed>|null
+     */
+    public static function forAgent(?array $row, bool $withTranscription = false): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+        if (!$withTranscription) {
+            unset($row['transcription']);
+        }
+        return $row;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function listForAgent(array $items): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $out[] = self::forAgent($row, false) ?? [];
+        }
+        return $out;
+    }
 }

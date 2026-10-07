@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once base_path('modules/core/lib/SystemRepository.php');
 
+$wantsJson = AgentHttp::wantsJson();
+
 $message = '';
 $error = '';
 $row = SystemRepository::get();
@@ -21,7 +23,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $message = t('core.common.saved');
         $row = SystemRepository::get();
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'saved' => true,
+                'manual_create' => (int)Config::get('calendar', 'manual_create', 1) === 1,
+                'work_hour_start' => (int)($row['work_hour_start'] ?? Config::get('calendar', 'hour_start', 9)),
+                'work_hour_end' => (int)($row['work_hour_end'] ?? Config::get('calendar', 'hour_end', 21)),
+            ]);
+            return;
+        }
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = SystemRepository::get();
     }
@@ -30,6 +46,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $showHours = Database::tableExists('base_system')
     && Database::columnExists('base_system', 'work_hour_start')
     && Database::columnExists('base_system', 'work_hour_end');
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'manual_create' => (int)Config::get('calendar', 'manual_create', 1) === 1,
+        'work_hour_start' => (int)($row['work_hour_start'] ?? Config::get('calendar', 'hour_start', 9)),
+        'work_hour_end' => (int)($row['work_hour_end'] ?? Config::get('calendar', 'hour_end', 21)),
+        'show_hours' => $showHours,
+    ]);
+    return;
+}
 
 View::render('settings', [
     'title' => t('calendar.menu.settings'),

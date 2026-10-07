@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $idAct = (int)($_GET['id_act'] ?? 0);
 $idGood = (int)($_GET['id_good'] ?? 0);
@@ -30,6 +32,25 @@ $result = StickerInsRepository::list([
 ]);
 $products = class_exists('ProductsRepository', false) ? ProductsRepository::names(false) : [];
 $stocks = class_exists('StocksRepository', false) ? StocksRepository::names() : [];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'id_act' => $idAct > 0 ? $idAct : null,
+            'id_good' => $idGood > 0 ? $idGood : null,
+        ],
+        'products' => $products,
+        'stocks' => $stocks,
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 View::render('ins_list', [
     'title' => t('stickers.menu.ins'),

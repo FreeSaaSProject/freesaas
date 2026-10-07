@@ -62,7 +62,7 @@ Errors: `{ "ok": false, "error": "…" }` with HTTP 4xx/5xx.
 
 ## Rollout
 
-Add `agent.ops` when a module gains a stable JSON twin. References: `core` DB hub (`/db`), `audio_reports` summaries. Platform catalog of all module ops can be added later (inspect / AgentOps) without changing this shape.
+All product modules declare `agent.ops` (session JSON on the same routes as the UI). `comments` has an empty list — no own HTTP routes (thread embeds on core news via EventBus). Worker/pipeline endpoints may set `"assistant": false` so they stay out of the in-system assistant catalog but remain callable via MCP/session JSON.
 
 Platform install/ops (`/agent/db*`, token) remain separate — see [remote-api.md](remote-api.md), [migrations.md](migrations.md), and [db-backup.md](db-backup.md).
 

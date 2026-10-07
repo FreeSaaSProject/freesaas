@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $message = '';
 $error = '';
 
@@ -31,8 +33,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'files' => $_FILES,
         ]);
 
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'saved' => true,
+                'cfg' => AudioSettingsRepository::storageConfigForAgent(),
+            ]);
+            return;
+        }
         $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
     }
 }
@@ -43,6 +57,14 @@ $sections = EventBus::emit('audio.settings.sections', [
     'cfg' => $cfg,
 ]);
 $extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'cfg' => AudioSettingsRepository::storageConfigForAgent(),
+    ]);
+    return;
+}
 
 View::render('settings', [
     'title' => t('audio.menu.settings'),

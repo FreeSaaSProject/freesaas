@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 require_once base_path('modules/audio/lib/RecordsRepository.php');
 require_once base_path('modules/audio/lib/RecordsReviewsRepository.php');
 require_once base_path('modules/audio/lib/TranscriptHighlighter.php');
@@ -248,6 +250,31 @@ if ($day > 0) {
         ]),
         'is_today' => ($year === $todayY && $month === $todayM && $day === $todayD),
     ];
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => RecordsRepository::listForAgent($result['items']),
+        'filters' => [
+            'q' => $q,
+            'search' => $search,
+            'admin' => $admin > 0 ? $admin : null,
+            'badge' => $badge > 0 ? $badge : null,
+            'year' => $year,
+            'month' => $month,
+            'day' => $day,
+            'disabled' => $disabled,
+            'score' => $score >= 0 ? $score : null,
+            'review' => $review !== '' ? $review : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+        'review_by_id' => $reviewById,
+    ]);
+    return;
 }
 
 View::render('list', [

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $idProc = (int)($_GET['id_proc'] ?? 0);
 $idGood = (int)($_GET['id_good'] ?? 0);
 $lq = ListQuery::resolve([
@@ -19,6 +21,23 @@ $result = NormsRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'id_proc' => $idProc > 0 ? $idProc : null,
+            'id_good' => $idGood > 0 ? $idGood : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
+
 $products = class_exists('ProductsRepository', false) ? ProductsRepository::names(false) : [];
 
 View::render('list', [

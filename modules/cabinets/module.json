@@ -28,6 +28,38 @@
             "/cabinets/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "cabinets.list",
+                "method": "GET",
+                "path": "/cabinets",
+                "permission": "cabinets.view",
+                "description": "List rooms/cabinets; filter: q"
+            },
+            {
+                "id": "cabinets.get",
+                "method": "GET",
+                "path": "/cabinets/{id}/edit",
+                "permission": "cabinets.edit",
+                "description": "One cabinet edit payload"
+            },
+            {
+                "id": "cabinets.create",
+                "method": "POST",
+                "path": "/cabinets/new",
+                "permission": "cabinets.edit",
+                "description": "Create cabinet"
+            },
+            {
+                "id": "cabinets.update",
+                "method": "POST",
+                "path": "/cabinets/{id}/edit",
+                "permission": "cabinets.edit",
+                "description": "Update cabinet"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

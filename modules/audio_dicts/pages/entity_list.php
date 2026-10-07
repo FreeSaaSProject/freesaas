@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $entity = (string)($GLOBALS['audio_dicts_entity'] ?? '');
 $map = [
     'types' => ['repo' => RecordsTypesRepository::class, 'path' => '/audio/types', 'title' => 'audio_dicts.menu.types', 'list_id' => 'audio_types', 'view' => 'types_list'],
@@ -84,6 +86,26 @@ $viewData = [
 if ($entity === 'keys') {
     $viewData['dict'] = $dict;
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
+}
+
+if ($wantsJson) {
+    $payload = [
+        'ok' => true,
+        'entity' => $entity,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => ['q' => $q],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+        'can_edit' => Auth::can('audio_dicts.edit'),
+    ];
+    if ($entity === 'keys') {
+        $payload['filters']['dict'] = $dict > 0 ? $dict : null;
+        $payload['dict_options'] = RecordsDictsRepository::options(true);
+    }
+    AgentHttp::emit($payload);
+    return;
 }
 
 View::render($cfg['view'], $viewData, 'layout', 'audio_dicts');

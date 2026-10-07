@@ -26,6 +26,73 @@
       "/fund-movements/{id}/edit"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "funds.list",
+        "method": "GET",
+        "path": "/funds",
+        "permission": "funds.view",
+        "description": "List fund tree nodes; filter: q"
+      },
+      {
+        "id": "funds.accrual",
+        "method": "POST",
+        "path": "/funds",
+        "permission": "funds.edit",
+        "description": "Fund accrual tools: funds_action=calculate|reprice"
+      },
+      {
+        "id": "funds.get_edit",
+        "method": "GET",
+        "path": "/funds/{id}/edit",
+        "permission": "funds.edit",
+        "description": "Fund edit payload; new record at /funds/new"
+      },
+      {
+        "id": "funds.create",
+        "method": "POST",
+        "path": "/funds/new",
+        "permission": "funds.edit",
+        "description": "Create fund"
+      },
+      {
+        "id": "funds.update",
+        "method": "POST",
+        "path": "/funds/{id}/edit",
+        "permission": "funds.edit",
+        "description": "Update fund"
+      },
+      {
+        "id": "funds.movements.list",
+        "method": "GET",
+        "path": "/fund-movements",
+        "permission": "funds.view",
+        "description": "List fund movements; filters: q, fund_id, type_id, fund_type, year, month, yearE, monthE"
+      },
+      {
+        "id": "funds.movements.get_edit",
+        "method": "GET",
+        "path": "/fund-movements/{id}/edit",
+        "permission": "funds.edit",
+        "description": "Fund movement edit payload; new at /fund-movements/new"
+      },
+      {
+        "id": "funds.movements.create",
+        "method": "POST",
+        "path": "/fund-movements/new",
+        "permission": "funds.edit",
+        "description": "Create fund movement"
+      },
+      {
+        "id": "funds.movements.update",
+        "method": "POST",
+        "path": "/fund-movements/{id}/edit",
+        "permission": "funds.edit",
+        "description": "Update fund movement"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

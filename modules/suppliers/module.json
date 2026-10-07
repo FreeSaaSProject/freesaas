@@ -28,6 +28,38 @@
             "/suppliers/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "suppliers.list",
+                "method": "GET",
+                "path": "/suppliers",
+                "permission": "suppliers.view",
+                "description": "List suppliers; filters: q, enabled"
+            },
+            {
+                "id": "suppliers.get",
+                "method": "GET",
+                "path": "/suppliers/{id}/edit",
+                "permission": "suppliers.edit",
+                "description": "One supplier edit payload"
+            },
+            {
+                "id": "suppliers.create",
+                "method": "POST",
+                "path": "/suppliers/new",
+                "permission": "suppliers.edit",
+                "description": "Create supplier"
+            },
+            {
+                "id": "suppliers.update",
+                "method": "POST",
+                "path": "/suppliers/{id}/edit",
+                "permission": "suppliers.edit",
+                "description": "Update supplier"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

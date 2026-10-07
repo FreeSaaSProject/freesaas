@@ -24,10 +24,86 @@
     "pages": [
       "/catalog",
       "/catalog/{id}",
+      "/categories",
       "/categories/new",
       "/categories/{id}/edit",
+      "/products",
       "/products/new",
       "/products/{id}/edit"
+    ]
+  },
+  "agent": {
+    "ops": [
+      {
+        "id": "catalog.browse",
+        "method": "GET",
+        "path": "/catalog",
+        "permission": "catalog.view",
+        "description": "Browse catalog root: subfolders, products; filters q, enabled, is_material"
+      },
+      {
+        "id": "catalog.browse.folder",
+        "method": "GET",
+        "path": "/catalog/{id}",
+        "permission": "catalog.view",
+        "description": "Browse one category folder; same filters as catalog.browse"
+      },
+      {
+        "id": "catalog.browse.write",
+        "method": "POST",
+        "path": "/catalog",
+        "permission": "catalog.edit",
+        "description": "Toggle product enabled or category visibility: action=toggle_product|toggle_category"
+      },
+      {
+        "id": "catalog.browse.folder.write",
+        "method": "POST",
+        "path": "/catalog/{id}",
+        "permission": "catalog.edit",
+        "description": "Same POST toggles inside a folder"
+      },
+      {
+        "id": "catalog.categories.get_edit",
+        "method": "GET",
+        "path": "/categories/{id}/edit",
+        "permission": "catalog.edit",
+        "description": "Category edit payload; new at /categories/new with optional parent="
+      },
+      {
+        "id": "catalog.categories.create",
+        "method": "POST",
+        "path": "/categories/new",
+        "permission": "catalog.edit",
+        "description": "Create category"
+      },
+      {
+        "id": "catalog.categories.update",
+        "method": "POST",
+        "path": "/categories/{id}/edit",
+        "permission": "catalog.edit",
+        "description": "Update category"
+      },
+      {
+        "id": "catalog.products.get_edit",
+        "method": "GET",
+        "path": "/products/{id}/edit",
+        "permission": "catalog.edit",
+        "description": "Product edit payload, relations, dictionaries; new at /products/new"
+      },
+      {
+        "id": "catalog.products.create",
+        "method": "POST",
+        "path": "/products/new",
+        "permission": "catalog.edit",
+        "description": "Create product; action=save (default) or relation actions on existing id only"
+      },
+      {
+        "id": "catalog.products.update",
+        "method": "POST",
+        "path": "/products/{id}/edit",
+        "permission": "catalog.edit",
+        "description": "Update product or relations: action save|add_relation|delete_relation|toggle_relation|recalc_components"
+      }
     ]
   },
   "jobs": [],

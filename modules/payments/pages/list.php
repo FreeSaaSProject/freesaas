@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $userId = (int)($_GET['user_id'] ?? 0);
 $typeId = (int)($_GET['type_id'] ?? 0);
@@ -148,6 +150,38 @@ if ($ledgerEnabled && class_exists('LedgerMovesRepository')) {
         $paymentIds[] = (int)$it['id'];
     }
     $dpsByPayment = LedgerMovesRepository::moveIdsByPaymentIds($paymentIds);
+}
+
+if ($wantsJson) {
+    $payload = [
+        'ok' => true,
+        'mode' => $mode,
+        'total' => $total,
+        'items' => $items,
+        'filters' => [
+            'q' => $q,
+            'user_id' => $userId > 0 ? $userId : null,
+            'type_id' => $typeId > 0 ? $typeId : null,
+            'account' => $account,
+            'direction' => $direction,
+            'year' => $year > 0 ? $year : null,
+            'month' => $month > 0 ? $month : null,
+        ],
+        'can_see_others' => $canSeeOthers,
+    ];
+    if ($mode === 'monthly') {
+        $payload['months'] = $months;
+        $payload['opening_debt'] = $openingDebt ?? null;
+    } else {
+        $payload['page'] = $lq['page'];
+        $payload['per_page'] = $lq['per_page'];
+        $payload['show_all'] = !empty($lq['show_all']);
+    }
+    if ($ledgerEnabled) {
+        $payload['dps_by_payment'] = $dpsByPayment;
+    }
+    AgentHttp::emit($payload);
+    return;
 }
 
 View::render('list', [

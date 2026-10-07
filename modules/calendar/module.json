@@ -41,6 +41,66 @@
             "/calendar/settings"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "calendar.week",
+                "method": "GET",
+                "path": "/calendar",
+                "permission": "calendar.view",
+                "description": "Week grid for current week; optional query staff= operator id"
+            },
+            {
+                "id": "calendar.week.date",
+                "method": "GET",
+                "path": "/calendar/week/{date}",
+                "permission": "calendar.view",
+                "description": "Week grid anchored on date (YYYY-MM-DD); optional staff="
+            },
+            {
+                "id": "calendar.day",
+                "method": "GET",
+                "path": "/calendar/day/{date}",
+                "permission": "calendar.view",
+                "description": "Single day: events, procedures, shifts; optional staff="
+            },
+            {
+                "id": "calendar.events.get",
+                "method": "GET",
+                "path": "/calendar/events/{id}/edit",
+                "permission": "calendar.edit",
+                "description": "One calendar event edit payload with product dictionaries"
+            },
+            {
+                "id": "calendar.events.create",
+                "method": "POST",
+                "path": "/calendar/events/new",
+                "permission": "calendar.edit",
+                "description": "Create event; dtstart/dtend (local), id_operator, content[], optional phone/name/descr"
+            },
+            {
+                "id": "calendar.events.update",
+                "method": "POST",
+                "path": "/calendar/events/{id}/edit",
+                "permission": "calendar.edit",
+                "description": "Update event; action=save|delete|create_procedures"
+            },
+            {
+                "id": "calendar.settings.get",
+                "method": "GET",
+                "path": "/calendar/settings",
+                "permission": "calendar.view",
+                "description": "Calendar module settings (superadmin capability on route)"
+            },
+            {
+                "id": "calendar.settings.update",
+                "method": "POST",
+                "path": "/calendar/settings",
+                "permission": "calendar.view",
+                "description": "Save manual_create and work hours (superadmin capability on route)"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

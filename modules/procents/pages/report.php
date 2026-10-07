@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $canSeeOthers = ProcentsRepository::canSeeOthers();
 $operatorId = (int)($_GET['operator_id'] ?? 0);
 $year = (int)($_GET['year'] ?? 0);
@@ -28,6 +30,23 @@ if ($operatorId > 0) {
 }
 
 $years = range((int)date('Y'), (int)date('Y') - 5);
+
+if ($wantsJson) {
+    if ($operatorId < 1) {
+        AgentHttp::error('operator_id is required.', 400);
+        return;
+    }
+    AgentHttp::emit([
+        'ok' => true,
+        'operator_id' => $operatorId,
+        'year' => $year > 0 ? $year : null,
+        'month' => $month > 0 ? $month : null,
+        'can_see_others' => $canSeeOthers,
+        'report' => $report,
+        'staff' => $canSeeOthers ? $staff : [],
+    ]);
+    return;
+}
 
 View::render('report', [
     'title' => t('procents.menu.list'),

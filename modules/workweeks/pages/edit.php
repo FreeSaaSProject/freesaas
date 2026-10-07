@@ -1,10 +1,16 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
 if (!WorkweeksRepository::canAssign()) {
+    if ($wantsJson) {
+        AgentHttp::error(t('workweeks.err.no_assign'), 403);
+        return;
+    }
     http_response_code(403);
     View::render('error', [
         'title' => t('workweeks.err.forbidden'),
@@ -17,6 +23,10 @@ $row = [];
 if (!$isNew) {
     $found = WorkweeksRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('workweeks.err.not_found'), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -25,6 +35,10 @@ if (!$isNew) {
         return;
     }
     if (!WorkweeksRepository::canAssignOperator((int)$found['id_operator'])) {
+        if ($wantsJson) {
+            AgentHttp::error(t('workweeks.err.no_assign'), 403);
+            return;
+        }
         http_response_code(403);
         View::render('error', [
             'title' => t('workweeks.err.forbidden'),
@@ -44,6 +58,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $data = WorkweeksRepository::dataFromPost($_POST);
         if ($isNew) {
             $newId = WorkweeksRepository::createFromForm($data);
+            if ($wantsJson) {
+                $saved = WorkweeksRepository::find($newId);
+                if ($saved) {
+                    $saved['date'] = date('Y-m-d', (int)$saved['dt']);
+                }
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $newId,
+                    'item' => WorkweeksRepository::forAgent($saved),
+                ]);
+                return;
+            }
             $url = '/workweeks/' . $newId . '/edit?saved=1';
             $ret = NavContext::returnUrl();
             if ($ret !== '') {
@@ -53,13 +79,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
         WorkweeksRepository::updateFromForm($id, $data);
-        $message = t('core.common.saved');
         $found = WorkweeksRepository::find($id);
         if ($found) {
             $row = $found;
             $row['date'] = date('Y-m-d', (int)$found['dt']);
         }
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'item' => WorkweeksRepository::forAgent($row),
+            ]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row, [
             'date' => (string)($_POST['date'] ?? ($row['date'] ?? '')),
@@ -79,6 +117,18 @@ $assignable = WorkweeksRepository::listAssignableStaff();
 $tableOptions = WorkweeksRepository::tablesActive()
     ? TablesRepository::names(true)
     : [];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'item' => WorkweeksRepository::forAgent($row ?: null),
+        'assignable' => $assignable,
+        'table_options' => $tableOptions,
+        'tables_on' => WorkweeksRepository::tablesActive(),
+    ]);
+    return;
+}
 
 View::render('edit', [
     'title' => $isNew

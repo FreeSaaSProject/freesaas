@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 $canSeeOthers = VacationsRepository::canSeeOthers();
@@ -24,6 +26,10 @@ $row = [
 if (!$isNew) {
     $found = VacationsRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('vacations.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -32,6 +38,10 @@ if (!$isNew) {
         return;
     }
     if (!$canSeeOthers && (int)$found['user_id'] !== Auth::userId()) {
+        if ($wantsJson) {
+            AgentHttp::error(t('vacations.err.forbidden'), 403);
+            return;
+        }
         http_response_code(403);
         View::render('error', [
             'title' => t('vacations.err.forbidden'),
@@ -53,13 +63,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $data = VacationsRepository::dataFromPost($_POST, $isNew ? null : $row);
         if ($isNew) {
             $newId = VacationsRepository::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'id' => $newId, 'saved' => true]);
+                return;
+            }
             redirect('/vacations/' . $newId . '/edit?saved=1');
             return;
         }
         VacationsRepository::update($id, $data);
-        $message = t('core.common.saved');
         $row = VacationsRepository::find($id) ?: $row;
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'id' => $id, 'saved' => true]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row, [
             'user_id' => (int)($_POST['user_id'] ?? $row['user_id']),
@@ -96,6 +118,23 @@ $canSelfSign = !$isNew
     && (int)$row['user_id'] === Auth::userId()
     && (int)$row['sign_req'] === 1
     && (int)$row['user_sign'] < 1;
+
+$periodTypes = [3, 1];
+if ($canSeeOthers) {
+    $periodTypes[] = 2;
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'item' => $row,
+        'is_new' => $isNew,
+        'staff' => $staff,
+        'can_see_others' => $canSeeOthers,
+        'period_types' => $periodTypes,
+    ]);
+    return;
+}
 
 View::render('edit', [
     'title' => $isNew

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $lq = ListQuery::resolve([
     'allowed' => ClientStatusesRepository::listSortMap(),
     'default' => 'name',
@@ -9,6 +11,15 @@ $lq = ListQuery::resolve([
 ]);
 
 $items = ClientStatusesRepository::listAll(['order' => $lq['order_sql']]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'items' => $items,
+        'total' => count($items),
+    ]);
+    return;
+}
 
 View::render('statuses', [
     'title' => t('clients.menu.statuses'),

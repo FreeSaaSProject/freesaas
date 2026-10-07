@@ -1,11 +1,17 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $path = '/audio/scripts';
 $id = (int)(Router::param('id') ?? 0);
 $canEdit = Auth::can('audio_dicts.edit');
 $tree = RecordsScriptsRepository::findWithParts($id);
 if ($tree === null) {
+    if ($wantsJson) {
+        AgentHttp::error(t('audio_dicts.scripts.err.not_found', ['id' => $id]), 404);
+        return;
+    }
     http_response_code(404);
     View::render('error', [
         'title' => t('audio_dicts.scripts.err.not_found', ['id' => $id]),
@@ -22,6 +28,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
     try {
         if ($action === 'copy') {
             $newId = RecordsScriptsRepository::copy($id);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'action' => 'copy', 'id' => $newId, 'tree' => RecordsScriptsRepository::findWithParts($newId)]);
+                return;
+            }
             redirect($path . '/' . $newId);
         }
         $meta = RecordsScriptsRepository::metaFromPost($_POST);
@@ -30,8 +40,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
             throw new InvalidArgumentException(t('audio_dicts.scripts.err.parts_required'));
         }
         RecordsScriptsRepository::update($id, $meta, $parts);
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'id' => $id, 'tree' => RecordsScriptsRepository::findWithParts($id)]);
+            return;
+        }
         redirect($path . '/' . $id . '?saved=1');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $tree = [
             'root' => array_merge($tree['root'], [
@@ -50,6 +68,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
 
 if (!empty($_GET['saved'])) {
     $flash = t('audio_dicts.scripts.saved');
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'id' => $id,
+        'tree' => $tree,
+        'can_edit' => $canEdit,
+        'parts_url' => $path . '/' . $id . '/parts',
+    ]);
+    return;
 }
 
 View::render('scripts_canvas', [

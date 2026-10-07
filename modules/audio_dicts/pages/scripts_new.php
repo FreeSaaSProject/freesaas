@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $path = '/audio/scripts';
 $error = '';
 $meta = [
@@ -19,8 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new InvalidArgumentException(t('audio_dicts.scripts.err.parts_required'));
         }
         $newId = RecordsScriptsRepository::create($meta, $parts);
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $newId,
+                'tree' => RecordsScriptsRepository::findWithParts($newId),
+            ]);
+            return;
+        }
         redirect($path . '/' . $newId);
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $parts = RecordsScriptsRepository::partsFromPost($_POST);
         $meta = [
@@ -35,6 +49,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $meta['position_ids'] = RecordsScriptsRepository::parseIds((string)$posRaw);
         }
     }
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => true,
+        'meta' => $meta,
+        'parts' => $parts,
+        'dict_options' => RecordsDictsRepository::options(false),
+        'position_options' => RecordsScriptsRepository::positionOptions(),
+    ]);
+    return;
 }
 
 View::render('scripts_wizard', [

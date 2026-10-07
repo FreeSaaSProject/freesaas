@@ -36,6 +36,66 @@
             "/payment-types/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "payments.list",
+                "method": "GET",
+                "path": "/payments",
+                "permission": "payments.view",
+                "description": "List staff payments; mode=monthly|linear, year, month, q, user_id, type_id, account, direction"
+            },
+            {
+                "id": "payments.get_edit",
+                "method": "GET",
+                "path": "/payments/{id}/edit",
+                "permission": "payments.edit",
+                "description": "One payment for edit; id=0 path uses /payments/new"
+            },
+            {
+                "id": "payments.create",
+                "method": "POST",
+                "path": "/payments/new",
+                "permission": "payments.edit",
+                "description": "Create payment; optional id_comment prefill query"
+            },
+            {
+                "id": "payments.update",
+                "method": "POST",
+                "path": "/payments/{id}/edit",
+                "permission": "payments.edit",
+                "description": "Update payment or create_dps=1 when ledger enabled"
+            },
+            {
+                "id": "payments.types.list",
+                "method": "GET",
+                "path": "/payment-types",
+                "permission": "payments.types",
+                "description": "List payment types; filter: q"
+            },
+            {
+                "id": "payments.types.get",
+                "method": "GET",
+                "path": "/payment-types/{id}/edit",
+                "permission": "payments.types",
+                "description": "One payment type; new uses /payment-types/new"
+            },
+            {
+                "id": "payments.types.create",
+                "method": "POST",
+                "path": "/payment-types/new",
+                "permission": "payments.types",
+                "description": "Create payment type"
+            },
+            {
+                "id": "payments.types.update",
+                "method": "POST",
+                "path": "/payment-types/{id}/edit",
+                "permission": "payments.types",
+                "description": "Update payment type"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

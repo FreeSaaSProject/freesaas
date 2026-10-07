@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $path = '/audio/scripts';
 $listId = 'audio_scripts';
 
@@ -43,6 +45,19 @@ $result = RecordsScriptsRepository::listRoots([
 ]);
 $bulkFlash = BulkActions::consumeFlash();
 $error = trim((string)($_GET['err'] ?? ''));
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+        'can_edit' => Auth::can('audio_dicts.edit'),
+    ]);
+    return;
+}
 
 View::render('scripts_list', [
     'title' => t('audio_dicts.menu.scripts'),

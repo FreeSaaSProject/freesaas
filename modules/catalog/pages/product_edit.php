@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
@@ -8,6 +10,10 @@ $row = [];
 if (!$isNew) {
     $found = ProductsRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('catalog.product.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -22,6 +28,10 @@ if (!$isNew) {
         $row['category'] = $catPrefill;
     }
     if (CategoriesRepository::countChildren($catPrefill) > 0) {
+        if ($wantsJson) {
+            AgentHttp::error(t('catalog.browse.err.folders_block_product'), 400);
+            return;
+        }
         $back = $catPrefill > 0 ? '/catalog/' . $catPrefill : '/catalog';
         redirect($back);
         return;
@@ -66,6 +76,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     throw new InvalidArgumentException(t('catalog.browse.err.folders_block_product'));
                 }
                 $newId = ProductsRepository::create($data);
+                if ($wantsJson) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'id' => $newId,
+                        'item' => ProductsRepository::find($newId),
+                    ]);
+                    return;
+                }
                 redirect('/products/' . $newId . '/edit?saved=1');
                 return;
             }
@@ -73,7 +91,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $message = t('core.common.saved');
             $row = ProductsRepository::find($id) ?: $row;
         }
+        if ($wantsJson) {
+            $relations = ProductRelationsRepository::forProduct($id, true);
+            $row = ProductsRepository::find($id) ?: $row;
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'action' => $action,
+                'item' => $row,
+                'relations' => $relations,
+            ]);
+            return;
+        }
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         if ($action === 'save') {
             $row = array_merge($row, $_POST);
@@ -127,6 +161,22 @@ if ($lastAdminId > 0 && Database::tableExists('base_users')) {
     if ($u) {
         $lastAdminName = trim((string)($u['name'] ?: $u['login']));
     }
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'item' => $row,
+        'relations' => $relations,
+        'categories' => CategoriesRepository::names(),
+        'units' => $unitNames,
+        'suppliers' => $supplierNames,
+        'procedure_types' => $procedureTypeNames,
+        'product_options' => $isNew ? [] : ProductsRepository::names(false),
+        'last_admin_name' => $lastAdminName,
+    ]);
+    return;
 }
 
 $backCat = (int)($row['category'] ?? 0);

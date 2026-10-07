@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $enabled = (string)($_GET['enabled'] ?? '');
 if (!in_array($enabled, ['', '0', '1'], true)) {
@@ -32,6 +34,22 @@ $result = SuppliersRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'enabled' => $enabled === '' ? null : $enabled,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 $bulkFlash = BulkActions::consumeFlash();
 

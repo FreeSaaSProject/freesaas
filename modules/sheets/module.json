@@ -27,6 +27,80 @@
       "/sheets/transfers/new"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "sheets.accounts.list",
+        "method": "GET",
+        "path": "/sheets/accounts",
+        "permission": "sheets.view",
+        "description": "List linen accounts; filters q, enabled"
+      },
+      {
+        "id": "sheets.accounts.get_edit",
+        "method": "GET",
+        "path": "/sheets/accounts/{id}/edit",
+        "permission": "sheets.edit",
+        "description": "Account edit payload; new at /sheets/accounts/new"
+      },
+      {
+        "id": "sheets.accounts.create",
+        "method": "POST",
+        "path": "/sheets/accounts/new",
+        "permission": "sheets.edit",
+        "description": "Create linen account"
+      },
+      {
+        "id": "sheets.accounts.update",
+        "method": "POST",
+        "path": "/sheets/accounts/{id}/edit",
+        "permission": "sheets.edit",
+        "description": "Update linen account"
+      },
+      {
+        "id": "sheets.moves.list",
+        "method": "GET",
+        "path": "/sheets/moves",
+        "permission": "sheets.view",
+        "description": "List sheet moves; filter id_account"
+      },
+      {
+        "id": "sheets.moves.get_edit",
+        "method": "GET",
+        "path": "/sheets/moves/{id}/edit",
+        "permission": "sheets.edit",
+        "description": "Move edit payload; new at /sheets/moves/new with optional id_account="
+      },
+      {
+        "id": "sheets.moves.create",
+        "method": "POST",
+        "path": "/sheets/moves/new",
+        "permission": "sheets.edit",
+        "description": "Create sheet move (in/out)"
+      },
+      {
+        "id": "sheets.moves.update",
+        "method": "POST",
+        "path": "/sheets/moves/{id}/edit",
+        "permission": "sheets.edit",
+        "description": "Update sheet move"
+      },
+      {
+        "id": "sheets.transfers.get",
+        "method": "GET",
+        "path": "/sheets/transfers/new",
+        "permission": "sheets.edit",
+        "description": "Transfer form defaults and account dictionary"
+      },
+      {
+        "id": "sheets.transfers.create",
+        "method": "POST",
+        "path": "/sheets/transfers/new",
+        "permission": "sheets.edit",
+        "description": "Create paired transfer move; fields id_account, id_account_to, summ, descr, weight, dt"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

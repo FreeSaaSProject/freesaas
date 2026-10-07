@@ -22,6 +22,17 @@
       "/procents"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "procents.report",
+        "method": "GET",
+        "path": "/procents",
+        "permission": "procents.view",
+        "description": "Commission accrual report; operator_id (required unless own-only role), year, month filters"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

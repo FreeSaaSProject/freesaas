@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $row = ['id_account' => 0, 'id_account_to' => 0, 'summ' => 0, 'descr' => '', 'weight' => 0, 'dt' => time()];
 $message = '';
 $error = '';
@@ -17,17 +19,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'dt' => max(0, (int)($_POST['dt'] ?? time())) ?: time(),
         ];
         $id = SheetMovesRepository::createTransfer($data, Auth::userId());
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'id' => $id, 'item' => SheetMovesRepository::find($id)]);
+            return;
+        }
         redirect('/sheets/moves/' . $id . '/edit?saved=1');
         return;
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row, $_POST);
     }
 }
+
+$accounts = SheetAccountsRepository::names(true);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'item' => $row,
+        'accounts' => $accounts,
+    ]);
+    return;
+}
+
 View::render('transfer_edit', [
     'title' => t('sheets.transfer.title'),
     'row' => $row,
-    'accounts' => SheetAccountsRepository::names(true),
+    'accounts' => $accounts,
     'message' => $message,
     'error' => $error,
 ], 'layout', 'sheets');

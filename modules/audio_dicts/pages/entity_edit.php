@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $entity = (string)($GLOBALS['audio_dicts_entity'] ?? '');
 $map = [
     'types' => ['repo' => RecordsTypesRepository::class, 'path' => '/audio/types', 'title' => 'audio_dicts.menu.types', 'view' => 'types_edit'],
@@ -25,6 +27,10 @@ $row = null;
 if (!$isNew) {
     $row = $repo::find($id);
     if (!$row) {
+        if ($wantsJson) {
+            AgentHttp::error(t('audio_dicts.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('audio_dicts.err.not_found', ['id' => $id]),
@@ -40,11 +46,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = $repo::dataFromPost($_POST);
         if ($isNew) {
             $newId = $repo::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'entity' => $entity, 'id' => $newId, 'item' => $repo::find($newId)]);
+                return;
+            }
             redirect($path . '/' . $newId . '/edit');
         }
         $repo::update($id, $data);
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'entity' => $entity, 'id' => $id, 'item' => $repo::find($id)]);
+            return;
+        }
         redirect($path . '/' . $id . '/edit');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row ?? [], [
             'name' => (string)($_POST['name'] ?? ''),
@@ -68,6 +86,21 @@ $viewData = [
 if ($entity === 'keys') {
     $viewData['typeOptions'] = RecordsTypesRepository::options();
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
+}
+
+if ($wantsJson) {
+    $payload = [
+        'ok' => true,
+        'entity' => $entity,
+        'is_new' => $isNew,
+        'item' => $row,
+    ];
+    if ($entity === 'keys') {
+        $payload['type_options'] = RecordsTypesRepository::options();
+        $payload['dict_options'] = RecordsDictsRepository::options(true);
+    }
+    AgentHttp::emit($payload);
+    return;
 }
 
 View::render($cfg['view'], $viewData, 'layout', 'audio_dicts');

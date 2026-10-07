@@ -126,6 +126,42 @@ final class ClientsRepository
     }
 
     /**
+     * Strip secrets for AgentHttp / JSON twins.
+     *
+     * @param array<string,mixed>|null $row
+     * @return array<string,mixed>|null
+     */
+    public static function forAgent(?array $row, bool $withTags = false): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+        unset($row['password']);
+        if ($withTags) {
+            $id = (int)($row['id'] ?? 0);
+            $row['tag_ids'] = $id > 0 ? self::tagIdsForClient($id) : [];
+        }
+        return $row;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function listForAgent(array $items): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            unset($row['password']);
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    /**
      * @param array<string,mixed> $post
      * @return array<string,mixed>
      */

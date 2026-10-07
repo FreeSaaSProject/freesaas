@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $enabled = (string)($_GET['enabled'] ?? '1');
 if (!in_array($enabled, ['', '0', '1'], true)) {
@@ -39,8 +41,6 @@ $result = ClientsRepository::list([
     'order' => $lq['order_sql'],
 ]);
 
-$bulkFlash = BulkActions::consumeFlash();
-
 $list = EventBus::emit('clients.list', [
     'items' => $result['items'],
     'extra_columns' => [],
@@ -51,6 +51,26 @@ $items = is_array($list) && isset($list['items']) && is_array($list['items'])
 $extraColumns = is_array($list) && isset($list['extra_columns']) && is_array($list['extra_columns'])
     ? $list['extra_columns']
     : [];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => ClientsRepository::listForAgent($items),
+        'filters' => [
+            'q' => $q,
+            'enabled' => $enabled,
+            'status_id' => $statusId > 0 ? $statusId : null,
+            'tag_id' => $tagId > 0 ? $tagId : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
+
+$bulkFlash = BulkActions::consumeFlash();
 
 $colData = ListQuery::columnsWithData($items, [
     'status' => static function (array $r) {

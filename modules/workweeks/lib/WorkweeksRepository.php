@@ -654,6 +654,40 @@ final class WorkweeksRepository
         ];
     }
 
+    /**
+     * @param array<string,mixed>|null $row
+     * @return array<string,mixed>|null
+     */
+    public static function forAgent(?array $row): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+        if (isset($row['dt']) && !isset($row['date'])) {
+            $row['date'] = date('Y-m-d', (int)$row['dt']);
+        }
+        return $row;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function listForAgent(array $items): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $normalized = self::forAgent($row);
+            if ($normalized !== null) {
+                $out[] = $normalized;
+            }
+        }
+        return $out;
+    }
+
     public static function find(int $id): ?array
     {
         if ($id < 1 || !Database::tableExists('base_workweeks')) {

@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $status = trim((string)($_GET['status'] ?? 'all'));
 $allowedStatus = array_keys(OrdersRepository::statusFilterOptions());
@@ -58,6 +60,25 @@ $hasListState = $q !== ''
 $ordersCrumb = $hasListState
     ? ['label' => t('orders.menu.list'), 'href' => '/orders']
     : ['label' => t('orders.menu.list'), 'current' => true];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'status' => $status,
+            'id_user' => $idUser > 0 ? $idUser : null,
+            'id_promocode' => $idPromocode > 0 ? $idPromocode : null,
+            'free_ticket' => $freeTicket === '' ? null : $freeTicket,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 View::render('list', [
     'title' => t('orders.menu.list'),

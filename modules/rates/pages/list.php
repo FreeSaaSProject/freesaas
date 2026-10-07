@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $operatorId = (int)($_GET['operator_id'] ?? 0);
 
@@ -29,6 +31,22 @@ $result = RatesRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'operator_id' => $operatorId > 0 ? $operatorId : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 $staff = [];
 foreach (UsersRepository::listForCopy() as $u) {

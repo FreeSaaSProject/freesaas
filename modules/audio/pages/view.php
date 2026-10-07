@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 require_once base_path('modules/audio/lib/RecordsRepository.php');
 require_once base_path('modules/audio/lib/TranscriptHighlighter.php');
 
@@ -9,6 +11,10 @@ $flash = '';
 $row = RecordsRepository::find($id);
 
 if (!$row) {
+    if ($wantsJson) {
+        AgentHttp::error(t('audio.view.not_found', ['id' => $id]), 404);
+        return;
+    }
     http_response_code(404);
     View::render('error', [
         'title' => t('audio.view.not_found', ['id' => $id]),
@@ -22,6 +28,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('audio.edit')) {
     if ($action === 'toggle_disabled') {
         RecordsRepository::setDisabled($id, empty($row['disabled']));
         $row = RecordsRepository::find($id) ?? $row;
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'item' => RecordsRepository::forAgent($row, true),
+            ]);
+            return;
+        }
         $flash = t('audio.view.saved');
     }
 }
@@ -39,6 +53,20 @@ $transcript = TranscriptHighlighter::render(
 );
 $typeMeta = RecordsRepository::typeMetaMap();
 $keyTypes = TranscriptHighlighter::parseKeyTypes(isset($row['key_types']) ? (string)$row['key_types'] : null);
+
+if ($wantsJson) {
+    $withTranscription = !empty($_GET['include_transcription']);
+    AgentHttp::emit([
+        'ok' => true,
+        'id' => $id,
+        'item' => RecordsRepository::forAgent($row, $withTranscription),
+        'play_url' => $playUrl,
+        'instances' => $instances,
+        'key_types' => $keyTypes,
+        'can_edit' => Auth::can('audio.edit'),
+    ]);
+    return;
+}
 
 View::render('view', [
     'title' => '#' . $id,

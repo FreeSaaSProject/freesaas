@@ -29,6 +29,38 @@
             "/rates/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "rates.list",
+                "method": "GET",
+                "path": "/rates",
+                "permission": "rates.view",
+                "description": "List specialist commission rate profiles; filters: q, operator_id"
+            },
+            {
+                "id": "rates.get",
+                "method": "GET",
+                "path": "/rates/{id}/edit",
+                "permission": "rates.edit",
+                "description": "Rate profile edit payload; includes staff and procedure_types dictionaries"
+            },
+            {
+                "id": "rates.create",
+                "method": "POST",
+                "path": "/rates/new",
+                "permission": "rates.edit",
+                "description": "Create rate profile"
+            },
+            {
+                "id": "rates.update",
+                "method": "POST",
+                "path": "/rates/{id}/edit",
+                "permission": "rates.edit",
+                "description": "Update rate profile"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

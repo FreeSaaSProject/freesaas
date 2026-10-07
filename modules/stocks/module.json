@@ -35,6 +35,45 @@
             "/stocks/leftovers"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "stocks.list",
+                "method": "GET",
+                "path": "/stocks",
+                "permission": "stocks.view",
+                "description": "List warehouses/stocks; filters: q, type (1 physical, 2 virtual)"
+            },
+            {
+                "id": "stocks.get_edit",
+                "method": "GET",
+                "path": "/stocks/{id}/edit",
+                "permission": "stocks.edit",
+                "description": "Stock edit payload; new at /stocks/new"
+            },
+            {
+                "id": "stocks.create",
+                "method": "POST",
+                "path": "/stocks/new",
+                "permission": "stocks.edit",
+                "description": "Create stock/warehouse"
+            },
+            {
+                "id": "stocks.update",
+                "method": "POST",
+                "path": "/stocks/{id}/edit",
+                "permission": "stocks.edit",
+                "description": "Update stock/warehouse"
+            },
+            {
+                "id": "stocks.leftovers",
+                "method": "GET",
+                "path": "/stocks/leftovers",
+                "permission": "stocks.view",
+                "description": "Leftover quantities report; id_good filter, show_all=1 for zero rows"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

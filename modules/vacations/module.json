@@ -28,6 +28,38 @@
             "/vacations/{id}/edit"
         ]
     },
+    "agent": {
+        "ops": [
+            {
+                "id": "vacations.list",
+                "method": "GET",
+                "path": "/vacations",
+                "permission": "vacations.view",
+                "description": "List leave records; filters: q, user_id, sign, id_type, direction, year, month (scoped to self when not privileged)"
+            },
+            {
+                "id": "vacations.get",
+                "method": "GET",
+                "path": "/vacations/{id}/edit",
+                "permission": "vacations.edit",
+                "description": "Leave edit payload; includes staff dictionary when privileged"
+            },
+            {
+                "id": "vacations.create",
+                "method": "POST",
+                "path": "/vacations/new",
+                "permission": "vacations.edit",
+                "description": "Create leave request"
+            },
+            {
+                "id": "vacations.update",
+                "method": "POST",
+                "path": "/vacations/{id}/edit",
+                "permission": "vacations.edit",
+                "description": "Update leave request"
+            }
+        ]
+    },
     "jobs": [],
     "menu": [
         {

@@ -197,7 +197,9 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   <h3 class="subhead"><?= te('core.db.dumps_available') ?></h3>
   <p class="muted"><?= te('core.db.dumps_available_help') ?></p>
   <?php if (!$agentTokenOk): ?>
-    <p class="muted"><?= te('core.db.fetch_token_missing') ?></p>
+    <p class="muted"><?= te('core.db.fetch_token_missing') ?>
+      <a href="/settings"><?= te('core.menu.settings') ?></a>
+    </p>
   <?php endif; ?>
 
   <form method="post" id="db-fetch-form" class="db-job-form db-fetch-form" data-db-job="fetch">

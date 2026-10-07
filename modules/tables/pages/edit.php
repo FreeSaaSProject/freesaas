@@ -1,12 +1,18 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 $row = ['enabled' => 1, 'proc_type_ids' => [], 'gender_ids' => []];
 if (!$isNew) {
     $found = TablesRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('tables.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', ['title' => t('core.common.not_found'), 'message' => t('tables.err.not_found', ['id' => $id])]);
         return;
@@ -19,13 +25,26 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = TablesRepository::dataFromPost($_POST);
         if ($isNew) {
-            redirect('/tables/' . TablesRepository::create($data, Auth::userId()) . '/edit?saved=1');
+            $newId = TablesRepository::create($data, Auth::userId());
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'id' => $newId, 'saved' => true]);
+                return;
+            }
+            redirect('/tables/' . $newId . '/edit?saved=1');
             return;
         }
         TablesRepository::update($id, $data);
-        $message = t('core.common.saved');
         $row = TablesRepository::find($id) ?: $row;
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'id' => $id, 'saved' => true]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row, [
             'name' => (string)($_POST['name'] ?? ''),
@@ -41,6 +60,17 @@ if (isset($_GET['saved']) && $message === '') {
 $procTypes = class_exists('ProcedureTypesRepository', false)
     ? ProcedureTypesRepository::names()
     : [];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'item' => $row,
+        'is_new' => $isNew,
+        'procedure_types' => $procTypes,
+    ]);
+    return;
+}
+
 View::render('edit', [
     'title' => $isNew ? t('tables.edit.title_new') : t('tables.edit.title', ['name' => (string)($row['name'] ?? '')]),
     'isNew' => $isNew,

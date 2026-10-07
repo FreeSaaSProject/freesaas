@@ -36,6 +36,186 @@
       "/audio/scripts/{id}/copy"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "audio_dicts.types.list",
+        "method": "GET",
+        "path": "/audio/types",
+        "permission": "audio_dicts.view",
+        "description": "List recognition types; filter q"
+      },
+      {
+        "id": "audio_dicts.types.get",
+        "method": "GET",
+        "path": "/audio/types/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "One type (GET /audio/types/new when creating)"
+      },
+      {
+        "id": "audio_dicts.types.create",
+        "method": "POST",
+        "path": "/audio/types/new",
+        "permission": "audio_dicts.edit",
+        "description": "Create recognition type"
+      },
+      {
+        "id": "audio_dicts.types.update",
+        "method": "POST",
+        "path": "/audio/types/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "Update recognition type"
+      },
+      {
+        "id": "audio_dicts.dicts.list",
+        "method": "GET",
+        "path": "/audio/dicts",
+        "permission": "audio_dicts.view",
+        "description": "List dictionaries; filter q"
+      },
+      {
+        "id": "audio_dicts.dicts.get",
+        "method": "GET",
+        "path": "/audio/dicts/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "One dictionary"
+      },
+      {
+        "id": "audio_dicts.dicts.create",
+        "method": "POST",
+        "path": "/audio/dicts/new",
+        "permission": "audio_dicts.edit",
+        "description": "Create dictionary"
+      },
+      {
+        "id": "audio_dicts.dicts.update",
+        "method": "POST",
+        "path": "/audio/dicts/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "Update dictionary"
+      },
+      {
+        "id": "audio_dicts.keys.list",
+        "method": "GET",
+        "path": "/audio/keys",
+        "permission": "audio_dicts.view",
+        "description": "List keys; filters q, dict"
+      },
+      {
+        "id": "audio_dicts.keys.get",
+        "method": "GET",
+        "path": "/audio/keys/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "One key with type/dict options"
+      },
+      {
+        "id": "audio_dicts.keys.create",
+        "method": "POST",
+        "path": "/audio/keys/new",
+        "permission": "audio_dicts.edit",
+        "description": "Create key"
+      },
+      {
+        "id": "audio_dicts.keys.update",
+        "method": "POST",
+        "path": "/audio/keys/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "Update key"
+      },
+      {
+        "id": "audio_dicts.tags.list",
+        "method": "GET",
+        "path": "/audio/tags",
+        "permission": "audio_dicts.view",
+        "description": "List key tags; filter q"
+      },
+      {
+        "id": "audio_dicts.tags.get",
+        "method": "GET",
+        "path": "/audio/tags/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "One key tag"
+      },
+      {
+        "id": "audio_dicts.tags.create",
+        "method": "POST",
+        "path": "/audio/tags/new",
+        "permission": "audio_dicts.edit",
+        "description": "Create key tag"
+      },
+      {
+        "id": "audio_dicts.tags.update",
+        "method": "POST",
+        "path": "/audio/tags/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "Update key tag"
+      },
+      {
+        "id": "audio_dicts.trashes.list",
+        "method": "GET",
+        "path": "/audio/trashes",
+        "permission": "audio_dicts.view",
+        "description": "List trash phrases; filter q"
+      },
+      {
+        "id": "audio_dicts.trashes.get",
+        "method": "GET",
+        "path": "/audio/trashes/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "One trash phrase"
+      },
+      {
+        "id": "audio_dicts.trashes.create",
+        "method": "POST",
+        "path": "/audio/trashes/new",
+        "permission": "audio_dicts.edit",
+        "description": "Create trash phrase"
+      },
+      {
+        "id": "audio_dicts.trashes.update",
+        "method": "POST",
+        "path": "/audio/trashes/{id}/edit",
+        "permission": "audio_dicts.edit",
+        "description": "Update trash phrase"
+      },
+      {
+        "id": "audio_dicts.scripts.list",
+        "method": "GET",
+        "path": "/audio/scripts",
+        "permission": "audio_dicts.view",
+        "description": "List script roots"
+      },
+      {
+        "id": "audio_dicts.scripts.get",
+        "method": "GET",
+        "path": "/audio/scripts/{id}",
+        "permission": "audio_dicts.view",
+        "description": "Script tree with parts; POST to save or copy"
+      },
+      {
+        "id": "audio_dicts.scripts.create",
+        "method": "POST",
+        "path": "/audio/scripts/new",
+        "permission": "audio_dicts.edit",
+        "description": "Create script with parts"
+      },
+      {
+        "id": "audio_dicts.scripts.copy",
+        "method": "GET",
+        "path": "/audio/scripts/{id}/copy",
+        "permission": "audio_dicts.edit",
+        "description": "Duplicate script (GET or POST)"
+      },
+      {
+        "id": "audio_dicts.scripts.parts",
+        "method": "POST",
+        "path": "/audio/scripts/{id}/parts",
+        "permission": "audio_dicts.edit",
+        "assistant": false,
+        "description": "Canvas part API: reorder|save|add|delete"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

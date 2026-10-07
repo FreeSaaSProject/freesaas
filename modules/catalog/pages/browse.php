@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $folderId = (int)(Router::param('id') ?? 0);
 $path = $folderId > 0 ? '/catalog/' . $folderId : '/catalog';
 
@@ -19,9 +21,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $canEdit) {
                 (int)($_POST['id'] ?? 0),
                 empty($_POST['visible'])
             );
+        } else {
+            throw new InvalidArgumentException('Unknown action');
+        }
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'action' => $action]);
+            return;
         }
     } catch (Throwable $e) {
-        // fall through — flash via redirect query not needed
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
     }
     $qs = $_SERVER['QUERY_STRING'] ?? '';
     redirect($path . ($qs !== '' ? '?' . $qs : ''));
@@ -49,6 +60,10 @@ $breadcrumbs = [
 if ($folderId > 0) {
     $folder = CategoriesRepository::find($folderId);
     if (!$folder) {
+        if ($wantsJson) {
+            AgentHttp::error(t('catalog.cat.err.not_found', ['id' => $folderId]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -137,6 +152,31 @@ $title = $folder
 $message = '';
 if (isset($_GET['saved'])) {
     $message = t('core.common.saved');
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'folder_id' => $folderId,
+        'folder' => $folder,
+        'folders' => $folders,
+        'items' => $result['items'],
+        'total' => $result['total'],
+        'filters' => [
+            'q' => $q,
+            'enabled' => $enabled === '' ? null : $enabled,
+            'is_material' => $isMaterial === '' ? null : $isMaterial,
+        ],
+        'search_global' => $searchGlobal,
+        'can_edit' => $canEdit,
+        'can_add_category' => $canAddCategory,
+        'can_add_product' => $canAddProduct,
+        'price_cols' => $priceCols,
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
 }
 
 View::render('browse', [

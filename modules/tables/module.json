@@ -24,6 +24,38 @@
       "/tables/{id}/edit"
     ]
   },
+  "agent": {
+    "ops": [
+      {
+        "id": "tables.list",
+        "method": "GET",
+        "path": "/tables",
+        "permission": "tables.view",
+        "description": "List massage tables; filters: q, enabled"
+      },
+      {
+        "id": "tables.get",
+        "method": "GET",
+        "path": "/tables/{id}/edit",
+        "permission": "tables.edit",
+        "description": "Table edit payload; includes procedure_types dictionary when procedures module is enabled"
+      },
+      {
+        "id": "tables.create",
+        "method": "POST",
+        "path": "/tables/new",
+        "permission": "tables.edit",
+        "description": "Create table; proc_types[], gender[]"
+      },
+      {
+        "id": "tables.update",
+        "method": "POST",
+        "path": "/tables/{id}/edit",
+        "permission": "tables.edit",
+        "description": "Update table"
+      }
+    ]
+  },
   "jobs": [],
   "menu": [
     {

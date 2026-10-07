@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $userId = (int)($_GET['user_id'] ?? 0);
 $sign = (int)($_GET['sign'] ?? 0);
@@ -71,6 +73,28 @@ $result = VacationsRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'user_id' => $userId > 0 ? $userId : null,
+            'sign' => $sign > 0 ? $sign : null,
+            'id_type' => $idType > 0 ? $idType : null,
+            'direction' => $direction !== 0 ? $direction : null,
+            'year' => $year > 0 ? $year : null,
+            'month' => $month > 0 ? $month : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+        'can_see_others' => $canSeeOthers,
+    ]);
+    return;
+}
 
 $staff = [];
 foreach (UsersRepository::listForCopy() as $u) {

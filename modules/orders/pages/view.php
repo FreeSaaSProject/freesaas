@@ -1,9 +1,15 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $order = OrdersRepository::find($id);
 if (!$order) {
+    if ($wantsJson) {
+        AgentHttp::error(t('orders.err.not_found', ['id' => $id]), 404);
+        return;
+    }
     http_response_code(404);
     View::render('error', [
         'title' => t('core.common.not_found'),
@@ -37,6 +43,18 @@ $listUrl = '/orders';
 $ret = (string)($_GET['ret'] ?? '');
 if ($ret !== '' && strpos($ret, '/orders') === 0) {
     $listUrl = $ret;
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'id' => $id,
+        'order' => $order,
+        'cart' => $cart,
+        'procedure' => $procedure,
+        'procedure_missing' => $procedureMissing,
+    ]);
+    return;
 }
 
 View::render('view', [

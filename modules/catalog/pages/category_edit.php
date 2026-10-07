@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
@@ -8,6 +10,10 @@ $row = [];
 if (!$isNew) {
     $found = CategoriesRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('catalog.cat.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -22,6 +28,10 @@ if (!$isNew) {
         $row['parent_id'] = $parentPrefill;
     }
     if (CategoriesRepository::countProducts($parentPrefill) > 0) {
+        if ($wantsJson) {
+            AgentHttp::error(t('catalog.browse.err.products_block_category'), 400);
+            return;
+        }
         $back = $parentPrefill > 0 ? '/catalog/' . $parentPrefill : '/catalog';
         redirect($back);
         return;
@@ -39,6 +49,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 throw new InvalidArgumentException(t('catalog.browse.err.products_block_category'));
             }
             $newId = CategoriesRepository::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $newId,
+                    'item' => CategoriesRepository::find($newId),
+                ]);
+                return;
+            }
             $back = (int)$data['parent_id'] > 0
                 ? '/catalog/' . (int)$data['parent_id']
                 : '/catalog';
@@ -46,12 +64,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
         CategoriesRepository::update($id, $data);
-        $message = t('core.common.saved');
         $row = CategoriesRepository::find($id) ?: $row;
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'id' => $id, 'item' => $row]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row, $_POST);
     }
+}
+
+if ($wantsJson) {
+    $parentOptions = CategoriesRepository::names();
+    if (!$isNew) {
+        unset($parentOptions[$id]);
+    }
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'item' => $row,
+        'parent_options' => $parentOptions,
+    ]);
+    return;
 }
 
 if (isset($_GET['saved']) && $message === '') {

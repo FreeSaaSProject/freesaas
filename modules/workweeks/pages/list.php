@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $userId = (int)($_GET['user_id'] ?? 0);
 $dateFrom = trim((string)($_GET['date_from'] ?? ''));
@@ -54,6 +56,25 @@ foreach (UsersRepository::listForCopy() as $u) {
 $tableNames = WorkweeksRepository::tablesActive()
     ? TablesRepository::names(false)
     : [];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => WorkweeksRepository::listForAgent($result['items']),
+        'filters' => [
+            'q' => $q,
+            'user_id' => $userId > 0 ? $userId : null,
+            'date_from' => $dateFrom !== '' ? $dateFrom : null,
+            'date_to' => $dateTo !== '' ? $dateTo : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+        'tables_on' => WorkweeksRepository::tablesActive(),
+    ]);
+    return;
+}
 
 View::render('list', [
     'title' => t('workweeks.menu.list'),
