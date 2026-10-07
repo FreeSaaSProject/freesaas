@@ -31,6 +31,9 @@ $profileSiteHtml = (string)($profileSiteHtml ?? '');
     <h2><?= te('core.user.profile') ?></h2>
     <dl class="kv">
       <dt>ID</dt><dd><?= $uid ?></dd>
+      <?php if (Database::columnExists('base_users', 'num')): ?>
+      <dt><?= te('core.user.num') ?></dt><dd><?= (int)($user['num'] ?? 0) > 0 ? (int)$user['num'] : '—' ?></dd>
+      <?php endif; ?>
       <dt><?= te('core.user.email') ?></dt><dd><?= e((string)($user['mail'] ?: '—')) ?></dd>
       <dt><?= te('core.user.phone') ?></dt><dd><?= e((string)($user['tel'] ?: '—')) ?></dd>
       <dt><?= te('core.user.active') ?></dt><dd><?= ((string)$user['enabled'] === '1') ? te('core.common.yes') : te('core.common.no') ?></dd>
@@ -42,20 +45,14 @@ $profileSiteHtml = (string)($profileSiteHtml ?? '');
       <dt><?= te('core.user.retries') ?></dt><dd><?= (int)($user['retries'] ?? 0) ?></dd>
     </dl>
   </div>
+  <?php if ($profileChannelsHtml !== ''): ?>
   <div class="widget">
     <h2><?= te('core.user.channels') ?></h2>
     <dl class="kv">
-      <dt><?= te('core.user.tips') ?></dt><dd><?php
-        $tips = trim((string)($user['link_ok'] ?? ''));
-        if ($tips !== '') {
-            echo '<a href="' . e($tips) . '" target="_blank" rel="noopener">' . e($tips) . '</a>';
-        } else {
-            echo '—';
-        }
-      ?></dd>
       <?= $profileChannelsHtml ?>
     </dl>
   </div>
+  <?php endif; ?>
   <div class="widget">
     <h2><?= te('core.user.flags') ?></h2>
     <dl class="kv">

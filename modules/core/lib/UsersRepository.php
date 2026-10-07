@@ -220,13 +220,16 @@ final class UsersRepository
     /** @return array<string,string> request sort key => SQL expression */
     public static function listSortMap(): array
     {
-        return [
-            'name' => 'name',
-            'login' => 'login',
-            'role' => 'ID_STATUS',
-            'enabled' => 'enabled',
-            'id' => 'id',
-        ];
+        $map = [];
+        if (Database::columnExists('base_users', 'num')) {
+            $map['num'] = 'num';
+        }
+        $map['name'] = 'name';
+        $map['login'] = 'login';
+        $map['role'] = 'ID_STATUS';
+        $map['enabled'] = 'enabled';
+        $map['id'] = 'id';
+        return $map;
     }
 
     /**
@@ -249,7 +252,9 @@ final class UsersRepository
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $order = trim((string)($opts['order'] ?? ''));
         if ($order === '') {
-            $order = 'enabled DESC, name ASC';
+            $order = Database::columnExists('base_users', 'num')
+                ? 'num ASC'
+                : 'enabled DESC, name ASC';
         }
 
         $where = ['1=1'];
@@ -272,7 +277,7 @@ final class UsersRepository
         $total = (int)$stCount->fetchColumn();
 
         $cols = self::selectList([
-            'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'IS_HIDDEN', 'IS_ACCEPTOR',
+            'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'IS_HIDDEN', 'IS_ACCEPTOR', 'num',
         ]);
         if ($cols === '') {
             return ['items' => [], 'total' => $total];
@@ -302,7 +307,7 @@ final class UsersRepository
         }
         $cols = self::selectList([
             'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'address', 'url',
-            'expire', 'telegram_chat_id', 'max_user_id', 'AUDIO_ANALYTICS_ENABLED', 'IS_HIDDEN', 'ID_STATUS2', 'IS_ACCEPTOR',
+            'expire', 'AUDIO_ANALYTICS_ENABLED', 'IS_HIDDEN', 'ID_STATUS2', 'IS_ACCEPTOR', 'num',
         ]);
         if ($cols === '') {
             return self::$findCache[$id] = null;
@@ -323,10 +328,9 @@ final class UsersRepository
         }
         $cols = [
             'id', 'login', 'name', 'mail', 'tel', 'enabled', 'ID_STATUS', 'ID_STATUS2',
-            'color', 'color_text', 'IS_HIDDEN',
+            'color', 'color_text', 'IS_HIDDEN', 'num',
             'expire', 'retries', 'password',
             'link_ok',
-            'telegram_chat_id', 'max_user_id', 'BOT_NO_SEND',
             'photo', 'site_descr',
             'ASSIST_TEAM', 'NOT_IN_TEAM', 'STOCK_REVISION', 'AUDIO_ANALYTICS_ENABLED',
             'skin', 'RESTRICT_TYPES', 'RESTRICT_TYPES_ONLINE', 'RESTRICT_PROCS',
@@ -359,7 +363,7 @@ final class UsersRepository
         }
         $cols = self::selectList([
             'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'address', 'url',
-            'expire', 'telegram_chat_id', 'max_user_id', 'AUDIO_ANALYTICS_ENABLED', 'IS_HIDDEN', 'ID_STATUS2', 'IS_ACCEPTOR',
+            'expire', 'AUDIO_ANALYTICS_ENABLED', 'IS_HIDDEN', 'ID_STATUS2', 'IS_ACCEPTOR',
         ]);
         if ($cols === '') {
             foreach ($need as $id => $_) {
@@ -554,16 +558,72 @@ final class UsersRepository
         return true;
     }
 
+    /** Whether status ID has SUPERADMIN_ACCESS (oper-protected staff). */
+    public static function statusIsSuperadmin(int $statusId): bool
+    {
+        if ($statusId < 1 || !Database::tableExists('base_admin_statuses')) {
+            return false;
+        }
+        if (!Database::columnExists('base_admin_statuses', 'SUPERADMIN_ACCESS')) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT SUPERADMIN_ACCESS FROM base_admin_statuses WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$statusId]);
+        return (int)$st->fetchColumn() > 0;
+    }
+
+    /**
+     * Whether the current actor may toggle enabled for this staff row.
+     * Blocks self and SUPERADMIN_ACCESS targets for non-super actors (as in oper).
+     *
+     * @param array<string,mixed>|null $user row with id / ID_STATUS when already loaded
+     */
+    public static function canToggleEnabled(int $id, ?array $user = null): bool
+    {
+        if ($id < 1 || $id === Auth::userId()) {
+            return false;
+        }
+        if ($user === null) {
+            $user = self::find($id);
+        }
+        if (!$user) {
+            return false;
+        }
+        if (self::statusIsSuperadmin((int)($user['ID_STATUS'] ?? 0))
+            && !Auth::capability('SUPERADMIN_ACCESS')
+        ) {
+            return false;
+        }
+        return true;
+    }
+
+    /** Enable/disable staff account. Returns false when blocked or missing. */
+    public static function setEnabled(int $id, bool $enabled): bool
+    {
+        if (!Database::tableExists('base_users')) {
+            return false;
+        }
+        $user = self::find($id);
+        if (!$user || !self::canToggleEnabled($id, $user)) {
+            return false;
+        }
+        $st = Database::pdo()->prepare('UPDATE base_users SET enabled = ? WHERE id = ?');
+        $st->execute([$enabled ? '1' : '0', $id]);
+        unset(self::$findCache[$id]);
+        return true;
+    }
+
     public static function update(int $id, array $data): void
     {
         $fields = [];
         $params = [];
         $allowed = [
             'name', 'mail', 'tel', 'enabled', 'ID_STATUS', 'ID_STATUS2',
-            'color', 'color_text', 'IS_HIDDEN',
+            'color', 'color_text', 'IS_HIDDEN', 'num',
             'expire', 'retries',
             'link_ok',
-            'telegram_chat_id', 'max_user_id', 'BOT_NO_SEND',
             'photo', 'site_descr',
             'ASSIST_TEAM', 'NOT_IN_TEAM', 'STOCK_REVISION', 'AUDIO_ANALYTICS_ENABLED',
             'skin', 'RESTRICT_TYPES', 'RESTRICT_TYPES_ONLINE', 'RESTRICT_PROCS',

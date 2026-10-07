@@ -35,11 +35,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if ($isNew) {
             $newId = ClientsRepository::create($data);
             ClientsRepository::setTagIds($newId, $tagIds);
+            EventBus::emit('clients.edit.save', [
+                'id' => $newId,
+                'post' => $_POST,
+                'client' => array_merge($data, ['id' => $newId]),
+                'is_new' => true,
+            ]);
             redirect('/clients/' . $newId . '/edit?saved=1');
             return;
         }
         ClientsRepository::update($id, $data);
         ClientsRepository::setTagIds($id, $tagIds);
+        EventBus::emit('clients.edit.save', [
+            'id' => $id,
+            'post' => $_POST,
+            'client' => array_merge($client, $data, ['id' => $id]),
+            'is_new' => false,
+        ]);
         $message = t('core.common.saved');
         $client = ClientsRepository::find($id) ?: $client;
         $selectedTagIds = ClientsRepository::tagIdsForClient($id);
@@ -69,6 +81,17 @@ foreach ($selectedTagIds as $tid) {
 }
 asort($tagOptions, SORT_NATURAL | SORT_FLAG_CASE);
 
+$sections = EventBus::emit('clients.edit.sections', [
+    'html' => '',
+    'client' => $client,
+    'id' => $id,
+    'is_new' => $isNew,
+]);
+$extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+if (is_array($sections) && isset($sections['client']) && is_array($sections['client'])) {
+    $client = $sections['client'];
+}
+
 View::render('edit', [
     'title' => $isNew
         ? t('clients.edit.title_new')
@@ -81,4 +104,5 @@ View::render('edit', [
     'staffOptions' => ClientsRepository::staffOptions(),
     'tagOptions' => $tagOptions,
     'selectedTagIds' => $selectedTagIds,
+    'extraHtml' => $extraHtml,
 ], 'layout', 'clients');

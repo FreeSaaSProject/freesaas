@@ -149,11 +149,13 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `stickers` | Receipt/writeoff acts + sticker ins/outs + writeoff service |
 | `norms` | Default consumptions (`base_good_defaults`); embed on catalog product edit |
 | `sheets` | LikeSpa linen accounts/moves (`base_sheet_*`); disableable |
-| `likespa` | Instance pack: term scans, promoter bonus + dops on `/audio/calendar`; procedure restores + settlement payment (ACCOUNT=0); disableable |
+| `likespa` | Instance pack: site SEO/phone (`/likespa/site`), flyer + promoter discounts (`/likespa/settings`), promo pages, site articles, URL redirects; term scans, promoter bonus + dops on `/audio/calendar`; procedure restores + settlement (ACCOUNT=0); disableable |
 | `terminals` | Device registry + bracelets + therm occupancy/orders; 1C/volgatermy sync jobs (`cfg/modules/terminals.ini`); disableable |
 | `staff_reports` | Staff quality day reports (traffic lights by position); rewards on `/audio/calendar`; generate via Re-® / `/staff-reports/generate` |
 | `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`, `base_procedure_restores` schema); restore UI lives in `likespa` |
 | `orders` | Website orders (`base_orders`, shared with site/oper); notice chips; `orders.for_day` for calendar |
+| `polls` | Poll definitions tree (`base_polls`); universal; channels via EventBus |
+| `poll_invites` | Poll invite instances + staff fill (`base_poll_invites`); requires `polls`; publish `poll_invites.*` for bots/site |
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
@@ -162,7 +164,7 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `audio_pipeline` | Ingest/ASR handshake/stem/collect workers; requires `audio` + `audio_dicts` |
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |
-| `bots` | Telegram/Max transport + `base_telegram_sends` queue + webhooks; domain adapters via `BotPlugins` / `bots.send` |
+| `bots` | Telegram/Max transport + `base_telegram_sends` queue + `base_bot_links` identities + webhooks; domain adapters via `BotPlugins` / `bots.send` |
 | `audio_llm` | LLM studies (`base_records_llm_studies*`); cyclic templates + staff day-report spawn; requires `llm` + `audio` |
 | `payments` | Staff settlements (`base_payments`, `base_payment_types`); contracts pay CTA; auto-DPS when `ledger` on |
 | `bonuses` | Client loyalty ledger (`base_bonuspay`) + event settle (bonusAnal/apply); EventBus on calendar event edit |

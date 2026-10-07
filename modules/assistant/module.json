@@ -53,8 +53,8 @@
   "jobs": [],
   "menu": [
     {
-      "group": "core.menu.group.system",
-      "num": 35,
+      "group": "llm.menu.group",
+      "num": 10,
       "path": "/assistant",
       "title": "assistant.menu.chat",
       "permission": "assistant.use"

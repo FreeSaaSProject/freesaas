@@ -1383,9 +1383,27 @@ a.pager-chip:hover {
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 0.9rem;
 }
-.kv { display: grid; grid-template-columns: 8rem 1fr; gap: 0.35rem 0.75rem; margin: 0; }
+.detail-grid > .widget {
+  min-width: 0;
+  overflow: hidden;
+}
+.kv {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  margin: 0;
+}
 .kv dt { color: var(--muted); }
-.kv dd { margin: 0; }
+.kv dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.kv dd a {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
 
 .form-grid {
   display: grid;

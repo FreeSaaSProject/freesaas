@@ -14,7 +14,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [module-agent-api.md](module-agent-api.md) | Product JSON ops (`module.json` → `agent.ops`, session auth) |
 | [assistant.md](assistant.md) | In-system LLM harness (UI + bot, tools, confirm writes) |
 | [audio-summaries.md](audio-summaries.md) | Audio summary profiles: construct + run via JSON |
-| [llm.md](llm.md) | LLM tokens, chat op, audio studies, cyclic + staff reports |
+| [llm.md](llm.md) | LLM tokens, OAuth/MCP adapter, chat op, audio studies |
 | [bonuses.md](bonuses.md) | Client loyalty ledger + event apply (JSON) |
 | [ledger.md](ledger.md) | Company accounts / ДПС / recon / promised payments (JSON) |
 | [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins |

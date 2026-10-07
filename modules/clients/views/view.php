@@ -4,8 +4,10 @@
 /** @var string $staffName */
 /** @var list<string> $tagNames */
 /** @var bool $canEdit */
+/** @var string $extraHtml */
 $cid = (int)$client['id'];
 $tagNames = $tagNames ?? [];
+$extraHtml = (string)($extraHtml ?? '');
 $gender = $client['gender'] ?? null;
 $genderLabel = $gender === null || $gender === ''
     ? '—'
@@ -60,6 +62,7 @@ $genderLabel = $gender === null || $gender === ''
           ? e($staffName) . ' <span class="muted">(#' . (int)$client['staff_user_id'] . ')</span>'
           : '—'
       ?></dd>
+      <?= $extraHtml ?>
     </dl>
   </div>
 

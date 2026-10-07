@@ -47,6 +47,7 @@ return [
     'terminals.edit.title' => 'Правка: {name}',
     'terminals.edit.heading_new' => 'Новый терминал',
     'terminals.edit.code_hint' => 'Оставьте пустым, чтобы не менять код',
+    'terminals.edit.code_new_hint' => 'Секретный код устройства (хранится в БД, в списках маскируется)',
     'terminals.edit.flags' => 'Селекторы функций',
 
     'terminals.bracelets.search_placeholder' => 'Поиск: UID, NUM, id',
@@ -124,4 +125,11 @@ return [
     'terminals.err.bracelet_uid_too_long' => 'UID не длиннее 20 символов',
     'terminals.err.fullstat_not_found' => 'Запись fullstat #{id} не найдена',
     'terminals.err.edit_forbidden' => 'Только просмотр — для сохранения нужен terminals.edit',
+    'terminals.err.onec_id_required' => 'Укажите 1C ID билета',
+    'terminals.err.onec_id_too_long' => '1C ID не длиннее 60 символов',
+    'terminals.err.staff_bracelet_uid_too_long' => 'UID браслета сотрудника не длиннее 32 символов',
+
+    'terminals.user_edit.sec' => 'Терминал / браслет сотрудника',
+    'terminals.user_edit.hint' => 'NFC UID, по которому терминал узнаёт сотрудника без запроса в 1С. Пустое поле снимает привязку. Не путать с реестром браслетов шкафчиков.',
+    'terminals.user_edit.bracelet_uid' => 'Браслет сотрудника (UID)',
 ];

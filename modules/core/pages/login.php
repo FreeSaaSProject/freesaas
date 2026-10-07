@@ -2,8 +2,13 @@
 declare(strict_types=1);
 
 $error = '';
+$afterLogin = static function (): void {
+    $ret = NavContext::returnUrl();
+    redirect($ret !== '' ? $ret : '/');
+};
+
 if (Auth::check()) {
-    redirect('/');
+    $afterLogin();
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
@@ -12,7 +17,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!Database::tableExists('base_users')) {
         $error = t('core.login.error.no_table');
     } elseif (Auth::attempt($login, $password)) {
-        redirect('/');
+        $afterLogin();
     } else {
         $error = t('core.login.error.bad_credentials');
     }

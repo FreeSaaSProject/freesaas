@@ -64,7 +64,7 @@ $buildData = static function (array $post, array $current, bool $super) use ($pe
         'color' => trim((string)($post['color'] ?? '')),
         'color_text' => trim((string)($post['color_text'] ?? '')),
         'IS_HIDDEN' => !empty($post['IS_HIDDEN']) ? 1 : 0,
-        'link_ok' => trim((string)($post['link_ok'] ?? '')),
+        'num' => max(0, (int)($post['num'] ?? 0)),
         'ASSIST_TEAM' => !empty($post['ASSIST_TEAM']) ? 1 : 0,
         'NOT_IN_TEAM' => !empty($post['NOT_IN_TEAM']) ? 1 : 0,
     ];

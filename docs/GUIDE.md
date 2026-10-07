@@ -350,6 +350,8 @@ return static function (PDO $pdo): void {
 - Статика модулей отдаётся напрямую (исключение в `.htaccess` для `/modules/*/assets/*.{css,js,…}`); остальной `/modules` идёт в front controller.
 - Меню: пункты из `module.json` → `ModuleManager::menuItems()` / `menuGrouped()`. Порядок **групп** rail — `ModuleManager::registerMenuGroup('myid.menu.group', N)` в bootstrap владельца группы (не в `app/ModuleManager.php`). Shared `core.menu.group.*` — только `modules/core/bootstrap.php`. Неизвестный ключ → вес `1000`.
 - Редактирование сотрудника: core emit `core.user_edit.sections` / `save` / `profile`; product-поля только из bootstrap модулей.
+- Список сотрудников: `core.users.list` — `items` + `extra_columns` (`[{key,label}]`); модули обогащают строки (напр. `bots` → chat ids из `base_bot_links`).
+- Клиенты: `clients.edit.sections` / `save` / `clients.view.profile` / `clients.list` — тот же паттерн, без колонок messenger в `base_clients`.
 - Флаги ролей (`base_admin_statuses`): `StatusesRepository::registerFieldGroup` в bootstrap; в core только группы `when=always`.
 - Конфиг модулей: `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini`; не добавлять product-секции в `config.example.ini`.
 

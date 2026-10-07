@@ -69,6 +69,19 @@ curl -sS -X POST -H "X-Terminals-Token: $TOKEN" 'https://example/terminals/jobs/
 
 Per-device `CODE` stays in `base_terminals` (masked in UI/JSON lists).
 
+## 1C client binding & staff bracelet
+
+Own tables (no ALTER of `base_clients` / `base_users`):
+
+| Table | Role |
+|-------|------|
+| `base_client_onec_bindings` | Current 1C ticket id for a client (`onec_id` + `dt_valid` unix). Upsert by `client_id`; expire via `ClientOnecBindingsRepository::expireStale`. Visit history stays in `base_fullstats` / `base_procedures`. |
+| `base_staff_bracelets` | Permanent staff NFC UID ↔ `user_id`. Edit on staff user form via `core.user_edit.*` (persists in this table, not `UsersRepository`). |
+
+Not the same as `base_bracelets` (locker UID↔NUM registry) or `base_procedures.1C_BRACELET` (sale-time snapshot).
+
+Terminal writers should resolve staff with `StaffBraceletsRepository::findByUid` before guest ticket → `ClientOnecBindingsRepository` flow. Live `/t` UI still lives on the site until ported.
+
 ## Notes
 
 - Column `IS_MASSЕUR_MODE` keeps Cyrillic Е for shared legacy DB compatibility.

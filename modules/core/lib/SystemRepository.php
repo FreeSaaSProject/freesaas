@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Platform row in base_system (company / instance chrome).
+ * Product columns (site SEO, flyer/promo, calendar hours) are written by owning modules.
+ */
 final class SystemRepository
 {
     /** @var string|null */
@@ -32,48 +36,17 @@ final class SystemRepository
         return self::$companyNameCache = trim((string)Config::get('app', 'instance', ''));
     }
 
+    /** Platform instance label (FreeSaaS /settings). */
     public static function updateBasics(array $data): void
     {
         $row = self::get();
         if (!$row) {
             throw new RuntimeException('base_system is empty — run data migrate');
         }
-        $sets = [
-            'title' => (string)($data['title'] ?? ''),
-            'company' => (string)($data['company'] ?? ''),
-            'name' => (string)($data['name'] ?? ''),
-            'tel' => (string)($data['tel'] ?? ''),
-        ];
-        $sql = 'UPDATE base_system SET title = ?, company = ?, name = ?, tel = ? WHERE id = ?';
-        Database::pdo()->prepare($sql)->execute([
-            $sets['title'],
-            $sets['company'],
-            $sets['name'],
-            $sets['tel'],
-            (int)$row['id'],
-        ]);
-        self::$companyNameCache = null;
-    }
-
-    /** Calendar working hours (base_system columns owned by calendar module). */
-    public static function updateWorkHours(int $start, int $end): void
-    {
-        $row = self::get();
-        if (!$row) {
-            throw new RuntimeException('base_system is empty — run data migrate');
-        }
-        if (!Database::columnExists('base_system', 'work_hour_start')
-            || !Database::columnExists('base_system', 'work_hour_end')
-        ) {
-            return;
-        }
-        $start = max(0, min(23, $start));
-        $end = max(0, min(23, $end));
-        if ($end < $start) {
-            $end = $start;
-        }
+        $company = (string)($data['company'] ?? '');
         Database::pdo()->prepare(
-            'UPDATE base_system SET work_hour_start = ?, work_hour_end = ? WHERE id = ?'
-        )->execute([$start, $end, (int)$row['id']]);
+            'UPDATE base_system SET company = ? WHERE id = ?'
+        )->execute([$company, (int)$row['id']]);
+        self::$companyNameCache = null;
     }
 }

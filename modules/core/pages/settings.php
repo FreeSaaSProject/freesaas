@@ -11,10 +11,7 @@ $row = SystemRepository::get();
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         SystemRepository::updateBasics([
-            'title' => (string)($_POST['title'] ?? ''),
             'company' => (string)($_POST['company'] ?? ''),
-            'name' => (string)($_POST['name'] ?? ''),
-            'tel' => (string)($_POST['tel'] ?? ''),
         ]);
 
         if (!empty($_POST['logo_remove'])) {

@@ -13,6 +13,29 @@ final class CalendarTimeline
     /** @var array{start:?int,end:?int}|null */
     private static $hoursCache = null;
 
+    /** Persist calendar working hours on shared base_system (UI: /calendar/settings). */
+    public static function updateWorkHours(int $start, int $end): void
+    {
+        $row = SystemRepository::get();
+        if (!$row) {
+            throw new RuntimeException('base_system is empty — run data migrate');
+        }
+        if (!Database::columnExists('base_system', 'work_hour_start')
+            || !Database::columnExists('base_system', 'work_hour_end')
+        ) {
+            return;
+        }
+        $start = max(0, min(23, $start));
+        $end = max(0, min(23, $end));
+        if ($end < $start) {
+            $end = $start;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_system SET work_hour_start = ?, work_hour_end = ? WHERE id = ?'
+        )->execute([$start, $end, (int)$row['id']]);
+        self::$hoursCache = null;
+    }
+
     /**
      * @return array{start:int,end:int}
      */

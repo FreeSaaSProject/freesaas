@@ -1,7 +1,7 @@
 {
     "id": "likespa",
     "name": "likespa.module.name",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -17,14 +17,21 @@
         "likespa.term_scans",
         "likespa.promo",
         "likespa.dops",
-        "likespa.restores"
+        "likespa.restores",
+        "likespa.site",
+        "likespa.promopages",
+        "likespa.pages",
+        "likespa.redirects"
     ],
     "migrations": "migrations/",
     "permissions": [
         { "id": "likespa.view", "label": "likespa.perm.view" },
         { "id": "likespa.edit", "label": "likespa.perm.edit" },
         { "id": "likespa.promo", "label": "likespa.perm.promo" },
-        { "id": "likespa.restores", "label": "likespa.perm.restores" }
+        { "id": "likespa.restores", "label": "likespa.perm.restores" },
+        { "id": "likespa.promopages", "label": "likespa.perm.promopages" },
+        { "id": "likespa.pages", "label": "likespa.perm.pages" },
+        { "id": "likespa.redirects", "label": "likespa.perm.redirects" }
     ],
     "routes": {
         "pages": [
@@ -33,6 +40,16 @@
             "/likespa/restores",
             "/likespa/restores/new",
             "/likespa/restores/{id}/edit",
+            "/likespa/site",
+            "/likespa/promopages",
+            "/likespa/promopages/new",
+            "/likespa/promopages/{id}/edit",
+            "/likespa/pages",
+            "/likespa/pages/new",
+            "/likespa/pages/{id}/edit",
+            "/likespa/redirects",
+            "/likespa/redirects/new",
+            "/likespa/redirects/{id}/edit",
             "/likespa/settings"
         ]
     },
@@ -72,6 +89,27 @@
                 "path": "/likespa/restores/{id}/edit",
                 "permission": "likespa.restores",
                 "description": "Update restore reason/summ/sign; re-runs settlement side effects"
+            },
+            {
+                "id": "likespa.promopages.list",
+                "method": "GET",
+                "path": "/likespa/promopages",
+                "permission": "likespa.promopages",
+                "description": "List promo pages; filters: q, enabled"
+            },
+            {
+                "id": "likespa.pages.list",
+                "method": "GET",
+                "path": "/likespa/pages",
+                "permission": "likespa.pages",
+                "description": "List site articles (page categories); filters: q, enabled, parent"
+            },
+            {
+                "id": "likespa.redirects.list",
+                "method": "GET",
+                "path": "/likespa/redirects",
+                "permission": "likespa.redirects",
+                "description": "List URL redirects; filters: q, enabled"
             }
         ]
     },
@@ -79,9 +117,37 @@
     "menu": [
         {
             "group": "likespa.menu.group",
+            "num": 5,
+            "path": "/likespa/site",
+            "title": "likespa.menu.site",
+            "kind": "settings"
+        },
+        {
+            "group": "likespa.menu.group",
             "num": 10,
             "path": "/likespa/term-scans",
             "title": "likespa.menu.term_scans"
+        },
+        {
+            "group": "likespa.menu.group",
+            "num": 25,
+            "path": "/likespa/promopages",
+            "title": "likespa.menu.promopages",
+            "kind": "crud"
+        },
+        {
+            "group": "likespa.menu.group",
+            "num": 26,
+            "path": "/likespa/pages",
+            "title": "likespa.menu.pages",
+            "kind": "crud"
+        },
+        {
+            "group": "likespa.menu.group",
+            "num": 27,
+            "path": "/likespa/redirects",
+            "title": "likespa.menu.redirects",
+            "kind": "crud"
         },
         {
             "group": "procedures.menu.group",
@@ -100,9 +166,19 @@
     ],
     "configSchema": {},
     "tables": [
-        "base_term_scans"
+        "base_term_scans",
+        "base_promopages",
+        "base_page_categories",
+        "base_redirects"
     ],
-    "migrators": [],
+    "migrators": [
+        {
+            "id": "phpshop_page_categories_to_base_page_categories",
+            "mode": "replace",
+            "source": ["phpshop_page_categories"],
+            "target": ["base_page_categories"]
+        }
+    ],
     "hooks": {
         "subscribe": [
             "audio_reports.calendar.cell",
@@ -115,6 +191,18 @@
     "bulkActions": [
         {
             "list_id": "likespa_restores",
+            "action": "delete"
+        },
+        {
+            "list_id": "likespa_promopages",
+            "action": "delete"
+        },
+        {
+            "list_id": "likespa_pages",
+            "action": "delete"
+        },
+        {
+            "list_id": "likespa_redirects",
             "action": "delete"
         }
     ]

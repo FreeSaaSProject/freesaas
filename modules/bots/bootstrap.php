@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/BotsConfig.php';
 require_once __DIR__ . '/lib/BotClient.php';
+require_once __DIR__ . '/lib/BotLinksRepository.php';
 require_once __DIR__ . '/lib/BotIdentity.php';
 require_once __DIR__ . '/lib/BotSendsRepository.php';
 require_once __DIR__ . '/lib/BotDrain.php';
@@ -92,6 +93,55 @@ $onSend = static function ($payload) {
 EventBus::on('bots.send', $onSend);
 EventBus::on('notify.send', $onSend);
 
+$botSaveFromPost = static function (int $source, int $entityId, array $post, bool $withNoSend): void {
+    if ($entityId < 1 || !BotLinksRepository::tableReady()) {
+        return;
+    }
+    $data = [
+        'telegram_chat_id' => trim((string)($post['telegram_chat_id'] ?? '')),
+        'max_user_id' => trim((string)($post['max_user_id'] ?? '')),
+    ];
+    if ($withNoSend) {
+        $data['BOT_NO_SEND'] = !empty($post['BOT_NO_SEND']) ? 1 : 0;
+    } else {
+        $existing = BotLinksRepository::find($source, $entityId);
+        $data['BOT_NO_SEND'] = $existing['BOT_NO_SEND'] ?? 0;
+    }
+    BotLinksRepository::upsert($source, $entityId, $data);
+};
+
+$botEnrichList = static function ($payload, int $source) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $items = is_array($payload['items'] ?? null) ? $payload['items'] : [];
+    if ($items === [] || !BotLinksRepository::tableReady()) {
+        return $payload;
+    }
+    $ids = [];
+    foreach ($items as $row) {
+        if (is_array($row) && (int)($row['id'] ?? 0) > 0) {
+            $ids[] = (int)$row['id'];
+        }
+    }
+    $map = BotLinksRepository::mapForEntities($source, $ids);
+    foreach ($items as $i => $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $id = (int)($row['id'] ?? 0);
+        $link = $map[$id] ?? null;
+        $items[$i]['telegram_chat_id'] = $link['telegram_chat_id'] ?? '';
+        $items[$i]['max_user_id'] = $link['max_user_id'] ?? '';
+    }
+    $payload['items'] = $items;
+    $cols = is_array($payload['extra_columns'] ?? null) ? $payload['extra_columns'] : [];
+    $cols[] = ['key' => 'telegram_chat_id', 'label' => t('bots.user_edit.telegram_chat_id')];
+    $cols[] = ['key' => 'max_user_id', 'label' => t('bots.user_edit.max_user_id')];
+    $payload['extra_columns'] = $cols;
+    return $payload;
+};
+
 EventBus::on('core.user_edit.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;
@@ -100,22 +150,28 @@ EventBus::on('core.user_edit.sections', static function ($payload) {
     if (!is_array($user)) {
         return $payload;
     }
+    $entity = BotLinksRepository::mergeOnto($user, BotLinksRepository::SOURCE_STAFF);
+    $payload['user'] = $entity;
+    $secTitle = t('bots.user_edit.sec');
+    $secHint = t('bots.user_edit.hint');
+    $showNoSend = true;
     ob_start();
-    require __DIR__ . '/views/_user_edit_bot.php';
+    require __DIR__ . '/views/_entity_edit_bot.php';
     $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
     return $payload;
 });
 
-EventBus::on('core.user_edit.save', static function ($payload) {
+EventBus::on('core.user_edit.save', static function ($payload) use ($botSaveFromPost) {
     if (!is_array($payload)) {
         return $payload;
     }
     $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
     $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
-    $data['telegram_chat_id'] = trim((string)($post['telegram_chat_id'] ?? ''));
-    $data['max_user_id'] = trim((string)($post['max_user_id'] ?? ''));
-    $data['BOT_NO_SEND'] = !empty($post['BOT_NO_SEND']) ? 1 : 0;
+    $id = (int)($payload['id'] ?? 0);
+    // Never write messenger ids onto base_users.
+    unset($data['telegram_chat_id'], $data['max_user_id'], $data['BOT_NO_SEND']);
     $payload['data'] = $data;
+    $botSaveFromPost(BotLinksRepository::SOURCE_STAFF, $id, $post, true);
     return $payload;
 });
 
@@ -127,10 +183,67 @@ EventBus::on('core.user_edit.profile', static function ($payload) {
     if (!is_array($user)) {
         return $payload;
     }
+    $entity = BotLinksRepository::mergeOnto($user, BotLinksRepository::SOURCE_STAFF);
+    $payload['user'] = $entity;
+    $showNoSend = true;
     ob_start();
-    require __DIR__ . '/views/_user_profile_bot.php';
+    require __DIR__ . '/views/_entity_profile_bot.php';
     $payload['html_channels'] = ($payload['html_channels'] ?? '') . (string)ob_get_clean();
     return $payload;
+});
+
+EventBus::on('core.users.list', static function ($payload) use ($botEnrichList) {
+    return $botEnrichList($payload, BotLinksRepository::SOURCE_STAFF);
+});
+
+EventBus::on('clients.edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $client = $payload['client'] ?? null;
+    if (!is_array($client)) {
+        return $payload;
+    }
+    $entity = BotLinksRepository::mergeOnto($client, BotLinksRepository::SOURCE_CLIENT);
+    $payload['client'] = $entity;
+    $secTitle = t('bots.client_edit.sec');
+    $secHint = t('bots.client_edit.hint');
+    $showNoSend = false;
+    ob_start();
+    require __DIR__ . '/views/_entity_edit_bot.php';
+    $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('clients.edit.save', static function ($payload) use ($botSaveFromPost) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $id = (int)($payload['id'] ?? 0);
+    $botSaveFromPost(BotLinksRepository::SOURCE_CLIENT, $id, $post, false);
+    return $payload;
+});
+
+EventBus::on('clients.view.profile', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $client = $payload['client'] ?? null;
+    if (!is_array($client)) {
+        return $payload;
+    }
+    $entity = BotLinksRepository::mergeOnto($client, BotLinksRepository::SOURCE_CLIENT);
+    $payload['client'] = $entity;
+    $showNoSend = false;
+    ob_start();
+    require __DIR__ . '/views/_entity_profile_bot.php';
+    $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('clients.list', static function ($payload) use ($botEnrichList) {
+    return $botEnrichList($payload, BotLinksRepository::SOURCE_CLIENT);
 });
 
 Health::register('bots.tokens', 'bots', static function (): array {

@@ -1,0 +1,92 @@
+{
+    "id": "poll_invites",
+    "name": "poll_invites.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "polls": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "clients": ">=0.1.0",
+        "bonuses": ">=0.1.0"
+    },
+    "provides": [
+        "poll_invites.instances"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "poll_invites.view",
+            "label": "poll_invites.perm.view"
+        },
+        {
+            "id": "poll_invites.edit",
+            "label": "poll_invites.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/poll-invites",
+            "/poll-invites/new",
+            "/poll-invites/{id}/edit",
+            "/poll-invites/{id}/fill"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "poll_invites.list",
+                "method": "GET",
+                "path": "/poll-invites",
+                "permission": "poll_invites.view",
+                "description": "List poll invites; filters: q, id_poll, progress, id_operator"
+            },
+            {
+                "id": "poll_invites.create",
+                "method": "POST",
+                "path": "/poll-invites/new",
+                "permission": "poll_invites.edit",
+                "description": "Create a poll invite"
+            },
+            {
+                "id": "poll_invites.fill",
+                "method": "POST",
+                "path": "/poll-invites/{id}/fill",
+                "permission": "poll_invites.edit",
+                "description": "Save staff fill answers for an invite"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "polls.menu.group",
+            "num": 20,
+            "path": "/poll-invites",
+            "title": "poll_invites.menu.list",
+            "kind": "crud"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_poll_invites"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.notices.collect"
+        ],
+        "publish": [
+            "poll_invites.created",
+            "poll_invites.answer.saved",
+            "poll_invites.completed"
+        ]
+    },
+    "bulkActions": [
+        {
+            "list_id": "poll_invites",
+            "action": "delete"
+        }
+    ]
+}

@@ -32,6 +32,24 @@ Permission: `llm.use`. Optional body fields: `profile`, `model`, `temperature`, 
 
 For tool-calling (product CRM assistant), use module [`assistant`](assistant.md) (`LlmClient::chatWithTools` + `AssistantHarness`), not raw `/llm/chat`.
 
+## OAuth + MCP (external GPT / agents)
+
+Requires `assistant` enabled for tools. UI: **LLM → OAuth / MCP** (`/llm/oauth`, SUPERADMIN + `llm.manage`).
+
+1. Create a client; copy **client_secret** once; add exact redirect URI(s).
+2. Scopes: `ops.read` (default), optional `ops.write` (write tools run under OAuth consent — no second in-app confirm).
+3. Endpoints (also shown in UI):
+   - Authorize: `/oauth/authorize`
+   - Token: `/oauth/token`
+   - Revoke: `/oauth/revoke`
+   - MCP JSON-RPC: `/llm/mcp` (Bearer)
+   - OpenAPI (ChatGPT Actions): `/llm/openapi.json`
+   - REST: `GET /llm/api/tools`, `POST /llm/api/tools/call`
+
+Optional `public_base` in `cfg/modules/llm.ini` if Host auto-detect is wrong behind a proxy.
+
+Staff flow: GPT opens authorize → FreeSaaS login → Allow → code → token → Bearer calls as that staff user (`Auth::runAs` + module permissions).
+
 ## Studies UI
 
 Menu: Audio analytics → LLM studies (`/audio/llm-studies`).

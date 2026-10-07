@@ -5,6 +5,7 @@ return static function (PDO $pdo, array $spec): array {
     $result = DataMigrator::replaceTable($pdo, 'phpshop_users', 'base_users');
 
     // replaceTable copies only same-named columns; status FKs were renamed on base_users.
+    // Oper link_gp is not brought over — FreeSaaS order is base_users.num only.
     $sets = [];
     if (Database::columnExists('base_users', 'ID_STATUS')
         && Database::columnExists('phpshop_users', 'name_enabled')

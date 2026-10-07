@@ -112,6 +112,8 @@ return [
     'bots.user_edit.max_user_id' => 'Max user_id',
     'bots.user_edit.bot_no_send' => 'Запретить сообщения от бота сотрудников',
     'bots.user.bot_off' => 'Рассылки бота выключены',
+    'bots.client_edit.sec' => 'Бот клиента (Telegram / Max)',
+    'bots.client_edit.hint' => 'Chat id хранятся в base_bot_links, не в карточке клиента. Очистите, если клиент ещё не привязал бота.',
 
     'bots.cabinet.hello' => 'Здравствуйте, {name}. Выберите действие:',
     'bots.cabinet.refresh' => 'Меню',
@@ -127,11 +129,12 @@ return [
     'bots.send.sent' => 'Отправлено ({where})',
     'bots.send.skipped_deadline' => 'Пропуск: дедлайн',
     'bots.send.skipped_no_send' => 'Пропуск: BOT_NO_SEND',
-    'bots.send.err_no_chat' => 'Нет telegram_chat_id / max_user_id',
+    'bots.send.err_no_chat' => 'Нет привязанного telegram / max chat id',
     'bots.send.err_no_token' => 'Нет токена бота для привязанных платформ',
     'bots.send.err_send' => 'Ошибка отправки',
 
     'bots.err.table' => 'Нет таблицы base_telegram_sends — выполните миграции',
+    'bots.err.links_table' => 'Нет таблицы base_bot_links — выполните миграции',
     'bots.err.enqueue_args' => 'Нужны user_id/client_id и text',
     'bots.err.forbidden' => 'Запрещено',
     'bots.err.user_required' => 'Нужен user_id',

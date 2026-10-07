@@ -47,6 +47,7 @@ return [
     'terminals.edit.title' => 'Edit: {name}',
     'terminals.edit.heading_new' => 'New terminal',
     'terminals.edit.code_hint' => 'Leave empty to keep the current code',
+    'terminals.edit.code_new_hint' => 'Device secret code (stored in DB; masked in lists)',
     'terminals.edit.flags' => 'Feature flags',
 
     'terminals.bracelets.search_placeholder' => 'Search: UID, NUM, id',
@@ -124,4 +125,11 @@ return [
     'terminals.err.bracelet_uid_too_long' => 'UID must be at most 20 characters',
     'terminals.err.fullstat_not_found' => 'Fullstat #{id} not found',
     'terminals.err.edit_forbidden' => 'View only — need terminals.edit to save',
+    'terminals.err.onec_id_required' => '1C ticket id is required',
+    'terminals.err.onec_id_too_long' => '1C ticket id must be at most 60 characters',
+    'terminals.err.staff_bracelet_uid_too_long' => 'Staff bracelet UID must be at most 32 characters',
+
+    'terminals.user_edit.sec' => 'Terminal / staff bracelet',
+    'terminals.user_edit.hint' => 'NFC UID used by terminals to recognize this staff member without calling 1C. Clear to unlink. Not the locker bracelet registry.',
+    'terminals.user_edit.bracelet_uid' => 'Staff bracelet (UID)',
 ];

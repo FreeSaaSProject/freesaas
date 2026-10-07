@@ -1,0 +1,79 @@
+{
+    "id": "polls",
+    "name": "polls.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "procedures": ">=0.1.0",
+        "catalog": ">=0.1.0"
+    },
+    "provides": [
+        "polls.definitions"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "polls.view",
+            "label": "polls.perm.view"
+        },
+        {
+            "id": "polls.edit",
+            "label": "polls.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/polls",
+            "/polls/new",
+            "/polls/{id}/edit"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "polls.list",
+                "method": "GET",
+                "path": "/polls",
+                "permission": "polls.view",
+                "description": "List poll roots; filters: q, enabled"
+            },
+            {
+                "id": "polls.get",
+                "method": "GET",
+                "path": "/polls/{id}/edit",
+                "permission": "polls.view",
+                "description": "Get one poll tree node"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "polls.menu.group",
+            "num": 10,
+            "path": "/polls",
+            "title": "polls.menu.list",
+            "kind": "crud"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_polls"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": [
+            "polls.definition.changed"
+        ]
+    },
+    "bulkActions": [
+        {
+            "list_id": "polls",
+            "action": "delete"
+        }
+    ]
+}

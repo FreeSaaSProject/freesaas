@@ -10,6 +10,7 @@
 /** @var bool $showStatusColumn */
 /** @var bool $showTagsColumn */
 /** @var bool $showBirthdayColumn */
+/** @var list<array{key:string,label:string}> $extraColumns */
 /** @var bool $canEdit */
 /** @var string $sort */
 /** @var string $dir */
@@ -24,11 +25,13 @@ $showAll = !empty($showAll);
 $showStatusColumn = !empty($showStatusColumn);
 $showTagsColumn = !empty($showTagsColumn);
 $showBirthdayColumn = !empty($showBirthdayColumn);
+$extraColumns = is_array($extraColumns ?? null) ? $extraColumns : [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $colSpan = 6
     + ($showStatusColumn ? 1 : 0)
     + ($showTagsColumn ? 1 : 0)
     + ($showBirthdayColumn ? 1 : 0)
+    + count($extraColumns)
     + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 ?>
@@ -98,6 +101,9 @@ $actionUrl = ListQuery::url($path, $filters, []);
           <?= ListQuery::sortTh(t('clients.col.birthday'), 'birthday', $sort, $dir, $path, $filters) ?>
         <?php endif; ?>
         <?= ListQuery::sortTh(t('clients.col.registered'), 'registered', $sort, $dir, $path, $filters) ?>
+        <?php foreach ($extraColumns as $col): ?>
+          <th><?= e((string)($col['label'] ?? $col['key'] ?? '')) ?></th>
+        <?php endforeach; ?>
       </tr>
     </thead>
     <tbody>
@@ -150,6 +156,13 @@ $actionUrl = ListQuery::url($path, $filters, []);
             echo $reg > 0 ? e(I18n::formatDate($reg, 'datetime')) : '—';
           ?>
         </td>
+        <?php foreach ($extraColumns as $col): ?>
+          <?php
+            $key = (string)($col['key'] ?? '');
+            $val = $key !== '' ? trim((string)($c[$key] ?? '')) : '';
+          ?>
+          <td class="muted"><?= $val !== '' ? '<code>' . e($val) . '</code>' : '—' ?></td>
+        <?php endforeach; ?>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>

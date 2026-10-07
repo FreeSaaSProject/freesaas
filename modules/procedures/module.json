@@ -89,7 +89,9 @@
     "hooks": {
         "subscribe": [
             "core.bulk.check_item",
-            "calendar.day.stats"
+            "calendar.day.stats",
+            "core.user_edit.sections",
+            "core.user_edit.save"
         ],
         "publish": [
             "bots.send"

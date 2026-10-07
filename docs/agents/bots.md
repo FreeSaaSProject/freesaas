@@ -27,8 +27,7 @@ Webhook paths (public + secret header):
 - Telegram secret header: `X-Telegram-Bot-Api-Secret-Token`
 - Max secret header: `X-Max-Bot-Api-Secret`
 
-Staff links by phone → `base_users.tel` → writes `telegram_chat_id` / `max_user_id`.  
-Client links by phone → `base_clients.tel` (columns added by bots migration).
+Staff/client link by phone → `base_users.tel` / `base_clients.tel` → writes chat ids into **`base_bot_links`** (`BOT_SOURCE` 2=staff, 1=client). Do not store messenger ids on `base_users` / `base_clients`.
 
 ## Bot types (menu)
 
@@ -111,10 +110,11 @@ Events: `bots.inbound`, `bots.cabinet.collect`, `bots.send` / `notify.send`.
 | Procedure notify on create/update | `procedures` (`ProcedureBotNotify` → `bots.send`) |
 | `client_cabinet` | `clients` (`ClientBotPlugin`) |
 
-Staff messenger fields on user edit: `bots` via `core.user_edit.*` (not core chrome).
+Staff/client messenger fields: `bots` via EventBus — `core.user_edit.*`, `core.users.list`, `clients.edit.*`, `clients.view.profile`, `clients.list` (data in `base_bot_links`, not core/clients columns).
 
 ## Tables
 
 - `base_telegram_sends` — outbound queue (`BOT_SOURCE` 1=client, 2=staff; STATUS 1/2/3/100)
-- `base_users.telegram_chat_id`, `max_user_id`, `BOT_NO_SEND`
-- `base_clients.telegram_chat_id`, `max_user_id`
+- `base_bot_links` — messenger identities (`BOT_SOURCE`, `ID_ENTITY`, `telegram_chat_id`, `max_user_id`, `BOT_NO_SEND`)
+
+Legacy columns on `base_users` / `base_clients` (if present) are copied then dropped by migration `002_bot_links_extract`. Fresh installs never add them. Import from phpshop: migrator `phpshop_messenger_to_base_bot_links`.

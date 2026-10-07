@@ -226,11 +226,17 @@
         "base_termloads",
         "base_fullstats",
         "base_term_orders",
-        "base_terminals_activations"
+        "base_terminals_activations",
+        "base_client_onec_bindings",
+        "base_staff_bracelets"
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "core.user_edit.sections",
+            "core.user_edit.save",
+            "core.user_edit.profile"
+        ],
         "publish": []
     },
     "bulkActions": [

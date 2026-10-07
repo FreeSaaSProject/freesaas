@@ -7,10 +7,12 @@
 /** @var list<array{id:int,name:string,login:string}> $staffOptions */
 /** @var array<int,string> $tagOptions */
 /** @var list<int> $selectedTagIds */
+/** @var string $extraHtml */
 $cid = (int)($client['id'] ?? 0);
 $gender = isset($client['gender']) ? (string)$client['gender'] : '';
 $selectedTagIds = $selectedTagIds ?? [];
 $tagOptions = $tagOptions ?? [];
+$extraHtml = (string)($extraHtml ?? '');
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('clients.edit.title_new') : te('clients.edit.heading') ?></h1>
@@ -119,6 +121,8 @@ $tagOptions = $tagOptions ?? [];
   <label><?= te('clients.edit.notes') ?>
     <textarea name="notes" rows="5"><?= e((string)($client['notes'] ?? '')) ?></textarea>
   </label>
+
+  <?= $extraHtml ?>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>

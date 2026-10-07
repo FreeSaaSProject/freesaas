@@ -5,6 +5,8 @@ require_once __DIR__ . '/lib/TerminalsConfig.php';
 require_once __DIR__ . '/lib/JobsAuth.php';
 require_once __DIR__ . '/lib/TerminalsRepository.php';
 require_once __DIR__ . '/lib/BraceletsRepository.php';
+require_once __DIR__ . '/lib/ClientOnecBindingsRepository.php';
+require_once __DIR__ . '/lib/StaffBraceletsRepository.php';
 require_once __DIR__ . '/lib/TermloadsRepository.php';
 require_once __DIR__ . '/lib/FullstatsRepository.php';
 require_once __DIR__ . '/lib/TermOrdersRepository.php';
@@ -97,3 +99,52 @@ Health::register('terminals.onec', 'terminals', static function (): array {
         'meta' => ['hint' => '/terminals/settings'],
     ];
 }, '1C club API config');
+
+EventBus::on('core.user_edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user) || !StaffBraceletsRepository::tableReady()) {
+        return $payload;
+    }
+    $row = StaffBraceletsRepository::findByUserId((int)($user['id'] ?? 0));
+    $staffBraceletUid = $row !== null ? (string)$row['uid'] : '';
+    ob_start();
+    require __DIR__ . '/views/_user_edit_bracelet.php';
+    $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('core.user_edit.save', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!StaffBraceletsRepository::tableReady()) {
+        return $payload;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    if ($id < 1) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    // Persist into terminals table only — do not patch UsersRepository $data.
+    StaffBraceletsRepository::setForUser($id, trim((string)($post['staff_bracelet_uid'] ?? '')));
+    return $payload;
+});
+
+EventBus::on('core.user_edit.profile', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $user = $payload['user'] ?? null;
+    if (!is_array($user) || !StaffBraceletsRepository::tableReady()) {
+        return $payload;
+    }
+    $row = StaffBraceletsRepository::findByUserId((int)($user['id'] ?? 0));
+    $staffBraceletUid = $row !== null ? (string)$row['uid'] : '';
+    ob_start();
+    require __DIR__ . '/views/_user_profile_bracelet.php';
+    $payload['html_channels'] = ($payload['html_channels'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});

@@ -23,6 +23,16 @@ if ($staffId > 0 && Database::tableExists('base_users')) {
     }
 }
 
+$profile = EventBus::emit('clients.view.profile', [
+    'html' => '',
+    'client' => $client,
+    'id' => $id,
+]);
+$extraHtml = is_array($profile) ? (string)($profile['html'] ?? '') : '';
+if (is_array($profile) && isset($profile['client']) && is_array($profile['client'])) {
+    $client = $profile['client'];
+}
+
 View::render('view', [
     'title' => $client['name'] ?: t('clients.view.title_fallback', ['id' => $id]),
     'client' => $client,
@@ -30,4 +40,5 @@ View::render('view', [
     'staffName' => $staffName,
     'tagNames' => ClientsRepository::tagNamesByClientIds([$id])[$id] ?? [],
     'canEdit' => Auth::can('clients.edit'),
+    'extraHtml' => $extraHtml,
 ], 'layout', 'clients');

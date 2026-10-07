@@ -122,6 +122,10 @@ final class NavContext
         if ($url === '') {
             return $url;
         }
+        // External absolute URLs (OAuth redirects) — never rewrite.
+        if (preg_match('#^https?://#i', $url)) {
+            return $url;
+        }
         if (preg_match('#^/(?:login|logout|locale)(?:\?|$)#', $url)) {
             return $url;
         }

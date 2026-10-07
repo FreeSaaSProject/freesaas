@@ -7,12 +7,18 @@ require_once __DIR__ . '/lib/PromoterBonus.php';
 require_once __DIR__ . '/lib/DopsStats.php';
 require_once __DIR__ . '/lib/CalendarOverlay.php';
 require_once __DIR__ . '/lib/ProcedureRestoresRepository.php';
+require_once __DIR__ . '/lib/PromopageModules.php';
+require_once __DIR__ . '/lib/PromopagesRepository.php';
+require_once __DIR__ . '/lib/PageCategoriesRepository.php';
+require_once __DIR__ . '/lib/RedirectsRepository.php';
+require_once __DIR__ . '/lib/SystemFlyerPromo.php';
+require_once __DIR__ . '/lib/SystemSite.php';
 
 Assets::register('likespa', [
     'css' => ['likespa.css'],
 ]);
 
-ModuleManager::registerMenuGroup('likespa.menu.group', 36, '/likespa/term-scans');
+ModuleManager::registerMenuGroup('likespa.menu.group', 36, '/likespa/site');
 
 $pages = [
     '/likespa/term-scans' => [
@@ -39,6 +45,56 @@ $pages = [
         'permission' => 'likespa.restores',
         'methods' => ['GET', 'POST'],
         'file' => 'restore_edit.php',
+    ],
+    '/likespa/site' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'site.php',
+    ],
+    '/likespa/promopages' => [
+        'permission' => 'likespa.promopages',
+        'methods' => ['GET', 'POST'],
+        'file' => 'promopages.php',
+    ],
+    '/likespa/promopages/new' => [
+        'permission' => 'likespa.promopages',
+        'methods' => ['GET', 'POST'],
+        'file' => 'promopage_edit.php',
+    ],
+    '/likespa/promopages/{id}/edit' => [
+        'permission' => 'likespa.promopages',
+        'methods' => ['GET', 'POST'],
+        'file' => 'promopage_edit.php',
+    ],
+    '/likespa/pages' => [
+        'permission' => 'likespa.pages',
+        'methods' => ['GET', 'POST'],
+        'file' => 'pages_list.php',
+    ],
+    '/likespa/pages/new' => [
+        'permission' => 'likespa.pages',
+        'methods' => ['GET', 'POST'],
+        'file' => 'page_edit.php',
+    ],
+    '/likespa/pages/{id}/edit' => [
+        'permission' => 'likespa.pages',
+        'methods' => ['GET', 'POST'],
+        'file' => 'page_edit.php',
+    ],
+    '/likespa/redirects' => [
+        'permission' => 'likespa.redirects',
+        'methods' => ['GET', 'POST'],
+        'file' => 'redirects.php',
+    ],
+    '/likespa/redirects/new' => [
+        'permission' => 'likespa.redirects',
+        'methods' => ['GET', 'POST'],
+        'file' => 'redirect_edit.php',
+    ],
+    '/likespa/redirects/{id}/edit' => [
+        'permission' => 'likespa.redirects',
+        'methods' => ['GET', 'POST'],
+        'file' => 'redirect_edit.php',
     ],
     '/likespa/settings' => [
         'capability' => 'SUPERADMIN_ACCESS',
@@ -73,6 +129,59 @@ BulkActions::register('likespa_restores', 'delete', [
     },
 ]);
 
+BulkActions::register('likespa_promopages', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'likespa.promopages',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        $skipped = [];
+        $allowed = [];
+        foreach ($ids as $id) {
+            $id = (int)$id;
+            if (PromopagesRepository::cloneCount($id) > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('likespa.promopages.has_clones_hint')];
+                continue;
+            }
+            $allowed[] = $id;
+        }
+        return [
+            'done' => PromopagesRepository::deleteByIds($allowed),
+            'skipped' => $skipped,
+        ];
+    },
+]);
+
+BulkActions::register('likespa_pages', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'likespa.pages',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        $skipped = [];
+        $allowed = [];
+        foreach ($ids as $id) {
+            $id = (int)$id;
+            if (PageCategoriesRepository::childCount($id) > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('likespa.pages.has_children_hint')];
+                continue;
+            }
+            $allowed[] = $id;
+        }
+        return [
+            'done' => PageCategoriesRepository::deleteByIds($allowed),
+            'skipped' => $skipped,
+        ];
+    },
+]);
+
+BulkActions::register('likespa_redirects', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'likespa.redirects',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return ['done' => RedirectsRepository::deleteByIds($ids), 'skipped' => []];
+    },
+]);
+
 EventBus::on('audio_reports.calendar.cell', static function ($payload) {
     return CalendarOverlay::onCell($payload);
 });
@@ -97,6 +206,7 @@ EventBus::on('core.user_edit.save', static function ($payload) {
     }
     $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
     $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $data['link_ok'] = trim((string)($post['link_ok'] ?? ''));
     $data['photo'] = trim((string)($post['photo'] ?? ''));
     $data['site_descr'] = trim((string)($post['site_descr'] ?? ''));
     $payload['data'] = $data;

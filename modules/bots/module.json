@@ -115,14 +115,27 @@
   ],
   "configSchema": {},
   "tables": [
-    "base_telegram_sends"
+    "base_telegram_sends",
+    "base_bot_links"
   ],
-  "migrators": [],
+  "migrators": [
+    {
+      "id": "phpshop_messenger_to_base_bot_links",
+      "mode": "replace",
+      "source": ["phpshop_users", "phpshop_shopusers"],
+      "target": ["base_bot_links"]
+    }
+  ],
   "hooks": {
     "subscribe": [
       "core.user_edit.sections",
       "core.user_edit.save",
       "core.user_edit.profile",
+      "core.users.list",
+      "clients.edit.sections",
+      "clients.edit.save",
+      "clients.view.profile",
+      "clients.list",
       "bots.send",
       "notify.send"
     ],

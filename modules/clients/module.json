@@ -124,7 +124,12 @@
             "core.dashboard.catalog",
             "core.dashboard.widgets"
         ],
-        "publish": []
+        "publish": [
+            "clients.edit.sections",
+            "clients.edit.save",
+            "clients.view.profile",
+            "clients.list"
+        ]
     },
     "bulkActions": [
         {

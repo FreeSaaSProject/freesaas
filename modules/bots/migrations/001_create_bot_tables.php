@@ -2,7 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Outbound queue (oper-compatible base_telegram_sends) + messenger columns on users/clients.
+ * Outbound queue (oper-compatible base_telegram_sends).
+ * Messenger identities live in base_bot_links (migration 002) — not on base_users/base_clients.
  */
 return static function (PDO $pdo): void {
     $pdo->exec(
@@ -44,33 +45,6 @@ return static function (PDO $pdo): void {
         foreach ($adds as $col => $def) {
             if (!Database::columnExists('base_telegram_sends', $col)) {
                 $pdo->exec('ALTER TABLE `base_telegram_sends` ADD COLUMN `' . $col . '` ' . $def);
-                Database::clearSchemaCache();
-            }
-        }
-    }
-
-    if (Database::tableExists('base_users')) {
-        $userCols = [
-            'telegram_chat_id' => 'BIGINT NULL DEFAULT NULL',
-            'max_user_id' => 'BIGINT NULL DEFAULT NULL',
-            'BOT_NO_SEND' => 'TINYINT(1) NOT NULL DEFAULT 0',
-        ];
-        foreach ($userCols as $col => $def) {
-            if (!Database::columnExists('base_users', $col)) {
-                $pdo->exec('ALTER TABLE `base_users` ADD COLUMN `' . $col . '` ' . $def);
-                Database::clearSchemaCache();
-            }
-        }
-    }
-
-    if (Database::tableExists('base_clients')) {
-        $clientCols = [
-            'telegram_chat_id' => 'BIGINT NULL DEFAULT NULL',
-            'max_user_id' => 'BIGINT NULL DEFAULT NULL',
-        ];
-        foreach ($clientCols as $col => $def) {
-            if (!Database::columnExists('base_clients', $col)) {
-                $pdo->exec('ALTER TABLE `base_clients` ADD COLUMN `' . $col . '` ' . $def);
                 Database::clearSchemaCache();
             }
         }

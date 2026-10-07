@@ -20,18 +20,9 @@ $extraHtml = (string)($extraHtml ?? '');
   <div class="flash flash-warn"><?= te('core.settings.empty') ?></div>
 <?php else: ?>
 <form method="post" class="form-grid" enctype="multipart/form-data">
-  <label><?= te('core.settings.field_title') ?>
-    <input name="title" value="<?= e((string)($row['title'] ?? '')) ?>">
-  </label>
   <label><?= te('core.settings.field_company') ?>
     <input name="company" value="<?= e((string)($row['company'] ?? '')) ?>">
     <span class="field-hint muted"><?= te('core.settings.field_company_hint') ?></span>
-  </label>
-  <label><?= te('core.settings.field_name') ?>
-    <input name="name" value="<?= e((string)($row['name'] ?? '')) ?>">
-  </label>
-  <label><?= te('core.settings.field_tel') ?>
-    <input name="tel" value="<?= e((string)($row['tel'] ?? '')) ?>">
   </label>
 
   <fieldset class="form-fieldset logo-fieldset">

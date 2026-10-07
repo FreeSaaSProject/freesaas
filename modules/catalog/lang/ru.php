@@ -113,7 +113,4 @@ return [
     'catalog.bulk.unit_in_use' => 'Единица используется в товарах ({n})',
     'catalog.bulk.supplier_in_use' => 'Поставщик указан в товарах ({n})',
     'catalog.bulk.type_in_use' => 'Тип указан в товарах каталога ({n})',
-    'catalog.user_edit.sec_restrict' => 'Ограничения процедур',
-    'catalog.user_edit.restrict_procs' => 'Запрет на процедуры',
-    'catalog.user_edit.no_products' => 'Каталог <code>base_products</code> пуст — нечего запрещать.',
 ];

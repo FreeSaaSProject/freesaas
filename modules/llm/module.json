@@ -1,15 +1,20 @@
 {
   "id": "llm",
   "name": "llm.module.name",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "product",
   "requires": {
     "core": ">=0.3.0"
   },
-  "optionalRequires": {},
+  "optionalRequires": {
+    "assistant": ">=0.1.0"
+  },
   "provides": [
-    "llm.client"
+    "llm.client",
+    "llm.oauth",
+    "llm.mcp"
   ],
+  "migrations": "migrations/",
   "permissions": [
     { "id": "llm.manage", "label": "llm.perm.manage" },
     { "id": "llm.use", "label": "llm.perm.use" }
@@ -19,7 +24,17 @@
       "/llm/tokens",
       "/llm/tokens/new",
       "/llm/tokens/{id}",
-      "/llm/chat"
+      "/llm/chat",
+      "/llm/oauth",
+      "/llm/oauth/new",
+      "/llm/oauth/{id}",
+      "/llm/openapi.json",
+      "/llm/mcp",
+      "/llm/api/tools",
+      "/llm/api/tools/call",
+      "/oauth/authorize",
+      "/oauth/token",
+      "/oauth/revoke"
     ]
   },
   "agent": {
@@ -45,23 +60,44 @@
         "permission": "llm.use",
         "assistant": false,
         "description": "OpenAI-compatible chat completion; body: messages, optional profile/model/temperature/max_tokens"
+      },
+      {
+        "id": "llm.oauth.clients",
+        "method": "GET",
+        "path": "/llm/oauth",
+        "permission": "llm.manage",
+        "assistant": false,
+        "description": "List OAuth clients and MCP/OpenAPI endpoint URLs"
       }
     ]
   },
   "jobs": [],
   "menu": [
     {
-      "group": "core.menu.group.system",
+      "group": "llm.menu.group",
       "kind": "settings",
       "num": 40,
       "path": "/llm/tokens",
       "title": "llm.menu.tokens",
       "permission": "llm.manage",
       "capability": "SUPERADMIN_ACCESS"
+    },
+    {
+      "group": "llm.menu.group",
+      "kind": "settings",
+      "num": 50,
+      "path": "/llm/oauth",
+      "title": "llm.menu.oauth",
+      "permission": "llm.manage",
+      "capability": "SUPERADMIN_ACCESS"
     }
   ],
   "configSchema": {},
-  "tables": [],
+  "tables": [
+    "base_oauth_clients",
+    "base_oauth_codes",
+    "base_oauth_tokens"
+  ],
   "migrators": [],
   "hooks": {
     "subscribe": [],

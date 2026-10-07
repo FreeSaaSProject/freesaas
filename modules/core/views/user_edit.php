@@ -60,6 +60,12 @@ if ($newsAfterTs > 0) {
   <label><?= te('core.user_edit.phone') ?>
     <input name="tel" value="<?= e((string)$user['tel']) ?>" placeholder="9XXXXXXXXX">
   </label>
+  <?php if (Database::columnExists('base_users', 'num')): ?>
+  <label><?= te('core.user_edit.num') ?>
+    <input type="number" name="num" min="0" step="1" value="<?= (int)($user['num'] ?? 0) ?>">
+  </label>
+  <p class="form-hint"><?= te('core.user_edit.num_hint') ?></p>
+  <?php endif; ?>
   <label><?= te('core.user_edit.locale') ?>
     <select name="locale">
       <?php foreach (I18n::supported() as $loc): ?>
@@ -84,11 +90,6 @@ if ($newsAfterTs > 0) {
     <input type="number" name="retries" min="0" value="<?= (int)($user['retries'] ?? 0) ?>">
   </label>
   <?php endif; ?>
-
-  <h2 class="form-section-title"><?= te('core.user_edit.sec_contacts') ?></h2>
-  <label><?= te('core.user_edit.tips_link') ?>
-    <input name="link_ok" type="url" value="<?= e((string)($user['link_ok'] ?? '')) ?>" placeholder="https://…">
-  </label>
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_colors') ?></h2>
   <label><?= te('core.user_edit.color_bg') ?>

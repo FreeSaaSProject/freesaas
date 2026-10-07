@@ -112,6 +112,8 @@ return [
     'bots.user_edit.max_user_id' => 'Max user_id',
     'bots.user_edit.bot_no_send' => 'Block messages from the staff bot',
     'bots.user.bot_off' => 'Bot sends blocked',
+    'bots.client_edit.sec' => 'Client bot (Telegram / Max)',
+    'bots.client_edit.hint' => 'Messenger chat ids live in base_bot_links — not on the client row. Clear if the client has not linked the bot yet.',
 
     'bots.cabinet.hello' => 'Hello, {name}. Choose an action:',
     'bots.cabinet.refresh' => 'Menu',
@@ -127,11 +129,12 @@ return [
     'bots.send.sent' => 'Sent ({where})',
     'bots.send.skipped_deadline' => 'Skipped: past deadline',
     'bots.send.skipped_no_send' => 'Skipped: BOT_NO_SEND',
-    'bots.send.err_no_chat' => 'No telegram_chat_id / max_user_id',
+    'bots.send.err_no_chat' => 'No linked telegram / max chat id',
     'bots.send.err_no_token' => 'No bot token for linked platforms',
     'bots.send.err_send' => 'Send failed',
 
     'bots.err.table' => 'base_telegram_sends is missing — run migrations',
+    'bots.err.links_table' => 'base_bot_links is missing — run migrations',
     'bots.err.enqueue_args' => 'user_id/client_id and text are required',
     'bots.err.forbidden' => 'Forbidden',
     'bots.err.user_required' => 'user_id is required',

@@ -11,7 +11,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $post = $_POST;
         if (array_key_exists('work_hour_start', $post) || array_key_exists('work_hour_end', $post)) {
-            SystemRepository::updateWorkHours(
+            CalendarTimeline::updateWorkHours(
                 (int)($post['work_hour_start'] ?? 9),
                 (int)($post['work_hour_end'] ?? 22)
             );

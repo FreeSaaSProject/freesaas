@@ -36,8 +36,8 @@
     "jobs": [],
     "menu": [
         {
-            "group": "core.menu.group.desktop",
-            "num": 4,
+            "group": "likespa.menu.group",
+            "num": 20,
             "path": "/orders",
             "title": "orders.menu.list"
         }

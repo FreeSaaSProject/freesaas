@@ -41,7 +41,18 @@ $result = ClientsRepository::list([
 
 $bulkFlash = BulkActions::consumeFlash();
 
-$colData = ListQuery::columnsWithData($result['items'], [
+$list = EventBus::emit('clients.list', [
+    'items' => $result['items'],
+    'extra_columns' => [],
+]);
+$items = is_array($list) && isset($list['items']) && is_array($list['items'])
+    ? $list['items']
+    : $result['items'];
+$extraColumns = is_array($list) && isset($list['extra_columns']) && is_array($list['extra_columns'])
+    ? $list['extra_columns']
+    : [];
+
+$colData = ListQuery::columnsWithData($items, [
     'status' => static function (array $r) {
         return (int)($r['status_id'] ?? 0) > 0 ? ($r['status_name'] ?? 1) : null;
     },
@@ -53,7 +64,7 @@ $colData = ListQuery::columnsWithData($result['items'], [
 
 View::render('list', [
     'title' => t('clients.menu.base'),
-    'items' => $result['items'],
+    'items' => $items,
     'total' => $result['total'],
     'q' => $q,
     'enabled' => $enabled,
@@ -64,6 +75,7 @@ View::render('list', [
     'showStatusColumn' => !empty($colData['status']),
     'showTagsColumn' => !empty($colData['tags']),
     'showBirthdayColumn' => !empty($colData['birthday']),
+    'extraColumns' => $extraColumns,
     'canEdit' => Auth::can('clients.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],

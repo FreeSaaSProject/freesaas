@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-/** Phone normalize + staff/client messenger link on base_users / base_clients. */
+/** Phone normalize + staff/client messenger link via base_bot_links. */
 final class BotIdentity
 {
     public static function normalizePhone(string $input): ?string
@@ -41,50 +41,34 @@ final class BotIdentity
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT id, name, tel, telegram_chat_id, max_user_id, BOT_NO_SEND, enabled
-             FROM base_users WHERE tel = ? LIMIT 1'
+            'SELECT id, name, tel, enabled FROM base_users WHERE tel = ? LIMIT 1'
         );
         $st->execute([$tel]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
-        return is_array($row) ? $row : null;
+        if (!is_array($row)) {
+            return null;
+        }
+        return BotLinksRepository::mergeOnto($row, BotLinksRepository::SOURCE_STAFF);
     }
 
     /** @return array<string,mixed>|null */
     public static function findStaffByChat(string $platform, string $chatId): ?array
     {
-        $chatId = self::chatIdValue($chatId);
-        if ($chatId === '' || !Database::tableExists('base_users')) {
-            return null;
-        }
-        $col = $platform === 'max' ? 'max_user_id' : 'telegram_chat_id';
-        if (!Database::columnExists('base_users', $col)) {
-            return null;
-        }
-        $st = Database::pdo()->prepare(
-            'SELECT id, name, tel, telegram_chat_id, max_user_id, BOT_NO_SEND, enabled
-             FROM base_users WHERE `' . $col . '` = ? LIMIT 1'
+        return BotLinksRepository::findEntityByChat(
+            BotLinksRepository::SOURCE_STAFF,
+            $platform,
+            $chatId
         );
-        $st->execute([$chatId]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        return is_array($row) ? $row : null;
     }
 
     public static function bindStaff(int $userId, string $platform, string $chatId): bool
     {
-        if ($userId < 1 || !Database::tableExists('base_users')) {
-            return false;
-        }
-        $chatId = self::chatIdValue($chatId);
-        if ($chatId === '') {
-            return false;
-        }
-        $col = $platform === 'max' ? 'max_user_id' : 'telegram_chat_id';
-        if (!Database::columnExists('base_users', $col)) {
-            return false;
-        }
-        $st = Database::pdo()->prepare('UPDATE base_users SET `' . $col . '` = ? WHERE id = ?');
-        $st->execute([$chatId, $userId]);
-        return $st->rowCount() >= 0;
+        return BotLinksRepository::bindPlatform(
+            BotLinksRepository::SOURCE_STAFF,
+            $userId,
+            $platform,
+            $chatId
+        );
     }
 
     /** @return array<string,mixed>|null */
@@ -94,98 +78,45 @@ final class BotIdentity
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT id, name, tel, telegram_chat_id, max_user_id, enabled
-             FROM base_clients WHERE tel = ? LIMIT 1'
+            'SELECT id, name, tel, enabled FROM base_clients WHERE tel = ? LIMIT 1'
         );
-        if (!Database::columnExists('base_clients', 'telegram_chat_id')) {
-            $st = Database::pdo()->prepare(
-                'SELECT id, name, tel, enabled FROM base_clients WHERE tel = ? LIMIT 1'
-            );
-        }
         $st->execute([$tel]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
-        return is_array($row) ? $row : null;
+        if (!is_array($row)) {
+            return null;
+        }
+        return BotLinksRepository::mergeOnto($row, BotLinksRepository::SOURCE_CLIENT);
     }
 
     /** @return array<string,mixed>|null */
     public static function findClientByChat(string $platform, string $chatId): ?array
     {
-        $chatId = self::chatIdValue($chatId);
-        if ($chatId === '' || !Database::tableExists('base_clients')) {
-            return null;
-        }
-        $col = $platform === 'max' ? 'max_user_id' : 'telegram_chat_id';
-        if (!Database::columnExists('base_clients', $col)) {
-            return null;
-        }
-        $st = Database::pdo()->prepare(
-            'SELECT id, name, tel, telegram_chat_id, max_user_id, enabled
-             FROM base_clients WHERE `' . $col . '` = ? LIMIT 1'
+        return BotLinksRepository::findEntityByChat(
+            BotLinksRepository::SOURCE_CLIENT,
+            $platform,
+            $chatId
         );
-        $st->execute([$chatId]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        return is_array($row) ? $row : null;
     }
 
     public static function bindClient(int $clientId, string $platform, string $chatId): bool
     {
-        if ($clientId < 1 || !Database::tableExists('base_clients')) {
-            return false;
-        }
-        $chatId = self::chatIdValue($chatId);
-        if ($chatId === '') {
-            return false;
-        }
-        $col = $platform === 'max' ? 'max_user_id' : 'telegram_chat_id';
-        if (!Database::columnExists('base_clients', $col)) {
-            return false;
-        }
-        $st = Database::pdo()->prepare('UPDATE base_clients SET `' . $col . '` = ? WHERE id = ?');
-        $st->execute([$chatId, $clientId]);
-        return true;
+        return BotLinksRepository::bindPlatform(
+            BotLinksRepository::SOURCE_CLIENT,
+            $clientId,
+            $platform,
+            $chatId
+        );
     }
 
     /** @return array{telegram:string,max:string,bot_no_send:bool} */
     public static function staffTargets(int $userId): array
     {
-        $out = ['telegram' => '', 'max' => '', 'bot_no_send' => false];
-        if ($userId < 1 || !Database::tableExists('base_users')) {
-            return $out;
-        }
-        $st = Database::pdo()->prepare(
-            'SELECT telegram_chat_id, max_user_id, BOT_NO_SEND FROM base_users WHERE id = ? LIMIT 1'
-        );
-        $st->execute([$userId]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($row)) {
-            return $out;
-        }
-        $out['telegram'] = self::chatIdValue($row['telegram_chat_id'] ?? '');
-        $out['max'] = self::chatIdValue($row['max_user_id'] ?? '');
-        $out['bot_no_send'] = !empty($row['BOT_NO_SEND']);
-        return $out;
+        return BotLinksRepository::targets(BotLinksRepository::SOURCE_STAFF, $userId);
     }
 
     /** @return array{telegram:string,max:string,bot_no_send:bool} */
     public static function clientTargets(int $clientId): array
     {
-        $out = ['telegram' => '', 'max' => '', 'bot_no_send' => false];
-        if ($clientId < 1 || !Database::tableExists('base_clients')) {
-            return $out;
-        }
-        if (!Database::columnExists('base_clients', 'telegram_chat_id')) {
-            return $out;
-        }
-        $st = Database::pdo()->prepare(
-            'SELECT telegram_chat_id, max_user_id FROM base_clients WHERE id = ? LIMIT 1'
-        );
-        $st->execute([$clientId]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($row)) {
-            return $out;
-        }
-        $out['telegram'] = self::chatIdValue($row['telegram_chat_id'] ?? '');
-        $out['max'] = self::chatIdValue($row['max_user_id'] ?? '');
-        return $out;
+        return BotLinksRepository::targets(BotLinksRepository::SOURCE_CLIENT, $clientId);
     }
 }

@@ -26,8 +26,8 @@
   "jobs": [],
   "menu": [
     {
-      "group": "core.menu.group.desktop",
-      "num": 3,
+      "group": "core.menu.group.accounting",
+      "num": 10,
       "path": "/contracts",
       "title": "contracts.menu.list"
     }

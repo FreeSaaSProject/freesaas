@@ -6,7 +6,8 @@ declare(strict_types=1);
  * When source oper tables exist, clone structure into base_*; otherwise create minimal DDL.
  */
 return static function (PDO $pdo): void {
-    // base_users — structural copy from oper when present (local/transition installs)
+    // base_users — structural copy from oper when present (local/transition installs).
+    // Do not keep oper-only link_gp; FreeSaaS order column is `num`.
     $src = $pdo->query("SHOW TABLES LIKE 'phpshop_users'")->fetchColumn();
     if ($src) {
         $pdo->exec('CREATE TABLE IF NOT EXISTS base_users LIKE phpshop_users');
@@ -23,6 +24,7 @@ return static function (PDO $pdo): void {
                 skin VARCHAR(255) NOT NULL DEFAULT '',
                 skin_enabled ENUM('0','1') NOT NULL DEFAULT '0',
                 name VARCHAR(255) NOT NULL DEFAULT '',
+                num INT NOT NULL DEFAULT 0,
                 ID_STATUS INT NOT NULL DEFAULT 0,
                 ID_STATUS2 INT NOT NULL DEFAULT 0,
                 color VARCHAR(255) NOT NULL DEFAULT '',
@@ -34,6 +36,15 @@ return static function (PDO $pdo): void {
                 KEY idx_login (login)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
         );
+    }
+    Database::clearSchemaCache();
+    if (Database::tableExists('base_users') && Database::columnExists('base_users', 'link_gp')) {
+        $pdo->exec('ALTER TABLE `base_users` DROP COLUMN `link_gp`');
+        Database::clearSchemaCache();
+    }
+    if (Database::tableExists('base_users') && !Database::columnExists('base_users', 'num')) {
+        $pdo->exec('ALTER TABLE `base_users` ADD COLUMN `num` INT NOT NULL DEFAULT 0');
+        Database::clearSchemaCache();
     }
 
     $srcSys = $pdo->query("SHOW TABLES LIKE 'phpshop_system'")->fetchColumn();

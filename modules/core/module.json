@@ -250,6 +250,7 @@
             "core.user_edit.sections",
             "core.user_edit.save",
             "core.user_edit.profile",
+            "core.users.list",
             "core.settings.sections",
             "core.settings.save",
             "core.bulk.check_item",

@@ -280,7 +280,7 @@ See [Module Authoring Test](#module-authoring-test).
 | News/tickets TYPE=2, curator/ОЛ flows, RU ticket diffs | Extract toward tickets/contracts over time |
 | Status flags ZGV/STA/MARKET/ASSIST/PARTNER | Owning product modules via `registerFieldGroup` |
 | Menu homes → `/catalog`, `/payments`, `/ledger/moves` | Product modules; resilient fallbacks |
-| `telegram_chat_id` / Max / bot feature gates in core user edit | Product notifications/bot module |
+| Messenger chat ids / bot gates in core user edit | Product `bots` module (`base_bot_links`, not columns on `base_users`) |
 | `dbase=likespa`, repo path branding | Deployment only |
 | sheets linen, massage tables, audio ASR workers | Already product modules — OK |
 
