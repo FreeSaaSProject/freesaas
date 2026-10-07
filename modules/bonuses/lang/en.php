@@ -1,0 +1,73 @@
+<?php
+declare(strict_types=1);
+
+return [
+    'bonuses.module.name' => 'Client bonuses',
+    'bonuses.menu.list' => 'Bonuses',
+    'bonuses.perm.view' => 'Bonuses (view)',
+    'bonuses.perm.edit' => 'Bonuses (edit)',
+    'bonuses.perm.apply' => 'Bonuses (apply on events)',
+
+    'bonuses.list.search_placeholder' => 'Search: description, id, client id',
+    'bonuses.list.empty' => 'No bonus movements found',
+    'bonuses.list.filter_client' => 'Client ID',
+    'bonuses.list.filter_direction' => 'Direction',
+    'bonuses.list.dir_all' => 'All',
+    'bonuses.list.dir_in' => 'Credit',
+    'bonuses.list.dir_out' => 'Debit',
+
+    'bonuses.col.id' => 'ID',
+    'bonuses.col.client' => 'Client',
+    'bonuses.col.date_in' => 'From',
+    'bonuses.col.date_out' => 'Until',
+    'bonuses.col.descr' => 'Description',
+    'bonuses.col.direction' => 'Direction',
+    'bonuses.col.sum' => 'Amount',
+    'bonuses.col.event_bonus' => 'Accrue event',
+    'bonuses.col.event_discount' => 'Spend event',
+    'bonuses.col.dismissed' => 'Dismissed',
+
+    'bonuses.dir.credit' => 'Credit',
+    'bonuses.dir.debit' => 'Debit',
+    'bonuses.dir.none' => 'None',
+
+    'bonuses.edit.title_new' => 'New bonus movement',
+    'bonuses.edit.title' => 'Bonus #{id}',
+    'bonuses.edit.heading_new' => 'New bonus movement',
+    'bonuses.edit.sec_main' => 'Movement',
+
+    'bonuses.client.title' => 'Bonuses: {name}',
+    'bonuses.client.balance' => 'Balance',
+    'bonuses.client.history' => 'History',
+    'bonuses.client.open_client' => 'Open client card',
+    'bonuses.client.not_found' => 'Client #{id} not found',
+
+    'bonuses.event.sec' => 'Client bonuses',
+    'bonuses.event.balance' => 'Balance: {n}',
+    'bonuses.event.use' => 'Spend bonuses on this event',
+    'bonuses.event.discount' => 'Bonus discount (₽)',
+    'bonuses.event.discount_hint' => 'Usually the full client balance. Applied only after «Apply bonuses».',
+    'bonuses.event.quote_spend' => 'Would spend: {n}',
+    'bonuses.event.quote_accrue' => 'Would accrue: {n}',
+    'bonuses.event.quote_pay' => 'To pay after bonus: {n}',
+    'bonuses.event.applied' => 'Bonuses already applied for this event',
+    'bonuses.event.apply' => 'Apply bonuses',
+    'bonuses.event.apply_hint' => 'Save the event first, then apply. Creates ledger rows and updates discount / paid sum.',
+    'bonuses.event.need_client' => 'Assign a client to use bonuses',
+    'bonuses.event.no_capability' => 'No EVT_BONUS capability',
+
+    'bonuses.flash.applied' => 'Bonuses applied: spent {spend}, accrued {accrue}',
+    'bonuses.flash.created' => 'Bonus movement created',
+    'bonuses.flash.deleted' => 'Deleted',
+
+    'bonuses.err.not_found' => 'Bonus movement #{id} not found',
+    'bonuses.err.client_required' => 'Client is required',
+    'bonuses.err.sum_required' => 'Amount must be greater than zero',
+    'bonuses.err.direction' => 'Choose credit or debit',
+    'bonuses.err.event_not_found' => 'Event #{id} not found',
+    'bonuses.err.already_applied' => 'Bonuses already applied for this event',
+    'bonuses.err.no_client' => 'Event has no client',
+    'bonuses.err.forbidden' => 'Forbidden',
+    'bonuses.err.apply_failed' => 'Could not apply bonuses',
+    'bonuses.err.table' => 'Bonus ledger table is missing',
+];

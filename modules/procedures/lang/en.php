@@ -63,6 +63,7 @@ return [
     'procedures.edit.sec_meta' => 'Meta',
     'procedures.edit.client_hint' => 'Client ID from the clients module',
 
+    'procedures.err.bad_day' => 'day=YYYY-MM-DD is required',
     'procedures.err.not_found' => 'Procedure #{id} not found',
     'procedures.err.type_required' => 'Procedure type is required',
     'procedures.err.client_required' => 'Client is required',
@@ -113,4 +114,7 @@ return [
     'procedures.user_edit.restrict_types' => 'Blocked procedure types',
     'procedures.user_edit.restrict_types_online' => 'Blocked types for online booking',
     'procedures.user_edit.no_types' => 'Procedure types are not loaded yet.',
+    'procedures.bot.notify_new' => 'New procedure #{id} at {when}',
+    'procedures.bot.notify_update' => 'Procedure #{id} updated ({when})',
+    'procedures.bot.notify_cancel' => 'Procedure #{id} cancelled',
 ];

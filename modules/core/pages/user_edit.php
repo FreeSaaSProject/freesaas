@@ -14,13 +14,12 @@ if (!$user) {
 $message = '';
 $error = '';
 $isSuper = Auth::isSuperAdmin();
-$features = UsersRepository::editFeatures();
 $permGroups = UsersRepository::availablePermissionKeys();
 
 $adminStatuses = UsersRepository::statusNamesFiltered(false);
 $partnerStatuses = UsersRepository::statusNamesFiltered(true);
 $allStatuses = UsersRepository::statusNames();
-$curRole = (int)$user['name_enabled'];
+$curRole = (int)$user['ID_STATUS'];
 if ($curRole > 0 && !isset($adminStatuses[$curRole]) && isset($allStatuses[$curRole])) {
     $adminStatuses[$curRole] = $allStatuses[$curRole];
 }
@@ -53,16 +52,15 @@ if ($turnon === '1' || $turnon === '0') {
  *
  * @param array<string,mixed> $post
  * @param array<string,mixed> $current
- * @param array<string,bool> $features
  * @return array<string,mixed>
  */
-$buildData = static function (array $post, array $current, bool $super, array $features) use ($permGroups): array {
+$buildData = static function (array $post, array $current, bool $super) use ($permGroups): array {
     $data = [
         'name' => trim((string)($post['name'] ?? '')),
         'mail' => trim((string)($post['mail'] ?? '')),
         'tel' => trim((string)($post['tel'] ?? '')),
         'enabled' => !empty($post['enabled']) ? '1' : '0',
-        'name_enabled' => (int)($post['name_enabled'] ?? 0),
+        'ID_STATUS' => (int)($post['ID_STATUS'] ?? 0),
         'color' => trim((string)($post['color'] ?? '')),
         'color_text' => trim((string)($post['color_text'] ?? '')),
         'IS_HIDDEN' => !empty($post['IS_HIDDEN']) ? 1 : 0,
@@ -76,19 +74,8 @@ $buildData = static function (array $post, array $current, bool $super, array $f
         $data['locale'] = $localeRaw;
     }
 
-    if (Database::columnExists('base_users', 'STATUS2')) {
-        $data['STATUS2'] = (int)($post['STATUS2'] ?? 0);
-    }
-
-    if (!empty($features['site_profile'])) {
-        $data['photo'] = trim((string)($post['photo'] ?? ''));
-        $data['site_descr'] = trim((string)($post['site_descr'] ?? ''));
-    }
-
-    if (!empty($features['employee_bot'])) {
-        $data['telegram_chat_id'] = trim((string)($post['telegram_chat_id'] ?? ''));
-        $data['max_user_id'] = trim((string)($post['max_user_id'] ?? ''));
-        $data['BOT_NO_SEND'] = !empty($post['BOT_NO_SEND']) ? 1 : 0;
+    if (Database::columnExists('base_users', 'ID_STATUS2')) {
+        $data['ID_STATUS2'] = (int)($post['ID_STATUS2'] ?? 0);
     }
 
     $newsAfterRaw = trim((string)($post['showNewsAfter'] ?? ''));
@@ -135,7 +122,7 @@ $buildData = static function (array $post, array $current, bool $super, array $f
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        $data = $buildData($_POST, $user, $isSuper, $features);
+        $data = $buildData($_POST, $user, $isSuper);
         $saved = EventBus::emit('core.user_edit.save', [
             'post' => $_POST,
             'user' => $user,
@@ -152,7 +139,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (Auth::userId() === $id) {
             $_SESSION['permissions'] = $userPerms;
             $_SESSION['user_name'] = (string)$user['name'];
-            Auth::setStatusContext((int)$user['name_enabled'], (int)($user['STATUS2'] ?? 0));
+            Auth::setStatusContext((int)$user['ID_STATUS'], (int)($user['ID_STATUS2'] ?? 0));
             if (!empty($data['locale'])) {
                 I18n::applyUserChoice((string)$data['locale'], false);
             }
@@ -188,7 +175,6 @@ View::render('user_edit', [
     'message' => $message,
     'error' => $error,
     'isSuper' => $isSuper,
-    'features' => $features,
     'adminStatuses' => $adminStatuses ?: UsersRepository::statusNames(),
     'partnerStatuses' => $partnerStatuses,
     'permGroups' => $permGroups,

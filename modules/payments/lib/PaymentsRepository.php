@@ -27,7 +27,7 @@ final class PaymentsRepository
     }
 
     /**
-     * @param array{q?:string,user_id?:int,type_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,order?:string,limit?:int,offset?:int} $opts
+     * @param array{q?:string,user_id?:int,type_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,dt_from?:int|null,dt_to?:int|null,order?:string,limit?:int,offset?:int} $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function list(array $opts = []): array
@@ -36,6 +36,153 @@ final class PaymentsRepository
             return ['items' => [], 'total' => 0];
         }
         $pdo = Database::pdo();
+        [$sqlWhere, $params] = self::buildWhere($opts);
+
+        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_payments p WHERE $sqlWhere");
+        $stc->execute($params);
+        $total = (int)$stc->fetchColumn();
+
+        $order = trim((string)($opts['order'] ?? ''));
+        if ($order === '') {
+            $order = 'p.ID DESC';
+        }
+        $limit = max(0, (int)($opts['limit'] ?? 50));
+        $offset = max(0, (int)($opts['offset'] ?? 0));
+        $sql = "SELECT p.ID AS id, p.ID_USER AS user_id, p.DT AS dt, p.DESCR AS descr,
+                       p.DIRECTION AS direction, p.SUM AS sum, p.ID_TYPE AS type_id,
+                       p.ACCOUNT AS account, p.DT_CREATE AS dt_create,
+                       p.ID_USER_SIGNED AS user_signed, p.ID_COMMENT AS comment_id,
+                       p.IS_PARTNER_PAYMENT AS is_partner,
+                       p.ID_ADMIN_INWORKED AS admin_inworked, p.DT_ADMIN_INWORKED AS dt_admin_inworked,
+                       p.ID_ADMIN_SIGNED AS admin_signed, p.DT_ADMIN_SIGNED AS dt_admin_signed,
+                       p.ID_ACCEPT_USER_SIGNED AS accept_user, p.DT_ACCEPT_USER_SIGNED AS dt_accept,
+                       p.ID_MOVEMENT_LINKED AS movement_linked
+                FROM base_payments p
+                WHERE $sqlWhere ORDER BY $order";
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $items[] = self::castRow($row);
+        }
+        return ['items' => $items, 'total' => $total];
+    }
+
+    /**
+     * Balance before period start: SUM(DIRECTION * SUM) for rows matching filters with DT < dt_from.
+     *
+     * @param array{q?:string,user_id?:int,type_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,dt_from?:int} $opts
+     */
+    public static function sumBalanceBefore(array $opts): float
+    {
+        if (!Database::tableExists('base_payments')) {
+            return 0.0;
+        }
+        $dtFrom = (int)($opts['dt_from'] ?? 0);
+        if ($dtFrom < 1) {
+            return 0.0;
+        }
+        $beforeOpts = $opts;
+        unset($beforeOpts['dt_from'], $beforeOpts['dt_to']);
+        [$sqlWhere, $params] = self::buildWhere($beforeOpts);
+        $sqlWhere .= ' AND p.DT < ?';
+        $params[] = $dtFrom;
+        $st = Database::pdo()->prepare(
+            "SELECT COALESCE(SUM(CAST(p.DIRECTION AS SIGNED) * p.SUM), 0) FROM base_payments p WHERE $sqlWhere"
+        );
+        $st->execute($params);
+        return round((float)$st->fetchColumn(), 2);
+    }
+
+    /**
+     * Group payment rows into monthly blocks (oper mode=2 parity).
+     *
+     * @param list<array<string,mixed>> $items Sorted ASC by DT
+     * @return list<array{key:string,accrued:list,issued:list,total_in:float,total_out:float,internal_out:float,balanced:bool,debt_start:float,debt_end:float}>
+     */
+    public static function groupByMonth(array $items, float $openingDebt): array
+    {
+        $months = [];
+        $debt = round($openingDebt, 2);
+        $currentKey = '';
+        $accrued = [];
+        $issued = [];
+        $totalIn = 0.0;
+        $totalOut = 0.0;
+        $internalOut = 0.0;
+
+        $flush = static function () use (
+            &$months,
+            &$debt,
+            &$currentKey,
+            &$accrued,
+            &$issued,
+            &$totalIn,
+            &$totalOut,
+            &$internalOut
+        ): void {
+            if ($currentKey === '') {
+                return;
+            }
+            $totalIn = round($totalIn, 2);
+            $totalOut = round($totalOut, 2);
+            $internalOut = round($internalOut, 2);
+            $debtEnd = round($debt + $totalIn - $totalOut, 2);
+            $months[] = [
+                'key' => $currentKey,
+                'accrued' => $accrued,
+                'issued' => $issued,
+                'total_in' => $totalIn,
+                'total_out' => $totalOut,
+                'internal_out' => $internalOut,
+                'balanced' => abs($totalIn - $totalOut) < 0.01,
+                'debt_start' => $debt,
+                'debt_end' => $debtEnd,
+            ];
+            $debt = $debtEnd;
+            $accrued = [];
+            $issued = [];
+            $totalIn = 0.0;
+            $totalOut = 0.0;
+            $internalOut = 0.0;
+        };
+
+        foreach ($items as $row) {
+            $dt = (int)($row['dt'] ?? 0);
+            $key = $dt > 0 ? date('Y.m', $dt) : '0000.00';
+            if ($currentKey !== '' && $key !== $currentKey) {
+                $flush();
+                $currentKey = $key;
+            } elseif ($currentKey === '') {
+                $currentKey = $key;
+            }
+            $dir = (int)($row['direction'] ?? 0);
+            $sum = round((float)($row['sum'] ?? 0), 2);
+            if ($dir > 0) {
+                $accrued[] = $row;
+                $totalIn += $sum;
+            } elseif ($dir < 0) {
+                $issued[] = $row;
+                $totalOut += $sum;
+                if ((int)($row['account'] ?? 0) < 1) {
+                    $internalOut += $sum;
+                }
+            }
+        }
+        $flush();
+
+        return $months;
+    }
+
+    /**
+     * @param array<string,mixed> $opts
+     * @return array{0:string,1:list<mixed>}
+     */
+    private static function buildWhere(array $opts): array
+    {
         $where = ['1=1'];
         $params = [];
 
@@ -68,39 +215,18 @@ final class PaymentsRepository
             $where[] = 'p.DIRECTION = ?';
             $params[] = (string)(int)$opts['direction'];
         }
+        $dtFrom = isset($opts['dt_from']) ? (int)$opts['dt_from'] : 0;
+        if ($dtFrom > 0) {
+            $where[] = 'p.DT >= ?';
+            $params[] = $dtFrom;
+        }
+        $dtTo = isset($opts['dt_to']) ? (int)$opts['dt_to'] : 0;
+        if ($dtTo > 0) {
+            $where[] = 'p.DT < ?';
+            $params[] = $dtTo;
+        }
 
-        $sqlWhere = implode(' AND ', $where);
-        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_payments p WHERE $sqlWhere");
-        $stc->execute($params);
-        $total = (int)$stc->fetchColumn();
-
-        $order = trim((string)($opts['order'] ?? ''));
-        if ($order === '') {
-            $order = 'p.ID DESC';
-        }
-        $limit = max(0, (int)($opts['limit'] ?? 50));
-        $offset = max(0, (int)($opts['offset'] ?? 0));
-        $sql = "SELECT p.ID AS id, p.ID_USER AS user_id, p.DT AS dt, p.DESCR AS descr,
-                       p.DIRECTION AS direction, p.SUM AS sum, p.ID_TYPE AS type_id,
-                       p.ACCOUNT AS account, p.DT_CREATE AS dt_create,
-                       p.ID_USER_SIGNED AS user_signed, p.ID_COMMENT AS comment_id,
-                       p.IS_PARTNER_PAYMENT AS is_partner,
-                       p.ID_ADMIN_INWORKED AS admin_inworked, p.DT_ADMIN_INWORKED AS dt_admin_inworked,
-                       p.ID_ADMIN_SIGNED AS admin_signed, p.DT_ADMIN_SIGNED AS dt_admin_signed,
-                       p.ID_ACCEPT_USER_SIGNED AS accept_user, p.DT_ACCEPT_USER_SIGNED AS dt_accept,
-                       p.ID_MOVEMENT_LINKED AS movement_linked
-                FROM base_payments p
-                WHERE $sqlWhere ORDER BY $order";
-        if ($limit > 0) {
-            $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
-        }
-        $st = $pdo->prepare($sql);
-        $st->execute($params);
-        $items = [];
-        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-            $items[] = self::castRow($row);
-        }
-        return ['items' => $items, 'total' => $total];
+        return [implode(' AND ', $where), $params];
     }
 
     public static function find(int $id): ?array
@@ -209,10 +335,8 @@ final class PaymentsRepository
         }
         $descr = trim((string)($post['descr'] ?? ''));
         $commentId = (int)($post['comment_id'] ?? ($existing['comment_id'] ?? 0));
-        $isPartner = !empty($post['is_partner']) ? 1 : 0;
-        if ($direction < 0) {
-            $isPartner = 0;
-        }
+        // Partner payout UI removed; keep column at 0 on save.
+        $isPartner = 0;
 
         $adminInworked = (int)($existing['admin_inworked'] ?? 0);
         $dtAdminInworked = (int)($existing['dt_admin_inworked'] ?? 0);
@@ -474,6 +598,20 @@ final class PaymentsRepository
         $row['sum'] = (float)($row['sum'] ?? 0);
         $row['descr'] = (string)($row['descr'] ?? '');
         return $row;
+    }
+
+    /**
+     * Exact DESCR match (procedure restore settlement uses DESCR = procedure id string).
+     */
+    public static function existsByDescr(string $descr): bool
+    {
+        $descr = trim($descr);
+        if ($descr === '' || !Database::tableExists('base_payments')) {
+            return false;
+        }
+        $st = Database::pdo()->prepare('SELECT 1 FROM base_payments WHERE DESCR = ? LIMIT 1');
+        $st->execute([$descr]);
+        return (bool)$st->fetchColumn();
     }
 
     /**

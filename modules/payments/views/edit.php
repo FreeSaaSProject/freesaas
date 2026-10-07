@@ -5,12 +5,16 @@
 /** @var array<int,string> $typeNames */
 /** @var bool $canSeeOthers */
 /** @var bool $ledgerEnabled */
+/** @var bool $canViewLedger */
 /** @var string $dtValue */
 /** @var bool $linkedMoves */
+/** @var list<int> $linkedMoveIds */
 /** @var bool $showCashMarks */
 /** @var string $message */
 /** @var string $error */
 /** @var string $warn */
+$linkedMoveIds = is_array($linkedMoveIds ?? null) ? $linkedMoveIds : [];
+$canViewLedger = !empty($canViewLedger);
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('payments.edit.heading_new') : e('#' . (int)($row['id'] ?? 0)) ?></h1>
@@ -20,6 +24,14 @@
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 <?php if ($warn !== ''): ?><div class="flash flash-warn"><?= e($warn) ?></div><?php endif; ?>
 <?php if (!empty($linkedMoves)): ?><div class="flash flash-warn"><?= te('payments.flash.linked_moves') ?></div><?php endif; ?>
+<?php if ($canViewLedger && $linkedMoveIds !== []): ?>
+  <p class="payments-dps-links">
+    <?= te('payments.col.dps') ?>:
+    <?php foreach ($linkedMoveIds as $mid): ?>
+      <a href="/ledger/moves/<?= (int)$mid ?>/edit"><?= te('payments.dps.link', ['id' => (int)$mid]) ?></a>
+    <?php endforeach; ?>
+  </p>
+<?php endif; ?>
 
 <form method="post" class="form-grid form-wide">
   <label><?= te('payments.col.user') ?>
@@ -75,13 +87,6 @@
     <input type="number" name="comment_id" min="0" value="<?= e((string)((int)($row['comment_id'] ?? 0))) ?>">
   </label>
 
-  <?php if ((int)($row['direction'] ?? 0) >= 0): ?>
-  <label class="check">
-    <input type="checkbox" name="is_partner" value="1"<?= !empty($row['is_partner']) ? ' checked' : '' ?>>
-    <?= te('payments.field.partner') ?>
-  </label>
-  <?php endif; ?>
-
   <?php if (!empty($showCashMarks)): ?>
     <?php if ((int)($row['admin_inworked'] ?? 0) < 1): ?>
     <label class="check">
@@ -101,7 +106,13 @@
     <a class="btn-secondary" href="/payments"><?= te('core.common.cancel') ?></a>
     <?php if (!$isNew && !empty($ledgerEnabled) && (int)($row['account'] ?? 0) > 0 && (int)($row['direction'] ?? 0) < 0): ?>
       <?php if (!empty($linkedMoves)): ?>
-        <a class="btn-secondary" href="/ledger/moves?payment_id=<?= (int)($row['id'] ?? 0) ?>"><?= te('payments.action.view_dps') ?></a>
+        <?php if ($canViewLedger && $linkedMoveIds !== []): ?>
+          <?php foreach ($linkedMoveIds as $mid): ?>
+            <a class="btn-secondary" href="/ledger/moves/<?= (int)$mid ?>/edit"><?= te('payments.dps.link', ['id' => (int)$mid]) ?></a>
+          <?php endforeach; ?>
+        <?php else: ?>
+          <a class="btn-secondary" href="/ledger/moves?payment_id=<?= (int)($row['id'] ?? 0) ?>"><?= te('payments.action.view_dps') ?></a>
+        <?php endif; ?>
       <?php else: ?>
         <button class="btn-secondary" type="submit" name="create_dps" value="1"><?= te('payments.action.create_dps') ?></button>
       <?php endif; ?>

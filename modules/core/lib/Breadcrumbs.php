@@ -10,6 +10,10 @@ declare(strict_types=1);
  *
  * Item shape: ['label' => string, 'href' => ?string, 'current' => bool]
  *
+ * On an exact menu list path, the leaf crumb is plain text only when the
+ * query is clean; otherwise it becomes a link to the clean list URL so the
+ * user can reset filters/pager/sort. Modules do not need to opt in.
+ *
  * Ancestor hrefs are rewritten via NavContext::up() at render time so a
  * matching `ret` query keeps list filters. Layout also shows [Return]
  * (NavContext::returnUrl) when the user arrived from another screen.
@@ -53,16 +57,75 @@ final class Breadcrumbs
     }
 
     /**
+     * @deprecated Use a plain current crumb; normalizeListRoot() links automatically.
+     * @return array{label:string, href?:string, current?:bool}
+     */
+    public static function listRoot(string $label, string $path, ?bool $atDefault = null): array
+    {
+        if ($atDefault === null) {
+            $atDefault = self::isCleanListRequest($path);
+        }
+        if ($atDefault) {
+            return [
+                'label' => $label,
+                'current' => true,
+            ];
+        }
+        return [
+            'label' => $label,
+            'href' => $path,
+            'current' => true,
+        ];
+    }
+
+    /**
+     * True when request path is the list root and query is effectively empty.
+     */
+    public static function isCleanListRequest(string $path): bool
+    {
+        $want = self::normalizePath($path);
+        $have = self::normalizePath(request_path());
+        if ($have !== $want) {
+            return false;
+        }
+        foreach ($_GET as $key => $value) {
+            $key = (string)$key;
+            if ($key === 'ret') {
+                continue;
+            }
+            if ($value === '' || $value === null) {
+                continue;
+            }
+            if (is_array($value)) {
+                $empty = true;
+                foreach ($value as $v) {
+                    if ($v !== '' && $v !== null) {
+                        $empty = false;
+                        break;
+                    }
+                }
+                if ($empty) {
+                    continue;
+                }
+                return false;
+            }
+            if ($key === 'page' && ((string)$value === '1' || (int)$value === 1)) {
+                continue;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    /**
      * Trail for layout: explicit set() or auto from menu + page title.
      *
      * @return list<array{label:string, href?:?string, current?:bool}>
      */
     public static function resolve(string $pageTitle = ''): array
     {
-        if (self::$items !== null) {
-            return self::$items;
-        }
-        return self::auto($pageTitle);
+        $items = self::$items !== null ? self::$items : self::auto($pageTitle);
+        return self::normalizeListRoot($items);
     }
 
     public static function ariaLabel(): string
@@ -91,6 +154,54 @@ final class Breadcrumbs
     }
 
     /**
+     * When the request is exactly a menu list path, the leaf crumb is text
+     * only on a clean query; otherwise it links to the clean list URL.
+     *
+     * @param list<array{label:string, href?:?string, current?:bool}> $items
+     * @return list<array{label:string, href?:?string, current?:bool}>
+     */
+    private static function normalizeListRoot(array $items): array
+    {
+        if ($items === []) {
+            return $items;
+        }
+        $path = self::normalizePath(request_path());
+        if ($path === '/') {
+            return $items;
+        }
+        $match = self::bestMenuMatch($path);
+        if ($match === null || $path !== $match['path']) {
+            return $items;
+        }
+
+        $leaf = count($items) - 1;
+        // Prefer last non-Home item (Home is usually index 0).
+        while ($leaf > 0) {
+            $href = isset($items[$leaf]['href']) ? (string)$items[$leaf]['href'] : '';
+            $hrefPath = $href !== '' ? self::normalizePath($href) : '';
+            if ($hrefPath === '/' || (($items[$leaf]['label'] ?? '') === t('core.menu.home') && $hrefPath === '/')) {
+                $leaf--;
+                continue;
+            }
+            break;
+        }
+        if ($leaf < 0) {
+            return $items;
+        }
+
+        $rootPath = $match['path'];
+        if (self::isCleanListRequest($rootPath)) {
+            unset($items[$leaf]['href']);
+            $items[$leaf]['current'] = true;
+        } else {
+            $items[$leaf]['href'] = $rootPath;
+            $items[$leaf]['current'] = true;
+        }
+
+        return array_values($items);
+    }
+
+    /**
      * @return list<array{label:string, href?:?string, current?:bool}>
      */
     private static function auto(string $pageTitle): array
@@ -108,7 +219,7 @@ final class Breadcrumbs
         $match = self::bestMenuMatch($path);
         $items = [];
         if ($match !== null) {
-            $exact = $path === $match['path'];
+            $exact = self::normalizePath($path) === $match['path'];
             $items[] = [
                 'label' => $match['title'],
                 'href' => $exact ? null : $match['path'],
@@ -120,7 +231,6 @@ final class Breadcrumbs
                     'current' => true,
                 ];
             } elseif (!$exact && ($pageTitle === '' || $pageTitle === $match['title'])) {
-                // Deeper URL without a distinct title — keep menu item as current text.
                 $items[count($items) - 1]['href'] = null;
                 $items[count($items) - 1]['current'] = true;
             }
@@ -149,12 +259,13 @@ final class Breadcrumbs
         if (!class_exists('ModuleManager', false)) {
             return null;
         }
+        $path = self::normalizePath($path);
         $best = null;
         $bestLen = -1;
         foreach (ModuleManager::menuItems() as $item) {
             $itemPath = parse_url((string)$item['path'], PHP_URL_PATH);
             $itemPath = is_string($itemPath) && $itemPath !== '' ? $itemPath : (string)$item['path'];
-            $itemPath = rtrim($itemPath, '/') ?: '/';
+            $itemPath = self::normalizePath($itemPath);
             if ($itemPath === '/') {
                 continue;
             }
@@ -173,5 +284,12 @@ final class Breadcrumbs
             }
         }
         return $best;
+    }
+
+    private static function normalizePath(string $path): string
+    {
+        $parsed = parse_url($path, PHP_URL_PATH);
+        $path = is_string($parsed) && $parsed !== '' ? $parsed : $path;
+        return rtrim($path, '/') ?: '/';
     }
 }

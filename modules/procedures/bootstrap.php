@@ -3,11 +3,13 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/ProcedureTypesRepository.php';
 require_once __DIR__ . '/lib/ProceduresRepository.php';
+require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 
 ModuleManager::registerMenuGroup('procedures.menu.group', 30, '/procedures');
 
 $pages = [
     '/procedures' => ['permission' => 'procedures.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
+    '/procedures/day-stats' => ['permission' => 'procedures.view', 'methods' => ['GET'], 'file' => 'day_stats.php'],
     '/procedures/new' => ['permission' => 'procedures.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/procedures/{id}' => ['permission' => 'procedures.edit', 'methods' => ['GET'], 'file' => 'edit_redirect.php'],
     '/procedures/{id}/edit' => ['permission' => 'procedures.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],

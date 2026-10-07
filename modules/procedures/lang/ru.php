@@ -63,6 +63,7 @@ return [
     'procedures.edit.sec_meta' => 'Мета',
     'procedures.edit.client_hint' => 'ID клиента из модуля клиентов',
 
+    'procedures.err.bad_day' => 'Нужен параметр day=YYYY-MM-DD',
     'procedures.err.not_found' => 'Процедура #{id} не найдена',
     'procedures.err.type_required' => 'Укажите тип процедуры',
     'procedures.err.client_required' => 'Укажите клиента',
@@ -113,4 +114,7 @@ return [
     'procedures.user_edit.restrict_types' => 'Запрет на типы процедур',
     'procedures.user_edit.restrict_types_online' => 'Запрет на типы при онлайн-записи',
     'procedures.user_edit.no_types' => 'Типы процедур пока не загружены.',
+    'procedures.bot.notify_new' => 'Новая процедура #{id} в {when}',
+    'procedures.bot.notify_update' => 'Процедура #{id} изменена ({when})',
+    'procedures.bot.notify_cancel' => 'Процедура #{id} отменена',
 ];

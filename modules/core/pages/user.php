@@ -11,9 +11,9 @@ if (!$user) {
     return;
 }
 $statuses = UsersRepository::statusNames();
-$statusName = $statuses[(int)$user['name_enabled']] ?? ('#' . $user['name_enabled']);
+$statusName = $statuses[(int)$user['ID_STATUS']] ?? ('#' . $user['ID_STATUS']);
 $partnerStatusName = '';
-$s2 = (int)($user['STATUS2'] ?? 0);
+$s2 = (int)($user['ID_STATUS2'] ?? 0);
 if ($s2 > 0) {
     $partnerStatusName = $statuses[$s2] ?? ('#' . $s2);
 }
@@ -34,7 +34,6 @@ View::render('user', [
     'statusName' => $statusName,
     'partnerStatusName' => $partnerStatusName,
     'favoritesCount' => count(UsersRepository::favoriteIds($id)),
-    'features' => UsersRepository::editFeatures(),
     'profileChannelsHtml' => is_array($profile) ? (string)($profile['html_channels'] ?? '') : '',
     'profileFlagsHtml' => is_array($profile) ? (string)($profile['html_flags'] ?? '') : '',
     'profileSiteHtml' => is_array($profile) ? (string)($profile['html_site'] ?? '') : '',

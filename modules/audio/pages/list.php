@@ -250,33 +250,11 @@ if ($day > 0) {
     ];
 }
 
-$isDefaultFilters = (
-    $year === $todayY
-    && $month === $todayM
-    && $day === $todayD
-    && $q === ''
-    && $search === ''
-    && $admin < 1
-    && $badge < 1
-    && $disabled === 1
-    && $score < 0
-    && $scoreLt < 1
-    && !$errorsOnly
-    && !$unparsed
-    && !$preload
-    && $rangeFrom < 1
-    && $rangeTo < 1
-    && $review === ''
-);
-
-$crumbList = ['label' => t('audio.menu.list'), 'current' => true];
-if (!$isDefaultFilters) {
-    $crumbList['href'] = '/audio';
-}
-
 View::render('list', [
     'title' => t('audio.menu.list'),
-    'breadcrumbs' => Breadcrumbs::withHome([$crumbList]),
+    'breadcrumbs' => Breadcrumbs::withHome([
+        ['label' => t('audio.menu.list'), 'current' => true],
+    ]),
     'items' => $result['items'],
     'total' => $result['total'],
     'q' => $q,

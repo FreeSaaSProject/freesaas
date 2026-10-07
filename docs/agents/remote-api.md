@@ -67,7 +67,11 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/modules/equipment/enable"
 
 curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
-  "https://example.com/agent/migrate/run?module=equipment"
+  "https://example.com/agent/db/migrate/run?module=equipment"
+
+# Apply ALL pending schema (preferred after DB restore)
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/db/migrate/run"
 
 # Health / validate
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \

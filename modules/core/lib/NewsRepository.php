@@ -287,19 +287,20 @@ final class NewsRepository
             || in_array($userId, self::parseUserList((string)($row['USERS_RESP'] ?? '')), true);
     }
 
-    /** @param array{NAME:string,BIG?:string,SHORT?:string,TYPE:int,STATUS?:int,ID_CURATOR?:int,DT_DEADLINE?:int,PID?:int,HAS_CHILDREN?:int,USERS_RESP?:string} $data */
+    /** @param array{NAME:string,BIG?:string,SHORT?:string,TYPE:int,STATUS?:int,ID_CURATOR?:int,DT_DEADLINE?:int,PID?:int,HAS_CHILDREN?:int,USERS_RESP?:string,ACCESS_USER?:string,PID_CONTRACT?:int,COMMENTS_LOCKED?:int} $data */
     public static function create(array $data, int $authorId): int
     {
         $now = time();
         $type = (int)($data['TYPE'] ?? 1);
         $status = isset($data['STATUS']) ? (int)$data['STATUS'] : ($type === 2 ? 1 : 0);
         $hasChildren = !empty($data['HAS_CHILDREN']) ? 1 : 0;
+        $pidContract = max(0, (int)($data['PID_CONTRACT'] ?? 0));
         $st = Database::pdo()->prepare(
             'INSERT INTO base_news SET
                 DT=?, ID_USER=?, NAME=?, SHORT=?, BIG=?, ACCESS_GROUP=?, ACCESS_GROUP2=?, ACCESS_USER=?,
                 TYPE=?, DISABLED=0, STATUS=?, USERS_WATCHED=?, SIGN_REQ=0, USERS_SIGNED=?, COMMENTS_LOCKED=?,
                 DT_DEADLINE=?, USERS_RESP=?, DT_STARTLINE=0, ID_CURATOR=?, PID=?, HAS_CHILDREN=?,
-                ID_USER_UPDATE=?, DT_UPDATE=?, PID_CONTRACT=0, ID_OFFER_COMMENT=0, IGNORE_FOLDER=0'
+                ID_USER_UPDATE=?, DT_UPDATE=?, PID_CONTRACT=?, ID_OFFER_COMMENT=0, IGNORE_FOLDER=0'
         );
         $st->execute([
             $now,
@@ -314,7 +315,7 @@ final class NewsRepository
             $status,
             '',
             '',
-            $hasChildren ? 1 : 0,
+            isset($data['COMMENTS_LOCKED']) ? (int)$data['COMMENTS_LOCKED'] : ($hasChildren ? 1 : 0),
             (int)($data['DT_DEADLINE'] ?? 0),
             (string)($data['USERS_RESP'] ?? ''),
             (int)($data['ID_CURATOR'] ?? ($type === 2 ? $authorId : 0)),
@@ -322,6 +323,7 @@ final class NewsRepository
             $hasChildren,
             $authorId,
             $now,
+            $pidContract,
         ]);
         return (int)Database::pdo()->lastInsertId();
     }
@@ -343,6 +345,7 @@ final class NewsRepository
             'HAS_CHILDREN' => 'HAS_CHILDREN',
             'USERS_RESP' => 'USERS_RESP',
             'COMMENTS_LOCKED' => 'COMMENTS_LOCKED',
+            'PID_CONTRACT' => 'PID_CONTRACT',
         ];
         foreach ($map as $key => $col) {
             if (array_key_exists($key, $data)) {
@@ -352,6 +355,10 @@ final class NewsRepository
         }
         if (!$fields) {
             return;
+        }
+        $old = self::find($id);
+        if ($old) {
+            NewsLogsRepository::maybeSnapshot($old, $editorId);
         }
         $fields[] = 'ID_USER_UPDATE = ?';
         $params[] = $editorId;

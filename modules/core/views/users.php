@@ -52,7 +52,7 @@ $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filter
           </a>
         </td>
         <td><code><?= e((string)$u['login']) ?></code></td>
-        <td><?= e($statuses[(int)$u['name_enabled']] ?? ('#' . $u['name_enabled'])) ?></td>
+        <td><?= e($statuses[(int)$u['ID_STATUS']] ?? ('#' . $u['ID_STATUS'])) ?></td>
         <td>
           <?php if ((string)$u['enabled'] === '1'): ?>
             <span class="pill ok"><?= te('core.users.pill_active') ?></span>

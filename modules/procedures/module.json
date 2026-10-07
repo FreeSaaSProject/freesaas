@@ -9,7 +9,8 @@
         "catalog": ">=0.1.0"
     },
     "optionalRequires": {
-        "tables": ">=0.1.0"
+        "tables": ">=0.1.0",
+        "bots": ">=0.1.0"
     },
     "provides": [
         "procedures.list",
@@ -33,12 +34,33 @@
     "routes": {
         "pages": [
             "/procedures",
+            "/procedures/day-stats",
             "/procedures/new",
             "/procedures/{id}",
             "/procedures/{id}/edit",
             "/procedure-types",
             "/procedure-types/new",
             "/procedure-types/{id}/edit"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "procedures.day_stats",
+                "method": "GET",
+                "path": "/procedures/day-stats",
+                "permission": "procedures.view",
+                "side_effect": "read",
+                "description": "Day procedure revenue and operator stats; query day=YYYY-MM-DD, optional staff=userId",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": { "type": "string", "description": "YYYY-MM-DD" },
+                        "staff": { "type": "integer", "description": "Optional staff user id filter" }
+                    },
+                    "required": ["day"]
+                }
+            }
         ]
     },
     "jobs": [],
@@ -69,7 +91,9 @@
             "core.bulk.check_item",
             "calendar.day.stats"
         ],
-        "publish": []
+        "publish": [
+            "bots.send"
+        ]
     },
     "bulkActions": [
         {

@@ -37,6 +37,9 @@ try {
         case 'migrate':
             freesaas_cmd_migrate($sub, $opts);
             break;
+        case 'db':
+            freesaas_cmd_db($sub, $opts);
+            break;
         case 'locale':
             freesaas_cmd_locale($sub, $opts);
             break;
@@ -71,6 +74,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   bootstrap --login=… --password=… [--name=…] [--agent-token=…] [--modules=a,b] [--format=json]
   module list|inspect|enable|disable|validate …
   migrate status|run [--module=id] [--format=json]
+  db status|dumps|dump|restore|delete-dump|check|repair|optimize [--file=…] [--label=…] [--format=json]
   locale list|validate [--locale=xx] [--format=json]
   health [--module=id] [--format=json]
   i18n check [--locale=xx] [--format=json]
@@ -152,6 +156,45 @@ function freesaas_cmd_migrate(string $sub, array $opts): void
         freesaas_emit_ops(AgentOps::migrateRun($module));
     }
     Cli::usage('Usage: migrate status|run [--module=id] [--format=json]');
+}
+
+/** @param array<string, string|bool> $opts */
+function freesaas_cmd_db(string $sub, array $opts): void
+{
+    if ($sub === 'status') {
+        freesaas_emit_ops(AgentOps::dbStatus());
+    }
+    if ($sub === 'dumps' || $sub === 'list') {
+        freesaas_emit_ops(AgentOps::dbListDumps());
+    }
+    if ($sub === 'dump') {
+        $label = isset($opts['label']) ? (string)$opts['label'] : null;
+        freesaas_emit_ops(AgentOps::dbDump($label));
+    }
+    if ($sub === 'restore') {
+        $file = isset($opts['file']) ? (string)$opts['file'] : '';
+        if ($file === '') {
+            Cli::usage('Usage: db restore --file=NAME.sql[.gz] [--format=json]');
+        }
+        freesaas_emit_ops(AgentOps::dbRestore($file));
+    }
+    if ($sub === 'delete-dump' || $sub === 'dump-delete') {
+        $file = isset($opts['file']) ? (string)$opts['file'] : '';
+        if ($file === '') {
+            Cli::usage('Usage: db delete-dump --file=NAME.sql[.gz] [--format=json]');
+        }
+        freesaas_emit_ops(AgentOps::dbDeleteDump($file));
+    }
+    if ($sub === 'check') {
+        freesaas_emit_ops(AgentOps::dbCheck());
+    }
+    if ($sub === 'repair') {
+        freesaas_emit_ops(AgentOps::dbRepair());
+    }
+    if ($sub === 'optimize') {
+        freesaas_emit_ops(AgentOps::dbOptimize());
+    }
+    Cli::usage('Usage: db status|dumps|dump|restore|delete-dump|check|repair|optimize [--file=…] [--label=…] [--format=json]');
 }
 
 /** @param array<string, string|bool> $opts */

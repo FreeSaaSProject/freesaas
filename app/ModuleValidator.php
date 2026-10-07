@@ -156,6 +156,38 @@ final class ModuleValidator
             }
         }
 
+        // agent.ops — product JSON surface (see docs/agents/module-agent-api.md)
+        if (isset($meta['agent'])) {
+            if (!is_array($meta['agent'])) {
+                $errors[] = 'agent must be an object';
+            } else {
+                $ops = $meta['agent']['ops'] ?? null;
+                if ($ops !== null && !is_array($ops)) {
+                    $errors[] = 'agent.ops must be an array';
+                } elseif (is_array($ops)) {
+                    $seenIds = [];
+                    foreach ($ops as $i => $row) {
+                        $op = class_exists('AgentHttp', false) ? AgentHttp::normalizeOp($row) : null;
+                        if ($op === null) {
+                            $errors[] = "agent.ops[{$i}] needs id (dotted), method, path starting with /";
+                            continue;
+                        }
+                        if (isset($seenIds[$op['id']])) {
+                            $errors[] = 'agent.ops duplicate id: ' . $op['id'];
+                        }
+                        $seenIds[$op['id']] = true;
+                        if ($declared !== [] && !isset($declared[$op['path']])) {
+                            $warnings[] = 'agent.ops path missing from routes.pages: ' . $op['path'];
+                        }
+                        if ($registered !== [] && !isset($registered[$op['path']])) {
+                            $warnings[] = 'agent.ops path not registered in bootstrap: ' . $op['path'];
+                        }
+                    }
+                }
+            }
+        }
+
+
         // Tables vs migrations heuristic
         $tables = [];
         foreach ($meta['tables'] ?? [] as $t) {

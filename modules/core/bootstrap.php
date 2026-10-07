@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/NewsRepository.php';
+require_once __DIR__ . '/lib/NewsLogsRepository.php';
 require_once __DIR__ . '/lib/UsersRepository.php';
 require_once __DIR__ . '/lib/StatusesRepository.php';
 require_once __DIR__ . '/lib/SystemRepository.php';
@@ -12,6 +13,7 @@ require_once __DIR__ . '/lib/Breadcrumbs.php';
 require_once __DIR__ . '/lib/UserPrefsRepository.php';
 require_once __DIR__ . '/lib/DashboardWidgets.php';
 require_once __DIR__ . '/lib/MenuOrder.php';
+require_once __DIR__ . '/lib/NewsBotPlugin.php';
 
 // Shared rail groups (core.menu.group.*) — product modules register their own keys.
 ModuleManager::registerMenuGroup('core.menu.group.desktop', 10, '/');
@@ -28,7 +30,7 @@ $pages = [
     '/' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'home.php'],
     '/dashboard' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'file' => 'dashboard.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
-    '/migrate' => ['public' => true, 'permission' => 'core.migrate', 'methods' => ['GET', 'POST'], 'file' => 'migrate.php'],
+    '/db' => ['public' => true, 'permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
     '/users' => ['permission' => 'core.users', 'methods' => ['GET'], 'file' => 'users.php'],
     '/users/{id}' => ['permission' => 'core.users', 'methods' => ['GET'], 'file' => 'user.php'],
     '/users/{id}/edit' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
@@ -48,8 +50,17 @@ $pages = [
     '/agent/modules/{id}/disable' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/validate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/validate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
-    '/agent/migrate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
-    '/agent/migrate/run' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
+    '/agent/db/migrate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
+    '/agent/db/migrate/run' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db/dump' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db/dumps' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
+    '/agent/db/dump/file' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
+    '/agent/db/restore' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db/dump/delete' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db/check' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db/repair' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db/optimize' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/locale' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/locale/validate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/health' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
@@ -424,3 +435,5 @@ EventBus::on('comments.prepare_add', static function ($payload) {
     $payload['status_up'] = $statusUp;
     return $payload;
 });
+
+NewsBotPlugin::register();

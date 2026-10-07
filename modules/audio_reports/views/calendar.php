@@ -295,6 +295,9 @@ if ($inboxCount > 0) {
                     <?php if ($calendarScripts !== []): ?>
                       <th class="ar-cal-script-th" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= te('audio_reports.calendar.col_script_score_short') ?></th>
                     <?php endif; ?>
+                    <?php foreach (($block['extra_columns'] ?? []) as $ecol): ?>
+                      <th class="ar-cal-extra-th" title="<?= e((string)($ecol['title'] ?? $ecol['label'] ?? '')) ?>"><?= e((string)($ecol['label'] ?? '')) ?></th>
+                    <?php endforeach; ?>
                   </tr>
                 </thead>
                 <tbody>
@@ -327,11 +330,19 @@ if ($inboxCount > 0) {
                           ?>
                         <td class="ar-cal-script"><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
                       <?php endif; ?>
+                      <?php
+                        $extraCells = is_array($row['extra_cells'] ?? null) ? $row['extra_cells'] : [];
+                        foreach (($block['extra_columns'] ?? []) as $ecol):
+                            $cid = (string)($ecol['id'] ?? '');
+                            ?>
+                        <td class="ar-cal-extra"><?= e((string)($extraCells[$cid] ?? '')) ?></td>
+                      <?php endforeach; ?>
                     </tr>
                   <?php endforeach; ?>
                   <?php
                     $t = $sum['totals'];
                     $tsc = $t['avg_score'];
+                    $totExtra = is_array($t['extra_cells'] ?? null) ? $t['extra_cells'] : [];
                   ?>
                   <tr class="ar-cal-summary-total">
                     <td><?= te('audio_reports.calendar.col_total') ?></td>
@@ -355,6 +366,11 @@ if ($inboxCount > 0) {
                         ?>
                       <td><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
                     <?php endif; ?>
+                    <?php foreach (($block['extra_columns'] ?? []) as $ecol):
+                        $cid = (string)($ecol['id'] ?? '');
+                        ?>
+                      <td><?= e((string)($totExtra[$cid] ?? '')) ?></td>
+                    <?php endforeach; ?>
                   </tr>
                 </tbody>
               </table>

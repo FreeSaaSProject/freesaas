@@ -122,6 +122,67 @@
     }
   }
 
+  function navNormPath(pathname) {
+    if (!pathname || pathname === '/') return '/';
+    return pathname.replace(/\/+$/, '') || '/';
+  }
+
+  /** Mirror PHP NavContext::rewriteHref for dynamic / missed anchors. */
+  function navApplyRet(url, anchor) {
+    if (!url || (anchor && anchor.hasAttribute('data-nav-no-ret'))) return url;
+    var cur = new URL(window.location.href);
+    cur.hash = '';
+    cur.searchParams.delete('ret');
+    var current = cur.pathname + cur.search;
+    var ret = new URLSearchParams(window.location.search).get('ret') || '';
+    var path = navNormPath(url.pathname);
+    var retPath = '';
+    if (ret && ret.charAt(0) === '/') {
+      try {
+        retPath = navNormPath(new URL(ret, window.location.origin).pathname);
+      } catch (err) {
+        retPath = '';
+      }
+    }
+    // Cancel/up: bare link to ret path → full filtered return URL.
+    if (ret && retPath && path === retPath) {
+      var bare = true;
+      url.searchParams.forEach(function (_v, k) {
+        if (k !== 'ret') bare = false;
+      });
+      if (bare) {
+        try {
+          return new URL(ret, window.location.origin);
+        } catch (err2) {
+          return url;
+        }
+      }
+      return url;
+    }
+    // Outbound to another path: attach current screen as ret.
+    if (!current || current === '/') return url;
+    if (path === navNormPath(cur.pathname)) return url;
+    if (url.searchParams.has('ret')) return url;
+    url.searchParams.set('ret', current);
+    return url;
+  }
+
+  function navEnsureFormRet(form) {
+    if (!form || form.hasAttribute('data-nav-no-ret')) return;
+    var ret = new URLSearchParams(window.location.search).get('ret') || '';
+    if (!ret) return;
+    var existing = form.querySelector('input[name="ret"]');
+    if (existing) {
+      existing.value = ret;
+      return;
+    }
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'ret';
+    input.value = ret;
+    form.insertBefore(input, form.firstChild);
+  }
+
   function navGo(href) {
     navStart();
     // Yield one frame so the bar paints, then navigate
@@ -141,6 +202,7 @@
     if (target && target !== '_self') return;
     var url = navSameOriginUrl(a.getAttribute('href'));
     if (!url) return;
+    url = navApplyRet(url, a);
     e.preventDefault();
     navGo(url.href);
   });
@@ -151,6 +213,7 @@
     if (!form || !form.tagName || form.tagName.toLowerCase() !== 'form') return;
     var fTarget = (form.getAttribute('target') || '').toLowerCase();
     if (fTarget && fTarget !== '_self') return;
+    navEnsureFormRet(form);
     navStart();
   });
 
@@ -278,6 +341,13 @@
     });
     // Number/checkbox/etc. marked for immediate apply (attribute was unused until now)
     form.querySelectorAll('input[data-filter-change], textarea[data-filter-change]').forEach(function (el) {
+      el.addEventListener('change', function () {
+        submitFilter();
+      });
+    });
+    // Date / datetime filters (incl. data-auto-submit on procedures etc.)
+    form.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(function (el) {
+      if (el.hasAttribute('data-filter-change')) return; // already bound above
       el.addEventListener('change', function () {
         submitFilter();
       });
@@ -664,9 +734,24 @@
     var actionSel = form.querySelector('[data-bulk-action]');
     var submitBtn = form.querySelector('[data-bulk-submit]');
     var fields = form.querySelectorAll('[data-bulk-field-for]');
+    var lastCheck = null;
 
     function rowChecks() {
       return Array.prototype.slice.call(form.querySelectorAll('[data-bulk-id]'));
+    }
+
+    function syncRowClasses() {
+      rowChecks().forEach(function (c) {
+        var tr = c.closest('tr');
+        if (tr) tr.classList.toggle('is-bulk-selected', !!c.checked);
+      });
+    }
+
+    function syncSelectAll() {
+      if (!selectAll) return;
+      var all = rowChecks();
+      selectAll.checked = all.length > 0 && all.every(function (c) { return c.checked; });
+      selectAll.indeterminate = !selectAll.checked && all.some(function (c) { return c.checked; });
     }
 
     function syncFields() {
@@ -688,22 +773,59 @@
       submitBtn.disabled = !(any && action !== '0');
     }
 
+    function syncAll() {
+      syncRowClasses();
+      syncSelectAll();
+      syncSubmit();
+    }
+
     if (selectAll) {
       selectAll.addEventListener('change', function () {
         var on = selectAll.checked;
         rowChecks().forEach(function (c) { c.checked = on; });
-        syncSubmit();
+        lastCheck = null;
+        syncAll();
       });
     }
+
+    // Own clicks on the whole checkbox cell so tall rows stay selectable
+    // without absolute/height hacks that clip the input.
+    form.addEventListener('click', function (e) {
+      var col = e.target && e.target.closest ? e.target.closest('.bulk-check-col') : null;
+      if (!col || !form.contains(col)) return;
+
+      var rowInput = col.querySelector('[data-bulk-id]');
+      if (!rowInput) return; // header select-all: native + change handler
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      var boxes = rowChecks();
+      if (e.shiftKey && lastCheck) {
+        var a = boxes.indexOf(lastCheck);
+        var b = boxes.indexOf(rowInput);
+        if (a >= 0 && b >= 0) {
+          var from = Math.min(a, b);
+          var to = Math.max(a, b);
+          var on = !rowInput.checked;
+          for (var i = from; i <= to; i++) {
+            boxes[i].checked = on;
+          }
+          lastCheck = rowInput;
+          syncAll();
+          return;
+        }
+      }
+
+      rowInput.checked = !rowInput.checked;
+      lastCheck = rowInput;
+      syncAll();
+    }, true);
+
     form.addEventListener('change', function (e) {
       var t = e.target;
       if (t && t.getAttribute && t.getAttribute('data-bulk-id') !== null) {
-        if (selectAll) {
-          var all = rowChecks();
-          selectAll.checked = all.length > 0 && all.every(function (c) { return c.checked; });
-          selectAll.indeterminate = !selectAll.checked && all.some(function (c) { return c.checked; });
-        }
-        syncSubmit();
+        syncAll();
       }
       if (t === actionSel) {
         syncFields();
@@ -722,7 +844,7 @@
       }
     });
     syncFields();
-    syncSubmit();
+    syncAll();
   });
 
   // Lightweight visual / source editor
@@ -862,4 +984,133 @@
       if (label) btn.setAttribute('aria-label', label);
     });
   });
+
+  // Date / datetime quick tools: − УД + (and УТ for datetime-local)
+  (function () {
+    function pad2(n) {
+      return n < 10 ? '0' + n : String(n);
+    }
+    function todayYmd(d) {
+      d = d || new Date();
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+    function nowHm(d) {
+      d = d || new Date();
+      return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+    }
+    function parseDatePart(val) {
+      if (!val) return null;
+      var m = String(val).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (!m) return null;
+      var dt = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+      if (isNaN(dt.getTime())) return null;
+      return dt;
+    }
+    function timePart(val) {
+      var m = String(val || '').match(/T(\d{2}:\d{2})/);
+      return m ? m[1] : null;
+    }
+    function shiftYmd(ymd, delta) {
+      var dt = parseDatePart(ymd) || new Date();
+      dt.setDate(dt.getDate() + delta);
+      return todayYmd(dt);
+    }
+    function notify(input) {
+      try {
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      } catch (e) { /* IE-less */ }
+    }
+    function setValue(input, next) {
+      if (input.value === next) {
+        notify(input);
+        return;
+      }
+      input.value = next;
+      notify(input);
+    }
+    function makeBtn(label, title, onClick) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'date-tools-btn';
+      btn.textContent = label;
+      if (title) {
+        btn.title = title;
+        btn.setAttribute('aria-label', title);
+      }
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        onClick();
+      });
+      return btn;
+    }
+    function enhance(input) {
+      if (!input || input.closest('.date-tools')) return;
+      if (input.hasAttribute('data-no-date-tools')) return;
+      if (input.disabled || input.readOnly) return;
+
+      var isDt = input.type === 'datetime-local';
+      var wrap = document.createElement('span');
+      wrap.className = 'date-tools';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+
+      var btns = document.createElement('span');
+      btns.className = 'date-tools-btns';
+      btns.setAttribute('role', 'group');
+
+      btns.appendChild(makeBtn(
+        window.t('core.date.btn_prev'),
+        window.t('core.date.day_prev'),
+        function () {
+          if (isDt) {
+            var t = timePart(input.value) || '00:00';
+            setValue(input, shiftYmd(input.value, -1) + 'T' + t);
+          } else {
+            setValue(input, shiftYmd(input.value, -1));
+          }
+        }
+      ));
+      btns.appendChild(makeBtn(
+        window.t('core.date.btn_today'),
+        window.t('core.date.set_today'),
+        function () {
+          var ymd = todayYmd();
+          if (isDt) {
+            var t = timePart(input.value) || '00:00';
+            setValue(input, ymd + 'T' + t);
+          } else {
+            setValue(input, ymd);
+          }
+        }
+      ));
+      btns.appendChild(makeBtn(
+        window.t('core.date.btn_next'),
+        window.t('core.date.day_next'),
+        function () {
+          if (isDt) {
+            var t = timePart(input.value) || '00:00';
+            setValue(input, shiftYmd(input.value, 1) + 'T' + t);
+          } else {
+            setValue(input, shiftYmd(input.value, 1));
+          }
+        }
+      ));
+      if (isDt) {
+        btns.appendChild(makeBtn(
+          window.t('core.date.btn_now'),
+          window.t('core.date.set_now'),
+          function () {
+            var base = parseDatePart(input.value);
+            var ymd = base ? todayYmd(base) : todayYmd();
+            setValue(input, ymd + 'T' + nowHm());
+          }
+        ));
+      }
+
+      wrap.appendChild(btns);
+    }
+
+    document.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(enhance);
+  })();
 })();

@@ -3,22 +3,39 @@ declare(strict_types=1);
 
 final class SchemaMigrator
 {
+    /** @var array{needed:bool,pending:int,legacy_users:bool,ledger:bool}|null */
+    private static $setupStatusCache = null;
+
     /**
-     * Run schema migrations for all currently enabled modules.
+     * Run schema migrations for all currently enabled modules (core first).
      *
      * @return list<array{module:string,id:string,file:string,status:string,message?:string}>
      */
     public static function runAll(): array
     {
         $report = [];
+        $ids = [];
         foreach (ModuleManager::all() as $id => $meta) {
-            if (empty($meta['_enabled'])) {
-                continue;
+            if (!empty($meta['_enabled'])) {
+                $ids[] = $id;
             }
+        }
+        usort($ids, static function (string $a, string $b): int {
+            if ($a === 'core') {
+                return -1;
+            }
+            if ($b === 'core') {
+                return 1;
+            }
+            return strcmp($a, $b);
+        });
+        foreach ($ids as $id) {
             foreach (self::runModule($id) as $row) {
                 $report[] = $row;
             }
         }
+        self::clearSetupStatusCache();
+        Database::clearSchemaCache();
         return $report;
     }
 
@@ -69,6 +86,8 @@ final class SchemaMigrator
                 break;
             }
         }
+        self::clearSetupStatusCache();
+        Database::clearSchemaCache();
         return $report;
     }
 
@@ -124,6 +143,89 @@ final class SchemaMigrator
             }
         }
         return $n;
+    }
+
+    /**
+     * Pending schema migrations for enabled modules (for /db UI).
+     *
+     * @return list<array{module:string,id:string}>
+     */
+    public static function pendingList(): array
+    {
+        $out = [];
+        foreach (ModuleManager::all() as $id => $meta) {
+            if (empty($meta['_enabled'])) {
+                continue;
+            }
+            foreach (self::listModule($id) as $row) {
+                if (($row['status'] ?? '') === 'pending') {
+                    $out[] = ['module' => $id, 'id' => (string)$row['id']];
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Whether the live DB still needs FreeSaaS schema work (pending migrations and/or legacy oper columns).
+     * Read-only: does not create the migrations ledger.
+     *
+     * @return array{needed:bool,pending:int,legacy_users:bool,ledger:bool}
+     */
+    public static function setupStatus(): array
+    {
+        if (self::$setupStatusCache !== null) {
+            return self::$setupStatusCache;
+        }
+        $out = ['needed' => false, 'pending' => 0, 'legacy_users' => false, 'ledger' => false];
+        try {
+            $out['ledger'] = Database::tableExists('base_schema_migrations');
+            $pending = 0;
+            foreach (ModuleManager::all() as $id => $meta) {
+                if (empty($meta['_enabled'])) {
+                    continue;
+                }
+                $dir = (string)($meta['_dir'] ?? '') . '/migrations';
+                if (!is_dir($dir)) {
+                    continue;
+                }
+                $files = glob($dir . '/*.php') ?: [];
+                if (!$out['ledger']) {
+                    $pending += count($files);
+                    continue;
+                }
+                foreach ($files as $file) {
+                    $migId = basename($file, '.php');
+                    if (!self::applied($id, $migId)) {
+                        $pending++;
+                    }
+                }
+            }
+            $out['pending'] = $pending;
+            $out['legacy_users'] = Database::tableExists('base_users')
+                && Database::columnExists('base_users', 'name_enabled')
+                && !Database::columnExists('base_users', 'ID_STATUS');
+            $out['needed'] = $pending > 0 || $out['legacy_users'] || !$out['ledger'];
+        } catch (Throwable $e) {
+            error_log('[SchemaMigrator::setupStatus] ' . $e->getMessage());
+            $out['needed'] = true;
+        }
+        return self::$setupStatusCache = $out;
+    }
+
+    public static function clearSetupStatusCache(): void
+    {
+        self::$setupStatusCache = null;
+    }
+
+    /** Routes that stay reachable while schema setup is incomplete. */
+    public static function isSetupRouteAllowed(string $path): bool
+    {
+        $path = rtrim($path, '/') ?: '/';
+        if (in_array($path, ['/db', '/modules', '/logout', '/locale'], true)) {
+            return true;
+        }
+        return strpos($path, '/agent/') === 0;
     }
 
     private static function ensureLedger(): void

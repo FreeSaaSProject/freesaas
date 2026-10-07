@@ -3,7 +3,6 @@
 /** @var string $message */
 /** @var string $error */
 /** @var bool $isSuper */
-/** @var array<string,bool> $features */
 /** @var array<int,string> $adminStatuses */
 /** @var array<int,string> $partnerStatuses */
 /** @var array<string,array{name:string,keys:list<string>}> $permGroups */
@@ -91,21 +90,6 @@ if ($newsAfterTs > 0) {
     <input name="link_ok" type="url" value="<?= e((string)($user['link_ok'] ?? '')) ?>" placeholder="https://…">
   </label>
 
-  <?php if (!empty($features['employee_bot'])): ?>
-  <h2 class="form-section-title"><?= te('core.user_edit.sec_bot') ?></h2>
-  <p class="form-hint"><?= te('core.user_edit.bot_hint') ?></p>
-  <label><?= te('core.user_edit.telegram_chat_id') ?>
-    <input name="telegram_chat_id" value="<?= e((string)($user['telegram_chat_id'] ?? '')) ?>">
-  </label>
-  <label><?= te('core.user_edit.max_user_id') ?>
-    <input name="max_user_id" value="<?= e((string)($user['max_user_id'] ?? '')) ?>">
-  </label>
-  <label class="check">
-    <input type="checkbox" name="BOT_NO_SEND" value="1"<?= !empty($user['BOT_NO_SEND']) ? ' checked' : '' ?>>
-    <?= te('core.user_edit.bot_no_send') ?>
-  </label>
-  <?php endif; ?>
-
   <h2 class="form-section-title"><?= te('core.user_edit.sec_colors') ?></h2>
   <label><?= te('core.user_edit.color_bg') ?>
     <div class="color-row">
@@ -121,16 +105,6 @@ if ($newsAfterTs > 0) {
   </label>
 
   <?= $extraHtml ?>
-
-  <?php if (!empty($features['site_profile'])): ?>
-  <h2 class="form-section-title"><?= te('core.user_edit.sec_site') ?></h2>
-  <label><?= te('core.user_edit.photo') ?>
-    <input name="photo" value="<?= e((string)($user['photo'] ?? '')) ?>" placeholder="/UserFiles/…">
-  </label>
-  <label><?= te('core.user_edit.site_descr') ?>
-    <input name="site_descr" value="<?= e((string)($user['site_descr'] ?? '')) ?>">
-  </label>
-  <?php endif; ?>
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_access') ?></h2>
   <label class="check">
@@ -152,18 +126,18 @@ if ($newsAfterTs > 0) {
   <?= $extraAccessHtml ?>
 
   <label><?= te('core.user_edit.admin_status') ?>
-    <select name="name_enabled">
+    <select name="ID_STATUS">
       <?php foreach ($adminStatuses as $sid => $name): ?>
-        <option value="<?= (int)$sid ?>"<?= (int)$user['name_enabled'] === (int)$sid ? ' selected' : '' ?>><?= e($name) ?></option>
+        <option value="<?= (int)$sid ?>"<?= (int)$user['ID_STATUS'] === (int)$sid ? ' selected' : '' ?>><?= e($name) ?></option>
       <?php endforeach; ?>
     </select>
   </label>
   <?php if ($partnerStatuses): ?>
   <label><?= te('core.user_edit.partner_status') ?>
-    <select name="STATUS2">
+    <select name="ID_STATUS2">
       <option value="0">—</option>
       <?php foreach ($partnerStatuses as $sid => $name): ?>
-        <option value="<?= (int)$sid ?>"<?= (int)($user['STATUS2'] ?? 0) === (int)$sid ? ' selected' : '' ?>><?= e($name) ?></option>
+        <option value="<?= (int)$sid ?>"<?= (int)($user['ID_STATUS2'] ?? 0) === (int)$sid ? ' selected' : '' ?>><?= e($name) ?></option>
       <?php endforeach; ?>
     </select>
   </label>

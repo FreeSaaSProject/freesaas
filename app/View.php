@@ -10,6 +10,9 @@ final class View
             Assets::need($module);
         }
         $content = self::capture($name, $data, $module);
+        if (class_exists('NavContext', false)) {
+            $content = NavContext::enrichContent($content);
+        }
         if (class_exists('StageTiming', false)) {
             StageTiming::mark('Page view');
         }

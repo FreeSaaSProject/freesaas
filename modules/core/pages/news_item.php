@@ -55,6 +55,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             } elseif ($action === 'delete' && NewsRepository::canEdit($row, $uid)) {
                 NewsRepository::softDelete($id, $uid);
                 redirect('/news?type=' . (int)$row['TYPE']);
+            } elseif ($action === 'restore_version' && NewsRepository::canEdit($row, $uid)) {
+                $logId = (int)($_POST['log_id'] ?? 0);
+                NewsLogsRepository::restore($id, $logId, $uid);
+                redirect('/news/' . $id . '?restored=1');
             }
         }
     } catch (Throwable $e) {
@@ -69,6 +73,9 @@ if (!empty($_GET['ok'])) {
 if (!empty($_GET['err'])) {
     $error = (string)$_GET['err'];
 }
+if (!empty($_GET['restored'])) {
+    $message = t('core.news_item.versions.restored');
+}
 
 // Folders: redirect to list view inside folder
 if ($isFolder && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && empty($_GET['view'])) {
@@ -82,6 +89,7 @@ UsersRepository::preload($respIds);
 $favIds = UsersRepository::favoriteIds($uid);
 $isFav = in_array($id, $favIds, true);
 $canManageTicket = NewsRepository::canManageTicket($row, $uid);
+$canEdit = NewsRepository::canEdit($row, $uid);
 $staff = ['items' => []];
 if ($canManageTicket && (int)$row['TYPE'] === 2) {
     $staff = UsersRepository::list(['enabled' => '1', 'limit' => 200]);
@@ -111,13 +119,37 @@ $breadcrumbs[] = [
 ];
 $breadcrumbs = Breadcrumbs::withHome($breadcrumbs);
 
+$versionLogs = NewsLogsRepository::listFor($id);
+$did = (int)($_GET['did'] ?? 0);
+$activeLog = null;
+$bodyHtml = (string)$row['BIG'];
+$showingVersion = false;
+if ($did > 0) {
+    foreach ($versionLogs as $log) {
+        if ((int)$log['ID'] === $did) {
+            $activeLog = $log;
+            $bodyHtml = (string)$log['CONTENT'];
+            $showingVersion = true;
+            break;
+        }
+    }
+    if (!$activeLog) {
+        $did = 0;
+    }
+}
+$versionUserIds = [(int)$row['ID_USER_UPDATE'], (int)$row['ID_USER']];
+foreach ($versionLogs as $log) {
+    $versionUserIds[] = (int)$log['ID_USER'];
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && !$isFolder) {
     NewsRepository::markViewed($id, $uid);
 }
 $viewers = NewsRepository::viewerIds($id);
 UsersRepository::preload(array_merge(
     [(int)$row['ID_USER'], (int)$row['ID_CURATOR']],
-    $viewers
+    $viewers,
+    $versionUserIds
 ));
 
 $newsLikes = LikesRepository::counts('base_news', [$id]);
@@ -145,7 +177,7 @@ View::render('news_item', [
     'row' => $row,
     'status' => $status,
     'statuses' => $statuses,
-    'canEdit' => NewsRepository::canEdit($row, $uid),
+    'canEdit' => $canEdit,
     'canManageTicket' => $canManageTicket,
     'message' => $message,
     'error' => $error,
@@ -163,4 +195,9 @@ View::render('news_item', [
     'metaHtml' => (string)($meta['html'] ?? ''),
     'metaActionsHtml' => (string)($meta['actions_html'] ?? ''),
     'commentsMeta' => $meta,
+    'versionLogs' => $versionLogs,
+    'activeLogId' => $did,
+    'activeLog' => $activeLog,
+    'bodyHtml' => $bodyHtml,
+    'showingVersion' => $showingVersion,
 ]);

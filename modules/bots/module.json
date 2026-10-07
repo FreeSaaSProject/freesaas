@@ -1,0 +1,137 @@
+{
+  "id": "bots",
+  "name": "bots.module.name",
+  "description": "bots.module.description",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0"
+  },
+  "optionalRequires": {
+    "clients": ">=0.1.0"
+  },
+  "provides": [
+    "bots.transport"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "bots.manage", "label": "bots.perm.manage" },
+    { "id": "bots.view", "label": "bots.perm.view" }
+  ],
+  "routes": {
+    "pages": [
+      "/bots/types/{audience}",
+      "/bots/settings",
+      "/bots/sends",
+      "/bots/sends/work",
+      "/bots/sends/test",
+      "/bots/plugins",
+      "/bots/webhook/telegram/{channel}",
+      "/bots/webhook/max/{channel}"
+    ]
+  },
+  "agent": {
+    "ops": [
+      {
+        "id": "bots.type.get",
+        "method": "GET",
+        "path": "/bots/types/{audience}",
+        "permission": "bots.view",
+        "description": "Bot type overview: channels, plugins, outbound hooks; audience=staff|client"
+      },
+      {
+        "id": "bots.settings.get",
+        "method": "GET",
+        "path": "/bots/settings",
+        "permission": "bots.manage",
+        "description": "Channel config (tokens masked), webhook URL hints"
+      },
+      {
+        "id": "bots.settings.save",
+        "method": "POST",
+        "path": "/bots/settings",
+        "permission": "bots.manage",
+        "description": "Save cfg/modules/bots.ini channel tokens/secrets"
+      },
+      {
+        "id": "bots.queue.list",
+        "method": "GET",
+        "path": "/bots/sends",
+        "permission": "bots.view",
+        "description": "List outbound queue; filters: status, audience, q"
+      },
+      {
+        "id": "bots.queue.drain",
+        "method": "POST",
+        "path": "/bots/sends/work",
+        "permission": "bots.manage",
+        "description": "Drain pending sends; body/query: limit, audience"
+      },
+      {
+        "id": "bots.send.test",
+        "method": "POST",
+        "path": "/bots/sends/test",
+        "permission": "bots.manage",
+        "description": "Enqueue+optional drain test message; body: user_id, text, audience"
+      },
+      {
+        "id": "bots.plugins.list",
+        "method": "GET",
+        "path": "/bots/plugins",
+        "permission": "bots.manage",
+        "description": "Registered BotPlugins ids, priorities, handler flags"
+      }
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "bots.menu.group",
+      "kind": "work",
+      "num": 10,
+      "path": "/bots/types/staff",
+      "title": "bots.menu.type.staff",
+      "permission": "bots.view",
+      "capability": "SUPERADMIN_ACCESS"
+    },
+    {
+      "group": "bots.menu.group",
+      "kind": "crud",
+      "num": 30,
+      "path": "/bots/sends",
+      "title": "bots.menu.sends",
+      "permission": "bots.view",
+      "capability": "SUPERADMIN_ACCESS"
+    },
+    {
+      "group": "bots.menu.group",
+      "kind": "settings",
+      "num": 40,
+      "path": "/bots/settings",
+      "title": "bots.menu.settings",
+      "permission": "bots.manage",
+      "capability": "SUPERADMIN_ACCESS"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_telegram_sends"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [
+      "core.user_edit.sections",
+      "core.user_edit.save",
+      "core.user_edit.profile",
+      "bots.send",
+      "notify.send"
+    ],
+    "publish": [
+      "bots.send",
+      "notify.send",
+      "bots.cabinet.collect",
+      "bots.inbound",
+      "bots.ready"
+    ]
+  }
+}

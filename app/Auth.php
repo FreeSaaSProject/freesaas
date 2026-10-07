@@ -191,9 +191,9 @@ final class Auth
         if (!Database::tableExists('base_users')) {
             return false;
         }
-        $cols = 'id, login, password, name, name_enabled, status, enabled, expire';
-        if (Database::columnExists('base_users', 'STATUS2')) {
-            $cols .= ', STATUS2';
+        $cols = 'id, login, password, name, ID_STATUS, status, enabled, expire';
+        if (Database::columnExists('base_users', 'ID_STATUS2')) {
+            $cols .= ', ID_STATUS2';
         }
         if (Database::columnExists('base_users', 'locale')) {
             $cols .= ', locale';
@@ -230,7 +230,7 @@ final class Auth
         $_SESSION['login'] = (string)$row['login'];
         $_SESSION['user_name'] = (string)$row['name'];
         $_SESSION['permissions'] = $permissions;
-        self::setStatusContext((int)$row['name_enabled'], (int)($row['STATUS2'] ?? 0));
+        self::setStatusContext((int)$row['ID_STATUS'], (int)($row['ID_STATUS2'] ?? 0));
 
         $userLocale = I18n::normalize(isset($row['locale']) ? (string)$row['locale'] : null);
         if ($userLocale !== null) {
@@ -258,5 +258,85 @@ final class Auth
             setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], (bool)$p['secure'], (bool)$p['httponly']);
         }
         session_destroy();
+    }
+
+    /**
+     * Temporarily assume another staff user for in-request work (e.g. bot harness).
+     * Restores previous session identity afterwards. Does not emit login/logout events.
+     *
+     * @template T
+     * @param callable():T $fn
+     * @return T
+     */
+    public static function runAs(int $userId, callable $fn)
+    {
+        if ($userId < 1) {
+            throw new InvalidArgumentException('Auth::runAs requires user id');
+        }
+        self::startSession();
+
+        $cols = 'id, login, name, ID_STATUS, status, enabled';
+        if (Database::columnExists('base_users', 'ID_STATUS2')) {
+            $cols .= ', ID_STATUS2';
+        }
+        if (Database::columnExists('base_users', 'locale')) {
+            $cols .= ', locale';
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT $cols FROM base_users WHERE id = ? AND enabled = '1' LIMIT 1"
+        );
+        $st->execute([$userId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($row)) {
+            throw new RuntimeException('Auth::runAs: user not found or disabled');
+        }
+
+        $permissions = [];
+        $raw = $row['status'] ?? null;
+        if (is_string($raw) && $raw !== '' && class_exists('UsersRepository', false)) {
+            $permissions = UsersRepository::decodePermissions($raw);
+        } elseif (is_string($raw) && $raw !== '') {
+            $un = @unserialize($raw, ['allowed_classes' => false]);
+            if (is_array($un) && isset($un['permissions']) && is_array($un['permissions'])) {
+                foreach ($un['permissions'] as $k => $v) {
+                    $permissions[(string)$k] = (int)$v;
+                }
+            }
+        }
+
+        $keys = ['user_id', 'login', 'user_name', 'permissions', 'status_id', 'status_id2', 'status_flags', 'locale'];
+        $backup = [];
+        foreach ($keys as $k) {
+            $backup[$k] = array_key_exists($k, $_SESSION) ? $_SESSION[$k] : null;
+        }
+        $hadLocale = array_key_exists('locale', $_SESSION);
+
+        $_SESSION['user_id'] = (int)$row['id'];
+        $_SESSION['login'] = (string)$row['login'];
+        $_SESSION['user_name'] = (string)$row['name'];
+        $_SESSION['permissions'] = $permissions;
+        self::setStatusContext((int)$row['ID_STATUS'], (int)($row['ID_STATUS2'] ?? 0));
+        if (isset($row['locale']) && class_exists('I18n', false)) {
+            $userLocale = I18n::normalize((string)$row['locale']);
+            if ($userLocale !== null) {
+                $_SESSION['locale'] = $userLocale;
+                I18n::setLocale($userLocale);
+            }
+        }
+
+        try {
+            return $fn();
+        } finally {
+            foreach ($keys as $k) {
+                if ($backup[$k] === null && ($k !== 'locale' || !$hadLocale)) {
+                    unset($_SESSION[$k]);
+                } else {
+                    $_SESSION[$k] = $backup[$k];
+                }
+            }
+            if ($hadLocale && isset($backup['locale']) && is_string($backup['locale']) && class_exists('I18n', false)) {
+                I18n::setLocale($backup['locale']);
+            }
+        }
     }
 }

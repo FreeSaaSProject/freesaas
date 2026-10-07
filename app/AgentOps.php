@@ -134,7 +134,7 @@ final class AgentOps
         return ['ok' => $ok, 'results' => $all, 'http' => $ok ? 200 : 422];
     }
 
-    /** @return array{ok:bool,modules:list,http:int} */
+    /** @return array{ok:bool,modules:list,setup:array,pending:list,http:int} */
     public static function migrateStatus(?string $module = null): array
     {
         $module = $module !== null ? trim($module) : '';
@@ -160,10 +160,17 @@ final class AgentOps
                 'migrations' => $list,
             ];
         }
-        return ['ok' => true, 'modules' => $rows, 'http' => 200];
+        $setup = SchemaMigrator::setupStatus();
+        return [
+            'ok' => empty($setup['needed']),
+            'setup' => $setup,
+            'pending' => $module === '' ? SchemaMigrator::pendingList() : [],
+            'modules' => $rows,
+            'http' => empty($setup['needed']) ? 200 : 503,
+        ];
     }
 
-    /** @return array{ok:bool,report:list,http:int,error?:string} */
+    /** @return array{ok:bool,report:list,setup?:array,pending?:list,http:int,error?:string} */
     public static function migrateRun(?string $module = null): array
     {
         $module = $module !== null ? trim($module) : '';
@@ -179,15 +186,131 @@ final class AgentOps
                 // ignore
             }
             $ok = true;
+            $applied = 0;
             foreach ($report as $r) {
+                if (($r['status'] ?? '') === 'ok') {
+                    $applied++;
+                }
                 if (($r['status'] ?? '') === 'error') {
                     $ok = false;
-                    break;
                 }
             }
-            return ['ok' => $ok, 'report' => $report, 'http' => $ok ? 200 : 500];
+            $setup = SchemaMigrator::setupStatus();
+            return [
+                'ok' => $ok && empty($setup['needed']),
+                'applied' => $applied,
+                'report' => $report,
+                'setup' => $setup,
+                'pending' => SchemaMigrator::pendingList(),
+                'http' => ($ok && empty($setup['needed'])) ? 200 : 500,
+            ];
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'report' => [], 'http' => 400];
+        }
+    }
+
+    /**
+     * Owned-table DB hub status for agents (no expert / no DROP).
+     *
+     * @return array{ok:bool,owned:list<string>,owned_count:int,dumps:list,setup:array,http:int}
+     */
+    public static function dbStatus(): array
+    {
+        try {
+            $owned = DbTools::ownedTables();
+            $setup = SchemaMigrator::setupStatus();
+            return [
+                'ok' => true,
+                'owned' => $owned,
+                'owned_count' => count($owned),
+                'dumps' => DbTools::listDumps(),
+                'setup' => $setup,
+                'pending' => SchemaMigrator::pendingList(),
+                'http' => 200,
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 500];
+        }
+    }
+
+    /** @return array{ok:bool,dumps?:list,error?:string,http:int} */
+    public static function dbListDumps(): array
+    {
+        try {
+            return ['ok' => true, 'dumps' => DbTools::listDumps(), 'http' => 200];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 500];
+        }
+    }
+
+    /** @return array{ok:bool,dump?:array,error?:string,http:int} */
+    public static function dbDump(?string $label = null): array
+    {
+        try {
+            $dump = DbTools::dump(DbTools::ownedTables(), $label !== null && $label !== '' ? $label : null);
+            return ['ok' => true, 'dump' => $dump, 'http' => 200];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+    }
+
+    /** @return array{ok:bool,result?:array,error?:string,http:int} */
+    public static function dbRestore(string $file): array
+    {
+        try {
+            $result = DbTools::restore($file, DbTools::declaredTables());
+            return ['ok' => true, 'result' => $result, 'http' => 200];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+    }
+
+    /** @return array{ok:bool,file?:string,error?:string,http:int} */
+    public static function dbDeleteDump(string $file): array
+    {
+        try {
+            DbTools::deleteDump($file);
+            return ['ok' => true, 'file' => basename($file), 'http' => 200];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+    }
+
+    /**
+     * @return array{ok:bool,report?:list,error?:string,http:int}
+     */
+    public static function dbCheck(): array
+    {
+        return self::dbMaint('check');
+    }
+
+    /** @return array{ok:bool,report?:list,error?:string,http:int} */
+    public static function dbRepair(): array
+    {
+        return self::dbMaint('repair');
+    }
+
+    /** @return array{ok:bool,report?:list,error?:string,http:int} */
+    public static function dbOptimize(): array
+    {
+        return self::dbMaint('optimize');
+    }
+
+    /** @return array{ok:bool,report?:list,error?:string,http:int} */
+    private static function dbMaint(string $op): array
+    {
+        try {
+            $tables = DbTools::ownedTables();
+            if ($op === 'check') {
+                $report = DbTools::check($tables);
+            } elseif ($op === 'repair') {
+                $report = DbTools::repair($tables);
+            } else {
+                $report = DbTools::optimize($tables);
+            }
+            return ['ok' => true, 'op' => $op, 'report' => $report, 'http' => 200];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
         }
     }
 
@@ -248,8 +371,17 @@ final class AgentOps
                 ['method' => 'POST', 'path' => '/agent/modules/{id}/disable', 'op' => 'module.disable'],
                 ['method' => 'GET', 'path' => '/agent/modules/{id}/validate', 'op' => 'module.validate'],
                 ['method' => 'GET', 'path' => '/agent/validate', 'op' => 'module.validate_all'],
-                ['method' => 'GET', 'path' => '/agent/migrate', 'op' => 'migrate.status', 'query' => ['module']],
-                ['method' => 'POST', 'path' => '/agent/migrate/run', 'op' => 'migrate.run', 'query' => ['module']],
+                ['method' => 'GET', 'path' => '/agent/db', 'op' => 'db.status'],
+                ['method' => 'GET', 'path' => '/agent/db/migrate', 'op' => 'migrate.status', 'query' => ['module']],
+                ['method' => 'POST', 'path' => '/agent/db/migrate/run', 'op' => 'migrate.run', 'query' => ['module']],
+                ['method' => 'GET', 'path' => '/agent/db/dumps', 'op' => 'db.dumps'],
+                ['method' => 'GET', 'path' => '/agent/db/dump/file', 'op' => 'db.dump_file', 'query' => ['file', 'token']],
+                ['method' => 'POST', 'path' => '/agent/db/dump', 'op' => 'db.dump', 'query' => ['label']],
+                ['method' => 'POST', 'path' => '/agent/db/restore', 'op' => 'db.restore', 'query' => ['file']],
+                ['method' => 'POST', 'path' => '/agent/db/dump/delete', 'op' => 'db.dump_delete', 'query' => ['file']],
+                ['method' => 'POST', 'path' => '/agent/db/check', 'op' => 'db.check'],
+                ['method' => 'POST', 'path' => '/agent/db/repair', 'op' => 'db.repair'],
+                ['method' => 'POST', 'path' => '/agent/db/optimize', 'op' => 'db.optimize'],
                 ['method' => 'GET', 'path' => '/agent/locale', 'op' => 'locale.list'],
                 ['method' => 'GET', 'path' => '/agent/locale/validate', 'op' => 'locale.validate', 'query' => ['locale']],
                 ['method' => 'GET', 'path' => '/agent/health', 'op' => 'health', 'query' => ['module']],
@@ -479,7 +611,7 @@ final class AgentOps
                     'name' => $name !== '' ? $name : $login,
                     'mail' => $mail,
                     'enabled' => '1',
-                    'name_enabled' => $statusId,
+                    'ID_STATUS' => $statusId,
                     'status_blob' => UsersRepository::encodeStatusBlob(null, $perms),
                     'locale' => $locale ?? I18n::locale(),
                 ]);

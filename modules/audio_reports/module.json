@@ -1,7 +1,7 @@
 {
   "id": "audio_reports",
   "name": "audio_reports.module.name",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "product",
   "requires": {
     "core": ">=0.3.0",
@@ -26,7 +26,58 @@
       "/audio/collections/{id}",
       "/audio/summaries",
       "/audio/summaries/new",
+      "/audio/summaries/work",
       "/audio/summaries/{id}"
+    ]
+  },
+  "agent": {
+    "ops": [
+      {
+        "id": "audio_reports.calendar.day",
+        "method": "GET",
+        "path": "/audio/calendar",
+        "permission": "audio_reports.view",
+        "side_effect": "read",
+        "description": "Audio records day aggregates; day=YYYY-MM-DD, optional admin/badge/position",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "day": { "type": "string", "description": "YYYY-MM-DD" },
+            "admin": { "type": "integer" },
+            "badge": { "type": "integer" },
+            "position": { "type": "integer" }
+          },
+          "required": ["day"]
+        }
+      },
+      {
+        "id": "audio_reports.summaries.list",
+        "method": "GET",
+        "path": "/audio/summaries",
+        "permission": "audio_reports.view",
+        "description": "List summary profiles; add run=1&profile=&year=&month= for a report"
+      },
+      {
+        "id": "audio_reports.summaries.get",
+        "method": "GET",
+        "path": "/audio/summaries/{id}",
+        "permission": "audio_reports.view",
+        "description": "Get one summary profile (config + labels)"
+      },
+      {
+        "id": "audio_reports.summaries.save",
+        "method": "POST",
+        "path": "/audio/summaries/new",
+        "permission": "audio_reports.edit",
+        "description": "Create profile (structured form or config_json); also POST /audio/summaries/{id}"
+      },
+      {
+        "id": "audio_reports.summaries.work",
+        "method": "GET",
+        "path": "/audio/summaries/work",
+        "permission": "audio_reports.view",
+        "description": "Work actions: propose|preview|save|month (edit for propose/preview/save)"
+      }
     ]
   },
   "jobs": [],
@@ -64,6 +115,8 @@
     "publish": [
       "audio_reports.calendar.cell",
       "audio_reports.calendar.day_extras",
+      "audio_reports.calendar.summary_enrich",
+      "audio_reports.calendar.reparse.after",
       "audio_reports.summary.cards",
       "audio_reports.summary.external"
     ]

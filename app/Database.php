@@ -36,6 +36,26 @@ final class Database
         return self::$pdo;
     }
 
+    /** Drop cached PDO (e.g. after sleep / "No such file or directory" socket errors). */
+    public static function reset(): void
+    {
+        self::$pdo = null;
+    }
+
+    /** Ping or reconnect. Returns fresh PDO. */
+    public static function ensureConnected(): PDO
+    {
+        try {
+            if (self::$pdo instanceof PDO) {
+                self::$pdo->query('SELECT 1');
+                return self::$pdo;
+            }
+        } catch (Throwable $e) {
+            self::$pdo = null;
+        }
+        return self::pdo();
+    }
+
     public static function tableExists(string $table): bool
     {
         if (array_key_exists($table, self::$tableCache)) {
@@ -60,6 +80,23 @@ final class Database
         );
         $st->execute([$table, $column]);
         return self::$columnCache[$key] = (bool)$st->fetchColumn();
+    }
+
+    /**
+     * True for missing table/column SQLSTATE (42S02 / 42S22) — schema migrate needed.
+     */
+    public static function isMissingSchemaError(Throwable $e): bool
+    {
+        if ($e instanceof PDOException) {
+            $state = (string)($e->errorInfo[0] ?? $e->getCode());
+            if ($state === '42S02' || $state === '42S22') {
+                return true;
+            }
+        }
+        $msg = $e->getMessage();
+        return stripos($msg, 'Unknown column') !== false
+            || stripos($msg, "doesn't exist") !== false
+            || stripos($msg, 'Base table or view not found') !== false;
     }
 
     /** Clear table/column existence caches (call after schema migrations). */

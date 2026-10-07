@@ -575,7 +575,7 @@ final class StemRunner
      *   types:array<int,array<string,mixed>>,
      *   dicts:array<int,array<string,mixed>>,
      *   trashes:list<string>,
-     *   operators:array<int,array{name_enabled:int}>,
+     *   operators:array<int,array{ID_STATUS:int}>,
      *   statuses:array<int,array{ID_AUDIO_POSITION:int}>
      * }
      */
@@ -627,9 +627,9 @@ final class StemRunner
         }
         if (Database::tableExists('base_users')) {
             foreach ($pdo->query(
-                'SELECT id, name_enabled FROM base_users WHERE enabled = \'1\''
+                'SELECT id, ID_STATUS FROM base_users WHERE enabled = \'1\''
             )->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-                $operators[(int)$row['id']] = ['name_enabled' => (int)($row['name_enabled'] ?? 0)];
+                $operators[(int)$row['id']] = ['ID_STATUS' => (int)($row['ID_STATUS'] ?? 0)];
             }
         }
         if (Database::tableExists('base_admin_statuses')) {
@@ -977,7 +977,7 @@ final class StemRunner
             $recordAdminId = (int)($row['ID_ADMIN'] ?? 0);
             $recordEquivPositions = [0];
             if ($recordAdminId > 0) {
-                $recordPositionId = (int)($refs['operators'][$recordAdminId]['name_enabled'] ?? 0);
+                $recordPositionId = (int)($refs['operators'][$recordAdminId]['ID_STATUS'] ?? 0);
                 $recordEquivPositions = self::getEquivalentAudioPositions($recordPositionId, $refs['statuses']);
                 if ($recordEquivPositions === []) {
                     $recordEquivPositions = [0];
@@ -1253,7 +1253,7 @@ final class StemRunner
                             && self::isRecordPositionGlobal($dictonaryPositionValue);
                         $recordAdminId = (int)($records['Admins'][$recordId] ?? 0);
                         if (!$canBeAddedByPosition && $recordAdminId > 0) {
-                            $recordPositionId = (int)($refs['operators'][$recordAdminId]['name_enabled'] ?? 0);
+                            $recordPositionId = (int)($refs['operators'][$recordAdminId]['ID_STATUS'] ?? 0);
                             $recordAllowedPositions = self::getEquivalentAudioPositions($recordPositionId, $refs['statuses']);
                             $recordAllowedPositions[] = 0;
                             if (self::isRecordPositionAllowed($typePositionValue, $recordAllowedPositions)

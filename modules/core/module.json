@@ -4,7 +4,9 @@
     "version": "0.3.0",
     "type": "platform",
     "requires": {},
-    "optionalRequires": {},
+    "optionalRequires": {
+        "bots": ">=0.1.0"
+    },
     "provides": [
         "core.auth",
         "core.modules",
@@ -25,8 +27,8 @@
             "label": "core.perm.modules"
         },
         {
-            "id": "core.migrate",
-            "label": "core.perm.migrate"
+            "id": "core.db",
+            "label": "core.perm.db"
         },
         {
             "id": "core.users",
@@ -53,7 +55,7 @@
             "/locale",
             "/logout",
             "/modules",
-            "/migrate",
+            "/db",
             "/users",
             "/users/{id}",
             "/users/{id}/edit",
@@ -76,12 +78,60 @@
             "/agent/modules/{id}/disable",
             "/agent/modules/{id}/validate",
             "/agent/validate",
-            "/agent/migrate",
-            "/agent/migrate/run",
+            "/agent/db",
+            "/agent/db/migrate",
+            "/agent/db/migrate/run",
+            "/agent/db/dump",
+            "/agent/db/dumps",
+            "/agent/db/dump/file",
+            "/agent/db/restore",
+            "/agent/db/dump/delete",
+            "/agent/db/check",
+            "/agent/db/repair",
+            "/agent/db/optimize",
             "/agent/locale",
             "/agent/locale/validate",
             "/agent/health",
             "/agent/i18n"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "core.db.status",
+                "method": "GET",
+                "path": "/db",
+                "permission": "core.db",
+                "description": "DB hub status: schema setup, owned tables, dumps (?format=json)"
+            },
+            {
+                "id": "core.db.run_schema",
+                "method": "POST",
+                "path": "/db",
+                "permission": "core.db",
+                "description": "Apply all pending schema migrations (POST action=schema&format=json)"
+            },
+            {
+                "id": "core.db.run_data",
+                "method": "POST",
+                "path": "/db",
+                "permission": "core.db",
+                "description": "Run data migrators replace mode (POST action=data&format=json; optional)"
+            },
+            {
+                "id": "core.db.dump",
+                "method": "POST",
+                "path": "/db",
+                "permission": "core.db",
+                "description": "Dump owned tables (POST action=db_dump&format=json)"
+            },
+            {
+                "id": "core.db.restore",
+                "method": "POST",
+                "path": "/db",
+                "permission": "core.db",
+                "description": "Restore dump file (POST action=db_restore&file=…&format=json; owned allow-list in normal mode)"
+            }
         ]
     },
     "jobs": [],
@@ -122,6 +172,13 @@
             "num": 2,
             "path": "/modules",
             "title": "core.menu.modules"
+        },
+        {
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 3,
+            "path": "/db",
+            "title": "core.menu.db"
         }
     ],
     "configSchema": {
@@ -147,8 +204,10 @@
         "base_schema_migrations",
         "base_news",
         "base_news_statuses",
+        "base_news_logs",
         "base_admin_statuses",
         "base_views",
+        "base_likes",
         "base_user_prefs"
     ],
     "migrators": [

@@ -4,6 +4,10 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/PaymentTypesRepository.php';
 require_once __DIR__ . '/lib/PaymentsRepository.php';
 
+Assets::register('payments', [
+    'css' => ['payments.css'],
+]);
+
 $pages = [
     '/payments' => ['permission' => 'payments.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/payments/new' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],

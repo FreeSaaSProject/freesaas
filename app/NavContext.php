@@ -2,13 +2,16 @@
 declare(strict_types=1);
 
 /**
- * Same-origin return navigation (oper-style).
+ * Same-origin return navigation (oper-style) — automatic for modules.
  *
- * - Query/body `ret` = full relative URL of the page the user came from
- *   (path + filters). Used for the layout [Return] control.
- * - Breadcrumb ancestor links call up($href): if `ret` targets that same
- *   path, the crumb keeps the filters; otherwise the plain $href is used.
- * - Outbound links call withReturn($href) so the target receives ret=.
+ * Pipeline (no per-module wiring required):
+ * - View::render → enrichContent(): outbound links get ret=current; cancel/up
+ *   links that match ret's path become the full filtered ret; forms get hidden ret.
+ * - redirect() → redirectUrl(): same-path targets resolve to ret; others keep ret=.
+ * - Breadcrumbs / [Return] in layout use up() / returnUrl().
+ * - core.js mirrors link rewrite for dynamically inserted anchors.
+ *
+ * Opt out: data-nav-no-ret on <a> or <form>. Explicit helpers remain for edge cases.
  */
 final class NavContext
 {
@@ -89,15 +92,172 @@ final class NavContext
      */
     public static function withReturn(string $href): string
     {
-        $href = trim($href);
-        if ($href === '') {
-            return $href;
-        }
         $current = self::currentRequestUrl(true);
         if ($current === '' || $current === '/') {
             return $href;
         }
+        return self::appendRet($href, $current);
+    }
 
+    /**
+     * Keep an existing request `ret` on redirects / follow-up URLs.
+     * Falls back to $href unchanged when there is no return URL.
+     */
+    public static function carryReturn(string $href): string
+    {
+        $ret = self::returnUrl();
+        if ($ret === '') {
+            return $href;
+        }
+        return self::appendRet($href, $ret);
+    }
+
+    /**
+     * Smart redirect target: if going to the same path as `ret`, land on `ret`
+     * (restore filters). Otherwise attach ret= for further navigation.
+     */
+    public static function redirectUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return $url;
+        }
+        if (preg_match('#^/(?:login|logout|locale)(?:\?|$)#', $url)) {
+            return $url;
+        }
+        $ret = self::returnUrl();
+        if ($ret === '') {
+            return $url;
+        }
+        if (self::pathOf($url) === self::pathOf($ret)) {
+            return $ret;
+        }
+        $parts = parse_url($url);
+        $query = [];
+        if (is_array($parts) && !empty($parts['query'])) {
+            parse_str((string)$parts['query'], $query);
+        }
+        if (isset($query['ret']) && (string)$query['ret'] !== '') {
+            return $url;
+        }
+        return self::appendRet($url, $ret);
+    }
+
+    /** List/cancel target: ret when set, otherwise $fallback. */
+    public static function backOr(string $fallback): string
+    {
+        $ret = self::returnUrl();
+        return $ret !== '' ? $ret : $fallback;
+    }
+
+    /**
+     * Rewrite page HTML so modules need no NavContext calls:
+     * - inject hidden ret into POST-ish forms when ret is present;
+     * - bare cancel/up links → full ret;
+     * - outbound links to other paths → append ret=current.
+     */
+    public static function enrichContent(string $html): string
+    {
+        if ($html === '') {
+            return $html;
+        }
+        $ret = self::returnUrl();
+        $current = self::currentRequestUrl(true);
+
+        if ($ret !== '') {
+            $html = self::injectFormRet($html, $ret);
+        }
+
+        $out = preg_replace_callback(
+            '/<a\b([^>]*?)\bhref=(["\'])([^"\']*)\2([^>]*)>/i',
+            static function (array $m) use ($ret, $current): string {
+                $before = $m[1];
+                $quote = $m[2];
+                $href = html_entity_decode($m[3], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $after = $m[4];
+                $attrs = $before . $after;
+                if (stripos($attrs, 'data-nav-no-ret') !== false) {
+                    return $m[0];
+                }
+                if (preg_match('/\bdownload\b/i', $attrs)) {
+                    return $m[0];
+                }
+                $newHref = self::rewriteHref($href, $ret, $current);
+                if ($newHref === $href) {
+                    return $m[0];
+                }
+                return '<a' . $before . 'href=' . $quote . e($newHref) . $quote . $after . '>';
+            },
+            $html
+        );
+
+        return is_string($out) ? $out : $html;
+    }
+
+    /** @internal Shared by enrichContent + tests. */
+    public static function rewriteHref(string $href, string $ret, string $current): string
+    {
+        $href = trim($href);
+        if ($href === '' || $href[0] === '#') {
+            return $href;
+        }
+        if (stripos($href, 'javascript:') === 0 || stripos($href, 'mailto:') === 0 || stripos($href, 'tel:') === 0) {
+            return $href;
+        }
+        if (strpos($href, '//') === 0) {
+            return $href;
+        }
+        if (preg_match('#^[a-z][a-z0-9+.-]*:#i', $href)) {
+            return $href;
+        }
+        if ($href[0] !== '/') {
+            // Relative without leading slash — resolve poorly; leave alone.
+            return $href;
+        }
+
+        $path = self::pathOf($href);
+
+        // Cancel / up: link to ret's path with no own query → full filtered ret.
+        if ($ret !== '' && $path === self::pathOf($ret)) {
+            $parts = parse_url($href);
+            $query = [];
+            if (is_array($parts) && !empty($parts['query'])) {
+                parse_str((string)$parts['query'], $query);
+            }
+            unset($query['ret']);
+            if ($query === []) {
+                return $ret;
+            }
+            return $href;
+        }
+
+        // Outbound to another path: attach current screen as ret.
+        if ($current === '' || $current === '/') {
+            return $href;
+        }
+        if ($path === self::pathOf($current)) {
+            return $href;
+        }
+        if (strlen($current) > self::MAX_LEN) {
+            return $href;
+        }
+        $parts = parse_url($href);
+        $query = [];
+        if (is_array($parts) && !empty($parts['query'])) {
+            parse_str((string)$parts['query'], $query);
+        }
+        if (isset($query['ret']) && (string)$query['ret'] !== '') {
+            return $href;
+        }
+        return self::appendRet($href, $current);
+    }
+
+    private static function appendRet(string $href, string $ret): string
+    {
+        $href = trim($href);
+        if ($href === '' || $ret === '') {
+            return $href;
+        }
         $parts = parse_url($href);
         if (!is_array($parts) || empty($parts['path'])) {
             return $href;
@@ -107,7 +267,7 @@ final class NavContext
         if (!empty($parts['query'])) {
             parse_str((string)$parts['query'], $query);
         }
-        $query['ret'] = $current;
+        $query['ret'] = $ret;
         $out = $path . '?' . http_build_query($query);
         if (!empty($parts['fragment'])) {
             $out .= '#' . $parts['fragment'];
@@ -151,6 +311,25 @@ final class NavContext
             return '';
         }
         return '<input type="hidden" name="ret" value="' . e($ret) . '">';
+    }
+
+    private static function injectFormRet(string $html, string $ret): string
+    {
+        $out = preg_replace_callback(
+            '/<form\b([^>]*)>/i',
+            static function (array $m) use ($ret): string {
+                $attrs = $m[1];
+                if (stripos($attrs, 'data-nav-no-ret') !== false) {
+                    return $m[0];
+                }
+                // Avoid double-inject when module already rendered hiddenField().
+                // Lookahead is not available across the whole form; modules may
+                // still add their own — duplicate same-value ret is harmless.
+                return $m[0] . '<input type="hidden" name="ret" value="' . e($ret) . '">';
+            },
+            $html
+        );
+        return is_string($out) ? $out : $html;
     }
 
     private static function pathOf(string $url): string

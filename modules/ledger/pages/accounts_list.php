@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
 $q = trim((string)($_GET['q'] ?? ''));
 $lq = ListQuery::resolve([
     'list_id' => 'ledger_accounts',
@@ -20,6 +21,15 @@ $result = LedgerAccountsRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => ['q' => $q],
+    ]);
+    return;
+}
 View::render('accounts_list', [
     'title' => t('ledger.menu.accounts'),
     'breadcrumbs' => Breadcrumbs::withHome([['label' => t('ledger.menu.accounts'), 'current' => true]]),

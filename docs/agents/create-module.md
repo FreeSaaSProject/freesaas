@@ -11,7 +11,7 @@ Add a new product module under `modules/<id>/` that passes acceptance.
 1. **Pick id** — lowercase snake, ASCII (`equipment`, not `оборуд`).
 2. **Clone template** — copy structure from [`modules/units/`](../../modules/units/) for CRUD dictionaries.
 3. **Create files**
-   - `module.json` — `id`, `name` (i18n key), `version`, `type: product`, `requires: { "core": ">=0.3.0" }`, `optionalRequires`, `permissions`, `menu`, `tables`, `hooks` (dotted EventBus names only), `routes.pages`, optional `bulkActions`
+   - `module.json` — `id`, `name` (i18n key), `version`, `type: product`, `requires: { "core": ">=0.3.0" }`, `optionalRequires`, `permissions`, `menu`, `tables`, `hooks` (dotted EventBus names only), `routes.pages`, optional `bulkActions`, optional `agent.ops` ([module-agent-api.md](module-agent-api.md))
    - `lang/ru.php` + `lang/en.php`
    - `bootstrap.php` — `require_once` repos, `registerRoute`, optional `BulkActions`, `EventBus::on`, `Health::register`, `Assets::register`
    - `migrations/001_*.php` — `return function (PDO $pdo): void`

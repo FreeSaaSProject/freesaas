@@ -84,11 +84,16 @@ final class CommentsRepository
             throw new InvalidArgumentException(t('comments.err.empty'));
         }
         $statusUpdate = !empty($extra['STATUS_UPDATE']) ? 1 : 0;
+        $disabled = !empty($extra['DISABLED']) ? 1 : 0;
+        $offerAccept = array_key_exists('DT_OFFER_ACCEPT', $extra)
+            ? (int)$extra['DT_OFFER_ACCEPT']
+            : 0;
+        $acceptor = (int)($extra['ID_ACCEPTOR'] ?? 0);
         $st = Database::pdo()->prepare(
             'INSERT INTO base_comments SET
-                ID_OBJECT=?, DT=?, ID_USER=?, TEXT=?, TABLE_NAME=?, DISABLED=0, PID=?,
-                COLOR=?, STATUS_UPDATE=?, PRICE_OFFER=?, DT_OFFER_ACCEPT=0, DT_WORK_ACCEPT=0,
-                ID_ACCEPTOR=0, BUDGET_OFFER=?, DT_DEADLINE=?, ID_PAYMENT=0, DT_FAIL=0'
+                ID_OBJECT=?, DT=?, ID_USER=?, TEXT=?, TABLE_NAME=?, DISABLED=?, PID=?,
+                COLOR=?, STATUS_UPDATE=?, PRICE_OFFER=?, DT_OFFER_ACCEPT=?, DT_WORK_ACCEPT=0,
+                ID_ACCEPTOR=?, BUDGET_OFFER=?, DT_DEADLINE=?, ID_PAYMENT=0, DT_FAIL=0'
         );
         $st->execute([
             $newsId,
@@ -96,10 +101,13 @@ final class CommentsRepository
             $userId,
             $text,
             '',
+            $disabled,
             (int)($extra['PID'] ?? 0),
             (string)($extra['COLOR'] ?? '0'),
             $statusUpdate,
             (int)($extra['PRICE_OFFER'] ?? 0),
+            $offerAccept,
+            $acceptor,
             (int)($extra['BUDGET_OFFER'] ?? 0),
             (int)($extra['DT_DEADLINE'] ?? 0),
         ]);
@@ -110,6 +118,35 @@ final class CommentsRepository
             $del->execute([$newsId, 'base_news']);
         }
         return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
+     * Update comment text and optional contract fields (PRICE_OFFER, deadlines, etc.).
+     *
+     * @param array<string,mixed> $extra
+     */
+    public static function updateFields(int $id, string $text, array $extra = []): bool
+    {
+        $text = trim($text);
+        if ($id < 1 || $text === '' || !Database::tableExists('base_comments')) {
+            return false;
+        }
+        $sets = ['TEXT = ?'];
+        $params = [$text];
+        foreach (['PID', 'PRICE_OFFER', 'BUDGET_OFFER', 'DT_DEADLINE', 'DT_OFFER_ACCEPT', 'ID_ACCEPTOR', 'DISABLED'] as $col) {
+            if (array_key_exists($col, $extra)) {
+                $sets[] = $col . ' = ?';
+                $params[] = (int)$extra[$col];
+            }
+        }
+        if (array_key_exists('COLOR', $extra)) {
+            $sets[] = 'COLOR = ?';
+            $params[] = (string)$extra['COLOR'];
+        }
+        $params[] = $id;
+        $sql = 'UPDATE base_comments SET ' . implode(', ', $sets) . ' WHERE ID = ?';
+        Database::pdo()->prepare($sql)->execute($params);
+        return true;
     }
 
     public static function setDisabled(int $id, bool $disabled): void

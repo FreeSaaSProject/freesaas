@@ -32,6 +32,54 @@ final class Router
         return is_string($perm) && $perm !== '' ? $perm : null;
     }
 
+    /**
+     * Run a route handler with temporary route params (assistant / in-process ops).
+     *
+     * @param array<string,string> $params
+     * @param array<string,mixed>|null $matched
+     */
+    public static function invokeHandler(callable $handler, array $params = [], ?array $matched = null): void
+    {
+        $prevParams = self::$params;
+        $prevMatched = self::$matched;
+        self::$params = $params;
+        self::$matched = $matched;
+        try {
+            $handler();
+        } finally {
+            self::$params = $prevParams;
+            self::$matched = $prevMatched;
+        }
+    }
+
+    /**
+     * Resolve a registered route pattern against a concrete path (or pattern + param map).
+     *
+     * @param array<string,mixed> $pathArgs values for {placeholders}
+     * @return array{pattern:string,route:array,params:array<string,string>}|null
+     */
+    public static function resolvePattern(string $pattern, array $pathArgs = []): ?array
+    {
+        $routes = ModuleManager::routes();
+        if (!isset($routes[$pattern])) {
+            return null;
+        }
+        $params = [];
+        if (preg_match_all('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', $pattern, $m)) {
+            foreach ($m[1] as $name) {
+                if (!array_key_exists($name, $pathArgs)) {
+                    return null;
+                }
+                $params[$name] = (string)$pathArgs[$name];
+            }
+        }
+        return [
+            'pattern' => $pattern,
+            'route' => $routes[$pattern],
+            'params' => $params,
+        ];
+    }
+
     public static function dispatch(): void
     {
         $path = request_path();

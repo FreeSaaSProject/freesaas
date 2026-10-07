@@ -85,7 +85,9 @@
             "core.dashboard.widgets"
         ],
         "publish": [
-            "calendar.day.stats"
+            "calendar.day.stats",
+            "calendar.event.sections",
+            "calendar.event.save"
         ]
     }
 }

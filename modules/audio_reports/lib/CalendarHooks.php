@@ -99,4 +99,58 @@ final class CalendarHooks
         ]);
         return is_array($payload['series'] ?? null) ? $payload['series'] : [];
     }
+
+    /**
+     * Extra columns/cells for month summary tables under the records calendar.
+     *
+     * @param array{
+     *   year:int,month:int,
+     *   columns?:list<array{id:string,label:string,title?:string,order?:int}>,
+     *   by_admin?:array<int,array{cells?:array<string,string>}>,
+     *   totals?:array{cells?:array<string,string>}
+     * } $ctx
+     * @return array{
+     *   columns:list<array{id:string,label:string,title?:string,order?:int}>,
+     *   by_admin:array<int,array{cells?:array<string,string>}>,
+     *   totals:array{cells?:array<string,string>}
+     * }
+     */
+    public static function emitSummaryEnrich(array $ctx): array
+    {
+        $payload = EventBus::emit('audio_reports.calendar.summary_enrich', [
+            'year' => (int)($ctx['year'] ?? 0),
+            'month' => (int)($ctx['month'] ?? 0),
+            'columns' => is_array($ctx['columns'] ?? null) ? $ctx['columns'] : [],
+            'by_admin' => is_array($ctx['by_admin'] ?? null) ? $ctx['by_admin'] : [],
+            'totals' => is_array($ctx['totals'] ?? null) ? $ctx['totals'] : ['cells' => []],
+        ]);
+        $columns = is_array($payload['columns'] ?? null) ? $payload['columns'] : [];
+        usort($columns, static function (array $a, array $b): int {
+            return ((int)($a['order'] ?? 100) <=> (int)($b['order'] ?? 100))
+                ?: strcmp((string)($a['id'] ?? ''), (string)($b['id'] ?? ''));
+        });
+        return [
+            'columns' => $columns,
+            'by_admin' => is_array($payload['by_admin'] ?? null) ? $payload['by_admin'] : [],
+            'totals' => is_array($payload['totals'] ?? null) ? $payload['totals'] : ['cells' => []],
+        ];
+    }
+
+    /**
+     * After Re-® collect finishes — sibling modules may regenerate day artifacts.
+     *
+     * @param array{date:string,day_start?:int,day_end?:int,admin_ids?:list<int>,log?:callable|null} $ctx
+     * @return array<string,mixed>
+     */
+    public static function emitReparseAfter(array $ctx): array
+    {
+        $payload = EventBus::emit('audio_reports.calendar.reparse.after', [
+            'date' => (string)($ctx['date'] ?? ''),
+            'day_start' => (int)($ctx['day_start'] ?? 0),
+            'day_end' => (int)($ctx['day_end'] ?? 0),
+            'admin_ids' => is_array($ctx['admin_ids'] ?? null) ? $ctx['admin_ids'] : [],
+            'log' => $ctx['log'] ?? null,
+        ]);
+        return is_array($payload) ? $payload : $ctx;
+    }
 }

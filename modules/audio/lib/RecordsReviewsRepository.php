@@ -193,7 +193,7 @@ final class RecordsReviewsRepository
             $params[] = $badgeFilter;
         }
         if ($positionFilter > 0 && Database::tableExists('base_users')) {
-            $sql .= ' AND r.ID_ADMIN IN (SELECT id FROM base_users WHERE name_enabled = ?)';
+            $sql .= ' AND r.ID_ADMIN IN (SELECT id FROM base_users WHERE ID_STATUS = ?)';
             $params[] = $positionFilter;
         }
 

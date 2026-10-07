@@ -368,8 +368,10 @@ final class BulkActions
             return '';
         }
         return '<th class="bulk-check-col">'
+            . '<label class="bulk-check-hit">'
             . '<input type="checkbox" data-bulk-select-all title="' . te('core.bulk.select_all') . '" '
             . 'aria-label="' . te('core.bulk.select_all') . '">'
+            . '</label>'
             . '</th>';
     }
 
@@ -379,7 +381,9 @@ final class BulkActions
             return '';
         }
         return '<td class="bulk-check-col">'
+            . '<label class="bulk-check-hit">'
             . '<input type="checkbox" name="ids[]" value="' . $id . '" data-bulk-id>'
+            . '</label>'
             . '</td>';
     }
 

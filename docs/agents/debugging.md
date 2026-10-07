@@ -15,6 +15,23 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" https://<host>/agent/health
 - `/agent/*` — token API = CLI ops (see [remote-api.md](remote-api.md))
 - CLI `health` — same engine as HTTP
 
+## Schema gate / pending migrations
+
+Symptom: after login, only a setup screen (“Run schema migrations”) — or health fails with `platform.schema_pending`.
+
+Cause: restored vanilla likespa/oper DB (tables exist, FreeSaaS DDL not applied) or missing `base_schema_migrations` ledger.
+
+```bash
+php bin/freesaas.php migrate status --format=json
+php bin/freesaas.php migrate run --format=json
+php bin/freesaas.php health --format=json
+# HTTP:
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" -X POST \
+  "https://example.com/agent/db/migrate/run"
+```
+
+Full details: [migrations.md](migrations.md). Do not enable modules one-by-one to “fix” this — `migrate run` applies all enabled modules.
+
 ## Module blocked / enable fails
 
 ```bash

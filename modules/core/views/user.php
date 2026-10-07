@@ -3,12 +3,10 @@
 /** @var string $statusName */
 /** @var string $partnerStatusName */
 /** @var int $favoritesCount */
-/** @var array<string,bool> $features */
 /** @var string $profileChannelsHtml */
 /** @var string $profileFlagsHtml */
 /** @var string $profileSiteHtml */
 $uid = (int)$user['id'];
-$features = $features ?? UsersRepository::editFeatures();
 $profileChannelsHtml = (string)($profileChannelsHtml ?? '');
 $profileFlagsHtml = (string)($profileFlagsHtml ?? '');
 $profileSiteHtml = (string)($profileSiteHtml ?? '');
@@ -55,11 +53,6 @@ $profileSiteHtml = (string)($profileSiteHtml ?? '');
             echo '—';
         }
       ?></dd>
-      <?php if (!empty($features['employee_bot'])): ?>
-      <dt><?= te('core.user_edit.telegram_chat_id') ?></dt><dd><?= e((string)($user['telegram_chat_id'] ?: '—')) ?></dd>
-      <dt><?= te('core.user_edit.max_user_id') ?></dt><dd><?= e((string)($user['max_user_id'] ?: '—')) ?></dd>
-      <dt><?= te('core.user.bot_off') ?></dt><dd><?= !empty($user['BOT_NO_SEND']) ? te('core.common.yes') : te('core.common.no') ?></dd>
-      <?php endif; ?>
       <?= $profileChannelsHtml ?>
     </dl>
   </div>
@@ -74,14 +67,10 @@ $profileSiteHtml = (string)($profileSiteHtml ?? '');
       <dt><?= te('core.user.news_after') ?></dt><dd><?= ((int)($user['showNewsAfter'] ?? 0) > 0) ? e(I18n::formatDate((int)$user['showNewsAfter'], 'datetime')) : '—' ?></dd>
     </dl>
   </div>
-  <?php if (!empty($features['site_profile']) || $profileSiteHtml !== ''): ?>
+  <?php if ($profileSiteHtml !== ''): ?>
   <div class="widget">
     <h2><?= te('core.user.site') ?></h2>
     <dl class="kv">
-      <?php if (!empty($features['site_profile'])): ?>
-      <dt><?= te('core.user.photo') ?></dt><dd><?= e((string)($user['photo'] ?: '—')) ?></dd>
-      <dt><?= te('core.user.description') ?></dt><dd><?= e((string)($user['site_descr'] ?: '—')) ?></dd>
-      <?php endif; ?>
       <?= $profileSiteHtml ?>
     </dl>
   </div>

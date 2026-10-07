@@ -1,0 +1,89 @@
+{
+  "id": "audio_llm",
+  "name": "audio_llm.module.name",
+  "version": "0.1.0",
+  "type": "product",
+  "requires": {
+    "core": ">=0.3.0",
+    "llm": ">=0.1.0",
+    "audio": ">=0.1.0",
+    "audio_dicts": ">=0.1.0"
+  },
+  "optionalRequires": {
+    "staff_reports": ">=0.1.0",
+    "comments": ">=0.1.0",
+    "procedures": ">=0.1.0",
+    "contracts": ">=0.1.0"
+  },
+  "provides": [
+    "audio_llm.studies"
+  ],
+  "migrations": "migrations/",
+  "permissions": [
+    { "id": "audio_llm.view", "label": "audio_llm.perm.view" },
+    { "id": "audio_llm.edit", "label": "audio_llm.perm.edit" }
+  ],
+  "routes": {
+    "pages": [
+      "/audio/llm-studies",
+      "/audio/llm-studies/new",
+      "/audio/llm-studies/work",
+      "/audio/llm-studies/{id}"
+    ]
+  },
+  "agent": {
+    "ops": [
+      {
+        "id": "audio_llm.studies.list",
+        "method": "GET",
+        "path": "/audio/llm-studies",
+        "permission": "audio_llm.view",
+        "description": "List LLM studies; kind=regular|cyclic|spawned"
+      },
+      {
+        "id": "audio_llm.studies.get",
+        "method": "GET",
+        "path": "/audio/llm-studies/{id}",
+        "permission": "audio_llm.view",
+        "description": "Get study + results + progress"
+      },
+      {
+        "id": "audio_llm.studies.create",
+        "method": "POST",
+        "path": "/audio/llm-studies/new",
+        "permission": "audio_llm.edit",
+        "description": "Create regular or cyclic study"
+      },
+      {
+        "id": "audio_llm.studies.work",
+        "method": "GET",
+        "path": "/audio/llm-studies/work",
+        "permission": "audio_llm.edit",
+        "description": "Process queue: study_id=&limit=; also action=retry|reset|summary"
+      }
+    ]
+  },
+  "jobs": [],
+  "menu": [
+    {
+      "group": "audio.menu.group",
+      "num": 15,
+      "path": "/audio/llm-studies",
+      "title": "audio_llm.menu.studies"
+    }
+  ],
+  "configSchema": {},
+  "tables": [
+    "base_records_llm_studies",
+    "base_records_llm_study_results"
+  ],
+  "migrators": [],
+  "hooks": {
+    "subscribe": [
+      "staff_reports.day.after_publish"
+    ],
+    "publish": [
+      "audio_llm.cyclic.spawn_for_procedure"
+    ]
+  }
+}

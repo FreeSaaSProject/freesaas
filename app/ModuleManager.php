@@ -536,6 +536,10 @@ final class ModuleManager
                 if (!is_array($row) || empty($row['path']) || empty($row['title'])) {
                     continue;
                 }
+                $when = trim((string)($row['when'] ?? ''));
+                if ($when !== '' && !self::isEnabled($when)) {
+                    continue;
+                }
                 $path = (string)$row['path'];
                 $capability = isset($row['capability']) ? (string)$row['capability'] : '';
                 if ($capability === '') {

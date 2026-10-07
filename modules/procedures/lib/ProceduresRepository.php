@@ -524,7 +524,11 @@ final class ProceduresRepository
             $data['onec_bracelet'],
             $data['restored'],
         ]);
-        return (int)Database::pdo()->lastInsertId();
+        $newId = (int)Database::pdo()->lastInsertId();
+        if (class_exists('ProcedureBotNotify', false)) {
+            ProcedureBotNotify::onSaved($newId, $data, 'new');
+        }
+        return $newId;
     }
 
     /** @param array<string,mixed> $data */
@@ -563,6 +567,9 @@ final class ProceduresRepository
             $data['restored'],
             $id,
         ]);
+        if (class_exists('ProcedureBotNotify', false)) {
+            ProcedureBotNotify::onSaved($id, $data, 'update');
+        }
     }
 
     /**
@@ -658,12 +665,12 @@ final class ProceduresRepository
         }
 
         $joins = '';
-        $nameCols = 'NULL AS operator_name, NULL AS is_hidden, 0 AS name_enabled';
+        $nameCols = 'NULL AS operator_name, NULL AS is_hidden, 0 AS ID_STATUS';
         if (Database::tableExists('base_users')) {
             $joins = ' LEFT JOIN base_users u ON u.id = p.ID_OPERATOR';
             $nameCols = "COALESCE(NULLIF(u.name, ''), u.login) AS operator_name,
                          COALESCE(u.IS_HIDDEN, 0) AS is_hidden,
-                         COALESCE(u.name_enabled, 0) AS name_enabled";
+                         COALESCE(u.ID_STATUS, 0) AS ID_STATUS";
         }
 
         $st = Database::pdo()->prepare(
@@ -701,7 +708,7 @@ final class ProceduresRepository
                         ? CalendarTimeline::acronym($name)
                         : mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8'),
                     'is_hidden' => (int)($row['is_hidden'] ?? 0) > 0,
-                    'name_enabled' => (int)($row['name_enabled'] ?? 0),
+                    'ID_STATUS' => (int)($row['ID_STATUS'] ?? 0),
                     'summ' => 0.0,
                     'proc_count' => 0,
                     'promo_count' => 0,
@@ -740,5 +747,27 @@ final class ProceduresRepository
             'proc_count' => $procCount,
             'promo_count' => $promoCount,
         ];
+    }
+
+    /**
+     * Re-enable a cancelled procedure after restore settlement (oper DoAfterSaveBeforeExit).
+     */
+    public static function applyRestore(int $id): void
+    {
+        if ($id < 1 || !Database::tableExists('base_procedures')) {
+            throw new InvalidArgumentException(t('procedures.err.not_found', ['id' => $id]));
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_procedures SET RESTORED = 1, SUMM = SUMM_DEFAULT, ENABLED = 1 WHERE ID = ?'
+        );
+        $st->execute([$id]);
+        if ($st->rowCount() < 1) {
+            // Row may already match target state; ensure it exists.
+            $check = Database::pdo()->prepare('SELECT ID FROM base_procedures WHERE ID = ? LIMIT 1');
+            $check->execute([$id]);
+            if (!$check->fetchColumn()) {
+                throw new InvalidArgumentException(t('procedures.err.not_found', ['id' => $id]));
+            }
+        }
     }
 }

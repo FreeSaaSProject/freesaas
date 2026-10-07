@@ -19,6 +19,11 @@
 /** @var string $metaHtml */
 /** @var string $metaActionsHtml */
 /** @var array $commentsMeta */
+/** @var list<array{ID:int,ID_OBJ:int,ID_USER:int,DT_CREATE:int,DT_UPDATE:int,CONTENT:string}> $versionLogs */
+/** @var int $activeLogId */
+/** @var ?array{ID:int,ID_OBJ:int,ID_USER:int,DT_CREATE:int,DT_UPDATE:int,CONTENT:string} $activeLog */
+/** @var string $bodyHtml */
+/** @var bool $showingVersion */
 
 $nid = (int)$row['ID'];
 $viewerCount = count($viewers);
@@ -27,6 +32,13 @@ $hasDeadline = (int)$row['DT_DEADLINE'] > 0;
 $metaHtml = $metaHtml ?? '';
 $metaActionsHtml = $metaActionsHtml ?? '';
 $contractLocked = !empty($contractLocked);
+$versionLogs = $versionLogs ?? [];
+$activeLogId = (int)($activeLogId ?? 0);
+$activeLog = $activeLog ?? null;
+$showingVersion = !empty($showingVersion);
+$bodyHtml = $bodyHtml ?? (string)$row['BIG'];
+$currentEditor = (int)($row['ID_USER_UPDATE'] ?? 0) ?: (int)$row['ID_USER'];
+$currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
 ?>
 <section class="page-head" id="top">
   <div class="page-head-row">
@@ -111,10 +123,78 @@ $contractLocked = !empty($contractLocked);
   <?php if (!empty($row['SHORT'])): ?>
     <p class="lede"><?= e((string)$row['SHORT']) ?></p>
   <?php endif; ?>
+  <?php if ($showingVersion && $activeLog): ?>
+    <div class="flash flash-warn news-version-banner">
+      <?= te('core.news_item.versions.showing', [
+          'who' => UsersRepository::nameById((int)$activeLog['ID_USER']),
+          'when' => I18n::formatDate((int)$activeLog['DT_UPDATE'], 'datetime'),
+      ]) ?>
+      <?php if ($canEdit): ?>
+        <form method="post" class="inline-form news-version-restore"
+              onsubmit="return confirm(<?= tj('core.news_item.versions.confirm_restore') ?>);">
+          <input type="hidden" name="action" value="restore_version">
+          <input type="hidden" name="log_id" value="<?= (int)$activeLog['ID'] ?>">
+          <button type="submit" class="btn-secondary"><?= te('core.news_item.versions.restore') ?></button>
+        </form>
+      <?php endif; ?>
+      <a class="btn-secondary" href="/news/<?= $nid ?>"><?= te('core.news_item.versions.back_current') ?></a>
+    </div>
+  <?php endif; ?>
   <div class="body-html">
-    <?= safe_html((string)$row['BIG']) ?>
+    <?= safe_html($bodyHtml) ?>
   </div>
 </article>
+
+<?php if ($versionLogs || $currentDt > 0): ?>
+<section class="news-versions widget" aria-label="<?= te('core.news_item.versions.aria') ?>">
+  <h2><?= te('core.news_item.versions.title') ?></h2>
+  <ul class="news-versions-list">
+    <li class="<?= $activeLogId < 1 ? 'is-current' : '' ?>">
+      <?php if ($activeLogId > 0): ?>
+        <a href="/news/<?= $nid ?>"><?= te('core.news_item.versions.current') ?></a>
+      <?php else: ?>
+        <strong><?= te('core.news_item.versions.current') ?></strong>
+      <?php endif; ?>
+      <span class="muted">
+        <?= UsersRepository::badgeHtml($currentEditor, false) ?>
+        <?= e(I18n::formatDate($currentDt, 'datetime')) ?>
+      </span>
+    </li>
+    <?php foreach ($versionLogs as $i => $log): ?>
+      <?php
+        $lid = (int)$log['ID'];
+        $isActive = $lid === $activeLogId;
+        $n = $i + 1;
+        $logUser = (int)$log['ID_USER'] ?: (int)$row['ID_USER'];
+        $logDt = (int)$log['DT_UPDATE'] ?: (int)$row['DT'];
+      ?>
+      <li class="<?= $isActive ? 'is-current' : '' ?>">
+        <?php if ($isActive): ?>
+          <strong>#<?= $n ?></strong>
+        <?php else: ?>
+          <a href="/news/<?= $nid ?>?did=<?= $lid ?>">#<?= $n ?></a>
+        <?php endif; ?>
+        <span class="muted">
+          <?= UsersRepository::badgeHtml($logUser, false) ?>
+          <?php if ($isActive): ?>
+            <?= e(I18n::formatDate($logDt, 'datetime')) ?>
+          <?php else: ?>
+            <a href="/news/<?= $nid ?>?did=<?= $lid ?>"><?= e(I18n::formatDate($logDt, 'datetime')) ?></a>
+          <?php endif; ?>
+        </span>
+        <?php if ($canEdit && !$isActive): ?>
+          <form method="post" class="inline-form"
+                onsubmit="return confirm(<?= tj('core.news_item.versions.confirm_restore') ?>);">
+            <input type="hidden" name="action" value="restore_version">
+            <input type="hidden" name="log_id" value="<?= $lid ?>">
+            <button type="submit" class="btn-ghost"><?= te('core.news_item.versions.restore') ?></button>
+          </form>
+        <?php endif; ?>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+</section>
+<?php endif; ?>
 
 <?php
   $section = EventBus::emit('core.news_item.section', [

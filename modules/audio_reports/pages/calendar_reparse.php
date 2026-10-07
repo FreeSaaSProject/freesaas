@@ -187,6 +187,15 @@ try {
             'message' => (string)($coll['message'] ?? ''),
         ]));
 
+        require_once base_path('modules/audio_reports/lib/CalendarHooks.php');
+        CalendarHooks::emitReparseAfter([
+            'date' => $date,
+            'day_start' => (int)$range['start'],
+            'day_end' => (int)$range['end'],
+            'admin_ids' => $admins,
+            'log' => $liveMark,
+        ]);
+
         if ($json) {
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode([

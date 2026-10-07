@@ -30,6 +30,22 @@ function e_nl(string $s): string {
     return nl2br(e($s), false);
 }
 
+/**
+ * Signed amount HTML: green "+N" for direction>0, red "-N" for direction<0 (oper show_account_moves).
+ */
+function money_signed_html($amount, int $direction = 0): string
+{
+    $n = round((float)$amount, 2);
+    $formatted = number_format(abs($n), 2, '.', ' ');
+    if ($direction > 0) {
+        return '<strong class="money-signed money-in">+' . e($formatted) . '</strong>';
+    }
+    if ($direction < 0) {
+        return '<strong class="money-signed money-out">−' . e($formatted) . '</strong>';
+    }
+    return '<strong class="money-signed">' . e(number_format($n, 2, '.', ' ')) . '</strong>';
+}
+
 /** Short label for long URLs (mobile-friendly). */
 function short_url_label(string $url, int $max = 36): string {
     $url = trim($url);
@@ -262,6 +278,9 @@ function status_pill(?array $status, string $fallback = ''): string {
 }
 
 function redirect(string $url): void {
+    if (class_exists('NavContext', false)) {
+        $url = NavContext::redirectUrl($url);
+    }
     header('Location: ' . $url);
     exit;
 }

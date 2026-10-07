@@ -5,6 +5,52 @@ require_once base_path('modules/audio_reports/lib/CalendarAggregates.php');
 require_once base_path('modules/audio_reports/lib/CalendarHooks.php');
 require_once base_path('modules/audio/lib/RecordsReviewsRepository.php');
 
+// Agent / assistant day slice (JSON only).
+$dayJson = trim((string)($_GET['day'] ?? ''));
+if (AgentHttp::wantsJson() && $dayJson !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dayJson)) {
+    $dayStart = strtotime($dayJson . ' 00:00:00');
+    $dayEnd = strtotime($dayJson . ' 23:59:59');
+    if ($dayStart === false || $dayEnd === false) {
+        AgentHttp::error(t('audio_reports.err.bad_day'), 400);
+    }
+    $adminFilter = max(0, (int)($_GET['admin'] ?? 0));
+    $badgeFilter = max(0, (int)($_GET['badge'] ?? 0));
+    $positionFilter = max(0, (int)($_GET['position'] ?? 0));
+    $agg = CalendarAggregates::forRange($dayStart, $dayEnd, [
+        'admin' => $adminFilter,
+        'badge' => $badgeFilter,
+        'position' => $positionFilter,
+    ]);
+    $dayRow = $agg['by_day'][$dayJson] ?? [
+        'count' => 0,
+        'playtime' => 0,
+        'score_w' => 0.0,
+        'score_sec' => 0,
+        'errors' => 0,
+        'outside' => 0,
+        'strings' => 0,
+        'strings_nok' => 0,
+    ];
+    $byAdmin = [];
+    foreach (($agg['by_admin_day'] ?? []) as $adminId => $days) {
+        if (is_array($days) && isset($days[$dayJson])) {
+            $byAdmin[(int)$adminId] = $days[$dayJson];
+        }
+    }
+    AgentHttp::emit([
+        'ok' => true,
+        'day' => $dayJson,
+        'filters' => [
+            'admin' => $adminFilter,
+            'badge' => $badgeFilter,
+            'position' => $positionFilter,
+        ],
+        'totals' => $dayRow,
+        'by_admin' => $byAdmin,
+        'admins' => array_keys($byAdmin),
+    ]);
+}
+
 $canReviewAdmin = Auth::capability('SUPERADMIN_ACCESS');
 $reviewFlash = '';
 $reviewOrphansFlash = '';
@@ -119,7 +165,7 @@ $adminIdsList = array_map('intval', array_keys($adminIdsNeeded));
 if ($adminIdsList !== []) {
     $placeholders = implode(',', array_fill(0, count($adminIdsList), '?'));
     $st = Database::pdo()->prepare(
-        "SELECT id, name, color, color_text, name_enabled FROM base_users WHERE id IN ($placeholders)"
+        "SELECT id, name, color, color_text, ID_STATUS FROM base_users WHERE id IN ($placeholders)"
     );
     $st->execute($adminIdsList);
     foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $u) {
@@ -127,7 +173,7 @@ if ($adminIdsList !== []) {
             'name' => trim((string)($u['name'] ?? '')) ?: ('#' . (int)$u['id']),
             'color' => (string)($u['color'] ?? ''),
             'color_text' => (string)($u['color_text'] ?? ''),
-            'position_id' => (int)($u['name_enabled'] ?? 0),
+            'position_id' => (int)($u['ID_STATUS'] ?? 0),
         ];
     }
 }
@@ -560,12 +606,30 @@ foreach ($periodMonths as $period) {
         ];
     }
 
+    $enrich = CalendarHooks::emitSummaryEnrich(['year' => $y, 'month' => $m]);
+    $extraColumns = is_array($enrich['columns'] ?? null) ? $enrich['columns'] : [];
+    $enrichByAdmin = is_array($enrich['by_admin'] ?? null) ? $enrich['by_admin'] : [];
+    $enrichTotals = is_array($enrich['totals']['cells'] ?? null) ? $enrich['totals']['cells'] : [];
+    if ($extraColumns !== []) {
+        foreach ($summaries as &$sumBlock) {
+            foreach ($sumBlock['rows'] as &$row) {
+                $aid = (int)($row['admin_id'] ?? 0);
+                $cells = is_array($enrichByAdmin[$aid]['cells'] ?? null) ? $enrichByAdmin[$aid]['cells'] : [];
+                $row['extra_cells'] = $cells;
+            }
+            unset($row);
+            $sumBlock['totals']['extra_cells'] = $enrichTotals;
+        }
+        unset($sumBlock);
+    }
+
     $months[] = [
         'year' => $y,
         'month' => $m,
         'label' => t('audio_reports.calendar.month.' . $m) . ' ' . $y,
         'weeks' => $weeks,
         'summaries' => $summaries,
+        'extra_columns' => $extraColumns,
     ];
 }
 

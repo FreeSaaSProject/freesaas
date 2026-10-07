@@ -6,7 +6,9 @@
     "requires": {
         "core": ">=0.3.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "bots": ">=0.1.0"
+    },
     "provides": [
         "clients.list",
         "clients.statuses",
@@ -66,6 +68,16 @@
             "num": 2,
             "path": "/client-tags",
             "title": "clients.menu.tags"
+        },
+        {
+            "group": "bots.menu.group",
+            "kind": "work",
+            "num": 20,
+            "path": "/bots/types/client",
+            "title": "bots.menu.type.client",
+            "permission": "bots.view",
+            "capability": "SUPERADMIN_ACCESS",
+            "when": "bots"
         }
     ],
     "configSchema": [],

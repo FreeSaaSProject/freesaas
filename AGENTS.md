@@ -46,8 +46,9 @@ Route params: `Router::param('id')`. Redirect: `redirect('/path')`. Escape outpu
 | Extend home widgets / news card / comment form | `EventBus::on(...)` in `bootstrap.php` |
 | List row selection / group ops | `BulkActions::register($listId, $action, …)` in bootstrap; view helpers `th`/`td`/`bar`; dependency blocks via `EventBus::on('core.bulk.check_item')` |
 | Breadcrumb trail UI | Page passes `breadcrumbs` (+ optional `breadcrumbs_aria`) to `View::render`; layout always draws them at top of `<main>` via `Breadcrumbs` (`modules/core/lib/Breadcrumbs.php`). If omitted, auto from menu + page title. Ancestor hrefs get `NavContext::up()` (keep list filters when `ret` path matches). Layout shows `[Return]` via `NavContext::returnUrl()` when `ret` is set. |
-| Return / list filters | `app/NavContext.php`: outbound `NavContext::withReturn($href)`; forms `NavContext::hiddenField()`; sanitize via `NavContext::sanitize`. Do not invent per-module open-redirect helpers for the same job. |
+| Return / list filters | Automatic via `NavContext` (`app/NavContext.php`): `View::enrichContent` on render, `redirect()` → `redirectUrl()`, breadcrumbs `[Return]`, `core.js` for dynamic links. Modules should not wire `ret=` manually. Opt-out: `data-nav-no-ret`. Do not invent per-module open-redirect helpers. |
 | Module CSS/JS | `modules/<id>/assets/{css,js}/` + `Assets::register($id, …)` in bootstrap. `View::render(..., $id)` auto-queues; embeds call `Assets::need('other')`. Core chrome: `assets/css/core.css`, `assets/js/core.js`. |
+| Product JSON for agents | Optional `module.json` → `agent.ops[]` (id/method/path/permission/description). Same routes as UI; respond when `AgentHttp::wantsJson()` via `AgentHttp::emit` / `error`. Session + module permissions — not platform `/agent/*`. See [`docs/agents/module-agent-api.md`](docs/agents/module-agent-api.md). |
 | Rail menu group order | Owning module: `ModuleManager::registerMenuGroup('myid.menu.group', 35)` in bootstrap (same key as `menu[].group`). Optional 3rd arg = section landing path (title click). Shared chrome groups (`core.menu.group.*`) only in `modules/core/bootstrap.php`. Never append product keys to `app/ModuleManager.php`. Same translated group title merges into one rail section. Within a section, optional `menu[].kind`: `work` (default) → `crud` → `settings` (paths like `/module/settings` auto-`settings`), then `num`. |
 | Staff user edit fields | `EventBus::on('core.user_edit.sections'|'save'|'profile')` in owning module; do not add product checkboxes to `modules/core/views/user_edit.php`. |
 | Role status flag groups | `StatusesRepository::registerFieldGroup([...])` in owning bootstrap (`when` = module id). Core keeps only `when=always` groups. |
@@ -59,7 +60,7 @@ Layouts always live in `modules/core/views/` (`layout`, `layout_auth`, `error`).
 
 Create `modules/<id>/` with:
 
-1. `module.json` — required keys: `id`, `name`, `version`, `type` (`product`), `requires` (at least `"core": ">=0.3.0"`), `permissions`, `menu` (if nav), `tables`, `hooks` (document emit/subscribe), `routes.pages` (list paths for humans; real routes are in bootstrap).
+1. `module.json` — required keys: `id`, `name`, `version`, `type` (`product`), `requires` (at least `"core": ">=0.3.0"`), `permissions`, `menu` (if nav), `tables`, `hooks` (document emit/subscribe), `routes.pages` (list paths for humans; real routes are in bootstrap). Optional: `agent.ops` for product JSON ([`docs/agents/module-agent-api.md`](docs/agents/module-agent-api.md)).
 2. **i18n (required):** `lang/ru.php` + `lang/en.php` with all UI chrome strings. `module.json` `name`, `menu[].title|group`, and `permissions[].label` must be translation **keys** (e.g. `myid.menu.list`), not hardcoded language text. Views/pages/bootstrap/lib labels use `t()` / `te()` / `tj()` — never hardcode Russian or English UI copy.
 3. `bootstrap.php` — `require_once` libs; `Assets::register` if CSS/JS; `ModuleManager::registerMenuGroup` if own rail group; `StatusesRepository::registerFieldGroup` if role flags; register routes; subscribe EventBus (incl. `core.user_edit.*` when adding staff fields).
 4. Optional: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `config.example.ini`.
@@ -94,8 +95,9 @@ Oper-style trail rendered by the **layout** at the top of every authenticated pa
 View::render('foo', [
     'title' => $title,
     'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('myid.menu.list'), 'href' => '/myid'],
-        ['label' => $folderName, 'current' => true],
+        ['label' => t('myid.menu.list'), 'current' => true],
+        // deeper levels when needed:
+        // ['label' => $folderName, 'current' => true],
     ]),
     'breadcrumbs_aria' => t('myid.folder_aria'), // optional
 ], 'layout', 'myid');
@@ -103,7 +105,9 @@ View::render('foo', [
 
 Do **not** call `Breadcrumbs::render` inside module views — chrome owns placement. If `breadcrumbs` is omitted, layout auto-builds `Home / {best menu match} / {page title}` so every screen still has a path.
 
-Item keys: `label` (required), `href` (optional), `current` (optional). Ancestors stay links; the deepest level is `current` (plain text).
+On an **exact menu list path**, layout automatically turns the leaf crumb into a link to the clean list URL whenever the query is non-empty (filters, pager, sort — ignoring `ret`, empty values, `page=1`). Modules do not opt in; omit query on the default list URL so the crumb stays plain text.
+
+Item keys: `label` (required), `href` (optional), `current` (optional). Ancestors stay links.
 
 ## Auth
 
@@ -145,7 +149,10 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `stickers` | Receipt/writeoff acts + sticker ins/outs + writeoff service |
 | `norms` | Default consumptions (`base_good_defaults`); embed on catalog product edit |
 | `sheets` | LikeSpa linen accounts/moves (`base_sheet_*`); disableable |
-| `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`); restores UI later (EventBus → `payments`) |
+| `likespa` | Instance pack: term scans, promoter bonus + dops on `/audio/calendar`; procedure restores + settlement payment (ACCOUNT=0); disableable |
+| `terminals` | Device registry + bracelets + therm occupancy/orders; 1C/volgatermy sync jobs (`cfg/modules/terminals.ini`); disableable |
+| `staff_reports` | Staff quality day reports (traffic lights by position); rewards on `/audio/calendar`; generate via Re-® / `/staff-reports/generate` |
+| `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`, `base_procedure_restores` schema); restore UI lives in `likespa` |
 | `orders` | Website orders (`base_orders`, shared with site/oper); notice chips; `orders.for_day` for calendar |
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
@@ -154,7 +161,11 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `audio_dicts` | Types/dicts/keys/scripts/trash for recognition; requires `audio` |
 | `audio_pipeline` | Ingest/ASR handshake/stem/collect workers; requires `audio` + `audio_dicts` |
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
+| `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |
+| `bots` | Telegram/Max transport + `base_telegram_sends` queue + webhooks; domain adapters via `BotPlugins` / `bots.send` |
+| `audio_llm` | LLM studies (`base_records_llm_studies*`); cyclic templates + staff day-report spawn; requires `llm` + `audio` |
 | `payments` | Staff settlements (`base_payments`, `base_payment_types`); contracts pay CTA; auto-DPS when `ledger` on |
+| `bonuses` | Client loyalty ledger (`base_bonuspay`) + event settle (bonusAnal/apply); EventBus on calendar event edit |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
 | `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |
 | `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |

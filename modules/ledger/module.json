@@ -3,16 +3,25 @@
     "name": "ledger.module.name",
     "version": "0.1.0",
     "type": "product",
+    "description": "Company accounts, move types, account moves (ДПС), reconciliations, promised payments, auto-DPS from payments",
     "requires": {
         "core": ">=0.3.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "payments": ">=0.1.0",
+        "suppliers": ">=0.1.0",
+        "stickers": ">=0.1.0",
+        "funds": ">=0.1.0"
+    },
     "provides": [
         "ledger.accounts",
         "ledger.moves",
         "ledger.from_payment"
     ],
     "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
     "permissions": [
         {
             "id": "ledger.view",
@@ -41,8 +50,104 @@
             "/account-move-types/{id}/edit",
             "/ledger/moves",
             "/ledger/moves/new",
+            "/ledger/moves/attach-act",
             "/ledger/moves/{id}/edit",
             "/ledger/transfers/new"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "ledger.accounts.list",
+                "method": "GET",
+                "path": "/accounts",
+                "permission": "ledger.view",
+                "description": "List company accounts; filter q"
+            },
+            {
+                "id": "ledger.accounts.get",
+                "method": "GET",
+                "path": "/accounts/{id}/edit",
+                "permission": "ledger.edit",
+                "description": "Get one account (edit form payload)"
+            },
+            {
+                "id": "ledger.accounts.save",
+                "method": "POST",
+                "path": "/accounts/new",
+                "permission": "ledger.edit",
+                "description": "Create account; also POST /accounts/{id}/edit to update"
+            },
+            {
+                "id": "ledger.types.list",
+                "method": "GET",
+                "path": "/account-move-types",
+                "permission": "ledger.types",
+                "description": "List account move types; filter q"
+            },
+            {
+                "id": "ledger.types.get",
+                "method": "GET",
+                "path": "/account-move-types/{id}/edit",
+                "permission": "ledger.types",
+                "description": "Get one move type"
+            },
+            {
+                "id": "ledger.types.save",
+                "method": "POST",
+                "path": "/account-move-types/new",
+                "permission": "ledger.types",
+                "description": "Create move type; also POST /account-move-types/{id}/edit"
+            },
+            {
+                "id": "ledger.moves.list",
+                "method": "GET",
+                "path": "/ledger/moves",
+                "permission": "ledger.view",
+                "description": "List moves; filters: q, account_id, type_id, year, month, payment_id, supplier_id, promise (1|2|3); recon fields when account_id set"
+            },
+            {
+                "id": "ledger.moves.recon",
+                "method": "POST",
+                "path": "/ledger/moves",
+                "permission": "ledger.reconcile",
+                "description": "Bank recon: recon_action=save|update|delete|disable + recon_account_id; bank_balance / recon_id / reason as needed"
+            },
+            {
+                "id": "ledger.moves.get",
+                "method": "GET",
+                "path": "/ledger/moves/{id}/edit",
+                "permission": "ledger.edit",
+                "description": "Get one move (+ type flags when type_id set on new)"
+            },
+            {
+                "id": "ledger.moves.save",
+                "method": "POST",
+                "path": "/ledger/moves/new",
+                "permission": "ledger.edit",
+                "description": "Create move; also POST /ledger/moves/{id}/edit to update (incl. promised dates)"
+            },
+            {
+                "id": "ledger.moves.transfer",
+                "method": "POST",
+                "path": "/ledger/transfers/new",
+                "permission": "ledger.edit",
+                "description": "Create paired transfer between accounts (linked type)"
+            },
+            {
+                "id": "ledger.moves.attach_act.options",
+                "method": "GET",
+                "path": "/ledger/moves/attach-act",
+                "permission": "ledger.edit",
+                "description": "List recent receipt acts for attach; query id= or ids="
+            },
+            {
+                "id": "ledger.moves.attach_act",
+                "method": "POST",
+                "path": "/ledger/moves/attach-act",
+                "permission": "ledger.edit",
+                "description": "Attach receipt act (stickers); form ids=…&act2_in=…"
+            }
         ]
     },
     "jobs": [],
@@ -66,7 +171,22 @@
             "title": "ledger.menu.moves"
         }
     ],
-    "configSchema": [],
+    "configSchema": {
+        "ledger": {
+            "fot_bank_type": {
+                "type": "string",
+                "default": "ФОТ"
+            },
+            "fot_cash_type": {
+                "type": "string",
+                "default": "ФОТ Нал"
+            },
+            "fot_cash_transfer_type": {
+                "type": "string",
+                "default": "ФОТ РФ"
+            }
+        }
+    },
     "tables": [
         "base_accounts",
         "base_account_move_types",
@@ -75,7 +195,9 @@
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "core.notices.collect"
+        ],
         "publish": []
     },
     "bulkActions": [

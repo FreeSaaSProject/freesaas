@@ -6,6 +6,11 @@ require_once __DIR__ . '/lib/AccountMoveTypesRepository.php';
 require_once __DIR__ . '/lib/LedgerReconciliationsRepository.php';
 require_once __DIR__ . '/lib/LedgerMovesRepository.php';
 
+Assets::register('ledger', [
+    'css' => ['ledger.css'],
+    'js' => ['ledger.js'],
+]);
+
 $pages = [
     '/accounts' => ['permission' => 'ledger.view', 'methods' => ['GET', 'POST'], 'file' => 'accounts_list.php'],
     '/accounts/new' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'accounts_edit.php'],
@@ -15,6 +20,7 @@ $pages = [
     '/account-move-types/{id}/edit' => ['permission' => 'ledger.types', 'methods' => ['GET', 'POST'], 'file' => 'types_edit.php'],
     '/ledger/moves' => ['permission' => 'ledger.view', 'methods' => ['GET', 'POST'], 'file' => 'moves_list.php'],
     '/ledger/moves/new' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'moves_edit.php'],
+    '/ledger/moves/attach-act' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'attach_act.php'],
     '/ledger/moves/{id}/edit' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'moves_edit.php'],
     '/ledger/transfers/new' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'transfers_edit.php'],
 ];
@@ -73,6 +79,25 @@ BulkActions::register('ledger_moves', 'soft_delete', [
         return LedgerMovesRepository::softDeleteByIds($ids);
     },
 ]);
+
+EventBus::on('core.notices.collect', static function ($notices) {
+    if (!is_array($notices)) {
+        $notices = [];
+    }
+    if (!Auth::check() || !Auth::can('ledger.view')) {
+        return $notices;
+    }
+    $n = LedgerMovesRepository::countOverduePromises();
+    if ($n > 0) {
+        $notices[] = [
+            'short' => t('ledger.moves.notice.overdue_action') . ':' . $n,
+            'href' => '/ledger/moves?promise=3',
+            'title' => t('ledger.moves.notice.overdue'),
+            'tone' => 'warn',
+        ];
+    }
+    return $notices;
+});
 
 Health::register('ledger.fot_types', 'ledger', static function (): array {
     $keys = ['fot_bank_type', 'fot_cash_type', 'fot_cash_transfer_type'];

@@ -1,0 +1,240 @@
+{
+    "id": "terminals",
+    "name": "terminals.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "catalog": ">=0.1.0",
+        "clients": ">=0.1.0"
+    },
+    "provides": [
+        "terminals.registry",
+        "terminals.analytics",
+        "terminals.sync"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        { "id": "terminals.view", "label": "terminals.perm.view" },
+        { "id": "terminals.edit", "label": "terminals.perm.edit" },
+        { "id": "terminals.sync", "label": "terminals.perm.sync" }
+    ],
+    "routes": {
+        "pages": [
+            "/terminals",
+            "/terminals/new",
+            "/terminals/{id}/edit",
+            "/terminals/bracelets",
+            "/terminals/bracelets/new",
+            "/terminals/bracelets/{id}/edit",
+            "/terminals/termloads",
+            "/terminals/fullstats",
+            "/terminals/fullstats/{id}/edit",
+            "/terminals/orders",
+            "/terminals/settings",
+            "/terminals/jobs/load",
+            "/terminals/jobs/tickets",
+            "/terminals/jobs/orders"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "terminals.list",
+                "method": "GET",
+                "path": "/terminals",
+                "permission": "terminals.view",
+                "description": "List terminals; filters: q, enabled"
+            },
+            {
+                "id": "terminals.get",
+                "method": "GET",
+                "path": "/terminals/{id}/edit",
+                "permission": "terminals.view",
+                "description": "One terminal (CODE masked)"
+            },
+            {
+                "id": "terminals.create",
+                "method": "POST",
+                "path": "/terminals/new",
+                "permission": "terminals.edit",
+                "description": "Create terminal"
+            },
+            {
+                "id": "terminals.update",
+                "method": "POST",
+                "path": "/terminals/{id}/edit",
+                "permission": "terminals.edit",
+                "description": "Update terminal; empty code keeps previous"
+            },
+            {
+                "id": "terminals.bracelets.list",
+                "method": "GET",
+                "path": "/terminals/bracelets",
+                "permission": "terminals.view",
+                "description": "List bracelets; filters: q"
+            },
+            {
+                "id": "terminals.bracelets.get",
+                "method": "GET",
+                "path": "/terminals/bracelets/{id}/edit",
+                "permission": "terminals.view",
+                "description": "One bracelet"
+            },
+            {
+                "id": "terminals.bracelets.create",
+                "method": "POST",
+                "path": "/terminals/bracelets/new",
+                "permission": "terminals.edit",
+                "description": "Create bracelet"
+            },
+            {
+                "id": "terminals.bracelets.update",
+                "method": "POST",
+                "path": "/terminals/bracelets/{id}/edit",
+                "permission": "terminals.edit",
+                "description": "Update bracelet"
+            },
+            {
+                "id": "terminals.termloads.day",
+                "method": "GET",
+                "path": "/terminals/termloads",
+                "permission": "terminals.view",
+                "side_effect": "read",
+                "description": "Day headcount series; query: day=YYYY-MM-DD",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": { "type": "string", "description": "YYYY-MM-DD" }
+                    },
+                    "required": ["day"]
+                }
+            },
+            {
+                "id": "terminals.fullstats.list",
+                "method": "GET",
+                "path": "/terminals/fullstats",
+                "permission": "terminals.view",
+                "description": "Ticket visits; filters: day, from, to"
+            },
+            {
+                "id": "terminals.fullstats.classify",
+                "method": "POST",
+                "path": "/terminals/fullstats/{id}/edit",
+                "permission": "terminals.edit",
+                "description": "Set ticket type flags; propagates by TICKET_TYPE"
+            },
+            {
+                "id": "terminals.orders.list",
+                "method": "GET",
+                "path": "/terminals/orders",
+                "permission": "terminals.view",
+                "description": "Term ticket orders; filters: day, from, to"
+            },
+            {
+                "id": "terminals.settings.get",
+                "method": "GET",
+                "path": "/terminals/settings",
+                "permission": "",
+                "description": "Flags + masked secrets (SUPERADMIN_ACCESS)"
+            },
+            {
+                "id": "terminals.settings.save",
+                "method": "POST",
+                "path": "/terminals/settings",
+                "permission": "",
+                "description": "Save ini; empty secret fields keep previous (SUPERADMIN_ACCESS)"
+            },
+            {
+                "id": "terminals.jobs.load",
+                "method": "POST",
+                "path": "/terminals/jobs/load",
+                "permission": "",
+                "description": "Sync 1C club_workload → termloads; auth X-Terminals-Token"
+            },
+            {
+                "id": "terminals.jobs.tickets",
+                "method": "POST",
+                "path": "/terminals/jobs/tickets",
+                "permission": "",
+                "description": "Sync 1C club_workload_detail → fullstats; auth X-Terminals-Token"
+            },
+            {
+                "id": "terminals.jobs.orders",
+                "method": "POST",
+                "path": "/terminals/jobs/orders",
+                "permission": "",
+                "description": "Import volgatermy orders; auth X-Terminals-Token"
+            }
+        ]
+    },
+    "jobs": [
+        "/terminals/jobs/load",
+        "/terminals/jobs/tickets",
+        "/terminals/jobs/orders"
+    ],
+    "menu": [
+        {
+            "group": "terminals.menu.group",
+            "num": 10,
+            "path": "/terminals",
+            "title": "terminals.menu.list",
+            "kind": "crud"
+        },
+        {
+            "group": "terminals.menu.group",
+            "num": 20,
+            "path": "/terminals/bracelets",
+            "title": "terminals.menu.bracelets",
+            "kind": "crud"
+        },
+        {
+            "group": "terminals.menu.group",
+            "num": 30,
+            "path": "/terminals/termloads",
+            "title": "terminals.menu.termloads",
+            "kind": "work"
+        },
+        {
+            "group": "terminals.menu.group",
+            "num": 40,
+            "path": "/terminals/fullstats",
+            "title": "terminals.menu.fullstats",
+            "kind": "work"
+        },
+        {
+            "group": "terminals.menu.group",
+            "num": 50,
+            "path": "/terminals/orders",
+            "title": "terminals.menu.orders",
+            "kind": "work"
+        },
+        {
+            "group": "terminals.menu.group",
+            "num": 90,
+            "path": "/terminals/settings",
+            "title": "terminals.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": {},
+    "tables": [
+        "base_terminals",
+        "base_bracelets",
+        "base_termloads",
+        "base_fullstats",
+        "base_term_orders",
+        "base_terminals_activations"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "bulkActions": [
+        { "list_id": "terminals", "action": "delete" },
+        { "list_id": "terminals_bracelets", "action": "delete" }
+    ]
+}

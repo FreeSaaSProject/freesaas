@@ -49,28 +49,6 @@ final class UsersRepository
         return $out;
     }
 
-    /**
-     * Legacy feature gates for modules that do not exist yet in FreeSaaS.
-     * Product modules own their user_edit UI via EventBus (core.user_edit.*).
-     *
-     * @return array{employee_bot:bool,site_profile:bool}
-     */
-    public static function editFeatures(): array
-    {
-        $mod = static function (string ...$ids): bool {
-            foreach ($ids as $id) {
-                if (ModuleManager::isEnabled($id)) {
-                    return true;
-                }
-            }
-            return false;
-        };
-        return [
-            'employee_bot' => $mod('employee-bot', 'likespa-employee-bot'),
-            'site_profile' => $mod('likespa-promopages', 'likespa-site'),
-        ];
-    }
-
     /** Parse legacy "#1#,#2#" / "1,2" / "2" into int ids. */
     public static function parseHashIds(string $raw): array
     {
@@ -163,6 +141,37 @@ final class UsersRepository
     }
 
     /**
+     * Enabled staff names for selects; always include $extraIds (e.g. disabled linked user).
+     *
+     * @param list<int> $extraIds
+     * @return array<int,string> id => label
+     */
+    public static function staffNamesIncluding(array $extraIds = []): array
+    {
+        $out = [];
+        foreach (self::listForCopy() as $u) {
+            $id = (int)$u['id'];
+            $label = trim((string)$u['name']) !== '' ? (string)$u['name'] : (string)$u['login'];
+            $out[$id] = $label;
+        }
+        foreach ($extraIds as $id) {
+            $id = (int)$id;
+            if ($id < 1 || isset($out[$id])) {
+                continue;
+            }
+            $u = self::find($id);
+            if (!$u) {
+                $out[$id] = '#' . $id;
+                continue;
+            }
+            $label = trim((string)$u['name']) !== '' ? (string)$u['name'] : (string)$u['login'];
+            $enabled = !empty($u['enabled']);
+            $out[$id] = $label . ($enabled ? '' : ' (' . t('core.users.filter_disabled') . ')');
+        }
+        return $out;
+    }
+
+    /**
      * Permissions declared by enabled modules, grouped by module id.
      * @return array<string,array{name:string,keys:list<array{id:string,label:string}>}>
      */
@@ -214,7 +223,7 @@ final class UsersRepository
         return [
             'name' => 'name',
             'login' => 'login',
-            'role' => 'name_enabled',
+            'role' => 'ID_STATUS',
             'enabled' => 'enabled',
             'id' => 'id',
         ];
@@ -262,9 +271,13 @@ final class UsersRepository
         $stCount->execute($params);
         $total = (int)$stCount->fetchColumn();
 
-        $sql = "SELECT id, login, name, mail, enabled, name_enabled, color, color_text, tel, IS_HIDDEN"
-            . (Database::columnExists('base_users', 'IS_ACCEPTOR') ? ', IS_ACCEPTOR' : '')
-            . "
+        $cols = self::selectList([
+            'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'IS_HIDDEN', 'IS_ACCEPTOR',
+        ]);
+        if ($cols === '') {
+            return ['items' => [], 'total' => $total];
+        }
+        $sql = "SELECT $cols
              FROM base_users
              WHERE $sqlWhere
              ORDER BY $order";
@@ -287,11 +300,15 @@ final class UsersRepository
         if (!Database::tableExists('base_users')) {
             return self::$findCache[$id] = null;
         }
+        $cols = self::selectList([
+            'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'address', 'url',
+            'expire', 'telegram_chat_id', 'max_user_id', 'AUDIO_ANALYTICS_ENABLED', 'IS_HIDDEN', 'ID_STATUS2', 'IS_ACCEPTOR',
+        ]);
+        if ($cols === '') {
+            return self::$findCache[$id] = null;
+        }
         $st = Database::pdo()->prepare(
-            'SELECT id, login, name, mail, enabled, name_enabled, color, color_text, tel, address, url,
-                    expire, telegram_chat_id, max_user_id, AUDIO_ANALYTICS_ENABLED, IS_HIDDEN, STATUS2'
-            . (Database::columnExists('base_users', 'IS_ACCEPTOR') ? ', IS_ACCEPTOR' : '')
-            . ' FROM base_users WHERE id = ? LIMIT 1'
+            "SELECT $cols FROM base_users WHERE id = ? LIMIT 1"
         );
         $st->execute([$id]);
         $row = $st->fetch();
@@ -305,7 +322,7 @@ final class UsersRepository
             return null;
         }
         $cols = [
-            'id', 'login', 'name', 'mail', 'tel', 'enabled', 'name_enabled', 'STATUS2',
+            'id', 'login', 'name', 'mail', 'tel', 'enabled', 'ID_STATUS', 'ID_STATUS2',
             'color', 'color_text', 'IS_HIDDEN',
             'expire', 'retries', 'password',
             'link_ok',
@@ -313,22 +330,14 @@ final class UsersRepository
             'photo', 'site_descr',
             'ASSIST_TEAM', 'NOT_IN_TEAM', 'STOCK_REVISION', 'AUDIO_ANALYTICS_ENABLED',
             'skin', 'RESTRICT_TYPES', 'RESTRICT_TYPES_ONLINE', 'RESTRICT_PROCS',
-            'favorites', 'showNewsAfter', 'status', 'locale',
+            'favorites', 'showNewsAfter', 'status', 'locale', 'IS_ACCEPTOR',
         ];
-        if (Database::columnExists('base_users', 'IS_ACCEPTOR')) {
-            $cols[] = 'IS_ACCEPTOR';
-        }
-        $safe = [];
-        foreach ($cols as $c) {
-            if (Database::columnExists('base_users', $c)) {
-                $safe[] = '`' . $c . '`';
-            }
-        }
-        if (!$safe) {
+        $sqlCols = self::selectList($cols);
+        if ($sqlCols === '') {
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ' . implode(', ', $safe) . ' FROM base_users WHERE id = ? LIMIT 1'
+            'SELECT ' . $sqlCols . ' FROM base_users WHERE id = ? LIMIT 1'
         );
         $st->execute([$id]);
         $row = $st->fetch();
@@ -348,12 +357,19 @@ final class UsersRepository
         if (!$need || !Database::tableExists('base_users')) {
             return;
         }
+        $cols = self::selectList([
+            'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'address', 'url',
+            'expire', 'telegram_chat_id', 'max_user_id', 'AUDIO_ANALYTICS_ENABLED', 'IS_HIDDEN', 'ID_STATUS2', 'IS_ACCEPTOR',
+        ]);
+        if ($cols === '') {
+            foreach ($need as $id => $_) {
+                self::$findCache[$id] = null;
+            }
+            return;
+        }
         $list = array_keys($need);
         $in = implode(',', array_map('intval', $list));
-        $sql = 'SELECT id, login, name, mail, enabled, name_enabled, color, color_text, tel, address, url,
-                       expire, telegram_chat_id, max_user_id, AUDIO_ANALYTICS_ENABLED, IS_HIDDEN, STATUS2'
-            . (Database::columnExists('base_users', 'IS_ACCEPTOR') ? ', IS_ACCEPTOR' : '')
-            . " FROM base_users WHERE id IN ($in)";
+        $sql = "SELECT $cols FROM base_users WHERE id IN ($in)";
         foreach (Database::pdo()->query($sql)->fetchAll() ?: [] as $row) {
             self::$findCache[(int)$row['id']] = $row;
             unset($need[(int)$row['id']]);
@@ -361,6 +377,36 @@ final class UsersRepository
         foreach ($need as $id => $_) {
             self::$findCache[$id] = null;
         }
+    }
+
+    /**
+     * Build a SELECT column list from existing columns; map legacy oper names when needed.
+     *
+     * @param list<string> $want
+     */
+    private static function selectList(array $want): string
+    {
+        $parts = [];
+        $seen = [];
+        foreach ($want as $col) {
+            if (isset($seen[$col])) {
+                continue;
+            }
+            if (Database::columnExists('base_users', $col)) {
+                $parts[] = '`' . $col . '`';
+                $seen[$col] = true;
+                continue;
+            }
+            // Vanilla oper: name_enabled / STATUS2 until core migration 006.
+            if ($col === 'ID_STATUS' && Database::columnExists('base_users', 'name_enabled')) {
+                $parts[] = '`name_enabled` AS `ID_STATUS`';
+                $seen[$col] = true;
+            } elseif ($col === 'ID_STATUS2' && Database::columnExists('base_users', 'STATUS2')) {
+                $parts[] = '`STATUS2` AS `ID_STATUS2`';
+                $seen[$col] = true;
+            }
+        }
+        return implode(', ', $parts);
     }
 
     public static function nameById(int $id): string
@@ -513,7 +559,7 @@ final class UsersRepository
         $fields = [];
         $params = [];
         $allowed = [
-            'name', 'mail', 'tel', 'enabled', 'name_enabled', 'STATUS2',
+            'name', 'mail', 'tel', 'enabled', 'ID_STATUS', 'ID_STATUS2',
             'color', 'color_text', 'IS_HIDDEN',
             'expire', 'retries',
             'link_ok',
@@ -580,7 +626,7 @@ final class UsersRepository
      *   name?:string,
      *   mail?:string,
      *   enabled?:string,
-     *   name_enabled?:int,
+     *   ID_STATUS?:int,
      *   status_blob?:string,
      *   locale?:string
      * } $data
@@ -616,7 +662,7 @@ final class UsersRepository
         $add('name', trim((string)($data['name'] ?? $login)));
         $add('mail', trim((string)($data['mail'] ?? '')));
         $add('enabled', (string)($data['enabled'] ?? '1'));
-        $add('name_enabled', (int)($data['name_enabled'] ?? 0));
+        $add('ID_STATUS', (int)($data['ID_STATUS'] ?? 0));
         $add('content', (string)($data['content'] ?? ''));
         $add('status', (string)($data['status_blob'] ?? serialize(['permissions' => []])));
         $add('skin', '');

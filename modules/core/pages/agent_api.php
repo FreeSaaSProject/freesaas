@@ -12,6 +12,25 @@ $allowVirgin = ($method === 'POST' && $path === '/agent/bootstrap')
 
 AgentAuth::assertToken($allowVirgin);
 
+// Binary dump download (not JSON) — for cross-host fetch by URL + ?token=
+if ($path === '/agent/db/dump/file' && $method === 'GET') {
+    try {
+        $file = (string)($_GET['file'] ?? '');
+        $resolved = DbTools::resolveDumpPath($file);
+        $name = basename($resolved);
+        header('Content-Type: application/octet-stream');
+        header('Content-Disposition: attachment; filename="' . str_replace(['"', "\r", "\n"], '', $name) . '"');
+        header('Content-Length: ' . (string)filesize($resolved));
+        header('Cache-Control: no-store');
+        readfile($resolved);
+    } catch (Throwable $e) {
+        http_response_code(404);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    return;
+}
+
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
@@ -61,13 +80,40 @@ function agent_api_dispatch(string $path, string $method, string $id): array
     if ($path === '/agent/validate' && $method === 'GET') {
         return AgentOps::moduleValidate(null);
     }
-    if ($path === '/agent/migrate' && $method === 'GET') {
+    if ($path === '/agent/db' && $method === 'GET') {
+        return AgentOps::dbStatus();
+    }
+    if ($path === '/agent/db/migrate' && $method === 'GET') {
         $mod = isset($_GET['module']) ? (string)$_GET['module'] : null;
         return AgentOps::migrateStatus($mod);
     }
-    if ($path === '/agent/migrate/run' && $method === 'POST') {
+    if ($path === '/agent/db/migrate/run' && $method === 'POST') {
         $mod = isset($_GET['module']) ? (string)$_GET['module'] : (isset($_POST['module']) ? (string)$_POST['module'] : null);
         return AgentOps::migrateRun($mod);
+    }
+    if ($path === '/agent/db/dumps' && $method === 'GET') {
+        return AgentOps::dbListDumps();
+    }
+    if ($path === '/agent/db/dump' && $method === 'POST') {
+        $label = isset($_GET['label']) ? (string)$_GET['label'] : (isset($_POST['label']) ? (string)$_POST['label'] : null);
+        return AgentOps::dbDump($label);
+    }
+    if ($path === '/agent/db/restore' && $method === 'POST') {
+        $file = isset($_GET['file']) ? (string)$_GET['file'] : (isset($_POST['file']) ? (string)$_POST['file'] : '');
+        return AgentOps::dbRestore($file);
+    }
+    if ($path === '/agent/db/dump/delete' && $method === 'POST') {
+        $file = isset($_GET['file']) ? (string)$_GET['file'] : (isset($_POST['file']) ? (string)$_POST['file'] : '');
+        return AgentOps::dbDeleteDump($file);
+    }
+    if ($path === '/agent/db/check' && $method === 'POST') {
+        return AgentOps::dbCheck();
+    }
+    if ($path === '/agent/db/repair' && $method === 'POST') {
+        return AgentOps::dbRepair();
+    }
+    if ($path === '/agent/db/optimize' && $method === 'POST') {
+        return AgentOps::dbOptimize();
     }
     if ($path === '/agent/locale' && $method === 'GET') {
         return AgentOps::localeList();

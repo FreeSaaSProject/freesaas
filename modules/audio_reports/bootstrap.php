@@ -5,11 +5,17 @@ require_once __DIR__ . '/lib/AudioDayBounds.php';
 require_once __DIR__ . '/lib/CalendarAggregates.php';
 require_once __DIR__ . '/lib/CalendarHooks.php';
 require_once __DIR__ . '/lib/CollectionsRepository.php';
+require_once __DIR__ . '/lib/SummaryExternal.php';
+require_once __DIR__ . '/lib/SummaryComputed.php';
+require_once __DIR__ . '/lib/SummaryProgress.php';
 require_once __DIR__ . '/lib/SummariesRepository.php';
+require_once __DIR__ . '/lib/SummaryCatalog.php';
 require_once __DIR__ . '/lib/SummaryRunner.php';
+require_once __DIR__ . '/lib/SummaryRenderer.php';
 
 Assets::register('audio_reports', [
     'css' => ['audio_reports.css'],
+    'js' => ['audio_reports.js'],
 ]);
 
 $pages = [
@@ -19,6 +25,7 @@ $pages = [
     '/audio/collections/{id}' => ['permission' => 'audio_reports.view', 'methods' => ['GET'], 'file' => 'collections.php'],
     '/audio/summaries' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
     '/audio/summaries/new' => ['permission' => 'audio_reports.edit', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
+    '/audio/summaries/work' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'summaries_work.php'],
     '/audio/summaries/{id}' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
 ];
 

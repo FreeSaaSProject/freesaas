@@ -116,4 +116,6 @@ return [
     'clients.tag.empty' => 'Ярлыков нет',
     'clients.statuses.group' => 'Клиенты',
     'clients.statuses.field.CLIENT_BASE' => 'Доступ к базе клиентов',
+    'clients.bot.profile' => 'Мой профиль',
+    'clients.bot.profile_text' => "Клиент #{id}\n{name}\n{tel}",
 ];

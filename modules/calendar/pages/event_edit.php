@@ -106,6 +106,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 throw new RuntimeException(t('calendar.event.err.no_modify'));
             }
             $data = EventsRepository::dataFromPost($_POST);
+            $saved = EventBus::emit('calendar.event.save', [
+                'post' => $_POST,
+                'row' => $row,
+                'data' => $data,
+                'id' => $id,
+                'is_new' => $isNew,
+            ]);
+            if (is_array($saved) && isset($saved['data']) && is_array($saved['data'])) {
+                $data = $saved['data'];
+            }
             if (!empty(Auth::statusFlags()['EVT_MY_ONLY'])) {
                 $data['id_operator'] = Auth::userId();
             }
@@ -148,6 +158,23 @@ if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
 }
 
+$bonusFlash = '';
+$bonusError = '';
+if (ModuleManager::isEnabled('bonuses')) {
+    if (isset($_GET['bonus_ok'])) {
+        $bonusFlash = t('bonuses.flash.applied', [
+            'spend' => (string)($_GET['spend'] ?? '0'),
+            'accrue' => (string)($_GET['accrue'] ?? '0'),
+        ]);
+    }
+    if (isset($_GET['bonus_err'])) {
+        $bonusError = trim((string)($_GET['msg'] ?? ''));
+        if ($bonusError === '') {
+            $bonusError = t('bonuses.err.apply_failed');
+        }
+    }
+}
+
 $staffNames = [];
 foreach (UsersRepository::listForCopy() as $u) {
     $label = trim((string)$u['name']);
@@ -188,6 +215,18 @@ if ($dayBack === '/calendar' && $dtForBack > 0) {
 
 $linkedProcedures = !$isNew ? ProceduresRepository::listByEventParent($id) : [];
 
+$bonusSections = EventBus::emit('calendar.event.sections', [
+    'html' => '',
+    'row' => $row,
+    'id' => $isNew ? 0 : $id,
+    'is_new' => $isNew,
+    'can_modify' => $canModify,
+    'return_url' => $dayBack,
+    'bonus_flash' => $bonusFlash,
+    'bonus_error' => $bonusError,
+]);
+$bonusExtraHtml = is_array($bonusSections) ? (string)($bonusSections['html'] ?? '') : '';
+
 View::render('event_edit', [
     'title' => $isNew
         ? t('calendar.event.title_new')
@@ -206,6 +245,7 @@ View::render('event_edit', [
     'canMakeProcedures' => $canMakeProcedures,
     'linkedProcedures' => $linkedProcedures,
     'staffLocked' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
+    'bonusExtraHtml' => $bonusExtraHtml,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('calendar.menu.week'), 'href' => '/calendar'],
         [

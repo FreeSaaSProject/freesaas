@@ -116,4 +116,6 @@ return [
     'clients.tag.empty' => 'No labels',
     'clients.statuses.group' => 'Clients',
     'clients.statuses.field.CLIENT_BASE' => 'Client base access',
+    'clients.bot.profile' => 'My profile',
+    'clients.bot.profile_text' => "Client #{id}\n{name}\n{tel}",
 ];

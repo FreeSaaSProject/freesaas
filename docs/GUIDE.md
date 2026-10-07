@@ -33,7 +33,7 @@ php bin/freesaas.php bootstrap --login=admin --password='…' --agent-token='…
 # Shared hosting (без SSH) — POST /agent/bootstrap, см. agents/install.md
 ```
 
-Либо по шагам: `php bin/schema-migrate.php` / UI `/migrate`, затем создать пользователя вручную.
+Либо по шагам: `php bin/freesaas.php migrate run` / UI `/db`, затем создать пользователя вручную.
 
 5. Войти на `/login`. Дальнейшие ops: CLI или `/agent/*` ([`agents/remote-api.md`](agents/remote-api.md)).
 
@@ -211,15 +211,17 @@ modules/<id>/
 
 Хлебные крошки (системный chrome layout, стиль oper):
 
-1. В **page** собрать полный путь от модуля вглубь и обернуть `Breadcrumbs::withHome(...)` — первым всегда Home (`/`).
+1. В **page** собрать полный путь от модуля вглубь и обернуть `Breadcrumbs::withHome(...)` — первым всегда Home (`/`). Корень списка: `['label' => t('myid.menu.list'), 'current' => true]`.
 2. Передать в `View::render(..., ['breadcrumbs' => $trail, 'breadcrumbs_aria' => t('…')])`. Layout рисует их **сверху** `<main>` на каждой странице.
 3. Во **view** не вызывать `Breadcrumbs::render` — иначе будет дубль. Если `breadcrumbs` не передать, layout сам соберёт `Home / пункт меню / title`.
-4. Partial: `modules/core/views/_breadcrumbs.php`. Предки — ссылки, текущий уровень — текст.
-5. **Возврат с фильтрами (`NavContext`, `app/NavContext.php`):**
-   - Ссылки list→detail: `NavContext::withReturn('/module/' . $id)` — передаёт `ret=` = текущий URL (path + query).
-   - Крошка «на уровень выше»: при рендере `NavContext::up($href)` подставляет `ret`, если path совпадает (фильтры списка сохраняются).
-   - Кнопка `[Возврат]` / `[Back]` в строке крошек: всегда ведёт на полный `ret` (модуль-источник с его фильтрами), даже если это другой модуль.
-   - POST-формы: `<?= NavContext::hiddenField() ?>`, чтобы `ret` не терялся.
+4. **Авто-ссылка корня списка:** на точном path пункта меню, если в query есть фильтры/пейджер/сортировка, листовая крошка сама становится ссылкой на чистый URL списка (модулю ничего делать не нужно). Дефолтный экран лучше держать на URL без query.
+5. Partial: `modules/core/views/_breadcrumbs.php`.
+6. **Возврат с фильтрами (`NavContext`) — автоматически**, модулю ничего писать не нужно:
+   - `View::render` прогоняет HTML через `NavContext::enrichContent`: исходящие ссылки на другой path получают `ret=` (текущий URL с фильтрами); «голые» cancel/up на path из `ret` становятся полным `ret`; в формы добавляется hidden `ret`.
+   - `redirect()` сам вызывает `NavContext::redirectUrl` (тот же path, что у `ret` → возврат на фильтры; иначе `ret` сохраняется).
+   - Крошки / `[Возврат]` в layout: `up()` и кнопка возврата.
+   - `core.js` дублирует логику для динамических ссылок и submit.
+   - Opt-out: `data-nav-no-ret` на `<a>` / `<form>`. Явные хелперы (`withReturn`, `hiddenField`, …) остаются для редких edge cases (например `window.location =` в своём JS).
 
 Права:
 
@@ -302,7 +304,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
 
 Перед каждым id `BulkActions` эмитит `core.bulk.check_item` (`list_id`, `action`, `id`, `params`, `blocked`, `reason`). Другой модуль ставит `blocked=true` и текст причины — id попадает в skipped, удаление не вызывается. Пример: catalog блокирует delete единиц/поставщиков/типов процедур, если есть товары; procedures — delete клиента, если есть процедуры.
 
-Общие строки UI: `core.bulk.*` в `app/lang/`. Select-all — только на текущей странице.
+Общие строки UI: `core.bulk.*` в `app/lang/`. Select-all — только на текущей странице. Клик по ячейке галки (не только по input) переключает строку; Shift+клик выделяет или снимает диапазон от предыдущей галки; выбранные строки подсвечиваются (`is-bulk-selected`).
 
 ---
 
@@ -321,7 +323,7 @@ return static function (PDO $pdo): void {
 
 - Имя файла = id миграции; сортировка лексикографическая.
 - Применяется один раз; запись в `base_schema_migrations`.
-- CLI: `php bin/schema-migrate.php` или UI `/migrate` / при connect модуля.
+- CLI: `php bin/freesaas.php migrate run` или UI `/db` / при connect модуля.
 
 ### Data (`migrators/<id>.php`)
 

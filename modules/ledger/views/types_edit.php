@@ -45,9 +45,22 @@
   <label class="check"><input type="checkbox" name="enabled" value="1"<?= !empty($row['enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.col.enabled') ?></label>
   <label class="check"><input type="checkbox" name="payment_enabled" value="1"<?= !empty($row['payment_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.payment') ?></label>
   <label class="check"><input type="checkbox" name="user_payment_enabled" value="1"<?= !empty($row['user_payment_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.user_payment') ?></label>
+  <?php if (ModuleManager::isEnabled('suppliers') || !empty($row['supplier_enabled'])): ?>
   <label class="check"><input type="checkbox" name="supplier_enabled" value="1"<?= !empty($row['supplier_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.supplier') ?></label>
+  <?php else: ?>
+  <input type="hidden" name="supplier_enabled" value="0">
+  <?php endif; ?>
+  <?php if (ModuleManager::isEnabled('stickers') || !empty($row['act_in_enabled'])): ?>
+  <label class="check"><input type="checkbox" name="act_in_enabled" value="1"<?= !empty($row['act_in_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.act_in') ?></label>
+  <?php else: ?>
+  <input type="hidden" name="act_in_enabled" value="0">
+  <?php endif; ?>
   <label class="check"><input type="checkbox" name="linked_enabled" value="1"<?= !empty($row['linked_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.linked') ?></label>
+  <?php if (ModuleManager::isEnabled('funds') || !empty($row['fund_enabled'])): ?>
   <label class="check"><input type="checkbox" name="fund_enabled" value="1"<?= !empty($row['fund_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.fund') ?></label>
+  <?php else: ?>
+  <input type="hidden" name="fund_enabled" value="0">
+  <?php endif; ?>
   <label class="check"><input type="checkbox" name="exclude_pl" value="1"<?= !empty($row['exclude_pl']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.exclude_pl') ?></label>
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>

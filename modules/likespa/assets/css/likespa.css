@@ -1,0 +1,130 @@
+/* LikeSpa overlays on audio records calendar + term scans report */
+
+.likespa-promo {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: baseline;
+  margin-left: 0.35rem;
+  font-size: 0.85em;
+}
+
+.likespa-promo-stats {
+  color: #5b4b8a;
+  background: #efeafc;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+}
+
+.likespa-promo-proc {
+  color: #0b6e4f;
+  background: #e6f7f0;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+}
+
+.likespa-promo-bonus {
+  font-weight: 600;
+  color: #7a5a00;
+  background: #ffe9a8;
+  padding: 0.05rem 0.4rem;
+  border-radius: 3px;
+  text-decoration: none;
+}
+
+.likespa-promo-bonus--done {
+  color: #1b5e20;
+  background: #c8e6c9;
+}
+
+.likespa-dops {
+  display: inline-block;
+  margin-left: 0.35rem;
+  font-size: 0.85em;
+  color: #334155;
+  background: #eef2ff;
+  padding: 0.05rem 0.35rem;
+  border-radius: 3px;
+}
+
+.likespa-term-scans-total td {
+  border-top: 2px solid var(--border, #ccc);
+}
+
+.likespa-term-scans-period {
+  margin: 0 0 1rem;
+}
+
+.likespa-term-scans-summary {
+  margin: 1rem 0 1.5rem;
+}
+
+.likespa-term-scans-summary h2,
+.likespa-term-scans-detail h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem;
+}
+
+.likespa-term-scans-proc {
+  background: #e9f8e9;
+  color: #145214;
+  font-weight: 600;
+}
+
+.likespa-term-scans-sessions {
+  background: #fff8e1;
+}
+
+.likespa-term-scans-hist {
+  font-size: 0.85em;
+}
+
+.likespa-term-scans-journal code {
+  font-size: 0.9em;
+}
+
+.likespa-src {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.likespa-src--proc {
+  color: #2e7d32;
+}
+
+.likespa-src--crm {
+  color: #6a1b9a;
+}
+
+.likespa-flag {
+  display: inline-block;
+  margin-right: 0.35rem;
+  font-size: 0.85em;
+}
+
+.likespa-flag--promo {
+  color: #1b5e20;
+}
+
+.likespa-flag--discount {
+  color: #0d47a1;
+  font-weight: 600;
+}
+
+.likespa-settings fieldset {
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  padding: 0.75rem 1rem 1rem;
+  margin: 0 0 1rem;
+}
+
+.likespa-settings legend {
+  padding: 0 0.35rem;
+  font-weight: 600;
+}
+
+.likespa-settings label .muted {
+  display: block;
+  font-size: 0.85em;
+  margin-top: 0.15rem;
+}

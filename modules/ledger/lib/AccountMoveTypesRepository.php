@@ -82,15 +82,55 @@ final class AccountMoveTypesRepository
     /** @return array<int,string> */
     public static function leafNames(): array
     {
+        $meta = self::leafMeta();
+        $out = [];
+        foreach ($meta as $id => $row) {
+            $out[$id] = (string)$row['name'];
+        }
+        return $out;
+    }
+
+    /**
+     * Enabled types with form flags for progressive create/edit UI.
+     *
+     * @return array<int, array{
+     *   name:string, account_id:int, direction:int,
+     *   payment_enabled:int, user_payment_enabled:int,
+     *   supplier_enabled:int, fund_enabled:int, linked_enabled:int,
+     *   act_in_enabled:int
+     * }>
+     */
+    public static function leafMeta(): array
+    {
         if (!Database::tableExists('base_account_move_types')) {
             return [];
         }
         $out = [];
         $rows = Database::pdo()->query(
-            'SELECT ID, NAME FROM base_account_move_types WHERE ENABLED > 0 ORDER BY PID ASC, NUM ASC, NAME ASC'
+            'SELECT ID AS id, NAME AS name, ID_ACCOUNT AS account_id, DIRECTION AS direction,
+                    ID_PAYMENT_ENABLED AS payment_enabled,
+                    ID_USER_PAYMENT_ENABLED AS user_payment_enabled,
+                    ID_SUPPLIER_ENABLED AS supplier_enabled,
+                    ID_FUND_ENABLED AS fund_enabled,
+                    ID_MOVEMENT_LINKED_ENABLED AS linked_enabled,
+                    ID_ACT_IN_ENABLED AS act_in_enabled
+             FROM base_account_move_types
+             WHERE ENABLED > 0
+             ORDER BY PID ASC, NUM ASC, NAME ASC'
         )->fetchAll(PDO::FETCH_ASSOC) ?: [];
         foreach ($rows as $r) {
-            $out[(int)$r['ID']] = (string)$r['NAME'];
+            $id = (int)$r['id'];
+            $out[$id] = [
+                'name' => (string)$r['name'],
+                'account_id' => (int)$r['account_id'],
+                'direction' => (int)$r['direction'],
+                'payment_enabled' => (int)$r['payment_enabled'],
+                'user_payment_enabled' => (int)$r['user_payment_enabled'],
+                'supplier_enabled' => (int)$r['supplier_enabled'],
+                'fund_enabled' => (int)$r['fund_enabled'],
+                'linked_enabled' => (int)$r['linked_enabled'],
+                'act_in_enabled' => (int)$r['act_in_enabled'],
+            ];
         }
         return $out;
     }
@@ -166,6 +206,7 @@ final class AccountMoveTypesRepository
             'supplier_enabled' => !empty($post['supplier_enabled']) ? 1 : 0,
             'linked_enabled' => !empty($post['linked_enabled']) ? 1 : 0,
             'fund_enabled' => !empty($post['fund_enabled']) ? 1 : 0,
+            'act_in_enabled' => !empty($post['act_in_enabled']) ? 1 : 0,
             'exclude_pl' => !empty($post['exclude_pl']) ? 1 : 0,
             'dt' => time(),
         ];
@@ -178,14 +219,14 @@ final class AccountMoveTypesRepository
             'INSERT INTO base_account_move_types
              (NAME, DESCR, DT, PID, ENABLED, ID_ACCOUNT, NUM, DIRECTION, ID_TYPE,
               ID_PAYMENT_ENABLED, ID_USER_PAYMENT_ENABLED, ID_SUPPLIER_ENABLED,
-              ID_MOVEMENT_LINKED_ENABLED, ID_FUND_ENABLED, EXCLUDE_PL)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+              ID_MOVEMENT_LINKED_ENABLED, ID_FUND_ENABLED, ID_ACT_IN_ENABLED, EXCLUDE_PL)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $st->execute([
             $data['name'], $data['descr'], $data['dt'], $data['pid'], $data['enabled'],
             $data['account_id'], $data['num'], $data['direction'], $data['odds_type'],
             $data['payment_enabled'], $data['user_payment_enabled'], $data['supplier_enabled'],
-            $data['linked_enabled'], $data['fund_enabled'], $data['exclude_pl'],
+            $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'],
         ]);
         return (int)Database::pdo()->lastInsertId();
     }
@@ -198,14 +239,14 @@ final class AccountMoveTypesRepository
              NAME = ?, DESCR = ?, PID = ?, ENABLED = ?, ID_ACCOUNT = ?, NUM = ?,
              DIRECTION = ?, ID_TYPE = ?,
              ID_PAYMENT_ENABLED = ?, ID_USER_PAYMENT_ENABLED = ?, ID_SUPPLIER_ENABLED = ?,
-             ID_MOVEMENT_LINKED_ENABLED = ?, ID_FUND_ENABLED = ?, EXCLUDE_PL = ?
+             ID_MOVEMENT_LINKED_ENABLED = ?, ID_FUND_ENABLED = ?, ID_ACT_IN_ENABLED = ?, EXCLUDE_PL = ?
              WHERE ID = ?'
         );
         $st->execute([
             $data['name'], $data['descr'], $data['pid'], $data['enabled'], $data['account_id'],
             $data['num'], $data['direction'], $data['odds_type'],
             $data['payment_enabled'], $data['user_payment_enabled'], $data['supplier_enabled'],
-            $data['linked_enabled'], $data['fund_enabled'], $data['exclude_pl'], $id,
+            $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'], $id,
         ]);
     }
 

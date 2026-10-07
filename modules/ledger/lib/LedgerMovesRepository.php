@@ -9,10 +9,139 @@ final class LedgerMovesRepository
         return [
             'id' => 'm.ID',
             'dt' => 'm.DT',
+            'dt_create' => 'm.DT_CREATE',
+            'dt_update' => 'm.DT_UPDATE',
             'account' => 'm.ID_ACCOUNT',
             'type' => 'm.ID_TYPE',
             'sum' => 'm.SUMM',
         ];
+    }
+
+    /**
+     * Oper applyPrevAccountMoveDefaults: last 5 moves of this type → unanimous default or top-2 buttons.
+     *
+     * @return array{
+     *   defaults: array{direction?:int,account_id?:int,supplier_id?:int},
+     *   buttons: array{direction?:list<array{val:string,cnt:int,total:int,label:string}>,account_id?:list<array{val:string,cnt:int,total:int,label:string}>,supplier_id?:list<array{val:string,cnt:int,total:int,label:string}>}
+     * }
+     */
+    public static function prevSuggestionsForType(int $typeId): array
+    {
+        $out = ['defaults' => [], 'buttons' => []];
+        if ($typeId < 1 || !Database::tableExists('base_account_moves')) {
+            return $out;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT DIRECTION AS direction, ID_ACCOUNT AS account_id, ID_SUPPLIER AS supplier_id
+             FROM base_account_moves
+             WHERE ID_TYPE = ? AND DELETED = 0
+             ORDER BY DT DESC, ID DESC
+             LIMIT 5'
+        );
+        $st->execute([$typeId]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($rows === []) {
+            $st = Database::pdo()->prepare(
+                'SELECT DIRECTION AS direction, ID_ACCOUNT AS account_id, ID_SUPPLIER AS supplier_id
+                 FROM base_account_moves
+                 WHERE ID_TYPE = ?
+                 ORDER BY DT DESC, ID DESC
+                 LIMIT 5'
+            );
+            $st->execute([$typeId]);
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        }
+        if ($rows === []) {
+            return $out;
+        }
+        $accounts = LedgerAccountsRepository::names(false);
+        $suppliers = class_exists('SuppliersRepository') ? SuppliersRepository::names(false) : [];
+        foreach (['direction', 'account_id', 'supplier_id'] as $field) {
+            $values = [];
+            foreach ($rows as $row) {
+                $values[] = (string)(int)$row[$field];
+            }
+            $variants = self::prevTopVariants($values, 2);
+            if ($variants === []) {
+                continue;
+            }
+            $unanimous = count($variants) === 1 && (int)$variants[0]['cnt'] === count($values);
+            if ($unanimous) {
+                $out['defaults'][$field] = (int)$variants[0]['val'];
+                continue;
+            }
+            $btns = [];
+            foreach ($variants as $v) {
+                $btns[] = [
+                    'val' => (string)$v['val'],
+                    'cnt' => (int)$v['cnt'],
+                    'total' => (int)$v['total'],
+                    'label' => self::prevValueLabel($field, (string)$v['val'], $accounts, $suppliers),
+                ];
+            }
+            $out['buttons'][$field] = $btns;
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<string> $values
+     * @return list<array{val:string,cnt:int,total:int}>
+     */
+    private static function prevTopVariants(array $values, int $limit = 2): array
+    {
+        $freq = [];
+        $firstSeen = [];
+        foreach ($values as $i => $v) {
+            $v = (string)$v;
+            if (!isset($freq[$v])) {
+                $freq[$v] = 0;
+                $firstSeen[$v] = $i;
+            }
+            $freq[$v]++;
+        }
+        $items = [];
+        foreach ($freq as $k => $c) {
+            $items[] = ['val' => $k, 'cnt' => $c, 'seen' => $firstSeen[$k]];
+        }
+        usort($items, static function (array $a, array $b): int {
+            if ($a['cnt'] !== $b['cnt']) {
+                return $b['cnt'] <=> $a['cnt'];
+            }
+            return $a['seen'] <=> $b['seen'];
+        });
+        $total = count($values);
+        $out = [];
+        foreach (array_slice($items, 0, max(1, $limit)) as $it) {
+            $out[] = ['val' => (string)$it['val'], 'cnt' => (int)$it['cnt'], 'total' => $total];
+        }
+        return $out;
+    }
+
+    /** @param array<int,string> $accounts @param array<int,string> $suppliers */
+    private static function prevValueLabel(string $field, string $val, array $accounts, array $suppliers): string
+    {
+        if ($field === 'direction') {
+            if ($val === '-1') {
+                return t('ledger.dir.label.out');
+            }
+            if ($val === '1') {
+                return t('ledger.dir.label.in');
+            }
+            return t('ledger.dir.label.none');
+        }
+        if ($field === 'account_id') {
+            $id = (int)$val;
+            return $accounts[$id] ?? (t('ledger.moves.col.account') . ' #' . $id);
+        }
+        if ($field === 'supplier_id') {
+            $id = (int)$val;
+            if ($id < 1) {
+                return t('ledger.moves.supplier_none');
+            }
+            return $suppliers[$id] ?? (t('ledger.moves.field.supplier') . ' #' . $id);
+        }
+        return $val;
     }
 
     public static function accountBalance(int $accountId): float
@@ -29,41 +158,72 @@ final class LedgerMovesRepository
     }
 
     /**
-     * True if an active past reconciliation locks edits for this account at $dt.
+     * Newest move id for current list filters (DT DESC, ID DESC).
+     *
+     * @param array{q?:string,account_id?:int,type_id?:int,year?:int,month?:int,payment_id?:int,supplier_id?:int} $opts
      */
-    public static function isReconLocked(int $accountId, int $dt): bool
+    public static function newestMoveId(array $opts = []): ?int
     {
-        if ($accountId < 1 || !Database::tableExists('base_account_reconciliations')) {
-            return false;
-        }
-        $todayStart = mktime(0, 0, 0) ?: time();
-        $st = Database::pdo()->prepare(
-            'SELECT 1 FROM base_account_reconciliations
-             WHERE ID_ACCOUNT = ? AND DISABLED = 0
-               AND DT_RECONCILIATION < ?
-               AND DT_RECONCILIATION >= ?
-             LIMIT 1'
-        );
-        // Lock if recon date is on/after move day and before today
-        $moveDay = mktime(0, 0, 0, (int)date('n', $dt), (int)date('j', $dt), (int)date('Y', $dt)) ?: $dt;
-        $st->execute([$accountId, $todayStart, $moveDay]);
-        return (bool)$st->fetchColumn();
+        return self::newestMoveIdOnOrBefore($opts, null);
     }
 
     /**
-     * @param array{
-     *   q?:string,account_id?:int,type_id?:int,year?:int,month?:int,
-     *   payment_id?:int,supplier_id?:int,include_deleted?:bool,
-     *   order?:string,limit?:int,offset?:int
-     * } $opts
-     * @return array{items:list<array<string,mixed>>,total:int}
+     * Newest move with DT <= $onOrBeforeDt (recon attachment target). Null $onOrBeforeDt = any date.
+     *
+     * @param array{q?:string,account_id?:int,type_id?:int,year?:int,month?:int,payment_id?:int,supplier_id?:int} $opts
      */
-    public static function list(array $opts = []): array
+    public static function newestMoveIdOnOrBefore(array $opts, ?int $onOrBeforeDt): ?int
     {
         if (!Database::tableExists('base_account_moves')) {
-            return ['items' => [], 'total' => 0];
+            return null;
         }
-        $pdo = Database::pdo();
+        $built = self::buildListWhere($opts);
+        $where = $built['where'];
+        $params = $built['params'];
+        if ($onOrBeforeDt !== null) {
+            $where .= ' AND m.DT <= ?';
+            $params[] = $onOrBeforeDt;
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT m.ID FROM base_account_moves m WHERE $where ORDER BY m.DT DESC, m.ID DESC LIMIT 1"
+        );
+        $st->execute($params);
+        $id = $st->fetchColumn();
+        return $id !== false ? (int)$id : null;
+    }
+
+    /**
+     * Running balance after each move (oper totalSummsArray), same filters as list, ASC by DT.
+     *
+     * @param array{q?:string,account_id?:int,type_id?:int,year?:int,month?:int,payment_id?:int,supplier_id?:int} $opts
+     * @return array<int,float> move id => balance after that move
+     */
+    public static function runningBalances(array $opts = []): array
+    {
+        if (!Database::tableExists('base_account_moves')) {
+            return [];
+        }
+        $built = self::buildListWhere($opts);
+        $sql = 'SELECT m.ID AS id, m.DIRECTION AS direction, m.SUMM AS summ
+                FROM base_account_moves m
+                WHERE ' . $built['where'] . ' ORDER BY m.DT ASC, m.ID ASC';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($built['params']);
+        $running = 0.0;
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $running = round($running + ((int)$row['direction'] * (float)$row['summ']), 2);
+            $out[(int)$row['id']] = $running;
+        }
+        return $out;
+    }
+
+    /**
+     * @param array{q?:string,account_id?:int,type_id?:int,year?:int,month?:int,payment_id?:int,supplier_id?:int,include_deleted?:bool} $opts
+     * @return array{where:string,params:list<mixed>}
+     */
+    private static function buildListWhere(array $opts): array
+    {
         $where = ['1=1'];
         $params = [];
         if (empty($opts['include_deleted'])) {
@@ -110,8 +270,72 @@ final class LedgerMovesRepository
             $where[] = 'm.ID_SUPPLIER = ?';
             $params[] = $supplierId;
         }
+        // 1 = promised not paid, 2 = promised paid, 3 = overdue not paid (oper PROMISE_EXECUTED filter)
+        $promise = (int)($opts['promise'] ?? 0);
+        if ($promise === 1) {
+            $where[] = 'm.DT_PROMISED > 0 AND m.PROMISE_EXECUTED = 0';
+        } elseif ($promise === 2) {
+            $where[] = 'm.DT_PROMISED > 0 AND m.PROMISE_EXECUTED > 0';
+        } elseif ($promise === 3) {
+            $where[] = 'm.DT_PROMISED > 0 AND m.DT_PROMISED < ? AND m.PROMISE_EXECUTED = 0';
+            $params[] = time();
+        }
+        return ['where' => implode(' AND ', $where), 'params' => $params];
+    }
 
-        $sqlWhere = implode(' AND ', $where);
+    /** Overdue promised payments (for home notices). */
+    public static function countOverduePromises(): int
+    {
+        if (!Database::tableExists('base_account_moves')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT COUNT(*) FROM base_account_moves
+             WHERE DELETED = 0 AND DT_PROMISED > 0 AND DT_PROMISED < ? AND PROMISE_EXECUTED = 0'
+        );
+        $st->execute([time()]);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
+     * True if an active past reconciliation locks edits for this account at $dt.
+     */
+    public static function isReconLocked(int $accountId, int $dt): bool
+    {
+        if ($accountId < 1 || !Database::tableExists('base_account_reconciliations')) {
+            return false;
+        }
+        $todayStart = mktime(0, 0, 0) ?: time();
+        $st = Database::pdo()->prepare(
+            'SELECT 1 FROM base_account_reconciliations
+             WHERE ID_ACCOUNT = ? AND DISABLED = 0
+               AND DT_RECONCILIATION < ?
+               AND DT_RECONCILIATION >= ?
+             LIMIT 1'
+        );
+        // Lock if recon date is on/after move day and before today
+        $moveDay = mktime(0, 0, 0, (int)date('n', $dt), (int)date('j', $dt), (int)date('Y', $dt)) ?: $dt;
+        $st->execute([$accountId, $todayStart, $moveDay]);
+        return (bool)$st->fetchColumn();
+    }
+
+    /**
+     * @param array{
+     *   q?:string,account_id?:int,type_id?:int,year?:int,month?:int,
+     *   payment_id?:int,supplier_id?:int,include_deleted?:bool,
+     *   order?:string,limit?:int,offset?:int
+     * } $opts
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public static function list(array $opts = []): array
+    {
+        if (!Database::tableExists('base_account_moves')) {
+            return ['items' => [], 'total' => 0];
+        }
+        $pdo = Database::pdo();
+        $built = self::buildListWhere($opts);
+        $sqlWhere = $built['where'];
+        $params = $built['params'];
         $stc = $pdo->prepare("SELECT COUNT(*) FROM base_account_moves m WHERE $sqlWhere");
         $stc->execute($params);
         $total = (int)$stc->fetchColumn();
@@ -125,7 +349,10 @@ final class LedgerMovesRepository
                        m.UNCONFIRMED AS unconfirmed, m.DELETED AS deleted,
                        m.ID_PAYMENT AS payment_id, m.ID_SUPPLIER AS supplier_id,
                        m.ID_USER_PAYMENT AS user_payment, m.ID_MOVEMENT_LINKED AS linked_id,
-                       m.ID_ACCOUNT_TO AS account_to, m.ID_FUND_MOVEMENT AS fund_movement_id
+                       m.ID_ACCOUNT_TO AS account_to, m.ID_FUND_MOVEMENT AS fund_movement_id,
+                       m.ID_USER_UPDATE AS user_update, m.DT_UPDATE AS dt_update,
+                       m.ID_ACT2_IN AS act2_in, m.ACT2_NOT_REQ AS act2_not_req,
+                       m.DT_PROMISED AS dt_promised, m.PROMISE_EXECUTED AS promise_executed
                 FROM base_account_moves m
                 WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
@@ -153,7 +380,9 @@ final class LedgerMovesRepository
                     ID_PAYMENT AS payment_id, ID_SUPPLIER AS supplier_id,
                     ID_USER_PAYMENT AS user_payment, ID_MOVEMENT_LINKED AS linked_id,
                     ID_ACCOUNT_TO AS account_to, ID_FUND_MOVEMENT AS fund_movement_id,
-                    ID_USER_UPDATE AS user_update, DT_UPDATE AS dt_update
+                    ID_USER_UPDATE AS user_update, DT_UPDATE AS dt_update,
+                    ID_ACT2_IN AS act2_in, ACT2_NOT_REQ AS act2_not_req,
+                    DT_PROMISED AS dt_promised, PROMISE_EXECUTED AS promise_executed
              FROM base_account_moves WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -171,6 +400,44 @@ final class LedgerMovesRepository
         );
         $st->execute([$paymentId]);
         return (bool)$st->fetchColumn();
+    }
+
+    /**
+     * Linked ledger move IDs for one payment (non-deleted).
+     *
+     * @return list<int>
+     */
+    public static function moveIdsForPayment(int $paymentId): array
+    {
+        $map = self::moveIdsByPaymentIds([$paymentId]);
+        return $map[$paymentId] ?? [];
+    }
+
+    /**
+     * @param list<int> $paymentIds
+     * @return array<int, list<int>> payment_id => move ids (asc)
+     */
+    public static function moveIdsByPaymentIds(array $paymentIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $paymentIds), static function (int $id): bool {
+            return $id > 0;
+        })));
+        if ($ids === [] || !Database::tableExists('base_account_moves')) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID, ID_PAYMENT FROM base_account_moves
+             WHERE ID_PAYMENT IN ($ph) AND DELETED = 0
+             ORDER BY ID ASC"
+        );
+        $st->execute($ids);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $pid = (int)$row['ID_PAYMENT'];
+            $out[$pid][] = (int)$row['ID'];
+        }
+        return $out;
     }
 
     /**
@@ -203,12 +470,9 @@ final class LedgerMovesRepository
         $direction = (int)($type['direction'] ?? 0);
         if (isset($post['direction']) && $post['direction'] !== '') {
             $d = (int)$post['direction'];
-            if (in_array($d, [-1, 1], true)) {
+            if (in_array($d, [-1, 0, 1], true)) {
                 $direction = $d;
             }
-        }
-        if ($direction === 0) {
-            $direction = -1;
         }
 
         self::assertNotLocked($accountId, $dt, $existing);
@@ -219,6 +483,25 @@ final class LedgerMovesRepository
         $fundMovementId = 0;
         if (!empty($type['fund_enabled']) && Database::tableExists('base_fund_movements')) {
             $fundMovementId = max(0, (int)($post['fund_movement_id'] ?? 0));
+        }
+        $act2In = 0;
+        $act2NotReq = 0;
+        if (!empty($type['act_in_enabled']) && ModuleManager::isEnabled('stickers')) {
+            $act2In = max(0, (int)($post['act2_in'] ?? 0));
+            $act2NotReq = !empty($post['act2_not_req']) ? 1 : 0;
+        }
+
+        $dtPromised = self::parsePromisedDt((string)($post['dt_promised'] ?? ''));
+        if ($dtPromised > 0) {
+            $accDay = self::dayStart($dt);
+            $promDay = self::dayStart($dtPromised);
+            if ($promDay < $accDay) {
+                throw new InvalidArgumentException(t('ledger.moves.err.promised_before_dt'));
+            }
+        }
+        $promiseExecuted = 0;
+        if ($dtPromised > 0 && $dtPromised <= time()) {
+            $promiseExecuted = !empty($post['promise_executed']) ? 1 : 0;
         }
 
         return [
@@ -235,6 +518,10 @@ final class LedgerMovesRepository
             'supplier_id' => $supplierId,
             'user_payment' => $userPayment,
             'fund_movement_id' => $fundMovementId,
+            'act2_in' => $act2In,
+            'act2_not_req' => $act2NotReq,
+            'dt_promised' => $dtPromised,
+            'promise_executed' => $promiseExecuted,
             'linked_id' => (int)($existing['linked_id'] ?? 0),
             'account_to' => (int)($existing['account_to'] ?? 0),
             'deleted' => (int)($existing['deleted'] ?? 0),
@@ -248,14 +535,17 @@ final class LedgerMovesRepository
             'INSERT INTO base_account_moves
              (ID_ACCOUNT, ID_TYPE, DIRECTION, SUMM, DESCR, DT, DT_CREATE, ID_USER_CREATE,
               UNCONFIRMED, ID_PAYMENT, ID_SUPPLIER, ID_USER_PAYMENT, ID_FUND_MOVEMENT,
+              ID_ACT2_IN, ACT2_NOT_REQ, DT_PROMISED, PROMISE_EXECUTED,
               ID_MOVEMENT_LINKED, ID_ACCOUNT_TO, DELETED)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
         );
         $st->execute([
             $data['account_id'], $data['type_id'], $data['direction'], $data['summ'],
             $data['descr'], $data['dt'], $data['dt_create'], $data['user_create'],
             $data['unconfirmed'], $data['payment_id'], $data['supplier_id'],
             $data['user_payment'], $data['fund_movement_id'],
+            (int)($data['act2_in'] ?? 0), (int)($data['act2_not_req'] ?? 0),
+            (int)($data['dt_promised'] ?? 0), (int)($data['promise_executed'] ?? 0),
             $data['linked_id'], $data['account_to'],
         ]);
         $id = (int)Database::pdo()->lastInsertId();
@@ -270,13 +560,17 @@ final class LedgerMovesRepository
             'UPDATE base_account_moves SET
              ID_ACCOUNT = ?, ID_TYPE = ?, DIRECTION = ?, SUMM = ?, DESCR = ?, DT = ?,
              UNCONFIRMED = ?, ID_PAYMENT = ?, ID_SUPPLIER = ?, ID_USER_PAYMENT = ?,
-             ID_FUND_MOVEMENT = ?, ID_USER_UPDATE = ?, DT_UPDATE = ?
+             ID_FUND_MOVEMENT = ?, ID_ACT2_IN = ?, ACT2_NOT_REQ = ?,
+             DT_PROMISED = ?, PROMISE_EXECUTED = ?,
+             ID_USER_UPDATE = ?, DT_UPDATE = ?
              WHERE ID = ? AND DELETED = 0'
         );
         $st->execute([
             $data['account_id'], $data['type_id'], $data['direction'], $data['summ'],
             $data['descr'], $data['dt'], $data['unconfirmed'], $data['payment_id'],
             $data['supplier_id'], $data['user_payment'], $data['fund_movement_id'],
+            (int)($data['act2_in'] ?? 0), (int)($data['act2_not_req'] ?? 0),
+            (int)($data['dt_promised'] ?? 0), (int)($data['promise_executed'] ?? 0),
             Auth::userId(), time(), $id,
         ]);
         LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$data['account_id']);
@@ -338,6 +632,10 @@ final class LedgerMovesRepository
                 'supplier_id' => 0,
                 'user_payment' => 0,
                 'fund_movement_id' => 0,
+                'act2_in' => 0,
+                'act2_not_req' => 0,
+                'dt_promised' => 0,
+                'promise_executed' => 0,
                 'linked_id' => 0,
                 'account_to' => $accountTo,
                 'deleted' => 0,
@@ -356,6 +654,10 @@ final class LedgerMovesRepository
                 'supplier_id' => 0,
                 'user_payment' => 0,
                 'fund_movement_id' => 0,
+                'act2_in' => 0,
+                'act2_not_req' => 0,
+                'dt_promised' => 0,
+                'promise_executed' => 0,
                 'linked_id' => $fromId,
                 'account_to' => $accountFrom,
                 'deleted' => 0,
@@ -500,6 +802,54 @@ final class LedgerMovesRepository
         return $label !== $key ? $label : (string)$dir;
     }
 
+    /**
+     * Attach receipt act (base_acts2_in) to moves that still need one (oper setAct2).
+     *
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function attachAct2In(array $ids, int $actId): array
+    {
+        $done = 0;
+        $skipped = [];
+        $actId = max(0, $actId);
+        if ($actId < 1 || !class_exists('Acts2InRepository') || !Acts2InRepository::find($actId)) {
+            throw new InvalidArgumentException(t('ledger.moves.attach_act.err.act'));
+        }
+        foreach (self::sanitizeIds($ids) as $id) {
+            $row = self::find($id);
+            if (!$row || (int)$row['deleted'] > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.not_found', ['id' => $id])];
+                continue;
+            }
+            if ((int)($row['act2_in'] ?? 0) > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.attach_act.err.already')];
+                continue;
+            }
+            if (!empty($row['act2_not_req'])) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.attach_act.err.not_req')];
+                continue;
+            }
+            $type = AccountMoveTypesRepository::find((int)$row['type_id']);
+            if (!$type || empty($type['act_in_enabled'])) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.attach_act.err.type')];
+                continue;
+            }
+            $st = Database::pdo()->prepare(
+                'UPDATE base_account_moves
+                 SET ID_ACT2_IN = ?, ID_USER_UPDATE = ?, DT_UPDATE = ?
+                 WHERE ID = ? AND DELETED = 0 AND ID_ACT2_IN = 0 AND ACT2_NOT_REQ = 0'
+            );
+            $st->execute([$actId, Auth::userId(), time(), $id]);
+            if ($st->rowCount() > 0) {
+                $done++;
+            } else {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.attach_act.err.already')];
+            }
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
     /** @param array<string,mixed>|null $existing */
     private static function assertNotLocked(int $accountId, int $dt, ?array $existing): void
     {
@@ -526,8 +876,41 @@ final class LedgerMovesRepository
         if (ctype_digit($raw)) {
             return (int)$raw;
         }
-        $ts = strtotime($raw);
+        $ts = strtotime(str_replace('T', ' ', $raw));
         return $ts !== false ? $ts : 0;
+    }
+
+    /** Promised payout day; empty / epoch → off (oper 01.01.70). */
+    private static function parsePromisedDt(string $raw): int
+    {
+        $ts = self::parseDt($raw);
+        if ($ts < 1) {
+            return 0;
+        }
+        // Treat unix epoch calendar day as "off".
+        if ((int)date('Y', $ts) <= 1970) {
+            return 0;
+        }
+        return self::dayStart($ts);
+    }
+
+    private static function dayStart(int $ts): int
+    {
+        if ($ts < 1) {
+            return 0;
+        }
+        return mktime(0, 0, 0, (int)date('n', $ts), (int)date('j', $ts), (int)date('Y', $ts)) ?: $ts;
+    }
+
+    /**
+     * List/display description without machine tags (oper freelance_payout_mask_descr).
+     * Full DESCR stays intact on edit.
+     */
+    public static function descrForList(string $descr): string
+    {
+        $descr = (string)preg_replace('/\s*\[\[PIN:\d{4}\]\]/', '', $descr);
+        $descr = (string)preg_replace('/\s*\[\[ADMIN:\d+\]\]/', '', $descr);
+        return trim($descr);
     }
 
     /** @param array<string,mixed> $row */
@@ -537,6 +920,7 @@ final class LedgerMovesRepository
             'id', 'account_id', 'type_id', 'direction', 'dt', 'dt_create', 'user_create',
             'unconfirmed', 'deleted', 'payment_id', 'supplier_id', 'user_payment',
             'linked_id', 'account_to', 'fund_movement_id', 'user_update', 'dt_update',
+            'act2_in', 'act2_not_req', 'dt_promised', 'promise_executed',
         ] as $k) {
             if (array_key_exists($k, $row)) {
                 $row[$k] = (int)$row[$k];

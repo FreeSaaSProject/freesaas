@@ -53,8 +53,9 @@ final class Health
             try {
                 if (!Database::tableExists('base_schema_migrations')) {
                     return [
-                        'status' => 'degraded',
+                        'status' => 'fail',
                         'message' => 'base_schema_migrations missing (run schema migrate)',
+                        'meta' => ['fixbook' => 'php bin/freesaas.php migrate run --format=json'],
                     ];
                 }
                 return ['status' => 'ok', 'message' => 'base_schema_migrations present'];
@@ -62,6 +63,31 @@ final class Health
                 return ['status' => 'fail', 'message' => $e->getMessage()];
             }
         }, 'Schema migrations ledger');
+
+        self::register('platform.schema_pending', 'core', static function (): array {
+            try {
+                if (!class_exists('SchemaMigrator', false)) {
+                    return ['status' => 'skipped', 'message' => 'SchemaMigrator not loaded'];
+                }
+                $setup = SchemaMigrator::setupStatus();
+                if (empty($setup['needed'])) {
+                    return [
+                        'status' => 'ok',
+                        'message' => 'schema up to date',
+                        'meta' => $setup,
+                    ];
+                }
+                return [
+                    'status' => 'fail',
+                    'message' => 'schema migrations pending: ' . (int)($setup['pending'] ?? 0),
+                    'meta' => array_merge($setup, [
+                        'fixbook' => 'POST /db action=schema or php bin/freesaas.php migrate run --format=json or POST /agent/db/migrate/run',
+                    ]),
+                ];
+            } catch (Throwable $e) {
+                return ['status' => 'fail', 'message' => $e->getMessage()];
+            }
+        }, 'Pending schema migrations');
 
         self::register('platform.config', 'core', static function (): array {
             $missing = [];

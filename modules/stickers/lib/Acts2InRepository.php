@@ -77,6 +77,77 @@ final class Acts2InRepository
     }
 
     /**
+     * Recent receipt acts for ledger move select (+ optional current id).
+     *
+     * @return array<int,string>
+     */
+    public static function optionsForSelect(int $limit = 80, int $includeId = 0): array
+    {
+        return self::buildOptions($limit, $includeId, false);
+    }
+
+    /**
+     * Oper setAct2 picker: recent acts with SUMM>0 by DT_CREATE DESC.
+     *
+     * @return array<int,string>
+     */
+    public static function optionsForAttach(int $limit = 50): array
+    {
+        return self::buildOptions($limit, 0, true);
+    }
+
+    /**
+     * @return array<int,string>
+     */
+    private static function buildOptions(int $limit, int $includeId, bool $positiveSumOnly): array
+    {
+        if (!Database::tableExists('base_acts2_in')) {
+            return [];
+        }
+        $limit = max(1, min(200, $limit));
+        $out = [];
+        $where = $positiveSumOnly ? 'WHERE SUMM > 0' : '';
+        $order = $positiveSumOnly ? 'DT_CREATE DESC, ID DESC' : 'ID DESC';
+        $rows = Database::pdo()->query(
+            "SELECT ID, DESCR, DT_CREATE, SUMM FROM base_acts2_in
+             $where ORDER BY $order LIMIT " . $limit
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $r) {
+            $id = (int)$r['ID'];
+            $out[$id] = self::optionLabel($id, (string)$r['DESCR'], (int)$r['DT_CREATE'], (float)$r['SUMM']);
+        }
+        if ($includeId > 0 && !isset($out[$includeId])) {
+            $row = self::find($includeId);
+            if ($row) {
+                $out[$includeId] = self::optionLabel(
+                    $includeId,
+                    (string)$row['descr'],
+                    (int)$row['dt_create'],
+                    (float)$row['summ']
+                );
+            } else {
+                $out[$includeId] = '#' . $includeId;
+            }
+        }
+        return $out;
+    }
+
+    private static function optionLabel(int $id, string $descr, int $dtCreate, float $summ): string
+    {
+        $dt = $dtCreate > 0 ? date('d.m.Y', $dtCreate) : '';
+        $descr = trim($descr);
+        $label = '#' . $id;
+        if ($dt !== '') {
+            $label .= ' ' . $dt;
+        }
+        if ($descr !== '') {
+            $label .= ' — ' . mb_strimwidth($descr, 0, 48, '…');
+        }
+        $label .= ' (' . number_format($summ, 2, '.', ' ') . ')';
+        return $label;
+    }
+
+    /**
      * @param array<string,mixed> $post
      * @return array<string,mixed>
      */

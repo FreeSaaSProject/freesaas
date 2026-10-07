@@ -14,6 +14,7 @@
 /** @var list<array<string,mixed>> $linkedProcedures */
 /** @var bool $staffLocked */
 
+/** @var string $bonusExtraHtml */
 $contentIds = $row['content_ids'] ?? [];
 if (!is_array($contentIds)) {
     $contentIds = EventsRepository::parseContentIds((string)($row['content'] ?? ''));
@@ -121,6 +122,10 @@ $readonly = !$canModify;
       <input type="number" min="0" step="1" name="real_summ" value="<?= e((string)(int)round((float)($row['real_summ'] ?? 0))) ?>"<?= $readonly ? ' disabled' : '' ?>>
     </label>
   </fieldset>
+
+  <?php if (!empty($bonusExtraHtml)): ?>
+    <?= $bonusExtraHtml ?>
+  <?php endif; ?>
 
   <div class="page-actions">
     <?php if ($canModify): ?>

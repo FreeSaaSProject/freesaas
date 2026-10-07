@@ -425,12 +425,12 @@ final class WorkweeksRepository
         }
         $pdo = Database::pdo();
         $joins = '';
-        $extra = 'NULL AS operator_name, 0 AS name_enabled, 0 AS assist_team, 0 AS is_hidden, NULL AS color, NULL AS color_text, 0 AS can_be_assigned_asany';
+        $extra = 'NULL AS operator_name, 0 AS ID_STATUS, 0 AS assist_team, 0 AS is_hidden, NULL AS color, NULL AS color_text, 0 AS can_be_assigned_asany';
         $order = 'w.PRICE_COL ASC, w.ID ASC';
         if (Database::tableExists('base_users')) {
             $joins = ' LEFT JOIN base_users u ON u.id = w.ID_OPERATOR';
             $extra = "COALESCE(NULLIF(u.name, ''), u.login) AS operator_name,
-                      COALESCE(u.name_enabled, 0) AS name_enabled,
+                      COALESCE(u.ID_STATUS, 0) AS ID_STATUS,
                       COALESCE(u.ASSIST_TEAM, 0) AS assist_team,
                       COALESCE(u.IS_HIDDEN, 0) AS is_hidden,
                       u.color AS color,
@@ -439,9 +439,9 @@ final class WorkweeksRepository
             if (Database::tableExists('base_admin_statuses')
                 && Database::columnExists('base_admin_statuses', 'CAN_BE_ASSIGNED_ASANY')
             ) {
-                $joins .= ' LEFT JOIN base_admin_statuses st ON st.ID = u.name_enabled';
+                $joins .= ' LEFT JOIN base_admin_statuses st ON st.ID = u.ID_STATUS';
                 $extra = "COALESCE(NULLIF(u.name, ''), u.login) AS operator_name,
-                          COALESCE(u.name_enabled, 0) AS name_enabled,
+                          COALESCE(u.ID_STATUS, 0) AS ID_STATUS,
                           COALESCE(u.ASSIST_TEAM, 0) AS assist_team,
                           COALESCE(u.IS_HIDDEN, 0) AS is_hidden,
                           u.color AS color,
@@ -455,8 +455,8 @@ final class WorkweeksRepository
             $order = "CASE
                         WHEN COALESCE(u.IS_HIDDEN, 0) > 0 THEN 4
                         WHEN COALESCE(u.ASSIST_TEAM, 0) > 0 THEN 3
-                        WHEN COALESCE($asanyExpr, 0) > 0 OR COALESCE(u.name_enabled, 0) = 2 THEN 2
-                        WHEN COALESCE(u.name_enabled, 0) = 18 THEN 1
+                        WHEN COALESCE($asanyExpr, 0) > 0 OR COALESCE(u.ID_STATUS, 0) = 2 THEN 2
+                        WHEN COALESCE(u.ID_STATUS, 0) = 18 THEN 1
                         ELSE 0
                       END ASC,
                       w.PRICE_COL ASC,
@@ -498,19 +498,19 @@ final class WorkweeksRepository
 
         if ($hasStatus) {
             $asanyCol = $hasAsany ? 'COALESCE(st.CAN_BE_ASSIGNED_ASANY, 0)' : '0';
-            $sql = "SELECT u.id, u.login, u.name, u.name_enabled, u.ASSIST_TEAM, u.IS_HIDDEN,
+            $sql = "SELECT u.id, u.login, u.name, u.ID_STATUS, u.ASSIST_TEAM, u.IS_HIDDEN,
                            u.color, u.color_text,
                            COALESCE(st.CAN_BE_ASSIGNED, 0) AS can_be_assigned,
                            $asanyCol AS can_be_assigned_asany
                     FROM base_users u
-                    LEFT JOIN base_admin_statuses st ON st.ID = u.name_enabled
+                    LEFT JOIN base_admin_statuses st ON st.ID = u.ID_STATUS
                     WHERE u.enabled = '1'
                       AND (COALESCE(st.CAN_BE_ASSIGNED, 0) > 0 OR $asanyCol > 0)
                     ORDER BY CASE
                                WHEN COALESCE(u.IS_HIDDEN, 0) > 0 THEN 4
                                WHEN COALESCE(u.ASSIST_TEAM, 0) > 0 THEN 3
-                               WHEN $asanyCol > 0 OR u.name_enabled = 2 THEN 2
-                               WHEN u.name_enabled = 18 THEN 1
+                               WHEN $asanyCol > 0 OR u.ID_STATUS = 2 THEN 2
+                               WHEN u.ID_STATUS = 18 THEN 1
                                ELSE 0
                              END ASC,
                              COALESCE(NULLIF(u.name, ''), u.login) ASC
@@ -518,7 +518,7 @@ final class WorkweeksRepository
             $rows = $pdo->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } else {
             $rows = $pdo->query(
-                "SELECT id, login, name, name_enabled, ASSIST_TEAM, IS_HIDDEN, color, color_text,
+                "SELECT id, login, name, ID_STATUS, ASSIST_TEAM, IS_HIDDEN, color, color_text,
                         1 AS can_be_assigned, 0 AS can_be_assigned_asany
                  FROM base_users WHERE enabled = '1'
                  ORDER BY COALESCE(NULLIF(name, ''), login) ASC LIMIT 500"
@@ -561,10 +561,10 @@ final class WorkweeksRepository
             && Database::columnExists('base_admin_statuses', 'CAN_BE_ASSIGNED_ASANY');
         $asanyCol = $hasAsany ? 'COALESCE(st.CAN_BE_ASSIGNED_ASANY, 0)' : '0';
         $joins = $hasAsany
-            ? ' LEFT JOIN base_admin_statuses st ON st.ID = u.name_enabled'
+            ? ' LEFT JOIN base_admin_statuses st ON st.ID = u.ID_STATUS'
             : '';
         $st = Database::pdo()->prepare(
-            "SELECT u.id, u.login, u.name, u.name_enabled, u.ASSIST_TEAM, u.IS_HIDDEN,
+            "SELECT u.id, u.login, u.name, u.ID_STATUS, u.ASSIST_TEAM, u.IS_HIDDEN,
                     u.color, u.color_text, $asanyCol AS can_be_assigned_asany
              FROM base_users u
              $joins
@@ -614,11 +614,11 @@ final class WorkweeksRepository
             return 3;
         }
         if ((int)($row['can_be_assigned_asany'] ?? 0) > 0
-            || (int)($row['name_enabled'] ?? 0) === 2
+            || (int)($row['ID_STATUS'] ?? 0) === 2
         ) {
             return 2;
         }
-        if ((int)($row['name_enabled'] ?? 0) === 18) {
+        if ((int)($row['ID_STATUS'] ?? 0) === 18) {
             return 1;
         }
         return 0;
@@ -632,7 +632,7 @@ final class WorkweeksRepository
             'is_hidden' => $row['is_hidden'] ?? 0,
             'assist_team' => $row['assist_team'] ?? 0,
             'can_be_assigned_asany' => $row['can_be_assigned_asany'] ?? 0,
-            'name_enabled' => $row['name_enabled'] ?? 0,
+            'ID_STATUS' => $row['ID_STATUS'] ?? 0,
         ]);
         return [
             'id' => (int)$row['id'],
@@ -644,7 +644,7 @@ final class WorkweeksRepository
             'id_table' => (int)$row['id_table'],
             'mas_max' => (int)$row['mas_max'],
             'operator_name' => $name,
-            'name_enabled' => (int)($row['name_enabled'] ?? 0),
+            'ID_STATUS' => (int)($row['ID_STATUS'] ?? 0),
             'assist_team' => (int)($row['assist_team'] ?? 0),
             'is_hidden' => (int)($row['is_hidden'] ?? 0),
             'can_be_assigned_asany' => (int)($row['can_be_assigned_asany'] ?? 0),

@@ -9,7 +9,7 @@
 <section class="page-head"><h1><?= te('ledger.moves.transfer_new') ?></h1></section>
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
-<form method="post" class="form-grid form-wide">
+<form method="post" class="form-grid form-wide ledger-move-form">
   <label><?= te('ledger.moves.col.type') ?>
     <select name="type_id" required>
       <?php foreach ($transferTypes as $tid => $tname): ?>
@@ -33,7 +33,9 @@
   </label>
   <label><?= te('ledger.moves.col.dt') ?><input type="datetime-local" name="dt" value="<?= e($dtValue) ?>" required></label>
   <label><?= te('ledger.moves.col.sum') ?><input name="summ" value="<?= e((string)($row['summ'] ?? '0')) ?>" required></label>
-  <label><?= te('ledger.moves.col.descr') ?><input name="descr" value="<?= e((string)($row['descr'] ?? '')) ?>"></label>
+  <label class="ledger-move-descr"><?= te('ledger.moves.col.descr') ?>
+    <textarea name="descr" rows="10"><?= e((string)($row['descr'] ?? '')) ?></textarea>
+  </label>
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="/ledger/moves"><?= te('core.common.cancel') ?></a>

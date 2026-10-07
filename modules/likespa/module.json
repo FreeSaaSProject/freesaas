@@ -1,0 +1,121 @@
+{
+    "id": "likespa",
+    "name": "likespa.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "audio_reports": ">=0.2.0",
+        "audio": ">=0.1.0",
+        "workweeks": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "payments": ">=0.1.0"
+    },
+    "provides": [
+        "likespa.term_scans",
+        "likespa.promo",
+        "likespa.dops",
+        "likespa.restores"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        { "id": "likespa.view", "label": "likespa.perm.view" },
+        { "id": "likespa.edit", "label": "likespa.perm.edit" },
+        { "id": "likespa.promo", "label": "likespa.perm.promo" },
+        { "id": "likespa.restores", "label": "likespa.perm.restores" }
+    ],
+    "routes": {
+        "pages": [
+            "/likespa/term-scans",
+            "/likespa/promo/bonus",
+            "/likespa/restores",
+            "/likespa/restores/new",
+            "/likespa/restores/{id}/edit",
+            "/likespa/settings"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "likespa.restores.list",
+                "method": "GET",
+                "path": "/likespa/restores",
+                "permission": "likespa.restores",
+                "description": "List procedure restores; filters: q"
+            },
+            {
+                "id": "likespa.restores.candidates",
+                "method": "GET",
+                "path": "/likespa/restores/new",
+                "permission": "likespa.restores",
+                "description": "Cancelled procedures eligible for restore + lookback window"
+            },
+            {
+                "id": "likespa.restores.create",
+                "method": "POST",
+                "path": "/likespa/restores/new",
+                "permission": "likespa.restores",
+                "description": "Create restore, re-enable procedure, create settlement payment (ACCOUNT=0)"
+            },
+            {
+                "id": "likespa.restores.get",
+                "method": "GET",
+                "path": "/likespa/restores/{id}/edit",
+                "permission": "likespa.restores",
+                "description": "Get one procedure restore row"
+            },
+            {
+                "id": "likespa.restores.update",
+                "method": "POST",
+                "path": "/likespa/restores/{id}/edit",
+                "permission": "likespa.restores",
+                "description": "Update restore reason/summ/sign; re-runs settlement side effects"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "likespa.menu.group",
+            "num": 10,
+            "path": "/likespa/term-scans",
+            "title": "likespa.menu.term_scans"
+        },
+        {
+            "group": "procedures.menu.group",
+            "num": 15,
+            "path": "/likespa/restores",
+            "title": "likespa.menu.restores",
+            "kind": "crud"
+        },
+        {
+            "group": "likespa.menu.group",
+            "num": 90,
+            "path": "/likespa/settings",
+            "title": "likespa.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": {},
+    "tables": [
+        "base_term_scans"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "audio_reports.calendar.cell",
+            "core.user_edit.sections",
+            "core.user_edit.save",
+            "core.user_edit.profile"
+        ],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "likespa_restores",
+            "action": "delete"
+        }
+    ]
+}

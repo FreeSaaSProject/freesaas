@@ -97,7 +97,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'type_id' => (int)($_POST['type_id'] ?? $row['type_id']),
                 'account' => (int)($_POST['account'] ?? $row['account']),
                 'comment_id' => (int)($_POST['comment_id'] ?? $row['comment_id']),
-                'is_partner' => !empty($_POST['is_partner']) ? 1 : 0,
             ]);
         }
     }
@@ -116,8 +115,14 @@ $dtValue = is_numeric($row['dt'] ?? null)
     ? date('Y-m-d\TH:i', (int)$row['dt'])
     : (string)($row['dt'] ?? '');
 
-$linkedMoves = !$isNew && PaymentsRepository::hasLinkedMoves($id);
+$ledgerEnabled = PaymentsRepository::ledgerEnabled();
+$linkedMoveIds = [];
+if (!$isNew && $ledgerEnabled && class_exists('LedgerMovesRepository')) {
+    $linkedMoveIds = LedgerMovesRepository::moveIdsForPayment($id);
+}
+$linkedMoves = $linkedMoveIds !== [];
 $showCashMarks = (int)($row['direction'] ?? 0) < 0 && (int)($row['account'] ?? 0) === 2;
+$canViewLedger = $ledgerEnabled && Auth::can('ledger.view');
 
 View::render('edit', [
     'title' => $isNew
@@ -135,9 +140,11 @@ View::render('edit', [
     'staff' => $staff,
     'typeNames' => $typeNames,
     'canSeeOthers' => $canSeeOthers,
-    'ledgerEnabled' => PaymentsRepository::ledgerEnabled(),
+    'ledgerEnabled' => $ledgerEnabled,
+    'canViewLedger' => $canViewLedger,
     'dtValue' => $dtValue,
     'linkedMoves' => $linkedMoves,
+    'linkedMoveIds' => $linkedMoveIds,
     'showCashMarks' => $showCashMarks,
     'message' => $message,
     'error' => $error,

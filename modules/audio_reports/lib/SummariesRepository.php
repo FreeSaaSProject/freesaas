@@ -27,16 +27,31 @@ final class SummariesRepository
             'score_pass_threshold' => 1.0,
             'benchmark_min_days' => 5,
             'color_thresholds' => ['red_max' => 40, 'yellow_max' => 70],
-            // Reserved for likespa-audio-reports (accepted, not executed in core)
             'external_sources' => [],
             'computed_metrics' => [],
         ];
     }
 
-    /** @return array<string,string> */
+    /**
+     * Label keys for banners/cards/tips (values empty — views use t() when blank).
+     *
+     * @return array<string,string>
+     */
     public static function defaultLabels(): array
     {
         return [
+            'banner_title' => '',
+            'banner' => '',
+            'card_volume' => '',
+            'card_score' => '',
+            'card_criteria' => '',
+            'card_scripts' => '',
+            'card_script_score' => '',
+            'card_tracking' => '',
+            'growth_criteria' => '',
+            'growth_scripts' => '',
+            'growth_score' => '',
+            // short aliases kept for older stored configs
             'volume' => '',
             'score' => '',
             'criteria' => '',
@@ -44,6 +59,28 @@ final class SummariesRepository
             'script_score' => '',
             'tracking' => '',
             'leaders' => '',
+            // tips
+            'tip_banner' => '',
+            'tip_card_volume' => '',
+            'tip_card_score' => '',
+            'tip_card_criteria' => '',
+            'tip_card_scripts' => '',
+            'tip_card_script_score' => '',
+            'tip_card_tracking' => '',
+            'tip_growth' => '',
+            'tip_detail' => '',
+            'tip_col_employee' => '',
+            'tip_col_days' => '',
+            'tip_col_hours' => '',
+            'tip_col_score' => '',
+            'tip_col_pass' => '',
+            'tip_col_scripts_sum' => '',
+            'tip_col_script' => '',
+            'tip_col_script_score' => '',
+            'tip_col_criteria' => '',
+            'tip_col_tracking' => '',
+            'tip_col_keys' => '',
+            'tip_col_external' => '',
         ];
     }
 
@@ -90,15 +127,28 @@ final class SummariesRepository
         $out['detail_show_pass'] = !empty($out['detail_show_pass']) ? 1 : 0;
         $out['detail_show_keys'] = !empty($out['detail_show_keys']) ? 1 : 0;
         $out['detail_show_script_score'] = !empty($out['detail_show_script_score']) ? 1 : 0;
+        // Back-compat: missing keys from older saves → show columns
+        if (!array_key_exists('detail_show_score', $config)) {
+            $out['detail_show_score'] = 1;
+        }
+        if (!array_key_exists('detail_show_pass', $config)) {
+            $out['detail_show_pass'] = 1;
+        }
+        if (!array_key_exists('detail_show_keys', $config)) {
+            $out['detail_show_keys'] = 1;
+        }
+        if (!array_key_exists('detail_show_script_score', $config)) {
+            $out['detail_show_script_score'] = 1;
+        }
         $out['tracking_cooldown_sec'] = isset($out['tracking_cooldown_sec']) ? max(0, (int)$out['tracking_cooldown_sec']) : 0;
         if (!isset($out['color_thresholds']) || !is_array($out['color_thresholds'])) {
             $out['color_thresholds'] = $base['color_thresholds'];
         }
-        // Keep opaque; core runner ignores them
-        $out['external_sources'] = isset($config['external_sources']) && is_array($config['external_sources'])
-            ? $config['external_sources'] : [];
-        $out['computed_metrics'] = isset($config['computed_metrics']) && is_array($config['computed_metrics'])
-            ? $config['computed_metrics'] : [];
+
+        $extSrc = $config['external_sources'] ?? ($out['external_sources'] ?? []);
+        $out['external_sources'] = SummaryExternal::normalizeSources($extSrc);
+        $calcSrc = $config['computed_metrics'] ?? ($out['computed_metrics'] ?? []);
+        $out['computed_metrics'] = SummaryComputed::normalizeMetrics($calcSrc);
 
         return $out;
     }
@@ -118,6 +168,131 @@ final class SummariesRepository
             $out[(string)$k] = (string)$v;
         }
         return $out;
+    }
+
+    /**
+     * Parse config fragment from POST/GET for work/save endpoints.
+     *
+     * @param array<string,mixed> $req
+     * @return array<string,mixed>
+     */
+    public static function parseConfigFromRequest(array $req): array
+    {
+        $cfg = self::defaultConfig();
+        if (isset($req['config']) && is_array($req['config'])) {
+            $cfg = array_merge($cfg, $req['config']);
+        } else {
+            foreach ([
+                'cards', 'criteria_type_ids', 'script_ids', 'tracking_dict_ids',
+                'detail_criteria_ids', 'detail_tracking_dict_ids', 'detail_scripts_mode',
+                'detail_show_score', 'detail_show_pass', 'detail_show_keys', 'detail_show_script_score',
+                'tracking_cooldown_sec', 'score_pass_threshold', 'benchmark_min_days', 'color_thresholds',
+            ] as $k) {
+                if (array_key_exists($k, $req)) {
+                    $cfg[$k] = $req[$k];
+                }
+            }
+        }
+        $cfg['external_sources'] = SummaryExternal::parseFromRequest($req);
+        $cfg['computed_metrics'] = SummaryComputed::parseFromRequest($req);
+        // Checkbox fields missing from POST → off when nested form present
+        if (isset($req['external_sources']) || isset($req['computed_metrics']) || isset($req['criteria_type_ids'])) {
+            foreach (['detail_show_score', 'detail_show_pass', 'detail_show_keys', 'detail_show_script_score'] as $flag) {
+                if (!array_key_exists($flag, $req) && !isset($req['config'][$flag])) {
+                    $cfg[$flag] = 0;
+                }
+            }
+        }
+        return self::normalizeConfig($cfg);
+    }
+
+    /**
+     * @param array<string,mixed> $req
+     * @return array<string,string>
+     */
+    public static function parseLabelsFromRequest(array $req): array
+    {
+        if (isset($req['labels']) && is_array($req['labels'])) {
+            return self::normalizeLabels($req['labels']);
+        }
+        $base = self::defaultLabels();
+        $out = [];
+        foreach ($base as $k => $_v) {
+            if (isset($req['label_' . $k])) {
+                $out[$k] = (string)$req['label_' . $k];
+            } elseif (isset($req[$k]) && is_string($req[$k])) {
+                $out[$k] = (string)$req[$k];
+            }
+        }
+        return self::normalizeLabels($out);
+    }
+
+    /**
+     * Position ids the current viewer may see reports for.
+     * Superadmin → empty list means "all" (see filterProfilesForViewer).
+     *
+     * @return list<int>
+     */
+    public static function viewerPositionIds(): array
+    {
+        if (!Auth::check()) {
+            return [];
+        }
+        if (Auth::capability('SUPERADMIN_ACCESS')) {
+            return []; // sentinel: unrestricted
+        }
+        $userId = Auth::userId();
+        $pos = 0;
+        if ($userId > 0 && Database::tableExists('base_users')) {
+            $st = Database::pdo()->prepare('SELECT ID_STATUS FROM base_users WHERE id = ? LIMIT 1');
+            $st->execute([$userId]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $pos = (int)$row['ID_STATUS'];
+            }
+        }
+        if ($pos <= 0) {
+            $pos = Auth::statusId();
+        }
+        if ($pos <= 0) {
+            return [];
+        }
+        return self::equivalentAudioPositions($pos);
+    }
+
+    /**
+     * @param list<array<string,mixed>> $profiles
+     * @param list<int>|null $viewerPositionIds null = resolve via viewerPositionIds()
+     * @return list<array<string,mixed>>
+     */
+    public static function filterProfilesForViewer(array $profiles, ?array $viewerPositionIds = null): array
+    {
+        if (Auth::capability('SUPERADMIN_ACCESS')) {
+            return $profiles;
+        }
+        $allowed = $viewerPositionIds !== null ? $viewerPositionIds : self::viewerPositionIds();
+        if ($allowed === []) {
+            return [];
+        }
+        $out = [];
+        foreach ($profiles as $p) {
+            if (in_array((int)($p['ID_POSITION'] ?? 0), $allowed, true)) {
+                $out[] = $p;
+            }
+        }
+        return $out;
+    }
+
+    public static function profileAllowedForViewer(array $profile): bool
+    {
+        if (Auth::capability('SUPERADMIN_ACCESS')) {
+            return true;
+        }
+        if (empty($profile['ID'])) {
+            return false;
+        }
+        $allowed = self::viewerPositionIds();
+        return in_array((int)($profile['ID_POSITION'] ?? 0), $allowed, true);
     }
 
     /** @return list<array<string,mixed>> */
@@ -266,6 +441,73 @@ final class SummariesRepository
         Database::pdo()->prepare(
             'UPDATE base_records_summarys SET IS_DEFAULT = 0 WHERE ID <> ?'
         )->execute([$keepId]);
+    }
+
+    /**
+     * Positions equivalent via base_admin_statuses.ID_AUDIO_POSITION (audio pipeline parity).
+     *
+     * @return list<int>
+     */
+    private static function equivalentAudioPositions(int $positionId): array
+    {
+        if ($positionId <= 0) {
+            return [];
+        }
+        $statuses = [];
+        if (Database::tableExists('base_admin_statuses')) {
+            $cols = Database::columnExists('base_admin_statuses', 'ID_AUDIO_POSITION')
+                ? 'ID, ID_AUDIO_POSITION' : 'ID';
+            $st = Database::pdo()->query('SELECT ' . $cols . ' FROM base_admin_statuses');
+            if ($st) {
+                while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                    $statuses[(int)$row['ID']] = [
+                        'ID_AUDIO_POSITION' => (int)($row['ID_AUDIO_POSITION'] ?? 0),
+                    ];
+                }
+            }
+        }
+        return self::walkEquivalentPositions($positionId, $statuses);
+    }
+
+    /**
+     * @param array<int, array{ID_AUDIO_POSITION:int}> $statuses
+     * @param list<int> $visited
+     * @return list<int>
+     */
+    private static function walkEquivalentPositions(int $positionId, array $statuses, array $visited = []): array
+    {
+        static $cache = [];
+        if (isset($cache[$positionId])) {
+            return $cache[$positionId];
+        }
+        if ($positionId <= 0) {
+            $cache[$positionId] = [];
+            return [];
+        }
+        if (in_array($positionId, $visited, true)) {
+            $cache[$positionId] = [$positionId];
+            return [$positionId];
+        }
+        $result = [$positionId];
+        $visited[] = $positionId;
+        $audioPositionId = (int)($statuses[$positionId]['ID_AUDIO_POSITION'] ?? 0);
+        if ($audioPositionId > 0 && $audioPositionId !== $positionId) {
+            $result = array_unique(array_merge(
+                $result,
+                self::walkEquivalentPositions($audioPositionId, $statuses, $visited)
+            ));
+        }
+        foreach ($statuses as $otherId => $otherData) {
+            $otherAudio = (int)($otherData['ID_AUDIO_POSITION'] ?? 0);
+            if ($otherAudio === $positionId && (int)$otherId !== $positionId) {
+                $result = array_unique(array_merge(
+                    $result,
+                    self::walkEquivalentPositions((int)$otherId, $statuses, $visited)
+                ));
+            }
+        }
+        $cache[$positionId] = array_values(array_map('intval', $result));
+        return $cache[$positionId];
     }
 
     /** @return array<string,mixed> */

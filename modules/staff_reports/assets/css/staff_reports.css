@@ -1,0 +1,22 @@
+.sr-cal-reward {
+  display: inline-block;
+  margin-left: 0.25rem;
+  font-size: 0.85em;
+  line-height: 1;
+}
+.sr-cal-reward-link {
+  text-decoration: none;
+}
+.sr-cal-reward.is-ok .sr-cal-reward-link {
+  filter: none;
+}
+.sr-settings fieldset {
+  margin-top: 1rem;
+}
+.sr-settings .form-row-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 0.4rem 0;
+}

@@ -13,8 +13,13 @@ $htmlLang = I18n::locale();
 $notices = [];
 if (Auth::check()) {
     $tNotices = microtime(true);
-    $notices = EventBus::emit('core.notices.collect', []);
-    if (!is_array($notices)) {
+    try {
+        $notices = EventBus::emit('core.notices.collect', []);
+        if (!is_array($notices)) {
+            $notices = [];
+        }
+    } catch (Throwable $e) {
+        error_log('[layout notices] ' . $e->getMessage());
         $notices = [];
     }
     if (class_exists('StageTiming', false)) {
@@ -42,18 +47,30 @@ $jsI18n = I18n::jsDict([
     'core.layout.nav_loading',
     'core.layout.close_menu',
     'core.layout.menu_expand_close',
+    'core.date.btn_prev',
+    'core.date.btn_next',
+    'core.date.btn_today',
+    'core.date.btn_now',
+    'core.date.day_prev',
+    'core.date.day_next',
+    'core.date.set_today',
+    'core.date.set_now',
 ]);
 
 $layoutGate = ['blocked' => false, 'html' => '', 'chrome' => '', 'js_i18n' => []];
 if (Auth::check()) {
-    $gatePayload = EventBus::emit('core.layout.gate', $layoutGate);
-    if (is_array($gatePayload)) {
-        $layoutGate = array_merge($layoutGate, $gatePayload);
-    }
-    if (!empty($layoutGate['js_i18n']) && is_array($layoutGate['js_i18n'])) {
-        foreach ($layoutGate['js_i18n'] as $k => $v) {
-            $jsI18n[(string)$k] = (string)$v;
+    try {
+        $gatePayload = EventBus::emit('core.layout.gate', $layoutGate);
+        if (is_array($gatePayload)) {
+            $layoutGate = array_merge($layoutGate, $gatePayload);
         }
+        if (!empty($layoutGate['js_i18n']) && is_array($layoutGate['js_i18n'])) {
+            foreach ($layoutGate['js_i18n'] as $k => $v) {
+                $jsI18n[(string)$k] = (string)$v;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('[layout gate] ' . $e->getMessage());
     }
 }
 $gateBlocked = !empty($layoutGate['blocked']);
@@ -62,6 +79,21 @@ $gateHtml = (string)($layoutGate['html'] ?? '');
 $gateChrome = (string)($layoutGate['chrome'] ?? '');
 if ($gateChrome === '') {
     $gateChrome = (string)($layoutGate['topbar'] ?? '');
+}
+
+$schemaSetup = ['needed' => false, 'pending' => 0, 'legacy_users' => false, 'ledger' => true];
+if (Auth::check() && class_exists('SchemaMigrator', false)) {
+    try {
+        $schemaSetup = SchemaMigrator::setupStatus();
+    } catch (Throwable $e) {
+        $schemaSetup['needed'] = true;
+    }
+    if (!empty($schemaSetup['needed']) && !SchemaMigrator::isSetupRouteAllowed($path)) {
+        $gateBlocked = true;
+        $gateHtml = View::capture('schema_setup_gate', [
+            'pending' => (int)($schemaSetup['pending'] ?? 0),
+        ], 'core');
+    }
 }
 ?>
 <!DOCTYPE html>

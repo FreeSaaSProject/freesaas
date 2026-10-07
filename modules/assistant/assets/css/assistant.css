@@ -1,0 +1,74 @@
+.assistant-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 52rem;
+}
+
+.assistant-chat__log {
+  min-height: 16rem;
+  max-height: 28rem;
+  overflow: auto;
+  border: 1px solid var(--border, #ccc);
+  padding: 0.75rem 1rem;
+  background: var(--surface, #fafafa);
+}
+
+.assistant-chat__msg {
+  margin: 0 0 0.85rem;
+}
+
+.assistant-chat__msg .assistant-chat__who {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-bottom: 0.15rem;
+}
+
+.assistant-chat__msg pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0;
+  font: inherit;
+}
+
+.assistant-chat__pending {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.assistant-chat__form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.assistant-chat__form textarea {
+  flex: 1;
+  min-height: 3rem;
+  resize: vertical;
+}
+
+.assistant-tools {
+  margin-top: 1.25rem;
+  max-width: 52rem;
+}
+
+.assistant-tools ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}

@@ -267,32 +267,6 @@
     bindTimeHighlight(card);
   }
 
-  function bindShiftSelect() {
-    document.querySelectorAll('[data-bulk-form]').forEach(function (form) {
-      var last = null;
-      form.addEventListener('click', function (e) {
-        var t = e.target;
-        if (!t || !t.getAttribute || t.getAttribute('data-bulk-id') === null) return;
-        if (!e.shiftKey || !last) {
-          last = t;
-          return;
-        }
-        var boxes = Array.prototype.slice.call(form.querySelectorAll('[data-bulk-id]'));
-        var a = boxes.indexOf(last);
-        var b = boxes.indexOf(t);
-        if (a < 0 || b < 0) return;
-        var from = Math.min(a, b);
-        var to = Math.max(a, b);
-        var on = t.checked;
-        for (var i = from; i <= to; i++) {
-          boxes[i].checked = on;
-        }
-        last = t;
-        form.dispatchEvent(new Event('change', { bubbles: true }));
-      });
-    });
-  }
-
   function applyBlock(slot, block) {
     var L = labels();
     var card = slot.closest('tr');
@@ -430,7 +404,6 @@
       var kolonka = card.querySelector('.kolonka, .transcript');
       if (kolonka) bindCardTranscript(card, kolonka);
     });
-    bindShiftSelect();
     bindLazyTranscripts();
   });
 })();

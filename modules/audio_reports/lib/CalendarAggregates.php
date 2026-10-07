@@ -39,7 +39,7 @@ final class CalendarAggregates
             . ' FROM base_records r';
         $params = [];
         if ($positionFilter > 0 && Database::tableExists('base_users')) {
-            $sql .= ' INNER JOIN base_users u ON u.id = r.ID_ADMIN AND u.name_enabled = ?';
+            $sql .= ' INNER JOIN base_users u ON u.id = r.ID_ADMIN AND u.ID_STATUS = ?';
             $params[] = $positionFilter;
         }
         $sql .= ' WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
@@ -165,7 +165,7 @@ final class CalendarAggregates
             $params[] = $badgeFilter;
         }
         if ($positionFilter > 0 && Database::tableExists('base_users')) {
-            $sql .= ' INNER JOIN base_users u ON u.id = i.ID_ADMIN AND u.name_enabled = ?';
+            $sql .= ' INNER JOIN base_users u ON u.id = i.ID_ADMIN AND u.ID_STATUS = ?';
             $params[] = $positionFilter;
         }
         $sql .= " WHERE i.DT_START >= ? AND i.DT_START <= ?
@@ -257,7 +257,7 @@ final class CalendarAggregates
                 FROM base_records_collections c';
         $params = [];
         if ($positionFilter > 0 && Database::tableExists('base_users')) {
-            $sql .= ' INNER JOIN base_users u ON u.id = c.ID_ADMIN AND u.name_enabled = ?';
+            $sql .= ' INNER JOIN base_users u ON u.id = c.ID_ADMIN AND u.ID_STATUS = ?';
             $params[] = $positionFilter;
         }
         $sql .= ' WHERE c.DT_START >= ? AND c.DT_START <= ? AND c.ID_ADMIN > 0 AND c.ID_SCRIPT > 0';
@@ -487,7 +487,7 @@ final class CalendarAggregates
         $opMeta = [];
         foreach (array_chunk($opList, 200) as $chunk) {
             $in = implode(',', $chunk);
-            $cols = 'id, name_enabled';
+            $cols = 'id, ID_STATUS';
             if (Database::columnExists('base_users', 'AUDIO_ANALYTICS_ENABLED')) {
                 $cols .= ', AUDIO_ANALYTICS_ENABLED';
             }
@@ -499,7 +499,7 @@ final class CalendarAggregates
                 $id = (int)$u['id'];
                 $opMeta[$id] = [
                     'analytics' => !empty($u['AUDIO_ANALYTICS_ENABLED']),
-                    'position_id' => (int)($u['name_enabled'] ?? 0),
+                    'position_id' => (int)($u['ID_STATUS'] ?? 0),
                 ];
             }
         }

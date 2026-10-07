@@ -1,0 +1,246 @@
+/* Compact ledger moves table */
+.table-wrap .data th,
+.table-wrap .data td {
+  padding: 0.22rem 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.table-wrap .data .money-signed {
+  font-size: 0.82rem;
+}
+
+.ledger-unconfirmed {
+  color: var(--danger, #c0392b);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ledger-payment-link {
+  margin-left: 0.35rem;
+  color: var(--accent-2, #0284c7);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.ledger-payment-link:hover {
+  color: var(--accent, #0d9488);
+}
+
+.ledger-account-balance {
+  margin: 0.5rem 0 0.75rem;
+  font-size: 0.92rem;
+}
+
+.ledger-recon {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.ledger-recon-line {
+  margin-bottom: 0.25rem;
+}
+
+.ledger-recon-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0.15rem 0.5rem 0.15rem 0;
+}
+
+.ledger-recon-form input[name="bank_balance"] {
+  width: 7.5rem;
+}
+
+.ledger-recon-delta-ok {
+  font-weight: 700;
+  color: var(--success, #1e7e34);
+}
+
+.ledger-recon-delta-bad {
+  color: var(--danger, #c0392b);
+  font-weight: 600;
+}
+
+.ledger-recon-warn {
+  color: var(--danger, #c0392b);
+  margin: 0.15rem 0 0.35rem;
+}
+
+.ledger-move-form {
+  max-width: 52rem;
+}
+
+.ledger-move-form .ledger-move-descr textarea {
+  min-height: 11rem;
+  resize: vertical;
+  line-height: 1.45;
+  font-family: inherit;
+}
+
+.ledger-balance-cell {
+  min-width: 11rem;
+  vertical-align: top;
+}
+
+.ledger-balance-num {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.ledger-move-form [data-ledger-field][hidden],
+.ledger-move-form [data-ledger-save][hidden],
+.ledger-move-form [data-ledger-type-hint][hidden],
+.ledger-move-form [data-ledger-promised-executed][hidden] {
+  display: none !important;
+}
+
+.ledger-promised-field {
+  border: 1px solid var(--line, #ddd);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  margin: 0;
+  grid-column: 1 / -1;
+}
+
+.ledger-promised-field legend {
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+.ledger-promised {
+  margin-top: 0.25rem;
+  color: #a33;
+}
+
+.ledger-promised.is-done {
+  color: inherit;
+}
+
+.ledger-promised-ok {
+  color: #1e7e34;
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+.ledger-promised-bad {
+  color: #c0392b;
+  font-weight: 700;
+  margin-left: 0.25rem;
+}
+
+.ledger-dir-field {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.ledger-dir-field legend {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+.ledger-dir-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+
+.ledger-dir-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 400;
+}
+
+.ledger-prev-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.ledger-prev-btns .btn-secondary {
+  font: inherit;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+}
+
+.ledger-dates-th {
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.ledger-dates-th-title {
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.ledger-dates-th-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.55rem;
+  font-weight: 400;
+}
+
+.ledger-date-sort {
+  text-decoration: none;
+}
+
+.ledger-date-sort.is-active {
+  font-weight: 700;
+}
+
+.ledger-dates-cell {
+  white-space: nowrap;
+  vertical-align: top;
+  line-height: 1.35;
+}
+
+.ledger-date-line {
+  margin: 0 0 0.1rem;
+}
+
+.ledger-date-line .user-badge {
+  margin-left: 0.2rem;
+  font-size: 0.78em;
+}
+
+.ledger-user-pay {
+  margin-top: 0.2rem;
+}
+
+.ledger-act-missing {
+  margin-top: 0.25rem;
+  color: #8b5a00;
+}
+
+.ledger-act-missing strong {
+  font-weight: 700;
+  margin-right: 0.35rem;
+}
+
+.ledger-act-line {
+  margin-top: 0.2rem;
+}
+
+.ledger-attach-moves {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.25rem;
+}
+
+.ledger-user-pay .user-badge {
+  font-size: 0.85em;
+}
+
+/* Hide number spinners on payment/fund text fields used as numeric */
+.ledger-move-form input[inputmode="numeric"]::-webkit-outer-spin-button,
+.ledger-move-form input[inputmode="numeric"]::-webkit-inner-spin-button,
+.filters input[inputmode="numeric"]::-webkit-outer-spin-button,
+.filters input[inputmode="numeric"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}

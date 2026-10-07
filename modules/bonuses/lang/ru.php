@@ -1,0 +1,73 @@
+<?php
+declare(strict_types=1);
+
+return [
+    'bonuses.module.name' => 'Бонусы клиентов',
+    'bonuses.menu.list' => 'Бонусы',
+    'bonuses.perm.view' => 'Бонусы (просмотр)',
+    'bonuses.perm.edit' => 'Бонусы (редактирование)',
+    'bonuses.perm.apply' => 'Бонусы (начисление на событии)',
+
+    'bonuses.list.search_placeholder' => 'Поиск: описание, id, id клиента',
+    'bonuses.list.empty' => 'Движений не найдено',
+    'bonuses.list.filter_client' => 'ID клиента',
+    'bonuses.list.filter_direction' => 'Направление',
+    'bonuses.list.dir_all' => 'Все',
+    'bonuses.list.dir_in' => 'Начисление',
+    'bonuses.list.dir_out' => 'Списание',
+
+    'bonuses.col.id' => 'ID',
+    'bonuses.col.client' => 'Клиент',
+    'bonuses.col.date_in' => 'С',
+    'bonuses.col.date_out' => 'До',
+    'bonuses.col.descr' => 'Описание',
+    'bonuses.col.direction' => 'Направление',
+    'bonuses.col.sum' => 'Сумма',
+    'bonuses.col.event_bonus' => 'Событие начисления',
+    'bonuses.col.event_discount' => 'Событие списания',
+    'bonuses.col.dismissed' => 'Списан',
+
+    'bonuses.dir.credit' => 'Начисление',
+    'bonuses.dir.debit' => 'Списание',
+    'bonuses.dir.none' => 'Нет',
+
+    'bonuses.edit.title_new' => 'Новое движение бонусов',
+    'bonuses.edit.title' => 'Бонус #{id}',
+    'bonuses.edit.heading_new' => 'Новое движение бонусов',
+    'bonuses.edit.sec_main' => 'Движение',
+
+    'bonuses.client.title' => 'Бонусы: {name}',
+    'bonuses.client.balance' => 'Баланс',
+    'bonuses.client.history' => 'История',
+    'bonuses.client.open_client' => 'Карточка клиента',
+    'bonuses.client.not_found' => 'Клиент #{id} не найден',
+
+    'bonuses.event.sec' => 'Бонусы клиента',
+    'bonuses.event.balance' => 'Баланс: {n}',
+    'bonuses.event.use' => 'Списать бонусы на событие',
+    'bonuses.event.discount' => 'Бонусная скидка (₽)',
+    'bonuses.event.discount_hint' => 'Обычно весь баланс клиента. Фактически применяется кнопкой «Применить бонусы».',
+    'bonuses.event.quote_spend' => 'К списанию: {n}',
+    'bonuses.event.quote_accrue' => 'К начислению: {n}',
+    'bonuses.event.quote_pay' => 'К оплате после бонусов: {n}',
+    'bonuses.event.applied' => 'Бонусы по событию уже применены',
+    'bonuses.event.apply' => 'Применить бонусы',
+    'bonuses.event.apply_hint' => 'Сначала сохраните событие, затем примените. Создаются записи в журнале и обновляются скидка / сумма к оплате.',
+    'bonuses.event.need_client' => 'Укажите клиента, чтобы работать с бонусами',
+    'bonuses.event.no_capability' => 'Нет права EVT_BONUS',
+
+    'bonuses.flash.applied' => 'Бонусы применены: списано {spend}, начислено {accrue}',
+    'bonuses.flash.created' => 'Движение создано',
+    'bonuses.flash.deleted' => 'Удалено',
+
+    'bonuses.err.not_found' => 'Движение #{id} не найдено',
+    'bonuses.err.client_required' => 'Укажите клиента',
+    'bonuses.err.sum_required' => 'Сумма должна быть больше нуля',
+    'bonuses.err.direction' => 'Выберите начисление или списание',
+    'bonuses.err.event_not_found' => 'Событие #{id} не найдено',
+    'bonuses.err.already_applied' => 'Бонусы по этому событию уже применены',
+    'bonuses.err.no_client' => 'У события нет клиента',
+    'bonuses.err.forbidden' => 'Нет доступа',
+    'bonuses.err.apply_failed' => 'Не удалось применить бонусы',
+    'bonuses.err.table' => 'Таблица бонусного журнала отсутствует',
+];

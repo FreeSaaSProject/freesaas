@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/ClientsRepository.php';
 require_once __DIR__ . '/lib/ClientStatusesRepository.php';
 require_once __DIR__ . '/lib/ClientTagsRepository.php';
+require_once __DIR__ . '/lib/ClientBotPlugin.php';
 
 ModuleManager::registerMenuGroup('clients.menu.group', 40, '/clients');
 
@@ -163,3 +164,5 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
     ];
     return $widgets;
 });
+
+ClientBotPlugin::register();
