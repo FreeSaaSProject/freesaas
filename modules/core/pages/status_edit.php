@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once base_path('modules/core/lib/StatusesRepository.php');
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
@@ -10,6 +12,9 @@ $row = [];
 if (!$isNew) {
     $found = StatusesRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('core.status_edit.err.not_found', ['id' => $id]), 404);
+        }
         http_response_code(404);
         View::render('error', ['title' => t('core.common.not_found'), 'message' => t('core.status_edit.err.not_found', ['id' => $id])]);
         return;
@@ -27,22 +32,51 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $data = StatusesRepository::dataFromPost($_POST);
         if ($isNew) {
             $newId = StatusesRepository::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $newId,
+                    'saved' => true,
+                    'item' => StatusesRepository::find($newId),
+                ]);
+            }
             redirect('/statuses/' . $newId . '/edit?saved=1');
             return;
         }
         StatusesRepository::update($id, $data);
-        $message = t('core.common.saved');
         $row = StatusesRepository::find($id) ?: $row;
         if (Auth::statusId() === $id) {
             Auth::setStatusContext($id, Auth::statusId2());
         }
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'saved' => true,
+                'item' => $row,
+            ]);
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+        }
         $error = $e->getMessage();
     }
 }
 
 if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'is_new' => $isNew,
+        'item' => $row ?: null,
+        'groups' => $groups,
+        'audio_options' => $audioOptions,
+    ]);
 }
 
 View::render('status_edit', [

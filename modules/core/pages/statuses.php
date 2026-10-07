@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once base_path('modules/core/lib/StatusesRepository.php');
 
+$wantsJson = AgentHttp::wantsJson();
+
 $lq = ListQuery::resolve([
     'allowed' => StatusesRepository::listSortMap(),
     'default' => 'id',
@@ -11,6 +13,16 @@ $lq = ListQuery::resolve([
 ]);
 
 $items = StatusesRepository::listAll(['order' => $lq['order_sql']]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'items' => $items,
+        'total' => count($items),
+        'sort' => $lq['sort'],
+        'dir' => $lq['dir'],
+    ]);
+}
 
 View::render('statuses', [
     'title' => t('core.statuses.title'),

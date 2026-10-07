@@ -264,11 +264,17 @@ final class UsersRepository
             $params[] = $enabled;
         }
         if ($q !== '') {
-            $where[] = '(login LIKE ? OR name LIKE ? OR mail LIKE ?)';
+            $where[] = '(login LIKE ? OR name LIKE ? OR mail LIKE ? OR tel LIKE ?)';
             $like = '%' . $q . '%';
             $params[] = $like;
             $params[] = $like;
             $params[] = $like;
+            $params[] = $like;
+        }
+        $statusId = (int)($opts['status_id'] ?? 0);
+        if ($statusId > 0 && Database::columnExists('base_users', 'ID_STATUS')) {
+            $where[] = 'ID_STATUS = ?';
+            $params[] = $statusId;
         }
         $sqlWhere = implode(' AND ', $where);
         $pdo = Database::pdo();
@@ -721,17 +727,33 @@ final class UsersRepository
         $add('password', Auth::hashPassword($password));
         $add('name', trim((string)($data['name'] ?? $login)));
         $add('mail', trim((string)($data['mail'] ?? '')));
+        $add('tel', trim((string)($data['tel'] ?? '')));
         $add('enabled', (string)($data['enabled'] ?? '1'));
         $add('ID_STATUS', (int)($data['ID_STATUS'] ?? 0));
+        if (isset($data['ID_STATUS2'])) {
+            $add('ID_STATUS2', (int)$data['ID_STATUS2']);
+        }
         $add('content', (string)($data['content'] ?? ''));
         $add('status', (string)($data['status_blob'] ?? serialize(['permissions' => []])));
-        $add('skin', '');
+        $add('skin', (string)($data['skin'] ?? ''));
         $add('skin_enabled', '0');
-        $add('color', '');
-        $add('color_text', '');
+        $add('color', trim((string)($data['color'] ?? '')));
+        $add('color_text', trim((string)($data['color_text'] ?? '')));
         $add('url', '');
         $add('retries', 0);
         $add('expire', 0);
+        if (isset($data['num'])) {
+            $add('num', max(0, (int)$data['num']));
+        }
+        if (isset($data['ASSIST_TEAM'])) {
+            $add('ASSIST_TEAM', !empty($data['ASSIST_TEAM']) ? 1 : 0);
+        }
+        if (isset($data['NOT_IN_TEAM'])) {
+            $add('NOT_IN_TEAM', !empty($data['NOT_IN_TEAM']) ? 1 : 0);
+        }
+        if (isset($data['IS_HIDDEN'])) {
+            $add('IS_HIDDEN', !empty($data['IS_HIDDEN']) ? 1 : 0);
+        }
         if (!empty($data['locale']) && Database::columnExists('base_users', 'locale')) {
             $add('locale', (string)$data['locale']);
         }
@@ -742,5 +764,50 @@ final class UsersRepository
         $sql = 'INSERT INTO base_users (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ')';
         Database::pdo()->prepare($sql)->execute($params);
         return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
+     * Agent-safe user row (password omitted).
+     *
+     * @param array<string,mixed>|null $row
+     * @return array<string,mixed>|null
+     */
+    public static function forAgent(?array $row, bool $withPermissions = false): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+        $out = $row;
+        unset($out['password'], $out['PASSWORD']);
+        if (array_key_exists('status', $out) || array_key_exists('STATUS', $out)) {
+            $raw = $out['status'] ?? $out['STATUS'] ?? null;
+            if ($withPermissions) {
+                $out['permissions'] = self::decodePermissions($raw);
+            }
+            unset($out['status'], $out['STATUS']);
+        }
+        $out['id'] = (int)($out['id'] ?? $out['ID'] ?? 0);
+        $out['status_id'] = (int)($out['ID_STATUS'] ?? $out['status_id'] ?? 0);
+        $out['status2_id'] = (int)($out['ID_STATUS2'] ?? $out['status2_id'] ?? 0);
+        $names = self::statusNames();
+        $out['status_name'] = $names[$out['status_id']] ?? '';
+        $out['status2_name'] = $out['status2_id'] > 0 ? ($names[$out['status2_id']] ?? '') : '';
+        return $out;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function listForAgent(array $items): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            $item = self::forAgent($row, false);
+            if ($item !== null) {
+                $out[] = $item;
+            }
+        }
+        return $out;
     }
 }

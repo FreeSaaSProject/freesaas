@@ -20,6 +20,9 @@ $colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
 ?>
 <section class="page-head">
   <p class="lede"><?= t('core.users.lede', ['total' => (int)$total]) ?></p>
+  <?php if (Auth::can('core.users')): ?>
+  <p><a class="btn" href="<?= e(NavContext::withReturn('/users/new')) ?>"><?= te('core.users.add') ?></a></p>
+  <?php endif; ?>
 </section>
 
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>

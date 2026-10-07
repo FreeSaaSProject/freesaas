@@ -3,9 +3,14 @@ declare(strict_types=1);
 
 require_once base_path('modules/core/lib/UsersRepository.php');
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $user = UsersRepository::findForEdit($id);
 if (!$user) {
+    if ($wantsJson) {
+        AgentHttp::error(t('core.user.err.not_found', ['id' => $id]), 404);
+    }
     http_response_code(404);
     View::render('error', ['title' => t('core.common.not_found'), 'message' => t('core.user.err.not_found', ['id' => $id])]);
     return;
@@ -19,6 +24,16 @@ if ($s2 > 0) {
 }
 
 $displayName = (string)($user['name'] ?: $user['login']);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'item' => UsersRepository::forAgent($user, true),
+        'status_name' => $statusName,
+        'partner_status_name' => $partnerStatusName,
+        'favorites_count' => count(UsersRepository::favoriteIds($id)),
+    ]);
+}
 
 $profile = EventBus::emit('core.user_edit.profile', [
     'html_channels' => '',

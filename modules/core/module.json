@@ -57,6 +57,7 @@
             "/modules",
             "/db",
             "/users",
+            "/users/new",
             "/users/{id}",
             "/users/{id}/edit",
             "/statuses",
@@ -98,39 +99,136 @@
     "agent": {
         "ops": [
             {
+                "id": "core.users.list",
+                "method": "GET",
+                "path": "/users",
+                "permission": "core.users",
+                "description": "List staff users; filters: q, enabled, status_id",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": { "type": "string" },
+                        "enabled": { "type": "string", "description": "1 active, 0 disabled, empty=all" },
+                        "status_id": { "type": "integer", "description": "Filter by role ID_STATUS" }
+                    }
+                }
+            },
+            {
+                "id": "core.users.get",
+                "method": "GET",
+                "path": "/users/{id}",
+                "permission": "core.users",
+                "description": "Staff card with permissions map (password omitted)"
+            },
+            {
+                "id": "core.users.get_edit",
+                "method": "GET",
+                "path": "/users/{id}/edit",
+                "permission": "core.users",
+                "description": "Edit payload + permission_groups, admin_statuses, partner_statuses; optional copyFrom=userId"
+            },
+            {
+                "id": "core.users.create",
+                "method": "POST",
+                "path": "/users/new",
+                "permission": "core.users",
+                "side_effect": "write",
+                "description": "Create staff user; copyFrom=template userId to clone role/flags/permissions. Required: login, password. Fields: name, mail, tel, ID_STATUS, ID_STATUS2, enabled, permissions[key]=1, NOT_IN_TEAM, ASSIST_TEAM, product module POST keys via EventBus",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "login": { "type": "string" },
+                        "password": { "type": "string" },
+                        "name": { "type": "string" },
+                        "mail": { "type": "string" },
+                        "tel": { "type": "string" },
+                        "ID_STATUS": { "type": "integer" },
+                        "ID_STATUS2": { "type": "integer" },
+                        "enabled": { "type": "string" },
+                        "copyFrom": { "type": "integer", "description": "Template staff user id for permissions/role prefills" },
+                        "NOT_IN_TEAM": { "type": "string" },
+                        "ASSIST_TEAM": { "type": "string" }
+                    },
+                    "required": ["login", "password"]
+                }
+            },
+            {
+                "id": "core.users.update",
+                "method": "POST",
+                "path": "/users/{id}/edit",
+                "permission": "core.users",
+                "side_effect": "write",
+                "description": "Update staff user; permissions[key]=1/0; empty password keeps previous"
+            },
+            {
+                "id": "core.statuses.list",
+                "method": "GET",
+                "path": "/statuses",
+                "permission": "core.statuses",
+                "description": "List staff roles (base_admin_statuses) with capability flags"
+            },
+            {
+                "id": "core.statuses.get",
+                "method": "GET",
+                "path": "/statuses/{id}/edit",
+                "permission": "core.statuses",
+                "description": "One role + editable field groups"
+            },
+            {
+                "id": "core.statuses.create",
+                "method": "POST",
+                "path": "/statuses/new",
+                "permission": "core.statuses",
+                "side_effect": "write",
+                "description": "Create staff role/status"
+            },
+            {
+                "id": "core.statuses.update",
+                "method": "POST",
+                "path": "/statuses/{id}/edit",
+                "permission": "core.statuses",
+                "side_effect": "write",
+                "description": "Update staff role/status flags"
+            },
+            {
                 "id": "core.db.status",
                 "method": "GET",
                 "path": "/db",
                 "permission": "core.db",
-                "description": "DB hub status: schema setup, owned tables, dumps (?format=json)"
+                "description": "DB hub status: schema setup, owned tables, dumps (?format=json)",
+                "assistant": false
             },
             {
                 "id": "core.db.run_schema",
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
-                "description": "Apply all pending schema migrations (POST action=schema&format=json)"
+                "description": "Apply all pending schema migrations (POST action=schema&format=json)",
+                "assistant": false
             },
             {
                 "id": "core.db.run_data",
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
-                "description": "Run data migrators replace mode (POST action=data&format=json; optional)"
+                "description": "Run data migrators replace mode (POST action=data&format=json; optional)",
+                "assistant": false
             },
             {
                 "id": "core.db.dump",
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
-                "description": "Dump owned tables (POST action=db_dump&format=json)"
+                "description": "Dump owned tables (POST action=db_dump&format=json)",
+                "assistant": false
             },
             {
                 "id": "core.db.restore",
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
-                "description": "Restore dump file (POST action=db_restore&file=…&format=json; owned allow-list in normal mode)"
+                "description": "Restore dump file (POST action=db_restore&file=…&format=json; owned allow-list in normal mode)",
+                "assistant": false
             }
         ]
     },

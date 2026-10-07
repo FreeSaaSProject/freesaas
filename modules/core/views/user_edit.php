@@ -1,5 +1,6 @@
 <?php
 /** @var array $user */
+/** @var bool $isNew */
 /** @var string $message */
 /** @var string $error */
 /** @var bool $isSuper */
@@ -13,17 +14,18 @@
 /** @var string $extraHtml */
 /** @var string $extraAccessHtml */
 
-$uid = (int)$user['id'];
+$isNew = !empty($isNew);
+$uid = (int)($user['id'] ?? 0);
 $extraHtml = (string)($extraHtml ?? '');
 $extraAccessHtml = (string)($extraAccessHtml ?? '');
 $color = trim((string)($user['color'] ?? ''));
-if ($color === '' || $color[0] !== '#') {
+if ($color === '' || ($color[0] ?? '') !== '#') {
     $colorHex = '#64748b';
 } else {
     $colorHex = substr($color, 0, 7);
 }
 $colorText = trim((string)($user['color_text'] ?? ''));
-if ($colorText === '' || $colorText[0] !== '#') {
+if ($colorText === '' || ($colorText[0] ?? '') !== '#') {
     $colorTextHex = '#000000';
 } else {
     $colorTextHex = substr($colorText, 0, 7);
@@ -41,8 +43,10 @@ if ($newsAfterTs > 0) {
 }
 ?>
 <section class="page-head">
-  <h1><?= te('core.user_edit.heading') ?></h1>
+  <h1><?= $isNew ? te('core.user_edit.title_new') : te('core.user_edit.heading') ?></h1>
+  <?php if (!$isNew): ?>
   <p class="lede"><code><?= e((string)$user['login']) ?></code></p>
+  <?php endif; ?>
 </section>
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
@@ -51,8 +55,14 @@ if ($newsAfterTs > 0) {
 <form method="post" class="form-grid form-wide user-edit-form" id="user-edit-form">
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_personal') ?></h2>
+  <?php if ($isNew): ?>
+  <label><?= te('core.user_edit.login') ?>
+    <input name="login" required value="<?= e((string)($user['login'] ?? '')) ?>" autocomplete="username">
+  </label>
+  <p class="form-hint"><?= te('core.user_edit.login_hint') ?></p>
+  <?php endif; ?>
   <label><?= te('core.user_edit.full_name') ?>
-    <input name="name" value="<?= e((string)$user['name']) ?>">
+    <input name="name" value="<?= e((string)($user['name'] ?? '')) ?>">
   </label>
   <label><?= te('core.user_edit.email') ?>
     <input name="mail" type="email" value="<?= e((string)$user['mail']) ?>">
@@ -74,14 +84,15 @@ if ($newsAfterTs > 0) {
     </select>
   </label>
 
-  <?php if ($isSuper): ?>
+  <?php if ($isNew || $isSuper): ?>
   <h2 class="form-section-title"><?= te('core.user_edit.sec_password') ?></h2>
-  <label><?= te('core.user_edit.new_password') ?>
+  <label><?= $isNew ? te('core.user_edit.password') : te('core.user_edit.new_password') ?>
     <div class="input-row">
-      <input type="password" name="password" id="password" autocomplete="new-password">
+      <input type="password" name="password" id="password" autocomplete="new-password"<?= $isNew ? ' required' : '' ?>>
       <button class="btn-secondary" type="button" id="gen-pass" data-pass="<?= e($genPass) ?>"><?= te('core.user_edit.generate') ?></button>
     </div>
   </label>
+  <?php if ($isSuper && !$isNew): ?>
   <label><?= te('core.user_edit.expires') ?>
     <input type="datetime-local" name="expire" value="<?= e($expireVal) ?>">
   </label>
@@ -89,6 +100,7 @@ if ($newsAfterTs > 0) {
   <label><?= te('core.user_edit.retries') ?>
     <input type="number" name="retries" min="0" value="<?= (int)($user['retries'] ?? 0) ?>">
   </label>
+  <?php endif; ?>
   <?php endif; ?>
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_colors') ?></h2>
@@ -109,7 +121,7 @@ if ($newsAfterTs > 0) {
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_access') ?></h2>
   <label class="check">
-    <input type="checkbox" name="enabled" value="1"<?= ((string)$user['enabled'] === '1') ? ' checked' : '' ?>>
+    <input type="checkbox" name="enabled" value="1"<?= ((string)($user['enabled'] ?? '1') === '1') ? ' checked' : '' ?>>
     <?= te('core.user_edit.active') ?>
   </label>
   <label class="check">
@@ -156,13 +168,16 @@ if ($newsAfterTs > 0) {
   <?php if ($permGroups): ?>
   <h2 class="form-section-title"><?= te('core.user_edit.sec_perms') ?></h2>
   <p class="form-hint"><?= te('core.user_edit.perms_hint') ?></p>
+  <?php
+    $editBase = $isNew ? '/users/new' : ('/users/' . $uid . '/edit');
+  ?>
   <div class="perm-toolbar">
-    <a class="btn-ghost" href="/users/<?= $uid ?>/edit?turnon=1"><?= te('core.user_edit.perms_all_on_btn') ?></a>
-    <a class="btn-ghost" href="/users/<?= $uid ?>/edit?turnon=0"><?= te('core.user_edit.perms_all_off_btn') ?></a>
+    <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=1"><?= te('core.user_edit.perms_all_on_btn') ?></a>
+    <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=0"><?= te('core.user_edit.perms_all_off_btn') ?></a>
   </div>
   <?php if ($copyUsers): ?>
   <label><?= te('core.user_edit.copy_perms') ?>
-    <select onchange="if(this.value) location.href='/users/<?= $uid ?>/edit?copyFrom='+this.value">
+    <select onchange="if(this.value) location.href=<?= json_encode($editBase, JSON_HEX_TAG | JSON_HEX_APOS) ?>+'?copyFrom='+this.value">
       <option value="">—</option>
       <?php foreach ($copyUsers as $cu): if ((int)$cu['id'] === $uid) continue; ?>
         <option value="<?= (int)$cu['id'] ?>"><?= e(($cu['name'] ?: $cu['login']) . ' (#' . $cu['id'] . ')') ?></option>
@@ -191,7 +206,7 @@ if ($newsAfterTs > 0) {
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
-    <a class="btn-secondary" href="/users/<?= $uid ?>"><?= te('core.common.cancel') ?></a>
+    <a class="btn-secondary" href="<?= $isNew ? '/users' : ('/users/' . $uid) ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
 
