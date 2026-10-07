@@ -17,6 +17,7 @@
 /** @var list<string> $allTables */
 /** @var list<string> $foreignTables */
 /** @var list<array{file:string,bytes:int,mtime:int,stamp?:string,label?:string}> $dumps */
+/** @var bool $agentTokenOk */
 /** @var list<array<string,mixed>> $diag */
 /** @var int $diagNeedCount */
 /** @var bool $diagRan */
@@ -31,6 +32,7 @@ $ownedTables = $ownedTables ?? [];
 $allTables = $allTables ?? [];
 $foreignTables = $foreignTables ?? [];
 $dumps = $dumps ?? [];
+$agentTokenOk = !empty($agentTokenOk);
 $maintReport = $maintReport ?? [];
 $diag = $diag ?? [];
 $diagNeedCount = (int)($diagNeedCount ?? 0);
@@ -194,13 +196,16 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
 
   <h3 class="subhead"><?= te('core.db.dumps_available') ?></h3>
   <p class="muted"><?= te('core.db.dumps_available_help') ?></p>
+  <?php if (!$agentTokenOk): ?>
+    <p class="muted"><?= te('core.db.fetch_token_missing') ?></p>
+  <?php endif; ?>
 
   <form method="post" id="db-fetch-form" class="db-job-form db-fetch-form" data-db-job="fetch">
     <input type="hidden" name="action" value="db_fetch">
     <input type="hidden" name="op" value="fetch">
     <label class="field">
       <span><?= te('core.db.fetch_url_label') ?></span>
-      <input type="url" name="url" required placeholder="https://example.com/db?action=download&amp;file=….sql.gz"
+      <input type="url" name="url" required placeholder="https://prod/agent/db/dump/file?file=NAME.sql.gz&amp;token=…"
              autocomplete="off" spellcheck="false">
     </label>
     <p class="muted"><?= te('core.db.fetch_url_help') ?></p>
@@ -221,12 +226,19 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       </thead>
       <tbody>
         <?php foreach ($dumps as $d): ?>
+          <?php
+            $fetchUrl = $agentTokenOk ? DbTools::agentDumpFetchUrl((string)$d['file']) : null;
+          ?>
           <tr>
             <td><?= e(($d['stamp'] ?? '') !== '' ? (string)$d['stamp'] : date('Y-m-d H:i:s', (int)$d['mtime'])) ?></td>
             <td><code><?= e($d['file']) ?></code></td>
             <td><?= e($formatBytes((int)$d['bytes'])) ?></td>
             <td class="actions">
               <a class="btn-secondary" href="/db?action=download&amp;file=<?= e($d['file']) ?>"><?= te('core.db.btn_download') ?></a>
+              <?php if ($fetchUrl !== null): ?>
+                <button type="button" class="btn-secondary" data-copy-url="<?= e($fetchUrl) ?>"
+                        title="<?= te('core.db.btn_copy_fetch_title') ?>"><?= te('core.db.btn_copy_fetch') ?></button>
+              <?php endif; ?>
               <form method="post" style="display:inline" class="db-job-form" data-db-job="restore"
                     onsubmit="return confirm(<?= tj('core.db.confirm_restore') ?>);">
                 <input type="hidden" name="action" value="db_restore">
@@ -513,8 +525,30 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     barTable: <?= json_encode(t('core.db.job.bar_table'), JSON_UNESCAPED_UNICODE) ?>,
     doneTitle: <?= json_encode(t('core.db.job.done_title'), JSON_UNESCAPED_UNICODE) ?>,
     errorTitle: <?= json_encode(t('core.db.job.error_title'), JSON_UNESCAPED_UNICODE) ?>,
-    cancelledTitle: <?= json_encode(t('core.db.job.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>
+    cancelledTitle: <?= json_encode(t('core.db.job.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+    copied: <?= json_encode(t('core.db.copied_fetch'), JSON_UNESCAPED_UNICODE) ?>,
+    copyPrompt: <?= json_encode(t('core.db.copy_fetch_prompt'), JSON_UNESCAPED_UNICODE) ?>
   };
+
+  document.querySelectorAll('[data-copy-url]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var url = btn.getAttribute('data-copy-url') || '';
+      if (!url) return;
+      var label = btn.textContent;
+      function done() {
+        btn.textContent = i18n.copied;
+        setTimeout(function () { btn.textContent = label; }, 1600);
+      }
+      function fallback() {
+        window.prompt(i18n.copyPrompt, url);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
 
   function fmtDur(sec) {
     sec = Math.max(0, Math.floor(sec || 0));

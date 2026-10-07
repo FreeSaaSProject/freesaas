@@ -8,8 +8,13 @@ $scope = trim((string)($_GET['scope'] ?? $_POST['scope'] ?? ''));
 $state = (string)($_GET['state'] ?? $_POST['state'] ?? '');
 $challenge = trim((string)($_GET['code_challenge'] ?? $_POST['code_challenge'] ?? ''));
 $challengeMethod = trim((string)($_GET['code_challenge_method'] ?? $_POST['code_challenge_method'] ?? 'S256'));
+// ChatGPT sends resource=… — accepted and ignored (opaque access tokens).
+$resource = trim((string)($_GET['resource'] ?? $_POST['resource'] ?? ''));
+unset($resource);
 
-$errorRedirect = static function (string $error, string $desc = '') use ($redirectUri, $state): void {
+$issuer = OAuthServer::publicBaseUrl();
+
+$errorRedirect = static function (string $error, string $desc = '') use ($redirectUri, $state, $issuer): void {
     if ($redirectUri === '' || !preg_match('#^https?://#i', $redirectUri)) {
         http_response_code(400);
         echo e($error . ($desc !== '' ? ': ' . $desc : ''));
@@ -19,7 +24,10 @@ $errorRedirect = static function (string $error, string $desc = '') use ($redire
         'error' => $error,
         'error_description' => $desc,
         'state' => $state !== '' ? $state : null,
-    ]));
+        'iss' => $issuer,
+    ], static function ($v) {
+        return $v !== null && $v !== '';
+    }));
     $sep = strpos($redirectUri, '?') === false ? '?' : '&';
     redirect($redirectUri . $sep . $q);
 };
@@ -28,14 +36,15 @@ if ($responseType !== 'code') {
     $errorRedirect('unsupported_response_type', 'Only response_type=code is supported');
 }
 
-$client = OAuthClientsRepository::findByClientId($clientId);
+$client = OAuthServer::resolveClient($clientId);
 if ($client === null || empty($client['enabled'])) {
     http_response_code(400);
     echo e(t('llm.oauth.err.client'));
     exit;
 }
 
-if ($redirectUri === '' || !in_array($redirectUri, $client['redirect_uris'], true)) {
+$registeredUris = is_array($client['redirect_uris'] ?? null) ? $client['redirect_uris'] : [];
+if ($redirectUri === '' || !OAuthServer::redirectUriAllowed($redirectUri, $registeredUris)) {
     http_response_code(400);
     echo e(t('llm.oauth.err.redirect_mismatch'));
     exit;
@@ -66,6 +75,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         echo 'bad action';
         exit;
     }
+    if ($challenge === '') {
+        $errorRedirect('invalid_request', 'code_challenge (PKCE) required');
+    }
     $codeRow = OAuthTokensRepository::createCode(
         $clientId,
         Auth::userId(),
@@ -80,7 +92,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $q = http_build_query(array_filter([
         'code' => $codeRow['code'],
         'state' => $state !== '' ? $state : null,
-    ]));
+        'iss' => $issuer,
+    ], static function ($v) {
+        return $v !== null && $v !== '';
+    }));
     $sep = strpos($redirectUri, '?') === false ? '?' : '&';
     redirect($redirectUri . $sep . $q);
 }

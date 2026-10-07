@@ -3,6 +3,10 @@ DirectorySlash Off
 <IfModule mod_rewrite.c>
   RewriteEngine On
 
+  # Pass Authorization to PHP (CGI/Apache often drops it otherwise).
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
   # Allow static assets shipped inside modules (css/js/images/fonts only).
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^modules/[^/]+/assets/.+\.(css|js|png|jpe?g|gif|svg|webp|woff2?)$ - [L]

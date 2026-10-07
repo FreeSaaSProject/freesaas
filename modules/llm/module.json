@@ -35,6 +35,7 @@
       "/oauth/authorize",
       "/oauth/token",
       "/oauth/revoke",
+      "/oauth/register",
       "/.well-known/oauth-authorization-server",
       "/.well-known/openid-configuration",
       "/.well-known/oauth-protected-resource",

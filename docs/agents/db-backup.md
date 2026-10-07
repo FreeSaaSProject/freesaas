@@ -18,7 +18,7 @@ Gzip level 5 ≈ good ratio/speed (1=fastest/largest, 9=slowest/smallest). A 161
 
 Restore: inflate once to a temp seekable `.sql`, then `fseek` + SQL. Session: `UNIQUE_CHECKS=0`, `DISABLE KEYS`, reconnect on MySQL 2002/gone-away. Fast `\t;` splitter (quote-aware fallback for foreign dumps). Temp inflate file is removed when the job finishes or is cancelled.
 
-Fetch a remote dump: `GET /agent/db/dump/file?file=NAME.sql.gz&token=…` into the home UI «Fetch dump by URL» (saved as `…-from-{host}.sql.gz`).
+Fetch a remote dump: on prod `/db` use **Copy link** (builds `GET /agent/db/dump/file?file=NAME.sql.gz&token=…` when `app.agent_token` is set), paste into the other instance «Fetch dump by URL» (saved as `…-from-{host}.sql.gz`).
 
 Dumps live under `var/db_dumps/` (gitignored via `var/`).
 

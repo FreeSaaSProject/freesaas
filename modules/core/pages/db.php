@@ -405,6 +405,8 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     ]);
 }
 
+$agentTokenOk = AgentAuth::isConfigured();
+
 View::render('db', [
     'title' => t('core.db.title'),
     'message' => $message,
@@ -425,6 +427,7 @@ View::render('db', [
     'allTables' => $allTables,
     'foreignTables' => $foreignTables,
     'dumps' => $dumps,
+    'agentTokenOk' => $agentTokenOk,
     'diag' => $diag,
     'diagNeedCount' => $diagNeedCount,
     'diagRan' => $diagRan,

@@ -18,11 +18,46 @@ if ($path === '/agent/db/dump/file' && $method === 'GET') {
         $file = (string)($_GET['file'] ?? '');
         $resolved = DbTools::resolveDumpPath($file);
         $name = basename($resolved);
+        $size = (int)filesize($resolved);
+        $start = 0;
+        $end = max(0, $size - 1);
+        $range = (string)($_SERVER['HTTP_RANGE'] ?? '');
+        if ($range !== '' && preg_match('/bytes=(\d+)-(\d*)/', $range, $m)) {
+            $start = (int)$m[1];
+            if ($m[2] !== '') {
+                $end = min($end, (int)$m[2]);
+            }
+            if ($start > $end || $start >= $size) {
+                http_response_code(416);
+                header('Content-Range: bytes */' . $size);
+                return;
+            }
+            http_response_code(206);
+            header('Content-Range: bytes ' . $start . '-' . $end . '/' . $size);
+        }
+        $len = $end - $start + 1;
         header('Content-Type: application/octet-stream');
         header('Content-Disposition: attachment; filename="' . str_replace(['"', "\r", "\n"], '', $name) . '"');
-        header('Content-Length: ' . (string)filesize($resolved));
+        header('Accept-Ranges: bytes');
+        header('Content-Length: ' . (string)$len);
         header('Cache-Control: no-store');
-        readfile($resolved);
+        $fh = fopen($resolved, 'rb');
+        if ($fh === false) {
+            throw new RuntimeException('Cannot read dump file');
+        }
+        if ($start > 0) {
+            fseek($fh, $start);
+        }
+        $left = $len;
+        while ($left > 0 && !feof($fh)) {
+            $chunk = fread($fh, min(1024 * 1024, $left));
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            echo $chunk;
+            $left -= strlen($chunk);
+        }
+        fclose($fh);
     } catch (Throwable $e) {
         http_response_code(404);
         header('Content-Type: application/json; charset=utf-8');

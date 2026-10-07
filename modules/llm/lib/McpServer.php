@@ -386,7 +386,10 @@ final class McpServer
     {
         $meta = OAuthServer::publicBaseUrl() . '/.well-known/oauth-protected-resource';
         header('WWW-Authenticate: Bearer realm="freesaas", resource_metadata="' . $meta . '"');
-        self::jsonRpcError($id, -32001, 'Authentication required', 401);
+        $msg = BearerAuth::hasBearerHeader()
+            ? 'invalid_token: Bearer rejected (expired, revoked, or unknown)'
+            : 'Authentication required: no Bearer token on request (token exchange may have failed, or reverse-proxy dropped Authorization)';
+        self::jsonRpcError($id, -32001, $msg, 401);
     }
 
     /** @param mixed $id @param mixed $result */

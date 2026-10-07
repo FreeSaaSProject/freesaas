@@ -125,6 +125,15 @@ ModuleManager::registerRoute('/oauth/revoke', [
     },
 ]);
 
+ModuleManager::registerRoute('/oauth/register', [
+    'module' => 'llm',
+    'methods' => ['POST', 'OPTIONS'],
+    'public' => true,
+    'handler' => static function (): void {
+        require base_path('modules/llm/pages/oauth_register.php');
+    },
+]);
+
 $oauthMeta = [
     '/.well-known/oauth-authorization-server',
     '/.well-known/openid-configuration',

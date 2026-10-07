@@ -10,6 +10,7 @@ $endpoints = [
     'mcp' => OAuthServer::mcpUrl(),
     'authorize' => OAuthServer::authorizeUrl(),
     'token' => OAuthServer::tokenUrl(),
+    'register' => OAuthServer::registerUrl(),
     'revoke' => OAuthServer::revokeUrl(),
     'oauth_as_metadata' => $base . '/.well-known/oauth-authorization-server',
     'oauth_resource_metadata' => $base . '/.well-known/oauth-protected-resource',

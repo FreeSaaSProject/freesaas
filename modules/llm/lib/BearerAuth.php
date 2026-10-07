@@ -9,7 +9,7 @@ final class BearerAuth
      */
     public static function resolve(): ?array
     {
-        $header = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+        $header = OAuthServer::requestAuthorizationHeader();
         if ($header === '' && isset($_GET['access_token'])) {
             $header = 'Bearer ' . (string)$_GET['access_token'];
         }
@@ -20,7 +20,11 @@ final class BearerAuth
         if ($row === null) {
             return null;
         }
+        // Hot path: prefer DB row (CIMD already upserted at authorize). Avoid outbound fetch.
         $client = OAuthClientsRepository::findByClientId((string)$row['client_id']);
+        if ($client === null) {
+            $client = OAuthServer::resolveClient((string)$row['client_id']);
+        }
         if ($client === null || empty($client['enabled'])) {
             return null;
         }
@@ -29,6 +33,13 @@ final class BearerAuth
             'client_id' => (string)$row['client_id'],
             'scope' => (string)$row['scope'],
         ];
+    }
+
+    /** Whether the request carried an Authorization Bearer header (valid or not). */
+    public static function hasBearerHeader(): bool
+    {
+        $header = OAuthServer::requestAuthorizationHeader();
+        return (bool)preg_match('/^Bearer\s+\S+/i', $header);
     }
 
     /**

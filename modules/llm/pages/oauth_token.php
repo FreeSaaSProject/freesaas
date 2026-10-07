@@ -24,28 +24,43 @@ if (stripos($ct, 'application/json') !== false) {
 $grant = (string)($in['grant_type'] ?? '');
 $clientId = trim((string)($in['client_id'] ?? ''));
 $clientSecret = (string)($in['client_secret'] ?? '');
+// ChatGPT / Codex may send resource= — ignore for opaque tokens.
+unset($in['resource']);
 
-// HTTP Basic client auth
-$basic = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? '');
-if (preg_match('/^Basic\s+(\S+)/i', $basic, $bm)) {
-    $decodedBasic = base64_decode($bm[1], true);
-    if (is_string($decodedBasic) && strpos($decodedBasic, ':') !== false) {
-        [$cid, $csec] = explode(':', $decodedBasic, 2);
-        if ($clientId === '') {
-            $clientId = $cid;
-        }
-        if ($clientSecret === '') {
-            $clientSecret = $csec;
+// Also accept application/x-www-form-urlencoded raw body when $_POST is empty
+if ($in === [] || ($grant === '' && $clientId === '')) {
+    $raw = file_get_contents('php://input');
+    if (is_string($raw) && $raw !== '' && stripos($ct, 'json') === false) {
+        $parsed = [];
+        parse_str($raw, $parsed);
+        if (is_array($parsed) && $parsed !== []) {
+            $in = $parsed;
+            $grant = (string)($in['grant_type'] ?? '');
+            $clientId = trim((string)($in['client_id'] ?? $clientId));
+            $clientSecret = (string)($in['client_secret'] ?? $clientSecret);
         }
     }
 }
 
-$client = OAuthClientsRepository::findByClientId($clientId);
+// HTTP Basic client auth (CIMD URL client_ids contain ':')
+$basic = OAuthServer::parseBasicClientAuth(OAuthServer::requestAuthorizationHeader());
+if ($clientId === '' && $basic['client_id'] !== '') {
+    $clientId = $basic['client_id'];
+}
+if ($clientSecret === '' && $basic['client_secret'] !== '') {
+    $clientSecret = $basic['client_secret'];
+}
+
+$client = OAuthServer::resolveClient($clientId);
 if ($client === null || empty($client['enabled'])) {
     OAuthServer::tokenError('invalid_client', 'Unknown client', 401);
 }
 
-$secretOk = OAuthServer::verifySecret($clientSecret, (string)$client['client_secret_hash']);
+$public = OAuthServer::isPublicClient($client);
+$secretOk = !$public && OAuthServer::verifySecret($clientSecret, (string)$client['client_secret_hash']);
+if (!$public && !$secretOk && $clientSecret !== '') {
+    OAuthServer::tokenError('invalid_client', 'Client authentication failed', 401);
+}
 
 if ($grant === 'authorization_code') {
     $code = (string)($in['code'] ?? '');
@@ -66,7 +81,12 @@ if ($grant === 'authorization_code') {
         if ($verifier === '' || !OAuthServer::verifyPkce($verifier, $challenge, (string)$row['code_challenge_method'])) {
             OAuthServer::tokenError('invalid_grant', 'PKCE verification failed');
         }
-    } elseif (!$secretOk) {
+    } elseif ($public || !$secretOk) {
+        OAuthServer::tokenError('invalid_grant', 'PKCE required for public clients');
+    }
+
+    // Confidential clients without PKCE still need a valid secret.
+    if (!$public && $challenge === '' && !$secretOk) {
         OAuthServer::tokenError('invalid_client', 'Client authentication failed', 401);
     }
 
@@ -84,7 +104,7 @@ if ($grant === 'authorization_code') {
 }
 
 if ($grant === 'refresh_token') {
-    if (!$secretOk) {
+    if (!$public && !$secretOk) {
         OAuthServer::tokenError('invalid_client', 'Client authentication failed', 401);
     }
     $refresh = (string)($in['refresh_token'] ?? '');

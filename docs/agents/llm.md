@@ -47,13 +47,23 @@ Requires `assistant` enabled for tools. UI: **LLM → OAuth / MCP** (`/llm/oauth
 
 ### ChatGPT Custom MCP
 
-1. Connector URL = MCP endpoint (`https://…/llm/mcp`). Transport is streamable HTTP (POST JSON-RPC; GET with `Accept: text/event-stream` returns an empty SSE listen stream).
-2. ChatGPT discovers OAuth via well-known metadata; staff completes PKCE consent.
-3. Mixed auth: catalog is public; calls require Bearer. `tools/call` without token → `401` + `WWW-Authenticate` pointing at protected-resource metadata.
-4. Tool annotations include `readOnlyHint` / `destructiveHint`. `initialize` returns short `instructions` (≤512 chars).
-5. Browser `Origin` allowlist: `chatgpt.com`, `openai.com`, this host (and localhost).
+1. Connector URL = MCP endpoint only (`https://…/llm/mcp`). Leave Bearer empty; use **Authenticate** (not a pasted well-known URL).
+2. AS metadata advertises CIMD (`client_id_metadata_document_supported`) and DCR (`/oauth/register`). ChatGPT/Codex send `client_id=https://chatgpt.com/oauth/…/client.json` — no manual client in their UI.
+3. Codex native uses loopback redirects (`http://127.0.0.1:PORT/callback`); any loopback port is accepted (RFC 8252). If the host cannot fetch chatgpt.com, built-in CIMD fallbacks apply.
+4. Authorize responses include `iss` (RFC 9207) so ChatGPT web can use `https://chatgpt.com/connector_platform_oauth_redirect`.
+5. Mixed auth: catalog is public; calls require Bearer. `tools/call` without token → `401` + `WWW-Authenticate`.
+6. Tool annotations include `readOnlyHint` / `destructiveHint`. `initialize` returns short `instructions` (≤512 chars).
+7. After code deploy: `php bin/freesaas.php migrate run --module=llm` (widens `CLIENT_ID` for CIMD URLs).
 
 Optional `public_base` in `cfg/modules/llm.ini` if Host auto-detect is wrong behind a proxy.
+
+**Nginx + PHP-FPM:** pass the Authorization header into PHP or Bearer auth silently fails after a successful browser consent:
+
+```nginx
+fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+```
+
+Apache `.htaccess` already maps `HTTP:Authorization` → `HTTP_AUTHORIZATION`.
 
 Staff flow: GPT opens authorize → FreeSaaS login → Allow → code → token → Bearer calls as that staff user (`Auth::runAs` + module permissions).
 

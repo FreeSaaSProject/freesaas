@@ -98,6 +98,90 @@ final class OAuthClientsRepository
     }
 
     /**
+     * Upsert CIMD / DCR external client. Empty secret = public client (token auth none).
+     *
+     * @param list<string> $redirectUris
+     * @return array{ok:bool,id:int,client_id:string,client_secret:string,error:string}
+     */
+    public static function upsertExternal(
+        string $clientId,
+        string $name,
+        array $redirectUris,
+        string $scopes,
+        bool $public,
+        string $plainSecret = ''
+    ): array {
+        if (!self::tableReady()) {
+            return ['ok' => false, 'id' => 0, 'client_id' => '', 'client_secret' => '', 'error' => 'oauth tables missing'];
+        }
+        $clientId = trim($clientId);
+        $name = trim($name);
+        if ($clientId === '' || $name === '') {
+            return ['ok' => false, 'id' => 0, 'client_id' => '', 'client_secret' => '', 'error' => t('llm.oauth.err.name')];
+        }
+        $uris = self::normalizeUris($redirectUris);
+        if ($uris === []) {
+            return ['ok' => false, 'id' => 0, 'client_id' => '', 'client_secret' => '', 'error' => t('llm.oauth.err.redirect')];
+        }
+        $scopes = OAuthServer::normalizeScopes($scopes);
+        $existing = self::findByClientId($clientId);
+        $secretHash = '';
+        $secretOut = '';
+        if (!$public) {
+            if ($plainSecret !== '') {
+                $secretOut = $plainSecret;
+                $secretHash = OAuthServer::hashSecret($plainSecret);
+            } elseif ($existing !== null) {
+                $secretHash = (string)$existing['client_secret_hash'];
+            } else {
+                $secretOut = bin2hex(random_bytes(24));
+                $secretHash = OAuthServer::hashSecret($secretOut);
+            }
+        }
+        if ($existing !== null) {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_oauth_clients
+                 SET NAME = ?, REDIRECT_URIS = ?, SCOPES = ?, CLIENT_SECRET_HASH = ?, ENABLED = 1
+                 WHERE ID = ?'
+            );
+            $st->execute([
+                $name,
+                json_encode($uris, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                $scopes,
+                $secretHash,
+                (int)$existing['id'],
+            ]);
+            return [
+                'ok' => true,
+                'id' => (int)$existing['id'],
+                'client_id' => $clientId,
+                'client_secret' => $secretOut,
+                'error' => '',
+            ];
+        }
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_oauth_clients
+             (CLIENT_ID, CLIENT_SECRET_HASH, NAME, REDIRECT_URIS, SCOPES, ENABLED, CREATED_AT, CREATED_BY)
+             VALUES (?, ?, ?, ?, ?, 1, ?, 0)'
+        );
+        $st->execute([
+            $clientId,
+            $secretHash,
+            $name,
+            json_encode($uris, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+            $scopes,
+            time(),
+        ]);
+        return [
+            'ok' => true,
+            'id' => (int)Database::pdo()->lastInsertId(),
+            'client_id' => $clientId,
+            'client_secret' => $secretOut,
+            'error' => '',
+        ];
+    }
+
+    /**
      * @param list<string> $redirectUris
      * @return array{ok:bool,error:string}
      */
@@ -194,10 +278,12 @@ final class OAuthClientsRepository
                 }
             }
         }
+        $secretHash = (string)($row['CLIENT_SECRET_HASH'] ?? '');
         return [
             'id' => (int)($row['ID'] ?? 0),
             'client_id' => (string)($row['CLIENT_ID'] ?? ''),
-            'client_secret_hash' => (string)($row['CLIENT_SECRET_HASH'] ?? ''),
+            'client_secret_hash' => $secretHash,
+            'public' => $secretHash === '',
             'name' => (string)($row['NAME'] ?? ''),
             'redirect_uris' => $uris,
             'scopes' => (string)($row['SCOPES'] ?? 'ops.read'),
