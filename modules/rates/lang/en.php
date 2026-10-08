@@ -31,4 +31,6 @@ return [
     'rates.err.not_found' => 'Rate set #{id} not found',
     'rates.err.operator_required' => 'Select a staff member',
     'rates.err.descr_required' => 'Description is required',
+    'rates.module.description' => 'Specialist commission rates history (base_procent_history).',
+    'rates.module.summary' => 'Enable to maintain commission % by specialist/procedure. Requires procedures. Required by procents. Set rates before expecting accrual reports.',
 ];

@@ -10,7 +10,6 @@ final class ModuleCatalog
     /** @var list<string> Many-to-many; module may list several. */
     public const CATEGORIES = [
         'platform',
-        'system',
         'finance',
         'accounting',
         'warehouse',
@@ -72,6 +71,61 @@ final class ModuleCatalog
             $out[] = $card;
         }
         return $out;
+    }
+
+    /**
+     * Group cards into catalog sections (CATEGORIES order).
+     * Multi-category modules appear in each matching section.
+     *
+     * @param list<array<string, mixed>> $cards
+     * @return list<array{id:string,cards:list<array<string,mixed>>}>
+     */
+    public static function sections(array $cards): array
+    {
+        $buckets = [];
+        foreach (self::CATEGORIES as $c) {
+            $buckets[$c] = [];
+        }
+        $uncategorized = [];
+        foreach ($cards as $card) {
+            if (!is_array($card)) {
+                continue;
+            }
+            $cats = $card['catalog']['categories'] ?? [];
+            if (!is_array($cats) || $cats === []) {
+                $uncategorized[] = $card;
+                continue;
+            }
+            $placed = false;
+            foreach ($cats as $c) {
+                $c = (string)$c;
+                if (!isset($buckets[$c])) {
+                    continue;
+                }
+                $buckets[$c][] = $card;
+                $placed = true;
+            }
+            if (!$placed) {
+                $uncategorized[] = $card;
+            }
+        }
+        $sections = [];
+        foreach (self::CATEGORIES as $c) {
+            if ($buckets[$c] === []) {
+                continue;
+            }
+            $sections[] = [
+                'id' => $c,
+                'cards' => $buckets[$c],
+            ];
+        }
+        if ($uncategorized !== []) {
+            $sections[] = [
+                'id' => '',
+                'cards' => $uncategorized,
+            ];
+        }
+        return $sections;
     }
 
     /** @return array<string, mixed>|null */

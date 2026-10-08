@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 return [
     'clientics.module.name' => 'Clientics',
-    'clientics.module.description' => 'Pull-only bridge from Clientics (Клиентикс): day-scoped client import and webhook stub. No push back.',
+    'clientics.module.description' => 'Pull-only bridge from Clientics: day-scoped client import and webhook stub. No push back.',
     'clientics.menu.group' => 'Clientics',
     'clientics.menu.status' => 'Status',
     'clientics.menu.import' => 'Import',
@@ -11,7 +11,6 @@ return [
     'clientics.perm.view' => 'View Clientics integrator',
     'clientics.perm.edit' => 'Edit Clientics integrator',
     'clientics.perm.import' => 'Run Clientics pull import',
-
     'clientics.status.title' => 'Clientics pull',
     'clientics.status.lede' => 'Pull-only bridge from Clientics (Клиентикс) into FreeSaaS. No data is written back.',
     'clientics.status.pull' => 'Pull enabled',
@@ -27,7 +26,6 @@ return [
     'clientics.status.none' => 'No job runs yet.',
     'clientics.status.job_ok' => 'ok',
     'clientics.status.job_fail' => 'fail',
-
     'clientics.import.title' => 'Import from Clientics',
     'clientics.import.lede' => 'Client list API is day-scoped — pick a date range. Dry-run reports without writing.',
     'clientics.import.clients' => 'Import clients',
@@ -37,7 +35,6 @@ return [
     'clientics.import.last' => 'Last clients import',
     'clientics.import.done' => 'Import finished.',
     'clientics.import.failed' => 'Import failed.',
-
     'clientics.settings.title' => 'Clientics settings',
     'clientics.settings.features' => 'Features',
     'clientics.settings.pull_enabled' => 'Enable pull',
@@ -53,4 +50,5 @@ return [
     'clientics.settings.secret_keep' => 'Leave blank to keep current',
     'clientics.settings.secret_empty' => 'not set',
     'clientics.settings.current' => 'current: {masked}',
+    'clientics.module.summary' => 'Enable to import clients from Clientics into FreeSaaS. Requires clients. Soft calendar/procedures/workweeks for day-scoped pulls. Configure tokens in cfg/modules/clientics.ini. Beta — expect sync edge cases; diagnose locally if import fails.',
 ];

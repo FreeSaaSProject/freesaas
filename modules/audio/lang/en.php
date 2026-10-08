@@ -118,7 +118,6 @@ return [
     'audio.api.error' => 'Error',
     'audio.api.network' => 'Network error',
     'audio.api.done' => 'Done',
-
     'audio.filter.review' => 'Reviews',
     'audio.filter.review_all' => 'All',
     'audio.filter.review_pending' => 'Needs review',
@@ -129,7 +128,6 @@ return [
     'audio.review.favorite_badge' => 'In favorites',
     'audio.notice.review_short' => 'Review:{n}',
     'audio.notice.review_title' => 'Recordings pending review',
-
     'audio.filter.year' => 'Year',
     'audio.filter.year_all' => 'All years',
     'audio.filter.month' => 'Month',
@@ -250,4 +248,6 @@ return [
     'audio.statuses.audio_none' => '— no alternative —',
     'audio.statuses.field.ID_AUDIO_POSITION' => 'Audio position role',
     'audio.statuses.field.DISABLE_NON_PROCEDURE_TIME' => 'Disable non-procedure time',
+    'audio.module.description' => 'Audio records, badges, and FileStorage; tied to workweeks.',
+    'audio.module.summary' => 'Enable for cabin audio recordings. Requires workweeks. Soft clients/audio_dicts. Required by audio_dicts, pipeline, reports, llm studies, staff_reports. Foundation of the audio stack.',
 ];

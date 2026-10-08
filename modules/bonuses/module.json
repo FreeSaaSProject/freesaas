@@ -1,6 +1,7 @@
 {
     "id": "bonuses",
     "name": "bonuses.module.name",
+    "description": "bonuses.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

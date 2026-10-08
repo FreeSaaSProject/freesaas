@@ -7,7 +7,6 @@ return [
     'orders.menu.list' => 'Website orders',
     'orders.perm.view' => 'Orders (view)',
     'orders.perm.edit' => 'Orders (edit)',
-
     'orders.list.search_placeholder' => 'Search comments',
     'orders.list.empty' => 'No orders found',
     'orders.list.filter_status' => 'Status',
@@ -17,7 +16,6 @@ return [
     'orders.list.client_id' => 'Client ID',
     'orders.list.promocode_id' => 'Promo ID',
     'orders.list.free_ticket' => 'No ticket',
-
     'orders.col.id' => 'ID',
     'orders.col.uid' => 'UID',
     'orders.col.dt_save' => 'Placed',
@@ -28,7 +26,6 @@ return [
     'orders.col.summ_real' => 'Amount',
     'orders.col.promo' => 'Promo',
     'orders.col.free_ticket' => 'No ticket',
-
     'orders.status.0' => 'checkout in progress…',
     'orders.status.1' => 'checkout in progress (within 2h)',
     'orders.status.cashComplete' => 'Placed',
@@ -41,7 +38,6 @@ return [
     'orders.status.ukassaNew' => 'new UKassa order',
     'orders.status.paymentProblem' => 'payment problem',
     'orders.status.unknown' => '{code}',
-
     'orders.view.title' => 'Order #{id}',
     'orders.view.sec_main' => 'Order',
     'orders.view.sec_client' => 'Client',
@@ -81,7 +77,6 @@ return [
     'orders.view.unauthorized' => 'not authorized',
     'orders.view.client_auto_linked' => '[…found! {id}]',
     'orders.view.client_untied' => 'Linked client is missing! Order unlinked.',
-
     'orders.edit.title' => 'Edit order #{id}',
     'orders.edit.lede' => 'Limited edit: status, staff, comment, email, no-ticket flag.',
     'orders.edit.sec_main' => 'Main',
@@ -90,19 +85,16 @@ return [
     'orders.edit.mail' => 'Email',
     'orders.edit.comment' => 'Comment',
     'orders.edit.free_ticket' => 'No ticket',
-
     'orders.err.not_found' => 'Order #{id} not found',
-
     'orders.notice.today_short' => 'Ord:{n}',
     'orders.notice.today_title' => 'Placed orders with appointment through end of today',
     'orders.notice.future_short' => 'OrdSoon:{n}',
     'orders.notice.future_title' => 'Placed orders (including future)',
-
     'orders.widget.quick.title' => 'Orders',
     'orders.widget.quick.today' => 'Today',
     'orders.widget.quick.future' => 'All upcoming',
-
     'orders.bulk.client_in_use' => 'Has orders ({n})',
-
     'orders.stats.day_chip' => 'LS:{n}',
+    'orders.module.description' => 'Website orders (base_orders); notice chips; orders.for_day for calendar.',
+    'orders.module.summary' => 'Enable for site order list and day feed into calendar. Requires clients. Soft catalog/procedures. Required by calendar. Use when the public site posts orders into FreeSaaS.',
 ];

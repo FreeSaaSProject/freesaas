@@ -36,4 +36,6 @@ return [
     'sheets.err.insufficient' => 'Недостаточно на счете (остаток: {left})',
     'sheets.err.not_found' => 'Запись #{id} не найдена',
     'sheets.list.search_placeholder' => 'Поиск',
+    'sheets.module.description' => 'Учёт простынок LikeSpa (base_sheet_*); отключаемый.',
+    'sheets.module.summary' => 'Включайте для учёта простынок LikeSpa. Отдельный складской контур. Только если простынки ведутся отдельно от stickers.',
 ];

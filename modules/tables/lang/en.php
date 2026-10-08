@@ -18,4 +18,6 @@ return [
     'tables.edit.title' => 'Table: {name}',
     'tables.err.name_required' => 'Name is required',
     'tables.err.not_found' => 'Table #{id} not found',
+    'tables.module.description' => 'Massage tables dictionary (base_tables); without it ID_TABLE defaults to 1.',
+    'tables.module.summary' => 'Enable for table selection on procedures/calendar. Soft-used by procedures, calendar, workweeks. Optional — spa can run with default table id 1.',
 ];

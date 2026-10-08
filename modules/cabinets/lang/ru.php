@@ -23,4 +23,6 @@ return [
     'cabinets.err.limits' => 'Минимальный лимит не может быть больше максимального',
     'cabinets.user_edit.cabinets' => 'Кабинеты',
     'cabinets.user_edit.no_cabinets' => 'Список кабинетов пуст.',
+    'cabinets.module.description' => 'Справочник кабинетов/комнат (base_cabinets) для складов и skin сотрудников.',
+    'cabinets.module.summary' => 'Включайте, когда складам или календарю нужны кабинеты. Мягко — stocks, calendar, workweeks. Без модуля часть ID_CABINET уходит в дефолты.',
 ];

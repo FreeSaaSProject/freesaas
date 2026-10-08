@@ -70,4 +70,6 @@ return [
     'stickers.err.sticker_used_locked' => 'Стикер с расходом нельзя менять',
     'stickers.err.qty_locked' => 'Количество twin-стикеров нельзя менять после создания',
     'stickers.outs.cancel_confirm' => 'Отменить это списание?',
+    'stickers.module.description' => 'Акты прихода/списания, стикерные in/out и сервис списания.',
+    'stickers.module.summary' => 'Включайте для складских актов движения. Требует stocks + catalog. Мягко suppliers/units. Мягко используется ledger. Когда товары ходят по документам прихода/списания.',
 ];

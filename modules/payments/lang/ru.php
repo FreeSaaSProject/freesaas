@@ -102,4 +102,6 @@ return [
     'payments.err.delete_linked' => 'Удаление запрещено: есть движения по счетам',
     'payments.contract.pay' => 'Оплатить оффер',
     'payments.contract.paid' => 'Оплачен',
+    'payments.module.description' => 'Взаиморасчёты сотрудников (base_payments, base_payment_types); CTA оплаты контрактов; авто-ДПС с ledger.',
+    'payments.module.summary' => 'Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС) и likespa. С contracts — CTA оплаты. Бухгалтерская сторона выплат персоналу.',
 ];

@@ -50,6 +50,7 @@
     "routes": {
         "pages": [
             "/banks",
+            "/banks/settings",
             "/banks/oauth/{provider}/start",
             "/banks/oauth/{provider}/callback",
             "/banks/connections/{id}",
@@ -66,6 +67,22 @@
                 "permission": "banks.view",
                 "side_effect": "read",
                 "description": "List bank OAuth connections (tokens masked)"
+            },
+            {
+                "id": "banks.settings.get",
+                "method": "GET",
+                "path": "/banks/settings",
+                "permission": "SUPERADMIN_ACCESS",
+                "side_effect": "read",
+                "description": "Bank provider settings (secrets masked)"
+            },
+            {
+                "id": "banks.settings.save",
+                "method": "POST",
+                "path": "/banks/settings",
+                "permission": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Save bank provider credentials into cfg/modules/banks.ini"
             },
             {
                 "id": "banks.connections.get",
@@ -182,6 +199,14 @@
             "path": "/banks",
             "permission": "banks.view",
             "kind": "work"
+        },
+        {
+            "group": "core.menu.group.finance",
+            "num": 26,
+            "title": "banks.menu.settings",
+            "path": "/banks/settings",
+            "capability": "SUPERADMIN_ACCESS",
+            "kind": "settings"
         }
     ],
     "tables": [

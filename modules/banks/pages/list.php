@@ -25,6 +25,7 @@ View::render('list', [
     'items' => $items,
     'providers' => $providers,
     'canConnect' => Auth::can('banks.connect'),
+    'canSettings' => Auth::capability('SUPERADMIN_ACCESS'),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('banks.menu.list'), 'current' => true],
     ]),

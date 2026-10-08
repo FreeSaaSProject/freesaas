@@ -6,7 +6,6 @@ return [
     'staff_reports.perm.view' => 'View staff quality reports',
     'staff_reports.perm.edit' => 'Generate and configure staff reports',
     'staff_reports.menu.generate' => 'Staff reports',
-
     'staff_reports.settings.title' => 'Staff quality reports (by position)',
     'staff_reports.settings.hint' => 'Traffic-light day reports from audio criteria. Rewards appear on the records calendar.',
     'staff_reports.settings.position' => 'Position',
@@ -32,7 +31,6 @@ return [
     'staff_reports.settings.ticket_prefix' => 'Ticket title prefix',
     'staff_reports.settings.llm_enabled' => 'Run cyclic LLM studies on generate (needs audio_llm)',
     'staff_reports.settings.save_flag' => 'staff_reports_settings_save',
-
     'staff_reports.generate.title' => 'Generate staff reports',
     'staff_reports.generate.hint' => 'Build day reports with traffic lights and publish to employee tickets.',
     'staff_reports.generate.day' => 'Day (YYYY-MM-DD)',
@@ -43,14 +41,12 @@ return [
     'staff_reports.generate.step_start' => 'Starting generation…',
     'staff_reports.generate.step_done' => 'Generation finished.',
     'staff_reports.generate.reparse_step' => 'Recalculating staff quality reports…',
-
     'staff_reports.reward.ok' => 'Reward',
     'staff_reports.reward.no' => 'No reward',
     'staff_reports.reward.no_records' => 'No audio that day',
     'staff_reports.reward.col' => 'Rewards',
     'staff_reports.reward.col_short' => '🏆',
     'staff_reports.reward.col_title' => 'Quality reward days this month',
-
     'staff_reports.report.clients' => 'Clients that day: {n}',
     'staff_reports.report.standards' => '🎧 Standards (audio analytics):',
     'staff_reports.report.coverage' => 'Procedure audio coverage: {covered} of {total}; overall {pct}%',
@@ -65,8 +61,9 @@ return [
     'staff_reports.report.missed_month' => 'Missed income this month: {n}',
     'staff_reports.report.ref' => '(info)',
     'staff_reports.report.marker' => 'Report for {day}',
-
     'staff_reports.err.bad_day' => 'Invalid day',
     'staff_reports.err.future' => 'Only past days can be generated',
     'staff_reports.err.no_profile' => 'No enabled profile for employee position',
+    'staff_reports.module.description' => 'Staff quality day reports (traffic lights by position); rewards on audio calendar.',
+    'staff_reports.module.summary' => 'Enable for daily staff quality scoring. Requires audio, audio_dicts, comments, procedures. Soft audio_reports/pipeline/contracts/audio_llm. Generate via /staff-reports/generate or Re-® flows.',
 ];

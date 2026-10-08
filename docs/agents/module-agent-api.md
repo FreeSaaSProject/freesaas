@@ -66,6 +66,8 @@ All product modules declare `agent.ops` (session JSON on the same routes as the 
 
 Platform install/ops (`/agent/db*`, token) remain separate — see [remote-api.md](remote-api.md), [migrations.md](migrations.md), and [db-backup.md](db-backup.md).
 
+**Module catalog for MCP/assistant:** `core.modules.list` (`GET /modules?format=json`) and `core.modules.get` (`GET /modules/{id}?format=json`) — same `ModuleCatalog` data as platform `module.list` / `module.inspect`, but session/`core.modules` auth so they appear in `/llm/mcp` `tools/list`. `get` includes `agent_ops[]` with `mcp_name` for that module’s tools.
+
 ## Helper
 
 [`app/AgentHttp.php`](../../app/AgentHttp.php) — `wantsJson()`, `emit()`, `error()`, `opsForModule()`, `normalizeOp()`.

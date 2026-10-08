@@ -1,6 +1,7 @@
 {
     "id": "sheets",
     "name": "sheets.module.name",
+    "description": "sheets.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

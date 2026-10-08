@@ -47,4 +47,6 @@ return [
     'stocks.statuses.field.STOCKS_DATA' => 'Данные складов',
     'stocks.statuses.field.GOOD_USE' => 'Списание расходников',
     'stocks.statuses.field.STICKER_ADV_ACC' => 'Расширенный учёт стикеров',
+    'stocks.module.description' => 'Склады (base_stocks) и отчёт остатков.',
+    'stocks.module.summary' => 'Включайте для складов и остатков. Мягко cabinets/stickers/catalog/norms. Нужен stickers. Когда локации склада важнее одного неявного склада.',
 ];

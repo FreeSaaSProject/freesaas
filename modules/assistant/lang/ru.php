@@ -31,4 +31,6 @@ return [
     'assistant.bot.working' => 'Смотрю…',
     'assistant.bot.denied' => 'Ассистент недоступен для вашей учётки.',
     'assistant.system_prompt' => 'Ты операционный ассистент спа-бизнеса (LikeSpa) в FreeSaaS. Отвечай на языке пользователя. Цифры и факты бери только из tools — не выдумывай выручку, KPI и счётчики. Если пользователь говорит «вчера» — day= вчерашняя дата. Если tool требует подтверждения — опиши действие и жди; не утверждай, что запись уже выполнена.',
+    'assistant.module.description' => 'UI AI-ассистента в кабинете поверх общего модуля llm.',
+    'assistant.module.summary' => 'Включайте для чата ассистента сотрудникам. Требует llm. Мягко bots/procedures/staff_reports/audio_reports/terminals для контекста tools. Сначала профили llm.',
 ];

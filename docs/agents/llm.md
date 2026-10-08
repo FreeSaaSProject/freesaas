@@ -40,6 +40,7 @@ Requires `assistant` enabled for tools. UI: **LLM → OAuth / MCP** (`/llm/oauth
 2. Scopes: `ops.read` (default), optional `ops.write` (write tools under OAuth consent).
 3. Endpoints (also shown in UI):
    - MCP Streamable HTTP: `/llm/mcp` (`initialize` / `tools/list` without auth; `tools/call` needs Bearer)
+   - Module registry in MCP: `core.modules.list` / `core.modules.get` → tool names `core__modules__list` / `core__modules__get` (needs `core.modules`). Not the same as platform `/agent/modules*` (`agent_token`).
    - Authorize / token / revoke: `/oauth/authorize`, `/oauth/token`, `/oauth/revoke`
    - Discovery: `/.well-known/oauth-authorization-server`, `/.well-known/oauth-protected-resource`
    - OpenAPI (ChatGPT Actions fallback): `/llm/openapi.json`

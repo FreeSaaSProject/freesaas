@@ -9,7 +9,6 @@ return [
     'procedures.perm.view' => 'Procedures (view)',
     'procedures.perm.edit' => 'Procedures (edit)',
     'procedures.perm.types' => 'Procedure types',
-
     'procedures.list.search_placeholder' => 'Search: id, token, notice',
     'procedures.list.filter_active' => 'Enabled only',
     'procedures.list.filter_disabled' => 'Disabled',
@@ -27,7 +26,6 @@ return [
     'procedures.list.empty' => 'No procedures found',
     'procedures.list.client_id' => 'Client ID',
     'procedures.list.product_id' => 'Product ID',
-
     'procedures.col.id' => 'ID',
     'procedures.col.dtstart' => 'Start',
     'procedures.col.dtend' => 'End',
@@ -41,7 +39,6 @@ return [
     'procedures.col.restored' => 'Restored',
     'procedures.col.notice' => 'Notice',
     'procedures.col.token' => 'Token',
-
     'procedures.view.title' => 'Procedure #{id}',
     'procedures.view.sec_main' => 'Procedure',
     'procedures.view.sec_people' => 'People & links',
@@ -54,7 +51,6 @@ return [
     'procedures.view.id_event_parent' => 'Parent event',
     'procedures.view.onec_id' => '1C ID',
     'procedures.view.onec_bracelet' => '1C bracelet',
-
     'procedures.edit.title_new' => 'New procedure',
     'procedures.edit.title' => 'Edit procedure #{id}',
     'procedures.edit.heading_new' => 'New procedure',
@@ -62,7 +58,6 @@ return [
     'procedures.edit.sec_people' => 'People & links',
     'procedures.edit.sec_meta' => 'Meta',
     'procedures.edit.client_hint' => 'Client ID from the clients module',
-
     'procedures.err.bad_day' => 'day=YYYY-MM-DD is required',
     'procedures.err.not_found' => 'Procedure #{id} not found',
     'procedures.err.type_required' => 'Procedure type is required',
@@ -75,7 +70,6 @@ return [
     'procedures.err.event_no_content' => 'Event has no services',
     'procedures.err.product_no_type' => 'Product #{id} has no procedure type',
     'procedures.notice.from_event' => 'From event #{id}',
-
     'procedures.type.lede' => 'Dictionary <code>base_procedure_types</code> — used by catalog products and staff restrictions.',
     'procedures.type.empty' => 'No procedure types yet',
     'procedures.type.title_new' => 'New procedure type',
@@ -94,13 +88,11 @@ return [
     'procedures.type.site_amo_show' => 'Show on site / AMO',
     'procedures.type.err.not_found' => 'Procedure type #{id} not found',
     'procedures.type.err.name_required' => 'Type name is required',
-
     'procedures.bulk.set_admin' => 'Change admins',
     'procedures.bulk.admin' => 'Admin',
     'procedures.bulk.err.admin_required' => 'Choose an admin',
     'procedures.bulk.type_in_use' => 'Procedures use this type ({n})',
     'procedures.bulk.client_in_use' => 'Client has procedures ({n})',
-
     'procedures.stats.proc_unit' => 'p.',
     'procedures.stats.proc_short' => 'pr.',
     'procedures.stats.promo_short' => 'promo',
@@ -119,4 +111,6 @@ return [
     'procedures.bot.notify_new' => 'New procedure #{id} at {when}',
     'procedures.bot.notify_update' => 'Procedure #{id} updated ({when})',
     'procedures.bot.notify_cancel' => 'Procedure #{id} cancelled',
+    'procedures.module.description' => 'Procedure types and journal (base_procedure_*); restore UI lives in likespa.',
+    'procedures.module.summary' => 'Enable for spa procedure catalog and journal. Requires clients + catalog. Soft tables/bots. Required by calendar, rates, procents, bonuses, staff_reports. Core spa domain — enable before calendar/rates.',
 ];

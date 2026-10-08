@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 return [
     'bots.module.name' => 'Messenger bots',
-    'bots.module.description' => 'Telegram/Max transport, outbound queue, staff/client webhooks',
+    'bots.module.description' => 'Telegram/Max transport, outbound queue, staff/client webhooks and bot links.',
     'bots.perm.manage' => 'Bots (manage)',
     'bots.perm.view' => 'Bots (view queue)',
     'bots.menu.group' => 'Bots',
@@ -12,7 +12,6 @@ return [
     'bots.menu.settings' => 'Settings',
     'bots.menu.sends' => 'Sends',
     'bots.menu.plugins' => 'Plugins',
-
     'bots.type.lede.staff' => 'Staff bot: cabinet menu (Max/Telegram parity), channels, and oper port status.',
     'bots.type.lede.client' => 'Client bot: cabinet menu, channels, and oper port status.',
     'bots.type.sec.menu' => 'Cabinet menu',
@@ -28,7 +27,6 @@ return [
     'bots.type.outbound.procedure_notify' => 'Procedure notifications',
     'bots.err.unknown_type' => 'Unknown bot type',
     'bots.err.client_module_off' => 'clients module is off — client bot unavailable',
-
     'bots.catalog.hint' => 'Catalog from oper employeeBot/client bot. active = BotPlugins live; pending = module on, adapter not ported; module_off = module disabled; missing = no FreeSaaS home.',
     'bots.catalog.summary' => 'Cabinet: {active} active · {pending} pending port · {off} module off · {missing} no module',
     'bots.catalog.col.status' => 'Status',
@@ -42,7 +40,6 @@ return [
     'bots.catalog.status.missing' => 'No module',
     'bots.catalog.kind.cabinet' => 'Button',
     'bots.catalog.kind.outbound' => 'Queue',
-
     'bots.catalog.staff.chat_with_max' => '💬 Chat with Max',
     'bots.catalog.staff.account_moves' => '📒 Account moves',
     'bots.catalog.staff.audio_reports' => '📊 Audio analytics / reports',
@@ -60,12 +57,10 @@ return [
     'bots.catalog.staff.writeoff' => '📦 Stock write-off',
     'bots.catalog.staff.appeals' => '📹 Appeals / absences',
     'bots.catalog.staff.procedure_notify' => '🔔 Procedure notifications',
-
     'bots.catalog.client.profile' => 'My profile',
     'bots.catalog.client.booking' => 'Booking',
     'bots.catalog.client.orders' => 'Orders',
     'bots.catalog.client.polls' => 'Polls / bonuses',
-
     'bots.settings.title' => 'Messenger bot settings',
     'bots.settings.lede' => 'Tokens and webhook secrets for staff and client Telegram/Max channels.',
     'bots.settings.ini_hint' => 'Stored in cfg/modules/bots.ini (gitignored). Leave a masked field unchanged to keep the current secret.',
@@ -78,7 +73,6 @@ return [
     'bots.settings.audience.client' => 'Client',
     'bots.settings.platform.telegram' => 'Telegram',
     'bots.settings.platform.max' => 'Max',
-
     'bots.sends.title' => 'Outbound bot queue',
     'bots.sends.empty' => 'No messages in the queue',
     'bots.sends.filter_status' => 'Status',
@@ -99,13 +93,11 @@ return [
     'bots.sends.status.2' => 'Sent',
     'bots.sends.status.3' => 'Error',
     'bots.sends.status.100' => 'Skipped',
-
     'bots.plugins.title' => 'Registered bot plugins',
     'bots.plugins.empty' => 'No plugins registered yet',
     'bots.plugins.col.id' => 'Id',
     'bots.plugins.col.priority' => 'Priority',
     'bots.plugins.col.handlers' => 'Handlers',
-
     'bots.user_edit.sec' => 'Staff bot (Telegram / Max)',
     'bots.user_edit.hint' => 'Clear these fields if the employee has not signed in to the bot yet — otherwise messages may go to someone else.',
     'bots.user_edit.telegram_chat_id' => 'Telegram chat_id',
@@ -114,7 +106,6 @@ return [
     'bots.user.bot_off' => 'Bot sends blocked',
     'bots.client_edit.sec' => 'Client bot (Telegram / Max)',
     'bots.client_edit.hint' => 'Messenger chat ids live in base_bot_links — not on the client row. Clear if the client has not linked the bot yet.',
-
     'bots.cabinet.hello' => 'Hello, {name}. Choose an action:',
     'bots.cabinet.refresh' => 'Menu',
     'bots.auth.prompt' => 'Send your phone number to link this chat (as stored in FreeSaaS).',
@@ -124,7 +115,6 @@ return [
     'bots.auth.staff_not_found' => 'No staff user with this phone.',
     'bots.auth.client_not_found' => 'No client with this phone.',
     'bots.auth.linked' => 'Linked. Opening menu…',
-
     'bots.send.default_text' => 'Notification',
     'bots.send.sent' => 'Sent ({where})',
     'bots.send.skipped_deadline' => 'Skipped: past deadline',
@@ -132,20 +122,18 @@ return [
     'bots.send.err_no_chat' => 'No linked telegram / max chat id',
     'bots.send.err_no_token' => 'No bot token for linked platforms',
     'bots.send.err_send' => 'Send failed',
-
     'bots.err.table' => 'base_telegram_sends is missing — run migrations',
     'bots.err.links_table' => 'base_bot_links is missing — run migrations',
     'bots.err.enqueue_args' => 'user_id/client_id and text are required',
     'bots.err.forbidden' => 'Forbidden',
     'bots.err.user_required' => 'user_id is required',
-
     'bots.health.ok' => 'At least one bot token is configured',
     'bots.health.missing' => 'No bot tokens configured',
     'bots.health.queue' => 'Pending outbound messages: {n}',
     'bots.health.queue_missing' => 'Queue table missing',
-
     'bots.plugin.my_tasks' => 'My tasks',
     'bots.plugin.my_tasks.empty' => 'No open tickets assigned to you.',
     'bots.plugin.my_tasks.line' => '#{id} {name}',
     'bots.plugin.news' => 'News',
+    'bots.module.summary' => 'Enable for messenger delivery and inbound webhooks. Soft clients. Soft-used by core staff fields and procedures. Configure bot tokens in cfg/modules/bots.ini. Domain adapters via BotPlugins / bots.send.',
 ];

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once base_path('modules/core/lib/ModulesAdmin.php');
 
+$wantsJson = AgentHttp::wantsJson();
+
 $filters = [
     'q' => trim((string)($_GET['q'] ?? '')),
     'category' => trim((string)($_GET['category'] ?? '')),
@@ -19,19 +21,30 @@ if ($query !== []) {
     $listPath .= '?' . http_build_query($query);
 }
 
-$handled = ModulesAdmin::handlePost($listPath);
-if ($handled !== null) {
-    redirect($handled['redirect']);
+if (!$wantsJson) {
+    $handled = ModulesAdmin::handlePost($listPath);
+    if ($handled !== null) {
+        redirect($handled['redirect']);
+    }
+}
+
+if ($wantsJson) {
+    $r = AgentOps::moduleList($filters);
+    unset($r['http']);
+    AgentHttp::emit($r);
+    return;
 }
 
 $message = trim((string)($_GET['msg'] ?? ''));
 $error = trim((string)($_GET['err'] ?? ''));
 
 $cards = ModuleCatalog::list($filters);
+$sections = ModuleCatalog::sections($cards);
 
 View::render('modules', [
     'title' => t('core.menu.modules'),
     'cards' => $cards,
+    'sections' => $sections,
     'filters' => $filters,
     'categories' => ModuleCatalog::usedCategories(),
     'tags' => ModuleCatalog::usedTags(),

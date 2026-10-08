@@ -71,4 +71,6 @@ return [
     'polls.err.invalid_parent' => 'Invalid parent for this element type',
     'polls.err.has_children' => 'Cannot delete: element has children',
     'polls.err.cannot_change_type' => 'Element type cannot be changed after create',
+    'polls.module.description' => 'Poll definitions tree (base_polls); channels via EventBus.',
+    'polls.module.summary' => 'Enable to define reusable polls. Soft procedures/catalog. Required by poll_invites. Universal — not spa-specific; pair with poll_invites for staff fill.',
 ];

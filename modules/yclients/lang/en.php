@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 return [
     'yclients.module.name' => 'YClients',
-    'yclients.module.description' => 'Pull-only bridge from YClients: import clients into FreeSaaS by phone with external id map. No push back.',
+    'yclients.module.description' => 'Pull-only bridge from YClients: import clients by phone with external id map. No push back.',
     'yclients.menu.group' => 'YClients',
     'yclients.menu.status' => 'Status',
     'yclients.menu.import' => 'Import',
@@ -11,7 +11,6 @@ return [
     'yclients.perm.view' => 'View YClients integrator',
     'yclients.perm.edit' => 'Edit YClients integrator',
     'yclients.perm.import' => 'Run YClients pull import',
-
     'yclients.status.title' => 'YClients pull',
     'yclients.status.lede' => 'Pull-only bridge from YClients into FreeSaaS. No data is written back to YClients.',
     'yclients.status.pull' => 'Pull enabled',
@@ -26,7 +25,6 @@ return [
     'yclients.status.none' => 'No job runs yet.',
     'yclients.status.job_ok' => 'ok',
     'yclients.status.job_fail' => 'fail',
-
     'yclients.import.title' => 'Import from YClients',
     'yclients.import.lede' => 'Pull clients by phone into base_clients. Dry-run reports counts without writing.',
     'yclients.import.clients' => 'Import clients',
@@ -34,7 +32,6 @@ return [
     'yclients.import.last' => 'Last clients import',
     'yclients.import.done' => 'Import finished.',
     'yclients.import.failed' => 'Import failed.',
-
     'yclients.settings.title' => 'YClients settings',
     'yclients.settings.features' => 'Features',
     'yclients.settings.pull_enabled' => 'Enable pull',
@@ -49,4 +46,5 @@ return [
     'yclients.settings.secret_keep' => 'Leave blank to keep current',
     'yclients.settings.secret_empty' => 'not set',
     'yclients.settings.current' => 'current: {masked}',
+    'yclients.module.summary' => 'Enable to sync clients from YClients into FreeSaaS. Requires clients. Soft calendar/procedures/workweeks. Credentials in cfg/modules/yclients.ini. Beta integration — verify phone matching before relying on it in production days.',
 ];

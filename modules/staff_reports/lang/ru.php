@@ -6,7 +6,6 @@ return [
     'staff_reports.perm.view' => 'Просмотр отчётов качества сотрудников',
     'staff_reports.perm.edit' => 'Генерация и настройка отчётов сотрудников',
     'staff_reports.menu.generate' => 'Отчёты сотрудников',
-
     'staff_reports.settings.title' => 'Отчёты качества сотрудников (по должности)',
     'staff_reports.settings.hint' => 'Дневные отчёты со светофором по аудиокритериям. Награды отображаются в календаре записей.',
     'staff_reports.settings.position' => 'Должность',
@@ -32,7 +31,6 @@ return [
     'staff_reports.settings.ticket_prefix' => 'Префикс заголовка заявки',
     'staff_reports.settings.llm_enabled' => 'Запускать циклические LLM-исследования при генерации (нужен audio_llm)',
     'staff_reports.settings.save_flag' => 'staff_reports_settings_save',
-
     'staff_reports.generate.title' => 'Генерация отчётов сотрудников',
     'staff_reports.generate.hint' => 'Собрать дневные отчёты со светофорами и опубликовать в заявки сотрудников.',
     'staff_reports.generate.day' => 'День (ГГГГ-ММ-ДД)',
@@ -43,14 +41,12 @@ return [
     'staff_reports.generate.step_start' => 'Старт генерации…',
     'staff_reports.generate.step_done' => 'Генерация завершена.',
     'staff_reports.generate.reparse_step' => 'Пересчёт отчётов качества сотрудников…',
-
     'staff_reports.reward.ok' => 'Награда',
     'staff_reports.reward.no' => 'Без награды',
     'staff_reports.reward.no_records' => 'Нет аудио за день',
     'staff_reports.reward.col' => 'Награды',
     'staff_reports.reward.col_short' => '🏆',
     'staff_reports.reward.col_title' => 'Дни с вознаграждением за качество в этом месяце',
-
     'staff_reports.report.clients' => 'Клиентов за день: {n}',
     'staff_reports.report.standards' => '🎧 Оценка стандартов по аудиоаналитике:',
     'staff_reports.report.coverage' => 'Покрытие процедур аудио: {covered} из {total}; общее {pct}%',
@@ -65,8 +61,9 @@ return [
     'staff_reports.report.missed_month' => 'Недополученный доход с начала месяца: {n}',
     'staff_reports.report.ref' => '(справочно)',
     'staff_reports.report.marker' => 'Отчёт за {day}',
-
     'staff_reports.err.bad_day' => 'Некорректная дата',
     'staff_reports.err.future' => 'Можно считать только прошедшие дни',
     'staff_reports.err.no_profile' => 'Нет включённого профиля для должности сотрудника',
+    'staff_reports.module.description' => 'Дневные отчёты качества сотрудников (светофор по должностям); награды в audio-календаре.',
+    'staff_reports.module.summary' => 'Включайте для дневных оценок качества. Требует audio, audio_dicts, comments, procedures. Мягко audio_reports/pipeline/contracts/audio_llm. Генерация — /staff-reports/generate или Re-®.',
 ];

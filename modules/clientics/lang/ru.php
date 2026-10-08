@@ -11,7 +11,6 @@ return [
     'clientics.perm.view' => 'Просмотр интегратора Клиентикс',
     'clientics.perm.edit' => 'Редактирование интегратора Клиентикс',
     'clientics.perm.import' => 'Запуск импорта из Клиентикс',
-
     'clientics.status.title' => 'Клиентикс pull',
     'clientics.status.lede' => 'Только pull из Клиентикс в FreeSaaS. Обратной записи нет.',
     'clientics.status.pull' => 'Pull включён',
@@ -27,7 +26,6 @@ return [
     'clientics.status.none' => 'Заданий ещё не было.',
     'clientics.status.job_ok' => 'ok',
     'clientics.status.job_fail' => 'ошибка',
-
     'clientics.import.title' => 'Импорт из Клиентикс',
     'clientics.import.lede' => 'List API по дням — укажите диапазон дат. Dry-run считает без записи.',
     'clientics.import.clients' => 'Импорт клиентов',
@@ -37,7 +35,6 @@ return [
     'clientics.import.last' => 'Последний импорт клиентов',
     'clientics.import.done' => 'Импорт завершён.',
     'clientics.import.failed' => 'Импорт не удался.',
-
     'clientics.settings.title' => 'Настройки Клиентикс',
     'clientics.settings.features' => 'Функции',
     'clientics.settings.pull_enabled' => 'Включить pull',
@@ -53,4 +50,5 @@ return [
     'clientics.settings.secret_keep' => 'Пустое поле = оставить текущее',
     'clientics.settings.secret_empty' => 'не задан',
     'clientics.settings.current' => 'сейчас: {masked}',
+    'clientics.module.summary' => 'Включайте для импорта клиентов из Клиентикс. Требует clients. Мягко calendar/procedures/workweeks для дневных выгрузок. Токены — cfg/modules/clientics.ini. Beta: при сбоях импорта диагностируйте локально.',
 ];

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 return [
     'bots.module.name' => 'Боты мессенджеров',
-    'bots.module.description' => 'Транспорт Telegram/Max, очередь исходящих, webhook staff/client',
+    'bots.module.description' => 'Транспорт Telegram/Max, очередь исходящих, webhooks staff/client и bot links.',
     'bots.perm.manage' => 'Боты (управление)',
     'bots.perm.view' => 'Боты (очередь)',
     'bots.menu.group' => 'Боты',
@@ -12,7 +12,6 @@ return [
     'bots.menu.settings' => 'Настройки',
     'bots.menu.sends' => 'Рассылки',
     'bots.menu.plugins' => 'Плагины',
-
     'bots.type.lede.staff' => 'Staff-бот: меню кабинета (как в Max/Telegram), каналы и статус переноса из oper.',
     'bots.type.lede.client' => 'Client-бот: меню кабинета, каналы и статус переноса из oper.',
     'bots.type.sec.menu' => 'Меню кабинета',
@@ -28,7 +27,6 @@ return [
     'bots.type.outbound.procedure_notify' => 'Уведомления о процедурах',
     'bots.err.unknown_type' => 'Неизвестный тип бота',
     'bots.err.client_module_off' => 'Модуль clients выключен — client-бот недоступен',
-
     'bots.catalog.hint' => 'Список из oper employeeBot/client bot. active — уже в FreeSaaS через BotPlugins; pending — модуль есть, адаптер ещё не перенесён; module_off — модуль выключен; missing — в FreeSaaS нет дома.',
     'bots.catalog.summary' => 'В кабинете: {active} активных · {pending} ждут переноса · {off} модуль выкл. · {missing} без модуля',
     'bots.catalog.col.status' => 'Статус',
@@ -42,7 +40,6 @@ return [
     'bots.catalog.status.missing' => 'Нет модуля',
     'bots.catalog.kind.cabinet' => 'Кнопка',
     'bots.catalog.kind.outbound' => 'Очередь',
-
     'bots.catalog.staff.chat_with_max' => '💬 Чат с Максом',
     'bots.catalog.staff.account_moves' => '📒 Движения по счетам',
     'bots.catalog.staff.audio_reports' => '📊 Аудиоаналитика / отчёты',
@@ -60,12 +57,10 @@ return [
     'bots.catalog.staff.writeoff' => '📦 Списание со склада',
     'bots.catalog.staff.appeals' => '📹 Заявки / отсутствия',
     'bots.catalog.staff.procedure_notify' => '🔔 Уведомления о процедурах',
-
     'bots.catalog.client.profile' => 'Мой профиль',
     'bots.catalog.client.booking' => 'Запись',
     'bots.catalog.client.orders' => 'Заказы',
     'bots.catalog.client.polls' => 'Опросы / бонусы',
-
     'bots.settings.title' => 'Настройки ботов',
     'bots.settings.lede' => 'Токены и секреты webhook для staff/client каналов Telegram и Max.',
     'bots.settings.ini_hint' => 'Хранится в cfg/modules/bots.ini (не в git). Оставьте замаскированное поле без изменений, чтобы сохранить секрет.',
@@ -78,7 +73,6 @@ return [
     'bots.settings.audience.client' => 'Клиенты',
     'bots.settings.platform.telegram' => 'Telegram',
     'bots.settings.platform.max' => 'Max',
-
     'bots.sends.title' => 'Очередь исходящих',
     'bots.sends.empty' => 'В очереди нет сообщений',
     'bots.sends.filter_status' => 'Статус',
@@ -99,13 +93,11 @@ return [
     'bots.sends.status.2' => 'Отправлено',
     'bots.sends.status.3' => 'Ошибка',
     'bots.sends.status.100' => 'Пропуск',
-
     'bots.plugins.title' => 'Зарегистрированные плагины',
     'bots.plugins.empty' => 'Плагины ещё не зарегистрированы',
     'bots.plugins.col.id' => 'Id',
     'bots.plugins.col.priority' => 'Приоритет',
     'bots.plugins.col.handlers' => 'Обработчики',
-
     'bots.user_edit.sec' => 'Бот сотрудников (Telegram / Max)',
     'bots.user_edit.hint' => 'Очистите поля, если сотрудник ещё не входил в бота — иначе сообщения могут уйти другому человеку.',
     'bots.user_edit.telegram_chat_id' => 'Telegram chat_id',
@@ -114,7 +106,6 @@ return [
     'bots.user.bot_off' => 'Рассылки бота выключены',
     'bots.client_edit.sec' => 'Бот клиента (Telegram / Max)',
     'bots.client_edit.hint' => 'Chat id хранятся в base_bot_links, не в карточке клиента. Очистите, если клиент ещё не привязал бота.',
-
     'bots.cabinet.hello' => 'Здравствуйте, {name}. Выберите действие:',
     'bots.cabinet.refresh' => 'Меню',
     'bots.auth.prompt' => 'Отправьте номер телефона для привязки чата (как в FreeSaaS).',
@@ -124,7 +115,6 @@ return [
     'bots.auth.staff_not_found' => 'Сотрудник с таким телефоном не найден.',
     'bots.auth.client_not_found' => 'Клиент с таким телефоном не найден.',
     'bots.auth.linked' => 'Привязано. Открываю меню…',
-
     'bots.send.default_text' => 'Уведомление',
     'bots.send.sent' => 'Отправлено ({where})',
     'bots.send.skipped_deadline' => 'Пропуск: дедлайн',
@@ -132,20 +122,18 @@ return [
     'bots.send.err_no_chat' => 'Нет привязанного telegram / max chat id',
     'bots.send.err_no_token' => 'Нет токена бота для привязанных платформ',
     'bots.send.err_send' => 'Ошибка отправки',
-
     'bots.err.table' => 'Нет таблицы base_telegram_sends — выполните миграции',
     'bots.err.links_table' => 'Нет таблицы base_bot_links — выполните миграции',
     'bots.err.enqueue_args' => 'Нужны user_id/client_id и text',
     'bots.err.forbidden' => 'Запрещено',
     'bots.err.user_required' => 'Нужен user_id',
-
     'bots.health.ok' => 'Настроен хотя бы один токен бота',
     'bots.health.missing' => 'Токены ботов не заданы',
     'bots.health.queue' => 'Ожидают отправки: {n}',
     'bots.health.queue_missing' => 'Нет таблицы очереди',
-
     'bots.plugin.my_tasks' => 'Мои задачи',
     'bots.plugin.my_tasks.empty' => 'Нет открытых тикетов.',
     'bots.plugin.my_tasks.line' => '#{id} {name}',
     'bots.plugin.news' => 'Новости',
+    'bots.module.summary' => 'Включайте для доставки в мессенджеры и входящих webhooks. Мягко clients. Мягко — поля staff в core и procedures. Токены — cfg/modules/bots.ini. Адаптеры — BotPlugins / bots.send.',
 ];

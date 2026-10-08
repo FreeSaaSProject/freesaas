@@ -1,6 +1,7 @@
 {
     "id": "core",
     "name": "core.module.name",
+    "description": "core.module.description",
     "version": "0.3.0",
     "type": "platform",
     "requires": [],
@@ -99,6 +100,45 @@
     },
     "agent": {
         "ops": [
+            {
+                "id": "core.modules.list",
+                "method": "GET",
+                "path": "/modules",
+                "permission": "core.modules",
+                "side_effect": "read",
+                "description": "Installed modules catalog: bilocale name/description/summary, maturity, enabled/blocked, deps, categories/tags. Filters: q, category, tag, status, maturity",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": { "type": "string" },
+                        "category": { "type": "string", "description": "Match modules that include this category" },
+                        "tag": { "type": "string" },
+                        "status": {
+                            "type": "string",
+                            "enum": ["enabled", "disabled", "blocked"]
+                        },
+                        "maturity": {
+                            "type": "string",
+                            "enum": ["alpha", "beta", "release"]
+                        }
+                    }
+                }
+            },
+            {
+                "id": "core.modules.get",
+                "method": "GET",
+                "path": "/modules/{id}",
+                "permission": "core.modules",
+                "side_effect": "read",
+                "description": "One module: catalog blurbs, maturity, deps, provides, screenshots, agent_ops (MCP tool names for that module)",
+                "parameters": {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {
+                        "id": { "type": "string", "description": "Module id, e.g. banks" }
+                    }
+                }
+            },
             {
                 "id": "core.users.list",
                 "method": "GET",
@@ -616,8 +656,7 @@
     },
     "catalog": {
         "categories": [
-            "platform",
-            "system"
+            "platform"
         ],
         "maturity": "beta",
         "tags": [],

@@ -1,6 +1,7 @@
 {
     "id": "vacations",
     "name": "vacations.module.name",
+    "description": "vacations.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

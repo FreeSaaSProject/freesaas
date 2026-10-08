@@ -1,6 +1,7 @@
 {
     "id": "terminals",
     "name": "terminals.module.name",
+    "description": "terminals.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

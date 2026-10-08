@@ -18,7 +18,6 @@ return [
     'likespa.perm.pages' => 'LikeSpa: site articles',
     'likespa.perm.redirects' => 'LikeSpa: redirects',
     'likespa.menu.restores' => 'Procedure restores',
-
     'likespa.site.lede' => 'Client-site fields from <code>base_system</code> (name, SEO, phone).',
     'likespa.site.field_name' => 'Site name',
     'likespa.site.field_title' => 'Page title',
@@ -26,7 +25,6 @@ return [
     'likespa.site.field_tel' => 'Phone',
     'likespa.site.field_mothersite' => 'Public site host',
     'likespa.site.field_mothersite_hint' => 'Without https:// — used for /promo/{code}/ links',
-
     'likespa.promopages.search_placeholder' => 'Code, title, ID…',
     'likespa.promopages.empty' => 'No promo pages',
     'likespa.promopages.filter.all' => 'All',
@@ -197,7 +195,6 @@ return [
     'likespa.promopages.err.code_required' => 'Code is required',
     'likespa.promopages.err.code_too_long' => 'Code must be at most 10 characters',
     'likespa.promopages.err.not_found' => 'Promo page #{id} not found',
-
     'likespa.pages.search_placeholder' => 'Name, link, ID…',
     'likespa.pages.empty' => 'No articles',
     'likespa.pages.filter.all' => 'All',
@@ -233,7 +230,6 @@ return [
     'likespa.pages.field.content' => 'Site description',
     'likespa.pages.err.link_required' => 'Link is required',
     'likespa.pages.err.not_found' => 'Article #{id} not found',
-
     'likespa.redirects.lede' => 'Site URL redirects (oper show_redirects → base_redirects).',
     'likespa.redirects.search_placeholder' => 'Old/new URL, ID…',
     'likespa.redirects.empty' => 'No redirects',
@@ -255,7 +251,6 @@ return [
     'likespa.redirects.err.url_old_required' => 'Old URL is required',
     'likespa.redirects.err.url_new_required' => 'New URL is required',
     'likespa.redirects.err.not_found' => 'Redirect #{id} not found',
-
     'likespa.settings.lede' => 'Flyer and promoter discounts (base_system), plus scan/bonus/dops thresholds (ini).',
     'likespa.settings.ini_hint' => 'Features / bonus / dops / restores → cfg/modules/likespa.ini ([likespa]).',
     'likespa.settings.system_hint' => 'Flyer and promoter discounts → base_system (oper show_site_sets).',
@@ -301,7 +296,6 @@ return [
     'likespa.settings.dops_procedure_type_hint' => 'base_procedures.TYPE (usually 44)',
     'likespa.settings.dops_position_ids' => 'Masseur position IDs',
     'likespa.settings.dops_position_ids_hint' => 'base_users.ID_STATUS, comma-separated',
-
     'likespa.term_scans.title' => 'Terminal scans',
     'likespa.term_scans.empty' => 'No scans for this period',
     'likespa.term_scans.nav_aria' => 'Period navigator',
@@ -344,7 +338,6 @@ return [
     'likespa.term_scans.flag.promoter' => 'promoter',
     'likespa.term_scans.flag.discount' => 'discount activated',
     'likespa.term_scans.procs_hint' => 'Procedures for client in {h} h window',
-
     'likespa.promo.hours' => '{h} h',
     'likespa.promo.scripts' => 'scr. {n}',
     'likespa.promo.scans' => '{n} scans',
@@ -359,11 +352,9 @@ return [
     'likespa.promo.denied' => 'No permission to create bonus',
     'likespa.promo.failed' => 'Could not create bonus record',
     'likespa.promo.not_eligible' => 'Bonus criteria not met',
-
     'likespa.dops.badge' => 'extra: {n}',
     'likespa.dops.clients' => 'cli: {n}',
     'likespa.dops.sum' => '{sum}',
-
     'likespa.restores.list.search_placeholder' => 'ID, procedure, reason…',
     'likespa.restores.list.empty' => 'No restores',
     'likespa.restores.col.id' => 'ID',
@@ -397,7 +388,6 @@ return [
     'likespa.restores.err.summ_required' => 'Payout amount is required',
     'likespa.restores.err.procedure_required' => 'Pick a procedure',
     'likespa.restores.err.no_candidates' => 'Cancel a procedure first!',
-
     'likespa.user_edit.sec_site' => 'Website details',
     'likespa.user_edit.tips_link' => 'Tips link',
     'likespa.user_edit.photo' => 'Photo for the client-facing site',
@@ -405,4 +395,6 @@ return [
     'likespa.user.tips' => 'Tips',
     'likespa.user.photo' => 'Photo',
     'likespa.user.site_descr' => 'Description',
+    'likespa.module.description' => 'Instance pack: site SEO/phone, flyer/promoter discounts, promo pages, articles, redirects, term scans, restores, settlement.',
+    'likespa.module.summary' => 'Enable on LikeSpa instances for site settings, promo content, and spa-specific settlement/restore UI. Soft audio_reports/audio/workweeks/procedures/payments. Disableable pack — not needed on non-LikeSpa tenants.',
 ];

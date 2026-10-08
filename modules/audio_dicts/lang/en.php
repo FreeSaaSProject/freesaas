@@ -40,7 +40,6 @@ return [
     'audio_dicts.edit.sec_score' => 'Scoring',
     'audio_dicts.err.name_required' => 'Name is required',
     'audio_dicts.err.not_found' => 'Item #{id} not found',
-
     'audio_dicts.scripts.btn_new' => 'Build script',
     'audio_dicts.scripts.btn_copy' => 'Copy',
     'audio_dicts.scripts.bulk_copy' => 'Copy',
@@ -60,7 +59,6 @@ return [
     'audio_dicts.scripts.confirm_delete_part' => 'Delete this block?',
     'audio_dicts.scripts.preview_empty' => 'No blocks to preview.',
     'audio_dicts.scripts.no_positions' => 'No positions available.',
-
     'audio_dicts.scripts.wizard.step1' => 'Name and positions',
     'audio_dicts.scripts.wizard.step2' => 'Blocks and dictionaries',
     'audio_dicts.scripts.wizard.step3' => 'Block roles',
@@ -76,7 +74,6 @@ return [
     'audio_dicts.scripts.wizard.step4_hint' => '0 = one hit is enough. Thresholds decide when trigger/conversion count.',
     'audio_dicts.scripts.wizard.next' => 'Next',
     'audio_dicts.scripts.wizard.back' => 'Back',
-
     'audio_dicts.scripts.field.positions' => 'Positions',
     'audio_dicts.scripts.field.positions_hint' => 'None selected = applies to all positions.',
     'audio_dicts.scripts.field.dicts' => 'Dictionaries',
@@ -95,7 +92,6 @@ return [
     'audio_dicts.scripts.field.killer' => 'Killer',
     'audio_dicts.scripts.field.killer_hint' => 'Cancels the open collection when this block fires.',
     'audio_dicts.scripts.field.advanced' => 'Advanced',
-
     'audio_dicts.scripts.role.ordinary' => 'Ordinary',
     'audio_dicts.scripts.role.trigger' => 'Trigger',
     'audio_dicts.scripts.role.conversion' => 'Conversion',
@@ -106,7 +102,6 @@ return [
     'audio_dicts.scripts.role.conversion_hint' => 'Finish: after thresholds the collection is complete and saved. Usually on the last block.',
     'audio_dicts.scripts.role.breaker_hint' => 'If this block is already in the open collection — close it and start a new one from this hit. Often with trigger: repeating the phrase restarts the script.',
     'audio_dicts.scripts.role.killer_hint' => 'Immediately destroys the open collection without saving (unlike breaker). Cannot combine with other roles.',
-
     'audio_dicts.scripts.sec.script' => 'Script',
     'audio_dicts.scripts.sec.flow' => 'Block flow',
     'audio_dicts.scripts.sec.block' => 'Block',
@@ -114,7 +109,6 @@ return [
     'audio_dicts.scripts.sec.dangerous' => 'Advanced',
     'audio_dicts.scripts.canvas.select_block' => 'Select a block on the flow.',
     'audio_dicts.scripts.canvas.empty' => 'No blocks yet. Add the first one.',
-
     'audio_dicts.scripts.err.not_found' => 'Script #{id} not found',
     'audio_dicts.scripts.err.part_not_found' => 'Block #{id} not found',
     'audio_dicts.scripts.err.parts_required' => 'Add at least one block',
@@ -125,4 +119,6 @@ return [
     'audio_dicts.scripts.err.reorder' => 'Invalid block order',
     'audio_dicts.scripts.err.unknown_action' => 'Unknown action',
     'audio_dicts.scripts.err.save_failed' => 'Save failed',
+    'audio_dicts.module.description' => 'Recognition types, dicts, keys, scripts, and trash for ASR.',
+    'audio_dicts.module.summary' => 'Enable for ASR dictionaries and scripts. Requires audio. Required by pipeline, reports, audio_llm, staff_reports. Configure before turning on workers.',
 ];

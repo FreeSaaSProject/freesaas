@@ -7,7 +7,6 @@ return [
     'orders.menu.list' => 'Заказы с сайта',
     'orders.perm.view' => 'Заказы (просмотр)',
     'orders.perm.edit' => 'Заказы (редактирование)',
-
     'orders.list.search_placeholder' => 'Поиск по комментарию',
     'orders.list.empty' => 'Заказы не найдены',
     'orders.list.filter_status' => 'Статус',
@@ -17,7 +16,6 @@ return [
     'orders.list.client_id' => 'ID клиента',
     'orders.list.promocode_id' => 'ID промокода',
     'orders.list.free_ticket' => 'Без билета',
-
     'orders.col.id' => 'ID',
     'orders.col.uid' => 'UID',
     'orders.col.dt_save' => 'Оформлен',
@@ -28,7 +26,6 @@ return [
     'orders.col.summ_real' => 'Сумма',
     'orders.col.promo' => 'Промокод',
     'orders.col.free_ticket' => 'Без билета',
-
     'orders.status.0' => 'в процессе оформления…',
     'orders.status.1' => 'в процессе оформления (в теч. 2ч.)',
     'orders.status.cashComplete' => 'Оформлен',
@@ -41,7 +38,6 @@ return [
     'orders.status.ukassaNew' => 'новый заказ UКасса',
     'orders.status.paymentProblem' => 'проблема с оплатой',
     'orders.status.unknown' => '{code}',
-
     'orders.view.title' => 'Заказ #{id}',
     'orders.view.sec_main' => 'Заказ',
     'orders.view.sec_client' => 'Клиент',
@@ -81,7 +77,6 @@ return [
     'orders.view.unauthorized' => 'не авторизован',
     'orders.view.client_auto_linked' => '[…найден! {id}]',
     'orders.view.client_untied' => 'Привязан несуществующий клиент! Заказ отвязан.',
-
     'orders.edit.title' => 'Редактирование заказа #{id}',
     'orders.edit.lede' => 'Ограниченное редактирование: статус, сотрудник, комментарий, почта, маркер «без билета».',
     'orders.edit.sec_main' => 'Основное',
@@ -90,19 +85,16 @@ return [
     'orders.edit.mail' => 'Эл. почта',
     'orders.edit.comment' => 'Комментарий',
     'orders.edit.free_ticket' => 'Без билета',
-
     'orders.err.not_found' => 'Заказ #{id} не найден',
-
     'orders.notice.today_short' => 'Зак:{n}',
     'orders.notice.today_title' => 'Оформленные заказы с записью до конца сегодняшнего дня',
     'orders.notice.future_short' => 'ЗакБуд:{n}',
     'orders.notice.future_title' => 'Оформленные заказы (включая будущие)',
-
     'orders.widget.quick.title' => 'Заказы',
     'orders.widget.quick.today' => 'Сегодня',
     'orders.widget.quick.future' => 'Все будущие',
-
     'orders.bulk.client_in_use' => 'Есть заказы ({n})',
-
     'orders.stats.day_chip' => 'LS:{n}',
+    'orders.module.description' => 'Заказы сайта (base_orders); нотисы; orders.for_day для календаря.',
+    'orders.module.summary' => 'Включайте для заказов сайта и дневной ленты в календарь. Требует clients. Мягко catalog/procedures. Нужен calendar. Когда сайт пишет заказы в FreeSaaS.',
 ];

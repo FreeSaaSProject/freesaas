@@ -16,7 +16,6 @@ return [
     'wellness.menu.symptoms' => 'Conditions',
     'wellness.perm.view' => 'Wellness (view)',
     'wellness.perm.edit' => 'Wellness (edit)',
-
     'wellness.err.auth_required' => 'Sign in required',
     'wellness.err.forbidden' => 'Access denied: this record belongs to another user',
     'wellness.err.not_found' => 'Record not found',
@@ -26,7 +25,6 @@ return [
     'wellness.err.rx_data_required' => 'Prescription text is required',
     'wellness.err.symptom_invalid' => 'Invalid condition',
     'wellness.err.medicine_invalid' => 'Invalid medicine',
-
     'wellness.calendar.title' => 'Wellness calendar',
     'wellness.calendar.aria' => 'Wellness month overview',
     'wellness.calendar.prev' => 'Previous month',
@@ -39,7 +37,6 @@ return [
     'wellness.calendar.empty_day' => 'No entries',
     'wellness.calendar.kcal' => '{n} kcal',
     'wellness.calendar.kg' => '{n} kg',
-
     'wellness.food_diary.title' => 'Food diary',
     'wellness.food_diary.day' => 'Day',
     'wellness.food_diary.empty' => 'No meals logged for this day',
@@ -47,55 +44,46 @@ return [
     'wellness.food_diary.workouts' => 'Workouts this day',
     'wellness.food_diary.health' => 'Health this day',
     'wellness.food_diary.search_placeholder' => 'Search meals',
-
     'wellness.foods.title' => 'Foods',
     'wellness.foods.empty' => 'No foods yet — add items to your private catalog',
     'wellness.foods.search_placeholder' => 'Search foods',
     'wellness.foods.per_100' => 'Per 100 g',
     'wellness.foods.edit_new' => 'New food',
     'wellness.foods.edit' => 'Edit food: {name}',
-
     'wellness.workouts.title' => 'Workouts',
     'wellness.workouts.empty' => 'No workouts yet',
     'wellness.workouts.search_placeholder' => 'Search workouts',
     'wellness.workouts.edit_new' => 'New workout',
     'wellness.workouts.edit' => 'Edit workout',
-
     'wellness.weight.title' => 'Weight log',
     'wellness.weight.empty' => 'No weight entries yet',
     'wellness.weight.edit_new' => 'New weight entry',
     'wellness.weight.edit' => 'Edit weight entry',
-
     'wellness.targets.title' => 'Fitness goals',
     'wellness.targets.empty' => 'No goals yet',
     'wellness.targets.edit_new' => 'New goal',
     'wellness.targets.edit' => 'Edit goal',
     'wellness.targets.default_name' => 'Goal',
-
     'wellness.health_diary.title' => 'Health diary',
     'wellness.health_diary.empty' => 'No health entries yet',
     'wellness.health_diary.search_placeholder' => 'Search diary',
     'wellness.health_diary.edit_new' => 'New entry',
     'wellness.health_diary.edit' => 'Edit entry',
-
     'wellness.doctor_rx.title' => 'Doctor prescriptions',
     'wellness.doctor_rx.empty' => 'No prescriptions yet',
     'wellness.doctor_rx.search_placeholder' => 'Search prescriptions',
     'wellness.doctor_rx.edit_new' => 'New prescription',
     'wellness.doctor_rx.edit' => 'Edit prescription',
-
     'wellness.medicines.title' => 'Medicines',
     'wellness.medicines.empty' => 'No medicines in your catalog',
     'wellness.medicines.search_placeholder' => 'Search medicines',
     'wellness.medicines.edit_new' => 'New medicine',
     'wellness.medicines.edit' => 'Edit medicine',
-
     'wellness.symptoms.title' => 'Conditions',
     'wellness.symptoms.empty' => 'No conditions in your catalog',
     'wellness.symptoms.search_placeholder' => 'Search conditions',
     'wellness.symptoms.edit_new' => 'New condition',
     'wellness.symptoms.edit' => 'Edit condition',
-
     'wellness.col.name' => 'Name',
     'wellness.col.dt' => 'Date',
     'wellness.col.dt_start' => 'Start',
@@ -118,4 +106,6 @@ return [
     'wellness.col.descr' => 'Notes',
     'wellness.col.doctor' => 'Doctor',
     'wellness.col.data' => 'Prescription',
+    'wellness.module.description' => 'Health & fitness product module (wellness domain UI and data).',
+    'wellness.module.summary' => 'Enable for wellness-specific screens beyond spa procedures. Depends only on core. Turn on when the tenant runs health/fitness features from this pack.',
 ];

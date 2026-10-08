@@ -118,7 +118,6 @@ return [
     'audio.api.error' => 'Ошибка',
     'audio.api.network' => 'Ошибка сети',
     'audio.api.done' => 'Готово',
-
     'audio.filter.review' => 'Осмотры',
     'audio.filter.review_all' => 'Все',
     'audio.filter.review_pending' => 'Треб. осмотра',
@@ -129,7 +128,6 @@ return [
     'audio.review.favorite_badge' => 'В избранном',
     'audio.notice.review_short' => 'Осмотр:{n}',
     'audio.notice.review_title' => 'Записи, требующие осмотра',
-
     'audio.filter.year' => 'Год',
     'audio.filter.year_all' => 'Все годы',
     'audio.filter.month' => 'Месяц',
@@ -250,4 +248,6 @@ return [
     'audio.statuses.audio_none' => '— нет альтернативы —',
     'audio.statuses.field.ID_AUDIO_POSITION' => 'Роль для аудиопозиции',
     'audio.statuses.field.DISABLE_NON_PROCEDURE_TIME' => 'Запрет времени вне процедур',
+    'audio.module.description' => 'Аудиозаписи, бейджи и FileStorage; привязка к сменам.',
+    'audio.module.summary' => 'Включайте для записей в кабинете. Требует workweeks. Мягко clients/audio_dicts. Нужен audio_dicts, pipeline, reports, llm studies, staff_reports. Основа audio-стека.',
 ];

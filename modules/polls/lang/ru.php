@@ -71,4 +71,6 @@ return [
     'polls.err.invalid_parent' => 'Недопустимый родитель для этого типа',
     'polls.err.has_children' => 'Нельзя удалить: есть дочерние элементы',
     'polls.err.cannot_change_type' => 'Тип элемента нельзя менять после создания',
+    'polls.module.description' => 'Дерево определений опросов (base_polls); каналы через EventBus.',
+    'polls.module.summary' => 'Включайте для определений опросов. Мягко procedures/catalog. Нужен poll_invites. Универсальный модуль; для заполнения — вместе с poll_invites.',
 ];

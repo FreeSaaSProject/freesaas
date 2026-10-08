@@ -18,7 +18,6 @@ return [
     'catalog.col.enabled' => 'Активен',
     'catalog.kind.material' => 'Материал',
     'catalog.kind.service' => 'Услуга',
-
     'catalog.browse.folder_aria' => 'Путь в каталоге',
     'catalog.browse.search_placeholder' => 'Поиск: название, 1C, id',
     'catalog.browse.folders' => 'Категории',
@@ -31,7 +30,6 @@ return [
     'catalog.browse.add_product' => 'Позиция',
     'catalog.browse.err.products_block_category' => 'В этой папке уже есть товары — подкатегорию добавить нельзя',
     'catalog.browse.err.folders_block_product' => 'В этой папке уже есть категории — товар добавить нельзя',
-
     'catalog.cat.lede' => 'Категории из <code>base_categories</code> ({total}).',
     'catalog.cat.search_placeholder' => 'Поиск: название, id',
     'catalog.cat.empty' => 'Категорий не найдено',
@@ -48,7 +46,6 @@ return [
     'catalog.cat.heading_new' => 'Новая категория',
     'catalog.cat.err.not_found' => 'Категория #{id} не найдена',
     'catalog.cat.err.name_required' => 'Название обязательно',
-
     'catalog.product.lede' => 'Номенклатура из <code>base_products</code> ({total}).',
     'catalog.product.search_placeholder' => 'Поиск: название, 1C, id',
     'catalog.product.all_categories' => 'Все категории',
@@ -87,7 +84,6 @@ return [
     'catalog.product.stock_max' => 'Макс. остаток',
     'catalog.product.err.not_found' => 'Позиция #{id} не найдена',
     'catalog.product.err.name_required' => 'Название обязательно',
-
     'catalog.rel.title' => 'Связи',
     'catalog.rel.lede' => 'Addon / upgrade / component — составные части и дополнения.',
     'catalog.rel.type' => 'Тип связи',
@@ -113,4 +109,6 @@ return [
     'catalog.bulk.unit_in_use' => 'Единица используется в товарах ({n})',
     'catalog.bulk.supplier_in_use' => 'Поставщик указан в товарах ({n})',
     'catalog.bulk.type_in_use' => 'Тип указан в товарах каталога ({n})',
+    'catalog.module.description' => 'Категории, товары и связи товаров; остатки через stocks/stickers.',
+    'catalog.module.summary' => 'Включайте для дерева товаров, нужных procedures, stickers, norms, bonuses. Мягко units/suppliers/procedures. Базовый товарный справочник — рано, вместе со складом.',
 ];

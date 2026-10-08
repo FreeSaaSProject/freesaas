@@ -1,6 +1,7 @@
 {
     "id": "payments",
     "name": "payments.module.name",
+    "description": "payments.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

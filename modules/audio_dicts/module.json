@@ -1,6 +1,7 @@
 {
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
+    "description": "audio_dicts.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

@@ -31,4 +31,6 @@ return [
     'rates.err.not_found' => 'Набор ставок #{id} не найден',
     'rates.err.operator_required' => 'Выберите сотрудника',
     'rates.err.descr_required' => 'Описание обязательно',
+    'rates.module.description' => 'История процентных ставок специалистов (base_procent_history).',
+    'rates.module.summary' => 'Включайте для ставок % по специалистам/процедурам. Требует procedures. Нужен procents. Ставки — до отчёта начислений.',
 ];

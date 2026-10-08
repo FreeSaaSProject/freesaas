@@ -1,6 +1,7 @@
 {
     "id": "poll_invites",
     "name": "poll_invites.module.name",
+    "description": "poll_invites.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

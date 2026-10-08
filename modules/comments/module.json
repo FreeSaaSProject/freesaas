@@ -1,6 +1,7 @@
 {
     "id": "comments",
     "name": "comments.module.name",
+    "description": "comments.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

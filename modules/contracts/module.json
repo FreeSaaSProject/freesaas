@@ -1,6 +1,7 @@
 {
     "id": "contracts",
     "name": "contracts.module.name",
+    "description": "contracts.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

@@ -9,7 +9,6 @@ return [
     'procedures.perm.view' => 'Процедуры (просмотр)',
     'procedures.perm.edit' => 'Процедуры (редактирование)',
     'procedures.perm.types' => 'Типы процедур',
-
     'procedures.list.search_placeholder' => 'Поиск: id, токен, заметка',
     'procedures.list.filter_active' => 'Только включённые',
     'procedures.list.filter_disabled' => 'Выключенные',
@@ -27,7 +26,6 @@ return [
     'procedures.list.empty' => 'Процедуры не найдены',
     'procedures.list.client_id' => 'ID клиента',
     'procedures.list.product_id' => 'ID товара',
-
     'procedures.col.id' => 'ID',
     'procedures.col.dtstart' => 'Начало',
     'procedures.col.dtend' => 'Конец',
@@ -41,7 +39,6 @@ return [
     'procedures.col.restored' => 'Восстановлена',
     'procedures.col.notice' => 'Заметка',
     'procedures.col.token' => 'Токен',
-
     'procedures.view.title' => 'Процедура #{id}',
     'procedures.view.sec_main' => 'Процедура',
     'procedures.view.sec_people' => 'Люди и связи',
@@ -54,7 +51,6 @@ return [
     'procedures.view.id_event_parent' => 'Родительское событие',
     'procedures.view.onec_id' => '1C ID',
     'procedures.view.onec_bracelet' => '1C браслет',
-
     'procedures.edit.title_new' => 'Новая процедура',
     'procedures.edit.title' => 'Редактирование процедуры #{id}',
     'procedures.edit.heading_new' => 'Новая процедура',
@@ -62,7 +58,6 @@ return [
     'procedures.edit.sec_people' => 'Люди и связи',
     'procedures.edit.sec_meta' => 'Мета',
     'procedures.edit.client_hint' => 'ID клиента из модуля клиентов',
-
     'procedures.err.bad_day' => 'Нужен параметр day=YYYY-MM-DD',
     'procedures.err.not_found' => 'Процедура #{id} не найдена',
     'procedures.err.type_required' => 'Укажите тип процедуры',
@@ -75,7 +70,6 @@ return [
     'procedures.err.event_no_content' => 'В событии нет услуг',
     'procedures.err.product_no_type' => 'У товара #{id} не задан тип процедуры',
     'procedures.notice.from_event' => 'Из события #{id}',
-
     'procedures.type.lede' => 'Справочник <code>base_procedure_types</code> — для товаров каталога и ограничений сотрудников.',
     'procedures.type.empty' => 'Типов процедур пока нет',
     'procedures.type.title_new' => 'Новый тип процедуры',
@@ -94,13 +88,11 @@ return [
     'procedures.type.site_amo_show' => 'Показывать на сайте / AMO',
     'procedures.type.err.not_found' => 'Тип процедуры #{id} не найден',
     'procedures.type.err.name_required' => 'Укажите название типа',
-
     'procedures.bulk.set_admin' => 'Изменить админов',
     'procedures.bulk.admin' => 'Админ',
     'procedures.bulk.err.admin_required' => 'Выберите админа',
     'procedures.bulk.type_in_use' => 'Есть процедуры с этим типом ({n})',
     'procedures.bulk.client_in_use' => 'Есть процедуры клиента ({n})',
-
     'procedures.stats.proc_unit' => 'п.',
     'procedures.stats.proc_short' => 'пр.',
     'procedures.stats.promo_short' => 'промо',
@@ -119,4 +111,6 @@ return [
     'procedures.bot.notify_new' => 'Новая процедура #{id} в {when}',
     'procedures.bot.notify_update' => 'Процедура #{id} изменена ({when})',
     'procedures.bot.notify_cancel' => 'Процедура #{id} отменена',
+    'procedures.module.description' => 'Типы и журнал процедур (base_procedure_*); UI восстановлений — в likespa.',
+    'procedures.module.summary' => 'Включайте для типов и журнала процедур. Требует clients + catalog. Мягко tables/bots. Нужен calendar, rates, procents, bonuses, staff_reports. Базовый spa-домен — до calendar/rates.',
 ];

@@ -80,4 +80,6 @@ return [
     'contracts.sort.acceptor' => 'Acceptor',
     'contracts.sort.ticket' => 'Ticket',
     'contracts.user_edit.acceptor' => 'Can accept tasks (contracts)',
+    'contracts.module.description' => 'Staff contracts/offers linked to comments, with widgets, notices, and payment CTAs.',
+    'contracts.module.summary' => 'Enable for offer/contract workflow on top of comments. Hard-requires comments. Soft-used by payments (pay CTA) and staff_reports/audio_llm. Use when HR/ops track signed offers in the cabin.',
 ];

@@ -29,4 +29,6 @@ return [
     'procents.soft.stocks_missing' => 'Sticker stock unavailable — COGS section hidden',
     'procents.soft.records_missing' => 'Audio records unavailable — section hidden',
     'procents.err.forbidden' => 'Not allowed to view other staff accruals',
+    'procents.module.description' => 'Read-only commission accrual report from rates, procedures, and shifts.',
+    'procents.module.summary' => 'Enable for commission accrual reporting. Requires rates + procedures + workweeks. No edit UI — reporting only. Use after rates are filled for the period.',
 ];

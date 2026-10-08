@@ -13,14 +13,12 @@ return [
     'terminals.perm.view' => 'Терминалы (просмотр)',
     'terminals.perm.edit' => 'Терминалы (правка)',
     'terminals.perm.sync' => 'Терминалы (синхронизация)',
-
     'terminals.list.search_placeholder' => 'Поиск: название, код, id',
     'terminals.list.empty' => 'Терминалы не найдены',
     'terminals.list.filter.enabled' => 'Вкл.',
     'terminals.list.filter.all' => 'Все',
     'terminals.list.filter.on' => 'Вкл',
     'terminals.list.filter.off' => 'Выкл',
-
     'terminals.col.id' => 'ID',
     'terminals.col.name' => 'Название',
     'terminals.col.code' => 'Код устройства',
@@ -42,14 +40,12 @@ return [
     'terminals.col.runtime' => 'Сессия (только чтение)',
     'terminals.col.id_admin' => 'Админ на терминале',
     'terminals.col.id_executor' => 'Заблокированный исполнитель',
-
     'terminals.edit.title_new' => 'Новый терминал',
     'terminals.edit.title' => 'Правка: {name}',
     'terminals.edit.heading_new' => 'Новый терминал',
     'terminals.edit.code_hint' => 'Оставьте пустым, чтобы не менять код',
     'terminals.edit.code_new_hint' => 'Секретный код устройства (хранится в БД, в списках маскируется)',
     'terminals.edit.flags' => 'Селекторы функций',
-
     'terminals.bracelets.search_placeholder' => 'Поиск: UID, NUM, id',
     'terminals.bracelets.empty' => 'Браслеты не найдены',
     'terminals.bracelets.col.uid' => 'UID',
@@ -59,7 +55,6 @@ return [
     'terminals.bracelets.edit.title_new' => 'Новый браслет',
     'terminals.bracelets.edit.title' => 'Браслет #{id}',
     'terminals.bracelets.edit.heading_new' => 'Новый браслет',
-
     'terminals.termloads.title' => 'Загрузка терм',
     'terminals.termloads.empty' => 'Нет замеров за день',
     'terminals.termloads.day' => 'День',
@@ -68,7 +63,6 @@ return [
     'terminals.termloads.col.time' => 'Время',
     'terminals.termloads.col.value' => 'Кол-во',
     'terminals.termloads.filter_submit' => 'Показать',
-
     'terminals.fullstats.search_day' => 'День',
     'terminals.fullstats.from' => 'С',
     'terminals.fullstats.to' => 'По',
@@ -83,7 +77,6 @@ return [
     'terminals.fullstats.col.is_payer' => 'Плательщик',
     'terminals.fullstats.edit.title' => 'Классификация: {type}',
     'terminals.fullstats.edit.hint' => 'Флаги применятся ко всем строкам с тем же типом билета.',
-
     'terminals.orders.empty' => 'Нет заказов',
     'terminals.orders.col.dt_create' => 'Создан',
     'terminals.orders.col.dt_visit' => 'Визит',
@@ -93,7 +86,6 @@ return [
     'terminals.orders.col.elders' => 'Пенс.',
     'terminals.orders.col.total' => 'Гостей',
     'terminals.orders.col.total_summ' => 'Сумма',
-
     'terminals.settings.title' => 'Настройки терминалов',
     'terminals.settings.features' => 'Функции',
     'terminals.settings.registry_enabled' => 'Реестр устройств',
@@ -114,7 +106,6 @@ return [
     'terminals.settings.secret_empty' => '(не задано)',
     'terminals.settings.secret_keep' => 'Оставьте пустым, чтобы не менять',
     'terminals.settings.current' => 'Сейчас: {masked}',
-
     'terminals.err.disabled' => 'Функция модуля terminals отключена',
     'terminals.err.not_found' => 'Терминал #{id} не найден',
     'terminals.err.name_required' => 'Укажите название',
@@ -128,8 +119,9 @@ return [
     'terminals.err.onec_id_required' => 'Укажите 1C ID билета',
     'terminals.err.onec_id_too_long' => '1C ID не длиннее 60 символов',
     'terminals.err.staff_bracelet_uid_too_long' => 'UID браслета сотрудника не длиннее 32 символов',
-
     'terminals.user_edit.sec' => 'Терминал / браслет сотрудника',
     'terminals.user_edit.hint' => 'NFC UID, по которому терминал узнаёт сотрудника без запроса в 1С. Пустое поле снимает привязку. Не путать с реестром браслетов шкафчиков.',
     'terminals.user_edit.bracelet_uid' => 'Браслет сотрудника (UID)',
+    'terminals.module.description' => 'Реестр устройств, браслеты, занятость/заказы терм; джобы синка 1C/volgatermy.',
+    'terminals.module.summary' => 'Включайте для терминалов терм и браслетов. Мягко catalog/clients. Токены синка — cfg/modules/terminals.ini. Отключаемый — только где есть железо/1C.',
 ];

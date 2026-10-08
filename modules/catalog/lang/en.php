@@ -18,7 +18,6 @@ return [
     'catalog.col.enabled' => 'Active',
     'catalog.kind.material' => 'Material',
     'catalog.kind.service' => 'Service',
-
     'catalog.browse.folder_aria' => 'Catalog path',
     'catalog.browse.search_placeholder' => 'Search: name, 1C, id',
     'catalog.browse.folders' => 'Categories',
@@ -31,7 +30,6 @@ return [
     'catalog.browse.add_product' => 'Item',
     'catalog.browse.err.products_block_category' => 'This folder already has products — cannot add a subcategory',
     'catalog.browse.err.folders_block_product' => 'This folder already has categories — cannot add a product',
-
     'catalog.cat.lede' => 'Categories from <code>base_categories</code> ({total}).',
     'catalog.cat.search_placeholder' => 'Search: name, id',
     'catalog.cat.empty' => 'No categories found',
@@ -48,7 +46,6 @@ return [
     'catalog.cat.heading_new' => 'New category',
     'catalog.cat.err.not_found' => 'Category #{id} not found',
     'catalog.cat.err.name_required' => 'Name is required',
-
     'catalog.product.lede' => 'Nomenclature from <code>base_products</code> ({total}).',
     'catalog.product.search_placeholder' => 'Search: name, 1C, id',
     'catalog.product.all_categories' => 'All categories',
@@ -87,7 +84,6 @@ return [
     'catalog.product.stock_max' => 'Max stock',
     'catalog.product.err.not_found' => 'Item #{id} not found',
     'catalog.product.err.name_required' => 'Name is required',
-
     'catalog.rel.title' => 'Relations',
     'catalog.rel.lede' => 'Addon / upgrade / component links.',
     'catalog.rel.type' => 'Relation type',
@@ -113,4 +109,6 @@ return [
     'catalog.bulk.unit_in_use' => 'Unit is used by products ({n})',
     'catalog.bulk.supplier_in_use' => 'Supplier is used by products ({n})',
     'catalog.bulk.type_in_use' => 'Type is used by catalog products ({n})',
+    'catalog.module.description' => 'Product categories, products, and product relations; stock qty via stocks/stickers.',
+    'catalog.module.summary' => 'Enable for the product tree and goods used by procedures, stickers, norms, bonuses. Soft units/suppliers/procedures. Core merchandising dictionary — enable early with warehouse modules.',
 ];

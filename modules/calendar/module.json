@@ -1,6 +1,7 @@
 {
     "id": "calendar",
     "name": "calendar.module.name",
+    "description": "calendar.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

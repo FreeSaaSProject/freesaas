@@ -18,4 +18,6 @@ return [
     'units.err.not_found' => 'Единица #{id} не найдена',
     'units.err.name_required' => 'Название обязательно',
     'units.err.name_too_long' => 'Название не длиннее 10 символов',
+    'units.module.description' => 'Справочник единиц измерения (base_units), общий с legacy oper.',
+    'units.module.summary' => 'Включайте для единиц на товарах и складских документах. Мягко — catalog и stickers. Лёгкий справочник — включайте вместе с catalog/stocks.',
 ];

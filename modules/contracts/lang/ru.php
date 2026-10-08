@@ -80,4 +80,6 @@ return [
     'contracts.sort.acceptor' => 'Приёмщик',
     'contracts.sort.ticket' => 'Заявка',
     'contracts.user_edit.acceptor' => 'Может принимать задачи (контракты)',
+    'contracts.module.description' => 'Контракты/офферы сотрудников, связанные с комментариями; виджеты, нотисы и CTA оплаты.',
+    'contracts.module.summary' => 'Включайте для офферов/контрактов поверх comments. Жёстко требует comments. Мягко — payments (CTA оплаты), staff_reports/audio_llm. Нужен, когда офферы ведутся в кабинете.',
 ];

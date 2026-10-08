@@ -70,4 +70,6 @@ return [
     'stickers.err.sticker_used_locked' => 'Used sticker cannot be edited',
     'stickers.err.qty_locked' => 'Twin sticker qty cannot change after create',
     'stickers.outs.cancel_confirm' => 'Cancel this writeoff?',
+    'stickers.module.description' => 'Receipt/writeoff acts plus sticker ins/outs and writeoff service.',
+    'stickers.module.summary' => 'Enable for inventory movement acts. Requires stocks + catalog. Soft suppliers/units. Soft-used by ledger. Use when goods move in/out of warehouses with documents.',
 ];

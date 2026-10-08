@@ -62,6 +62,7 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
 
 # Modules catalog (filters: q, category, tag, status, maturity=alpha|beta|release)
 # Response includes maturity_policy + per-module maturity / agent_note / requires_risk_ack
+# MCP/assistant twin (session + core.modules): core.modules.list / core.modules.get on /modules
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/modules?category=finance&maturity=alpha"
 

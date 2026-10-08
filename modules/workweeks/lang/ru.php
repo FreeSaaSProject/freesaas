@@ -77,4 +77,6 @@ return [
     'workweeks.statuses.field.CAN_BE_ASSIGNED_ASANY' => 'Может быть назначен в любой роли',
     'workweeks.statuses.field.EVT_ASSIGN' => 'Назначать других на смены',
     'workweeks.statuses.field.EVT_ASSIGN_MY' => 'Назначать себя на смены',
+    'workweeks.module.description' => 'Смены дня (base_workweeks): кто работает в какой день; меню Команда; встраивается в календарь.',
+    'workweeks.module.summary' => 'Включайте для смен сотрудников. Мягко comments/cabinets/tables. Нужен calendar, audio, audio_reports, procents. Основа расписания и дневных начислений — до calendar/audio.',
 ];

@@ -77,4 +77,6 @@ return [
     'workweeks.statuses.field.CAN_BE_ASSIGNED_ASANY' => 'Can be assigned as any role',
     'workweeks.statuses.field.EVT_ASSIGN' => 'Assign others to shifts',
     'workweeks.statuses.field.EVT_ASSIGN_MY' => 'Assign self to shifts',
+    'workweeks.module.description' => 'Day shifts (base_workweeks): who works which day; Team menu; embedded in calendar.',
+    'workweeks.module.summary' => 'Enable for staff day shifts. Soft comments/cabinets/tables. Required by calendar, audio, audio_reports, procents. Foundation for schedule and commission day scope — enable before calendar/audio.',
 ];

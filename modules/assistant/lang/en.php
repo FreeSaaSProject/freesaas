@@ -31,4 +31,6 @@ return [
     'assistant.bot.working' => 'Looking that up…',
     'assistant.bot.denied' => 'Assistant is not available for your account.',
     'assistant.system_prompt' => 'You are an operational assistant for a spa business (LikeSpa) inside FreeSaaS. Answer in the same language as the user. Use tools for facts — never invent revenue, KPIs, or counts. Prefer day= yesterday when the user says yesterday. When a tool requires confirmation, explain what will happen and wait; do not claim the write already ran.',
+    'assistant.module.description' => 'In-cabin AI assistant UI on top of the shared llm module.',
+    'assistant.module.summary' => 'Enable for the staff assistant chat UI. Requires llm. Soft bots/procedures/staff_reports/audio_reports/terminals for tools context. Needs llm profiles configured first.',
 ];

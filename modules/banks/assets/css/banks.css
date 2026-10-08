@@ -16,10 +16,75 @@
   background: color-mix(in srgb, var(--warn, #b80) 14%, transparent);
 }
 
+.banks-connect-panel {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #ccc) 80%, transparent);
+  border-radius: 0.35rem;
+}
+
+.banks-connect-panel h2 {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+}
+
+.banks-connect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 0.75rem;
+}
+
+.banks-connect-card {
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--border, #ccc) 70%, transparent);
+  border-radius: 0.3rem;
+}
+
+.banks-connect-card-title {
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
 .banks-connect-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  margin-top: 0.45rem;
+}
+
+.banks-portal-links {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.banks-portal-link {
+  white-space: nowrap;
+}
+
+input.banks-redirect-uri {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9rem;
+  cursor: text;
+  background: color-mix(in srgb, var(--bg, #fff) 92%, var(--accent-2, #0a7) 8%);
+}
+
+.banks-redirect-code {
+  font-size: 0.85rem;
+  word-break: break-all;
+}
+
+.banks-connect-disabled {
+  opacity: 0.65;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+.banks-provider-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
 }
 
 .banks-remote-table .bank-link-form {

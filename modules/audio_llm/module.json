@@ -1,6 +1,7 @@
 {
     "id": "audio_llm",
     "name": "audio_llm.module.name",
+    "description": "audio_llm.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

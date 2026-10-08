@@ -1,6 +1,7 @@
 {
     "id": "llm",
     "name": "llm.module.name",
+    "description": "llm.module.description",
     "version": "0.2.0",
     "type": "product",
     "requires": {

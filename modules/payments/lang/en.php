@@ -102,4 +102,6 @@ return [
     'payments.err.delete_linked' => 'Delete blocked: linked account moves exist',
     'payments.contract.pay' => 'Pay offer',
     'payments.contract.paid' => 'Paid',
+    'payments.module.description' => 'Staff settlements (base_payments, base_payment_types); contracts pay CTA; auto-DPS with ledger.',
+    'payments.module.summary' => 'Enable for paying specialists and settlement docs. Soft-used by ledger (auto-DPS) and likespa. Use with contracts for pay CTAs. Accounting side of payroll to staff.',
 ];

@@ -18,4 +18,6 @@ return [
     'norms.err.not_found' => 'Norm #{id} not found',
     'norms.err.proc_required' => 'Select a procedure product',
     'norms.err.good_required' => 'Select a material',
+    'norms.module.description' => 'Default consumptions (base_good_defaults); embeds on catalog product edit.',
+    'norms.module.summary' => 'Enable for default material norms on products. Requires catalog. Soft-used by stocks leftovers logic. Useful when procedures/writeoffs should know default consumptions.',
 ];

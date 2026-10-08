@@ -17,7 +17,6 @@ return [
     'audio_reports.settings.record_end' => 'Конец записи',
     'audio_reports.settings.hour' => 'Час',
     'audio_reports.settings.min' => 'Мин',
-
     'audio_reports.calendar.nav_aria' => 'Период календаря',
     'audio_reports.calendar.year' => 'Год',
     'audio_reports.calendar.month' => 'Месяц',
@@ -105,7 +104,6 @@ return [
     'audio_reports.calendar.month.10' => 'Октябрь',
     'audio_reports.calendar.month.11' => 'Ноябрь',
     'audio_reports.calendar.month.12' => 'Декабрь',
-
     'audio_reports.collections.nav_aria' => 'День коллекций',
     'audio_reports.collections.filters_aria' => 'Фильтры коллекций',
     'audio_reports.collections.prev' => 'Предыдущий день',
@@ -136,7 +134,6 @@ return [
     'audio_reports.collections.transcript_hint' => 'Фрагмент разговора в окне коллекции (±15 сек), с подсветкой найденных ключей.',
     'audio_reports.collections.transcript_unavailable' => 'Транскрипт недоступен.',
     'audio_reports.collections.err.not_found' => 'Коллекция #{id} не найдена',
-
     'audio_reports.summaries.list_title' => 'Профили сводных',
     'audio_reports.summaries.empty' => 'Профилей пока нет.',
     'audio_reports.summaries.new' => 'Новый профиль',
@@ -377,4 +374,6 @@ return [
     'audio_reports.summaries.js.day' => 'День',
     'audio_reports.summaries.js.hours' => 'Часы',
     'audio_reports.summaries.js.need_position' => 'Сначала выберите должность',
+    'audio_reports.module.description' => 'Календарь аудиозаписей и сводные отчёты.',
+    'audio_reports.module.summary' => 'Включайте для календаря прослушивания и сводок. Требует audio + audio_dicts + workweeks. Мягко procedures/pipeline. Мягко — likespa и staff_reports.',
 ];

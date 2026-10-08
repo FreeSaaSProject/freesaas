@@ -1,6 +1,7 @@
 {
     "id": "cabinets",
     "name": "cabinets.module.name",
+    "description": "cabinets.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

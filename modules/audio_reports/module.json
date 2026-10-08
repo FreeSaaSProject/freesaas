@@ -1,6 +1,7 @@
 {
     "id": "audio_reports",
     "name": "audio_reports.module.name",
+    "description": "audio_reports.module.description",
     "version": "0.2.0",
     "type": "product",
     "requires": {

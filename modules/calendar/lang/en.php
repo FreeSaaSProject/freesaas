@@ -136,4 +136,6 @@ return [
     'calendar.statuses.field.EVT_CONTACT_DATA' => 'Contact data',
     'calendar.statuses.field.EVT_DOC_LINKS' => 'Document links',
     'calendar.statuses.field.EVT_PHOTOS' => 'Photos',
+    'calendar.module.description' => 'Day view and event CRUD (base_events*); can create procedures from events.',
+    'calendar.module.summary' => 'Enable for the operational day board. Requires clients, catalog, procedures, orders, workweeks. Soft cabinets/tables. Soft-used by bonuses/clientics. Central ops screen — enable after workweeks + procedures.',
 ];

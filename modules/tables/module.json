@@ -1,6 +1,7 @@
 {
     "id": "tables",
     "name": "tables.module.name",
+    "description": "tables.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

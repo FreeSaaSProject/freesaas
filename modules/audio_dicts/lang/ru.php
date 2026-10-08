@@ -40,7 +40,6 @@ return [
     'audio_dicts.edit.sec_score' => 'Оценка',
     'audio_dicts.err.name_required' => 'Укажите название',
     'audio_dicts.err.not_found' => 'Элемент #{id} не найден',
-
     'audio_dicts.scripts.btn_new' => 'Собрать скрипт',
     'audio_dicts.scripts.btn_copy' => 'Копировать',
     'audio_dicts.scripts.bulk_copy' => 'Копировать',
@@ -60,7 +59,6 @@ return [
     'audio_dicts.scripts.confirm_delete_part' => 'Удалить этот блок?',
     'audio_dicts.scripts.preview_empty' => 'Нет блоков для превью.',
     'audio_dicts.scripts.no_positions' => 'Нет должностей.',
-
     'audio_dicts.scripts.wizard.step1' => 'Название и должности',
     'audio_dicts.scripts.wizard.step2' => 'Блоки и словари',
     'audio_dicts.scripts.wizard.step3' => 'Роли блоков',
@@ -76,7 +74,6 @@ return [
     'audio_dicts.scripts.wizard.step4_hint' => '0 = достаточно одного попадания. Пороги определяют, когда засчитываются триггер и конверсия.',
     'audio_dicts.scripts.wizard.next' => 'Далее',
     'audio_dicts.scripts.wizard.back' => 'Назад',
-
     'audio_dicts.scripts.field.positions' => 'Должности',
     'audio_dicts.scripts.field.positions_hint' => 'Не выбрано = для всех должностей.',
     'audio_dicts.scripts.field.dicts' => 'Словари',
@@ -95,7 +92,6 @@ return [
     'audio_dicts.scripts.field.killer' => 'Killer',
     'audio_dicts.scripts.field.killer_hint' => 'Отменяет текущую коллекцию при срабатывании.',
     'audio_dicts.scripts.field.advanced' => 'Дополнительно',
-
     'audio_dicts.scripts.role.ordinary' => 'Обычный',
     'audio_dicts.scripts.role.trigger' => 'Триггер',
     'audio_dicts.scripts.role.conversion' => 'Конверсия',
@@ -106,7 +102,6 @@ return [
     'audio_dicts.scripts.role.conversion_hint' => 'Финиш: после порогов сборка считается пройденной и сохраняется. Обычно на последнем блоке.',
     'audio_dicts.scripts.role.breaker_hint' => 'Если блок уже был в открытой сборке — закрыть её и начать новую с текущего попадания. Часто вместе с триггером: повтор фразы перезапускает скрипт.',
     'audio_dicts.scripts.role.killer_hint' => 'Сразу уничтожает открытую сборку без сохранения (в отличие от прерывателя). Не сочетается с другими ролями.',
-
     'audio_dicts.scripts.sec.script' => 'Скрипт',
     'audio_dicts.scripts.sec.flow' => 'Цепочка блоков',
     'audio_dicts.scripts.sec.block' => 'Блок',
@@ -114,7 +109,6 @@ return [
     'audio_dicts.scripts.sec.dangerous' => 'Дополнительно',
     'audio_dicts.scripts.canvas.select_block' => 'Выберите блок на схеме.',
     'audio_dicts.scripts.canvas.empty' => 'Пока нет блоков. Добавьте первый.',
-
     'audio_dicts.scripts.err.not_found' => 'Скрипт #{id} не найден',
     'audio_dicts.scripts.err.part_not_found' => 'Блок #{id} не найден',
     'audio_dicts.scripts.err.parts_required' => 'Добавьте хотя бы один блок',
@@ -125,4 +119,6 @@ return [
     'audio_dicts.scripts.err.reorder' => 'Некорректный порядок блоков',
     'audio_dicts.scripts.err.unknown_action' => 'Неизвестное действие',
     'audio_dicts.scripts.err.save_failed' => 'Не удалось сохранить',
+    'audio_dicts.module.description' => 'Типы распознавания, словари, ключи, скрипты и корзина для ASR.',
+    'audio_dicts.module.summary' => 'Включайте для словарей и скриптов ASR. Требует audio. Нужен pipeline, reports, audio_llm, staff_reports. Настройте до воркеров.',
 ];

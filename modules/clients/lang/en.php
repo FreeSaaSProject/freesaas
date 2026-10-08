@@ -117,5 +117,9 @@ return [
     'clients.statuses.group' => 'Clients',
     'clients.statuses.field.CLIENT_BASE' => 'Client base access',
     'clients.bot.profile' => 'My profile',
-    'clients.bot.profile_text' => "Client #{id}\n{name}\n{tel}",
+    'clients.bot.profile_text' => 'Client #{id}
+{name}
+{tel}',
+    'clients.module.description' => 'Client CRM: base_clients, client statuses; login identity is phone.',
+    'clients.module.summary' => 'Enable for the client directory and statuses. Soft-depends on bots for messenger links. Required by clientics, yclients, bonuses, calendar, orders, procedures, and more. Core CRM building block — enable early.',
 ];

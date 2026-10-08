@@ -1,6 +1,7 @@
 {
     "id": "norms",
     "name": "norms.module.name",
+    "description": "norms.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

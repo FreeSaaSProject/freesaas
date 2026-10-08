@@ -1,6 +1,7 @@
 {
     "id": "polls",
     "name": "polls.module.name",
+    "description": "polls.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

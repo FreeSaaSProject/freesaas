@@ -13,14 +13,12 @@ return [
     'terminals.perm.view' => 'Terminals (view)',
     'terminals.perm.edit' => 'Terminals (edit)',
     'terminals.perm.sync' => 'Terminals (sync jobs)',
-
     'terminals.list.search_placeholder' => 'Search: name, code, id',
     'terminals.list.empty' => 'No terminals found',
     'terminals.list.filter.enabled' => 'Enabled',
     'terminals.list.filter.all' => 'All',
     'terminals.list.filter.on' => 'On',
     'terminals.list.filter.off' => 'Off',
-
     'terminals.col.id' => 'ID',
     'terminals.col.name' => 'Name',
     'terminals.col.code' => 'Device code',
@@ -42,14 +40,12 @@ return [
     'terminals.col.runtime' => 'Runtime (read-only)',
     'terminals.col.id_admin' => 'Logged-in admin',
     'terminals.col.id_executor' => 'Blocked executor',
-
     'terminals.edit.title_new' => 'New terminal',
     'terminals.edit.title' => 'Edit: {name}',
     'terminals.edit.heading_new' => 'New terminal',
     'terminals.edit.code_hint' => 'Leave empty to keep the current code',
     'terminals.edit.code_new_hint' => 'Device secret code (stored in DB; masked in lists)',
     'terminals.edit.flags' => 'Feature flags',
-
     'terminals.bracelets.search_placeholder' => 'Search: UID, NUM, id',
     'terminals.bracelets.empty' => 'No bracelets found',
     'terminals.bracelets.col.uid' => 'UID',
@@ -59,7 +55,6 @@ return [
     'terminals.bracelets.edit.title_new' => 'New bracelet',
     'terminals.bracelets.edit.title' => 'Bracelet #{id}',
     'terminals.bracelets.edit.heading_new' => 'New bracelet',
-
     'terminals.termloads.title' => 'Therm occupancy',
     'terminals.termloads.empty' => 'No samples for this day',
     'terminals.termloads.day' => 'Day',
@@ -68,7 +63,6 @@ return [
     'terminals.termloads.col.time' => 'Time',
     'terminals.termloads.col.value' => 'Count',
     'terminals.termloads.filter_submit' => 'Show',
-
     'terminals.fullstats.search_day' => 'Day',
     'terminals.fullstats.from' => 'From',
     'terminals.fullstats.to' => 'To',
@@ -83,7 +77,6 @@ return [
     'terminals.fullstats.col.is_payer' => 'Payer',
     'terminals.fullstats.edit.title' => 'Classify: {type}',
     'terminals.fullstats.edit.hint' => 'Flags apply to all rows with the same ticket type.',
-
     'terminals.orders.empty' => 'No term orders',
     'terminals.orders.col.dt_create' => 'Created',
     'terminals.orders.col.dt_visit' => 'Visit',
@@ -93,7 +86,6 @@ return [
     'terminals.orders.col.elders' => 'Elders',
     'terminals.orders.col.total' => 'Guests',
     'terminals.orders.col.total_summ' => 'Sum',
-
     'terminals.settings.title' => 'Terminals settings',
     'terminals.settings.features' => 'Features',
     'terminals.settings.registry_enabled' => 'Device registry UI',
@@ -114,7 +106,6 @@ return [
     'terminals.settings.secret_empty' => '(not set)',
     'terminals.settings.secret_keep' => 'Leave blank to keep current value',
     'terminals.settings.current' => 'Current: {masked}',
-
     'terminals.err.disabled' => 'This terminals feature is disabled',
     'terminals.err.not_found' => 'Terminal #{id} not found',
     'terminals.err.name_required' => 'Name is required',
@@ -128,8 +119,9 @@ return [
     'terminals.err.onec_id_required' => '1C ticket id is required',
     'terminals.err.onec_id_too_long' => '1C ticket id must be at most 60 characters',
     'terminals.err.staff_bracelet_uid_too_long' => 'Staff bracelet UID must be at most 32 characters',
-
     'terminals.user_edit.sec' => 'Terminal / staff bracelet',
     'terminals.user_edit.hint' => 'NFC UID used by terminals to recognize this staff member without calling 1C. Clear to unlink. Not the locker bracelet registry.',
     'terminals.user_edit.bracelet_uid' => 'Staff bracelet (UID)',
+    'terminals.module.description' => 'Device registry, bracelets, therm occupancy/orders; 1C/volgatermy sync jobs.',
+    'terminals.module.summary' => 'Enable for thermal-area terminals and bracelet flow. Soft catalog/clients. Configure cfg/modules/terminals.ini for sync tokens. Disableable — only where therm hardware/1C sync is used.',
 ];

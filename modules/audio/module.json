@@ -1,6 +1,7 @@
 {
     "id": "audio",
     "name": "audio.module.name",
+    "description": "audio.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

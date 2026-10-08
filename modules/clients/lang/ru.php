@@ -117,5 +117,9 @@ return [
     'clients.statuses.group' => 'Клиенты',
     'clients.statuses.field.CLIENT_BASE' => 'Доступ к базе клиентов',
     'clients.bot.profile' => 'Мой профиль',
-    'clients.bot.profile_text' => "Клиент #{id}\n{name}\n{tel}",
+    'clients.bot.profile_text' => 'Клиент #{id}
+{name}
+{tel}',
+    'clients.module.description' => 'CRM клиентов: base_clients, статусы; логин — телефон.',
+    'clients.module.summary' => 'Включайте для базы клиентов и статусов. Мягко — bots для messenger-связок. Нужен clientics, yclients, bonuses, calendar, orders, procedures и др. Базовый CRM-блок — включайте рано.',
 ];

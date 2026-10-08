@@ -1,9 +1,9 @@
 {
     "id": "clientics",
     "name": "clientics.module.name",
+    "description": "clientics.module.description",
     "version": "0.1.0",
     "type": "product",
-    "description": "clientics.module.description",
     "catalog": {
         "categories": [
             "integrations",

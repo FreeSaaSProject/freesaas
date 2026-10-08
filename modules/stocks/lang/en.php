@@ -47,4 +47,6 @@ return [
     'stocks.statuses.field.STOCKS_DATA' => 'Stocks data',
     'stocks.statuses.field.GOOD_USE' => 'Goods usage',
     'stocks.statuses.field.STICKER_ADV_ACC' => 'Advanced sticker accounting',
+    'stocks.module.description' => 'Warehouses (base_stocks) and leftovers report.',
+    'stocks.module.summary' => 'Enable for warehouse cards and leftovers. Soft cabinets/stickers/catalog/norms. Required by stickers. Use when inventory locations matter beyond a single implicit stock.',
 ];

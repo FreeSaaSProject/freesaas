@@ -34,4 +34,6 @@ return [
     'suppliers.err.not_found' => 'Поставщик #{id} не найден',
     'suppliers.err.name_required' => 'Название обязательно',
     'suppliers.err.name_too_long' => 'Название не длиннее 40 символов',
+    'suppliers.module.description' => 'Справочник поставщиков (base_suppliers), общий с legacy oper.',
+    'suppliers.module.summary' => 'Включайте для карточек поставщиков в catalog и приходных стикерах. Мягко — ledger и stickers. Справочник — включайте вместе со складом/каталогом.',
 ];

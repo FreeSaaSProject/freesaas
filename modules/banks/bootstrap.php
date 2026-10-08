@@ -25,6 +25,7 @@ Assets::register('banks', [
 
 $pages = [
     '/banks' => ['permission' => 'banks.view', 'methods' => ['GET'], 'file' => 'list.php'],
+    '/banks/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/banks/oauth/{provider}/start' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_start.php'],
     '/banks/oauth/{provider}/callback' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_callback.php'],
     '/banks/connections/{id}' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'connection.php'],
@@ -43,6 +44,9 @@ foreach ($pages as $path => $def) {
     ];
     if (!empty($def['public'])) {
         $route['public'] = true;
+    }
+    if (!empty($def['capability'])) {
+        $route['capability'] = $def['capability'];
     }
     if (!empty($def['permission'])) {
         $route['permission'] = $def['permission'];

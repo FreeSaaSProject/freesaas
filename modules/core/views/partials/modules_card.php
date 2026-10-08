@@ -1,0 +1,181 @@
+<?php
+/**
+ * One module catalog card.
+ *
+ * @var array<string,mixed> $card
+ * @var string $listPath
+ * @var string|null $sectionCategory  when set, this category pill is omitted (already the section)
+ * @var callable(string):string $modLabel
+ */
+$id = (string)$card['id'];
+$st = (string)$card['status'];
+$pending = (int)$card['migrations_pending'];
+$name = ModuleCatalog::display($card['name'], $id);
+$desc = ModuleCatalog::display($card['description']);
+$cardCats = $card['catalog']['categories'] ?? [];
+$cardTags = $card['catalog']['tags'] ?? [];
+$maturity = (string)($card['maturity'] ?? 'beta');
+$requiresRiskAck = !empty($card['requires_risk_ack']);
+$sectionCategory = isset($sectionCategory) ? (string)$sectionCategory : '';
+?>
+<article class="modules-card" data-module="<?= e($id) ?>">
+  <header class="modules-card-head">
+    <div>
+      <h3 class="modules-card-title"><a href="/modules/<?= e(rawurlencode($id)) ?>"><?= e($name) ?></a></h3>
+      <div class="muted"><code><?= e($id) ?></code> · v<?= e((string)$card['version']) ?></div>
+    </div>
+    <div class="modules-card-status">
+      <span class="pill maturity-<?= e($maturity) ?>"><?= te('core.modules.maturity.' . $maturity) ?></span>
+      <?php if ($st === 'enabled'): ?>
+        <span class="pill ok"><?= te('core.modules.state_enabled') ?></span>
+      <?php elseif ($st === 'blocked'): ?>
+        <span class="pill off"><?= te('core.modules.state_blocked') ?></span>
+      <?php else: ?>
+        <span class="pill off"><?= te('core.modules.state_disabled') ?></span>
+      <?php endif; ?>
+    </div>
+  </header>
+
+  <?php if ($desc !== ''): ?>
+    <p class="modules-card-desc"><?= e($desc) ?></p>
+  <?php endif; ?>
+
+  <div class="modules-card-meta">
+    <?php foreach ($cardCats as $c):
+        $c = (string)$c;
+        if ($sectionCategory !== '' && $c === $sectionCategory) {
+            continue;
+        }
+        ?>
+      <span class="pill"><?= e(ModuleCatalog::categoryLabel($c)) ?></span>
+    <?php endforeach; ?>
+    <?php foreach ($cardTags as $tg): ?>
+      <span class="pill"><?= e((string)$tg) ?></span>
+    <?php endforeach; ?>
+  </div>
+
+  <div class="modules-deps">
+    <?php
+      $depsVisible = [];
+      foreach ($card['status_requires'] as $dep) {
+          if (!is_array($dep)) {
+              continue;
+          }
+          $depId = (string)($dep['id'] ?? '');
+          if ($depId === 'core' && !empty($dep['satisfied'])) {
+              continue;
+          }
+          if ($depId === '') {
+              continue;
+          }
+          $depsVisible[] = $dep;
+      }
+    ?>
+    <?php if ($depsVisible === []): ?>
+      <span class="muted"><?= te('core.modules.col_deps') ?>: —</span>
+    <?php elseif (!empty($card['deps_ok'])): ?>
+      <?php
+        $okNames = [];
+        foreach ($depsVisible as $dep) {
+            $okNames[] = $modLabel((string)$dep['id']);
+        }
+      ?>
+      <span class="muted"><?= te('core.modules.col_deps') ?>: <?= e(implode(', ', $okNames)) ?></span>
+    <?php else: ?>
+      <ul class="dep-list">
+        <?php foreach ($depsVisible as $dep): ?>
+          <?php if (!empty($dep['satisfied'])): ?>
+            <li class="dep-ok"><?= e($modLabel((string)$dep['id'])) ?></li>
+            <?php continue; ?>
+          <?php endif; ?>
+          <li class="dep-bad">
+            <?= e($modLabel((string)$dep['id'])) ?>
+            <?php if (($dep['constraint'] ?? '') !== ''): ?>
+              <span class="dep-constraint"><?= e((string)$dep['constraint']) ?></span>
+            <?php endif; ?>
+            <?php if (!empty($dep['optional'])): ?>
+              <span class="pill"><?= te('core.modules.optional') ?></span>
+            <?php endif; ?>
+            <span class="muted">— <?= e((string)($dep['detail'] ?? '')) ?></span>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    <?php endif; ?>
+    <?php if (!empty($card['block_reason'])): ?>
+      <div class="muted"><?= e((string)$card['block_reason']) ?></div>
+    <?php endif; ?>
+    <?php if ($pending > 0): ?>
+      <div class="muted bad-text"><?= te('core.modules.pending', ['n' => $pending]) ?></div>
+    <?php endif; ?>
+    <div class="modules-hint bad-text" data-modules-hint hidden></div>
+  </div>
+
+  <div class="modules-actions">
+    <?php if (!empty($card['can_enable'])): ?>
+      <?php
+        $moduleId = $id;
+        $retPath = $listPath;
+        $formAction = '/modules';
+        $agentNote = $card['agent_note'] ?? null;
+        require base_path('modules/core/views/partials/modules_enable.php');
+      ?>
+    <?php elseif (!empty($card['can_toggle']) && empty($card['config_enabled']) && empty($card['deps_ok'])): ?>
+      <?php
+        $missing = [];
+        foreach ($card['status_requires'] as $dep) {
+            if (!is_array($dep) || !empty($dep['satisfied']) || !empty($dep['optional'])) {
+                continue;
+            }
+            $missing[] = $modLabel((string)$dep['id']);
+        }
+        $enableHint = t('core.modules.enable_blocked_hint', [
+            'modules' => $missing !== []
+                ? implode(', ', $missing)
+                : (string)($card['block_reason'] ?? t('core.modules.deps_bad')),
+        ]);
+      ?>
+      <button class="btn-secondary btn-sm" type="button"
+        data-modules-hint-show
+        data-hint="<?= e($enableHint) ?>">
+        <?= te('core.modules.btn_enable') ?>
+      </button>
+    <?php endif; ?>
+
+    <?php if (!empty($card['can_disable'])): ?>
+      <form method="post" class="inline-form" action="/modules" onsubmit="return confirm(<?= tj('core.modules.confirm_disable', ['module' => $name]) ?>);">
+        <input type="hidden" name="module" value="<?= e($id) ?>">
+        <input type="hidden" name="action" value="disable">
+        <input type="hidden" name="ret" value="<?= e($listPath) ?>">
+        <button class="btn-danger btn-sm" type="submit"><?= te('core.modules.btn_disable') ?></button>
+      </form>
+    <?php elseif (!empty($card['can_toggle']) && !empty($card['config_enabled']) && !empty($card['required_by'])): ?>
+      <?php
+        $blockers = [];
+        foreach ($card['required_by'] as $depId) {
+            $blockers[] = $modLabel((string)$depId);
+        }
+        $disableHint = t('core.modules.disable_blocked_hint', [
+            'modules' => implode(', ', $blockers),
+        ]);
+      ?>
+      <button class="btn-secondary btn-sm" type="button"
+        data-modules-hint-show
+        data-hint="<?= e($disableHint) ?>">
+        <?= te('core.modules.btn_disable') ?>
+      </button>
+    <?php endif; ?>
+
+    <?php if ($pending > 0): ?>
+      <form method="post" class="inline-form" action="/modules">
+        <input type="hidden" name="module" value="<?= e($id) ?>">
+        <input type="hidden" name="action" value="migrate">
+        <input type="hidden" name="ret" value="<?= e($listPath) ?>">
+        <button class="btn-secondary btn-sm" type="submit">
+          <?= te('core.modules.btn_migrate') ?> (<?= $pending ?>)
+        </button>
+      </form>
+    <?php endif; ?>
+
+    <a class="btn-secondary btn-sm" href="/modules/<?= e(rawurlencode($id)) ?>"><?= te('core.modules.btn_details') ?></a>
+  </div>
+</article>

@@ -69,4 +69,6 @@ return [
     'vacations.err.overlap' => 'Overlapping periods of the same type',
     'vacations.err.sign_show' => 'Signature required but record is hidden from staff',
     'vacations.err.forbidden' => 'Not allowed to view other staff vacations',
+    'vacations.module.description' => 'Leave register (base_vacations) with sign workflow.',
+    'vacations.module.summary' => 'Enable for staff vacation register and approvals. Depends only on core. Accounting/HR module — independent of calendar shifts.',
 ];

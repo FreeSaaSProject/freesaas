@@ -1,6 +1,7 @@
 {
     "id": "workweeks",
     "name": "workweeks.module.name",
+    "description": "workweeks.module.description",
     "version": "0.2.0",
     "type": "product",
     "requires": {

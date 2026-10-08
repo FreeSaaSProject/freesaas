@@ -1,6 +1,7 @@
 {
     "id": "assistant",
     "name": "assistant.module.name",
+    "description": "assistant.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

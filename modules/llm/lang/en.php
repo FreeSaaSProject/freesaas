@@ -8,7 +8,6 @@ return [
     'llm.menu.group' => 'LLM',
     'llm.menu.tokens' => 'Tokens',
     'llm.menu.oauth' => 'OAuth / MCP',
-
     'llm.oauth.title' => 'OAuth & MCP',
     'llm.oauth.lede' => 'Connect ChatGPT Actions or MCP clients. Staff authorize once; the app calls product tools as that user.',
     'llm.oauth.edit_lede' => 'Register an OAuth client (Custom GPT, Claude MCP, etc.). Secrets are shown only once.',
@@ -54,7 +53,6 @@ return [
     'llm.oauth.err.not_found' => 'OAuth client not found.',
     'llm.oauth.err.client' => 'Unknown or disabled OAuth client.',
     'llm.oauth.err.redirect_mismatch' => 'redirect_uri is not registered for this client.',
-
     'llm.tokens.title' => 'LLM API tokens',
     'llm.tokens.lede' => 'Named OpenAI-compatible profiles (API key, base URL, model). Secrets stay in cfg/modules/llm.ini.',
     'llm.tokens.empty' => 'No profiles yet. Add a token to enable LLM features.',
@@ -96,4 +94,6 @@ return [
     'llm.chat.title' => 'LLM chat',
     'llm.health.ok' => 'Default LLM profile ready',
     'llm.health.missing' => 'No enabled LLM profile with API key',
+    'llm.module.description' => 'OpenAI-compatible LLM client and token profiles UI (cfg/modules/llm.ini).',
+    'llm.module.summary' => 'Enable as shared LLM transport for assistant, audio_llm, banks classify, bots. Soft assistant. Put API keys only in cfg/modules/llm.ini. Required before AI-powered modules.',
 ];

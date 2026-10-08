@@ -1,6 +1,7 @@
 {
     "id": "catalog",
     "name": "catalog.module.name",
+    "description": "catalog.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

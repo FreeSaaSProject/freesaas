@@ -18,7 +18,6 @@ return [
     'likespa.perm.pages' => 'LikeSpa: статьи сайта',
     'likespa.perm.redirects' => 'LikeSpa: редиректы',
     'likespa.menu.restores' => 'Восстановления процедур',
-
     'likespa.site.lede' => 'Поля клиентского сайта из <code>base_system</code> (название, SEO, телефон).',
     'likespa.site.field_name' => 'Название сайта',
     'likespa.site.field_title' => 'Заголовок страницы (title)',
@@ -26,7 +25,6 @@ return [
     'likespa.site.field_tel' => 'Телефон',
     'likespa.site.field_mothersite' => 'Хост публичного сайта',
     'likespa.site.field_mothersite_hint' => 'Без https:// — для ссылок на /promo/{code}/',
-
     'likespa.promopages.search_placeholder' => 'Код, название, ID…',
     'likespa.promopages.empty' => 'Нет промостраниц',
     'likespa.promopages.filter.all' => 'Все',
@@ -197,7 +195,6 @@ return [
     'likespa.promopages.err.code_required' => 'Укажите код',
     'likespa.promopages.err.code_too_long' => 'Код не длиннее 10 символов',
     'likespa.promopages.err.not_found' => 'Промостраница #{id} не найдена',
-
     'likespa.pages.search_placeholder' => 'Название, ссылка, ID…',
     'likespa.pages.empty' => 'Нет статей',
     'likespa.pages.filter.all' => 'Все',
@@ -233,7 +230,6 @@ return [
     'likespa.pages.field.content' => 'Описание для сайта',
     'likespa.pages.err.link_required' => 'Укажите ссылку',
     'likespa.pages.err.not_found' => 'Статья #{id} не найдена',
-
     'likespa.redirects.lede' => 'Перенаправления URL сайта (oper show_redirects → base_redirects).',
     'likespa.redirects.search_placeholder' => 'Старый/новый URL, ID…',
     'likespa.redirects.empty' => 'Нет редиректов',
@@ -255,7 +251,6 @@ return [
     'likespa.redirects.err.url_old_required' => 'Укажите старый URL',
     'likespa.redirects.err.url_new_required' => 'Укажите новый URL',
     'likespa.redirects.err.not_found' => 'Редирект #{id} не найден',
-
     'likespa.settings.lede' => 'Флаер и скидки промоутера (base_system), пороги сканов/бонуса/допов (ini).',
     'likespa.settings.ini_hint' => 'Блоки features / бонус / допы / восстановления → cfg/modules/likespa.ini ([likespa]).',
     'likespa.settings.system_hint' => 'Флаер и скидки промоутера → base_system (как в oper show_site_sets).',
@@ -301,7 +296,6 @@ return [
     'likespa.settings.dops_procedure_type_hint' => 'base_procedures.TYPE (обычно 44)',
     'likespa.settings.dops_position_ids' => 'ID должностей массажистов',
     'likespa.settings.dops_position_ids_hint' => 'base_users.ID_STATUS, через запятую',
-
     'likespa.term_scans.title' => 'Сканирования терминала',
     'likespa.term_scans.empty' => 'Нет сканов за период',
     'likespa.term_scans.nav_aria' => 'Листатель периода',
@@ -344,7 +338,6 @@ return [
     'likespa.term_scans.flag.promoter' => 'промоутер',
     'likespa.term_scans.flag.discount' => 'скидка активирована',
     'likespa.term_scans.procs_hint' => 'Процедуры по клиенту в окне {h} ч',
-
     'likespa.promo.hours' => '{h} ч',
     'likespa.promo.scripts' => 'скр. {n}',
     'likespa.promo.scans' => '{n} скан.',
@@ -359,11 +352,9 @@ return [
     'likespa.promo.denied' => 'Нет прав на создание бонуса',
     'likespa.promo.failed' => 'Не удалось создать бонусную запись',
     'likespa.promo.not_eligible' => 'Критерии бонуса не выполнены',
-
     'likespa.dops.badge' => 'доп: {n}',
     'likespa.dops.clients' => 'кл: {n}',
     'likespa.dops.sum' => '{sum} ₽',
-
     'likespa.restores.list.search_placeholder' => 'ID, процедура, причина…',
     'likespa.restores.list.empty' => 'Нет восстановлений',
     'likespa.restores.col.id' => 'ID',
@@ -397,7 +388,6 @@ return [
     'likespa.restores.err.summ_required' => 'Укажите сумму оплаты',
     'likespa.restores.err.procedure_required' => 'Выберите процедуру',
     'likespa.restores.err.no_candidates' => 'Сначала отмените процедуру!',
-
     'likespa.user_edit.sec_site' => 'Данные для сайта',
     'likespa.user_edit.tips_link' => 'Ссылка на чаевые',
     'likespa.user_edit.photo' => 'Фотография для клиентской части',
@@ -405,4 +395,6 @@ return [
     'likespa.user.tips' => 'Чаевые',
     'likespa.user.photo' => 'Фото',
     'likespa.user.site_descr' => 'Описание',
+    'likespa.module.description' => 'Пакет инстанса: SEO/телефон сайта, скидки flyer/promoter, промостраницы, статьи, редиректы, term scans, восстановления, settlement.',
+    'likespa.module.summary' => 'Включайте на инстансах LikeSpa: сайт, промо, settlement/restore. Мягко audio_reports/audio/workweeks/procedures/payments. Отключаемый пакет — не нужен на чужих тенантах.',
 ];

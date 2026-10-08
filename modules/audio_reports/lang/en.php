@@ -17,7 +17,6 @@ return [
     'audio_reports.settings.record_end' => 'Recording end',
     'audio_reports.settings.hour' => 'Hour',
     'audio_reports.settings.min' => 'Min',
-
     'audio_reports.calendar.nav_aria' => 'Calendar period',
     'audio_reports.calendar.year' => 'Year',
     'audio_reports.calendar.month' => 'Month',
@@ -105,7 +104,6 @@ return [
     'audio_reports.calendar.month.10' => 'October',
     'audio_reports.calendar.month.11' => 'November',
     'audio_reports.calendar.month.12' => 'December',
-
     'audio_reports.collections.nav_aria' => 'Collections day',
     'audio_reports.collections.filters_aria' => 'Collection filters',
     'audio_reports.collections.prev' => 'Previous day',
@@ -136,7 +134,6 @@ return [
     'audio_reports.collections.transcript_hint' => 'Conversation slice in the collection window (±15s), with matched keys highlighted.',
     'audio_reports.collections.transcript_unavailable' => 'Transcript unavailable.',
     'audio_reports.collections.err.not_found' => 'Collection #{id} not found',
-
     'audio_reports.summaries.list_title' => 'Summary profiles',
     'audio_reports.summaries.empty' => 'No summary profiles yet.',
     'audio_reports.summaries.new' => 'New profile',
@@ -377,4 +374,6 @@ return [
     'audio_reports.summaries.js.day' => 'Day',
     'audio_reports.summaries.js.hours' => 'Hours',
     'audio_reports.summaries.js.need_position' => 'Select a position first',
+    'audio_reports.module.description' => 'Audio records calendar and summary reports.',
+    'audio_reports.module.summary' => 'Enable for listening calendar and summaries. Requires audio + audio_dicts + workweeks. Soft procedures/pipeline. Soft-used by likespa and staff_reports.',
 ];

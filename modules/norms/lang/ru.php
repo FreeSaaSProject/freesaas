@@ -18,4 +18,6 @@ return [
     'norms.err.not_found' => 'Норма #{id} не найдена',
     'norms.err.proc_required' => 'Выберите процедуру',
     'norms.err.good_required' => 'Выберите материал',
+    'norms.module.description' => 'Нормы расхода по умолчанию (base_good_defaults); встраивается в редактирование товара.',
+    'norms.module.summary' => 'Включайте для норм расхода на товарах. Требует catalog. Мягко — логика остатков stocks. Полезно, когда списаниям/процедурам нужны дефолтные нормы.',
 ];

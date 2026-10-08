@@ -1,6 +1,7 @@
 {
     "id": "orders",
     "name": "orders.module.name",
+    "description": "orders.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

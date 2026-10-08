@@ -1,6 +1,7 @@
 {
     "id": "clients",
     "name": "clients.module.name",
+    "description": "clients.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

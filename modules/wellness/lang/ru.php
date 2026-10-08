@@ -16,7 +16,6 @@ return [
     'wellness.menu.symptoms' => 'Состояния',
     'wellness.perm.view' => 'Здоровье и фитнес (просмотр)',
     'wellness.perm.edit' => 'Здоровье и фитнес (правка)',
-
     'wellness.err.auth_required' => 'Требуется вход',
     'wellness.err.forbidden' => 'Нет доступа: запись принадлежит другому пользователю',
     'wellness.err.not_found' => 'Запись не найдена',
@@ -26,7 +25,6 @@ return [
     'wellness.err.rx_data_required' => 'Укажите текст рецепта',
     'wellness.err.symptom_invalid' => 'Некорректное состояние',
     'wellness.err.medicine_invalid' => 'Некорректное лекарство',
-
     'wellness.calendar.title' => 'Календарь здоровья',
     'wellness.calendar.aria' => 'Обзор месяца',
     'wellness.calendar.prev' => 'Предыдущий месяц',
@@ -39,7 +37,6 @@ return [
     'wellness.calendar.empty_day' => 'Нет записей',
     'wellness.calendar.kcal' => '{n} ккал',
     'wellness.calendar.kg' => '{n} кг',
-
     'wellness.food_diary.title' => 'Дневник еды',
     'wellness.food_diary.day' => 'День',
     'wellness.food_diary.empty' => 'За этот день приёмов пищи нет',
@@ -47,55 +44,46 @@ return [
     'wellness.food_diary.workouts' => 'Тренировки за день',
     'wellness.food_diary.health' => 'Здоровье за день',
     'wellness.food_diary.search_placeholder' => 'Поиск по дневнику',
-
     'wellness.foods.title' => 'Таблицы еды',
     'wellness.foods.empty' => 'Каталог пуст — добавьте свои продукты',
     'wellness.foods.search_placeholder' => 'Поиск продуктов',
     'wellness.foods.per_100' => 'На 100 г',
     'wellness.foods.edit_new' => 'Новый продукт',
     'wellness.foods.edit' => 'Продукт: {name}',
-
     'wellness.workouts.title' => 'Тренировки',
     'wellness.workouts.empty' => 'Тренировок пока нет',
     'wellness.workouts.search_placeholder' => 'Поиск тренировок',
     'wellness.workouts.edit_new' => 'Новая тренировка',
     'wellness.workouts.edit' => 'Редактирование тренировки',
-
     'wellness.weight.title' => 'Вес',
     'wellness.weight.empty' => 'Записей веса пока нет',
     'wellness.weight.edit_new' => 'Новая запись веса',
     'wellness.weight.edit' => 'Редактирование веса',
-
     'wellness.targets.title' => 'Фитнес-цели',
     'wellness.targets.empty' => 'Целей пока нет',
     'wellness.targets.edit_new' => 'Новая цель',
     'wellness.targets.edit' => 'Редактирование цели',
     'wellness.targets.default_name' => 'Цель',
-
     'wellness.health_diary.title' => 'Дневники здоровья',
     'wellness.health_diary.empty' => 'Записей пока нет',
     'wellness.health_diary.search_placeholder' => 'Поиск по дневнику',
     'wellness.health_diary.edit_new' => 'Новая запись',
     'wellness.health_diary.edit' => 'Редактирование записи',
-
     'wellness.doctor_rx.title' => 'Рецепты врачей',
     'wellness.doctor_rx.empty' => 'Рецептов пока нет',
     'wellness.doctor_rx.search_placeholder' => 'Поиск рецептов',
     'wellness.doctor_rx.edit_new' => 'Новый рецепт',
     'wellness.doctor_rx.edit' => 'Редактирование рецепта',
-
     'wellness.medicines.title' => 'Лекарства',
     'wellness.medicines.empty' => 'В каталоге пока нет лекарств',
     'wellness.medicines.search_placeholder' => 'Поиск лекарств',
     'wellness.medicines.edit_new' => 'Новое лекарство',
     'wellness.medicines.edit' => 'Редактирование лекарства',
-
     'wellness.symptoms.title' => 'Состояния',
     'wellness.symptoms.empty' => 'В каталоге пока нет состояний',
     'wellness.symptoms.search_placeholder' => 'Поиск состояний',
     'wellness.symptoms.edit_new' => 'Новое состояние',
     'wellness.symptoms.edit' => 'Редактирование состояния',
-
     'wellness.col.name' => 'Название',
     'wellness.col.dt' => 'Дата',
     'wellness.col.dt_start' => 'Начало',
@@ -118,4 +106,6 @@ return [
     'wellness.col.descr' => 'Заметки',
     'wellness.col.doctor' => 'Врач',
     'wellness.col.data' => 'Рецепт',
+    'wellness.module.description' => 'Модуль здоровья и фитнеса (домен wellness: UI и данные).',
+    'wellness.module.summary' => 'Включайте для wellness-экранов сверх обычных процедур. Только core. Когда на тенанте нужны health/fitness функции этого пакета.',
 ];

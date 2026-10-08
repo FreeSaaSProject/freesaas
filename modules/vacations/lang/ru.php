@@ -69,4 +69,6 @@ return [
     'vacations.err.overlap' => 'Пересечение периодов того же типа',
     'vacations.err.sign_show' => 'Требуется подпись, но запись скрыта от сотрудника',
     'vacations.err.forbidden' => 'Недостаточно прав для просмотра чужих отпусков',
+    'vacations.module.description' => 'Реестр отпусков (base_vacations) с workflow подписания.',
+    'vacations.module.summary' => 'Включайте для реестра отпусков и согласований. Только core. HR/бухгалтерия — независимо от смен календаря.',
 ];

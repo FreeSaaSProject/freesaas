@@ -136,4 +136,6 @@ return [
     'calendar.statuses.field.EVT_CONTACT_DATA' => 'Контактные данные',
     'calendar.statuses.field.EVT_DOC_LINKS' => 'Ссылки на документы',
     'calendar.statuses.field.EVT_PHOTOS' => 'Фото',
+    'calendar.module.description' => 'Дневной вид и CRUD событий (base_events*); создание процедур из событий.',
+    'calendar.module.summary' => 'Включайте для операционного дня. Требует clients, catalog, procedures, orders, workweeks. Мягко cabinets/tables. Мягко — bonuses/clientics. Центр смены — после workweeks + procedures.',
 ];

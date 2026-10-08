@@ -38,4 +38,6 @@ return [
     'comments.err.edit_denied' => 'You are not allowed to edit this comment',
     'comments.err.moderate_denied' => 'You are not allowed to hide or show this comment',
     'comments.err.delete_denied' => 'This comment can\'t be deleted (time limit, replies, or not yours)',
+    'comments.module.description' => 'Comment threads on news items with likes and form/action hooks for other modules.',
+    'comments.module.summary' => 'Enable when news/tickets need discussion threads. No own menu — embeds on core news cards. Required by contracts. Soft-used by workweeks, staff_reports, audio_llm. Keep on if any dependent module is enabled.',
 ];

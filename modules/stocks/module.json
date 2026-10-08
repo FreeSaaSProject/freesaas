@@ -1,6 +1,7 @@
 {
     "id": "stocks",
     "name": "stocks.module.name",
+    "description": "stocks.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

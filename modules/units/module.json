@@ -1,6 +1,7 @@
 {
     "id": "units",
     "name": "units.module.name",
+    "description": "units.module.description",
     "version": "0.1.0",
     "type": "product",
     "requires": {

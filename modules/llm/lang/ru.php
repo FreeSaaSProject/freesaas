@@ -8,7 +8,6 @@ return [
     'llm.menu.group' => 'LLM',
     'llm.menu.tokens' => 'Токены',
     'llm.menu.oauth' => 'OAuth / MCP',
-
     'llm.oauth.title' => 'OAuth и MCP',
     'llm.oauth.lede' => 'Подключение ChatGPT Actions или MCP-клиентов. Сотрудник один раз подтверждает доступ — приложение вызывает tools от его имени.',
     'llm.oauth.edit_lede' => 'Зарегистрируйте OAuth-клиент (Custom GPT, Claude MCP и т.п.). Секрет показывается только один раз.',
@@ -54,7 +53,6 @@ return [
     'llm.oauth.err.not_found' => 'OAuth-клиент не найден.',
     'llm.oauth.err.client' => 'Неизвестный или отключённый OAuth-клиент.',
     'llm.oauth.err.redirect_mismatch' => 'redirect_uri не зарегистрирован для этого клиента.',
-
     'llm.tokens.title' => 'Токены LLM API',
     'llm.tokens.lede' => 'Именованные профили OpenAI-compatible (ключ, URL, модель). Секреты хранятся в cfg/modules/llm.ini.',
     'llm.tokens.empty' => 'Профилей нет. Добавьте токен, чтобы включить LLM.',
@@ -96,4 +94,6 @@ return [
     'llm.chat.title' => 'LLM chat',
     'llm.health.ok' => 'Профиль LLM по умолчанию готов',
     'llm.health.missing' => 'Нет включённого профиля LLM с API-ключом',
+    'llm.module.description' => 'LLM-клиент OpenAI-compatible и UI профилей токенов (cfg/modules/llm.ini).',
+    'llm.module.summary' => 'Включайте как общий LLM-транспорт для assistant, audio_llm, banks classify, bots. Мягко assistant. Ключи только в cfg/modules/llm.ini. До AI-модулей.',
 ];

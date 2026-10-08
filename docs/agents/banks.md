@@ -14,7 +14,8 @@ cp modules/banks/config.example.ini cfg/modules/banks.ini
 
 | Path | Role |
 |------|------|
-| `/banks` | Connections list + connect buttons |
+| `/banks` | Connections list + connect / configure buttons |
+| `/banks/settings` | Superadmin: OAuth/token keys → `cfg/modules/banks.ini` |
 | `/banks/oauth/{provider}/start` | OAuth/token start (`tochka`\|`alfa_*`\|`tbank_*`\|`sber_*`) |
 | `/banks/oauth/{provider}/callback` | OAuth callback |
 | `/banks/connections/{id}` | Remote accounts, link/unlink/create ledger, refresh |

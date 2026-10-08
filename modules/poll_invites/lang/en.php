@@ -70,4 +70,6 @@ return [
     'poll_invites.err.poll_required' => 'Select a poll',
     'poll_invites.err.poll_missing' => 'Poll #{id} not found or not a root',
     'poll_invites.err.linked_locked' => 'Only the linked operator can open this invite',
+    'poll_invites.module.description' => 'Poll invite instances and staff fill (base_poll_invites); hooks for bots/site.',
+    'poll_invites.module.summary' => 'Enable to send/fill poll invites. Requires polls. Soft clients/bonuses. Publishes poll_invites.* for bots and site channels.',
 ];

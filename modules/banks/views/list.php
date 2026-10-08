@@ -2,27 +2,72 @@
 /** @var list<array<string,mixed>> $items */
 /** @var list<array{id:string,label:string,configured:bool}> $providers */
 /** @var bool $canConnect */
+/** @var bool $canSettings */
 $flash = flash_take();
+$anyConfigured = false;
+foreach ($providers as $p) {
+    if (!empty($p['configured'])) {
+        $anyConfigured = true;
+        break;
+    }
+}
 ?>
 <?php if ($flash): ?>
   <div class="flash flash-<?= e($flash['type'] === 'ok' ? 'ok' : 'warn') ?>"><?= e((string)$flash['message']) ?></div>
 <?php endif; ?>
+
 <section class="page-head">
-  <?php if ($canConnect): ?>
   <div class="page-head-row">
-    <div></div>
-    <div class="page-actions banks-connect-actions">
-      <?php foreach ($providers as $p): ?>
-        <?php if (!empty($p['configured'])): ?>
-          <a class="btn-primary" href="/banks/oauth/<?= e((string)$p['id']) ?>/start"><?= te('banks.list.connect') ?>: <?= e((string)$p['label']) ?></a>
-        <?php else: ?>
-          <span class="muted" title="<?= te('banks.err.not_configured') ?>"><?= e((string)$p['label']) ?> — <?= te('banks.err.not_configured') ?></span>
-        <?php endif; ?>
-      <?php endforeach; ?>
+    <div>
+      <h1><?= te('banks.list.title') ?></h1>
+    </div>
+    <div class="page-actions">
+      <?php if (!empty($canSettings)): ?>
+        <a class="btn-secondary" href="/banks/settings"><?= te('banks.menu.settings') ?></a>
+      <?php endif; ?>
     </div>
   </div>
-  <?php endif; ?>
 </section>
+
+<?php if (!$anyConfigured): ?>
+  <div class="flash flash-warn">
+    <?= te('banks.list.setup_needed') ?>
+    <?php if (!empty($canSettings)): ?>
+      <a href="/banks/settings"><?= te('banks.list.open_settings') ?></a>
+    <?php endif; ?>
+  </div>
+<?php endif; ?>
+
+<?php if (!$canConnect): ?>
+  <div class="flash flash-warn"><?= te('banks.list.no_connect_perm') ?></div>
+<?php else: ?>
+<section class="banks-connect-panel">
+  <h2><?= te('banks.list.connect_heading') ?></h2>
+  <div class="banks-connect-grid">
+    <?php foreach ($providers as $p): ?>
+      <div class="banks-connect-card">
+        <div class="banks-connect-card-title"><?= e((string)$p['label']) ?></div>
+        <?= BanksConfig::portalLinksHtml((string)$p['id']) ?>
+        <div class="banks-connect-actions">
+          <?php if (!empty($p['configured'])): ?>
+            <a class="btn-primary" href="/banks/oauth/<?= e((string)$p['id']) ?>/start">
+              <?= te('banks.list.connect') ?>
+            </a>
+          <?php elseif (!empty($canSettings)): ?>
+            <a class="btn-secondary" href="/banks/settings#<?= e((string)$p['id']) ?>">
+              <?= te('banks.list.configure') ?>
+            </a>
+          <?php else: ?>
+            <span class="btn-secondary banks-connect-disabled" title="<?= te('banks.err.not_configured') ?>">
+              <?= te('banks.err.not_configured') ?>
+            </span>
+          <?php endif; ?>
+        </div>
+      </div>
+    <?php endforeach; ?>
+  </div>
+</section>
+<?php endif; ?>
 
 <div class="table-wrap"><table class="data">
 <thead><tr>
