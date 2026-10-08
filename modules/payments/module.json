@@ -31,8 +31,9 @@
         "pages": [
             "/payments",
             "/payments/new",
-            "/payments/{id}/edit",
-            "/payment-types",
+        "/payments/{id}/edit",
+        "/payments/move-links/{moveId}",
+        "/payment-types",
             "/payment-types/new",
             "/payment-types/{id}/edit"
         ]
@@ -66,6 +67,13 @@
                 "path": "/payments/{id}/edit",
                 "permission": "payments.edit",
                 "description": "Update payment or create_dps=1 when ledger enabled"
+            },
+            {
+                "id": "payments.move_links",
+                "method": "POST",
+                "path": "/payments/move-links/{moveId}",
+                "permission": "payments.edit",
+                "description": "Multi-allocate hanging payments to a ledger move (action=link|unlink)"
             },
             {
                 "id": "payments.types.list",
@@ -115,11 +123,15 @@
     "configSchema": [],
     "tables": [
         "base_payments",
-        "base_payment_types"
+        "base_payment_types",
+        "base_payment_move_links"
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "ledger.moves.edit.sections",
+            "ledger.moves.deleted"
+        ],
         "publish": []
     },
     "bulkActions": [

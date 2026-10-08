@@ -1,6 +1,6 @@
 <?php
 /** @var list<array<string,mixed>> $items */
-/** @var list<array{id:string,label:string,configured:bool}> $providers */
+/** @var list<array{id:string,label:string,configured:bool,connection_id:int}> $providers */
 /** @var bool $canConnect */
 /** @var bool $canSettings */
 $flash = flash_take();
@@ -44,12 +44,25 @@ foreach ($providers as $p) {
 <section class="banks-connect-panel">
   <h2><?= te('banks.list.connect_heading') ?></h2>
   <div class="banks-connect-grid">
-    <?php foreach ($providers as $p): ?>
-      <div class="banks-connect-card">
+    <?php foreach ($providers as $p):
+      $connId = (int)($p['connection_id'] ?? 0);
+      $configured = !empty($p['configured']);
+      ?>
+      <div class="banks-connect-card<?= $connId > 0 ? ' is-connected' : '' ?>">
         <div class="banks-connect-card-title"><?= e((string)$p['label']) ?></div>
         <?= BanksConfig::portalLinksHtml((string)$p['id']) ?>
         <div class="banks-connect-actions">
-          <?php if (!empty($p['configured'])): ?>
+          <?php if ($connId > 0): ?>
+            <a class="btn-primary" href="/banks/connections/<?= $connId ?>">
+              <?= te('banks.list.open') ?>
+            </a>
+            <?php if ($configured): ?>
+              <a class="btn-secondary" href="/banks/oauth/<?= e((string)$p['id']) ?>/start"
+                 title="<?= te('banks.list.reconnect_hint') ?>">
+                <?= te('banks.list.reconnect') ?>
+              </a>
+            <?php endif; ?>
+          <?php elseif ($configured): ?>
             <a class="btn-primary" href="/banks/oauth/<?= e((string)$p['id']) ?>/start">
               <?= te('banks.list.connect') ?>
             </a>

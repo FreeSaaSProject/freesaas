@@ -136,7 +136,7 @@
                 "method": "POST",
                 "path": "/ledger/moves/new",
                 "permission": "ledger.edit",
-                "description": "Create move; also POST /ledger/moves/{id}/edit to update (incl. promised dates)"
+                "description": "Create move; also POST /ledger/moves/{id}/edit to update (incl. promised dates); action=delete soft-deletes"
             },
             {
                 "id": "ledger.moves.transfer",
@@ -211,7 +211,9 @@
         ],
         "publish": [
             "ledger.accounts.badges",
-            "ledger.moves.badges"
+            "ledger.moves.badges",
+            "ledger.moves.edit.sections",
+            "ledger.moves.deleted"
         ]
     },
     "bulkActions": [

@@ -3,15 +3,19 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/PaymentTypesRepository.php';
 require_once __DIR__ . '/lib/PaymentsRepository.php';
+require_once __DIR__ . '/lib/PaymentMoveLinksRepository.php';
+require_once __DIR__ . '/lib/PaymentMoveAllocUi.php';
 
 Assets::register('payments', [
     'css' => ['payments.css'],
+    'js' => ['payments_alloc.js'],
 ]);
 
 $pages = [
     '/payments' => ['permission' => 'payments.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/payments/new' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/payments/{id}/edit' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/payments/move-links/{moveId}' => ['permission' => 'payments.edit', 'methods' => ['POST'], 'file' => 'move_links.php'],
     '/payment-types' => ['permission' => 'payments.types', 'methods' => ['GET', 'POST'], 'file' => 'types_list.php'],
     '/payment-types/new' => ['permission' => 'payments.types', 'methods' => ['GET', 'POST'], 'file' => 'types_edit.php'],
     '/payment-types/{id}/edit' => ['permission' => 'payments.types', 'methods' => ['GET', 'POST'], 'file' => 'types_edit.php'],
@@ -101,3 +105,32 @@ BulkActions::register('payment_types', 'delete', [
         return ['done' => PaymentTypesRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+
+EventBus::on('ledger.moves.edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $moveId = (int)($payload['id'] ?? 0);
+    $row = is_array($payload['row'] ?? null) ? $payload['row'] : [];
+    $type = is_array($payload['type'] ?? null) ? $payload['type'] : null;
+    $html = PaymentMoveAllocUi::sectionHtml($moveId, $row, $type);
+    if ($html !== '') {
+        Assets::need('payments');
+        if (!isset($payload['html']) || !is_array($payload['html'])) {
+            $payload['html'] = [];
+        }
+        $payload['html'][] = $html;
+    }
+    return $payload;
+});
+
+EventBus::on('ledger.moves.deleted', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $ids = $payload['ids'] ?? [];
+    if (is_array($ids) && $ids !== []) {
+        PaymentMoveLinksRepository::unlinkByMoveIds($ids);
+    }
+    return $payload;
+});

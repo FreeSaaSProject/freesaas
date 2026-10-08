@@ -35,9 +35,17 @@
 }
 
 .banks-connect-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   padding: 0.65rem 0.75rem;
   border: 1px solid color-mix(in srgb, var(--border, #ccc) 70%, transparent);
   border-radius: 0.3rem;
+  overflow: hidden;
+}
+
+.banks-connect-card.is-connected {
+  border-color: color-mix(in srgb, var(--accent-2, #0a7) 45%, var(--border, #ccc));
 }
 
 .banks-connect-card-title {
@@ -49,17 +57,35 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
-  margin-top: 0.45rem;
+  margin-top: auto;
+  padding-top: 0.45rem;
 }
 
 .banks-portal-links {
-  margin: 0.25rem 0 0.5rem;
+  margin: 0.15rem 0 0;
   font-size: 0.85rem;
-  line-height: 1.45;
+  line-height: 1.35;
+  min-width: 0;
+}
+
+.banks-portal-where {
+  margin-bottom: 0.2rem;
+}
+
+.banks-portal-links ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.banks-portal-links li {
+  margin: 0.15rem 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .banks-portal-link {
-  white-space: nowrap;
+  display: inline;
 }
 
 input.banks-redirect-uri {
@@ -100,4 +126,29 @@ input.banks-redirect-uri {
   gap: 0.75rem;
   align-items: end;
   margin: 1rem 0;
+}
+
+.banks-last-sync {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--warn, #b80) 35%, var(--border, #ccc));
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--warn, #b80) 8%, transparent);
+}
+
+.banks-last-sync.is-ok {
+  border-color: color-mix(in srgb, var(--accent-2, #0a7) 35%, var(--border, #ccc));
+  background: color-mix(in srgb, var(--accent-2, #0a7) 8%, transparent);
+}
+
+.banks-last-sync summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.banks-sync-messages {
+  margin: 0.5rem 0 0;
+  padding-left: 1.2rem;
+  font-size: 0.9rem;
+  word-break: break-word;
 }

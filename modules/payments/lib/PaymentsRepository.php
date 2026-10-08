@@ -100,7 +100,7 @@ final class PaymentsRepository
     /**
      * Group payment rows into monthly blocks (oper mode=2 parity).
      *
-     * @param list<array<string,mixed>> $items Sorted ASC by DT
+     * @param list<array<string,mixed>> $items Must be sorted ASC by DT for correct debt_start/debt_end
      * @return list<array{key:string,accrued:list,issued:list,total_in:float,total_out:float,internal_out:float,balanced:bool,debt_start:float,debt_end:float}>
      */
     public static function groupByMonth(array $items, float $openingDebt): array
@@ -253,7 +253,14 @@ final class PaymentsRepository
 
     public static function hasLinkedMoves(int $paymentId): bool
     {
-        if ($paymentId < 1 || !Database::tableExists('base_account_moves')) {
+        if ($paymentId < 1) {
+            return false;
+        }
+        if (class_exists('PaymentMoveLinksRepository', false)
+            && PaymentMoveLinksRepository::isPaymentLinked($paymentId)) {
+            return true;
+        }
+        if (!Database::tableExists('base_account_moves')) {
             return false;
         }
         if (!Database::columnExists('base_account_moves', 'ID_PAYMENT')) {
@@ -635,8 +642,17 @@ final class PaymentsRepository
                 continue;
             }
             try {
+                if (class_exists('PaymentMoveLinksRepository', false)
+                    && PaymentMoveLinksRepository::isPaymentLinked($id)) {
+                    $skipped[] = ['id' => $id, 'reason' => t('payments.flash.dps_none')];
+                    continue;
+                }
                 $moveId = LedgerMovesRepository::createFromPayment($row);
                 if ($moveId > 0) {
+                    if (class_exists('PaymentMoveLinksRepository', false)
+                        && PaymentMoveLinksRepository::ready()) {
+                        PaymentMoveLinksRepository::link($id, $moveId, abs((float)$row['sum']));
+                    }
                     $done++;
                 } else {
                     $skipped[] = ['id' => $id, 'reason' => t('payments.flash.dps_none')];

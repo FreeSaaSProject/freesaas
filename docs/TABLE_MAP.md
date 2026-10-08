@@ -38,6 +38,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_procent_history` | rates | Specialist pay rates |
 | `base_procedures*` | procedures | Types + journal + `base_procedure_restores` schema; restore UI/settlement in likespa |
 | `base_payments` / `base_payment_types` | payments | Staff settlements |
+| `base_payment_move_links` | payments | Multi-allocation payments ↔ ledger moves |
 | `base_bonuspay` | bonuses | Client loyalty ledger (credit/debit, event settle) |
 | `base_telegram_sends` | bots | Outbound TG/Max queue (`BOT_SOURCE` 1=client, 2=staff) |
 | `base_bot_links` | bots | Messenger chat ids for staff/clients (no ALTER `base_users` / `base_clients`) |

@@ -84,6 +84,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $links = BankAccountLinksRepository::forConnection($id);
 $ledgerAccounts = LedgerAccountsRepository::names(true);
+$lastSync = null;
+$metaRaw = $conn['meta'] ?? null;
+$meta = [];
+if (is_string($metaRaw) && $metaRaw !== '') {
+    $decoded = json_decode($metaRaw, true);
+    if (is_array($decoded)) {
+        $meta = $decoded;
+    }
+} elseif (is_array($metaRaw)) {
+    $meta = $metaRaw;
+}
+if (isset($meta['last_sync']) && is_array($meta['last_sync'])) {
+    $lastSync = $meta['last_sync'];
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -91,6 +105,7 @@ if ($wantsJson) {
         'connection' => $conn,
         'links' => $links,
         'ledger_accounts' => $ledgerAccounts,
+        'last_sync' => $lastSync,
         'can_connect' => $canConnect,
         'can_sync' => $canSync,
     ]);
@@ -101,6 +116,7 @@ View::render('connection', [
     'conn' => $conn,
     'links' => $links,
     'ledgerAccounts' => $ledgerAccounts,
+    'lastSync' => $lastSync,
     'canConnect' => $canConnect,
     'canSync' => $canSync,
     'breadcrumbs' => Breadcrumbs::withHome([

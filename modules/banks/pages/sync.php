@@ -33,9 +33,16 @@ try {
     );
     $msg = t('banks.conn.synced', [
         'created' => $stats['created'],
+        'linked' => $stats['linked'],
         'skipped' => $stats['skipped'],
         'errors' => $stats['errors'],
     ]);
+    if (!empty($stats['messages'])) {
+        $msg .= "\n" . implode("\n", array_slice($stats['messages'], 0, 10));
+        if (count($stats['messages']) > 10) {
+            $msg .= "\n…";
+        }
+    }
     if ($wantsJson) {
         AgentHttp::emit(['ok' => true, 'stats' => $stats, 'message' => $msg]);
     }

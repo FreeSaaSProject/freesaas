@@ -1,3 +1,65 @@
+/* Multi-allocation block on ledger move edit */
+.payments-alloc {
+  margin: 1.25rem 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #ccc) 80%, transparent);
+  border-radius: 0.35rem;
+}
+
+.payments-alloc h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
+.payments-alloc h3 {
+  margin: 0.85rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.payments-alloc-totals {
+  margin: 0.35rem 0 0.5rem;
+}
+
+.payments-alloc-ok {
+  color: var(--accent-2, #0a7);
+}
+
+.payments-alloc-warn {
+  color: var(--warn, #b80);
+}
+
+.payments-alloc-table {
+  font-size: 0.85rem;
+}
+
+.payments-alloc-inline {
+  display: inline;
+  margin: 0;
+}
+
+.payments-alloc-form .page-actions,
+.payments-alloc-selected {
+  margin-top: 0.5rem;
+}
+
+.payments-alloc-checkall {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.payments-alloc-table tfoot td {
+  border-top: 1px solid color-mix(in srgb, var(--border, #ccc) 80%, transparent);
+  font-size: 0.9rem;
+}
+
+.payments-alloc-sum {
+  white-space: nowrap;
+  text-align: right;
+}
+
 /* Compact payments tables (list + monthly) */
 .table-wrap .data th,
 .table-wrap .data td,

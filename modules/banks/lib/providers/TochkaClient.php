@@ -197,6 +197,8 @@ final class TochkaClient
             : $c['api_base'];
         $token = $c['sandbox'] ? 'sandbox.jwt.token' : $accessToken;
 
+        // Tochka Open Banking expects NaiveDate (YYYY-MM-DD), not full ISO datetime.
+        [$startDate, $endDate] = self::normalizeStatementDates($dateFrom, $dateTo);
         $init = BankHttp::request(
             'POST',
             $base . '/open-banking/v1.0/statements',
@@ -205,8 +207,8 @@ final class TochkaClient
                 'Data' => [
                     'Statement' => [
                         'accountId' => $accountId,
-                        'startDateTime' => $dateFrom . 'T00:00:00Z',
-                        'endDateTime' => $dateTo . 'T23:59:59Z',
+                        'startDateTime' => $startDate,
+                        'endDateTime' => $endDate,
                     ],
                 ],
             ]
@@ -214,18 +216,21 @@ final class TochkaClient
         if (!$init['ok']) {
             throw new RuntimeException('Tochka init statement: ' . $init['error'] . ' ' . mb_substr($init['raw'], 0, 200));
         }
+        $initStatement = self::unwrapStatement($init['data'] ?? null);
         $statementId = (string)(
-            $init['data']['Data']['Statement']['statementId']
-            ?? $init['data']['Data']['Statement']['StatementId']
-            ?? $init['data']['Data']['statementId']
+            $initStatement['statementId']
+            ?? $initStatement['StatementId']
             ?? ''
         );
         if ($statementId === '') {
-            throw new RuntimeException('Tochka: empty statementId');
+            throw new RuntimeException(
+                'Tochka: empty statementId ' . mb_substr((string)($init['raw'] ?? ''), 0, 240)
+            );
         }
 
         $statement = null;
-        for ($i = 0; $i < 20; $i++) {
+        $lastStatus = '';
+        for ($i = 0; $i < 40; $i++) {
             $get = BankHttp::request(
                 'GET',
                 $base . '/open-banking/v1.0/accounts/' . rawurlencode($accountId)
@@ -233,32 +238,33 @@ final class TochkaClient
                 ['Authorization: Bearer ' . $token, 'Accept: application/json']
             );
             if (!$get['ok']) {
-                throw new RuntimeException('Tochka get statement: ' . $get['error']);
+                throw new RuntimeException(
+                    'Tochka get statement: ' . $get['error'] . ' ' . mb_substr($get['raw'], 0, 200)
+                );
             }
-            $st = $get['data']['Data']['Statement'] ?? $get['data']['Data']['statement'] ?? $get['data'];
-            $status = is_array($st) ? (string)($st['status'] ?? $st['Status'] ?? '') : '';
-            if ($status === 'Ready' || $status === '' || isset($st['Transaction'])) {
-                $statement = is_array($st) ? $st : null;
+            $st = self::unwrapStatement($get['data'] ?? null);
+            $status = (string)($st['status'] ?? $st['Status'] ?? '');
+            $lastStatus = $status;
+            if ($status === 'Ready') {
+                $statement = $st;
                 break;
             }
-            if ($status === 'Failed') {
-                throw new RuntimeException('Tochka statement Failed');
+            if ($status === 'Failed' || $status === 'Error') {
+                throw new RuntimeException('Tochka statement ' . $status);
             }
+            // Created / Processing — wait; do not treat empty status as ready.
             usleep(500000);
         }
         if (!is_array($statement)) {
-            throw new RuntimeException('Tochka statement timeout');
+            throw new RuntimeException(
+                'Tochka statement timeout (last status: ' . ($lastStatus !== '' ? $lastStatus : 'empty')
+                . ', id: ' . $statementId . ')'
+            );
         }
 
-        $txs = $statement['Transaction'] ?? $statement['transaction'] ?? [];
-        if (!is_array($txs)) {
-            return [];
-        }
+        $txs = self::unwrapTransactionList($statement);
         $out = [];
         foreach ($txs as $tx) {
-            if (!is_array($tx)) {
-                continue;
-            }
             $norm = self::normalizeTx($tx);
             if ($norm !== null) {
                 $out[] = $norm;
@@ -267,19 +273,88 @@ final class TochkaClient
         return $out;
     }
 
+    /** @param mixed $data @return array<string,mixed> */
+    private static function unwrapStatement($data): array
+    {
+        if (!is_array($data)) {
+            return [];
+        }
+        $st = $data['Data']['Statement'] ?? $data['Data']['statement'] ?? $data['Statement'] ?? $data['statement'] ?? null;
+        if ($st === null && isset($data['Data']) && is_array($data['Data'])) {
+            $st = $data['Data'];
+        }
+        if (!is_array($st)) {
+            return [];
+        }
+        // List form: Data.Statement = [ {...} ]
+        if (isset($st[0]) && is_array($st[0]) && !isset($st['accountId']) && !isset($st['AccountId'])) {
+            $st = $st[0];
+        }
+        return is_array($st) ? $st : [];
+    }
+
+    /**
+     * @param array<string,mixed> $statement
+     * @return list<array<string,mixed>>
+     */
+    private static function unwrapTransactionList(array $statement): array
+    {
+        $txs = $statement['Transaction'] ?? $statement['transaction'] ?? [];
+        if ($txs === null || $txs === []) {
+            return [];
+        }
+        if (!is_array($txs)) {
+            return [];
+        }
+        // Single transaction object (Open Banking often omits the array wrapper).
+        if (isset($txs['transactionId']) || isset($txs['TransactionId'])
+            || isset($txs['creditDebitIndicator']) || isset($txs['CreditDebitIndicator'])
+            || isset($txs['Amount']) || isset($txs['amount'])) {
+            return [$txs];
+        }
+        $out = [];
+        foreach ($txs as $tx) {
+            if (is_array($tx)) {
+                $out[] = $tx;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @return array{0:string,1:string} start/end as YYYY-MM-DD, end not after today
+     */
+    private static function normalizeStatementDates(string $dateFrom, string $dateTo): array
+    {
+        $from = preg_match('/^\d{4}-\d{2}-\d{2}/', $dateFrom)
+            ? substr($dateFrom, 0, 10)
+            : date('Y-m-d', strtotime($dateFrom) ?: time());
+        $to = preg_match('/^\d{4}-\d{2}-\d{2}/', $dateTo)
+            ? substr($dateTo, 0, 10)
+            : date('Y-m-d', strtotime($dateTo) ?: time());
+        $today = date('Y-m-d');
+        if ($to > $today) {
+            $to = $today;
+        }
+        if ($from > $to) {
+            $from = $to;
+        }
+        return [$from, $to];
+    }
+
     /**
      * @param array<string,mixed> $tx
      * @return array{external_id:string,direction:int,amount:float,dt:int,purpose:string,counterparty_name:string,counterparty_inn:string,raw:array}|null
      */
     private static function normalizeTx(array $tx): ?array
     {
-        $id = (string)($tx['transactionId'] ?? $tx['TransactionId'] ?? $tx['id'] ?? '');
+        $id = (string)($tx['transactionId'] ?? $tx['TransactionId'] ?? $tx['paymentId'] ?? $tx['id'] ?? '');
         if ($id === '') {
-            $id = sha1(json_encode($tx));
+            $id = sha1((string)json_encode($tx));
         }
         $creditDebit = strtoupper((string)($tx['creditDebitIndicator'] ?? $tx['CreditDebitIndicator'] ?? ''));
         $direction = ($creditDebit === 'CREDIT' || $creditDebit === 'CRDT') ? 1 : -1;
-        $amountRaw = $tx['Amount']['amount'] ?? $tx['amount']['amount'] ?? $tx['Amount'] ?? $tx['amount'] ?? 0;
+        $amountRaw = $tx['Amount'] ?? $tx['amount'] ?? $tx['AccountAmount'] ?? $tx['accountAmount'] ?? 0;
         if (is_array($amountRaw)) {
             $amountRaw = $amountRaw['amount'] ?? $amountRaw['Amount'] ?? 0;
         }
@@ -287,20 +362,36 @@ final class TochkaClient
         if ($amount <= 0) {
             return null;
         }
-        $dtStr = (string)($tx['BookingDateTime'] ?? $tx['bookingDateTime'] ?? $tx['ValueDateTime'] ?? $tx['valueDateTime'] ?? '');
-        $dt = $dtStr !== '' ? (int)strtotime($dtStr) : time();
-        $purpose = (string)($tx['description'] ?? $tx['Description'] ?? $tx['transactionInformation'] ?? $tx['remittanceInformation']['unstructured'] ?? '');
+        $dtStr = (string)(
+            $tx['bookingDateTime']
+            ?? $tx['BookingDateTime']
+            ?? $tx['valueDateTime']
+            ?? $tx['ValueDateTime']
+            ?? $tx['documentProcessDate']
+            ?? $tx['DocumentProcessDate']
+            ?? ''
+        );
+        $dt = $dtStr !== '' ? (int)strtotime($dtStr) : 0;
+        if ($dt < 1 && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dtStr)) {
+            $dt = (int)strtotime($dtStr . ' 12:00:00');
+        }
+        $purpose = $tx['description'] ?? $tx['Description'] ?? $tx['transactionInformation'] ?? '';
         if (is_array($purpose)) {
             $purpose = implode(' ', $purpose);
         }
-        $cp = $tx['CreditorAccount'] ?? $tx['DebtorAccount'] ?? $tx['CreditorAgent'] ?? [];
+        $purpose = (string)$purpose;
+        $party = $direction > 0
+            ? ($tx['DebtorParty'] ?? $tx['debtorParty'] ?? $tx['DebtorAccount'] ?? $tx['debtorAccount'] ?? [])
+            : ($tx['CreditorParty'] ?? $tx['creditorParty'] ?? $tx['CreditorAccount'] ?? $tx['creditorAccount'] ?? []);
         $cpName = '';
         $cpInn = '';
-        if (is_array($cp)) {
-            $cpName = (string)($cp['Name'] ?? $cp['name'] ?? '');
-            $cpInn = (string)($cp['inn'] ?? $cp['INN'] ?? $cp['identification'] ?? '');
+        if (is_array($party)) {
+            $cpName = (string)($party['name'] ?? $party['Name'] ?? '');
+            $cpInn = (string)($party['inn'] ?? $party['INN'] ?? $party['taxId'] ?? $party['identification'] ?? '');
         }
-        $cpName = $cpName !== '' ? $cpName : (string)($tx['CreditorName'] ?? $tx['DebtorName'] ?? '');
+        if ($cpName === '') {
+            $cpName = (string)($tx['CreditorName'] ?? $tx['DebtorName'] ?? '');
+        }
         return [
             'external_id' => $id,
             'direction' => $direction,

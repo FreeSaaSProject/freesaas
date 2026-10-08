@@ -163,7 +163,9 @@ $dtValue = is_numeric($row['dt'] ?? null)
 $ledgerEnabled = PaymentsRepository::ledgerEnabled();
 $linkedMoveIds = [];
 if (!$isNew && $ledgerEnabled && class_exists('LedgerMovesRepository')) {
-    $linkedMoveIds = LedgerMovesRepository::moveIdsForPayment($id);
+    $linkedMoveIds = class_exists('PaymentMoveLinksRepository', false)
+        ? (PaymentMoveLinksRepository::moveIdsByPaymentIds([$id])[$id] ?? [])
+        : LedgerMovesRepository::moveIdsForPayment($id);
 }
 $linkedMoves = $linkedMoveIds !== [];
 $showCashMarks = (int)($row['direction'] ?? 0) < 0 && (int)($row['account'] ?? 0) === 2;

@@ -130,7 +130,7 @@ return [
     'ledger.moves.err.account' => 'Select an account',
     'ledger.moves.err.type' => 'Select a type',
     'ledger.moves.err.sum' => 'Enter an amount',
-    'ledger.moves.err.recon_locked' => 'Period locked by reconciliation — disable it first',
+    'ledger.moves.confirm_delete' => 'Mark this move as deleted?',
     'ledger.moves.err.account_to' => 'Select destination account',
     'ledger.moves.err.same_account' => 'Transfer accounts must differ',
     'ledger.recon.label' => 'Reconciliation:',

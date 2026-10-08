@@ -216,20 +216,21 @@ final class BanksConfig
         return $map[$p] ?? [];
     }
 
-    /** HTML chip-row of external portal links for a provider. */
+    /** HTML list of external portal links for a provider. */
     public static function portalLinksHtml(string $provider): string
     {
         $links = self::portalLinks($provider);
         if ($links === []) {
             return '';
         }
-        $parts = [];
+        $items = '';
         foreach ($links as $link) {
-            $parts[] = '<a class="banks-portal-link" href="' . e($link['url']) . '" target="_blank" rel="noopener noreferrer">'
-                . e(t($link['label_key'])) . '</a>';
+            $items .= '<li><a class="banks-portal-link" href="' . e($link['url']) . '" target="_blank" rel="noopener noreferrer">'
+                . e(t($link['label_key'])) . '</a></li>';
         }
-        return '<p class="banks-portal-links"><span class="muted">' . e(t('banks.portal.where')) . '</span> '
-            . implode(' · ', $parts) . '</p>';
+        return '<div class="banks-portal-links">'
+            . '<div class="muted banks-portal-where">' . e(t('banks.portal.where')) . '</div>'
+            . '<ul>' . $items . '</ul></div>';
     }
 
     /** Absolute OAuth callback for this instance + provider. */

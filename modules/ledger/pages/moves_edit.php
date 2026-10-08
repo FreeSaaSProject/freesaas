@@ -54,7 +54,23 @@ if (!$isNew) {
 $message = '';
 $error = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    $action = (string)($_POST['action'] ?? 'save');
     try {
+        if ($action === 'delete') {
+            if ($isNew) {
+                throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));
+            }
+            $res = LedgerMovesRepository::softDeleteByIds([$id]);
+            if ((int)($res['done'] ?? 0) < 1) {
+                throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));
+            }
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'action' => 'delete', 'id' => $id]);
+                return;
+            }
+            redirect('/ledger/moves?deleted=1');
+            return;
+        }
         $data = LedgerMovesRepository::dataFromPost($_POST, $isNew ? null : $row);
         if ($isNew) {
             $newId = LedgerMovesRepository::create($data);
@@ -157,6 +173,7 @@ if ($stickersEnabled && class_exists('Acts2InRepository')) {
 }
 
 $moveBadgeHtml = '';
+$extraSectionsHtml = '';
 if (!$isNew && $id > 0) {
     $badgePayload = EventBus::emit('ledger.moves.badges', [
         'ids' => [$id],
@@ -166,6 +183,25 @@ if (!$isNew && $id > 0) {
     $moveBadgeHtml = (string)(($badgePayload['by_id'][$id] ?? ''));
     if ($moveBadgeHtml !== '' && ModuleManager::isEnabled('banks')) {
         Assets::need('banks');
+    }
+    $sectionsPayload = EventBus::emit('ledger.moves.edit.sections', [
+        'id' => $id,
+        'row' => $row,
+        'type' => is_array($type) ? $type : null,
+        'html' => [],
+    ]);
+    foreach ($sectionsPayload['html'] ?? [] as $chunk) {
+        if (is_string($chunk) && $chunk !== '') {
+            $extraSectionsHtml .= $chunk;
+        }
+    }
+}
+$flash = flash_take();
+if ($flash && $message === '' && $error === '') {
+    if (($flash['type'] ?? '') === 'ok') {
+        $message = (string)$flash['message'];
+    } else {
+        $error = (string)$flash['message'];
     }
 }
 
@@ -191,6 +227,7 @@ if ($wantsJson) {
         'dt_value' => $dtValue,
         'dt_promised_value' => $dtPromisedValue,
         'badge_html' => $moveBadgeHtml,
+        'extra_sections_html' => $extraSectionsHtml,
     ]);
     return;
 }
@@ -218,4 +255,5 @@ View::render('moves_edit', [
     'message' => $message,
     'error' => $error,
     'moveBadgeHtml' => $moveBadgeHtml,
+    'extraSectionsHtml' => $extraSectionsHtml,
 ], 'layout', 'ledger');

@@ -15,6 +15,7 @@
 /** @var string $error */
 /** @var bool $fundsEnabled */
 /** @var bool $stickersEnabled */
+/** @var string $extraSectionsHtml */
 $hasType = $type !== null;
 $dtPromisedValue = (string)($dtPromisedValue ?? '');
 $showPromiseExecuted = $dtPromisedValue !== '' && strtotime($dtPromisedValue . ' 00:00:00') !== false
@@ -32,8 +33,8 @@ $dirVal = (int)($row['direction'] ?? -1);
 $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
 ?>
 <section class="page-head"><h1><?= $isNew ? te('ledger.moves.edit_new') : e('#' . (int)($row['id'] ?? 0)) ?><?= $moveBadgeHtml ?? '' ?></h1></section>
-<?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
-<?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
+<?php if ($message !== ''): ?><div class="flash flash-ok"><?= e_nl($message) ?></div><?php endif; ?>
+<?php if ($error !== ''): ?><div class="flash flash-warn"><?= e_nl($error) ?></div><?php endif; ?>
 <form method="post" class="form-grid form-wide ledger-move-form" data-ledger-move-form="1"<?= $isNew ? ' data-ledger-move-new="1"' : '' ?>>
   <script type="application/json" id="ledger-type-meta"><?= $typeMetaJson ?></script>
   <label><?= te('ledger.moves.col.type') ?>
@@ -157,8 +158,18 @@ $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
   </fieldset>
 
   <div class="page-actions">
-    <button class="btn-primary" type="submit" data-ledger-save<?= $hasType ? '' : ' hidden' ?>><?= te('core.common.save') ?></button>
+    <button class="btn-primary" type="submit" name="action" value="save" data-ledger-save<?= $hasType ? '' : ' hidden' ?>><?= te('core.common.save') ?></button>
     <p class="muted" data-ledger-type-hint<?= $hasType ? ' hidden' : '' ?>><?= te('ledger.moves.type_pick_hint') ?></p>
     <a class="btn-secondary" href="/ledger/moves"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (!empty($extraSectionsHtml)): ?>
+  <?= $extraSectionsHtml ?>
+<?php endif; ?>
+<?php if (!$isNew): ?>
+<form method="post" class="danger-zone" onsubmit="return confirm(<?= tj('ledger.moves.confirm_delete') ?>);">
+  <?= NavContext::hiddenField() ?>
+  <input type="hidden" name="action" value="delete">
+  <button class="btn-danger" type="submit"><?= te('core.common.delete') ?></button>
+</form>
+<?php endif; ?>

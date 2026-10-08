@@ -298,28 +298,6 @@ final class LedgerMovesRepository
     }
 
     /**
-     * True if an active past reconciliation locks edits for this account at $dt.
-     */
-    public static function isReconLocked(int $accountId, int $dt): bool
-    {
-        if ($accountId < 1 || !Database::tableExists('base_account_reconciliations')) {
-            return false;
-        }
-        $todayStart = mktime(0, 0, 0) ?: time();
-        $st = Database::pdo()->prepare(
-            'SELECT 1 FROM base_account_reconciliations
-             WHERE ID_ACCOUNT = ? AND DISABLED = 0
-               AND DT_RECONCILIATION < ?
-               AND DT_RECONCILIATION >= ?
-             LIMIT 1'
-        );
-        // Lock if recon date is on/after move day and before today
-        $moveDay = mktime(0, 0, 0, (int)date('n', $dt), (int)date('j', $dt), (int)date('Y', $dt)) ?: $dt;
-        $st->execute([$accountId, $todayStart, $moveDay]);
-        return (bool)$st->fetchColumn();
-    }
-
-    /**
      * @param array{
      *   q?:string,account_id?:int,type_id?:int,year?:int,month?:int,
      *   payment_id?:int,supplier_id?:int,include_deleted?:bool,
@@ -392,7 +370,20 @@ final class LedgerMovesRepository
 
     public static function hasMoveForPayment(int $paymentId): bool
     {
-        if ($paymentId < 1 || !Database::tableExists('base_account_moves')) {
+        if ($paymentId < 1) {
+            return false;
+        }
+        // Multi-allocation table owned by payments (base_*); soft check keeps createFromPayment idempotent.
+        if (Database::tableExists('base_payment_move_links')) {
+            $st = Database::pdo()->prepare(
+                'SELECT 1 FROM base_payment_move_links WHERE ID_PAYMENT = ? LIMIT 1'
+            );
+            $st->execute([$paymentId]);
+            if ((bool)$st->fetchColumn()) {
+                return true;
+            }
+        }
+        if (!Database::tableExists('base_account_moves')) {
             return false;
         }
         $st = Database::pdo()->prepare(
@@ -475,8 +466,6 @@ final class LedgerMovesRepository
             }
         }
 
-        self::assertNotLocked($accountId, $dt, $existing);
-
         $paymentId = !empty($type['payment_enabled']) ? max(0, (int)($post['payment_id'] ?? 0)) : 0;
         $userPayment = !empty($type['user_payment_enabled']) ? max(0, (int)($post['user_payment'] ?? 0)) : 0;
         $supplierId = !empty($type['supplier_enabled']) ? max(0, (int)($post['supplier_id'] ?? 0)) : 0;
@@ -553,6 +542,22 @@ final class LedgerMovesRepository
         return $id;
     }
 
+    /** Append a note to the end of DESCR (keeps existing purpose). */
+    public static function appendDescr(int $id, string $note): void
+    {
+        $note = trim($note);
+        if ($id < 1 || $note === '' || !Database::tableExists('base_account_moves')) {
+            return;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_account_moves
+             SET DESCR = TRIM(CONCAT(IFNULL(DESCR, \'\'), ?, ?)),
+                 ID_USER_UPDATE = ?, DT_UPDATE = ?
+             WHERE ID = ? AND DELETED = 0'
+        );
+        $st->execute(["\n", $note, Auth::userId() ?: 0, time(), $id]);
+    }
+
     /** @param array<string,mixed> $data */
     public static function update(int $id, array $data): void
     {
@@ -604,8 +609,6 @@ final class LedgerMovesRepository
         if ($dt < 1) {
             $dt = time();
         }
-        self::assertNotLocked($accountFrom, $dt, null);
-        self::assertNotLocked($accountTo, $dt, null);
 
         $pdo = Database::pdo();
         $pdo->beginTransaction();
@@ -768,22 +771,21 @@ final class LedgerMovesRepository
     {
         $done = 0;
         $skipped = [];
+        $deletedIds = [];
         foreach (self::sanitizeIds($ids) as $id) {
             $row = self::find($id);
             if (!$row || (int)$row['deleted'] > 0) {
                 continue;
             }
-            if (self::isReconLocked((int)$row['account_id'], (int)$row['dt'])) {
-                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.recon_locked')];
-                continue;
-            }
             $pdo = Database::pdo();
             $pdo->prepare('UPDATE base_account_moves SET DELETED = 1, ID_USER_UPDATE = ?, DT_UPDATE = ? WHERE ID = ?')
                 ->execute([Auth::userId(), time(), $id]);
+            $deletedIds[] = $id;
             $linked = (int)$row['linked_id'];
             if ($linked > 0) {
                 $pdo->prepare('UPDATE base_account_moves SET DELETED = 1, ID_USER_UPDATE = ?, DT_UPDATE = ? WHERE ID = ?')
                     ->execute([Auth::userId(), time(), $linked]);
+                $deletedIds[] = $linked;
                 $twin = self::find($linked);
                 if ($twin) {
                     LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$twin['account_id']);
@@ -791,6 +793,11 @@ final class LedgerMovesRepository
             }
             LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$row['account_id']);
             $done++;
+        }
+        if ($deletedIds !== []) {
+            EventBus::emit('ledger.moves.deleted', [
+                'ids' => array_values(array_unique($deletedIds)),
+            ]);
         }
         return ['done' => $done, 'skipped' => $skipped];
     }
@@ -848,23 +855,6 @@ final class LedgerMovesRepository
             }
         }
         return ['done' => $done, 'skipped' => $skipped];
-    }
-
-    /** @param array<string,mixed>|null $existing */
-    private static function assertNotLocked(int $accountId, int $dt, ?array $existing): void
-    {
-        if (self::isReconLocked($accountId, $dt)) {
-            throw new InvalidArgumentException(t('ledger.moves.err.recon_locked'));
-        }
-        if ($existing) {
-            $oldAccount = (int)$existing['account_id'];
-            $oldDt = (int)$existing['dt'];
-            if ($oldAccount !== $accountId || $oldDt !== $dt) {
-                if (self::isReconLocked($oldAccount, $oldDt)) {
-                    throw new InvalidArgumentException(t('ledger.moves.err.recon_locked'));
-                }
-            }
-        }
     }
 
     private static function parseDt(string $raw): int

@@ -47,6 +47,8 @@ With `account_id`, JSON includes `balance`, `recon_today`, `recs_by_move_id`, `o
 
 ### Reconciliations (`ledger.reconcile`)
 
+Advisory bank-balance markers only — they do **not** lock create/edit/delete of moves.
+
 POST `/ledger/moves` with `recon_action`:
 
 | Action | Fields |
@@ -66,7 +68,7 @@ POST `/ledger/moves` with `recon_action`:
 
 | Module | Effect |
 |--------|--------|
-| `payments` | Payment ID links + auto-DPS (`ledger.from_payment`) |
+| `payments` | Payment ID + multi-allocation (`base_payment_move_links`) via `ledger.moves.edit.sections`; links cleared on `ledger.moves.deleted`; auto-DPS (`ledger.from_payment`) still available |
 | `suppliers` | Counterparty field |
 | `stickers` | Act-in attach |
 | `funds` | Fund movement id |

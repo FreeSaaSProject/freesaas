@@ -47,8 +47,8 @@ if (!$canSeeOthers) {
 $lq = ListQuery::resolve([
     'list_id' => 'payments',
     'allowed' => PaymentsRepository::listSortMap(),
-    'default' => $mode === 'monthly' ? 'dt' : 'id',
-    'default_dir' => $mode === 'monthly' ? 'asc' : 'desc',
+    'default' => 'dt',
+    'default_dir' => 'desc',
     'per_page' => 50,
 ]);
 
@@ -98,7 +98,8 @@ if ($mode === 'monthly') {
     }
     $listOpts['dt_from'] = $dtFrom;
     $listOpts['dt_to'] = $dtTo;
-    $listOpts['order'] = 'p.DT ASC, p.ID ASC';
+    // Newest first in UI; groupByMonth needs chronological ASC for debt chain.
+    $listOpts['order'] = 'p.DT DESC, p.ID DESC';
     $listOpts['limit'] = 0;
     $listOpts['offset'] = 0;
     $result = PaymentsRepository::list($listOpts);
@@ -107,7 +108,13 @@ if ($mode === 'monthly') {
     $openingDebt = PaymentsRepository::sumBalanceBefore(array_merge($listOpts, [
         'dt_from' => $dtFrom,
     ]));
-    $months = PaymentsRepository::groupByMonth($items, $openingDebt);
+    $months = PaymentsRepository::groupByMonth(array_reverse($items), $openingDebt);
+    $months = array_reverse($months);
+    foreach ($months as &$monthBlock) {
+        $monthBlock['accrued'] = array_reverse($monthBlock['accrued']);
+        $monthBlock['issued'] = array_reverse($monthBlock['issued']);
+    }
+    unset($monthBlock);
 } else {
     if ($year > 0) {
         if ($month > 0) {
@@ -149,7 +156,9 @@ if ($ledgerEnabled && class_exists('LedgerMovesRepository')) {
     foreach ($items as $it) {
         $paymentIds[] = (int)$it['id'];
     }
-    $dpsByPayment = LedgerMovesRepository::moveIdsByPaymentIds($paymentIds);
+    $dpsByPayment = class_exists('PaymentMoveLinksRepository', false)
+        ? PaymentMoveLinksRepository::moveIdsByPaymentIds($paymentIds)
+        : LedgerMovesRepository::moveIdsByPaymentIds($paymentIds);
 }
 
 if ($wantsJson) {

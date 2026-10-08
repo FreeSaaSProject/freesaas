@@ -2,13 +2,15 @@
 /** @var array<string,mixed> $conn */
 /** @var list<array<string,mixed>> $links */
 /** @var array<int,string> $ledgerAccounts */
+/** @var array<string,mixed>|null $lastSync */
 /** @var bool $canConnect */
 /** @var bool $canSync */
 $id = (int)$conn['id'];
 $flash = flash_take();
+$lastSync = $lastSync ?? null;
 ?>
 <?php if ($flash): ?>
-  <div class="flash flash-<?= e($flash['type'] === 'ok' ? 'ok' : 'warn') ?>"><?= e((string)$flash['message']) ?></div>
+  <div class="flash flash-<?= e($flash['type'] === 'ok' ? 'ok' : 'warn') ?>"><?= e_nl((string)$flash['message']) ?></div>
 <?php endif; ?>
 <section class="page-head">
   <div class="page-head-row">
@@ -38,6 +40,44 @@ $flash = flash_take();
   </label>
   <button type="submit" class="btn-primary"><?= te('banks.conn.sync') ?></button>
 </form>
+<?php endif; ?>
+
+<?php
+$syncMessages = is_array($lastSync) && !empty($lastSync['messages']) && is_array($lastSync['messages'])
+    ? $lastSync['messages']
+    : [];
+$showLastSync = is_array($lastSync) && (
+    $syncMessages !== []
+    || (int)($lastSync['errors'] ?? 0) > 0
+    || (int)($lastSync['linked'] ?? 0) > 0
+    || (int)($lastSync['created'] ?? 0) > 0
+    || (int)($lastSync['at'] ?? 0) > 0
+);
+if ($showLastSync):
+?>
+<details class="banks-last-sync<?= (int)($lastSync['errors'] ?? 0) > 0 ? '' : ' is-ok' ?>" open>
+  <summary>
+    <?= te('banks.conn.last_sync') ?>
+    <?php if (is_array($lastSync) && (int)($lastSync['at'] ?? 0) > 0): ?>
+      · <?= e(date('d.m.Y H:i', (int)$lastSync['at'])) ?>
+    <?php endif; ?>
+    — <?= e(t('banks.conn.synced', [
+        'created' => (int)($lastSync['created'] ?? 0),
+        'linked' => (int)($lastSync['linked'] ?? 0),
+        'skipped' => (int)($lastSync['skipped'] ?? 0),
+        'errors' => (int)($lastSync['errors'] ?? 0),
+    ])) ?>
+  </summary>
+  <?php if ($syncMessages !== []): ?>
+  <ul class="banks-sync-messages">
+    <?php foreach ($syncMessages as $m): ?>
+      <li><?= e((string)$m) ?></li>
+    <?php endforeach; ?>
+  </ul>
+  <?php else: ?>
+    <p class="muted"><?= te('banks.conn.last_sync_no_detail') ?></p>
+  <?php endif; ?>
+</details>
 <?php endif; ?>
 
 <h2><?= te('banks.conn.remote') ?></h2>

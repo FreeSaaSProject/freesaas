@@ -5,7 +5,7 @@ declare(strict_types=1);
 final class BankSyncService
 {
     /**
-     * @return array{created:int,skipped:int,errors:int,messages:list<string>}
+     * @return array{created:int,linked:int,skipped:int,errors:int,messages:list<string>}
      */
     public static function syncConnection(
         int $connectionId,
@@ -19,17 +19,27 @@ final class BankSyncService
         }
         $provider = (string)$conn['provider'];
         $links = BankAccountLinksRepository::forConnection($connectionId);
-        $stats = ['created' => 0, 'skipped' => 0, 'errors' => 0, 'messages' => []];
+        $stats = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'errors' => 0, 'messages' => []];
+        $syncable = 0;
+        $unlinked = 0;
+        $disabled = 0;
         foreach ($links as $link) {
             if ($onlyLinkId !== null && (int)$link['id'] !== $onlyLinkId) {
                 continue;
             }
-            if ((int)$link['account_id'] < 1 || !(int)$link['sync_enabled']) {
+            if ((int)$link['account_id'] < 1) {
+                $unlinked++;
                 continue;
             }
+            if (!(int)$link['sync_enabled']) {
+                $disabled++;
+                continue;
+            }
+            $syncable++;
             try {
                 $part = self::syncLink($provider, $connectionId, $link, $dateFrom, $dateTo);
                 $stats['created'] += $part['created'];
+                $stats['linked'] += $part['linked'];
                 $stats['skipped'] += $part['skipped'];
                 $stats['errors'] += $part['errors'];
                 foreach ($part['messages'] as $m) {
@@ -40,15 +50,63 @@ final class BankSyncService
                 $stats['messages'][] = '#' . (int)$link['id'] . ': ' . $e->getMessage();
             }
         }
+        if ($syncable === 0) {
+            if ($links === []) {
+                $stats['messages'][] = t('banks.sync.no_remote_accounts');
+            } elseif ($unlinked > 0) {
+                $stats['messages'][] = t('banks.sync.no_ledger_link', ['n' => $unlinked]);
+            } elseif ($disabled > 0) {
+                $stats['messages'][] = t('banks.sync.sync_disabled', ['n' => $disabled]);
+            } else {
+                $stats['messages'][] = t('banks.sync.nothing_to_sync');
+            }
+        }
+        self::rememberLastSync($connectionId, $dateFrom, $dateTo, $stats);
         return $stats;
     }
 
     /**
-     * @return array{created:int,skipped:int,errors:int,messages:list<string>}
+     * @param array{created:int,linked:int,skipped:int,errors:int,messages:list<string>} $stats
+     */
+    private static function rememberLastSync(
+        int $connectionId,
+        string $dateFrom,
+        string $dateTo,
+        array $stats
+    ): void {
+        $conn = BankConnectionsRepository::find($connectionId, true);
+        if (!$conn) {
+            return;
+        }
+        $meta = [];
+        $raw = $conn['meta'] ?? null;
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $meta = $decoded;
+            }
+        } elseif (is_array($raw)) {
+            $meta = $raw;
+        }
+        $meta['last_sync'] = [
+            'at' => time(),
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+            'created' => (int)$stats['created'],
+            'linked' => (int)$stats['linked'],
+            'skipped' => (int)$stats['skipped'],
+            'errors' => (int)$stats['errors'],
+            'messages' => array_values(array_slice($stats['messages'], 0, 30)),
+        ];
+        BankConnectionsRepository::update($connectionId, ['meta' => $meta]);
+    }
+
+    /**
+     * @return array{created:int,linked:int,skipped:int,errors:int,messages:list<string>}
      */
     public static function syncAllEnabled(string $dateFrom, string $dateTo): array
     {
-        $stats = ['created' => 0, 'skipped' => 0, 'errors' => 0, 'messages' => []];
+        $stats = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'errors' => 0, 'messages' => []];
         $byConn = [];
         foreach (BankAccountLinksRepository::syncEnabledLinks() as $link) {
             $cid = (int)$link['connection_id'];
@@ -57,6 +115,7 @@ final class BankSyncService
         foreach (array_keys($byConn) as $cid) {
             $part = self::syncConnection((int)$cid, $dateFrom, $dateTo, null);
             $stats['created'] += $part['created'];
+            $stats['linked'] += $part['linked'];
             $stats['skipped'] += $part['skipped'];
             $stats['errors'] += $part['errors'];
             foreach ($part['messages'] as $m) {
@@ -68,7 +127,7 @@ final class BankSyncService
 
     /**
      * @param array<string,mixed> $link
-     * @return array{created:int,skipped:int,errors:int,messages:list<string>}
+     * @return array{created:int,linked:int,skipped:int,errors:int,messages:list<string>}
      */
     private static function syncLink(
         string $provider,
@@ -78,6 +137,7 @@ final class BankSyncService
         string $dateTo
     ): array {
         $created = 0;
+        $linked = 0;
         $skipped = 0;
         $errors = 0;
         $messages = [];
@@ -89,8 +149,16 @@ final class BankSyncService
         );
         $accountId = (int)$link['account_id'];
         $linkId = (int)$link['id'];
+        $accLabel = (string)($link['account_number'] !== '' ? $link['account_number'] : $link['external_account_id']);
+        $messages[] = t('banks.sync.fetched', [
+            'account' => $accLabel,
+            'n' => count($txs),
+            'from' => $dateFrom,
+            'to' => $dateTo,
+        ]);
         $userId = Auth::userId() ?: 0;
         $now = time();
+        $providerLabel = BanksConfig::providerLabel($provider);
         foreach ($txs as $tx) {
             $extId = (string)$tx['external_id'];
             if (BankTxMapRepository::moveIdFor($provider, $extId) > 0) {
@@ -98,6 +166,39 @@ final class BankSyncService
                 continue;
             }
             try {
+                $direction = (int)$tx['direction'] >= 0 ? 1 : -1;
+                $amount = (float)$tx['amount'];
+                $bankDt = (int)$tx['dt'] > 0 ? (int)$tx['dt'] : $now;
+                $candidates = BankTxMapRepository::findMatchCandidates(
+                    $accountId,
+                    $amount,
+                    $direction,
+                    $bankDt,
+                    5
+                );
+                if (count($candidates) === 1) {
+                    $moveId = (int)$candidates[0]['id'];
+                    BankTxMapRepository::remember($provider, $extId, $moveId, $linkId, $connectionId);
+                    $note = t('banks.sync.linked_note', [
+                        'provider' => $providerLabel,
+                        'ext_id' => $extId,
+                        'date' => date('d.m.Y', $bankDt),
+                    ]);
+                    LedgerMovesRepository::appendDescr($moveId, $note);
+                    $linked++;
+                    $messages[] = t('banks.sync.linked_log', [
+                        'ext_id' => $extId,
+                        'move_id' => $moveId,
+                    ]);
+                    continue;
+                }
+                if (count($candidates) > 1) {
+                    $messages[] = t('banks.sync.ambiguous_log', [
+                        'ext_id' => $extId,
+                        'n' => count($candidates),
+                    ]);
+                }
+
                 $typeId = BankClassifyService::resolve($tx);
                 if ($typeId < 1) {
                     throw new RuntimeException(t('banks.err.no_default_type'));
@@ -106,10 +207,10 @@ final class BankSyncService
                 $moveId = LedgerMovesRepository::create([
                     'account_id' => $accountId,
                     'type_id' => $typeId,
-                    'direction' => (int)$tx['direction'] >= 0 ? 1 : -1,
-                    'summ' => (float)$tx['amount'],
+                    'direction' => $direction,
+                    'summ' => $amount,
                     'descr' => $descr,
-                    'dt' => (int)$tx['dt'],
+                    'dt' => $bankDt,
                     'dt_create' => $now,
                     'user_create' => $userId,
                     'unconfirmed' => 0,
@@ -128,7 +229,7 @@ final class BankSyncService
             }
         }
         BankAccountLinksRepository::markSynced($linkId, $dateTo);
-        return compact('created', 'skipped', 'errors', 'messages');
+        return compact('created', 'linked', 'skipped', 'errors', 'messages');
     }
 
     /** @param array{purpose?:string,counterparty_name?:string,counterparty_inn?:string} $tx */
