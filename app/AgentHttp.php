@@ -134,7 +134,25 @@ final class AgentHttp
 
     public static function error(string $message, int $http = 400, array $extra = []): void
     {
+        // Pages often catch (Throwable) around business logic and call error($e->getMessage()).
+        // AgentHttp::emit throws AgentHttpCaptureSignal('captured') on success during in-process
+        // tool dispatch — that must not overwrite the already-captured ok payload.
+        if (self::$capturing
+            && self::$capturedPayload !== null
+            && !empty(self::$capturedPayload['ok'])
+            && ($message === 'captured' || $message === '')
+        ) {
+            throw new AgentHttpCaptureSignal('captured');
+        }
         self::emit(array_merge(['ok' => false, 'error' => $message], $extra), $http);
+    }
+
+    /** Re-throw capture unwind so page-level catch (Throwable) does not treat success as failure. */
+    public static function rethrowIfCapture(Throwable $e): void
+    {
+        if ($e instanceof AgentHttpCaptureSignal) {
+            throw $e;
+        }
     }
 
     /**

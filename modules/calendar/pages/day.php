@@ -76,7 +76,12 @@ foreach ($shifts as $sh) {
         ];
     }
     $label = CalendarTimeline::acronym($name);
-    if ((int)($sh['price_col'] ?? 1) > 1) {
+    if (class_exists('WorkweeksRepository', false)) {
+        $label .= WorkweeksRepository::shiftChipSuffix(
+            (int)($sh['price_col'] ?? 1),
+            (int)($sh['group'] ?? 0)
+        );
+    } elseif ((int)($sh['price_col'] ?? 1) > 1) {
         $label .= (int)$sh['price_col'];
     }
     $shiftLabels[] = [

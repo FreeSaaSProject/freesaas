@@ -32,7 +32,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['nazop_action'] 
         foreach ((array)($_POST['mas_max'] ?? []) as $d => $v) {
             $masMax[(string)$d] = (int)$v;
         }
-        WorkweeksRepository::saveNazopMatrix($checked, $prices, $masMax, $ops);
+        $opPrices = [];
+        foreach ((array)($_POST['op_price'] ?? []) as $d => $byOp) {
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d) || !is_array($byOp)) {
+                continue;
+            }
+            foreach ($byOp as $oid => $pc) {
+                $oid = (int)$oid;
+                if ($oid > 0) {
+                    $opPrices[(string)$d][$oid] = (int)$pc;
+                }
+            }
+        }
+        WorkweeksRepository::saveNazopMatrix($checked, $prices, $masMax, $ops, $opPrices);
         $sep = strpos($retUrl, '?') === false ? '?' : '&';
         $redirectTo = $retUrl . $sep . 'shift_ok=1';
         if ($isAjax) {

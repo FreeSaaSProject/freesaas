@@ -105,7 +105,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
         </td>
         <td><?= e((string)$row['date_label']) ?></td>
         <td><?= e($name) ?></td>
-        <td><?= (int)$row['price_col'] ?></td>
+        <td title="PRICE_COL <?= (int)$row['price_col'] ?>"><?= e(WorkweeksRepository::shiftLabel((int)$row['price_col'])) ?></td>
         <td><?= (int)$row['mas_max'] ?></td>
         <?php if ($tablesOn): ?>
           <td><?= e($tlabel) ?></td>

@@ -81,7 +81,7 @@
                 "method": "POST",
                 "path": "/workweeks/settings",
                 "permission": "workweeks.view",
-                "description": "Save schedule news id for shift logging (superadmin capability on route)"
+                "description": "Save shift windows (PRICE_COL 1–5) and schedule news id (superadmin capability on route)"
             }
         ]
     },
@@ -108,7 +108,22 @@
             "schedule_news_id": {
                 "type": "integer",
                 "default": 0
-            }
+            },
+            "shift_1_start": { "type": "string", "default": "00:00" },
+            "shift_1_end": { "type": "string", "default": "15:30" },
+            "shift_1_label": { "type": "string", "default": "I" },
+            "shift_2_start": { "type": "string", "default": "15:30" },
+            "shift_2_end": { "type": "string", "default": "23:59" },
+            "shift_2_label": { "type": "string", "default": "II" },
+            "shift_3_start": { "type": "string", "default": "00:00" },
+            "shift_3_end": { "type": "string", "default": "23:59" },
+            "shift_3_label": { "type": "string", "default": "I+II" },
+            "shift_4_start": { "type": "string", "default": "09:30" },
+            "shift_4_end": { "type": "string", "default": "17:00" },
+            "shift_4_label": { "type": "string", "default": "IV" },
+            "shift_5_start": { "type": "string", "default": "14:00" },
+            "shift_5_end": { "type": "string", "default": "21:30" },
+            "shift_5_label": { "type": "string", "default": "V" }
         }
     },
     "tables": [

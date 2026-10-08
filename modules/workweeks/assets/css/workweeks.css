@@ -70,8 +70,11 @@
 }
 .nazop-check {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: center;
   gap: 0.15rem;
+  max-width: 8rem;
   cursor: pointer;
 }
 .nazop-pc {
@@ -80,8 +83,13 @@
 }
 .nazop-select {
   min-width: 2.5rem;
+  max-width: 7.5rem;
   padding: 0.1rem 0.2rem;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+}
+.nazop-op-price {
+  min-width: 4.5rem;
+  max-width: 7rem;
 }
 .nazop-week-sep td {
   padding: 0.15rem 0;

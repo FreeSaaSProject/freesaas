@@ -7,6 +7,7 @@ $message = '';
 $error = '';
 $loggingOn = WorkweeksRepository::commentsLoggingAvailable();
 $newsId = $loggingOn ? WorkweeksRepository::scheduleNewsId() : 0;
+$shiftWindows = WorkweeksRepository::shiftWindows();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
@@ -21,6 +22,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             WorkweeksRepository::setScheduleNewsId($newId);
             $newsId = WorkweeksRepository::scheduleNewsId();
         }
+
+        $posted = [];
+        for ($n = 1; $n <= 5; $n++) {
+            $posted[$n] = [
+                'start' => (string)($_POST['shift_' . $n . '_start'] ?? ''),
+                'end' => (string)($_POST['shift_' . $n . '_end'] ?? ''),
+                'label' => (string)($_POST['shift_' . $n . '_label'] ?? ''),
+            ];
+        }
+        WorkweeksRepository::setShiftWindows($posted);
+        $shiftWindows = WorkweeksRepository::shiftWindows();
+
         $message = t('core.common.saved');
         if ($wantsJson) {
             AgentHttp::emit([
@@ -28,6 +41,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'saved' => true,
                 'logging_on' => $loggingOn,
                 'news_id' => $newsId,
+                'shift_windows' => $shiftWindows,
             ]);
             return;
         }
@@ -57,6 +71,8 @@ if ($wantsJson) {
         'logging_on' => $loggingOn,
         'news_id' => $newsId,
         'news_label' => $newsLabel,
+        'shift_windows' => $shiftWindows,
+        'defaults' => WorkweeksRepository::defaultShiftWindows(),
     ]);
     return;
 }
@@ -68,6 +84,7 @@ View::render('settings', [
     'loggingOn' => $loggingOn,
     'newsId' => $newsId,
     'newsLabel' => $newsLabel,
+    'shiftWindows' => $shiftWindows,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('workweeks.menu.list'), 'href' => '/workweeks'],
         ['label' => t('workweeks.menu.settings'), 'current' => true],

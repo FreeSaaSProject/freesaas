@@ -57,7 +57,7 @@ if ($newsAfterTs > 0) {
   <h2 class="form-section-title"><?= te('core.user_edit.sec_personal') ?></h2>
   <?php if ($isNew): ?>
   <label><?= te('core.user_edit.login') ?>
-    <input name="login" required value="<?= e((string)($user['login'] ?? '')) ?>" autocomplete="username">
+    <input name="login" value="<?= e((string)($user['login'] ?? '')) ?>" autocomplete="username" placeholder="<?= te('core.user_edit.login_optional') ?>">
   </label>
   <p class="form-hint"><?= te('core.user_edit.login_hint') ?></p>
   <?php endif; ?>
@@ -88,10 +88,13 @@ if ($newsAfterTs > 0) {
   <h2 class="form-section-title"><?= te('core.user_edit.sec_password') ?></h2>
   <label><?= $isNew ? te('core.user_edit.password') : te('core.user_edit.new_password') ?>
     <div class="input-row">
-      <input type="password" name="password" id="password" autocomplete="new-password"<?= $isNew ? ' required' : '' ?>>
+      <input type="password" name="password" id="password" autocomplete="new-password" placeholder="<?= $isNew ? te('core.user_edit.password_optional') : '' ?>">
       <button class="btn-secondary" type="button" id="gen-pass" data-pass="<?= e($genPass) ?>"><?= te('core.user_edit.generate') ?></button>
     </div>
   </label>
+  <?php if ($isNew): ?>
+  <p class="form-hint"><?= te('core.user_edit.password_optional_hint') ?></p>
+  <?php endif; ?>
   <?php if ($isSuper && !$isNew): ?>
   <label><?= te('core.user_edit.expires') ?>
     <input type="datetime-local" name="expire" value="<?= e($expireVal) ?>">

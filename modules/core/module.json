@@ -128,28 +128,55 @@
                 "description": "Edit payload + permission_groups, admin_statuses, partner_statuses; optional copyFrom=userId"
             },
             {
+                "id": "core.users.copy_sources",
+                "method": "GET",
+                "path": "/users/new",
+                "permission": "core.users",
+                "side_effect": "read",
+                "description": "List non-superadmin staff templates for copyFrom (copy_users). Use before clone/create. Superadmin roles are omitted."
+            },
+            {
                 "id": "core.users.create",
                 "method": "POST",
                 "path": "/users/new",
                 "permission": "core.users",
                 "side_effect": "write",
-                "description": "Create staff user; copyFrom=template userId to clone role/flags/permissions. Required: login, password. Fields: name, mail, tel, ID_STATUS, ID_STATUS2, enabled, permissions[key]=1, NOT_IN_TEAM, ASSIST_TEAM, product module POST keys via EventBus",
+                "description": "Create staff user without password. Required: name. Prefer tel (login auto from phone). Optional copyFrom=template userId (non-superadmin only). Server hashes a random password; agents never send/receive passwords.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "login": { "type": "string" },
-                        "password": { "type": "string" },
-                        "name": { "type": "string" },
+                        "name": { "type": "string", "description": "Full name" },
+                        "tel": { "type": "string", "description": "Phone; used as login when login omitted" },
                         "mail": { "type": "string" },
-                        "tel": { "type": "string" },
-                        "ID_STATUS": { "type": "integer" },
+                        "login": { "type": "string", "description": "Optional; default from tel digits" },
+                        "ID_STATUS": { "type": "integer", "description": "Role id" },
                         "ID_STATUS2": { "type": "integer" },
                         "enabled": { "type": "string" },
-                        "copyFrom": { "type": "integer", "description": "Template staff user id for permissions/role prefills" },
+                        "copyFrom": { "type": "integer", "description": "Non-superadmin template user id" },
                         "NOT_IN_TEAM": { "type": "string" },
                         "ASSIST_TEAM": { "type": "string" }
                     },
-                    "required": ["login", "password"]
+                    "required": ["name"]
+                }
+            },
+            {
+                "id": "core.users.clone",
+                "method": "POST",
+                "path": "/users/new",
+                "permission": "core.users",
+                "side_effect": "write",
+                "description": "Clone a non-superadmin staff template (copyFrom required): role, flags, permissions. Required: name, copyFrom. Prefer tel. No password in or out. Same handler as create.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "copyFrom": { "type": "integer", "description": "Source staff id (not superadmin)" },
+                        "name": { "type": "string" },
+                        "tel": { "type": "string" },
+                        "mail": { "type": "string" },
+                        "login": { "type": "string" },
+                        "enabled": { "type": "string", "description": "Default 1" }
+                    },
+                    "required": ["copyFrom", "name"]
                 }
             },
             {
@@ -158,7 +185,7 @@
                 "path": "/users/{id}/edit",
                 "permission": "core.users",
                 "side_effect": "write",
-                "description": "Update staff user; permissions[key]=1/0; empty password keeps previous"
+                "description": "Update staff user; permissions[key]=1/0; enabled=1/0 to enable/disable. Agent/JSON cannot change password (ignored)."
             },
             {
                 "id": "core.statuses.list",

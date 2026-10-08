@@ -21,6 +21,7 @@ $canManageOps = !empty($canManageOps);
 $formAction = (string)($formAction ?? '/workweeks/nazop');
 $retUrl = (string)($retUrl ?? '/calendar');
 $mode = (string)($mode ?? 'all');
+$shiftWindows = WorkweeksRepository::shiftWindows();
 $colspan = 3 + count($operators) + 2;
 
 $visibleIds = [];
@@ -34,6 +35,17 @@ foreach ($availableOps as $oid => $_info) {
 }
 $allCsv = implode(',', $allIds);
 $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps);
+
+$shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string {
+    $html = '';
+    for ($n = 1; $n <= 5; $n++) {
+        $w = $shiftWindows[$n];
+        $sel = $selected === $n ? ' selected' : '';
+        $text = $w['label'] . ' ' . $w['start'] . '–' . $w['end'];
+        $html .= '<option value="' . $n . '"' . $sel . '>' . e($text) . '</option>';
+    }
+    return $html;
+};
 ?>
 <form method="post" action="<?= e($formAction) ?>" class="nazop-form" id="nazop-form"
       data-nazop-day="<?= e($mode) ?>"
@@ -114,7 +126,7 @@ $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps)
                 title="<?= e($op['label']) ?>"
                 style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;"><?= e($op['acronym']) ?></th>
           <?php endforeach; ?>
-          <th><?= te('workweeks.col.price') ?></th>
+          <th title="<?= te('workweeks.nazop.default_shift_hint') ?>"><?= te('workweeks.nazop.default_shift') ?></th>
           <th><?= te('workweeks.col.mas_max') ?></th>
         </tr>
       </thead>
@@ -124,8 +136,7 @@ $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps)
         $d = $day['date'];
         $rowAssigned = $assigned[$d] ?? [];
         $pc = (int)($dayPrice[$d] ?? 1);
-        $mixed = ($pc === 0);
-        if ($mixed) {
+        if ($pc < 1 || $pc > 5) {
             $pc = 1;
         }
         $mm = (int)($dayMasMax[$d] ?? 1);
@@ -144,6 +155,9 @@ $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps)
             <?php
             $oid = (int)$op['id'];
             $on = isset($rowAssigned[$oid]);
+            $opPc = $on
+                ? max(1, min(5, (int)$rowAssigned[$oid]['price_col']))
+                : $pc;
             ?>
             <td class="nazop-cell" style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;">
               <label class="nazop-check">
@@ -151,24 +165,20 @@ $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps)
                        name="checked[<?= e($d) ?>][<?= $oid ?>]"
                        value="1"
                        <?= $on ? ' checked' : '' ?>>
-                <?php if ($on && (int)$rowAssigned[$oid]['price_col'] > 1): ?>
-                  <span class="nazop-pc"><?= (int)$rowAssigned[$oid]['price_col'] ?></span>
-                <?php endif; ?>
+                <select name="op_price[<?= e($d) ?>][<?= $oid ?>]"
+                        class="nazop-select nazop-op-price"
+                        aria-label="<?= te('workweeks.col.price') ?>"
+                        title="<?= te('workweeks.col.price') ?>">
+                  <?= $shiftOptionsHtml($opPc) ?>
+                </select>
               </label>
             </td>
           <?php endforeach; ?>
           <td>
-            <?php if ($mixed): ?>
-              <span class="muted" title="<?= te('workweeks.nazop.mixed_prices') ?>">[<?= (int)$onCount ?>]</span>
-              <input type="hidden" name="price[<?= e($d) ?>]" value="1">
-            <?php else: ?>
-              <select name="price[<?= e($d) ?>]" class="nazop-select" aria-label="<?= te('workweeks.col.price') ?>">
-                <?php for ($n = 1; $n <= 5; $n++): ?>
-                  <option value="<?= $n ?>"<?= $pc === $n ? ' selected' : '' ?>><?= $n ?></option>
-                <?php endfor; ?>
-              </select>
-              <span class="muted">[<?= (int)$onCount ?>]</span>
-            <?php endif; ?>
+            <select name="price[<?= e($d) ?>]" class="nazop-select" aria-label="<?= te('workweeks.nazop.default_shift') ?>">
+              <?= $shiftOptionsHtml($pc) ?>
+            </select>
+            <span class="muted">[<?= (int)$onCount ?>]</span>
           </td>
           <td>
             <select name="mas_max[<?= e($d) ?>]" class="nazop-select" aria-label="<?= te('workweeks.col.mas_max') ?>">

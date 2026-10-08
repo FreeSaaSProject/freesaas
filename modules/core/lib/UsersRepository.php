@@ -120,21 +120,39 @@ final class UsersRepository
         return serialize($blob);
     }
 
-    /** @return list<array{id:int,login:string,name:string}> */
-    public static function listForCopy(): array
+    /**
+     * Staff rows usable as permission/role templates (copyFrom).
+     * Excludes SUPERADMIN_ACCESS roles so agents cannot clone elevated accounts.
+     *
+     * @return list<array{id:int,login:string,name:string,status_id:int,status_name:string}>
+     */
+    public static function listForCopy(bool $excludeSuperadmin = true): array
     {
         if (!Database::tableExists('base_users')) {
             return [];
         }
+        $cols = 'id, login, name';
+        if (Database::columnExists('base_users', 'ID_STATUS')) {
+            $cols .= ', ID_STATUS';
+        } elseif (Database::columnExists('base_users', 'name_enabled')) {
+            $cols .= ', name_enabled AS ID_STATUS';
+        }
         $rows = Database::pdo()->query(
-            "SELECT id, login, name FROM base_users WHERE enabled = '1' ORDER BY name ASC, login ASC LIMIT 500"
+            "SELECT {$cols} FROM base_users WHERE enabled = '1' ORDER BY name ASC, login ASC LIMIT 500"
         )->fetchAll() ?: [];
+        $names = self::statusNames();
         $out = [];
         foreach ($rows as $r) {
+            $statusId = (int)($r['ID_STATUS'] ?? 0);
+            if ($excludeSuperadmin && self::statusIsSuperadmin($statusId)) {
+                continue;
+            }
             $out[] = [
                 'id' => (int)$r['id'],
                 'login' => (string)$r['login'],
                 'name' => (string)$r['name'],
+                'status_id' => $statusId,
+                'status_name' => $names[$statusId] ?? '',
             ];
         }
         return $out;
@@ -681,6 +699,60 @@ final class UsersRepository
         $st->execute([trim($login)]);
         $row = $st->fetch();
         return $row ?: null;
+    }
+
+    /** Digits-only phone fragment suitable as login base. */
+    public static function normalizeLoginCandidate(string $raw): string
+    {
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        if ($digits !== '') {
+            // Prefer national 10–11 digit form when present
+            if (strlen($digits) >= 11 && ($digits[0] === '7' || $digits[0] === '8')) {
+                $digits = substr($digits, -10);
+            }
+            return $digits;
+        }
+        $slug = strtolower(trim($raw));
+        $slug = preg_replace('/[^a-z0-9._-]+/', '_', $slug) ?? '';
+        $slug = trim($slug, '._-');
+        return $slug;
+    }
+
+    /**
+     * Unique login: prefer tel digits, else explicit login, else staff_<hex>.
+     */
+    public static function allocateLogin(string $preferred = '', string $tel = ''): string
+    {
+        $candidates = [];
+        $fromTel = self::normalizeLoginCandidate($tel);
+        if ($fromTel !== '') {
+            $candidates[] = $fromTel;
+        }
+        $fromPref = self::normalizeLoginCandidate($preferred);
+        if ($fromPref !== '' && $fromPref !== $fromTel) {
+            $candidates[] = $fromPref;
+        }
+        if ($candidates === []) {
+            $candidates[] = 'staff_' . bin2hex(random_bytes(4));
+        }
+        foreach ($candidates as $base) {
+            if (self::findByLogin($base) === null) {
+                return $base;
+            }
+            for ($i = 2; $i <= 99; $i++) {
+                $try = $base . '_' . $i;
+                if (self::findByLogin($try) === null) {
+                    return $try;
+                }
+            }
+        }
+        return 'staff_' . bin2hex(random_bytes(8));
+    }
+
+    /** Cryptographically random password (never return to agents / LLM). */
+    public static function generateSecretPassword(int $bytes = 18): string
+    {
+        return rtrim(strtr(base64_encode(random_bytes(max(12, $bytes))), '+/', '-_'), '=');
     }
 
     /**

@@ -153,20 +153,83 @@ $buildData = static function (array $post, array $current, bool $super, bool $cr
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = $buildData($_POST, $user, $isSuper, $isNew);
+
+        // Agents / MCP must never set or learn passwords.
+        if ($wantsJson) {
+            unset($data['password_plain'], $_POST['password']);
+        }
+
         if ($isNew) {
-            $login = trim((string)($_POST['login'] ?? ''));
-            if ($login === '') {
-                throw new InvalidArgumentException(t('core.user_edit.err.login'));
+            $name = trim((string)($data['name'] ?? ''));
+            $tel = trim((string)($data['tel'] ?? ''));
+            $loginIn = trim((string)($_POST['login'] ?? ''));
+            $serverPassword = '';
+            $loginGenerated = false;
+            $cloneFrom = (int)($_POST['copyFrom'] ?? $_GET['copyFrom'] ?? 0);
+
+            // Refuse cloning a superadmin template (agents + UI).
+            if ($cloneFrom > 0) {
+                $srcRow = UsersRepository::findForEdit($cloneFrom);
+                if ($srcRow === null) {
+                    throw new InvalidArgumentException(t('core.user_edit.err.copy_not_found', ['id' => $cloneFrom]));
+                }
+                if (UsersRepository::statusIsSuperadmin((int)($srcRow['ID_STATUS'] ?? 0))) {
+                    throw new RuntimeException(t('core.user_edit.err.copy_superadmin'));
+                }
+                if (!isset($_POST['ID_STATUS']) || (int)$_POST['ID_STATUS'] === 0) {
+                    $data['ID_STATUS'] = (int)($srcRow['ID_STATUS'] ?? 0);
+                }
+                if (Database::columnExists('base_users', 'ID_STATUS2')
+                    && (!isset($_POST['ID_STATUS2']) || (string)$_POST['ID_STATUS2'] === '')
+                ) {
+                    $data['ID_STATUS2'] = (int)($srcRow['ID_STATUS2'] ?? 0);
+                }
+                foreach (['ASSIST_TEAM', 'NOT_IN_TEAM', 'IS_HIDDEN', 'color', 'color_text', 'skin'] as $flag) {
+                    if (!array_key_exists($flag, $_POST) && array_key_exists($flag, $srcRow)) {
+                        $data[$flag] = $srcRow[$flag];
+                    }
+                }
+                if ($userPerms === []) {
+                    $userPerms = UsersRepository::decodePermissions($srcRow['status'] ?? null);
+                }
             }
-            if (empty($data['password_plain'])) {
-                throw new InvalidArgumentException(t('core.user_edit.err.password'));
+
+            if ($wantsJson) {
+                if ($name === '') {
+                    throw new InvalidArgumentException(t('core.user_edit.err.name'));
+                }
+                // Agents never supply passwords; login optional (derived from tel).
+                $login = UsersRepository::allocateLogin($loginIn, $tel);
+                $loginGenerated = ($loginIn === '' || $login !== $loginIn);
+                $serverPassword = UsersRepository::generateSecretPassword();
+            } else {
+                if ($loginIn === '') {
+                    if ($tel === '') {
+                        throw new InvalidArgumentException(t('core.user_edit.err.login'));
+                    }
+                    $login = UsersRepository::allocateLogin('', $tel);
+                    $loginGenerated = true;
+                } else {
+                    $login = $loginIn;
+                    if (UsersRepository::findByLogin($login) !== null) {
+                        throw new RuntimeException(t('core.user_edit.err.login_taken'));
+                    }
+                }
+                if (!empty($data['password_plain'])) {
+                    $serverPassword = (string)$data['password_plain'];
+                } else {
+                    $serverPassword = UsersRepository::generateSecretPassword();
+                }
             }
-            if ($data['name'] === '') {
-                $data['name'] = $login;
+
+            if ($name === '') {
+                $name = $login;
+                $data['name'] = $name;
             }
+
             $createPayload = array_merge($data, [
                 'login' => $login,
-                'password_plain' => (string)$data['password_plain'],
+                'password_plain' => $serverPassword,
                 'status_blob' => (string)($data['status_blob'] ?? UsersRepository::encodeStatusBlob(null, $userPerms)),
             ]);
             // If permissions not posted but copyFrom set, use preloaded perms
@@ -174,6 +237,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $createPayload['status_blob'] = UsersRepository::encodeStatusBlob(null, $userPerms);
             }
             $newId = UsersRepository::create($createPayload);
+            $showOncePassword = (!$wantsJson && empty($_POST['password'])) ? $serverPassword : '';
+            $serverPassword = '';
+            unset($createPayload['password_plain'], $data['password_plain']);
+
             $created = UsersRepository::findForEdit($newId) ?: ['id' => $newId];
             $saved = EventBus::emit('core.user_edit.save', [
                 'post' => $_POST,
@@ -183,15 +250,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'is_new' => true,
             ]);
             if (is_array($saved) && isset($saved['data']) && is_array($saved['data'])) {
-                UsersRepository::update($newId, $saved['data']);
+                $patch = $saved['data'];
+                unset($patch['password_plain']);
+                UsersRepository::update($newId, $patch);
             }
             if ($wantsJson) {
                 AgentHttp::emit([
                     'ok' => true,
                     'id' => $newId,
                     'saved' => true,
+                    'login' => $login,
+                    'login_generated' => $loginGenerated,
+                    'password_set_by_server' => true,
+                    'password_visible_to_agent' => false,
+                    'next' => 'Admin sets a human password in UI (/users/' . $newId . '/edit). Agents never receive passwords.',
                     'item' => UsersRepository::forAgent(UsersRepository::findForEdit($newId), true),
                 ]);
+            }
+            if ($showOncePassword !== '') {
+                $_SESSION['core_user_created_secret'] = [
+                    'id' => $newId,
+                    'password' => $showOncePassword,
+                    'until' => time() + 600,
+                ];
             }
             redirect('/users/' . $newId . '/edit?saved=1');
             return;
@@ -206,6 +287,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         ]);
         if (is_array($saved) && isset($saved['data']) && is_array($saved['data'])) {
             $data = $saved['data'];
+        }
+        if ($wantsJson) {
+            unset($data['password_plain']);
         }
         UsersRepository::update($id, $data);
         $user = UsersRepository::findForEdit($id) ?: $user;
@@ -228,6 +312,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $message = t('core.user_edit.saved');
     } catch (Throwable $e) {
+        AgentHttp::rethrowIfCapture($e);
         if ($wantsJson) {
             AgentHttp::error($e->getMessage(), 400);
         }
@@ -247,6 +332,16 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 if (isset($_GET['saved']) && $message === '') {
     $message = t('core.user_edit.saved');
+}
+if (!$isNew && !empty($_SESSION['core_user_created_secret']) && is_array($_SESSION['core_user_created_secret'])) {
+    $flash = $_SESSION['core_user_created_secret'];
+    unset($_SESSION['core_user_created_secret']);
+    if ((int)($flash['id'] ?? 0) === $id && (int)($flash['until'] ?? 0) >= time()) {
+        $once = (string)($flash['password'] ?? '');
+        if ($once !== '') {
+            $message = t('core.user_edit.temp_password_once', ['password' => $once]);
+        }
+    }
 }
 
 if ($wantsJson) {

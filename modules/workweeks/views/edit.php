@@ -14,6 +14,7 @@ $op = (int)($row['id_operator'] ?? 0);
 $pc = max(1, (int)($row['price_col'] ?? 1));
 $mm = max(1, (int)($row['mas_max'] ?? 1));
 $tid = WorkweeksRepository::normalizeTableId((int)($row['id_table'] ?? 1));
+$shiftWindows = WorkweeksRepository::shiftWindows();
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('workweeks.edit.title_new') : te('workweeks.edit.title', ['id' => (int)($row['id'] ?? 0)]) ?></h1>
@@ -36,7 +37,14 @@ $tid = WorkweeksRepository::normalizeTableId((int)($row['id_table'] ?? 1));
     </select>
   </label>
   <label><?= te('workweeks.col.price') ?>
-    <input type="number" name="price_col" min="1" max="5" value="<?= (int)$pc ?>">
+    <select name="price_col" required>
+      <?php for ($n = 1; $n <= 5; $n++): ?>
+        <?php $w = $shiftWindows[$n]; ?>
+        <option value="<?= $n ?>"<?= $pc === $n ? ' selected' : '' ?>>
+          <?= e($w['label'] . ' ' . $w['start'] . '–' . $w['end']) ?>
+        </option>
+      <?php endfor; ?>
+    </select>
   </label>
   <label><?= te('workweeks.col.mas_max') ?>
     <input type="number" name="mas_max" min="1" max="9" value="<?= (int)$mm ?>">
