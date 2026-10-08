@@ -5,9 +5,11 @@
  * @var bool $loggingOn
  * @var int $newsId
  * @var string $newsLabel
+ * @var array<int,string> $newsOptions
  * @var array<int,array{start:string,end:string,label:string}> $shiftWindows
  */
 $shiftWindows = $shiftWindows ?? WorkweeksRepository::shiftWindows();
+$newsOptions = $newsOptions ?? [];
 ?>
 <section class="page-head">
   <p class="lede"><?= te('workweeks.settings.lede') ?></p>
@@ -58,16 +60,19 @@ $shiftWindows = $shiftWindows ?? WorkweeksRepository::shiftWindows();
     <fieldset class="form-fieldset">
       <legend><?= te('workweeks.settings.log_title') ?></legend>
       <label><?= te('workweeks.settings.news_id') ?>
-        <input type="number" name="news_schedule_id" min="0" value="<?= (int)$newsId ?>"
-               placeholder="0">
+        <select name="news_schedule_id">
+          <option value="0"<?= $newsId < 1 ? ' selected' : '' ?>><?= te('workweeks.settings.news_none') ?></option>
+          <?php foreach ($newsOptions as $oid => $olabel): ?>
+            <option value="<?= (int)$oid ?>"<?= (int)$newsId === (int)$oid ? ' selected' : '' ?>><?= e($olabel) ?></option>
+          <?php endforeach; ?>
+        </select>
       </label>
       <p class="muted"><?= te('workweeks.settings.news_hint') ?></p>
       <?php if ($newsId > 0): ?>
         <p class="muted">
           <?= te('workweeks.settings.current') ?>:
-          <?php if ($newsLabel !== ''): ?>
-            <a href="/news/<?= (int)$newsId ?>"><?= e($newsLabel) ?></a>
-            <span class="muted">#<?= (int)$newsId ?></span>
+          <?php if (isset($newsOptions[$newsId]) || $newsLabel !== ''): ?>
+            <a href="/news/<?= (int)$newsId ?>"><?= e($newsLabel !== '' ? $newsLabel : ('#' . (int)$newsId)) ?></a>
           <?php else: ?>
             #<?= (int)$newsId ?>
             <span class="flash flash-warn" style="display:inline"><?= te('workweeks.settings.err.news') ?></span>

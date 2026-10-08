@@ -42,8 +42,10 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_telegram_sends` | bots | Outbound TG/Max queue (`BOT_SOURCE` 1=client, 2=staff) |
 | `base_bot_links` | bots | Messenger chat ids for staff/clients (no ALTER `base_users` / `base_clients`) |
 | `base_vacations` | vacations | Leave register |
+| `base_fit_*` / `base_healths_*` | wellness | Personal food/workouts/weight/goals + health diaries (strict `ID_USER`) |
 | `base_accounts*` / `base_account_*` | ledger | Accounts, moves, reconciliations |
 | `base_funds` / `base_fund_movements` | funds | Funds tree + movements |
+| `base_tinvest_accounts` / `base_broker_snapshots` / `base_broker_positions` | liquid_assets | T-Invest bindings + broker portfolio snapshots |
 | — (read models) | finance / procents | Reports over ledger/rates/procedures |
 | `base_orders` | orders | Website/cart orders |
 | `base_polls` | polls | Poll definition tree (EL_TYPE poll/question/answer) |

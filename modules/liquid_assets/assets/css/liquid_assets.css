@@ -1,0 +1,59 @@
+.liquid-assets-nav {
+  margin: 12px 0;
+  font-size: 1.05em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+.liquid-assets-nav b {
+  text-transform: capitalize;
+}
+.liquid-assets-sync {
+  margin-bottom: 12px;
+}
+.liquid-assets-summary,
+.liquid-assets-flows,
+.liquid-assets-deposits,
+.liquid-assets-pos,
+.liquid-assets-ops {
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 0 1rem;
+}
+.liquid-assets-summary td,
+.liquid-assets-flows td,
+.liquid-assets-deposits th,
+.liquid-assets-deposits td,
+.liquid-assets-pos th,
+.liquid-assets-pos td,
+.liquid-assets-ops th,
+.liquid-assets-ops td {
+  border: 1px solid var(--border, #ccc);
+  padding: 6px 8px;
+}
+.liquid-assets-num {
+  text-align: right;
+  white-space: nowrap;
+}
+.liquid-assets-indent {
+  padding-left: 18px;
+  color: #555;
+}
+.liquid-assets-pl-pos { color: #080; font-weight: bold; white-space: nowrap; }
+.liquid-assets-pl-neg { color: #c00; font-weight: bold; white-space: nowrap; }
+.liquid-assets-pl-zero { color: #666; font-weight: bold; white-space: nowrap; }
+.liquid-assets-confirm {
+  padding: 12px;
+  margin: 10px 0;
+  background: #fff8e0;
+  border: 1px solid #c90;
+}
+.liquid-assets-confirm ul { margin: 0.5rem 0 1rem; }
+.liquid-assets-pos tfoot td { background: #f3f3f3; font-weight: bold; }
+.liquid-assets-edit label { display: block; margin-bottom: 1rem; }
+.liquid-assets-edit label span { display: block; margin-bottom: 0.25rem; }
+.liquid-assets-edit input[type="password"],
+.liquid-assets-edit select { width: 100%; max-width: 420px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }

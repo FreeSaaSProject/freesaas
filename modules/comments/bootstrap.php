@@ -106,6 +106,7 @@ EventBus::on('core.news_item.section', static function ($payload) {
         'respIds' => $payload['resp_ids'] ?? [],
         'staff' => $payload['staff'] ?? [],
         'contractLocked' => !empty($payload['contract_locked']),
+        'needsSign' => !empty($payload['needs_sign']),
     ];
 
     extract($data, EXTR_SKIP);
@@ -151,10 +152,16 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
         if ($action === 'hide_comment' || $action === 'show_comment') {
             $cid = (int)($post['comment_id'] ?? 0);
             $c = CommentsRepository::find($cid);
-            if ($c && (int)$c['ID_OBJECT'] === $id && CommentsRepository::canModerate($c, $uid)) {
-                CommentsRepository::setDisabled($cid, $action === 'hide_comment');
+            if (!$c || (int)$c['ID_OBJECT'] !== $id) {
+                throw new RuntimeException(t('comments.err.not_found'));
             }
+            if (!CommentsRepository::canModerate($c, $uid)) {
+                throw new RuntimeException(t('comments.err.moderate_denied'));
+            }
+            CommentsRepository::setDisabled($cid, $action === 'hide_comment');
             $payload['handled'] = true;
+            $payload['comment_id'] = $cid;
+            $payload['comment'] = CommentsRepository::forAgent(CommentsRepository::find($cid));
             $payload['redirect'] = '/news/' . $id . '#c' . $cid;
             return $payload;
         }
@@ -162,10 +169,16 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
         if ($action === 'color_comment') {
             $cid = (int)($post['comment_id'] ?? 0);
             $c = CommentsRepository::find($cid);
-            if ($c && (int)$c['ID_OBJECT'] === $id && CommentsRepository::canModerate($c, $uid)) {
-                CommentsRepository::cycleColor($cid);
+            if (!$c || (int)$c['ID_OBJECT'] !== $id) {
+                throw new RuntimeException(t('comments.err.not_found'));
             }
+            if (!CommentsRepository::canModerate($c, $uid)) {
+                throw new RuntimeException(t('comments.err.moderate_denied'));
+            }
+            CommentsRepository::cycleColor($cid);
             $payload['handled'] = true;
+            $payload['comment_id'] = $cid;
+            $payload['comment'] = CommentsRepository::forAgent(CommentsRepository::find($cid));
             $payload['redirect'] = '/news/' . $id . '#c' . $cid;
             return $payload;
         }
@@ -173,12 +186,15 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
         if ($action === 'delete_comment') {
             $cid = (int)($post['comment_id'] ?? 0);
             $c = CommentsRepository::find($cid);
-            if ($c && (int)$c['ID_OBJECT'] === $id) {
-                if (!CommentsRepository::deleteIfAllowed($cid, $uid)) {
-                    throw new RuntimeException(t('comments.err.delete_denied'));
-                }
+            if (!$c || (int)$c['ID_OBJECT'] !== $id) {
+                throw new RuntimeException(t('comments.err.not_found'));
+            }
+            if (!CommentsRepository::deleteIfAllowed($cid, $uid)) {
+                throw new RuntimeException(t('comments.err.delete_denied'));
             }
             $payload['handled'] = true;
+            $payload['comment_id'] = $cid;
+            $payload['comment'] = null;
             $payload['redirect'] = '/news/' . $id . '#comments';
             return $payload;
         }
@@ -195,6 +211,8 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
             }
             CommentsRepository::updateText($cid, $text);
             $payload['handled'] = true;
+            $payload['comment_id'] = $cid;
+            $payload['comment'] = CommentsRepository::forAgent(CommentsRepository::find($cid));
             $payload['redirect'] = '/news/' . $id . '#c' . $cid;
             return $payload;
         }
@@ -244,7 +262,19 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
             }
             $extra['STATUS_UPDATE'] = $statusUp ? 1 : 0;
             $newCid = CommentsRepository::add($id, $uid, $text, $extra);
+
+            // Oper newSign: acknowledge SIGN_REQ via a comment + checkbox
+            if (!empty($post['new_sign'])
+                && !empty($row['SIGN_REQ'])
+                && (int)($row['HAS_CHILDREN'] ?? 0) !== 1
+                && class_exists('NewsRepository', false)
+            ) {
+                NewsRepository::markSigned($id, $uid);
+            }
+
             $payload['handled'] = true;
+            $payload['comment_id'] = $newCid;
+            $payload['comment'] = CommentsRepository::forAgent(CommentsRepository::find($newCid));
             $payload['redirect'] = '/news/' . $id . '?ok=1#c' . $newCid;
             return $payload;
         }

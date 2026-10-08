@@ -172,6 +172,7 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |
 | `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
+| `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |
 
 Prefer extending these via hooks before forking page logic.
 

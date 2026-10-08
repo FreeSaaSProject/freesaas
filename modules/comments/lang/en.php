@@ -13,6 +13,8 @@ return [
     'comments.send' => 'Send',
     'comments.clear_reply' => 'Clear reply',
     'comments.locked' => 'Comments are turned off for this entry.',
+    'comments.sign_ack' => 'I have read this / acknowledge',
+    'comments.sign_ack_help' => 'Check this and send any comment — that records you have read the material.',
     'comments.changes' => 'changes',
     'comments.changes_title' => 'Changes',
     'comments.hidden' => 'hidden',
@@ -34,5 +36,6 @@ return [
     'comments.err.not_found' => 'Comment not found',
     'comments.err.locked' => 'Comments are turned off',
     'comments.err.edit_denied' => 'You are not allowed to edit this comment',
+    'comments.err.moderate_denied' => 'You are not allowed to hide or show this comment',
     'comments.err.delete_denied' => 'This comment can\'t be deleted (time limit, replies, or not yours)',
 ];

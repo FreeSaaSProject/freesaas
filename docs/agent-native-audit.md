@@ -250,6 +250,7 @@ Agent adds `app/lang/es.php` + `modules/*/lang/es.php`, runs `locale validate`, 
 | Vacations | Yes | `vacations` |
 | Warehouse | Partial | `stocks` + `stickers` + `catalog`; soft deps; capabilities not in JSON |
 | Finance reports | Yes | `finance` requires `ledger`; optional `funds` |
+| Liquid assets / T-Invest | Yes | `liquid_assets` requires `ledger`; optional `funds`; disableable |
 | Telegram notifications | **No** | Stub fields only; no sender module, no events |
 
 Agent must still open PHP to learn real hooks, BulkActions, and role flags.

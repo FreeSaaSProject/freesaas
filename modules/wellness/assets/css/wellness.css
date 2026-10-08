@@ -1,0 +1,167 @@
+/* Wellness calendar + day hub */
+
+.wellness-cal-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.wellness-cal-jump {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0;
+}
+
+.wellness-cal-title {
+  margin-left: 0.25rem;
+  font-size: 1.05rem;
+}
+
+.wellness-charts {
+  margin: 1rem 0 1.5rem;
+}
+
+.wellness-charts-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.wellness-chart-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 960px;
+  margin-bottom: 1rem;
+}
+
+.wellness-chart-weight {
+  max-width: 960px;
+  opacity: 0.95;
+}
+
+.wellness-month-dow,
+.wellness-month-cells {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.35rem;
+}
+
+.wellness-month-dow {
+  margin-bottom: 0.35rem;
+}
+
+.wellness-dow {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--muted, #666);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.wellness-day-cell {
+  display: flex;
+  flex-direction: column;
+  min-height: 4.5rem;
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  text-decoration: none;
+  color: inherit;
+  background: transparent;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.wellness-day-cell:hover {
+  border-color: var(--accent, #3a6ea5);
+  background: rgba(58, 110, 165, 0.06);
+}
+
+.wellness-day-cell.is-empty {
+  border-color: transparent;
+  pointer-events: none;
+  min-height: 4.5rem;
+}
+
+.wellness-day-cell.is-today {
+  border-color: var(--accent, #3a6ea5);
+  box-shadow: inset 0 0 0 1px var(--accent, #3a6ea5);
+}
+
+.wellness-day-cell.has-data {
+  background: rgba(58, 110, 165, 0.04);
+}
+
+.wellness-day-num {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.wellness-day-kcal {
+  font-size: 0.8rem;
+  margin-top: 0.15rem;
+  color: var(--muted, #555);
+}
+
+.wellness-day-marks {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.wellness-day-marks .mark {
+  font-size: 0.65rem;
+  line-height: 1.2;
+  padding: 0.05rem 0.25rem;
+  border-radius: 2px;
+  background: #e8eef5;
+  color: #234;
+}
+
+.wellness-day-marks .mark-t { background: #e6f4ea; }
+.wellness-day-marks .mark-h { background: #fce8e6; }
+.wellness-day-marks .mark-r { background: #f3e8fc; }
+.wellness-day-marks .mark-w { background: #fff3e0; }
+
+.wellness-day-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.wellness-day-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: end;
+  margin: 0;
+}
+
+.wellness-day-summary {
+  margin: 0.75rem 0 1rem;
+  padding: 0.6rem 0.75rem;
+  border-left: 3px solid var(--accent, #3a6ea5);
+  background: rgba(58, 110, 165, 0.05);
+}
+
+.wellness-day-side {
+  margin-top: 1.5rem;
+}
+
+.wellness-day-side h2 {
+  font-size: 1rem;
+  margin: 1rem 0 0.4rem;
+}
+
+@media (max-width: 640px) {
+  .wellness-day-cell {
+    min-height: 3.5rem;
+    padding: 0.25rem;
+  }
+  .wellness-day-kcal {
+    font-size: 0.7rem;
+  }
+}

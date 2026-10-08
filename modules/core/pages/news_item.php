@@ -3,9 +3,15 @@ declare(strict_types=1);
 
 require_once base_path('modules/core/lib/LikesRepository.php');
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $row = NewsRepository::find($id);
 if (!$row || !NewsRepository::canView($row, Auth::userId())) {
+    if ($wantsJson) {
+        AgentHttp::error(t('core.news.err.unavailable', ['id' => $id]), 404);
+        return;
+    }
     http_response_code(404);
     View::render('error', ['title' => t('core.common.not_found'), 'message' => t('core.news.err.unavailable', ['id' => $id])]);
     return;
@@ -34,13 +40,45 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (!empty($postResult['row']) && is_array($postResult['row'])) {
                 $row = $postResult['row'];
             }
-            if (!empty($postResult['redirect'])) {
-                redirect((string)$postResult['redirect']);
-            }
             if (!empty($postResult['error'])) {
                 $error = (string)$postResult['error'];
             }
-            if (!empty($postResult['handled'])) {
+            $handled = !empty($postResult['handled']);
+            $redir = !empty($postResult['redirect']) ? (string)$postResult['redirect'] : null;
+
+            if ($wantsJson) {
+                if ($error !== '') {
+                    AgentHttp::error($error, 400);
+                    return;
+                }
+                if ($handled || $redir !== null) {
+                    $fresh = NewsRepository::find($id) ?: $row;
+                    $out = [
+                        'ok' => true,
+                        'action' => $action !== '' ? $action : 'handled',
+                        'id' => $id,
+                        'signed' => NewsRepository::hasSigned($id, $uid),
+                        'needs_sign' => !empty($fresh['SIGN_REQ'])
+                            && (int)($fresh['HAS_CHILDREN'] ?? 0) !== 1
+                            && !NewsRepository::hasSigned($id, $uid),
+                        'item' => NewsRepository::forAgent($fresh, true),
+                        'redirect' => $redir,
+                    ];
+                    if (array_key_exists('comment_id', $postResult)) {
+                        $out['comment_id'] = (int)$postResult['comment_id'];
+                    }
+                    if (array_key_exists('comment', $postResult)) {
+                        $out['comment'] = $postResult['comment'];
+                    }
+                    AgentHttp::emit($out);
+                    return;
+                }
+            }
+
+            if ($redir !== null) {
+                redirect($redir);
+            }
+            if ($handled) {
                 // Module claimed the action (error already captured if any).
             } elseif ($action === 'like') {
                 $likeType = (string)($_POST['like_type'] ?? 'base_news');
@@ -48,20 +86,68 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 if ($likeType === 'base_news' && $likeId === $id) {
                     LikesRepository::toggle('base_news', $id, $uid, (int)$row['ID_USER']);
                 }
+                if ($wantsJson) {
+                    $newsLikes = LikesRepository::counts('base_news', [$id]);
+                    $newsLiked = LikesRepository::likedByUser('base_news', [$id], $uid);
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'action' => 'like',
+                        'id' => $id,
+                        'liked' => !empty($newsLiked[$id]),
+                        'likes' => (int)($newsLikes[$id] ?? 0),
+                    ]);
+                    return;
+                }
                 redirect('/news/' . $id);
             } elseif ($action === 'favorite') {
                 UsersRepository::toggleFavorite($uid, $id);
+                if ($wantsJson) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'action' => 'favorite',
+                        'id' => $id,
+                        'favorite' => in_array($id, UsersRepository::favoriteIds($uid), true),
+                    ]);
+                    return;
+                }
                 redirect('/news/' . $id);
             } elseif ($action === 'delete' && NewsRepository::canEdit($row, $uid)) {
                 NewsRepository::softDelete($id, $uid);
+                if ($wantsJson) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'action' => 'delete',
+                        'id' => $id,
+                        'type' => (int)$row['TYPE'],
+                    ]);
+                    return;
+                }
                 redirect('/news?type=' . (int)$row['TYPE']);
             } elseif ($action === 'restore_version' && NewsRepository::canEdit($row, $uid)) {
                 $logId = (int)($_POST['log_id'] ?? 0);
                 NewsLogsRepository::restore($id, $logId, $uid);
+                if ($wantsJson) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'action' => 'restore_version',
+                        'id' => $id,
+                        'log_id' => $logId,
+                        'item' => NewsRepository::forAgent(NewsRepository::find($id), true),
+                    ]);
+                    return;
+                }
                 redirect('/news/' . $id . '?restored=1');
+            } elseif ($wantsJson && $action !== '') {
+                AgentHttp::error('unknown action', 400);
+                return;
             }
         }
     } catch (Throwable $e) {
+        AgentHttp::rethrowIfCapture($e);
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
     }
     $row = NewsRepository::find($id) ?: $row;
@@ -77,8 +163,17 @@ if (!empty($_GET['restored'])) {
     $message = t('core.news_item.versions.restored');
 }
 
-// Folders: redirect to list view inside folder
+// Folders: redirect to list view inside folder (JSON returns folder meta + list hint)
 if ($isFolder && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && empty($_GET['view'])) {
+    if ($wantsJson) {
+        AgentHttp::emit([
+            'ok' => true,
+            'is_folder' => true,
+            'item' => NewsRepository::forAgent($row, true),
+            'list_path' => '/news?type=' . (int)$row['TYPE'] . '&pid=' . $id,
+        ]);
+        return;
+    }
     redirect('/news?type=' . (int)$row['TYPE'] . '&pid=' . $id);
 }
 
@@ -141,6 +236,10 @@ $versionUserIds = [(int)$row['ID_USER_UPDATE'], (int)$row['ID_USER']];
 foreach ($versionLogs as $log) {
     $versionUserIds[] = (int)$log['ID_USER'];
 }
+$inArchiveFolder = !$isFolder && NewsRepository::isArchiveFolderId((int)$row['PID']);
+$needsSign = !$isFolder
+    && !empty($row['SIGN_REQ'])
+    && !NewsRepository::hasSigned($id, $uid);
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && !$isFolder) {
     NewsRepository::markViewed($id, $uid);
@@ -160,16 +259,109 @@ $contractLocked = (int)$row['TYPE'] === 2
     && ModuleManager::isEnabled('contracts')
     && ContractsRepository::ticketHasActiveContract($id);
 
-$meta = EventBus::emit('core.news_item.meta', [
-    'html' => '',
-    'actions_html' => '',
-    'row' => $row,
-    'uid' => $uid,
-    'is_folder' => $isFolder,
-    'comment_count' => 0,
-]);
-if (!is_array($meta)) {
-    $meta = ['html' => '', 'actions_html' => '', 'comment_count' => 0];
+// JSON agents use paged CommentsRepository::listForAgent — skip full-tree meta load.
+if ($wantsJson) {
+    $commentCount = 0;
+    if (!$isFolder && class_exists('CommentsRepository', false)) {
+        $counts = CommentsRepository::countsForNews([$id]);
+        $commentCount = (int)($counts[$id] ?? 0);
+    }
+    $meta = ['html' => '', 'actions_html' => '', 'comment_count' => $commentCount];
+} else {
+    $meta = EventBus::emit('core.news_item.meta', [
+        'html' => '',
+        'actions_html' => '',
+        'row' => $row,
+        'uid' => $uid,
+        'is_folder' => $isFolder,
+        'comment_count' => 0,
+    ]);
+    if (!is_array($meta)) {
+        $meta = ['html' => '', 'actions_html' => '', 'comment_count' => 0];
+    }
+}
+
+if ($wantsJson) {
+    $versions = [];
+    foreach ($versionLogs as $log) {
+        $versions[] = [
+            'id' => (int)$log['ID'],
+            'id_user' => (int)$log['ID_USER'],
+            'dt_create' => (int)$log['DT_CREATE'],
+            'dt_update' => (int)$log['DT_UPDATE'],
+        ];
+    }
+
+    // Agent comment paging: default roots only, limited + excerpt (avoid context flood).
+    // comments=0 → omit list; comments_pid → drill into replies; comments_id → one row.
+    $wantComments = !isset($_GET['comments']) || (string)$_GET['comments'] !== '0';
+    $includeHidden = Auth::isSuperAdmin();
+    $commentsPage = [
+        'items' => [],
+        'total' => 0,
+        'returned' => 0,
+        'limit' => 0,
+        'offset' => 0,
+        'pid' => 0,
+        'order' => 'desc',
+        'excerpt' => 500,
+        'has_more' => false,
+        'next_offset' => null,
+    ];
+    if ($wantComments && class_exists('CommentsRepository', false) && !$isFolder) {
+        $cLimit = isset($_GET['comments_limit']) ? (int)$_GET['comments_limit'] : 20;
+        $cOffset = isset($_GET['comments_offset']) ? (int)$_GET['comments_offset'] : 0;
+        $cPid = isset($_GET['comments_pid']) ? (int)$_GET['comments_pid'] : 0;
+        $cOrder = (string)($_GET['comments_order'] ?? ($cPid > 0 ? 'asc' : 'desc'));
+        $cExcerpt = isset($_GET['comments_excerpt']) ? (int)$_GET['comments_excerpt'] : 500;
+        $cId = isset($_GET['comments_id']) ? (int)$_GET['comments_id'] : 0;
+        $commentsPage = CommentsRepository::listForAgent($id, [
+            'pid' => $cPid,
+            'limit' => $cLimit,
+            'offset' => $cOffset,
+            'order' => $cOrder,
+            'excerpt' => $cExcerpt,
+            'include_hidden' => $includeHidden,
+            'id' => $cId,
+        ]);
+    }
+
+    $withBody = !isset($_GET['body']) || (string)$_GET['body'] !== '0';
+    $itemPayload = NewsRepository::forAgent($row, $withBody);
+
+    AgentHttp::emit([
+        'ok' => true,
+        'item' => $itemPayload,
+        'needs_sign' => $needsSign,
+        'signed' => NewsRepository::hasSigned($id, $uid),
+        'in_archive_folder' => $inArchiveFolder,
+        'can_edit' => $canEdit,
+        'can_manage_ticket' => $canManageTicket,
+        'is_favorite' => $isFav,
+        'likes' => (int)($newsLikes[$id] ?? 0),
+        'liked' => !empty($newsLiked[$id]),
+        'viewers' => $viewers,
+        'comment_count' => (int)($meta['comment_count'] ?? 0),
+        'comments' => $commentsPage['items'],
+        'comments_meta' => [
+            'included' => $wantComments,
+            'total' => $commentsPage['total'],
+            'returned' => $commentsPage['returned'],
+            'limit' => $commentsPage['limit'],
+            'offset' => $commentsPage['offset'],
+            'pid' => $commentsPage['pid'],
+            'order' => $commentsPage['order'],
+            'excerpt' => $commentsPage['excerpt'],
+            'has_more' => $commentsPage['has_more'],
+            'next_offset' => $commentsPage['next_offset'],
+            'hint' => 'Default: top-level only. Drill: comments_pid={id}. Page: comments_offset. Skip: comments=0. Full text: comments_excerpt=0. Omit body: body=0.',
+        ],
+        'versions' => $versions,
+        'active_log_id' => $did > 0 ? $did : null,
+        'contract_locked' => $contractLocked,
+        'status' => $status,
+        'users_resp' => $respIds,
+    ]);
 }
 
 View::render('news_item', [
@@ -200,4 +392,6 @@ View::render('news_item', [
     'activeLog' => $activeLog,
     'bodyHtml' => $bodyHtml,
     'showingVersion' => $showingVersion,
+    'inArchiveFolder' => $inArchiveFolder,
+    'needsSign' => $needsSign,
 ]);

@@ -1,0 +1,168 @@
+<?php
+declare(strict_types=1);
+
+final class FitFoodsRepository
+{
+    /** @return array<string,string> */
+    public static function listSortMap(): array
+    {
+        return [
+            'id' => 'ID',
+            'name' => 'NAME',
+            'ccals' => 'CCALS',
+        ];
+    }
+
+    /**
+     * @param array{q?:string,order?:string,limit?:int,offset?:int} $opts
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public static function list(array $opts = []): array
+    {
+        if (!Database::tableExists('base_fit_foods')) {
+            return ['items' => [], 'total' => 0];
+        }
+        $userId = WellnessOwner::userId();
+        $pdo = Database::pdo();
+        $where = ['ID_USER = ?'];
+        $params = [$userId];
+        $q = trim((string)($opts['q'] ?? ''));
+        if ($q !== '') {
+            $where[] = '(NAME LIKE ? OR CAST(ID AS CHAR) = ?)';
+            $params[] = '%' . $q . '%';
+            $params[] = $q;
+        }
+        $sqlWhere = implode(' AND ', $where);
+        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_fit_foods WHERE $sqlWhere");
+        $stc->execute($params);
+        $total = (int)$stc->fetchColumn();
+
+        $order = trim((string)($opts['order'] ?? ''));
+        if ($order === '') {
+            $order = 'NAME ASC';
+        }
+        $limit = max(0, (int)($opts['limit'] ?? 50));
+        $offset = max(0, (int)($opts['offset'] ?? 0));
+        $sql = "SELECT ID AS id, ID_USER AS user_id, NAME AS name,
+                       CCALS AS ccals, CARBS AS carbs, PROTEINS AS proteins, FATS AS fats
+                FROM base_fit_foods WHERE $sqlWhere ORDER BY $order";
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        return ['items' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'total' => $total];
+    }
+
+    /** @return list<array{id:int,name:string,ccals:int,carbs:float,proteins:float,fats:float}> */
+    public static function search(string $q, int $limit = 20): array
+    {
+        $res = self::list(['q' => $q, 'limit' => $limit, 'offset' => 0, 'order' => 'NAME ASC']);
+        $out = [];
+        foreach ($res['items'] as $r) {
+            $out[] = [
+                'id' => (int)$r['id'],
+                'name' => (string)$r['name'],
+                'ccals' => (int)$r['ccals'],
+                'carbs' => (float)$r['carbs'],
+                'proteins' => (float)$r['proteins'],
+                'fats' => (float)$r['fats'],
+            ];
+        }
+        return $out;
+    }
+
+    public static function findOwned(int $id): ?array
+    {
+        if ($id < 1 || !Database::tableExists('base_fit_foods')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_USER AS user_id, NAME AS name,
+                    CCALS AS ccals, CARBS AS carbs, PROTEINS AS proteins, FATS AS fats
+             FROM base_fit_foods WHERE ID = ? AND ID_USER = ? LIMIT 1'
+        );
+        $st->execute([$id, WellnessOwner::userId()]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    /**
+     * @param array<string,mixed> $post
+     * @return array<string,mixed>
+     */
+    public static function dataFromPost(array $post): array
+    {
+        $name = trim((string)($post['name'] ?? ''));
+        if ($name === '') {
+            throw new InvalidArgumentException(t('wellness.err.name_required'));
+        }
+        return [
+            'name' => mb_substr($name, 0, 255),
+            'ccals' => max(0, (int)($post['ccals'] ?? 0)),
+            'carbs' => max(0.0, (float)str_replace(',', '.', (string)($post['carbs'] ?? 0))),
+            'proteins' => max(0.0, (float)str_replace(',', '.', (string)($post['proteins'] ?? 0))),
+            'fats' => max(0.0, (float)str_replace(',', '.', (string)($post['fats'] ?? 0))),
+        ];
+    }
+
+    /** @param array<string,mixed> $data */
+    public static function create(array $data): int
+    {
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_fit_foods (ID_USER, NAME, CCALS, CARBS, PROTEINS, FATS)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $st->execute([
+            WellnessOwner::userId(),
+            $data['name'],
+            $data['ccals'],
+            $data['carbs'],
+            $data['proteins'],
+            $data['fats'],
+        ]);
+        return (int)Database::pdo()->lastInsertId();
+    }
+
+    /** @param array<string,mixed> $data */
+    public static function update(int $id, array $data): void
+    {
+        if (!self::findOwned($id)) {
+            throw new RuntimeException(t('wellness.err.forbidden'));
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_fit_foods SET NAME = ?, CCALS = ?, CARBS = ?, PROTEINS = ?, FATS = ?
+             WHERE ID = ? AND ID_USER = ?'
+        );
+        $st->execute([
+            $data['name'],
+            $data['ccals'],
+            $data['carbs'],
+            $data['proteins'],
+            $data['fats'],
+            $id,
+            WellnessOwner::userId(),
+        ]);
+    }
+
+    /** @param list<int> $ids @return int */
+    public static function deleteByIds(array $ids): int
+    {
+        $ids = self::normalizeIds($ids);
+        if ($ids === [] || !Database::tableExists('base_fit_foods')) {
+            return 0;
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $params = $ids;
+        $params[] = WellnessOwner::userId();
+        $st = Database::pdo()->prepare("DELETE FROM base_fit_foods WHERE ID IN ($ph) AND ID_USER = ?");
+        $st->execute($params);
+        return $st->rowCount();
+    }
+
+    /** @param list<int> $ids @return list<int> */
+    private static function normalizeIds(array $ids): array
+    {
+        return array_values(array_unique(array_filter(array_map('intval', $ids), static fn (int $id): bool => $id > 0)));
+    }
+}

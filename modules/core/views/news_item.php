@@ -24,6 +24,8 @@
 /** @var ?array{ID:int,ID_OBJ:int,ID_USER:int,DT_CREATE:int,DT_UPDATE:int,CONTENT:string} $activeLog */
 /** @var string $bodyHtml */
 /** @var bool $showingVersion */
+/** @var bool $inArchiveFolder */
+/** @var bool $needsSign */
 
 $nid = (int)$row['ID'];
 $viewerCount = count($viewers);
@@ -36,6 +38,8 @@ $versionLogs = $versionLogs ?? [];
 $activeLogId = (int)($activeLogId ?? 0);
 $activeLog = $activeLog ?? null;
 $showingVersion = !empty($showingVersion);
+$inArchiveFolder = !empty($inArchiveFolder);
+$needsSign = !empty($needsSign);
 $bodyHtml = $bodyHtml ?? (string)$row['BIG'];
 $currentEditor = (int)($row['ID_USER_UPDATE'] ?? 0) ?: (int)$row['ID_USER'];
 $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
@@ -78,6 +82,14 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
+<?php if ($inArchiveFolder): ?>
+  <div class="flash flash-warn"><?= te('core.news_item.in_archive_warn') ?></div>
+<?php endif; ?>
+<?php if ($needsSign): ?>
+  <div class="flash flash-warn"><?= te('core.news_item.sign_required') ?>
+    <a href="#comment-form"><?= te('core.news_item.sign_required_cta') ?></a>
+  </div>
+<?php endif; ?>
 
 <?php if ($viewerCount > 0): ?>
   <p class="viewers-inline muted"><?= te('core.news_item.viewers', ['n' => $viewerCount]) ?>
@@ -208,6 +220,7 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
       'resp_ids' => $respIds,
       'staff' => $staff,
       'contract_locked' => $contractLocked,
+      'needs_sign' => $needsSign,
       '_comments_meta' => $commentsMeta ?? [],
   ]);
   if (is_array($section) && !empty($section['html'])) {

@@ -7,6 +7,7 @@
 /** @var string $q */
 /** @var int $pid */
 /** @var bool $unread */
+/** @var bool $unsigned */
 /** @var string $rootLabel */
 /** @var list<array{label:string, href?:?string, current?:bool}> $breadcrumbs */
 /** @var array $counts */
@@ -24,6 +25,7 @@
 $commentCounts = $commentCounts ?? [];
 $viewerCounts = $viewerCounts ?? [];
 $unread = !empty($unread);
+$unsigned = !empty($unsigned);
 $sort = $sort ?? '';
 $dir = $dir ?? 'desc';
 $page = $page ?? 1;
@@ -32,13 +34,14 @@ $showAll = !empty($showAll);
 $filters = $filters ?? [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, '/news', $filters, $showAll);
 
-$qsBase = static function (array $extra = []) use ($type, $status, $q, $pid, $unread, $sort, $dir): string {
+$qsBase = static function (array $extra = []) use ($type, $status, $q, $pid, $unread, $unsigned, $sort, $dir): string {
     $p = array_merge([
         'type' => $type,
         'status' => $status >= 0 ? $status : '',
         'q' => $q,
         'pid' => $pid > 0 ? $pid : '',
         'unread' => $unread ? 1 : '',
+        'unsigned' => $unsigned ? 1 : '',
     ], $extra);
     if ($sort !== '') {
         $p['sort'] = $sort;
@@ -93,9 +96,10 @@ $sortLabels = [
   <?php foreach ($visibleTabs as $t): ?>
     <?php
       $tid = (int)$t['id'];
-      // Unread mode only applies to types 1–3
+      // Unread / unsigned modes only apply to types 1–3
       $tabUnread = $unread && $tid >= 1 && $tid <= 3 ? 1 : '';
-      $href = $qsBase(['type' => $tid, 'pid' => '', 'unread' => $tabUnread]);
+      $tabUnsigned = $unsigned && $tid >= 1 && $tid <= 3 ? 1 : '';
+      $href = $qsBase(['type' => $tid, 'pid' => '', 'unread' => $tabUnread, 'unsigned' => $tabUnsigned]);
       $cnt = (int)($counts[$tid] ?? 0);
     ?>
     <a class="type-tab<?= $type === $tid ? ' is-active' : '' ?>" href="<?= e($href) ?>">
@@ -115,6 +119,10 @@ $sortLabels = [
   <select name="unread" data-auto-submit aria-label="<?= te('core.news.filter_aria') ?>">
     <option value=""<?= !$unread ? ' selected' : '' ?>><?= te('core.news.filter_all') ?></option>
     <option value="1"<?= $unread ? ' selected' : '' ?>><?= te('core.news.filter_unread') ?></option>
+  </select>
+  <select name="unsigned" data-auto-submit aria-label="<?= te('core.news.filter_unsigned_aria') ?>">
+    <option value=""<?= !$unsigned ? ' selected' : '' ?>><?= te('core.news.filter_unsigned_off') ?></option>
+    <option value="1"<?= $unsigned ? ' selected' : '' ?>><?= te('core.news.filter_unsigned') ?></option>
   </select>
   <?php endif; ?>
   <?php if ($type === 2): ?>
@@ -150,10 +158,20 @@ $sortLabels = [
 <?php if ($folders): ?>
   <div class="folder-list">
     <?php foreach ($folders as $f): ?>
-      <a class="folder-item" href="<?= e($qsBase(['pid' => (int)$f['ID'], 'type' => (int)$f['TYPE'], 'unread' => ''])) ?>">
-        <span class="folder-icon" aria-hidden="true">▸</span>
-        <span class="folder-name"><?= e((string)$f['NAME']) ?></span>
-      </a>
+      <?php
+        $fid = (int)$f['ID'];
+        $isArchive = !empty($f['IGNORE_FOLDER']);
+      ?>
+      <div class="folder-row<?= $isArchive ? ' is-archive' : '' ?>">
+        <a class="folder-item<?= $isArchive ? ' is-archive' : '' ?>" href="<?= e($qsBase(['pid' => $fid, 'type' => (int)$f['TYPE'], 'unread' => '', 'unsigned' => ''])) ?>">
+          <span class="folder-icon" aria-hidden="true">▸</span>
+          <span class="folder-name"><?= e((string)$f['NAME']) ?></span>
+          <?php if ($isArchive): ?>
+            <span class="folder-archive-badge"><?= te('core.news.folder_archive_badge') ?></span>
+          <?php endif; ?>
+        </a>
+        <a class="folder-edit" href="/news/<?= $fid ?>/edit"><?= te('core.common.edit') ?></a>
+      </div>
     <?php endforeach; ?>
   </div>
 <?php endif; ?>

@@ -1,0 +1,1124 @@
+{
+    "id": "wellness",
+    "name": "wellness.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "wellness.calendar"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "wellness.view",
+            "label": "wellness.perm.view"
+        },
+        {
+            "id": "wellness.edit",
+            "label": "wellness.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/wellness",
+            "/wellness/food-diary",
+            "/wellness/food-diary/new",
+            "/wellness/food-diary/{id}/edit",
+            "/wellness/foods",
+            "/wellness/foods/new",
+            "/wellness/foods/{id}/edit",
+            "/wellness/workouts",
+            "/wellness/workouts/new",
+            "/wellness/workouts/{id}/edit",
+            "/wellness/weight",
+            "/wellness/weight/new",
+            "/wellness/weight/{id}/edit",
+            "/wellness/targets",
+            "/wellness/targets/new",
+            "/wellness/targets/{id}/edit",
+            "/wellness/health-diary",
+            "/wellness/health-diary/new",
+            "/wellness/health-diary/{id}/edit",
+            "/wellness/doctor-rx",
+            "/wellness/doctor-rx/new",
+            "/wellness/doctor-rx/{id}/edit",
+            "/wellness/medicines",
+            "/wellness/medicines/new",
+            "/wellness/medicines/{id}/edit",
+            "/wellness/symptoms",
+            "/wellness/symptoms/new",
+            "/wellness/symptoms/{id}/edit"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "wellness.calendar.month",
+                "method": "GET",
+                "path": "/wellness",
+                "permission": "wellness.view",
+                "side_effect": "read",
+                "description": "Current-user month overview: eaten/burned kcal series, weight, day markers",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "year": {
+                            "type": "integer",
+                            "description": "Calendar year"
+                        },
+                        "month": {
+                            "type": "integer",
+                            "description": "Month 1-12"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.food_diary.list",
+                "method": "GET",
+                "path": "/wellness/food-diary",
+                "permission": "wellness.view",
+                "description": "List own food diary entries; returns totals/workouts/health for the day when date set",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "q": {
+                            "type": "string",
+                            "description": "Search query"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.food_diary.get",
+                "method": "GET",
+                "path": "/wellness/food-diary/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own food diary entry",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.food_diary.create",
+                "method": "POST",
+                "path": "/wellness/food-diary/new",
+                "permission": "wellness.edit",
+                "description": "Log food for current user; nutrition computed from food per 100g * weight/100",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "food_id": {
+                            "type": "integer",
+                            "description": "Own food catalog id"
+                        },
+                        "weight": {
+                            "type": "number",
+                            "description": "Grams"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "food_id",
+                        "weight"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.food_diary.update",
+                "method": "POST",
+                "path": "/wellness/food-diary/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own food diary entry",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "food_id": {
+                            "type": "integer"
+                        },
+                        "weight": {
+                            "type": "number"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id",
+                        "food_id",
+                        "weight"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.foods.list",
+                "method": "GET",
+                "path": "/wellness/foods",
+                "permission": "wellness.view",
+                "description": "Search/list the current user's private food catalog (name match via q). Call this before wellness.foods.create to reuse an existing food when possible; returns id, name, ccals/carbs/proteins/fats per 100g",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": {
+                            "type": "string",
+                            "description": "Food name fragment to search (e.g. apple, гречка)"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.foods.get",
+                "method": "GET",
+                "path": "/wellness/foods/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own food",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.foods.create",
+                "method": "POST",
+                "path": "/wellness/foods/new",
+                "permission": "wellness.edit",
+                "description": "Create a new private food only if wellness.foods.list found no suitable match; nutrition values are per 100g",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "ccals": {
+                            "type": "integer"
+                        },
+                        "carbs": {
+                            "type": "number"
+                        },
+                        "proteins": {
+                            "type": "number"
+                        },
+                        "fats": {
+                            "type": "number"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "name"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.foods.update",
+                "method": "POST",
+                "path": "/wellness/foods/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own food",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "ccals": {
+                            "type": "integer"
+                        },
+                        "carbs": {
+                            "type": "number"
+                        },
+                        "proteins": {
+                            "type": "number"
+                        },
+                        "fats": {
+                            "type": "number"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id",
+                        "name"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.workouts.list",
+                "method": "GET",
+                "path": "/wellness/workouts",
+                "permission": "wellness.view",
+                "description": "List own workouts",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "q": {
+                            "type": "string",
+                            "description": "Search query"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.workouts.get",
+                "method": "GET",
+                "path": "/wellness/workouts/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own workout",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.workouts.create",
+                "method": "POST",
+                "path": "/wellness/workouts/new",
+                "permission": "wellness.edit",
+                "description": "Create own workout",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "dt_start": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        },
+                        "dt_end": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        },
+                        "ccals": {
+                            "type": "integer",
+                            "description": "Burned kcal"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "name"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.workouts.update",
+                "method": "POST",
+                "path": "/wellness/workouts/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own workout",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "dt_start": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        },
+                        "dt_end": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        },
+                        "ccals": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id",
+                        "name"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.weight.list",
+                "method": "GET",
+                "path": "/wellness/weight",
+                "permission": "wellness.view",
+                "description": "List own weight logs",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.weight.get",
+                "method": "GET",
+                "path": "/wellness/weight/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own weight log",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.weight.create",
+                "method": "POST",
+                "path": "/wellness/weight/new",
+                "permission": "wellness.edit",
+                "description": "Create or upsert weight for a day (unique per user+date)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "dt": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "weight": {
+                            "type": "number",
+                            "description": "kg"
+                        },
+                        "fat": {
+                            "type": "number"
+                        },
+                        "water": {
+                            "type": "number"
+                        },
+                        "muscles": {
+                            "type": "number"
+                        },
+                        "waist": {
+                            "type": "integer"
+                        },
+                        "hips": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "weight"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.weight.update",
+                "method": "POST",
+                "path": "/wellness/weight/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own weight log",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "weight": {
+                            "type": "number"
+                        },
+                        "fat": {
+                            "type": "number"
+                        },
+                        "water": {
+                            "type": "number"
+                        },
+                        "muscles": {
+                            "type": "number"
+                        },
+                        "waist": {
+                            "type": "integer"
+                        },
+                        "hips": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id",
+                        "weight"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.targets.list",
+                "method": "GET",
+                "path": "/wellness/targets",
+                "permission": "wellness.view",
+                "description": "List own fitness goals",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.targets.get",
+                "method": "GET",
+                "path": "/wellness/targets/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own fitness goal",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.targets.create",
+                "method": "POST",
+                "path": "/wellness/targets/new",
+                "permission": "wellness.edit",
+                "description": "Create fitness goal (kcal/macros/weight target)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "weight": {
+                            "type": "number"
+                        },
+                        "ccals": {
+                            "type": "integer"
+                        },
+                        "carbs": {
+                            "type": "number"
+                        },
+                        "proteins": {
+                            "type": "number"
+                        },
+                        "fats": {
+                            "type": "number"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.targets.update",
+                "method": "POST",
+                "path": "/wellness/targets/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own fitness goal",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "weight": {
+                            "type": "number"
+                        },
+                        "ccals": {
+                            "type": "integer"
+                        },
+                        "carbs": {
+                            "type": "number"
+                        },
+                        "proteins": {
+                            "type": "number"
+                        },
+                        "fats": {
+                            "type": "number"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.health_diary.list",
+                "method": "GET",
+                "path": "/wellness/health-diary",
+                "permission": "wellness.view",
+                "description": "List own health diary entries",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "q": {
+                            "type": "string",
+                            "description": "Search query"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.health_diary.get",
+                "method": "GET",
+                "path": "/wellness/health-diary/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own health diary entry",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.health_diary.create",
+                "method": "POST",
+                "path": "/wellness/health-diary/new",
+                "permission": "wellness.edit",
+                "description": "Create health entry; may create symptom/medicine by name if ids omitted",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "dt": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        },
+                        "symptom_id": {
+                            "type": "integer"
+                        },
+                        "symptom_name": {
+                            "type": "string"
+                        },
+                        "medicine_id": {
+                            "type": "integer"
+                        },
+                        "medicine_name": {
+                            "type": "string"
+                        },
+                        "level": {
+                            "type": "integer",
+                            "description": "0-5"
+                        },
+                        "descr": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.health_diary.update",
+                "method": "POST",
+                "path": "/wellness/health-diary/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own health diary entry",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                        },
+                        "symptom_id": {
+                            "type": "integer"
+                        },
+                        "symptom_name": {
+                            "type": "string"
+                        },
+                        "medicine_id": {
+                            "type": "integer"
+                        },
+                        "medicine_name": {
+                            "type": "string"
+                        },
+                        "level": {
+                            "type": "integer"
+                        },
+                        "descr": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.doctor_rx.list",
+                "method": "GET",
+                "path": "/wellness/doctor-rx",
+                "permission": "wellness.view",
+                "description": "List own doctor prescriptions",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        },
+                        "q": {
+                            "type": "string",
+                            "description": "Search query"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.doctor_rx.get",
+                "method": "GET",
+                "path": "/wellness/doctor-rx/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own doctor prescription",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.doctor_rx.create",
+                "method": "POST",
+                "path": "/wellness/doctor-rx/new",
+                "permission": "wellness.edit",
+                "description": "Create doctor prescription text",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "doctor": {
+                            "type": "string"
+                        },
+                        "data": {
+                            "type": "string",
+                            "description": "Prescription body"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "data"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.doctor_rx.update",
+                "method": "POST",
+                "path": "/wellness/doctor-rx/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own doctor prescription",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "doctor": {
+                            "type": "string"
+                        },
+                        "data": {
+                            "type": "string"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Day Y-m-d"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id",
+                        "data"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.medicines.list",
+                "method": "GET",
+                "path": "/wellness/medicines",
+                "permission": "wellness.view",
+                "description": "List own medicines catalog",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": {
+                            "type": "string",
+                            "description": "Search query"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.medicines.get",
+                "method": "GET",
+                "path": "/wellness/medicines/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own medicine",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.medicines.create",
+                "method": "POST",
+                "path": "/wellness/medicines/new",
+                "permission": "wellness.edit",
+                "description": "Create private medicine name",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "name"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.medicines.update",
+                "method": "POST",
+                "path": "/wellness/medicines/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own medicine",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "name": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id",
+                        "name"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.symptoms.list",
+                "method": "GET",
+                "path": "/wellness/symptoms",
+                "permission": "wellness.view",
+                "description": "List own conditions/symptoms catalog",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": {
+                            "type": "string",
+                            "description": "Search query"
+                        }
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "wellness.symptoms.get",
+                "method": "GET",
+                "path": "/wellness/symptoms/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Get one own condition",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.symptoms.create",
+                "method": "POST",
+                "path": "/wellness/symptoms/new",
+                "permission": "wellness.edit",
+                "description": "Create private condition/symptom name",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "name"
+                    ]
+                }
+            },
+            {
+                "id": "wellness.symptoms.update",
+                "method": "POST",
+                "path": "/wellness/symptoms/{id}/edit",
+                "permission": "wellness.edit",
+                "description": "Update own condition",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "integer",
+                            "description": "Record id (path)"
+                        },
+                        "name": {
+                            "type": "string"
+                        }
+                    },
+                    "additionalProperties": true,
+                    "required": [
+                        "id",
+                        "name"
+                    ]
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "wellness.menu.group",
+            "num": 10,
+            "kind": "work",
+            "path": "/wellness",
+            "title": "wellness.menu.calendar"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 20,
+            "kind": "work",
+            "path": "/wellness/food-diary",
+            "title": "wellness.menu.food_diary"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 30,
+            "kind": "work",
+            "path": "/wellness/workouts",
+            "title": "wellness.menu.workouts"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 40,
+            "kind": "work",
+            "path": "/wellness/weight",
+            "title": "wellness.menu.weight"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 50,
+            "kind": "work",
+            "path": "/wellness/health-diary",
+            "title": "wellness.menu.health_diary"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 60,
+            "kind": "work",
+            "path": "/wellness/doctor-rx",
+            "title": "wellness.menu.doctor_rx"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 70,
+            "kind": "crud",
+            "path": "/wellness/foods",
+            "title": "wellness.menu.foods"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 80,
+            "kind": "crud",
+            "path": "/wellness/targets",
+            "title": "wellness.menu.targets"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 90,
+            "kind": "crud",
+            "path": "/wellness/medicines",
+            "title": "wellness.menu.medicines"
+        },
+        {
+            "group": "wellness.menu.group",
+            "num": 100,
+            "kind": "crud",
+            "path": "/wellness/symptoms",
+            "title": "wellness.menu.symptoms"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_fit_foods",
+        "base_fit_foodlogs",
+        "base_fitlogs",
+        "base_fit_targets",
+        "base_fit_weightlogs",
+        "base_healths_medicines",
+        "base_healths_symptoms",
+        "base_healths_logs",
+        "base_healths_recipes"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "wellness_foods",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_food_diary",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_workouts",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_weight",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_targets",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_health_diary",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_doctor_rx",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_medicines",
+            "action": "delete"
+        },
+        {
+            "list_id": "wellness_symptoms",
+            "action": "delete"
+        }
+    ]
+}

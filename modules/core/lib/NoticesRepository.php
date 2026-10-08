@@ -17,6 +17,11 @@ final class NoticesRepository
         }
         $out = [];
         $pdo = Database::pdo();
+        $excl = NewsRepository::sqlExcludeArchiveChildren('n');
+        $exclBare = NewsRepository::sqlExcludeArchiveChildren();
+        $andExcl = static function (string $cond): string {
+            return $cond !== '' ? ' AND ' . $cond : '';
+        };
 
         // Favorites
         $favIds = UsersRepository::favoriteIds($userId);
@@ -35,38 +40,32 @@ final class NoticesRepository
             }
         }
 
-        // Unread by type: totals − viewed (avoids DEPENDENT SUBQUERY on base_views)
+        // Unread by type (accessible leaves only; archive folders excluded)
         if (Database::tableExists('base_views')) {
             $labels = [1 => t('core.notice.unread_short.1'), 2 => t('core.notice.unread_short.2'), 3 => t('core.notice.unread_short.3')];
             $titles = [1 => t('core.notice.unread_title.1'), 2 => t('core.notice.unread_title.2'), 3 => t('core.notice.unread_title.3')];
-            $totals = [];
-            foreach ($pdo->query(
-                'SELECT TYPE AS t, COUNT(*) AS c FROM base_news
-                 WHERE DISABLED = 0 AND HAS_CHILDREN = 0 AND TYPE IN (1,2,3)
-                 GROUP BY TYPE'
-            )->fetchAll() ?: [] as $row) {
-                $totals[(int)$row['t']] = (int)$row['c'];
-            }
-            $viewed = [];
+            $acc = NewsRepository::accessWhereSql($userId, 'n');
+            $accSql = $acc['sql'] !== '' ? ' AND (' . $acc['sql'] . ')' : '';
             $st = $pdo->prepare(
-                'SELECT n.TYPE AS t, COUNT(DISTINCT n.ID) AS c
-                 FROM base_views v
-                 INNER JOIN base_news n ON n.ID = v.ID_OBJ
-                   AND n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.TYPE IN (1,2,3)
-                 WHERE v.TYPE_OBJ = \'base_news\' AND v.ID_USER = ?
+                'SELECT n.TYPE AS t, COUNT(*) AS c FROM base_news n
+                 WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.TYPE IN (1,2,3)'
+                . $andExcl($excl)
+                . $accSql . '
+                   AND NOT EXISTS (
+                     SELECT 1 FROM base_views v
+                     WHERE v.ID_OBJ = n.ID AND v.TYPE_OBJ = \'base_news\' AND v.ID_USER = ?
+                   )
                  GROUP BY n.TYPE'
             );
-            $st->execute([$userId]);
+            $st->execute(array_merge($acc['params'], [$userId]));
             foreach ($st->fetchAll() ?: [] as $row) {
-                $viewed[(int)$row['t']] = (int)$row['c'];
-            }
-            foreach ($labels as $t => $label) {
-                $c = max(0, (int)($totals[$t] ?? 0) - (int)($viewed[$t] ?? 0));
-                if ($c < 1) {
+                $t = (int)$row['t'];
+                $c = (int)$row['c'];
+                if ($c < 1 || !isset($labels[$t])) {
                     continue;
                 }
                 $out[] = [
-                    'short' => $label . ':' . $c,
+                    'short' => $labels[$t] . ':' . $c,
                     'href' => '/news?type=' . $t . '&unread=1',
                     'title' => $titles[$t],
                     'tone' => 'warn',
@@ -74,11 +73,12 @@ final class NoticesRepository
             }
         }
 
-        // Overdue open tickets
+        // Overdue open tickets (not in archive folders)
         $over = (int)$pdo->query(
             'SELECT COUNT(*) FROM base_news
              WHERE DISABLED=0 AND HAS_CHILDREN=0 AND TYPE=2 AND STATUS=1
                AND DT_DEADLINE > 0 AND DT_DEADLINE < ' . time()
+            . $andExcl($exclBare)
         )->fetchColumn();
         if ($over > 0) {
             $out[] = [
@@ -94,6 +94,7 @@ final class NoticesRepository
             'SELECT COUNT(*) FROM base_news
              WHERE DISABLED=0 AND HAS_CHILDREN=0 AND TYPE=2 AND STATUS=1
                AND (DT_DEADLINE = 0 OR ID_CURATOR = 0 OR ID_CURATOR IS NULL OR ID_CURATOR = \'\')'
+            . $andExcl($exclBare)
         )->fetchColumn();
         if ($bad > 0) {
             $out[] = [
@@ -102,6 +103,47 @@ final class NoticesRepository
                 'title' => t('core.notice.unset_title'),
                 'tone' => 'warn',
             ];
+        }
+
+        // Needs signature / reply (oper ТР.О)
+        if (Database::tableExists('base_views') && Database::columnExists('base_news', 'SIGN_REQ')) {
+            $signLabels = [
+                1 => t('core.notice.sign_short.1'),
+                2 => t('core.notice.sign_short.2'),
+                3 => t('core.notice.sign_short.3'),
+            ];
+            $signTitles = [
+                1 => t('core.notice.sign_title.1'),
+                2 => t('core.notice.sign_title.2'),
+                3 => t('core.notice.sign_title.3'),
+            ];
+            $acc = NewsRepository::accessWhereSql($userId, 'n');
+            $accSql = $acc['sql'] !== '' ? ' AND (' . $acc['sql'] . ')' : '';
+            $st = $pdo->prepare(
+                'SELECT n.TYPE AS t, COUNT(*) AS c FROM base_news n
+                 WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.SIGN_REQ = 1 AND n.TYPE IN (1,2,3)'
+                . $andExcl($excl)
+                . $accSql . '
+                   AND NOT EXISTS (
+                     SELECT 1 FROM base_views v
+                     WHERE v.ID_OBJ = n.ID AND v.TYPE_OBJ = \'base_news_sign\' AND v.ID_USER = ?
+                   )
+                 GROUP BY n.TYPE'
+            );
+            $st->execute(array_merge($acc['params'], [$userId]));
+            foreach ($st->fetchAll() ?: [] as $row) {
+                $t = (int)$row['t'];
+                $c = (int)$row['c'];
+                if ($c < 1 || !isset($signLabels[$t])) {
+                    continue;
+                }
+                $out[] = [
+                    'short' => $signLabels[$t] . ':' . $c,
+                    'href' => '/news?type=' . $t . '&unsigned=1',
+                    'title' => $signTitles[$t],
+                    'tone' => 'danger',
+                ];
+            }
         }
 
         return $out;

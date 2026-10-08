@@ -256,6 +256,105 @@
                 "permission": "core.db",
                 "description": "Restore dump file (POST action=db_restore&file=…&format=json; owned allow-list in normal mode)",
                 "assistant": false
+            },
+            {
+                "id": "core.news.list",
+                "method": "GET",
+                "path": "/news",
+                "permission": "core.news",
+                "description": "List news/tickets/DMs (access-filtered). Query: type=1|2|3|4, pid=folder, q, status, unread=1, unsigned=1 (needs SIGN_REQ ack), sort/dir/page",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "type": { "type": "integer", "description": "1 articles, 2 tickets, 3 DMs, 4 favorites" },
+                        "pid": { "type": "integer", "description": "Folder id; omit for root" },
+                        "q": { "type": "string" },
+                        "status": { "type": "integer", "description": "Ticket status filter (type=2)" },
+                        "unread": { "type": "integer", "description": "1 = flat unread leaves" },
+                        "unsigned": { "type": "integer", "description": "1 = flat items needing signature" }
+                    }
+                }
+            },
+            {
+                "id": "core.news.get",
+                "method": "GET",
+                "path": "/news/{id}",
+                "permission": "core.news",
+                "description": "News item JSON (body, access, needs_sign, paged comments, versions). Folders → is_folder+list_path. Comments default: top-level, limit=20, excerpt=500, order=desc; drill with comments_pid; page with comments_offset; skip with comments=0; one row comments_id; full text comments_excerpt=0; omit body with body=0. See comments_meta.has_more/child_count.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "comments": { "type": "integer", "description": "0 = omit comments list (count still in comment_count)" },
+                        "comments_limit": { "type": "integer", "description": "Page size 1–100, default 20" },
+                        "comments_offset": { "type": "integer" },
+                        "comments_pid": { "type": "integer", "description": "0 = roots; >0 = direct replies under that comment" },
+                        "comments_id": { "type": "integer", "description": "Fetch one comment by id" },
+                        "comments_order": { "type": "string", "description": "asc|desc (default desc for roots, asc for replies)" },
+                        "comments_excerpt": { "type": "integer", "description": "Max chars per text; 0 = full; default 500" },
+                        "body": { "type": "integer", "description": "0 = omit item.body" }
+                    }
+                }
+            },
+            {
+                "id": "core.news.get_edit",
+                "method": "GET",
+                "path": "/news/{id}/edit",
+                "permission": "core.news",
+                "description": "Edit payload + folder options, staff/partner groups for ACCESS_*; fields hint for SIGN_REQ/IGNORE_FOLDER"
+            },
+            {
+                "id": "core.news.create",
+                "method": "POST",
+                "path": "/news/new",
+                "permission": "core.news",
+                "side_effect": "write",
+                "description": "Create article/ticket/DM/folder. Fields: NAME, SHORT, BIG, TYPE, PID, HAS_CHILDREN, IGNORE_FOLDER, SIGN_REQ, ACCESS_GROUP[], ACCESS_GROUP2[], ACCESS_USER[], STATUS/ID_CURATOR/users_resp/DT_DEADLINE for tickets",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "NAME": { "type": "string" },
+                        "TYPE": { "type": "integer" },
+                        "BIG": { "type": "string" },
+                        "PID": { "type": "integer" },
+                        "HAS_CHILDREN": { "type": "integer", "description": "1 = folder (no status/curator/SIGN_REQ)" },
+                        "IGNORE_FOLDER": { "type": "integer", "description": "1 = archive folder" },
+                        "SIGN_REQ": { "type": "integer", "description": "1 = require acknowledgment comment" },
+                        "ACCESS_GROUP": { "description": "status id[] or #id# list" },
+                        "ACCESS_USER": { "description": "user id[]; required for TYPE=3" }
+                    },
+                    "required": ["NAME"]
+                }
+            },
+            {
+                "id": "core.news.update",
+                "method": "POST",
+                "path": "/news/{id}/edit",
+                "permission": "core.news",
+                "side_effect": "write",
+                "description": "Update news/folder; keep_signs=1 preserves views/signs when body changes. Folders cannot unset HAS_CHILDREN while children exist."
+            },
+            {
+                "id": "core.news.act",
+                "method": "POST",
+                "path": "/news/{id}",
+                "permission": "core.news",
+                "side_effect": "write",
+                "description": "News item actions. Comments: comment (add; text + optional new_sign=1, reply_pid), edit_comment (own; comment_id+text), hide_comment/show_comment (own or superadmin; comment_id), delete_comment (own, time/replies limits; comment_id). Also like, favorite, delete (item), restore_version (log_id). Returns comment_id/comment on comment ops.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|like|favorite|delete|restore_version|color_comment"
+                        },
+                        "text": { "type": "string", "description": "Body for comment or edit_comment" },
+                        "comment_id": { "type": "integer", "description": "Target comment for edit/hide/show/delete" },
+                        "new_sign": { "type": "integer", "description": "1 = acknowledge SIGN_REQ with this comment" },
+                        "reply_pid": { "type": "integer", "description": "Parent comment id when replying" },
+                        "log_id": { "type": "integer", "description": "Version id for restore_version" }
+                    },
+                    "required": ["action"]
+                }
             }
         ]
     },

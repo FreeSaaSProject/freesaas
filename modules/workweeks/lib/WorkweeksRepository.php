@@ -347,6 +347,66 @@ final class WorkweeksRepository
     }
 
     /**
+     * Leaf news/tickets for the schedule-log target picker.
+     *
+     * @return array<int,string> id => label
+     */
+    public static function scheduleNewsOptions(int $includeId = 0, int $limit = 200): array
+    {
+        if (!Database::tableExists('base_news')) {
+            return [];
+        }
+        $limit = max(1, min(500, $limit));
+        $out = [];
+        $rows = Database::pdo()->query(
+            'SELECT ID, NAME, TYPE, DT FROM base_news
+             WHERE DISABLED = 0 AND HAS_CHILDREN = 0 AND TYPE IN (1, 2)
+             ORDER BY DT DESC, ID DESC
+             LIMIT ' . $limit
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $r) {
+            $id = (int)$r['ID'];
+            $out[$id] = self::scheduleNewsOptionLabel(
+                $id,
+                (string)($r['NAME'] ?? ''),
+                (int)($r['TYPE'] ?? 0),
+                (int)($r['DT'] ?? 0)
+            );
+        }
+        if ($includeId > 0 && !isset($out[$includeId])) {
+            $row = class_exists('NewsRepository', false) ? NewsRepository::find($includeId) : null;
+            if ($row && (int)($row['HAS_CHILDREN'] ?? 0) === 0 && (int)($row['DISABLED'] ?? 0) === 0) {
+                $out[$includeId] = self::scheduleNewsOptionLabel(
+                    $includeId,
+                    (string)($row['NAME'] ?? ''),
+                    (int)($row['TYPE'] ?? 0),
+                    (int)($row['DT'] ?? 0)
+                );
+            } else {
+                $out[$includeId] = '#' . $includeId;
+            }
+        }
+        return $out;
+    }
+
+    private static function scheduleNewsOptionLabel(int $id, string $name, int $type, int $dt): string
+    {
+        $name = trim($name);
+        if ($name === '') {
+            $name = '#' . $id;
+        }
+        $typeLabel = class_exists('NewsRepository', false)
+            ? NewsRepository::typeLabel($type)
+            : ('#' . $type);
+        $when = $dt > 0 ? date('d.m.Y', $dt) : '';
+        $bits = [$typeLabel, $name];
+        if ($when !== '') {
+            $bits[] = $when;
+        }
+        return '#' . $id . ' — ' . implode(' · ', $bits);
+    }
+
+    /**
      * Oper hard-coded adminWorkTime windows (PRICE_COL 1..5).
      *
      * @return array<int,array{start:string,end:string,label:string}>

@@ -16,8 +16,8 @@
   "routes": {
     "pages": []
   },
-  "agent": {
-    "note": "No module HTTP routes; comment thread UI is embedded on core /news/{id} via EventBus hooks (core.news_item.*, comments.prepare_add).",
+    "agent": {
+    "note": "No module HTTP routes. Read via core.news.get (paged: comments_limit/offset/pid/excerpt; child_count to drill). Write via core.news.act: comment|edit_comment|hide_comment|show_comment|delete_comment.",
     "ops": []
   },
   "jobs": [],

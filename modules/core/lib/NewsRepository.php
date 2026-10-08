@@ -78,6 +78,7 @@ final class NewsRepository
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $userId = (int)($opts['user_id'] ?? 0);
         $unread = !empty($opts['unread']) && $type !== 4;
+        $unsigned = !empty($opts['unsigned']) && $type !== 4;
         $order = trim((string)($opts['order'] ?? ''));
         if ($order === '') {
             $order = ($type === 2)
@@ -88,6 +89,7 @@ final class NewsRepository
         $pdo = Database::pdo();
         $where = ['DISABLED = 0'];
         $params = [];
+        $flatMode = $unread || $unsigned;
 
         // Favorites virtual type
         if ($type === 4) {
@@ -97,8 +99,8 @@ final class NewsRepository
             }
             $where[] = 'ID IN (' . implode(',', array_map('intval', $favIds)) . ')';
             $where[] = 'HAS_CHILDREN = 0';
-        } elseif ($unread) {
-            // Oper ANSTYPE=1: flat unread leaves across folders (no PID root filter)
+        } elseif ($flatMode) {
+            // Flat leaves across folders (oper ANSTYPE=1 unread / ANSTYPE=2 needs-sign)
             if ($userId < 1 || !Database::tableExists('base_views')) {
                 return ['items' => [], 'total' => 0, 'folders' => []];
             }
@@ -106,13 +108,29 @@ final class NewsRepository
                 $where[] = 'TYPE = ?';
                 $params[] = $type;
             }
-            $where[] = 'NOT EXISTS (
-                SELECT 1 FROM base_views v
-                WHERE v.ID_OBJ = base_news.ID
-                  AND v.TYPE_OBJ = \'base_news\'
-                  AND v.ID_USER = ?
-            )';
-            $params[] = $userId;
+            $archiveSql = self::sqlExcludeArchiveChildren('base_news');
+            if ($archiveSql !== '') {
+                $where[] = $archiveSql;
+            }
+            if ($unread) {
+                $where[] = 'NOT EXISTS (
+                    SELECT 1 FROM base_views v
+                    WHERE v.ID_OBJ = base_news.ID
+                      AND v.TYPE_OBJ = \'base_news\'
+                      AND v.ID_USER = ?
+                )';
+                $params[] = $userId;
+            }
+            if ($unsigned) {
+                $where[] = 'SIGN_REQ = 1';
+                $where[] = 'NOT EXISTS (
+                    SELECT 1 FROM base_views v
+                    WHERE v.ID_OBJ = base_news.ID
+                      AND v.TYPE_OBJ = \'base_news_sign\'
+                      AND v.ID_USER = ?
+                )';
+                $params[] = $userId;
+            }
         } else {
             if ($pid > 0) {
                 $where[] = 'PID = ?';
@@ -137,28 +155,24 @@ final class NewsRepository
             $params[] = $like;
             $params[] = $like;
         }
-        if (($type === 3 || $type === 0) && $userId > 0) {
-            if ($type === 3) {
-                $where[] = '(ID_USER = ? OR ACCESS_USER = ? OR ACCESS_USER LIKE ?)';
-                $params[] = $userId;
-                $params[] = (string)$userId;
-                $params[] = '%#' . $userId . '#%';
-            } elseif ($type === 0) {
-                $where[] = '(TYPE <> 3 OR ID_USER = ? OR ACCESS_USER = ? OR ACCESS_USER LIKE ?)';
-                $params[] = $userId;
-                $params[] = (string)$userId;
-                $params[] = '%#' . $userId . '#%';
+        if ($userId > 0 && !Auth::isSuperAdmin()) {
+            $acc = self::accessWhereSql($userId, 'base_news');
+            if ($acc['sql'] !== '') {
+                $where[] = $acc['sql'];
+                foreach ($acc['params'] as $p) {
+                    $params[] = $p;
+                }
             }
         }
 
         $sqlWhere = implode(' AND ', $where);
 
-        // Folders in current scope (HAS_CHILDREN=1); unread mode is flat leaves only
+        // Folders in current scope (HAS_CHILDREN=1); flat unread/unsigned modes are leaves only
         $folders = [];
-        if ($type !== 4 && !$unread) {
+        if ($type !== 4 && !$flatMode) {
             $folderWhere = $sqlWhere . ' AND HAS_CHILDREN = 1';
             $stF = $pdo->prepare(
-                "SELECT ID, DT, ID_USER, NAME, SHORT, TYPE, STATUS, PID, HAS_CHILDREN
+                "SELECT ID, DT, ID_USER, NAME, SHORT, TYPE, STATUS, PID, HAS_CHILDREN, IGNORE_FOLDER
                  FROM base_news WHERE $folderWhere ORDER BY NAME ASC"
             );
             $stF->execute($params);
@@ -232,25 +246,143 @@ final class NewsRepository
         return array_values($ids);
     }
 
-    public static function canView(array $row, int $userId): bool
+    /** Encode ids as oper-style #1#,#2# list (empty = everyone / no restriction). */
+    public static function encodeIdList(array $ids): string
     {
-        if ((int)$row['DISABLED'] === 1) {
+        $clean = [];
+        foreach ($ids as $id) {
+            $n = (int)$id;
+            if ($n > 0) {
+                $clean[$n] = $n;
+            }
+        }
+        if (!$clean) {
+            return '';
+        }
+        return '#' . implode('#,#', array_values($clean)) . '#';
+    }
+
+    public static function idInAccessList(string $raw, int $id): bool
+    {
+        if ($id < 1) {
             return false;
         }
-        if ((int)$row['TYPE'] !== 3) {
+        $raw = trim($raw);
+        if ($raw === '' || $raw === '0') {
+            return false;
+        }
+        if ($raw === (string)$id) {
             return true;
+        }
+        return strpos($raw, '#' . $id . '#') !== false;
+    }
+
+    public static function canView(array $row, int $userId): bool
+    {
+        if ((int)($row['DISABLED'] ?? 0) === 1) {
+            return Auth::isSuperAdmin();
         }
         if ($userId < 1) {
             return false;
         }
-        if ((int)$row['ID_USER'] === $userId) {
+        if (Auth::isSuperAdmin()) {
             return true;
         }
-        $access = (string)$row['ACCESS_USER'];
-        if ($access === (string)$userId) {
+        $author = (int)($row['ID_USER'] ?? 0);
+        if ($author === $userId) {
             return true;
         }
-        return strpos($access, '#' . $userId . '#') !== false;
+        $type = (int)($row['TYPE'] ?? 0);
+        $g1 = (string)($row['ACCESS_GROUP'] ?? '');
+        $g2 = (string)($row['ACCESS_GROUP2'] ?? '');
+        $au = (string)($row['ACCESS_USER'] ?? '');
+        $emptyG1 = ($g1 === '' || $g1 === '0');
+        $emptyG2 = ($g2 === '' || $g2 === '0');
+        $emptyAu = ($au === '' || $au === '0');
+
+        if ($type === 3) {
+            return self::idInAccessList($au, $userId);
+        }
+
+        // Role without SHOW_NEWS cannot see "everyone" (no group / no users) items
+        if ($emptyG1 && $emptyAu && !Auth::capability('SHOW_NEWS')) {
+            return false;
+        }
+
+        if ($type === 0) {
+            $after = self::userShowNewsAfter($userId);
+            if ($after > 0 && (int)($row['DT'] ?? 0) < $after) {
+                return false;
+            }
+        }
+
+        $okG1 = $emptyG1 || self::idInAccessList($g1, Auth::statusId());
+        $okG2 = $emptyG2 || self::idInAccessList($g2, Auth::statusId2());
+        $okAu = $emptyAu || self::idInAccessList($au, $userId);
+        return $okG1 && $okG2 && $okAu;
+    }
+
+    private static function userShowNewsAfter(int $userId): int
+    {
+        static $cache = [];
+        if (array_key_exists($userId, $cache)) {
+            return $cache[$userId];
+        }
+        $u = UsersRepository::find($userId);
+        return $cache[$userId] = (int)($u['showNewsAfter'] ?? 0);
+    }
+
+    /**
+     * SQL access filter for non-superadmin (oper list/notices predicates).
+     * @return array{sql:string,params:list<mixed>}
+     */
+    public static function accessWhereSql(int $userId, string $alias = 'base_news'): array
+    {
+        if ($userId < 1 || Auth::isSuperAdmin()) {
+            return ['sql' => '', 'params' => []];
+        }
+        $a = $alias !== '' ? $alias . '.' : '';
+        $group = Auth::statusId();
+        $group2 = Auth::statusId2();
+        $showNews = Auth::capability('SHOW_NEWS');
+        $params = [];
+
+        // Params must follow placeholder order in the final SQL string.
+        $dm = '(' . $a . 'TYPE = 3 AND (' . $a . 'ID_USER = ? OR ' . $a . 'ACCESS_USER = ? OR ' . $a . 'ACCESS_USER LIKE ?))';
+        $params[] = $userId;
+        $params[] = (string)$userId;
+        $params[] = '%#' . $userId . '#%';
+
+        $g1Empty = '(' . $a . 'ACCESS_GROUP = \'\' OR ' . $a . 'ACCESS_GROUP = \'0\' OR ' . $a . 'ACCESS_GROUP IS NULL)';
+        $g2Empty = '(' . $a . 'ACCESS_GROUP2 = \'\' OR ' . $a . 'ACCESS_GROUP2 = \'0\' OR ' . $a . 'ACCESS_GROUP2 IS NULL)';
+        $auEmpty = '(' . $a . 'ACCESS_USER = \'\' OR ' . $a . 'ACCESS_USER = \'0\' OR ' . $a . 'ACCESS_USER IS NULL)';
+
+        $g1Ok = '(' . $g1Empty . ' OR ' . $a . 'ACCESS_GROUP = ? OR ' . $a . 'ACCESS_GROUP LIKE ?)';
+        $g2Ok = '(' . $g2Empty . ' OR ' . $a . 'ACCESS_GROUP2 = ? OR ' . $a . 'ACCESS_GROUP2 LIKE ?)';
+        $auOk = '(' . $auEmpty . ' OR ' . $a . 'ACCESS_USER = ? OR ' . $a . 'ACCESS_USER LIKE ?)';
+
+        $everyoneOk = $showNews
+            ? '1=1'
+            : 'NOT (' . $g1Empty . ' AND ' . $auEmpty . ')';
+
+        // ID_USER ? comes before ACCESS_* placeholders inside nonDm
+        $nonDm = '(' . $a . 'TYPE <> 3 AND (' . $a . 'ID_USER = ? OR ((' . $g1Ok . ') AND (' . $g2Ok . ') AND (' . $auOk . ') AND (' . $everyoneOk . '))))';
+        $params[] = $userId;
+        $params[] = (string)$group;
+        $params[] = '%#' . $group . '#%';
+        $params[] = (string)$group2;
+        $params[] = '%#' . $group2 . '#%';
+        $params[] = (string)$userId;
+        $params[] = '%#' . $userId . '#%';
+
+        $after = self::userShowNewsAfter($userId);
+        $newsAfter = '';
+        if ($after > 0) {
+            $newsAfter = ' AND NOT (' . $a . 'TYPE = 0 AND ' . $a . 'DT < ?)';
+            $params[] = $after;
+        }
+
+        return ['sql' => '((' . $dm . ') OR (' . $nonDm . '))' . $newsAfter, 'params' => $params];
     }
 
     public static function canEdit(array $row, int $userId): bool
@@ -294,13 +426,29 @@ final class NewsRepository
         $type = (int)($data['TYPE'] ?? 1);
         $status = isset($data['STATUS']) ? (int)$data['STATUS'] : ($type === 2 ? 1 : 0);
         $hasChildren = !empty($data['HAS_CHILDREN']) ? 1 : 0;
+        $ignoreFolder = $hasChildren && !empty($data['IGNORE_FOLDER']) ? 1 : 0;
+        $signReq = (!$hasChildren && !empty($data['SIGN_REQ'])) ? 1 : 0;
         $pidContract = max(0, (int)($data['PID_CONTRACT'] ?? 0));
+        $accessGroup = (string)($data['ACCESS_GROUP'] ?? '');
+        $accessGroup2 = (string)($data['ACCESS_GROUP2'] ?? '');
+        $accessUser = (string)($data['ACCESS_USER'] ?? '');
+        if ($type === 3) {
+            $accessGroup = '';
+            $accessGroup2 = '';
+        }
+        if ($hasChildren) {
+            $status = 0;
+            $signReq = 0;
+            $data['ID_CURATOR'] = 0;
+            $data['USERS_RESP'] = '';
+            $data['DT_DEADLINE'] = 0;
+        }
         $st = Database::pdo()->prepare(
             'INSERT INTO base_news SET
                 DT=?, ID_USER=?, NAME=?, SHORT=?, BIG=?, ACCESS_GROUP=?, ACCESS_GROUP2=?, ACCESS_USER=?,
-                TYPE=?, DISABLED=0, STATUS=?, USERS_WATCHED=?, SIGN_REQ=0, USERS_SIGNED=?, COMMENTS_LOCKED=?,
+                TYPE=?, DISABLED=0, STATUS=?, USERS_WATCHED=?, SIGN_REQ=?, USERS_SIGNED=?, COMMENTS_LOCKED=?,
                 DT_DEADLINE=?, USERS_RESP=?, DT_STARTLINE=0, ID_CURATOR=?, PID=?, HAS_CHILDREN=?,
-                ID_USER_UPDATE=?, DT_UPDATE=?, PID_CONTRACT=?, ID_OFFER_COMMENT=0, IGNORE_FOLDER=0'
+                ID_USER_UPDATE=?, DT_UPDATE=?, PID_CONTRACT=?, ID_OFFER_COMMENT=0, IGNORE_FOLDER=?'
         );
         $st->execute([
             $now,
@@ -308,22 +456,24 @@ final class NewsRepository
             (string)($data['NAME'] ?? ''),
             (string)($data['SHORT'] ?? ''),
             (string)($data['BIG'] ?? ''),
-            '',
-            '',
-            (string)($data['ACCESS_USER'] ?? ''),
+            $accessGroup,
+            $accessGroup2,
+            $accessUser,
             $type,
             $status,
             '',
+            $signReq,
             '',
             isset($data['COMMENTS_LOCKED']) ? (int)$data['COMMENTS_LOCKED'] : ($hasChildren ? 1 : 0),
             (int)($data['DT_DEADLINE'] ?? 0),
             (string)($data['USERS_RESP'] ?? ''),
-            (int)($data['ID_CURATOR'] ?? ($type === 2 ? $authorId : 0)),
+            (int)($data['ID_CURATOR'] ?? ($type === 2 && !$hasChildren ? $authorId : 0)),
             (int)($data['PID'] ?? 0),
             $hasChildren,
             $authorId,
             $now,
             $pidContract,
+            $ignoreFolder,
         ]);
         return (int)Database::pdo()->lastInsertId();
     }
@@ -340,13 +490,33 @@ final class NewsRepository
             'STATUS' => 'STATUS',
             'ID_CURATOR' => 'ID_CURATOR',
             'DT_DEADLINE' => 'DT_DEADLINE',
+            'ACCESS_GROUP' => 'ACCESS_GROUP',
+            'ACCESS_GROUP2' => 'ACCESS_GROUP2',
             'ACCESS_USER' => 'ACCESS_USER',
+            'SIGN_REQ' => 'SIGN_REQ',
             'PID' => 'PID',
             'HAS_CHILDREN' => 'HAS_CHILDREN',
+            'IGNORE_FOLDER' => 'IGNORE_FOLDER',
             'USERS_RESP' => 'USERS_RESP',
             'COMMENTS_LOCKED' => 'COMMENTS_LOCKED',
             'PID_CONTRACT' => 'PID_CONTRACT',
         ];
+        if (array_key_exists('HAS_CHILDREN', $data) && empty($data['HAS_CHILDREN'])) {
+            $data['IGNORE_FOLDER'] = 0;
+        } elseif (array_key_exists('IGNORE_FOLDER', $data) && array_key_exists('HAS_CHILDREN', $data)) {
+            $data['IGNORE_FOLDER'] = !empty($data['HAS_CHILDREN']) && !empty($data['IGNORE_FOLDER']) ? 1 : 0;
+        }
+        if (array_key_exists('HAS_CHILDREN', $data) && !empty($data['HAS_CHILDREN'])) {
+            $data['SIGN_REQ'] = 0;
+            $data['STATUS'] = 0;
+            $data['ID_CURATOR'] = 0;
+            $data['USERS_RESP'] = '';
+            $data['DT_DEADLINE'] = 0;
+        }
+        if (array_key_exists('TYPE', $data) && (int)$data['TYPE'] === 3) {
+            $data['ACCESS_GROUP'] = '';
+            $data['ACCESS_GROUP2'] = '';
+        }
         foreach ($map as $key => $col) {
             if (array_key_exists($key, $data)) {
                 $fields[] = "$col = ?";
@@ -359,6 +529,12 @@ final class NewsRepository
         $old = self::find($id);
         if ($old) {
             NewsLogsRepository::maybeSnapshot($old, $editorId);
+            if (array_key_exists('BIG', $data)
+                && (string)$data['BIG'] !== (string)($old['BIG'] ?? '')
+                && empty($data['keep_signs'])
+            ) {
+                self::clearViewMarks($id, true, true);
+            }
         }
         $fields[] = 'ID_USER_UPDATE = ?';
         $params[] = $editorId;
@@ -405,21 +581,36 @@ final class NewsRepository
         if (!Database::tableExists('base_news')) {
             return $out;
         }
-        $rows = Database::pdo()->query(
+        $excl = self::sqlExcludeArchiveChildren('base_news');
+        $acc = $userId > 0 ? self::accessWhereSql($userId, 'base_news') : ['sql' => '', 'params' => []];
+        $extra = '';
+        $params = [];
+        if ($excl !== '') {
+            $extra .= ' AND ' . $excl;
+        }
+        if ($acc['sql'] !== '') {
+            $extra .= ' AND (' . $acc['sql'] . ')';
+            $params = $acc['params'];
+        }
+        $st = Database::pdo()->prepare(
             'SELECT TYPE, COUNT(*) AS c FROM base_news
-             WHERE DISABLED=0 AND HAS_CHILDREN=0 AND TYPE IN (0,1,2,3)
+             WHERE DISABLED=0 AND HAS_CHILDREN=0 AND TYPE IN (0,1,2,3)'
+            . $extra . '
              GROUP BY TYPE'
-        )->fetchAll();
-        foreach ($rows as $r) {
+        );
+        $st->execute($params);
+        foreach ($st->fetchAll() ?: [] as $r) {
             $out[(int)$r['TYPE']] = (int)$r['c'];
         }
-        // Folders count toward availability of a type tab
-        $folderRows = Database::pdo()->query(
+        // Folders count toward availability of a type tab (incl. archive folders themselves)
+        $stF = Database::pdo()->prepare(
             'SELECT TYPE, COUNT(*) AS c FROM base_news
-             WHERE DISABLED=0 AND HAS_CHILDREN=1 AND TYPE IN (0,1,2,3)
+             WHERE DISABLED=0 AND HAS_CHILDREN=1 AND TYPE IN (0,1,2,3)'
+            . ($acc['sql'] !== '' ? ' AND (' . $acc['sql'] . ')' : '') . '
              GROUP BY TYPE'
-        )->fetchAll();
-        foreach ($folderRows as $r) {
+        );
+        $stF->execute($acc['params']);
+        foreach ($stF->fetchAll() ?: [] as $r) {
             $t = (int)$r['TYPE'];
             $out[$t] += (int)$r['c'];
         }
@@ -428,7 +619,84 @@ final class NewsRepository
         return $out;
     }
 
+    /** Folder IDs with IGNORE_FOLDER=1 (oper archive / «не приглашать»). */
+    public static function archiveFolderIds(): array
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        $cache = [];
+        if (!Database::tableExists('base_news') || !Database::columnExists('base_news', 'IGNORE_FOLDER')) {
+            return $cache;
+        }
+        $rows = Database::pdo()->query(
+            'SELECT ID FROM base_news
+             WHERE DISABLED = 0 AND HAS_CHILDREN = 1 AND IGNORE_FOLDER = 1'
+        )->fetchAll() ?: [];
+        foreach ($rows as $r) {
+            $id = (int)$r['ID'];
+            if ($id > 0) {
+                $cache[] = $id;
+            }
+        }
+        return $cache;
+    }
+
+    /**
+     * SQL condition (no leading AND): hide direct children of archive folders.
+     * Empty string when there are no archive folders.
+     */
+    public static function sqlExcludeArchiveChildren(string $tableOrAlias = ''): string
+    {
+        $ids = self::archiveFolderIds();
+        if (!$ids) {
+            return '';
+        }
+        $col = $tableOrAlias !== '' ? $tableOrAlias . '.PID' : 'PID';
+        return 'IFNULL(' . $col . ', 0) NOT IN (' . implode(',', array_map('intval', $ids)) . ')';
+    }
+
+    public static function isArchiveFolderId(int $folderId): bool
+    {
+        return $folderId > 0 && in_array($folderId, self::archiveFolderIds(), true);
+    }
+
+    /** Direct children count (any DISABLED), used to lock HAS_CHILDREN. */
+    public static function childCount(int $newsId): int
+    {
+        if ($newsId < 1 || !Database::tableExists('base_news')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare('SELECT COUNT(*) FROM base_news WHERE PID = ?');
+        $st->execute([$newsId]);
+        return (int)$st->fetchColumn();
+    }
+
     public static function markViewed(int $newsId, int $userId): void
+    {
+        self::ensureViewRow($newsId, $userId, 'base_news');
+    }
+
+    public static function hasSigned(int $newsId, int $userId): bool
+    {
+        if ($newsId < 1 || $userId < 1 || !Database::tableExists('base_views')) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_views WHERE ID_OBJ = ? AND TYPE_OBJ = ? AND ID_USER = ? LIMIT 1'
+        );
+        $st->execute([$newsId, 'base_news_sign', $userId]);
+        return (bool)$st->fetchColumn();
+    }
+
+    /** Acknowledge SIGN_REQ by attaching a reply (oper newSign). */
+    public static function markSigned(int $newsId, int $userId): void
+    {
+        self::ensureViewRow($newsId, $userId, 'base_news_sign');
+    }
+
+    private static function ensureViewRow(int $newsId, int $userId, string $typeObj): void
     {
         if ($newsId < 1 || $userId < 1 || !Database::tableExists('base_views')) {
             return;
@@ -437,14 +705,38 @@ final class NewsRepository
         $st = $pdo->prepare(
             'SELECT ID FROM base_views WHERE ID_OBJ = ? AND TYPE_OBJ = ? AND ID_USER = ? LIMIT 1'
         );
-        $st->execute([$newsId, 'base_news', $userId]);
+        $st->execute([$newsId, $typeObj, $userId]);
         if ($st->fetchColumn()) {
             return;
         }
         $ins = $pdo->prepare(
             'INSERT INTO base_views SET DT = ?, ID_OBJ = ?, TYPE_OBJ = ?, ID_USER = ?'
         );
-        $ins->execute([time(), $newsId, 'base_news', $userId]);
+        $ins->execute([time(), $newsId, $typeObj, $userId]);
+    }
+
+    /** Clear read/sign marks when body changes (oper default). */
+    public static function clearViewMarks(int $newsId, bool $reads = true, bool $signs = true): void
+    {
+        if ($newsId < 1 || !Database::tableExists('base_views')) {
+            return;
+        }
+        $types = [];
+        if ($reads) {
+            $types[] = 'base_news';
+        }
+        if ($signs) {
+            $types[] = 'base_news_sign';
+        }
+        if (!$types) {
+            return;
+        }
+        $in = implode(',', array_map(static function ($t) {
+            return Database::pdo()->quote($t);
+        }, $types));
+        Database::pdo()->prepare(
+            "DELETE FROM base_views WHERE ID_OBJ = ? AND TYPE_OBJ IN ($in)"
+        )->execute([$newsId]);
     }
 
     /** @return list<int> */
@@ -535,5 +827,92 @@ final class NewsRepository
             return '<span class="muted">' . te('core.news.access.everyone') . '</span>';
         }
         return implode(' ', $parts);
+    }
+
+    /**
+     * Machine-readable news/folder row for agent JSON.
+     *
+     * @param array<string,mixed>|null $row
+     * @return array<string,mixed>|null
+     */
+    public static function forAgent(?array $row, bool $withBody = false): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+        $id = (int)($row['ID'] ?? 0);
+        $type = (int)($row['TYPE'] ?? 0);
+        $isFolder = (int)($row['HAS_CHILDREN'] ?? 0) === 1;
+        $out = [
+            'id' => $id,
+            'type' => $type,
+            'type_label' => self::typeLabel($type),
+            'name' => (string)($row['NAME'] ?? ''),
+            'short' => (string)($row['SHORT'] ?? ''),
+            'dt' => (int)($row['DT'] ?? 0),
+            'dt_update' => (int)($row['DT_UPDATE'] ?? 0),
+            'id_user' => (int)($row['ID_USER'] ?? 0),
+            'id_user_update' => (int)($row['ID_USER_UPDATE'] ?? 0),
+            'pid' => (int)($row['PID'] ?? 0),
+            'is_folder' => $isFolder,
+            'ignore_folder' => !empty($row['IGNORE_FOLDER']) ? 1 : 0,
+            'sign_req' => !empty($row['SIGN_REQ']) ? 1 : 0,
+            'status' => (int)($row['STATUS'] ?? 0),
+            'id_curator' => (int)($row['ID_CURATOR'] ?? 0),
+            'dt_deadline' => (int)($row['DT_DEADLINE'] ?? 0),
+            'users_resp' => self::parseUserList((string)($row['USERS_RESP'] ?? '')),
+            'access_group' => self::parseUserList((string)($row['ACCESS_GROUP'] ?? '')),
+            'access_group2' => self::parseUserList((string)($row['ACCESS_GROUP2'] ?? '')),
+            'access_user' => self::parseUserList((string)($row['ACCESS_USER'] ?? '')),
+            'comments_locked' => !empty($row['COMMENTS_LOCKED']) ? 1 : 0,
+            'disabled' => !empty($row['DISABLED']) ? 1 : 0,
+        ];
+        if ($withBody) {
+            $out['body'] = (string)($row['BIG'] ?? '');
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function listForAgent(array $items, bool $withBody = false): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $item = self::forAgent($row, $withBody);
+            if ($item !== null) {
+                $out[] = $item;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Normalize ACCESS_* POST value: id[], "#id#,#id#", or "1,2,3".
+     *
+     * @param mixed $raw
+     */
+    public static function accessFromPost($raw): string
+    {
+        if ($raw === null || $raw === '') {
+            return '';
+        }
+        if (is_array($raw)) {
+            return self::encodeIdList(array_map('intval', $raw));
+        }
+        $s = trim((string)$raw);
+        if ($s === '' || $s === '0') {
+            return '';
+        }
+        if (strpos($s, '#') !== false) {
+            return $s;
+        }
+        $parts = preg_split('/[,\s]+/', $s) ?: [];
+        return self::encodeIdList(array_map('intval', $parts));
     }
 }

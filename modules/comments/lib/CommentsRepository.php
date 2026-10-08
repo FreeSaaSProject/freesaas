@@ -111,13 +111,15 @@ final class CommentsRepository
             (int)($extra['BUDGET_OFFER'] ?? 0),
             (int)($extra['DT_DEADLINE'] ?? 0),
         ]);
+        // Capture before other statements — DELETE can reset PDO lastInsertId (MyISAM).
+        $newId = (int)Database::pdo()->lastInsertId();
         if (Database::tableExists('base_views')) {
             $del = Database::pdo()->prepare(
                 'DELETE FROM base_views WHERE ID_OBJ = ? AND TYPE_OBJ = ?'
             );
             $del->execute([$newsId, 'base_news']);
         }
-        return (int)Database::pdo()->lastInsertId();
+        return $newId;
     }
 
     /**
@@ -207,6 +209,192 @@ final class CommentsRepository
     public static function canModerate(array $comment, int $userId): bool
     {
         return Auth::isSuperAdmin() || ((int)$comment['ID_USER'] === $userId);
+    }
+
+    /**
+     * Machine-readable comment for agent JSON.
+     *
+     * @param array<string,mixed>|null $row
+     * @param array{excerpt?:int,child_count?:int} $opts
+     * @return array<string,mixed>|null
+     */
+    public static function forAgent(?array $row, array $opts = []): ?array
+    {
+        if ($row === null) {
+            return null;
+        }
+        $text = (string)($row['TEXT'] ?? '');
+        $excerpt = isset($opts['excerpt']) ? (int)$opts['excerpt'] : 0;
+        $truncated = false;
+        if ($excerpt > 0 && mb_strlen($text) > $excerpt) {
+            $text = mb_substr($text, 0, $excerpt);
+            $truncated = true;
+        }
+        $out = [
+            'id' => (int)($row['ID'] ?? 0),
+            'news_id' => (int)($row['ID_OBJECT'] ?? 0),
+            'pid' => (int)($row['PID'] ?? 0),
+            'id_user' => (int)($row['ID_USER'] ?? 0),
+            'dt' => (int)($row['DT'] ?? 0),
+            'text' => $text,
+            'text_truncated' => $truncated ? 1 : 0,
+            'disabled' => !empty($row['DISABLED']) ? 1 : 0,
+            'color' => (int)($row['COLOR'] ?? 0),
+            'status_update' => !empty($row['STATUS_UPDATE']) ? 1 : 0,
+        ];
+        if (array_key_exists('child_count', $opts)) {
+            $out['child_count'] = (int)$opts['child_count'];
+        } elseif (array_key_exists('_child_count', $row)) {
+            $out['child_count'] = (int)$row['_child_count'];
+        }
+        return $out;
+    }
+
+    /**
+     * Paginated comments for agents (roots or direct children of pid).
+     *
+     * @param array{
+     *   pid?:int,
+     *   limit?:int,
+     *   offset?:int,
+     *   order?:string,
+     *   excerpt?:int,
+     *   include_hidden?:bool,
+     *   id?:int
+     * } $opts
+     * @return array{
+     *   items:list<array<string,mixed>>,
+     *   total:int,
+     *   returned:int,
+     *   limit:int,
+     *   offset:int,
+     *   pid:int,
+     *   order:string,
+     *   excerpt:int,
+     *   has_more:bool,
+     *   next_offset:?int
+     * }
+     */
+    public static function listForAgent(int $newsId, array $opts = []): array
+    {
+        $pid = max(0, (int)($opts['pid'] ?? 0));
+        $limit = (int)($opts['limit'] ?? 20);
+        if ($limit < 0) {
+            $limit = 20;
+        }
+        $limit = min(100, $limit);
+        $offset = max(0, (int)($opts['offset'] ?? 0));
+        $order = strtolower((string)($opts['order'] ?? 'desc'));
+        if ($order !== 'asc' && $order !== 'desc') {
+            $order = 'desc';
+        }
+        $excerpt = max(0, (int)($opts['excerpt'] ?? 500));
+        $includeHidden = !empty($opts['include_hidden']);
+        $singleId = max(0, (int)($opts['id'] ?? 0));
+
+        $empty = [
+            'items' => [],
+            'total' => 0,
+            'returned' => 0,
+            'limit' => $limit,
+            'offset' => $offset,
+            'pid' => $pid,
+            'order' => $order,
+            'excerpt' => $excerpt,
+            'has_more' => false,
+            'next_offset' => null,
+        ];
+        if ($newsId < 1 || !Database::tableExists('base_comments')) {
+            return $empty;
+        }
+
+        $pdo = Database::pdo();
+        $where = ['ID_OBJECT = ?'];
+        $params = [$newsId];
+        if ($singleId > 0) {
+            $where[] = 'ID = ?';
+            $params[] = $singleId;
+        } else {
+            $where[] = 'PID = ?';
+            $params[] = $pid;
+        }
+        if (!$includeHidden) {
+            $where[] = 'DISABLED = 0';
+        }
+        $sqlWhere = implode(' AND ', $where);
+
+        $stCount = $pdo->prepare("SELECT COUNT(*) FROM base_comments WHERE $sqlWhere");
+        $stCount->execute($params);
+        $total = (int)$stCount->fetchColumn();
+
+        if ($limit === 0) {
+            $empty['total'] = $total;
+            return $empty;
+        }
+
+        $sql = "SELECT * FROM base_comments WHERE $sqlWhere ORDER BY DT $order, ID $order";
+        if ($singleId < 1) {
+            $sql .= ' LIMIT ' . (int)$limit . ' OFFSET ' . (int)$offset;
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $rows = $st->fetchAll() ?: [];
+
+        $ids = [];
+        foreach ($rows as $r) {
+            $ids[] = (int)$r['ID'];
+        }
+        $childCounts = self::directChildCounts($ids, $includeHidden);
+
+        $items = [];
+        foreach ($rows as $r) {
+            $cid = (int)$r['ID'];
+            $item = self::forAgent($r, [
+                'excerpt' => $excerpt,
+                'child_count' => $childCounts[$cid] ?? 0,
+            ]);
+            if ($item !== null) {
+                $items[] = $item;
+            }
+        }
+
+        $returned = count($items);
+        $hasMore = $singleId < 1 && ($offset + $returned) < $total;
+        return [
+            'items' => $items,
+            'total' => $total,
+            'returned' => $returned,
+            'limit' => $limit,
+            'offset' => $offset,
+            'pid' => $pid,
+            'order' => $order,
+            'excerpt' => $excerpt,
+            'has_more' => $hasMore,
+            'next_offset' => $hasMore ? $offset + $returned : null,
+        ];
+    }
+
+    /**
+     * @param list<int> $parentIds
+     * @return array<int,int>
+     */
+    public static function directChildCounts(array $parentIds, bool $includeHidden = false): array
+    {
+        $out = [];
+        $ids = array_values(array_filter(array_map('intval', $parentIds)));
+        if (!$ids || !Database::tableExists('base_comments')) {
+            return $out;
+        }
+        $in = implode(',', $ids);
+        $sql = "SELECT PID, COUNT(*) AS c FROM base_comments WHERE PID IN ($in)";
+        if (!$includeHidden) {
+            $sql .= ' AND DISABLED = 0';
+        }
+        $sql .= ' GROUP BY PID';
+        foreach (Database::pdo()->query($sql)->fetchAll() ?: [] as $r) {
+            $out[(int)$r['PID']] = (int)$r['c'];
+        }
+        return $out;
     }
 
     /** @param list<int> $newsIds @return array<int,int> newsId => visible comment count */

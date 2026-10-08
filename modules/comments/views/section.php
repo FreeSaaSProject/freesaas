@@ -11,6 +11,7 @@
 /** @var array $respIds */
 /** @var array $staff */
 /** @var bool $contractLocked */
+/** @var bool $needsSign */
 
 Assets::need('comments');
 
@@ -21,6 +22,7 @@ $isTicket = (int)$row['TYPE'] === 2;
 $hasDeadline = (int)$row['DT_DEADLINE'] > 0;
 $offerDefaultDl = date('Y-m-d', time() + 4 * 86400);
 $locked = !empty($row['COMMENTS_LOCKED']);
+$needsSign = !empty($needsSign);
 ?>
 <section class="comments" id="comments">
   <div class="section-head">
@@ -65,6 +67,14 @@ $locked = !empty($row['COMMENTS_LOCKED']);
     <label><?= te('comments.text') ?>
       <textarea name="text" id="comment-field" rows="4" placeholder="<?= te('comments.placeholder') ?>"></textarea>
     </label>
+
+    <?php if ($needsSign): ?>
+    <label class="check">
+      <input type="checkbox" name="new_sign" value="1" checked>
+      <?= te('comments.sign_ack') ?>
+    </label>
+    <p class="muted"><?= te('comments.sign_ack_help') ?></p>
+    <?php endif; ?>
 
     <?php
       $offerFields = EventBus::emit('comments.form.offer_fields', [

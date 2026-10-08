@@ -1845,6 +1845,20 @@ a.pager-chip:hover {
 }
 .folder-icon { color: var(--accent); font-weight: 700; }
 .folder-name { font-weight: 600; flex: 1; }
+.folder-item.is-archive {
+  border-style: dotted;
+  opacity: 0.9;
+}
+.folder-archive-badge {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
 
 .switch {
   position: relative;

@@ -13,6 +13,8 @@ return [
     'comments.send' => 'Отправить',
     'comments.clear_reply' => 'Очистить ответ',
     'comments.locked' => 'Комментарии к этой записи отключены.',
+    'comments.sign_ack' => 'Ознакомился / подписываю',
+    'comments.sign_ack_help' => 'Отметьте и отправьте любой комментарий — так фиксируется, что вы прочитали материал.',
     'comments.changes' => 'изменения',
     'comments.changes_title' => 'Изменения',
     'comments.hidden' => 'скрыт',
@@ -34,5 +36,6 @@ return [
     'comments.err.not_found' => 'Комментарий не найден',
     'comments.err.locked' => 'Комментарии отключены',
     'comments.err.edit_denied' => 'Нет прав на редактирование',
+    'comments.err.moderate_denied' => 'Нет прав скрыть или показать этот комментарий',
     'comments.err.delete_denied' => 'Удалить нельзя (время, ответы или не ваш комментарий)',
 ];
