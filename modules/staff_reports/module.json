@@ -1,130 +1,161 @@
 {
-  "id": "staff_reports",
-  "name": "staff_reports.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "audio": ">=0.1.0",
-    "audio_dicts": ">=0.1.0",
-    "comments": ">=0.1.0",
-    "procedures": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "audio_reports": ">=0.2.0",
-    "audio_pipeline": ">=0.1.0",
-    "contracts": ">=0.1.0",
-    "audio_llm": ">=0.1.0"
-  },
-  "provides": [
-    "staff_reports.day"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "staff_reports.view", "label": "staff_reports.perm.view" },
-    { "id": "staff_reports.edit", "label": "staff_reports.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/staff-reports/generate",
-      "/staff-reports/day",
-      "/staff-reports/profiles",
-      "/staff-reports/rewards"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "staff_reports.generate",
-        "method": "GET",
-        "path": "/staff-reports/generate",
-        "permission": "staff_reports.edit",
-        "side_effect": "write",
-        "description": "Generate day staff quality reports (publishes ticket comments); day=YYYY-MM-DD; emp= optional. Requires confirmation in assistant.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "day": { "type": "string", "description": "YYYY-MM-DD" },
-            "emp": { "type": "integer", "description": "Optional employee id" }
-          },
-          "required": ["day"]
-        }
-      },
-      {
-        "id": "staff_reports.day",
-        "method": "GET",
-        "path": "/staff-reports/day",
-        "permission": "staff_reports.view",
-        "side_effect": "read",
-        "description": "Read published staff day reports (no regenerate); day=YYYY-MM-DD; emp= optional",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "day": { "type": "string", "description": "YYYY-MM-DD" },
-            "emp": { "type": "integer", "description": "Optional employee id" }
-          },
-          "required": ["day"]
-        }
-      },
-      {
-        "id": "staff_reports.profiles.list",
-        "method": "GET",
-        "path": "/staff-reports/profiles",
-        "permission": "staff_reports.view",
-        "description": "List staff report profiles by position"
-      },
-      {
-        "id": "staff_reports.profiles.get",
-        "method": "GET",
-        "path": "/staff-reports/profiles",
-        "permission": "staff_reports.view",
-        "description": "Get one profile: ?position=ID"
-      },
-      {
-        "id": "staff_reports.profiles.save",
-        "method": "POST",
-        "path": "/staff-reports/profiles",
-        "permission": "staff_reports.edit",
-        "side_effect": "write",
-        "description": "Save profile JSON for position (SUPERADMIN)"
-      },
-      {
-        "id": "staff_reports.rewards",
-        "method": "GET",
-        "path": "/staff-reports/rewards",
-        "permission": "staff_reports.view",
-        "side_effect": "read",
-        "description": "Month reward markers by admin/day: year=&month="
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "audio.menu.group",
-      "num": 25,
-      "path": "/staff-reports/generate",
-      "title": "staff_reports.menu.generate"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_staff_report_profiles"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "audio.settings.sections",
-      "audio.settings.save",
-      "audio_reports.calendar.cell",
-      "audio_reports.calendar.summary_enrich",
-      "audio_reports.summary.external",
-      "audio_reports.calendar.reparse.after"
+    "id": "staff_reports",
+    "name": "staff_reports.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "audio": ">=0.1.0",
+        "audio_dicts": ">=0.1.0",
+        "comments": ">=0.1.0",
+        "procedures": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "audio_reports": ">=0.2.0",
+        "audio_pipeline": ">=0.1.0",
+        "contracts": ">=0.1.0",
+        "audio_llm": ">=0.1.0"
+    },
+    "provides": [
+        "staff_reports.day"
     ],
-    "publish": [
-      "staff_reports.day.after_analyze",
-      "staff_reports.day.before_publish",
-      "staff_reports.day.after_publish"
-    ]
-  }
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "staff_reports.view",
+            "label": "staff_reports.perm.view"
+        },
+        {
+            "id": "staff_reports.edit",
+            "label": "staff_reports.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/staff-reports/generate",
+            "/staff-reports/day",
+            "/staff-reports/profiles",
+            "/staff-reports/rewards"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "staff_reports.generate",
+                "method": "GET",
+                "path": "/staff-reports/generate",
+                "permission": "staff_reports.edit",
+                "side_effect": "write",
+                "description": "Generate day staff quality reports (publishes ticket comments); day=YYYY-MM-DD; emp= optional. Requires confirmation in assistant.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "emp": {
+                            "type": "integer",
+                            "description": "Optional employee id"
+                        }
+                    },
+                    "required": [
+                        "day"
+                    ]
+                }
+            },
+            {
+                "id": "staff_reports.day",
+                "method": "GET",
+                "path": "/staff-reports/day",
+                "permission": "staff_reports.view",
+                "side_effect": "read",
+                "description": "Read published staff day reports (no regenerate); day=YYYY-MM-DD; emp= optional",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "emp": {
+                            "type": "integer",
+                            "description": "Optional employee id"
+                        }
+                    },
+                    "required": [
+                        "day"
+                    ]
+                }
+            },
+            {
+                "id": "staff_reports.profiles.list",
+                "method": "GET",
+                "path": "/staff-reports/profiles",
+                "permission": "staff_reports.view",
+                "description": "List staff report profiles by position"
+            },
+            {
+                "id": "staff_reports.profiles.get",
+                "method": "GET",
+                "path": "/staff-reports/profiles",
+                "permission": "staff_reports.view",
+                "description": "Get one profile: ?position=ID"
+            },
+            {
+                "id": "staff_reports.profiles.save",
+                "method": "POST",
+                "path": "/staff-reports/profiles",
+                "permission": "staff_reports.edit",
+                "side_effect": "write",
+                "description": "Save profile JSON for position (SUPERADMIN)"
+            },
+            {
+                "id": "staff_reports.rewards",
+                "method": "GET",
+                "path": "/staff-reports/rewards",
+                "permission": "staff_reports.view",
+                "side_effect": "read",
+                "description": "Month reward markers by admin/day: year=&month="
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "audio.menu.group",
+            "num": 25,
+            "path": "/staff-reports/generate",
+            "title": "staff_reports.menu.generate"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_staff_report_profiles"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "audio.settings.sections",
+            "audio.settings.save",
+            "audio_reports.calendar.cell",
+            "audio_reports.calendar.summary_enrich",
+            "audio_reports.summary.external",
+            "audio_reports.calendar.reparse.after"
+        ],
+        "publish": [
+            "staff_reports.day.after_analyze",
+            "staff_reports.day.before_publish",
+            "staff_reports.day.after_publish"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "team",
+            "audio"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

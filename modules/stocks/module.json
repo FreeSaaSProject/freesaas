@@ -107,5 +107,14 @@
             "list_id": "stocks",
             "action": "delete"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "warehouse",
+            "dictionaries"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

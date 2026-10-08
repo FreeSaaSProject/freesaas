@@ -1,0 +1,247 @@
+{
+    "id": "yclients",
+    "name": "yclients.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "description": "yclients.module.description",
+    "catalog": {
+        "categories": [
+            "integrations",
+            "crm"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "integration",
+            "crm",
+            "sync",
+            "jobs"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "calendar": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "workweeks": ">=0.1.0"
+    },
+    "provides": [
+        "yclients.pull"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
+    "permissions": [
+        {
+            "id": "yclients.view",
+            "label": "yclients.perm.view"
+        },
+        {
+            "id": "yclients.edit",
+            "label": "yclients.perm.edit"
+        },
+        {
+            "id": "yclients.import",
+            "label": "yclients.perm.import"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/yclients",
+            "/yclients/import",
+            "/yclients/settings",
+            "/yclients/jobs/ping",
+            "/yclients/jobs/import-clients"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "yclients.status",
+                "method": "GET",
+                "path": "/yclients",
+                "permission": "yclients.view",
+                "side_effect": "read",
+                "description": "Status + setup checklist (missing fields, next_steps). Secrets never returned."
+            },
+            {
+                "id": "yclients.ping",
+                "method": "POST",
+                "path": "/yclients",
+                "permission": "yclients.view",
+                "side_effect": "write",
+                "description": "Session ping of YClients company API after tokens saved. Body: action=ping. No worker_token needed.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "ping"
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": "yclients.import.status",
+                "method": "GET",
+                "path": "/yclients/import",
+                "permission": "yclients.import",
+                "side_effect": "read",
+                "description": "Last clients import report + api_ready flags"
+            },
+            {
+                "id": "yclients.import.clients",
+                "method": "POST",
+                "path": "/yclients/import",
+                "permission": "yclients.import",
+                "side_effect": "write",
+                "description": "Pull clients into base_clients (map by ext id / phone). Prefer dry_run=1 first.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "clients"
+                            ]
+                        },
+                        "dry_run": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ],
+                            "description": "1 = count only, no DB writes (default recommend 1)"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "yclients.settings.get",
+                "method": "GET",
+                "path": "/yclients/settings",
+                "permission": "",
+                "side_effect": "read",
+                "description": "Read settings (secrets masked) + setup checklist. Requires SUPERADMIN_ACCESS."
+            },
+            {
+                "id": "yclients.settings.save",
+                "method": "POST",
+                "path": "/yclients/settings",
+                "permission": "",
+                "side_effect": "write",
+                "description": "Save cfg/modules/yclients.ini. Empty partner_token/user_token/worker_token keeps previous. SUPERADMIN_ACCESS.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pull_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ],
+                            "description": "Omit or 1 to enable pull"
+                        },
+                        "company_id": {
+                            "type": "string",
+                            "description": "YClients company id"
+                        },
+                        "partner_token": {
+                            "type": "string",
+                            "description": "Partner Bearer token; blank keeps current"
+                        },
+                        "user_token": {
+                            "type": "string",
+                            "description": "User token; blank keeps current"
+                        },
+                        "api_base": {
+                            "type": "string",
+                            "description": "Default https://api.yclients.com/api/v1"
+                        },
+                        "timeout_sec": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "maximum": 120
+                        },
+                        "page_size": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 200
+                        },
+                        "worker_token": {
+                            "type": "string",
+                            "description": "Cron job token (X-Yclients-Token); blank keeps current"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "yclients.jobs.ping",
+                "method": "POST",
+                "path": "/yclients/jobs/ping",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron ping; auth X-Yclients-Token or ?token="
+            },
+            {
+                "id": "yclients.jobs.import_clients",
+                "method": "POST",
+                "path": "/yclients/jobs/import-clients",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron import clients; auth X-Yclients-Token; optional dry_run=1"
+            }
+        ]
+    },
+    "jobs": [
+        "/yclients/jobs/ping",
+        "/yclients/jobs/import-clients"
+    ],
+    "menu": [
+        {
+            "group": "yclients.menu.group",
+            "num": 10,
+            "path": "/yclients",
+            "title": "yclients.menu.status",
+            "kind": "work"
+        },
+        {
+            "group": "yclients.menu.group",
+            "num": 20,
+            "path": "/yclients/import",
+            "title": "yclients.menu.import",
+            "kind": "work"
+        },
+        {
+            "group": "yclients.menu.group",
+            "num": 90,
+            "path": "/yclients/settings",
+            "title": "yclients.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_yclients_id_map",
+        "base_yclients_sync_state"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "bulkActions": []
+}

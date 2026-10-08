@@ -1,44 +1,52 @@
 {
-  "id": "comments",
-  "name": "comments.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0"
-  },
-  "optionalRequires": {},
-  "provides": [
-    "comments.thread",
-    "comments.counts"
-  ],
-  "migrations": "migrations/",
-  "permissions": [],
-  "routes": {
-    "pages": []
-  },
-    "agent": {
-    "note": "No module HTTP routes. Read via core.news.get (paged: comments_limit/offset/pid/excerpt; child_count to drill). Write via core.news.act: comment|edit_comment|hide_comment|show_comment|delete_comment.",
-    "ops": []
-  },
-  "jobs": [],
-  "menu": [],
-  "configSchema": {},
-  "tables": [
-    "base_comments"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "core.news_item.handle_post",
-      "core.news_item.section",
-      "core.news_item.meta",
-      "comments.counts"
+    "id": "comments",
+    "name": "comments.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "comments.thread",
+        "comments.counts"
     ],
-    "publish": [
-      "comments.render_actions",
-      "comments.form.offer_fields",
-      "comments.form.ticket_controls",
-      "comments.prepare_add"
-    ]
-  }
+    "migrations": "migrations/",
+    "permissions": [],
+    "routes": {
+        "pages": []
+    },
+    "agent": {
+        "note": "No module HTTP routes. Read via core.news.get (paged: comments_limit/offset/pid/excerpt; child_count to drill). Write via core.news.act: comment|edit_comment|hide_comment|show_comment|delete_comment.",
+        "ops": []
+    },
+    "jobs": [],
+    "menu": [],
+    "configSchema": [],
+    "tables": [
+        "base_comments"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.news_item.handle_post",
+            "core.news_item.section",
+            "core.news_item.meta",
+            "comments.counts"
+        ],
+        "publish": [
+            "comments.render_actions",
+            "comments.form.offer_fields",
+            "comments.form.ticket_controls",
+            "comments.prepare_add"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "communications"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

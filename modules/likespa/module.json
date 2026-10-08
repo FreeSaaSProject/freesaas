@@ -25,13 +25,34 @@
     ],
     "migrations": "migrations/",
     "permissions": [
-        { "id": "likespa.view", "label": "likespa.perm.view" },
-        { "id": "likespa.edit", "label": "likespa.perm.edit" },
-        { "id": "likespa.promo", "label": "likespa.perm.promo" },
-        { "id": "likespa.restores", "label": "likespa.perm.restores" },
-        { "id": "likespa.promopages", "label": "likespa.perm.promopages" },
-        { "id": "likespa.pages", "label": "likespa.perm.pages" },
-        { "id": "likespa.redirects", "label": "likespa.perm.redirects" }
+        {
+            "id": "likespa.view",
+            "label": "likespa.perm.view"
+        },
+        {
+            "id": "likespa.edit",
+            "label": "likespa.perm.edit"
+        },
+        {
+            "id": "likespa.promo",
+            "label": "likespa.perm.promo"
+        },
+        {
+            "id": "likespa.restores",
+            "label": "likespa.perm.restores"
+        },
+        {
+            "id": "likespa.promopages",
+            "label": "likespa.perm.promopages"
+        },
+        {
+            "id": "likespa.pages",
+            "label": "likespa.perm.pages"
+        },
+        {
+            "id": "likespa.redirects",
+            "label": "likespa.perm.redirects"
+        }
     ],
     "routes": {
         "pages": [
@@ -164,7 +185,7 @@
             "kind": "settings"
         }
     ],
-    "configSchema": {},
+    "configSchema": [],
     "tables": [
         "base_term_scans",
         "base_promopages",
@@ -175,8 +196,12 @@
         {
             "id": "phpshop_page_categories_to_base_page_categories",
             "mode": "replace",
-            "source": ["phpshop_page_categories"],
-            "target": ["base_page_categories"]
+            "source": [
+                "phpshop_page_categories"
+            ],
+            "target": [
+                "base_page_categories"
+            ]
         }
     ],
     "hooks": {
@@ -205,5 +230,13 @@
             "list_id": "likespa_redirects",
             "action": "delete"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "site"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

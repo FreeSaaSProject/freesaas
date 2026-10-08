@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 return [
     'liquid_assets.module.name' => 'Liquid assets',
+    'liquid_assets.module.description' => 'Liquid assets monthly report plus T-Invest broker accounts and portfolio sync.',
+    'liquid_assets.module.summary' => 'Enable for a liquid-assets snapshot (cash, deposits, broker) and T-Invest account sync into the report. Requires ledger. Soft funds for REVAL. Use when management tracks liquidity beyond plain ДПС; needs broker API credentials in module ini when syncing T-Invest.',
     'liquid_assets.menu.report' => 'Liquid assets',
     'liquid_assets.menu.accounts' => 'T-Invest accounts',
     'liquid_assets.perm.view' => 'Liquid assets (view)',

@@ -1,78 +1,92 @@
 {
-  "id": "norms",
-  "name": "norms.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "catalog": ">=0.1.0"
-  },
-  "optionalRequires": {},
-  "provides": [
-    "norms.list"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "norms.view", "label": "norms.perm.view" },
-    { "id": "norms.edit", "label": "norms.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/norms",
-      "/norms/new",
-      "/norms/{id}/edit"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "norms.list",
-        "method": "GET",
-        "path": "/norms",
-        "permission": "norms.view",
-        "description": "List consumption norms; filters: id_proc, id_good"
-      },
-      {
-        "id": "norms.get",
-        "method": "GET",
-        "path": "/norms/{id}/edit",
-        "permission": "norms.edit",
-        "description": "Norm edit payload; includes products dictionary"
-      },
-      {
-        "id": "norms.create",
-        "method": "POST",
-        "path": "/norms/new",
-        "permission": "norms.edit",
-        "description": "Create norm; id_proc, id_good, qtyu2, qtyu"
-      },
-      {
-        "id": "norms.update",
-        "method": "POST",
-        "path": "/norms/{id}/edit",
-        "permission": "norms.edit",
-        "description": "Update norm"
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.warehouse",
-      "num": 6,
-      "path": "/norms",
-      "title": "norms.menu.list"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_good_defaults"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "catalog.product_edit.after"
+    "id": "norms",
+    "name": "norms.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "catalog": ">=0.1.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "norms.list"
     ],
-    "publish": []
-  }
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "norms.view",
+            "label": "norms.perm.view"
+        },
+        {
+            "id": "norms.edit",
+            "label": "norms.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/norms",
+            "/norms/new",
+            "/norms/{id}/edit"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "norms.list",
+                "method": "GET",
+                "path": "/norms",
+                "permission": "norms.view",
+                "description": "List consumption norms; filters: id_proc, id_good"
+            },
+            {
+                "id": "norms.get",
+                "method": "GET",
+                "path": "/norms/{id}/edit",
+                "permission": "norms.edit",
+                "description": "Norm edit payload; includes products dictionary"
+            },
+            {
+                "id": "norms.create",
+                "method": "POST",
+                "path": "/norms/new",
+                "permission": "norms.edit",
+                "description": "Create norm; id_proc, id_good, qtyu2, qtyu"
+            },
+            {
+                "id": "norms.update",
+                "method": "POST",
+                "path": "/norms/{id}/edit",
+                "permission": "norms.edit",
+                "description": "Update norm"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 6,
+            "path": "/norms",
+            "title": "norms.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_good_defaults"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "catalog.product_edit.after"
+        ],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "warehouse"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

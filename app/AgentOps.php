@@ -49,35 +49,67 @@ final class AgentOps
         return $payload;
     }
 
-    /** @return array{ok:bool,modules:list<array>} */
-    public static function moduleList(): array
+    /**
+     * @param array{q?:string,category?:string,tag?:string,status?:string,maturity?:string} $filters
+     * @return array{ok:bool,modules:list,filters:array,http:int}
+     */
+    public static function moduleList(array $filters = []): array
     {
+        $norm = [
+            'q' => trim((string)($filters['q'] ?? '')),
+            'category' => trim((string)($filters['category'] ?? '')),
+            'tag' => trim((string)($filters['tag'] ?? '')),
+            'status' => trim((string)($filters['status'] ?? '')),
+            'maturity' => trim((string)($filters['maturity'] ?? '')),
+        ];
         $rows = [];
-        foreach (ModuleManager::all() as $id => $meta) {
-            $st = ModuleManager::status((string)$id);
+        foreach (ModuleCatalog::list($norm) as $card) {
             $rows[] = [
-                'id' => (string)$id,
-                'version' => (string)($meta['version'] ?? ''),
-                'type' => (string)($meta['type'] ?? ''),
-                'enabled' => !empty($meta['_enabled']),
-                'config_enabled' => $st['config_enabled'],
-                'block_reason' => $st['block_reason'],
-                'migrations_pending' => $st['migrations_pending'],
-                'requires' => $meta['requires'] ?? [],
-                'optionalRequires' => $meta['optionalRequires'] ?? [],
+                'id' => $card['id'],
+                'version' => $card['version'],
+                'type' => $card['type'],
+                'enabled' => $card['enabled'],
+                'config_enabled' => $card['config_enabled'],
+                'status' => $card['status'],
+                'block_reason' => $card['block_reason'],
+                'migrations_pending' => $card['migrations_pending'],
+                'deps_ok' => $card['deps_ok'],
+                'name' => $card['name'],
+                'description' => $card['description'],
+                'summary' => $card['summary'],
+                'catalog' => $card['catalog'],
+                'maturity' => $card['maturity'],
+                'requires_risk_ack' => $card['requires_risk_ack'],
+                'agent_note' => $card['agent_note'],
+                'provides' => $card['provides'],
+                'requires' => $card['requires'],
+                'optionalRequires' => $card['optionalRequires'],
+                'can_enable' => $card['can_enable'],
+                'can_disable' => $card['can_disable'],
+                'can_toggle' => $card['can_toggle'],
+                'required_by' => $card['required_by'],
             ];
         }
-        return ['ok' => true, 'modules' => $rows, 'http' => 200];
+        return [
+            'ok' => true,
+            'modules' => $rows,
+            'filters' => $norm,
+            'categories' => ModuleCatalog::usedCategories(),
+            'tags' => ModuleCatalog::usedTags(),
+            'maturities' => ModuleCatalog::MATURITIES,
+            'maturity_policy' => ModuleCatalog::maturityPolicy(),
+            'http' => 200,
+        ];
     }
 
     /** @return array{ok:bool,module?:array,error?:string,http:int} */
     public static function moduleInspect(string $id): array
     {
-        $meta = ModuleManager::get($id);
-        if ($meta === null) {
+        $detail = ModuleCatalog::detail($id);
+        if ($detail === null) {
             return ['ok' => false, 'error' => "Unknown module: {$id}", 'http' => 404];
         }
-        $st = ModuleManager::status($id);
+        $meta = ModuleManager::get($id);
         $routes = [];
         foreach (ModuleManager::routes() as $path => $def) {
             if (($def['module'] ?? '') !== $id) {
@@ -91,23 +123,77 @@ final class AgentOps
                 'public' => !empty($def['public']),
             ];
         }
-        $out = $meta;
-        unset($out['_dir']);
-        $out['status'] = $st;
-        $out['runtime_routes'] = $routes;
-        return ['ok' => true, 'module' => $out, 'http' => 200];
+        $manifest = is_array($meta) ? $meta : [];
+        unset($manifest['_dir']);
+        return [
+            'ok' => true,
+            'module' => [
+                'id' => $detail['id'],
+                'version' => $detail['version'],
+                'type' => $detail['type'],
+                'enabled' => $detail['enabled'],
+                'config_enabled' => $detail['config_enabled'],
+                'status' => $detail['status_full'] ?? ModuleManager::status($id),
+                'runtime_status' => $detail['status'],
+                'block_reason' => $detail['block_reason'],
+                'migrations_pending' => $detail['migrations_pending'],
+                'deps_ok' => $detail['deps_ok'],
+                'name' => $detail['name'],
+                'description' => $detail['description'],
+                'summary' => $detail['summary'],
+                'catalog' => array_merge($detail['catalog'], [
+                    'screenshots' => $detail['screenshots'] ?? [],
+                ]),
+                'maturity' => $detail['maturity'],
+                'requires_risk_ack' => $detail['requires_risk_ack'],
+                'agent_note' => $detail['agent_note'],
+                'maturity_policy' => ModuleCatalog::maturityPolicy(),
+                'provides' => $detail['provides'],
+                'requires' => $detail['requires'],
+                'optionalRequires' => $detail['optionalRequires'],
+                'can_enable' => $detail['can_enable'],
+                'can_disable' => $detail['can_disable'],
+                'can_toggle' => $detail['can_toggle'],
+                'required_by' => $detail['required_by'],
+                'permissions' => $detail['permissions'] ?? [],
+                'routes_pages' => $detail['routes_pages'] ?? [],
+                'runtime_routes' => $routes,
+                'manifest' => $manifest,
+            ],
+            'http' => 200,
+        ];
     }
 
-    /** @return array{ok:bool,module?:string,enabled?:bool,migrations?:list,error?:string,http:int} */
-    public static function moduleSetEnabled(string $id, bool $enabled): array
+    /**
+     * @return array{ok:bool,module?:string,enabled?:bool,migrations?:list,error?:string,maturity?:string,accept_risk_required?:bool,agent_note?:array,http:int}
+     */
+    public static function moduleSetEnabled(string $id, bool $enabled, bool $acceptRisk = false): array
     {
         try {
+            if ($enabled) {
+                $cur = ModuleManager::get($id);
+                $alreadyOn = is_array($cur) && !empty($cur['_enabled']);
+                $maturity = ModuleCatalog::maturityOf($id);
+                if (!$alreadyOn && ModuleCatalog::requiresRiskAck($maturity) && !$acceptRisk) {
+                    return [
+                        'ok' => false,
+                        'error' => 'accept_risk required to enable ' . $maturity . ' module',
+                        'module' => $id,
+                        'maturity' => $maturity,
+                        'accept_risk_required' => true,
+                        'agent_note' => ModuleCatalog::agentNote($maturity),
+                        'maturity_policy' => ModuleCatalog::maturityPolicy(),
+                        'http' => 400,
+                    ];
+                }
+            }
             $report = ModuleManager::setEnabled($id, $enabled);
             return [
                 'ok' => true,
                 'module' => $id,
                 'enabled' => $enabled,
                 'migrations' => $report,
+                'maturity' => ModuleCatalog::maturityOf($id),
                 'http' => 200,
             ];
         } catch (Throwable $e) {
@@ -361,13 +447,32 @@ final class AgentOps
                 'config' => 'app.agent_token',
                 'bootstrap_note' => 'POST /agent/bootstrap on virgin install may include agent_token in JSON body without prior header',
             ],
+            'maturity_policy' => ModuleCatalog::maturityPolicy(),
             'ops' => [
                 ['method' => 'GET', 'path' => '/agent', 'op' => 'catalog'],
                 ['method' => 'POST', 'path' => '/agent/bootstrap', 'op' => 'bootstrap'],
                 ['method' => 'GET', 'path' => '/agent/system/status', 'op' => 'system.status'],
-                ['method' => 'GET', 'path' => '/agent/modules', 'op' => 'module.list'],
-                ['method' => 'GET', 'path' => '/agent/modules/{id}', 'op' => 'module.inspect'],
-                ['method' => 'POST', 'path' => '/agent/modules/{id}/enable', 'op' => 'module.enable'],
+                [
+                    'method' => 'GET',
+                    'path' => '/agent/modules',
+                    'op' => 'module.list',
+                    'query' => ['q', 'category', 'tag', 'status', 'maturity'],
+                    'description' => 'Module catalog: bilocale name/description/summary, maturity, deps, filters. Includes maturity_policy.',
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/agent/modules/{id}',
+                    'op' => 'module.inspect',
+                    'description' => 'One module: catalog + status (deps satisfied) + screenshots + agent_note + maturity_policy',
+                ],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/modules/{id}/enable',
+                    'op' => 'module.enable',
+                    'query' => ['accept_risk'],
+                    'body' => ['accept_risk'],
+                    'description' => 'Enable + migrate. Alpha/beta require accept_risk=1 (query, form, or JSON). 400 + accept_risk_required if missing.',
+                ],
                 ['method' => 'POST', 'path' => '/agent/modules/{id}/disable', 'op' => 'module.disable'],
                 ['method' => 'GET', 'path' => '/agent/modules/{id}/validate', 'op' => 'module.validate'],
                 ['method' => 'GET', 'path' => '/agent/validate', 'op' => 'module.validate_all'],

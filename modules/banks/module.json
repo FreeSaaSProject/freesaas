@@ -1,0 +1,192 @@
+{
+    "id": "banks",
+    "name": "banks.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "description": "banks.module.description",
+    "catalog": {
+        "categories": [
+            "finance",
+            "integrations"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "integration",
+            "oauth",
+            "sync",
+            "llm"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=0.3.0",
+        "ledger": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "llm": ">=0.1.0"
+    },
+    "provides": [
+        "banks.connections",
+        "banks.sync"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
+    "permissions": [
+        {
+            "id": "banks.view",
+            "label": "banks.perm.view"
+        },
+        {
+            "id": "banks.connect",
+            "label": "banks.perm.connect"
+        },
+        {
+            "id": "banks.sync",
+            "label": "banks.perm.sync"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/banks",
+            "/banks/oauth/{provider}/start",
+            "/banks/oauth/{provider}/callback",
+            "/banks/connections/{id}",
+            "/banks/connections/{id}/sync",
+            "/banks/jobs/sync"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "banks.connections.list",
+                "method": "GET",
+                "path": "/banks",
+                "permission": "banks.view",
+                "side_effect": "read",
+                "description": "List bank OAuth connections (tokens masked)"
+            },
+            {
+                "id": "banks.connections.get",
+                "method": "GET",
+                "path": "/banks/connections/{id}",
+                "permission": "banks.view",
+                "side_effect": "read",
+                "description": "One connection + remote accounts + ledger links"
+            },
+            {
+                "id": "banks.oauth.start",
+                "method": "GET",
+                "path": "/banks/oauth/{provider}/start",
+                "permission": "banks.connect",
+                "side_effect": "write",
+                "description": "Start OAuth (or T-Bank self-service token) for provider=tochka|alfa_ul|alfa_fl|tbank_ul|tbank_fl|sber_ul|sber_fl; HTML redirects, JSON returns authorize_url",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "provider": {
+                            "type": "string",
+                            "enum": [
+                                "tochka",
+                                "alfa_ul",
+                                "alfa_fl",
+                                "tbank_ul",
+                                "tbank_fl",
+                                "sber_ul",
+                                "sber_fl"
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": "banks.link.save",
+                "method": "POST",
+                "path": "/banks/connections/{id}",
+                "permission": "banks.connect",
+                "side_effect": "write",
+                "description": "Link remote bank account to base_accounts or refresh remote list. Body: action=link|unlink|refresh|create_ledger; external_account_id; account_id",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "link",
+                                "unlink",
+                                "refresh",
+                                "create_ledger"
+                            ]
+                        },
+                        "external_account_id": {
+                            "type": "string"
+                        },
+                        "account_id": {
+                            "type": "integer"
+                        },
+                        "account_name": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "banks.sync",
+                "method": "POST",
+                "path": "/banks/connections/{id}/sync",
+                "permission": "banks.sync",
+                "side_effect": "write",
+                "description": "Sync statements for linked accounts into ledger moves. Body: date_from, date_to (Y-m-d), optional link_id",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "date_from": {
+                            "type": "string"
+                        },
+                        "date_to": {
+                            "type": "string"
+                        },
+                        "link_id": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "banks.jobs.sync",
+                "method": "POST",
+                "path": "/banks/jobs/sync",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron sync all enabled links; header X-Banks-Token or ?token="
+            }
+        ]
+    },
+    "hooks": {
+        "publish": [],
+        "subscribe": [
+            "ledger.accounts.badges",
+            "ledger.moves.badges"
+        ]
+    },
+    "menu": [
+        {
+            "group": "core.menu.group.finance",
+            "num": 25,
+            "title": "banks.menu.list",
+            "path": "/banks",
+            "permission": "banks.view",
+            "kind": "work"
+        }
+    ],
+    "tables": [
+        "base_bank_connections",
+        "base_bank_account_links",
+        "base_bank_tx_map"
+    ]
+}

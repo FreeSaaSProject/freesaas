@@ -92,5 +92,13 @@
             "list_id": "rates",
             "action": "zerofill"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "accounting"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

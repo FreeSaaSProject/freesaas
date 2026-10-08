@@ -150,5 +150,13 @@
             "list_id": "payment_types",
             "action": "delete"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "accounting"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

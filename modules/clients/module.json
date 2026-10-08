@@ -79,17 +79,33 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "tel": { "type": "string", "description": "Phone (login)" },
-                        "name": { "type": "string" },
-                        "mail": { "type": "string" },
-                        "enabled": { "type": "string", "description": "1 to enable" },
-                        "status_id": { "type": "integer" },
+                        "tel": {
+                            "type": "string",
+                            "description": "Phone (login)"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "mail": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "string",
+                            "description": "1 to enable"
+                        },
+                        "status_id": {
+                            "type": "integer"
+                        },
                         "tag_ids": {
                             "type": "array",
-                            "items": { "type": "integer" }
+                            "items": {
+                                "type": "integer"
+                            }
                         }
                     },
-                    "required": ["tel"]
+                    "required": [
+                        "tel"
+                    ]
                 }
             },
             {
@@ -266,5 +282,13 @@
             "list_id": "client_tags",
             "action": "delete"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "crm"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

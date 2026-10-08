@@ -1,102 +1,119 @@
 {
-  "id": "bonuses",
-  "name": "bonuses.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "clients": ">=0.1.0",
-    "catalog": ">=0.1.0",
-    "procedures": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "calendar": ">=0.1.0"
-  },
-  "provides": [
-    "bonuses.ledger",
-    "bonuses.processor"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "bonuses.view", "label": "bonuses.perm.view" },
-    { "id": "bonuses.edit", "label": "bonuses.perm.edit" },
-    { "id": "bonuses.apply", "label": "bonuses.perm.apply" }
-  ],
-  "routes": {
-    "pages": [
-      "/bonuses",
-      "/bonuses/new",
-      "/bonuses/{id}/edit",
-      "/bonuses/clients/{id}",
-      "/bonuses/events/{id}/quote",
-      "/bonuses/events/{id}/apply"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "bonuses.list",
-        "method": "GET",
-        "path": "/bonuses",
-        "permission": "bonuses.view",
-        "description": "List bonus ledger movements; filters: q, id_user, direction"
-      },
-      {
-        "id": "bonuses.client",
-        "method": "GET",
-        "path": "/bonuses/clients/{id}",
-        "permission": "bonuses.view",
-        "description": "Client bonus balance and movement history"
-      },
-      {
-        "id": "bonuses.quote",
-        "method": "GET",
-        "path": "/bonuses/events/{id}/quote",
-        "permission": "bonuses.view",
-        "description": "Dry-run bonus spend/accrue for a calendar event"
-      },
-      {
-        "id": "bonuses.apply",
-        "method": "POST",
-        "path": "/bonuses/events/{id}/apply",
-        "permission": "bonuses.apply",
-        "description": "Apply bonus settlement for a calendar event (idempotent refuse if already settled)"
-      },
-      {
-        "id": "bonuses.create",
-        "method": "POST",
-        "path": "/bonuses/new",
-        "permission": "bonuses.edit",
-        "description": "Create a manual bonus credit or debit"
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "clients.menu.group",
-      "num": 40,
-      "path": "/bonuses",
-      "title": "bonuses.menu.list",
-      "kind": "crud"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_bonuspay"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "calendar.event.sections",
-      "calendar.event.save"
+    "id": "bonuses",
+    "name": "bonuses.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0",
+        "catalog": ">=0.1.0",
+        "procedures": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "calendar": ">=0.1.0"
+    },
+    "provides": [
+        "bonuses.ledger",
+        "bonuses.processor"
     ],
-    "publish": []
-  },
-  "bulkActions": [
-    {
-      "list_id": "bonuses",
-      "action": "delete"
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "bonuses.view",
+            "label": "bonuses.perm.view"
+        },
+        {
+            "id": "bonuses.edit",
+            "label": "bonuses.perm.edit"
+        },
+        {
+            "id": "bonuses.apply",
+            "label": "bonuses.perm.apply"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/bonuses",
+            "/bonuses/new",
+            "/bonuses/{id}/edit",
+            "/bonuses/clients/{id}",
+            "/bonuses/events/{id}/quote",
+            "/bonuses/events/{id}/apply"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "bonuses.list",
+                "method": "GET",
+                "path": "/bonuses",
+                "permission": "bonuses.view",
+                "description": "List bonus ledger movements; filters: q, id_user, direction"
+            },
+            {
+                "id": "bonuses.client",
+                "method": "GET",
+                "path": "/bonuses/clients/{id}",
+                "permission": "bonuses.view",
+                "description": "Client bonus balance and movement history"
+            },
+            {
+                "id": "bonuses.quote",
+                "method": "GET",
+                "path": "/bonuses/events/{id}/quote",
+                "permission": "bonuses.view",
+                "description": "Dry-run bonus spend/accrue for a calendar event"
+            },
+            {
+                "id": "bonuses.apply",
+                "method": "POST",
+                "path": "/bonuses/events/{id}/apply",
+                "permission": "bonuses.apply",
+                "description": "Apply bonus settlement for a calendar event (idempotent refuse if already settled)"
+            },
+            {
+                "id": "bonuses.create",
+                "method": "POST",
+                "path": "/bonuses/new",
+                "permission": "bonuses.edit",
+                "description": "Create a manual bonus credit or debit"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "clients.menu.group",
+            "num": 40,
+            "path": "/bonuses",
+            "title": "bonuses.menu.list",
+            "kind": "crud"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_bonuspay"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "calendar.event.sections",
+            "calendar.event.save"
+        ],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "bonuses",
+            "action": "delete"
+        }
+    ],
+    "catalog": {
+        "categories": [
+            "crm"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
     }
-  ]
 }

@@ -125,6 +125,19 @@ final class ClientsRepository
         return $row ?: null;
     }
 
+    /** Match by exact tel (caller should normalize phone first). */
+    public static function findByTel(string $tel): ?array
+    {
+        $tel = trim($tel);
+        if ($tel === '' || !Database::tableExists('base_clients')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare('SELECT * FROM base_clients WHERE tel = ? LIMIT 1');
+        $st->execute([$tel]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     /**
      * Strip secrets for AgentHttp / JSON twins.
      *

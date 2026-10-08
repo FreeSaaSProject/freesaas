@@ -21,6 +21,8 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins |
 | [likespa-restores.md](likespa-restores.md) | Procedure restores + settlement payment (ACCOUNT=0, JSON) |
 | [terminals.md](terminals.md) | Terminals/therms: registry, occupancy, sync jobs + JSON |
+| [yclients.md](yclients.md) | YClients pull: settings tokens, session ping, clients import JSON |
+| [clientics.md](clientics.md) | Clientics pull: settings tokens, session ping, day import, webhook |
 | [debugging.md](debugging.md) | Health, blocked modules, workers |
 
 Canonical CLI: `php bin/freesaas.php … --format=json`. First bring-up: `bootstrap` or `POST /agent/bootstrap`. HTTP twin: `/agent/*` (see remote-api). Smoke: `php bin/smoke.php`.

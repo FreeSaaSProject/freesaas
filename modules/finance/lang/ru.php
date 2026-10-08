@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 return [
     'finance.module.name' => 'Финансовая отчётность',
+    'finance.module.description' => 'Отчёты баланс / ОДДС / ОПиУ по движениям ledger (без графика инфляции).',
+    'finance.module.summary' => 'Включайте для управленческих фин.отчётов (баланс, ОДДС/ОПиУ) на основе ДПС ledger. Требует ledger. Мягко зависит от funds для строк FUND_MATRIX. Только отчётность — не заменяет ledger или banks.',
     'finance.menu.balance' => 'Баланс / ОДДС',
     'finance.perm.view' => 'Финансовая отчётность (просмотр)',
     'finance.balance.title' => 'Финансовая отчётность',

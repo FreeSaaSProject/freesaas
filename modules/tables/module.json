@@ -1,77 +1,91 @@
 {
-  "id": "tables",
-  "name": "tables.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0"
-  },
-  "optionalRequires": {
-    "procedures": ">=0.1.0"
-  },
-  "provides": [
-    "tables.list"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "tables.view", "label": "tables.perm.view" },
-    { "id": "tables.edit", "label": "tables.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/tables",
-      "/tables/new",
-      "/tables/{id}/edit"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "tables.list",
-        "method": "GET",
-        "path": "/tables",
-        "permission": "tables.view",
-        "description": "List massage tables; filters: q, enabled"
-      },
-      {
-        "id": "tables.get",
-        "method": "GET",
-        "path": "/tables/{id}/edit",
-        "permission": "tables.edit",
-        "description": "Table edit payload; includes procedure_types dictionary when procedures module is enabled"
-      },
-      {
-        "id": "tables.create",
-        "method": "POST",
-        "path": "/tables/new",
-        "permission": "tables.edit",
-        "description": "Create table; proc_types[], gender[]"
-      },
-      {
-        "id": "tables.update",
-        "method": "POST",
-        "path": "/tables/{id}/edit",
-        "permission": "tables.edit",
-        "description": "Update table"
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.dictionaries",
-      "num": 6,
-      "path": "/tables",
-      "title": "tables.menu.list"
+    "id": "tables",
+    "name": "tables.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "procedures": ">=0.1.0"
+    },
+    "provides": [
+        "tables.list"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "tables.view",
+            "label": "tables.perm.view"
+        },
+        {
+            "id": "tables.edit",
+            "label": "tables.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/tables",
+            "/tables/new",
+            "/tables/{id}/edit"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "tables.list",
+                "method": "GET",
+                "path": "/tables",
+                "permission": "tables.view",
+                "description": "List massage tables; filters: q, enabled"
+            },
+            {
+                "id": "tables.get",
+                "method": "GET",
+                "path": "/tables/{id}/edit",
+                "permission": "tables.edit",
+                "description": "Table edit payload; includes procedure_types dictionary when procedures module is enabled"
+            },
+            {
+                "id": "tables.create",
+                "method": "POST",
+                "path": "/tables/new",
+                "permission": "tables.edit",
+                "description": "Create table; proc_types[], gender[]"
+            },
+            {
+                "id": "tables.update",
+                "method": "POST",
+                "path": "/tables/{id}/edit",
+                "permission": "tables.edit",
+                "description": "Update table"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.dictionaries",
+            "num": 6,
+            "path": "/tables",
+            "title": "tables.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_tables"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "dictionaries"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
     }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_tables"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [],
-    "publish": []
-  }
 }

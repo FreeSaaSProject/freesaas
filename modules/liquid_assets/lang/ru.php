@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 return [
     'liquid_assets.module.name' => 'Ликвидные активы',
+    'liquid_assets.module.description' => 'Ежемесячный отчёт по ликвидным активам и счетам T-Invest с синхронизацией портфеля.',
+    'liquid_assets.module.summary' => 'Включайте для снимка ликвидности (касса, депозиты, брокер) и синхронизации счетов T-Invest в отчёт. Требует ledger. Мягко — funds для REVAL. Нужен, когда ликвидность смотрят шире обычных ДПС; для синка T-Invest — ключи в cfg/modules/liquid_assets.ini.',
     'liquid_assets.menu.report' => 'Ликвидные активы',
     'liquid_assets.menu.accounts' => 'T-Invest счета',
     'liquid_assets.perm.view' => 'Ликвидные активы (просмотр)',

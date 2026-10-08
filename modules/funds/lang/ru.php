@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 return [
     'funds.module.name' => 'Фонды',
+    'funds.module.description' => 'Дерево фондов и фондовые движения CAPUSE/REFUND поверх ledger.',
+    'funds.module.summary' => 'Включайте после ledger, когда нужны внутренние фонды (дерево) и движения CAPUSE/REFUND. Жёстко требует ledger. Мягко используется отчётами finance и liquid_assets (FUND_MATRIX / REVAL). Без настроенных счетов ledger пользы мало.',
     'funds.menu.list' => 'Фонды',
     'funds.menu.movements' => 'Фондовые движения',
     'funds.perm.view' => 'Фонды (просмотр)',

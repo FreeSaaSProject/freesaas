@@ -258,5 +258,13 @@
             "list_id": "audio_records",
             "action": "delete_with_files"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "audio"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

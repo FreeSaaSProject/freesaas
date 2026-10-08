@@ -1,0 +1,259 @@
+{
+    "id": "clientics",
+    "name": "clientics.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "description": "clientics.module.description",
+    "catalog": {
+        "categories": [
+            "integrations",
+            "crm"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "integration",
+            "crm",
+            "sync",
+            "jobs"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "calendar": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "workweeks": ">=0.1.0"
+    },
+    "provides": [
+        "clientics.pull"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
+    "permissions": [
+        {
+            "id": "clientics.view",
+            "label": "clientics.perm.view"
+        },
+        {
+            "id": "clientics.edit",
+            "label": "clientics.perm.edit"
+        },
+        {
+            "id": "clientics.import",
+            "label": "clientics.perm.import"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/clientics",
+            "/clientics/import",
+            "/clientics/settings",
+            "/clientics/jobs/ping",
+            "/clientics/jobs/import-clients",
+            "/clientics/webhook"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "clientics.status",
+                "method": "GET",
+                "path": "/clientics",
+                "permission": "clientics.view",
+                "side_effect": "read",
+                "description": "Status + setup checklist (missing fields, next_steps). Secrets never returned."
+            },
+            {
+                "id": "clientics.ping",
+                "method": "POST",
+                "path": "/clientics",
+                "permission": "clientics.view",
+                "side_effect": "write",
+                "description": "Session ping of Clientics API after tokens saved. Body: action=ping. No worker_token needed.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "ping"
+                            ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": "clientics.import.status",
+                "method": "GET",
+                "path": "/clientics/import",
+                "permission": "clientics.import",
+                "side_effect": "read",
+                "description": "Last clients import report + api_ready flags"
+            },
+            {
+                "id": "clientics.import.clients",
+                "method": "POST",
+                "path": "/clientics/import",
+                "permission": "clientics.import",
+                "side_effect": "write",
+                "description": "Pull clients by day range into base_clients. Prefer dry_run=1 first. Max 400 days.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action",
+                        "from",
+                        "to"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "clients"
+                            ]
+                        },
+                        "from": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "to": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "dry_run": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ],
+                            "description": "1 = count only, no DB writes"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "clientics.settings.get",
+                "method": "GET",
+                "path": "/clientics/settings",
+                "permission": "",
+                "side_effect": "read",
+                "description": "Read settings (secrets masked) + setup checklist. Requires SUPERADMIN_ACCESS."
+            },
+            {
+                "id": "clientics.settings.save",
+                "method": "POST",
+                "path": "/clientics/settings",
+                "permission": "",
+                "side_effect": "write",
+                "description": "Save cfg/modules/clientics.ini. Empty access_token/worker_token/webhook_token keeps previous. SUPERADMIN_ACCESS.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pull_enabled": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        },
+                        "domain": {
+                            "type": "string",
+                            "description": "Default klientiks.ru"
+                        },
+                        "account_id": {
+                            "type": "string"
+                        },
+                        "user_id": {
+                            "type": "string"
+                        },
+                        "access_token": {
+                            "type": "string",
+                            "description": "API token; blank keeps current"
+                        },
+                        "timeout_sec": {
+                            "type": "integer",
+                            "minimum": 5,
+                            "maximum": 120
+                        },
+                        "page_limit": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 500
+                        },
+                        "worker_token": {
+                            "type": "string",
+                            "description": "Cron X-Clientics-Token; blank keeps current"
+                        },
+                        "webhook_token": {
+                            "type": "string",
+                            "description": "Webhook X-Clientics-Webhook-Token; blank keeps current"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "clientics.jobs.ping",
+                "method": "POST",
+                "path": "/clientics/jobs/ping",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron ping; auth X-Clientics-Token or ?token="
+            },
+            {
+                "id": "clientics.jobs.import_clients",
+                "method": "POST",
+                "path": "/clientics/jobs/import-clients",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Cron import clients; auth X-Clientics-Token; query from/to/dry_run"
+            }
+        ]
+    },
+    "jobs": [
+        "/clientics/jobs/ping",
+        "/clientics/jobs/import-clients"
+    ],
+    "menu": [
+        {
+            "group": "clientics.menu.group",
+            "num": 10,
+            "path": "/clientics",
+            "title": "clientics.menu.status",
+            "kind": "work"
+        },
+        {
+            "group": "clientics.menu.group",
+            "num": 20,
+            "path": "/clientics/import",
+            "title": "clientics.menu.import",
+            "kind": "work"
+        },
+        {
+            "group": "clientics.menu.group",
+            "num": 90,
+            "path": "/clientics/settings",
+            "title": "clientics.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_clientics_id_map",
+        "base_clientics_sync_state"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "bulkActions": []
+}

@@ -35,7 +35,7 @@ Send on every request (after bootstrap):
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://example.com/agent"
 ```
 
-Returns `ops[]` with method/path (includes bootstrap).
+Returns `ops[]` with method/path (includes bootstrap), plus top-level `maturity_policy` (alpha/beta/release agent rules). Module ops declare `query` / `body` where relevant (`module.list` filters, `module.enable` → `accept_risk`).
 
 ## Bootstrap
 
@@ -60,11 +60,21 @@ Creates first admin + migrations + persists token. Safe to re-run: skips admin c
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/system/status"
 
-# Modules
+# Modules catalog (filters: q, category, tag, status, maturity=alpha|beta|release)
+# Response includes maturity_policy + per-module maturity / agent_note / requires_risk_ack
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
-  "https://example.com/agent/modules"
+  "https://example.com/agent/modules?category=finance&maturity=alpha"
 
-# Enable + migrate (POST)
+# Inspect one module (bilocale name/description/summary + deps + catalog + maturity_policy)
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/modules/ledger"
+
+# Enable + migrate (POST). Alpha/beta require accept_risk=1 (query, form, or JSON body)
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"accept_risk":true}' \
+  "https://example.com/agent/modules/banks/enable"
+
 curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/modules/equipment/enable"
 

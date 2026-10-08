@@ -398,7 +398,7 @@
                 "description": "List own weight logs",
                 "parameters": {
                     "type": "object",
-                    "properties": {},
+                    "properties": [],
                     "additionalProperties": true
                 }
             },
@@ -512,7 +512,7 @@
                 "description": "List own fitness goals",
                 "parameters": {
                     "type": "object",
-                    "properties": {},
+                    "properties": [],
                     "additionalProperties": true
                 }
             },
@@ -1120,5 +1120,13 @@
             "list_id": "wellness_symptoms",
             "action": "delete"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "wellness"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

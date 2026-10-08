@@ -197,6 +197,25 @@ if ($typeId > 0) {
 }
 $newHref = '/ledger/moves/new' . ($newQs !== [] ? ('?' . http_build_query($newQs)) : '');
 
+$moveIds = [];
+$typeByMove = [];
+foreach ($result['items'] as $it) {
+    $mid = (int)($it['id'] ?? 0);
+    if ($mid > 0) {
+        $moveIds[] = $mid;
+        $typeByMove[$mid] = (int)($it['type_id'] ?? 0);
+    }
+}
+$badgePayload = EventBus::emit('ledger.moves.badges', [
+    'ids' => $moveIds,
+    'type_by_move' => $typeByMove,
+    'by_id' => [],
+]);
+$moveBadges = is_array($badgePayload['by_id'] ?? null) ? $badgePayload['by_id'] : [];
+if ($moveBadges !== [] && ModuleManager::isEnabled('banks')) {
+    Assets::need('banks');
+}
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -220,6 +239,7 @@ if ($wantsJson) {
         'orphan_recs' => $orphanRecs,
         'can_recon' => Auth::can('ledger.reconcile'),
         'can_edit' => Auth::can('ledger.edit'),
+        'badges' => $moveBadges,
     ]);
     return;
 }
@@ -262,4 +282,5 @@ View::render('moves_list', [
     'filters' => $filters,
     'bulkFlash' => BulkActions::consumeFlash(),
     'reconError' => $reconError,
+    'moveBadges' => $moveBadges,
 ], 'layout', 'ledger');

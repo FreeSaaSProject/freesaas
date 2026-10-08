@@ -31,7 +31,7 @@ $prevButtons = is_array($prevSuggestions['buttons'] ?? null) ? $prevSuggestions[
 $dirVal = (int)($row['direction'] ?? -1);
 $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
 ?>
-<section class="page-head"><h1><?= $isNew ? te('ledger.moves.edit_new') : e('#' . (int)($row['id'] ?? 0)) ?></h1></section>
+<section class="page-head"><h1><?= $isNew ? te('ledger.moves.edit_new') : e('#' . (int)($row['id'] ?? 0)) ?><?= $moveBadgeHtml ?? '' ?></h1></section>
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form-grid form-wide ledger-move-form" data-ledger-move-form="1"<?= $isNew ? ' data-ledger-move-new="1"' : '' ?>>

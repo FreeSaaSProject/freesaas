@@ -83,5 +83,13 @@
             "list_id": "units",
             "action": "delete"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "dictionaries"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

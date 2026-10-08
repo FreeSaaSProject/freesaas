@@ -168,8 +168,10 @@ modules/<id>/
 |------|--------|
 | `id`, `name`, `version` | Идентификация; version для deps (`>=0.3.0`, `^1.0`, `~1.2`) |
 | `type` | `platform` (core) или `product` |
+| `description` | i18n-ключ `{id}.module.description` (короткий blurb ru+en); не English prose в JSON |
+| `catalog` | Каталог UI/агентов: `{ categories[], maturity, tags[], screenshots[] }` — many-to-many categories (allowlist `ModuleCatalog`); `maturity`: `alpha`\|`beta`\|`release` (сейчас чаще `beta`); скрины под `assets/catalog/` |
 | `requires` / `optionalRequires` | Зависимости от других модулей |
-| `provides` | Декларация возможностей (документация / будущее) |
+| `provides` | Декларация возможностей (каталог / агенты; runtime пока не потребляет) |
 | `permissions` | `{ id, label }` — `label` = i18n-ключ (`myid.perm.view`), не готовый текст |
 | `routes.pages` | Список путей (фактическая регистрация — в `bootstrap.php`) |
 | `menu` | Пункты бокового меню: `group`, `num`, `path`, `title` — `group`/`title` тоже i18n-ключи |
@@ -367,7 +369,7 @@ return static function (PDO $pdo): void {
 3. Добавить `lang/ru.php` и `lang/en.php` со всеми UI-строками модуля; во views/pages — только `t()` / `te()` / `tj()`.
 4. Добавить `bootstrap.php`: `require` репозиториев, при необходимости `Assets::register` / `registerMenuGroup` / `StatusesRepository::registerFieldGroup` / `core.user_edit.*`, `ModuleManager::registerRoute(...)`, `EventBus::on(...)`.
 5. При необходимости: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `config.example.ini`.
-6. Включить в `cfg/config.ini` `[modules] myfeature=1` или через UI `/modules` (миграции прогонятся при connect). Скопировать config.example → `cfg/modules/` при наличии.
+6. Включить в `cfg/config.ini` `[modules] myfeature=1` или через каталог UI `/modules` (миграции прогонятся при connect). Скопировать config.example → `cfg/modules/` при наличии. Заполнить `description` + `catalog` + `{id}.module.summary` (ru/en), чтобы модуль находился фильтрами и агентами.
 7. Runtime и новые таблицы — только `base_*`; владение таблицами — в `module.json` → `tables`.
 8. Если нужно встроиться в существующий экран — подписаться на hook, а не править чужой page без необходимости.
 
@@ -407,7 +409,8 @@ View::render('index', ['title' => 'My feature', /* ... */], 'layout', 'myfeature
 |---------|----------|
 | `php bin/freesaas.php system status` | PHP/DB/config, локаль, счётчики модулей |
 | `php bin/freesaas.php bootstrap --login=… --password=…` | Первый admin + migrate + `agent_token` (см. [`agents/install.md`](agents/install.md)) |
-| `php bin/freesaas.php module list` | Список модулей, deps, pending migrations |
+| `php bin/freesaas.php module list [--q=] [--category=] [--tag=] [--status=] [--maturity=]` | Каталог модулей (bilocale name/description, filters) |
+| `php bin/freesaas.php module enable <id> [--accept-risk]` | Включить; для alpha/beta нужен `--accept-risk` |
 | `php bin/freesaas.php module inspect <id>` | Манифест + runtime routes + status |
 | `php bin/freesaas.php module enable\|disable <id>` | Вкл/выкл (при enable — schema migrate) |
 | `php bin/freesaas.php module validate [id]` | Структура модуля / все модули |
@@ -438,4 +441,4 @@ Health: платформенные checks (DB, ledger, config, blocked modules, 
 - Регистрация маршрутов core: `modules/core/bootstrap.php`
 - Расширение карточки новости: `modules/comments/bootstrap.php` + `modules/core/pages/news_item.php`
 - Контракты как пример product-модуля: `modules/contracts/`
-- UI модулей: `modules/core/pages/modules.php`
+- Каталог модулей: `modules/core/pages/modules.php` + detail `/modules/{id}`; DTO `app/ModuleCatalog.php`

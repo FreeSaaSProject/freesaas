@@ -149,5 +149,13 @@
             "calendar.event.sections",
             "calendar.event.save"
         ]
+    },
+    "catalog": {
+        "categories": [
+            "team"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
     }
 }

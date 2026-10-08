@@ -30,6 +30,7 @@ $pages = [
     '/' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'home.php'],
     '/dashboard' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'file' => 'dashboard.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
+    '/modules/{id}' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules_detail.php'],
     '/db' => ['public' => true, 'permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
     '/users' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'users.php'],
     '/users/new' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],

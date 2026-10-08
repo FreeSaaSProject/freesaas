@@ -89,5 +89,13 @@
             "list_id": "vacations",
             "action": "sign"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "accounting"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

@@ -55,10 +55,18 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "day": { "type": "string", "description": "YYYY-MM-DD" },
-                        "staff": { "type": "integer", "description": "Optional staff user id filter" }
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "staff": {
+                            "type": "integer",
+                            "description": "Optional staff user id filter"
+                        }
                     },
-                    "required": ["day"]
+                    "required": [
+                        "day"
+                    ]
                 }
             }
         ]
@@ -110,5 +118,13 @@
             "list_id": "procedure_types",
             "action": "delete"
         }
-    ]
+    ],
+    "catalog": {
+        "categories": [
+            "wellness"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

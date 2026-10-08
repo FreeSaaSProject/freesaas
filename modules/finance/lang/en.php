@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 return [
     'finance.module.name' => 'Financial reports',
+    'finance.module.description' => 'Balance / cash-flow / P&L style reports from ledger moves (no inflation schedule).',
+    'finance.module.summary' => 'Enable for managerial finance reports (balance, ODDS/OPIU views) built from ledger account moves. Requires ledger. Soft-depends on funds for FUND_MATRIX rows. Read-only reporting — does not replace ledger or banks.',
     'finance.menu.balance' => 'Balance / cash flow',
     'finance.perm.view' => 'Financial reports (view)',
     'finance.balance.title' => 'Financial reports',

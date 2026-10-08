@@ -1,129 +1,143 @@
 {
-  "id": "sheets",
-  "name": "sheets.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0"
-  },
-  "optionalRequires": {},
-  "provides": [
-    "sheets.accounts",
-    "sheets.moves"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "sheets.view", "label": "sheets.perm.view" },
-    { "id": "sheets.edit", "label": "sheets.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/sheets/accounts",
-      "/sheets/accounts/new",
-      "/sheets/accounts/{id}/edit",
-      "/sheets/moves",
-      "/sheets/moves/new",
-      "/sheets/moves/{id}/edit",
-      "/sheets/transfers/new"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "sheets.accounts.list",
-        "method": "GET",
-        "path": "/sheets/accounts",
-        "permission": "sheets.view",
-        "description": "List linen accounts; filters q, enabled"
-      },
-      {
-        "id": "sheets.accounts.get_edit",
-        "method": "GET",
-        "path": "/sheets/accounts/{id}/edit",
-        "permission": "sheets.edit",
-        "description": "Account edit payload; new at /sheets/accounts/new"
-      },
-      {
-        "id": "sheets.accounts.create",
-        "method": "POST",
-        "path": "/sheets/accounts/new",
-        "permission": "sheets.edit",
-        "description": "Create linen account"
-      },
-      {
-        "id": "sheets.accounts.update",
-        "method": "POST",
-        "path": "/sheets/accounts/{id}/edit",
-        "permission": "sheets.edit",
-        "description": "Update linen account"
-      },
-      {
-        "id": "sheets.moves.list",
-        "method": "GET",
-        "path": "/sheets/moves",
-        "permission": "sheets.view",
-        "description": "List sheet moves; filter id_account"
-      },
-      {
-        "id": "sheets.moves.get_edit",
-        "method": "GET",
-        "path": "/sheets/moves/{id}/edit",
-        "permission": "sheets.edit",
-        "description": "Move edit payload; new at /sheets/moves/new with optional id_account="
-      },
-      {
-        "id": "sheets.moves.create",
-        "method": "POST",
-        "path": "/sheets/moves/new",
-        "permission": "sheets.edit",
-        "description": "Create sheet move (in/out)"
-      },
-      {
-        "id": "sheets.moves.update",
-        "method": "POST",
-        "path": "/sheets/moves/{id}/edit",
-        "permission": "sheets.edit",
-        "description": "Update sheet move"
-      },
-      {
-        "id": "sheets.transfers.get",
-        "method": "GET",
-        "path": "/sheets/transfers/new",
-        "permission": "sheets.edit",
-        "description": "Transfer form defaults and account dictionary"
-      },
-      {
-        "id": "sheets.transfers.create",
-        "method": "POST",
-        "path": "/sheets/transfers/new",
-        "permission": "sheets.edit",
-        "description": "Create paired transfer move; fields id_account, id_account_to, summ, descr, weight, dt"
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.warehouse",
-      "num": 10,
-      "path": "/sheets/moves",
-      "title": "sheets.menu.moves"
+    "id": "sheets",
+    "name": "sheets.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
     },
-    {
-      "group": "core.menu.group.warehouse",
-      "num": 11,
-      "path": "/sheets/accounts",
-      "title": "sheets.menu.accounts"
+    "optionalRequires": [],
+    "provides": [
+        "sheets.accounts",
+        "sheets.moves"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "sheets.view",
+            "label": "sheets.perm.view"
+        },
+        {
+            "id": "sheets.edit",
+            "label": "sheets.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/sheets/accounts",
+            "/sheets/accounts/new",
+            "/sheets/accounts/{id}/edit",
+            "/sheets/moves",
+            "/sheets/moves/new",
+            "/sheets/moves/{id}/edit",
+            "/sheets/transfers/new"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "sheets.accounts.list",
+                "method": "GET",
+                "path": "/sheets/accounts",
+                "permission": "sheets.view",
+                "description": "List linen accounts; filters q, enabled"
+            },
+            {
+                "id": "sheets.accounts.get_edit",
+                "method": "GET",
+                "path": "/sheets/accounts/{id}/edit",
+                "permission": "sheets.edit",
+                "description": "Account edit payload; new at /sheets/accounts/new"
+            },
+            {
+                "id": "sheets.accounts.create",
+                "method": "POST",
+                "path": "/sheets/accounts/new",
+                "permission": "sheets.edit",
+                "description": "Create linen account"
+            },
+            {
+                "id": "sheets.accounts.update",
+                "method": "POST",
+                "path": "/sheets/accounts/{id}/edit",
+                "permission": "sheets.edit",
+                "description": "Update linen account"
+            },
+            {
+                "id": "sheets.moves.list",
+                "method": "GET",
+                "path": "/sheets/moves",
+                "permission": "sheets.view",
+                "description": "List sheet moves; filter id_account"
+            },
+            {
+                "id": "sheets.moves.get_edit",
+                "method": "GET",
+                "path": "/sheets/moves/{id}/edit",
+                "permission": "sheets.edit",
+                "description": "Move edit payload; new at /sheets/moves/new with optional id_account="
+            },
+            {
+                "id": "sheets.moves.create",
+                "method": "POST",
+                "path": "/sheets/moves/new",
+                "permission": "sheets.edit",
+                "description": "Create sheet move (in/out)"
+            },
+            {
+                "id": "sheets.moves.update",
+                "method": "POST",
+                "path": "/sheets/moves/{id}/edit",
+                "permission": "sheets.edit",
+                "description": "Update sheet move"
+            },
+            {
+                "id": "sheets.transfers.get",
+                "method": "GET",
+                "path": "/sheets/transfers/new",
+                "permission": "sheets.edit",
+                "description": "Transfer form defaults and account dictionary"
+            },
+            {
+                "id": "sheets.transfers.create",
+                "method": "POST",
+                "path": "/sheets/transfers/new",
+                "permission": "sheets.edit",
+                "description": "Create paired transfer move; fields id_account, id_account_to, summ, descr, weight, dt"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 10,
+            "path": "/sheets/moves",
+            "title": "sheets.menu.moves"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 11,
+            "path": "/sheets/accounts",
+            "title": "sheets.menu.accounts"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_sheet_accounts",
+        "base_sheet_moves"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "warehouse"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
     }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_sheet_accounts",
-    "base_sheet_moves"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [],
-    "publish": []
-  }
 }

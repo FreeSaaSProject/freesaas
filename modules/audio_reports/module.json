@@ -1,124 +1,149 @@
 {
-  "id": "audio_reports",
-  "name": "audio_reports.module.name",
-  "version": "0.2.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "audio": ">=0.1.0",
-    "audio_dicts": ">=0.1.0",
-    "workweeks": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "procedures": ">=0.1.0",
-    "audio_pipeline": ">=0.1.0"
-  },
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "audio_reports.view", "label": "audio_reports.perm.view" },
-    { "id": "audio_reports.edit", "label": "audio_reports.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/audio/calendar",
-      "/audio/calendar/reparse",
-      "/audio/collections",
-      "/audio/collections/{id}",
-      "/audio/summaries",
-      "/audio/summaries/new",
-      "/audio/summaries/work",
-      "/audio/summaries/{id}"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "audio_reports.calendar.day",
-        "method": "GET",
-        "path": "/audio/calendar",
-        "permission": "audio_reports.view",
-        "side_effect": "read",
-        "description": "Audio records day aggregates; day=YYYY-MM-DD, optional admin/badge/position",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "day": { "type": "string", "description": "YYYY-MM-DD" },
-            "admin": { "type": "integer" },
-            "badge": { "type": "integer" },
-            "position": { "type": "integer" }
-          },
-          "required": ["day"]
+    "id": "audio_reports",
+    "name": "audio_reports.module.name",
+    "version": "0.2.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "audio": ">=0.1.0",
+        "audio_dicts": ">=0.1.0",
+        "workweeks": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "procedures": ">=0.1.0",
+        "audio_pipeline": ">=0.1.0"
+    },
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "audio_reports.view",
+            "label": "audio_reports.perm.view"
+        },
+        {
+            "id": "audio_reports.edit",
+            "label": "audio_reports.perm.edit"
         }
-      },
-      {
-        "id": "audio_reports.summaries.list",
-        "method": "GET",
-        "path": "/audio/summaries",
-        "permission": "audio_reports.view",
-        "description": "List summary profiles; add run=1&profile=&year=&month= for a report"
-      },
-      {
-        "id": "audio_reports.summaries.get",
-        "method": "GET",
-        "path": "/audio/summaries/{id}",
-        "permission": "audio_reports.view",
-        "description": "Get one summary profile (config + labels)"
-      },
-      {
-        "id": "audio_reports.summaries.save",
-        "method": "POST",
-        "path": "/audio/summaries/new",
-        "permission": "audio_reports.edit",
-        "description": "Create profile (structured form or config_json); also POST /audio/summaries/{id}"
-      },
-      {
-        "id": "audio_reports.summaries.work",
-        "method": "GET",
-        "path": "/audio/summaries/work",
-        "permission": "audio_reports.view",
-        "description": "Work actions: propose|preview|save|month (edit for propose/preview/save)"
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "audio.menu.group",
-      "num": 2,
-      "path": "/audio/calendar",
-      "title": "audio_reports.menu.calendar"
-    },
-    {
-      "group": "audio.menu.group",
-      "kind": "crud",
-      "num": 3,
-      "path": "/audio/collections",
-      "title": "audio_reports.menu.collections"
-    },
-    {
-      "group": "audio.menu.group",
-      "num": 4,
-      "path": "/audio/summaries",
-      "title": "audio_reports.menu.summaries"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_records_summarys"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "audio.settings.sections",
-      "audio.settings.save"
     ],
-    "publish": [
-      "audio_reports.calendar.cell",
-      "audio_reports.calendar.day_extras",
-      "audio_reports.calendar.summary_enrich",
-      "audio_reports.calendar.reparse.after",
-      "audio_reports.summary.cards",
-      "audio_reports.summary.external"
-    ]
-  }
+    "routes": {
+        "pages": [
+            "/audio/calendar",
+            "/audio/calendar/reparse",
+            "/audio/collections",
+            "/audio/collections/{id}",
+            "/audio/summaries",
+            "/audio/summaries/new",
+            "/audio/summaries/work",
+            "/audio/summaries/{id}"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "audio_reports.calendar.day",
+                "method": "GET",
+                "path": "/audio/calendar",
+                "permission": "audio_reports.view",
+                "side_effect": "read",
+                "description": "Audio records day aggregates; day=YYYY-MM-DD, optional admin/badge/position",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "admin": {
+                            "type": "integer"
+                        },
+                        "badge": {
+                            "type": "integer"
+                        },
+                        "position": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "day"
+                    ]
+                }
+            },
+            {
+                "id": "audio_reports.summaries.list",
+                "method": "GET",
+                "path": "/audio/summaries",
+                "permission": "audio_reports.view",
+                "description": "List summary profiles; add run=1&profile=&year=&month= for a report"
+            },
+            {
+                "id": "audio_reports.summaries.get",
+                "method": "GET",
+                "path": "/audio/summaries/{id}",
+                "permission": "audio_reports.view",
+                "description": "Get one summary profile (config + labels)"
+            },
+            {
+                "id": "audio_reports.summaries.save",
+                "method": "POST",
+                "path": "/audio/summaries/new",
+                "permission": "audio_reports.edit",
+                "description": "Create profile (structured form or config_json); also POST /audio/summaries/{id}"
+            },
+            {
+                "id": "audio_reports.summaries.work",
+                "method": "GET",
+                "path": "/audio/summaries/work",
+                "permission": "audio_reports.view",
+                "description": "Work actions: propose|preview|save|month (edit for propose/preview/save)"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "audio.menu.group",
+            "num": 2,
+            "path": "/audio/calendar",
+            "title": "audio_reports.menu.calendar"
+        },
+        {
+            "group": "audio.menu.group",
+            "kind": "crud",
+            "num": 3,
+            "path": "/audio/collections",
+            "title": "audio_reports.menu.collections"
+        },
+        {
+            "group": "audio.menu.group",
+            "num": 4,
+            "path": "/audio/summaries",
+            "title": "audio_reports.menu.summaries"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_records_summarys"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "audio.settings.sections",
+            "audio.settings.save"
+        ],
+        "publish": [
+            "audio_reports.calendar.cell",
+            "audio_reports.calendar.day_extras",
+            "audio_reports.calendar.summary_enrich",
+            "audio_reports.calendar.reparse.after",
+            "audio_reports.summary.cards",
+            "audio_reports.summary.external"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "audio"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

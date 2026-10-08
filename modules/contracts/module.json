@@ -1,79 +1,102 @@
 {
-  "id": "contracts",
-  "name": "contracts.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "comments": ">=0.1.0"
-  },
-  "optionalRequires": {},
-  "provides": [
-    "contracts.offer",
-    "contracts.list"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "contracts.list", "label": "contracts.perm.list" },
-    { "id": "contracts.manage", "label": "contracts.perm.manage" }
-  ],
-  "routes": {
-    "pages": [
-      "/contracts",
-      "/contracts/action"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "contracts.list",
-        "method": "GET",
-        "path": "/contracts",
-        "permission": "contracts.list",
-        "description": "List contract offers; filters: status, executor, acceptor, party (non-admin)"
-      },
-      {
-        "id": "contracts.action",
-        "method": "POST",
-        "path": "/contracts/action",
-        "permission": "contracts.manage",
-        "description": "Contract workflow on a comment: action=accept_offer|accept_work|refuse|cancel_work_accept; comment_id, optional news_id",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "action": { "type": "string" },
-            "comment_id": { "type": "integer" },
-            "news_id": { "type": "integer" }
-          },
-          "required": ["action", "comment_id"]
-        }
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.accounting",
-      "num": 10,
-      "path": "/contracts",
-      "title": "contracts.menu.list"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_comments",
-    "base_news"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "comments.render_actions",
-      "comments.form.offer_fields",
-      "comments.prepare_add",
-      "core.dashboard.catalog",
-      "core.dashboard.widgets",
-      "core.notices.collect"
+    "id": "contracts",
+    "name": "contracts.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "comments": ">=0.1.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "contracts.offer",
+        "contracts.list"
     ],
-    "publish": []
-  }
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "contracts.list",
+            "label": "contracts.perm.list"
+        },
+        {
+            "id": "contracts.manage",
+            "label": "contracts.perm.manage"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/contracts",
+            "/contracts/action"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "contracts.list",
+                "method": "GET",
+                "path": "/contracts",
+                "permission": "contracts.list",
+                "description": "List contract offers; filters: status, executor, acceptor, party (non-admin)"
+            },
+            {
+                "id": "contracts.action",
+                "method": "POST",
+                "path": "/contracts/action",
+                "permission": "contracts.manage",
+                "description": "Contract workflow on a comment: action=accept_offer|accept_work|refuse|cancel_work_accept; comment_id, optional news_id",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string"
+                        },
+                        "comment_id": {
+                            "type": "integer"
+                        },
+                        "news_id": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "comment_id"
+                    ]
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.accounting",
+            "num": 10,
+            "path": "/contracts",
+            "title": "contracts.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_comments",
+        "base_news"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "comments.render_actions",
+            "comments.form.offer_fields",
+            "comments.prepare_add",
+            "core.dashboard.catalog",
+            "core.dashboard.widgets",
+            "core.notices.collect"
+        ],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "accounting"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

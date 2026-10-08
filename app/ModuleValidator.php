@@ -97,6 +97,80 @@ final class ModuleValidator
             $errors[] = 'module name key missing in catalogs: ' . $name;
         }
 
+        // description: optional i18n key (same convention as name)
+        $description = $meta['description'] ?? null;
+        if ($description === null || $description === '') {
+            $warnings[] = 'manifest missing description (expected i18n key module.description)';
+        } elseif (!is_string($description)) {
+            $errors[] = 'description must be an i18n key string';
+        } elseif (strpos($description, '.') === false) {
+            $errors[] = 'description must be an i18n key (module.key), not prose: ' . $description;
+        } else {
+            if (!self::catalogHasKey($description)) {
+                $errors[] = 'description key missing in catalogs: ' . $description;
+            }
+            if (!self::catalogHasKeyIn('en', $description)) {
+                $errors[] = 'description key missing in en catalog: ' . $description;
+            }
+        }
+
+        $summaryKey = $moduleId . '.module.summary';
+        if (self::catalogHasKey($summaryKey) || self::catalogHasKeyIn('en', $summaryKey)) {
+            if (!self::catalogHasKey($summaryKey)) {
+                $errors[] = 'summary key missing in ru catalog: ' . $summaryKey;
+            }
+            if (!self::catalogHasKeyIn('en', $summaryKey)) {
+                $errors[] = 'summary key missing in en catalog: ' . $summaryKey;
+            }
+        }
+
+        // catalog block: categories[] / tags / screenshots
+        if (!isset($meta['catalog'])) {
+            $warnings[] = 'manifest missing catalog (categories/tags recommended)';
+        } elseif (!is_array($meta['catalog'])) {
+            $errors[] = 'catalog must be an object';
+        } else {
+            $cat = ModuleCatalog::parseCatalog($meta);
+            if ($cat['categories_declared'] === []) {
+                $warnings[] = 'catalog.categories empty';
+            }
+            foreach ($cat['categories_declared'] as $c) {
+                if (!ModuleCatalog::isValidCategory($c)) {
+                    $errors[] = 'catalog.categories not in allowlist: ' . $c;
+                }
+            }
+            if ($cat['maturity_declared'] === '') {
+                $warnings[] = 'catalog.maturity missing (expected alpha|beta|release; default beta)';
+            } elseif (!ModuleCatalog::isValidMaturity($cat['maturity_declared'])) {
+                $errors[] = 'catalog.maturity not in allowlist: ' . $cat['maturity_declared'];
+            }
+            foreach ($cat['tags'] as $tag) {
+                if (!ModuleCatalog::isValidTag($tag)) {
+                    $errors[] = 'catalog.tags not in allowlist: ' . $tag;
+                }
+            }
+            foreach ($cat['screenshots'] as $i => $shot) {
+                $file = (string)$shot['file'];
+                $norm = str_replace('\\', '/', $file);
+                if ($norm === '' || strpos($norm, '..') !== false || strpos($norm, 'assets/catalog/') !== 0) {
+                    $errors[] = "catalog.screenshots[{$i}].file must be under assets/catalog/";
+                    continue;
+                }
+                $abs = $dir . '/' . $norm;
+                if (!is_file($abs)) {
+                    $warnings[] = "catalog.screenshots[{$i}] file missing: {$norm}";
+                }
+                $cap = (string)$shot['caption'];
+                if ($cap !== '') {
+                    if (strpos($cap, '.') === false) {
+                        $errors[] = "catalog.screenshots[{$i}].caption must be i18n key";
+                    } elseif (!self::catalogHasKey($cap)) {
+                        $errors[] = "catalog.screenshots[{$i}].caption missing in catalogs: {$cap}";
+                    }
+                }
+            }
+        }
+
         // Hooks: dotted event names only (no spaces / prose)
         foreach (['publish', 'subscribe'] as $side) {
             $list = $meta['hooks'][$side] ?? [];
@@ -244,11 +318,16 @@ final class ModuleValidator
 
     private static function catalogHasKey(string $key): bool
     {
-        static $ru = null;
-        if ($ru === null) {
-            $ru = I18n::collectCatalogKeys('ru');
+        return self::catalogHasKeyIn('ru', $key);
+    }
+
+    private static function catalogHasKeyIn(string $locale, string $key): bool
+    {
+        static $cache = [];
+        if (!isset($cache[$locale])) {
+            $cache[$locale] = I18n::collectCatalogKeys($locale);
         }
-        return isset($ru[$key]);
+        return isset($cache[$locale][$key]);
     }
 
     /**

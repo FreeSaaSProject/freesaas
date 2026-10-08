@@ -277,6 +277,28 @@ function status_pill(?array $status, string $fallback = ''): string {
     return '<span class="pill status-pill" style="background:' . e($color) . '33;color:' . e($color) . '">' . e($name) . '</span>';
 }
 
+/**
+ * One-shot PRG flash (session). Type: ok|warn|error.
+ */
+function flash_set(string $type, string $message): void
+{
+    if (session_status() !== PHP_SESSION_ACTIVE) {
+        return;
+    }
+    $_SESSION['freesaas_flash'] = ['type' => $type, 'message' => $message];
+}
+
+/** @return array{type:string,message:string}|null */
+function flash_take(): ?array
+{
+    if (session_status() !== PHP_SESSION_ACTIVE || empty($_SESSION['freesaas_flash'])) {
+        return null;
+    }
+    $flash = $_SESSION['freesaas_flash'];
+    unset($_SESSION['freesaas_flash']);
+    return is_array($flash) ? $flash : null;
+}
+
 function redirect(string $url): void {
     if (class_exists('NavContext', false)) {
         $url = NavContext::redirectUrl($url);

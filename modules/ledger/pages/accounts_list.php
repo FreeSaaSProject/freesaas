@@ -21,12 +21,22 @@ $result = LedgerAccountsRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+$accountIds = array_map(static function (array $r): int {
+    return (int)$r['id'];
+}, $result['items']);
+$badgePayload = EventBus::emit('ledger.accounts.badges', ['ids' => $accountIds, 'by_id' => []]);
+$accountBadges = is_array($badgePayload['by_id'] ?? null) ? $badgePayload['by_id'] : [];
+if ($accountBadges !== [] && ModuleManager::isEnabled('banks')) {
+    Assets::need('banks');
+}
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'total' => $result['total'],
         'items' => $result['items'],
         'filters' => ['q' => $q],
+        'badges' => $accountBadges,
     ]);
     return;
 }
@@ -44,4 +54,5 @@ View::render('accounts_list', [
     'showAll' => $lq['show_all'],
     'filters' => $filters,
     'bulkFlash' => BulkActions::consumeFlash(),
+    'accountBadges' => $accountBadges,
 ], 'layout', 'ledger');

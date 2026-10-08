@@ -1,143 +1,192 @@
 {
-  "id": "liquid_assets",
-  "name": "liquid_assets.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "ledger": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "funds": ">=0.1.0"
-  },
-  "provides": [
-    "liquid_assets.report"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "liquid_assets.view", "label": "liquid_assets.perm.view" },
-    { "id": "liquid_assets.edit", "label": "liquid_assets.perm.edit" }
-  ],
-  "routes": {
-    "pages": [
-      "/liquid-assets",
-      "/liquid-assets/accounts",
-      "/liquid-assets/accounts/new",
-      "/liquid-assets/accounts/{id}/edit"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "liquid_assets.report",
-        "method": "GET",
-        "path": "/liquid-assets",
-        "permission": "liquid_assets.view",
-        "side_effect": "read",
-        "description": "Liquid assets monthly report (deposits, cash, broker snapshots). Param ym=YYYY-MM.",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "ym": { "type": "string", "description": "Month as YYYY-MM (default: current)" }
-          }
-        }
-      },
-      {
-        "id": "liquid_assets.sync",
-        "method": "POST",
-        "path": "/liquid-assets",
-        "permission": "liquid_assets.edit",
-        "side_effect": "write",
-        "description": "Sync T-Invest portfolios into snapshots (current month only). Body: do=sync. If need_confirm, call again with do=sync_confirm to REVAL/DEVAL linked funds.",
-        "parameters": {
-          "type": "object",
-          "required": ["do"],
-          "properties": {
-            "do": {
-              "type": "string",
-              "enum": ["sync", "sync_confirm"],
-              "description": "sync = fetch API + write snapshots; sync_confirm = apply fund REVAL/DEVAL after pending"
-            },
-            "ym": { "type": "string", "description": "Month YYYY-MM (must be current for sync)" }
-          }
-        }
-      },
-      {
-        "id": "liquid_assets.accounts.list",
-        "method": "GET",
-        "path": "/liquid-assets/accounts",
-        "permission": "liquid_assets.view",
-        "side_effect": "read",
-        "description": "List T-Invest account bindings; tokens are masked (token_mask only)"
-      },
-      {
-        "id": "liquid_assets.accounts.get_edit",
-        "method": "GET",
-        "path": "/liquid-assets/accounts/{id}/edit",
-        "permission": "liquid_assets.edit",
-        "side_effect": "read",
-        "description": "T-Invest account edit payload (token masked); new record at /liquid-assets/accounts/new"
-      },
-      {
-        "id": "liquid_assets.accounts.create",
-        "method": "POST",
-        "path": "/liquid-assets/accounts/new",
-        "permission": "liquid_assets.edit",
-        "side_effect": "write",
-        "description": "Create T-Invest binding; body: token (required), fund_id, user_id",
-        "parameters": {
-          "type": "object",
-          "required": ["token"],
-          "properties": {
-            "token": { "type": "string", "description": "T-Invest Open API Bearer token" },
-            "fund_id": { "type": "integer", "description": "Linked funds leaf ID (0 = none)" },
-            "user_id": { "type": "integer", "description": "Access owner staff user id" }
-          }
-        }
-      },
-      {
-        "id": "liquid_assets.accounts.update",
-        "method": "POST",
-        "path": "/liquid-assets/accounts/{id}/edit",
-        "permission": "liquid_assets.edit",
-        "side_effect": "write",
-        "description": "Update T-Invest binding; omit token or send empty to keep existing",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "token": { "type": "string", "description": "New Bearer token; empty = keep" },
-            "fund_id": { "type": "integer" },
-            "user_id": { "type": "integer" }
-          }
-        }
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "core.menu.group.finance",
-      "num": 55,
-      "path": "/liquid-assets",
-      "title": "liquid_assets.menu.report"
+    "id": "liquid_assets",
+    "name": "liquid_assets.module.name",
+    "description": "liquid_assets.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "catalog": {
+        "categories": [
+            "finance",
+            "integrations"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "report",
+            "integration",
+            "sync"
+        ],
+        "screenshots": []
     },
-    {
-      "group": "core.menu.group.finance",
-      "num": 56,
-      "kind": "settings",
-      "path": "/liquid-assets/accounts",
-      "title": "liquid_assets.menu.accounts"
+    "requires": {
+        "core": ">=0.3.0",
+        "ledger": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "funds": ">=0.1.0"
+    },
+    "provides": [
+        "liquid_assets.report"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "liquid_assets.view",
+            "label": "liquid_assets.perm.view"
+        },
+        {
+            "id": "liquid_assets.edit",
+            "label": "liquid_assets.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/liquid-assets",
+            "/liquid-assets/accounts",
+            "/liquid-assets/accounts/new",
+            "/liquid-assets/accounts/{id}/edit"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "liquid_assets.report",
+                "method": "GET",
+                "path": "/liquid-assets",
+                "permission": "liquid_assets.view",
+                "side_effect": "read",
+                "description": "Liquid assets monthly report (deposits, cash, broker snapshots). Param ym=YYYY-MM.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ym": {
+                            "type": "string",
+                            "description": "Month as YYYY-MM (default: current)"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "liquid_assets.sync",
+                "method": "POST",
+                "path": "/liquid-assets",
+                "permission": "liquid_assets.edit",
+                "side_effect": "write",
+                "description": "Sync T-Invest portfolios into snapshots (current month only). Body: do=sync. If need_confirm, call again with do=sync_confirm to REVAL/DEVAL linked funds.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "do"
+                    ],
+                    "properties": {
+                        "do": {
+                            "type": "string",
+                            "enum": [
+                                "sync",
+                                "sync_confirm"
+                            ],
+                            "description": "sync = fetch API + write snapshots; sync_confirm = apply fund REVAL/DEVAL after pending"
+                        },
+                        "ym": {
+                            "type": "string",
+                            "description": "Month YYYY-MM (must be current for sync)"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "liquid_assets.accounts.list",
+                "method": "GET",
+                "path": "/liquid-assets/accounts",
+                "permission": "liquid_assets.view",
+                "side_effect": "read",
+                "description": "List T-Invest account bindings; tokens are masked (token_mask only)"
+            },
+            {
+                "id": "liquid_assets.accounts.get_edit",
+                "method": "GET",
+                "path": "/liquid-assets/accounts/{id}/edit",
+                "permission": "liquid_assets.edit",
+                "side_effect": "read",
+                "description": "T-Invest account edit payload (token masked); new record at /liquid-assets/accounts/new"
+            },
+            {
+                "id": "liquid_assets.accounts.create",
+                "method": "POST",
+                "path": "/liquid-assets/accounts/new",
+                "permission": "liquid_assets.edit",
+                "side_effect": "write",
+                "description": "Create T-Invest binding; body: token (required), fund_id, user_id",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "token"
+                    ],
+                    "properties": {
+                        "token": {
+                            "type": "string",
+                            "description": "T-Invest Open API Bearer token"
+                        },
+                        "fund_id": {
+                            "type": "integer",
+                            "description": "Linked funds leaf ID (0 = none)"
+                        },
+                        "user_id": {
+                            "type": "integer",
+                            "description": "Access owner staff user id"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "liquid_assets.accounts.update",
+                "method": "POST",
+                "path": "/liquid-assets/accounts/{id}/edit",
+                "permission": "liquid_assets.edit",
+                "side_effect": "write",
+                "description": "Update T-Invest binding; omit token or send empty to keep existing",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "token": {
+                            "type": "string",
+                            "description": "New Bearer token; empty = keep"
+                        },
+                        "fund_id": {
+                            "type": "integer"
+                        },
+                        "user_id": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.finance",
+            "num": 55,
+            "path": "/liquid-assets",
+            "title": "liquid_assets.menu.report"
+        },
+        {
+            "group": "core.menu.group.finance",
+            "num": 56,
+            "kind": "settings",
+            "path": "/liquid-assets/accounts",
+            "title": "liquid_assets.menu.accounts"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_tinvest_accounts",
+        "base_broker_snapshots",
+        "base_broker_positions"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
     }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_tinvest_accounts",
-    "base_broker_snapshots",
-    "base_broker_positions"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [],
-    "publish": []
-  }
 }

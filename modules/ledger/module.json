@@ -3,7 +3,18 @@
     "name": "ledger.module.name",
     "version": "0.1.0",
     "type": "product",
-    "description": "Company accounts, move types, account moves (ДПС), reconciliations, promised payments, auto-DPS from payments",
+    "description": "ledger.module.description",
+    "catalog": {
+        "categories": [
+            "finance"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "journal",
+            "payments"
+        ],
+        "screenshots": []
+    },
     "requires": {
         "core": ">=0.3.0"
     },
@@ -198,7 +209,10 @@
         "subscribe": [
             "core.notices.collect"
         ],
-        "publish": []
+        "publish": [
+            "ledger.accounts.badges",
+            "ledger.moves.badges"
+        ]
     },
     "bulkActions": [
         {

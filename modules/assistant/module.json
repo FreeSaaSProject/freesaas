@@ -1,76 +1,87 @@
 {
-  "id": "assistant",
-  "name": "assistant.module.name",
-  "version": "0.1.0",
-  "type": "product",
-  "requires": {
-    "core": ">=0.3.0",
-    "llm": ">=0.1.0"
-  },
-  "optionalRequires": {
-    "bots": ">=0.1.0",
-    "procedures": ">=0.1.0",
-    "staff_reports": ">=0.1.0",
-    "audio_reports": ">=0.2.0",
-    "terminals": ">=0.1.0"
-  },
-  "provides": [
-    "assistant.harness"
-  ],
-  "migrations": "migrations/",
-  "permissions": [
-    { "id": "assistant.use", "label": "assistant.perm.use" }
-  ],
-  "routes": {
-    "pages": [
-      "/assistant",
-      "/assistant/chat",
-      "/assistant/confirm"
-    ]
-  },
-  "agent": {
-    "ops": [
-      {
-        "id": "assistant.chat",
-        "method": "POST",
-        "path": "/assistant/chat",
-        "permission": "assistant.use",
-        "side_effect": "read",
-        "assistant": false,
-        "description": "Run assistant harness; body: messages[] (role/content), optional profile"
-      },
-      {
-        "id": "assistant.confirm",
-        "method": "POST",
-        "path": "/assistant/confirm",
-        "permission": "assistant.use",
-        "side_effect": "write",
-        "assistant": false,
-        "description": "Confirm or cancel a pending write tool; body: token, action=confirm|cancel"
-      }
-    ]
-  },
-  "jobs": [],
-  "menu": [
-    {
-      "group": "llm.menu.group",
-      "num": 10,
-      "path": "/assistant",
-      "title": "assistant.menu.chat",
-      "permission": "assistant.use"
-    }
-  ],
-  "configSchema": {},
-  "tables": [
-    "base_assistant_pending"
-  ],
-  "migrators": [],
-  "hooks": {
-    "subscribe": [
-      "bots.ready"
+    "id": "assistant",
+    "name": "assistant.module.name",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "llm": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "bots": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "staff_reports": ">=0.1.0",
+        "audio_reports": ">=0.2.0",
+        "terminals": ">=0.1.0"
+    },
+    "provides": [
+        "assistant.harness"
     ],
-    "publish": [
-      "bots.send"
-    ]
-  }
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "assistant.use",
+            "label": "assistant.perm.use"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/assistant",
+            "/assistant/chat",
+            "/assistant/confirm"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "assistant.chat",
+                "method": "POST",
+                "path": "/assistant/chat",
+                "permission": "assistant.use",
+                "side_effect": "read",
+                "assistant": false,
+                "description": "Run assistant harness; body: messages[] (role/content), optional profile"
+            },
+            {
+                "id": "assistant.confirm",
+                "method": "POST",
+                "path": "/assistant/confirm",
+                "permission": "assistant.use",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Confirm or cancel a pending write tool; body: token, action=confirm|cancel"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "llm.menu.group",
+            "num": 10,
+            "path": "/assistant",
+            "title": "assistant.menu.chat",
+            "permission": "assistant.use"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_assistant_pending"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "bots.ready"
+        ],
+        "publish": [
+            "bots.send"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "integrations"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

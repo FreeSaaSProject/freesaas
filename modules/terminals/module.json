@@ -17,9 +17,18 @@
     ],
     "migrations": "migrations/",
     "permissions": [
-        { "id": "terminals.view", "label": "terminals.perm.view" },
-        { "id": "terminals.edit", "label": "terminals.perm.edit" },
-        { "id": "terminals.sync", "label": "terminals.perm.sync" }
+        {
+            "id": "terminals.view",
+            "label": "terminals.perm.view"
+        },
+        {
+            "id": "terminals.edit",
+            "label": "terminals.perm.edit"
+        },
+        {
+            "id": "terminals.sync",
+            "label": "terminals.perm.sync"
+        }
     ],
     "routes": {
         "pages": [
@@ -107,9 +116,14 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "day": { "type": "string", "description": "YYYY-MM-DD" }
+                        "day": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        }
                     },
-                    "required": ["day"]
+                    "required": [
+                        "day"
+                    ]
                 }
             },
             {
@@ -219,7 +233,7 @@
             "kind": "settings"
         }
     ],
-    "configSchema": {},
+    "configSchema": [],
     "tables": [
         "base_terminals",
         "base_bracelets",
@@ -240,7 +254,21 @@
         "publish": []
     },
     "bulkActions": [
-        { "list_id": "terminals", "action": "delete" },
-        { "list_id": "terminals_bracelets", "action": "delete" }
-    ]
+        {
+            "list_id": "terminals",
+            "action": "delete"
+        },
+        {
+            "list_id": "terminals_bracelets",
+            "action": "delete"
+        }
+    ],
+    "catalog": {
+        "categories": [
+            "integrations"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
 }

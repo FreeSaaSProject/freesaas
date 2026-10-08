@@ -3,7 +3,7 @@
     "name": "core.module.name",
     "version": "0.3.0",
     "type": "platform",
-    "requires": {},
+    "requires": [],
     "optionalRequires": {
         "bots": ">=0.1.0"
     },
@@ -55,6 +55,7 @@
             "/locale",
             "/logout",
             "/modules",
+            "/modules/{id}",
             "/db",
             "/users",
             "/users/new",
@@ -107,9 +108,17 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "q": { "type": "string" },
-                        "enabled": { "type": "string", "description": "1 active, 0 disabled, empty=all" },
-                        "status_id": { "type": "integer", "description": "Filter by role ID_STATUS" }
+                        "q": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "string",
+                            "description": "1 active, 0 disabled, empty=all"
+                        },
+                        "status_id": {
+                            "type": "integer",
+                            "description": "Filter by role ID_STATUS"
+                        }
                     }
                 }
             },
@@ -145,18 +154,45 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "name": { "type": "string", "description": "Full name" },
-                        "tel": { "type": "string", "description": "Phone; used as login when login omitted" },
-                        "mail": { "type": "string" },
-                        "login": { "type": "string", "description": "Optional; default from tel digits" },
-                        "ID_STATUS": { "type": "integer", "description": "Role id" },
-                        "ID_STATUS2": { "type": "integer" },
-                        "enabled": { "type": "string" },
-                        "copyFrom": { "type": "integer", "description": "Non-superadmin template user id" },
-                        "NOT_IN_TEAM": { "type": "string" },
-                        "ASSIST_TEAM": { "type": "string" }
+                        "name": {
+                            "type": "string",
+                            "description": "Full name"
+                        },
+                        "tel": {
+                            "type": "string",
+                            "description": "Phone; used as login when login omitted"
+                        },
+                        "mail": {
+                            "type": "string"
+                        },
+                        "login": {
+                            "type": "string",
+                            "description": "Optional; default from tel digits"
+                        },
+                        "ID_STATUS": {
+                            "type": "integer",
+                            "description": "Role id"
+                        },
+                        "ID_STATUS2": {
+                            "type": "integer"
+                        },
+                        "enabled": {
+                            "type": "string"
+                        },
+                        "copyFrom": {
+                            "type": "integer",
+                            "description": "Non-superadmin template user id"
+                        },
+                        "NOT_IN_TEAM": {
+                            "type": "string"
+                        },
+                        "ASSIST_TEAM": {
+                            "type": "string"
+                        }
                     },
-                    "required": ["name"]
+                    "required": [
+                        "name"
+                    ]
                 }
             },
             {
@@ -169,14 +205,31 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "copyFrom": { "type": "integer", "description": "Source staff id (not superadmin)" },
-                        "name": { "type": "string" },
-                        "tel": { "type": "string" },
-                        "mail": { "type": "string" },
-                        "login": { "type": "string" },
-                        "enabled": { "type": "string", "description": "Default 1" }
+                        "copyFrom": {
+                            "type": "integer",
+                            "description": "Source staff id (not superadmin)"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "tel": {
+                            "type": "string"
+                        },
+                        "mail": {
+                            "type": "string"
+                        },
+                        "login": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "string",
+                            "description": "Default 1"
+                        }
                     },
-                    "required": ["copyFrom", "name"]
+                    "required": [
+                        "copyFrom",
+                        "name"
+                    ]
                 }
             },
             {
@@ -266,12 +319,29 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "type": { "type": "integer", "description": "1 articles, 2 tickets, 3 DMs, 4 favorites" },
-                        "pid": { "type": "integer", "description": "Folder id; omit for root" },
-                        "q": { "type": "string" },
-                        "status": { "type": "integer", "description": "Ticket status filter (type=2)" },
-                        "unread": { "type": "integer", "description": "1 = flat unread leaves" },
-                        "unsigned": { "type": "integer", "description": "1 = flat items needing signature" }
+                        "type": {
+                            "type": "integer",
+                            "description": "1 articles, 2 tickets, 3 DMs, 4 favorites"
+                        },
+                        "pid": {
+                            "type": "integer",
+                            "description": "Folder id; omit for root"
+                        },
+                        "q": {
+                            "type": "string"
+                        },
+                        "status": {
+                            "type": "integer",
+                            "description": "Ticket status filter (type=2)"
+                        },
+                        "unread": {
+                            "type": "integer",
+                            "description": "1 = flat unread leaves"
+                        },
+                        "unsigned": {
+                            "type": "integer",
+                            "description": "1 = flat items needing signature"
+                        }
                     }
                 }
             },
@@ -284,14 +354,37 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "comments": { "type": "integer", "description": "0 = omit comments list (count still in comment_count)" },
-                        "comments_limit": { "type": "integer", "description": "Page size 1–100, default 20" },
-                        "comments_offset": { "type": "integer" },
-                        "comments_pid": { "type": "integer", "description": "0 = roots; >0 = direct replies under that comment" },
-                        "comments_id": { "type": "integer", "description": "Fetch one comment by id" },
-                        "comments_order": { "type": "string", "description": "asc|desc (default desc for roots, asc for replies)" },
-                        "comments_excerpt": { "type": "integer", "description": "Max chars per text; 0 = full; default 500" },
-                        "body": { "type": "integer", "description": "0 = omit item.body" }
+                        "comments": {
+                            "type": "integer",
+                            "description": "0 = omit comments list (count still in comment_count)"
+                        },
+                        "comments_limit": {
+                            "type": "integer",
+                            "description": "Page size 1–100, default 20"
+                        },
+                        "comments_offset": {
+                            "type": "integer"
+                        },
+                        "comments_pid": {
+                            "type": "integer",
+                            "description": "0 = roots; >0 = direct replies under that comment"
+                        },
+                        "comments_id": {
+                            "type": "integer",
+                            "description": "Fetch one comment by id"
+                        },
+                        "comments_order": {
+                            "type": "string",
+                            "description": "asc|desc (default desc for roots, asc for replies)"
+                        },
+                        "comments_excerpt": {
+                            "type": "integer",
+                            "description": "Max chars per text; 0 = full; default 500"
+                        },
+                        "body": {
+                            "type": "integer",
+                            "description": "0 = omit item.body"
+                        }
                     }
                 }
             },
@@ -312,17 +405,40 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "NAME": { "type": "string" },
-                        "TYPE": { "type": "integer" },
-                        "BIG": { "type": "string" },
-                        "PID": { "type": "integer" },
-                        "HAS_CHILDREN": { "type": "integer", "description": "1 = folder (no status/curator/SIGN_REQ)" },
-                        "IGNORE_FOLDER": { "type": "integer", "description": "1 = archive folder" },
-                        "SIGN_REQ": { "type": "integer", "description": "1 = require acknowledgment comment" },
-                        "ACCESS_GROUP": { "description": "status id[] or #id# list" },
-                        "ACCESS_USER": { "description": "user id[]; required for TYPE=3" }
+                        "NAME": {
+                            "type": "string"
+                        },
+                        "TYPE": {
+                            "type": "integer"
+                        },
+                        "BIG": {
+                            "type": "string"
+                        },
+                        "PID": {
+                            "type": "integer"
+                        },
+                        "HAS_CHILDREN": {
+                            "type": "integer",
+                            "description": "1 = folder (no status/curator/SIGN_REQ)"
+                        },
+                        "IGNORE_FOLDER": {
+                            "type": "integer",
+                            "description": "1 = archive folder"
+                        },
+                        "SIGN_REQ": {
+                            "type": "integer",
+                            "description": "1 = require acknowledgment comment"
+                        },
+                        "ACCESS_GROUP": {
+                            "description": "status id[] or #id# list"
+                        },
+                        "ACCESS_USER": {
+                            "description": "user id[]; required for TYPE=3"
+                        }
                     },
-                    "required": ["NAME"]
+                    "required": [
+                        "NAME"
+                    ]
                 }
             },
             {
@@ -347,13 +463,30 @@
                             "type": "string",
                             "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|like|favorite|delete|restore_version|color_comment"
                         },
-                        "text": { "type": "string", "description": "Body for comment or edit_comment" },
-                        "comment_id": { "type": "integer", "description": "Target comment for edit/hide/show/delete" },
-                        "new_sign": { "type": "integer", "description": "1 = acknowledge SIGN_REQ with this comment" },
-                        "reply_pid": { "type": "integer", "description": "Parent comment id when replying" },
-                        "log_id": { "type": "integer", "description": "Version id for restore_version" }
+                        "text": {
+                            "type": "string",
+                            "description": "Body for comment or edit_comment"
+                        },
+                        "comment_id": {
+                            "type": "integer",
+                            "description": "Target comment for edit/hide/show/delete"
+                        },
+                        "new_sign": {
+                            "type": "integer",
+                            "description": "1 = acknowledge SIGN_REQ with this comment"
+                        },
+                        "reply_pid": {
+                            "type": "integer",
+                            "description": "Parent comment id when replying"
+                        },
+                        "log_id": {
+                            "type": "integer",
+                            "description": "Version id for restore_version"
+                        }
                     },
-                    "required": ["action"]
+                    "required": [
+                        "action"
+                    ]
                 }
             }
         ]
@@ -480,5 +613,14 @@
             "core.bulk.check_item",
             "comments.counts"
         ]
+    },
+    "catalog": {
+        "categories": [
+            "platform",
+            "system"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
     }
 }

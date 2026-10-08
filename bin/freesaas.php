@@ -32,7 +32,7 @@ try {
             freesaas_cmd_bootstrap($opts);
             break;
         case 'module':
-            freesaas_cmd_module($sub, $args);
+            freesaas_cmd_module($sub, $args, $opts);
             break;
         case 'migrate':
             freesaas_cmd_migrate($sub, $opts);
@@ -72,7 +72,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
 
   system status [--format=json]
   bootstrap --login=… --password=… [--name=…] [--agent-token=…] [--modules=a,b] [--format=json]
-  module list|inspect|enable|disable|validate …
+  module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked] [--maturity=alpha|beta|release]
+  module inspect|enable [--accept-risk]|disable|validate …
   migrate status|run [--module=id] [--format=json]
   db status|dumps|dump|restore|delete-dump|check|repair|optimize [--file=…] [--label=…] [--format=json]
   locale list|validate [--locale=xx] [--format=json]
@@ -119,10 +120,19 @@ function freesaas_cmd_bootstrap(array $opts): void
 }
 
 /** @param list<string> $args */
-function freesaas_cmd_module(string $sub, array $args): void
+/**
+ * @param array<string, string|bool> $opts
+ */
+function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
 {
     if ($sub === 'list') {
-        freesaas_emit_ops(AgentOps::moduleList());
+        freesaas_emit_ops(AgentOps::moduleList([
+            'q' => isset($opts['q']) ? (string)$opts['q'] : '',
+            'category' => isset($opts['category']) ? (string)$opts['category'] : '',
+            'tag' => isset($opts['tag']) ? (string)$opts['tag'] : '',
+            'status' => isset($opts['status']) ? (string)$opts['status'] : '',
+            'maturity' => isset($opts['maturity']) ? (string)$opts['maturity'] : '',
+        ]));
     }
     if ($sub === 'inspect') {
         $id = $args[2] ?? '';
@@ -134,15 +144,16 @@ function freesaas_cmd_module(string $sub, array $args): void
     if ($sub === 'enable' || $sub === 'disable') {
         $id = $args[2] ?? '';
         if ($id === '') {
-            Cli::usage("Usage: module {$sub} <id>");
+            Cli::usage("Usage: module {$sub} <id> [--accept-risk]");
         }
-        freesaas_emit_ops(AgentOps::moduleSetEnabled($id, $sub === 'enable'));
+        $acceptRisk = !empty($opts['accept-risk']) || !empty($opts['accept_risk']);
+        freesaas_emit_ops(AgentOps::moduleSetEnabled($id, $sub === 'enable', $acceptRisk));
     }
     if ($sub === 'validate') {
         $id = $args[2] ?? '';
         freesaas_emit_ops(AgentOps::moduleValidate($id !== '' ? $id : null));
     }
-    Cli::usage('Usage: module list|inspect|enable|disable|validate …');
+    Cli::usage('Usage: module list [--q=] [--category=] [--tag=] [--status=] [--maturity=alpha|beta|release] | inspect|enable [--accept-risk]|disable|validate …');
 }
 
 /** @param array<string, string|bool> $opts */

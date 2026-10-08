@@ -10,8 +10,10 @@
 /** @var bool $showAll */
 /** @var array $filters */
 /** @var array|null $bulkFlash */
+/** @var array<int,string> $accountBadges */
 $path = '/accounts';
 $listId = 'ledger_accounts';
+$accountBadges = is_array($accountBadges ?? null) ? $accountBadges : [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, !empty($showAll));
 $colSpan = 5 + BulkActions::colSpanExtra($listId);
 ?>
@@ -41,7 +43,7 @@ $colSpan = 5 + BulkActions::colSpanExtra($listId);
 <tr>
   <?= BulkActions::td($listId, (int)$r['id']) ?>
   <td class="muted"><?php if ($canEdit): ?><a href="/accounts/<?= (int)$r['id'] ?>/edit"><?= (int)$r['id'] ?></a><?php else: ?><?= (int)$r['id'] ?><?php endif; ?></td>
-  <td><?= e((string)$r['name']) ?><?php if ((string)$r['descr'] !== ''): ?> <span class="muted">— <?= e((string)$r['descr']) ?></span><?php endif; ?></td>
+  <td><?= e((string)$r['name']) ?><?php if ((string)$r['descr'] !== ''): ?> <span class="muted">— <?= e((string)$r['descr']) ?></span><?php endif; ?><?= $accountBadges[(int)$r['id']] ?? '' ?></td>
   <td><?= e(LedgerAccountsRepository::typeLabel((int)$r['id_type'])) ?></td>
   <td><?= !empty($r['enabled']) ? te('core.common.yes') : te('core.common.no') ?></td>
 </tr>

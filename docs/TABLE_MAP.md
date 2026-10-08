@@ -46,6 +46,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_accounts*` / `base_account_*` | ledger | Accounts, moves, reconciliations |
 | `base_funds` / `base_fund_movements` | funds | Funds tree + movements |
 | `base_tinvest_accounts` / `base_broker_snapshots` / `base_broker_positions` | liquid_assets | T-Invest bindings + broker portfolio snapshots |
+| `base_bank_connections` / `base_bank_account_links` / `base_bank_tx_map` | banks | Bank OAuth connections, account links, statement→move map |
 | — (read models) | finance / procents | Reports over ledger/rates/procedures |
 | `base_orders` | orders | Website/cart orders |
 | `base_polls` | polls | Poll definition tree (EL_TYPE poll/question/answer) |

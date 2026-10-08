@@ -156,6 +156,19 @@ if ($stickersEnabled && class_exists('Acts2InRepository')) {
     $actOptions = Acts2InRepository::optionsForSelect(80, (int)($row['act2_in'] ?? 0));
 }
 
+$moveBadgeHtml = '';
+if (!$isNew && $id > 0) {
+    $badgePayload = EventBus::emit('ledger.moves.badges', [
+        'ids' => [$id],
+        'type_by_move' => [$id => (int)($row['type_id'] ?? 0)],
+        'by_id' => [],
+    ]);
+    $moveBadgeHtml = (string)(($badgePayload['by_id'][$id] ?? ''));
+    if ($moveBadgeHtml !== '' && ModuleManager::isEnabled('banks')) {
+        Assets::need('banks');
+    }
+}
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -177,6 +190,7 @@ if ($wantsJson) {
         ],
         'dt_value' => $dtValue,
         'dt_promised_value' => $dtPromisedValue,
+        'badge_html' => $moveBadgeHtml,
     ]);
     return;
 }
@@ -203,4 +217,5 @@ View::render('moves_edit', [
     'dtPromisedValue' => $dtPromisedValue,
     'message' => $message,
     'error' => $error,
+    'moveBadgeHtml' => $moveBadgeHtml,
 ], 'layout', 'ledger');

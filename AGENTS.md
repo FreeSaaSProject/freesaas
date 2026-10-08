@@ -60,11 +60,11 @@ Layouts always live in `modules/core/views/` (`layout`, `layout_auth`, `error`).
 
 Create `modules/<id>/` with:
 
-1. `module.json` — required keys: `id`, `name`, `version`, `type` (`product`), `requires` (at least `"core": ">=0.3.0"`), `permissions`, `menu` (if nav), `tables`, `hooks` (document emit/subscribe), `routes.pages` (list paths for humans; real routes are in bootstrap). Optional: `agent.ops` for product JSON ([`docs/agents/module-agent-api.md`](docs/agents/module-agent-api.md)).
-2. **i18n (required):** `lang/ru.php` + `lang/en.php` with all UI chrome strings. `module.json` `name`, `menu[].title|group`, and `permissions[].label` must be translation **keys** (e.g. `myid.menu.list`), not hardcoded language text. Views/pages/bootstrap/lib labels use `t()` / `te()` / `tj()` — never hardcode Russian or English UI copy.
+1. `module.json` — required keys: `id`, `name`, `version`, `type` (`product`), `requires` (at least `"core": ">=0.3.0"`), `permissions`, `menu` (if nav), `tables`, `hooks` (document emit/subscribe), `routes.pages` (list paths for humans; real routes are in bootstrap). Recommended: `description` (i18n key `{id}.module.description`), `catalog` (`categories[]` many-to-many / `maturity`=`alpha|beta|release` / `tags` / `screenshots` — allowlists in `app/ModuleCatalog.php`). Optional: `agent.ops` for product JSON ([`docs/agents/module-agent-api.md`](docs/agents/module-agent-api.md)).
+2. **i18n (required):** `lang/ru.php` + `lang/en.php` with all UI chrome strings. `module.json` `name`, `description`, `menu[].title|group`, and `permissions[].label` must be translation **keys** (e.g. `myid.menu.list`), not hardcoded language text. Also ship `{id}.module.summary` (when to enable / deps in words) for the modules catalog and agents. Views/pages/bootstrap/lib labels use `t()` / `te()` / `tj()` — never hardcode Russian or English UI copy.
 3. `bootstrap.php` — `require_once` libs; `Assets::register` if CSS/JS; `ModuleManager::registerMenuGroup` if own rail group; `StatusesRepository::registerFieldGroup` if role flags; register routes; subscribe EventBus (incl. `core.user_edit.*` when adding staff fields).
-4. Optional: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `config.example.ini`.
-5. Enable: `[modules] <id>=1` or Modules UI (runs schema migrations on enable). Copy module config example → `cfg/modules/<id>.ini` if the module needs ini settings.
+4. Optional: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `assets/catalog/` screenshots, `config.example.ini`.
+5. Enable: `[modules] <id>=1` or Modules catalog UI `/modules` (runs schema migrations on enable). Copy module config example → `cfg/modules/<id>.ini` if the module needs ini settings.
 
 Do **not** translate UGC or DB reference `NAME` fields; only chrome (buttons, flashes, menu, column headers, empty states, JS prompts).
 
@@ -108,6 +108,27 @@ Do **not** call `Breadcrumbs::render` inside module views — chrome owns placem
 On an **exact menu list path**, layout automatically turns the leaf crumb into a link to the clean list URL whenever the query is non-empty (filters, pager, sort — ignoring `ret`, empty values, `page=1`). Modules do not opt in; omit query on the default list URL so the crumb stays plain text.
 
 Item keys: `label` (required), `href` (optional), `current` (optional). Ancestors stay links.
+
+## Module maturity (alpha / beta / release)
+
+FreeSaaS is an **open** system: source in the repo + an agent with tools. Unlike classical SaaS (hide internals, polish until the user cannot self-repair), an imperfect module can still have practical value early.
+
+| Maturity | Meaning | Enable |
+|----------|---------|--------|
+| `alpha` | Experimental; expect instability | UI risk panel; agent/CLI needs `accept_risk` / `--accept-risk` |
+| `beta` | Mostly usable; rough edges remain | same risk ack |
+| `release` | Stability promised | normal enable |
+
+**Agent note (alpha):** «Alpha — expect instability; be ready to diagnose and repair.»
+
+**When an alpha/beta module fails**, do **not** stop at «HTTP 500, contact an administrator». Diagnose, repair locally when possible, then offer upstream. Example tone: «Module is experimental. Found a migration error after update. Fixed locally, tests pass. Create an issue/PR to the main repo?»
+
+**Policy (also on `GET /agent/modules` as `maturity_policy`):**
+
+- **Alpha/Beta:** agent may diagnose and propose a local fix. If the bug is in FreeSaaS code and reproducible — check existing issues; if no duplicate, create an issue. If the agent fixed it and tests pass — attach a patch/PR to the issue.
+- **Release:** same process, but the bug gets **higher priority** because the stability promise was broken.
+
+Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/inspect expose `maturity`, `requires_risk_ack`, `agent_note`.
 
 ## Auth
 
@@ -173,6 +194,7 @@ Item keys: `label` (required), `href` (optional), `current` (optional). Ancestor
 | `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 | `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |
+| `banks` | Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) → link `base_accounts`, sync statements into ДПС; soft `llm` classify; disableable |
 
 Prefer extending these via hooks before forking page logic.
 

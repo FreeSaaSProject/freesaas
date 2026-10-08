@@ -11,8 +11,8 @@ Add a new product module under `modules/<id>/` that passes acceptance.
 1. **Pick id** — lowercase snake, ASCII (`equipment`, not `оборуд`).
 2. **Clone template** — copy structure from [`modules/units/`](../../modules/units/) for CRUD dictionaries.
 3. **Create files**
-   - `module.json` — `id`, `name` (i18n key), `version`, `type: product`, `requires: { "core": ">=0.3.0" }`, `optionalRequires`, `permissions`, `menu`, `tables`, `hooks` (dotted EventBus names only), `routes.pages`, optional `bulkActions`, optional `agent.ops` ([module-agent-api.md](module-agent-api.md))
-   - `lang/ru.php` + `lang/en.php`
+   - `module.json` — `id`, `name` (i18n key), `description` (i18n key `{id}.module.description`), `catalog` (`categories[]` many-to-many + `maturity`=`alpha|beta|release` + `tags` from `ModuleCatalog` allowlists; optional `screenshots` under `assets/catalog/`), `version`, `type: product`, `requires: { "core": ">=0.3.0" }`, `optionalRequires`, `permissions`, `menu`, `tables`, `hooks` (dotted EventBus names only), `routes.pages`, optional `bulkActions`, optional `agent.ops` ([module-agent-api.md](module-agent-api.md)). Until hardened, prefer `maturity: beta` (enable requires risk ack for alpha/beta).
+   - `lang/ru.php` + `lang/en.php` — include `{id}.module.description` and `{id}.module.summary` (when to enable, hard/soft deps in plain language for humans and agents)
    - `bootstrap.php` — `require_once` repos, `registerRoute`, optional `BulkActions`, `EventBus::on`, `Health::register`, `Assets::register`
    - `migrations/001_*.php` — `return function (PDO $pdo): void`
    - `lib/*Repository.php`, `pages/`, `views/`

@@ -34,8 +34,10 @@
 /** @var array $filters */
 /** @var array|null $bulkFlash */
 /** @var string $reconError */
+/** @var array<int,string> $moveBadges */
 $path = '/ledger/moves';
 $listId = 'ledger_moves';
+$moveBadges = is_array($moveBadges ?? null) ? $moveBadges : [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, !empty($showAll));
 $colSpan = 6 + ($showBalanceCol ? 1 : 0) + BulkActions::colSpanExtra($listId);
 $sysBalance = $balance !== null ? round((float)$balance, 2) : null;
@@ -200,7 +202,7 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
   </td>
   <td><?= e((string)($accounts[(int)$r['account_id']] ?? ('#' . (int)$r['account_id']))) ?></td>
   <td><?= e((string)($types[(int)$r['type_id']] ?? ('#' . (int)$r['type_id']))) ?></td>
-  <td><?= e(LedgerMovesRepository::descrForList((string)$r['descr'])) ?>
+  <td><?= e(LedgerMovesRepository::descrForList((string)$r['descr'])) ?><?= $moveBadges[$mid] ?? '' ?>
     <?php if ($userPayId > 0): ?>
       <div class="ledger-user-pay"><?= te('ledger.moves.user_payment_line') ?> <?= UsersRepository::badgeHtml($userPayId, true, true) ?></div>
     <?php endif; ?>

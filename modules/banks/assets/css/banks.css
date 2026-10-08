@@ -1,0 +1,38 @@
+.bank-chip {
+  display: inline-block;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  line-height: 1.3;
+  border-radius: 0.25rem;
+  color: var(--accent-2, #0a7);
+  background: color-mix(in srgb, var(--accent-2, #0a7) 14%, transparent);
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.bank-chip-warn {
+  color: var(--warn, #b80);
+  background: color-mix(in srgb, var(--warn, #b80) 14%, transparent);
+}
+
+.banks-connect-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.banks-remote-table .bank-link-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.banks-sync-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 1rem 0;
+}

@@ -110,7 +110,13 @@ function agent_api_dispatch(string $path, string $method, string $id): array
         return AgentOps::systemStatus();
     }
     if ($path === '/agent/modules' && $method === 'GET') {
-        return AgentOps::moduleList();
+        return AgentOps::moduleList([
+            'q' => (string)($_GET['q'] ?? ''),
+            'category' => (string)($_GET['category'] ?? ''),
+            'tag' => (string)($_GET['tag'] ?? ''),
+            'status' => (string)($_GET['status'] ?? ''),
+            'maturity' => (string)($_GET['maturity'] ?? ''),
+        ]);
     }
     if ($path === '/agent/validate' && $method === 'GET') {
         return AgentOps::moduleValidate(null);
@@ -171,7 +177,11 @@ function agent_api_dispatch(string $path, string $method, string $id): array
             return AgentOps::moduleInspect($id);
         }
         if ($path === '/agent/modules/' . $id . '/enable' && $method === 'POST') {
-            return AgentOps::moduleSetEnabled($id, true);
+            $body = agent_api_json_body();
+            $accept = !empty($_GET['accept_risk'])
+                || !empty($_POST['accept_risk'])
+                || !empty($body['accept_risk']);
+            return AgentOps::moduleSetEnabled($id, true, (bool)$accept);
         }
         if ($path === '/agent/modules/' . $id . '/disable' && $method === 'POST') {
             return AgentOps::moduleSetEnabled($id, false);

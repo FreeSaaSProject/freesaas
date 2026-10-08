@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 return [
     'funds.module.name' => 'Funds',
+    'funds.module.description' => 'Fund tree and CAPUSE/REFUND fund movements on top of the ledger.',
+    'funds.module.summary' => 'Enable after ledger when you need internal funds (tree of funds) and fund movements (CAPUSE/REFUND). Hard-requires ledger. Soft-used by finance reports and liquid assets for FUND_MATRIX / REVAL. Do not enable without ledger accounts already set up.',
     'funds.menu.list' => 'Funds',
     'funds.menu.movements' => 'Fund movements',
     'funds.perm.view' => 'Funds (view)',
