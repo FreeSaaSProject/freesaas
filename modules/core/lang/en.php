@@ -432,6 +432,8 @@ return [
     'core.user_edit.perms_hint' => 'Module screens and menu items. Clearing a checkbox hides the module from the side menu even for a superadmin (a superadmin can still open it by direct URL). “Contracts (list)” shows only your own contracts (as executor or acceptor); superadmins and controllers (status flag) see all contracts.',
     'core.user_edit.perms_all_on_btn' => '[select all]',
     'core.user_edit.perms_all_off_btn' => '[clear all]',
+    'core.user_edit.perms_expand_all' => '[expand]',
+    'core.user_edit.perms_collapse_all' => '[collapse]',
     'core.user_edit.copy_perms' => 'Copy permissions from',
     'core.statuses.eyebrow' => 'ACL · Team',
     'core.statuses.title' => 'Staff statuses',

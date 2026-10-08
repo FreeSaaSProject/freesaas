@@ -177,10 +177,12 @@ if ($newsAfterTs > 0) {
   <div class="perm-toolbar">
     <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=1"><?= te('core.user_edit.perms_all_on_btn') ?></a>
     <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=0"><?= te('core.user_edit.perms_all_off_btn') ?></a>
+    <button class="btn-ghost" type="button" id="perm-expand-all"><?= te('core.user_edit.perms_expand_all') ?></button>
+    <button class="btn-ghost" type="button" id="perm-collapse-all"><?= te('core.user_edit.perms_collapse_all') ?></button>
   </div>
   <?php if ($copyUsers): ?>
   <label><?= te('core.user_edit.copy_perms') ?>
-    <select onchange="if(this.value) location.href=<?= json_encode($editBase, JSON_HEX_TAG | JSON_HEX_APOS) ?>+'?copyFrom='+this.value">
+    <select data-edit-base="<?= e($editBase) ?>" id="copy-perms-select">
       <option value="">—</option>
       <?php foreach ($copyUsers as $cu): if ((int)$cu['id'] === $uid) continue; ?>
         <option value="<?= (int)$cu['id'] ?>"><?= e(($cu['name'] ?: $cu['login']) . ' (#' . $cu['id'] . ')') ?></option>
@@ -188,9 +190,24 @@ if ($newsAfterTs > 0) {
     </select>
   </label>
   <?php endif; ?>
-  <?php foreach ($permGroups as $modId => $group): ?>
-    <fieldset class="check-fieldset">
-      <legend><?= e(t((string)$group['name'])) ?></legend>
+  <div class="perm-groups" id="perm-groups">
+  <?php foreach ($permGroups as $modId => $group):
+    $onCount = 0;
+    $totalKeys = 0;
+    foreach ($group['keys'] as $key) {
+      $totalKeys++;
+      $pid = is_array($key) ? (string)$key['id'] : (string)$key;
+      if (!empty($userPerms[$pid])) {
+        $onCount++;
+      }
+    }
+    // Collapsed by default — 40 modules with Save at the bottom stays usable.
+    ?>
+    <details class="check-fieldset perm-group">
+      <summary class="perm-group-summary">
+        <span class="perm-group-name"><?= e(t((string)$group['name'])) ?></span>
+        <span class="perm-group-count<?= $onCount > 0 ? ' is-on' : '' ?>"><?= (int)$onCount ?>/<?= (int)$totalKeys ?></span>
+      </summary>
       <div class="check-grid">
         <?php foreach ($group['keys'] as $key):
           $pid = is_array($key) ? (string)$key['id'] : (string)$key;
@@ -203,11 +220,12 @@ if ($newsAfterTs > 0) {
           </label>
         <?php endforeach; ?>
       </div>
-    </fieldset>
+    </details>
   <?php endforeach; ?>
+  </div>
   <?php endif; ?>
 
-  <div class="page-actions">
+  <div class="page-actions page-actions-sticky">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="<?= $isNew ? '/users' : ('/users/' . $uid) ?>"><?= te('core.common.cancel') ?></a>
   </div>
@@ -234,6 +252,27 @@ if ($newsAfterTs > 0) {
       var p = gen.getAttribute('data-pass') || '';
       pass.type = 'text';
       pass.value = p;
+    });
+  }
+  function setPermGroupsOpen(open) {
+    var root = document.getElementById('perm-groups');
+    if (!root) return;
+    var nodes = root.querySelectorAll('details.perm-group');
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].open = !!open;
+    }
+  }
+  var expandBtn = document.getElementById('perm-expand-all');
+  var collapseBtn = document.getElementById('perm-collapse-all');
+  if (expandBtn) expandBtn.addEventListener('click', function () { setPermGroupsOpen(true); });
+  if (collapseBtn) collapseBtn.addEventListener('click', function () { setPermGroupsOpen(false); });
+  var copySel = document.getElementById('copy-perms-select');
+  if (copySel) {
+    copySel.addEventListener('change', function () {
+      var v = copySel.value;
+      if (!v) return;
+      var base = copySel.getAttribute('data-edit-base') || '';
+      location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'copyFrom=' + encodeURIComponent(v);
     });
   }
 })();

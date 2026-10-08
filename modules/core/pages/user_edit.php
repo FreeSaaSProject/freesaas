@@ -351,11 +351,11 @@ if ($wantsJson) {
         foreach ($g['keys'] as $key) {
             $keys[] = is_array($key) ? [
                 'id' => (string)$key['id'],
-                'label' => (string)($key['label'] ?? $key['id']),
+                'label' => t((string)($key['label'] ?? $key['id'])),
             ] : ['id' => (string)$key, 'label' => (string)$key];
         }
         $permKeys[] = [
-            'name' => (string)($g['name'] ?? ''),
+            'name' => t((string)($g['name'] ?? '')),
             'keys' => $keys,
         ];
     }

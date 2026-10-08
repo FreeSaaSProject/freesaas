@@ -214,7 +214,8 @@ final class UsersRepository
                     }
                     $keys[] = [
                         'id' => $pid,
-                        'label' => $label !== '' ? t($label) : $pid,
+                        // Keep i18n keys; views translate once via t().
+                        'label' => $label !== '' ? $label : $pid,
                     ];
                 } else {
                     $pid = trim((string)$p);
@@ -225,9 +226,8 @@ final class UsersRepository
                 }
             }
             if ($keys) {
-                $modName = (string)($meta['name'] ?? $id);
                 $grouped[$id] = [
-                    'name' => t($modName),
+                    'name' => (string)($meta['name'] ?? $id),
                     'keys' => $keys,
                 ];
             }

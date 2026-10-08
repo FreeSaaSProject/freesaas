@@ -432,6 +432,8 @@ return [
     'core.user_edit.perms_hint' => 'Экраны и пункты меню модулей. Снятая галочка скрывает модуль в боковом меню даже у суперадмина (прямой URL при роли суперадмина всё ещё открывается). «Контракты (список)» — только свои контракты (исполнитель или приёмщик); все контракты видят суперадмин и контролёр (флаг статуса).',
     'core.user_edit.perms_all_on_btn' => '[включить все]',
     'core.user_edit.perms_all_off_btn' => '[отключить все]',
+    'core.user_edit.perms_expand_all' => '[развернуть]',
+    'core.user_edit.perms_collapse_all' => '[свернуть]',
     'core.user_edit.copy_perms' => 'Скопировать разрешения у',
     'core.statuses.eyebrow' => 'ACL · Команда',
     'core.statuses.title' => 'Статусы сотрудников',

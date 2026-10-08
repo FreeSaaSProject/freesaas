@@ -2404,6 +2404,43 @@ table.data tr.is-disabled td a {
   color: var(--muted);
   font-size: 0.9rem;
 }
+details.check-fieldset {
+  padding-top: 0.55rem;
+}
+details.check-fieldset > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  user-select: none;
+}
+details.check-fieldset > summary::-webkit-details-marker { display: none; }
+.perm-group-summary .perm-group-name {
+  color: var(--text);
+  font-weight: 600;
+}
+.perm-group-summary .perm-group-count {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+}
+.perm-group-summary .perm-group-count.is-on {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  background: var(--accent-soft);
+}
+.perm-groups {
+  display: grid;
+  gap: 0.55rem;
+}
 .check-grid {
   display: grid;
   gap: 0.35rem 0.75rem;
@@ -2420,6 +2457,15 @@ table.data tr.is-disabled td a {
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-bottom: 0.25rem;
+}
+.user-edit-form .page-actions-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: 1rem;
+  padding: 0.75rem 0 0.35rem;
+  background: linear-gradient(180deg, transparent 0%, var(--bg0) 28%);
+  border-top: 1px solid var(--line);
 }
 .form-grid select {
   border: 1px solid var(--line);
