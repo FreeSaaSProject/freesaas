@@ -21,6 +21,15 @@ ModuleManager::registerRoute('/contracts/action', [
     },
 ]);
 
+ModuleManager::registerRoute('/contracts/settings', [
+    'module' => 'contracts',
+    'methods' => ['GET', 'POST'],
+    'capability' => 'SUPERADMIN_ACCESS',
+    'handler' => static function (): void {
+        require base_path('modules/contracts/pages/settings.php');
+    },
+]);
+
 EventBus::on('comments.form.offer_fields', static function ($payload) {
     if (!is_array($payload)) {
         $payload = [];

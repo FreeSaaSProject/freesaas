@@ -314,6 +314,7 @@ final class PaymentsRepository
 
     /**
      * Oper deadline-penalty payout for an accepted offer comment.
+     * Cut applied only when contracts.deadline_penalty is on (default).
      * @param array<string,mixed> $c base_comments row
      * @return array{sum:float,deadline_cut:float,over_text:string}
      */
@@ -323,6 +324,9 @@ final class PaymentsRepository
         $sumDeadLine = 0.0;
         $procentOfPaymentDeadLine = 1.0;
         $overTimeText = '';
+        $penaltyOn = class_exists('ContractsRepository', false)
+            ? ContractsRepository::deadlinePenaltyEnabled()
+            : ((int)Config::get('contracts', 'deadline_penalty', 1) === 1);
         $offerAt = (int)($c['DT_OFFER_ACCEPT'] ?? 0);
         $workAt = (int)($c['DT_WORK_ACCEPT'] ?? 0);
         $dl = (int)($c['DT_DEADLINE'] ?? 0);
@@ -341,24 +345,26 @@ final class PaymentsRepository
             }
             $timeTotal = $dlEnd - $offerEnd;
             $procentUsed = $timeTotal > 0 ? (int)round($timeUsed * 100 / $timeTotal) : 0;
-            $procentLabel = (string)$procentUsed;
-            if ($procentUsed > 200) {
-                // show_contracts: full cut; edit_payment wrongly left factor=1
-                $procentLabel .= '% /сокр. возн.:100';
-                $procentOfPaymentDeadLine = 0.0;
-            } elseif ($procentUsed > 100) {
-                $procentOfPaymentDeadLine = 1.0 - round(($procentUsed - 100) / 100, 2);
-                $procentLabel .= '% /сокр. возн.:' . ($procentUsed - 100);
-            } else {
-                $procentLabel .= '%';
+            $procentLabel = (string)$procentUsed . '%';
+            if ($penaltyOn) {
+                if ($procentUsed > 200) {
+                    // show_contracts: full cut; edit_payment wrongly left factor=1
+                    $procentLabel .= ' /сокр. возн.:100';
+                    $procentOfPaymentDeadLine = 0.0;
+                } elseif ($procentUsed > 100) {
+                    $procentOfPaymentDeadLine = 1.0 - round(($procentUsed - 100) / 100, 2);
+                    $procentLabel .= ' /сокр. возн.:' . ($procentUsed - 100);
+                }
             }
             $overTimeText = '[Ост.:' . round($timeRemain / 86400, 1)
                 . ' д] [Использовано: ' . round($timeUsed / 86400, 1)
                 . '/' . round($timeTotal / 86400, 1)
                 . ' д: ' . $procentLabel . ']';
-            $sumDeadLine = (float)round($sumCalculation * (1.0 - $procentOfPaymentDeadLine));
-            if ($sumDeadLine > 0) {
-                $sumCalculation -= $sumDeadLine;
+            if ($penaltyOn) {
+                $sumDeadLine = (float)round($sumCalculation * (1.0 - $procentOfPaymentDeadLine));
+                if ($sumDeadLine > 0) {
+                    $sumCalculation -= $sumDeadLine;
+                }
             }
         }
         return [

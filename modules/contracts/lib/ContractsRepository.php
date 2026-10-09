@@ -3,6 +3,12 @@ declare(strict_types=1);
 
 final class ContractsRepository
 {
+    /** cfg/modules/contracts.ini → [contracts] deadline_penalty (default on, oper-compatible). */
+    public static function deadlinePenaltyEnabled(): bool
+    {
+        return (int)Config::get('contracts', 'deadline_penalty', 1) === 1;
+    }
+
     /** Active in-work offer acceptor on ticket (0 if none). */
     public static function activeAcceptorOnTicket(int $newsId): int
     {
