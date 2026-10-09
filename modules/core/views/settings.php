@@ -5,6 +5,8 @@
 /** @var ?string $logoUrl */
 /** @var bool $hasLogo */
 /** @var string $extraHtml */
+/** @var string $timezone */
+/** @var list<array{id:string,label:string,group?:string}> $timezoneOptions */
 /** @var bool $agentTokenConfigured */
 /** @var string $agentTokenMasked */
 /** @var string $agentTokenPlain */
@@ -12,10 +14,31 @@
 $logoUrl = isset($logoUrl) ? $logoUrl : null;
 $hasLogo = !empty($hasLogo);
 $extraHtml = (string)($extraHtml ?? '');
+$timezone = (string)($timezone ?? 'UTC');
+$timezoneOptions = is_array($timezoneOptions ?? null) ? $timezoneOptions : [];
 $agentTokenConfigured = !empty($agentTokenConfigured);
 $agentTokenMasked = (string)($agentTokenMasked ?? '');
 $agentTokenPlain = (string)($agentTokenPlain ?? '');
 $agentTokenJustGenerated = !empty($agentTokenJustGenerated);
+
+$timezoneGroups = [];
+foreach ($timezoneOptions as $opt) {
+    if (!is_array($opt)) {
+        continue;
+    }
+    $oid = (string)($opt['id'] ?? '');
+    if ($oid === '') {
+        continue;
+    }
+    $g = (string)($opt['group'] ?? 'Other');
+    if ($g === '') {
+        $g = 'Other';
+    }
+    if (!isset($timezoneGroups[$g])) {
+        $timezoneGroups[$g] = [];
+    }
+    $timezoneGroups[$g][] = $opt;
+}
 ?>
 <section class="page-head">
   <p class="lede"><?= t('core.settings.lede') ?></p>
@@ -31,6 +54,22 @@ $agentTokenJustGenerated = !empty($agentTokenJustGenerated);
   <label><?= te('core.settings.field_company') ?>
     <input name="company" value="<?= e((string)($row['company'] ?? '')) ?>">
     <span class="field-hint muted"><?= te('core.settings.field_company_hint') ?></span>
+  </label>
+
+  <label><?= te('core.settings.field_timezone') ?>
+    <select name="timezone">
+      <?php foreach ($timezoneGroups as $groupLabel => $groupOpts): ?>
+      <optgroup label="<?= e((string)$groupLabel) ?>">
+        <?php foreach ($groupOpts as $opt):
+            $oid = (string)($opt['id'] ?? '');
+            $olabel = (string)($opt['label'] ?? $oid);
+            ?>
+        <option value="<?= e($oid) ?>"<?= $oid === $timezone ? ' selected' : '' ?>><?= e($olabel) ?></option>
+        <?php endforeach; ?>
+      </optgroup>
+      <?php endforeach; ?>
+    </select>
+    <span class="field-hint muted"><?= te('core.settings.field_timezone_hint') ?></span>
   </label>
 
   <fieldset class="form-fieldset logo-fieldset">

@@ -551,6 +551,35 @@
                         "action"
                     ]
                 }
+            },
+            {
+                "id": "core.settings.get",
+                "method": "GET",
+                "path": "/settings",
+                "permission": "core.settings",
+                "side_effect": "read",
+                "description": "System settings: company, timezone (IANA), full timezones[] list, has_logo, agent_token_configured (token value not returned). Stored in cfg/config.ini as app.timezone."
+            },
+            {
+                "id": "core.settings.save",
+                "method": "POST",
+                "path": "/settings",
+                "permission": "core.settings",
+                "side_effect": "write",
+                "description": "Save system settings. JSON may send only changed fields (timezone and/or company); omitted fields stay unchanged. timezone must be a PHP IANA id from GET timezones[]. Applies PHP + MySQL session TZ immediately. Logo upload is UI-only.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "timezone": {
+                            "type": "string",
+                            "description": "IANA timezone id, e.g. Europe/Berlin, America/New_York, Asia/Tokyo, UTC"
+                        },
+                        "company": {
+                            "type": "string",
+                            "description": "Company display name (tab title fallback when no logo)"
+                        }
+                    }
+                }
             }
         ]
     },

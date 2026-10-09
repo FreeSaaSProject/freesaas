@@ -4,12 +4,76 @@ declare(strict_types=1);
 require_once base_path('modules/core/lib/SystemRepository.php');
 require_once base_path('modules/core/lib/SystemLogo.php');
 
+/** All IANA zones, sorted by current UTC offset then id. @return list<string> */
+$coreTimezoneIds = static function (): array {
+    $ids = DateTimeZone::listIdentifiers(DateTimeZone::ALL);
+    if (!is_array($ids) || $ids === []) {
+        return ['UTC'];
+    }
+    $now = time();
+    $offsets = [];
+    foreach ($ids as $id) {
+        try {
+            $offsets[$id] = (new DateTimeImmutable('@' . $now))
+                ->setTimezone(new DateTimeZone($id))
+                ->getOffset();
+        } catch (Throwable $e) {
+            $offsets[$id] = 0;
+        }
+    }
+    usort($ids, static function (string $a, string $b) use ($offsets): int {
+        $oa = $offsets[$a] ?? 0;
+        $ob = $offsets[$b] ?? 0;
+        if ($oa !== $ob) {
+            return $oa <=> $ob;
+        }
+        return strcmp($a, $b);
+    });
+    return $ids;
+};
+
+/**
+ * @return list<array{id:string,label:string,group:string}>
+ */
+$coreTimezoneOptions = static function (string $current) use ($coreTimezoneIds): array {
+    $ids = $coreTimezoneIds();
+    if ($current !== '' && !in_array($current, $ids, true)) {
+        array_unshift($ids, $current);
+    }
+    $now = time();
+    $out = [];
+    foreach ($ids as $id) {
+        $label = $id;
+        $group = 'Other';
+        $slash = strpos($id, '/');
+        if ($slash !== false) {
+            $group = substr($id, 0, $slash);
+        } elseif ($id === 'UTC' || strncmp($id, 'Etc/', 4) === 0) {
+            $group = 'UTC';
+        }
+        try {
+            $offset = (new DateTimeImmutable('@' . $now))
+                ->setTimezone(new DateTimeZone($id))
+                ->format('P');
+            $label = $id . ' (UTC' . $offset . ')';
+        } catch (Throwable $e) {
+            // keep bare id
+        }
+        $out[] = ['id' => $id, 'label' => $label, 'group' => $group];
+    }
+    return $out;
+};
+
 $wantsJson = AgentHttp::wantsJson();
 $message = '';
 $error = '';
 $row = SystemRepository::get();
 $agentTokenPlain = '';
 $agentTokenJustGenerated = false;
+$timezone = (string)Config::get('app', 'timezone', 'UTC');
+if ($timezone === '') {
+    $timezone = 'UTC';
+}
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $raw = file_get_contents('php://input');
@@ -44,9 +108,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $agentTokenJustGenerated = true;
             $message = t('core.settings.agent_token.generated');
         } else {
-            SystemRepository::updateBasics([
-                'company' => (string)($_POST['company'] ?? ''),
-            ]);
+            // HTML always posts timezone; JSON may omit to keep current.
+            if (!$wantsJson || array_key_exists('timezone', $_POST)) {
+                $tz = trim((string)($_POST['timezone'] ?? ''));
+                if ($tz === '' || !in_array($tz, timezone_identifiers_list(), true)) {
+                    throw new RuntimeException(t('core.settings.timezone.invalid'));
+                }
+                Config::set('app', 'timezone', $tz);
+                @date_default_timezone_set($tz);
+                Database::reset();
+                $timezone = $tz;
+            }
+
+            // HTML always posts company; JSON may omit to keep current.
+            if (!$wantsJson || array_key_exists('company', $_POST)) {
+                SystemRepository::updateBasics([
+                    'company' => (string)($_POST['company'] ?? ''),
+                ]);
+            }
 
             if (!empty($_POST['logo_remove'])) {
                 SystemLogo::remove();
@@ -71,6 +150,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'action' => 'save',
                     'message' => $message,
                     'company' => (string)($row['company'] ?? ''),
+                    'timezone' => $timezone,
                 ]);
             }
         }
@@ -78,6 +158,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $error = $e->getMessage();
         $agentTokenJustGenerated = false;
         $row = SystemRepository::get();
+        $timezone = (string)Config::get('app', 'timezone', 'UTC');
         if ($wantsJson) {
             AgentHttp::error($error, 400);
         }
@@ -89,6 +170,8 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'ok' => true,
         'action' => 'status',
         'company' => (string)($row['company'] ?? ''),
+        'timezone' => $timezone,
+        'timezones' => $coreTimezoneIds(),
         'has_logo' => SystemLogo::has(),
         'agent_token_configured' => AgentAuth::isConfigured(),
     ]);
@@ -120,6 +203,8 @@ View::render('settings', [
     'logoUrl' => SystemLogo::url(SystemLogo::VARIANT_AUTH),
     'hasLogo' => SystemLogo::has(),
     'extraHtml' => $extraHtml,
+    'timezone' => $timezone,
+    'timezoneOptions' => $coreTimezoneOptions($timezone),
     'agentTokenConfigured' => $agentConfigured,
     'agentTokenMasked' => $agentTokenMasked,
     'agentTokenPlain' => $agentTokenPlain,

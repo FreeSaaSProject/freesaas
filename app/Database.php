@@ -33,7 +33,27 @@ final class Database
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
+        self::applySessionTimezone(self::$pdo);
         return self::$pdo;
+    }
+
+    /**
+     * Align MySQL session TZ with app.timezone so FROM_UNIXTIME day keys match PHP.
+     * Uses numeric offset (+04:00) — works without mysql timezone tables on shared hosting.
+     */
+    private static function applySessionTimezone(PDO $pdo): void
+    {
+        $name = (string)Config::get('app', 'timezone', 'UTC');
+        if ($name === '') {
+            $name = 'UTC';
+        }
+        try {
+            $tz = new DateTimeZone($name);
+        } catch (Throwable $e) {
+            $tz = new DateTimeZone('UTC');
+        }
+        $offset = (new DateTime('now', $tz))->format('P');
+        $pdo->exec('SET time_zone = ' . $pdo->quote($offset));
     }
 
     /** Drop cached PDO (e.g. after sleep / "No such file or directory" socket errors). */
