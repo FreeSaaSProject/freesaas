@@ -81,9 +81,10 @@ body.upd-job-busy { overflow: hidden; }
 .upd-ver { white-space: nowrap; }
 .upd-ver-remote {
   margin-left: 0.45rem;
-  color: #c62828;
   font-weight: 700;
 }
+.upd-ver-remote--newer { color: #c62828; }
+.upd-ver-remote--older { color: #6a6a6a; }
 .upd-status { display: inline-flex; align-items: center; gap: 0.35rem; }
 .upd-status-cell {
   display: flex;

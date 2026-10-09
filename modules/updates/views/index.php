@@ -169,7 +169,6 @@ $jobI18n = [
             $remoteVer = (string)($src['remote_version'] ?? '');
             $avail = !empty($src['update_available']);
             $checked = $remoteVer !== '';
-            // Red remote only when it is newer (update_available). Local ahead of stable release is not an update.
             $rowRepo = (string)($src['repo'] ?? '');
             $rowBundle = (string)($src['bundle'] ?? '');
             $showSrc = ($rowRepo !== '' && $defaultRepo !== '' && $rowRepo !== $defaultRepo)
@@ -193,8 +192,9 @@ $jobI18n = [
             </td>
             <td class="upd-ver">
               <?= e($localVer !== '' ? $localVer : '—') ?>
-              <?php if ($avail && $remoteVer !== '' && $remoteVer !== $localVer): ?>
-                <span class="upd-ver-remote" title="<?= e(t('updates.col_remote')) ?>"><?= e($remoteVer) ?></span>
+              <?php if ($checked && $remoteVer !== $localVer): ?>
+                <span class="upd-ver-remote<?= $avail ? ' upd-ver-remote--newer' : ' upd-ver-remote--older' ?>"
+                      title="<?= e(t('updates.col_remote')) ?>"><?= e($remoteVer) ?></span>
               <?php endif; ?>
             </td>
             <td>

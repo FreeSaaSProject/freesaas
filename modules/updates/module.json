@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "0.3.6",
+    "version": "0.3.7",
     "type": "product",
     "catalog": {
         "categories": [
