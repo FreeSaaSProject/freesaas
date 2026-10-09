@@ -985,12 +985,12 @@ final class UpdateEngine
                 $artifact = (string)($picked['name'] ?? '');
             }
             if ($url === '') {
-                $url = (string)($release['zipball_url'] ?? ('https://api.github.com/repos/' . $repo . '/zipball/' . rawurlencode($ref)));
+                $url = self::githubArchiveUrl($repo, $ref);
                 $artifact = 'zipball:' . $ref;
             }
         } else {
-            // Branch / floating channel: zipball of ref
-            $url = 'https://api.github.com/repos/' . $repo . '/zipball/' . rawurlencode($ref);
+            // Branch / floating channel: archive of ref
+            $url = self::githubArchiveUrl($repo, $ref);
             $artifact = 'zipball:' . $ref;
         }
 
@@ -1283,8 +1283,10 @@ final class UpdateEngine
             if ($ch === false) {
                 throw new RuntimeException('curl_init failed');
             }
+            // Release asset API needs octet-stream; zipball/tarball reject it with HTTP 415.
+            $accept = self::downloadAcceptForUrl($url);
             $headers = [
-                'Accept: application/octet-stream',
+                'Accept: ' . $accept,
                 'User-Agent: ' . self::USER_AGENT,
             ];
             if ($token !== '') {
@@ -1313,6 +1315,42 @@ final class UpdateEngine
         if (!is_file($dest) || filesize($dest) < 1) {
             throw new RuntimeException('Downloaded file is empty');
         }
+    }
+
+    /** Accept header for archive download (GitHub API media types differ by endpoint). */
+    private static function downloadAcceptForUrl(string $url): string
+    {
+        if (strpos($url, 'api.github.com/') !== false && strpos($url, '/releases/assets/') !== false) {
+            return 'application/octet-stream';
+        }
+        if (strpos($url, 'api.github.com/') !== false
+            && (strpos($url, '/zipball/') !== false || strpos($url, '/tarball/') !== false)
+        ) {
+            // octet-stream → HTTP 415 on /zipball/; vnd.github+json redirects to codeload.
+            return 'application/vnd.github+json';
+        }
+        return '*/*';
+    }
+
+    /**
+     * Archive URL for a git ref. Prefer codeload (works with Accept */*); API zipball needs
+     * application/vnd.github+json (octet-stream returns 415).
+     */
+    private static function githubArchiveUrl(string $repo, string $ref): string
+    {
+        $ref = trim($ref);
+        if ($ref === '') {
+            $ref = 'main';
+        }
+        // API zipball resolves branch vs tag; keep as fallback path via downloadAcceptForUrl.
+        // Codeload is more reliable when we know it's a branch name used as channel.
+        if (preg_match('/^[A-Za-z0-9._\/-]+$/', $ref)) {
+            if ($ref[0] === 'v' || preg_match('/^\d+\.\d+/', $ref)) {
+                return 'https://codeload.github.com/' . $repo . '/zip/refs/tags/' . rawurlencode($ref);
+            }
+            return 'https://codeload.github.com/' . $repo . '/zip/refs/heads/' . rawurlencode($ref);
+        }
+        return 'https://api.github.com/repos/' . $repo . '/zipball/' . rawurlencode($ref);
     }
 
     private static function httpGet(string $url, string $token, bool $octetStream = false): string
