@@ -78,6 +78,12 @@ body.upd-job-busy { overflow: hidden; }
 .upd-source { margin: 0.25rem 0 0.75rem; }
 .upd-row-avail td { background: rgba(180, 90, 20, 0.06); }
 .upd-row-src { font-size: 0.85em; margin-top: 0.15rem; }
+.upd-ver { white-space: nowrap; }
+.upd-ver-remote {
+  margin-left: 0.45rem;
+  color: #c62828;
+  font-weight: 700;
+}
 .upd-status { display: inline-flex; align-items: center; gap: 0.35rem; }
 .upd-status-cell {
   display: flex;

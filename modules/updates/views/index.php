@@ -156,8 +156,7 @@ $jobI18n = [
         <thead>
           <tr>
             <th><?= te('updates.col_name') ?></th>
-            <th><?= te('updates.col_local') ?></th>
-            <th><?= te('updates.col_remote') ?></th>
+            <th><?= te('updates.col_version') ?></th>
             <th><?= te('updates.col_status') ?></th>
             <th></th>
           </tr>
@@ -166,9 +165,11 @@ $jobI18n = [
         <?php foreach ($rows as $src):
             $sid = (string)($src['id'] ?? '');
             $label = (string)($src['label'] ?? UpdateEngine::packageLabel($sid));
+            $localVer = (string)($src['local_version'] ?? '');
             $remoteVer = (string)($src['remote_version'] ?? '');
             $avail = !empty($src['update_available']);
             $checked = $remoteVer !== '';
+            // Red remote only when it is newer (update_available). Local ahead of stable release is not an update.
             $rowRepo = (string)($src['repo'] ?? '');
             $rowBundle = (string)($src['bundle'] ?? '');
             $showSrc = ($rowRepo !== '' && $defaultRepo !== '' && $rowRepo !== $defaultRepo)
@@ -190,8 +191,12 @@ $jobI18n = [
                 <div class="muted upd-row-src"><code><?= e($rowRepo !== '' ? $rowRepo : '—') ?></code></div>
               <?php endif; ?>
             </td>
-            <td><?= e((string)($src['local_version'] ?? '')) ?></td>
-            <td><?= e($remoteVer !== '' ? $remoteVer : '—') ?></td>
+            <td class="upd-ver">
+              <?= e($localVer !== '' ? $localVer : '—') ?>
+              <?php if ($avail && $remoteVer !== '' && $remoteVer !== $localVer): ?>
+                <span class="upd-ver-remote" title="<?= e(t('updates.col_remote')) ?>"><?= e($remoteVer) ?></span>
+              <?php endif; ?>
+            </td>
             <td>
               <div class="upd-status-cell">
                 <?= $stHtml ?>

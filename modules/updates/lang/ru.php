@@ -15,6 +15,7 @@ return [
     'updates.pkg.core' => 'Платформа (core)',
     'updates.col_name' => 'Модуль',
     'updates.col_id' => 'Цель',
+    'updates.col_version' => 'Версия',
     'updates.col_local' => 'Локально',
     'updates.col_remote' => 'Удалённо',
     'updates.col_provider' => 'Источник',

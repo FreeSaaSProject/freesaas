@@ -15,6 +15,7 @@ return [
     'updates.pkg.core' => 'Platform (core)',
     'updates.col_name' => 'Module',
     'updates.col_id' => 'Target',
+    'updates.col_version' => 'Version',
     'updates.col_local' => 'Local',
     'updates.col_remote' => 'Remote',
     'updates.col_provider' => 'Source',
