@@ -40,7 +40,7 @@ final class NewsBotPlugin
                     return true;
                 }
                 $text = self::formatOpenTickets($uid);
-                BotClient::sendMessage($platform, $token, $chatId, $text, [
+                BotClient::replyUi($ctx, $text, [
                     'inline_keyboard' => [[
                         ['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet'],
                     ]],
@@ -96,7 +96,7 @@ final class NewsBotPlugin
                     $lines[] = '#' . (int)$item['ID'] . ' ' . trim((string)($item['NAME'] ?? ''));
                 }
                 $text = $lines !== [] ? implode("\n", $lines) : t('core.common.empty');
-                BotClient::sendMessage($platform, $token, $chatId, $text, [
+                BotClient::replyUi($ctx, $text, [
                     'inline_keyboard' => [[
                         ['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet'],
                     ]],

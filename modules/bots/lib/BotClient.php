@@ -36,6 +36,120 @@ final class BotClient
     }
 
     /**
+     * UI reply: delete previous bot menu messages, send new, track message_id (oper replace_previous).
+     * Use for cabinet / plugin screens. Keep plain sendMessage for drain, transcripts, push.
+     *
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function sendUiMessage(
+        string $platform,
+        string $token,
+        string $chatId,
+        string $text,
+        ?array $replyMarkup = null,
+        string $parseMode = '',
+        ?string $currentMessageId = null,
+        string $audience = ''
+    ): array {
+        $platform = strtolower(trim($platform));
+        $token = trim($token);
+        $chatId = trim($chatId);
+        $audience = trim($audience);
+        if ($token === '' || $chatId === '') {
+            return ['ok' => false, 'data' => null, 'error' => 'missing token or chat id'];
+        }
+        if ($platform === 'max') {
+            return self::maxSendUiReplace($token, $chatId, $text, $replyMarkup, $currentMessageId, $audience);
+        }
+        return self::tgSendUiReplace($token, $chatId, $text, $replyMarkup, $parseMode, $currentMessageId, $audience);
+    }
+
+    /**
+     * Convenience: sendUiMessage from webhook/plugin ctx (audience, platform, token, chat_id, message_id).
+     *
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function replyUi(array $ctx, string $text, ?array $replyMarkup = null, string $parseMode = ''): array
+    {
+        $mid = isset($ctx['message_id']) ? trim((string)$ctx['message_id']) : '';
+        return self::sendUiMessage(
+            (string)($ctx['platform'] ?? 'telegram'),
+            (string)($ctx['token'] ?? ''),
+            (string)($ctx['chat_id'] ?? ''),
+            $text,
+            $replyMarkup,
+            $parseMode,
+            $mid !== '' ? $mid : null,
+            (string)($ctx['audience'] ?? '')
+        );
+    }
+
+    /**
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function deleteMessage(string $platform, string $token, string $chatId, string $messageId): array
+    {
+        $platform = strtolower(trim($platform));
+        $token = trim($token);
+        $chatId = trim($chatId);
+        $messageId = trim($messageId);
+        if ($token === '' || $messageId === '') {
+            return ['ok' => false, 'data' => null, 'error' => 'missing token or message id'];
+        }
+        if ($platform === 'max') {
+            return self::maxDeleteMessage($token, $messageId, $chatId);
+        }
+        return self::tgRequest($token, 'deleteMessage', [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+        ]);
+    }
+
+    /**
+     * Strip inline keyboard (and optionally blank text) when delete fails.
+     *
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function clearMessageKeyboard(
+        string $platform,
+        string $token,
+        string $chatId,
+        string $messageId,
+        ?string $replacementText = null
+    ): array {
+        $platform = strtolower(trim($platform));
+        $token = trim($token);
+        $chatId = trim($chatId);
+        $messageId = trim($messageId);
+        if ($token === '' || $messageId === '') {
+            return ['ok' => false, 'data' => null, 'error' => 'missing token or message id'];
+        }
+        if ($platform === 'max') {
+            $body = [
+                'attachments' => [],
+                'format' => 'html',
+            ];
+            if ($replacementText !== null) {
+                $body['text'] = $replacementText;
+            }
+            return self::maxEditMessage($token, $messageId, $body, $chatId);
+        }
+        $fields = [
+            'chat_id' => $chatId,
+            'message_id' => $messageId,
+            'reply_markup' => json_encode(['inline_keyboard' => []], JSON_UNESCAPED_UNICODE),
+        ];
+        if ($replacementText !== null) {
+            $fields['text'] = $replacementText;
+            return self::tgRequest($token, 'editMessageText', $fields);
+        }
+        return self::tgRequest($token, 'editMessageReplyMarkup', $fields);
+    }
+
+    /**
      * Telegram getFile → download to a temp path.
      *
      * @return array{ok:bool,path:string,ext:string,error:string}
@@ -155,6 +269,185 @@ final class BotClient
      * @param array<string,mixed>|null $replyMarkup
      * @return array{ok:bool,data:?array,error:string}
      */
+    private static function tgSendUiReplace(
+        string $token,
+        string $chatId,
+        string $text,
+        ?array $replyMarkup,
+        string $parseMode,
+        ?string $currentMessageId,
+        string $audience
+    ): array {
+        self::purgeEphemeral($audience, 'telegram', $token, $chatId, $currentMessageId, false);
+        $chunks = self::chunkText($text);
+        $last = array_pop($chunks);
+        $lastRes = ['ok' => false, 'data' => null, 'error' => 'empty text'];
+        foreach ($chunks as $chunk) {
+            $res = self::tgSendOne($token, $chatId, (string)$chunk, null, $parseMode);
+            if (!$res['ok']) {
+                return $res;
+            }
+            $mid = self::extractMessageId('telegram', $res['data']);
+            if ($mid !== null) {
+                BotEphemeral::saveMessageId($audience, 'telegram', $chatId, $mid);
+            }
+            $lastRes = $res;
+        }
+        $res = self::tgSendOne($token, $chatId, (string)$last, $replyMarkup, $parseMode);
+        if ($res['ok']) {
+            $mid = self::extractMessageId('telegram', $res['data']);
+            if ($mid !== null) {
+                BotEphemeral::saveMessageId($audience, 'telegram', $chatId, $mid);
+            }
+        }
+        return $res['ok'] ? $res : $lastRes;
+    }
+
+    /**
+     * Max: send first, then delete old (less flicker), track mid + latest_menu fallback.
+     *
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    private static function maxSendUiReplace(
+        string $token,
+        string $chatId,
+        string $text,
+        ?array $replyMarkup,
+        ?string $currentMessageId,
+        string $audience
+    ): array {
+        $latestMenu = BotEphemeral::takeLatestMenuMessageId($audience, 'max', $chatId);
+        $toDelete = BotEphemeral::takeMessageIds($audience, 'max', $chatId);
+        if ($latestMenu !== null) {
+            $toDelete[] = $latestMenu;
+        }
+        $cur = $currentMessageId !== null ? trim($currentMessageId) : '';
+        if ($cur !== '' && $cur !== '0') {
+            $toDelete[] = $cur;
+        }
+        $toDelete = array_values(array_unique($toDelete));
+
+        $res = self::maxSendMessage($token, $chatId, $text, $replyMarkup);
+        $mid = self::extractMessageId('max', $res['data'] ?? null);
+
+        foreach ($toDelete as $delMid) {
+            if ($mid !== null && (string)$delMid === (string)$mid) {
+                continue;
+            }
+            $del = self::maxDeleteMessage($token, $delMid, $chatId);
+            if (!$del['ok']) {
+                self::clearMessageKeyboard('max', $token, $chatId, $delMid, ' ');
+            }
+        }
+
+        if ($mid !== null) {
+            BotEphemeral::saveMessageId($audience, 'max', $chatId, $mid);
+        }
+        if ($cur !== '' && $cur !== '0') {
+            BotEphemeral::setLatestMenuMessageId($audience, 'max', $chatId, $cur);
+        }
+        return $res;
+    }
+
+    private static function purgeEphemeral(
+        string $audience,
+        string $platform,
+        string $token,
+        string $chatId,
+        ?string $alsoMessageId,
+        bool $blankOnFail
+    ): void {
+        $ids = BotEphemeral::takeMessageIds($audience, $platform, $chatId);
+        $also = $alsoMessageId !== null ? trim($alsoMessageId) : '';
+        if ($also !== '' && $also !== '0') {
+            $ids[] = $also;
+        }
+        foreach (array_values(array_unique($ids)) as $mid) {
+            $del = self::deleteMessage($platform, $token, $chatId, $mid);
+            if (!$del['ok']) {
+                self::clearMessageKeyboard(
+                    $platform,
+                    $token,
+                    $chatId,
+                    $mid,
+                    $blankOnFail || $platform === 'max' ? ' ' : null
+                );
+            }
+        }
+    }
+
+    /** @param array<string,mixed>|null $apiData */
+    public static function extractMessageId(string $platform, ?array $apiData): ?string
+    {
+        if ($apiData === null) {
+            return null;
+        }
+        if (strtolower($platform) === 'max') {
+            foreach ([
+                ['message', 'body', 'mid'],
+                ['body', 'mid'],
+                ['message', 'mid'],
+                ['message', 'id'],
+                ['message', 'body', 'id'],
+                ['body', 'id'],
+                ['mid'],
+                ['id'],
+            ] as $path) {
+                $cur = $apiData;
+                $ok = true;
+                foreach ($path as $k) {
+                    if (!is_array($cur) || !isset($cur[$k])) {
+                        $ok = false;
+                        break;
+                    }
+                    $cur = $cur[$k];
+                }
+                if ($ok && (is_string($cur) || is_int($cur))) {
+                    $s = trim((string)$cur);
+                    if ($s !== '' && $s !== '0') {
+                        return $s;
+                    }
+                }
+            }
+            return null;
+        }
+        $mid = $apiData['result']['message_id'] ?? null;
+        if ($mid === null || $mid === '') {
+            return null;
+        }
+        return trim((string)$mid);
+    }
+
+    /**
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    private static function tgSendOne(
+        string $token,
+        string $chatId,
+        string $text,
+        ?array $replyMarkup,
+        string $parseMode
+    ): array {
+        $payload = [
+            'chat_id' => $chatId,
+            'text' => $text,
+            'disable_web_page_preview' => true,
+        ];
+        if ($parseMode !== '') {
+            $payload['parse_mode'] = $parseMode;
+        }
+        if ($replyMarkup !== null) {
+            $payload['reply_markup'] = json_encode($replyMarkup, JSON_UNESCAPED_UNICODE);
+        }
+        return self::tgRequest($token, 'sendMessage', $payload);
+    }
+
+    /**
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array{ok:bool,data:?array,error:string}
+     */
     private static function tgSendMessage(
         string $token,
         string $chatId,
@@ -165,31 +458,85 @@ final class BotClient
         $chunks = self::chunkText($text);
         $last = array_pop($chunks);
         foreach ($chunks as $chunk) {
-            $fields = [
-                'chat_id' => $chatId,
-                'text' => $chunk,
-                'disable_web_page_preview' => true,
-            ];
-            if ($parseMode !== '') {
-                $fields['parse_mode'] = $parseMode;
-            }
-            $res = self::tgRequest($token, 'sendMessage', $fields);
+            $res = self::tgSendOne($token, $chatId, (string)$chunk, null, $parseMode);
             if (!$res['ok']) {
                 return $res;
             }
         }
-        $payload = [
-            'chat_id' => $chatId,
-            'text' => (string)$last,
-            'disable_web_page_preview' => true,
+        return self::tgSendOne($token, $chatId, (string)$last, $replyMarkup, $parseMode);
+    }
+
+    /**
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    private static function maxDeleteMessage(string $token, string $messageId, string $userId): array
+    {
+        $idVariants = [(string)$messageId];
+        if (strpos($messageId, 'mid.') === 0) {
+            $idVariants[] = substr($messageId, 4);
+        }
+        $queries = [
+            ['message_id' => '', 'user_id' => $userId],
+            ['message_id' => ''],
         ];
-        if ($parseMode !== '') {
-            $payload['parse_mode'] = $parseMode;
+        foreach (array_values(array_unique($idVariants)) as $idv) {
+            foreach ($queries as $base) {
+                $q = $base;
+                $q['message_id'] = (string)$idv;
+                if (($q['user_id'] ?? '') === '') {
+                    unset($q['user_id']);
+                }
+                $res = self::maxRequest($token, 'DELETE', '/messages', $q, null);
+                if ($res['ok']) {
+                    return $res;
+                }
+            }
+            $res = self::maxRequest($token, 'DELETE', '/messages/' . rawurlencode((string)$idv), [
+                'user_id' => $userId,
+            ], null);
+            if ($res['ok']) {
+                return $res;
+            }
+            $res = self::maxRequest($token, 'DELETE', '/messages/' . rawurlencode((string)$idv), [], null);
+            if ($res['ok']) {
+                return $res;
+            }
         }
-        if ($replyMarkup !== null) {
-            $payload['reply_markup'] = json_encode($replyMarkup, JSON_UNESCAPED_UNICODE);
+        return ['ok' => false, 'data' => null, 'error' => 'max delete failed'];
+    }
+
+    /**
+     * @param array<string,mixed> $body
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    private static function maxEditMessage(string $token, string $messageId, array $body, string $userId): array
+    {
+        $idVariants = [(string)$messageId];
+        if (strpos($messageId, 'mid.') === 0) {
+            $idVariants[] = substr($messageId, 4);
         }
-        return self::tgRequest($token, 'sendMessage', $payload);
+        foreach (array_values(array_unique($idVariants)) as $idv) {
+            $res = self::maxRequest($token, 'PUT', '/messages', [
+                'message_id' => (string)$idv,
+                'user_id' => $userId,
+            ], $body);
+            if ($res['ok']) {
+                return $res;
+            }
+            $res = self::maxRequest($token, 'PUT', '/messages', [
+                'message_id' => (string)$idv,
+            ], $body);
+            if ($res['ok']) {
+                return $res;
+            }
+            $res = self::maxRequest($token, 'PUT', '/messages/' . rawurlencode((string)$idv), [
+                'user_id' => $userId,
+            ], $body);
+            if ($res['ok']) {
+                return $res;
+            }
+        }
+        return ['ok' => false, 'data' => null, 'error' => 'max edit failed'];
     }
 
     /**

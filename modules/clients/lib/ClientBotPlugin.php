@@ -43,7 +43,7 @@ final class ClientBotPlugin
                     'tel' => (string)($user['tel'] ?? ''),
                     'id' => (int)($user['id'] ?? 0),
                 ]);
-                BotClient::sendMessage($platform, $token, $chatId, $text, [
+                BotClient::replyUi($ctx, $text, [
                     'inline_keyboard' => [[
                         ['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet'],
                     ]],

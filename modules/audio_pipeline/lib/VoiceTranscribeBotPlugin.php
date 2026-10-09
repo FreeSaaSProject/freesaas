@@ -208,12 +208,9 @@ final class VoiceTranscribeBotPlugin
      */
     private static function reply(array $ctx, string $text, ?array $markup = null): void
     {
-        $token = (string)($ctx['token'] ?? '');
-        $chatId = (string)($ctx['chat_id'] ?? '');
-        $platform = (string)($ctx['platform'] ?? 'telegram');
-        if ($token === '' || $chatId === '') {
+        if ((string)($ctx['token'] ?? '') === '' || (string)($ctx['chat_id'] ?? '') === '') {
             return;
         }
-        BotClient::sendMessage($platform, $token, $chatId, $text, $markup);
+        BotClient::replyUi($ctx, $text, $markup);
     }
 }

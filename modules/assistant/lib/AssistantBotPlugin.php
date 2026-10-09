@@ -167,16 +167,14 @@ final class AssistantBotPlugin
      */
     private static function reply(array $ctx, string $text, ?array $markup = null): void
     {
-        $token = (string)($ctx['token'] ?? '');
-        $chatId = (string)($ctx['chat_id'] ?? '');
-        $platform = (string)($ctx['platform'] ?? 'telegram');
-        if ($token === '' || $chatId === '') {
+        if ((string)($ctx['token'] ?? '') === '' || (string)($ctx['chat_id'] ?? '') === '') {
             return;
         }
         if (class_exists('BotClient', false)) {
-            BotClient::sendMessage($platform, $token, $chatId, $text, $markup);
+            BotClient::replyUi($ctx, $text, $markup);
             return;
         }
+        $chatId = (string)($ctx['chat_id'] ?? '');
         if (class_exists('BotSend', false)) {
             $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
             BotSend::enqueue([

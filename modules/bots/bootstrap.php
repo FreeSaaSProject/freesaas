@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/BotsConfig.php';
 require_once __DIR__ . '/lib/BotClient.php';
+require_once __DIR__ . '/lib/BotEphemeral.php';
 require_once __DIR__ . '/lib/BotLinksRepository.php';
 require_once __DIR__ . '/lib/BotIdentity.php';
 require_once __DIR__ . '/lib/BotSendsRepository.php';

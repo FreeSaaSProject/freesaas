@@ -79,8 +79,10 @@ final class BotWebhook
             if ($callbackId !== '') {
                 BotClient::answerCallback('telegram', $cfg['token'], $callbackId);
             }
+            $messageId = isset($cq['message']['message_id']) ? trim((string)$cq['message']['message_id']) : '';
             self::processInbound($cfg, 'telegram', $chatId, $user, 'callback', [
                 'callback_data' => $data,
+                'message_id' => $messageId !== '' ? $messageId : null,
                 'raw' => $cq,
             ]);
             return;
@@ -137,15 +139,28 @@ final class BotWebhook
         $callback = is_array($update['callback'] ?? null) ? $update['callback'] : null;
         if ($callback !== null || $type === 'message_callback') {
             $cb = $callback ?? (is_array($update['payload'] ?? null) ? $update['payload'] : []);
-            $chatId = (string)($cb['user']['user_id'] ?? $cb['user_id'] ?? $cb['from']['user_id'] ?? '');
+            $msg = is_array($update['message'] ?? null) ? $update['message'] : null;
+            if ($msg === null && isset($cb['message']) && is_array($cb['message'])) {
+                $msg = $cb['message'];
+            }
+            $chatId = (string)(
+                $msg['recipient']['user_id']
+                ?? $cb['user']['user_id']
+                ?? $cb['user_id']
+                ?? $cb['from']['user_id']
+                ?? $msg['sender']['user_id']
+                ?? ''
+            );
             $payload = (string)($cb['payload'] ?? $cb['callback_data'] ?? '');
-            $callbackId = (string)($cb['callback_id'] ?? $cb['id'] ?? '');
+            $callbackId = (string)($cb['callback_id'] ?? $cb['callbackId'] ?? $cb['id'] ?? '');
+            $messageId = self::extractMaxMessageId($msg);
             $user = self::resolveUser($cfg['audience'], 'max', $chatId);
             if ($callbackId !== '') {
                 BotClient::answerCallback('max', $cfg['token'], $callbackId);
             }
             self::processInbound($cfg, 'max', $chatId, $user, 'callback', [
                 'callback_data' => $payload,
+                'message_id' => $messageId,
                 'raw' => $cb,
             ]);
             return;
@@ -205,6 +220,7 @@ final class BotWebhook
         string $kind,
         array $extra
     ): void {
+        $messageId = isset($extra['message_id']) ? trim((string)$extra['message_id']) : '';
         $payload = [
             'audience' => $cfg['audience'],
             'platform' => $platform,
@@ -214,6 +230,7 @@ final class BotWebhook
             'token' => $cfg['token'],
             'callback_data' => (string)($extra['callback_data'] ?? ''),
             'text' => (string)($extra['text'] ?? ''),
+            'message_id' => $messageId !== '' ? $messageId : null,
             'raw' => $extra['raw'] ?? null,
             'handled' => false,
         ];
@@ -225,13 +242,16 @@ final class BotWebhook
             return;
         }
 
+        $mid = isset($payload['message_id']) ? trim((string)$payload['message_id']) : '';
+        $mid = $mid !== '' ? $mid : null;
+
         if ($kind === 'callback' && (string)($payload['callback_data'] ?? '') === 'cabinet') {
-            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user);
+            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $mid);
             return;
         }
 
         if ($user === null) {
-            self::sendAuthPrompt($cfg, $platform, $chatId);
+            self::sendAuthPrompt($cfg, $platform, $chatId, $mid);
             return;
         }
 
@@ -243,15 +263,16 @@ final class BotWebhook
             'token' => $cfg['token'],
             'callback_data' => (string)($payload['callback_data'] ?? ''),
             'text' => (string)($payload['text'] ?? ''),
+            'message_id' => $mid,
             'raw' => $payload['raw'] ?? null,
         ];
         $handled = BotPlugins::dispatch($kind, $ctx);
         if (!$handled && $kind === 'callback' && (string)$ctx['callback_data'] === 'cabinet') {
-            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user);
+            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $mid);
             return;
         }
         if (!$handled && ($kind === 'text' || $kind === 'callback')) {
-            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user);
+            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $mid);
         }
     }
 
@@ -259,10 +280,15 @@ final class BotWebhook
      * @param array{audience:string,platform:string,token:string,webhook_secret:string} $cfg
      * @param array<string,mixed>|null $user
      */
-    private static function sendCabinetOrAuth(array $cfg, string $platform, string $chatId, ?array $user): void
-    {
+    private static function sendCabinetOrAuth(
+        array $cfg,
+        string $platform,
+        string $chatId,
+        ?array $user,
+        ?string $messageId = null
+    ): void {
         if ($user === null) {
-            self::sendAuthPrompt($cfg, $platform, $chatId);
+            self::sendAuthPrompt($cfg, $platform, $chatId, $messageId);
             return;
         }
         $name = (string)($user['name'] ?? '');
@@ -273,12 +299,25 @@ final class BotWebhook
             'user' => $user,
             'chat_id' => $chatId,
         ]);
-        BotClient::sendMessage($platform, $cfg['token'], $chatId, $text, $markup);
+        BotClient::sendUiMessage(
+            $platform,
+            $cfg['token'],
+            $chatId,
+            $text,
+            $markup,
+            '',
+            $messageId,
+            $cfg['audience']
+        );
     }
 
     /** @param array{audience:string,platform:string,token:string,webhook_secret:string} $cfg */
-    private static function sendAuthPrompt(array $cfg, string $platform, string $chatId): void
-    {
+    private static function sendAuthPrompt(
+        array $cfg,
+        string $platform,
+        string $chatId,
+        ?string $messageId = null
+    ): void {
         $text = t('bots.auth.prompt');
         $markup = [
             'inline_keyboard' => [[
@@ -295,7 +334,16 @@ final class BotWebhook
                 'one_time_keyboard' => true,
             ];
         }
-        BotClient::sendMessage($platform, $cfg['token'], $chatId, $text, $markup);
+        BotClient::sendUiMessage(
+            $platform,
+            $cfg['token'],
+            $chatId,
+            $text,
+            $markup,
+            '',
+            $messageId,
+            $cfg['audience']
+        );
     }
 
     /** @param array{audience:string,platform:string,token:string,webhook_secret:string} $cfg */
@@ -303,26 +351,89 @@ final class BotWebhook
     {
         $tel = BotIdentity::normalizePhone($phoneRaw);
         if ($tel === null) {
-            BotClient::sendMessage($platform, $cfg['token'], $chatId, t('bots.auth.bad_phone'), null);
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                t('bots.auth.bad_phone'),
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
             return;
         }
         if ($cfg['audience'] === 'client') {
             $row = BotIdentity::findClientByPhone($tel);
             if ($row === null) {
-                BotClient::sendMessage($platform, $cfg['token'], $chatId, t('bots.auth.client_not_found'), null);
+                BotClient::sendUiMessage(
+                    $platform,
+                    $cfg['token'],
+                    $chatId,
+                    t('bots.auth.client_not_found'),
+                    null,
+                    '',
+                    null,
+                    $cfg['audience']
+                );
                 return;
             }
             BotIdentity::bindClient((int)$row['id'], $platform, $chatId);
-            BotClient::sendMessage($platform, $cfg['token'], $chatId, t('bots.auth.linked'), null);
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                t('bots.auth.linked'),
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
             return;
         }
         $row = BotIdentity::findStaffByPhone($tel);
         if ($row === null) {
-            BotClient::sendMessage($platform, $cfg['token'], $chatId, t('bots.auth.staff_not_found'), null);
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                t('bots.auth.staff_not_found'),
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
             return;
         }
         BotIdentity::bindStaff((int)$row['id'], $platform, $chatId);
-        BotClient::sendMessage($platform, $cfg['token'], $chatId, t('bots.auth.linked'), null);
+        BotClient::sendUiMessage(
+            $platform,
+            $cfg['token'],
+            $chatId,
+            t('bots.auth.linked'),
+            null,
+            '',
+            null,
+            $cfg['audience']
+        );
+    }
+
+    /** @param array<string,mixed>|null $msg */
+    private static function extractMaxMessageId(?array $msg): ?string
+    {
+        if ($msg === null) {
+            return null;
+        }
+        if (isset($msg['body']['mid']) && (string)$msg['body']['mid'] !== '') {
+            return (string)$msg['body']['mid'];
+        }
+        if (isset($msg['mid']) && (string)$msg['mid'] !== '') {
+            return (string)$msg['mid'];
+        }
+        if (isset($msg['id']) && (string)$msg['id'] !== '') {
+            return (string)$msg['id'];
+        }
+        return null;
     }
 
     /** @return array<string,mixed>|null */
