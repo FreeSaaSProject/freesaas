@@ -30,7 +30,13 @@ final class AssistantHarness
         $byFn = AssistantTools::indexByFunctionName($ops);
         $tools = AssistantTools::toLlmTools($ops);
 
-        $system = t('assistant.system_prompt');
+        $company = class_exists('SystemRepository', false)
+            ? trim(SystemRepository::companyName())
+            : '';
+        $companyPart = $company !== ''
+            ? t('assistant.system_prompt.company_part', ['company' => $company])
+            : '';
+        $system = t('assistant.system_prompt', ['company_part' => $companyPart]);
         $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
         $system .= "\nToday is {$today}. Yesterday is {$yesterday}.";
