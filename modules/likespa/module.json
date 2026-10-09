@@ -4,10 +4,6 @@
     "description": "likespa.module.description",
     "version": "0.2.0",
     "type": "product",
-    "update": {
-        "repository": "https://github.com/likespa/likespa-module",
-        "channel": "stable"
-    },
     "requires": {
         "core": ">=0.3.0"
     },

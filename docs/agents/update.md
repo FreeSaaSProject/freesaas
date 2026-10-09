@@ -32,10 +32,12 @@ Product modules are **not** shipped as separate zips from this monorepo. If a mo
 ## Setup
 
 1. Enable `updates` (`[modules] updates=1`).
-2. Copy [`cfg/updates.example.ini`](../../cfg/updates.example.ini) → `cfg/updates.ini`.
+2. Configure source in UI **Updates → Update settings** (`/updates/settings`) or copy [`cfg/updates.example.ini`](../../cfg/updates.example.ini) → `cfg/updates.ini`.
 3. Point `[core]` at the FreeSaaS repo (`repo`, `channel`, optional `token` / `asset`).
-4. Optional: `[module.likespa]` for a private module in another repo.
+4. Optional: `[module.x]` for a module in another repo.
 5. Writable `var/updates/`; PHP needs `curl` + `ZipArchive`.
+
+Disabled modules are omitted from check/UI (they still receive files when a full core zip is applied).
 
 Optional public hint in `module.json` (candidates table only — not enough for apply):
 

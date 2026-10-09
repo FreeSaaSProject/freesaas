@@ -44,8 +44,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'action' => 'update_check',
                     'message' => $message,
                     'targets' => $updateCheckRows,
+                    'last_check' => $report['last_check'] ?? null,
                 ]);
             }
+        } elseif ($action === 'update_check_job_start') {
+            $target = trim((string)($_POST['target'] ?? ''));
+            $job = UpdateEngine::checkJobStart($target !== '' ? $target : null);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'action' => 'update_check_job_start',
+                    'job' => UpdateEngine::jobPublic($job),
+                ]);
+            }
+            redirect('/updates');
+        } elseif ($action === 'update_check_job_tick') {
+            $jobId = (string)($_POST['job_id'] ?? '');
+            $job = UpdateEngine::checkJobTick($jobId);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'action' => 'update_check_job_tick',
+                    'job' => UpdateEngine::jobPublic($job),
+                    'error' => (($job['status'] ?? '') === 'error')
+                        ? (string)($job['error'] ?? $job['message'] ?? '')
+                        : '',
+                ]);
+            }
+            redirect('/updates');
         } elseif ($action === 'update_job_start') {
             if (!$canApply) {
                 throw new RuntimeException(t('updates.err_superadmin'));
@@ -85,9 +111,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             redirect('/updates');
         } elseif ($action === 'update_job_cancel') {
-            if (!$canApply) {
-                throw new RuntimeException(t('updates.err_superadmin'));
-            }
             $jobId = (string)($_POST['job_id'] ?? '');
             $job = UpdateEngine::jobCancel($jobId);
             if ($wantsJson) {
@@ -99,7 +122,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             redirect('/updates');
         } elseif ($action === 'update_apply') {
-            // Sync fallback (CLI/agents without job UI)
             if (!$canApply) {
                 throw new RuntimeException(t('updates.err_superadmin'));
             }
@@ -145,8 +167,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $updateStatus = AgentOps::updateStatus();
 $updateSources = is_array($updateStatus['sources'] ?? null) ? $updateStatus['sources'] : [];
-$updateHints = is_array($updateStatus['hints'] ?? null) ? $updateStatus['hints'] : [];
 $updateLastCheck = isset($updateStatus['last_check']) ? (string)$updateStatus['last_check'] : '';
+$updateAvailableCount = (int)($updateStatus['available_count'] ?? 0);
+$updateSource = is_array($updateStatus['source'] ?? null) ? $updateStatus['source'] : null;
 
 if ($updateCheckRows === [] && !empty($_SESSION['freesaas_update_check']) && is_array($_SESSION['freesaas_update_check'])) {
     $updateCheckRows = $_SESSION['freesaas_update_check'];
@@ -166,13 +189,7 @@ foreach ($updateSources as $src) {
         continue;
     }
     if ((string)($src['remote_version'] ?? '') !== '' || isset($src['update_available'])) {
-        $updateRemoteById[$sid] = [
-            'id' => $sid,
-            'remote_version' => (string)($src['remote_version'] ?? ''),
-            'update_available' => !empty($src['update_available']),
-            'local_version' => (string)($src['local_version'] ?? ''),
-            'ref' => (string)($src['ref'] ?? ''),
-        ];
+        $updateRemoteById[$sid] = $src;
     }
 }
 
@@ -203,8 +220,9 @@ View::render('index', [
     'error' => $error,
     'updateConfigured' => !empty($updateStatus['configured']),
     'updateSources' => $updateSources,
-    'updateHints' => $updateHints,
     'updateRemoteById' => $updateRemoteById,
     'updateCanApply' => $canApply,
     'updateLastCheck' => $updateLastCheck !== '' ? $updateLastCheck : null,
+    'updateSource' => $updateSource,
+    'updateAvailableCount' => $updateAvailableCount,
 ], 'layout', 'updates');

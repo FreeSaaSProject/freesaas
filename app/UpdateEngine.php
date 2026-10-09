@@ -138,6 +138,23 @@ final class UpdateEngine
         return array_keys($ids);
     }
 
+    /** Human label for UI (translated module name). */
+    public static function packageLabel(string $target): string
+    {
+        $target = self::normalizeTarget($target);
+        if ($target === 'core') {
+            return t('updates.pkg.core');
+        }
+        $meta = ModuleManager::get($target);
+        if (is_array($meta)) {
+            $key = trim((string)($meta['name'] ?? ''));
+            if ($key !== '') {
+                return t($key);
+            }
+        }
+        return $target;
+    }
+
     public static function localVersion(string $target): string
     {
         $target = self::normalizeTarget($target);
@@ -243,6 +260,10 @@ final class UpdateEngine
                 if ($id === 'core' || isset($external[$id])) {
                     continue;
                 }
+                // Disabled modules: skip check/UI (still get files when core full-zip applies).
+                if (!ModuleManager::isEnabled($id)) {
+                    continue;
+                }
                 $packages[] = [
                     'id' => $id,
                     'kind' => 'module',
@@ -332,7 +353,37 @@ final class UpdateEngine
     }
 
     /**
-     * @return array{ok:bool,configured:bool,sources:list,hints:list,last_check:?string,state:array,http:int}
+     * @param array<string,mixed> $row
+     * @return array<string,mixed>
+     */
+    private static function enrichStatusRow(array $row): array
+    {
+        $id = (string)($row['id'] ?? '');
+        $row['label'] = self::packageLabel($id);
+        $row['enabled'] = ($id === 'core') || ModuleManager::isEnabled($id);
+        return $row;
+    }
+
+    /** @param list<array<string,mixed>> $rows */
+    private static function sortStatusRows(array &$rows): void
+    {
+        usort($rows, static function (array $a, array $b): int {
+            $aa = !empty($a['update_available']) ? 0 : 1;
+            $bb = !empty($b['update_available']) ? 0 : 1;
+            if ($aa !== $bb) {
+                return $aa <=> $bb;
+            }
+            $ca = ((string)($a['id'] ?? '') === 'core') ? 0 : 1;
+            $cb = ((string)($b['id'] ?? '') === 'core') ? 0 : 1;
+            if ($ca !== $cb) {
+                return $ca <=> $cb;
+            }
+            return strcasecmp((string)($a['label'] ?? $a['id'] ?? ''), (string)($b['label'] ?? $b['id'] ?? ''));
+        });
+    }
+
+    /**
+     * @return array{ok:bool,configured:bool,sources:list,hints:list,last_check:?string,available_count:int,source:?array,settings:array,state:array,http:int}
      */
     public static function status(): array
     {
@@ -340,6 +391,12 @@ final class UpdateEngine
         $state = self::readState();
         $lastCheck = isset($state['last_check']) ? (string)$state['last_check'] : null;
         $rows = [];
+        $external = [];
+        foreach ($ini as $s) {
+            if ($s['id'] !== 'core') {
+                $external[(string)$s['id']] = true;
+            }
+        }
 
         if (!empty($state['last_check_targets']) && is_array($state['last_check_targets'])) {
             foreach ($state['last_check_targets'] as $t) {
@@ -347,7 +404,10 @@ final class UpdateEngine
                     continue;
                 }
                 $id = (string)$t['id'];
-                $rows[] = [
+                if ($id !== 'core' && !isset($external[$id]) && !ModuleManager::isEnabled($id)) {
+                    continue;
+                }
+                $rows[] = self::enrichStatusRow([
                     'id' => $id,
                     'kind' => (string)($t['kind'] ?? ($id === 'core' ? 'core' : 'module')),
                     'bundle' => (string)($t['bundle'] ?? 'monorepo'),
@@ -358,13 +418,12 @@ final class UpdateEngine
                     'remote_version' => (string)($t['remote_version'] ?? ''),
                     'update_available' => !empty($t['update_available']),
                     'configured' => true,
-                ];
+                ]);
             }
         } else {
-            // Before first check: show local discovery list (remote unknown).
             try {
                 foreach (self::discoverPackages(null) as $p) {
-                    $rows[] = [
+                    $rows[] = self::enrichStatusRow([
                         'id' => $p['id'],
                         'kind' => $p['kind'],
                         'bundle' => (string)($p['bundle'] ?? ''),
@@ -375,10 +434,26 @@ final class UpdateEngine
                         'remote_version' => '',
                         'update_available' => false,
                         'configured' => true,
-                    ];
+                    ]);
                 }
             } catch (Throwable $e) {
                 // ignore
+            }
+        }
+        self::sortStatusRows($rows);
+
+        $available = 0;
+        foreach ($rows as $r) {
+            if (!empty($r['update_available'])) {
+                $available++;
+            }
+        }
+
+        $coreSrc = null;
+        foreach ($ini as $s) {
+            if ($s['id'] === 'core') {
+                $coreSrc = $s;
+                break;
             }
         }
 
@@ -390,9 +465,130 @@ final class UpdateEngine
             'sources' => $rows,
             'hints' => self::moduleHints(),
             'last_check' => $lastCheck,
+            'available_count' => $available,
+            'source' => $coreSrc !== null ? [
+                'provider' => (string)$coreSrc['provider'],
+                'repo' => (string)$coreSrc['repo'],
+                'channel' => (string)$coreSrc['channel'],
+                'ref' => (string)($coreSrc['ref'] ?? ''),
+                'asset' => (string)($coreSrc['asset'] ?? ''),
+            ] : null,
+            'settings' => self::coreSettings(),
             'state' => $state,
             'http' => 200,
         ];
+    }
+
+    /**
+     * Form values for /updates/settings (secrets masked).
+     *
+     * @return array<string,mixed>
+     */
+    public static function coreSettings(): array
+    {
+        $core = null;
+        foreach (self::sources() as $s) {
+            if ($s['id'] === 'core') {
+                $core = $s;
+                break;
+            }
+        }
+        return [
+            'provider' => (string)($core['provider'] ?? 'github'),
+            'repo' => (string)($core['repo'] ?? ''),
+            'channel' => (string)($core['channel'] ?? 'main'),
+            'ref' => (string)($core['ref'] ?? ''),
+            'asset' => (string)($core['asset'] ?? ''),
+            'token_set' => !empty($core['token_set']),
+            'configured' => is_file(self::updatesIniPath()),
+        ];
+    }
+
+    /**
+     * Save [core] section of cfg/updates.ini (preserves [module.*]).
+     *
+     * @param array<string,mixed> $in
+     */
+    public static function saveCoreSettings(array $in): void
+    {
+        $provider = strtolower(trim((string)($in['provider'] ?? 'github')));
+        if ($provider !== 'github' && $provider !== 'http') {
+            $provider = 'github';
+        }
+        $repo = trim((string)($in['repo'] ?? ''));
+        if ($provider === 'github' && $repo !== '' && !preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $repo)) {
+            throw new InvalidArgumentException(t('updates.settings.err_repo'));
+        }
+        $channel = trim((string)($in['channel'] ?? 'main'));
+        if ($channel === '') {
+            $channel = 'main';
+        }
+        $ref = trim((string)($in['ref'] ?? ''));
+        $asset = trim((string)($in['asset'] ?? ''));
+        $tokenNew = (string)($in['token'] ?? '');
+        $clearToken = !empty($in['clear_token']);
+
+        $path = self::updatesIniPath();
+        $parsed = is_file($path) ? @parse_ini_file($path, true, INI_SCANNER_RAW) : [];
+        if (!is_array($parsed)) {
+            $parsed = [];
+        }
+        $existingToken = '';
+        if (isset($parsed['core']) && is_array($parsed['core'])) {
+            $existingToken = trim((string)($parsed['core']['token'] ?? ''));
+        }
+        $token = $existingToken;
+        if ($clearToken) {
+            $token = '';
+        } elseif (trim($tokenNew) !== '') {
+            $token = trim($tokenNew);
+        }
+
+        $parsed['core'] = [
+            'provider' => $provider,
+            'repo' => $repo,
+            'channel' => $channel,
+        ];
+        if ($ref !== '') {
+            $parsed['core']['ref'] = $ref;
+        }
+        if ($asset !== '') {
+            $parsed['core']['asset'] = $asset;
+        }
+        if ($token !== '') {
+            $parsed['core']['token'] = $token;
+        }
+
+        $lines = [
+            '; FreeSaaS self-update (written by Updates settings UI). Do not commit.',
+            '; Check: Contents API. Apply: zipball (channel=branch) or full release zip (stable).',
+            '',
+        ];
+        foreach ($parsed as $section => $rows) {
+            if (!is_array($rows)) {
+                continue;
+            }
+            $lines[] = '[' . $section . ']';
+            foreach ($rows as $k => $v) {
+                $k = (string)$k;
+                $v = trim((string)$v);
+                if ($v === '') {
+                    continue;
+                }
+                $lines[] = $k . ' = ' . $v;
+            }
+            $lines[] = '';
+        }
+        $dir = dirname($path);
+        if (!is_dir($dir)) {
+            if (!@mkdir($dir, 0755, true) && !is_dir($dir)) {
+                throw new RuntimeException('Cannot create cfg/');
+            }
+        }
+        if (@file_put_contents($path, implode("\n", $lines) . "\n") === false) {
+            throw new RuntimeException(t('updates.settings.err_write'));
+        }
+        @chmod($path, 0600);
     }
 
     /**
@@ -413,24 +609,9 @@ final class UpdateEngine
             }
             $targets = [];
             foreach ($packages as $p) {
-                $remote = self::resolveRemoteMeta($p);
-                $local = self::localVersion((string)$p['id']);
-                $remoteVer = (string)$remote['version'];
-                $targets[] = [
-                    'id' => $p['id'],
-                    'kind' => $p['kind'],
-                    'bundle' => (string)($p['bundle'] ?? ''),
-                    'repo' => (string)($p['repo'] ?? ''),
-                    'channel' => (string)($p['channel'] ?? ''),
-                    'ref' => (string)($remote['ref'] ?? ''),
-                    'local_version' => $local,
-                    'remote_version' => $remoteVer,
-                    'update_available' => self::isNewer($remoteVer, $local),
-                    'url' => (string)($remote['url'] ?? ''),
-                    'sha256' => $remote['sha256'] ?? null,
-                    'artifact' => $remote['artifact'] ?? null,
-                ];
+                $targets[] = self::checkOnePackage($p);
             }
+            self::sortStatusRows($targets);
             $now = gmdate('c');
             $state = self::readState();
             $state['last_check'] = $now;
@@ -439,6 +620,115 @@ final class UpdateEngine
             return ['ok' => true, 'targets' => $targets, 'last_check' => $now, 'http' => 200];
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'targets' => [], 'last_check' => '', 'http' => 400];
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $p
+     * @return array<string,mixed>
+     */
+    private static function checkOnePackage(array $p): array
+    {
+        $remote = self::resolveRemoteMeta($p);
+        $local = self::localVersion((string)$p['id']);
+        $remoteVer = (string)$remote['version'];
+        return self::enrichStatusRow([
+            'id' => $p['id'],
+            'kind' => $p['kind'],
+            'bundle' => (string)($p['bundle'] ?? ''),
+            'repo' => (string)($p['repo'] ?? ''),
+            'channel' => (string)($p['channel'] ?? ''),
+            'ref' => (string)($remote['ref'] ?? ''),
+            'local_version' => $local,
+            'remote_version' => $remoteVer,
+            'update_available' => self::isNewer($remoteVer, $local),
+            'url' => (string)($remote['url'] ?? ''),
+            'sha256' => $remote['sha256'] ?? null,
+            'artifact' => $remote['artifact'] ?? null,
+        ]);
+    }
+
+    /** Progressive check for UI (one package per tick). */
+    public static function checkJobStart(?string $target = null): array
+    {
+        $packages = self::discoverPackages($target);
+        if ($packages === []) {
+            throw new RuntimeException(t('updates.missing_ini'));
+        }
+        $id = 'chk-' . bin2hex(random_bytes(8));
+        $job = [
+            'id' => $id,
+            'kind' => 'check',
+            'status' => 'running',
+            'progress' => 0,
+            'message' => t('updates.check.starting'),
+            'step' => 'check',
+            'target_index' => 0,
+            'targets' => $packages,
+            'results' => [],
+            'error' => '',
+            'created_at' => time(),
+            'updated_at' => time(),
+        ];
+        self::jobSave($job);
+        return $job;
+    }
+
+    /** @return array<string,mixed> */
+    public static function checkJobTick(string $id): array
+    {
+        $job = self::jobGet($id);
+        if (($job['kind'] ?? '') !== 'check') {
+            throw new RuntimeException('Not a check job');
+        }
+        if (($job['status'] ?? '') !== 'running') {
+            return $job;
+        }
+        $targets = is_array($job['targets'] ?? null) ? $job['targets'] : [];
+        $ti = (int)($job['target_index'] ?? 0);
+        $n = count($targets);
+        if ($ti >= $n) {
+            $results = is_array($job['results'] ?? null) ? $job['results'] : [];
+            self::sortStatusRows($results);
+            $now = gmdate('c');
+            $state = self::readState();
+            $state['last_check'] = $now;
+            $state['last_check_targets'] = $results;
+            self::writeState($state);
+            $job['status'] = 'done';
+            $job['progress'] = 100;
+            $job['message'] = t('updates.check_ok');
+            $job['last_check'] = $now;
+            $job['updated_at'] = time();
+            self::jobSave($job);
+            return $job;
+        }
+        $p = $targets[$ti];
+        $pid = (string)($p['id'] ?? '');
+        $label = self::packageLabel($pid);
+        $job['message'] = t('updates.check.step', [
+            'name' => $label,
+            'n' => (string)($ti + 1),
+            'total' => (string)$n,
+        ]);
+        try {
+            $row = self::checkOnePackage($p);
+            if (!isset($job['results']) || !is_array($job['results'])) {
+                $job['results'] = [];
+            }
+            $job['results'][] = $row;
+            $job['target_index'] = $ti + 1;
+            $job['progress'] = (int)floor((($ti + 1) / max(1, $n)) * 100);
+            $job['updated_at'] = time();
+            self::jobSave($job);
+            return $job;
+        } catch (Throwable $e) {
+            $job['status'] = 'error';
+            $job['error'] = $e->getMessage();
+            $job['message'] = $e->getMessage();
+            $job['updated_at'] = time();
+            self::jobSave($job);
+            return $job;
         }
     }
 
@@ -1212,17 +1502,21 @@ final class UpdateEngine
         $targets = is_array($job['targets'] ?? null) ? $job['targets'] : [];
         $ti = (int)($job['target_index'] ?? 0);
         $cur = $targets[$ti] ?? null;
+        $curId = is_array($cur) ? (string)($cur['id'] ?? '') : '';
         return [
             'id' => (string)($job['id'] ?? ''),
+            'kind' => (string)($job['kind'] ?? 'apply'),
             'status' => (string)($job['status'] ?? ''),
             'progress' => (int)($job['progress'] ?? 0),
             'message' => (string)($job['message'] ?? ''),
             'step' => (string)($job['step'] ?? ''),
-            'target' => is_array($cur) ? (string)($cur['id'] ?? '') : '',
+            'target' => $curId,
+            'target_label' => $curId !== '' ? self::packageLabel($curId) : '',
             'target_index' => $ti,
             'targets_total' => count($targets),
             'error' => (string)($job['error'] ?? ''),
             'results' => $job['results'] ?? [],
+            'last_check' => $job['last_check'] ?? null,
         ];
     }
 

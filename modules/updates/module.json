@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "type": "product",
     "catalog": {
         "categories": [
@@ -38,6 +38,7 @@
     "routes": {
         "pages": [
             "/updates",
+            "/updates/settings",
             "/updates/check",
             "/updates/apply"
         ]
@@ -49,10 +50,40 @@
                 "method": "GET",
                 "path": "/updates",
                 "permission": "updates.view",
-                "description": "Packages (local/remote versions, last_check) from cfg/updates.ini discovery. Twin: GET /agent/update",
+                "description": "Packages (local/remote versions, last_check, available_count) + source. Twin: GET /agent/update",
                 "parameters": {
                     "type": "object",
                     "properties": {}
+                }
+            },
+            {
+                "id": "updates.settings",
+                "method": "GET",
+                "path": "/updates/settings",
+                "permission": "updates.view",
+                "description": "Read update source settings (repo/channel/token_set). Twin: configure cfg/updates.ini",
+                "parameters": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "id": "updates.settings.save",
+                "method": "POST",
+                "path": "/updates/settings",
+                "permission": "updates.apply",
+                "side_effect": "write",
+                "description": "Save [core] in cfg/updates.ini. SUPERADMIN. Body: repo, channel, token?, clear_token?, ref?, asset?",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "repo": { "type": "string" },
+                        "channel": { "type": "string" },
+                        "token": { "type": "string" },
+                        "clear_token": { "type": "string" },
+                        "ref": { "type": "string" },
+                        "asset": { "type": "string" }
+                    }
                 }
             },
             {
@@ -102,13 +133,20 @@
             "num": 4,
             "path": "/updates",
             "title": "updates.menu.list"
+        },
+        {
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 5,
+            "path": "/updates/settings",
+            "title": "updates.menu.settings"
         }
     ],
     "configSchema": [],
     "tables": [],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": ["core.notices.collect"],
         "publish": []
     }
 }

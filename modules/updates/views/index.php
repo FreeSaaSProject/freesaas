@@ -3,20 +3,23 @@
 /** @var string $error */
 /** @var bool $updateConfigured */
 /** @var list<array<string,mixed>> $updateSources */
-/** @var list<array<string,mixed>> $updateHints */
 /** @var array<string,array<string,mixed>> $updateRemoteById */
 /** @var bool $updateCanApply */
 /** @var string|null $updateLastCheck */
+/** @var array<string,mixed>|null $updateSource */
+/** @var int $updateAvailableCount */
 $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $updateConfigured = !empty($updateConfigured);
 $updateSources = is_array($updateSources ?? null) ? $updateSources : [];
-$updateHints = is_array($updateHints ?? null) ? $updateHints : [];
 $updateRemoteById = is_array($updateRemoteById ?? null) ? $updateRemoteById : [];
 $updateCanApply = !empty($updateCanApply);
 $updateLastCheck = isset($updateLastCheck) && is_string($updateLastCheck) && $updateLastCheck !== ''
     ? $updateLastCheck
     : null;
+$updateSource = is_array($updateSource ?? null) ? $updateSource : null;
+$updateAvailableCount = (int)($updateAvailableCount ?? 0);
+
 $lastCheckDisplay = $updateLastCheck;
 if ($lastCheckDisplay !== null) {
     $ts = strtotime($lastCheckDisplay);
@@ -28,9 +31,69 @@ $lastCheckLabel = $lastCheckDisplay !== null
     ? t('updates.last_check', ['when' => $lastCheckDisplay])
     : t('updates.last_check_never');
 
+$defaultRepo = is_array($updateSource) ? (string)($updateSource['repo'] ?? '') : '';
+$defaultChannel = is_array($updateSource) ? (string)($updateSource['channel'] ?? '') : '';
+$sourceLine = '';
+if ($defaultRepo !== '') {
+    $sourceLine = $defaultRepo;
+    if ($defaultChannel !== '') {
+        $sourceLine .= ' · ' . $defaultChannel;
+    }
+}
+
+// Merge remote into rows and sort (available first)
+$rows = [];
+foreach ($updateSources as $src) {
+    $sid = (string)($src['id'] ?? '');
+    $remote = $updateRemoteById[$sid] ?? null;
+    if (is_array($remote)) {
+        if ((string)($remote['remote_version'] ?? '') !== '') {
+            $src['remote_version'] = (string)$remote['remote_version'];
+        }
+        if (array_key_exists('update_available', $remote)) {
+            $src['update_available'] = !empty($remote['update_available']);
+        }
+        if ((string)($remote['label'] ?? '') !== '') {
+            $src['label'] = (string)$remote['label'];
+        }
+        if ((string)($remote['repo'] ?? '') !== '') {
+            $src['repo'] = (string)$remote['repo'];
+        }
+        if ((string)($remote['bundle'] ?? '') !== '') {
+            $src['bundle'] = (string)$remote['bundle'];
+        }
+    }
+    if ($sid !== 'core' && empty($src['enabled']) && isset($src['enabled'])) {
+        // already filtered in status; keep if present
+    }
+    $rows[] = $src;
+}
+usort($rows, static function (array $a, array $b): int {
+    $aa = !empty($a['update_available']) ? 0 : 1;
+    $bb = !empty($b['update_available']) ? 0 : 1;
+    if ($aa !== $bb) {
+        return $aa <=> $bb;
+    }
+    $ca = ((string)($a['id'] ?? '') === 'core') ? 0 : 1;
+    $cb = ((string)($b['id'] ?? '') === 'core') ? 0 : 1;
+    if ($ca !== $cb) {
+        return $ca <=> $cb;
+    }
+    return strcasecmp((string)($a['label'] ?? $a['id'] ?? ''), (string)($b['label'] ?? $b['id'] ?? ''));
+});
+if ($updateAvailableCount <= 0) {
+    foreach ($rows as $r) {
+        if (!empty($r['update_available'])) {
+            $updateAvailableCount++;
+        }
+    }
+}
+
 $jobI18n = [
     'title' => t('updates.job.title'),
+    'checkTitle' => t('updates.check.title'),
     'doneTitle' => t('updates.job.done_title'),
+    'checkDoneTitle' => t('updates.check.done_title'),
     'cancelledTitle' => t('updates.job.cancelled_title'),
     'errorTitle' => t('updates.job.error_title'),
     'confirmApply' => t('updates.confirm_apply'),
@@ -40,24 +103,38 @@ $jobI18n = [
 <div id="updates-app" data-i18n="<?= e((string)json_encode($jobI18n, JSON_UNESCAPED_UNICODE)) ?>">
 <section class="page-head">
   <p class="lede"><?= te('updates.lede') ?></p>
+  <div class="actions">
+    <a class="btn-secondary" href="/updates/settings"><?= te('updates.menu.settings') ?></a>
+  </div>
 </section>
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
+<?php if ($updateAvailableCount > 0): ?>
+<div class="flash flash-warn upd-banner" role="status">
+  <span><?= e(t('updates.banner.available', ['n' => (string)$updateAvailableCount])) ?></span>
+  <?php if ($updateCanApply): ?>
+  <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_update_available') ?></button>
+  <?php endif; ?>
+</div>
+<?php endif; ?>
+
 <section class="calendar-section">
   <h2 class="subhead"><?= te('updates.section_configured') ?></h2>
   <p class="muted"><?= e($lastCheckLabel) ?></p>
+  <?php if ($sourceLine !== ''): ?>
+  <p class="upd-source muted"><?= te('updates.source_line') ?>: <code><?= e($sourceLine) ?></code></p>
+  <?php endif; ?>
   <?php if (!$updateConfigured): ?>
     <p class="muted"><?= te('updates.missing_ini') ?></p>
+    <p><a class="btn-primary" href="/updates/settings"><?= te('updates.menu.settings') ?></a></p>
   <?php else: ?>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr>
-            <th><?= te('updates.col_id') ?></th>
-            <th><?= te('updates.col_provider') ?></th>
-            <th><?= te('updates.col_ref') ?></th>
+            <th><?= te('updates.col_name') ?></th>
             <th><?= te('updates.col_local') ?></th>
             <th><?= te('updates.col_remote') ?></th>
             <th><?= te('updates.col_status') ?></th>
@@ -65,47 +142,41 @@ $jobI18n = [
           </tr>
         </thead>
         <tbody>
-        <?php foreach ($updateSources as $src):
+        <?php foreach ($rows as $src):
             $sid = (string)($src['id'] ?? '');
-            $remote = $updateRemoteById[$sid] ?? null;
-            $remoteVer = is_array($remote)
-                ? (string)($remote['remote_version'] ?? '')
-                : (string)($src['remote_version'] ?? '');
-            $ref = is_array($remote)
-                ? (string)($remote['ref'] ?? '')
-                : (string)($src['ref'] ?? '');
-            if ($ref === '') {
-                $ref = (string)($src['channel'] ?? '');
-            }
-            $avail = is_array($remote)
-                ? !empty($remote['update_available'])
-                : !empty($src['update_available']);
-            $checked = (is_array($remote) && (string)($remote['remote_version'] ?? '') !== '')
-                || (string)($src['remote_version'] ?? '') !== '';
+            $label = (string)($src['label'] ?? UpdateEngine::packageLabel($sid));
+            $remoteVer = (string)($src['remote_version'] ?? '');
+            $avail = !empty($src['update_available']);
+            $checked = $remoteVer !== '';
+            $rowRepo = (string)($src['repo'] ?? '');
+            $rowBundle = (string)($src['bundle'] ?? '');
+            $showSrc = ($rowRepo !== '' && $defaultRepo !== '' && $rowRepo !== $defaultRepo)
+                || ($rowBundle === 'external');
             if ($checked && $avail) {
-                $stLabel = t('updates.status_available');
+                $stHtml = '<span class="upd-status upd-status--avail">' . e(t('updates.status_available')) . '</span>';
             } elseif ($checked) {
-                $stLabel = t('updates.status_current');
+                $stHtml = '<span class="upd-status upd-status--ok"><span class="upd-check" aria-hidden="true">✓</span> '
+                    . e(t('updates.status_current')) . '</span>';
             } else {
-                $stLabel = t('updates.status_unknown');
-            }
-            $repo = (string)($src['repo'] ?? '');
-            $bundle = (string)($src['bundle'] ?? '');
-            $provLabel = $repo !== '' ? $repo : '—';
-            if ($bundle !== '') {
-                $provLabel .= ' · ' . $bundle;
+                $stHtml = '<span class="upd-status upd-status--unk">' . e(t('updates.status_unknown')) . '</span>';
             }
             ?>
-          <tr>
-            <td><code><?= e($sid) ?></code></td>
-            <td><?= e($provLabel) ?></td>
-            <td><code><?= e($ref !== '' ? $ref : '—') ?></code></td>
+          <tr class="<?= $avail ? 'upd-row-avail' : '' ?>">
+            <td>
+              <strong><?= e($label) ?></strong>
+              <span class="muted"> <code><?= e($sid) ?></code></span>
+              <?php if ($showSrc): ?>
+                <div class="muted upd-row-src"><code><?= e($rowRepo !== '' ? $rowRepo : '—') ?></code></div>
+              <?php endif; ?>
+            </td>
             <td><?= e((string)($src['local_version'] ?? '')) ?></td>
             <td><?= e($remoteVer !== '' ? $remoteVer : '—') ?></td>
-            <td><?= e($stLabel) ?></td>
+            <td><?= $stHtml ?></td>
             <?php if ($updateCanApply): ?>
             <td>
-              <button type="button" class="btn-secondary" data-upd-apply="<?= e($sid) ?>"><?= te('updates.btn_apply') ?></button>
+              <?php if ($avail): ?>
+              <button type="button" class="btn-primary" data-upd-apply="<?= e($sid) ?>"><?= te('updates.btn_update') ?></button>
+              <?php endif; ?>
             </td>
             <?php endif; ?>
           </tr>
@@ -114,53 +185,14 @@ $jobI18n = [
       </table>
     </div>
     <div class="actions" style="margin-top:.75rem">
-      <form method="post" style="display:inline">
-        <input type="hidden" name="action" value="update_check">
-        <button class="btn-secondary" type="submit"><?= te('updates.btn_check') ?></button>
-      </form>
-      <?php if ($updateCanApply): ?>
-      <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_apply_available') ?></button>
+      <button type="button" class="btn-secondary" data-upd-check><?= te('updates.btn_check') ?></button>
+      <?php if ($updateCanApply && $updateAvailableCount > 0): ?>
+      <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_update_available') ?></button>
       <?php endif; ?>
     </div>
   <?php endif; ?>
 </section>
 
-<section class="calendar-section" style="margin-top:1.5rem">
-  <h2 class="subhead"><?= te('updates.section_hints') ?></h2>
-  <p class="muted"><?= te('updates.hints_help') ?></p>
-  <?php if ($updateHints === []): ?>
-    <p class="muted"><?= te('updates.hints_empty') ?></p>
-  <?php else: ?>
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th><?= te('updates.col_id') ?></th>
-            <th><?= te('updates.col_provider') ?></th>
-            <th><?= te('updates.col_local') ?></th>
-            <th><?= te('updates.col_status') ?></th>
-          </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($updateHints as $hint):
-            $hid = (string)($hint['id'] ?? '');
-            $repo = (string)($hint['repository'] ?? $hint['repo'] ?? '');
-            $channel = (string)($hint['channel'] ?? 'stable');
-            ?>
-          <tr>
-            <td><code><?= e($hid) ?></code></td>
-            <td><?= e($repo !== '' ? $repo : '—') ?> <span class="muted">(<?= e($channel) ?>)</span></td>
-            <td><?= e((string)($hint['local_version'] ?? '')) ?></td>
-            <td><?= te('updates.status_hint') ?></td>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-  <?php endif; ?>
-</section>
-
-<?php if ($updateCanApply): ?>
 <div id="upd-job-overlay" class="upd-job-overlay" hidden>
   <div class="upd-job-panel" role="dialog" aria-modal="true" aria-labelledby="upd-job-title">
     <h3 id="upd-job-title" class="subhead"><?= te('updates.job.title') ?></h3>
@@ -178,5 +210,4 @@ $jobI18n = [
     </div>
   </div>
 </div>
-<?php endif; ?>
 </div>

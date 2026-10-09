@@ -21,6 +21,7 @@
   var okBtn = document.getElementById('upd-job-ok');
 
   var activeJobId = null;
+  var activeKind = 'apply';
   var finished = false;
   var aborting = false;
   var startedAt = 0;
@@ -33,7 +34,8 @@
     if (pctEl) pctEl.textContent = pct + '%';
   }
 
-  function showJob() {
+  function showJob(kind) {
+    activeKind = kind || 'apply';
     finished = false;
     aborting = false;
     startedAt = Date.now();
@@ -41,7 +43,11 @@
     document.body.classList.add('upd-job-busy');
     if (okBtn) { okBtn.hidden = true; okBtn.disabled = true; }
     if (abortBtn) { abortBtn.hidden = false; abortBtn.disabled = false; }
-    if (titleEl) titleEl.textContent = i18n.title || 'Updating…';
+    if (titleEl) {
+      titleEl.textContent = activeKind === 'check'
+        ? (i18n.checkTitle || 'Checking…')
+        : (i18n.title || 'Updating…');
+    }
     setBar(0);
     if (timerIv) clearInterval(timerIv);
     timerIv = setInterval(function () {
@@ -60,9 +66,15 @@
     if (okBtn) { okBtn.hidden = false; okBtn.disabled = false; }
     if (msgEl && message) msgEl.textContent = message;
     if (titleEl) {
-      if (status === 'done') titleEl.textContent = i18n.doneTitle || 'Done';
-      else if (status === 'cancelled') titleEl.textContent = i18n.cancelledTitle || 'Cancelled';
-      else titleEl.textContent = i18n.errorTitle || 'Error';
+      if (status === 'done') {
+        titleEl.textContent = activeKind === 'check'
+          ? (i18n.checkDoneTitle || i18n.doneTitle || 'Done')
+          : (i18n.doneTitle || 'Done');
+      } else if (status === 'cancelled') {
+        titleEl.textContent = i18n.cancelledTitle || 'Cancelled';
+      } else {
+        titleEl.textContent = i18n.errorTitle || 'Error';
+      }
     }
     if (status === 'done') setBar(100);
   }
@@ -78,8 +90,9 @@
     if (!j) return;
     if (msgEl) {
       var msg = j.message || '';
-      if (j.target) {
-        msg = (j.target + (j.targets_total ? (' (' + ((j.target_index || 0) + 1) + '/' + j.targets_total + ')') : '') + ': ') + msg;
+      if (activeKind !== 'check' && (j.target_label || j.target)) {
+        var label = j.target_label || j.target;
+        msg = (label + (j.targets_total ? (' (' + ((j.target_index || 0) + 1) + '/' + j.targets_total + ')') : '') + ': ') + msg;
       }
       msgEl.textContent = msg;
     }
@@ -130,12 +143,55 @@
     });
   }
 
+  function runLoop(startAction, tickAction, kind) {
+    var fd = new FormData();
+    fd.set('action', startAction);
+    fd.set('format', 'json');
+    showJob(kind);
+    return postForm(fd).then(function (start) {
+      var job = start.job || {};
+      var id = job.id;
+      if (!id) throw new Error('No job id');
+      activeJobId = id;
+      applyJob(job);
+
+      function tick() {
+        if (finished || aborting) return;
+        var tfd = new FormData();
+        tfd.set('action', tickAction);
+        tfd.set('job_id', id);
+        tfd.set('format', 'json');
+        return postForm(tfd).then(function (res) {
+          if (finished || aborting) return;
+          var j = res.job || {};
+          applyJob(j);
+          if (j.status === 'done') {
+            finishJob('done', j.message || '');
+            return;
+          }
+          if (j.status === 'cancelled') {
+            finishJob('cancelled', j.message || '');
+            return;
+          }
+          if (j.status === 'error') {
+            finishJob('error', j.error || j.message || 'Job failed');
+            return;
+          }
+          return new Promise(function (resolve) { setTimeout(resolve, 50); }).then(tick);
+        });
+      }
+      return tick();
+    }).catch(function (err) {
+      finishJob('error', err && err.message ? err.message : String(err));
+    });
+  }
+
   function runApply(target) {
     var fd = new FormData();
     fd.set('action', 'update_job_start');
     fd.set('target', target || 'all');
     fd.set('format', 'json');
-    showJob();
+    showJob('apply');
     return postForm(fd).then(function (start) {
       var job = start.job || {};
       var id = job.id;
@@ -174,6 +230,10 @@
     });
   }
 
+  function runCheck() {
+    return runLoop('update_check_job_start', 'update_check_job_tick', 'check');
+  }
+
   document.querySelectorAll('[data-upd-apply]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
@@ -181,6 +241,13 @@
       var confirmMsg = i18n.confirmApply || '';
       if (confirmMsg && !window.confirm(confirmMsg)) return;
       runApply(target);
+    });
+  });
+
+  document.querySelectorAll('[data-upd-check]').forEach(function (btn) {
+    btn.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      runCheck();
     });
   });
 })();

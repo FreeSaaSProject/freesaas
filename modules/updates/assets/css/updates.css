@@ -40,3 +40,31 @@
 }
 .upd-job-actions { margin-top: 1rem; }
 body.upd-job-busy { overflow: hidden; }
+
+.upd-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.upd-source { margin: 0.25rem 0 0.75rem; }
+.upd-row-avail td { background: rgba(180, 90, 20, 0.06); }
+.upd-row-src { font-size: 0.85em; margin-top: 0.15rem; }
+.upd-status { display: inline-flex; align-items: center; gap: 0.35rem; }
+.upd-status--ok { color: #1a7f37; font-weight: 600; }
+.upd-status--avail { color: #9a6700; font-weight: 600; }
+.upd-status--unk { color: var(--muted, #666); }
+.upd-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: 50%;
+  background: #1a7f37;
+  color: #fff;
+  font-size: 0.75em;
+  line-height: 1;
+  font-weight: 700;
+}

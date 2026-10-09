@@ -8,6 +8,7 @@ Assets::register('updates', [
 
 $pages = [
     '/updates' => ['permission' => 'updates.view', 'methods' => ['GET', 'POST'], 'file' => 'index.php'],
+    '/updates/settings' => ['permission' => 'updates.view', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/updates/check' => ['permission' => 'updates.view', 'methods' => ['GET', 'POST'], 'file' => 'api.php'],
     '/updates/apply' => ['permission' => 'updates.apply', 'methods' => ['POST'], 'file' => 'api.php'],
 ];
@@ -23,3 +24,29 @@ foreach ($pages as $path => $def) {
         },
     ]);
 }
+
+EventBus::on('core.notices.collect', static function ($notices) {
+    if (!is_array($notices)) {
+        $notices = [];
+    }
+    if (!Auth::check() || !Auth::can('updates.view')) {
+        return $notices;
+    }
+    try {
+        $st = UpdateEngine::status();
+        $n = (int)($st['available_count'] ?? 0);
+        if ($n <= 0) {
+            return $notices;
+        }
+        $notices[] = [
+            'id' => 'updates.available',
+            'tone' => 'warn',
+            'href' => '/updates',
+            'title' => t('updates.notice.title', ['n' => (string)$n]),
+            'short' => t('updates.notice.short', ['n' => (string)$n]),
+        ];
+    } catch (Throwable $e) {
+        // ignore
+    }
+    return $notices;
+});
