@@ -2,7 +2,7 @@
     "id": "clients",
     "name": "clients.module.name",
     "description": "clients.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
