@@ -49,6 +49,7 @@ return [
     'bots.catalog.staff.news' => '📰 Новости и заявки',
     'bots.catalog.staff.password_restore' => '🔑 Восстановление пароля',
     'bots.catalog.staff.voice_transcribe' => '🎙️ Расшифровка голосовых сообщений',
+    'bots.catalog.staff.fit_food_entry' => '🍽️ Еда и спорт',
     'bots.catalog.staff.badge' => '🎧 Выбрать бейдж',
     'bots.catalog.staff.shifts' => '📅 Мои смены',
     'bots.catalog.staff.assigned_procedures' => 'Назначенные процедуры',

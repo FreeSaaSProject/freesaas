@@ -13,6 +13,9 @@ require_once __DIR__ . '/lib/HealthLogsRepository.php';
 require_once __DIR__ . '/lib/HealthDoctorRxRepository.php';
 require_once __DIR__ . '/lib/WellnessCalendarRepository.php';
 require_once __DIR__ . '/lib/WellnessUi.php';
+require_once __DIR__ . '/lib/FitRecipesRepository.php';
+require_once __DIR__ . '/lib/FitRecipeSync.php';
+require_once __DIR__ . '/lib/FitFoodBotPlugin.php';
 
 Assets::register('wellness', [
     'css' => ['wellness.css'],
@@ -88,3 +91,14 @@ foreach ($bulkDeletes as $listId => $callable) {
         },
     ]);
 }
+
+$registerFitBot = static function (): void {
+    FitFoodBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerFitBot();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerFitBot) {
+    $registerFitBot();
+    return is_array($payload) ? $payload : [];
+});

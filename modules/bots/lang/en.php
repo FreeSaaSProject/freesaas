@@ -49,6 +49,7 @@ return [
     'bots.catalog.staff.news' => '📰 News & tickets',
     'bots.catalog.staff.password_restore' => '🔑 Password restore',
     'bots.catalog.staff.voice_transcribe' => '🎙️ Voice transcription',
+    'bots.catalog.staff.fit_food_entry' => '🍽️ Food & sport',
     'bots.catalog.staff.badge' => '🎧 Choose badge',
     'bots.catalog.staff.shifts' => '📅 My shifts',
     'bots.catalog.staff.assigned_procedures' => '🗓 Assigned procedures',

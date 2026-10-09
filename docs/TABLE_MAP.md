@@ -42,6 +42,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_bonuspay` | bonuses | Client loyalty ledger (credit/debit, event settle) |
 | `base_telegram_sends` | bots | Outbound TG/Max queue (`BOT_SOURCE` 1=client, 2=staff) |
 | `base_bot_links` | bots | Messenger chat ids for staff/clients (no ALTER `base_users` / `base_clients`) |
+| `base_bot_chat_state` | bots | Per-chat FSM pending mode for bot plugins |
+| `base_fit_recipes` / `base_fit_recipe_items` | wellness | Own recipes + composition; synthetic food via `base_fit_foods.ID_SOURCE_RECIPE` |
 | `base_vacations` | vacations | Leave register |
 | `base_fit_*` / `base_healths_*` | wellness | Personal food/workouts/weight/goals + health diaries (strict `ID_USER`) |
 | `base_accounts*` / `base_account_*` | ledger | Accounts, moves, reconciliations |

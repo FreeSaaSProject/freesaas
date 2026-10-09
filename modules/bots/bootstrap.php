@@ -11,6 +11,7 @@ require_once __DIR__ . '/lib/BotPlugins.php';
 require_once __DIR__ . '/lib/BotMenuCatalog.php';
 require_once __DIR__ . '/lib/BotSend.php';
 require_once __DIR__ . '/lib/BotWebhook.php';
+require_once __DIR__ . '/lib/BotChatState.php';
 
 ModuleManager::registerMenuGroup('bots.menu.group', 68, '/bots/types/staff');
 

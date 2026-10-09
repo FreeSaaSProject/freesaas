@@ -9,6 +9,8 @@ require_once __DIR__ . '/lib/JobRunner.php';
 require_once __DIR__ . '/lib/IngestRunner.php';
 require_once __DIR__ . '/lib/StemRunner.php';
 require_once __DIR__ . '/lib/CollectRunner.php';
+require_once __DIR__ . '/lib/VoiceTranscribeQueue.php';
+require_once __DIR__ . '/lib/VoiceTranscribeBotPlugin.php';
 
 /**
  * Thin ASR handshake + HTTP job runners. Whisper Python stays external.
@@ -95,3 +97,31 @@ Health::register('audio_pipeline.stem_cache', 'audio_pipeline', static function 
     }
     return ['status' => 'ok', 'message' => 'stem cache dir writable'];
 }, 'Stem cache directory');
+
+ModuleManager::registerRoute('/audio/voice-transcribe/worker', [
+    'module' => 'audio_pipeline',
+    'methods' => ['GET', 'POST'],
+    'public' => true,
+    'handler' => static function (): void {
+        require base_path('modules/audio_pipeline/pages/voice_transcribe_worker.php');
+    },
+]);
+ModuleManager::registerRoute('/audio/voice-transcribe/file', [
+    'module' => 'audio_pipeline',
+    'methods' => ['GET'],
+    'public' => true,
+    'handler' => static function (): void {
+        require base_path('modules/audio_pipeline/pages/voice_transcribe_file.php');
+    },
+]);
+
+$registerVoiceBot = static function (): void {
+    VoiceTranscribeBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerVoiceBot();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerVoiceBot) {
+    $registerVoiceBot();
+    return is_array($payload) ? $payload : [];
+});

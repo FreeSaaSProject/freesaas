@@ -2,7 +2,7 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -1074,6 +1074,8 @@
         "base_fitlogs",
         "base_fit_targets",
         "base_fit_weightlogs",
+        "base_fit_recipes",
+        "base_fit_recipe_items",
         "base_healths_medicines",
         "base_healths_symptoms",
         "base_healths_logs",
@@ -1081,7 +1083,10 @@
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "bots.ready",
+            "bots.voice.transcription_result"
+        ],
         "publish": []
     },
     "bulkActions": [

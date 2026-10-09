@@ -12,6 +12,7 @@ final class BotClient
 
     /**
      * @param array<string,mixed>|null $replyMarkup Telegram-style inline_keyboard
+     * @param string $parseMode Telegram parse_mode (HTML|Markdown|MarkdownV2) or empty
      * @return array{ok:bool,data:?array,error:string}
      */
     public static function sendMessage(
@@ -19,7 +20,8 @@ final class BotClient
         string $token,
         string $chatId,
         string $text,
-        ?array $replyMarkup = null
+        ?array $replyMarkup = null,
+        string $parseMode = ''
     ): array {
         $platform = strtolower(trim($platform));
         $token = trim($token);
@@ -30,7 +32,102 @@ final class BotClient
         if ($platform === 'max') {
             return self::maxSendMessage($token, $chatId, $text, $replyMarkup);
         }
-        return self::tgSendMessage($token, $chatId, $text, $replyMarkup);
+        return self::tgSendMessage($token, $chatId, $text, $replyMarkup, $parseMode);
+    }
+
+    /**
+     * Telegram getFile → download to a temp path.
+     *
+     * @return array{ok:bool,path:string,ext:string,error:string}
+     */
+    public static function downloadTelegramFile(string $token, string $fileId, string $preferExt = 'ogg'): array
+    {
+        $token = trim($token);
+        $fileId = trim($fileId);
+        if ($token === '' || $fileId === '') {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'missing token or file_id'];
+        }
+        $meta = self::tgRequest($token, 'getFile', ['file_id' => $fileId]);
+        if (!$meta['ok'] || !is_array($meta['data']['result'] ?? null)) {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => $meta['error'] !== '' ? $meta['error'] : 'getFile failed'];
+        }
+        $filePath = (string)($meta['data']['result']['file_path'] ?? '');
+        if ($filePath === '') {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'empty file_path'];
+        }
+        $ext = strtolower((string)pathinfo($filePath, PATHINFO_EXTENSION));
+        if ($ext === '') {
+            $ext = preg_replace('/[^a-z0-9]/', '', strtolower($preferExt)) ?: 'ogg';
+        }
+        $url = self::TG_API . '/file/bot' . $token . '/' . $filePath;
+        $tmp = tempnam(sys_get_temp_dir(), 'botvoice_');
+        if ($tmp === false) {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'tempnam failed'];
+        }
+        $dest = $tmp . '.' . $ext;
+        @unlink($tmp);
+        $fp = fopen($dest, 'wb');
+        if ($fp === false) {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'fopen failed'];
+        }
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_FILE => $fp,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 120,
+        ]);
+        $ok = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        fclose($fp);
+        if ($ok === false) {
+            @unlink($dest);
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => $err !== '' ? $err : 'download failed'];
+        }
+        return ['ok' => true, 'path' => $dest, 'ext' => $ext, 'error' => ''];
+    }
+
+    /**
+     * Download arbitrary URL (Max attachment) to temp file.
+     *
+     * @return array{ok:bool,path:string,ext:string,error:string}
+     */
+    public static function downloadUrlToTemp(string $url, string $preferExt = 'ogg'): array
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'empty url'];
+        }
+        $ext = preg_replace('/[^a-z0-9]/', '', strtolower($preferExt)) ?: 'ogg';
+        $tmp = tempnam(sys_get_temp_dir(), 'botvoice_');
+        if ($tmp === false) {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'tempnam failed'];
+        }
+        $dest = $tmp . '.' . $ext;
+        @unlink($tmp);
+        $fp = fopen($dest, 'wb');
+        if ($fp === false) {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'fopen failed'];
+        }
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_FILE => $fp,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT => 120,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+        ]);
+        $ok = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+        fclose($fp);
+        if ($ok === false) {
+            @unlink($dest);
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => $err !== '' ? $err : 'download failed'];
+        }
+        return ['ok' => true, 'path' => $dest, 'ext' => $ext, 'error' => ''];
     }
 
     /**
@@ -58,16 +155,25 @@ final class BotClient
      * @param array<string,mixed>|null $replyMarkup
      * @return array{ok:bool,data:?array,error:string}
      */
-    private static function tgSendMessage(string $token, string $chatId, string $text, ?array $replyMarkup): array
-    {
+    private static function tgSendMessage(
+        string $token,
+        string $chatId,
+        string $text,
+        ?array $replyMarkup,
+        string $parseMode = ''
+    ): array {
         $chunks = self::chunkText($text);
         $last = array_pop($chunks);
         foreach ($chunks as $chunk) {
-            $res = self::tgRequest($token, 'sendMessage', [
+            $fields = [
                 'chat_id' => $chatId,
                 'text' => $chunk,
                 'disable_web_page_preview' => true,
-            ]);
+            ];
+            if ($parseMode !== '') {
+                $fields['parse_mode'] = $parseMode;
+            }
+            $res = self::tgRequest($token, 'sendMessage', $fields);
             if (!$res['ok']) {
                 return $res;
             }
@@ -77,6 +183,9 @@ final class BotClient
             'text' => (string)$last,
             'disable_web_page_preview' => true,
         ];
+        if ($parseMode !== '') {
+            $payload['parse_mode'] = $parseMode;
+        }
         if ($replyMarkup !== null) {
             $payload['reply_markup'] = json_encode($replyMarkup, JSON_UNESCAPED_UNICODE);
         }

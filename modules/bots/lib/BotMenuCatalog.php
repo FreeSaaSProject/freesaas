@@ -84,6 +84,13 @@ final class BotMenuCatalog
                 'kind' => 'cabinet',
             ],
             [
+                'id' => 'fit_food_entry',
+                'label_key' => 'bots.catalog.staff.fit_food_entry',
+                'module' => 'wellness',
+                'aliases' => ['fit_food_entry'],
+                'kind' => 'cabinet',
+            ],
+            [
                 'id' => 'badge',
                 'label_key' => 'bots.catalog.staff.badge',
                 'module' => 'audio',

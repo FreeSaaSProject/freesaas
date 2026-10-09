@@ -14,6 +14,7 @@ require_once __DIR__ . '/lib/UserPrefsRepository.php';
 require_once __DIR__ . '/lib/DashboardWidgets.php';
 require_once __DIR__ . '/lib/MenuOrder.php';
 require_once __DIR__ . '/lib/NewsBotPlugin.php';
+require_once __DIR__ . '/lib/PasswordRestoreBotPlugin.php';
 
 // Shared rail groups (core.menu.group.*) — product modules register their own keys.
 ModuleManager::registerMenuGroup('core.menu.group.desktop', 10, '/');
@@ -442,3 +443,4 @@ EventBus::on('comments.prepare_add', static function ($payload) {
 });
 
 NewsBotPlugin::register();
+PasswordRestoreBotPlugin::register();

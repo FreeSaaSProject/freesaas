@@ -87,6 +87,78 @@ final class FitFoodsRepository
         return $row ?: null;
     }
 
+    /** Unscoped find (bot/recipe sync under Auth::runAs). */
+    public static function findRaw(int $id): ?array
+    {
+        if ($id < 1 || !Database::tableExists('base_fit_foods')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_USER AS user_id, NAME AS name,
+                    CCALS AS ccals, CARBS AS carbs, PROTEINS AS proteins, FATS AS fats
+             FROM base_fit_foods WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    public static function searchByName(int $userId, string $query, int $limit = 8): array
+    {
+        if ($userId < 1 || !Database::tableExists('base_fit_foods')) {
+            return [];
+        }
+        $query = trim($query);
+        if ($query === '') {
+            return [];
+        }
+        $limit = max(1, min(20, $limit));
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_USER AS user_id, NAME AS name,
+                    CCALS AS ccals, CARBS AS carbs, PROTEINS AS proteins, FATS AS fats
+             FROM base_fit_foods
+             WHERE ID_USER = ? AND NAME LIKE ?
+             ORDER BY NAME ASC LIMIT ' . $limit
+        );
+        $st->execute([$userId, '%' . $query . '%']);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if (count($rows) >= 3) {
+            return $rows;
+        }
+        // Fallback: first token prefix
+        $token = preg_split('/\s+/u', mb_strtolower($query, 'UTF-8'))[0] ?? '';
+        $token = preg_replace('/[^a-zа-яё0-9]/iu', '', (string)$token) ?? '';
+        if (mb_strlen($token, 'UTF-8') < 3) {
+            return $rows;
+        }
+        $st2 = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_USER AS user_id, NAME AS name,
+                    CCALS AS ccals, CARBS AS carbs, PROTEINS AS proteins, FATS AS fats
+             FROM base_fit_foods
+             WHERE ID_USER = ? AND NAME LIKE ?
+             ORDER BY NAME ASC LIMIT ' . $limit
+        );
+        $st2->execute([$userId, '%' . $token . '%']);
+        $more = $st2->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $seen = [];
+        $out = [];
+        foreach (array_merge($rows, $more) as $r) {
+            $id = (int)($r['id'] ?? 0);
+            if ($id < 1 || isset($seen[$id])) {
+                continue;
+            }
+            $seen[$id] = true;
+            $out[] = $r;
+            if (count($out) >= $limit) {
+                break;
+            }
+        }
+        return $out;
+    }
+
     /**
      * @param array<string,mixed> $post
      * @return array<string,mixed>

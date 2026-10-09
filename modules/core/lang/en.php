@@ -629,4 +629,11 @@ return [
     'core.rte.mode_source' => 'Source',
     'core.module.description' => 'Platform kernel: auth, home, users, roles, news/tickets, settings, modules catalog, migrations.',
     'core.module.summary' => 'Always on — cannot be disabled. Owns session auth, staff users/statuses, news feed, settings, /modules catalog, schema migrate UI, and shared chrome. Soft-depends on bots for messenger-related staff fields. Enable other modules on top of core; never try to turn core off.',
+
+    'core.bot.password_restore.prompt' => "🔑 Password restore\n\nYou can generate a new login password. It will stay valid for 3 months.\n\nGenerate a new password?",
+    'core.bot.password_restore.generate' => 'Generate password',
+    'core.bot.password_restore.disabled' => "🔑 Password restore\n\nOnly the IT lead can restore your password.\n\nContact an administrator.",
+    'core.bot.password_restore.cfg_error' => 'Configuration error. Contact an administrator.',
+    'core.bot.password_restore.update_error' => 'Could not update the password. Contact an administrator.',
+    'core.bot.password_restore.done' => "✅ New password created. Valid for 3 months.\n\nPassword: <tg-spoiler>{password}</tg-spoiler>\n\n(tap the password to reveal)\n\nSave it for system login.",
 ];
