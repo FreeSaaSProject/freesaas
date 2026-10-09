@@ -163,7 +163,77 @@ final class UpdateEngine
     }
 
     /**
-     * @return array{ok:bool,configured:bool,sources:list,state:array,http:int,error?:string}
+     * Modules that advertise update.repository in module.json but lack cfg/updates.ini section.
+     *
+     * @return list<array{id:string,kind:string,repository:string,repo:string,channel:string,local_version:string,configured:bool}>
+     */
+    public static function moduleHints(): array
+    {
+        $configured = [];
+        foreach (self::sources() as $s) {
+            if ($s['kind'] === 'module') {
+                $configured[(string)$s['id']] = true;
+            }
+        }
+        $hints = [];
+        foreach (ModuleManager::all() as $id => $meta) {
+            $id = (string)$id;
+            if ($id === 'core' || $id === 'updates') {
+                continue;
+            }
+            if (isset($configured[$id])) {
+                continue;
+            }
+            if (!is_array($meta)) {
+                continue;
+            }
+            $upd = $meta['update'] ?? null;
+            if (!is_array($upd)) {
+                continue;
+            }
+            $repository = trim((string)($upd['repository'] ?? $upd['url'] ?? ''));
+            if ($repository === '') {
+                continue;
+            }
+            $channel = trim((string)($upd['channel'] ?? 'stable'));
+            if ($channel === '') {
+                $channel = 'stable';
+            }
+            $repo = self::repoFromUrl($repository);
+            $hints[] = [
+                'id' => $id,
+                'kind' => 'module',
+                'repository' => $repository,
+                'repo' => $repo,
+                'channel' => $channel,
+                'local_version' => self::localVersion($id),
+                'configured' => false,
+            ];
+        }
+        usort($hints, static function (array $a, array $b): int {
+            return strcmp($a['id'], $b['id']);
+        });
+        return $hints;
+    }
+
+    /** owner/name from https://github.com/owner/name(.git) */
+    public static function repoFromUrl(string $url): string
+    {
+        $url = trim($url);
+        if (preg_match('#github\.com[:/]+([^/]+)/([^/.\s]+)#i', $url, $m)) {
+            return $m[1] . '/' . preg_replace('/\.git$/i', '', $m[2]);
+        }
+        if (preg_match('#gitlab\.com[:/]+([^/]+)/([^/.\s]+)#i', $url, $m)) {
+            return $m[1] . '/' . preg_replace('/\.git$/i', '', $m[2]);
+        }
+        if (preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $url)) {
+            return $url;
+        }
+        return '';
+    }
+
+    /**
+     * @return array{ok:bool,configured:bool,sources:list,hints:list,state:array,http:int,error?:string}
      */
     public static function status(): array
     {
@@ -187,6 +257,7 @@ final class UpdateEngine
                 'token_set' => $s['token_set'],
                 'local_version' => self::localVersion($id),
                 'applied' => $applied,
+                'configured' => true,
             ];
         }
         return [
@@ -195,6 +266,7 @@ final class UpdateEngine
             'ini' => self::updatesIniPath(),
             'example' => self::exampleIniPath(),
             'sources' => $rows,
+            'hints' => self::moduleHints(),
             'state' => $state,
             'http' => 200,
         ];
@@ -469,7 +541,7 @@ final class UpdateEngine
                 continue;
             }
             $name = (string)($a['name'] ?? '');
-            $dl = (string)($a['browser_download_url'] ?? '');
+            $dl = self::githubAssetDownloadUrl($a);
             if ($name === self::MANIFEST_ASSET && $dl !== '') {
                 $manifestAsset = $a;
             }
@@ -478,7 +550,8 @@ final class UpdateEngine
             }
         }
         if ($manifestAsset !== null) {
-            $mBody = self::httpGet((string)$manifestAsset['browser_download_url'], $token);
+            // Private releases: browser_download_url 404s; use API asset URL + octet-stream.
+            $mBody = self::httpGet(self::githubAssetDownloadUrl($manifestAsset), $token, true);
             $mData = json_decode($mBody, true);
             if (is_array($mData)) {
                 $norm = self::normalizeManifest($mData, $token);
@@ -507,7 +580,7 @@ final class UpdateEngine
                     continue;
                 }
                 $name = (string)($a['name'] ?? '');
-                if ($name !== '' && preg_match('/\.zip$/i', $name)) {
+                if ($name !== '' && preg_match('/\.zip$/i', $name) && self::githubAssetDownloadUrl($a) !== '') {
                     $zipAsset = $a;
                     break;
                 }
@@ -516,7 +589,7 @@ final class UpdateEngine
         if ($zipAsset !== null) {
             return [
                 'version' => $version,
-                'url' => (string)$zipAsset['browser_download_url'],
+                'url' => self::githubAssetDownloadUrl($zipAsset),
                 'artifact' => (string)($zipAsset['name'] ?? ''),
                 'tag' => $tag,
             ];
@@ -534,6 +607,21 @@ final class UpdateEngine
     }
 
     /**
+     * Prefer GitHub API asset URL (works for private repos with Bearer + Accept: octet-stream).
+     * browser_download_url returns 404 for private releases even with a token.
+     *
+     * @param array<string,mixed> $asset
+     */
+    private static function githubAssetDownloadUrl(array $asset): string
+    {
+        $api = trim((string)($asset['url'] ?? ''));
+        if ($api !== '' && strpos($api, 'api.github.com/') !== false) {
+            return $api;
+        }
+        return trim((string)($asset['browser_download_url'] ?? ''));
+    }
+
+    /**
      * @param list<mixed> $assets
      */
     private static function findAssetUrl(array $assets, string $name): ?string
@@ -547,7 +635,7 @@ final class UpdateEngine
                 continue;
             }
             if ((string)($a['name'] ?? '') === $name) {
-                $dl = (string)($a['browser_download_url'] ?? '');
+                $dl = self::githubAssetDownloadUrl($a);
                 return $dl !== '' ? $dl : null;
             }
         }
@@ -761,6 +849,7 @@ final class UpdateEngine
             if ($ch === false) {
                 throw new RuntimeException('curl_init failed');
             }
+            // GitHub private release assets require API URL + octet-stream (not browser_download_url).
             $headers = [
                 'Accept: application/octet-stream',
                 'User-Agent: ' . self::USER_AGENT,
@@ -793,7 +882,10 @@ final class UpdateEngine
         }
     }
 
-    private static function httpGet(string $url, string $token): string
+    /**
+     * @param bool $octetStream true for GitHub release asset API URLs (private-repo downloads)
+     */
+    private static function httpGet(string $url, string $token, bool $octetStream = false): string
     {
         if (!function_exists('curl_init')) {
             throw new RuntimeException('curl extension required for updates');
@@ -802,8 +894,11 @@ final class UpdateEngine
         if ($ch === false) {
             throw new RuntimeException('curl_init failed');
         }
+        if (!$octetStream && strpos($url, 'api.github.com/') !== false && strpos($url, '/releases/assets/') !== false) {
+            $octetStream = true;
+        }
         $headers = [
-            'Accept: application/vnd.github+json, application/json',
+            'Accept: ' . ($octetStream ? 'application/octet-stream' : 'application/vnd.github+json, application/json'),
             'User-Agent: ' . self::USER_AGENT,
         ];
         if ($token !== '') {

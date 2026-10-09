@@ -9,10 +9,6 @@
 /** @var string $agentTokenMasked */
 /** @var string $agentTokenPlain */
 /** @var bool $agentTokenJustGenerated */
-/** @var bool $updateConfigured */
-/** @var list<array<string,mixed>> $updateSources */
-/** @var array<string,array<string,mixed>> $updateRemoteById */
-/** @var bool $updateCanApply */
 $logoUrl = isset($logoUrl) ? $logoUrl : null;
 $hasLogo = !empty($hasLogo);
 $extraHtml = (string)($extraHtml ?? '');
@@ -20,10 +16,6 @@ $agentTokenConfigured = !empty($agentTokenConfigured);
 $agentTokenMasked = (string)($agentTokenMasked ?? '');
 $agentTokenPlain = (string)($agentTokenPlain ?? '');
 $agentTokenJustGenerated = !empty($agentTokenJustGenerated);
-$updateConfigured = !empty($updateConfigured);
-$updateSources = is_array($updateSources ?? null) ? $updateSources : [];
-$updateRemoteById = is_array($updateRemoteById ?? null) ? $updateRemoteById : [];
-$updateCanApply = !empty($updateCanApply);
 ?>
 <section class="page-head">
   <p class="lede"><?= t('core.settings.lede') ?></p>
@@ -96,84 +88,6 @@ $updateCanApply = !empty($updateCanApply);
       <?= te($agentTokenConfigured ? 'core.settings.agent_token.btn_regen' : 'core.settings.agent_token.btn_generate') ?>
     </button>
   </form>
-</section>
-
-<section class="calendar-section" style="margin-top:1.5rem">
-  <h2 class="subhead"><?= te('core.settings.updates.title') ?></h2>
-  <p class="muted"><?= te('core.settings.updates.help') ?></p>
-
-  <?php if (!$updateConfigured): ?>
-    <p class="muted"><?= te('core.settings.updates.missing_ini') ?></p>
-  <?php else: ?>
-    <div class="table-wrap">
-      <table class="data-table">
-        <thead>
-          <tr>
-            <th><?= te('core.settings.updates.col_id') ?></th>
-            <th><?= te('core.settings.updates.col_provider') ?></th>
-            <th><?= te('core.settings.updates.col_local') ?></th>
-            <th><?= te('core.settings.updates.col_remote') ?></th>
-            <th><?= te('core.settings.updates.col_status') ?></th>
-            <?php if ($updateCanApply): ?><th></th><?php endif; ?>
-          </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($updateSources as $src):
-            $sid = (string)($src['id'] ?? '');
-            $remote = $updateRemoteById[$sid] ?? null;
-            $remoteVer = is_array($remote) ? (string)($remote['remote_version'] ?? '') : '';
-            $avail = is_array($remote) && !empty($remote['update_available']);
-            $checked = is_array($remote);
-            if ($checked && $avail) {
-                $stLabel = t('core.settings.updates.status_available');
-            } elseif ($checked) {
-                $stLabel = t('core.settings.updates.status_current');
-            } else {
-                $stLabel = t('core.settings.updates.status_unknown');
-            }
-            $prov = (string)($src['provider'] ?? '');
-            $repo = (string)($src['repo'] ?? '');
-            $provLabel = $prov . ($repo !== '' ? ' · ' . $repo : '');
-            $tok = !empty($src['token_set'])
-                ? t('core.settings.updates.token_set')
-                : t('core.settings.updates.token_missing');
-            ?>
-          <tr>
-            <td><code><?= e($sid) ?></code></td>
-            <td><?= e($provLabel) ?> <span class="muted">(<?= e($tok) ?>)</span></td>
-            <td><?= e((string)($src['local_version'] ?? '')) ?></td>
-            <td><?= e($remoteVer !== '' ? $remoteVer : '—') ?></td>
-            <td><?= e($stLabel) ?></td>
-            <?php if ($updateCanApply): ?>
-            <td>
-              <form method="post" style="display:inline"
-                    onsubmit="return confirm(<?= tj('core.settings.updates.confirm_apply') ?>);">
-                <input type="hidden" name="action" value="update_apply">
-                <input type="hidden" name="target" value="<?= e($sid) ?>">
-                <button class="btn-secondary" type="submit"><?= te('core.settings.updates.btn_apply') ?></button>
-              </form>
-            </td>
-            <?php endif; ?>
-          </tr>
-        <?php endforeach; ?>
-        </tbody>
-      </table>
-    </div>
-    <div class="actions" style="margin-top:.75rem">
-      <form method="post" style="display:inline">
-        <input type="hidden" name="action" value="update_check">
-        <button class="btn-secondary" type="submit"><?= te('core.settings.updates.btn_check') ?></button>
-      </form>
-      <?php if ($updateCanApply): ?>
-      <form method="post" style="display:inline"
-            onsubmit="return confirm(<?= tj('core.settings.updates.confirm_apply') ?>);">
-        <input type="hidden" name="action" value="update_apply">
-        <input type="hidden" name="target" value="all">
-        <button class="btn-primary" type="submit"><?= te('core.settings.updates.btn_apply_all') ?></button>
-      </form>
-      <?php endif; ?>
-    </div>
-  <?php endif; ?>
 </section>
 
 <script>

@@ -10,12 +10,7 @@ $error = '';
 $row = SystemRepository::get();
 $agentTokenPlain = '';
 $agentTokenJustGenerated = false;
-$action = '';
 
-$updateCheckRows = [];
-$updateCanApply = Auth::capability('SUPERADMIN_ACCESS');
-
-// LLM/assistant may POST JSON body; merge into $_POST for action handlers.
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $raw = file_get_contents('php://input');
     if (is_string($raw) && trim($raw) !== '') {
@@ -37,7 +32,7 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    $action = (string)($_POST['action'] ?? $_GET['action'] ?? '');
+    $action = (string)($_POST['action'] ?? '');
     try {
         if ($action === 'agent_token_generate') {
             if ($wantsJson) {
@@ -48,67 +43,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $agentTokenPlain = $token;
             $agentTokenJustGenerated = true;
             $message = t('core.settings.agent_token.generated');
-        } elseif ($action === 'update_check') {
-            $target = trim((string)($_POST['target'] ?? $_GET['target'] ?? ''));
-            $report = AgentOps::updateCheck($target !== '' ? $target : null);
-            if (empty($report['ok'])) {
-                throw new RuntimeException((string)($report['error'] ?? t('core.settings.updates.apply_fail')));
-            }
-            $updateCheckRows = is_array($report['targets'] ?? null) ? $report['targets'] : [];
-            $message = t('core.settings.updates.check_ok');
-            if ($wantsJson) {
-                AgentHttp::emit([
-                    'ok' => true,
-                    'action' => 'update_check',
-                    'message' => $message,
-                    'targets' => $updateCheckRows,
-                    'http' => (int)($report['http'] ?? 200),
-                ]);
-            }
-        } elseif ($action === 'update_apply') {
-            if (!$updateCanApply) {
-                throw new RuntimeException(t('core.settings.updates.err_superadmin'));
-            }
-            $target = trim((string)($_POST['target'] ?? $_GET['target'] ?? 'all'));
-            if ($target === '') {
-                $target = 'all';
-            }
-            $migrate = true;
-            if (isset($_POST['migrate'])) {
-                $migrate = !in_array(strtolower((string)$_POST['migrate']), ['0', 'false', 'no'], true);
-            }
-            $report = AgentOps::updateApply($target === 'all' ? null : $target, $migrate);
-            if (empty($report['ok'])) {
-                $err = (string)($report['error'] ?? '');
-                if ($err === '' && !empty($report['results'][0]['error'])) {
-                    $err = (string)$report['results'][0]['error'];
-                }
-                throw new RuntimeException($err !== '' ? $err : t('core.settings.updates.apply_fail'));
-            }
-            $message = t('core.settings.updates.apply_ok');
-            $check = AgentOps::updateCheck($target === 'all' ? null : $target);
-            $updateCheckRows = is_array($check['targets'] ?? null) ? $check['targets'] : [];
-            if ($wantsJson) {
-                AgentHttp::emit([
-                    'ok' => true,
-                    'action' => 'update_apply',
-                    'message' => $message,
-                    'target' => $target,
-                    'results' => $report['results'] ?? [],
-                    'targets' => $updateCheckRows,
-                    'http' => (int)($report['http'] ?? 200),
-                ]);
-            }
-        } elseif ($action === 'update_status') {
-            // POST alias for agents that only POST tools
-            $st = AgentOps::updateStatus();
-            if ($wantsJson) {
-                AgentHttp::emit(array_merge($st, ['action' => 'update_status']));
-            }
         } else {
-            if ($wantsJson && $action !== '' && $action !== 'save') {
-                AgentHttp::error('Unknown action', 400);
-            }
             SystemRepository::updateBasics([
                 'company' => (string)($_POST['company'] ?? ''),
             ]);
@@ -149,40 +84,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-$updateStatus = AgentOps::updateStatus();
-$updateSources = is_array($updateStatus['sources'] ?? null) ? $updateStatus['sources'] : [];
-if ($updateCheckRows === [] && !empty($_SESSION['freesaas_update_check']) && is_array($_SESSION['freesaas_update_check'])) {
-    $updateCheckRows = $_SESSION['freesaas_update_check'];
-}
-if ($updateCheckRows !== []) {
-    $_SESSION['freesaas_update_check'] = $updateCheckRows;
-}
-$updateRemoteById = [];
-foreach ($updateCheckRows as $tr) {
-    if (is_array($tr) && isset($tr['id'])) {
-        $updateRemoteById[(string)$tr['id']] = $tr;
-    }
-}
-
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
-    $getAction = (string)($_GET['action'] ?? '');
-    if ($getAction === 'update_check') {
-        $target = trim((string)($_GET['target'] ?? ''));
-        $report = AgentOps::updateCheck($target !== '' ? $target : null);
-        if (empty($report['ok'])) {
-            AgentHttp::error((string)($report['error'] ?? 'update check failed'), (int)($report['http'] ?? 400));
-        }
-        AgentHttp::emit(array_merge($report, ['action' => 'update_check']));
-    }
-    // Default GET: settings snapshot + update status (no secrets)
     AgentHttp::emit([
         'ok' => true,
         'action' => 'status',
         'company' => (string)($row['company'] ?? ''),
         'has_logo' => SystemLogo::has(),
         'agent_token_configured' => AgentAuth::isConfigured(),
-        'update' => $updateStatus,
-        'update_can_apply' => $updateCanApply,
     ]);
 }
 
@@ -216,8 +124,4 @@ View::render('settings', [
     'agentTokenMasked' => $agentTokenMasked,
     'agentTokenPlain' => $agentTokenPlain,
     'agentTokenJustGenerated' => $agentTokenJustGenerated,
-    'updateConfigured' => !empty($updateStatus['configured']),
-    'updateSources' => $updateSources,
-    'updateRemoteById' => $updateRemoteById,
-    'updateCanApply' => $updateCanApply,
 ]);

@@ -1,0 +1,114 @@
+{
+    "id": "updates",
+    "name": "updates.module.name",
+    "description": "updates.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "catalog": {
+        "categories": [
+            "platform"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "settings",
+            "jobs"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "updates.self"
+    ],
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
+    "permissions": [
+        {
+            "id": "updates.view",
+            "label": "updates.perm.view"
+        },
+        {
+            "id": "updates.apply",
+            "label": "updates.perm.apply"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/updates",
+            "/updates/check",
+            "/updates/apply"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "updates.status",
+                "method": "GET",
+                "path": "/updates",
+                "permission": "updates.view",
+                "description": "Self-update sources from cfg/updates.ini + module.json update hints. Twin: GET /agent/update",
+                "parameters": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "id": "updates.check",
+                "method": "GET",
+                "path": "/updates/check",
+                "permission": "updates.view",
+                "description": "Compare local vs remote versions. Query: optional target=core|moduleId. Twin: GET /agent/update/check",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target": {
+                            "type": "string",
+                            "description": "core, module id, or omit for all configured sources"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "updates.apply",
+                "method": "POST",
+                "path": "/updates/apply",
+                "permission": "updates.apply",
+                "side_effect": "write",
+                "description": "Download zip overlay + migrate. Also requires SUPERADMIN_ACCESS. Body: target=core|moduleId|all, optional migrate=0. Twin: POST /agent/update/apply",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target": {
+                            "type": "string",
+                            "description": "core, module id, or all"
+                        },
+                        "migrate": {
+                            "type": "string",
+                            "description": "1 (default) or 0 to skip schema migrate"
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 4,
+            "path": "/updates",
+            "title": "updates.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    }
+}

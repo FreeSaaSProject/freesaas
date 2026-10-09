@@ -2,8 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Session/product JSON twin of platform /agent/update* (core.update.* agent.ops).
- * HTML UI stays on /settings; this page is JSON-first for agents / assistant / MCP.
+ * Agent JSON endpoints: /updates/check, /updates/apply
  */
 $wantsJson = AgentHttp::wantsJson();
 $path = request_path();
@@ -33,40 +32,35 @@ $targetRaw = trim((string)($_GET['target'] ?? $_POST['target'] ?? ''));
 $target = $targetRaw !== '' ? $targetRaw : null;
 
 try {
-    if ($path === '/settings/update' && $method === 'GET') {
-        $st = AgentOps::updateStatus();
-        $st['update_can_apply'] = Auth::capability('SUPERADMIN_ACCESS');
-        if ($wantsJson) {
-            AgentHttp::emit($st);
-        }
-        redirect('/settings');
-    }
-
-    if ($path === '/settings/update/check' && ($method === 'GET' || $method === 'POST')) {
+    if ($path === '/updates/check' && ($method === 'GET' || $method === 'POST')) {
         $report = AgentOps::updateCheck($target);
         if ($wantsJson) {
             if (empty($report['ok'])) {
-                AgentHttp::error((string)($report['error'] ?? 'update check failed'), (int)($report['http'] ?? 400));
+                AgentHttp::error((string)($report['error'] ?? t('updates.apply_fail')), (int)($report['http'] ?? 400));
             }
             AgentHttp::emit($report);
         }
-        redirect('/settings');
+        if (!empty($report['ok']) && is_array($report['targets'] ?? null)) {
+            $_SESSION['freesaas_update_check'] = $report['targets'];
+        }
+        redirect('/updates');
     }
 
-    if ($path === '/settings/update/apply' && $method === 'POST') {
-        if (!Auth::capability('SUPERADMIN_ACCESS')) {
+    if ($path === '/updates/apply' && $method === 'POST') {
+        $canApply = Auth::can('updates.apply') && Auth::capability('SUPERADMIN_ACCESS');
+        if (!$canApply) {
             if ($wantsJson) {
-                AgentHttp::error(t('core.settings.updates.err_superadmin'), 403);
+                AgentHttp::error(t('updates.err_superadmin'), 403);
             }
-            flash_set('error', t('core.settings.updates.err_superadmin'));
-            redirect('/settings');
+            flash_set('error', t('updates.err_superadmin'));
+            redirect('/updates');
         }
         $migrate = true;
         if (isset($_POST['migrate']) || isset($_GET['migrate'])) {
             $m = (string)($_POST['migrate'] ?? $_GET['migrate'] ?? '1');
             $migrate = !in_array(strtolower($m), ['0', 'false', 'no'], true);
         }
-        $applyTarget = ($target === null || strtolower($target) === 'all') ? null : $target;
+        $applyTarget = ($target === null || strtolower((string)$target) === 'all') ? null : $target;
         $report = AgentOps::updateApply($applyTarget, $migrate);
         if ($wantsJson) {
             if (empty($report['ok'])) {
@@ -74,21 +68,26 @@ try {
                 if ($err === '' && !empty($report['results'][0]['error'])) {
                     $err = (string)$report['results'][0]['error'];
                 }
-                AgentHttp::error($err !== '' ? $err : t('core.settings.updates.apply_fail'), (int)($report['http'] ?? 500));
+                AgentHttp::error($err !== '' ? $err : t('updates.apply_fail'), (int)($report['http'] ?? 500));
             }
             AgentHttp::emit($report);
         }
-        redirect('/settings');
+        if (!empty($report['ok'])) {
+            flash_set('ok', t('updates.apply_ok'));
+        } else {
+            flash_set('error', t('updates.apply_fail'));
+        }
+        redirect('/updates');
     }
 
     if ($wantsJson) {
-        AgentHttp::error('unknown update endpoint', 404);
+        AgentHttp::error('unknown updates endpoint', 404);
     }
-    redirect('/settings');
+    redirect('/updates');
 } catch (Throwable $e) {
     if ($wantsJson) {
         AgentHttp::error($e->getMessage(), 400);
     }
     flash_set('error', $e->getMessage());
-    redirect('/settings');
+    redirect('/updates');
 }
