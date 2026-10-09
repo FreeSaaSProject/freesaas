@@ -949,6 +949,17 @@ final class AgentOps
             );
             $id = (int)$st->fetchColumn();
             if ($id > 0) {
+                // Greenfield Superadmin needs shift-assign flags once columns exist (core/013).
+                $patch = [];
+                if (Database::columnExists('base_admin_statuses', 'EVT_ASSIGN')) {
+                    $patch['EVT_ASSIGN'] = 1;
+                }
+                if (Database::columnExists('base_admin_statuses', 'CAN_BE_ASSIGNED')) {
+                    $patch['CAN_BE_ASSIGNED'] = 1;
+                }
+                if ($patch !== []) {
+                    StatusesRepository::update($id, $patch);
+                }
                 return $id;
             }
         }
@@ -960,6 +971,8 @@ final class AgentOps
             'SHOW_ADMINISTRATOR_DATA' => 1,
             'SHOW_NEWS' => 1,
             'CAN_SEE_SUM_OTHERS' => 1,
+            'EVT_ASSIGN' => 1,
+            'CAN_BE_ASSIGNED' => 1,
         ];
         return StatusesRepository::create($data);
     }

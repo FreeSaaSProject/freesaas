@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $lq = ListQuery::resolve([
     'list_id' => 'procedure_types',
     'allowed' => ProcedureTypesRepository::listSortMap(),
@@ -13,6 +15,19 @@ $filters = $lq['query'];
 BulkActions::tryHandle('procedure_types', '/procedure-types', $filters);
 
 $items = ProcedureTypesRepository::listAll(['order' => $lq['order_sql']]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => count($items),
+        'items' => $items,
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
+
 $bulkFlash = BulkActions::consumeFlash();
 
 View::render('types', [

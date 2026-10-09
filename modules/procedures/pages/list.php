@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $enabled = (string)($_GET['enabled'] ?? '');
 if (!in_array($enabled, ['', '0', '1'], true)) {
@@ -71,6 +73,31 @@ $result = ProceduresRepository::list([
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'enabled' => $enabled !== '' ? $enabled : null,
+            'restored' => $restored !== '' ? $restored : null,
+            'type' => $typeId > 0 ? $typeId : null,
+            'date_from' => $dateFrom !== '' ? $dateFrom : null,
+            'date_to' => $dateTo !== '' ? $dateTo : null,
+            'id_user' => $idUser > 0 ? $idUser : null,
+            'id_good' => $idGood > 0 ? $idGood : null,
+            'id_admin' => $idAdmin > 0 ? $idAdmin : null,
+            'id_operator' => $idOperator > 0 ? $idOperator : null,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+        'procedure_types' => ProcedureTypesRepository::names(),
+    ]);
+    return;
+}
 
 $staffNames = [];
 foreach (UsersRepository::listForCopy() as $u) {

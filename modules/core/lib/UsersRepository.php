@@ -704,36 +704,45 @@ final class UsersRepository
         return $row ?: null;
     }
 
-    /** Digits-only phone fragment suitable as login base. */
+    /**
+     * Login base from raw input.
+     * Values with letters keep a slug (e.g. admin1); phone-like / digit-only inputs
+     * collapse to digits (national 10 when 7/8 + 11 digits).
+     */
     public static function normalizeLoginCandidate(string $raw): string
     {
-        $digits = preg_replace('/\D+/', '', $raw) ?? '';
-        if ($digits !== '') {
-            // Prefer national 10–11 digit form when present
-            if (strlen($digits) >= 11 && ($digits[0] === '7' || $digits[0] === '8')) {
-                $digits = substr($digits, -10);
-            }
-            return $digits;
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
         }
-        $slug = strtolower(trim($raw));
-        $slug = preg_replace('/[^a-z0-9._-]+/', '_', $slug) ?? '';
-        $slug = trim($slug, '._-');
-        return $slug;
+        if (preg_match('/[A-Za-z]/', $raw)) {
+            $slug = strtolower($raw);
+            $slug = preg_replace('/[^a-z0-9._-]+/', '_', $slug) ?? '';
+            return trim($slug, '._-');
+        }
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        if ($digits === '') {
+            return '';
+        }
+        if (strlen($digits) >= 11 && ($digits[0] === '7' || $digits[0] === '8')) {
+            $digits = substr($digits, -10);
+        }
+        return $digits;
     }
 
     /**
-     * Unique login: prefer tel digits, else explicit login, else staff_<hex>.
+     * Unique login: prefer explicit login, else tel digits, else staff_<hex>.
      */
     public static function allocateLogin(string $preferred = '', string $tel = ''): string
     {
         $candidates = [];
-        $fromTel = self::normalizeLoginCandidate($tel);
-        if ($fromTel !== '') {
-            $candidates[] = $fromTel;
-        }
         $fromPref = self::normalizeLoginCandidate($preferred);
-        if ($fromPref !== '' && $fromPref !== $fromTel) {
+        if ($fromPref !== '') {
             $candidates[] = $fromPref;
+        }
+        $fromTel = self::normalizeLoginCandidate($tel);
+        if ($fromTel !== '' && $fromTel !== $fromPref) {
+            $candidates[] = $fromTel;
         }
         if ($candidates === []) {
             $candidates[] = 'staff_' . bin2hex(random_bytes(4));

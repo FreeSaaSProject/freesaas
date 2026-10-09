@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 
@@ -12,6 +14,10 @@ $row = [];
 if (!$isNew) {
     $found = ProceduresRepository::find($id);
     if (!$found) {
+        if ($wantsJson) {
+            AgentHttp::error(t('procedures.err.not_found', ['id' => $id]), 404);
+            return;
+        }
         http_response_code(404);
         View::render('error', [
             'title' => t('core.common.not_found'),
@@ -36,6 +42,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $data = ProceduresRepository::dataFromPost($_POST);
         if ($isNew) {
             $newId = ProceduresRepository::create($data);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $newId,
+                    'item' => ProceduresRepository::find($newId),
+                ]);
+                return;
+            }
             redirect(ListQuery::url('/procedures/' . $newId . '/edit', [
                 'saved' => 1,
                 'ret' => $returnUrl,
@@ -43,9 +57,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
         ProceduresRepository::update($id, $data);
-        $message = t('core.common.saved');
         $row = ProceduresRepository::find($id) ?: $row;
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'item' => $row,
+            ]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         $error = $e->getMessage();
         $row = array_merge($row, $_POST);
     }
@@ -71,6 +97,18 @@ if ($clientId > 0) {
     if ($client) {
         $clientLabel = trim((string)($client['name'] ?: $client['tel'] ?: ''));
     }
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'item' => $row,
+        'is_new' => $isNew,
+        'procedure_types' => ProcedureTypesRepository::names(),
+        'staff' => $staffNames,
+        'client_label' => $clientLabel,
+    ]);
+    return;
 }
 
 View::render('edit', [

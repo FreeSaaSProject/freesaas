@@ -47,6 +47,104 @@
     "agent": {
         "ops": [
             {
+                "id": "procedures.list",
+                "method": "GET",
+                "path": "/procedures",
+                "permission": "procedures.view",
+                "side_effect": "read",
+                "description": "List procedures journal; filters: q, enabled, restored, type, date_from, date_to, id_user, id_good, id_admin, id_operator"
+            },
+            {
+                "id": "procedures.get_edit",
+                "method": "GET",
+                "path": "/procedures/{id}/edit",
+                "permission": "procedures.edit",
+                "side_effect": "read",
+                "description": "Procedure edit payload + procedure_types/staff dictionaries; new at /procedures/new"
+            },
+            {
+                "id": "procedures.create",
+                "method": "POST",
+                "path": "/procedures/new",
+                "permission": "procedures.edit",
+                "side_effect": "write",
+                "description": "Create procedure journal row; returns {ok,id,item}"
+            },
+            {
+                "id": "procedures.update",
+                "method": "POST",
+                "path": "/procedures/{id}/edit",
+                "permission": "procedures.edit",
+                "side_effect": "write",
+                "description": "Update procedure journal row; returns {ok,id,item}"
+            },
+            {
+                "id": "procedures.types.list",
+                "method": "GET",
+                "path": "/procedure-types",
+                "permission": "procedures.types",
+                "side_effect": "read",
+                "description": "List procedure types (base_procedure_types)"
+            },
+            {
+                "id": "procedures.types.get_edit",
+                "method": "GET",
+                "path": "/procedure-types/{id}/edit",
+                "permission": "procedures.types",
+                "side_effect": "read",
+                "description": "Procedure type edit payload; new at /procedure-types/new"
+            },
+            {
+                "id": "procedures.types.create",
+                "method": "POST",
+                "path": "/procedure-types/new",
+                "permission": "procedures.types",
+                "side_effect": "write",
+                "description": "Create procedure type; returns {ok,id,item}. Form: type (required), subtype, descr, bonus_procent, multiwork, photo_req, is_medical, parallels, bonus_procent_out, site_amo_show, cons_req_amo",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "type": {
+                            "type": "string",
+                            "description": "Type name"
+                        },
+                        "subtype": {
+                            "type": "integer"
+                        },
+                        "descr": {
+                            "type": "string"
+                        },
+                        "bonus_procent": {
+                            "type": "number"
+                        },
+                        "parallels": {
+                            "type": "integer"
+                        },
+                        "multiwork": {
+                            "type": "string",
+                            "description": "1 to enable"
+                        },
+                        "photo_req": {
+                            "type": "string"
+                        },
+                        "is_medical": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "type"
+                    ]
+                }
+            },
+            {
+                "id": "procedures.types.update",
+                "method": "POST",
+                "path": "/procedure-types/{id}/edit",
+                "permission": "procedures.types",
+                "side_effect": "write",
+                "description": "Update procedure type; returns {ok,id,item}"
+            },
+            {
                 "id": "procedures.day_stats",
                 "method": "GET",
                 "path": "/procedures/day-stats",

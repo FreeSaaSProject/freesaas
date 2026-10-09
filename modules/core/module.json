@@ -240,7 +240,7 @@
                 "path": "/users/new",
                 "permission": "core.users",
                 "side_effect": "write",
-                "description": "Create staff user without password. Required: name. Prefer tel (login auto from phone). Optional copyFrom=template userId (non-superadmin only). Server hashes a random password; agents never send/receive passwords.",
+                "description": "Create staff user without password. Required: name. Optional login (wins over tel); if login empty, login is derived from tel digits. Optional copyFrom=template userId (non-superadmin only). Server hashes a random password; agents never send/receive passwords.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -250,14 +250,14 @@
                         },
                         "tel": {
                             "type": "string",
-                            "description": "Phone; used as login when login omitted"
+                            "description": "Phone; used as login only when login is empty/unusable"
                         },
                         "mail": {
                             "type": "string"
                         },
                         "login": {
                             "type": "string",
-                            "description": "Optional; default from tel digits"
+                            "description": "Optional explicit login (wins over tel digits when set)"
                         },
                         "ID_STATUS": {
                             "type": "integer",
