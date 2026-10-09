@@ -442,10 +442,15 @@ final class UpdateEngine
         }
         self::sortStatusRows($rows);
 
-        $available = 0;
+        $availableList = [];
         foreach ($rows as $r) {
             if (!empty($r['update_available'])) {
-                $available++;
+                $availableList[] = [
+                    'id' => (string)($r['id'] ?? ''),
+                    'label' => (string)($r['label'] ?? self::packageLabel((string)($r['id'] ?? ''))),
+                    'local_version' => (string)($r['local_version'] ?? ''),
+                    'remote_version' => (string)($r['remote_version'] ?? ''),
+                ];
             }
         }
 
@@ -465,7 +470,8 @@ final class UpdateEngine
             'sources' => $rows,
             'hints' => self::moduleHints(),
             'last_check' => $lastCheck,
-            'available_count' => $available,
+            'available_count' => count($availableList),
+            'available' => $availableList,
             'source' => $coreSrc !== null ? [
                 'provider' => (string)$coreSrc['provider'],
                 'repo' => (string)$coreSrc['repo'],
@@ -1503,6 +1509,20 @@ final class UpdateEngine
         $ti = (int)($job['target_index'] ?? 0);
         $cur = $targets[$ti] ?? null;
         $curId = is_array($cur) ? (string)($cur['id'] ?? '') : '';
+        $found = [];
+        $results = is_array($job['results'] ?? null) ? $job['results'] : [];
+        foreach ($results as $row) {
+            if (!is_array($row) || empty($row['update_available'])) {
+                continue;
+            }
+            $fid = (string)($row['id'] ?? '');
+            $found[] = [
+                'id' => $fid,
+                'label' => (string)($row['label'] ?? self::packageLabel($fid)),
+                'local_version' => (string)($row['local_version'] ?? ''),
+                'remote_version' => (string)($row['remote_version'] ?? ''),
+            ];
+        }
         return [
             'id' => (string)($job['id'] ?? ''),
             'kind' => (string)($job['kind'] ?? 'apply'),
@@ -1515,7 +1535,9 @@ final class UpdateEngine
             'target_index' => $ti,
             'targets_total' => count($targets),
             'error' => (string)($job['error'] ?? ''),
-            'results' => $job['results'] ?? [],
+            'results' => $results,
+            'found' => $found,
+            'found_count' => count($found),
             'last_check' => $job['last_check'] ?? null,
         ];
     }

@@ -8,6 +8,7 @@
 /** @var string|null $updateLastCheck */
 /** @var array<string,mixed>|null $updateSource */
 /** @var int $updateAvailableCount */
+/** @var list<array<string,mixed>> $updateAvailable */
 $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $updateConfigured = !empty($updateConfigured);
@@ -19,6 +20,7 @@ $updateLastCheck = isset($updateLastCheck) && is_string($updateLastCheck) && $up
     : null;
 $updateSource = is_array($updateSource ?? null) ? $updateSource : null;
 $updateAvailableCount = (int)($updateAvailableCount ?? 0);
+$updateAvailable = is_array($updateAvailable ?? null) ? $updateAvailable : [];
 
 $lastCheckDisplay = $updateLastCheck;
 if ($lastCheckDisplay !== null) {
@@ -81,12 +83,18 @@ usort($rows, static function (array $a, array $b): int {
     }
     return strcasecmp((string)($a['label'] ?? $a['id'] ?? ''), (string)($b['label'] ?? $b['id'] ?? ''));
 });
-if ($updateAvailableCount <= 0) {
+if ($updateAvailable === []) {
     foreach ($rows as $r) {
         if (!empty($r['update_available'])) {
-            $updateAvailableCount++;
+            $updateAvailable[] = [
+                'id' => (string)($r['id'] ?? ''),
+                'label' => (string)($r['label'] ?? ''),
+                'local_version' => (string)($r['local_version'] ?? ''),
+                'remote_version' => (string)($r['remote_version'] ?? ''),
+            ];
         }
     }
+    $updateAvailableCount = count($updateAvailable);
 }
 
 $jobI18n = [
@@ -98,6 +106,9 @@ $jobI18n = [
     'errorTitle' => t('updates.job.error_title'),
     'confirmApply' => t('updates.confirm_apply'),
     'badJson' => t('updates.job.bad_json'),
+    'foundTitle' => t('updates.check.found_title'),
+    'foundEmpty' => t('updates.check.found_empty'),
+    'foundLine' => t('updates.check.found_line'),
 ];
 ?>
 <div id="updates-app" data-i18n="<?= e((string)json_encode($jobI18n, JSON_UNESCAPED_UNICODE)) ?>">
@@ -113,7 +124,22 @@ $jobI18n = [
 
 <?php if ($updateAvailableCount > 0): ?>
 <div class="flash flash-warn upd-banner" role="status">
-  <span><?= e(t('updates.banner.available', ['n' => (string)$updateAvailableCount])) ?></span>
+  <div class="upd-banner-text">
+    <div><?= e(t('updates.banner.available', ['n' => (string)$updateAvailableCount])) ?></div>
+    <ul class="upd-banner-list">
+      <?php foreach ($updateAvailable as $av):
+          $avLabel = (string)($av['label'] ?? $av['id'] ?? '');
+          $avLocal = (string)($av['local_version'] ?? '');
+          $avRemote = (string)($av['remote_version'] ?? '');
+          ?>
+      <li><?= e(t('updates.banner.item', [
+          'name' => $avLabel,
+          'local' => $avLocal,
+          'remote' => $avRemote,
+      ])) ?></li>
+      <?php endforeach; ?>
+    </ul>
+  </div>
   <?php if ($updateCanApply): ?>
   <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_update_available') ?></button>
   <?php endif; ?>
@@ -203,6 +229,10 @@ $jobI18n = [
     </div>
     <div class="upd-job-bar" id="upd-job-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
       <div id="upd-job-fill" class="upd-job-fill"></div>
+    </div>
+    <div id="upd-job-found" class="upd-job-found" hidden>
+      <div id="upd-job-found-title" class="upd-job-found-title muted"></div>
+      <ul id="upd-job-found-list" class="upd-job-found-list"></ul>
     </div>
     <div class="upd-job-actions actions">
       <button type="button" class="btn-secondary" id="upd-job-abort"><?= te('updates.job.abort') ?></button>

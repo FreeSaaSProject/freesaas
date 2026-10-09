@@ -19,6 +19,9 @@
   var metaEl = document.getElementById('upd-job-meta');
   var abortBtn = document.getElementById('upd-job-abort');
   var okBtn = document.getElementById('upd-job-ok');
+  var foundWrap = document.getElementById('upd-job-found');
+  var foundTitle = document.getElementById('upd-job-found-title');
+  var foundList = document.getElementById('upd-job-found-list');
 
   var activeJobId = null;
   var activeKind = 'apply';
@@ -26,6 +29,36 @@
   var aborting = false;
   var startedAt = 0;
   var timerIv = null;
+
+  function formatFoundLine(item) {
+    var tpl = i18n.foundLine || '{name}: {local} → {remote}';
+    return tpl
+      .replace('{name}', item.label || item.id || '')
+      .replace('{local}', item.local_version || '—')
+      .replace('{remote}', item.remote_version || '—');
+  }
+
+  function renderFound(found) {
+    if (!foundWrap || !foundList) return;
+    found = found || [];
+    if (activeKind !== 'check') {
+      foundWrap.hidden = true;
+      foundList.innerHTML = '';
+      return;
+    }
+    foundWrap.hidden = false;
+    if (foundTitle) {
+      foundTitle.textContent = found.length
+        ? (i18n.foundTitle || 'Found updates:')
+        : (i18n.foundEmpty || 'No updates found yet…');
+    }
+    foundList.innerHTML = '';
+    found.forEach(function (item) {
+      var li = document.createElement('li');
+      li.textContent = formatFoundLine(item);
+      foundList.appendChild(li);
+    });
+  }
 
   function setBar(pct) {
     pct = Math.max(0, Math.min(100, pct | 0));
@@ -48,6 +81,7 @@
         ? (i18n.checkTitle || 'Checking…')
         : (i18n.title || 'Updating…');
     }
+    renderFound([]);
     setBar(0);
     if (timerIv) clearInterval(timerIv);
     timerIv = setInterval(function () {
@@ -95,6 +129,9 @@
         msg = (label + (j.targets_total ? (' (' + ((j.target_index || 0) + 1) + '/' + j.targets_total + ')') : '') + ': ') + msg;
       }
       msgEl.textContent = msg;
+    }
+    if (activeKind === 'check') {
+      renderFound(j.found || []);
     }
     setBar(j.progress || 0);
   }

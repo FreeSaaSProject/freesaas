@@ -169,6 +169,7 @@ $updateStatus = AgentOps::updateStatus();
 $updateSources = is_array($updateStatus['sources'] ?? null) ? $updateStatus['sources'] : [];
 $updateLastCheck = isset($updateStatus['last_check']) ? (string)$updateStatus['last_check'] : '';
 $updateAvailableCount = (int)($updateStatus['available_count'] ?? 0);
+$updateAvailable = is_array($updateStatus['available'] ?? null) ? $updateStatus['available'] : [];
 $updateSource = is_array($updateStatus['source'] ?? null) ? $updateStatus['source'] : null;
 
 if ($updateCheckRows === [] && !empty($_SESSION['freesaas_update_check']) && is_array($_SESSION['freesaas_update_check'])) {
@@ -225,4 +226,5 @@ View::render('index', [
     'updateLastCheck' => $updateLastCheck !== '' ? $updateLastCheck : null,
     'updateSource' => $updateSource,
     'updateAvailableCount' => $updateAvailableCount,
+    'updateAvailable' => $updateAvailable,
 ], 'layout', 'updates');

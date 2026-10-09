@@ -44,10 +44,32 @@ body.upd-job-busy { overflow: hidden; }
 .upd-banner {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 0.75rem;
 }
+.upd-banner-text { flex: 1 1 14rem; min-width: 0; }
+.upd-banner-list {
+  margin: 0.35rem 0 0;
+  padding-left: 1.1rem;
+  font-size: 0.92em;
+}
+.upd-job-panel { width: min(480px, 100%); }
+.upd-job-found {
+  margin-top: 0.85rem;
+  max-height: 10rem;
+  overflow: auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 0.65rem;
+}
+.upd-job-found[hidden] { display: none !important; }
+.upd-job-found-title { font-size: 0.9rem; margin-bottom: 0.35rem; }
+.upd-job-found-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  font-size: 0.9rem;
+}
+.upd-job-found-list li { margin: 0.15rem 0; }
 .upd-source { margin: 0.25rem 0 0.75rem; }
 .upd-row-avail td { background: rgba(180, 90, 20, 0.06); }
 .upd-row-src { font-size: 0.85em; margin-top: 0.15rem; }
