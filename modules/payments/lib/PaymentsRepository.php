@@ -389,10 +389,11 @@ final class PaymentsRepository
         if ($typeId < 1) {
             throw new InvalidArgumentException(t('payments.err.type_required'));
         }
-        $sum = (float)str_replace(',', '.', (string)($post['sum'] ?? '0'));
-        if ($sum == 0.0 && trim((string)($post['sum'] ?? '')) === '') {
+        $sumRaw = trim((string)($post['sum'] ?? ''));
+        if ($sumRaw === '') {
             throw new InvalidArgumentException(t('payments.err.sum_required'));
         }
+        $sum = money_parse($sumRaw);
         $direction = (int)($post['direction'] ?? 0);
         if (!in_array($direction, [-1, 0, 1], true)) {
             $direction = 0;
