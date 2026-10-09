@@ -6,6 +6,8 @@ final class AssistantBotPlugin
 {
     private const MODULE = 'assistant';
     private const TTL = 3600;
+    /** Max user+assistant turns kept in BotChatState (each turn = 2 messages). */
+    private const HISTORY_MAX_TURNS = 12;
 
     public static function register(): void
     {
@@ -35,8 +37,8 @@ final class AssistantBotPlugin
                 if ($data === 'assistant_hint') {
                     $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
                     $uid = (int)($user['id'] ?? 0);
-                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
-                    self::reply($ctx, t('assistant.bot.hint'));
+                    self::setState($ctx, 'await_input', ['user_id' => $uid, 'history' => []]);
+                    self::replyChrome($ctx, t('assistant.bot.hint'));
                     return true;
                 }
                 if (preg_match('/^assistant:(ok|no):([a-f0-9]{16})$/', $data, $m)) {
@@ -47,7 +49,8 @@ final class AssistantBotPlugin
                     if ($uid < 1) {
                         return true;
                     }
-                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                    $hist = self::historyFromState(self::state($ctx));
+                    self::setState($ctx, 'await_input', ['user_id' => $uid, 'history' => $hist]);
                     try {
                         $result = Auth::runAs($uid, static function () use ($token, $action, $uid) {
                             if (!Auth::can('assistant.use')) {
@@ -61,7 +64,7 @@ final class AssistantBotPlugin
                             return AssistantHarness::resolvePending($token, $action, $uid);
                         });
                     } catch (Throwable $e) {
-                        self::reply($ctx, t('assistant.bot.denied'));
+                        self::replySplit($ctx, t('assistant.bot.denied'));
                         return true;
                     }
                     if (!empty($result['ok']) && $action === 'confirm') {
@@ -75,11 +78,11 @@ final class AssistantBotPlugin
                                 $text .= "\n" . $snippet;
                             }
                         }
-                        self::reply($ctx, $text);
+                        self::replySplit($ctx, $text);
                     } elseif (!empty($result['ok'])) {
-                        self::reply($ctx, t('assistant.confirm.cancelled'));
+                        self::replySplit($ctx, t('assistant.confirm.cancelled'));
                     } else {
-                        self::reply($ctx, (string)($result['error'] ?? t('assistant.chat.error')));
+                        self::replySplit($ctx, (string)($result['error'] ?? t('assistant.chat.error')));
                     }
                     return true;
                 }
@@ -110,10 +113,14 @@ final class AssistantBotPlugin
                     return true;
                 }
 
-                self::reply($ctx, t('assistant.bot.working'));
+                $history = self::historyFromState($state);
+                $history[] = ['role' => 'user', 'content' => $text];
+                $history = self::trimHistory($history);
+
+                self::replyChrome($ctx, t('assistant.bot.working'));
 
                 try {
-                    $out = Auth::runAs($uid, static function () use ($text, $uid) {
+                    $out = Auth::runAs($uid, static function () use ($history, $uid) {
                         if (!Auth::can('assistant.use')) {
                             return [
                                 'ok' => false,
@@ -122,17 +129,22 @@ final class AssistantBotPlugin
                                 'error' => t('assistant.bot.denied'),
                             ];
                         }
-                        return AssistantHarness::run([
-                            ['role' => 'user', 'content' => $text],
-                        ], ['user_id' => $uid, 'timeout' => 90]);
+                        return AssistantHarness::run($history, ['user_id' => $uid, 'timeout' => 90]);
                     });
                 } catch (Throwable $e) {
-                    self::reply($ctx, t('assistant.bot.denied'));
+                    self::replySplit($ctx, t('assistant.bot.denied'));
+                    self::setState($ctx, 'await_input', ['user_id' => $uid, 'history' => $history]);
                     return true;
                 }
 
                 if (empty($out['ok'])) {
-                    self::reply($ctx, (string)($out['error'] ?? t('assistant.chat.error')));
+                    $err = (string)($out['error'] ?? t('assistant.chat.error'));
+                    self::replySplit($ctx, $err);
+                    $history[] = ['role' => 'assistant', 'content' => $err];
+                    self::setState($ctx, 'await_input', [
+                        'user_id' => $uid,
+                        'history' => self::trimHistory($history),
+                    ]);
                     return true;
                 }
 
@@ -166,14 +178,115 @@ final class AssistantBotPlugin
                         ];
                     }
                     if ($rows !== []) {
+                        $rows[] = [[
+                            'text' => t('bots.cabinet.refresh'),
+                            'callback_data' => 'cabinet',
+                        ]];
                         $keyboard = ['inline_keyboard' => $rows];
                     }
                 }
-                self::setState($ctx, 'await_input', ['user_id' => $uid]);
-                self::reply($ctx, $reply, $keyboard);
+
+                $history[] = ['role' => 'assistant', 'content' => $reply];
+                self::setState($ctx, 'await_input', [
+                    'user_id' => $uid,
+                    'history' => self::trimHistory($history),
+                ]);
+                self::replySplit($ctx, $reply, $keyboard);
                 return true;
             },
         ]);
+    }
+
+    /**
+     * Keep LLM / result text in chat; put buttons on a separate ephemeral message.
+     *
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed>|null $markup
+     */
+    private static function replySplit(array $ctx, string $text, ?array $markup = null): void
+    {
+        if ((string)($ctx['token'] ?? '') === '' || (string)($ctx['chat_id'] ?? '') === '') {
+            return;
+        }
+        if (class_exists('BotClient', false)) {
+            BotClient::replyKeep($ctx, $text);
+            $chrome = $markup;
+            if ($chrome === null) {
+                $chrome = [
+                    'inline_keyboard' => [[
+                        ['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet'],
+                    ]],
+                ];
+            }
+            BotClient::replyUi($ctx, t('assistant.bot.actions_bar'), $chrome);
+            return;
+        }
+        self::replyChrome($ctx, $text, $markup);
+    }
+
+    /**
+     * Ephemeral UI only (hint, «looking…», button bar) — replaced on next UI send.
+     *
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed>|null $markup
+     */
+    private static function replyChrome(array $ctx, string $text, ?array $markup = null): void
+    {
+        if ((string)($ctx['token'] ?? '') === '' || (string)($ctx['chat_id'] ?? '') === '') {
+            return;
+        }
+        if (class_exists('BotClient', false)) {
+            BotClient::replyUi($ctx, $text, $markup);
+            return;
+        }
+        $chatId = (string)($ctx['chat_id'] ?? '');
+        if (class_exists('BotSend', false)) {
+            $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
+            BotSend::enqueue([
+                'audience' => 'staff',
+                'user_id' => (int)($user['id'] ?? 0),
+                'chat_id' => $chatId,
+                'text' => $text,
+                'buttons' => $markup,
+                'name' => 'assistant',
+            ]);
+        }
+    }
+
+    /** @param array<string,mixed>|null $state */
+    private static function historyFromState(?array $state): array
+    {
+        if ($state === null) {
+            return [];
+        }
+        $data = is_array($state['data'] ?? null) ? $state['data'] : [];
+        $raw = is_array($data['history'] ?? null) ? $data['history'] : [];
+        $out = [];
+        foreach ($raw as $m) {
+            if (!is_array($m)) {
+                continue;
+            }
+            $role = trim((string)($m['role'] ?? ''));
+            $content = trim((string)($m['content'] ?? ''));
+            if (($role !== 'user' && $role !== 'assistant') || $content === '') {
+                continue;
+            }
+            $out[] = ['role' => $role, 'content' => $content];
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<array{role:string,content:string}> $history
+     * @return list<array{role:string,content:string}>
+     */
+    private static function trimHistory(array $history): array
+    {
+        $maxMsgs = self::HISTORY_MAX_TURNS * 2;
+        if (count($history) <= $maxMsgs) {
+            return $history;
+        }
+        return array_values(array_slice($history, -$maxMsgs));
     }
 
     /** @param array<string,mixed> $ctx */
@@ -206,32 +319,5 @@ final class AssistantBotPlugin
             $mode,
             $data
         );
-    }
-
-    /**
-     * @param array<string,mixed> $ctx
-     * @param array<string,mixed>|null $markup
-     */
-    private static function reply(array $ctx, string $text, ?array $markup = null): void
-    {
-        if ((string)($ctx['token'] ?? '') === '' || (string)($ctx['chat_id'] ?? '') === '') {
-            return;
-        }
-        if (class_exists('BotClient', false)) {
-            BotClient::replyUi($ctx, $text, $markup);
-            return;
-        }
-        $chatId = (string)($ctx['chat_id'] ?? '');
-        if (class_exists('BotSend', false)) {
-            $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
-            BotSend::enqueue([
-                'audience' => 'staff',
-                'user_id' => (int)($user['id'] ?? 0),
-                'chat_id' => $chatId,
-                'text' => $text,
-                'buttons' => $markup,
-                'name' => 'assistant',
-            ]);
-        }
     }
 }

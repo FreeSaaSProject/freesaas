@@ -72,10 +72,51 @@ final class BotClient
                 self::$uiAudience
             );
         }
+        return self::sendKeepMessage($platform, $token, $chatId, $text, $replyMarkup, $parseMode);
+    }
+
+    /**
+     * Durable chat message: never goes through ephemeral replace (even inside UI session).
+     * Use for LLM answers / transcripts that must stay in history.
+     *
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function sendKeepMessage(
+        string $platform,
+        string $token,
+        string $chatId,
+        string $text,
+        ?array $replyMarkup = null,
+        string $parseMode = ''
+    ): array {
+        $platform = strtolower(trim($platform));
+        $token = trim($token);
+        $chatId = trim($chatId);
+        if ($token === '' || $chatId === '') {
+            return ['ok' => false, 'data' => null, 'error' => 'missing token or chat id'];
+        }
         if ($platform === 'max') {
             return self::maxSendMessage($token, $chatId, $text, $replyMarkup);
         }
         return self::tgSendMessage($token, $chatId, $text, $replyMarkup, $parseMode);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function replyKeep(array $ctx, string $text, ?array $replyMarkup = null, string $parseMode = ''): array
+    {
+        return self::sendKeepMessage(
+            (string)($ctx['platform'] ?? 'telegram'),
+            (string)($ctx['token'] ?? ''),
+            (string)($ctx['chat_id'] ?? ''),
+            $text,
+            $replyMarkup,
+            $parseMode
+        );
     }
 
     /**
