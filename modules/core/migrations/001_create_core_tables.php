@@ -19,6 +19,7 @@ return static function (PDO $pdo): void {
                 login VARCHAR(64) NOT NULL DEFAULT '',
                 password VARCHAR(64) NOT NULL DEFAULT '',
                 mail VARCHAR(64) NOT NULL DEFAULT '',
+                tel VARCHAR(64) NOT NULL DEFAULT '',
                 enabled ENUM('0','1') NOT NULL DEFAULT '0',
                 content MEDIUMTEXT NOT NULL,
                 skin VARCHAR(255) NOT NULL DEFAULT '',
@@ -32,6 +33,9 @@ return static function (PDO $pdo): void {
                 url VARCHAR(256) NOT NULL DEFAULT '',
                 retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
                 expire INT NOT NULL DEFAULT 0,
+                favorites MEDIUMTEXT NULL,
+                showNewsAfter INT UNSIGNED NOT NULL DEFAULT 0,
+                IS_HIDDEN TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
                 PRIMARY KEY (id),
                 KEY idx_login (login)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"

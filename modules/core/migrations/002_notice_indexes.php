@@ -14,18 +14,18 @@ return static function (PDO $pdo): void {
         return (bool)$st->fetchColumn();
     };
 
-    if (!$exists('base_news', 'idx_news_feed')) {
+    if (Database::tableExists('base_news') && !$exists('base_news', 'idx_news_feed')) {
         $pdo->exec(
             'ALTER TABLE base_news
              ADD INDEX idx_news_feed (DISABLED, HAS_CHILDREN, TYPE, STATUS, DT_DEADLINE)'
         );
     }
-    if (!$exists('base_views', 'idx_views_lookup')) {
+    if (Database::tableExists('base_views') && !$exists('base_views', 'idx_views_lookup')) {
         // Cover NOT EXISTS unread check
         try {
             $pdo->exec(
                 'ALTER TABLE base_views
-                 ADD INDEX idx_views_lookup (TYPE_OBJ, ID_USER, ID_OBJ)'
+                 ADD INDEX idx_views_lookup (TYPE_OBJ(191), ID_USER, ID_OBJ)'
             );
         } catch (Throwable $e) {
             // index may conflict with existing similar key — ignore

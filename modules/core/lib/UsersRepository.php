@@ -542,7 +542,7 @@ final class UsersRepository
     /** @return list<int> */
     public static function favoriteIds(int $userId): array
     {
-        if ($userId < 1 || !Database::tableExists('base_users')) {
+        if ($userId < 1 || !Database::tableExists('base_users') || !Database::columnExists('base_users', 'favorites')) {
             return [];
         }
         $st = Database::pdo()->prepare('SELECT favorites FROM base_users WHERE id = ? LIMIT 1');
@@ -563,6 +563,9 @@ final class UsersRepository
 
     public static function setFavorites(int $userId, array $ids): void
     {
+        if ($userId < 1 || !Database::columnExists('base_users', 'favorites')) {
+            return;
+        }
         $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
         $st = Database::pdo()->prepare('UPDATE base_users SET favorites = ? WHERE id = ?');
         $st->execute([implode(',', $ids), $userId]);

@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-09T14:07:09+00:00",
+    "generated_at": "2026-10-09T17:00:37+00:00",
     "modules": [
         {
             "id": "asr",
@@ -30,9 +30,8 @@
                 ],
                 "maturity": "beta",
                 "tags": [
-                    "asr",
-                    "whisper",
-                    "voice"
+                    "integration",
+                    "jobs"
                 ]
             }
         },
@@ -1280,7 +1279,7 @@
         },
         {
             "id": "wellness",
-            "version": "0.2.3",
+            "version": "0.2.6",
             "type": "product",
             "name": {
                 "en": "Health & fitness",

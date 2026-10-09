@@ -5,6 +5,11 @@ declare(strict_types=1);
  * Indexes for contract notices / list filters on base_comments.
  */
 return static function (PDO $pdo): void {
+    if (!Database::tableExists('base_comments')) {
+        // comments module owns CREATE; skip until that migration has run
+        return;
+    }
+
     $exists = static function (string $name) use ($pdo): bool {
         $st = $pdo->prepare(
             'SELECT 1 FROM information_schema.STATISTICS

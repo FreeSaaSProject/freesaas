@@ -14,12 +14,69 @@ final class SchemaMigrator
     public static function runAll(): array
     {
         $report = [];
-        $ids = [];
-        foreach (ModuleManager::all() as $id => $meta) {
-            if (!empty($meta['_enabled'])) {
-                $ids[] = $id;
+        foreach (self::enabledModuleOrder() as $id) {
+            foreach (self::runModule($id) as $row) {
+                $report[] = $row;
             }
         }
+        self::clearSetupStatusCache();
+        Database::clearSchemaCache();
+        return $report;
+    }
+
+    /**
+     * Enabled modules: core first, then hard-requires (module.json) before dependents.
+     * Tie-break: module id ASC. Ensures e.g. comments CREATE runs before contracts indexes.
+     *
+     * @return list<string>
+     */
+    public static function enabledModuleOrder(): array
+    {
+        $enabled = [];
+        foreach (ModuleManager::all() as $id => $meta) {
+            if (!empty($meta['_enabled'])) {
+                $enabled[(string)$id] = $meta;
+            }
+        }
+        if ($enabled === []) {
+            return [];
+        }
+
+        $depsOf = static function (string $id) use ($enabled): array {
+            $meta = $enabled[$id] ?? null;
+            if ($meta === null) {
+                return [];
+            }
+            $deps = [];
+            foreach ($meta['requires'] ?? [] as $depId => $_) {
+                $depId = (string)$depId;
+                if ($depId !== '' && $depId !== $id && isset($enabled[$depId])) {
+                    $deps[] = $depId;
+                }
+            }
+            return $deps;
+        };
+
+        $sorted = [];
+        $visiting = [];
+        $visit = static function (string $id) use (&$visit, &$sorted, &$visiting, $depsOf, $enabled): void {
+            if (isset($sorted[$id])) {
+                return;
+            }
+            if (isset($visiting[$id])) {
+                return; // cycle: skip edge
+            }
+            $visiting[$id] = true;
+            $deps = $depsOf($id);
+            usort($deps, 'strcmp');
+            foreach ($deps as $dep) {
+                $visit($dep);
+            }
+            unset($visiting[$id]);
+            $sorted[$id] = true;
+        };
+
+        $ids = array_keys($enabled);
         usort($ids, static function (string $a, string $b): int {
             if ($a === 'core') {
                 return -1;
@@ -30,13 +87,9 @@ final class SchemaMigrator
             return strcmp($a, $b);
         });
         foreach ($ids as $id) {
-            foreach (self::runModule($id) as $row) {
-                $report[] = $row;
-            }
+            $visit($id);
         }
-        self::clearSetupStatusCache();
-        Database::clearSchemaCache();
-        return $report;
+        return array_keys($sorted);
     }
 
     /**

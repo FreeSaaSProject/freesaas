@@ -709,19 +709,73 @@ final class AgentOps
 
         $migrateReport = [];
         if ($wantMigrate) {
-            // Enable requested modules first so runAll includes them
-            foreach ($modulesEnable as $mid) {
-                if (ModuleManager::get($mid) === null) {
-                    $steps[] = ['step' => 'enable.' . $mid, 'status' => 'skip', 'message' => 'unknown module'];
-                    continue;
+            // Virgin + modules[]: pin enabled set (Config defaults unknown keys to ON).
+            // Non-virgin: only enable listed modules; never disable others on re-bootstrap.
+            if ($virgin && isset($opts['modules']) && is_array($opts['modules'])) {
+                $want = [];
+                foreach ($modulesEnable as $mid) {
+                    $want[$mid] = true;
                 }
-                try {
-                    if (!Config::moduleEnabled($mid)) {
-                        ModuleManager::setEnabled($mid, true);
-                        $steps[] = ['step' => 'enable.' . $mid, 'status' => 'ok'];
+                // Include hard deps of requested modules so boot/migrate can succeed.
+                $changed = true;
+                while ($changed) {
+                    $changed = false;
+                    foreach (array_keys($want) as $mid) {
+                        $meta = ModuleManager::get($mid);
+                        if ($meta === null) {
+                            continue;
+                        }
+                        foreach ($meta['requires'] ?? [] as $depId => $_) {
+                            $depId = (string)$depId;
+                            if ($depId === '' || $depId === 'core' || isset($want[$depId])) {
+                                continue;
+                            }
+                            if (ModuleManager::get($depId) !== null) {
+                                $want[$depId] = true;
+                                $changed = true;
+                            }
+                        }
                     }
-                } catch (Throwable $e) {
-                    $steps[] = ['step' => 'enable.' . $mid, 'status' => 'error', 'message' => $e->getMessage()];
+                }
+                foreach (ModuleManager::all() as $mid => $_) {
+                    $mid = (string)$mid;
+                    if ($mid === 'core') {
+                        continue;
+                    }
+                    $on = isset($want[$mid]);
+                    if (Config::moduleEnabled($mid) === $on) {
+                        continue;
+                    }
+                    try {
+                        Config::setModuleEnabled($mid, $on);
+                        $steps[] = [
+                            'step' => ($on ? 'enable.' : 'disable.') . $mid,
+                            'status' => 'ok',
+                            'message' => 'pinned by virgin bootstrap modules[]',
+                        ];
+                    } catch (Throwable $e) {
+                        $steps[] = [
+                            'step' => ($on ? 'enable.' : 'disable.') . $mid,
+                            'status' => 'error',
+                            'message' => $e->getMessage(),
+                        ];
+                    }
+                }
+                ModuleManager::rediscover();
+            } else {
+                foreach ($modulesEnable as $mid) {
+                    if (ModuleManager::get($mid) === null) {
+                        $steps[] = ['step' => 'enable.' . $mid, 'status' => 'skip', 'message' => 'unknown module'];
+                        continue;
+                    }
+                    try {
+                        if (!Config::moduleEnabled($mid)) {
+                            ModuleManager::setEnabled($mid, true);
+                            $steps[] = ['step' => 'enable.' . $mid, 'status' => 'ok'];
+                        }
+                    } catch (Throwable $e) {
+                        $steps[] = ['step' => 'enable.' . $mid, 'status' => 'error', 'message' => $e->getMessage()];
+                    }
                 }
             }
             $migrateReport = SchemaMigrator::runAll();
