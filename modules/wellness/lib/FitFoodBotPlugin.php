@@ -371,7 +371,7 @@ final class FitFoodBotPlugin
             FitFoodlogsRepository::create($data);
         } catch (Throwable $e) {
             error_log('[wellness.bot.logFood] ' . $e->getMessage());
-            self::reply($ctx, t('wellness.bot.save_fail'), self::kbHome());
+            self::reply($ctx, self::saveFailText($e), self::kbHome());
             return;
         }
         self::setState($ctx, 'await_input', ['user_id' => $uid]);
@@ -405,7 +405,7 @@ final class FitFoodBotPlugin
             ]);
         } catch (Throwable $e) {
             error_log('[wellness.bot.logSport] ' . $e->getMessage());
-            self::reply($ctx, t('wellness.bot.save_fail'), self::kbHome());
+            self::reply($ctx, self::saveFailText($e), self::kbHome());
             return;
         }
         self::showHome($ctx, $uid);
@@ -546,7 +546,7 @@ final class FitFoodBotPlugin
             FitFoodlogsRepository::create($data);
         } catch (Throwable $e) {
             error_log('[wellness.bot.logRecipe] ' . $e->getMessage());
-            self::reply($ctx, t('wellness.bot.save_fail'), self::kbHome());
+            self::reply($ctx, self::saveFailText($e), self::kbHome());
             return;
         }
         $name = (string)($ens['food_row']['name'] ?? '');
@@ -722,6 +722,20 @@ final class FitFoodBotPlugin
             [['text' => t('wellness.bot.recipe_done_ings'), 'callback_data' => 'fit_food_entry_rdone']],
             [['text' => t('wellness.bot.cancel'), 'callback_data' => 'fit_food_entry_cancel']],
         ]];
+    }
+
+    private static function saveFailText(Throwable $e): string
+    {
+        $msg = trim($e->getMessage());
+        if ($msg === '') {
+            $msg = get_class($e);
+        }
+        if (function_exists('mb_strlen') && mb_strlen($msg) > 1500) {
+            $msg = mb_substr($msg, 0, 1500) . '…';
+        } elseif (strlen($msg) > 1500) {
+            $msg = substr($msg, 0, 1500) . '…';
+        }
+        return t('wellness.bot.save_fail', ['error' => $msg]);
     }
 
     /**

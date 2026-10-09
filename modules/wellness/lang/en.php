@@ -119,7 +119,7 @@ return [
     'wellness.bot.pick_food' => 'Pick a food:',
     'wellness.bot.pick_food_weight' => '«{q}» {g}g — pick a match:',
     'wellness.bot.logged' => '✅ {name} {g}g ({kcal} kcal)',
-    'wellness.bot.save_fail' => 'Could not save the entry. Try again or contact an administrator.',
+    'wellness.bot.save_fail' => "Could not save the entry.\n\n{error}",
     'wellness.bot.cancel' => 'Cancel',
     'wellness.bot.back' => 'Back',
     'wellness.bot.back_food' => '⬅️ Food & sport',
