@@ -1,6 +1,11 @@
 <?php
 declare(strict_types=1);
 
+Assets::register('updates', [
+    'css' => ['updates.css'],
+    'js' => ['updates.js'],
+]);
+
 $pages = [
     '/updates' => ['permission' => 'updates.view', 'methods' => ['GET', 'POST'], 'file' => 'index.php'],
     '/updates/check' => ['permission' => 'updates.view', 'methods' => ['GET', 'POST'], 'file' => 'api.php'],

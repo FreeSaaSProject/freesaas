@@ -13,7 +13,17 @@ $updateSources = is_array($updateSources ?? null) ? $updateSources : [];
 $updateHints = is_array($updateHints ?? null) ? $updateHints : [];
 $updateRemoteById = is_array($updateRemoteById ?? null) ? $updateRemoteById : [];
 $updateCanApply = !empty($updateCanApply);
+
+$jobI18n = [
+    'title' => t('updates.job.title'),
+    'doneTitle' => t('updates.job.done_title'),
+    'cancelledTitle' => t('updates.job.cancelled_title'),
+    'errorTitle' => t('updates.job.error_title'),
+    'confirmApply' => t('updates.confirm_apply'),
+    'badJson' => t('updates.job.bad_json'),
+];
 ?>
+<div id="updates-app" data-i18n="<?= e((string)json_encode($jobI18n, JSON_UNESCAPED_UNICODE)) ?>">
 <section class="page-head">
   <p class="lede"><?= te('updates.lede') ?></p>
 </section>
@@ -42,9 +52,13 @@ $updateCanApply = !empty($updateCanApply);
         <?php foreach ($updateSources as $src):
             $sid = (string)($src['id'] ?? '');
             $remote = $updateRemoteById[$sid] ?? null;
-            $remoteVer = is_array($remote) ? (string)($remote['remote_version'] ?? '') : '';
-            $avail = is_array($remote) && !empty($remote['update_available']);
-            $checked = is_array($remote);
+            $remoteVer = is_array($remote)
+                ? (string)($remote['remote_version'] ?? '')
+                : (string)($src['remote_version'] ?? '');
+            $avail = is_array($remote)
+                ? !empty($remote['update_available'])
+                : !empty($src['update_available']);
+            $checked = is_array($remote) || array_key_exists('remote_version', $src);
             if ($checked && $avail) {
                 $stLabel = t('updates.status_available');
             } elseif ($checked) {
@@ -55,24 +69,22 @@ $updateCanApply = !empty($updateCanApply);
             $prov = (string)($src['provider'] ?? '');
             $repo = (string)($src['repo'] ?? '');
             $provLabel = $prov . ($repo !== '' ? ' · ' . $repo : '');
-            $tok = !empty($src['token_set'])
-                ? t('updates.token_set')
-                : t('updates.token_missing');
+            $tok = '';
+            if (array_key_exists('token_set', $src) && $src['token_set'] !== null) {
+                $tok = !empty($src['token_set'])
+                    ? t('updates.token_set')
+                    : t('updates.token_missing');
+            }
             ?>
           <tr>
             <td><code><?= e($sid) ?></code></td>
-            <td><?= e($provLabel) ?> <span class="muted">(<?= e($tok) ?>)</span></td>
+            <td><?= e($provLabel) ?><?php if ($tok !== ''): ?> <span class="muted">(<?= e($tok) ?>)</span><?php endif; ?></td>
             <td><?= e((string)($src['local_version'] ?? '')) ?></td>
             <td><?= e($remoteVer !== '' ? $remoteVer : '—') ?></td>
             <td><?= e($stLabel) ?></td>
             <?php if ($updateCanApply): ?>
             <td>
-              <form method="post" style="display:inline"
-                    onsubmit="return confirm(<?= tj('updates.confirm_apply') ?>);">
-                <input type="hidden" name="action" value="update_apply">
-                <input type="hidden" name="target" value="<?= e($sid) ?>">
-                <button class="btn-secondary" type="submit"><?= te('updates.btn_apply') ?></button>
-              </form>
+              <button type="button" class="btn-secondary" data-upd-apply="<?= e($sid) ?>"><?= te('updates.btn_apply') ?></button>
             </td>
             <?php endif; ?>
           </tr>
@@ -86,12 +98,7 @@ $updateCanApply = !empty($updateCanApply);
         <button class="btn-secondary" type="submit"><?= te('updates.btn_check') ?></button>
       </form>
       <?php if ($updateCanApply): ?>
-      <form method="post" style="display:inline"
-            onsubmit="return confirm(<?= tj('updates.confirm_apply') ?>);">
-        <input type="hidden" name="action" value="update_apply">
-        <input type="hidden" name="target" value="all">
-        <button class="btn-primary" type="submit"><?= te('updates.btn_apply_all') ?></button>
-      </form>
+      <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_apply_available') ?></button>
       <?php endif; ?>
     </div>
   <?php endif; ?>
@@ -131,3 +138,24 @@ $updateCanApply = !empty($updateCanApply);
     </div>
   <?php endif; ?>
 </section>
+
+<?php if ($updateCanApply): ?>
+<div id="upd-job-overlay" class="upd-job-overlay" hidden>
+  <div class="upd-job-panel" role="dialog" aria-modal="true" aria-labelledby="upd-job-title">
+    <h3 id="upd-job-title" class="subhead"><?= te('updates.job.title') ?></h3>
+    <p id="upd-job-msg" class="upd-job-msg muted"></p>
+    <div class="upd-job-meta">
+      <span id="upd-job-pct">0%</span>
+      <span id="upd-job-meta" class="muted">0:00</span>
+    </div>
+    <div class="upd-job-bar" id="upd-job-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+      <div id="upd-job-fill" class="upd-job-fill"></div>
+    </div>
+    <div class="upd-job-actions actions">
+      <button type="button" class="btn-secondary" id="upd-job-abort"><?= te('updates.job.abort') ?></button>
+      <button type="button" class="btn-primary" id="upd-job-ok" hidden disabled><?= te('updates.job.ok') ?></button>
+    </div>
+  </div>
+</div>
+<?php endif; ?>
+</div>

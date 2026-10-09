@@ -4,11 +4,18 @@ Instances pull release zips over HTTPS (optional token) without an external agen
 
 UI module: **`updates`** (rail: System → Updates, `/updates`). Engine: [`app/UpdateEngine.php`](../../app/UpdateEngine.php).
 
+## How versions work
+
+- **Core package** = platform only (`app/`, `bin/`, `modules/core/`, …). Bumping `banks` does **not** require a new core VERSION.
+- **Module packages** = one zip per module (`freesaas-module-banks-0.2.0.zip`) with that module’s `module.json` version.
+- Release ships **`freesaas-catalog.json`** listing every package + sha256. `update check` compares each local version to the catalog.
+- Apply **banks** downloads only the banks zip and overlays `modules/banks/`.
+
 ## Setup
 
 1. Enable module `updates` (`[modules] updates=1` or Modules catalog).
 2. Copy [`cfg/updates.example.ini`](../../cfg/updates.example.ini) → `cfg/updates.ini` (gitignored).
-3. Point `[core]` at the public FreeSaaS release repo (or `provider=http` + `manifest_url`).
+3. Point `[core]` at the public FreeSaaS release repo (registry for catalog + core package).
 4. For private modules (e.g. `likespa`), add `[module.likespa]` with `repo` + read-only PAT / deploy token.
 5. Ensure `var/updates/` is writable (created on first apply). PHP needs `curl` + `ZipArchive`.
 

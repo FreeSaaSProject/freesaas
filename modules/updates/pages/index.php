@@ -46,7 +46,60 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'targets' => $updateCheckRows,
                 ]);
             }
+        } elseif ($action === 'update_job_start') {
+            if (!$canApply) {
+                throw new RuntimeException(t('updates.err_superadmin'));
+            }
+            $target = trim((string)($_POST['target'] ?? 'all'));
+            if ($target === '') {
+                $target = 'all';
+            }
+            $migrate = true;
+            if (isset($_POST['migrate'])) {
+                $migrate = !in_array(strtolower((string)$_POST['migrate']), ['0', 'false', 'no'], true);
+            }
+            $job = UpdateEngine::jobStart($target === 'all' ? null : $target, $migrate);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'action' => 'update_job_start',
+                    'job' => UpdateEngine::jobPublic($job),
+                ]);
+            }
+            redirect('/updates');
+        } elseif ($action === 'update_job_tick') {
+            if (!$canApply) {
+                throw new RuntimeException(t('updates.err_superadmin'));
+            }
+            $jobId = (string)($_POST['job_id'] ?? '');
+            $job = UpdateEngine::jobTick($jobId);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'action' => 'update_job_tick',
+                    'job' => UpdateEngine::jobPublic($job),
+                    'error' => (($job['status'] ?? '') === 'error')
+                        ? (string)($job['error'] ?? $job['message'] ?? '')
+                        : '',
+                ]);
+            }
+            redirect('/updates');
+        } elseif ($action === 'update_job_cancel') {
+            if (!$canApply) {
+                throw new RuntimeException(t('updates.err_superadmin'));
+            }
+            $jobId = (string)($_POST['job_id'] ?? '');
+            $job = UpdateEngine::jobCancel($jobId);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'action' => 'update_job_cancel',
+                    'job' => UpdateEngine::jobPublic($job),
+                ]);
+            }
+            redirect('/updates');
         } elseif ($action === 'update_apply') {
+            // Sync fallback (CLI/agents without job UI)
             if (!$canApply) {
                 throw new RuntimeException(t('updates.err_superadmin'));
             }
@@ -106,12 +159,36 @@ foreach ($updateCheckRows as $tr) {
         $updateRemoteById[(string)$tr['id']] = $tr;
     }
 }
+// Prefer versions embedded in status sources after check
+foreach ($updateSources as $src) {
+    $sid = (string)($src['id'] ?? '');
+    if ($sid === '' || isset($updateRemoteById[$sid])) {
+        continue;
+    }
+    if (isset($src['remote_version']) || isset($src['update_available'])) {
+        $updateRemoteById[$sid] = [
+            'id' => $sid,
+            'remote_version' => (string)($src['remote_version'] ?? ''),
+            'update_available' => !empty($src['update_available']),
+            'local_version' => (string)($src['local_version'] ?? ''),
+        ];
+    }
+}
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     AgentHttp::emit(array_merge($updateStatus, [
         'update_can_apply' => $canApply,
         'check' => $updateCheckRows,
     ]));
+}
+
+$flash = flash_take();
+if ($flash && $message === '' && $error === '') {
+    if (($flash['type'] ?? '') === 'ok') {
+        $message = (string)($flash['message'] ?? '');
+    } else {
+        $error = (string)($flash['message'] ?? '');
+    }
 }
 
 View::render('index', [
@@ -127,6 +204,4 @@ View::render('index', [
     'updateHints' => $updateHints,
     'updateRemoteById' => $updateRemoteById,
     'updateCanApply' => $canApply,
-    'iniPath' => (string)($updateStatus['ini'] ?? ''),
-    'examplePath' => (string)($updateStatus['example'] ?? ''),
 ], 'layout', 'updates');
