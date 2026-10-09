@@ -4,6 +4,9 @@ declare(strict_types=1);
 /** Staff bot channel for the operational assistant. */
 final class AssistantBotPlugin
 {
+    private const MODULE = 'assistant';
+    private const TTL = 3600;
+
     public static function register(): void
     {
         if (!ModuleManager::isEnabled('bots') || !class_exists('BotPlugins', false)) {
@@ -11,7 +14,7 @@ final class AssistantBotPlugin
         }
 
         BotPlugins::register('assistant', [
-            'priority' => 90,
+            'priority' => 25,
             'audiences' => ['staff'],
             'label' => 'assistant.bot.cabinet',
             'module' => 'assistant',
@@ -30,6 +33,9 @@ final class AssistantBotPlugin
                 }
                 $data = (string)($ctx['callback_data'] ?? '');
                 if ($data === 'assistant_hint') {
+                    $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
+                    $uid = (int)($user['id'] ?? 0);
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     self::reply($ctx, t('assistant.bot.hint'));
                     return true;
                 }
@@ -41,6 +47,7 @@ final class AssistantBotPlugin
                     if ($uid < 1) {
                         return true;
                     }
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     try {
                         $result = Auth::runAs($uid, static function () use ($token, $action, $uid) {
                             if (!Auth::can('assistant.use')) {
@@ -80,6 +87,13 @@ final class AssistantBotPlugin
             },
             'handle_text' => static function (array $ctx) {
                 if (($ctx['audience'] ?? '') !== 'staff') {
+                    return null;
+                }
+                $state = self::state($ctx);
+                if ($state === null || !BotChatState::isFresh($state, self::TTL)) {
+                    return null;
+                }
+                if (($state['module_id'] ?? '') !== self::MODULE) {
                     return null;
                 }
                 $text = trim((string)($ctx['text'] ?? ''));
@@ -155,10 +169,43 @@ final class AssistantBotPlugin
                         $keyboard = ['inline_keyboard' => $rows];
                     }
                 }
+                self::setState($ctx, 'await_input', ['user_id' => $uid]);
                 self::reply($ctx, $reply, $keyboard);
                 return true;
             },
         ]);
+    }
+
+    /** @param array<string,mixed> $ctx */
+    private static function state(array $ctx): ?array
+    {
+        if (!class_exists('BotChatState', false) || !class_exists('BotLinksRepository', false)) {
+            return null;
+        }
+        return BotChatState::get(
+            BotLinksRepository::audienceToSource((string)($ctx['audience'] ?? 'staff')),
+            (string)($ctx['platform'] ?? 'telegram'),
+            (string)($ctx['chat_id'] ?? '')
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed> $data
+     */
+    private static function setState(array $ctx, string $mode, array $data): void
+    {
+        if (!class_exists('BotChatState', false) || !class_exists('BotLinksRepository', false)) {
+            return;
+        }
+        BotChatState::set(
+            BotLinksRepository::audienceToSource((string)($ctx['audience'] ?? 'staff')),
+            (string)($ctx['platform'] ?? 'telegram'),
+            (string)($ctx['chat_id'] ?? ''),
+            self::MODULE,
+            $mode,
+            $data
+        );
     }
 
     /**

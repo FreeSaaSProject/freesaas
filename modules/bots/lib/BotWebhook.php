@@ -317,6 +317,13 @@ final class BotWebhook
             self::sendAuthPrompt($cfg, $platform, $chatId, $messageId);
             return;
         }
+        if (class_exists('BotChatState', false)) {
+            BotChatState::clear(
+                BotLinksRepository::audienceToSource($cfg['audience']),
+                $platform,
+                $chatId
+            );
+        }
         $name = (string)($user['name'] ?? '');
         $text = t('bots.cabinet.hello', ['name' => $name !== '' ? $name : '#' . (int)($user['id'] ?? 0)]);
         $markup = BotPlugins::collectCabinet([

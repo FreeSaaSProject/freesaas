@@ -192,10 +192,40 @@ final class BotPlugins
             }
             $res = $fn($ctx);
             if ($res === true) {
+                if ($kind === 'callback') {
+                    self::clearForeignChatState((string)$p['id'], $ctx);
+                }
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * When another plugin takes the UI, drop leftover text-FSM ownership (e.g. food → assistant).
+     *
+     * @param array<string,mixed> $ctx
+     */
+    private static function clearForeignChatState(string $pluginId, array $ctx): void
+    {
+        if (!class_exists('BotChatState', false) || !class_exists('BotLinksRepository', false)) {
+            return;
+        }
+        $chatId = trim((string)($ctx['chat_id'] ?? ''));
+        $platform = trim((string)($ctx['platform'] ?? ''));
+        if ($chatId === '' || $platform === '') {
+            return;
+        }
+        $source = BotLinksRepository::audienceToSource((string)($ctx['audience'] ?? 'staff'));
+        $state = BotChatState::get($source, $platform, $chatId);
+        if ($state === null) {
+            return;
+        }
+        $owner = (string)($state['module_id'] ?? '');
+        if ($owner === '' || $owner === $pluginId) {
+            return;
+        }
+        BotChatState::clear($source, $platform, $chatId);
     }
 
     /**

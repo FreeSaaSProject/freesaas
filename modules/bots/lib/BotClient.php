@@ -111,10 +111,42 @@ final class BotClient
         if ($audience === '' && self::$uiActive) {
             $audience = self::$uiAudience;
         }
+        $replyMarkup = self::ensureUiReturnButton($replyMarkup);
         if ($platform === 'max') {
             return self::maxSendUiReplace($token, $chatId, $text, $replyMarkup, $currentMessageId, $audience);
         }
         return self::tgSendUiReplace($token, $chatId, $text, $replyMarkup, $parseMode, $currentMessageId, $audience);
+    }
+
+    /**
+     * System chrome: if the bot UI reply has no buttons, attach Menu (cabinet).
+     * When any inline or reply keyboard is already present — do not add.
+     *
+     * @param array<string,mixed>|null $replyMarkup
+     * @return array<string,mixed>
+     */
+    public static function ensureUiReturnButton(?array $replyMarkup): array
+    {
+        $menuRow = [[
+            'text' => t('bots.cabinet.refresh'),
+            'callback_data' => 'cabinet',
+        ]];
+        if ($replyMarkup === null) {
+            return ['inline_keyboard' => [$menuRow]];
+        }
+        if (!empty($replyMarkup['keyboard']) && is_array($replyMarkup['keyboard'])) {
+            return $replyMarkup;
+        }
+        $inline = $replyMarkup['inline_keyboard'] ?? null;
+        if (is_array($inline)) {
+            foreach ($inline as $row) {
+                if (is_array($row) && $row !== []) {
+                    return $replyMarkup;
+                }
+            }
+        }
+        $replyMarkup['inline_keyboard'] = [$menuRow];
+        return $replyMarkup;
     }
 
     /**
