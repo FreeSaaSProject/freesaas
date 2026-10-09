@@ -100,19 +100,29 @@ EventBus::on('core.notices.collect', static function ($notices) {
 });
 
 Health::register('ledger.fot_types', 'ledger', static function (): array {
-    $keys = ['fot_bank_type', 'fot_cash_type', 'fot_cash_transfer_type'];
-    $empty = [];
-    foreach ($keys as $k) {
-        if (trim((string)Config::get('ledger', $k, '')) === '') {
-            $empty[] = $k;
-        }
-    }
-    if ($empty !== []) {
+    if (!Database::tableExists('base_account_move_types')
+        || !Database::columnExists('base_account_move_types', 'FOT_KIND')) {
         return [
             'status' => 'degraded',
-            'message' => 'empty ledger FOT type config: ' . implode(', ', $empty),
-            'meta' => ['empty' => $empty],
+            'message' => 'FOT_KIND column missing — run ledger migrations',
         ];
     }
-    return ['status' => 'ok', 'message' => 'FOT type config present'];
-}, 'Ledger FOT type names');
+    $missing = [];
+    foreach ([1 => 'bank', 2 => 'cash'] as $kind => $label) {
+        $st = Database::pdo()->prepare(
+            'SELECT 1 FROM base_account_move_types WHERE FOT_KIND = ? AND ENABLED > 0 LIMIT 1'
+        );
+        $st->execute([$kind]);
+        if (!(bool)$st->fetchColumn()) {
+            $missing[] = $label . '(FOT_KIND=' . $kind . ')';
+        }
+    }
+    if ($missing !== []) {
+        return [
+            'status' => 'degraded',
+            'message' => 'no enabled move type for: ' . implode(', ', $missing),
+            'meta' => ['missing' => $missing],
+        ];
+    }
+    return ['status' => 'ok', 'message' => 'FOT_KIND bank+cash types present'];
+}, 'Ledger FOT_KIND on move types');

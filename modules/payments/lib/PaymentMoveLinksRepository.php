@@ -63,6 +63,69 @@ final class PaymentMoveLinksRepository
     }
 
     /**
+     * Staff user ids linked to moves via payment allocations (for list acronyms).
+     *
+     * @param list<int> $moveIds
+     * @return array<int, list<int>> move_id => unique user ids
+     */
+    public static function staffUserIdsByMoveIds(array $moveIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $moveIds), static function (int $id): bool {
+            return $id > 0;
+        })));
+        if ($ids === [] || !self::ready() || !Database::tableExists('base_payments')) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT l.ID_MOVE AS move_id, p.ID_USER AS user_id
+             FROM base_payment_move_links l
+             INNER JOIN base_payments p ON p.ID = l.ID_PAYMENT
+             INNER JOIN base_account_moves m ON m.ID = l.ID_MOVE AND m.DELETED = 0
+             WHERE l.ID_MOVE IN ($ph)
+             ORDER BY l.ID ASC"
+        );
+        $st->execute($ids);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $mid = (int)$row['move_id'];
+            $uid = (int)$row['user_id'];
+            if ($mid < 1 || $uid < 1) {
+                continue;
+            }
+            if (!isset($out[$mid])) {
+                $out[$mid] = [];
+            }
+            if (!in_array($uid, $out[$mid], true)) {
+                $out[$mid][] = $uid;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<int> $moveIds
+     * @return array<int,string> move_id => HTML of staff acronym badges
+     */
+    public static function staffBadgesHtmlByMoveIds(array $moveIds): array
+    {
+        $byMove = self::staffUserIdsByMoveIds($moveIds);
+        $out = [];
+        foreach ($byMove as $mid => $userIds) {
+            $parts = [];
+            foreach ($userIds as $uid) {
+                $parts[] = UsersRepository::badgeHtml((int)$uid, true, true);
+            }
+            if ($parts !== []) {
+                $out[(int)$mid] = '<span class="payments-move-staff" title="'
+                    . e(t('payments.alloc.linked_staff')) . '">'
+                    . implode(' ', $parts) . '</span>';
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Remove allocations pointing at missing or soft-deleted ledger moves.
      *
      * @param list<int> $paymentIds empty = all orphan links
@@ -132,8 +195,8 @@ final class PaymentMoveLinksRepository
     }
 
     /**
-     * Outgoing bank (безнал, ACCOUNT=1) settlements without a ledger link yet.
-     * Cash (нал) is excluded — those still use create_dps on the payment card.
+     * Outgoing settlements without a ledger link yet.
+     * $account: 1 = bank (FOT_KIND=1), 2 = cash (FOT_KIND=2).
      *
      * @return list<array<string,mixed>>
      */

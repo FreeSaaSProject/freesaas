@@ -134,3 +134,26 @@ EventBus::on('ledger.moves.deleted', static function ($payload) {
     }
     return $payload;
 });
+
+EventBus::on('ledger.moves.badges', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $ids = $payload['ids'] ?? [];
+    if (!is_array($ids) || $ids === []) {
+        return $payload;
+    }
+    $staff = PaymentMoveLinksRepository::staffBadgesHtmlByMoveIds($ids);
+    if ($staff === []) {
+        return $payload;
+    }
+    Assets::need('payments');
+    $byId = is_array($payload['by_id'] ?? null) ? $payload['by_id'] : [];
+    foreach ($staff as $mid => $html) {
+        $mid = (int)$mid;
+        $prev = (string)($byId[$mid] ?? '');
+        $byId[$mid] = trim($prev . ' ' . $html);
+    }
+    $payload['by_id'] = $byId;
+    return $payload;
+});

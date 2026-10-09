@@ -60,6 +60,14 @@
   text-align: right;
 }
 
+.payments-move-staff {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
 /* Compact payments tables (list + monthly) */
 .table-wrap .data th,
 .table-wrap .data td,

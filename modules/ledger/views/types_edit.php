@@ -44,6 +44,14 @@
   <label>NUM<input type="number" name="num" value="<?= e((string)((int)($row['num'] ?? 0))) ?>"></label>
   <label class="check"><input type="checkbox" name="enabled" value="1"<?= !empty($row['enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.col.enabled') ?></label>
   <label class="check"><input type="checkbox" name="payment_enabled" value="1"<?= !empty($row['payment_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.payment') ?></label>
+  <label><?= te('ledger.types.fot_kind') ?>
+    <select name="fot_kind">
+      <?php foreach ([0, 1, 2] as $fk): ?>
+        <option value="<?= $fk ?>"<?= (int)($row['fot_kind'] ?? 0) === $fk ? ' selected' : '' ?>><?= e(AccountMoveTypesRepository::fotKindLabel($fk)) ?></option>
+      <?php endforeach; ?>
+    </select>
+  </label>
+  <p class="muted"><?= te('ledger.types.fot_kind_hint') ?></p>
   <label class="check"><input type="checkbox" name="user_payment_enabled" value="1"<?= !empty($row['user_payment_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.user_payment') ?></label>
   <?php if (ModuleManager::isEnabled('suppliers') || !empty($row['supplier_enabled'])): ?>
   <label class="check"><input type="checkbox" name="supplier_enabled" value="1"<?= !empty($row['supplier_enabled']) ? ' checked' : '' ?>> <?= te('ledger.types.flag.supplier') ?></label>

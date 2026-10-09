@@ -41,10 +41,13 @@ final class AccountMoveTypesRepository
         $order = trim((string)($opts['order'] ?? '')) ?: 'PID ASC, NUM ASC, NAME ASC';
         $limit = max(0, (int)($opts['limit'] ?? 100));
         $offset = max(0, (int)($opts['offset'] ?? 0));
+        $fotCol = Database::columnExists('base_account_move_types', 'FOT_KIND')
+            ? ', FOT_KIND AS fot_kind'
+            : ', 0 AS fot_kind';
         $sql = 'SELECT ID AS id, NAME AS name, DESCR AS descr, DT AS dt, PID AS pid,
                        ENABLED AS enabled, ID_ACCOUNT AS account_id, NUM AS num,
                        DIRECTION AS direction, ID_TYPE AS odds_type,
-                       ID_PAYMENT_ENABLED AS payment_enabled,
+                       ID_PAYMENT_ENABLED AS payment_enabled' . $fotCol . ',
                        ID_USER_PAYMENT_ENABLED AS user_payment_enabled,
                        ID_SUPPLIER_ENABLED AS supplier_enabled,
                        ID_MOVEMENT_LINKED_ENABLED AS linked_enabled,
@@ -95,7 +98,7 @@ final class AccountMoveTypesRepository
      *
      * @return array<int, array{
      *   name:string, account_id:int, direction:int,
-     *   payment_enabled:int, user_payment_enabled:int,
+     *   payment_enabled:int, fot_kind:int, user_payment_enabled:int,
      *   supplier_enabled:int, fund_enabled:int, linked_enabled:int,
      *   act_in_enabled:int
      * }>
@@ -105,10 +108,13 @@ final class AccountMoveTypesRepository
         if (!Database::tableExists('base_account_move_types')) {
             return [];
         }
+        $fotCol = Database::columnExists('base_account_move_types', 'FOT_KIND')
+            ? ', FOT_KIND AS fot_kind'
+            : ', 0 AS fot_kind';
         $out = [];
         $rows = Database::pdo()->query(
             'SELECT ID AS id, NAME AS name, ID_ACCOUNT AS account_id, DIRECTION AS direction,
-                    ID_PAYMENT_ENABLED AS payment_enabled,
+                    ID_PAYMENT_ENABLED AS payment_enabled' . $fotCol . ',
                     ID_USER_PAYMENT_ENABLED AS user_payment_enabled,
                     ID_SUPPLIER_ENABLED AS supplier_enabled,
                     ID_FUND_ENABLED AS fund_enabled,
@@ -125,6 +131,7 @@ final class AccountMoveTypesRepository
                 'account_id' => (int)$r['account_id'],
                 'direction' => (int)$r['direction'],
                 'payment_enabled' => (int)$r['payment_enabled'],
+                'fot_kind' => (int)($r['fot_kind'] ?? 0),
                 'user_payment_enabled' => (int)$r['user_payment_enabled'],
                 'supplier_enabled' => (int)$r['supplier_enabled'],
                 'fund_enabled' => (int)$r['fund_enabled'],
@@ -140,12 +147,15 @@ final class AccountMoveTypesRepository
         if ($id < 1 || !Database::tableExists('base_account_move_types')) {
             return null;
         }
+        $fotCol = Database::columnExists('base_account_move_types', 'FOT_KIND')
+            ? ', FOT_KIND AS fot_kind'
+            : ', 0 AS fot_kind';
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, NAME AS name, DESCR AS descr, DT AS dt, PID AS pid,
                     ENABLED AS enabled, ID_ACCOUNT AS account_id, NUM AS num,
                     DIRECTION AS direction, ID_TYPE AS odds_type,
                     ID_ACT_IN_ENABLED AS act_in_enabled,
-                    ID_PAYMENT_ENABLED AS payment_enabled,
+                    ID_PAYMENT_ENABLED AS payment_enabled' . $fotCol . ',
                     ID_USER_PAYMENT_ENABLED AS user_payment_enabled,
                     ID_SUPPLIER_ENABLED AS supplier_enabled,
                     ID_INCASS_ENABLED AS incass_enabled,
@@ -158,7 +168,11 @@ final class AccountMoveTypesRepository
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
-        return $row ?: null;
+        if (!$row) {
+            return null;
+        }
+        $row['fot_kind'] = (int)($row['fot_kind'] ?? 0);
+        return $row;
     }
 
     public static function findByName(string $name): ?array
@@ -167,14 +181,50 @@ final class AccountMoveTypesRepository
         if ($name === '' || !Database::tableExists('base_account_move_types')) {
             return null;
         }
+        $fotCol = Database::columnExists('base_account_move_types', 'FOT_KIND')
+            ? ', FOT_KIND AS fot_kind'
+            : ', 0 AS fot_kind';
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, NAME AS name, ID_ACCOUNT AS account_id, DIRECTION AS direction,
-                    ID_PAYMENT_ENABLED AS payment_enabled
+                    ID_PAYMENT_ENABLED AS payment_enabled' . $fotCol . '
              FROM base_account_move_types WHERE NAME = ? AND ENABLED > 0 LIMIT 1'
         );
         $st->execute([$name]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
-        return $row ?: null;
+        if (!$row) {
+            return null;
+        }
+        $row['fot_kind'] = (int)($row['fot_kind'] ?? 0);
+        return $row;
+    }
+
+    /**
+     * Enabled move type marked as FOT for payments ACCOUNT (1=bank, 2=cash).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function findFotByPaymentAccount(int $account): ?array
+    {
+        $kind = $account === 2 ? 2 : ($account === 1 ? 1 : 0);
+        if ($kind < 1 || !Database::tableExists('base_account_move_types')
+            || !Database::columnExists('base_account_move_types', 'FOT_KIND')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, NAME AS name, ID_ACCOUNT AS account_id, DIRECTION AS direction,
+                    ID_PAYMENT_ENABLED AS payment_enabled, FOT_KIND AS fot_kind
+             FROM base_account_move_types
+             WHERE FOT_KIND = ? AND ENABLED > 0
+             ORDER BY ID ASC
+             LIMIT 1'
+        );
+        $st->execute([$kind]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        $row['fot_kind'] = (int)$row['fot_kind'];
+        return $row;
     }
 
     /** @param array<string,mixed> $post @return array<string,mixed> */
@@ -202,6 +252,7 @@ final class AccountMoveTypesRepository
             'direction' => $direction,
             'odds_type' => $odds,
             'payment_enabled' => !empty($post['payment_enabled']) ? 1 : 0,
+            'fot_kind' => self::normalizeFotKind((int)($post['fot_kind'] ?? 0)),
             'user_payment_enabled' => !empty($post['user_payment_enabled']) ? 1 : 0,
             'supplier_enabled' => !empty($post['supplier_enabled']) ? 1 : 0,
             'linked_enabled' => !empty($post['linked_enabled']) ? 1 : 0,
@@ -212,28 +263,77 @@ final class AccountMoveTypesRepository
         ];
     }
 
+    public static function normalizeFotKind(int $kind): int
+    {
+        return in_array($kind, [0, 1, 2], true) ? $kind : 0;
+    }
+
+    public static function fotKindLabel(int $kind): string
+    {
+        $key = 'ledger.types.fot_kind.' . self::normalizeFotKind($kind);
+        $label = t($key);
+        return $label !== $key ? $label : (string)$kind;
+    }
+
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_account_move_types
-             (NAME, DESCR, DT, PID, ENABLED, ID_ACCOUNT, NUM, DIRECTION, ID_TYPE,
-              ID_PAYMENT_ENABLED, ID_USER_PAYMENT_ENABLED, ID_SUPPLIER_ENABLED,
-              ID_MOVEMENT_LINKED_ENABLED, ID_FUND_ENABLED, ID_ACT_IN_ENABLED, EXCLUDE_PL)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            $data['name'], $data['descr'], $data['dt'], $data['pid'], $data['enabled'],
-            $data['account_id'], $data['num'], $data['direction'], $data['odds_type'],
-            $data['payment_enabled'], $data['user_payment_enabled'], $data['supplier_enabled'],
-            $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'],
-        ]);
+        $hasFot = Database::columnExists('base_account_move_types', 'FOT_KIND');
+        if ($hasFot) {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_account_move_types
+                 (NAME, DESCR, DT, PID, ENABLED, ID_ACCOUNT, NUM, DIRECTION, ID_TYPE,
+                  ID_PAYMENT_ENABLED, FOT_KIND, ID_USER_PAYMENT_ENABLED, ID_SUPPLIER_ENABLED,
+                  ID_MOVEMENT_LINKED_ENABLED, ID_FUND_ENABLED, ID_ACT_IN_ENABLED, EXCLUDE_PL)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['name'], $data['descr'], $data['dt'], $data['pid'], $data['enabled'],
+                $data['account_id'], $data['num'], $data['direction'], $data['odds_type'],
+                $data['payment_enabled'], self::normalizeFotKind((int)($data['fot_kind'] ?? 0)),
+                $data['user_payment_enabled'], $data['supplier_enabled'],
+                $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'],
+            ]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_account_move_types
+                 (NAME, DESCR, DT, PID, ENABLED, ID_ACCOUNT, NUM, DIRECTION, ID_TYPE,
+                  ID_PAYMENT_ENABLED, ID_USER_PAYMENT_ENABLED, ID_SUPPLIER_ENABLED,
+                  ID_MOVEMENT_LINKED_ENABLED, ID_FUND_ENABLED, ID_ACT_IN_ENABLED, EXCLUDE_PL)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['name'], $data['descr'], $data['dt'], $data['pid'], $data['enabled'],
+                $data['account_id'], $data['num'], $data['direction'], $data['odds_type'],
+                $data['payment_enabled'], $data['user_payment_enabled'], $data['supplier_enabled'],
+                $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'],
+            ]);
+        }
         return (int)Database::pdo()->lastInsertId();
     }
 
     /** @param array<string,mixed> $data */
     public static function update(int $id, array $data): void
     {
+        $hasFot = Database::columnExists('base_account_move_types', 'FOT_KIND');
+        if ($hasFot) {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_account_move_types SET
+                 NAME = ?, DESCR = ?, PID = ?, ENABLED = ?, ID_ACCOUNT = ?, NUM = ?,
+                 DIRECTION = ?, ID_TYPE = ?,
+                 ID_PAYMENT_ENABLED = ?, FOT_KIND = ?, ID_USER_PAYMENT_ENABLED = ?, ID_SUPPLIER_ENABLED = ?,
+                 ID_MOVEMENT_LINKED_ENABLED = ?, ID_FUND_ENABLED = ?, ID_ACT_IN_ENABLED = ?, EXCLUDE_PL = ?
+                 WHERE ID = ?'
+            );
+            $st->execute([
+                $data['name'], $data['descr'], $data['pid'], $data['enabled'], $data['account_id'],
+                $data['num'], $data['direction'], $data['odds_type'],
+                $data['payment_enabled'], self::normalizeFotKind((int)($data['fot_kind'] ?? 0)),
+                $data['user_payment_enabled'], $data['supplier_enabled'],
+                $data['linked_enabled'], $data['fund_enabled'], $data['act_in_enabled'], $data['exclude_pl'], $id,
+            ]);
+            return;
+        }
         $st = Database::pdo()->prepare(
             'UPDATE base_account_move_types SET
              NAME = ?, DESCR = ?, PID = ?, ENABLED = ?, ID_ACCOUNT = ?, NUM = ?,

@@ -16,18 +16,15 @@ final class PaymentMoveAllocUi
         if (!Auth::can('payments.view') && !Auth::can('payments.edit')) {
             return '';
         }
-        $paymentEnabled = is_array($type) && !empty($type['payment_enabled']);
-        $links = PaymentMoveLinksRepository::forMove($moveId);
-        if (!$paymentEnabled && $links === []) {
-            // Still show for bank-sourced outflows so staff can allocate after switching type to FOT.
-            $dir = (int)($move['direction'] ?? 0);
-            if ($dir >= 0) {
-                return '';
-            }
+        // Only types with explicit FOT_KIND on the move type row.
+        if (!class_exists('LedgerMovesRepository', false) || !LedgerMovesRepository::isFotType($type)) {
+            return '';
         }
+        $payAccount = LedgerMovesRepository::fotKind($type) === 2 ? 2 : 1;
 
+        $links = PaymentMoveLinksRepository::forMove($moveId);
         $canEdit = Auth::can('payments.edit') && Auth::can('ledger.edit');
-        $hanging = PaymentMoveLinksRepository::hangingPayments(200, 1);
+        $hanging = PaymentMoveLinksRepository::hangingPayments(200, $payAccount);
         $linkedIds = [];
         foreach ($links as $l) {
             $linkedIds[(int)$l['payment_id']] = true;
@@ -48,6 +45,17 @@ final class PaymentMoveAllocUi
                 'descr' => $pay ? (string)$pay['descr'] : '',
                 'account' => $pay ? (int)$pay['account'] : 0,
             ];
+        }
+
+        $hangingRows = [];
+        foreach ($hanging as $h) {
+            if (isset($linkedIds[(int)$h['id']])) {
+                continue;
+            }
+            $hangingRows[] = $h;
+        }
+        if ($linkedRows === [] && $hangingRows === []) {
+            return '';
         }
 
         $moveSum = abs((float)($move['summ'] ?? 0));
@@ -104,22 +112,14 @@ final class PaymentMoveAllocUi
   </table></div>
   <?php endif; ?>
 
+  <?php if ($hangingRows !== []): ?>
   <h3><?= te('payments.alloc.hanging') ?></h3>
-  <?php if ($hanging === []): ?>
-    <p class="muted"><?= te('payments.alloc.hanging_empty') ?></p>
-  <?php else:
-    $hangingRows = [];
+  <?php if ($canEdit):
     $hangingTotal = 0.0;
-    foreach ($hanging as $h) {
-        if (isset($linkedIds[(int)$h['id']])) {
-            continue;
-        }
-        $hangingRows[] = $h;
+    foreach ($hangingRows as $h) {
         $hangingTotal += abs((float)$h['sum']);
     }
-    if ($hangingRows === []): ?>
-    <p class="muted"><?= te('payments.alloc.hanging_empty') ?></p>
-  <?php elseif ($canEdit): ?>
+    ?>
   <form method="post" action="/payments/move-links/<?= (int)$moveId ?>" class="payments-alloc-form">
     <?= NavContext::hiddenField() ?>
     <input type="hidden" name="action" value="link">

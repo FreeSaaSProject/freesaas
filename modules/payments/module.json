@@ -130,7 +130,8 @@
     "hooks": {
         "subscribe": [
             "ledger.moves.edit.sections",
-            "ledger.moves.deleted"
+            "ledger.moves.deleted",
+            "ledger.moves.badges"
         ],
         "publish": []
     },

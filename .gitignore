@@ -1,8 +1,11 @@
 cfg/config.ini
 cfg/modules/*.ini
 !cfg/modules/.gitkeep
+cfg/updates.ini
+cfg/updates.state.json
 log/*.log
 var/
+dist/
 .DS_Store
 
 # Uploaded company logos (generated variants)

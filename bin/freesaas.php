@@ -58,6 +58,9 @@ try {
             }
             freesaas_emit_ops($report);
             break;
+        case 'update':
+            freesaas_cmd_update($sub, $opts);
+            break;
         default:
             Cli::usage("Unknown command: {$cmd}\n\n" . freesaas_cli_help());
     }
@@ -79,7 +82,31 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   locale list|validate [--locale=xx] [--format=json]
   health [--module=id] [--format=json]
   i18n check [--locale=xx] [--format=json]
+  update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]
 TXT;
+}
+
+/** @param array<string, string|bool> $opts */
+function freesaas_cmd_update(string $sub, array $opts): void
+{
+    $target = isset($opts['target']) ? trim((string)$opts['target']) : null;
+    if ($target === '') {
+        $target = null;
+    }
+    if ($sub === 'status' || $sub === '') {
+        freesaas_emit_ops(AgentOps::updateStatus());
+        return;
+    }
+    if ($sub === 'check') {
+        freesaas_emit_ops(AgentOps::updateCheck($target));
+        return;
+    }
+    if ($sub === 'apply') {
+        $migrate = empty($opts['no-migrate']);
+        freesaas_emit_ops(AgentOps::updateApply($target, $migrate));
+        return;
+    }
+    Cli::usage('Usage: update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]');
 }
 
 /** @param array<string,mixed> $r */

@@ -92,9 +92,18 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
 
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/modules/equipment/validate"
+
+# Self-update (requires cfg/updates.ini) — see update.md
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/update"
+
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"target":"core"}' \
+  "https://example.com/agent/update/apply"
 ```
 
-JSON shape matches CLI `--format=json` (via shared `AgentOps`). HTTP status: 200 ok, 400 bootstrap validation, 401 bad token, 503 token unset / health fail, 422 validate fail, 404 unknown module/path.
+JSON shape matches CLI `--format=json` (via shared `AgentOps`). HTTP status: 200 ok, 400 bootstrap validation, 401 bad token, 503 token unset / health fail, 422 validate fail, 404 unknown module/path, 409 update lock.
 
 ## CLI vs HTTP
 
@@ -102,11 +111,11 @@ JSON shape matches CLI `--format=json` (via shared `AgentOps`). HTTP status: 200
 |--|-----|----------------|
 | Needs | PHP CLI + filesystem on box | Only HTTPS to docroot |
 | Shared hosting | Often no | **Yes** |
-| Code deploy | Still FTP/git/CI | Still FTP/git/CI |
+| Code deploy | `update apply` or FTP/git/CI | `POST /agent/update/apply` or FTP/git/CI |
 | First admin | `freesaas.php bootstrap` | `POST /agent/bootstrap` |
 | Public `/health` | — | Minimal probe **without** token |
 
-Deploying new module **files** still requires upload. Enable/migrate/validate/health after upload → Agent API or CLI.
+Self-update (HTTPS zip + token): see [update.md](update.md). Or upload files manually, then enable/migrate/validate/health via Agent API or CLI.
 
 ## Security
 

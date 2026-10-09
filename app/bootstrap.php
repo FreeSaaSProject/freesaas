@@ -26,6 +26,7 @@ require_once __DIR__ . '/AgentOps.php';
 require_once __DIR__ . '/AgentAuth.php';
 require_once __DIR__ . '/AgentHttpCaptureSignal.php';
 require_once __DIR__ . '/AgentHttp.php';
+require_once __DIR__ . '/UpdateEngine.php';
 
 // Status flags registry used by product modules during boot (before core routes).
 require_once dirname(__DIR__) . '/modules/core/lib/StatusesRepository.php';

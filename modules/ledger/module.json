@@ -182,22 +182,7 @@
             "title": "ledger.menu.moves"
         }
     ],
-    "configSchema": {
-        "ledger": {
-            "fot_bank_type": {
-                "type": "string",
-                "default": "ФОТ"
-            },
-            "fot_cash_type": {
-                "type": "string",
-                "default": "ФОТ Нал"
-            },
-            "fot_cash_transfer_type": {
-                "type": "string",
-                "default": "ФОТ РФ"
-            }
-        }
-    },
+    "configSchema": {},
     "tables": [
         "base_accounts",
         "base_account_move_types",

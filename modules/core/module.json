@@ -70,6 +70,9 @@
             "/news/{id}",
             "/news/{id}/edit",
             "/settings",
+            "/settings/update",
+            "/settings/update/check",
+            "/settings/update/apply",
             "/health",
             "/health/detail",
             "/agent",
@@ -95,7 +98,10 @@
             "/agent/locale",
             "/agent/locale/validate",
             "/agent/health",
-            "/agent/i18n"
+            "/agent/i18n",
+            "/agent/update",
+            "/agent/update/check",
+            "/agent/update/apply"
         ]
     },
     "agent": {
@@ -309,6 +315,54 @@
                 "permission": "core.statuses",
                 "side_effect": "write",
                 "description": "Update staff role/status flags"
+            },
+            {
+                "id": "core.update.status",
+                "method": "GET",
+                "path": "/settings/update",
+                "permission": "core.settings",
+                "description": "Self-update sources + local versions (cfg/updates.ini). Twin: GET /agent/update",
+                "parameters": {
+                    "type": "object",
+                    "properties": {}
+                }
+            },
+            {
+                "id": "core.update.check",
+                "method": "GET",
+                "path": "/settings/update/check",
+                "permission": "core.settings",
+                "description": "Compare local vs remote release versions. Query: optional target=core|moduleId. Twin: GET /agent/update/check",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target": {
+                            "type": "string",
+                            "description": "core, module id, or omit for all configured sources"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "core.update.apply",
+                "method": "POST",
+                "path": "/settings/update/apply",
+                "permission": "core.settings",
+                "side_effect": "write",
+                "description": "Download zip overlay + migrate. Requires SUPERADMIN_ACCESS. Body/query: target=core|moduleId|all, optional migrate=0. Twin: POST /agent/update/apply. Treat like root.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "target": {
+                            "type": "string",
+                            "description": "core, module id, or all"
+                        },
+                        "migrate": {
+                            "type": "string",
+                            "description": "1 (default) or 0 to skip schema migrate"
+                        }
+                    }
+                }
             },
             {
                 "id": "core.db.status",

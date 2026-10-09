@@ -31,6 +31,15 @@ final class AgentOps
         } catch (Throwable $e) {
             $dbError = $e->getMessage();
         }
+        $updateConfigured = false;
+        $updateSources = 0;
+        try {
+            $ust = UpdateEngine::status();
+            $updateConfigured = !empty($ust['configured']);
+            $updateSources = is_array($ust['sources'] ?? null) ? count($ust['sources']) : 0;
+        } catch (Throwable $e) {
+            // UpdateEngine optional at boot edge cases
+        }
         $payload = [
             'ok' => $dbOk,
             'php_version' => PHP_VERSION,
@@ -41,6 +50,8 @@ final class AgentOps
             'modules_enabled' => $enabled,
             'modules_blocked' => $blocked,
             'database' => $dbOk ? 'ok' : 'fail',
+            'update_configured' => $updateConfigured,
+            'update_sources' => $updateSources,
             'http' => $dbOk ? 200 : 503,
         ];
         if ($dbError !== null) {
@@ -491,10 +502,51 @@ final class AgentOps
                 ['method' => 'GET', 'path' => '/agent/locale/validate', 'op' => 'locale.validate', 'query' => ['locale']],
                 ['method' => 'GET', 'path' => '/agent/health', 'op' => 'health', 'query' => ['module']],
                 ['method' => 'GET', 'path' => '/agent/i18n', 'op' => 'i18n.check', 'query' => ['locale']],
+                [
+                    'method' => 'GET',
+                    'path' => '/agent/update',
+                    'op' => 'update.status',
+                    'description' => 'Configured update sources (cfg/updates.ini) + local versions + last apply state',
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/agent/update/check',
+                    'op' => 'update.check',
+                    'query' => ['target'],
+                    'description' => 'Compare local vs remote versions. Optional target=core|moduleId',
+                ],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/update/apply',
+                    'op' => 'update.apply',
+                    'query' => ['target', 'migrate'],
+                    'body' => ['target', 'migrate'],
+                    'description' => 'Download zip overlay + migrate. target=core|moduleId|all. Treat like root.',
+                ],
             ],
             'cli' => 'php bin/freesaas.php … --format=json',
             'http' => 200,
         ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function updateStatus(): array
+    {
+        return UpdateEngine::status();
+    }
+
+    /** @return array<string,mixed> */
+    public static function updateCheck(?string $target = null): array
+    {
+        return UpdateEngine::check($target);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public static function updateApply(?string $target = null, bool $migrate = true): array
+    {
+        return UpdateEngine::apply($target, $migrate);
     }
 
     /**

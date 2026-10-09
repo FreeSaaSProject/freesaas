@@ -6,7 +6,7 @@ $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
 $row = [
     'name' => '', 'descr' => '', 'pid' => 0, 'enabled' => 1, 'account_id' => 0, 'num' => 0,
-    'direction' => -1, 'odds_type' => 1, 'payment_enabled' => 0, 'user_payment_enabled' => 0,
+    'direction' => -1, 'odds_type' => 1, 'payment_enabled' => 0, 'fot_kind' => 0, 'user_payment_enabled' => 0,
     'supplier_enabled' => 0, 'linked_enabled' => 0, 'fund_enabled' => 0, 'act_in_enabled' => 0, 'exclude_pl' => 0,
 ];
 if (!$isNew) {

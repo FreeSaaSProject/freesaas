@@ -693,14 +693,13 @@ final class LedgerMovesRepository
             return 0;
         }
 
-        $typeName = self::fotTypeNameForPayment($account, (int)($payment['movement_linked'] ?? 0) > 0);
-        $type = AccountMoveTypesRepository::findByName($typeName);
+        $type = AccountMoveTypesRepository::findFotByPaymentAccount($account);
         if (!$type) {
-            throw new RuntimeException('Move type not found: ' . $typeName);
+            throw new RuntimeException(t('ledger.err.fot_type_missing', ['account' => $account]));
         }
         $accountId = (int)($type['account_id'] ?? 0);
         if ($accountId < 1) {
-            throw new RuntimeException('Type has no default account: ' . $typeName);
+            throw new RuntimeException('Type has no default account: #' . (int)$type['id']);
         }
         $dir = (int)($type['direction'] ?? -1);
         if ($dir === 0) {
@@ -732,15 +731,19 @@ final class LedgerMovesRepository
         ]);
     }
 
-    public static function fotTypeNameForPayment(int $account, bool $isTransfer): string
+    /** @param array<string,mixed>|null $type */
+    public static function fotKind(?array $type): int
     {
-        if ($account === 2 && $isTransfer) {
-            return (string)Config::get('ledger', 'fot_cash_transfer_type', 'ФОТ РФ');
+        if (!is_array($type)) {
+            return 0;
         }
-        if ($account === 2) {
-            return (string)Config::get('ledger', 'fot_cash_type', 'ФОТ Нал');
-        }
-        return (string)Config::get('ledger', 'fot_bank_type', 'ФОТ');
+        return AccountMoveTypesRepository::normalizeFotKind((int)($type['fot_kind'] ?? 0));
+    }
+
+    /** @param array<string,mixed>|null $type */
+    public static function isFotType(?array $type): bool
+    {
+        return self::fotKind($type) > 0;
     }
 
     /**

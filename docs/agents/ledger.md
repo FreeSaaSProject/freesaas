@@ -10,7 +10,7 @@ php bin/freesaas.php module enable ledger --format=json
 # php bin/freesaas.php module enable payments stickers suppliers funds --format=json
 ```
 
-Copy `modules/ledger/config.example.ini` → `cfg/modules/ledger.ini` if FOT type names differ from defaults.
+Mark payroll move types on `/account-move-types` via **FOT role** (`FOT_KIND`: bank=1 / cash=2). Names are free-form (any locale).
 
 ## Human UI
 
@@ -75,4 +75,4 @@ POST `/ledger/moves` with `recon_action`:
 
 ## Health
 
-`ledger.fot_types` — warns if FOT type name keys empty in `cfg/modules/ledger.ini`.
+`ledger.fot_types` — warns if no enabled move type has `FOT_KIND=1` (bank) and/or `FOT_KIND=2` (cash).

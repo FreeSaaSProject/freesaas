@@ -171,6 +171,36 @@ function agent_api_dispatch(string $path, string $method, string $id): array
         $loc = isset($_GET['locale']) ? (string)$_GET['locale'] : null;
         return AgentOps::localeValidate($loc);
     }
+    if ($path === '/agent/update' && $method === 'GET') {
+        return AgentOps::updateStatus();
+    }
+    if ($path === '/agent/update/check' && $method === 'GET') {
+        $target = isset($_GET['target']) ? (string)$_GET['target'] : null;
+        return AgentOps::updateCheck($target !== '' ? $target : null);
+    }
+    if ($path === '/agent/update/apply' && $method === 'POST') {
+        $body = agent_api_json_body();
+        $target = null;
+        if (isset($body['target'])) {
+            $target = (string)$body['target'];
+        } elseif (isset($_GET['target'])) {
+            $target = (string)$_GET['target'];
+        } elseif (isset($_POST['target'])) {
+            $target = (string)$_POST['target'];
+        }
+        if ($target === '') {
+            $target = null;
+        }
+        $migrate = true;
+        if (array_key_exists('migrate', $body)) {
+            $migrate = !empty($body['migrate']);
+        } elseif (isset($_GET['migrate'])) {
+            $migrate = !in_array(strtolower((string)$_GET['migrate']), ['0', 'false', 'no'], true);
+        } elseif (isset($_POST['migrate'])) {
+            $migrate = !in_array(strtolower((string)$_POST['migrate']), ['0', 'false', 'no'], true);
+        }
+        return AgentOps::updateApply($target, $migrate);
+    }
 
     if ($id !== '' && strpos($path, '/agent/modules/') === 0) {
         if ($path === '/agent/modules/' . $id && $method === 'GET') {

@@ -69,7 +69,8 @@ freesaas.likespa.hm/
 │   ├── helpers.php        # e(), t(), redirect(), safe_html(), …
 │   └── lang/              # Общие строки UI (ru/en)
 ├── bin/
-│   ├── freesaas.php       # Agent/ops CLI (system, module, migrate, locale, health)
+│   ├── freesaas.php       # Agent/ops CLI (system, module, migrate, update, locale, health)
+│   ├── build-release-artifacts.sh  # Release zips + manifest for UpdateEngine
 │   ├── smoke.php          # Minimal CI smoke
 │   ├── schema-migrate.php
 │   ├── data-migrate.php
@@ -418,6 +419,7 @@ View::render('index', ['title' => 'My feature', /* ... */], 'layout', 'myfeature
 | `php bin/freesaas.php locale list\|validate [--locale=xx]` | Поддерживаемые локали (discovery `app/lang`) и паритет каталогов |
 | `php bin/freesaas.php health [--module=id]` | Liveness/readiness/health checks |
 | `php bin/freesaas.php i18n check` | То же, что locale validate + used-key scan |
+| `php bin/freesaas.php update status\|check\|apply [--target=…]` | Самообновление ядра/модулей ([`agents/update.md`](agents/update.md)) |
 | `php bin/smoke.php` | Быстрый CI: system + locale + validate + health |
 | `php bin/schema-migrate.php` | Совместимость: DDL всех включённых |
 | `php bin/data-migrate.php` | Data-migrators из манифестов |
@@ -428,7 +430,7 @@ HTTP (тот же `Health::run` / `AgentOps`):
 
 - `GET /health` — публичный минимальный JSON (`status`, `liveness`, `readiness`, `summary`)
 - `GET /health/detail` — полный список checks (нужен `core.modules`); `?module=id`
-- **`/agent/*`** — полный ops-API для агентов на shared hosting (токен `app.agent_token`, заголовок `X-FreeSaaS-Agent-Token`). Каталог: `GET /agent`. Первый подъём: `POST /agent/bootstrap` ([`agents/install.md`](agents/install.md)). См. [`agents/remote-api.md`](agents/remote-api.md).
+- **`/agent/*`** — полный ops-API для агентов на shared hosting (токен `app.agent_token`, заголовок `X-FreeSaaS-Agent-Token`). Каталог: `GET /agent`. Первый подъём: `POST /agent/bootstrap` ([`agents/install.md`](agents/install.md)). Самообновление: [`agents/update.md`](agents/update.md). См. [`agents/remote-api.md`](agents/remote-api.md).
 
 Health: платформенные checks (DB, ledger, config, blocked modules, agent_token) + авто-проверка `tables[]` из `module.json` + модульные `Health::register` (например `audio_pipeline.worker_token`). Модули регистрируют checks в `bootstrap.php`.
 

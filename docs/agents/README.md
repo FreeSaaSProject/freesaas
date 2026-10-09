@@ -11,6 +11,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [db-backup.md](db-backup.md) | DB hub: dump/restore/maintenance (`/db`, owned for agents) |
 | [localization.md](localization.md) | New locale |
 | [remote-api.md](remote-api.md) | Shared hosting: HTTPS `/agent/*` + token |
+| [update.md](update.md) | Self-update: core + private module zips (`cfg/updates.ini`) |
 | [module-agent-api.md](module-agent-api.md) | Product JSON ops (`module.json` → `agent.ops` on all modules; session auth) |
 | [assistant.md](assistant.md) | In-system LLM harness (UI + bot, tools, confirm writes) |
 | [audio-summaries.md](audio-summaries.md) | Audio summary profiles: construct + run via JSON |

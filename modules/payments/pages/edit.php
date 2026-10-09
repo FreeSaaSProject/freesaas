@@ -151,10 +151,7 @@ if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
 }
 
-$staff = [];
-foreach (UsersRepository::listForCopy() as $u) {
-    $staff[(int)$u['id']] = trim((string)$u['name']) !== '' ? (string)$u['name'] : (string)$u['login'];
-}
+$staff = UsersRepository::staffNamesIncluding([(int)($row['user_id'] ?? 0)]);
 $typeNames = PaymentTypesRepository::names();
 $dtValue = is_numeric($row['dt'] ?? null)
     ? date('Y-m-d\TH:i', (int)$row['dt'])
