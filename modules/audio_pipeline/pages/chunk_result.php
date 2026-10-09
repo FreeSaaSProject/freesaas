@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once base_path('modules/audio_pipeline/lib/AsrWorkerAuth.php');
+require_once base_path('modules/asr/lib/AsrWorkerAuth.php');
 require_once base_path('modules/audio_pipeline/lib/AsrService.php');
 
 AsrWorkerAuth::assertToken();

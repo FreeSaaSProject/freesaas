@@ -107,7 +107,7 @@ Events: `bots.inbound`, `bots.cabinet.collect`, `bots.send` / `notify.send`.
 | Plugin / hook | Module |
 |---------------|--------|
 | `my_tasks`, `news`, `password_restore` | `core` |
-| `voice_transcribe` | `audio_pipeline` (queue `var/voice_transcribe/`, worker `/audio/voice-transcribe/worker`) |
+| `voice_transcribe` | `asr` (queue `var/voice_transcribe/`, worker `/asr/voice-transcribe/worker`; BC alias `/audio/voice-transcribe/*`) |
 | `fit_food_entry` (+ recipes) | `wellness` (`BotChatState`, EventBus `bots.voice.transcription_result`) |
 | Procedure notify on create/update | `procedures` (`ProcedureBotNotify` → `bots.send`) |
 | `client_cabinet` | `clients` (`ClientBotPlugin`) |

@@ -432,7 +432,7 @@ HTTP (тот же `Health::run` / `AgentOps`):
 - `GET /health/detail` — полный список checks (нужен `core.modules`); `?module=id`
 - **`/agent/*`** — полный ops-API для агентов на shared hosting (токен `app.agent_token`, заголовок `X-FreeSaaS-Agent-Token`). Каталог: `GET /agent`. Первый подъём: `POST /agent/bootstrap` ([`agents/install.md`](agents/install.md)). Самообновление: [`agents/update.md`](agents/update.md). См. [`agents/remote-api.md`](agents/remote-api.md).
 
-Health: платформенные checks (DB, ledger, config, blocked modules, agent_token) + авто-проверка `tables[]` из `module.json` + модульные `Health::register` (например `audio_pipeline.worker_token`). Модули регистрируют checks в `bootstrap.php`.
+Health: платформенные checks (DB, ledger, config, blocked modules, agent_token) + авто-проверка `tables[]` из `module.json` + модульные `Health::register` (например `asr.worker_token`). Модули регистрируют checks в `bootstrap.php`.
 
 Локали: список из файлов `app/lang/*.php`; опционально `app.locales` в ini. Uninstall по-прежнему = disable (таблицы остаются) — см. [`agent-native-audit.md`](agent-native-audit.md). Agent runbooks: [`agents/`](agents/).
 

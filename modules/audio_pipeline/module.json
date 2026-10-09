@@ -2,10 +2,11 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
+        "asr": ">=0.1.0",
         "audio": ">=0.1.0",
         "audio_dicts": ">=0.1.0"
     },
@@ -27,9 +28,7 @@
             "/audio/asr/chunk-result",
             "/audio/jobs/ingest",
             "/audio/jobs/stem",
-            "/audio/jobs/collect",
-            "/audio/voice-transcribe/worker",
-            "/audio/voice-transcribe/file"
+            "/audio/jobs/collect"
         ]
     },
     "agent": {
@@ -109,12 +108,9 @@
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "audio_dicts.changed",
-            "bots.ready"
+            "audio_dicts.changed"
         ],
-        "publish": [
-            "bots.voice.transcription_result"
-        ]
+        "publish": []
     },
     "catalog": {
         "categories": [

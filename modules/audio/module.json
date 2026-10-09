@@ -2,13 +2,13 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "workweeks": ">=0.1.0"
+        "core": ">=0.3.0"
     },
     "optionalRequires": {
+        "workweeks": ">=0.1.0",
         "clients": ">=0.1.0",
         "audio_dicts": ">=0.1.0"
     },

@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/lib/AsrWorkerAuth.php';
+require_once base_path('modules/asr/lib/AsrWorkerAuth.php');
 require_once __DIR__ . '/lib/AsrClaimLock.php';
 require_once __DIR__ . '/lib/AsrService.php';
 require_once __DIR__ . '/lib/JobLock.php';
@@ -9,11 +9,10 @@ require_once __DIR__ . '/lib/JobRunner.php';
 require_once __DIR__ . '/lib/IngestRunner.php';
 require_once __DIR__ . '/lib/StemRunner.php';
 require_once __DIR__ . '/lib/CollectRunner.php';
-require_once __DIR__ . '/lib/VoiceTranscribeQueue.php';
-require_once __DIR__ . '/lib/VoiceTranscribeBotPlugin.php';
 
 /**
- * Thin ASR handshake + HTTP job runners. Whisper Python stays external.
+ * Cabin audio analytics workers (ingest / base_records ASR / stem / collect).
+ * Shared worker token + messenger voice queue live in module `asr`.
  * Shared hosting: cron → curl -H "X-Audio-Token: …" /audio/jobs/{ingest|stem|collect}
  */
 
@@ -73,17 +72,6 @@ EventBus::on('audio_dicts.changed', static function ($payload) {
     return is_array($payload) ? $payload : [];
 });
 
-Health::register('audio_pipeline.worker_token', 'audio_pipeline', static function (): array {
-    $token = trim((string)Config::get('audio', 'worker_token', ''));
-    if ($token === '' || $token === 'CHANGE_ME') {
-        return [
-            'status' => 'degraded',
-            'message' => 'audio.worker_token missing or still CHANGE_ME — ASR/jobs auth will reject',
-        ];
-    }
-    return ['status' => 'ok', 'message' => 'worker_token configured'];
-}, 'ASR/job worker token');
-
 Health::register('audio_pipeline.stem_cache', 'audio_pipeline', static function (): array {
     $dir = base_path('var/audio_stem_cache');
     if (!is_dir($dir)) {
@@ -97,31 +85,3 @@ Health::register('audio_pipeline.stem_cache', 'audio_pipeline', static function 
     }
     return ['status' => 'ok', 'message' => 'stem cache dir writable'];
 }, 'Stem cache directory');
-
-ModuleManager::registerRoute('/audio/voice-transcribe/worker', [
-    'module' => 'audio_pipeline',
-    'methods' => ['GET', 'POST'],
-    'public' => true,
-    'handler' => static function (): void {
-        require base_path('modules/audio_pipeline/pages/voice_transcribe_worker.php');
-    },
-]);
-ModuleManager::registerRoute('/audio/voice-transcribe/file', [
-    'module' => 'audio_pipeline',
-    'methods' => ['GET'],
-    'public' => true,
-    'handler' => static function (): void {
-        require base_path('modules/audio_pipeline/pages/voice_transcribe_file.php');
-    },
-]);
-
-$registerVoiceBot = static function (): void {
-    VoiceTranscribeBotPlugin::register();
-};
-if (ModuleManager::isEnabled('bots')) {
-    $registerVoiceBot();
-}
-EventBus::on('bots.ready', static function ($payload) use ($registerVoiceBot) {
-    $registerVoiceBot();
-    return is_array($payload) ? $payload : [];
-});

@@ -248,6 +248,6 @@ return [
     'audio.statuses.audio_none' => '— нет альтернативы —',
     'audio.statuses.field.ID_AUDIO_POSITION' => 'Роль для аудиопозиции',
     'audio.statuses.field.DISABLE_NON_PROCEDURE_TIME' => 'Запрет времени вне процедур',
-    'audio.module.description' => 'Аудиозаписи, бейджи и FileStorage; привязка к сменам.',
-    'audio.module.summary' => 'Включайте для записей в кабинете. Требует workweeks. Мягко clients/audio_dicts. Нужен audio_dicts, pipeline, reports, llm studies, staff_reports. Основа audio-стека.',
+    'audio.module.description' => 'Аудиозаписи кабинета, бейджи и FileStorage.',
+    'audio.module.summary' => 'Включайте для записей в кабинете. Мягко workweeks/clients/audio_dicts. Нужен audio_dicts, pipeline, reports. Основа cabin audio-стека (не ASR для ботов — модуль asr).',
 ];

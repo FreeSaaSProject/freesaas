@@ -181,7 +181,7 @@ final class VoiceTranscribeQueue
             $host = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
             $base = $scheme . '://' . $host;
         }
-        return $base . '/audio/voice-transcribe/file?job_id=' . rawurlencode($jobId)
+        return $base . '/asr/voice-transcribe/file?job_id=' . rawurlencode($jobId)
             . '&job_token=' . rawurlencode($jobToken);
     }
 }

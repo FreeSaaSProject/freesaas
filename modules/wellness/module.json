@@ -2,12 +2,14 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "asr": ">=0.1.0"
+    },
     "provides": [
         "wellness.calendar"
     ],

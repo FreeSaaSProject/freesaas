@@ -180,9 +180,10 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
-| `audio` | Audio records + badges + FileStorage; requires `workweeks` |
+| `asr` | Voice queue + shared Whisper worker token (`/asr/voice-transcribe/*`); requires `core` only; soft `bots` |
+| `audio` | Cabin records + badges + FileStorage; soft `workweeks` |
 | `audio_dicts` | Types/dicts/keys/scripts/trash for recognition; requires `audio` |
-| `audio_pipeline` | Ingest/ASR handshake/stem/collect workers; requires `audio` + `audio_dicts` |
+| `audio_pipeline` | Cabin ingest/ASR/stem/collect workers; requires `asr` + `audio` + `audio_dicts` |
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |
 | `bots` | Telegram/Max transport + `base_telegram_sends` queue + `base_bot_links` identities + webhooks; domain adapters via `BotPlugins` / `bots.send` |

@@ -14,7 +14,7 @@ final class VoiceTranscribeBotPlugin
             'priority' => 80,
             'audiences' => ['staff'],
             'label' => 'bots.catalog.staff.voice_transcribe',
-            'module' => 'audio_pipeline',
+            'module' => 'asr',
             'cabinet_buttons' => static function (array $ctx): array {
                 if (($ctx['audience'] ?? '') !== 'staff') {
                     return [];
@@ -31,7 +31,7 @@ final class VoiceTranscribeBotPlugin
                 if ((string)($ctx['callback_data'] ?? '') !== 'voice_transcribe') {
                     return null;
                 }
-                self::reply($ctx, t('audio_pipeline.bot.voice.help'), [
+                self::reply($ctx, t('asr.bot.voice.help'), [
                     'inline_keyboard' => [[[
                         'text' => t('bots.cabinet.refresh'),
                         'callback_data' => 'cabinet',
@@ -62,10 +62,10 @@ final class VoiceTranscribeBotPlugin
                     []
                 );
                 if (!$res['ok']) {
-                    self::reply($ctx, t('audio_pipeline.bot.voice.enqueue_fail'));
+                    self::reply($ctx, t('asr.bot.voice.enqueue_fail'));
                     return true;
                 }
-                self::reply($ctx, t('audio_pipeline.bot.voice.accepted', ['id' => $res['job_id']]));
+                self::reply($ctx, t('asr.bot.voice.accepted', ['id' => $res['job_id']]));
                 return true;
             },
         ]);
@@ -192,13 +192,13 @@ final class VoiceTranscribeBotPlugin
             return;
         }
         if ($error !== '') {
-            BotClient::sendMessage($platform, $token, $chatId, t('audio_pipeline.bot.voice.err', [
+            BotClient::sendMessage($platform, $token, $chatId, t('asr.bot.voice.err', [
                 'id' => $jobId,
                 'error' => $error,
             ]));
             return;
         }
-        $body = t('audio_pipeline.bot.voice.result', ['id' => $jobId]) . "\n\n" . $text;
+        $body = t('asr.bot.voice.result', ['id' => $jobId]) . "\n\n" . $text;
         BotClient::sendMessage($platform, $token, $chatId, $body);
     }
 

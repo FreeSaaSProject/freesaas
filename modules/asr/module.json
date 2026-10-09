@@ -1,0 +1,65 @@
+{
+    "id": "asr",
+    "name": "asr.module.name",
+    "description": "asr.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "bots": ">=0.1.0"
+    },
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "asr.view",
+            "label": "asr.perm.view"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/asr/voice-transcribe/worker",
+            "/asr/voice-transcribe/file",
+            "/audio/voice-transcribe/worker",
+            "/audio/voice-transcribe/file"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "asr.voice.worker",
+                "method": "GET",
+                "path": "/asr/voice-transcribe/worker",
+                "permission": "asr.view",
+                "assistant": false,
+                "description": "Whisper voice-queue worker next/submit (X-Audio-Token)"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [],
+    "configSchema": [],
+    "tables": [],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "bots.ready"
+        ],
+        "publish": [
+            "bots.voice.transcription_result"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "audio"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "asr",
+            "whisper",
+            "voice"
+        ],
+        "screenshots": []
+    }
+}
