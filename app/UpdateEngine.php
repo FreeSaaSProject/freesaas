@@ -847,6 +847,9 @@ final class UpdateEngine
                 $state['modules'][$id] = $entry;
             }
             self::writeState($state);
+            if (!empty($mig['ok'])) {
+                self::refreshCheckAfterApply($id, (string)$source['kind'], (string)($source['bundle'] ?? ''));
+            }
 
             return [
                 'ok' => !empty($mig['ok']),
@@ -860,6 +863,50 @@ final class UpdateEngine
         } catch (Throwable $e) {
             return ['ok' => false, 'id' => $id, 'kind' => $source['kind'], 'error' => $e->getMessage()];
         }
+    }
+
+    /**
+     * After a successful overlay, refresh last_check_targets so the UI table
+     * matches disk versions without requiring another Check.
+     */
+    private static function refreshCheckAfterApply(string $id, string $kind, string $bundle = ''): void
+    {
+        $state = self::readState();
+        $targets = is_array($state['last_check_targets'] ?? null) ? $state['last_check_targets'] : [];
+        if ($targets === []) {
+            return;
+        }
+        $refreshAllMonorepo = ($id === 'core' || $kind === 'core');
+        $changed = false;
+        foreach ($targets as $i => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $tid = (string)($row['id'] ?? '');
+            if ($tid === '') {
+                continue;
+            }
+            $rowBundle = (string)($row['bundle'] ?? 'monorepo');
+            if ($refreshAllMonorepo) {
+                if ($rowBundle === 'external' && $tid !== 'core') {
+                    continue;
+                }
+            } elseif ($tid !== $id) {
+                continue;
+            }
+            $local = self::localVersion($tid);
+            $remote = (string)($row['remote_version'] ?? '');
+            $targets[$i]['local_version'] = $local;
+            $targets[$i]['update_available'] = ($remote !== '' && self::isNewer($remote, $local));
+            $targets[$i]['label'] = self::packageLabel($tid);
+            $changed = true;
+        }
+        if (!$changed) {
+            return;
+        }
+        self::sortStatusRows($targets);
+        $state['last_check_targets'] = $targets;
+        self::writeState($state);
     }
 
     /**
@@ -1707,6 +1754,11 @@ final class UpdateEngine
                     $state['modules'][$sid] = $entry;
                 }
                 self::writeState($state);
+                self::refreshCheckAfterApply(
+                    $sid,
+                    (string)($source['kind'] ?? 'module'),
+                    (string)($source['bundle'] ?? '')
+                );
                 $job['results'][] = [
                     'ok' => true,
                     'id' => $sid,
