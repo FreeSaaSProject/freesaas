@@ -6,6 +6,7 @@
 /** @var list<array<string,mixed>> $updateHints */
 /** @var array<string,array<string,mixed>> $updateRemoteById */
 /** @var bool $updateCanApply */
+/** @var string|null $updateLastCheck */
 $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $updateConfigured = !empty($updateConfigured);
@@ -13,6 +14,19 @@ $updateSources = is_array($updateSources ?? null) ? $updateSources : [];
 $updateHints = is_array($updateHints ?? null) ? $updateHints : [];
 $updateRemoteById = is_array($updateRemoteById ?? null) ? $updateRemoteById : [];
 $updateCanApply = !empty($updateCanApply);
+$updateLastCheck = isset($updateLastCheck) && is_string($updateLastCheck) && $updateLastCheck !== ''
+    ? $updateLastCheck
+    : null;
+$lastCheckDisplay = $updateLastCheck;
+if ($lastCheckDisplay !== null) {
+    $ts = strtotime($lastCheckDisplay);
+    if ($ts !== false) {
+        $lastCheckDisplay = gmdate('Y-m-d H:i:s', $ts) . ' UTC';
+    }
+}
+$lastCheckLabel = $lastCheckDisplay !== null
+    ? t('updates.last_check', ['when' => $lastCheckDisplay])
+    : t('updates.last_check_never');
 
 $jobI18n = [
     'title' => t('updates.job.title'),
@@ -33,6 +47,7 @@ $jobI18n = [
 
 <section class="calendar-section">
   <h2 class="subhead"><?= te('updates.section_configured') ?></h2>
+  <p class="muted"><?= e($lastCheckLabel) ?></p>
   <?php if (!$updateConfigured): ?>
     <p class="muted"><?= te('updates.missing_ini') ?></p>
   <?php else: ?>
@@ -42,6 +57,7 @@ $jobI18n = [
           <tr>
             <th><?= te('updates.col_id') ?></th>
             <th><?= te('updates.col_provider') ?></th>
+            <th><?= te('updates.col_ref') ?></th>
             <th><?= te('updates.col_local') ?></th>
             <th><?= te('updates.col_remote') ?></th>
             <th><?= te('updates.col_status') ?></th>
@@ -55,10 +71,17 @@ $jobI18n = [
             $remoteVer = is_array($remote)
                 ? (string)($remote['remote_version'] ?? '')
                 : (string)($src['remote_version'] ?? '');
+            $ref = is_array($remote)
+                ? (string)($remote['ref'] ?? '')
+                : (string)($src['ref'] ?? '');
+            if ($ref === '') {
+                $ref = (string)($src['channel'] ?? '');
+            }
             $avail = is_array($remote)
                 ? !empty($remote['update_available'])
                 : !empty($src['update_available']);
-            $checked = is_array($remote) || array_key_exists('remote_version', $src);
+            $checked = (is_array($remote) && (string)($remote['remote_version'] ?? '') !== '')
+                || (string)($src['remote_version'] ?? '') !== '';
             if ($checked && $avail) {
                 $stLabel = t('updates.status_available');
             } elseif ($checked) {
@@ -66,19 +89,17 @@ $jobI18n = [
             } else {
                 $stLabel = t('updates.status_unknown');
             }
-            $prov = (string)($src['provider'] ?? '');
             $repo = (string)($src['repo'] ?? '');
-            $provLabel = $prov . ($repo !== '' ? ' · ' . $repo : '');
-            $tok = '';
-            if (array_key_exists('token_set', $src) && $src['token_set'] !== null) {
-                $tok = !empty($src['token_set'])
-                    ? t('updates.token_set')
-                    : t('updates.token_missing');
+            $bundle = (string)($src['bundle'] ?? '');
+            $provLabel = $repo !== '' ? $repo : '—';
+            if ($bundle !== '') {
+                $provLabel .= ' · ' . $bundle;
             }
             ?>
           <tr>
             <td><code><?= e($sid) ?></code></td>
-            <td><?= e($provLabel) ?><?php if ($tok !== ''): ?> <span class="muted">(<?= e($tok) ?>)</span><?php endif; ?></td>
+            <td><?= e($provLabel) ?></td>
+            <td><code><?= e($ref !== '' ? $ref : '—') ?></code></td>
             <td><?= e((string)($src['local_version'] ?? '')) ?></td>
             <td><?= e($remoteVer !== '' ? $remoteVer : '—') ?></td>
             <td><?= e($stLabel) ?></td>

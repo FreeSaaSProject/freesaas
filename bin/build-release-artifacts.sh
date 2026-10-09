@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
-# Build FreeSaaS release packages for UpdateEngine:
-#   - freesaas-core-<ver>.zip              platform only (app/bin/modules/core/…)
-#   - freesaas-module-<id>-<ver>.zip       each public product module
-#   - freesaas-catalog.json                package index (sha256 + versions)
-#   - freesaas-manifest.json               core-only compat manifest
+# Build FreeSaaS release artifacts.
+#
+# Always (monorepo release):
+#   - freesaas-<ver>.zip              FULL tree (new UpdateEngine; private modules excluded)
+#   - freesaas-core-<ver>.zip         platform only — bridge for old 0.3.x engines
+#   - freesaas-module-updates-<ver>.zip  updates UI (old CORE_ALLOW skips modules/updates/)
+#   - freesaas-catalog.json           core + updates (old check/apply)
+#   - freesaas-manifest.json          points at full zip (kind=full); core also listed in catalog
+#
+# External module (other repo workflow):
+#   bin/build-release-artifacts.sh --module=likespa
 #
 # Usage:
-#   bin/build-release-artifacts.sh
-#   bin/build-release-artifacts.sh --module=likespa
-#   PRIVATE_MODULES=likespa,foo bin/build-release-artifacts.sh
+#   PRIVATE_MODULES=likespa bin/build-release-artifacts.sh
+#   bin/build-release-artifacts.sh --module=id [--channel=stable]
 
 set -euo pipefail
 
@@ -53,76 +58,6 @@ is_private() {
   return 1
 }
 
-write_catalog() {
-  local lines_file="$1"
-  php -r '
-    $channel = $argv[1];
-    $linesFile = $argv[2];
-    $outCatalog = $argv[3];
-    $outManifest = $argv[4];
-    $packages = [];
-    $core = null;
-    foreach (file($linesFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
-      $p = explode("|", $line);
-      if (count($p) < 4) continue;
-      $artifact = $p[0];
-      $version = $p[1];
-      $kind = $p[2];
-      $sha = $p[3];
-      $id = $kind === "core" ? "core" : ($p[4] ?? "");
-      if ($id === "") continue;
-      $row = [
-        "id" => $id,
-        "kind" => $kind,
-        "version" => $version,
-        "artifact" => $artifact,
-        "url" => $artifact,
-        "sha256" => $sha,
-      ];
-      if ($kind === "module") {
-        $row["module"] = $id;
-      }
-      $packages[] = $row;
-      if ($kind === "core") {
-        $core = $row;
-      }
-    }
-    $catalog = [
-      "channel" => $channel,
-      "created_at" => gmdate("c"),
-      "packages" => $packages,
-    ];
-    file_put_contents($outCatalog, json_encode($catalog, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
-    if ($core !== null) {
-      $man = [
-        "version" => $core["version"],
-        "channel" => $channel,
-        "kind" => "core",
-        "artifact" => $core["artifact"],
-        "url" => $core["artifact"],
-        "sha256" => $core["sha256"],
-      ];
-      file_put_contents($outManifest, json_encode($man, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
-    } elseif ($packages !== []) {
-      // Single-module build: also write a module-shaped freesaas-manifest.json
-      $m = $packages[0];
-      file_put_contents($outManifest, json_encode([
-        "version" => $m["version"],
-        "channel" => $channel,
-        "kind" => "module",
-        "module" => $m["id"],
-        "artifact" => $m["artifact"],
-        "url" => $m["artifact"],
-        "sha256" => $m["sha256"],
-      ], JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
-    }
-    fwrite(STDERR, "Catalog packages: ".count($packages)."\n");
-  ' "$CHANNEL" "$lines_file" "$DIST/freesaas-catalog.json" "$DIST/freesaas-manifest.json"
-}
-
-tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
-
 if [[ -n "$ONLY_MODULE" ]]; then
   mid="$ONLY_MODULE"
   mod_dir="$ROOT/modules/$mid"
@@ -136,19 +71,36 @@ if [[ -n "$ONLY_MODULE" ]]; then
   rm -f "$zip"
   ( cd "$mod_dir" && zip -qr "$zip" . -x '*.DS_Store' -x '*/.DS_Store' )
   sha="$(sha256_file "$zip")"
+  php -r '
+    $d=["version"=>$argv[1],"channel"=>$argv[2],"kind"=>"module","module"=>$argv[3],
+        "artifact"=>$argv[4],"url"=>$argv[4],"sha256"=>$argv[5]];
+    file_put_contents($argv[6], json_encode($d, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
+    $cat=["channel"=>$argv[2],"created_at"=>gmdate("c"),"packages"=>[[
+      "id"=>$argv[3],"kind"=>"module","module"=>$argv[3],"version"=>$argv[1],
+      "artifact"=>$argv[4],"url"=>$argv[4],"sha256"=>$argv[5],
+    ]]];
+    file_put_contents(dirname($argv[6])."/freesaas-catalog.json",
+      json_encode($cat, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
+  ' "$mver" "$CHANNEL" "$mid" "$name" "$sha" "$DIST/freesaas-manifest.json"
   echo "Built $zip (sha256=$sha)"
-  echo "$name|$mver|module|$sha|$mid" >> "$tmp"
-  write_catalog "$tmp"
   exit 0
 fi
 
-# --- Full public release: platform core + public modules ---
-name="freesaas-core-${VERSION}.zip"
-zip="$DIST/$name"
-rm -f "$zip"
+# Clean previous release zips/manifests in dist (keep uploads if any other files)
+rm -f "$DIST"/freesaas-core-*.zip \
+  "$DIST"/freesaas-[0-9]*.zip \
+  "$DIST"/freesaas-module-updates-*.zip \
+  "$DIST"/freesaas-catalog.json \
+  "$DIST"/freesaas-manifest.json
+
+# --- 1) Platform core zip (old UpdateEngine bridge) ---
+core_name="freesaas-core-${VERSION}.zip"
+core_zip="$DIST/$core_name"
 stage="$(mktemp -d "${TMPDIR:-/tmp}/freesaas-core.XXXXXX")"
 mkdir -p "$stage"
-for path in app bin modules/core docs assets/css assets/js index.php VERSION .htaccess AGENTS.md; do
+# Include modules/updates in the zip (new engines overlay full tree; old CORE_ALLOW
+# still needs a separate updates module package — built below).
+for path in app bin modules/core modules/updates docs assets/css assets/js index.php VERSION .htaccess AGENTS.md; do
   if [[ -e "$ROOT/$path" ]]; then
     mkdir -p "$stage/$(dirname "$path")"
     if [[ -d "$ROOT/$path" ]]; then
@@ -160,28 +112,112 @@ for path in app bin modules/core docs assets/css assets/js index.php VERSION .ht
   fi
 done
 find "$stage" -name '.DS_Store' -delete 2>/dev/null || true
-( cd "$stage" && zip -qr "$zip" . )
+( cd "$stage" && zip -qr "$core_zip" . )
 rm -rf "$stage"
-sha="$(sha256_file "$zip")"
-echo "Built $zip (sha256=$sha)"
-echo "$name|$VERSION|core|$sha" >> "$tmp"
+core_sha="$(sha256_file "$core_zip")"
+echo "Built $core_zip (sha256=$core_sha)"
 
-for mod_json in "$ROOT"/modules/*/module.json; do
-  mid="$(basename "$(dirname "$mod_json")")"
-  [[ "$mid" == "core" || "$mid" == "updates" ]] && continue
-  if is_private "$mid"; then
-    echo "Skip private module: $mid"
-    continue
-  fi
-  mver="$(php -r '$j=json_decode(file_get_contents($argv[1]),true); echo $j["version"]??"0.0.0";' "$mod_json")"
-  name="freesaas-module-${mid}-${mver}.zip"
-  zip="$DIST/$name"
-  rm -f "$zip"
-  ( cd "$ROOT/modules/$mid" && zip -qr "$zip" . -x '*.DS_Store' -x '*/.DS_Store' )
-  sha="$(sha256_file "$zip")"
-  echo "Built $zip (sha256=$sha)"
-  echo "$name|$mver|module|$sha|$mid" >> "$tmp"
+# --- 2) updates module zip (old CORE_ALLOW cannot write modules/updates from core) ---
+upd_ver="$(php -r '$j=json_decode(file_get_contents($argv[1]),true); echo $j["version"]??"0.0.0";' "$ROOT/modules/updates/module.json")"
+upd_name="freesaas-module-updates-${upd_ver}.zip"
+upd_zip="$DIST/$upd_name"
+rm -f "$upd_zip"
+( cd "$ROOT/modules/updates" && zip -qr "$upd_zip" . -x '*.DS_Store' -x '*/.DS_Store' )
+upd_sha="$(sha256_file "$upd_zip")"
+echo "Built $upd_zip (sha256=$upd_sha)"
+
+# --- 3) Full monorepo zip (new UpdateEngine) ---
+full_name="freesaas-${VERSION}.zip"
+full_zip="$DIST/$full_name"
+stage="$(mktemp -d "${TMPDIR:-/tmp}/freesaas-full.XXXXXX")"
+(
+  cd "$ROOT"
+  tar -cf - \
+    --exclude='./cfg/config.ini' \
+    --exclude='./cfg/modules/*.ini' \
+    --exclude='./cfg/updates.ini' \
+    --exclude='./cfg/updates.state.json' \
+    --exclude='./var' \
+    --exclude='./log/*.log' \
+    --exclude='./dist' \
+    --exclude='./.git' \
+    --exclude='./.DS_Store' \
+    --exclude='./assets/uploads/logo/*' \
+    . \
+  | (cd "$stage" && tar -xf -)
+)
+IFS=',' read -r -a priv <<< "$PRIVATE_MODULES"
+for mid in "${priv[@]}"; do
+  mid="$(echo "$mid" | tr -d '[:space:]')"
+  [[ -z "$mid" ]] && continue
+  rm -rf "$stage/modules/$mid"
+  echo "Excluded private module from full zip: $mid"
 done
+find "$stage" -name '.DS_Store' -delete 2>/dev/null || true
+( cd "$stage" && zip -qr "$full_zip" . )
+rm -rf "$stage"
+full_sha="$(sha256_file "$full_zip")"
+echo "Built $full_zip (sha256=$full_sha)"
 
-write_catalog "$tmp"
+# --- 4) Catalog (old engines) + manifest (new prefers full) ---
+php -r '
+  $channel = $argv[1];
+  $ver = $argv[2];
+  $coreName = $argv[3]; $coreSha = $argv[4];
+  $updName = $argv[5]; $updVer = $argv[6]; $updSha = $argv[7];
+  $fullName = $argv[8]; $fullSha = $argv[9];
+  $dist = $argv[10];
+
+  $catalog = [
+    "channel" => $channel,
+    "created_at" => gmdate("c"),
+    "packages" => [
+      [
+        "id" => "core",
+        "kind" => "core",
+        "version" => $ver,
+        "artifact" => $coreName,
+        "url" => $coreName,
+        "sha256" => $coreSha,
+      ],
+      [
+        "id" => "updates",
+        "kind" => "module",
+        "module" => "updates",
+        "version" => $updVer,
+        "artifact" => $updName,
+        "url" => $updName,
+        "sha256" => $updSha,
+      ],
+    ],
+  ];
+  file_put_contents($dist."/freesaas-catalog.json",
+    json_encode($catalog, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
+
+  $manifest = [
+    "version" => $ver,
+    "channel" => $channel,
+    "kind" => "full",
+    "artifact" => $fullName,
+    "url" => $fullName,
+    "sha256" => $fullSha,
+    "bridge" => [
+      "core_artifact" => $coreName,
+      "core_sha256" => $coreSha,
+      "updates_artifact" => $updName,
+      "updates_sha256" => $updSha,
+      "note" => "Old UpdateEngine (<=0.3.2) uses freesaas-catalog.json + core/updates zips; new engine prefers this full zip.",
+    ],
+  ];
+  file_put_contents($dist."/freesaas-manifest.json",
+    json_encode($manifest, JSON_PRETTY_PRINT|JSON_UNESCAPED_SLASHES)."\n");
+
+  fwrite(STDERR, "Catalog packages: ".count($catalog["packages"])."\n");
+' "$CHANNEL" "$VERSION" \
+  "$core_name" "$core_sha" \
+  "$upd_name" "$upd_ver" "$upd_sha" \
+  "$full_name" "$full_sha" \
+  "$DIST"
+
 echo "Wrote $DIST/freesaas-catalog.json"
+echo "Wrote $DIST/freesaas-manifest.json"

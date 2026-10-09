@@ -146,6 +146,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 $updateStatus = AgentOps::updateStatus();
 $updateSources = is_array($updateStatus['sources'] ?? null) ? $updateStatus['sources'] : [];
 $updateHints = is_array($updateStatus['hints'] ?? null) ? $updateStatus['hints'] : [];
+$updateLastCheck = isset($updateStatus['last_check']) ? (string)$updateStatus['last_check'] : '';
 
 if ($updateCheckRows === [] && !empty($_SESSION['freesaas_update_check']) && is_array($_SESSION['freesaas_update_check'])) {
     $updateCheckRows = $_SESSION['freesaas_update_check'];
@@ -159,18 +160,18 @@ foreach ($updateCheckRows as $tr) {
         $updateRemoteById[(string)$tr['id']] = $tr;
     }
 }
-// Prefer versions embedded in status sources after check
 foreach ($updateSources as $src) {
     $sid = (string)($src['id'] ?? '');
     if ($sid === '' || isset($updateRemoteById[$sid])) {
         continue;
     }
-    if (isset($src['remote_version']) || isset($src['update_available'])) {
+    if ((string)($src['remote_version'] ?? '') !== '' || isset($src['update_available'])) {
         $updateRemoteById[$sid] = [
             'id' => $sid,
             'remote_version' => (string)($src['remote_version'] ?? ''),
             'update_available' => !empty($src['update_available']),
             'local_version' => (string)($src['local_version'] ?? ''),
+            'ref' => (string)($src['ref'] ?? ''),
         ];
     }
 }
@@ -179,6 +180,7 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     AgentHttp::emit(array_merge($updateStatus, [
         'update_can_apply' => $canApply,
         'check' => $updateCheckRows,
+        'last_check' => $updateLastCheck !== '' ? $updateLastCheck : null,
     ]));
 }
 
@@ -204,4 +206,5 @@ View::render('index', [
     'updateHints' => $updateHints,
     'updateRemoteById' => $updateRemoteById,
     'updateCanApply' => $canApply,
+    'updateLastCheck' => $updateLastCheck !== '' ? $updateLastCheck : null,
 ], 'layout', 'updates');

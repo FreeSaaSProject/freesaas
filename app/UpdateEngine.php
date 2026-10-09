@@ -2,17 +2,20 @@
 declare(strict_types=1);
 
 /**
- * Self-update: download release zips (HTTPS + optional token) and overlay onto the install.
- * Sources: cfg/updates.ini (see cfg/updates.example.ini). Never overwrites cfg/ or uploads.
+ * Self-update engine.
+ *
+ * Check: reads VERSION + each modules/<id>/module.json from the git ref (Contents API).
+ * Apply (monorepo): one zipball/release zip for the whole tree; overlay selected paths.
+ * External modules ([module.x] other repo): own archive.
+ *
+ * Never overwrites cfg/, uploads, var/, log/.
  */
 final class UpdateEngine
 {
-    private const MANIFEST_ASSET = 'freesaas-manifest.json';
-    private const CATALOG_ASSET = 'freesaas-catalog.json';
     private const USER_AGENT = 'FreeSaaS-UpdateEngine/1.0';
     private const LOCK_TTL_SEC = 1800;
+    private const MANIFEST_ASSET = 'freesaas-manifest.json';
 
-    /** Paths never written by any overlay (relative to base_path). */
     private const DENY_PREFIXES = [
         'cfg/',
         'var/',
@@ -21,7 +24,6 @@ final class UpdateEngine
         'assets/uploads/',
     ];
 
-    /** Exact relative paths never written. */
     private const DENY_FILES = [
         'cfg/config.ini',
         'cfg/updates.ini',
@@ -29,29 +31,6 @@ final class UpdateEngine
         '.gitignore',
     ];
 
-    /**
-     * Core package may only write platform paths — product modules update via their own packages.
-     * @var list<string>
-     */
-    private const CORE_ALLOW_PREFIXES = [
-        'app/',
-        'bin/',
-        'modules/core/',
-        'docs/',
-        'assets/css/',
-        'assets/js/',
-    ];
-
-    /** @var list<string> */
-    private const CORE_ALLOW_FILES = [
-        'index.php',
-        'VERSION',
-        '.htaccess',
-        'AGENTS.md',
-        'README.md',
-    ];
-
-    /** Apply job steps (one tick advances one step). */
     private const JOB_STEPS = [
         'resolve',
         'download',
@@ -83,20 +62,7 @@ final class UpdateEngine
     }
 
     /**
-     * @return list<array{
-     *   id:string,
-     *   kind:string,
-     *   module:?string,
-     *   provider:string,
-     *   repo:string,
-     *   url:string,
-     *   manifest_url:string,
-     *   channel:string,
-     *   asset:string,
-     *   path_prefix:string,
-     *   token_set:bool,
-     *   token:string
-     * }>
+     * @return list<array<string,mixed>>
      */
     public static function sources(): array
     {
@@ -138,6 +104,10 @@ final class UpdateEngine
                 $provider = 'github';
             }
             $token = trim((string)($rows['token'] ?? ''));
+            $channel = trim((string)($rows['channel'] ?? 'main'));
+            if ($channel === '') {
+                $channel = 'main';
+            }
             $out[] = [
                 'id' => $id,
                 'kind' => $kind,
@@ -146,7 +116,8 @@ final class UpdateEngine
                 'repo' => trim((string)($rows['repo'] ?? '')),
                 'url' => trim((string)($rows['url'] ?? '')),
                 'manifest_url' => trim((string)($rows['manifest_url'] ?? '')),
-                'channel' => trim((string)($rows['channel'] ?? 'stable')),
+                'channel' => $channel,
+                'ref' => trim((string)($rows['ref'] ?? '')),
                 'asset' => trim((string)($rows['asset'] ?? '')),
                 'path_prefix' => trim((string)($rows['path_prefix'] ?? ''), '/'),
                 'token_set' => $token !== '',
@@ -156,13 +127,13 @@ final class UpdateEngine
         return $out;
     }
 
-    /** Module ids that have their own update source (skip when overlaying core). */
+    /** @return list<string> */
     public static function privateModuleIds(): array
     {
         $ids = [];
         foreach (self::sources() as $s) {
-            if ($s['kind'] === 'module' && is_string($s['module']) && $s['module'] !== '') {
-                $ids[$s['module']] = true;
+            if ($s['kind'] === 'module') {
+                $ids[(string)$s['id']] = true;
             }
         }
         return array_keys($ids);
@@ -196,29 +167,30 @@ final class UpdateEngine
         return '0.0.0';
     }
 
+    public static function repoFromUrl(string $url): string
+    {
+        $url = trim($url);
+        if (preg_match('#github\.com[:/]+([^/]+)/([^/.\s]+)#i', $url, $m)) {
+            return $m[1] . '/' . preg_replace('/\.git$/i', '', $m[2]);
+        }
+        if (preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $url)) {
+            return $url;
+        }
+        return '';
+    }
+
     /**
-     * Modules that advertise update.repository in module.json but lack cfg/updates.ini section.
+     * Candidates: module.json update.repository without [module.id] ini (external later).
      *
-     * @return list<array{id:string,kind:string,repository:string,repo:string,channel:string,local_version:string,configured:bool}>
+     * @return list<array<string,mixed>>
      */
     public static function moduleHints(): array
     {
-        $configured = [];
-        foreach (self::sources() as $s) {
-            if ($s['kind'] === 'module') {
-                $configured[(string)$s['id']] = true;
-            }
-        }
+        $configured = array_fill_keys(self::privateModuleIds(), true);
         $hints = [];
         foreach (ModuleManager::all() as $id => $meta) {
             $id = (string)$id;
-            if ($id === 'core' || $id === 'updates') {
-                continue;
-            }
-            if (isset($configured[$id])) {
-                continue;
-            }
-            if (!is_array($meta)) {
+            if ($id === 'core' || isset($configured[$id]) || !is_array($meta)) {
                 continue;
             }
             $upd = $meta['update'] ?? null;
@@ -229,17 +201,12 @@ final class UpdateEngine
             if ($repository === '') {
                 continue;
             }
-            $channel = trim((string)($upd['channel'] ?? 'stable'));
-            if ($channel === '') {
-                $channel = 'stable';
-            }
-            $repo = self::repoFromUrl($repository);
             $hints[] = [
                 'id' => $id,
                 'kind' => 'module',
                 'repository' => $repository,
-                'repo' => $repo,
-                'channel' => $channel,
+                'repo' => self::repoFromUrl($repository),
+                'channel' => trim((string)($upd['channel'] ?? 'main')) ?: 'main',
                 'local_version' => self::localVersion($id),
                 'configured' => false,
             ];
@@ -250,74 +217,172 @@ final class UpdateEngine
         return $hints;
     }
 
-    /** owner/name from https://github.com/owner/name(.git) */
-    public static function repoFromUrl(string $url): string
+    /**
+     * Packages to check/apply: monorepo core + all local modules (except those with own [module.x]),
+     * plus external [module.x] sources.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function discoverPackages(?string $target = null): array
     {
-        $url = trim($url);
-        if (preg_match('#github\.com[:/]+([^/]+)/([^/.\s]+)#i', $url, $m)) {
-            return $m[1] . '/' . preg_replace('/\.git$/i', '', $m[2]);
+        $ini = self::sources();
+        $core = null;
+        $external = [];
+        foreach ($ini as $s) {
+            if ($s['id'] === 'core') {
+                $core = $s;
+            } else {
+                $external[$s['id']] = $s;
+            }
         }
-        if (preg_match('#gitlab\.com[:/]+([^/]+)/([^/.\s]+)#i', $url, $m)) {
-            return $m[1] . '/' . preg_replace('/\.git$/i', '', $m[2]);
+        $packages = [];
+        if ($core !== null) {
+            $core['bundle'] = 'monorepo';
+            $packages[] = $core;
+            foreach (ModuleManager::all() as $id => $_) {
+                $id = (string)$id;
+                if ($id === 'core' || isset($external[$id])) {
+                    continue;
+                }
+                $packages[] = [
+                    'id' => $id,
+                    'kind' => 'module',
+                    'module' => $id,
+                    'provider' => $core['provider'],
+                    'repo' => $core['repo'],
+                    'url' => '',
+                    'manifest_url' => '',
+                    'channel' => $core['channel'],
+                    'ref' => $core['ref'],
+                    'asset' => $core['asset'],
+                    'path_prefix' => '',
+                    'token_set' => $core['token_set'],
+                    'token' => $core['token'],
+                    'bundle' => 'monorepo',
+                ];
+            }
         }
-        if (preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $url)) {
-            return $url;
+        foreach ($external as $s) {
+            $s['bundle'] = 'external';
+            $packages[] = $s;
         }
-        return '';
+
+        if ($target !== null && trim($target) !== '' && strtolower(trim($target)) !== 'all') {
+            $want = self::normalizeTarget($target);
+            foreach ($packages as $p) {
+                if ($p['id'] === $want) {
+                    return [$p];
+                }
+            }
+            throw new InvalidArgumentException('Unknown update target: ' . $want);
+        }
+
+        usort($packages, static function (array $a, array $b): int {
+            if ($a['id'] === 'core') {
+                return -1;
+            }
+            if ($b['id'] === 'core') {
+                return 1;
+            }
+            return strcmp((string)$a['id'], (string)$b['id']);
+        });
+        return $packages;
+    }
+
+    /** Alias used by older call sites. */
+    public static function resolvePackages(?string $target = null, bool $onlyNewer = false): array
+    {
+        $all = self::discoverPackages($target);
+        if (!$onlyNewer) {
+            return $all;
+        }
+        $cached = [];
+        $state = self::readState();
+        if (!empty($state['last_check_targets']) && is_array($state['last_check_targets'])) {
+            foreach ($state['last_check_targets'] as $row) {
+                if (is_array($row) && isset($row['id'])) {
+                    $cached[(string)$row['id']] = $row;
+                }
+            }
+        }
+        $out = [];
+        foreach ($all as $p) {
+            $id = (string)$p['id'];
+            if (isset($cached[$id])) {
+                if (!empty($cached[$id]['update_available'])) {
+                    if (!empty($cached[$id]['url'])) {
+                        $p['_remote'] = [
+                            'version' => (string)($cached[$id]['remote_version'] ?? ''),
+                            'url' => (string)$cached[$id]['url'],
+                            'sha256' => $cached[$id]['sha256'] ?? null,
+                            'artifact' => $cached[$id]['artifact'] ?? null,
+                            'ref' => $cached[$id]['ref'] ?? null,
+                        ];
+                    }
+                    $out[] = $p;
+                }
+                continue;
+            }
+            $remote = self::resolveRemoteMeta($p);
+            if (self::isNewer((string)$remote['version'], self::localVersion($id))) {
+                $p['_remote'] = $remote;
+                $out[] = $p;
+            }
+        }
+        return $out;
     }
 
     /**
-     * @return array{ok:bool,configured:bool,sources:list,hints:list,state:array,http:int,error?:string}
+     * @return array{ok:bool,configured:bool,sources:list,hints:list,last_check:?string,state:array,http:int}
      */
     public static function status(): array
     {
         $ini = self::sources();
         $state = self::readState();
+        $lastCheck = isset($state['last_check']) ? (string)$state['last_check'] : null;
         $rows = [];
-        // Prefer last successful check (includes catalog packages); else show ini sources only.
+
         if (!empty($state['last_check_targets']) && is_array($state['last_check_targets'])) {
             foreach ($state['last_check_targets'] as $t) {
                 if (!is_array($t) || empty($t['id'])) {
                     continue;
                 }
                 $id = (string)$t['id'];
-                $applied = $id === 'core'
-                    ? ($state['core'] ?? null)
-                    : ($state['modules'][$id] ?? null);
                 $rows[] = [
                     'id' => $id,
                     'kind' => (string)($t['kind'] ?? ($id === 'core' ? 'core' : 'module')),
-                    'provider' => !empty($t['from_catalog']) ? 'catalog' : 'ini',
-                    'repo' => (string)($t['artifact'] ?? ''),
+                    'bundle' => (string)($t['bundle'] ?? 'monorepo'),
+                    'repo' => (string)($t['repo'] ?? ''),
                     'channel' => (string)($t['channel'] ?? ''),
-                    'token_set' => null,
+                    'ref' => (string)($t['ref'] ?? ''),
                     'local_version' => (string)($t['local_version'] ?? self::localVersion($id)),
                     'remote_version' => (string)($t['remote_version'] ?? ''),
                     'update_available' => !empty($t['update_available']),
-                    'applied' => $applied,
                     'configured' => true,
-                    'from_catalog' => !empty($t['from_catalog']),
                 ];
             }
         } else {
-            foreach ($ini as $s) {
-                $id = $s['id'];
-                $applied = $s['kind'] === 'core'
-                    ? ($state['core'] ?? null)
-                    : ($state['modules'][$id] ?? null);
-                $rows[] = [
-                    'id' => $id,
-                    'kind' => $s['kind'],
-                    'provider' => $s['provider'],
-                    'repo' => $s['repo'],
-                    'channel' => $s['channel'],
-                    'token_set' => $s['token_set'],
-                    'local_version' => self::localVersion($id),
-                    'applied' => $applied,
-                    'configured' => true,
-                ];
+            // Before first check: show local discovery list (remote unknown).
+            try {
+                foreach (self::discoverPackages(null) as $p) {
+                    $rows[] = [
+                        'id' => $p['id'],
+                        'kind' => $p['kind'],
+                        'bundle' => (string)($p['bundle'] ?? ''),
+                        'repo' => (string)($p['repo'] ?? ''),
+                        'channel' => (string)($p['channel'] ?? ''),
+                        'ref' => '',
+                        'local_version' => self::localVersion((string)$p['id']),
+                        'remote_version' => '',
+                        'update_available' => false,
+                        'configured' => true,
+                    ];
+                }
+            } catch (Throwable $e) {
+                // ignore
             }
         }
+
         return [
             'ok' => true,
             'configured' => $ini !== [],
@@ -325,59 +390,60 @@ final class UpdateEngine
             'example' => self::exampleIniPath(),
             'sources' => $rows,
             'hints' => self::moduleHints(),
+            'last_check' => $lastCheck,
             'state' => $state,
             'http' => 200,
         ];
     }
 
     /**
-     * @return array{ok:bool,targets:list,http:int,error?:string}
+     * @return array{ok:bool,targets:list,last_check:string,http:int,error?:string}
      */
     public static function check(?string $target = null): array
     {
         try {
-            $packages = self::resolvePackages($target);
+            $packages = self::discoverPackages($target);
             if ($packages === []) {
                 return [
                     'ok' => false,
-                    'error' => 'No update packages found (configure cfg/updates.ini and/or publish freesaas-catalog.json)',
+                    'error' => 'No update sources (copy cfg/updates.example.ini → cfg/updates.ini)',
                     'targets' => [],
+                    'last_check' => '',
                     'http' => 400,
                 ];
             }
             $targets = [];
-            foreach ($packages as $s) {
-                $remote = self::packageRemote($s);
-                $local = self::localVersion($s['id']);
+            foreach ($packages as $p) {
+                $remote = self::resolveRemoteMeta($p);
+                $local = self::localVersion((string)$p['id']);
                 $remoteVer = (string)$remote['version'];
-                $updateAvailable = self::isNewer($remoteVer, $local);
                 $targets[] = [
-                    'id' => $s['id'],
-                    'kind' => $s['kind'],
+                    'id' => $p['id'],
+                    'kind' => $p['kind'],
+                    'bundle' => (string)($p['bundle'] ?? ''),
+                    'repo' => (string)($p['repo'] ?? ''),
+                    'channel' => (string)($p['channel'] ?? ''),
+                    'ref' => (string)($remote['ref'] ?? ''),
                     'local_version' => $local,
                     'remote_version' => $remoteVer,
-                    'update_available' => $updateAvailable,
-                    'channel' => $s['channel'],
-                    'tag' => $remote['tag'] ?? null,
-                    'artifact' => $remote['artifact'] ?? null,
-                    'url' => $remote['url'] ?? null,
+                    'update_available' => self::isNewer($remoteVer, $local),
+                    'url' => (string)($remote['url'] ?? ''),
                     'sha256' => $remote['sha256'] ?? null,
-                    'from_catalog' => !empty($s['from_catalog']),
+                    'artifact' => $remote['artifact'] ?? null,
                 ];
             }
+            $now = gmdate('c');
             $state = self::readState();
-            $state['last_check'] = gmdate('c');
+            $state['last_check'] = $now;
             $state['last_check_targets'] = $targets;
             self::writeState($state);
-            return ['ok' => true, 'targets' => $targets, 'http' => 200];
+            return ['ok' => true, 'targets' => $targets, 'last_check' => $now, 'http' => 200];
         } catch (Throwable $e) {
-            return ['ok' => false, 'error' => $e->getMessage(), 'targets' => [], 'http' => 400];
+            return ['ok' => false, 'error' => $e->getMessage(), 'targets' => [], 'last_check' => '', 'http' => 400];
         }
     }
 
     /**
-     * Download + overlay + migrate for one or all configured sources.
-     *
      * @return array{ok:bool,results:list,http:int,error?:string}
      */
     public static function apply(?string $target = null, bool $migrate = true): array
@@ -393,7 +459,7 @@ final class UpdateEngine
                 return [
                     'ok' => false,
                     'error' => $onlyNewer
-                        ? 'Nothing to apply (no packages with a newer remote version)'
+                        ? 'Nothing to apply (no newer packages). Run Check first.'
                         : 'Unknown or empty update target',
                     'results' => [],
                     'http' => 400,
@@ -401,18 +467,15 @@ final class UpdateEngine
             }
             $results = [];
             $allOk = true;
-            foreach ($packages as $s) {
-                $one = self::applyOne($s, $migrate);
+            $archiveCache = [];
+            foreach ($packages as $p) {
+                $one = self::applyOne($p, $migrate, $archiveCache);
                 $results[] = $one;
                 if (empty($one['ok'])) {
                     $allOk = false;
                 }
             }
-            return [
-                'ok' => $allOk,
-                'results' => $results,
-                'http' => $allOk ? 200 : 500,
-            ];
+            return ['ok' => $allOk, 'results' => $results, 'http' => $allOk ? 200 : 500];
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'results' => [], 'http' => 400];
         } finally {
@@ -422,36 +485,47 @@ final class UpdateEngine
 
     /**
      * @param array<string,mixed> $source
+     * @param array<string,array{zip:string,stage:string}> $archiveCache
      * @return array<string,mixed>
      */
-    private static function applyOne(array $source, bool $migrate): array
+    private static function applyOne(array $source, bool $migrate, array &$archiveCache): array
     {
         $id = (string)$source['id'];
-        $work = self::workDir();
-        self::ensureDir($work);
-        $stamp = gmdate('YmdHis') . '-' . preg_replace('/[^a-z0-9_]+/i', '', $id);
-        $zipPath = $work . '/' . $stamp . '.zip';
-        $stageDir = $work . '/' . $stamp . '-stage';
-
         try {
-            $remote = self::packageRemote($source);
-            self::downloadFile((string)$remote['url'], $zipPath, (string)$source['token']);
-            $sha = (string)($remote['sha256'] ?? '');
-            if ($sha !== '') {
-                $got = hash_file('sha256', $zipPath);
-                if (!is_string($got) || !hash_equals(strtolower($sha), strtolower($got))) {
-                    throw new RuntimeException('SHA-256 mismatch for ' . $id);
+            $remote = isset($source['_remote']) && is_array($source['_remote'])
+                ? $source['_remote']
+                : self::resolveRemoteMeta($source);
+
+            $cacheKey = ((string)($source['bundle'] ?? '')) . '|' . ((string)($source['repo'] ?? '')) . '|' . ((string)($remote['ref'] ?? '')) . '|' . ((string)($remote['url'] ?? ''));
+            if (!isset($archiveCache[$cacheKey])) {
+                self::ensureDir(self::workDir());
+                $stamp = gmdate('YmdHis') . '-' . substr(sha1($cacheKey), 0, 8);
+                $zipPath = self::workDir() . '/' . $stamp . '.zip';
+                $stageDir = self::workDir() . '/' . $stamp . '-stage';
+                self::downloadFile((string)$remote['url'], $zipPath, (string)$source['token']);
+                $sha = (string)($remote['sha256'] ?? '');
+                if ($sha !== '') {
+                    $got = hash_file('sha256', $zipPath);
+                    if (!is_string($got) || !hash_equals(strtolower($sha), strtolower($got))) {
+                        throw new RuntimeException('SHA-256 mismatch for ' . $id);
+                    }
                 }
+                self::extractZip($zipPath, $stageDir);
+                $archiveCache[$cacheKey] = ['zip' => $zipPath, 'stage' => $stageDir];
             }
-            self::extractZip($zipPath, $stageDir);
-            $payloadRoot = self::findPayloadRoot($stageDir, (string)$source['path_prefix'], (string)$source['kind'], $id);
-            $copied = self::overlay($payloadRoot, (string)$source['kind'], $id);
+            $stageDir = $archiveCache[$cacheKey]['stage'];
+            $payloadRoot = self::findPayloadRoot(
+                $stageDir,
+                (string)($source['path_prefix'] ?? ''),
+                (string)$source['kind'],
+                $id
+            );
+            $copied = self::overlay($payloadRoot, (string)$source['kind'], $id, (string)($source['bundle'] ?? ''));
+
             if ($migrate) {
-                if ($source['kind'] === 'module') {
-                    $mig = AgentOps::migrateRun($id);
-                } else {
-                    $mig = AgentOps::migrateRun(null);
-                }
+                $mig = $source['kind'] === 'module'
+                    ? AgentOps::migrateRun($id)
+                    : AgentOps::migrateRun(null);
             } else {
                 $mig = ['ok' => true, 'skipped' => true];
             }
@@ -461,12 +535,13 @@ final class UpdateEngine
             } catch (Throwable $e) {
                 $health = ['ok' => false, 'error' => $e->getMessage()];
             }
+
             $state = self::readState();
             $entry = [
                 'version' => (string)$remote['version'],
                 'applied_at' => gmdate('c'),
                 'ok' => !empty($mig['ok']),
-                'artifact' => $remote['artifact'] ?? null,
+                'ref' => $remote['ref'] ?? null,
             ];
             if ($source['kind'] === 'core') {
                 $state['core'] = $entry;
@@ -488,456 +563,235 @@ final class UpdateEngine
                 'health' => $health,
             ];
         } catch (Throwable $e) {
-            return [
-                'ok' => false,
-                'id' => $id,
-                'kind' => $source['kind'],
-                'error' => $e->getMessage(),
-            ];
-        } finally {
-            @unlink($zipPath);
-            self::rmTree($stageDir);
+            return ['ok' => false, 'id' => $id, 'kind' => $source['kind'], 'error' => $e->getMessage()];
         }
     }
 
     /**
-     * Expand registry catalog + ini overrides into per-package sources.
-     * When $onlyNewer, keep packages whose remote version is newer than local
-     * (uses last_check_targets cache when present for the same ids).
+     * Resolve remote version + archive URL for a package.
      *
-     * @return list<array<string,mixed>>
+     * @param array<string,mixed> $pkg
+     * @return array{version:string,url:string,sha256?:?string,artifact?:?string,ref?:string}
      */
-    public static function resolvePackages(?string $target = null, bool $onlyNewer = false): array
+    private static function resolveRemoteMeta(array $pkg): array
     {
-        $ini = self::sources();
-        $coreSrc = null;
-        foreach ($ini as $s) {
-            if ($s['id'] === 'core') {
-                $coreSrc = $s;
-                break;
-            }
+        if (isset($pkg['_remote']) && is_array($pkg['_remote']) && !empty($pkg['_remote']['url'])) {
+            /** @var array{version:string,url:string,sha256?:?string,artifact?:?string,ref?:string} */
+            return $pkg['_remote'];
         }
-
-        // Catalog first (all public packages), then ini overrides (private modules / pinned core).
-        $byId = [];
-        if ($coreSrc !== null) {
-            try {
-                foreach (self::fetchRemoteCatalog($coreSrc) as $pkg) {
-                    $id = (string)($pkg['id'] ?? '');
-                    if ($id !== '') {
-                        $byId[$id] = $pkg;
-                    }
-                }
-            } catch (Throwable $e) {
-                // no catalog — ini-only still works
-            }
-        }
-        foreach ($ini as $s) {
-            $byId[$s['id']] = $s;
-        }
-        if ($byId === []) {
-            return [];
-        }
-
-        $all = array_values($byId);
-        usort($all, static function (array $a, array $b): int {
-            if ($a['id'] === 'core') {
-                return -1;
-            }
-            if ($b['id'] === 'core') {
-                return 1;
-            }
-            return strcmp((string)$a['id'], (string)$b['id']);
-        });
-
-        if ($target !== null && trim($target) !== '' && strtolower(trim($target)) !== 'all') {
-            $want = self::normalizeTarget($target);
-            $found = null;
-            foreach ($all as $s) {
-                if ($s['id'] === $want) {
-                    $found = $s;
-                    break;
-                }
-            }
-            if ($found === null) {
-                throw new InvalidArgumentException('Unknown update target: ' . $want);
-            }
-            $all = [$found];
-        }
-
-        if (!$onlyNewer) {
-            return $all;
-        }
-
-        $out = [];
-        $cached = [];
-        $state = self::readState();
-        if (!empty($state['last_check_targets']) && is_array($state['last_check_targets'])) {
-            foreach ($state['last_check_targets'] as $row) {
-                if (is_array($row) && isset($row['id'])) {
-                    $cached[(string)$row['id']] = $row;
-                }
-            }
-        }
-        foreach ($all as $s) {
-            $id = (string)$s['id'];
-            if (isset($cached[$id]) && array_key_exists('update_available', $cached[$id])) {
-                if (!empty($cached[$id]['update_available'])) {
-                    // Prefer cached remote meta on the source for apply.
-                    if (!empty($cached[$id]['url'])) {
-                        $s['_remote'] = [
-                            'version' => (string)($cached[$id]['remote_version'] ?? ''),
-                            'url' => (string)$cached[$id]['url'],
-                            'sha256' => $cached[$id]['sha256'] ?? null,
-                            'artifact' => $cached[$id]['artifact'] ?? null,
-                            'tag' => $cached[$id]['tag'] ?? null,
-                        ];
-                    }
-                    $out[] = $s;
-                }
-                continue;
-            }
-            $remote = self::packageRemote($s);
-            if (self::isNewer((string)$remote['version'], self::localVersion($id))) {
-                $s['_remote'] = $remote;
-                $out[] = $s;
-            }
-        }
-        return $out;
-    }
-
-    /**
-     * @param array<string,mixed> $source
-     * @return array{version:string,url:string,sha256?:string,artifact?:string,tag?:string}
-     */
-    private static function packageRemote(array $source): array
-    {
-        if (isset($source['_remote']) && is_array($source['_remote']) && !empty($source['_remote']['url'])) {
-            /** @var array{version:string,url:string,sha256?:string,artifact?:string,tag?:string} */
-            return $source['_remote'];
-        }
-        if (!empty($source['from_catalog']) && !empty($source['url']) && !empty($source['version'])) {
-            $out = [
-                'version' => (string)$source['version'],
-                'url' => (string)$source['url'],
-                'artifact' => (string)($source['artifact'] ?? ''),
-            ];
-            if (!empty($source['sha256'])) {
-                $out['sha256'] = (string)$source['sha256'];
-            }
-            if (!empty($source['tag'])) {
-                $out['tag'] = (string)$source['tag'];
-            }
-            return $out;
-        }
-        return self::resolveRemote($source);
-    }
-
-    /**
-     * Load freesaas-catalog.json (or synthesize core-only) from the registry release.
-     *
-     * @param array<string,mixed> $coreSrc
-     * @return list<array<string,mixed>>
-     */
-    private static function fetchRemoteCatalog(array $coreSrc): array
-    {
-        $provider = (string)$coreSrc['provider'];
-        $token = (string)$coreSrc['token'];
-        $channel = (string)$coreSrc['channel'];
-        $packages = [];
-
+        $provider = (string)($pkg['provider'] ?? 'github');
         if ($provider === 'http') {
-            $catalogUrl = trim((string)($coreSrc['catalog_url'] ?? ''));
-            if ($catalogUrl === '') {
-                // Same host as manifest: try sibling freesaas-catalog.json
-                $manifestUrl = (string)($coreSrc['manifest_url'] ?: $coreSrc['url']);
-                if ($manifestUrl !== '') {
-                    $catalogUrl = preg_replace('#freesaas-manifest[^/]*\.json$#', self::CATALOG_ASSET, $manifestUrl) ?: '';
-                }
-            }
-            if ($catalogUrl === '') {
-                throw new RuntimeException('No catalog_url for http registry');
-            }
-            $raw = self::httpGet($catalogUrl, $token);
-            $data = json_decode($raw, true);
-            if (!is_array($data)) {
-                throw new RuntimeException('Invalid catalog JSON');
-            }
-            $packages = self::normalizeCatalogPackages($data, $coreSrc, []);
-            return $packages;
+            return self::resolveHttpMeta($pkg);
         }
-
-        // github
-        $repo = (string)$coreSrc['repo'];
-        if ($channel === '' || $channel === 'stable' || $channel === 'latest') {
-            $api = 'https://api.github.com/repos/' . $repo . '/releases/latest';
-        } else {
-            $api = 'https://api.github.com/repos/' . $repo . '/releases/tags/' . rawurlencode($channel);
-        }
-        $release = json_decode(self::httpGet($api, $token), true);
-        if (!is_array($release) || empty($release['tag_name'])) {
-            throw new RuntimeException('GitHub release not found for catalog');
-        }
-        $tag = (string)$release['tag_name'];
-        $assets = isset($release['assets']) && is_array($release['assets']) ? $release['assets'] : [];
-        $catalogAsset = null;
-        foreach ($assets as $a) {
-            if (is_array($a) && (string)($a['name'] ?? '') === self::CATALOG_ASSET) {
-                $catalogAsset = $a;
-                break;
-            }
-        }
-        if ($catalogAsset !== null) {
-            $raw = self::httpGet(self::githubAssetDownloadUrl($catalogAsset), $token, true);
-            $data = json_decode($raw, true);
-            if (!is_array($data)) {
-                throw new RuntimeException('Invalid freesaas-catalog.json');
-            }
-            return self::normalizeCatalogPackages($data, $coreSrc, $assets, $tag);
-        }
-
-        // No catalog yet: single core package from existing resolve path.
-        $remote = self::resolveGithub($coreSrc);
-        return [[
-            'id' => 'core',
-            'kind' => 'core',
-            'module' => null,
-            'provider' => 'github',
-            'repo' => $repo,
-            'url' => (string)$remote['url'],
-            'manifest_url' => '',
-            'channel' => $channel,
-            'asset' => (string)($remote['artifact'] ?? ''),
-            'path_prefix' => '',
-            'token_set' => $token !== '',
-            'token' => $token,
-            'version' => (string)$remote['version'],
-            'sha256' => $remote['sha256'] ?? null,
-            'artifact' => $remote['artifact'] ?? null,
-            'tag' => $tag,
-            'from_catalog' => true,
-        ]];
+        return self::resolveGithubMeta($pkg);
     }
 
     /**
-     * @param array<string,mixed> $data
-     * @param array<string,mixed> $coreSrc
-     * @param list<mixed> $assets
-     * @return list<array<string,mixed>>
+     * @param array<string,mixed> $pkg
+     * @return array{version:string,url:string,sha256?:?string,artifact?:?string,ref?:string}
      */
-    private static function normalizeCatalogPackages(array $data, array $coreSrc, array $assets, string $tag = ''): array
+    private static function resolveHttpMeta(array $pkg): array
     {
-        $rows = $data['packages'] ?? null;
-        if (!is_array($rows)) {
-            throw new RuntimeException('catalog.packages missing');
-        }
-        $token = (string)$coreSrc['token'];
-        $out = [];
-        foreach ($rows as $row) {
-            if (!is_array($row)) {
-                continue;
-            }
-            $id = trim((string)($row['id'] ?? ''));
-            $kind = trim((string)($row['kind'] ?? ($id === 'core' ? 'core' : 'module')));
-            $version = trim((string)($row['version'] ?? ''));
-            $artifact = trim((string)($row['artifact'] ?? $row['url'] ?? ''));
-            if ($id === '' || $version === '' || $artifact === '') {
-                continue;
-            }
-            if ($kind !== 'core' && $kind !== 'module') {
-                $kind = 'module';
-            }
-            $url = trim((string)($row['url'] ?? ''));
-            if ($url === '' || strpos($url, '://') === false) {
-                $name = basename($artifact !== '' ? $artifact : $url);
-                $resolved = self::findAssetUrl($assets, $name);
-                if ($resolved === null) {
-                    continue; // asset not in this release
-                }
-                $url = $resolved;
-            }
-            $sha = trim((string)($row['sha256'] ?? ''));
-            $out[] = [
-                'id' => $id,
-                'kind' => $kind,
-                'module' => $kind === 'module' ? $id : null,
-                'provider' => (string)$coreSrc['provider'],
-                'repo' => (string)$coreSrc['repo'],
-                'url' => $url,
-                'manifest_url' => '',
-                'channel' => (string)($coreSrc['channel'] ?? 'stable'),
-                'asset' => basename($artifact),
-                'path_prefix' => trim((string)($row['path_prefix'] ?? ''), '/'),
-                'token_set' => $token !== '',
-                'token' => $token,
-                'version' => $version,
-                'sha256' => $sha !== '' ? $sha : null,
-                'artifact' => basename($artifact),
-                'tag' => $tag !== '' ? $tag : null,
-                'from_catalog' => true,
-            ];
-        }
-        return $out;
-    }
-
-    private static function normalizeTarget(string $target): string
-    {
-        $t = strtolower(trim($target));
-        if (strpos($t, 'module:') === 0) {
-            $t = substr($t, strlen('module:'));
-        }
-        if ($t === '' || $t === 'core') {
-            return $t === '' ? 'core' : 'core';
-        }
-        if (!preg_match('/^[a-z][a-z0-9_]*$/', $t)) {
-            throw new InvalidArgumentException('Invalid target id');
-        }
-        return $t;
-    }
-
-    /**
-     * @param array<string,mixed> $source
-     * @return array{version:string,url:string,sha256?:string,artifact?:string,tag?:string}
-     */
-    private static function resolveRemote(array $source): array
-    {
-        $provider = (string)$source['provider'];
-        if ($provider === 'http') {
-            return self::resolveHttp($source);
-        }
-        return self::resolveGithub($source);
-    }
-
-    /**
-     * @param array<string,mixed> $source
-     * @return array{version:string,url:string,sha256?:string,artifact?:string,tag?:string}
-     */
-    private static function resolveHttp(array $source): array
-    {
-        $manifestUrl = (string)$source['manifest_url'];
+        $manifestUrl = (string)($pkg['manifest_url'] ?: $pkg['url']);
         if ($manifestUrl === '') {
-            $manifestUrl = (string)$source['url'];
+            throw new RuntimeException('http provider needs manifest_url');
         }
-        if ($manifestUrl === '') {
-            throw new RuntimeException('http provider requires manifest_url (or url to manifest JSON)');
-        }
-        $body = self::httpGet($manifestUrl, (string)$source['token']);
-        $data = json_decode($body, true);
+        $data = json_decode(self::httpGet($manifestUrl, (string)$pkg['token']), true);
         if (!is_array($data)) {
-            throw new RuntimeException('Invalid manifest JSON from ' . $manifestUrl);
+            throw new RuntimeException('Invalid HTTP manifest');
         }
-        return self::normalizeManifest($data, (string)$source['token']);
+        $version = trim((string)($data['version'] ?? ''));
+        $url = trim((string)($data['url'] ?? $data['download_url'] ?? ''));
+        if ($version === '' || $url === '') {
+            throw new RuntimeException('HTTP manifest missing version/url');
+        }
+        $out = ['version' => $version, 'url' => $url, 'artifact' => (string)($data['artifact'] ?? basename($url))];
+        if (!empty($data['sha256'])) {
+            $out['sha256'] = (string)$data['sha256'];
+        }
+        return $out;
     }
 
     /**
-     * @param array<string,mixed> $source
-     * @return array{version:string,url:string,sha256?:string,artifact?:string,tag?:string}
+     * @param array<string,mixed> $pkg
+     * @return array{version:string,url:string,sha256?:?string,artifact?:?string,ref:string}
      */
-    private static function resolveGithub(array $source): array
+    private static function resolveGithubMeta(array $pkg): array
     {
-        $repo = (string)$source['repo'];
+        $repo = (string)$pkg['repo'];
         if ($repo === '' || !preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $repo)) {
             throw new RuntimeException('github provider requires repo=owner/name');
         }
-        $channel = (string)$source['channel'];
-        $token = (string)$source['token'];
-        if ($channel === '' || $channel === 'stable' || $channel === 'latest') {
-            $api = 'https://api.github.com/repos/' . $repo . '/releases/latest';
-        } else {
-            $tag = $channel;
-            if ($tag !== '' && $tag[0] !== 'v' && preg_match('/^\d/', $tag)) {
-                // keep as-is; tags may be v-prefixed or not
-            }
-            $api = 'https://api.github.com/repos/' . $repo . '/releases/tags/' . rawurlencode($channel);
-        }
-        $raw = self::httpGet($api, $token);
-        $release = json_decode($raw, true);
-        if (!is_array($release) || empty($release['tag_name'])) {
-            throw new RuntimeException('GitHub release not found for ' . $repo . ' channel=' . $channel);
-        }
-        $tag = (string)$release['tag_name'];
-        $version = ltrim($tag, 'vV');
-        $assets = isset($release['assets']) && is_array($release['assets']) ? $release['assets'] : [];
+        $token = (string)$pkg['token'];
+        $ref = self::resolveGitRef($pkg);
+        $bundle = (string)($pkg['bundle'] ?? 'monorepo');
+        $id = (string)$pkg['id'];
+        $kind = (string)$pkg['kind'];
 
-        $wantAsset = (string)$source['asset'];
-        $manifestAsset = null;
-        $zipAsset = null;
-        foreach ($assets as $a) {
-            if (!is_array($a)) {
-                continue;
+        // Version from live files on the ref (no release catalog required).
+        if ($kind === 'core') {
+            $ver = trim(self::githubFileContents($repo, 'VERSION', $ref, $token));
+            if ($ver === '') {
+                $raw = self::githubFileContents($repo, 'modules/core/module.json', $ref, $token);
+                $j = json_decode($raw, true);
+                $ver = is_array($j) ? trim((string)($j['version'] ?? '')) : '';
             }
-            $name = (string)($a['name'] ?? '');
-            $dl = self::githubAssetDownloadUrl($a);
-            if ($name === self::MANIFEST_ASSET && $dl !== '') {
-                $manifestAsset = $a;
+        } else {
+            $path = ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') === '')
+                ? 'module.json'
+                : ('modules/' . $id . '/module.json');
+            if ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') !== '') {
+                $path = rtrim((string)$pkg['path_prefix'], '/') . '/module.json';
             }
-            if ($wantAsset !== '' && $name === $wantAsset && $dl !== '') {
-                $zipAsset = $a;
-            }
+            $raw = self::githubFileContents($repo, $path, $ref, $token);
+            $j = json_decode($raw, true);
+            $ver = is_array($j) ? trim((string)($j['version'] ?? '')) : '';
         }
-        if ($manifestAsset !== null) {
-            // Private releases: browser_download_url 404s; use API asset URL + octet-stream.
-            $mBody = self::httpGet(self::githubAssetDownloadUrl($manifestAsset), $token, true);
-            $mData = json_decode($mBody, true);
-            if (is_array($mData)) {
-                $norm = self::normalizeManifest($mData, $token);
-                $norm['tag'] = $tag;
-                if (($norm['version'] ?? '') === '') {
-                    $norm['version'] = $version;
-                }
-                // Build scripts may store artifact basename as url — resolve against release assets.
-                $normUrl = (string)($norm['url'] ?? '');
-                if ($normUrl !== '' && strpos($normUrl, '://') === false) {
-                    $resolved = self::findAssetUrl($assets, $normUrl);
-                    if ($resolved === null && isset($norm['artifact'])) {
-                        $resolved = self::findAssetUrl($assets, (string)$norm['artifact']);
-                    }
-                    if ($resolved === null) {
-                        throw new RuntimeException('Manifest artifact not found in release assets: ' . $normUrl);
-                    }
-                    $norm['url'] = $resolved;
-                }
-                return $norm;
-            }
+        if ($ver === '') {
+            throw new RuntimeException('Cannot read remote version for ' . $id . ' @ ' . $ref);
         }
-        if ($zipAsset === null && $wantAsset === '') {
+
+        $channel = strtolower((string)($pkg['channel'] ?? 'main'));
+        $url = '';
+        $sha = null;
+        $artifact = null;
+
+        // Stable: prefer one full release zip asset; else zipball of the release tag/ref.
+        if ($channel === 'stable' || $channel === 'latest' || (isset($channel[0]) && $channel[0] === 'v')) {
+            $release = self::githubRelease($repo, (string)$pkg['channel'], $token);
+            $assets = isset($release['assets']) && is_array($release['assets']) ? $release['assets'] : [];
+            $want = (string)($pkg['asset'] ?? '');
+            $picked = null;
             foreach ($assets as $a) {
                 if (!is_array($a)) {
                     continue;
                 }
                 $name = (string)($a['name'] ?? '');
-                if ($name !== '' && preg_match('/\.zip$/i', $name) && self::githubAssetDownloadUrl($a) !== '') {
-                    $zipAsset = $a;
+                if ($want !== '' && $name === $want) {
+                    $picked = $a;
                     break;
                 }
             }
+            if ($picked === null) {
+                // Prefer full monorepo zip (freesaas-1.2.3.zip), not freesaas-core-* / module-*.
+                foreach ($assets as $a) {
+                    if (!is_array($a)) {
+                        continue;
+                    }
+                    $name = (string)($a['name'] ?? '');
+                    if (preg_match('/^freesaas-\d+\.\d+.*\.zip$/i', $name)) {
+                        $picked = $a;
+                        break;
+                    }
+                }
+            }
+            if ($picked === null) {
+                foreach ($assets as $a) {
+                    if (!is_array($a)) {
+                        continue;
+                    }
+                    $name = (string)($a['name'] ?? '');
+                    if (preg_match('/\.zip$/i', $name)
+                        && !preg_match('/^freesaas-module-/i', $name)
+                        && !preg_match('/^freesaas-core-/i', $name)
+                    ) {
+                        $picked = $a;
+                        break;
+                    }
+                }
+            }
+            // Last resort on a release that only has the bridge core zip.
+            if ($picked === null) {
+                foreach ($assets as $a) {
+                    if (!is_array($a)) {
+                        continue;
+                    }
+                    $name = (string)($a['name'] ?? '');
+                    if (preg_match('/^freesaas-core-.*\.zip$/i', $name)) {
+                        $picked = $a;
+                        break;
+                    }
+                }
+            }
+            if ($picked !== null) {
+                $url = self::githubAssetDownloadUrl($picked);
+                $artifact = (string)($picked['name'] ?? '');
+            }
+            if ($url === '') {
+                $url = (string)($release['zipball_url'] ?? ('https://api.github.com/repos/' . $repo . '/zipball/' . rawurlencode($ref)));
+                $artifact = 'zipball:' . $ref;
+            }
+        } else {
+            // Branch / floating channel: zipball of ref
+            $url = 'https://api.github.com/repos/' . $repo . '/zipball/' . rawurlencode($ref);
+            $artifact = 'zipball:' . $ref;
         }
-        if ($zipAsset !== null) {
-            return [
-                'version' => $version,
-                'url' => self::githubAssetDownloadUrl($zipAsset),
-                'artifact' => (string)($zipAsset['name'] ?? ''),
-                'tag' => $tag,
-            ];
-        }
-        $zipball = (string)($release['zipball_url'] ?? '');
-        if ($zipball === '') {
-            $zipball = 'https://api.github.com/repos/' . $repo . '/zipball/' . rawurlencode($tag);
-        }
+
         return [
-            'version' => $version,
-            'url' => $zipball,
-            'artifact' => 'zipball:' . $tag,
-            'tag' => $tag,
+            'version' => $ver,
+            'url' => $url,
+            'sha256' => $sha,
+            'artifact' => $artifact,
+            'ref' => $ref,
         ];
     }
 
     /**
-     * Prefer GitHub API asset URL (works for private repos with Bearer + Accept: octet-stream).
-     * browser_download_url returns 404 for private releases even with a token.
-     *
-     * @param array<string,mixed> $asset
+     * @param array<string,mixed> $pkg
      */
+    private static function resolveGitRef(array $pkg): string
+    {
+        $explicit = trim((string)($pkg['ref'] ?? ''));
+        if ($explicit !== '') {
+            return $explicit;
+        }
+        $channel = trim((string)($pkg['channel'] ?? 'main'));
+        if ($channel === '' || $channel === 'stable' || $channel === 'latest') {
+            if ($channel === 'stable' || $channel === 'latest') {
+                $rel = self::githubRelease((string)$pkg['repo'], $channel, (string)$pkg['token']);
+                return (string)($rel['tag_name'] ?? 'main');
+            }
+            return 'main';
+        }
+        return $channel;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function githubRelease(string $repo, string $channel, string $token): array
+    {
+        if ($channel === '' || $channel === 'stable' || $channel === 'latest') {
+            $api = 'https://api.github.com/repos/' . $repo . '/releases/latest';
+        } else {
+            $api = 'https://api.github.com/repos/' . $repo . '/releases/tags/' . rawurlencode($channel);
+        }
+        $data = json_decode(self::httpGet($api, $token), true);
+        if (!is_array($data) || empty($data['tag_name'])) {
+            throw new RuntimeException('GitHub release not found for ' . $repo . ' channel=' . $channel);
+        }
+        return $data;
+    }
+
+    private static function githubFileContents(string $repo, string $path, string $ref, string $token): string
+    {
+        $api = 'https://api.github.com/repos/' . $repo . '/contents/' . implode('/', array_map('rawurlencode', explode('/', $path)))
+            . '?ref=' . rawurlencode($ref);
+        $data = json_decode(self::httpGet($api, $token), true);
+        if (!is_array($data)) {
+            throw new RuntimeException('Cannot read ' . $path . ' @ ' . $ref);
+        }
+        if (($data['encoding'] ?? '') === 'base64' && isset($data['content'])) {
+            $bin = base64_decode(preg_replace('/\s+/', '', (string)$data['content']) ?: '', true);
+            return is_string($bin) ? $bin : '';
+        }
+        if (!empty($data['download_url'])) {
+            return self::httpGet((string)$data['download_url'], $token);
+        }
+        throw new RuntimeException('Unexpected contents payload for ' . $path);
+    }
+
+    /** @param array<string,mixed> $asset */
     private static function githubAssetDownloadUrl(array $asset): string
     {
         $api = trim((string)($asset['url'] ?? ''));
@@ -947,52 +801,19 @@ final class UpdateEngine
         return trim((string)($asset['browser_download_url'] ?? ''));
     }
 
-    /**
-     * @param list<mixed> $assets
-     */
-    private static function findAssetUrl(array $assets, string $name): ?string
+    private static function normalizeTarget(string $target): string
     {
-        $name = basename($name);
-        if ($name === '') {
-            return null;
+        $t = strtolower(trim($target));
+        if (strpos($t, 'module:') === 0) {
+            $t = substr($t, strlen('module:'));
         }
-        foreach ($assets as $a) {
-            if (!is_array($a)) {
-                continue;
-            }
-            if ((string)($a['name'] ?? '') === $name) {
-                $dl = self::githubAssetDownloadUrl($a);
-                return $dl !== '' ? $dl : null;
-            }
+        if ($t === '' || $t === 'core') {
+            return 'core';
         }
-        return null;
-    }
-
-    /**
-     * @param array<string,mixed> $data
-     * @return array{version:string,url:string,sha256?:string,artifact?:string,tag?:string}
-     */
-    private static function normalizeManifest(array $data, string $token): array
-    {
-        $version = trim((string)($data['version'] ?? ''));
-        $url = trim((string)($data['url'] ?? $data['download_url'] ?? ''));
-        $sha = trim((string)($data['sha256'] ?? ''));
-        $artifact = trim((string)($data['artifact'] ?? ''));
-        if ($url === '') {
-            throw new RuntimeException('manifest missing url');
+        if (!preg_match('/^[a-z][a-z0-9_]*$/', $t)) {
+            throw new InvalidArgumentException('Invalid target id');
         }
-        if ($version === '') {
-            throw new RuntimeException('manifest missing version');
-        }
-        $out = [
-            'version' => $version,
-            'url' => $url,
-            'artifact' => $artifact !== '' ? $artifact : basename(parse_url($url, PHP_URL_PATH) ?: 'artifact.zip'),
-        ];
-        if ($sha !== '') {
-            $out['sha256'] = $sha;
-        }
-        return $out;
+        return $t;
     }
 
     private static function isNewer(string $remote, string $local): bool
@@ -1016,15 +837,16 @@ final class UpdateEngine
             return $p;
         }
         if ($kind === 'module') {
-            // Zip root is module tree, or contains modules/<id>/
             if (is_file($root . '/module.json')) {
                 return $root;
             }
             $nested = $root . '/modules/' . $id;
-            if (is_dir($nested) && is_file($nested . '/module.json')) {
+            if (is_dir($nested)) {
                 return $nested;
             }
+            throw new RuntimeException('Module tree not found in archive: ' . $id);
         }
+        // core / full tree root
         return $root;
     }
 
@@ -1042,10 +864,38 @@ final class UpdateEngine
     /**
      * @return int files copied
      */
-    private static function overlay(string $fromDir, string $kind, string $id): int
+    private static function overlay(string $fromDir, string $kind, string $id, string $bundle = ''): int
     {
         $base = rtrim(base_path(''), '/');
+        $private = array_fill_keys(self::privateModuleIds(), true);
         $copied = 0;
+
+        // Module apply: fromDir is already the module root → write into modules/<id>/
+        // Core/full apply: fromDir is tree root → copy relative paths (skip private modules).
+        if ($kind === 'module') {
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($fromDir, FilesystemIterator::SKIP_DOTS)
+            );
+            /** @var SplFileInfo $file */
+            foreach ($iterator as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
+                $full = $file->getPathname();
+                $rel = str_replace('\\', '/', substr($full, strlen($fromDir) + 1));
+                if ($rel === '' || $rel === false) {
+                    continue;
+                }
+                $destRel = 'modules/' . $id . '/' . $rel;
+                if (self::isDenied($destRel)) {
+                    continue;
+                }
+                $copied += self::copyOne($full, $base . '/' . $destRel) ? 1 : 0;
+            }
+            return $copied;
+        }
+
+        // Full / core tree overlay from monorepo zip
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($fromDir, FilesystemIterator::SKIP_DOTS)
         );
@@ -1055,36 +905,35 @@ final class UpdateEngine
                 continue;
             }
             $full = $file->getPathname();
-            $rel = substr($full, strlen($fromDir) + 1);
-            $rel = str_replace('\\', '/', $rel);
-            if ($rel === false || $rel === '') {
+            $rel = str_replace('\\', '/', substr($full, strlen($fromDir) + 1));
+            if ($rel === '' || $rel === false) {
                 continue;
             }
-            if ($kind === 'module') {
-                $destRel = 'modules/' . $id . '/' . $rel;
-            } else {
-                // Platform package: never touch product modules (even if zip still contains them).
-                $destRel = $rel;
-                if (!self::isCoreAllowed($destRel)) {
-                    continue;
-                }
-            }
-            if (self::isDenied($destRel)) {
+            if (self::isDenied($rel)) {
                 continue;
             }
-            $dest = $base . '/' . $destRel;
-            $destDir = dirname($dest);
-            if (!is_dir($destDir)) {
-                if (!@mkdir($destDir, 0755, true) && !is_dir($destDir)) {
-                    throw new RuntimeException('Cannot create directory: ' . $destDir);
+            if (preg_match('#^modules/([a-z][a-z0-9_]*)(/|$)#', $rel, $m)) {
+                if (isset($private[$m[1]])) {
+                    continue; // owned by external [module.x]
                 }
             }
-            if (!@copy($full, $dest)) {
-                throw new RuntimeException('Cannot write: ' . $destRel);
-            }
-            $copied++;
+            $copied += self::copyOne($full, $base . '/' . $rel) ? 1 : 0;
         }
         return $copied;
+    }
+
+    private static function copyOne(string $from, string $to): bool
+    {
+        $dir = dirname($to);
+        if (!is_dir($dir)) {
+            if (!@mkdir($dir, 0755, true) && !is_dir($dir)) {
+                throw new RuntimeException('Cannot create directory: ' . $dir);
+            }
+        }
+        if (!@copy($from, $to)) {
+            throw new RuntimeException('Cannot write: ' . $to);
+        }
+        return true;
     }
 
     private static function isDenied(string $rel): bool
@@ -1102,22 +951,6 @@ final class UpdateEngine
         }
         if (strpos($rel, 'cfg/modules/') === 0 && substr($rel, -4) === '.ini') {
             return true;
-        }
-        return false;
-    }
-
-    private static function isCoreAllowed(string $rel): bool
-    {
-        $rel = ltrim(str_replace('\\', '/', $rel), '/');
-        foreach (self::CORE_ALLOW_FILES as $f) {
-            if ($rel === $f) {
-                return true;
-            }
-        }
-        foreach (self::CORE_ALLOW_PREFIXES as $p) {
-            if (strpos($rel, $p) === 0) {
-                return true;
-            }
         }
         return false;
     }
@@ -1148,10 +981,8 @@ final class UpdateEngine
                 }
                 $target = $destDir . '/' . $name;
                 $parent = dirname($target);
-                if (!is_dir($parent)) {
-                    if (!@mkdir($parent, 0755, true) && !is_dir($parent)) {
-                        throw new RuntimeException('Cannot create staging dir');
-                    }
+                if (!is_dir($parent) && !@mkdir($parent, 0755, true) && !is_dir($parent)) {
+                    throw new RuntimeException('Cannot create staging dir');
                 }
                 $stream = $zip->getStream($name);
                 if ($stream === false) {
@@ -1185,7 +1016,6 @@ final class UpdateEngine
             if ($ch === false) {
                 throw new RuntimeException('curl_init failed');
             }
-            // GitHub private release assets require API URL + octet-stream (not browser_download_url).
             $headers = [
                 'Accept: application/octet-stream',
                 'User-Agent: ' . self::USER_AGENT,
@@ -1218,9 +1048,6 @@ final class UpdateEngine
         }
     }
 
-    /**
-     * @param bool $octetStream true for GitHub release asset API URLs (private-repo downloads)
-     */
     private static function httpGet(string $url, string $token, bool $octetStream = false): string
     {
         if (!function_exists('curl_init')) {
@@ -1265,11 +1092,11 @@ final class UpdateEngine
     {
         $path = self::statePath();
         if (!is_file($path)) {
-            return ['core' => null, 'modules' => [], 'last_check' => null];
+            return ['core' => null, 'modules' => [], 'last_check' => null, 'last_check_targets' => []];
         }
         $data = json_decode((string)@file_get_contents($path), true);
         if (!is_array($data)) {
-            return ['core' => null, 'modules' => [], 'last_check' => null];
+            return ['core' => null, 'modules' => [], 'last_check' => null, 'last_check_targets' => []];
         }
         if (!isset($data['modules']) || !is_array($data['modules'])) {
             $data['modules'] = [];
@@ -1286,10 +1113,7 @@ final class UpdateEngine
             @mkdir($dir, 0755, true);
         }
         $json = json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
-        if ($json === false) {
-            throw new RuntimeException('Cannot encode updates state');
-        }
-        if (@file_put_contents($path, $json . "\n") === false) {
+        if ($json === false || @file_put_contents($path, $json . "\n") === false) {
             throw new RuntimeException('Cannot write ' . $path);
         }
     }
@@ -1307,7 +1131,6 @@ final class UpdateEngine
         if (!flock($fh, LOCK_EX | LOCK_NB)) {
             $mtime = @filemtime($path);
             if (is_int($mtime) && (time() - $mtime) > self::LOCK_TTL_SEC) {
-                // stale lock — try once more after truncate hint
                 flock($fh, LOCK_UN);
                 fclose($fh);
                 @unlink($path);
@@ -1367,11 +1190,9 @@ final class UpdateEngine
         @rmdir($dir);
     }
 
-    // --- Chunked apply jobs (UI progress) ------------------------------------
+    // --- Jobs (progress UI) -------------------------------------------------
 
-    /**
-     * @return array<string,mixed>
-     */
+    /** @return array<string,mixed> */
     public static function jobStart(?string $target = null, bool $migrate = true): array
     {
         $onlyNewer = $target === null || trim((string)$target) === '' || strtolower(trim((string)$target)) === 'all';
@@ -1386,12 +1207,12 @@ final class UpdateEngine
             'progress' => 0,
             'message' => t('updates.job.starting'),
             'step' => 'resolve',
-            'step_index' => 0,
             'target_index' => 0,
             'targets' => $packages,
             'migrate' => $migrate,
             'results' => [],
             'work' => null,
+            'archives' => [],
             'error' => '',
             'created_at' => time(),
             'updated_at' => time(),
@@ -1420,14 +1241,13 @@ final class UpdateEngine
         $targets = is_array($job['targets'] ?? null) ? $job['targets'] : [];
         $ti = (int)($job['target_index'] ?? 0);
         $cur = $targets[$ti] ?? null;
-        $curId = is_array($cur) ? (string)($cur['id'] ?? '') : '';
         return [
             'id' => (string)($job['id'] ?? ''),
             'status' => (string)($job['status'] ?? ''),
             'progress' => (int)($job['progress'] ?? 0),
             'message' => (string)($job['message'] ?? ''),
             'step' => (string)($job['step'] ?? ''),
-            'target' => $curId,
+            'target' => is_array($cur) ? (string)($cur['id'] ?? '') : '',
             'target_index' => $ti,
             'targets_total' => count($targets),
             'error' => (string)($job['error'] ?? ''),
@@ -1443,7 +1263,7 @@ final class UpdateEngine
             $job['status'] = 'cancelled';
             $job['message'] = t('updates.job.cancelled');
             $job['updated_at'] = time();
-            self::jobCleanupWork($job);
+            self::jobCleanupArchives($job);
             self::jobSave($job);
         }
         return $job;
@@ -1470,36 +1290,39 @@ final class UpdateEngine
                 $job['status'] = 'done';
                 $job['progress'] = 100;
                 $job['message'] = t('updates.job.done');
+                self::jobCleanupArchives($job);
                 $job['updated_at'] = time();
                 self::jobSave($job);
                 return $job;
             }
             $source = $targets[$ti];
-            $step = (string)($job['step'] ?? 'resolve');
             $sid = (string)($source['id'] ?? '');
+            $step = (string)($job['step'] ?? 'resolve');
             $work = is_array($job['work'] ?? null) ? $job['work'] : [];
+            $archives = is_array($job['archives'] ?? null) ? $job['archives'] : [];
 
             if ($step === 'resolve') {
                 $job['message'] = t('updates.job.step_resolve', ['id' => $sid]);
-                $remote = self::packageRemote($source);
-                $stamp = gmdate('YmdHis') . '-' . preg_replace('/[^a-z0-9_]+/i', '', $sid);
-                $work = [
-                    'remote' => $remote,
-                    'zip' => self::workDir() . '/' . $stamp . '.zip',
-                    'stage' => self::workDir() . '/' . $stamp . '-stage',
-                    'copied' => 0,
-                ];
+                $remote = self::resolveRemoteMeta($source);
+                $cacheKey = ((string)($source['bundle'] ?? '')) . '|' . ((string)($source['repo'] ?? '')) . '|' . ((string)($remote['ref'] ?? '')) . '|' . ((string)$remote['url']);
+                $work = ['remote' => $remote, 'cache_key' => $cacheKey, 'copied' => 0];
                 $job['work'] = $work;
-                $job['step'] = 'download';
+                $job['step'] = isset($archives[$cacheKey]) ? 'overlay' : 'download';
             } elseif ($step === 'download') {
                 $job['message'] = t('updates.job.step_download', ['id' => $sid]);
                 self::ensureDir(self::workDir());
-                self::downloadFile((string)$work['remote']['url'], (string)$work['zip'], (string)$source['token']);
+                $stamp = gmdate('YmdHis') . '-' . substr(sha1((string)$work['cache_key']), 0, 8);
+                $zipPath = self::workDir() . '/' . $stamp . '.zip';
+                $stageDir = self::workDir() . '/' . $stamp . '-stage';
+                self::downloadFile((string)$work['remote']['url'], $zipPath, (string)$source['token']);
+                $work['zip'] = $zipPath;
+                $work['stage'] = $stageDir;
+                $job['work'] = $work;
                 $job['step'] = 'verify';
             } elseif ($step === 'verify') {
                 $job['message'] = t('updates.job.step_verify', ['id' => $sid]);
                 $sha = (string)($work['remote']['sha256'] ?? '');
-                if ($sha !== '') {
+                if ($sha !== '' && !empty($work['zip'])) {
                     $got = hash_file('sha256', (string)$work['zip']);
                     if (!is_string($got) || !hash_equals(strtolower($sha), strtolower($got))) {
                         throw new RuntimeException('SHA-256 mismatch for ' . $sid);
@@ -1509,25 +1332,30 @@ final class UpdateEngine
             } elseif ($step === 'extract') {
                 $job['message'] = t('updates.job.step_extract', ['id' => $sid]);
                 self::extractZip((string)$work['zip'], (string)$work['stage']);
+                $archives[(string)$work['cache_key']] = [
+                    'zip' => (string)$work['zip'],
+                    'stage' => (string)$work['stage'],
+                ];
+                $job['archives'] = $archives;
                 $job['step'] = 'overlay';
             } elseif ($step === 'overlay') {
                 $job['message'] = t('updates.job.step_overlay', ['id' => $sid]);
+                $key = (string)($work['cache_key'] ?? '');
+                $stage = (string)(($archives[$key]['stage'] ?? $work['stage'] ?? ''));
                 $payloadRoot = self::findPayloadRoot(
-                    (string)$work['stage'],
+                    $stage,
                     (string)($source['path_prefix'] ?? ''),
                     (string)$source['kind'],
                     $sid
                 );
-                $work['copied'] = self::overlay($payloadRoot, (string)$source['kind'], $sid);
+                $work['copied'] = self::overlay($payloadRoot, (string)$source['kind'], $sid, (string)($source['bundle'] ?? ''));
                 $job['work'] = $work;
                 $job['step'] = !empty($job['migrate']) ? 'migrate' : 'finalize';
             } elseif ($step === 'migrate') {
                 $job['message'] = t('updates.job.step_migrate', ['id' => $sid]);
-                if ($source['kind'] === 'module') {
-                    $mig = AgentOps::migrateRun($sid);
-                } else {
-                    $mig = AgentOps::migrateRun(null);
-                }
+                $mig = $source['kind'] === 'module'
+                    ? AgentOps::migrateRun($sid)
+                    : AgentOps::migrateRun(null);
                 $work['migrate'] = $mig;
                 $job['work'] = $work;
                 if (empty($mig['ok'])) {
@@ -1538,18 +1366,12 @@ final class UpdateEngine
                 $job['message'] = t('updates.job.step_finalize', ['id' => $sid]);
                 $remote = is_array($work['remote'] ?? null) ? $work['remote'] : [];
                 $mig = $work['migrate'] ?? ['ok' => true, 'skipped' => true];
-                $health = null;
-                try {
-                    $health = AgentOps::health($source['kind'] === 'module' ? $sid : null);
-                } catch (Throwable $e) {
-                    $health = ['ok' => false, 'error' => $e->getMessage()];
-                }
                 $state = self::readState();
                 $entry = [
                     'version' => (string)($remote['version'] ?? ''),
                     'applied_at' => gmdate('c'),
                     'ok' => true,
-                    'artifact' => $remote['artifact'] ?? null,
+                    'ref' => $remote['ref'] ?? null,
                 ];
                 if ($source['kind'] === 'core') {
                     $state['core'] = $entry;
@@ -1567,34 +1389,26 @@ final class UpdateEngine
                     'version' => (string)($remote['version'] ?? ''),
                     'files_copied' => (int)($work['copied'] ?? 0),
                     'migrate' => $mig,
-                    'health' => $health,
                 ];
-                @unlink((string)($work['zip'] ?? ''));
-                self::rmTree((string)($work['stage'] ?? ''));
                 $job['work'] = null;
                 $job['target_index'] = $ti + 1;
                 $job['step'] = 'resolve';
-                $job['step_index'] = 0;
             } else {
                 $job['step'] = 'resolve';
             }
 
             $nTargets = max(1, count($targets));
-            $stepList = self::JOB_STEPS;
-            $si = array_search((string)$job['step'], $stepList, true);
+            $si = array_search((string)$job['step'], self::JOB_STEPS, true);
             if ($si === false) {
                 $si = 0;
             }
-            // Progress within current target + completed targets
             $doneTargets = (int)$job['target_index'];
-            if ($job['step'] === 'resolve' && $doneTargets > $ti) {
-                // advanced
-            }
-            $frac = ($doneTargets + (($si + 1) / max(1, count($stepList)))) / $nTargets;
-            if (($job['target_index'] ?? 0) >= $nTargets) {
+            $frac = ($doneTargets + (($si + 1) / max(1, count(self::JOB_STEPS)))) / $nTargets;
+            if ($doneTargets >= $nTargets) {
                 $job['status'] = 'done';
                 $job['progress'] = 100;
                 $job['message'] = t('updates.job.done');
+                self::jobCleanupArchives($job);
             } else {
                 $job['progress'] = (int)min(99, floor($frac * 100));
             }
@@ -1606,7 +1420,7 @@ final class UpdateEngine
             $job['error'] = $e->getMessage();
             $job['message'] = $e->getMessage();
             $job['updated_at'] = time();
-            self::jobCleanupWork($job);
+            self::jobCleanupArchives($job);
             self::jobSave($job);
             return $job;
         } finally {
@@ -1635,18 +1449,30 @@ final class UpdateEngine
     }
 
     /** @param array<string,mixed> $job */
-    private static function jobCleanupWork(array &$job): void
+    private static function jobCleanupArchives(array &$job): void
     {
+        $archives = is_array($job['archives'] ?? null) ? $job['archives'] : [];
+        foreach ($archives as $a) {
+            if (!is_array($a)) {
+                continue;
+            }
+            if (!empty($a['zip'])) {
+                @unlink((string)$a['zip']);
+            }
+            if (!empty($a['stage'])) {
+                self::rmTree((string)$a['stage']);
+            }
+        }
+        $job['archives'] = [];
         $work = is_array($job['work'] ?? null) ? $job['work'] : null;
-        if ($work === null) {
-            return;
+        if ($work !== null) {
+            if (!empty($work['zip'])) {
+                @unlink((string)$work['zip']);
+            }
+            if (!empty($work['stage'])) {
+                self::rmTree((string)$work['stage']);
+            }
+            $job['work'] = null;
         }
-        if (!empty($work['zip'])) {
-            @unlink((string)$work['zip']);
-        }
-        if (!empty($work['stage'])) {
-            self::rmTree((string)$work['stage']);
-        }
-        $job['work'] = null;
     }
 }
