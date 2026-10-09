@@ -16,18 +16,18 @@ For each package, UpdateEngine reads the live file from the configured git ref v
 | module in monorepo | `modules/<id>/module.json` → `version` |
 | external `[module.x]` | that repo’s `module.json` (or path under `path_prefix`) |
 
-~1 request per module (~40–45 with a token is fine). No registry file required for check.
+~1 request per module (~40–45 with a token is fine). No registry / catalog file required.
 
 `/updates` shows **local + remote** versions for every package, plus **last check** time (`cfg/updates.state.json`).
 
 ### Apply (one archive for the monorepo)
 
 - Channel `main` / branch / tag → GitHub **zipball** of that ref (full tree).
-- Channel `stable` / `latest` → latest Release: prefer one **full** asset (`freesaas-*.zip` or `asset=`), else zipball of the release tag.
+- Channel `stable` / `latest` → latest Release: prefer one **full** asset (`freesaas-<ver>.zip` or `asset=`), else zipball of the release tag.
 - Overlay skips deny-list (`cfg/`, `var/`, …) and any module that has its own `[module.<id>]` (private/external).
 - External modules: download that repo’s archive and overlay only `modules/<id>/`.
 
-Product modules are **not** shipped as separate zips from this monorepo. If a module later lives in another repo, add `[module.id]` and build that module with `bin/build-release-artifacts.sh --module=id`.
+Product modules are **not** shipped as separate zips from this monorepo. If a module later lives in another repo, add `[module.id]` and build with `bin/build-release-artifacts.sh --module=id`.
 
 ## Setup
 
@@ -50,17 +50,10 @@ Optional public hint in `module.json` (candidates table only — not enough for 
 
 CI / [`bin/build-release-artifacts.sh`](../../bin/build-release-artifacts.sh) builds:
 
-| Asset | Who uses it |
-|-------|-------------|
-| `freesaas-<VERSION>.zip` | **New** engine (full tree; `PRIVATE_MODULES` excluded) |
-| `freesaas-manifest.json` | `{kind:"full", …}` + bridge pointers |
-| `freesaas-core-<VERSION>.zip` | **Old** engines (≤0.3.2): platform overlay |
-| `freesaas-module-updates-*.zip` | **Old** engines: updates UI (`CORE_ALLOW` skips `modules/updates/` in core zip) |
-| `freesaas-catalog.json` | **Old** engines: package index (core + updates only) |
+- `freesaas-<VERSION>.zip` — whole tree minus private modules (`PRIVATE_MODULES=likespa`)
+- `freesaas-manifest.json` — `{kind:"full", version, sha256, artifact}`
 
-**Bridge (0.3.2 → 0.3.3+):** old instances `check`/`apply` via catalog → get new `UpdateEngine` + updates UI → next cycle uses Contents API + full zip / zipball. Product modules are **not** split into per-module zips from this monorepo.
-
-Attach all of the above to the GitHub Release (see `.github/workflows/release-artifacts.yml`).
+Attach both to the GitHub Release (see `.github/workflows/release-artifacts.yml`).
 
 ## Deny-list
 
@@ -102,6 +95,6 @@ Apply requires `updates.apply` + `SUPERADMIN_ACCESS`.
 ## Publish flow
 
 1. Bump `VERSION` (+ `modules/core/module.json`); commit & push.
-2. Tag / publish a GitHub Release → CI attaches full zip + bridge core/catalog/updates.
+2. Tag / publish a GitHub Release → CI attaches `freesaas-*.zip` + manifest.
 3. Instances on `channel=stable` pull the release; `channel=main` can use zipball without a Release.
 4. Private module in another repo → `[module.id]` + optional `--module=id` zip.

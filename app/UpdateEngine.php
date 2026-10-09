@@ -14,7 +14,6 @@ final class UpdateEngine
 {
     private const USER_AGENT = 'FreeSaaS-UpdateEngine/1.0';
     private const LOCK_TTL_SEC = 1800;
-    private const MANIFEST_ASSET = 'freesaas-manifest.json';
 
     private const DENY_PREFIXES = [
         'cfg/',
@@ -673,41 +672,13 @@ final class UpdateEngine
                 }
             }
             if ($picked === null) {
-                // Prefer full monorepo zip (freesaas-1.2.3.zip), not freesaas-core-* / module-*.
+                // Full monorepo zip only: freesaas-1.2.3.zip (not core-/module-).
                 foreach ($assets as $a) {
                     if (!is_array($a)) {
                         continue;
                     }
                     $name = (string)($a['name'] ?? '');
                     if (preg_match('/^freesaas-\d+\.\d+.*\.zip$/i', $name)) {
-                        $picked = $a;
-                        break;
-                    }
-                }
-            }
-            if ($picked === null) {
-                foreach ($assets as $a) {
-                    if (!is_array($a)) {
-                        continue;
-                    }
-                    $name = (string)($a['name'] ?? '');
-                    if (preg_match('/\.zip$/i', $name)
-                        && !preg_match('/^freesaas-module-/i', $name)
-                        && !preg_match('/^freesaas-core-/i', $name)
-                    ) {
-                        $picked = $a;
-                        break;
-                    }
-                }
-            }
-            // Last resort on a release that only has the bridge core zip.
-            if ($picked === null) {
-                foreach ($assets as $a) {
-                    if (!is_array($a)) {
-                        continue;
-                    }
-                    $name = (string)($a['name'] ?? '');
-                    if (preg_match('/^freesaas-core-.*\.zip$/i', $name)) {
                         $picked = $a;
                         break;
                     }
