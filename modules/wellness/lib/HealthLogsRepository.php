@@ -135,21 +135,14 @@ final class HealthLogsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_healths_logs
-             (DT_CREATE, DT, ID_USER, ID_SYMPTOM, ID_MEDICINE, LEVEL, DESCR)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            time(),
-            $data['dt'],
-            WellnessOwner::userId(),
-            $data['symptom_id'],
-            $data['medicine_id'],
-            $data['level'],
-            $data['descr'],
+        return WellnessOwner::insertOwned('base_healths_logs', [
+            'DT_CREATE' => time(),
+            'DT' => (int)$data['dt'],
+            'ID_SYMPTOM' => (int)$data['symptom_id'],
+            'ID_MEDICINE' => (int)$data['medicine_id'],
+            'LEVEL' => $data['level'],
+            'DESCR' => $data['descr'],
         ]);
-        return (int)Database::pdo()->lastInsertId();
     }
 
     /** @param array<string,mixed> $data */

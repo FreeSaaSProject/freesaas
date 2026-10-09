@@ -181,19 +181,13 @@ final class FitFoodsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_fit_foods (ID_USER, NAME, CCALS, CARBS, PROTEINS, FATS)
-             VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            WellnessOwner::userId(),
-            $data['name'],
-            $data['ccals'],
-            $data['carbs'],
-            $data['proteins'],
-            $data['fats'],
+        return WellnessOwner::insertOwned('base_fit_foods', [
+            'NAME' => $data['name'],
+            'CCALS' => $data['ccals'],
+            'CARBS' => $data['carbs'],
+            'PROTEINS' => $data['proteins'],
+            'FATS' => $data['fats'],
         ]);
-        return (int)Database::pdo()->lastInsertId();
     }
 
     /** @param array<string,mixed> $data */

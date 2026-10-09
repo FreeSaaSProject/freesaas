@@ -211,10 +211,13 @@ final class FitRecipeSync
             return $target;
         }
 
-        Database::pdo()->prepare(
-            'INSERT INTO base_fit_foods (ID_USER, NAME, CCALS, CARBS, PROTEINS, FATS, ID_SOURCE_RECIPE)
-             VALUES (?, ?, ?, ?, ?, ?, ?)'
-        )->execute([$userId, $name, $c, $u, $p, $f, $recipeId]);
-        return (int)Database::pdo()->lastInsertId();
+        return WellnessOwner::insertOwned('base_fit_foods', [
+            'NAME' => $name,
+            'CCALS' => $c,
+            'CARBS' => $u,
+            'PROTEINS' => $p,
+            'FATS' => $f,
+            'ID_SOURCE_RECIPE' => $recipeId,
+        ], $userId);
     }
 }

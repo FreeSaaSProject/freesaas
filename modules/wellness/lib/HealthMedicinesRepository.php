@@ -91,11 +91,10 @@ final class HealthMedicinesRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_healths_medicines (ID_USER, DT_CREATE, NAME) VALUES (?, ?, ?)'
-        );
-        $st->execute([WellnessOwner::userId(), time(), $data['name']]);
-        return (int)Database::pdo()->lastInsertId();
+        return WellnessOwner::insertOwned('base_healths_medicines', [
+            'DT_CREATE' => time(),
+            'NAME' => $data['name'],
+        ]);
     }
 
     /** @param array<string,mixed> $data */

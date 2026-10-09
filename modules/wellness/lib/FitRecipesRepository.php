@@ -71,13 +71,18 @@ final class FitRecipesRepository
             return 0;
         }
         $portions = max(1, $portions);
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_fit_recipes
-             (ID_USER, DT_CREATE, NAME, PORTIONS, WEIGHT_COOKED_G, CCALS, PROTEINS, FATS, CARBS, SOURCE, DISABLED)
-             VALUES (?, ?, ?, ?, ?, 0, 0, 0, 0, ?, 0)'
-        );
-        $st->execute([$userId, time(), mb_substr($name, 0, 255), $portions, $cookedG, 'manual']);
-        return (int)Database::pdo()->lastInsertId();
+        return WellnessOwner::insertOwned('base_fit_recipes', [
+            'DT_CREATE' => time(),
+            'NAME' => mb_substr($name, 0, 255),
+            'PORTIONS' => $portions,
+            'WEIGHT_COOKED_G' => $cookedG,
+            'CCALS' => 0,
+            'PROTEINS' => 0,
+            'FATS' => 0,
+            'CARBS' => 0,
+            'SOURCE' => 'manual',
+            'DISABLED' => 0,
+        ], $userId);
     }
 
     public static function updateMeta(int $id, string $name, int $portions, ?float $cookedG): void

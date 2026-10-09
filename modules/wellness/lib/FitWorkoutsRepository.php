@@ -120,19 +120,13 @@ final class FitWorkoutsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_fitlogs (ID_USER, DT_CREATE, DT_START, DT_END, NAME, CCALS)
-             VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            WellnessOwner::userId(),
-            time(),
-            $data['dt_start'],
-            $data['dt_end'],
-            $data['name'],
-            $data['ccals'],
+        return WellnessOwner::insertOwned('base_fitlogs', [
+            'DT_CREATE' => time(),
+            'DT_START' => (int)$data['dt_start'],
+            'DT_END' => (int)$data['dt_end'],
+            'NAME' => $data['name'],
+            'CCALS' => $data['ccals'],
         ]);
-        return (int)Database::pdo()->lastInsertId();
     }
 
     /** @param array<string,mixed> $data */

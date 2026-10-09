@@ -106,23 +106,16 @@ final class FitTargetsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_fit_targets
-             (ID_USER, DT_CREATE, DT, WEIGHT, CCALS, CARBS, PROTEINS, FATS, NAME)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            WellnessOwner::userId(),
-            time(),
-            $data['dt'],
-            $data['weight'],
-            $data['ccals'],
-            $data['carbs'],
-            $data['proteins'],
-            $data['fats'],
-            $data['name'],
+        return WellnessOwner::insertOwned('base_fit_targets', [
+            'DT_CREATE' => time(),
+            'DT' => (int)$data['dt'],
+            'WEIGHT' => $data['weight'],
+            'CCALS' => $data['ccals'],
+            'CARBS' => $data['carbs'],
+            'PROTEINS' => $data['proteins'],
+            'FATS' => $data['fats'],
+            'NAME' => $data['name'],
         ]);
-        return (int)Database::pdo()->lastInsertId();
     }
 
     /** @param array<string,mixed> $data */

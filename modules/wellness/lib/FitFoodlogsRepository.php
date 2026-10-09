@@ -155,24 +155,16 @@ final class FitFoodlogsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $now = time();
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_fit_foodlogs
-             (ID_USER, ID_FOOD, DT_CREATE, DT, WEIGHT, CCALS, CARBS, PROTEINS, FATS)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            WellnessOwner::userId(),
-            $data['food_id'],
-            $now,
-            $data['dt'],
-            $data['weight'],
-            $data['ccals'],
-            $data['carbs'],
-            $data['proteins'],
-            $data['fats'],
+        return WellnessOwner::insertOwned('base_fit_foodlogs', [
+            'ID_FOOD' => (int)$data['food_id'],
+            'DT_CREATE' => time(),
+            'DT' => (int)$data['dt'],
+            'WEIGHT' => $data['weight'],
+            'CCALS' => $data['ccals'],
+            'CARBS' => $data['carbs'],
+            'PROTEINS' => $data['proteins'],
+            'FATS' => $data['fats'],
         ]);
-        return (int)Database::pdo()->lastInsertId();
     }
 
     /** @param array<string,mixed> $data */

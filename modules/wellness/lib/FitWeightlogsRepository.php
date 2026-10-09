@@ -120,27 +120,20 @@ final class FitWeightlogsRepository
             self::update($exId, $data);
             return $exId;
         }
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_fit_weightlogs
-             (ID_USER, DT_CREATE, DT, WEIGHT, FAT, WATER, MUSCLES, FATCLASS, METACALS, METAAGE, INTFAT, WAIST, HIPS)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            $userId,
-            time(),
-            $data['dt'],
-            $data['weight'],
-            $data['fat'],
-            $data['water'],
-            $data['muscles'],
-            $data['fatclass'],
-            $data['metacals'],
-            $data['metaage'],
-            $data['intfat'],
-            $data['waist'],
-            $data['hips'],
-        ]);
-        return (int)Database::pdo()->lastInsertId();
+        return WellnessOwner::insertOwned('base_fit_weightlogs', [
+            'DT_CREATE' => time(),
+            'DT' => (int)$data['dt'],
+            'WEIGHT' => $data['weight'],
+            'FAT' => $data['fat'],
+            'WATER' => $data['water'],
+            'MUSCLES' => $data['muscles'],
+            'FATCLASS' => $data['fatclass'],
+            'METACALS' => $data['metacals'],
+            'METAAGE' => $data['metaage'],
+            'INTFAT' => $data['intfat'],
+            'WAIST' => $data['waist'],
+            'HIPS' => $data['hips'],
+        ], $userId);
     }
 
     /** @param array<string,mixed> $data */

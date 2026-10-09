@@ -362,12 +362,18 @@ final class FitFoodBotPlugin
             self::reply($ctx, t('wellness.bot.no_foods'), self::kbHome());
             return;
         }
-        $data = FitFoodlogsRepository::dataFromPost([
-            'food_id' => $foodId,
-            'weight' => $weight,
-            'dt' => time(),
-        ]);
-        FitFoodlogsRepository::create($data);
+        try {
+            $data = FitFoodlogsRepository::dataFromPost([
+                'food_id' => $foodId,
+                'weight' => $weight,
+                'dt' => time(),
+            ]);
+            FitFoodlogsRepository::create($data);
+        } catch (Throwable $e) {
+            error_log('[wellness.bot.logFood] ' . $e->getMessage());
+            self::reply($ctx, t('wellness.bot.save_fail'), self::kbHome());
+            return;
+        }
         self::setState($ctx, 'await_input', ['user_id' => $uid]);
         $line = t('wellness.bot.logged', [
             'name' => (string)$food['name'],
@@ -390,12 +396,18 @@ final class FitFoodBotPlugin
         $kcal = isset($m[3]) ? (int)round((float)str_replace(',', '.', $m[3])) : 0;
         $start = time();
         $end = $start + (int)round($mins * 60);
-        FitWorkoutsRepository::create([
-            'name' => mb_substr($name, 0, 255),
-            'dt_start' => $start,
-            'dt_end' => $end,
-            'ccals' => max(0, $kcal),
-        ]);
+        try {
+            FitWorkoutsRepository::create([
+                'name' => mb_substr($name, 0, 255),
+                'dt_start' => $start,
+                'dt_end' => $end,
+                'ccals' => max(0, $kcal),
+            ]);
+        } catch (Throwable $e) {
+            error_log('[wellness.bot.logSport] ' . $e->getMessage());
+            self::reply($ctx, t('wellness.bot.save_fail'), self::kbHome());
+            return;
+        }
         self::showHome($ctx, $uid);
     }
 
@@ -525,12 +537,18 @@ final class FitFoodBotPlugin
             return;
         }
         $foodId = (int)$ens['food_id'];
-        $data = FitFoodlogsRepository::dataFromPost([
-            'food_id' => $foodId,
-            'weight' => $grams,
-            'dt' => time(),
-        ]);
-        FitFoodlogsRepository::create($data);
+        try {
+            $data = FitFoodlogsRepository::dataFromPost([
+                'food_id' => $foodId,
+                'weight' => $grams,
+                'dt' => time(),
+            ]);
+            FitFoodlogsRepository::create($data);
+        } catch (Throwable $e) {
+            error_log('[wellness.bot.logRecipe] ' . $e->getMessage());
+            self::reply($ctx, t('wellness.bot.save_fail'), self::kbHome());
+            return;
+        }
         $name = (string)($ens['food_row']['name'] ?? '');
         self::setState($ctx, 'await_input', ['user_id' => $uid]);
         self::reply($ctx, t('wellness.bot.logged', [

@@ -17,6 +17,46 @@ final class WellnessOwner
     }
 
     /**
+     * INSERT into a wellness table with ID_USER ownership.
+     * Dual-writes ID_OPERATOR when the legacy oper column still exists (NOT NULL on prod).
+     *
+     * @param array<string,scalar|null> $fields column => value (without ID_USER / ID_OPERATOR)
+     */
+    public static function insertOwned(string $table, array $fields, ?int $userId = null): int
+    {
+        $uid = $userId !== null ? $userId : self::userId();
+        if ($uid < 1) {
+            throw new RuntimeException(t('wellness.err.auth_required'));
+        }
+        $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table) ?? '';
+        if ($table === '' || !Database::tableExists($table)) {
+            throw new RuntimeException(t('wellness.err.not_found'));
+        }
+        $cols = ['ID_USER'];
+        $vals = [$uid];
+        if (Database::columnExists($table, 'ID_OPERATOR')) {
+            $cols[] = 'ID_OPERATOR';
+            $vals[] = $uid;
+        }
+        foreach ($fields as $col => $val) {
+            $col = (string)$col;
+            if ($col === '' || !preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $col)) {
+                continue;
+            }
+            if (strcasecmp($col, 'ID_USER') === 0 || strcasecmp($col, 'ID_OPERATOR') === 0) {
+                continue;
+            }
+            $cols[] = $col;
+            $vals[] = $val;
+        }
+        $ph = implode(', ', array_fill(0, count($cols), '?'));
+        $sql = 'INSERT INTO `' . $table . '` (`' . implode('`, `', $cols) . '`) VALUES (' . $ph . ')';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($vals);
+        return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
      * @param array<string,mixed>|null $row
      * @return array<string,mixed>
      */

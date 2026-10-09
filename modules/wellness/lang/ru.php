@@ -119,6 +119,7 @@ return [
     'wellness.bot.pick_food' => 'Выберите продукт:',
     'wellness.bot.pick_food_weight' => '«{q}» {g}г — выберите совпадение:',
     'wellness.bot.logged' => '✅ {name} {g}г ({kcal} ккал)',
+    'wellness.bot.save_fail' => 'Не удалось сохранить запись. Попробуйте ещё раз или обратитесь к администратору.',
     'wellness.bot.cancel' => 'Отмена',
     'wellness.bot.back' => 'Назад',
     'wellness.bot.back_food' => '⬅️ К еде и спорту',

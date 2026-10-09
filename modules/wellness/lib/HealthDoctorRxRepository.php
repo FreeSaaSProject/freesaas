@@ -105,18 +105,12 @@ final class HealthDoctorRxRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_healths_recipes (DT_CREATE, DT, ID_USER, DOCTOR, DATA)
-             VALUES (?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            time(),
-            $data['dt'],
-            WellnessOwner::userId(),
-            $data['doctor'],
-            $data['data'],
+        return WellnessOwner::insertOwned('base_healths_recipes', [
+            'DT_CREATE' => time(),
+            'DT' => (int)$data['dt'],
+            'DOCTOR' => $data['doctor'],
+            'DATA' => $data['data'],
         ]);
-        return (int)Database::pdo()->lastInsertId();
     }
 
     /** @param array<string,mixed> $data */
