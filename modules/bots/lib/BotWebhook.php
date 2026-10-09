@@ -99,9 +99,11 @@ final class BotWebhook
 
         if (isset($msg['contact']) && is_array($msg['contact'])) {
             $phone = (string)($msg['contact']['phone_number'] ?? '');
-            self::tryLinkPhone($cfg, 'telegram', $chatId, $phone);
-            $user = self::resolveUser($cfg['audience'], 'telegram', $chatId);
-            self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
+            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $phone): void {
+                self::tryLinkPhone($cfg, 'telegram', $chatId, $phone);
+                $user = self::resolveUser($cfg['audience'], 'telegram', $chatId);
+                self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
+            });
             return;
         }
 
@@ -110,7 +112,9 @@ final class BotWebhook
 
         if ($text !== '' && ($text[0] === '/' || mb_strtolower($text) === 'start')) {
             if (stripos($text, '/start') === 0 || mb_strtolower($text) === 'start') {
-                self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
+                self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $user): void {
+                    self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
+                });
                 return;
             }
         }
@@ -118,9 +122,11 @@ final class BotWebhook
         if ($user === null && $text !== '') {
             $tel = BotIdentity::normalizePhone($text);
             if ($tel !== null) {
-                self::tryLinkPhone($cfg, 'telegram', $chatId, $tel);
-                $user = self::resolveUser($cfg['audience'], 'telegram', $chatId);
-                self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
+                self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $tel): void {
+                    self::tryLinkPhone($cfg, 'telegram', $chatId, $tel);
+                    $user = self::resolveUser($cfg['audience'], 'telegram', $chatId);
+                    self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
+                });
                 return;
             }
         }
@@ -182,22 +188,28 @@ final class BotWebhook
 
         $contactPhone = (string)($msg['body']['contact']['vcf_phone'] ?? $msg['contact']['phone_number'] ?? '');
         if ($contactPhone !== '') {
-            self::tryLinkPhone($cfg, 'max', $chatId, $contactPhone);
-            $user = self::resolveUser($cfg['audience'], 'max', $chatId);
-            self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
+            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $contactPhone): void {
+                self::tryLinkPhone($cfg, 'max', $chatId, $contactPhone);
+                $user = self::resolveUser($cfg['audience'], 'max', $chatId);
+                self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
+            });
             return;
         }
 
         if ($text !== '' && (stripos($text, '/start') === 0 || mb_strtolower($text) === 'start')) {
-            self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
+            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $user): void {
+                self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
+            });
             return;
         }
         if ($user === null && $text !== '') {
             $tel = BotIdentity::normalizePhone($text);
             if ($tel !== null) {
-                self::tryLinkPhone($cfg, 'max', $chatId, $tel);
-                $user = self::resolveUser($cfg['audience'], 'max', $chatId);
-                self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
+                self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $tel): void {
+                    self::tryLinkPhone($cfg, 'max', $chatId, $tel);
+                    $user = self::resolveUser($cfg['audience'], 'max', $chatId);
+                    self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
+                });
                 return;
             }
         }
@@ -221,58 +233,72 @@ final class BotWebhook
         array $extra
     ): void {
         $messageId = isset($extra['message_id']) ? trim((string)$extra['message_id']) : '';
-        $payload = [
-            'audience' => $cfg['audience'],
-            'platform' => $platform,
-            'chat_id' => $chatId,
-            'user' => $user,
-            'kind' => $kind,
-            'token' => $cfg['token'],
-            'callback_data' => (string)($extra['callback_data'] ?? ''),
-            'text' => (string)($extra['text'] ?? ''),
-            'message_id' => $messageId !== '' ? $messageId : null,
-            'raw' => $extra['raw'] ?? null,
-            'handled' => false,
-        ];
-        $payload = EventBus::emit('bots.inbound', $payload);
-        if (!is_array($payload)) {
-            $payload = [];
-        }
-        if (!empty($payload['handled'])) {
-            return;
-        }
+        $mid = $messageId !== '' ? $messageId : null;
+        self::withUiSession($cfg['audience'], $mid, static function () use ($cfg, $platform, $chatId, $user, $kind, $extra, $mid): void {
+            $payload = [
+                'audience' => $cfg['audience'],
+                'platform' => $platform,
+                'chat_id' => $chatId,
+                'user' => $user,
+                'kind' => $kind,
+                'token' => $cfg['token'],
+                'callback_data' => (string)($extra['callback_data'] ?? ''),
+                'text' => (string)($extra['text'] ?? ''),
+                'message_id' => $mid,
+                'raw' => $extra['raw'] ?? null,
+                'handled' => false,
+            ];
+            $payload = EventBus::emit('bots.inbound', $payload);
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+            if (!empty($payload['handled'])) {
+                return;
+            }
 
-        $mid = isset($payload['message_id']) ? trim((string)$payload['message_id']) : '';
-        $mid = $mid !== '' ? $mid : null;
+            $payloadMid = isset($payload['message_id']) ? trim((string)$payload['message_id']) : '';
+            $payloadMid = $payloadMid !== '' ? $payloadMid : $mid;
 
-        if ($kind === 'callback' && (string)($payload['callback_data'] ?? '') === 'cabinet') {
-            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $mid);
-            return;
-        }
+            if ($kind === 'callback' && (string)($payload['callback_data'] ?? '') === 'cabinet') {
+                self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $payloadMid);
+                return;
+            }
 
-        if ($user === null) {
-            self::sendAuthPrompt($cfg, $platform, $chatId, $mid);
-            return;
-        }
+            if ($user === null) {
+                self::sendAuthPrompt($cfg, $platform, $chatId, $payloadMid);
+                return;
+            }
 
-        $ctx = [
-            'audience' => $cfg['audience'],
-            'platform' => $platform,
-            'chat_id' => $chatId,
-            'user' => $user,
-            'token' => $cfg['token'],
-            'callback_data' => (string)($payload['callback_data'] ?? ''),
-            'text' => (string)($payload['text'] ?? ''),
-            'message_id' => $mid,
-            'raw' => $payload['raw'] ?? null,
-        ];
-        $handled = BotPlugins::dispatch($kind, $ctx);
-        if (!$handled && $kind === 'callback' && (string)$ctx['callback_data'] === 'cabinet') {
-            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $mid);
-            return;
-        }
-        if (!$handled && ($kind === 'text' || $kind === 'callback')) {
-            self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $mid);
+            $ctx = [
+                'audience' => $cfg['audience'],
+                'platform' => $platform,
+                'chat_id' => $chatId,
+                'user' => $user,
+                'token' => $cfg['token'],
+                'callback_data' => (string)($payload['callback_data'] ?? ''),
+                'text' => (string)($payload['text'] ?? ''),
+                'message_id' => $payloadMid,
+                'raw' => $payload['raw'] ?? null,
+            ];
+            $handled = BotPlugins::dispatch($kind, $ctx);
+            if (!$handled && $kind === 'callback' && (string)$ctx['callback_data'] === 'cabinet') {
+                self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $payloadMid);
+                return;
+            }
+            if (!$handled && ($kind === 'text' || $kind === 'callback')) {
+                self::sendCabinetOrAuth($cfg, $platform, $chatId, $user, $payloadMid);
+            }
+        });
+    }
+
+    /** @param callable():void $fn */
+    private static function withUiSession(string $audience, ?string $messageId, callable $fn): void
+    {
+        BotClient::beginUiSession($audience, $messageId);
+        try {
+            $fn();
+        } finally {
+            BotClient::endUiSession();
         }
     }
 

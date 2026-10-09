@@ -10,6 +10,37 @@ final class BotClient
     public const MAX_API = 'https://platform-api2.max.ru';
     public const MESSAGE_MAX = 4000;
 
+    /** @var bool When true, sendMessage acts as sendUiMessage (webhook inbound session). */
+    private static bool $uiActive = false;
+    private static string $uiAudience = '';
+    private static ?string $uiMessageId = null;
+
+    /**
+     * Scope webhook handling: any sendMessage from plugins (even old code) replaces prior UI.
+     * Drain / voice workers must not call this — they keep history.
+     */
+    public static function beginUiSession(string $audience, ?string $messageId = null): void
+    {
+        self::$uiActive = true;
+        self::$uiAudience = trim($audience);
+        $mid = $messageId !== null ? trim($messageId) : '';
+        self::$uiMessageId = ($mid !== '' && $mid !== '0') ? $mid : null;
+    }
+
+    public static function endUiSession(): void
+    {
+        self::$uiActive = false;
+        self::$uiAudience = '';
+        self::$uiMessageId = null;
+    }
+
+    private static function takeSessionMessageId(): ?string
+    {
+        $mid = self::$uiMessageId;
+        self::$uiMessageId = null;
+        return $mid;
+    }
+
     /**
      * @param array<string,mixed>|null $replyMarkup Telegram-style inline_keyboard
      * @param string $parseMode Telegram parse_mode (HTML|Markdown|MarkdownV2) or empty
@@ -28,6 +59,18 @@ final class BotClient
         $chatId = trim($chatId);
         if ($token === '' || $chatId === '') {
             return ['ok' => false, 'data' => null, 'error' => 'missing token or chat id'];
+        }
+        if (self::$uiActive) {
+            return self::sendUiMessage(
+                $platform,
+                $token,
+                $chatId,
+                $text,
+                $replyMarkup,
+                $parseMode,
+                self::takeSessionMessageId(),
+                self::$uiAudience
+            );
         }
         if ($platform === 'max') {
             return self::maxSendMessage($token, $chatId, $text, $replyMarkup);
@@ -59,6 +102,15 @@ final class BotClient
         if ($token === '' || $chatId === '') {
             return ['ok' => false, 'data' => null, 'error' => 'missing token or chat id'];
         }
+        $cur = $currentMessageId !== null ? trim($currentMessageId) : '';
+        if ($cur === '' || $cur === '0') {
+            $currentMessageId = self::takeSessionMessageId();
+        } elseif (self::$uiActive && self::$uiMessageId !== null && (string)self::$uiMessageId === $cur) {
+            self::$uiMessageId = null;
+        }
+        if ($audience === '' && self::$uiActive) {
+            $audience = self::$uiAudience;
+        }
         if ($platform === 'max') {
             return self::maxSendUiReplace($token, $chatId, $text, $replyMarkup, $currentMessageId, $audience);
         }
@@ -75,6 +127,10 @@ final class BotClient
     public static function replyUi(array $ctx, string $text, ?array $replyMarkup = null, string $parseMode = ''): array
     {
         $mid = isset($ctx['message_id']) ? trim((string)$ctx['message_id']) : '';
+        $audience = trim((string)($ctx['audience'] ?? ''));
+        if ($audience === '' && self::$uiActive) {
+            $audience = self::$uiAudience;
+        }
         return self::sendUiMessage(
             (string)($ctx['platform'] ?? 'telegram'),
             (string)($ctx['token'] ?? ''),
@@ -83,7 +139,7 @@ final class BotClient
             $replyMarkup,
             $parseMode,
             $mid !== '' ? $mid : null,
-            (string)($ctx['audience'] ?? '')
+            $audience
         );
     }
 
