@@ -79,6 +79,17 @@ body.upd-job-busy { overflow: hidden; }
 .upd-row-avail td { background: rgba(180, 90, 20, 0.06); }
 .upd-row-src { font-size: 0.85em; margin-top: 0.15rem; }
 .upd-status { display: inline-flex; align-items: center; gap: 0.35rem; }
+.upd-status-cell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+.upd-btn-check-one {
+  padding: 0.35rem 0.75rem !important;
+  font-size: 0.85rem !important;
+  font-weight: 600 !important;
+}
 .upd-status--ok { color: #1a7f37; font-weight: 600; }
 .upd-status--avail { color: #9a6700; font-weight: 600; }
 .upd-status--unk { color: var(--muted, #666); }

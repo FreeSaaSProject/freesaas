@@ -207,10 +207,13 @@
     });
   }
 
-  function runLoop(startAction, tickAction, kind) {
+  function runLoop(startAction, tickAction, kind, target) {
     var fd = new FormData();
     fd.set('action', startAction);
     fd.set('format', 'json');
+    if (target && target !== 'all') {
+      fd.set('target', target);
+    }
     showJob(kind);
     return postForm(fd).then(function (start) {
       var job = start.job || {};
@@ -294,8 +297,8 @@
     });
   }
 
-  function runCheck() {
-    return runLoop('update_check_job_start', 'update_check_job_tick', 'check');
+  function runCheck(target) {
+    return runLoop('update_check_job_start', 'update_check_job_tick', 'check', target || '');
   }
 
   document.querySelectorAll('[data-upd-apply]').forEach(function (btn) {
@@ -311,7 +314,12 @@
   document.querySelectorAll('[data-upd-check]').forEach(function (btn) {
     btn.addEventListener('click', function (ev) {
       ev.preventDefault();
-      runCheck();
+      var target = btn.getAttribute('data-upd-check') || 'all';
+      if (target === 'all' || target === '') {
+        runCheck('');
+      } else {
+        runCheck(target);
+      }
     });
   });
 })();

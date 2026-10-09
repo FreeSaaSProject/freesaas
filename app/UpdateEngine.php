@@ -617,16 +617,69 @@ final class UpdateEngine
             foreach ($packages as $p) {
                 $targets[] = self::checkOnePackage($p);
             }
-            self::sortStatusRows($targets);
-            $now = gmdate('c');
-            $state = self::readState();
-            $state['last_check'] = $now;
-            $state['last_check_targets'] = $targets;
-            self::writeState($state);
+            $now = self::persistCheckResults($targets, $target !== null && trim((string)$target) !== '' && strtolower(trim((string)$target)) !== 'all');
             return ['ok' => true, 'targets' => $targets, 'last_check' => $now, 'http' => 200];
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'targets' => [], 'last_check' => '', 'http' => 400];
         }
+    }
+
+    /**
+     * Save check results. Partial=true merges into existing last_check_targets (single-module check).
+     *
+     * @param list<array<string,mixed>> $results
+     */
+    private static function persistCheckResults(array $results, bool $partial): string
+    {
+        $now = gmdate('c');
+        $state = self::readState();
+        if (!$partial) {
+            self::sortStatusRows($results);
+            $state['last_check'] = $now;
+            $state['last_check_targets'] = $results;
+            self::writeState($state);
+            return $now;
+        }
+        $byId = [];
+        $existing = is_array($state['last_check_targets'] ?? null) ? $state['last_check_targets'] : [];
+        if ($existing === []) {
+            try {
+                foreach (self::discoverPackages(null) as $p) {
+                    $id = (string)$p['id'];
+                    $byId[$id] = self::enrichStatusRow([
+                        'id' => $id,
+                        'kind' => $p['kind'],
+                        'bundle' => (string)($p['bundle'] ?? ''),
+                        'repo' => (string)($p['repo'] ?? ''),
+                        'channel' => (string)($p['channel'] ?? ''),
+                        'ref' => '',
+                        'local_version' => self::localVersion($id),
+                        'remote_version' => '',
+                        'update_available' => false,
+                        'configured' => true,
+                    ]);
+                }
+            } catch (Throwable $e) {
+                // ignore
+            }
+        } else {
+            foreach ($existing as $row) {
+                if (is_array($row) && isset($row['id'])) {
+                    $byId[(string)$row['id']] = $row;
+                }
+            }
+        }
+        foreach ($results as $row) {
+            if (is_array($row) && isset($row['id'])) {
+                $byId[(string)$row['id']] = $row;
+            }
+        }
+        $merged = array_values($byId);
+        self::sortStatusRows($merged);
+        $state['last_check'] = $now;
+        $state['last_check_targets'] = $merged;
+        self::writeState($state);
+        return $now;
     }
 
     /**
@@ -661,6 +714,7 @@ final class UpdateEngine
         if ($packages === []) {
             throw new RuntimeException(t('updates.missing_ini'));
         }
+        $partial = $target !== null && trim($target) !== '' && strtolower(trim($target)) !== 'all';
         $id = 'chk-' . bin2hex(random_bytes(8));
         $job = [
             'id' => $id,
@@ -671,6 +725,7 @@ final class UpdateEngine
             'step' => 'check',
             'target_index' => 0,
             'targets' => $packages,
+            'partial' => $partial,
             'results' => [],
             'error' => '',
             'created_at' => time(),
@@ -695,12 +750,7 @@ final class UpdateEngine
         $n = count($targets);
         if ($ti >= $n) {
             $results = is_array($job['results'] ?? null) ? $job['results'] : [];
-            self::sortStatusRows($results);
-            $now = gmdate('c');
-            $state = self::readState();
-            $state['last_check'] = $now;
-            $state['last_check_targets'] = $results;
-            self::writeState($state);
+            $now = self::persistCheckResults($results, !empty($job['partial']));
             $job['status'] = 'done';
             $job['progress'] = 100;
             $job['message'] = t('updates.check_ok');

@@ -159,7 +159,7 @@ $jobI18n = [
             <th><?= te('updates.col_local') ?></th>
             <th><?= te('updates.col_remote') ?></th>
             <th><?= te('updates.col_status') ?></th>
-            <?php if ($updateCanApply): ?><th></th><?php endif; ?>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -192,21 +192,24 @@ $jobI18n = [
             </td>
             <td><?= e((string)($src['local_version'] ?? '')) ?></td>
             <td><?= e($remoteVer !== '' ? $remoteVer : '—') ?></td>
-            <td><?= $stHtml ?></td>
-            <?php if ($updateCanApply): ?>
             <td>
-              <?php if ($avail): ?>
+              <div class="upd-status-cell">
+                <?= $stHtml ?>
+                <button type="button" class="btn-secondary upd-btn-check-one" data-upd-check="<?= e($sid) ?>"><?= te('updates.btn_check_one') ?></button>
+              </div>
+            </td>
+            <td>
+              <?php if ($updateCanApply && $avail): ?>
               <button type="button" class="btn-primary" data-upd-apply="<?= e($sid) ?>"><?= te('updates.btn_update') ?></button>
               <?php endif; ?>
             </td>
-            <?php endif; ?>
           </tr>
         <?php endforeach; ?>
         </tbody>
       </table>
     </div>
     <div class="actions" style="margin-top:.75rem">
-      <button type="button" class="btn-secondary" data-upd-check><?= te('updates.btn_check') ?></button>
+      <button type="button" class="btn-secondary" data-upd-check="all"><?= te('updates.btn_check_all') ?></button>
       <?php if ($updateCanApply && $updateAvailableCount > 0): ?>
       <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_update_available') ?></button>
       <?php endif; ?>
