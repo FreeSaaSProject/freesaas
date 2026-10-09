@@ -1333,8 +1333,8 @@ final class UpdateEngine
     }
 
     /**
-     * Archive URL for a git ref. Prefer codeload (works with Accept */*); API zipball needs
-     * application/vnd.github+json (octet-stream returns 415).
+     * Archive URL for a git ref. Prefer codeload (works with Accept star/star);
+     * API zipball needs application/vnd.github+json (octet-stream returns 415).
      */
     private static function githubArchiveUrl(string $repo, string $ref): string
     {
