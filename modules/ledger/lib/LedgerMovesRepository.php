@@ -450,7 +450,7 @@ final class LedgerMovesRepository
         if (!$type) {
             throw new InvalidArgumentException(t('ledger.moves.err.type'));
         }
-        $sum = (float)str_replace(',', '.', (string)($post['summ'] ?? '0'));
+        $sum = money_parse((string)($post['summ'] ?? '0'));
         if ($sum <= 0) {
             throw new InvalidArgumentException(t('ledger.moves.err.sum'));
         }

@@ -31,6 +31,32 @@ function e_nl(string $s): string {
 }
 
 /**
+ * Normalize clipboard / statement amounts: "1 203 323,23", NBSP, thin spaces → "1203323.23".
+ * Empty input → "".
+ */
+function money_normalize_input(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+    $value = str_replace("\xc2\xa0", ' ', $value);
+    $value = (string)preg_replace('/[\x{200B}-\x{200D}\x{2060}\x{FEFF}]/u', '', $value);
+    $value = (string)preg_replace('/[\p{Z}\s]+/u', '', $value);
+    return str_replace(',', '.', $value);
+}
+
+/** Parse money paste to float; invalid / empty → 0.0. */
+function money_parse(string $value): float
+{
+    $normalized = money_normalize_input($value);
+    if ($normalized === '' || !is_numeric($normalized)) {
+        return 0.0;
+    }
+    return round((float)$normalized, 2);
+}
+
+/**
  * Signed amount HTML: green "+N" for direction>0, red "-N" for direction<0 (oper show_account_moves).
  */
 function money_signed_html($amount, int $direction = 0): string

@@ -8,15 +8,7 @@ final class LedgerReconciliationsRepository
      */
     public static function normalizeBankBalance(string $value): string
     {
-        $value = trim($value);
-        if ($value === '') {
-            return '';
-        }
-        $value = str_replace("\xc2\xa0", ' ', $value);
-        $value = (string)preg_replace('/[\x{200B}-\x{200D}\x{2060}\x{FEFF}]/u', '', $value);
-        $value = (string)preg_replace('/[\p{Z}]+/u', '', $value);
-        $value = (string)preg_replace('/\s+/u', '', $value);
-        return str_replace(',', '.', $value);
+        return money_normalize_input($value);
     }
 
     /**

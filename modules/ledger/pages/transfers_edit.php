@@ -27,7 +27,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             (int)($_POST['type_id'] ?? 0),
             (int)($_POST['account_id'] ?? 0),
             (int)($_POST['account_to'] ?? 0),
-            (float)str_replace(',', '.', (string)($_POST['summ'] ?? '0')),
+            money_parse((string)($_POST['summ'] ?? '0')),
             $dt,
             trim((string)($_POST['descr'] ?? ''))
         );
