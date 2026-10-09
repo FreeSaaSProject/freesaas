@@ -19,9 +19,11 @@
   var metaEl = document.getElementById('upd-job-meta');
   var abortBtn = document.getElementById('upd-job-abort');
   var okBtn = document.getElementById('upd-job-ok');
+  var applyFoundBtn = document.getElementById('upd-job-apply-found');
   var foundWrap = document.getElementById('upd-job-found');
   var foundTitle = document.getElementById('upd-job-found-title');
   var foundList = document.getElementById('upd-job-found-list');
+  var canApply = root.getAttribute('data-can-apply') === '1';
 
   var activeJobId = null;
   var activeKind = 'apply';
@@ -29,6 +31,7 @@
   var aborting = false;
   var startedAt = 0;
   var timerIv = null;
+  var lastFoundCount = 0;
 
   function formatFoundLine(item) {
     var tpl = i18n.foundLine || '{name}: {local} → {remote}';
@@ -41,6 +44,7 @@
   function renderFound(found) {
     if (!foundWrap || !foundList) return;
     found = found || [];
+    lastFoundCount = found.length;
     if (activeKind !== 'check') {
       foundWrap.hidden = true;
       foundList.innerHTML = '';
@@ -60,6 +64,17 @@
     });
   }
 
+  function setApplyFoundVisible(show) {
+    if (!applyFoundBtn) return;
+    if (show && canApply && lastFoundCount > 0) {
+      applyFoundBtn.hidden = false;
+      applyFoundBtn.disabled = false;
+    } else {
+      applyFoundBtn.hidden = true;
+      applyFoundBtn.disabled = true;
+    }
+  }
+
   function setBar(pct) {
     pct = Math.max(0, Math.min(100, pct | 0));
     if (fillEl) fillEl.style.width = pct + '%';
@@ -75,12 +90,14 @@
     if (overlay) overlay.hidden = false;
     document.body.classList.add('upd-job-busy');
     if (okBtn) { okBtn.hidden = true; okBtn.disabled = true; }
+    setApplyFoundVisible(false);
     if (abortBtn) { abortBtn.hidden = false; abortBtn.disabled = false; }
     if (titleEl) {
       titleEl.textContent = activeKind === 'check'
         ? (i18n.checkTitle || 'Checking…')
         : (i18n.title || 'Updating…');
     }
+    lastFoundCount = 0;
     renderFound([]);
     setBar(0);
     if (timerIv) clearInterval(timerIv);
@@ -98,6 +115,7 @@
     if (timerIv) { clearInterval(timerIv); timerIv = null; }
     if (abortBtn) abortBtn.hidden = true;
     if (okBtn) { okBtn.hidden = false; okBtn.disabled = false; }
+    setApplyFoundVisible(status === 'done' && activeKind === 'check');
     if (msgEl && message) msgEl.textContent = message;
     if (titleEl) {
       if (status === 'done') {
@@ -160,6 +178,16 @@
     okBtn.addEventListener('click', function () {
       hideJob();
       window.location.reload();
+    });
+  }
+  if (applyFoundBtn) {
+    applyFoundBtn.addEventListener('click', function () {
+      if (!canApply || lastFoundCount < 1) return;
+      var confirmMsg = i18n.confirmApply || '';
+      if (confirmMsg && !window.confirm(confirmMsg)) return;
+      setApplyFoundVisible(false);
+      if (okBtn) { okBtn.hidden = true; okBtn.disabled = true; }
+      runApply('all');
     });
   }
   if (abortBtn) {

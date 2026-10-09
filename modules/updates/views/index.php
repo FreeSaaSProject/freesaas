@@ -20,16 +20,30 @@ $updateSource = is_array($updateSource ?? null) ? $updateSource : null;
 $updateAvailableCount = (int)($updateAvailableCount ?? 0);
 $updateAvailable = is_array($updateAvailable ?? null) ? $updateAvailable : [];
 
-$lastCheckDisplay = $updateLastCheck;
-if ($lastCheckDisplay !== null) {
-    $ts = strtotime($lastCheckDisplay);
-    if ($ts !== false) {
-        $lastCheckDisplay = gmdate('Y-m-d H:i:s', $ts) . ' UTC';
+$lastCheckTs = null;
+if ($updateLastCheck !== null) {
+    $parsed = strtotime($updateLastCheck);
+    if ($parsed !== false) {
+        $lastCheckTs = $parsed;
     }
 }
-$lastCheckLabel = $lastCheckDisplay !== null
-    ? t('updates.last_check', ['when' => $lastCheckDisplay])
+$formatCheckWhen = static function (?int $ts): string {
+    if ($ts === null || $ts <= 0) {
+        return '';
+    }
+    // Today → time only; older day → date without time.
+    if (date('Y-m-d', $ts) === date('Y-m-d')) {
+        return date('H:i', $ts);
+    }
+    return I18n::formatDate($ts, 'date');
+};
+$lastCheckWhen = $formatCheckWhen($lastCheckTs);
+$lastCheckLabel = $lastCheckWhen !== ''
+    ? t('updates.last_check', ['when' => $lastCheckWhen])
     : t('updates.last_check_never');
+$statusCurrentLabel = $lastCheckWhen !== ''
+    ? t('updates.status_current_at', ['when' => $lastCheckWhen])
+    : t('updates.status_current');
 
 $defaultRepo = is_array($updateSource) ? (string)($updateSource['repo'] ?? '') : '';
 $defaultChannel = is_array($updateSource) ? (string)($updateSource['channel'] ?? '') : '';
@@ -87,9 +101,12 @@ $jobI18n = [
     'foundTitle' => t('updates.check.found_title'),
     'foundEmpty' => t('updates.check.found_empty'),
     'foundLine' => t('updates.check.found_line'),
+    'applyFound' => t('updates.btn_update_found'),
 ];
 ?>
-<div id="updates-app" data-i18n="<?= e((string)json_encode($jobI18n, JSON_UNESCAPED_UNICODE)) ?>">
+<div id="updates-app"
+     data-can-apply="<?= $updateCanApply ? '1' : '0' ?>"
+     data-i18n="<?= e((string)json_encode($jobI18n, JSON_UNESCAPED_UNICODE)) ?>">
 <section class="page-head">
   <p class="lede"><?= te('updates.lede') ?></p>
   <div class="actions">
@@ -160,7 +177,7 @@ $jobI18n = [
                 $stHtml = '<span class="upd-status upd-status--avail">' . e(t('updates.status_available')) . '</span>';
             } elseif ($checked) {
                 $stHtml = '<span class="upd-status upd-status--ok"><span class="upd-check" aria-hidden="true">✓</span> '
-                    . e(t('updates.status_current')) . '</span>';
+                    . e($statusCurrentLabel) . '</span>';
             } else {
                 $stHtml = '<span class="upd-status upd-status--unk">' . e(t('updates.status_unknown')) . '</span>';
             }
@@ -214,7 +231,10 @@ $jobI18n = [
     </div>
     <div class="upd-job-actions actions">
       <button type="button" class="btn-secondary" id="upd-job-abort"><?= te('updates.job.abort') ?></button>
-      <button type="button" class="btn-primary" id="upd-job-ok" hidden disabled><?= te('updates.job.ok') ?></button>
+      <?php if ($updateCanApply): ?>
+      <button type="button" class="btn-primary" id="upd-job-apply-found" hidden disabled><?= te('updates.btn_update_found') ?></button>
+      <?php endif; ?>
+      <button type="button" class="btn-secondary" id="upd-job-ok" hidden disabled><?= te('updates.job.ok') ?></button>
     </div>
   </div>
 </div>
