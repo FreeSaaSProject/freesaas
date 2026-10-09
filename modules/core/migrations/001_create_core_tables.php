@@ -36,6 +36,7 @@ return static function (PDO $pdo): void {
                 favorites MEDIUMTEXT NULL,
                 showNewsAfter INT UNSIGNED NOT NULL DEFAULT 0,
                 IS_HIDDEN TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+                ASSIST_TEAM TINYINT UNSIGNED NOT NULL DEFAULT 0,
                 PRIMARY KEY (id),
                 KEY idx_login (login)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"

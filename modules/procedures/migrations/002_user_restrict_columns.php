@@ -23,5 +23,6 @@ return static function (PDO $pdo): void {
 
     $ensure('RESTRICT_TYPES', "`RESTRICT_TYPES` VARCHAR(1024) NOT NULL DEFAULT ''");
     $ensure('RESTRICT_TYPES_ONLINE', "`RESTRICT_TYPES_ONLINE` VARCHAR(1024) NOT NULL DEFAULT ''");
-    $ensure('RESTRICT_PROCS', "`RESTRICT_PROCS` TEXT NOT NULL");
+    // Nullable: TEXT/BLOB cannot have DEFAULT on many MySQL builds; create() writes ''.
+    $ensure('RESTRICT_PROCS', '`RESTRICT_PROCS` MEDIUMTEXT NULL');
 };

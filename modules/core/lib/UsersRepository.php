@@ -829,6 +829,14 @@ final class UsersRepository
         if (isset($data['IS_HIDDEN'])) {
             $add('IS_HIDDEN', !empty($data['IS_HIDDEN']) ? 1 : 0);
         }
+        // Procedure restrict columns: always set when present (strict SQL / NOT NULL variants).
+        foreach (['RESTRICT_TYPES', 'RESTRICT_TYPES_ONLINE', 'RESTRICT_PROCS'] as $restrictCol) {
+            if (array_key_exists($restrictCol, $data)) {
+                $add($restrictCol, (string)$data[$restrictCol]);
+            } else {
+                $add($restrictCol, '');
+            }
+        }
         if (!empty($data['locale']) && Database::columnExists('base_users', 'locale')) {
             $add('locale', (string)$data['locale']);
         }
