@@ -87,8 +87,12 @@ final class WellnessOwner
         return [(int)$start, (int)$end];
     }
 
-    /** Parse datetime-local / date / unix into unix timestamp. */
-    public static function parseDt(mixed $raw, ?int $fallback = null): int
+    /**
+     * Parse datetime-local / date / unix into unix timestamp.
+     *
+     * @param mixed $raw
+     */
+    public static function parseDt($raw, ?int $fallback = null): int
     {
         if (is_int($raw) || (is_string($raw) && ctype_digit($raw))) {
             $n = (int)$raw;
