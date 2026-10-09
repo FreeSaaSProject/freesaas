@@ -64,7 +64,7 @@ $list = TermScansRepository::listForPeriod(
 $enrich = TermScansRepository::enrichFromProcedures($list['items'], $windowHours);
 
 $staffOptions = [];
-foreach (UsersRepository::listForCopy() as $u) {
+foreach (UsersRepository::listEnabledStaff() as $u) {
     $uid = (int)($u['id'] ?? 0);
     if ($uid > 0) {
         $staffOptions[$uid] = (string)($u['name'] ?? $u['login'] ?? ('#' . $uid));

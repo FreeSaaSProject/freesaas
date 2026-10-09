@@ -82,7 +82,7 @@ if (isset($_GET['saved']) && $message === '') {
 }
 
 $staffNames = [];
-foreach (UsersRepository::listForCopy() as $u) {
+foreach (UsersRepository::listEnabledStaff() as $u) {
     $label = trim((string)$u['name']);
     if ($label === '') {
         $label = (string)$u['login'];

@@ -97,7 +97,7 @@ if ($wantsJson) {
 }
 
 $staff = [];
-foreach (UsersRepository::listForCopy() as $u) {
+foreach (UsersRepository::listEnabledStaff() as $u) {
     $staff[(int)$u['id']] = trim((string)$u['name']) !== '' ? (string)$u['name'] : (string)$u['login'];
 }
 $bulkFlash = BulkActions::consumeFlash();

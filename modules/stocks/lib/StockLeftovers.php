@@ -96,7 +96,7 @@ final class StockLeftovers
             : '';
         $unitSel = Database::tableExists('base_units') ? 'COALESCE(u.NAME, \'\')' : '\'\'';
         $joinCat = Database::tableExists('base_categories')
-            ? 'LEFT JOIN base_categories c ON c.id = p.category_id'
+            ? 'LEFT JOIN base_categories c ON c.id = p.category'
             : '';
         $catSel = Database::tableExists('base_categories') ? 'COALESCE(c.name, \'\')' : '\'\'';
 

@@ -49,7 +49,7 @@ BulkActions::register('procedures', 'set_admin', [
             'label' => 'procedures.bulk.admin',
             'options' => static function (): array {
                 $out = [];
-                foreach (UsersRepository::listForCopy() as $u) {
+                foreach (UsersRepository::listEnabledStaff() as $u) {
                     $label = trim((string)$u['name']);
                     if ($label === '') {
                         $label = (string)$u['login'];

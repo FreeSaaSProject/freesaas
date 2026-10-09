@@ -121,12 +121,30 @@ final class UsersRepository
     }
 
     /**
+     * Enabled staff for UI pickers/filters (includes SUPERADMIN_ACCESS roles).
+     *
+     * @return list<array{id:int,login:string,name:string,status_id:int,status_name:string}>
+     */
+    public static function listEnabledStaff(): array
+    {
+        return self::listStaffRows(false);
+    }
+
+    /**
      * Staff rows usable as permission/role templates (copyFrom).
      * Excludes SUPERADMIN_ACCESS roles so agents cannot clone elevated accounts.
      *
      * @return list<array{id:int,login:string,name:string,status_id:int,status_name:string}>
      */
     public static function listForCopy(bool $excludeSuperadmin = true): array
+    {
+        return self::listStaffRows($excludeSuperadmin);
+    }
+
+    /**
+     * @return list<array{id:int,login:string,name:string,status_id:int,status_name:string}>
+     */
+    private static function listStaffRows(bool $excludeSuperadmin): array
     {
         if (!Database::tableExists('base_users')) {
             return [];
@@ -160,6 +178,7 @@ final class UsersRepository
 
     /**
      * Enabled staff names for selects; always include $extraIds (e.g. disabled linked user).
+     * Includes SUPERADMIN_ACCESS roles (unlike listForCopy / copyFrom templates).
      *
      * @param list<int> $extraIds
      * @return array<int,string> id => label
@@ -167,7 +186,7 @@ final class UsersRepository
     public static function staffNamesIncluding(array $extraIds = []): array
     {
         $out = [];
-        foreach (self::listForCopy() as $u) {
+        foreach (self::listEnabledStaff() as $u) {
             $id = (int)$u['id'];
             $label = trim((string)$u['name']) !== '' ? (string)$u['name'] : (string)$u['login'];
             $out[$id] = $label;
