@@ -3,7 +3,6 @@
 /** @var string $error */
 /** @var bool $updateConfigured */
 /** @var list<array<string,mixed>> $updateSources */
-/** @var array<string,array<string,mixed>> $updateRemoteById */
 /** @var bool $updateCanApply */
 /** @var string|null $updateLastCheck */
 /** @var array<string,mixed>|null $updateSource */
@@ -13,7 +12,6 @@ $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $updateConfigured = !empty($updateConfigured);
 $updateSources = is_array($updateSources ?? null) ? $updateSources : [];
-$updateRemoteById = is_array($updateRemoteById ?? null) ? $updateRemoteById : [];
 $updateCanApply = !empty($updateCanApply);
 $updateLastCheck = isset($updateLastCheck) && is_string($updateLastCheck) && $updateLastCheck !== ''
     ? $updateLastCheck
@@ -43,32 +41,12 @@ if ($defaultRepo !== '') {
     }
 }
 
-// Merge remote into rows and sort (available first)
+// status()/check rows are authoritative (do not overlay stale session).
 $rows = [];
 foreach ($updateSources as $src) {
-    $sid = (string)($src['id'] ?? '');
-    $remote = $updateRemoteById[$sid] ?? null;
-    if (is_array($remote)) {
-        if ((string)($remote['remote_version'] ?? '') !== '') {
-            $src['remote_version'] = (string)$remote['remote_version'];
-        }
-        if (array_key_exists('update_available', $remote)) {
-            $src['update_available'] = !empty($remote['update_available']);
-        }
-        if ((string)($remote['label'] ?? '') !== '') {
-            $src['label'] = (string)$remote['label'];
-        }
-        if ((string)($remote['repo'] ?? '') !== '') {
-            $src['repo'] = (string)$remote['repo'];
-        }
-        if ((string)($remote['bundle'] ?? '') !== '') {
-            $src['bundle'] = (string)$remote['bundle'];
-        }
+    if (is_array($src)) {
+        $rows[] = $src;
     }
-    if ($sid !== 'core' && empty($src['enabled']) && isset($src['enabled'])) {
-        // already filtered in status; keep if present
-    }
-    $rows[] = $src;
 }
 usort($rows, static function (array $a, array $b): int {
     $aa = !empty($a['update_available']) ? 0 : 1;

@@ -172,32 +172,32 @@ $updateAvailableCount = (int)($updateStatus['available_count'] ?? 0);
 $updateAvailable = is_array($updateStatus['available'] ?? null) ? $updateStatus['available'] : [];
 $updateSource = is_array($updateStatus['source'] ?? null) ? $updateStatus['source'] : null;
 
-if ($updateCheckRows === [] && !empty($_SESSION['freesaas_update_check']) && is_array($_SESSION['freesaas_update_check'])) {
-    $updateCheckRows = $_SESSION['freesaas_update_check'];
-}
+// This request just ran a sync check — prefer those rows over persisted status.
 if ($updateCheckRows !== []) {
+    $updateSources = $updateCheckRows;
+    $updateAvailable = [];
+    foreach ($updateCheckRows as $tr) {
+        if (is_array($tr) && !empty($tr['update_available'])) {
+            $updateAvailable[] = [
+                'id' => (string)($tr['id'] ?? ''),
+                'label' => (string)($tr['label'] ?? ''),
+                'local_version' => (string)($tr['local_version'] ?? ''),
+                'remote_version' => (string)($tr['remote_version'] ?? ''),
+            ];
+        }
+    }
+    $updateAvailableCount = count($updateAvailable);
     $_SESSION['freesaas_update_check'] = $updateCheckRows;
-}
-$updateRemoteById = [];
-foreach ($updateCheckRows as $tr) {
-    if (is_array($tr) && isset($tr['id'])) {
-        $updateRemoteById[(string)$tr['id']] = $tr;
-    }
-}
-foreach ($updateSources as $src) {
-    $sid = (string)($src['id'] ?? '');
-    if ($sid === '' || isset($updateRemoteById[$sid])) {
-        continue;
-    }
-    if ((string)($src['remote_version'] ?? '') !== '' || isset($src['update_available'])) {
-        $updateRemoteById[$sid] = $src;
-    }
+} else {
+    // Persisted last_check in status is authoritative. Drop stale session overlays
+    // that used to overwrite the table while the banner stayed correct.
+    unset($_SESSION['freesaas_update_check']);
 }
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     AgentHttp::emit(array_merge($updateStatus, [
         'update_can_apply' => $canApply,
-        'check' => $updateCheckRows,
+        'check' => $updateSources,
         'last_check' => $updateLastCheck !== '' ? $updateLastCheck : null,
     ]));
 }
@@ -221,7 +221,6 @@ View::render('index', [
     'error' => $error,
     'updateConfigured' => !empty($updateStatus['configured']),
     'updateSources' => $updateSources,
-    'updateRemoteById' => $updateRemoteById,
     'updateCanApply' => $canApply,
     'updateLastCheck' => $updateLastCheck !== '' ? $updateLastCheck : null,
     'updateSource' => $updateSource,
