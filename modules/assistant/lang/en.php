@@ -6,7 +6,7 @@ return [
     'assistant.perm.use' => 'Use operational assistant',
     'assistant.menu.chat' => 'Assistant',
     'assistant.chat.title' => 'Operational assistant',
-    'assistant.chat.lede' => 'Ask about procedures, revenue, staff KPIs, terminals. Write actions need explicit confirmation.',
+    'assistant.chat.lede' => 'One thread shared with the messenger bot (Max/Telegram). Ask about procedures, revenue, staff KPIs, terminals. Writes need confirmation.',
     'assistant.chat.placeholder' => 'e.g. How were things yesterday?',
     'assistant.chat.send' => 'Send',
     'assistant.chat.thinking' => 'Working…',

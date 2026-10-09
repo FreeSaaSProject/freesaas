@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/PendingActionsRepository.php';
+require_once __DIR__ . '/lib/AssistantDialog.php';
 require_once __DIR__ . '/lib/AssistantTools.php';
 require_once __DIR__ . '/lib/AssistantHarness.php';
 require_once __DIR__ . '/lib/AssistantBotPlugin.php';
@@ -59,3 +60,16 @@ Health::register('assistant.pending', 'assistant', static function (): array {
         'message' => 'Assistant pending table ready',
     ];
 }, 'Assistant pending table');
+
+Health::register('assistant.dialog', 'assistant', static function (): array {
+    if (!AssistantDialog::tableReady()) {
+        return [
+            'status' => 'fail',
+            'message' => 'base_assistant_dialog missing — run migrations',
+        ];
+    }
+    return [
+        'status' => 'ok',
+        'message' => 'Assistant dialog table ready',
+    ];
+}, 'Assistant shared dialog');

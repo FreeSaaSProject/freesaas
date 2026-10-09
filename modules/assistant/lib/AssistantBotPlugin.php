@@ -6,8 +6,6 @@ final class AssistantBotPlugin
 {
     private const MODULE = 'assistant';
     private const TTL = 3600;
-    /** Max user+assistant turns kept in BotChatState (each turn = 2 messages). */
-    private const HISTORY_MAX_TURNS = 12;
 
     public static function register(): void
     {
@@ -37,7 +35,7 @@ final class AssistantBotPlugin
                 if ($data === 'assistant_hint') {
                     $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
                     $uid = (int)($user['id'] ?? 0);
-                    self::setState($ctx, 'await_input', ['user_id' => $uid, 'history' => []]);
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     self::replyChrome($ctx, t('assistant.bot.hint'));
                     return true;
                 }
@@ -49,8 +47,7 @@ final class AssistantBotPlugin
                     if ($uid < 1) {
                         return true;
                     }
-                    $hist = self::historyFromState(self::state($ctx));
-                    self::setState($ctx, 'await_input', ['user_id' => $uid, 'history' => $hist]);
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     try {
                         $result = Auth::runAs($uid, static function () use ($token, $action, $uid) {
                             if (!Auth::can('assistant.use')) {
@@ -78,9 +75,12 @@ final class AssistantBotPlugin
                                 $text .= "\n" . $snippet;
                             }
                         }
+                        self::appendAssistantHistory($uid, $text);
                         self::replySplit($ctx, $text);
                     } elseif (!empty($result['ok'])) {
-                        self::replySplit($ctx, t('assistant.confirm.cancelled'));
+                        $text = t('assistant.confirm.cancelled');
+                        self::appendAssistantHistory($uid, $text);
+                        self::replySplit($ctx, $text);
                     } else {
                         self::replySplit($ctx, (string)($result['error'] ?? t('assistant.chat.error')));
                     }
@@ -103,7 +103,6 @@ final class AssistantBotPlugin
                 if ($text === '') {
                     return null;
                 }
-                // Leave short slash commands to other handlers / cabinet.
                 if ($text[0] === '/' && strpos($text, ' ') === false) {
                     return null;
                 }
@@ -113,9 +112,13 @@ final class AssistantBotPlugin
                     return true;
                 }
 
-                $history = self::historyFromState($state);
+                $history = class_exists('AssistantDialog', false)
+                    ? AssistantDialog::getHistory($uid)
+                    : [];
                 $history[] = ['role' => 'user', 'content' => $text];
-                $history = self::trimHistory($history);
+                if (class_exists('AssistantDialog', false)) {
+                    $history = AssistantDialog::trim($history);
+                }
 
                 self::replyChrome($ctx, t('assistant.bot.working'));
 
@@ -133,18 +136,15 @@ final class AssistantBotPlugin
                     });
                 } catch (Throwable $e) {
                     self::replySplit($ctx, t('assistant.bot.denied'));
-                    self::setState($ctx, 'await_input', ['user_id' => $uid, 'history' => $history]);
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     return true;
                 }
 
                 if (empty($out['ok'])) {
                     $err = (string)($out['error'] ?? t('assistant.chat.error'));
+                    self::saveHistory($uid, $history, $err);
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     self::replySplit($ctx, $err);
-                    $history[] = ['role' => 'assistant', 'content' => $err];
-                    self::setState($ctx, 'await_input', [
-                        'user_id' => $uid,
-                        'history' => self::trimHistory($history),
-                    ]);
                     return true;
                 }
 
@@ -154,6 +154,7 @@ final class AssistantBotPlugin
                 }
                 $pending = is_array($out['pending_actions'] ?? null) ? $out['pending_actions'] : [];
                 $keyboard = null;
+                $display = $reply;
                 if ($pending !== []) {
                     $rows = [];
                     foreach ($pending as $p) {
@@ -165,7 +166,7 @@ final class AssistantBotPlugin
                         if ($token === '') {
                             continue;
                         }
-                        $reply .= "\n\n" . t('assistant.confirm.pending', ['summary' => $summary]);
+                        $display .= "\n\n" . t('assistant.confirm.pending', ['summary' => $summary]);
                         $rows[] = [
                             [
                                 'text' => t('assistant.confirm.btn'),
@@ -186,20 +187,37 @@ final class AssistantBotPlugin
                     }
                 }
 
-                $history[] = ['role' => 'assistant', 'content' => $reply];
-                self::setState($ctx, 'await_input', [
-                    'user_id' => $uid,
-                    'history' => self::trimHistory($history),
-                ]);
-                self::replySplit($ctx, $reply, $keyboard);
+                self::saveHistory($uid, $history, $reply);
+                self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                self::replySplit($ctx, $display, $keyboard);
                 return true;
             },
         ]);
     }
 
     /**
-     * Keep LLM / result text in chat; put buttons on a separate ephemeral message.
-     *
+     * @param list<array{role:string,content:string}> $history
+     */
+    private static function saveHistory(int $uid, array $history, string $assistantText): void
+    {
+        if ($uid < 1 || !class_exists('AssistantDialog', false)) {
+            return;
+        }
+        $history[] = ['role' => 'assistant', 'content' => $assistantText];
+        AssistantDialog::saveHistory($uid, $history);
+    }
+
+    private static function appendAssistantHistory(int $uid, string $text): void
+    {
+        if ($uid < 1 || !class_exists('AssistantDialog', false) || trim($text) === '') {
+            return;
+        }
+        $history = AssistantDialog::getHistory($uid);
+        $history[] = ['role' => 'assistant', 'content' => $text];
+        AssistantDialog::saveHistory($uid, $history);
+    }
+
+    /**
      * @param array<string,mixed> $ctx
      * @param array<string,mixed>|null $markup
      */
@@ -225,8 +243,6 @@ final class AssistantBotPlugin
     }
 
     /**
-     * Ephemeral UI only (hint, «looking…», button bar) — replaced on next UI send.
-     *
      * @param array<string,mixed> $ctx
      * @param array<string,mixed>|null $markup
      */
@@ -251,42 +267,6 @@ final class AssistantBotPlugin
                 'name' => 'assistant',
             ]);
         }
-    }
-
-    /** @param array<string,mixed>|null $state */
-    private static function historyFromState(?array $state): array
-    {
-        if ($state === null) {
-            return [];
-        }
-        $data = is_array($state['data'] ?? null) ? $state['data'] : [];
-        $raw = is_array($data['history'] ?? null) ? $data['history'] : [];
-        $out = [];
-        foreach ($raw as $m) {
-            if (!is_array($m)) {
-                continue;
-            }
-            $role = trim((string)($m['role'] ?? ''));
-            $content = trim((string)($m['content'] ?? ''));
-            if (($role !== 'user' && $role !== 'assistant') || $content === '') {
-                continue;
-            }
-            $out[] = ['role' => $role, 'content' => $content];
-        }
-        return $out;
-    }
-
-    /**
-     * @param list<array{role:string,content:string}> $history
-     * @return list<array{role:string,content:string}>
-     */
-    private static function trimHistory(array $history): array
-    {
-        $maxMsgs = self::HISTORY_MAX_TURNS * 2;
-        if (count($history) <= $maxMsgs) {
-            return $history;
-        }
-        return array_values(array_slice($history, -$maxMsgs));
     }
 
     /** @param array<string,mixed> $ctx */

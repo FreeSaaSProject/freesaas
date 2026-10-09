@@ -23,7 +23,8 @@ if ($token === '' || $action === '') {
     AgentHttp::error('token and action required');
 }
 
-$result = AssistantHarness::resolvePending($token, $action, Auth::userId());
+$userId = Auth::userId();
+$result = AssistantHarness::resolvePending($token, $action, $userId);
 if (!$result['ok']) {
     AgentHttp::error(
         $result['error'] !== '' ? $result['error'] : t('assistant.chat.error'),
@@ -32,11 +33,31 @@ if (!$result['ok']) {
     );
 }
 
+$message = $result['action'] === 'confirm'
+    ? t('assistant.confirm.done')
+    : t('assistant.confirm.cancelled');
+if (!empty($result['ok']) && $action === 'confirm' && is_array($result['result'] ?? null)) {
+    $snippet = json_encode($result['result'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if (is_string($snippet) && $snippet !== '') {
+        if (strlen($snippet) > 1500) {
+            $snippet = substr($snippet, 0, 1500) . '…';
+        }
+        $message .= "\n" . $snippet;
+    }
+}
+
+if ($userId > 0 && class_exists('AssistantDialog', false)) {
+    $history = AssistantDialog::getHistory($userId);
+    $history[] = ['role' => 'assistant', 'content' => $message];
+    AssistantDialog::saveHistory($userId, $history);
+}
+
 AgentHttp::emit([
     'ok' => true,
     'action' => $result['action'],
     'result' => $result['result'],
-    'message' => $result['action'] === 'confirm'
-        ? t('assistant.confirm.done')
-        : t('assistant.confirm.cancelled'),
+    'message' => $message,
+    'history' => class_exists('AssistantDialog', false)
+        ? AssistantDialog::getHistory($userId)
+        : [],
 ]);

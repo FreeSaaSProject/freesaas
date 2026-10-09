@@ -18,9 +18,54 @@
   }
 
   var history = [];
+  try {
+    history = JSON.parse(root.getAttribute('data-history') || '[]') || [];
+  } catch (e) {
+    history = [];
+  }
+  if (!Array.isArray(history)) {
+    history = [];
+  }
 
   function t(key, fallback) {
     return i18n[key] || fallback || key;
+  }
+
+  function whoLabel(role) {
+    return role === 'user' ? t('you', 'You') : t('assistant', 'Assistant');
+  }
+
+  function attachPending(wrap, pending) {
+    if (!wrap || !pending || !pending.length) {
+      return;
+    }
+    pending.forEach(function (p) {
+      var row = document.createElement('div');
+      row.className = 'assistant-chat__pending';
+      var label = document.createElement('span');
+      label.textContent = t('pending', 'Confirm: {summary}').replace(
+        '{summary}',
+        p.summary || p.op_id || ''
+      );
+      var ok = document.createElement('button');
+      ok.type = 'button';
+      ok.className = 'btn';
+      ok.textContent = t('confirm', 'Confirm');
+      var no = document.createElement('button');
+      no.type = 'button';
+      no.className = 'btn';
+      no.textContent = t('cancel', 'Cancel');
+      ok.addEventListener('click', function () {
+        resolvePending(p.token, 'confirm', wrap);
+      });
+      no.addEventListener('click', function () {
+        resolvePending(p.token, 'cancel', wrap);
+      });
+      row.appendChild(label);
+      row.appendChild(ok);
+      row.appendChild(no);
+      wrap.appendChild(row);
+    });
   }
 
   function appendMsg(who, text, pending) {
@@ -33,35 +78,34 @@
     body.textContent = text || '';
     wrap.appendChild(whoEl);
     wrap.appendChild(body);
-    if (pending && pending.length) {
-      pending.forEach(function (p) {
-        var row = document.createElement('div');
-        row.className = 'assistant-chat__pending';
-        var label = document.createElement('span');
-        label.textContent = t('pending', 'Confirm: {summary}').replace('{summary}', p.summary || p.op_id || '');
-        var ok = document.createElement('button');
-        ok.type = 'button';
-        ok.className = 'btn';
-        ok.textContent = t('confirm', 'Confirm');
-        var no = document.createElement('button');
-        no.type = 'button';
-        no.className = 'btn';
-        no.textContent = t('cancel', 'Cancel');
-        ok.addEventListener('click', function () {
-          resolvePending(p.token, 'confirm', wrap);
-        });
-        no.addEventListener('click', function () {
-          resolvePending(p.token, 'cancel', wrap);
-        });
-        row.appendChild(label);
-        row.appendChild(ok);
-        row.appendChild(no);
-        wrap.appendChild(row);
-      });
-    }
+    attachPending(wrap, pending);
     log.appendChild(wrap);
     log.scrollTop = log.scrollHeight;
     return wrap;
+  }
+
+  function renderHistory(list) {
+    if (!log) {
+      return;
+    }
+    log.innerHTML = '';
+    (list || []).forEach(function (m) {
+      if (!m || !m.content) {
+        return;
+      }
+      appendMsg(whoLabel(m.role), m.content);
+    });
+  }
+
+  function applyServerHistory(list, pending) {
+    if (!Array.isArray(list)) {
+      return;
+    }
+    history = list;
+    renderHistory(history);
+    if (pending && pending.length && log.lastElementChild) {
+      attachPending(log.lastElementChild, pending);
+    }
   }
 
   function setBusy(busy) {
@@ -91,18 +135,18 @@
       })
       .then(function (res) {
         setBusy(false);
+        if (res.json && Array.isArray(res.json.history)) {
+          applyServerHistory(res.json.history);
+          return;
+        }
         var msg =
           res.json && res.json.message
             ? res.json.message
             : res.json && res.json.error
               ? res.json.error
               : t('error', 'Error');
-        if (res.json && res.json.result && action === 'confirm') {
-          try {
-            msg += '\n' + JSON.stringify(res.json.result, null, 2);
-          } catch (e) {}
-        }
         appendMsg(t('assistant', 'Assistant'), msg);
+        history.push({ role: 'assistant', content: msg });
         if (wrap) {
           var buttons = wrap.querySelectorAll('.assistant-chat__pending');
           buttons.forEach(function (el) {
@@ -119,6 +163,8 @@
   if (!form || !input || !log) {
     return;
   }
+
+  renderHistory(history);
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();
@@ -139,7 +185,7 @@
         'Content-Type': 'application/json',
       },
       credentials: 'same-origin',
-      body: JSON.stringify({ messages: history.slice(-12) }),
+      body: JSON.stringify({ message: text }),
     })
       .then(function (r) {
         return r.json().then(function (j) {
@@ -151,10 +197,17 @@
         if (thinking && thinking.parentNode) {
           thinking.parentNode.removeChild(thinking);
         }
+        if (res.json && Array.isArray(res.json.history)) {
+          applyServerHistory(
+            res.json.history,
+            res.ok && res.json.ok ? res.json.pending_actions || [] : []
+          );
+          return;
+        }
         if (!res.ok || !res.json || !res.json.ok) {
-          var err =
-            (res.json && res.json.error) || t('error', 'Error');
+          var err = (res.json && res.json.error) || t('error', 'Error');
           appendMsg(t('assistant', 'Assistant'), err);
+          history.push({ role: 'assistant', content: err });
           return;
         }
         var reply = res.json.text || '';

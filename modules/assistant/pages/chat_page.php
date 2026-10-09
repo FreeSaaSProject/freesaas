@@ -12,9 +12,15 @@ if (class_exists('AssistantTools', false)) {
     }
 }
 
+$history = [];
+if (class_exists('AssistantDialog', false) && Auth::userId() > 0) {
+    $history = AssistantDialog::getHistory(Auth::userId());
+}
+
 View::render('chat', [
     'title' => t('assistant.chat.title'),
     'tools' => $tools,
+    'history' => $history,
     'i18n' => [
         'send' => t('assistant.chat.send'),
         'thinking' => t('assistant.chat.thinking'),

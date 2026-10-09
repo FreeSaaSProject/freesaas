@@ -17,13 +17,27 @@ if ($bodyIn === []) {
     $bodyIn = $_POST;
 }
 
-$messages = $bodyIn['messages'] ?? null;
-if (!is_array($messages) || $messages === []) {
+$userId = Auth::userId();
+if ($userId < 1) {
+    AgentHttp::error(t('assistant.bot.denied'), 401);
+}
+
+$message = trim((string)($bodyIn['message'] ?? ''));
+$history = AssistantDialog::getHistory($userId);
+
+if ($message !== '') {
+    $history[] = ['role' => 'user', 'content' => $message];
+} elseif (is_array($bodyIn['messages'] ?? null) && $bodyIn['messages'] !== []) {
+    // Agent / legacy: treat provided messages as the full thread to run.
+    $history = AssistantDialog::normalizeMessages($bodyIn['messages']);
+} else {
     AgentHttp::error(t('assistant.chat.empty'));
 }
 
+$history = AssistantDialog::trim($history);
+
 $opts = [
-    'user_id' => Auth::userId(),
+    'user_id' => $userId,
     'timeout' => isset($bodyIn['timeout']) ? (int)$bodyIn['timeout'] : 90,
 ];
 if (isset($bodyIn['profile'])) {
@@ -33,23 +47,35 @@ if (isset($bodyIn['temperature'])) {
     $opts['temperature'] = (float)$bodyIn['temperature'];
 }
 
-$result = AssistantHarness::run($messages, $opts);
+$result = AssistantHarness::run($history, $opts);
 if (!$result['ok']) {
+    $err = $result['error'] !== '' ? $result['error'] : t('assistant.chat.error');
+    $history[] = ['role' => 'assistant', 'content' => $err];
+    AssistantDialog::saveHistory($userId, $history);
     AgentHttp::error(
-        $result['error'] !== '' ? $result['error'] : t('assistant.chat.error'),
+        $err,
         502,
         [
             'pending_actions' => $result['pending_actions'],
             'tool_trace' => $result['tool_trace'],
             'profile' => $result['profile'],
+            'history' => AssistantDialog::getHistory($userId),
         ]
     );
 }
 
+$reply = trim((string)$result['text']);
+if ($reply === '') {
+    $reply = t('assistant.chat.thinking');
+}
+$history[] = ['role' => 'assistant', 'content' => $reply];
+AssistantDialog::saveHistory($userId, $history);
+
 AgentHttp::emit([
     'ok' => true,
-    'text' => $result['text'],
+    'text' => $reply,
     'pending_actions' => $result['pending_actions'],
     'tool_trace' => $result['tool_trace'],
     'profile' => $result['profile'],
+    'history' => AssistantDialog::getHistory($userId),
 ]);

@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -41,7 +41,7 @@
                 "permission": "assistant.use",
                 "side_effect": "read",
                 "assistant": false,
-                "description": "Run assistant harness; body: messages[] (role/content), optional profile"
+                "description": "Run assistant harness; body: message (preferred) or messages[] (role/content); shared per-user history"
             },
             {
                 "id": "assistant.confirm",
@@ -66,7 +66,8 @@
     ],
     "configSchema": [],
     "tables": [
-        "base_assistant_pending"
+        "base_assistant_pending",
+        "base_assistant_dialog"
     ],
     "migrators": [],
     "hooks": {

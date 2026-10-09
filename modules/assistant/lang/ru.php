@@ -6,7 +6,7 @@ return [
     'assistant.perm.use' => 'Операционный ассистент',
     'assistant.menu.chat' => 'Ассистент',
     'assistant.chat.title' => 'Операционный ассистент',
-    'assistant.chat.lede' => 'Спросите про процедуры, выручку, KPI сотрудников, терминалы. Запись — только после подтверждения.',
+    'assistant.chat.lede' => 'Один диалог с ботом (Max/Telegram) и этим экраном. Спросите про процедуры, выручку, KPI, терминалы. Запись — только после подтверждения.',
     'assistant.chat.placeholder' => 'Например: как дела вчера?',
     'assistant.chat.send' => 'Отправить',
     'assistant.chat.thinking' => 'Думаю…',

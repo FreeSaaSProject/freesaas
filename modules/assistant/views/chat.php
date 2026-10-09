@@ -2,8 +2,14 @@
 declare(strict_types=1);
 /** @var list<array{id:string,side_effect:string,description:string}> $tools */
 /** @var array<string,string> $i18n */
+/** @var list<array{role:string,content:string}> $history */
 $tools = is_array($tools ?? null) ? $tools : [];
 $i18n = is_array($i18n ?? null) ? $i18n : [];
+$history = is_array($history ?? null) ? $history : [];
+$historyJson = json_encode($history, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+if ($historyJson === false) {
+    $historyJson = '[]';
+}
 ?>
 <section class="page-head">
   <p class="lede"><?= te('assistant.chat.lede') ?></p>
@@ -12,6 +18,7 @@ $i18n = is_array($i18n ?? null) ? $i18n : [];
 <div class="assistant-chat" id="assistant-chat"
      data-chat-url="/assistant/chat"
      data-confirm-url="/assistant/confirm"
+     data-history="<?= e($historyJson) ?>"
      data-i18n="<?= e(json_encode($i18n, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}') ?>">
   <div class="assistant-chat__log" id="assistant-chat-log" aria-live="polite"></div>
   <form class="assistant-chat__form" id="assistant-chat-form">
