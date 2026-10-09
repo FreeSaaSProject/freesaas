@@ -548,22 +548,40 @@ final class ContractsRepository
         if (!empty($actions['cancel_work'])) {
             $forms .= self::actionForm($cid, $newsId, 'cancel_work_accept', t('contracts.actions.cancel_accept'), 'btn-secondary');
         }
-        $awaitingPay = (int)($comment['DT_WORK_ACCEPT'] ?? 0) > 0
-            && (int)($comment['DT_FAIL'] ?? 0) < 1
-            && (int)($comment['ID_PAYMENT'] ?? 0) < 1
-            && $price > 0;
-        if ($awaitingPay && ModuleManager::isEnabled('payments') && Auth::can('payments.edit')) {
-            $forms .= ' <a class="btn-primary" href="/payments/new?id_comment=' . $cid . '">'
-                . e(t('payments.contract.pay')) . '</a>';
-        } elseif ((int)($comment['ID_PAYMENT'] ?? 0) > 0 && ModuleManager::isEnabled('payments')) {
-            $forms .= ' <a class="btn-secondary" href="/payments/' . (int)$comment['ID_PAYMENT'] . '/edit">'
-                . e(t('payments.contract.paid')) . '</a>';
-        }
+        $forms .= self::paymentCtaHtml($comment);
         if ($forms !== '') {
             $html .= '<div class="contract-actions">' . $forms . '</div>';
         }
         $html .= '</div>';
         return $html;
+    }
+
+    /**
+     * Oper show_contracts: link to create/open settlement payment for accepted unpaid offer.
+     */
+    public static function paymentCtaHtml(array $comment): string
+    {
+        if (!ModuleManager::isEnabled('payments')) {
+            return '';
+        }
+        $price = (int)($comment['PRICE_OFFER'] ?? 0);
+        $cid = (int)($comment['ID'] ?? 0);
+        $paymentId = (int)($comment['ID_PAYMENT'] ?? 0);
+        $awaitingPay = (int)($comment['DT_WORK_ACCEPT'] ?? 0) > 0
+            && (int)($comment['DT_FAIL'] ?? 0) < 1
+            && $paymentId < 1
+            && $price > 0
+            && $cid > 0;
+        if ($awaitingPay && Auth::can('payments.edit')) {
+            return ' <a class="btn-primary" href="/payments/new?id_comment=' . $cid . '">'
+                . e(t('payments.contract.pay')) . '</a>'
+                . ' <span class="muted">' . e(t('contracts.list.pay_dps', ['id' => $cid])) . '</span>';
+        }
+        if ($paymentId > 0) {
+            return ' <a class="btn-secondary" href="/payments/' . $paymentId . '/edit">'
+                . e(t('payments.contract.paid')) . '</a>';
+        }
+        return '';
     }
 
     private static function actionForm(int $cid, int $newsId, string $action, string $label, string $btnClass): string

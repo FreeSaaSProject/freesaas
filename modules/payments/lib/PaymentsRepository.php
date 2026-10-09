@@ -272,7 +272,8 @@ final class PaymentsRepository
     }
 
     /**
-     * Prefill from contract offer comment.
+     * Prefill from contract offer comment (oper edit_payment id_comment).
+     * Applies deadline overrun penalty to SUM like legacy.
      * @return array<string,mixed>|null
      */
     public static function prefillFromComment(int $commentId): ?array
@@ -281,7 +282,7 @@ final class PaymentsRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ID, ID_USER, ID_OBJECT, PRICE_OFFER, DT_WORK_ACCEPT, ID_PAYMENT
+            'SELECT ID, ID_USER, ID_OBJECT, PRICE_OFFER, DT_OFFER_ACCEPT, DT_DEADLINE, DT_WORK_ACCEPT, ID_PAYMENT
              FROM base_comments WHERE ID = ? LIMIT 1'
         );
         $st->execute([$commentId]);
@@ -289,10 +290,16 @@ final class PaymentsRepository
         if (!$c || (int)($c['DT_WORK_ACCEPT'] ?? 0) < 1) {
             return null;
         }
-        $sum = (float)($c['PRICE_OFFER'] ?? 0);
+        $price = (float)($c['PRICE_OFFER'] ?? 0);
+        $calc = self::contractPayoutFromComment($c);
+        $sum = (float)$calc['sum'];
+        $sumDeadLine = (float)$calc['deadline_cut'];
+        $overTimeText = (string)$calc['over_text'];
         $descr = 'Конт-ID: ' . (int)($c['ID_OBJECT'] ?? 0)
             . ' Оффер-ID: ' . $commentId
-            . ' Исх.Сумма: ' . $sum;
+            . ' Исх.Сумма: ' . $price
+            . ' Расх. на overDL: ' . $sumDeadLine
+            . $overTimeText;
         return [
             'user_id' => (int)$c['ID_USER'],
             'direction' => 1,
@@ -302,6 +309,62 @@ final class PaymentsRepository
             'descr' => $descr,
             'comment_id' => $commentId,
             'is_partner' => 0,
+        ];
+    }
+
+    /**
+     * Oper deadline-penalty payout for an accepted offer comment.
+     * @param array<string,mixed> $c base_comments row
+     * @return array{sum:float,deadline_cut:float,over_text:string}
+     */
+    public static function contractPayoutFromComment(array $c): array
+    {
+        $sumCalculation = (float)($c['PRICE_OFFER'] ?? 0);
+        $sumDeadLine = 0.0;
+        $procentOfPaymentDeadLine = 1.0;
+        $overTimeText = '';
+        $offerAt = (int)($c['DT_OFFER_ACCEPT'] ?? 0);
+        $workAt = (int)($c['DT_WORK_ACCEPT'] ?? 0);
+        $dl = (int)($c['DT_DEADLINE'] ?? 0);
+        if ($offerAt > 0 && $dl > 0) {
+            $dayEnd = static function (int $ts): int {
+                return (int)mktime(23, 59, 59, (int)date('m', $ts), (int)date('d', $ts), (int)date('Y', $ts));
+            };
+            $offerEnd = $dayEnd($offerAt);
+            $dlEnd = $dayEnd($dl);
+            if ($workAt > 0) {
+                $timeUsed = $dayEnd($workAt) - $offerEnd;
+                $timeRemain = $dlEnd - $dayEnd($workAt);
+            } else {
+                $timeUsed = time() - $offerEnd;
+                $timeRemain = $dlEnd - time();
+            }
+            $timeTotal = $dlEnd - $offerEnd;
+            $procentUsed = $timeTotal > 0 ? (int)round($timeUsed * 100 / $timeTotal) : 0;
+            $procentLabel = (string)$procentUsed;
+            if ($procentUsed > 200) {
+                // show_contracts: full cut; edit_payment wrongly left factor=1
+                $procentLabel .= '% /сокр. возн.:100';
+                $procentOfPaymentDeadLine = 0.0;
+            } elseif ($procentUsed > 100) {
+                $procentOfPaymentDeadLine = 1.0 - round(($procentUsed - 100) / 100, 2);
+                $procentLabel .= '% /сокр. возн.:' . ($procentUsed - 100);
+            } else {
+                $procentLabel .= '%';
+            }
+            $overTimeText = '[Ост.:' . round($timeRemain / 86400, 1)
+                . ' д] [Использовано: ' . round($timeUsed / 86400, 1)
+                . '/' . round($timeTotal / 86400, 1)
+                . ' д: ' . $procentLabel . ']';
+            $sumDeadLine = (float)round($sumCalculation * (1.0 - $procentOfPaymentDeadLine));
+            if ($sumDeadLine > 0) {
+                $sumCalculation -= $sumDeadLine;
+            }
+        }
+        return [
+            'sum' => $sumCalculation,
+            'deadline_cut' => $sumDeadLine,
+            'over_text' => $overTimeText,
         ];
     }
 

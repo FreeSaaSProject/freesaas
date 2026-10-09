@@ -130,6 +130,12 @@ $sortLabels = [
             · <?= te('contracts.list.deadline_short') ?> <?= e(I18n::formatDate((int)$row['DT_DEADLINE'], 'date')) ?>
           <?php endif; ?>
         </div>
+        <?php
+          $payCta = ContractsRepository::paymentCtaHtml($row);
+          if ($payCta !== ''):
+        ?>
+          <div class="contract-actions"><?= $payCta ?></div>
+        <?php endif; ?>
       </article>
     <?php endforeach; ?>
   </div>

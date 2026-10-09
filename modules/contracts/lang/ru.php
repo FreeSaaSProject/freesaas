@@ -54,6 +54,7 @@ return [
     'contracts.list.executor_short' => 'исп.',
     'contracts.list.acceptor_short' => 'приём.',
     'contracts.list.deadline_short' => 'ДЛ',
+    'contracts.list.pay_dps' => 'Идентификатор для ДПС: {id}',
     'contracts.filter.current' => 'Актуальные',
     'contracts.filter.new' => 'Новые',
     'contracts.filter.in_work' => 'В работе',

@@ -54,6 +54,7 @@ return [
     'contracts.list.executor_short' => 'exec.',
     'contracts.list.acceptor_short' => 'acc.',
     'contracts.list.deadline_short' => 'Due',
+    'contracts.list.pay_dps' => 'DPS identifier: {id}',
     'contracts.filter.current' => 'Current',
     'contracts.filter.new' => 'New',
     'contracts.filter.in_work' => 'In progress',
