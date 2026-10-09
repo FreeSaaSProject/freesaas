@@ -66,13 +66,9 @@
 
   function setApplyFoundVisible(show) {
     if (!applyFoundBtn) return;
-    if (show && canApply && lastFoundCount > 0) {
-      applyFoundBtn.hidden = false;
-      applyFoundBtn.disabled = false;
-    } else {
-      applyFoundBtn.hidden = true;
-      applyFoundBtn.disabled = true;
-    }
+    var visible = !!(show && canApply && lastFoundCount > 0 && finished && activeKind === 'check');
+    applyFoundBtn.hidden = !visible;
+    applyFoundBtn.disabled = !visible;
   }
 
   function setBar(pct) {
@@ -87,17 +83,20 @@
     finished = false;
     aborting = false;
     startedAt = Date.now();
+    lastFoundCount = 0;
     if (overlay) overlay.hidden = false;
     document.body.classList.add('upd-job-busy');
     if (okBtn) { okBtn.hidden = true; okBtn.disabled = true; }
-    setApplyFoundVisible(false);
+    if (applyFoundBtn) {
+      applyFoundBtn.hidden = true;
+      applyFoundBtn.disabled = true;
+    }
     if (abortBtn) { abortBtn.hidden = false; abortBtn.disabled = false; }
     if (titleEl) {
       titleEl.textContent = activeKind === 'check'
         ? (i18n.checkTitle || 'Checking…')
         : (i18n.title || 'Updating…');
     }
-    lastFoundCount = 0;
     renderFound([]);
     setBar(0);
     if (timerIv) clearInterval(timerIv);

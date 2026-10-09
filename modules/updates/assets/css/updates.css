@@ -39,6 +39,12 @@
   font-size: 0.9rem;
 }
 .upd-job-actions { margin-top: 1rem; }
+/* .btn-* sets display and overrides HTML [hidden] without !important */
+#upd-job-apply-found[hidden],
+#upd-job-ok[hidden],
+#upd-job-abort[hidden] {
+  display: none !important;
+}
 body.upd-job-busy { overflow: hidden; }
 
 .upd-banner {
