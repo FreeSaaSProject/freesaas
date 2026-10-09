@@ -36,6 +36,16 @@ final class ModuleManager
         ksort(self::$modules);
     }
 
+    /**
+     * Re-scan each modules/{id}/module.json (after UpdateEngine install of a new package).
+     * Does not re-run bootstrap.php for newly appeared modules in this request.
+     */
+    public static function rediscover(): void
+    {
+        self::$modules = [];
+        self::discover();
+    }
+
     public static function bootEnabled(): void
     {
         foreach (self::$modules as $id => $meta) {

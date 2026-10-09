@@ -40,11 +40,17 @@ $error = trim((string)($_GET['err'] ?? ''));
 
 $cards = ModuleCatalog::list($filters);
 $sections = ModuleCatalog::sections($cards);
+$installable = ModuleCatalog::installableList($filters);
+$updatesConfigured = UpdateEngine::coreSource() !== null;
+$canInstall = Auth::capability('SUPERADMIN_ACCESS');
 
 View::render('modules', [
     'title' => t('core.menu.modules'),
     'cards' => $cards,
     'sections' => $sections,
+    'installable' => $installable,
+    'updatesConfigured' => $updatesConfigured,
+    'canInstall' => $canInstall,
     'filters' => $filters,
     'categories' => ModuleCatalog::usedCategories(),
     'tags' => ModuleCatalog::usedTags(),

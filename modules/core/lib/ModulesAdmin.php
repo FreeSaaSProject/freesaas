@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Shared enable/disable/migrate POST handling for /modules and /modules/{id}.
+ * Shared enable/disable/migrate/install POST handling for /modules and /modules/{id}.
  */
 final class ModulesAdmin
 {
@@ -26,6 +26,35 @@ final class ModulesAdmin
         }
 
         try {
+            if ($action === 'refresh_catalog') {
+                if (!Auth::capability('SUPERADMIN_ACCESS')) {
+                    throw new RuntimeException(t('core.modules.err.superadmin'));
+                }
+                $cat = UpdateEngine::fetchRemoteCatalog(true);
+                if (empty($cat['ok'])) {
+                    throw new RuntimeException((string)($cat['error'] ?? t('core.modules.err.catalog')));
+                }
+                $n = count(UpdateEngine::availableToInstall(false));
+                return ['redirect' => self::withQuery($ret, 'msg', t('core.modules.msg.catalog_refreshed', ['n' => $n]))];
+            }
+
+            if ($action === 'install') {
+                if (!Auth::capability('SUPERADMIN_ACCESS')) {
+                    throw new RuntimeException(t('core.modules.err.superadmin'));
+                }
+                if ($moduleId === '' || !preg_match('/^[a-z][a-z0-9_]*$/', $moduleId)) {
+                    throw new RuntimeException(t('core.modules.err.no_module'));
+                }
+                $report = UpdateEngine::installModule($moduleId);
+                if (empty($report['ok'])) {
+                    throw new RuntimeException((string)($report['error'] ?? t('core.modules.err.install')));
+                }
+                return ['redirect' => self::withQuery($ret, 'msg', t('core.modules.msg.installed', [
+                    'module' => $moduleId,
+                    'version' => (string)($report['version'] ?? ''),
+                ]))];
+            }
+
             if ($moduleId === '' || ModuleManager::get($moduleId) === null) {
                 throw new RuntimeException(t('core.modules.err.no_module'));
             }

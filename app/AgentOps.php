@@ -98,12 +98,46 @@ final class AgentOps
                 'can_enable' => $card['can_enable'],
                 'can_disable' => $card['can_disable'],
                 'can_toggle' => $card['can_toggle'],
+                'can_install' => false,
+                'installable' => false,
                 'required_by' => $card['required_by'],
+            ];
+        }
+        $available = [];
+        foreach (ModuleCatalog::installableList($norm) as $card) {
+            $available[] = [
+                'id' => $card['id'],
+                'version' => $card['version'],
+                'type' => $card['type'],
+                'enabled' => false,
+                'config_enabled' => false,
+                'status' => 'available',
+                'block_reason' => null,
+                'migrations_pending' => 0,
+                'deps_ok' => true,
+                'name' => $card['name'],
+                'description' => $card['description'],
+                'summary' => $card['summary'],
+                'catalog' => $card['catalog'],
+                'maturity' => $card['maturity'],
+                'requires_risk_ack' => $card['requires_risk_ack'],
+                'agent_note' => $card['agent_note'],
+                'provides' => [],
+                'requires' => $card['requires'],
+                'optionalRequires' => $card['optionalRequires'],
+                'can_enable' => false,
+                'can_disable' => false,
+                'can_toggle' => false,
+                'can_install' => true,
+                'installable' => true,
+                'required_by' => [],
             ];
         }
         return [
             'ok' => true,
             'modules' => $rows,
+            'available' => $available,
+            'available_count' => count($available),
             'filters' => $norm,
             'categories' => ModuleCatalog::usedCategories(),
             'tags' => ModuleCatalog::usedTags(),
@@ -210,6 +244,20 @@ final class AgentOps
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
         }
+    }
+
+    /**
+     * Download a remote module not yet on disk (UpdateEngine overlay). Stays disabled.
+     *
+     * @return array<string,mixed>
+     */
+    public static function moduleInstall(string $id): array
+    {
+        $r = UpdateEngine::installModule($id);
+        if (!empty($r['ok'])) {
+            $r['hint'] = 'Module downloaded to modules/' . $id . '; enable via module enable (accept_risk if alpha/beta)';
+        }
+        return $r;
     }
 
     /** @return array{ok:bool,results?:list,module?:string,errors?:list,warnings?:list,http:int} */
@@ -483,6 +531,12 @@ final class AgentOps
                     'query' => ['accept_risk'],
                     'body' => ['accept_risk'],
                     'description' => 'Enable + migrate. Alpha/beta require accept_risk=1 (query, form, or JSON). 400 + accept_risk_required if missing.',
+                ],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/modules/{id}/install',
+                    'op' => 'module.install',
+                    'description' => 'Download module not yet on disk from update repo (modules-catalog.json). Leaves disabled; then module.enable.',
                 ],
                 ['method' => 'POST', 'path' => '/agent/modules/{id}/disable', 'op' => 'module.disable'],
                 ['method' => 'GET', 'path' => '/agent/modules/{id}/validate', 'op' => 'module.validate'],

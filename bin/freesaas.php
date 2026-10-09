@@ -75,8 +75,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
 
   system status [--format=json]
   bootstrap --login=… --password=… [--name=…] [--agent-token=…] [--modules=a,b] [--format=json]
-  module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked] [--maturity=alpha|beta|release]
-  module inspect|enable [--accept-risk]|disable|validate …
+  module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
+  module inspect|install|enable [--accept-risk]|disable|validate …
   migrate status|run [--module=id] [--format=json]
   db status|dumps|dump|restore|delete-dump|check|repair|optimize [--file=…] [--label=…] [--format=json]
   locale list|validate [--locale=xx] [--format=json]
@@ -168,6 +168,13 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         }
         freesaas_emit_ops(AgentOps::moduleInspect($id));
     }
+    if ($sub === 'install') {
+        $id = $args[2] ?? '';
+        if ($id === '') {
+            Cli::usage('Usage: module install <id>');
+        }
+        freesaas_emit_ops(AgentOps::moduleInstall($id));
+    }
     if ($sub === 'enable' || $sub === 'disable') {
         $id = $args[2] ?? '';
         if ($id === '') {
@@ -180,7 +187,7 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         $id = $args[2] ?? '';
         freesaas_emit_ops(AgentOps::moduleValidate($id !== '' ? $id : null));
     }
-    Cli::usage('Usage: module list [--q=] [--category=] [--tag=] [--status=] [--maturity=alpha|beta|release] | inspect|enable [--accept-risk]|disable|validate …');
+    Cli::usage('Usage: module list [--q=] [--category=] [--tag=] [--status=] [--maturity=alpha|beta|release] | inspect|install|enable [--accept-risk]|disable|validate …');
 }
 
 /** @param array<string, string|bool> $opts */

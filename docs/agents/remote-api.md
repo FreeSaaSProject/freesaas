@@ -70,6 +70,10 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/modules/ledger"
 
+# Install a module that is in the remote catalog but not on disk yet
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/modules/banks/install"
+
 # Enable + migrate (POST). Alpha/beta require accept_risk=1 (query, form, or JSON body)
 curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   -H "Content-Type: application/json" \

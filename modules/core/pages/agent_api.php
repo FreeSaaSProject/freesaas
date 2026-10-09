@@ -213,6 +213,9 @@ function agent_api_dispatch(string $path, string $method, string $id): array
                 || !empty($body['accept_risk']);
             return AgentOps::moduleSetEnabled($id, true, (bool)$accept);
         }
+        if ($path === '/agent/modules/' . $id . '/install' && $method === 'POST') {
+            return AgentOps::moduleInstall($id);
+        }
         if ($path === '/agent/modules/' . $id . '/disable' && $method === 'POST') {
             return AgentOps::moduleSetEnabled($id, false);
         }

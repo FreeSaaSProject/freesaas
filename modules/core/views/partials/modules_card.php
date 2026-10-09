@@ -17,16 +17,26 @@ $cardTags = $card['catalog']['tags'] ?? [];
 $maturity = (string)($card['maturity'] ?? 'beta');
 $requiresRiskAck = !empty($card['requires_risk_ack']);
 $sectionCategory = isset($sectionCategory) ? (string)$sectionCategory : '';
+$isInstallable = !empty($card['installable']) || $st === 'available';
+$canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
 ?>
-<article class="modules-card" data-module="<?= e($id) ?>">
+<article class="modules-card<?= $isInstallable ? ' modules-card--installable' : '' ?>" data-module="<?= e($id) ?>">
   <header class="modules-card-head">
     <div>
-      <h3 class="modules-card-title"><a href="/modules/<?= e(rawurlencode($id)) ?>"><?= e($name) ?></a></h3>
+      <h3 class="modules-card-title">
+        <?php if ($isInstallable): ?>
+          <?= e($name) ?>
+        <?php else: ?>
+          <a href="/modules/<?= e(rawurlencode($id)) ?>"><?= e($name) ?></a>
+        <?php endif; ?>
+      </h3>
       <div class="muted"><code><?= e($id) ?></code> · v<?= e((string)$card['version']) ?></div>
     </div>
     <div class="modules-card-status">
       <span class="pill maturity-<?= e($maturity) ?>"><?= te('core.modules.maturity.' . $maturity) ?></span>
-      <?php if ($st === 'enabled'): ?>
+      <?php if ($st === 'available'): ?>
+        <span class="pill avail"><?= te('core.modules.state_available') ?></span>
+      <?php elseif ($st === 'enabled'): ?>
         <span class="pill ok"><?= te('core.modules.state_enabled') ?></span>
       <?php elseif ($st === 'blocked'): ?>
         <span class="pill off"><?= te('core.modules.state_blocked') ?></span>
@@ -55,6 +65,23 @@ $sectionCategory = isset($sectionCategory) ? (string)$sectionCategory : '';
   </div>
 
   <div class="modules-deps">
+    <?php if ($isInstallable): ?>
+      <?php
+        $reqIds = [];
+        foreach ($card['requires'] ?? [] as $depId => $constraint) {
+            $depId = is_string($depId) ? $depId : (string)$constraint;
+            if ($depId === '' || $depId === 'core') {
+                continue;
+            }
+            $reqIds[] = $depId;
+        }
+      ?>
+      <?php if ($reqIds === []): ?>
+        <span class="muted"><?= te('core.modules.col_deps') ?>: —</span>
+      <?php else: ?>
+        <span class="muted"><?= te('core.modules.col_deps') ?>: <?= e(implode(', ', $reqIds)) ?></span>
+      <?php endif; ?>
+    <?php else: ?>
     <?php
       $depsVisible = [];
       foreach ($card['status_requires'] as $dep) {
@@ -107,10 +134,22 @@ $sectionCategory = isset($sectionCategory) ? (string)$sectionCategory : '';
     <?php if ($pending > 0): ?>
       <div class="muted bad-text"><?= te('core.modules.pending', ['n' => $pending]) ?></div>
     <?php endif; ?>
+    <?php endif; ?>
     <div class="modules-hint bad-text" data-modules-hint hidden></div>
   </div>
 
   <div class="modules-actions">
+    <?php if ($isInstallable): ?>
+      <?php if ($canInstallBtn): ?>
+        <form method="post" class="inline-form" action="/modules"
+          onsubmit="return confirm(<?= tj('core.modules.confirm_install', ['module' => $name !== '' ? $name : $id]) ?>);">
+          <input type="hidden" name="module" value="<?= e($id) ?>">
+          <input type="hidden" name="action" value="install">
+          <input type="hidden" name="ret" value="<?= e($listPath) ?>">
+          <button class="btn-primary btn-sm" type="submit"><?= te('core.modules.btn_install') ?></button>
+        </form>
+      <?php endif; ?>
+    <?php else: ?>
     <?php if (!empty($card['can_enable'])): ?>
       <?php
         $moduleId = $id;
@@ -177,5 +216,6 @@ $sectionCategory = isset($sectionCategory) ? (string)$sectionCategory : '';
     <?php endif; ?>
 
     <a class="btn-secondary btn-sm" href="/modules/<?= e(rawurlencode($id)) ?>"><?= te('core.modules.btn_details') ?></a>
+    <?php endif; ?>
   </div>
 </article>

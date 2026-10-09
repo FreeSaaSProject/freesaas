@@ -51,6 +51,8 @@ return [
     'updates.hints_empty' => 'No candidates.',
     'updates.banner.available' => 'Updates available: {n}',
     'updates.banner.item' => '{name}: {local} → {remote}',
+    'updates.banner.installable' => 'New modules in the repository: {n} — install from the modules catalog.',
+    'updates.banner.installable_link' => 'Go to modules',
     'updates.notice.title' => 'FreeSaaS updates available: {n}',
     'updates.notice.short' => 'Updates ({n})',
     'updates.check.title' => 'Checking for updates…',

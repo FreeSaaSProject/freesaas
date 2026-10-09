@@ -12,6 +12,7 @@ Add a new product module under `modules/<id>/` that passes acceptance.
 2. **Clone template** — copy structure from [`modules/units/`](../../modules/units/) for CRUD dictionaries.
 3. **Create files**
    - `module.json` — `id`, `name` (i18n key), `description` (i18n key `{id}.module.description`), `catalog` (`categories[]` many-to-many + `maturity`=`alpha|beta|release` + `tags` from `ModuleCatalog` allowlists; optional `screenshots` under `assets/catalog/`), `version`, `type: product`, `requires: { "core": ">=0.3.0" }`, `optionalRequires`, `permissions`, `menu`, `tables`, `hooks` (dotted EventBus names only), `routes.pages`, optional `bulkActions`, optional `agent.ops` ([module-agent-api.md](module-agent-api.md)). Until hardened, prefer `maturity: beta` (enable requires risk ack for alpha/beta).
+   - After adding a new product module to the monorepo, regenerate the remote install index: `php bin/build-modules-catalog.php` (commit `modules-catalog.json`). Instances with UpdateEngine configured will show it under **Modules → Available to install**.
    - `lang/ru.php` + `lang/en.php` — include `{id}.module.description` and `{id}.module.summary` (when to enable, hard/soft deps in plain language for humans and agents)
    - `bootstrap.php` — `require_once` repos, `registerRoute`, optional `BulkActions`, `EventBus::on`, `Health::register`, `Assets::register`
    - `migrations/001_*.php` — `return function (PDO $pdo): void`

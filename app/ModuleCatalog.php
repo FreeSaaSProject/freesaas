@@ -53,6 +53,11 @@ final class ModuleCatalog
     /** @var array<string, array<string, string>>|null locale => key => text */
     private static $localeCatalogs = null;
 
+    public static function resetLocaleCache(): void
+    {
+        self::$localeCatalogs = null;
+    }
+
     /**
      * @param array{q?:string,category?:string,tag?:string,status?:string,maturity?:string} $filters
      * @return list<array<string, mixed>>
@@ -71,6 +76,113 @@ final class ModuleCatalog
             $out[] = $card;
         }
         return $out;
+    }
+
+    /**
+     * Remote modules not on disk yet (UpdateEngine catalog).
+     *
+     * @param array{q?:string,category?:string,tag?:string,status?:string,maturity?:string} $filters
+     * @return list<array<string, mixed>>
+     */
+    public static function installableList(array $filters = []): array
+    {
+        $status = trim((string)($filters['status'] ?? ''));
+        if ($status !== '' && $status !== 'available') {
+            return [];
+        }
+        $out = [];
+        try {
+            foreach (UpdateEngine::availableToInstall() as $row) {
+                $card = self::installableCard($row);
+                if (!self::matches($card, $filters)) {
+                    continue;
+                }
+                $out[] = $card;
+            }
+        } catch (Throwable $e) {
+            return [];
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $row from UpdateEngine::availableToInstall
+     * @return array<string,mixed>
+     */
+    public static function installableCard(array $row): array
+    {
+        $id = (string)($row['id'] ?? '');
+        $maturity = (string)($row['maturity'] ?? self::MATURITY_DEFAULT);
+        if (!self::isValidMaturity($maturity)) {
+            $maturity = self::MATURITY_DEFAULT;
+        }
+        $categories = [];
+        foreach ($row['categories'] ?? [] as $c) {
+            if (is_string($c) && self::isValidCategory($c)) {
+                $categories[] = $c;
+            }
+        }
+        $tags = [];
+        foreach ($row['tags'] ?? [] as $tg) {
+            if (is_string($tg) && $tg !== '') {
+                $tags[] = $tg;
+            }
+        }
+        $name = self::asBilocale($row['name'] ?? null);
+        $description = self::asBilocale($row['description'] ?? null);
+        $summary = self::asBilocale($row['summary'] ?? null);
+        $requires = is_array($row['requires'] ?? null) ? $row['requires'] : [];
+        $optional = is_array($row['optionalRequires'] ?? null) ? $row['optionalRequires'] : [];
+
+        return [
+            'id' => $id,
+            'version' => (string)($row['version'] ?? ''),
+            'type' => (string)($row['type'] ?? 'product'),
+            'enabled' => false,
+            'config_enabled' => false,
+            'block_reason' => null,
+            'migrations_pending' => 0,
+            'deps_ok' => true,
+            'status' => 'available',
+            'name' => $name,
+            'description' => $description,
+            'summary' => $summary,
+            'catalog' => [
+                'categories' => $categories,
+                'tags' => $tags,
+                'maturity' => $maturity,
+            ],
+            'maturity' => $maturity,
+            'requires_risk_ack' => self::requiresRiskAck($maturity),
+            'agent_note' => self::agentNote($maturity),
+            'provides' => [],
+            'requires' => $requires,
+            'optionalRequires' => $optional,
+            'can_enable' => false,
+            'can_disable' => false,
+            'can_toggle' => false,
+            'can_install' => true,
+            'installable' => true,
+            'required_by' => [],
+            'status_requires' => [],
+            'remote_version' => (string)($row['version'] ?? ''),
+            'ref' => (string)($row['ref'] ?? ''),
+        ];
+    }
+
+    /**
+     * @param mixed $v
+     * @return array{en:string,ru:string}
+     */
+    private static function asBilocale($v): array
+    {
+        if (!is_array($v)) {
+            return ['en' => '', 'ru' => ''];
+        }
+        return [
+            'en' => trim((string)($v['en'] ?? '')),
+            'ru' => trim((string)($v['ru'] ?? '')),
+        ];
     }
 
     /**
@@ -301,6 +413,17 @@ final class ModuleCatalog
             foreach (self::parseCatalog($meta)['categories'] as $c) {
                 $used[$c] = true;
             }
+        }
+        try {
+            foreach (UpdateEngine::availableToInstall(false) as $row) {
+                foreach ($row['categories'] ?? [] as $c) {
+                    if (is_string($c) && self::isValidCategory($c)) {
+                        $used[$c] = true;
+                    }
+                }
+            }
+        } catch (Throwable $e) {
+            // ignore
         }
         $out = [];
         foreach (self::CATEGORIES as $c) {

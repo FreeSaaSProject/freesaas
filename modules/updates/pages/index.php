@@ -226,4 +226,5 @@ View::render('index', [
     'updateSource' => $updateSource,
     'updateAvailableCount' => $updateAvailableCount,
     'updateAvailable' => $updateAvailable,
+    'installableCount' => (int)($updateStatus['installable_count'] ?? 0),
 ], 'layout', 'updates');

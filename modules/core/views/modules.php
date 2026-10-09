@@ -1,6 +1,9 @@
 <?php
 /** @var list<array<string,mixed>> $cards */
 /** @var list<array{id:string,cards:list<array<string,mixed>>}> $sections */
+/** @var list<array<string,mixed>> $installable */
+/** @var bool $updatesConfigured */
+/** @var bool $canInstall */
 /** @var array{q:string,category:string,tag:string,status:string,maturity:string} $filters */
 /** @var list<string> $categories */
 /** @var list<string> $tags */
@@ -8,6 +11,10 @@
 /** @var string $listPath */
 /** @var string $message */
 /** @var string $error */
+
+$installable = is_array($installable ?? null) ? $installable : [];
+$updatesConfigured = !empty($updatesConfigured);
+$canInstall = !empty($canInstall);
 
 $modLabel = static function (string $modId): string {
     $meta = ModuleManager::get($modId);
@@ -17,11 +24,26 @@ $modLabel = static function (string $modId): string {
     return t((string)($meta['name'] ?? $modId));
 };
 
-$showNav = count($sections) > 1;
+$showNav = count($sections) > 1 || $installable !== [];
 ?>
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
+
+<?php if ($canInstall && $updatesConfigured): ?>
+  <div class="modules-catalog-bar">
+    <form method="post" action="/modules" class="inline-form">
+      <input type="hidden" name="action" value="refresh_catalog">
+      <input type="hidden" name="ret" value="<?= e($listPath) ?>">
+      <button class="btn-secondary btn-sm" type="submit"><?= te('core.modules.btn_refresh_catalog') ?></button>
+    </form>
+  </div>
+<?php elseif ($canInstall && !$updatesConfigured): ?>
+  <p class="muted modules-catalog-hint">
+    <?= te('core.modules.catalog_configure') ?>
+    — <a href="/updates/settings"><?= te('core.modules.catalog_configure_link') ?></a>
+  </p>
+<?php endif; ?>
 
 <form method="get" action="/modules" class="modules-filters" data-modules-filters>
   <label class="modules-filter-q">
@@ -53,6 +75,7 @@ $showNav = count($sections) > 1;
       <option value="enabled"<?= $filters['status'] === 'enabled' ? ' selected' : '' ?>><?= te('core.modules.state_enabled') ?></option>
       <option value="disabled"<?= $filters['status'] === 'disabled' ? ' selected' : '' ?>><?= te('core.modules.state_disabled') ?></option>
       <option value="blocked"<?= $filters['status'] === 'blocked' ? ' selected' : '' ?>><?= te('core.modules.state_blocked') ?></option>
+      <option value="available"<?= $filters['status'] === 'available' ? ' selected' : '' ?>><?= te('core.modules.state_available') ?></option>
     </select>
   </label>
   <label>
@@ -69,10 +92,18 @@ $showNav = count($sections) > 1;
   </div>
 </form>
 
-<p class="muted modules-count"><?= te('core.modules.count', ['n' => count($cards)]) ?></p>
+<p class="muted modules-count">
+  <?= te('core.modules.count', ['n' => count($cards)]) ?>
+  <?php if ($installable !== []): ?>
+    · <?= te('core.modules.count_available', ['n' => count($installable)]) ?>
+  <?php endif; ?>
+</p>
 
 <?php if ($showNav): ?>
   <nav class="modules-sections-nav" aria-label="<?= te('core.modules.sections_nav') ?>">
+    <?php if ($installable !== []): ?>
+      <a href="#mod-installable"><?= te('core.modules.section_installable') ?> <span class="muted"><?= count($installable) ?></span></a>
+    <?php endif; ?>
     <?php foreach ($sections as $sec):
         $secId = (string)$sec['id'];
         $anchor = $secId !== '' ? 'mod-cat-' . $secId : 'mod-cat-other';
@@ -86,7 +117,23 @@ $showNav = count($sections) > 1;
   </nav>
 <?php endif; ?>
 
-<?php if ($sections === []): ?>
+<?php if ($installable !== []): ?>
+  <section class="modules-section modules-section--installable" id="mod-installable">
+    <header class="modules-section-head">
+      <h2 class="modules-section-title"><?= te('core.modules.section_installable') ?></h2>
+      <span class="muted"><?= te('core.modules.section_count', ['n' => count($installable)]) ?></span>
+    </header>
+    <p class="muted modules-section-lede"><?= te('core.modules.section_installable_help') ?></p>
+    <div class="modules-grid">
+      <?php foreach ($installable as $card):
+          $sectionCategory = '';
+          require base_path('modules/core/views/partials/modules_card.php');
+      endforeach; ?>
+    </div>
+  </section>
+<?php endif; ?>
+
+<?php if ($sections === [] && $installable === []): ?>
   <p class="muted"><?= te('core.modules.empty') ?></p>
 <?php endif; ?>
 

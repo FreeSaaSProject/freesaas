@@ -1252,6 +1252,23 @@ a.pager-chip:hover {
   align-items: center;
 }
 .modules-count { margin: 0 0 0.85rem; }
+.modules-catalog-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 0.85rem;
+}
+.modules-catalog-hint { margin: 0 0 0.85rem; }
+.modules-section--installable .modules-section-title { color: var(--accent, #0b6); }
+.modules-section-lede { margin: -0.35rem 0 0.75rem; font-size: 0.92rem; }
+.modules-card--installable {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--bg, #fff) 92%, var(--accent, #0b6));
+}
+.modules-card .pill.avail {
+  background: color-mix(in srgb, var(--accent, #0b6) 18%, transparent);
+}
 .modules-sections-nav {
   display: flex;
   flex-wrap: wrap;

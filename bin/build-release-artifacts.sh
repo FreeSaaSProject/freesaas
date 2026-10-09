@@ -2,6 +2,8 @@
 # Build FreeSaaS release artifacts (new UpdateEngine only):
 #   - freesaas-<ver>.zip          FULL tree (private modules excluded)
 #   - freesaas-manifest.json      {kind:"full", version, sha256, artifact}
+#   - freesaas-catalog.json       copy of modules-catalog.json (installable modules)
+#   - modules-catalog.json        regenerated at repo root (also inside the zip)
 #
 # External module from another repo:
 #   bin/build-release-artifacts.sh --module=id
@@ -70,6 +72,10 @@ rm -f "$DIST"/freesaas-core-*.zip \
   "$DIST"/freesaas-module-*.zip \
   "$DIST"/freesaas-catalog.json \
   "$DIST"/freesaas-manifest.json
+
+# Remote install catalog (Contents API + release asset).
+PRIVATE_MODULES="$PRIVATE_MODULES" php "$ROOT/bin/build-modules-catalog.php"
+PRIVATE_MODULES="$PRIVATE_MODULES" php "$ROOT/bin/build-modules-catalog.php" --out="$DIST/freesaas-catalog.json"
 
 name="freesaas-${VERSION}.zip"
 zip="$DIST/$name"

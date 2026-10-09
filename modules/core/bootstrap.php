@@ -50,6 +50,7 @@ $pages = [
     '/agent/modules' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/enable' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/modules/{id}/install' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/disable' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/validate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/validate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],

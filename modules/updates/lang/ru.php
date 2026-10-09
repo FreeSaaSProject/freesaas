@@ -51,6 +51,8 @@ return [
     'updates.hints_empty' => 'Нет кандидатов.',
     'updates.banner.available' => 'Доступно обновлений: {n}',
     'updates.banner.item' => '{name}: {local} → {remote}',
+    'updates.banner.installable' => 'Новых модулей в репозитории: {n} — установить в каталоге модулей.',
+    'updates.banner.installable_link' => 'К модулям',
     'updates.notice.title' => 'Доступно обновлений FreeSaaS: {n}',
     'updates.notice.short' => 'Обновления ({n})',
     'updates.check.title' => 'Проверка обновлений…',

@@ -16,9 +16,22 @@ For each package, UpdateEngine reads the live file from the configured git ref v
 | module in monorepo | `modules/<id>/module.json` → `version` |
 | external `[module.x]` | that repo’s `module.json` (or path under `path_prefix`) |
 
-~1 request per module (~40–45 with a token is fine). No registry / catalog file required.
+~1 request per module (~40–45 with a token is fine).
 
-`/updates` shows **local + remote** versions for every package, plus **last check** time (`cfg/updates.state.json`).
+On a full check, UpdateEngine also refreshes **`modules-catalog.json`** from the same ref (fallback: list `modules/` + each `module.json`). Modules present remotely but **not on disk** become **available to install** (see below). Cached in `cfg/updates.state.json`.
+
+`/updates` shows **local + remote** versions for every package, plus **last check** time (`cfg/updates.state.json`). A banner links to `/modules` when new modules exist.
+
+### New modules (install, not update)
+
+Updates are for versions of code already on the instance. A package that is not on disk yet is an **install**:
+
+1. Repo ships `modules-catalog.json` (build: `php bin/build-modules-catalog.php`; also attached as `freesaas-catalog.json` on releases).
+2. **`/modules`** section **Available to install** — cards with **Install**.
+3. Install → `UpdateEngine::installModule` downloads the monorepo archive and overlays only `modules/<id>/`. Module stays **disabled**; enable + migrate as usual.
+4. `/updates` only shows a banner («N new modules → modules»).
+
+CLI / agent: `php bin/freesaas.php module install <id>` · `POST /agent/modules/{id}/install`.
 
 ### Apply (one archive for the monorepo)
 
@@ -54,8 +67,9 @@ CI / [`bin/build-release-artifacts.sh`](../../bin/build-release-artifacts.sh) bu
 
 - `freesaas-<VERSION>.zip` — whole tree minus private modules (`PRIVATE_MODULES=likespa`)
 - `freesaas-manifest.json` — `{kind:"full", version, sha256, artifact}`
+- `freesaas-catalog.json` — installable modules catalog (same shape as repo-root `modules-catalog.json`)
 
-Attach both to the GitHub Release (see `.github/workflows/release-artifacts.yml`).
+Attach them to the GitHub Release (see `.github/workflows/release-artifacts.yml`). When adding a product module, regenerate and commit `modules-catalog.json` so channel=`main` instances see it via Contents API.
 
 ## Deny-list
 

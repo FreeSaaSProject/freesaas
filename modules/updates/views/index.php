@@ -8,6 +8,7 @@
 /** @var array<string,mixed>|null $updateSource */
 /** @var int $updateAvailableCount */
 /** @var list<array<string,mixed>> $updateAvailable */
+/** @var int $installableCount */
 $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $updateConfigured = !empty($updateConfigured);
@@ -19,6 +20,7 @@ $updateLastCheck = isset($updateLastCheck) && is_string($updateLastCheck) && $up
 $updateSource = is_array($updateSource ?? null) ? $updateSource : null;
 $updateAvailableCount = (int)($updateAvailableCount ?? 0);
 $updateAvailable = is_array($updateAvailable ?? null) ? $updateAvailable : [];
+$installableCount = (int)($installableCount ?? 0);
 
 $lastCheckTs = null;
 if ($updateLastCheck !== null) {
@@ -138,6 +140,15 @@ $jobI18n = [
   <?php if ($updateCanApply): ?>
   <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_update_available') ?></button>
   <?php endif; ?>
+</div>
+<?php endif; ?>
+
+<?php if ($installableCount > 0): ?>
+<div class="flash flash-ok upd-banner" role="status">
+  <div class="upd-banner-text">
+    <?= e(t('updates.banner.installable', ['n' => (string)$installableCount])) ?>
+  </div>
+  <a class="btn-secondary" href="/modules?status=available"><?= te('updates.banner.installable_link') ?></a>
 </div>
 <?php endif; ?>
 

@@ -410,7 +410,8 @@ View::render('index', ['title' => 'My feature', /* ... */], 'layout', 'myfeature
 |---------|----------|
 | `php bin/freesaas.php system status` | PHP/DB/config, локаль, счётчики модулей |
 | `php bin/freesaas.php bootstrap --login=… --password=…` | Первый admin + migrate + `agent_token` (см. [`agents/install.md`](agents/install.md)) |
-| `php bin/freesaas.php module list [--q=] [--category=] [--tag=] [--status=] [--maturity=]` | Каталог модулей (bilocale name/description, filters) |
+| `php bin/freesaas.php module list [--q=] [--category=] [--tag=] [--status=] [--maturity=]` | Каталог модулей (bilocale name/description, filters); `available[]` — ещё не на диске |
+| `php bin/freesaas.php module install <id>` | Скачать модуль с репо обновлений (не на диске); дальше `module enable` |
 | `php bin/freesaas.php module enable <id> [--accept-risk]` | Включить; для alpha/beta нужен `--accept-risk` |
 | `php bin/freesaas.php module inspect <id>` | Манифест + runtime routes + status |
 | `php bin/freesaas.php module enable\|disable <id>` | Вкл/выкл (при enable — schema migrate) |

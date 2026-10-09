@@ -78,6 +78,7 @@
             "/agent/modules",
             "/agent/modules/{id}",
             "/agent/modules/{id}/enable",
+            "/agent/modules/{id}/install",
             "/agent/modules/{id}/disable",
             "/agent/modules/{id}/validate",
             "/agent/validate",
@@ -109,7 +110,7 @@
                 "path": "/modules",
                 "permission": "core.modules",
                 "side_effect": "read",
-                "description": "Installed modules catalog: bilocale name/description/summary, maturity, enabled/blocked, deps, categories/tags. Filters: q, category, tag, status, maturity",
+                "description": "Installed modules catalog + available[] (remote, not on disk). Filters: q, category, tag, status (incl. available), maturity",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -128,7 +129,8 @@
                             "enum": [
                                 "enabled",
                                 "disabled",
-                                "blocked"
+                                "blocked",
+                                "available"
                             ]
                         },
                         "maturity": {
@@ -138,6 +140,31 @@
                                 "beta",
                                 "release"
                             ]
+                        }
+                    }
+                }
+            },
+            {
+                "id": "core.modules.install",
+                "method": "POST",
+                "path": "/modules",
+                "permission": "core.modules",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "POST action=install&module=id — download remote module via UpdateEngine (not on disk yet). Stays disabled; then enable.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "module"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "const": "install"
+                        },
+                        "module": {
+                            "type": "string",
+                            "description": "Module id from available[]"
                         }
                     }
                 }
