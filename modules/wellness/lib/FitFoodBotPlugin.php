@@ -192,6 +192,14 @@ final class FitFoodBotPlugin
             self::reply($ctx, t('wellness.bot.sport_hint'), self::kbCancel());
             return true;
         }
+        if ($data === 'fit_food_entry_edit') {
+            self::beginEdit($ctx, $uid);
+            return true;
+        }
+        if ($data === 'fit_food_entry_del') {
+            self::beginDelete($ctx, $uid);
+            return true;
+        }
         if (preg_match('/^fit_food_entry_rfp_(\d+)$/', $data, $m)) {
             self::pickRecipeFood($ctx, $uid, (int)$m[1]);
             return true;
@@ -214,6 +222,18 @@ final class FitFoodBotPlugin
 
         if ($mode === 'await_input') {
             self::processFoodInput($ctx, $uid, $text);
+            return true;
+        }
+        if ($mode === 'await_edit') {
+            self::processEditInput($ctx, $uid, $text, $data);
+            return true;
+        }
+        if ($mode === 'await_edit_weight') {
+            self::processEditWeight($ctx, $uid, $text, $data);
+            return true;
+        }
+        if ($mode === 'await_delete') {
+            self::processDeleteInput($ctx, $uid, $text, $data);
             return true;
         }
         if ($mode === 'await_sport_input') {
@@ -731,9 +751,11 @@ final class FitFoodBotPlugin
         [$from, $to] = WellnessOwner::dayRange($ymd);
         $list = FitFoodlogsRepository::list(['from' => $from, 'to' => $to, 'limit' => 40, 'order' => 'l.DT ASC, l.ID ASC']);
         $lines = ['<b>' . t('wellness.bot.title') . '</b>', ''];
+        $n = 1;
         foreach ($list['items'] as $row) {
-            $lines[] = '• ' . date('H:i', (int)$row['dt']) . ' — ' . e((string)$row['food_name'])
+            $lines[] = $n . ': ' . date('H:i', (int)$row['dt']) . ' — ' . e((string)$row['food_name'])
                 . ' ' . (float)$row['weight'] . 'g (' . (int)$row['ccals'] . ')';
+            $n++;
         }
         $t = $list['totals'];
         $lines[] = '';
@@ -757,6 +779,329 @@ final class FitFoodBotPlugin
         $lines[] = '';
         $lines[] = t('wellness.bot.input_hint');
         return implode("\n", $lines);
+    }
+
+    /**
+     * Today's food log rows keyed by 1-based screen number.
+     *
+     * @return array{items:list<array<string,mixed>>,map:array<int,int>}
+     */
+    private static function todayFoodIndex(): array
+    {
+        $ymd = date('Y-m-d');
+        [$from, $to] = WellnessOwner::dayRange($ymd);
+        $list = FitFoodlogsRepository::list([
+            'from' => $from,
+            'to' => $to,
+            'limit' => 40,
+            'order' => 'l.DT ASC, l.ID ASC',
+        ]);
+        $map = [];
+        $n = 1;
+        foreach ($list['items'] as $row) {
+            $map[$n] = (int)$row['id'];
+            $n++;
+        }
+        return ['items' => $list['items'], 'map' => $map];
+    }
+
+    /** @param array<string,mixed> $ctx */
+    private static function beginEdit(array $ctx, int $uid): void
+    {
+        $idx = self::todayFoodIndex();
+        if ($idx['map'] === []) {
+            self::reply($ctx, t('wellness.bot.empty_day'), self::kbHome());
+            self::setState($ctx, 'await_input', ['user_id' => $uid]);
+            return;
+        }
+        self::setState($ctx, 'await_edit', [
+            'user_id' => $uid,
+            'log_map' => $idx['map'],
+        ]);
+        self::replyHtml(
+            $ctx,
+            self::formatNumberedFoodLines($idx['items']) . "\n\n" . t('wellness.bot.edit_hint'),
+            self::kbCancel()
+        );
+    }
+
+    /** @param array<string,mixed> $ctx */
+    private static function beginDelete(array $ctx, int $uid): void
+    {
+        $idx = self::todayFoodIndex();
+        if ($idx['map'] === []) {
+            self::reply($ctx, t('wellness.bot.empty_day'), self::kbHome());
+            self::setState($ctx, 'await_input', ['user_id' => $uid]);
+            return;
+        }
+        self::setState($ctx, 'await_delete', [
+            'user_id' => $uid,
+            'log_map' => $idx['map'],
+        ]);
+        self::replyHtml(
+            $ctx,
+            self::formatNumberedFoodLines($idx['items']) . "\n\n" . t('wellness.bot.delete_hint'),
+            self::kbCancel()
+        );
+    }
+
+    /** @param list<array<string,mixed>> $items */
+    private static function formatNumberedFoodLines(array $items): string
+    {
+        $lines = [];
+        $n = 1;
+        foreach ($items as $row) {
+            $lines[] = $n . ': ' . date('H:i', (int)$row['dt']) . ' — ' . e((string)$row['food_name'])
+                . ' ' . (float)$row['weight'] . 'g (' . (int)$row['ccals'] . ')';
+            $n++;
+        }
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed> $data
+     */
+    private static function processEditInput(array $ctx, int $uid, string $text, array $data): void
+    {
+        $map = self::normalizeLogMap($data['log_map'] ?? null);
+        $pairs = self::parseEditItems($text);
+        if ($map === [] || $pairs === []) {
+            self::reply($ctx, t('wellness.bot.edit_bad'), self::kbCancel());
+            return;
+        }
+        $results = [];
+        $needWeight = [];
+        foreach ($pairs as $pair) {
+            $n = (int)$pair['n'];
+            if (!isset($map[$n])) {
+                $results[] = t('wellness.bot.bad_num', ['n' => (string)$n]);
+                continue;
+            }
+            $weight = $pair['weight'];
+            if ($weight === null) {
+                $needWeight[] = $n;
+                continue;
+            }
+            $msg = self::applyEditWeight($map[$n], $n, $weight);
+            if ($msg !== null) {
+                $results[] = $msg;
+            }
+        }
+        if ($needWeight !== []) {
+            $first = array_shift($needWeight);
+            $logId = (int)$map[$first];
+            $row = FitFoodlogsRepository::findOwned($logId);
+            self::setState($ctx, 'await_edit_weight', [
+                'user_id' => $uid,
+                'log_map' => $map,
+                'edit_n' => $first,
+                'edit_id' => $logId,
+                'queue' => array_values($needWeight),
+                'results' => array_values($results),
+            ]);
+            self::reply($ctx, t('wellness.bot.edit_ask_weight', [
+                'n' => (string)$first,
+                'name' => (string)($row['food_name'] ?? '#' . $first),
+            ]), self::kbCancel());
+            return;
+        }
+        self::finishEditDelete($ctx, $uid, $results);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed> $data
+     */
+    private static function processEditWeight(array $ctx, int $uid, string $text, array $data): void
+    {
+        $raw = trim($text);
+        $raw = preg_replace('/\s*(?:г|гр|грамм(?:а|ов)?)\s*$/iu', '', $raw);
+        $weight = (float)str_replace(',', '.', (string)$raw);
+        $map = self::normalizeLogMap($data['log_map'] ?? null);
+        $n = (int)($data['edit_n'] ?? 0);
+        $logId = (int)($data['edit_id'] ?? 0);
+        $cur = FitFoodlogsRepository::findOwned($logId);
+        if ($weight <= 0) {
+            self::reply($ctx, t('wellness.bot.edit_ask_weight', [
+                'n' => (string)$n,
+                'name' => (string)($cur['food_name'] ?? '#' . $n),
+            ]), self::kbCancel());
+            return;
+        }
+        $results = is_array($data['results'] ?? null) ? array_values($data['results']) : [];
+        $queue = is_array($data['queue'] ?? null) ? array_values($data['queue']) : [];
+        $msg = self::applyEditWeight($logId, $n, $weight);
+        if ($msg !== null) {
+            $results[] = $msg;
+        }
+        while ($queue !== []) {
+            $next = (int)array_shift($queue);
+            if (!isset($map[$next])) {
+                $results[] = t('wellness.bot.bad_num', ['n' => (string)$next]);
+                continue;
+            }
+            $nextId = (int)$map[$next];
+            $row = FitFoodlogsRepository::findOwned($nextId);
+            self::setState($ctx, 'await_edit_weight', [
+                'user_id' => $uid,
+                'log_map' => $map,
+                'edit_n' => $next,
+                'edit_id' => $nextId,
+                'queue' => $queue,
+                'results' => $results,
+            ]);
+            self::reply($ctx, t('wellness.bot.edit_ask_weight', [
+                'n' => (string)$next,
+                'name' => (string)($row['food_name'] ?? '#' . $next),
+            ]), self::kbCancel());
+            return;
+        }
+        self::finishEditDelete($ctx, $uid, $results);
+    }
+
+    private static function applyEditWeight(int $logId, int $n, float $weight): ?string
+    {
+        $row = FitFoodlogsRepository::findOwned($logId);
+        if ($row === null) {
+            return t('wellness.bot.bad_num', ['n' => (string)$n]);
+        }
+        try {
+            $data = FitFoodlogsRepository::dataFromPost([
+                'food_id' => (int)$row['food_id'],
+                'weight' => $weight,
+                'dt' => (int)$row['dt'],
+            ]);
+            FitFoodlogsRepository::update($logId, $data);
+        } catch (Throwable $e) {
+            error_log('[wellness.bot.editFood] ' . $e->getMessage());
+            return t('wellness.bot.save_fail', ['error' => $e->getMessage()]);
+        }
+        return t('wellness.bot.edit_ok', [
+            'n' => (string)$n,
+            'name' => (string)$row['food_name'],
+            'g' => (string)$weight,
+            'kcal' => (string)$data['ccals'],
+        ]);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed> $data
+     */
+    private static function processDeleteInput(array $ctx, int $uid, string $text, array $data): void
+    {
+        $map = self::normalizeLogMap($data['log_map'] ?? null);
+        $nums = self::parseDeleteNums($text);
+        if ($map === [] || $nums === []) {
+            self::reply($ctx, t('wellness.bot.delete_bad'), self::kbCancel());
+            return;
+        }
+        $ids = [];
+        $labels = [];
+        $miss = [];
+        foreach ($nums as $n) {
+            if (!isset($map[$n])) {
+                $miss[] = t('wellness.bot.bad_num', ['n' => (string)$n]);
+                continue;
+            }
+            $logId = (int)$map[$n];
+            $row = FitFoodlogsRepository::findOwned($logId);
+            $ids[] = $logId;
+            $labels[] = '#' . $n . ($row ? ' ' . (string)$row['food_name'] : '');
+        }
+        $results = $miss;
+        if ($ids !== []) {
+            try {
+                FitFoodlogsRepository::deleteByIds($ids);
+                $results[] = t('wellness.bot.delete_ok', ['list' => implode(', ', $labels)]);
+            } catch (Throwable $e) {
+                error_log('[wellness.bot.delFood] ' . $e->getMessage());
+                $results[] = t('wellness.bot.save_fail', ['error' => $e->getMessage()]);
+            }
+        } elseif ($results === []) {
+            $results[] = t('wellness.bot.delete_none');
+        }
+        self::finishEditDelete($ctx, $uid, $results);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param list<string> $results
+     */
+    private static function finishEditDelete(array $ctx, int $uid, array $results): void
+    {
+        $body = $results !== [] ? implode("\n", $results) : t('wellness.bot.delete_none');
+        self::setState($ctx, 'await_input', ['user_id' => $uid]);
+        self::replyHtml($ctx, $body . "\n\n" . self::statusText($uid), self::kbHome());
+    }
+
+    /** @return array<int,int> n => log id */
+    private static function normalizeLogMap($raw): array
+    {
+        if (!is_array($raw)) {
+            return [];
+        }
+        $map = [];
+        foreach ($raw as $k => $v) {
+            $n = (int)$k;
+            $id = (int)$v;
+            if ($n > 0 && $id > 0) {
+                $map[$n] = $id;
+            }
+        }
+        return $map;
+    }
+
+    /**
+     * "1 150, 2 200" or "1" / "1, 2".
+     *
+     * @return list<array{n:int,weight:float|null}>
+     */
+    private static function parseEditItems(string $text): array
+    {
+        $src = trim($text);
+        if ($src === '') {
+            return [];
+        }
+        $parts = preg_split('/\s*(?:,|;|\s+и\s+)\s*/iu', $src, -1, PREG_SPLIT_NO_EMPTY);
+        if (!is_array($parts) || $parts === []) {
+            $parts = [$src];
+        }
+        $out = [];
+        foreach ($parts as $partRaw) {
+            $part = trim((string)$partRaw);
+            if (preg_match('/^(\d+)\s+(\d+(?:[.,]\d+)?)\s*(?:г|гр|грамм(?:а|ов)?)?$/iu', $part, $m)) {
+                $w = (float)str_replace(',', '.', (string)$m[2]);
+                if ((int)$m[1] > 0 && $w > 0) {
+                    $out[] = ['n' => (int)$m[1], 'weight' => $w];
+                }
+                continue;
+            }
+            if (preg_match('/^(\d+)$/', $part, $m2)) {
+                if ((int)$m2[1] > 0) {
+                    $out[] = ['n' => (int)$m2[1], 'weight' => null];
+                }
+            }
+        }
+        return $out;
+    }
+
+    /** @return list<int> */
+    private static function parseDeleteNums(string $text): array
+    {
+        $src = trim($text);
+        if ($src === '' || !preg_match_all('/\d+/', $src, $m)) {
+            return [];
+        }
+        $nums = [];
+        foreach ($m[0] as $raw) {
+            $n = (int)$raw;
+            if ($n > 0) {
+                $nums[$n] = $n;
+            }
+        }
+        return array_values($nums);
     }
 
     /**
@@ -862,6 +1207,10 @@ final class FitFoodBotPlugin
     private static function kbHome(): array
     {
         return ['inline_keyboard' => [
+            [
+                ['text' => t('wellness.bot.edit_btn'), 'callback_data' => 'fit_food_entry_edit'],
+                ['text' => t('wellness.bot.delete_btn'), 'callback_data' => 'fit_food_entry_del'],
+            ],
             [['text' => t('wellness.bot.recipe_menu_btn'), 'callback_data' => 'fit_food_entry_rmenu']],
             [['text' => t('wellness.bot.add_sport'), 'callback_data' => 'fit_food_entry_add_sport']],
             [['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet']],
