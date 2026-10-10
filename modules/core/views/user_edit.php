@@ -44,25 +44,27 @@ if ($newsAfterTs > 0) {
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('core.user_edit.title_new') : te('core.user_edit.heading') ?></h1>
-  <?php if (!$isNew): ?>
-  <p class="lede"><code><?= e((string)$user['login']) ?></code></p>
-  <?php endif; ?>
 </section>
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
-<form method="post" class="form-grid form-wide user-edit-form" id="user-edit-form">
+<form method="post" class="form-grid form-wide user-edit-form" id="user-edit-form" autocomplete="off">
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_personal') ?></h2>
-  <?php if ($isNew): ?>
   <label><?= te('core.user_edit.login') ?>
-    <input name="login" value="<?= e((string)($user['login'] ?? '')) ?>" autocomplete="username" placeholder="<?= te('core.user_edit.login_optional') ?>">
+    <input
+      name="login"
+      id="staff-login"
+      value="<?= e((string)($user['login'] ?? '')) ?>"
+      autocomplete="<?= $isNew ? 'username' : 'off' ?>"
+      <?= $isNew ? '' : 'required' ?>
+      placeholder="<?= $isNew ? te('core.user_edit.login_optional') : '' ?>"
+    >
   </label>
-  <p class="form-hint"><?= te('core.user_edit.login_hint') ?></p>
-  <?php endif; ?>
+  <p class="form-hint"><?= $isNew ? te('core.user_edit.login_hint') : te('core.user_edit.login_edit_hint') ?></p>
   <label><?= te('core.user_edit.full_name') ?>
-    <input name="name" value="<?= e((string)($user['name'] ?? '')) ?>">
+    <input name="name" value="<?= e((string)($user['name'] ?? '')) ?>" autocomplete="name">
   </label>
   <label><?= te('core.user_edit.email') ?>
     <input name="mail" type="email" value="<?= e((string)$user['mail']) ?>">

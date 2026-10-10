@@ -666,6 +666,7 @@ final class UsersRepository
         $fields = [];
         $params = [];
         $allowed = [
+            'login',
             'name', 'mail', 'tel', 'enabled', 'ID_STATUS', 'ID_STATUS2',
             'color', 'color_text', 'IS_HIDDEN', 'num',
             'expire', 'retries',
@@ -721,6 +722,16 @@ final class UsersRepository
         $st->execute([trim($login)]);
         $row = $st->fetch();
         return $row ?: null;
+    }
+
+    /** True when another user (not $exceptId) already owns this login. */
+    public static function loginTaken(string $login, int $exceptId = 0): bool
+    {
+        $row = self::findByLogin($login);
+        if ($row === null) {
+            return false;
+        }
+        return (int)($row['id'] ?? 0) !== $exceptId;
     }
 
     /**

@@ -278,6 +278,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
 
+        $loginIn = trim((string)($_POST['login'] ?? ''));
+        if ($loginIn === '') {
+            throw new InvalidArgumentException(t('core.user_edit.err.login_required'));
+        }
+        if (UsersRepository::loginTaken($loginIn, $id)) {
+            throw new RuntimeException(t('core.user_edit.err.login_taken'));
+        }
+        $data['login'] = $loginIn;
+
         $saved = EventBus::emit('core.user_edit.save', [
             'post' => $_POST,
             'user' => $user,
@@ -297,6 +306,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (Auth::userId() === $id) {
             $_SESSION['permissions'] = $userPerms;
             $_SESSION['user_name'] = (string)$user['name'];
+            $_SESSION['login'] = (string)$user['login'];
             Auth::setStatusContext((int)$user['ID_STATUS'], (int)($user['ID_STATUS2'] ?? 0));
             if (!empty($data['locale'])) {
                 I18n::applyUserChoice((string)$data['locale'], false);
