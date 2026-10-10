@@ -23,7 +23,7 @@ $meals = is_array($meals ?? null) ? $meals : [];
 $balance = is_array($balance ?? null) ? $balance : null;
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 7 + BulkActions::colSpanExtra($listId);
+$colSpan = 8 + BulkActions::colSpanExtra($listId);
 $labelSpan = 3 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 $prevDay = date('Y-m-d', strtotime($date . ' -1 day') ?: time());
@@ -83,7 +83,8 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
         <th><?= te('wellness.col.weight_g') ?></th>
         <th><?= te('wellness.col.ccals') ?></th>
         <th><?= te('wellness.col.proteins') ?></th>
-        <th><?= te('wellness.col.fats') ?> / <?= te('wellness.col.carbs') ?></th>
+        <th><?= te('wellness.col.fats') ?></th>
+        <th><?= te('wellness.col.carbs') ?></th>
       </tr>
     </thead>
     <tbody>
@@ -107,7 +108,8 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
             <td><?= e((string)$u['weight']) ?>г</td>
             <td><?= (int)$u['ccals'] ?></td>
             <td><?= e((string)$u['proteins']) ?></td>
-            <td><?= e((string)$u['fats']) ?> / <?= e((string)$u['carbs']) ?></td>
+            <td><?= e((string)$u['fats']) ?></td>
+            <td><?= e((string)$u['carbs']) ?></td>
           </tr>
         <?php endforeach; ?>
         <tr class="wellness-meal-total">
@@ -117,7 +119,8 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
           <td><?= e((string)$meal['totals']['weight']) ?>г</td>
           <td><?= (int)$meal['totals']['ccals'] ?></td>
           <td><?= e((string)$meal['totals']['proteins']) ?></td>
-          <td><?= e((string)$meal['totals']['fats']) ?> / <?= e((string)$meal['totals']['carbs']) ?></td>
+          <td><?= e((string)$meal['totals']['fats']) ?></td>
+          <td><?= e((string)$meal['totals']['carbs']) ?></td>
         </tr>
       <?php endforeach; ?>
       <tr class="wellness-day-total">
@@ -127,7 +130,8 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
         <td><?= e((string)$totals['weight']) ?>г</td>
         <td><?= (int)$totals['ccals'] ?></td>
         <td><?= e((string)$totals['proteins']) ?></td>
-        <td><?= e((string)$totals['fats']) ?> / <?= e((string)$totals['carbs']) ?></td>
+        <td><?= e((string)$totals['fats']) ?></td>
+        <td><?= e((string)$totals['carbs']) ?></td>
       </tr>
     <?php else: ?>
       <tr><td colspan="<?= (int)$colSpan ?>" class="muted"><?= te('wellness.food_diary.empty') ?></td></tr>
@@ -144,7 +148,8 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
         <td></td>
         <td><?= (int)$bt['ccals'] ?></td>
         <td><?= e((string)$bt['proteins']) ?></td>
-        <td><?= e((string)$bt['fats']) ?> / <?= e((string)$bt['carbs']) ?></td>
+        <td><?= e((string)$bt['fats']) ?></td>
+        <td><?= e((string)$bt['carbs']) ?></td>
       </tr>
       <?php if ((int)$balance['burned'] > 0): ?>
       <tr class="wellness-day-burned">
@@ -153,6 +158,7 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
         </td>
         <td></td>
         <td>+<?= (int)$balance['burned'] ?></td>
+        <td></td>
         <td></td>
         <td></td>
       </tr>
@@ -164,11 +170,8 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
         <td></td>
         <td><span class="<?= e(FitDayBalance::cssClass((int)$bl['ccals'])) ?>"><?= (int)$bl['ccals'] ?></span></td>
         <td><span class="<?= e(FitDayBalance::cssClass((int)$bl['proteins'])) ?>"><?= (int)$bl['proteins'] ?></span></td>
-        <td>
-          <span class="<?= e(FitDayBalance::cssClass((int)$bl['fats'])) ?>"><?= (int)$bl['fats'] ?></span>
-          /
-          <span class="<?= e(FitDayBalance::cssClass((int)$bl['carbs'])) ?>"><?= (int)$bl['carbs'] ?></span>
-        </td>
+        <td><span class="<?= e(FitDayBalance::cssClass((int)$bl['fats'])) ?>"><?= (int)$bl['fats'] ?></span></td>
+        <td><span class="<?= e(FitDayBalance::cssClass((int)$bl['carbs'])) ?>"><?= (int)$bl['carbs'] ?></span></td>
       </tr>
       <?php if ($balance['advice'] !== ''): ?>
       <tr class="wellness-day-advice">
