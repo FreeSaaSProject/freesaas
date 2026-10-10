@@ -13,10 +13,11 @@ function render_comment_tree(
     array $commentLiked,
     int $uid,
     int $newsId,
-    int $depth = 0
+    int $depth = 0,
+    bool $isTicket = false
 ): void {
     foreach ($tree as $node) {
-        render_comment_node($node, $commentLikes, $commentLiked, $uid, $newsId, $depth);
+        render_comment_node($node, $commentLikes, $commentLiked, $uid, $newsId, $depth, $isTicket);
     }
 }
 
@@ -26,7 +27,8 @@ function render_comment_node(
     array $commentLiked,
     int $uid,
     int $newsId,
-    int $depth = 0
+    int $depth = 0,
+    bool $isTicket = false
 ): void {
     $cid = (int)$node['ID'];
     $hidden = (int)$node['DISABLED'] === 1;
@@ -103,16 +105,19 @@ function render_comment_node(
         <input type="hidden" name="comment_id" value="<?= $cid ?>">
         <button type="submit" class="btn-ghost" title="<?= te('comments.act.color') ?>"><?= te('comments.act.color_short') ?></button>
       </form>
-      <details class="comment-edit">
-        <summary class="btn-ghost"><?= te('comments.act.edit_short') ?></summary>
-        <form method="post" class="comment-edit-form">
-          <input type="hidden" name="action" value="edit_comment">
-          <input type="hidden" name="comment_id" value="<?= $cid ?>">
-          <textarea name="text" rows="3"><?= e((string)$node['TEXT']) ?></textarea>
-          <button class="btn-secondary" type="submit"><?= te('core.common.save') ?></button>
-        </form>
-      </details>
-      <?php if ($isOwn && empty($node['STATUS_UPDATE'])): ?>
+      <button type="button" class="btn-ghost js-comment-edit"
+              title="<?= te('comments.act.edit') ?>"
+              data-cid="<?= $cid ?>"
+              data-text="<?= e((string)$node['TEXT']) ?>"
+              data-price="<?= (int)($node['PRICE_OFFER'] ?? 0) ?>"
+              data-deadline="<?= ((int)($node['DT_DEADLINE'] ?? 0) > 0) ? e(date('Y-m-d', (int)$node['DT_DEADLINE'])) : '' ?>"
+              data-is-ticket="<?= ($isTicket || (int)($node['PRICE_OFFER'] ?? 0) > 0) ? '1' : '0' ?>"
+      ><?= te('comments.act.edit_short') ?></button>
+      <?php
+        $canDelete = Auth::isSuperAdmin()
+          || ($isOwn && empty($node['STATUS_UPDATE']));
+      ?>
+      <?php if ($canDelete): ?>
         <form method="post" class="inline-form" onsubmit="return confirm(<?= tj('comments.confirm_delete') ?>);">
           <input type="hidden" name="action" value="delete_comment">
           <input type="hidden" name="comment_id" value="<?= $cid ?>">
@@ -135,7 +140,7 @@ function render_comment_node(
 
   <?php if (!empty($node['_children'])): ?>
     <div class="comment-children">
-      <?php render_comment_tree($node['_children'], $commentLikes, $commentLiked, $uid, $newsId, $depth + 1); ?>
+      <?php render_comment_tree($node['_children'], $commentLikes, $commentLiked, $uid, $newsId, $depth + 1, $isTicket); ?>
     </div>
   <?php endif; ?>
 </article>

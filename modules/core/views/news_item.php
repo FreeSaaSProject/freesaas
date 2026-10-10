@@ -26,8 +26,14 @@
 /** @var bool $showingVersion */
 /** @var bool $inArchiveFolder */
 /** @var bool $needsSign */
+/** @var list<array<string,mixed>> $checklistItems */
+/** @var array{done:int,total:int,pct:int} $checklistProgress */
+/** @var bool $canChecklist */
 
 $nid = (int)$row['ID'];
+$checklistItems = $checklistItems ?? [];
+$checklistProgress = $checklistProgress ?? ['done' => 0, 'total' => 0, 'pct' => 0];
+$canChecklist = !empty($canChecklist);
 $viewerCount = count($viewers);
 $isTicket = (int)$row['TYPE'] === 2;
 $hasDeadline = (int)$row['DT_DEADLINE'] > 0;
@@ -156,6 +162,63 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
     <?= safe_html($bodyHtml) ?>
   </div>
 </article>
+
+<?php if (!$isFolder): ?>
+<section class="news-checklist widget" id="checklist">
+  <div class="section-head">
+    <h2><?= te('core.checklist.title') ?></h2>
+    <?php if ((int)$checklistProgress['total'] > 0): ?>
+      <span class="muted"><?= te('core.checklist.progress', [
+          'done' => (int)$checklistProgress['done'],
+          'total' => (int)$checklistProgress['total'],
+      ]) ?></span>
+    <?php endif; ?>
+  </div>
+  <?php if ((int)$checklistProgress['total'] > 0): ?>
+    <div class="checklist-progress" role="progressbar"
+         aria-valuenow="<?= (int)$checklistProgress['pct'] ?>" aria-valuemin="0" aria-valuemax="100">
+      <div class="checklist-progress-bar" style="width:<?= (int)$checklistProgress['pct'] ?>%"></div>
+    </div>
+  <?php endif; ?>
+  <ul class="checklist-list">
+    <?php foreach ($checklistItems as $it): ?>
+      <?php $iid = (int)$it['ID']; $done = !empty($it['DONE']); ?>
+      <li class="checklist-item<?= $done ? ' is-done' : '' ?>">
+        <?php if ($canChecklist): ?>
+          <form method="post" class="inline-form checklist-toggle">
+            <input type="hidden" name="action" value="checklist_toggle">
+            <input type="hidden" name="item_id" value="<?= $iid ?>">
+            <label class="check">
+              <input type="checkbox"<?= $done ? ' checked' : '' ?> onchange="this.form.submit()">
+              <span><?= e((string)$it['TITLE']) ?></span>
+            </label>
+          </form>
+          <form method="post" class="inline-form" onsubmit="return confirm(<?= tj('core.checklist.delete') ?>);">
+            <input type="hidden" name="action" value="checklist_delete">
+            <input type="hidden" name="item_id" value="<?= $iid ?>">
+            <button type="submit" class="btn-ghost" title="<?= te('core.checklist.delete') ?>">×</button>
+          </form>
+        <?php else: ?>
+          <label class="check">
+            <input type="checkbox"<?= $done ? ' checked' : '' ?> disabled>
+            <span><?= e((string)$it['TITLE']) ?></span>
+          </label>
+        <?php endif; ?>
+      </li>
+    <?php endforeach; ?>
+  </ul>
+  <?php if (!$checklistItems): ?>
+    <p class="muted"><?= te('core.checklist.empty') ?></p>
+  <?php endif; ?>
+  <?php if ($canChecklist): ?>
+    <form method="post" class="checklist-add">
+      <input type="hidden" name="action" value="checklist_add">
+      <input type="text" name="title" required maxlength="500" placeholder="<?= te('core.checklist.add_placeholder') ?>">
+      <button class="btn-secondary" type="submit"><?= te('core.checklist.add') ?></button>
+    </form>
+  <?php endif; ?>
+</section>
+<?php endif; ?>
 
 <?php if ($versionLogs || $currentDt > 0): ?>
 <section class="news-versions widget" aria-label="<?= te('core.news_item.versions.aria') ?>">

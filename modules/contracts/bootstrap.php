@@ -54,6 +54,78 @@ HTML;
     return $payload;
 });
 
+EventBus::on('comments.form.edit_fields', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (empty($payload['is_ticket']) || empty($payload['is_superadmin'])) {
+        return $payload;
+    }
+    $lblPrice = te('contracts.offer.price');
+    $phOptional = te('contracts.offer.optional');
+    $lblDeadline = te('contracts.offer.deadline');
+    $payload['html'] = <<<HTML
+<div class="offer-fields">
+  <label>{$lblPrice}
+    <input type="number" name="price_offer" min="0" step="1" placeholder="{$phOptional}">
+  </label>
+  <label>{$lblDeadline}
+    <input type="date" name="offer_deadline" value="">
+  </label>
+</div>
+HTML;
+    return $payload;
+});
+
+EventBus::on('comments.prepare_edit', static function ($payload) {
+    if (!is_array($payload) || !empty($payload['error'])) {
+        return $payload;
+    }
+    if (!Auth::isSuperAdmin()) {
+        return $payload;
+    }
+    $row = $payload['row'] ?? null;
+    $comment = $payload['comment'] ?? null;
+    $post = $payload['post'] ?? null;
+    if (!is_array($row) || !is_array($comment) || !is_array($post) || (int)($row['TYPE'] ?? 0) !== 2) {
+        return $payload;
+    }
+    if (!array_key_exists('price_offer', $post) && !array_key_exists('offer_deadline', $post)) {
+        return $payload;
+    }
+    $extra = is_array($payload['extra'] ?? null) ? $payload['extra'] : [];
+    $priceOffer = isset($post['price_offer']) ? (int)$post['price_offer'] : (int)($comment['PRICE_OFFER'] ?? 0);
+    $offerDl = trim((string)($post['offer_deadline'] ?? ''));
+    if ($priceOffer < 1 && (int)($comment['PRICE_OFFER'] ?? 0) < 1) {
+        return $payload;
+    }
+    if ($priceOffer >= 1) {
+        $extra['PRICE_OFFER'] = $priceOffer;
+        if ($offerDl === '') {
+            $payload['error'] = t('contracts.err.deadline_required');
+            return $payload;
+        }
+        $ots = strtotime($offerDl . ' 23:59:59');
+        if (!$ots) {
+            $payload['error'] = t('contracts.err.deadline_future');
+            return $payload;
+        }
+        $extra['DT_DEADLINE'] = $ots;
+    } elseif (array_key_exists('price_offer', $post) && $priceOffer < 1) {
+        $extra['PRICE_OFFER'] = 0;
+        $extra['DT_DEADLINE'] = 0;
+    } elseif ($offerDl !== '') {
+        $ots = strtotime($offerDl . ' 23:59:59');
+        if (!$ots) {
+            $payload['error'] = t('contracts.err.deadline_future');
+            return $payload;
+        }
+        $extra['DT_DEADLINE'] = $ots;
+    }
+    $payload['extra'] = $extra;
+    return $payload;
+});
+
 EventBus::on('comments.prepare_add', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

@@ -1,0 +1,96 @@
+{
+    "id": "gcal",
+    "name": "gcal.module.name",
+    "description": "gcal.module.description",
+    "summary": "gcal.module.summary",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "bots": ">=0.2.0",
+        "comments": ">=0.1.0"
+    },
+    "provides": [
+        "gcal.sync"
+    ],
+    "migrations": "migrations/",
+    "tables": [
+        "base_gcal_tokens",
+        "base_gcal_task_links",
+        "base_gcal_sync_queue"
+    ],
+    "permissions": [
+        {
+            "id": "gcal.manage",
+            "label": "gcal.perm.manage"
+        }
+    ],
+    "menu": [
+        {
+            "title": "gcal.menu.settings",
+            "path": "/gcal/settings",
+            "permission": "gcal.manage",
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 40
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/gcal/settings",
+            "/gcal/oauth",
+            "/gcal/oauth/start",
+            "/gcal/work",
+            "/gcal/enqueue"
+        ]
+    },
+    "hooks": {
+        "publish": [
+            "gcal.sync.enqueued"
+        ],
+        "subscribe": [
+            "core.news_item.meta"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "gcal.settings.get",
+                "method": "GET",
+                "path": "/gcal/settings",
+                "permission": "gcal.manage",
+                "description": "GCal app settings + staff connect overview + queue pending count"
+            },
+            {
+                "id": "gcal.settings.save",
+                "method": "POST",
+                "path": "/gcal/settings",
+                "permission": "gcal.manage",
+                "description": "Save enabled/credentials/workday or staff calendars; action=save|save_cals|run_worker"
+            },
+            {
+                "id": "gcal.user.connect_status",
+                "method": "GET",
+                "path": "/gcal/oauth/start",
+                "permission": "core.home",
+                "description": "Current user connect status (JSON); omit redirect or set redirect=1 to start OAuth"
+            },
+            {
+                "id": "gcal.sync.enqueue",
+                "method": "POST",
+                "path": "/gcal/enqueue",
+                "permission": "core.news",
+                "description": "Enqueue TYPE=2 task sync; body: news_id, optional reason"
+            },
+            {
+                "id": "gcal.queue.status",
+                "method": "GET",
+                "path": "/gcal/work",
+                "permission": "gcal.manage",
+                "description": "Queue pending count; POST drains queue (cron/agent)"
+            }
+        ]
+    }
+}

@@ -475,7 +475,11 @@ final class NewsRepository
             $pidContract,
             $ignoreFolder,
         ]);
-        return (int)Database::pdo()->lastInsertId();
+        $newId = (int)Database::pdo()->lastInsertId();
+        if ($type === 2 && !$hasChildren && class_exists('GcalSyncService')) {
+            GcalSyncService::maybeEnqueue($newId, 'create');
+        }
+        return $newId;
     }
 
     public static function update(int $id, array $data, int $editorId): void
@@ -543,6 +547,19 @@ final class NewsRepository
         $params[] = $id;
         $sql = 'UPDATE base_news SET ' . implode(', ', $fields) . ' WHERE ID = ?';
         Database::pdo()->prepare($sql)->execute($params);
+
+        $type = array_key_exists('TYPE', $data) ? (int)$data['TYPE'] : (int)($old['TYPE'] ?? 0);
+        $gcalKeys = ['STATUS', 'DT_DEADLINE', 'NAME', 'USERS_RESP', 'ID_CURATOR', 'TYPE'];
+        $touched = false;
+        foreach ($gcalKeys as $k) {
+            if (array_key_exists($k, $data)) {
+                $touched = true;
+                break;
+            }
+        }
+        if ($type === 2 && $touched && class_exists('GcalSyncService')) {
+            GcalSyncService::maybeEnqueue($id, 'update');
+        }
     }
 
     public static function softDelete(int $id, int $editorId): void

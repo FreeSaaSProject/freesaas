@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/NewsRepository.php';
+require_once __DIR__ . '/lib/NewsChecklistRepository.php';
 require_once __DIR__ . '/lib/NewsLogsRepository.php';
 require_once __DIR__ . '/lib/UsersRepository.php';
 require_once __DIR__ . '/lib/StatusesRepository.php';

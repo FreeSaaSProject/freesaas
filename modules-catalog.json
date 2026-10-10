@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-10T09:59:34+00:00",
+    "generated_at": "2026-10-10T19:06:03+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.5",
+            "version": "0.1.13",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -72,7 +72,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.0",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -169,7 +169,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.0",
+            "version": "0.3.1",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -540,7 +540,7 @@
         },
         {
             "id": "comments",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Comments",
@@ -568,7 +568,7 @@
         },
         {
             "id": "contracts",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -660,8 +660,37 @@
             }
         },
         {
+            "id": "gcal",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Google Calendar",
+                "ru": "Google Календарь"
+            },
+            "description": {
+                "en": "Sync staff my-tasks tickets into personal Google Calendars.",
+                "ru": "Синхронизация заявок (мои задачи) с персональными Google-календарями сотрудников."
+            },
+            "summary": {
+                "en": "Enable to push TYPE=2 tickets to Google Calendar. Needs a Google OAuth app and per-staff connect.",
+                "ru": "Включайте для проброса TYPE=2 заявок в Google Calendar. Нужен OAuth приложения Google и подключение сотрудников."
+            },
+            "requires": {
+                "core": ">=0.3.0"
+            },
+            "optionalRequires": {
+                "bots": ">=0.2.0",
+                "comments": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [],
+                "maturity": "beta",
+                "tags": []
+            }
+        },
+        {
             "id": "ledger",
-            "version": "0.1.2",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -827,7 +856,7 @@
         },
         {
             "id": "payments",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -918,7 +947,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1112,7 +1141,7 @@
         },
         {
             "id": "stickers",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1179,7 +1208,7 @@
         },
         {
             "id": "suppliers",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Suppliers",
@@ -1296,7 +1325,7 @@
         },
         {
             "id": "updates",
-            "version": "0.3.7",
+            "version": "0.3.12",
             "type": "product",
             "name": {
                 "en": "Updates",
@@ -1355,7 +1384,7 @@
         },
         {
             "id": "wellness",
-            "version": "0.2.9",
+            "version": "0.2.16",
             "type": "product",
             "name": {
                 "en": "Health & fitness",
@@ -1385,7 +1414,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "type": "product",
             "name": {
                 "en": "Shifts",

@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.23",
+    "version": "0.3.24",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -562,14 +562,16 @@
                 "path": "/news/{id}",
                 "permission": "core.news",
                 "side_effect": "write",
-                "description": "News item actions. Comments: comment (add; text + optional new_sign=1, reply_pid), edit_comment (own; comment_id+text), hide_comment/show_comment (own or superadmin; comment_id), delete_comment (own, time/replies limits; comment_id). Also like, favorite, delete (item), restore_version (log_id). Returns comment_id/comment on comment ops.",
+                "description": "News item actions. Comments: comment/edit_comment/hide_comment/show_comment/delete_comment (superadmin can hard-delete any without replies). Checklist: checklist_add (title), checklist_toggle|rename|delete (item_id). Also like, favorite, delete (item), restore_version.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "action": {
                             "type": "string",
-                            "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|like|favorite|delete|restore_version|color_comment"
+                            "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|checklist_add|checklist_toggle|checklist_rename|checklist_delete|like|favorite|delete|restore_version|color_comment"
                         },
+                        "title": { "type": "string", "description": "Checklist item title (add/rename)" },
+                        "item_id": { "type": "integer", "description": "Checklist item id" },
                         "text": {
                             "type": "string",
                             "description": "Body for comment or edit_comment"
@@ -700,6 +702,7 @@
         "base_news",
         "base_news_statuses",
         "base_news_logs",
+        "base_news_checklist",
         "base_admin_statuses",
         "base_views",
         "base_likes",

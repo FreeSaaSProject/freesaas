@@ -32,11 +32,41 @@ $needsSign = !empty($needsSign);
 
   <div class="comment-list">
     <?php if ($tree): ?>
-      <?php render_comment_tree($tree, $commentLikes, $commentLiked, $uid, $nid); ?>
+      <?php render_comment_tree($tree, $commentLikes, $commentLiked, $uid, $nid, 0, $isTicket); ?>
     <?php else: ?>
       <div class="muted"><?= te('comments.empty') ?></div>
     <?php endif; ?>
   </div>
+
+  <dialog id="comment-edit-dialog" class="comment-edit-dialog">
+    <form method="post" class="comment-edit-dialog-form" id="comment-edit-form">
+      <div class="comment-edit-dialog-bar">
+        <strong id="comment-edit-title" data-tpl="<?= te('comments.edit.title', ['id' => '__ID__']) ?>"><?= te('comments.edit.title', ['id' => '…']) ?></strong>
+        <button type="button" class="btn-secondary btn-sm" id="comment-edit-cancel"><?= te('comments.edit.cancel') ?></button>
+      </div>
+      <input type="hidden" name="action" value="edit_comment">
+      <input type="hidden" name="comment_id" id="comment-edit-id" value="0">
+      <label><?= te('comments.text') ?>
+        <textarea name="text" id="comment-edit-text" rows="10" required></textarea>
+      </label>
+      <div id="comment-edit-extra" class="comment-edit-extra" hidden></div>
+      <div class="page-actions">
+        <button class="btn-primary" type="submit"><?= te('comments.edit.save') ?></button>
+        <button type="button" class="btn-secondary" id="comment-edit-cancel-2"><?= te('comments.edit.cancel') ?></button>
+      </div>
+    </form>
+  </dialog>
+  <?php
+    $editExtra = EventBus::emit('comments.form.edit_fields', [
+        'html' => '',
+        'row' => $row,
+        'is_ticket' => $isTicket,
+        'is_superadmin' => Auth::isSuperAdmin(),
+        'uid' => $uid,
+    ]);
+    $editExtraHtml = (is_array($editExtra) && !empty($editExtra['html'])) ? (string)$editExtra['html'] : '';
+  ?>
+  <template id="comment-edit-extra-tpl"><?= $editExtraHtml ?></template>
 
   <?php if (!$locked): ?>
   <form method="post" class="comment-form widget" style="margin-top:1rem" id="comment-form">

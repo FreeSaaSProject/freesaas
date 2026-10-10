@@ -189,8 +189,9 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
             if (!$c || (int)$c['ID_OBJECT'] !== $id) {
                 throw new RuntimeException(t('comments.err.not_found'));
             }
-            if (!CommentsRepository::deleteIfAllowed($cid, $uid)) {
-                throw new RuntimeException(t('comments.err.delete_denied'));
+            $del = CommentsRepository::deleteIfAllowed($cid, $uid);
+            if ($del !== true) {
+                throw new RuntimeException(is_string($del) ? $del : t('comments.err.delete_denied'));
             }
             $payload['handled'] = true;
             $payload['comment_id'] = $cid;
@@ -209,7 +210,29 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
             if (!Auth::isSuperAdmin() && (int)$c['ID_USER'] !== $uid) {
                 throw new RuntimeException(t('comments.err.edit_denied'));
             }
-            CommentsRepository::updateText($cid, $text);
+            $extra = [];
+            $prepared = EventBus::emit('comments.prepare_edit', [
+                'comment' => $c,
+                'row' => $row,
+                'id' => $id,
+                'uid' => $uid,
+                'post' => $post,
+                'text' => $text,
+                'extra' => $extra,
+                'error' => null,
+            ]);
+            if (is_array($prepared)) {
+                if (!empty($prepared['error'])) {
+                    throw new RuntimeException((string)$prepared['error']);
+                }
+                $text = (string)($prepared['text'] ?? $text);
+                $extra = is_array($prepared['extra'] ?? null) ? $prepared['extra'] : $extra;
+            }
+            if ($extra !== []) {
+                CommentsRepository::updateFields($cid, $text, $extra);
+            } else {
+                CommentsRepository::updateText($cid, $text);
+            }
             $payload['handled'] = true;
             $payload['comment_id'] = $cid;
             $payload['comment'] = CommentsRepository::forAgent(CommentsRepository::find($cid));

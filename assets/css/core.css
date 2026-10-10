@@ -2249,9 +2249,79 @@ table.data tr.is-disabled td a {
 }
 .comment-body.tone-green { color: var(--ok); font-weight: 600; }
 .comment-body.tone-red { color: var(--danger); font-weight: 600; }
-.comment-edit summary { list-style: none; cursor: pointer; }
-.comment-edit summary::-webkit-details-marker { display: none; }
-.comment-edit-form { margin-top: 0.5rem; display: grid; gap: 0.45rem; }
+.comment-edit-dialog {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0;
+  max-width: min(640px, 96vw);
+  width: 100%;
+  background: var(--bg1);
+  color: var(--text);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.35);
+}
+.comment-edit-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+.comment-edit-dialog-form {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.1rem 1.1rem;
+}
+.comment-edit-dialog-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.comment-edit-dialog textarea {
+  width: 100%;
+  min-height: 12rem;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.45;
+}
+.comment-edit-extra .offer-fields {
+  display: grid;
+  gap: 0.65rem;
+  grid-template-columns: 1fr 1fr;
+}
+@media (max-width: 560px) {
+  .comment-edit-extra .offer-fields { grid-template-columns: 1fr; }
+}
+.news-checklist { display: grid; gap: 0.65rem; }
+.checklist-progress {
+  height: 0.45rem;
+  background: color-mix(in srgb, var(--border) 80%, transparent);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.checklist-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: inherit;
+  transition: width 0.2s ease;
+}
+.checklist-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+.checklist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.checklist-item.is-done span { text-decoration: line-through; color: var(--muted); }
+.checklist-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.checklist-add input[type="text"] { flex: 1 1 12rem; min-width: 0; }
 .inline-form { display: inline; margin: 0; }
 .news-versions-list {
   list-style: none;
@@ -3051,6 +3121,16 @@ table.data tr.is-bulk-selected.is-disabled td {
 }
 body.db-job-busy {
   overflow: hidden;
+}
+
+.chip-gcal {
+  display: inline-block;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 0.25rem;
+  color: var(--muted, #666);
+  vertical-align: middle;
 }
 
 

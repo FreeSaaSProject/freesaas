@@ -67,4 +67,61 @@
   if (window.location.hash === '#comment-form' || window.location.hash === '#comments') {
     setTimeout(focusCommentForm, 50);
   }
+
+  // Edit comment dialog
+  var dlg = document.getElementById('comment-edit-dialog');
+  var editForm = document.getElementById('comment-edit-form');
+  var editId = document.getElementById('comment-edit-id');
+  var editText = document.getElementById('comment-edit-text');
+  var editTitle = document.getElementById('comment-edit-title');
+  var editExtra = document.getElementById('comment-edit-extra');
+  var editTpl = document.getElementById('comment-edit-extra-tpl');
+  var titleTpl = editTitle ? (editTitle.getAttribute('data-tpl') || editTitle.textContent) : 'Comment #__ID__';
+
+  function closeEditDlg() {
+    if (dlg && typeof dlg.close === 'function') dlg.close();
+  }
+
+  function openEditDlg(btn) {
+    if (!dlg || !editForm || !editId || !editText) return;
+    var cid = btn.getAttribute('data-cid') || '0';
+    var text = btn.getAttribute('data-text') || '';
+    var price = btn.getAttribute('data-price') || '0';
+    var deadline = btn.getAttribute('data-deadline') || '';
+    var isTicket = btn.getAttribute('data-is-ticket') === '1';
+    editId.value = cid;
+    editText.value = text;
+    if (editTitle) {
+      editTitle.textContent = titleTpl.replace(/__ID__/g, cid);
+    }
+    if (editExtra) {
+      editExtra.innerHTML = '';
+      editExtra.hidden = true;
+      if (isTicket && editTpl && editTpl.content) {
+        editExtra.appendChild(editTpl.content.cloneNode(true));
+        editExtra.hidden = false;
+        var priceInp = editExtra.querySelector('[name="price_offer"]');
+        var dlInp = editExtra.querySelector('[name="offer_deadline"]');
+        if (priceInp) priceInp.value = price !== '0' ? price : '';
+        if (dlInp && deadline) dlInp.value = deadline;
+      }
+    }
+    if (typeof dlg.showModal === 'function') {
+      dlg.showModal();
+    } else {
+      dlg.setAttribute('open', 'open');
+    }
+    setTimeout(function () { editText.focus(); }, 50);
+  }
+
+  document.querySelectorAll('.js-comment-edit').forEach(function (btn) {
+    btn.addEventListener('click', function () { openEditDlg(btn); });
+  });
+  ['comment-edit-cancel', 'comment-edit-cancel-2'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('click', function (e) { e.preventDefault(); closeEditDlg(); });
+  });
+  if (dlg) {
+    dlg.addEventListener('cancel', function () { closeEditDlg(); });
+  }
 })();

@@ -178,24 +178,30 @@ final class CommentsRepository
         Database::pdo()->prepare('UPDATE base_comments SET TEXT = ? WHERE ID = ?')->execute([$text, $id]);
     }
 
-    public static function deleteIfAllowed(int $id, int $userId): bool
+    /**
+     * Hard-delete when allowed. Superadmin: any comment without replies.
+     * Others: own, not STATUS_UPDATE, no replies, within 4 hours.
+     *
+     * @return true|string true on success, or i18n error key/message
+     */
+    public static function deleteIfAllowed(int $id, int $userId)
     {
         $row = self::find($id);
         if (!$row) {
-            return false;
+            return t('comments.err.not_found');
         }
-        if ((int)$row['ID_USER'] !== $userId) {
-            return false;
+        $isSa = Auth::isSuperAdmin();
+        if (!$isSa && (int)$row['ID_USER'] !== $userId) {
+            return t('comments.err.delete_denied');
         }
-        if ((int)$row['STATUS_UPDATE'] === 1) {
-            return false;
+        if (!$isSa && (int)$row['STATUS_UPDATE'] === 1) {
+            return t('comments.err.delete_status');
         }
         if (self::hasChildren($id)) {
-            return false;
+            return t('comments.err.delete_has_replies');
         }
-        // 4 hours window (legacy)
-        if ((int)$row['DT'] < time() - 4 * 3600) {
-            return false;
+        if (!$isSa && (int)$row['DT'] < time() - 4 * 3600) {
+            return t('comments.err.delete_too_old');
         }
         Database::pdo()->prepare('DELETE FROM base_comments WHERE ID = ?')->execute([$id]);
         if (Database::tableExists('base_likes')) {

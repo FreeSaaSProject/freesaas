@@ -137,6 +137,46 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     return;
                 }
                 redirect('/news/' . $id . '?restored=1');
+            } elseif (!$isFolder && strpos($action, 'checklist_') === 0) {
+                $canCheck = NewsRepository::canEdit($row, $uid) || NewsRepository::canManageTicket($row, $uid);
+                if (!$canCheck && !Auth::isSuperAdmin()) {
+                    throw new RuntimeException(t('core.checklist.err.denied'));
+                }
+                $itemId = (int)($_POST['item_id'] ?? 0);
+                $checklistOut = null;
+                if ($action === 'checklist_add') {
+                    $newItemId = NewsChecklistRepository::add($id, (string)($_POST['title'] ?? ''), $uid);
+                    $checklistOut = NewsChecklistRepository::find($newItemId);
+                } elseif ($action === 'checklist_toggle') {
+                    $checklistOut = NewsChecklistRepository::toggle($itemId, $id);
+                    if ($checklistOut === null) {
+                        throw new RuntimeException(t('core.checklist.err.not_found'));
+                    }
+                } elseif ($action === 'checklist_rename') {
+                    $checklistOut = NewsChecklistRepository::rename($itemId, $id, (string)($_POST['title'] ?? ''));
+                    if ($checklistOut === null) {
+                        throw new RuntimeException(t('core.checklist.err.not_found'));
+                    }
+                } elseif ($action === 'checklist_delete') {
+                    if (!NewsChecklistRepository::delete($itemId, $id)) {
+                        throw new RuntimeException(t('core.checklist.err.not_found'));
+                    }
+                } else {
+                    throw new RuntimeException('unknown checklist action');
+                }
+                $progress = NewsChecklistRepository::progress($id);
+                if ($wantsJson) {
+                    AgentHttp::emit([
+                        'ok' => true,
+                        'action' => $action,
+                        'id' => $id,
+                        'item' => $checklistOut ? NewsChecklistRepository::listForAgent([$checklistOut])[0] : null,
+                        'checklist' => NewsChecklistRepository::listForAgent(NewsChecklistRepository::listFor($id)),
+                        'checklist_progress' => $progress,
+                    ]);
+                    return;
+                }
+                redirect('/news/' . $id . '#checklist');
             } elseif ($wantsJson && $action !== '') {
                 AgentHttp::error('unknown action', 400);
                 return;
@@ -328,6 +368,8 @@ if ($wantsJson) {
 
     $withBody = !isset($_GET['body']) || (string)$_GET['body'] !== '0';
     $itemPayload = NewsRepository::forAgent($row, $withBody);
+    $checklistItems = !$isFolder ? NewsChecklistRepository::listFor($id) : [];
+    $checklistProgress = !$isFolder ? NewsChecklistRepository::progress($id) : ['done' => 0, 'total' => 0, 'pct' => 0];
 
     AgentHttp::emit([
         'ok' => true,
@@ -356,6 +398,8 @@ if ($wantsJson) {
             'next_offset' => $commentsPage['next_offset'],
             'hint' => 'Default: top-level only. Drill: comments_pid={id}. Page: comments_offset. Skip: comments=0. Full text: comments_excerpt=0. Omit body: body=0.',
         ],
+        'checklist' => NewsChecklistRepository::listForAgent($checklistItems),
+        'checklist_progress' => $checklistProgress,
         'versions' => $versions,
         'active_log_id' => $did > 0 ? $did : null,
         'contract_locked' => $contractLocked,
@@ -363,6 +407,12 @@ if ($wantsJson) {
         'users_resp' => $respIds,
     ]);
 }
+
+$checklistItems = !$isFolder ? NewsChecklistRepository::listFor($id) : [];
+$checklistProgress = !$isFolder ? NewsChecklistRepository::progress($id) : ['done' => 0, 'total' => 0, 'pct' => 0];
+$canChecklist = !$isFolder && (
+    $canEdit || $canManageTicket || Auth::isSuperAdmin()
+);
 
 View::render('news_item', [
     'title' => (string)$row['NAME'],
@@ -394,4 +444,7 @@ View::render('news_item', [
     'showingVersion' => $showingVersion,
     'inArchiveFolder' => $inArchiveFolder,
     'needsSign' => $needsSign,
+    'checklistItems' => $checklistItems,
+    'checklistProgress' => $checklistProgress,
+    'canChecklist' => $canChecklist,
 ]);

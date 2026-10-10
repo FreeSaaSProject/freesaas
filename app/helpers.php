@@ -152,7 +152,7 @@ function linkify_html(string $html): string {
 function safe_html(string $html): string {
     $html = preg_replace('#<(script|iframe|object|embed|form)[^>]*>.*?</\1>#is', '', $html) ?? $html;
     $html = preg_replace('#</?(script|iframe|object|embed|form)[^>]*>#i', '', $html) ?? $html;
-    $allowed = '<p><br><br/><b><strong><i><em><u><s><ul><ol><li><a><span><div><h1><h2><h3><h4><blockquote><code><pre><hr><img>';
+    $allowed = '<p><br><br/><b><strong><i><em><u><s><strike><del><ul><ol><li><a><span><div><h1><h2><h3><h4><blockquote><code><pre><hr><img>';
     return linkify_html(strip_tags($html, $allowed));
 }
 
