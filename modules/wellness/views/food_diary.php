@@ -55,15 +55,6 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
   </div>
 </section>
 
-<div class="wellness-day-summary">
-  <strong><?= te('wellness.food_diary.totals') ?>:</strong>
-  <?= e((string)$totals['weight']) ?>г
-  · <?= (int)$totals['ccals'] ?> <?= te('wellness.col.ccals') ?>
-  · <?= te('wellness.col.proteins') ?> <?= e((string)$totals['proteins']) ?>
-  · <?= te('wellness.col.fats') ?> <?= e((string)$totals['fats']) ?>
-  · <?= te('wellness.col.carbs') ?> <?= e((string)$totals['carbs']) ?>
-</div>
-
 <?php if (!empty($bulkFlash)): ?>
   <?= BulkActions::flashHtml($bulkFlash) ?>
 <?php endif; ?>
