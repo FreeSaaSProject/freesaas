@@ -71,6 +71,13 @@ $itemIds = array_map(static function ($n) {
 $likeCounts = LikesRepository::counts('base_news', $itemIds);
 $commentCounts = NewsRepository::commentCounts($itemIds);
 $viewerCounts = NewsRepository::viewerCounts($itemIds);
+$feedChipsPayload = EventBus::emit('core.news.feed_chips', [
+    'ids' => $itemIds,
+    'chips' => [],
+]);
+$feedChips = is_array($feedChipsPayload) && is_array($feedChipsPayload['chips'] ?? null)
+    ? $feedChipsPayload['chips']
+    : [];
 
 $filters = array_merge([
     'type' => $type,
@@ -150,6 +157,7 @@ if ($wantsJson) {
         $it['likes'] = (int)($likeCounts[$nid] ?? 0);
         $it['comments'] = (int)($commentCounts[$nid] ?? 0);
         $it['viewers'] = (int)($viewerCounts[$nid] ?? 0);
+        $it['gcal_linked'] = !empty($feedChips[$nid]) ? 1 : 0;
     }
     unset($it);
     AgentHttp::emit([
@@ -197,6 +205,7 @@ View::render('news', [
     'likeCounts' => $likeCounts,
     'commentCounts' => $commentCounts,
     'viewerCounts' => $viewerCounts,
+    'feedChips' => $feedChips,
     'sort' => $explicitSort ? $lq['sort'] : '',
     'dir' => $lq['dir'],
     'page' => $lq['page'],

@@ -16,6 +16,7 @@
 /** @var array $likeCounts */
 /** @var array $commentCounts */
 /** @var array $viewerCounts */
+/** @var array<int,string> $feedChips */
 /** @var string $sort */
 /** @var string $dir */
 /** @var int $page */
@@ -24,6 +25,7 @@
 /** @var array $filters */
 $commentCounts = $commentCounts ?? [];
 $viewerCounts = $viewerCounts ?? [];
+$feedChips = $feedChips ?? [];
 $unread = !empty($unread);
 $unsigned = !empty($unsigned);
 $sort = $sort ?? '';
@@ -205,6 +207,7 @@ $sortLabels = [
         <?php if ($lc > 0): ?>
           <span class="muted">♥ <?= $lc ?></span>
         <?php endif; ?>
+        <?php if (!empty($feedChips[$nid])): ?><?= $feedChips[$nid] ?><?php endif; ?>
       </div>
       <a class="feed-title" href="/news/<?= $nid ?>"><?= e((string)$n['NAME']) ?></a>
       <?php if (!empty($n['SHORT'])): ?>

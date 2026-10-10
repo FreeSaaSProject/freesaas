@@ -82,6 +82,7 @@ View::render('settings', [
     'calendarsByUser' => $calendarsByUser,
     'pending' => $pending,
     'breadcrumbs' => Breadcrumbs::withHome([
+        ['label' => t('core.menu.group.system'), 'href' => '/settings'],
         ['label' => t('gcal.menu.settings'), 'current' => true],
     ]),
 ], 'layout', 'gcal');

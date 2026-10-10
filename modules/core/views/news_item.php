@@ -213,7 +213,9 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
   <?php if ($canChecklist): ?>
     <form method="post" class="checklist-add">
       <input type="hidden" name="action" value="checklist_add">
-      <input type="text" name="title" required maxlength="500" placeholder="<?= te('core.checklist.add_placeholder') ?>">
+      <textarea name="title" required rows="3" maxlength="20000"
+        placeholder="<?= te('core.checklist.add_placeholder') ?>"></textarea>
+      <p class="muted checklist-add-hint"><?= te('core.checklist.add_hint') ?></p>
       <button class="btn-secondary" type="submit"><?= te('core.checklist.add') ?></button>
     </form>
   <?php endif; ?>

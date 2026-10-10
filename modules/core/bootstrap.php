@@ -253,6 +253,13 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             foreach ($result['items'] as $n) {
                 $ids[] = (int)$n['ID'];
             }
+            $feedChipsPayload = EventBus::emit('core.news.feed_chips', [
+                'ids' => $ids,
+                'chips' => [],
+            ]);
+            $feedChips = is_array($feedChipsPayload) && is_array($feedChipsPayload['chips'] ?? null)
+                ? $feedChipsPayload['chips']
+                : [];
             $html = View::capture('_widget_feed', [
                 'type' => $tid,
                 'label' => (string)$tab['label'],
@@ -262,6 +269,7 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
                 'statuses' => $statuses,
                 'commentCounts' => NewsRepository::commentCounts($ids),
                 'viewerCounts' => NewsRepository::viewerCounts($ids),
+                'feedChips' => $feedChips,
             ], 'core');
             $widgets[] = [
                 'id' => $wid,

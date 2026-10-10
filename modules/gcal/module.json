@@ -3,7 +3,7 @@
     "name": "gcal.module.name",
     "description": "gcal.module.description",
     "summary": "gcal.module.summary",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -31,10 +31,10 @@
         {
             "title": "gcal.menu.settings",
             "path": "/gcal/settings",
-            "permission": "gcal.manage",
             "group": "core.menu.group.system",
             "kind": "settings",
-            "num": 40
+            "capability": "SUPERADMIN_ACCESS",
+            "num": 8
         }
     ],
     "routes": {
@@ -51,7 +51,8 @@
             "gcal.sync.enqueued"
         ],
         "subscribe": [
-            "core.news_item.meta"
+            "core.news_item.meta",
+            "core.news.feed_chips"
         ]
     },
     "agent": {

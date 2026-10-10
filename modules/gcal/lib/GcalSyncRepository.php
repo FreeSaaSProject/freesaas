@@ -205,6 +205,30 @@ final class GcalSyncRepository
     }
 
     /**
+     * News ids that have at least one calendar event link.
+     *
+     * @param list<int> $newsIds
+     * @return array<int,true> id => true
+     */
+    public static function linkedNewsIds(array $newsIds): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $newsIds))));
+        if ($ids === [] || !Database::tableExists('base_gcal_task_links')) {
+            return [];
+        }
+        $in = implode(',', $ids);
+        $st = Database::pdo()->query(
+            "SELECT DISTINCT ID_TASK FROM base_gcal_task_links
+             WHERE ID_TASK IN ($in) AND EVENT_ID <> ''"
+        );
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
+            $out[(int)$id] = true;
+        }
+        return $out;
+    }
+
+    /**
      * @return list<array{ID:int,NAME:string,connected:bool,active_cal:string,done_cal:string}>
      */
     public static function staffOverview(): array

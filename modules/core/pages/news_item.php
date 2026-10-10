@@ -144,9 +144,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
                 $itemId = (int)($_POST['item_id'] ?? 0);
                 $checklistOut = null;
+                $newIds = [];
                 if ($action === 'checklist_add') {
-                    $newItemId = NewsChecklistRepository::add($id, (string)($_POST['title'] ?? ''), $uid);
-                    $checklistOut = NewsChecklistRepository::find($newItemId);
+                    $newIds = NewsChecklistRepository::addMany($id, (string)($_POST['title'] ?? ''), $uid);
+                    $checklistOut = $newIds !== []
+                        ? NewsChecklistRepository::find((int)$newIds[count($newIds) - 1])
+                        : null;
                 } elseif ($action === 'checklist_toggle') {
                     $checklistOut = NewsChecklistRepository::toggle($itemId, $id);
                     if ($checklistOut === null) {
@@ -166,14 +169,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
                 $progress = NewsChecklistRepository::progress($id);
                 if ($wantsJson) {
-                    AgentHttp::emit([
+                    $emit = [
                         'ok' => true,
                         'action' => $action,
                         'id' => $id,
                         'item' => $checklistOut ? NewsChecklistRepository::listForAgent([$checklistOut])[0] : null,
                         'checklist' => NewsChecklistRepository::listForAgent(NewsChecklistRepository::listFor($id)),
                         'checklist_progress' => $progress,
-                    ]);
+                    ];
+                    if ($action === 'checklist_add') {
+                        $emit['added'] = count($newIds);
+                        $emit['added_ids'] = $newIds;
+                    }
+                    AgentHttp::emit($emit);
                     return;
                 }
                 redirect('/news/' . $id . '#checklist');

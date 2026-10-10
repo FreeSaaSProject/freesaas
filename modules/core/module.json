@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.24",
+    "version": "0.3.25",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -744,6 +744,7 @@
             "core.layout.gate",
             "core.news_item.handle_post",
             "core.news_item.meta",
+            "core.news.feed_chips",
             "core.news_item.section",
             "core.user_edit.sections",
             "core.user_edit.save",

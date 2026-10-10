@@ -42,19 +42,78 @@ final class NewsChecklistRepository
 
     public static function add(int $newsId, string $title, int $userId): int
     {
-        $title = trim($title);
-        if ($newsId < 1 || $title === '' || !self::tableReady()) {
+        $ids = self::addMany($newsId, [$title], $userId);
+        if ($ids === []) {
+            throw new InvalidArgumentException(t('core.checklist.err.title_required'));
+        }
+        return $ids[0];
+    }
+
+    /**
+     * Parse pasted multiline text into checklist titles.
+     * Supports plain lines, "- item", "* item", "1. item", "[ ] item".
+     *
+     * @return list<string>
+     */
+    public static function parseTitles(string $raw): array
+    {
+        $raw = str_replace(["\r\n", "\r"], "\n", $raw);
+        $out = [];
+        foreach (explode("\n", $raw) as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $line = preg_replace('/^(\[[\sxX]\]|\d+[.)]|[-*•—–])\s+/u', '', $line) ?? $line;
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $out[] = mb_substr($line, 0, 500);
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<string>|string $titles
+     * @return list<int> inserted ids
+     */
+    public static function addMany(int $newsId, $titles, int $userId): array
+    {
+        if ($newsId < 1 || !self::tableReady()) {
+            throw new InvalidArgumentException(t('core.checklist.err.title_required'));
+        }
+        if (is_string($titles)) {
+            $titles = self::parseTitles($titles);
+        }
+        if (!is_array($titles)) {
+            $titles = [];
+        }
+        $clean = [];
+        foreach ($titles as $t) {
+            $t = trim((string)$t);
+            if ($t !== '') {
+                $clean[] = mb_substr($t, 0, 500);
+            }
+        }
+        if ($clean === []) {
             throw new InvalidArgumentException(t('core.checklist.err.title_required'));
         }
         $pdo = Database::pdo();
         $st = $pdo->prepare('SELECT COALESCE(MAX(SORT), 0) FROM base_news_checklist WHERE ID_NEWS = ?');
         $st->execute([$newsId]);
-        $sort = (int)$st->fetchColumn() + 10;
+        $sort = (int)$st->fetchColumn();
         $ins = $pdo->prepare(
             'INSERT INTO base_news_checklist SET ID_NEWS=?, TITLE=?, DONE=0, SORT=?, DT_CREATE=?, ID_USER=?'
         );
-        $ins->execute([$newsId, mb_substr($title, 0, 500), $sort, time(), $userId]);
-        return (int)$pdo->lastInsertId();
+        $now = time();
+        $ids = [];
+        foreach ($clean as $title) {
+            $sort += 10;
+            $ins->execute([$newsId, $title, $sort, $now, $userId]);
+            $ids[] = (int)$pdo->lastInsertId();
+        }
+        return $ids;
     }
 
     public static function toggle(int $itemId, int $newsId): ?array

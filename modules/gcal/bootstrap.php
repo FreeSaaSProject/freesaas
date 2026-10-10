@@ -56,6 +56,26 @@ ModuleManager::registerRoute('/gcal/enqueue', [
     },
 ]);
 
+EventBus::on('core.news.feed_chips', static function ($payload) {
+    if (!is_array($payload) || !GcalConfig::enabled()) {
+        return $payload;
+    }
+    $ids = $payload['ids'] ?? [];
+    if (!is_array($ids) || $ids === []) {
+        return $payload;
+    }
+    $chips = is_array($payload['chips'] ?? null) ? $payload['chips'] : [];
+    $linked = GcalSyncRepository::linkedNewsIds($ids);
+    $chip = '<span class="chip chip-gcal" title="' . te('gcal.chip.linked') . '">'
+        . te('gcal.chip.linked') . '</span>';
+    foreach ($linked as $nid => $_) {
+        $prev = (string)($chips[$nid] ?? '');
+        $chips[$nid] = $prev . ($prev !== '' ? ' ' : '') . $chip;
+    }
+    $payload['chips'] = $chips;
+    return $payload;
+});
+
 EventBus::on('core.news_item.meta', static function (array $payload): array {
     if (!GcalConfig::enabled()) {
         return $payload;
@@ -65,17 +85,15 @@ EventBus::on('core.news_item.meta', static function (array $payload): array {
         return $payload;
     }
     $uid = (int)($payload['uid'] ?? Auth::userId());
-    if ($uid <= 0) {
-        return $payload;
-    }
     $nid = (int)$row['ID'];
-    if (GcalSyncService::userHasLink($nid, $uid)) {
+    $linked = GcalSyncRepository::linkedNewsIds([$nid]);
+    if (isset($linked[$nid])) {
         $html = (string)($payload['html'] ?? '');
         $html .= ' <span class="chip chip-gcal" title="' . te('gcal.chip.linked') . '">'
             . te('gcal.chip.linked') . '</span>';
         $payload['html'] = $html;
     }
-    if (!GcalConfig::appConfigured()) {
+    if ($uid <= 0 || !GcalConfig::appConfigured()) {
         return $payload;
     }
     $tok = GcalSyncRepository::getToken($uid);

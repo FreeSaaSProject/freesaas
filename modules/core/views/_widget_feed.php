@@ -7,6 +7,7 @@
 /** @var array $statuses */
 /** @var array<int,int> $commentCounts */
 /** @var array<int,int> $viewerCounts */
+/** @var array<int,string> $feedChips */
 $type = (int)($type ?? 0);
 $label = (string)($label ?? '');
 $add = $add ?? null;
@@ -15,6 +16,7 @@ $items = $items ?? [];
 $statuses = $statuses ?? [];
 $commentCounts = $commentCounts ?? [];
 $viewerCounts = $viewerCounts ?? [];
+$feedChips = $feedChips ?? [];
 ?>
 <div class="widget-feed-head">
   <div class="widget-feed-actions">
@@ -42,6 +44,7 @@ $viewerCounts = $viewerCounts ?? [];
         <span class="muted"><?= e(I18n::formatDate((int)$n['DT'], 'date')) ?></span>
         <?php if ($cc > 0): ?><span class="muted" title="<?= te('core.feed.comments') ?>">💬 <?= $cc ?></span><?php endif; ?>
         <?php if ($vc > 0): ?><span class="muted" title="<?= te('core.feed.viewers') ?>">👁 <?= $vc ?></span><?php endif; ?>
+        <?php if (!empty($feedChips[$nid])): ?><?= $feedChips[$nid] ?><?php endif; ?>
       </div>
       <a class="feed-title" href="/news/<?= $nid ?>"><?= e((string)$n['NAME']) ?></a>
     </article>

@@ -2316,12 +2316,20 @@ table.data tr.is-disabled td a {
 }
 .checklist-item.is-done span { text-decoration: line-through; color: var(--muted); }
 .checklist-add {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  align-items: center;
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
 }
-.checklist-add input[type="text"] { flex: 1 1 12rem; min-width: 0; }
+.checklist-add textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+  font: inherit;
+}
+.checklist-add-hint {
+  margin: 0;
+  font-size: 0.85rem;
+}
 .inline-form { display: inline; margin: 0; }
 .news-versions-list {
   list-style: none;
@@ -3131,6 +3139,71 @@ body.db-job-busy {
   border-radius: 0.25rem;
   color: var(--muted, #666);
   vertical-align: middle;
+  white-space: nowrap;
+}
+
+.form-grid.form-wide {
+  max-width: 40rem;
+}
+.gcal-redirect-code {
+  display: block;
+  margin-top: 0.25rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  word-break: break-all;
+  background: var(--bg, #f6f6f6);
+  border-radius: 0.35rem;
+}
+.gcal-queue,
+.gcal-staff {
+  margin-top: 1.5rem;
+  max-width: 48rem;
+}
+.gcal-queue h2,
+.gcal-staff h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+.gcal-staff-list {
+  display: grid;
+  gap: 0.75rem;
+}
+.gcal-staff-card {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--line, #ddd);
+  border-radius: 12px;
+  background: var(--bg-elev, #fff);
+}
+.gcal-staff-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.5rem;
+}
+.gcal-staff-head strong {
+  display: block;
+}
+.gcal-staff-cals {
+  display: grid;
+  gap: 0.65rem;
+}
+@media (min-width: 640px) {
+  .gcal-staff-cals {
+    grid-template-columns: 1fr 1fr auto;
+    align-items: end;
+  }
+}
+.gcal-staff-cals label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+.gcal-staff-cals select {
+  width: 100%;
+  min-width: 0;
 }
 
 
