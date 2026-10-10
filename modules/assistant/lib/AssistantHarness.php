@@ -181,7 +181,7 @@ final class AssistantHarness
                             'ok' => true,
                             'pending' => true,
                             'token' => $row['token'],
-                            'message' => 'Write action queued for user confirmation. Do not claim it ran. Tell the user to Confirm or Cancel.',
+                            'message' => 'Write queued. UI shows Confirm/Cancel buttons. Reply with ONE short sentence; do not invent Confirm text; do not claim it ran.',
                             'summary' => $row['summary'],
                         ];
                         $trace[] = ['op_id' => $opId, 'status' => 'pending', 'args' => $args, 'token' => $row['token']];
@@ -218,6 +218,18 @@ final class AssistantHarness
             }
         }
 
+        if ($pending !== []) {
+            return [
+                'ok' => true,
+                'text' => t('assistant.confirm.press_buttons'),
+                'messages' => $norm,
+                'pending_actions' => $pending,
+                'tool_trace' => $trace,
+                'error' => '',
+                'profile' => $profile,
+            ];
+        }
+
         return [
             'ok' => false,
             'text' => '',
@@ -227,6 +239,86 @@ final class AssistantHarness
             'error' => t('assistant.err.loop'),
             'profile' => $profile,
         ];
+    }
+
+    /**
+     * Normalize short user text for Confirm/Cancel detection.
+     */
+    public static function normalizeConfirmPhrase(string $text): string
+    {
+        $t = trim($text);
+        $t = preg_replace('/\*+/u', '', $t) ?? $t;
+        $t = trim($t, " \t\n\r\0\x0B\"'«»");
+        if ($t === '') {
+            return '';
+        }
+        return function_exists('mb_strtolower') ? mb_strtolower($t, 'UTF-8') : strtolower($t);
+    }
+
+    /**
+     * Detect Confirm/Cancel typed as plain text (bot/web), not via buttons.
+     * Returns null if the message is not a short confirm/cancel phrase.
+     */
+    public static function detectConfirmIntent(string $text): ?string
+    {
+        $lower = self::normalizeConfirmPhrase($text);
+        if ($lower === '' || (function_exists('mb_strlen') ? mb_strlen($lower) : strlen($lower)) > 40) {
+            return null;
+        }
+        if (preg_match('/^(confirm|подтверд(ить|аю|ждаю)?|ок|ok|готово|делай|оформляй|записывай|согласен)$/iu', $lower)) {
+            return 'confirm';
+        }
+        if (preg_match('/^(cancel|отмена|отменить|отменяю|не надо)$/iu', $lower)) {
+            return 'cancel';
+        }
+        return null;
+    }
+
+    /** Soft «do it» phrases — only confirm when a pending write already exists. */
+    private static function isSoftDoConfirmPhrase(string $text): bool
+    {
+        $lower = self::normalizeConfirmPhrase($text);
+        return (bool)preg_match('/^(делай|оформляй|записывай|готово|ок|ok|согласен)$/iu', $lower);
+    }
+
+    /**
+     * If the user typed Confirm/Cancel and has a pending write, resolve the latest one.
+     *
+     * @return array{ok:bool,action:string,result:?array,error:string,handled:bool}|null
+     */
+    public static function tryResolveConfirmText(string $text, int $userId): ?array
+    {
+        $intent = self::detectConfirmIntent($text);
+        if ($intent === null || $userId < 1) {
+            return null;
+        }
+        $rows = PendingActionsRepository::listPendingForUser($userId, 1);
+        if ($rows === []) {
+            // «Делай» without a queued write must reach the LLM so it can call the write tool.
+            if ($intent === 'confirm' && self::isSoftDoConfirmPhrase($text)) {
+                return null;
+            }
+            return [
+                'ok' => false,
+                'action' => $intent,
+                'result' => null,
+                'error' => t('assistant.confirm.none'),
+                'handled' => true,
+            ];
+        }
+        $token = (string)($rows[0]['TOKEN'] ?? '');
+        if ($token === '') {
+            return [
+                'ok' => false,
+                'action' => $intent,
+                'result' => null,
+                'error' => t('assistant.confirm.none'),
+                'handled' => true,
+            ];
+        }
+        $resolved = self::resolvePending($token, $intent, $userId);
+        $resolved['handled'] = true;
+        return $resolved;
     }
 
     /**
@@ -287,15 +379,27 @@ final class AssistantHarness
     private static function summarizeWrite(string $opId, array $args, string $description): string
     {
         $bits = [$opId];
-        if ($description !== '') {
+        $keys = ['day', 'year', 'month', 'emp', 'id', 'profile', 'account_id', 'type_id', 'summ', 'supplier_id', 'descr', 'direction'];
+        if (strpos($opId, 'ledger.moves') === 0) {
+            $keys = ['account_id', 'type_id', 'summ', 'supplier_id', 'descr', 'direction', 'dt'];
+        } elseif ($description !== '') {
             $bits[] = $description;
         }
-        foreach (['day', 'year', 'month', 'emp', 'id', 'profile'] as $k) {
-            if (isset($args[$k]) && $args[$k] !== '' && $args[$k] !== null) {
-                $bits[] = $k . '=' . (is_scalar($args[$k]) ? (string)$args[$k] : json_encode($args[$k]));
+        foreach ($keys as $k) {
+            if (!isset($args[$k]) || $args[$k] === '' || $args[$k] === null) {
+                continue;
             }
+            $v = is_scalar($args[$k]) ? (string)$args[$k] : (string)json_encode($args[$k], JSON_UNESCAPED_UNICODE);
+            if ($k === 'descr' && (function_exists('mb_strlen') ? mb_strlen($v) : strlen($v)) > 80) {
+                $v = (function_exists('mb_substr') ? mb_substr($v, 0, 80) : substr($v, 0, 80)) . '…';
+            }
+            $bits[] = $k . '=' . $v;
         }
-        return mb_substr(implode(' · ', $bits), 0, 500);
+        if (count($bits) === 1 && $description !== '') {
+            $bits[] = $description;
+        }
+        $joined = implode(' · ', $bits);
+        return function_exists('mb_substr') ? mb_substr($joined, 0, 500) : substr($joined, 0, 500);
     }
 
     /**

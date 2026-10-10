@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",

@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -136,7 +136,34 @@
                 "method": "POST",
                 "path": "/ledger/moves/new",
                 "permission": "ledger.edit",
-                "description": "Create move; also POST /ledger/moves/{id}/edit to update (incl. promised dates); action=delete soft-deletes"
+                "description": "Create account move (ДПС). Call when account_id, type_id, summ are known; UI will ask user to Confirm. Update via POST /ledger/moves/{id}/edit.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "account_id": {"type": "integer", "description": "base_accounts.ID"},
+                        "type_id": {"type": "integer", "description": "base_account_move_types.ID"},
+                        "summ": {"type": "string", "description": "Amount, e.g. 481"},
+                        "descr": {"type": "string", "description": "Purpose / comment"},
+                        "supplier_id": {"type": "integer", "description": "base_suppliers.ID when type allows suppliers"},
+                        "direction": {"type": "integer", "description": "-1 expense, 1 income; usually from type"},
+                        "dt": {"type": "string", "description": "Optional datetime; default now"}
+                    },
+                    "required": ["account_id", "type_id", "summ"]
+                }
+            },
+            {
+                "id": "ledger.moves.copy",
+                "method": "POST",
+                "path": "/ledger/moves/{id}/edit",
+                "permission": "ledger.edit",
+                "description": "Copy move as new draft dated now; form action=copy; descr gets (copy) mark; returns new id"
+            },
+            {
+                "id": "ledger.moves.delete",
+                "method": "POST",
+                "path": "/ledger/moves/{id}/edit",
+                "permission": "ledger.edit",
+                "description": "Soft-delete move; form action=delete"
             },
             {
                 "id": "ledger.moves.transfer",

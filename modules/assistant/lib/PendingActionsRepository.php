@@ -58,6 +58,28 @@ final class PendingActionsRepository
     }
 
     /**
+     * Latest pending writes for a user (not expired).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function listPendingForUser(int $userId, int $limit = 5): array
+    {
+        if ($userId < 1 || !self::tableReady()) {
+            return [];
+        }
+        $limit = max(1, min(20, $limit));
+        $st = Database::pdo()->prepare(
+            'SELECT * FROM base_assistant_pending
+             WHERE ID_USER = ? AND STATUS = \'pending\' AND EXPIRES_AT > ?
+             ORDER BY CREATED_AT DESC, ID DESC
+             LIMIT ' . $limit
+        );
+        $st->execute([$userId, time()]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
      * @param array<string,mixed>|null $result
      */
     public static function mark(string $token, string $status, $result = null): bool

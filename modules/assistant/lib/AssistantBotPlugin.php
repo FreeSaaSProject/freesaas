@@ -112,6 +112,43 @@ final class AssistantBotPlugin
                     return true;
                 }
 
+                try {
+                    $textConfirm = Auth::runAs($uid, static function () use ($text, $uid) {
+                        if (!Auth::can('assistant.use')) {
+                            return null;
+                        }
+                        return AssistantHarness::tryResolveConfirmText($text, $uid);
+                    });
+                } catch (Throwable $e) {
+                    $textConfirm = null;
+                }
+                if (is_array($textConfirm) && !empty($textConfirm['handled'])) {
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                    if (!empty($textConfirm['ok']) && ($textConfirm['action'] ?? '') === 'confirm') {
+                        $reply = t('assistant.confirm.done');
+                        if (is_array($textConfirm['result'] ?? null)) {
+                            $snippet = json_encode($textConfirm['result'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                            if (is_string($snippet) && $snippet !== '') {
+                                if (strlen($snippet) > 1500) {
+                                    $snippet = substr($snippet, 0, 1500) . '…';
+                                }
+                                $reply .= "\n" . $snippet;
+                            }
+                        }
+                        self::appendAssistantHistory($uid, $reply);
+                        self::replySplit($ctx, $reply);
+                    } elseif (!empty($textConfirm['ok'])) {
+                        $reply = t('assistant.confirm.cancelled');
+                        self::appendAssistantHistory($uid, $reply);
+                        self::replySplit($ctx, $reply);
+                    } else {
+                        $err = (string)($textConfirm['error'] ?? t('assistant.chat.error'));
+                        self::appendAssistantHistory($uid, $err);
+                        self::replySplit($ctx, $err);
+                    }
+                    return true;
+                }
+
                 $history = class_exists('AssistantDialog', false)
                     ? AssistantDialog::getHistory($uid)
                     : [];
@@ -153,6 +190,9 @@ final class AssistantBotPlugin
                     $reply = t('assistant.chat.thinking');
                 }
                 $pending = is_array($out['pending_actions'] ?? null) ? $out['pending_actions'] : [];
+                if ($pending === [] && preg_match('/\b(confirm|подтверд)/iu', $reply)) {
+                    $reply .= "\n\n" . t('assistant.confirm.none');
+                }
                 $keyboard = null;
                 $display = $reply;
                 if ($pending !== []) {

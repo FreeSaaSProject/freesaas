@@ -2,7 +2,7 @@
     "id": "suppliers",
     "name": "suppliers.module.name",
     "description": "suppliers.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -36,7 +36,7 @@
                 "method": "GET",
                 "path": "/suppliers",
                 "permission": "suppliers.view",
-                "description": "List suppliers; filters: q, enabled"
+                "description": "List suppliers; filters: q, enabled. Try q in Cyrillic and Latin (озон/ozon/OZON)."
             },
             {
                 "id": "suppliers.get",
