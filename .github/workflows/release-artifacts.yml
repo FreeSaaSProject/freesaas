@@ -1,0 +1,49 @@
+name: Release artifacts
+
+# Builds one full FreeSaaS zip (+ freesaas-manifest.json) and attaches to the GitHub Release.
+# Private modules listed in PRIVATE_MODULES are excluded from the zip.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      private_modules:
+        description: 'Comma-separated modules excluded from the full zip'
+        required: false
+        default: 'likespa'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build full zip
+        env:
+          PRIVATE_MODULES: ${{ github.event.inputs.private_modules || 'likespa' }}
+        run: |
+          chmod +x bin/build-release-artifacts.sh
+          bin/build-release-artifacts.sh
+          ls -la dist/
+          test -f dist/freesaas-manifest.json
+
+      - name: Upload to GitHub Release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/freesaas-[0-9]*.zip
+            dist/freesaas-manifest.json
+            dist/freesaas-catalog.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload workflow artifacts
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: freesaas-release-dist
+          path: dist/
