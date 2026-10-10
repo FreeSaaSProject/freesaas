@@ -132,6 +132,8 @@ return [
     'ledger.moves.bulk.confirm' => 'Confirm',
     'ledger.moves.bulk.unconfirm' => 'Unconfirm',
     'ledger.moves.bulk.soft_delete' => 'Mark deleted',
+    'ledger.moves.bulk.copy_enter' => 'Copy and open',
+    'ledger.moves.copy_mark' => '(copy)',
     'ledger.moves.err.not_found' => 'Move #{id} not found',
     'ledger.moves.err.account' => 'Select an account',
     'ledger.moves.err.type' => 'Select a type',

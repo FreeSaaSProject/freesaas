@@ -80,6 +80,31 @@ BulkActions::register('ledger_moves', 'soft_delete', [
     },
 ]);
 
+BulkActions::register('ledger_moves', 'copy_enter', [
+    'label' => 'ledger.moves.bulk.copy_enter',
+    'permission' => 'ledger.edit',
+    'max_selection' => 1,
+    'run' => static function (array $ids, array $params): array {
+        $id = (int)($ids[0] ?? 0);
+        if ($id < 1) {
+            return ['done' => 0, 'skipped' => []];
+        }
+        try {
+            $newId = LedgerMovesRepository::copyAndEnter($id);
+            return [
+                'done' => 1,
+                'skipped' => [],
+                'redirect' => '/ledger/moves/' . $newId . '/edit',
+            ];
+        } catch (Throwable $e) {
+            return [
+                'done' => 0,
+                'skipped' => [['id' => $id, 'reason' => $e->getMessage()]],
+            ];
+        }
+    },
+]);
+
 EventBus::on('core.notices.collect', static function ($notices) {
     if (!is_array($notices)) {
         $notices = [];

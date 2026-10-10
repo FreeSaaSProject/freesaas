@@ -747,6 +747,48 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Duplicate one move as a new draft dated now; opens for edit after bulk redirect.
+     * Does not copy linked twin pairing.
+     */
+    public static function copyAndEnter(int $id): int
+    {
+        $src = self::find($id);
+        if (!$src || (int)($src['deleted'] ?? 0) > 0) {
+            throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));
+        }
+        $now = time();
+        $mark = t('ledger.moves.copy_mark');
+        $descr = trim((string)($src['descr'] ?? ''));
+        if ($descr === '') {
+            $descr = $mark;
+        } elseif (mb_stripos($descr, $mark) === false) {
+            $descr = $mark . "\n" . $descr;
+        }
+        return self::create([
+            'account_id' => (int)$src['account_id'],
+            'type_id' => (int)$src['type_id'],
+            'direction' => (int)$src['direction'],
+            'summ' => (float)$src['summ'],
+            'descr' => $descr,
+            'dt' => $now,
+            'dt_create' => $now,
+            'user_create' => Auth::userId(),
+            'unconfirmed' => (int)($src['unconfirmed'] ?? 1),
+            'payment_id' => (int)($src['payment_id'] ?? 0),
+            'supplier_id' => (int)($src['supplier_id'] ?? 0),
+            'user_payment' => (int)($src['user_payment'] ?? 0),
+            'fund_movement_id' => (int)($src['fund_movement_id'] ?? 0),
+            'act2_in' => (int)($src['act2_in'] ?? 0),
+            'act2_not_req' => (int)($src['act2_not_req'] ?? 0),
+            'dt_promised' => (int)($src['dt_promised'] ?? 0),
+            'promise_executed' => (int)($src['promise_executed'] ?? 0),
+            'linked_id' => 0,
+            'account_to' => 0,
+            'deleted' => 0,
+        ]);
+    }
+
+    /**
      * @param list<int> $ids
      * @return int
      */

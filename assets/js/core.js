@@ -766,16 +766,42 @@
       });
     }
 
+    function syncActionLimits() {
+      if (!actionSel) return;
+      var n = rowChecks().filter(function (c) { return c.checked; }).length;
+      Array.prototype.forEach.call(actionSel.options, function (opt) {
+        var maxAttr = opt.getAttribute('data-bulk-max-selection');
+        if (maxAttr === null || maxAttr === '') {
+          opt.disabled = false;
+          return;
+        }
+        var maxN = parseInt(maxAttr, 10);
+        if (!(maxN > 0)) {
+          opt.disabled = false;
+          return;
+        }
+        opt.disabled = n > maxN;
+      });
+      var selected = actionSel.options[actionSel.selectedIndex];
+      if (selected && selected.disabled) {
+        actionSel.value = '0';
+        syncFields();
+      }
+    }
+
     function syncSubmit() {
       if (!submitBtn) return;
       var any = rowChecks().some(function (c) { return c.checked; });
       var action = actionSel ? String(actionSel.value || '0') : '0';
-      submitBtn.disabled = !(any && action !== '0');
+      var selected = actionSel && actionSel.options[actionSel.selectedIndex];
+      var actionOk = action !== '0' && !(selected && selected.disabled);
+      submitBtn.disabled = !(any && actionOk);
     }
 
     function syncAll() {
       syncRowClasses();
       syncSelectAll();
+      syncActionLimits();
       syncSubmit();
     }
 

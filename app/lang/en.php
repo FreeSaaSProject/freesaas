@@ -45,6 +45,7 @@ return [
     'core.bulk.blocked' => 'Operation not allowed',
     'core.bulk.err.no_action' => 'Choose an action',
     'core.bulk.err.no_selection' => 'No records selected',
+    'core.bulk.err.max_selection' => 'Select at most {n} record(s) for this action',
     'core.bulk.err.forbidden' => 'Not allowed to run this action',
     'core.bulk.flash.done' => 'Processed: {n}.',
     'core.bulk.flash.skipped' => 'Skipped: {n}.',

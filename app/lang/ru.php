@@ -45,6 +45,7 @@ return [
     'core.bulk.blocked' => 'Операция запрещена',
     'core.bulk.err.no_action' => 'Выберите действие',
     'core.bulk.err.no_selection' => 'Не выбрано ни одной записи',
+    'core.bulk.err.max_selection' => 'Для этого действия выберите не больше {n} запис(ей)',
     'core.bulk.err.forbidden' => 'Недостаточно прав для этого действия',
     'core.bulk.flash.done' => 'Обработано: {n}.',
     'core.bulk.flash.skipped' => 'Пропущено: {n}.',

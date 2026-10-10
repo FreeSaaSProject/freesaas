@@ -19,10 +19,13 @@ final class BulkActions
      *   permission?:string,
      *   capability?:string,
      *   confirm?:string,
+     *   max_selection?:int,
      *   fields?:list<array{name:string,type?:string,label?:string,options?:array<int|string,string>|callable}>,
      *   run:callable
      * } $def
      * Optional `group` is an i18n key for an <optgroup> label (oper-style action buckets).
+     * Optional `max_selection` (e.g. 1) greys out the option when more rows are checked;
+     * server rejects oversize selections. Run may return `redirect` for a post-action jump.
      */
     public static function register(string $listId, string $actionId, array $def): void
     {
@@ -149,6 +152,15 @@ final class BulkActions
                 'error' => t('core.bulk.err.no_selection'),
             ];
         }
+        $maxSelection = (int)($def['max_selection'] ?? 0);
+        if ($maxSelection > 0 && count($ids) > $maxSelection) {
+            return [
+                'done' => 0,
+                'skipped' => [],
+                'action' => $actionId,
+                'error' => t('core.bulk.err.max_selection', ['n' => $maxSelection]),
+            ];
+        }
 
         $params = [];
         foreach ($def['fields'] ?? [] as $field) {
@@ -171,6 +183,7 @@ final class BulkActions
         }
 
         $done = 0;
+        $redirect = '';
         if ($allowedIds !== []) {
             /** @var callable $run */
             $run = $def['run'];
@@ -179,6 +192,7 @@ final class BulkActions
                 $result = ['done' => count($allowedIds), 'skipped' => []];
             }
             $done = (int)($result['done'] ?? 0);
+            $redirect = trim((string)($result['redirect'] ?? ''));
             foreach ($result['skipped'] ?? [] as $row) {
                 if (!is_array($row)) {
                     continue;
@@ -190,11 +204,15 @@ final class BulkActions
             }
         }
 
-        return [
+        $out = [
             'done' => $done,
             'skipped' => $skipped,
             'action' => $actionId,
         ];
+        if ($redirect !== '') {
+            $out['redirect'] = $redirect;
+        }
+        return $out;
     }
 
     /**
@@ -309,6 +327,10 @@ final class BulkActions
             if ($confirm !== '') {
                 $attrs .= ' data-confirm="' . te($confirm) . '"';
             }
+            $maxSelection = (int)($def['max_selection'] ?? 0);
+            if ($maxSelection > 0) {
+                $attrs .= ' data-bulk-max-selection="' . $maxSelection . '"';
+            }
             return '<option' . $attrs . '>' . te((string)$def['label']) . '</option>';
         };
 
@@ -421,6 +443,11 @@ final class BulkActions
         $result = self::handlePost($listId, $_POST);
         if ($result === null) {
             return false;
+        }
+        $jump = trim((string)($result['redirect'] ?? ''));
+        if ($jump !== '') {
+            redirect(self::sanitizeReturn($jump));
+            return true;
         }
         $return = trim((string)($_POST['bulk_return'] ?? ''));
         if ($return === '') {

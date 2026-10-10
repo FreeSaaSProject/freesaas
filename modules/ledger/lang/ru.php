@@ -132,6 +132,8 @@ return [
     'ledger.moves.bulk.confirm' => 'Подтвердить',
     'ledger.moves.bulk.unconfirm' => 'Снять подтверждение',
     'ledger.moves.bulk.soft_delete' => 'Пометить удалённым',
+    'ledger.moves.bulk.copy_enter' => 'Скопировать и войти',
+    'ledger.moves.copy_mark' => '(копия)',
     'ledger.moves.err.not_found' => 'Движение #{id} не найдено',
     'ledger.moves.err.account' => 'Выберите счёт',
     'ledger.moves.err.type' => 'Выберите тип',
