@@ -814,8 +814,9 @@
       });
     }
 
-    // Own clicks on the whole checkbox cell so tall rows stay selectable
-    // without absolute/height hacks that clip the input.
+    // Expand hit-area to the whole checkbox cell (tall rows), but do not
+    // re-toggle when the click already hit the input/label — that would
+    // cancel the native checkbox flip (double switch).
     form.addEventListener('click', function (e) {
       var col = e.target && e.target.closest ? e.target.closest('.bulk-check-col') : null;
       if (!col || !form.contains(col)) return;
@@ -823,26 +824,38 @@
       var rowInput = col.querySelector('[data-bulk-id]');
       if (!rowInput) return; // header select-all: native + change handler
 
-      e.preventDefault();
-      e.stopPropagation();
+      var t = e.target;
+      var onControl = t === rowInput
+        || (t.closest && !!t.closest('label.bulk-check-hit') && col.contains(t));
 
       var boxes = rowChecks();
       if (e.shiftKey && lastCheck) {
+        e.preventDefault();
+        e.stopPropagation();
         var a = boxes.indexOf(lastCheck);
         var b = boxes.indexOf(rowInput);
         if (a >= 0 && b >= 0) {
           var from = Math.min(a, b);
           var to = Math.max(a, b);
+          // Capture runs before native flip; current checked is pre-click.
           var on = !rowInput.checked;
           for (var i = from; i <= to; i++) {
             boxes[i].checked = on;
           }
           lastCheck = rowInput;
           syncAll();
-          return;
         }
+        return;
       }
 
+      if (onControl) {
+        // Native (or label) toggles; change handler will syncAll.
+        lastCheck = rowInput;
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
       rowInput.checked = !rowInput.checked;
       lastCheck = rowInput;
       syncAll();
