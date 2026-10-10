@@ -78,6 +78,14 @@ php bin/freesaas.php health --format=json
 
 Expect `setup.pending: 0` (or no pending migrations) and health without `platform.schema_pending` fail.
 
+## Staff roles: least privilege
+
+- Bootstrap creates the Superadmin role with `SUPERADMIN_ACCESS` for the first admin (director) only.
+- For other administrators create a separate role **without** `SUPERADMIN_ACCESS` and grant module permissions explicitly (e.g. copy the director's set and trim it).
+- Capability-gated screens (module settings, statuses and roles, updates, OAuth/MCP) remain director-only — expected, not a bug.
+- Ordinary staff pickers use `listEnabledStaff()` / `staffNamesIncluding()`; `listForCopy()` is reserved for copyFrom.
+- Checklist for a new role: `SUPERADMIN_ACCESS` = 0 (unless director), `ENABLED` = 1, assignment flags only for those who plan shifts, then grant permissions per user and verify one gated screen.
+
 ## FTP-only chicken-egg
 
 | Step | Action |
