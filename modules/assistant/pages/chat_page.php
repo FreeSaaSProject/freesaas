@@ -35,6 +35,9 @@ View::render('chat', [
         'confirm_cancelled' => t('assistant.confirm.cancelled'),
         'clear' => t('assistant.chat.clear'),
         'cleared' => t('assistant.chat.cleared'),
+        'tools' => t('assistant.tool.trace'),
+        'tool_pending' => t('assistant.tool.pending'),
+        'tool_forbidden' => t('assistant.tool.forbidden'),
     ],
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('assistant.menu.chat'), 'current' => true],

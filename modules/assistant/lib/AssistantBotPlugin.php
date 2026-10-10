@@ -181,7 +181,7 @@ final class AssistantBotPlugin
                 self::replyChrome($ctx, t('assistant.bot.working'));
 
                 try {
-                    $out = Auth::runAs($uid, static function () use ($history, $uid) {
+                    $out = Auth::runAs($uid, static function () use ($history, $uid, $ctx) {
                         if (!Auth::can('assistant.use')) {
                             return [
                                 'ok' => false,
@@ -190,7 +190,22 @@ final class AssistantBotPlugin
                                 'error' => t('assistant.bot.denied'),
                             ];
                         }
-                        return AssistantHarness::run($history, ['user_id' => $uid, 'timeout' => 90]);
+                        return AssistantHarness::run($history, [
+                            'user_id' => $uid,
+                            'timeout' => 90,
+                            'on_progress' => static function (array $ev) use ($ctx): void {
+                                $phase = (string)($ev['phase'] ?? '');
+                                $status = (string)($ev['status'] ?? '');
+                                // Live «calling…»; result only for pending/error (skip noisy ✅ ok).
+                                if ($phase === 'done' && $status === 'ok') {
+                                    return;
+                                }
+                                $line = AssistantHarness::formatProgressEvent($ev);
+                                if ($line !== '') {
+                                    self::replyProgress($ctx, $line);
+                                }
+                            },
+                        ]);
                     });
                 } catch (Throwable $e) {
                     self::replySplit($ctx, t('assistant.bot.denied'));
@@ -304,6 +319,19 @@ final class AssistantBotPlugin
             return;
         }
         self::replyChrome($ctx, $text, $markup);
+    }
+
+    /** Tool progress line (kept in chat, no actions bar). @param array<string,mixed> $ctx */
+    private static function replyProgress(array $ctx, string $text): void
+    {
+        if ($text === '' || (string)($ctx['token'] ?? '') === '' || (string)($ctx['chat_id'] ?? '') === '') {
+            return;
+        }
+        if (class_exists('BotClient', false)) {
+            BotClient::replyKeep($ctx, $text);
+            return;
+        }
+        self::replyChrome($ctx, $text);
     }
 
     /**

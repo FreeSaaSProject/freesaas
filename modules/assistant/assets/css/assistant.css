@@ -46,6 +46,20 @@
   align-items: center;
 }
 
+.assistant-chat__trace {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.assistant-chat__trace pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0.35rem 0 0;
+  font: inherit;
+  font-size: 0.8rem;
+}
+
 .assistant-chat__form {
   display: flex;
   gap: 0.5rem;

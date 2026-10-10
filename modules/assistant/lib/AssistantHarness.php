@@ -11,7 +11,10 @@ final class AssistantHarness
 
     /**
      * @param list<array{role:string,content?:string,tool_calls?:mixed,tool_call_id?:string,name?:string}> $messages
-     * @param array{profile?:string,timeout?:int,temperature?:float,max_tokens?:int,user_id?:int} $opts
+     * @param array{
+     *   profile?:string,timeout?:int,temperature?:float,max_tokens?:int,user_id?:int,
+     *   on_progress?:callable
+     * } $opts on_progress receives {phase,op_id,description,side_effect,args,status?}
      * @return array{
      *   ok:bool,text:string,messages:list,pending_actions:list,
      *   tool_trace:list,error:string,profile:?string
@@ -30,6 +33,9 @@ final class AssistantHarness
         }
         $byFn = AssistantTools::indexByFunctionName($ops);
         $tools = AssistantTools::toLlmTools($ops);
+        $onProgress = isset($opts['on_progress']) && is_callable($opts['on_progress'])
+            ? $opts['on_progress']
+            : null;
 
         $company = class_exists('SystemRepository', false)
             ? trim(SystemRepository::companyName())
@@ -155,6 +161,14 @@ final class AssistantHarness
                     $opId = AssistantTools::functionNameToOpId($fnName);
                     $payload = ['ok' => false, 'error' => 'Unknown or forbidden tool: ' . $fnName];
                     $trace[] = ['op_id' => $opId, 'status' => 'forbidden', 'args' => $args];
+                    self::emitProgress($onProgress, [
+                        'phase' => 'done',
+                        'op_id' => $opId,
+                        'description' => '',
+                        'side_effect' => 'read',
+                        'args' => $args,
+                        'status' => 'forbidden',
+                    ]);
                     $norm[] = [
                         'role' => 'tool',
                         'tool_call_id' => $tcId,
@@ -165,13 +179,29 @@ final class AssistantHarness
 
                 $opId = (string)$op['id'];
                 $side = (string)$op['side_effect'];
+                $desc = (string)$op['description'];
+                self::emitProgress($onProgress, [
+                    'phase' => 'start',
+                    'op_id' => $opId,
+                    'description' => $desc,
+                    'side_effect' => $side,
+                    'args' => $args,
+                ]);
 
                 if ($side === 'write') {
-                    $summary = self::summarizeWrite($opId, $args, (string)$op['description']);
+                    $summary = self::summarizeWrite($opId, $args, $desc);
                     $row = PendingActionsRepository::create($userId, $opId, $args, $summary);
                     if ($row === null) {
                         $payload = ['ok' => false, 'error' => 'Could not create pending confirmation'];
                         $trace[] = ['op_id' => $opId, 'status' => 'error', 'args' => $args];
+                        self::emitProgress($onProgress, [
+                            'phase' => 'done',
+                            'op_id' => $opId,
+                            'description' => $desc,
+                            'side_effect' => $side,
+                            'args' => $args,
+                            'status' => 'error',
+                        ]);
                     } else {
                         $pending[] = [
                             'token' => $row['token'],
@@ -187,6 +217,15 @@ final class AssistantHarness
                             'summary' => $row['summary'],
                         ];
                         $trace[] = ['op_id' => $opId, 'status' => 'pending', 'args' => $args, 'token' => $row['token']];
+                        self::emitProgress($onProgress, [
+                            'phase' => 'done',
+                            'op_id' => $opId,
+                            'description' => $desc,
+                            'side_effect' => $side,
+                            'args' => $args,
+                            'status' => 'pending',
+                            'summary' => $row['summary'],
+                        ]);
                     }
                     $norm[] = [
                         'role' => 'tool',
@@ -200,11 +239,21 @@ final class AssistantHarness
                 $payload = $inv['ok']
                     ? ($inv['data'] ?? ['ok' => true])
                     : ['ok' => false, 'error' => $inv['error']];
+                $status = $inv['ok'] ? 'ok' : 'error';
                 $trace[] = [
                     'op_id' => $opId,
-                    'status' => $inv['ok'] ? 'ok' : 'error',
+                    'status' => $status,
                     'args' => $args,
                 ];
+                self::emitProgress($onProgress, [
+                    'phase' => 'done',
+                    'op_id' => $opId,
+                    'description' => $desc,
+                    'side_effect' => $side,
+                    'args' => $args,
+                    'status' => $status,
+                    'error' => $inv['ok'] ? '' : (string)$inv['error'],
+                ]);
                 $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 if ($encoded === false) {
                     $encoded = '{"ok":false,"error":"encode failed"}';
@@ -254,6 +303,109 @@ final class AssistantHarness
             'error' => t('assistant.err.loop'),
             'profile' => $profile,
         ];
+    }
+
+    /**
+     * Human-readable harness progress line (bot / UI).
+     *
+     * @param array<string,mixed> $ev
+     */
+    public static function formatProgressEvent(array $ev): string
+    {
+        $phase = (string)($ev['phase'] ?? '');
+        $opId = (string)($ev['op_id'] ?? '');
+        if ($opId === '') {
+            return '';
+        }
+        $desc = trim((string)($ev['description'] ?? ''));
+        // Drop long "[requires user confirmation…]" suffix for display.
+        $desc = preg_replace('/\s*\[requires user confirmation[^\]]*\]\s*/i', '', $desc) ?? $desc;
+        $desc = trim($desc);
+        $argsBrief = self::formatArgsBrief(is_array($ev['args'] ?? null) ? $ev['args'] : []);
+        $side = (string)($ev['side_effect'] ?? 'read');
+
+        if ($phase === 'start') {
+            $icon = $side === 'write' ? '📝' : '🔧';
+            $line = $icon . ' ' . $opId;
+            if ($desc !== '') {
+                $line .= ' — ' . $desc;
+            }
+            if ($argsBrief !== '') {
+                $line .= "\n" . $argsBrief;
+            }
+            return $line;
+        }
+
+        if ($phase !== 'done') {
+            return '';
+        }
+        $status = (string)($ev['status'] ?? '');
+        if ($status === 'pending') {
+            $sum = trim((string)($ev['summary'] ?? ''));
+            return '⏳ ' . $opId . ' → ' . t('assistant.tool.pending')
+                . ($sum !== '' ? "\n" . $sum : '');
+        }
+        if ($status === 'ok') {
+            return '✅ ' . $opId;
+        }
+        if ($status === 'forbidden') {
+            return '🚫 ' . $opId . ' — ' . t('assistant.tool.forbidden');
+        }
+        $err = trim((string)($ev['error'] ?? ''));
+        return '❌ ' . $opId . ($err !== '' ? ' — ' . $err : '');
+    }
+
+    /**
+     * @param array<string,mixed> $args
+     */
+    public static function formatArgsBrief(array $args): string
+    {
+        if ($args === []) {
+            return '';
+        }
+        $prefer = [
+            'q', 'id', 'account_id', 'type_id', 'summ', 'supplier_id', 'descr',
+            'day', 'year', 'month', 'direction', 'dt', 'enabled', 'name',
+        ];
+        $bits = [];
+        foreach ($prefer as $k) {
+            if (!array_key_exists($k, $args) || $args[$k] === '' || $args[$k] === null) {
+                continue;
+            }
+            $v = is_scalar($args[$k]) ? (string)$args[$k] : (string)json_encode($args[$k], JSON_UNESCAPED_UNICODE);
+            if ((function_exists('mb_strlen') ? mb_strlen($v) : strlen($v)) > 60) {
+                $v = (function_exists('mb_substr') ? mb_substr($v, 0, 60) : substr($v, 0, 60)) . '…';
+            }
+            $bits[] = $k . '=' . $v;
+            if (count($bits) >= 6) {
+                break;
+            }
+        }
+        if ($bits === []) {
+            foreach ($args as $k => $v) {
+                if (!is_scalar($v) || $v === '') {
+                    continue;
+                }
+                $bits[] = (string)$k . '=' . (string)$v;
+                if (count($bits) >= 4) {
+                    break;
+                }
+            }
+        }
+        return $bits !== [] ? implode(' · ', $bits) : '';
+    }
+
+    /** @param callable|null $onProgress @param array<string,mixed> $ev */
+    private static function emitProgress($onProgress, array $ev): void
+    {
+        if ($onProgress === null) {
+            return;
+        }
+        try {
+            $onProgress($ev);
+        } catch (Throwable $e) {
+            error_log('[assistant.progress] ' . $e->getMessage());
+        }
     }
 
     /**

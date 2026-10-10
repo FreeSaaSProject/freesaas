@@ -70,7 +70,45 @@
     });
   }
 
-  function appendMsg(who, text, pending) {
+  function formatTrace(trace) {
+    if (!trace || !trace.length) {
+      return '';
+    }
+    return trace
+      .map(function (step) {
+        if (!step || !step.op_id) {
+          return '';
+        }
+        var st = step.status || '';
+        var mark =
+          st === 'ok'
+            ? '✅'
+            : st === 'pending'
+              ? '⏳'
+              : st === 'forbidden'
+                ? '🚫'
+                : '❌';
+        var args = step.args || {};
+        var bits = [];
+        ['q', 'id', 'account_id', 'type_id', 'summ', 'supplier_id', 'descr'].forEach(
+          function (k) {
+            if (args[k] !== undefined && args[k] !== null && args[k] !== '') {
+              bits.push(k + '=' + String(args[k]).slice(0, 40));
+            }
+          }
+        );
+        return (
+          mark +
+          ' ' +
+          step.op_id +
+          (bits.length ? ' · ' + bits.join(' · ') : '')
+        );
+      })
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  function appendMsg(who, text, pending, trace) {
     var wrap = document.createElement('div');
     wrap.className = 'assistant-chat__msg';
     var whoEl = document.createElement('div');
@@ -80,6 +118,18 @@
     body.textContent = text || '';
     wrap.appendChild(whoEl);
     wrap.appendChild(body);
+    var traceText = formatTrace(trace);
+    if (traceText) {
+      var toolsEl = document.createElement('details');
+      toolsEl.className = 'assistant-chat__trace';
+      var sum = document.createElement('summary');
+      sum.textContent = t('tools', 'Tools');
+      var pre = document.createElement('pre');
+      pre.textContent = traceText;
+      toolsEl.appendChild(sum);
+      toolsEl.appendChild(pre);
+      wrap.appendChild(toolsEl);
+    }
     attachPending(wrap, pending);
     log.appendChild(wrap);
     log.scrollTop = log.scrollHeight;
@@ -99,14 +149,29 @@
     });
   }
 
-  function applyServerHistory(list, pending) {
+  function applyServerHistory(list, pending, trace) {
     if (!Array.isArray(list)) {
       return;
     }
     history = list;
     renderHistory(history);
-    if (pending && pending.length && log.lastElementChild) {
-      attachPending(log.lastElementChild, pending);
+    if (!log || !log.lastElementChild) {
+      return;
+    }
+    var last = log.lastElementChild;
+    if (trace && trace.length && !last.querySelector('.assistant-chat__trace')) {
+      var toolsEl = document.createElement('details');
+      toolsEl.className = 'assistant-chat__trace';
+      var sum = document.createElement('summary');
+      sum.textContent = t('tools', 'Tools');
+      var pre = document.createElement('pre');
+      pre.textContent = formatTrace(trace);
+      toolsEl.appendChild(sum);
+      toolsEl.appendChild(pre);
+      last.appendChild(toolsEl);
+    }
+    if (pending && pending.length) {
+      attachPending(last, pending);
     }
   }
 
@@ -233,22 +298,29 @@
         if (thinking && thinking.parentNode) {
           thinking.parentNode.removeChild(thinking);
         }
+        var trace = (res.json && res.json.tool_trace) || [];
         if (res.json && Array.isArray(res.json.history)) {
           applyServerHistory(
             res.json.history,
-            res.ok && res.json.ok ? res.json.pending_actions || [] : []
+            res.ok && res.json.ok ? res.json.pending_actions || [] : [],
+            res.ok && res.json.ok ? trace : []
           );
           return;
         }
         if (!res.ok || !res.json || !res.json.ok) {
           var err = (res.json && res.json.error) || t('error', 'Error');
-          appendMsg(t('assistant', 'Assistant'), err);
+          appendMsg(t('assistant', 'Assistant'), err, null, trace);
           history.push({ role: 'assistant', content: err });
           return;
         }
         var reply = res.json.text || '';
         history.push({ role: 'assistant', content: reply });
-        appendMsg(t('assistant', 'Assistant'), reply, res.json.pending_actions || []);
+        appendMsg(
+          t('assistant', 'Assistant'),
+          reply,
+          res.json.pending_actions || [],
+          trace
+        );
       })
       .catch(function () {
         setBusy(false);
