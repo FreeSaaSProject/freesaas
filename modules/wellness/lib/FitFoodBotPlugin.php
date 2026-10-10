@@ -200,6 +200,28 @@ final class FitFoodBotPlugin
             self::beginDelete($ctx, $uid);
             return true;
         }
+        if (preg_match('/^fit_food_entry_en_(\d+)$/', $data, $m)) {
+            $state = self::state($ctx);
+            $stData = is_array($state['data'] ?? null) ? $state['data'] : [];
+            if (($state['mode'] ?? '') !== 'await_edit') {
+                self::beginEdit($ctx, $uid);
+                $state = self::state($ctx);
+                $stData = is_array($state['data'] ?? null) ? $state['data'] : [];
+            }
+            self::processEditInput($ctx, $uid, (string)(int)$m[1], $stData);
+            return true;
+        }
+        if (preg_match('/^fit_food_entry_dn_(\d+)$/', $data, $m)) {
+            $state = self::state($ctx);
+            $stData = is_array($state['data'] ?? null) ? $state['data'] : [];
+            if (($state['mode'] ?? '') !== 'await_delete') {
+                self::beginDelete($ctx, $uid);
+                $state = self::state($ctx);
+                $stData = is_array($state['data'] ?? null) ? $state['data'] : [];
+            }
+            self::processDeleteInput($ctx, $uid, (string)(int)$m[1], $stData);
+            return true;
+        }
         if (preg_match('/^fit_food_entry_rfp_(\d+)$/', $data, $m)) {
             self::pickRecipeFood($ctx, $uid, (int)$m[1]);
             return true;
@@ -821,7 +843,7 @@ final class FitFoodBotPlugin
         self::replyHtml(
             $ctx,
             self::formatNumberedFoodLines($idx['items']) . "\n\n" . t('wellness.bot.edit_hint'),
-            self::kbCancel()
+            self::kbNumbered($idx['map'], 'fit_food_entry_en_')
         );
     }
 
@@ -841,7 +863,7 @@ final class FitFoodBotPlugin
         self::replyHtml(
             $ctx,
             self::formatNumberedFoodLines($idx['items']) . "\n\n" . t('wellness.bot.delete_hint'),
-            self::kbCancel()
+            self::kbNumbered($idx['map'], 'fit_food_entry_dn_')
         );
     }
 
@@ -1223,6 +1245,36 @@ final class FitFoodBotPlugin
         return ['inline_keyboard' => [
             [['text' => t('wellness.bot.cancel'), 'callback_data' => 'fit_food_entry_cancel']],
         ]];
+    }
+
+    /**
+     * Number pads for edit/delete: 1 2 3 … + Cancel.
+     *
+     * @param array<int,int> $map
+     * @return array{inline_keyboard:list<list<array<string,string>>>}
+     */
+    private static function kbNumbered(array $map, string $cbPrefix): array
+    {
+        $rows = [];
+        $row = [];
+        $i = 0;
+        ksort($map, SORT_NUMERIC);
+        foreach (array_keys($map) as $n) {
+            $row[] = [
+                'text' => (string)(int)$n,
+                'callback_data' => $cbPrefix . (int)$n,
+            ];
+            $i++;
+            if ($i % 5 === 0) {
+                $rows[] = $row;
+                $row = [];
+            }
+        }
+        if ($row !== []) {
+            $rows[] = $row;
+        }
+        $rows[] = [['text' => t('wellness.bot.cancel'), 'callback_data' => 'fit_food_entry_cancel']];
+        return ['inline_keyboard' => $rows];
     }
 
     /** @return array{inline_keyboard:list<list<array<string,string>>>} */
