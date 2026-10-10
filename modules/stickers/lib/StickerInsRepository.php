@@ -91,6 +91,40 @@ final class StickerInsRepository
         return round((float)$row['qtyu_in'] - (float)$row['qtyu_out'], 3);
     }
 
+    /**
+     * Resolve sticker from bot input: numeric id, "id pin", pin, or hash.
+     */
+    public static function findByBotToken(string $raw): ?array
+    {
+        $raw = trim($raw);
+        if ($raw === '' || !Database::tableExists('base_good_sticker_ins')) {
+            return null;
+        }
+        if (preg_match('/^(\d+)\s+(\S+)$/', $raw, $m)) {
+            $row = self::find((int)$m[1]);
+            if ($row === null) {
+                return null;
+            }
+            $pin = trim((string)$m[2]);
+            if ($pin !== '' && (string)($row['pin'] ?? '') !== $pin && (string)($row['hash'] ?? '') !== $pin) {
+                return null;
+            }
+            return $row;
+        }
+        if (ctype_digit($raw)) {
+            $byId = self::find((int)$raw);
+            if ($byId !== null) {
+                return $byId;
+            }
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_good_sticker_ins WHERE PIN = ? OR HASH = ? ORDER BY ID DESC LIMIT 1'
+        );
+        $st->execute([$raw, $raw]);
+        $id = (int)$st->fetchColumn();
+        return $id > 0 ? self::find($id) : null;
+    }
+
     public static function randPin(int $len = 4): string
     {
         $digits = '';

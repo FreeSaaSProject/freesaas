@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/WorkweeksRepository.php';
+require_once __DIR__ . '/lib/NeededPeopleBotPlugin.php';
+require_once __DIR__ . '/lib/ShiftsBotPlugin.php';
 
 Assets::register('workweeks', [
     'css' => ['workweeks.css'],
@@ -58,3 +60,15 @@ BulkActions::register('workweeks', 'delete', [
         return ['done' => WorkweeksRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+
+$registerWorkweeksBots = static function (): void {
+    NeededPeopleBotPlugin::register();
+    ShiftsBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerWorkweeksBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerWorkweeksBots) {
+    $registerWorkweeksBots();
+    return is_array($payload) ? $payload : [];
+});

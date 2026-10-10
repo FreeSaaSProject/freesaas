@@ -5,6 +5,9 @@ require_once __DIR__ . '/lib/PaymentTypesRepository.php';
 require_once __DIR__ . '/lib/PaymentsRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveLinksRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveAllocUi.php';
+require_once __DIR__ . '/lib/FreelancePayout.php';
+require_once __DIR__ . '/lib/ShiftSalaryBotPlugin.php';
+require_once __DIR__ . '/lib/FreelancePayoutBotPlugin.php';
 
 Assets::register('payments', [
     'css' => ['payments.css'],
@@ -156,4 +159,16 @@ EventBus::on('ledger.moves.badges', static function ($payload) {
     }
     $payload['by_id'] = $byId;
     return $payload;
+});
+
+$registerPaymentsBots = static function (): void {
+    ShiftSalaryBotPlugin::register();
+    FreelancePayoutBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerPaymentsBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerPaymentsBots) {
+    $registerPaymentsBots();
+    return is_array($payload) ? $payload : [];
 });

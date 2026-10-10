@@ -13,6 +13,8 @@ require_once __DIR__ . '/lib/Breadcrumbs.php';
 require_once __DIR__ . '/lib/UserPrefsRepository.php';
 require_once __DIR__ . '/lib/DashboardWidgets.php';
 require_once __DIR__ . '/lib/MenuOrder.php';
+require_once __DIR__ . '/lib/MyTasksHabits.php';
+require_once __DIR__ . '/lib/MyTasksHabitsBot.php';
 require_once __DIR__ . '/lib/NewsBotPlugin.php';
 require_once __DIR__ . '/lib/PasswordRestoreBotPlugin.php';
 
@@ -76,6 +78,11 @@ $pages = [
     '/news/new' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_edit.php'],
     '/news/{id}' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_item.php'],
     '/news/{id}/edit' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_edit.php'],
+    '/core/jobs/habits-reminders' => [
+        'public' => true,
+        'methods' => ['POST', 'GET'],
+        'file' => 'jobs_habits_reminders.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {

@@ -253,4 +253,10 @@ return [
     'audio.statuses.field.DISABLE_NON_PROCEDURE_TIME' => 'Disable non-procedure time',
     'audio.module.description' => 'Audio records, badges, and FileStorage for cabin analytics.',
     'audio.module.summary' => 'Enable for cabin audio recordings. Soft workweeks/clients/audio_dicts. Required by audio_dicts, pipeline, reports. Cabin audio stack foundation (messenger ASR is module asr).',
+    'audio.bot.badge.title' => '🎧 Choose a badge:',
+    'audio.bot.badge.current' => 'Current: {code}',
+    'audio.bot.badge.current_off' => 'Current: not on shift',
+    'audio.bot.badge.no_analytics' => 'Audio analytics is disabled for you.',
+    'audio.bot.badge.not_on_shift_day' => 'Badge selection is only available on a shift day.',
+    'audio.bot.badge.again' => 'Choose again',
 ];

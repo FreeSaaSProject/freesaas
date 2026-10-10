@@ -6,6 +6,7 @@ require_once __DIR__ . '/lib/FileStorage.php';
 require_once __DIR__ . '/lib/InboxFiles.php';
 require_once __DIR__ . '/lib/BadgesRepository.php';
 require_once __DIR__ . '/lib/BadgeAssignmentsRepository.php';
+require_once __DIR__ . '/lib/BadgeBotPlugin.php';
 require_once __DIR__ . '/lib/RecordsRepository.php';
 require_once __DIR__ . '/lib/RecordsReviewsRepository.php';
 require_once __DIR__ . '/lib/TranscriptHighlighter.php';
@@ -351,4 +352,15 @@ EventBus::on('core.layout.gate', static function ($payload) {
         ]
     );
     return $payload;
+});
+
+$registerAudioBots = static function (): void {
+    BadgeBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerAudioBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerAudioBots) {
+    $registerAudioBots();
+    return is_array($payload) ? $payload : [];
 });

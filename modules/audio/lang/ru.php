@@ -253,4 +253,10 @@ return [
     'audio.statuses.field.DISABLE_NON_PROCEDURE_TIME' => 'Запрет времени вне процедур',
     'audio.module.description' => 'Аудиозаписи кабинета, бейджи и FileStorage.',
     'audio.module.summary' => 'Включайте для записей в кабинете. Мягко workweeks/clients/audio_dicts. Нужен audio_dicts, pipeline, reports. Основа cabin audio-стека (не ASR для ботов — модуль asr).',
+    'audio.bot.badge.title' => '🎧 Выберите бейдж:',
+    'audio.bot.badge.current' => 'Сейчас: {code}',
+    'audio.bot.badge.current_off' => 'Сейчас: не на смене',
+    'audio.bot.badge.no_analytics' => 'Аудиоаналитика для вас отключена.',
+    'audio.bot.badge.not_on_shift_day' => 'Бейдж доступен только в день смены.',
+    'audio.bot.badge.again' => 'Выбрать снова',
 ];

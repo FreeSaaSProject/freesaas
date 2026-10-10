@@ -61,6 +61,9 @@ try {
         case 'update':
             freesaas_cmd_update($sub, $opts);
             break;
+        case 'core':
+            freesaas_cmd_core($sub, $opts);
+            break;
         default:
             Cli::usage("Unknown command: {$cmd}\n\n" . freesaas_cli_help());
     }
@@ -84,7 +87,28 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   health [--module=id] [--format=json]
   i18n check [--locale=xx] [--format=json]
   update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]
+  core habits-reminders [--simulate] [--format=json]
 TXT;
+}
+
+/** @param array<string, string|bool> $opts */
+function freesaas_cmd_core(string $sub, array $opts): void
+{
+    if ($sub === 'habits-reminders') {
+        $simulate = !empty($opts['simulate']);
+        $r = MyTasksHabits::cronSendDueReminders($simulate);
+        freesaas_emit_ops([
+            'ok' => true,
+            'job' => 'habits-reminders',
+            'ymd' => $r['ymd'],
+            'checked' => $r['checked'],
+            'sent' => $r['sent'],
+            'simulate' => $simulate,
+            'log' => $r['log'],
+        ]);
+        return;
+    }
+    Cli::usage('Usage: core habits-reminders [--simulate] [--format=json]');
 }
 
 /** @param array<string, string|bool> $opts */

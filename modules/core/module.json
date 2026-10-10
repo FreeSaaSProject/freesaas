@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.21",
+    "version": "0.3.23",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -99,11 +99,20 @@
             "/agent/i18n",
             "/agent/update",
             "/agent/update/check",
-            "/agent/update/apply"
+            "/agent/update/apply",
+            "/core/jobs/habits-reminders"
         ]
     },
     "agent": {
         "ops": [
+            {
+                "id": "core.jobs.habits_reminders",
+                "method": "POST",
+                "path": "/core/jobs/habits-reminders",
+                "permission": "",
+                "side_effect": "write",
+                "description": "Enqueue due my_tasks habit reminders (cron every 1–5 min). Auth: X-FreeSaaS-Agent-Token. Optional simulate=1. Drain via POST /bots/sends/work."
+            },
             {
                 "id": "core.modules.list",
                 "method": "GET",
@@ -618,7 +627,9 @@
             }
         ]
     },
-    "jobs": [],
+    "jobs": [
+        "/core/jobs/habits-reminders"
+    ],
     "menu": [
         {
             "group": "core.menu.group.desktop",

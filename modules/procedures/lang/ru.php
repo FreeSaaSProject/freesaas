@@ -111,6 +111,11 @@ return [
     'procedures.bot.notify_new' => 'Новая процедура #{id} в {when}',
     'procedures.bot.notify_update' => 'Процедура #{id} изменена ({when})',
     'procedures.bot.notify_cancel' => 'Процедура #{id} отменена',
+    'procedures.bot.assigned.title' => '📋 Назначенные процедуры',
+    'procedures.bot.assigned.empty' => 'На сегодня больше нет назначенных процедур.',
+    'procedures.bot.assigned.denied' => 'Доступно массажистам/совместителям в день смены.',
+    'procedures.bot.assigned.line' => '{time} — {product} — {client}',
+    'procedures.bot.assigned.order_line' => '{time} — ЗАКАЗ {products} — {client}',
     'procedures.module.description' => 'Типы и журнал процедур (base_procedure_*); UI восстановлений — в likespa.',
     'procedures.module.summary' => 'Включайте для типов и журнала процедур. Требует clients + catalog. Мягко tables/bots. Нужен calendar, rates, procents, bonuses, staff_reports. Базовый spa-домен — до calendar/rates.',
 ];

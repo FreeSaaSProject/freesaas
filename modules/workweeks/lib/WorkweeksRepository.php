@@ -1330,4 +1330,119 @@ final class WorkweeksRepository
         }
         return t('workweeks.msg.saved');
     }
+
+    /**
+     * Future days with open masseur slots (oper needed_people_future_dates).
+     * slots = first MAS_MAX of the day − count of masseurs/part-timers (status 1|18, not assist/hidden/admin).
+     *
+     * @return list<array{dt:int,date_formatted:string,day_key:string}>
+     */
+    public static function neededPeopleFutureDates(?int $fromTs = null, int $limitDays = 90): array
+    {
+        if (!Database::tableExists('base_workweeks') || !Database::tableExists('base_users')) {
+            return [];
+        }
+        $fromTs = $fromTs ?? (int)mktime(0, 0, 0, (int)date('n'), (int)date('j'), (int)date('Y'));
+        $limitDays = max(1, min(120, $limitDays));
+        $periodEnd = $fromTs + $limitDays * 86400;
+
+        $pdo = Database::pdo();
+        $ops = [];
+        $stOps = $pdo->query(
+            "SELECT id, ID_STATUS, ASSIST_TEAM, IS_HIDDEN FROM base_users WHERE enabled = '1'"
+        );
+        if ($stOps) {
+            foreach ($stOps->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+                $ops[(int)$row['id']] = $row;
+            }
+        }
+
+        $st = $pdo->prepare(
+            'SELECT DT AS dt, ID_OPERATOR AS id_operator, MAS_MAX AS mas_max
+             FROM base_workweeks
+             WHERE DT >= ? AND DT < ?
+             ORDER BY DT ASC, ID ASC'
+        );
+        $st->execute([$fromTs, $periodEnd]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($rows === []) {
+            return [];
+        }
+
+        $result = [];
+        $oldDt = 0;
+        $slots = 0;
+        $first = true;
+        foreach ($rows as $row) {
+            $dt = (int)$row['dt'];
+            $idop = (int)$row['id_operator'];
+            if ($oldDt !== $dt) {
+                if (!$first && $slots > 0) {
+                    $result[] = self::neededPeopleDateRow($oldDt);
+                }
+                $oldDt = $dt;
+                $slots = max(0, (int)$row['mas_max']);
+                $first = false;
+            }
+            $op = $ops[$idop] ?? null;
+            if ($op === null) {
+                continue;
+            }
+            if (!empty($op['ASSIST_TEAM']) || !empty($op['IS_HIDDEN'])) {
+                continue;
+            }
+            $status = (int)($op['ID_STATUS'] ?? 0);
+            if ($status === 2) {
+                continue;
+            }
+            if ($status === 1 || $status === 18) {
+                $slots--;
+            }
+        }
+        if (!$first && $slots > 0) {
+            $result[] = self::neededPeopleDateRow($oldDt);
+        }
+        return $result;
+    }
+
+    /**
+     * @return array{dt:int,date_formatted:string,day_key:string}
+     */
+    private static function neededPeopleDateRow(int $dt): array
+    {
+        $w = (int)date('w', $dt);
+        $keys = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+        return [
+            'dt' => $dt,
+            'date_formatted' => date('d.m.Y', $dt),
+            'day_key' => $keys[$w] ?? 'sun',
+        ];
+    }
+
+    /** Masseur / part-time (oper name_enabled 1|18), not assist/hidden. */
+    public static function isMasseurOrParttime(int $userId): bool
+    {
+        if ($userId < 1) {
+            return false;
+        }
+        $u = UsersRepository::find($userId);
+        if ($u === null || (string)($u['enabled'] ?? '') !== '1') {
+            return false;
+        }
+        if (!empty($u['ASSIST_TEAM']) || !empty($u['IS_HIDDEN'])) {
+            return false;
+        }
+        $status = (int)($u['ID_STATUS'] ?? $u['status_id'] ?? 0);
+        return $status === 1 || $status === 18;
+    }
+
+    public static function onShiftToday(int $userId, ?int $now = null): bool
+    {
+        if ($userId < 1) {
+            return false;
+        }
+        $now = $now ?? time();
+        $dayStart = (int)mktime(0, 0, 0, (int)date('n', $now), (int)date('j', $now), (int)date('Y', $now));
+        return self::findByDayOperator($dayStart, $userId) !== null;
+    }
 }

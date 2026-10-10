@@ -6,6 +6,7 @@ require_once __DIR__ . '/lib/Acts2OutRepository.php';
 require_once __DIR__ . '/lib/StickerInsRepository.php';
 require_once __DIR__ . '/lib/StickerOutsRepository.php';
 require_once __DIR__ . '/lib/StickerWriteoff.php';
+require_once __DIR__ . '/lib/WriteoffBotPlugin.php';
 
 $pages = [
     '/stickers/receipts' => ['permission' => 'stickers.view', 'methods' => ['GET', 'POST'], 'file' => 'receipts_list.php'],
@@ -52,3 +53,14 @@ BulkActions::register('stickers_ins', 'delete', [
         return ['done' => $r['done'], 'skipped' => $r['skipped']];
     },
 ]);
+
+$registerStickersBots = static function (): void {
+    WriteoffBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerStickersBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerStickersBots) {
+    $registerStickersBots();
+    return is_array($payload) ? $payload : [];
+});

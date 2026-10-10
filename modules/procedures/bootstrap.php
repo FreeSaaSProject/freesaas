@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/ProcedureTypesRepository.php';
 require_once __DIR__ . '/lib/ProceduresRepository.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
+require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
 
 ModuleManager::registerMenuGroup('procedures.menu.group', 30, '/procedures');
 
@@ -343,4 +344,15 @@ EventBus::on('core.user_edit.save', static function ($payload) {
     $data['RESTRICT_PROCS'] = UsersRepository::encodeHashIds(array_map('intval', (array)($post['RESTRICT_PROCS'] ?? [])));
     $payload['data'] = $data;
     return $payload;
+});
+
+$registerProceduresBots = static function (): void {
+    AssignedProceduresBotPlugin::register();
+};
+if (ModuleManager::isEnabled('bots')) {
+    $registerProceduresBots();
+}
+EventBus::on('bots.ready', static function ($payload) use ($registerProceduresBots) {
+    $registerProceduresBots();
+    return is_array($payload) ? $payload : [];
 });
