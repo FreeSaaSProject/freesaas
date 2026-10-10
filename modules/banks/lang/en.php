@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'banks.cron.sync' => 'Sync bank statements',
     'banks.module.name' => 'Banks',
     'banks.module.description' => 'Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL): link accounts to ledger and sync statements into ДПС.',
     'banks.module.summary' => 'Enable to connect Alfa (business/personal) or Tochka via OAuth, map remote accounts to ledger accounts, and sync statements into account moves. Requires ledger. Optional llm improves move-type classification. Use when staff need bank statement import instead of manual ДПС entry.',

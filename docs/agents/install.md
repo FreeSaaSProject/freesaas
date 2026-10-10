@@ -120,13 +120,13 @@ php bin/freesaas.php module enable sites --accept-risk --format=json
 
 ## Background jobs (cron)
 
-Bootstrap does **not** install crontab. For bots queue, bank/CRM syncs, audio pipeline workers, etc., schedule CLI or HTTP agent jobs on the host, for example:
+Bootstrap does **not** install crontab. Prefer **one** host line that wakes the platform registry (see [cron.md](cron.md)):
 
 ```cron
-*/5 * * * * cd /path/to/freesaas && php bin/freesaas.php health >/dev/null 2>&1
+*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: YOUR_TOKEN" "https://example.com/cron/tick" >/dev/null
 ```
 
-Use the module’s documented job entrypoints (`module.json` → `jobs`, or agent ops) rather than inventing new runners.
+CLI twin: `php bin/freesaas.php cron tick --format=json`. Modules register jobs with `Cron::register` (habits, bots drain, gcal, banks, terminals load, CRM pulls, …). Per-module `/…/jobs/*` worker_token endpoints remain for manual/external use. Whisper/ASR Mac workers still poll their own URLs — they are not part of `/cron/tick`.
 
 ## Self-update / remote module install
 

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'gcal.cron.queue_drain' => 'Слив очереди синхронизации Google Calendar',
     'gcal.module.name' => 'Google Календарь',
     'gcal.module.description' => 'Синхронизация заявок (мои задачи) с персональными Google-календарями сотрудников.',
     'gcal.module.summary' => 'Включайте для проброса TYPE=2 заявок в Google Calendar. Нужен OAuth приложения Google и подключение сотрудников.',

@@ -40,6 +40,28 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $route);
 }
 
+Cron::register('yclients.import_clients', [
+    'module' => 'yclients',
+    'label' => 'yclients.cron.import_clients',
+    'every' => 60,
+    'handler' => static function (): array {
+        if (!YclientsConfig::pullEnabled()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'pull disabled'];
+        }
+        $report = YclientsClientsImporter::run(false);
+        return [
+            'ok' => !empty($report['ok']),
+            'processed' => (int)($report['created'] ?? 0) + (int)($report['updated'] ?? 0),
+            'skipped' => (int)($report['skipped'] ?? 0),
+            'message' => (string)($report['error'] ?? (
+                'fetched=' . (int)($report['fetched'] ?? 0)
+                . ' created=' . (int)($report['created'] ?? 0)
+                . ' updated=' . (int)($report['updated'] ?? 0)
+            )),
+        ];
+    },
+]);
+
 Health::register('yclients.worker_token', 'yclients', static function (): array {
     if (YclientsConfig::workerTokenConfigured()) {
         return ['status' => 'ok', 'message' => 'worker_token configured'];

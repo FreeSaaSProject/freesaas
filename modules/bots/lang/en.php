@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'bots.cron.sends_drain' => 'Drain outbound bot queue',
     'bots.module.name' => 'Messenger bots',
     'bots.module.description' => 'Telegram/Max transport, outbound queue, staff/client webhooks and bot links.',
     'bots.perm.manage' => 'Bots (manage)',

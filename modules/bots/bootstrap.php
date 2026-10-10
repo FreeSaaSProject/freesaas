@@ -71,6 +71,24 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $route);
 }
 
+Cron::register('bots.sends_drain', [
+    'module' => 'bots',
+    'label' => 'bots.cron.sends_drain',
+    'every' => 5,
+    'handler' => static function (): array {
+        $r = BotDrain::run(40);
+        $errors = (int)($r['errors'] ?? 0);
+        return [
+            'ok' => $errors === 0,
+            'processed' => (int)($r['processed'] ?? 0),
+            'sent' => (int)($r['sent'] ?? 0),
+            'skipped' => (int)($r['skipped'] ?? 0),
+            'errors' => $errors,
+            'message' => 'sent=' . (int)($r['sent'] ?? 0) . ' errors=' . $errors,
+        ];
+    },
+]);
+
 ModuleManager::registerRoute('/bots/webhook/telegram/{channel}', [
     'module' => 'bots',
     'methods' => ['POST', 'GET'],

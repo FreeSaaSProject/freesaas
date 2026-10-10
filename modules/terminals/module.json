@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -167,25 +167,29 @@
                 "method": "POST",
                 "path": "/terminals/jobs/load",
                 "permission": "",
-                "description": "Sync 1C club_workload → termloads; auth X-Terminals-Token"
+                "assistant": false,
+                "description": "Sync 1C club_workload → termloads; auth X-Terminals-Token. Also Cron job terminals.load via /cron/tick"
             },
             {
                 "id": "terminals.jobs.tickets",
                 "method": "POST",
                 "path": "/terminals/jobs/tickets",
                 "permission": "",
-                "description": "Sync 1C club_workload_detail → fullstats; auth X-Terminals-Token"
+                "assistant": false,
+                "description": "Sync 1C club_workload_detail → fullstats; auth X-Terminals-Token. Also Cron job terminals.tickets"
             },
             {
                 "id": "terminals.jobs.orders",
                 "method": "POST",
                 "path": "/terminals/jobs/orders",
                 "permission": "",
-                "description": "Import volgatermy orders; auth X-Terminals-Token"
+                "assistant": false,
+                "description": "Import volgatermy orders; auth X-Terminals-Token. Also Cron job terminals.orders"
             }
         ]
     },
     "jobs": [
+        "platform Cron::register terminals.load|tickets|orders → /cron/tick",
         "/terminals/jobs/load",
         "/terminals/jobs/tickets",
         "/terminals/jobs/orders"

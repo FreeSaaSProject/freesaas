@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'gcal.cron.queue_drain' => 'Drain Google Calendar sync queue',
     'gcal.module.name' => 'Google Calendar',
     'gcal.module.description' => 'Sync staff my-tasks tickets into personal Google Calendars.',
     'gcal.module.summary' => 'Enable to push TYPE=2 tickets to Google Calendar. Needs a Google OAuth app and per-staff connect.',

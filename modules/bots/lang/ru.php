@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'bots.cron.sends_drain' => 'Слив очереди исходящих в боты',
     'bots.module.name' => 'Боты мессенджеров',
     'bots.module.description' => 'Транспорт Telegram/Max, очередь исходящих, webhooks staff/client и bot links.',
     'bots.perm.manage' => 'Боты (управление)',

@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 return [
+    'terminals.cron.load' => 'Загрузка центра (термы)',
+    'terminals.cron.tickets' => 'Импорт визитов за сегодня',
+    'terminals.cron.orders' => 'Импорт заказов терм',
     'terminals.module.name' => 'Терминалы и термы',
     'terminals.menu.group' => 'Терминалы',
     'terminals.menu.list' => 'Устройства',

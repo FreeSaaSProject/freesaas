@@ -3,7 +3,7 @@
     "name": "gcal.module.name",
     "description": "gcal.module.description",
     "summary": "gcal.module.summary",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "catalog": {
         "categories": [
@@ -112,7 +112,7 @@
                 "permission": "gcal.manage",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Drain sync queue + optional reconcile. Body/query: limit (1–100), reconcile=0 to skip inbound deadline pull",
+                "description": "Drain sync queue + optional reconcile (session). Prefer POST /cron/tick?job=gcal.queue_drain&force=1 with agent_token. Body/query: limit, reconcile=0",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -122,5 +122,9 @@
                 }
             }
         ]
-    }
+    },
+    "jobs": [
+        "platform Cron::register gcal.queue_drain → /cron/tick",
+        "POST /gcal/work (session)"
+    ]
 }

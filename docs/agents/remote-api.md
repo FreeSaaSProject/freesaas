@@ -109,6 +109,21 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
 
 JSON shape matches CLI `--format=json` (via shared `AgentOps`). HTTP status: 200 ok, 400 bootstrap validation, 401 bad token, 503 token unset / health fail, 422 validate fail, 404 unknown module/path, 409 update lock.
 
+## Background cron (same agent token, not under `/agent/*`)
+
+Platform job registry uses the **same** `X-FreeSaaS-Agent-Token`, but lives on product routes (like habits reminders). See [cron.md](cron.md).
+
+```bash
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/cron/status"
+
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/cron/tick"
+# optional: ?job=habits.reminders&force=1
+```
+
+CLI twin: `php bin/freesaas.php cron tick` — there is no `/agent/cron/*` alias; `/cron/*` is the HTTP twin.
+
 ## CLI vs HTTP
 
 | | CLI | HTTP `/agent` |
@@ -118,6 +133,7 @@ JSON shape matches CLI `--format=json` (via shared `AgentOps`). HTTP status: 200
 | Code deploy | `update apply` or FTP/git/CI | `POST /agent/update/apply` or FTP/git/CI |
 | First admin | `freesaas.php bootstrap` | `POST /agent/bootstrap` |
 | Public `/health` | — | Minimal probe **without** token |
+| Cron tick / status | `cron tick` | `POST /cron/tick`, `GET /cron/status` (agent token) |
 
 Self-update (HTTPS zip + token): see [update.md](update.md). Or upload files manually, then enable/migrate/validate/health via Agent API or CLI.
 

@@ -75,6 +75,85 @@ BulkActions::register('terminals_bracelets', 'delete', [
     },
 ]);
 
+Cron::register('terminals.load', [
+    'module' => 'terminals',
+    'label' => 'terminals.cron.load',
+    'every' => 5,
+    'handler' => static function (): array {
+        if (!TerminalsConfig::syncEnabled()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'sync disabled'];
+        }
+        if (!TerminalsConfig::onecReady()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => '1c config incomplete'];
+        }
+        $res = OnecClient::workload();
+        if (empty($res['ok'])) {
+            return ['ok' => false, 'message' => (string)($res['error'] ?? '1c failed')];
+        }
+        $count = (int)($res['count'] ?? 0);
+        $written = 0;
+        if ($count > 0) {
+            $minute = (int)mktime((int)date('H'), (int)date('i'), 0);
+            TermloadsRepository::upsertMinute($minute, $count);
+            $written = 1;
+        }
+        return [
+            'ok' => true,
+            'processed' => $written,
+            'written' => $written,
+            'message' => 'count=' . $count,
+        ];
+    },
+]);
+
+Cron::register('terminals.tickets', [
+    'module' => 'terminals',
+    'label' => 'terminals.cron.tickets',
+    'every' => 15,
+    'handler' => static function (): array {
+        if (!TerminalsConfig::syncEnabled()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'sync disabled'];
+        }
+        if (!TerminalsConfig::onecReady()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => '1c config incomplete'];
+        }
+        $day = date('Y-m-d');
+        $res = OnecClient::workloadDetail($day);
+        if (empty($res['ok'])) {
+            return ['ok' => false, 'message' => (string)($res['error'] ?? '1c failed')];
+        }
+        $rows = $res['rows'] ?? [];
+        $dayStart = (int)strtotime($day . ' 00:00:00');
+        $n = FullstatsRepository::replaceDay($dayStart, is_array($rows) ? $rows : []);
+        return [
+            'ok' => true,
+            'processed' => $n,
+            'imported' => $n,
+            'message' => 'day=' . $day,
+        ];
+    },
+]);
+
+Cron::register('terminals.orders', [
+    'module' => 'terminals',
+    'label' => 'terminals.cron.orders',
+    'every' => 15,
+    'handler' => static function (): array {
+        if (!TerminalsConfig::syncEnabled()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'sync disabled'];
+        }
+        $res = TermOrdersImporter::run();
+        if (empty($res['ok'])) {
+            return ['ok' => false, 'message' => (string)($res['error'] ?? 'import failed')];
+        }
+        return [
+            'ok' => true,
+            'processed' => (int)($res['imported'] ?? $res['processed'] ?? 0),
+            'message' => (string)($res['message'] ?? ''),
+        ];
+    },
+]);
+
 Health::register('terminals.worker_token', 'terminals', static function (): array {
     if (TerminalsConfig::workerTokenConfigured()) {
         return ['status' => 'ok', 'message' => 'worker_token configured'];

@@ -84,6 +84,21 @@ $pages = [
         'methods' => ['POST', 'GET'],
         'file' => 'jobs_habits_reminders.php',
     ],
+    '/cron/tick' => [
+        'public' => true,
+        'methods' => ['POST', 'GET'],
+        'file' => 'cron_tick.php',
+    ],
+    '/cron/status' => [
+        'public' => true,
+        'methods' => ['GET'],
+        'file' => 'cron_status.php',
+    ],
+    '/cron' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'cron.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {
@@ -99,6 +114,9 @@ foreach ($pages as $path => $def) {
     if (!empty($def['permission'])) {
         $route['permission'] = $def['permission'];
     }
+    if (!empty($def['capability'])) {
+        $route['capability'] = $def['capability'];
+    }
     if ($handlerName === 'logout') {
         $route['handler'] = static function (): void {
             Auth::logout();
@@ -112,6 +130,23 @@ foreach ($pages as $path => $def) {
     }
     ModuleManager::registerRoute($path, $route);
 }
+
+Cron::register('habits.reminders', [
+    'module' => 'core',
+    'label' => 'core.cron.job.habits_reminders',
+    'every' => 5,
+    'handler' => static function (): array {
+        $r = MyTasksHabits::cronSendDueReminders(false);
+        return [
+            'ok' => true,
+            'processed' => (int)($r['sent'] ?? 0),
+            'message' => (string)($r['log'] ?? ''),
+            'ymd' => (string)($r['ymd'] ?? ''),
+            'checked' => (int)($r['checked'] ?? 0),
+            'sent' => (int)($r['sent'] ?? 0),
+        ];
+    },
+]);
 
 EventBus::on('core.dashboard.catalog', static function ($catalog) {
     if (!is_array($catalog)) {

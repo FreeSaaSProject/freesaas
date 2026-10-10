@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'clientics.cron.import_clients' => 'Import Clientics clients',
     'clientics.module.name' => 'Clientics',
     'clientics.module.description' => 'Pull-only bridge from Clientics: day-scoped client import and webhook stub. No push back.',
     'clientics.menu.group' => 'Clientics',

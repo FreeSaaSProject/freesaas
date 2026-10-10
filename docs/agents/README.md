@@ -27,6 +27,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [terminals.md](terminals.md) | Terminals/therms: registry, occupancy, sync jobs + JSON |
 | [yclients.md](yclients.md) | YClients pull: settings tokens, session ping, clients import JSON |
 | [clientics.md](clientics.md) | Clientics pull: settings tokens, session ping, day import, webhook |
+| [cron.md](cron.md) | Platform hard cron: `/cron/tick`, `Cron::register`, journal |
 | [debugging.md](debugging.md) | Health, blocked modules, workers |
 
 Canonical CLI: `php bin/freesaas.php … --format=json`. First bring-up: `bootstrap` or `POST /agent/bootstrap`. HTTP twin: `/agent/*` (see remote-api). Smoke: `php bin/smoke.php`.

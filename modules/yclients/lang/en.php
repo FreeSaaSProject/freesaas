@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'yclients.cron.import_clients' => 'Import YClients clients',
     'yclients.module.name' => 'YClients',
     'yclients.module.description' => 'Pull-only bridge from YClients: import clients by phone with external id map. No push back.',
     'yclients.menu.group' => 'YClients',

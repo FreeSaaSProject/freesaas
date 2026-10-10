@@ -54,6 +54,30 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $route);
 }
 
+Cron::register('banks.sync', [
+    'module' => 'banks',
+    'label' => 'banks.cron.sync',
+    'every' => 30,
+    'handler' => static function (): array {
+        $dateFrom = date('Y-m-d', strtotime('-2 days'));
+        $dateTo = date('Y-m-d');
+        try {
+            $stats = BankSyncService::syncAllEnabled($dateFrom, $dateTo);
+            $errors = (int)($stats['errors'] ?? 0);
+            return [
+                'ok' => $errors === 0,
+                'processed' => (int)($stats['created'] ?? 0),
+                'skipped' => (int)($stats['skipped'] ?? 0),
+                'message' => $dateFrom . '..' . $dateTo
+                    . ' created=' . (int)($stats['created'] ?? 0)
+                    . ' errors=' . $errors,
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'message' => $e->getMessage()];
+        }
+    },
+]);
+
 Health::register('banks.default_move_type', 'banks', static function (): array {
     $id = BanksConfig::defaultMoveTypeId();
     if ($id > 0) {

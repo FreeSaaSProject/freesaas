@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.30",
+    "version": "0.3.31",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -102,11 +102,21 @@
             "/agent/update/apply",
             "/core/jobs/habits-reminders",
             "/cron",
-            "/cron/tick"
+            "/cron/tick",
+            "/cron/status"
         ]
     },
     "agent": {
         "ops": [
+            {
+                "id": "core.cron.status",
+                "method": "GET",
+                "path": "/cron/status",
+                "permission": "",
+                "side_effect": "read",
+                "assistant": false,
+                "description": "Cron registry + recent runs + stale_hint. Auth: X-FreeSaaS-Agent-Token."
+            },
             {
                 "id": "core.cron.tick",
                 "method": "POST",
@@ -114,7 +124,16 @@
                 "permission": "",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Platform cron tick: run due Cron::register jobs. Auth: X-FreeSaaS-Agent-Token. Optional job=id, force=1."
+                "description": "Platform cron tick: run due Cron::register jobs. Auth: X-FreeSaaS-Agent-Token. Optional job=id, force=1. Prefer this over per-module worker curls."
+            },
+            {
+                "id": "core.cron.ui",
+                "method": "GET",
+                "path": "/cron",
+                "permission": "",
+                "side_effect": "read",
+                "assistant": false,
+                "description": "Cron UI/journal JSON (session + SUPERADMIN_ACCESS). Prefer GET /cron/status with agent_token when no session."
             },
             {
                 "id": "core.jobs.habits_reminders",
@@ -123,7 +142,7 @@
                 "permission": "",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Enqueue due my_tasks habit reminders (also via /cron/tick job habits.reminders). Auth: X-FreeSaaS-Agent-Token. Optional simulate=1. Drain via bots.sends_drain."
+                "description": "Enqueue due my_tasks habit reminders (also via /cron/tick job habits.reminders). Auth: X-FreeSaaS-Agent-Token. Optional simulate=1. Drain via bots.sends_drain / cron tick."
             },
             {
                 "id": "core.modules.list",
@@ -650,6 +669,7 @@
         ]
     },
     "jobs": [
+        "GET /cron/status",
         "GET/POST /cron/tick",
         "/core/jobs/habits-reminders"
     ],

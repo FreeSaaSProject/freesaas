@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 return [
+    'terminals.cron.load' => 'Therm occupancy (center load)',
+    'terminals.cron.tickets' => 'Import ticket visits for today',
+    'terminals.cron.orders' => 'Import term orders',
     'terminals.module.name' => 'Terminals & therms',
     'terminals.menu.group' => 'Terminals',
     'terminals.menu.list' => 'Devices',

@@ -56,6 +56,26 @@ ModuleManager::registerRoute('/gcal/enqueue', [
     },
 ]);
 
+Cron::register('gcal.queue_drain', [
+    'module' => 'gcal',
+    'label' => 'gcal.cron.queue_drain',
+    'every' => 5,
+    'handler' => static function (): array {
+        if (!GcalConfig::enabled()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'gcal disabled'];
+        }
+        $r = GcalSyncService::drain(20, true, 25);
+        $fail = (int)($r['fail'] ?? 0);
+        return [
+            'ok' => $fail === 0,
+            'processed' => (int)($r['processed'] ?? 0),
+            'message' => 'ok=' . (int)($r['ok'] ?? 0)
+                . ' fail=' . $fail
+                . ' reconciled=' . (int)($r['reconciled'] ?? 0),
+        ];
+    },
+]);
+
 EventBus::on('core.news.feed_chips', static function ($payload) {
     if (!is_array($payload) || !GcalConfig::enabled()) {
         return $payload;

@@ -2,7 +2,7 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "0.2.4",
+    "version": "0.2.6",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -71,7 +71,9 @@
                 "method": "POST",
                 "path": "/bots/sends/work",
                 "permission": "bots.manage",
-                "description": "Drain pending sends; body/query: limit, audience"
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Drain pending sends (session SUPERADMIN). Prefer platform POST /cron/tick?job=bots.sends_drain&force=1 with agent_token. Body/query: limit, audience"
             },
             {
                 "id": "bots.send.test",
@@ -89,7 +91,10 @@
             }
         ]
     },
-    "jobs": [],
+    "jobs": [
+        "platform Cron::register bots.sends_drain → /cron/tick",
+        "POST /bots/sends/work (session)"
+    ],
     "menu": [
         {
             "group": "bots.menu.group",

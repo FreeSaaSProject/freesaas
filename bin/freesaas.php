@@ -64,6 +64,9 @@ try {
         case 'core':
             freesaas_cmd_core($sub, $opts);
             break;
+        case 'cron':
+            freesaas_cmd_cron($sub, $opts);
+            break;
         default:
             Cli::usage("Unknown command: {$cmd}\n\n" . freesaas_cli_help());
     }
@@ -88,7 +91,20 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   i18n check [--locale=xx] [--format=json]
   update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]
   core habits-reminders [--simulate] [--format=json]
+  cron tick [--job=id] [--force] [--format=json]
 TXT;
+}
+
+/** @param array<string, string|bool> $opts */
+function freesaas_cmd_cron(string $sub, array $opts): void
+{
+    if ($sub !== 'tick') {
+        Cli::usage('Usage: cron tick [--job=id] [--force] [--format=json]');
+    }
+    $job = isset($opts['job']) ? trim((string)$opts['job']) : '';
+    $force = !empty($opts['force']);
+    $r = Cron::tick($force, $job !== '' ? $job : null);
+    freesaas_emit_ops($r);
 }
 
 /** @param array<string, string|bool> $opts */

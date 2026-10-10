@@ -42,6 +42,26 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $route);
 }
 
+Cron::register('clientics.import_clients', [
+    'module' => 'clientics',
+    'label' => 'clientics.cron.import_clients',
+    'every' => 60,
+    'handler' => static function (): array {
+        if (!ClienticsConfig::pullEnabled()) {
+            return ['ok' => true, 'skipped' => 1, 'message' => 'pull disabled'];
+        }
+        $from = date('Y-m-d', strtotime('-1 day'));
+        $to = date('Y-m-d');
+        $report = ClienticsClientsImporter::run($from, $to, false);
+        return [
+            'ok' => !empty($report['ok']),
+            'processed' => (int)($report['created'] ?? 0) + (int)($report['updated'] ?? 0),
+            'skipped' => (int)($report['skipped'] ?? 0),
+            'message' => (string)($report['error'] ?? ($from . '..' . $to)),
+        ];
+    },
+]);
+
 Health::register('clientics.worker_token', 'clientics', static function (): array {
     if (ClienticsConfig::workerTokenConfigured()) {
         return ['status' => 'ok', 'message' => 'worker_token configured'];

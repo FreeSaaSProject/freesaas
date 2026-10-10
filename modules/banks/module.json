@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.0",
+    "version": "0.1.2",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -180,10 +180,14 @@
                 "permission": "public",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Cron sync all enabled links; header X-Banks-Token or ?token="
+                "description": "Cron sync all enabled links; header X-Banks-Token or ?token=. Prefer platform POST /cron/tick?job=banks.sync&force=1 with agent_token"
             }
         ]
     },
+    "jobs": [
+        "platform Cron::register banks.sync → /cron/tick",
+        "POST /banks/jobs/sync"
+    ],
     "hooks": {
         "publish": [],
         "subscribe": [

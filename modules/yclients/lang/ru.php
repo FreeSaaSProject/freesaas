@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'yclients.cron.import_clients' => 'Импорт клиентов YClients',
     'yclients.module.name' => 'YClients',
     'yclients.module.description' => 'Только pull из YClients: импорт клиентов по телефону с картой внешних id. Обратной записи нет.',
     'yclients.menu.group' => 'YClients',

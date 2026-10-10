@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 return [
+    'clientics.cron.import_clients' => 'Импорт клиентов Клиентикс',
     'clientics.module.name' => 'Клиентикс',
     'clientics.module.description' => 'Только pull из Клиентикс: импорт клиентов по дням и заглушка webhook. Обратной записи нет.',
     'clientics.menu.group' => 'Клиентикс',

@@ -135,6 +135,33 @@ final class Health
             return ['status' => 'ok', 'message' => 'agent_token configured'];
         }, 'HTTP agent API token');
 
+        self::register('platform.cron_stale', 'core', static function (): array {
+            if (!class_exists('Cron', false)) {
+                return ['status' => 'skipped', 'message' => 'Cron not loaded'];
+            }
+            if (!Cron::tablesReady()) {
+                return [
+                    'status' => 'degraded',
+                    'message' => 'cron tables missing — run migrate',
+                    'meta' => ['runbook' => 'php bin/freesaas.php migrate run --module=core --format=json'],
+                ];
+            }
+            if (Cron::registered() === []) {
+                return ['status' => 'ok', 'message' => 'no cron jobs registered'];
+            }
+            $hint = Cron::staleHint();
+            if ($hint === null) {
+                return ['status' => 'ok', 'message' => 'cron jobs recently ticked'];
+            }
+            return [
+                'status' => 'degraded',
+                'message' => $hint,
+                'meta' => [
+                    'runbook' => 'curl -H "X-FreeSaaS-Agent-Token: …" /cron/tick or php bin/freesaas.php cron tick',
+                ],
+            ];
+        }, 'Platform cron tick freshness');
+
         // Auto: owned tables for each enabled module (from module.json tables[]).
         foreach (ModuleManager::all() as $id => $meta) {
             if (empty($meta['_enabled'])) {
