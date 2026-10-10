@@ -4,6 +4,7 @@
 /** @var list<array<string,mixed>> $workouts */
 /** @var list<array<string,mixed>> $health */
 /** @var array<string,mixed>|null $target */
+/** @var array{burned:int,target:array<string,float|int>,left:array<string,int>,advice:string}|null $balance */
 /** @var array<string,float|int> $totals */
 /** @var int $total */
 /** @var string $q */
@@ -19,20 +20,14 @@
 /** @var string $path */
 /** @var string $listId */
 $meals = is_array($meals ?? null) ? $meals : [];
+$balance = is_array($balance ?? null) ? $balance : null;
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $colSpan = 7 + BulkActions::colSpanExtra($listId);
+$labelSpan = 3 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 $prevDay = date('Y-m-d', strtotime($date . ' -1 day') ?: time());
 $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
-$burned = 0;
-foreach ($workouts as $w) {
-    $burned += (int)($w['ccals'] ?? 0);
-}
-$leftCcals = null;
-if ($target) {
-    $leftCcals = (int)$target['ccals'] - (int)$totals['ccals'] + $burned;
-}
 ?>
 <section class="page-head">
   <div class="page-head-row">
@@ -67,13 +62,6 @@ if ($target) {
   · <?= te('wellness.col.proteins') ?> <?= e((string)$totals['proteins']) ?>
   · <?= te('wellness.col.fats') ?> <?= e((string)$totals['fats']) ?>
   · <?= te('wellness.col.carbs') ?> <?= e((string)$totals['carbs']) ?>
-  <?php if ($target): ?>
-    · <?= te('wellness.calendar.target') ?>: <?= (int)$target['ccals'] ?> <?= te('wellness.col.ccals') ?>
-    <?php if ($leftCcals !== null): ?>
-      · <?= te('wellness.food_diary.left') ?>:
-      <span class="<?= $leftCcals < 0 ? 'wellness-left-neg' : 'wellness-left-ok' ?>"><?= (int)$leftCcals ?></span>
-    <?php endif; ?>
-  <?php endif; ?>
 </div>
 
 <?php if (!empty($bulkFlash)): ?>
@@ -123,7 +111,7 @@ if ($target) {
           </tr>
         <?php endforeach; ?>
         <tr class="wellness-meal-total">
-          <td colspan="<?= 3 + BulkActions::colSpanExtra($listId) ?>" class="wellness-meal-total-label">
+          <td colspan="<?= (int)$labelSpan ?>" class="wellness-meal-total-label">
             <?= te('wellness.meal.subtotal', ['name' => (string)$meal['label']]) ?>
           </td>
           <td><?= e((string)$meal['totals']['weight']) ?>г</td>
@@ -133,7 +121,7 @@ if ($target) {
         </tr>
       <?php endforeach; ?>
       <tr class="wellness-day-total">
-        <td colspan="<?= 3 + BulkActions::colSpanExtra($listId) ?>" class="wellness-meal-total-label">
+        <td colspan="<?= (int)$labelSpan ?>" class="wellness-meal-total-label">
           <?= te('wellness.food_diary.totals') ?>
         </td>
         <td><?= e((string)$totals['weight']) ?>г</td>
@@ -143,6 +131,50 @@ if ($target) {
       </tr>
     <?php else: ?>
       <tr><td colspan="<?= (int)$colSpan ?>" class="muted"><?= te('wellness.food_diary.empty') ?></td></tr>
+    <?php endif; ?>
+    <?php if ($balance): ?>
+      <?php
+        $bt = $balance['target'];
+        $bl = $balance['left'];
+      ?>
+      <tr class="wellness-day-target">
+        <td colspan="<?= (int)$labelSpan ?>" class="wellness-meal-total-label">
+          <?= te('wellness.food_diary.target_row') ?>
+        </td>
+        <td></td>
+        <td><?= (int)$bt['ccals'] ?></td>
+        <td><?= e((string)$bt['proteins']) ?></td>
+        <td><?= e((string)$bt['fats']) ?> / <?= e((string)$bt['carbs']) ?></td>
+      </tr>
+      <?php if ((int)$balance['burned'] > 0): ?>
+      <tr class="wellness-day-burned">
+        <td colspan="<?= (int)$labelSpan ?>" class="wellness-meal-total-label">
+          <?= te('wellness.food_diary.burned') ?>
+        </td>
+        <td></td>
+        <td>+<?= (int)$balance['burned'] ?></td>
+        <td></td>
+        <td></td>
+      </tr>
+      <?php endif; ?>
+      <tr class="wellness-day-remain">
+        <td colspan="<?= (int)$labelSpan ?>" class="wellness-meal-total-label">
+          <?= te('wellness.food_diary.remainders') ?>
+        </td>
+        <td></td>
+        <td><span class="<?= e(FitDayBalance::cssClass((int)$bl['ccals'])) ?>"><?= (int)$bl['ccals'] ?></span></td>
+        <td><span class="<?= e(FitDayBalance::cssClass((int)$bl['proteins'])) ?>"><?= (int)$bl['proteins'] ?></span></td>
+        <td>
+          <span class="<?= e(FitDayBalance::cssClass((int)$bl['fats'])) ?>"><?= (int)$bl['fats'] ?></span>
+          /
+          <span class="<?= e(FitDayBalance::cssClass((int)$bl['carbs'])) ?>"><?= (int)$bl['carbs'] ?></span>
+        </td>
+      </tr>
+      <?php if ($balance['advice'] !== ''): ?>
+      <tr class="wellness-day-advice">
+        <td colspan="<?= (int)$colSpan ?>"><?= e($balance['advice']) ?></td>
+      </tr>
+      <?php endif; ?>
     <?php endif; ?>
     </tbody>
   </table>

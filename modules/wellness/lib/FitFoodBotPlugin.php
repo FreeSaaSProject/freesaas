@@ -789,6 +789,25 @@ final class FitFoodBotPlugin
             'u' => (string)(int)round((float)$t['carbs']),
         ]) . '</b>';
         $sports = FitWorkoutsRepository::list(['from' => $from, 'to' => $to, 'limit' => 10]);
+        $burned = 0;
+        foreach (($sports['items'] ?? []) as $s) {
+            $burned += (int)($s['ccals'] ?? 0);
+        }
+        $target = FitTargetsRepository::activeAt($to);
+        $balance = FitDayBalance::compute($target, $t, $burned);
+        if ($balance !== null) {
+            $lines[] = t('wellness.bot.burned', ['n' => (string)(int)$balance['burned']]);
+            $bl = $balance['left'];
+            $lines[] = '<b>' . t('wellness.bot.remainders', [
+                'c' => (string)$bl['ccals'],
+                'p' => (string)$bl['proteins'],
+                'f' => (string)$bl['fats'],
+                'u' => (string)$bl['carbs'],
+            ]) . '</b>';
+            if ($balance['advice'] !== '') {
+                $lines[] = e($balance['advice']);
+            }
+        }
         $lines[] = '';
         $lines[] = t('wellness.bot.sport_today');
         if (($sports['items'] ?? []) === []) {

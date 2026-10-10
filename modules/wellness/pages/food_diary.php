@@ -40,6 +40,11 @@ $meals = FitFoodlogsRepository::groupByMeals($result['items']);
 $workouts = FitWorkoutsRepository::list(['date' => $date, 'limit' => 50, 'offset' => 0]);
 $health = HealthLogsRepository::list(['date' => $date, 'limit' => 50, 'offset' => 0]);
 $target = FitTargetsRepository::activeAt(WellnessOwner::dayRange($date)[1]);
+$burned = 0;
+foreach ($workouts['items'] as $w) {
+    $burned += (int)($w['ccals'] ?? 0);
+}
+$balance = FitDayBalance::compute($target, $result['totals'], $burned);
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -52,6 +57,7 @@ if ($wantsJson) {
         'workouts' => $workouts['items'],
         'health' => $health['items'],
         'target' => $target,
+        'balance' => $balance,
         'filters' => ['q' => $q, 'date' => $date],
     ]);
     return;
@@ -69,6 +75,7 @@ View::render('food_diary', [
     'workouts' => $workouts['items'],
     'health' => $health['items'],
     'target' => $target,
+    'balance' => $balance,
     'q' => $q,
     'date' => $date,
     'canEdit' => Auth::can('wellness.edit'),

@@ -180,6 +180,29 @@
   background: rgba(46, 125, 50, 0.12);
 }
 
+.wellness-food-diary .wellness-day-target td,
+.wellness-food-diary .wellness-day-burned td,
+.wellness-food-diary .wellness-day-remain td {
+  text-align: right;
+  font-weight: 600;
+}
+
+.wellness-food-diary .wellness-day-target td {
+  background: rgba(58, 110, 165, 0.08);
+}
+
+.wellness-food-diary .wellness-day-remain td {
+  background: rgba(58, 110, 165, 0.12);
+}
+
+.wellness-food-diary .wellness-day-advice td {
+  text-align: left;
+  font-size: 0.95rem;
+  padding-top: 0.65rem;
+  padding-bottom: 0.65rem;
+  color: var(--muted, #444);
+}
+
 .wellness-day-side {
   margin-top: 1.5rem;
 }

@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/FitFoodlogsRepository.php';
 require_once __DIR__ . '/lib/FitWorkoutsRepository.php';
 require_once __DIR__ . '/lib/FitWeightlogsRepository.php';
 require_once __DIR__ . '/lib/FitTargetsRepository.php';
+require_once __DIR__ . '/lib/FitDayBalance.php';
 require_once __DIR__ . '/lib/HealthMedicinesRepository.php';
 require_once __DIR__ . '/lib/HealthSymptomsRepository.php';
 require_once __DIR__ . '/lib/HealthLogsRepository.php';
