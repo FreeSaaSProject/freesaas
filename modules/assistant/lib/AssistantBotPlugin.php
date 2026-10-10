@@ -86,16 +86,7 @@ final class AssistantBotPlugin
                         return true;
                     }
                     if (!empty($result['ok']) && $action === 'confirm') {
-                        $text = t('assistant.confirm.done');
-                        if (is_array($result['result'] ?? null)) {
-                            $snippet = json_encode($result['result'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                            if (is_string($snippet) && $snippet !== '') {
-                                if (strlen($snippet) > 1500) {
-                                    $snippet = substr($snippet, 0, 1500) . '…';
-                                }
-                                $text .= "\n" . $snippet;
-                            }
-                        }
+                        $text = AssistantHarness::formatConfirmDone($result['result'] ?? null);
                         self::appendAssistantHistory($uid, $text);
                         self::replySplit($ctx, $text);
                     } elseif (!empty($result['ok'])) {
@@ -146,16 +137,7 @@ final class AssistantBotPlugin
                 if (is_array($textConfirm) && !empty($textConfirm['handled'])) {
                     self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     if (!empty($textConfirm['ok']) && ($textConfirm['action'] ?? '') === 'confirm') {
-                        $reply = t('assistant.confirm.done');
-                        if (is_array($textConfirm['result'] ?? null)) {
-                            $snippet = json_encode($textConfirm['result'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                            if (is_string($snippet) && $snippet !== '') {
-                                if (strlen($snippet) > 1500) {
-                                    $snippet = substr($snippet, 0, 1500) . '…';
-                                }
-                                $reply .= "\n" . $snippet;
-                            }
-                        }
+                        $reply = AssistantHarness::formatConfirmDone($textConfirm['result'] ?? null);
                         self::appendAssistantHistory($uid, $reply);
                         self::replySplit($ctx, $reply);
                     } elseif (!empty($textConfirm['ok'])) {

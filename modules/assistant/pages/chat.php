@@ -30,13 +30,7 @@ if ($message !== '') {
     if (is_array($textConfirm) && !empty($textConfirm['handled'])) {
         $history[] = ['role' => 'user', 'content' => $message];
         if (!empty($textConfirm['ok']) && ($textConfirm['action'] ?? '') === 'confirm') {
-            $reply = t('assistant.confirm.done');
-            if (is_array($textConfirm['result'] ?? null)) {
-                $snippet = json_encode($textConfirm['result'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                if (is_string($snippet) && $snippet !== '' && strlen($snippet) <= 2000) {
-                    $reply .= "\n" . $snippet;
-                }
-            }
+            $reply = AssistantHarness::formatConfirmDone($textConfirm['result'] ?? null);
         } elseif (!empty($textConfirm['ok'])) {
             $reply = t('assistant.confirm.cancelled');
         } else {

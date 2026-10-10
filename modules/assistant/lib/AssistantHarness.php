@@ -160,7 +160,12 @@ final class AssistantHarness
                 if ($op === null) {
                     $opId = AssistantTools::functionNameToOpId($fnName);
                     $payload = ['ok' => false, 'error' => 'Unknown or forbidden tool: ' . $fnName];
-                    $trace[] = ['op_id' => $opId, 'status' => 'forbidden', 'args' => $args];
+                    $trace[] = [
+                        'op_id' => $opId,
+                        'label' => self::humanOpTitle($opId),
+                        'status' => 'forbidden',
+                        'args' => $args,
+                    ];
                     self::emitProgress($onProgress, [
                         'phase' => 'done',
                         'op_id' => $opId,
@@ -193,7 +198,12 @@ final class AssistantHarness
                     $row = PendingActionsRepository::create($userId, $opId, $args, $summary);
                     if ($row === null) {
                         $payload = ['ok' => false, 'error' => 'Could not create pending confirmation'];
-                        $trace[] = ['op_id' => $opId, 'status' => 'error', 'args' => $args];
+                        $trace[] = [
+                            'op_id' => $opId,
+                            'label' => self::humanOpTitle($opId),
+                            'status' => 'error',
+                            'args' => $args,
+                        ];
                         self::emitProgress($onProgress, [
                             'phase' => 'done',
                             'op_id' => $opId,
@@ -216,7 +226,13 @@ final class AssistantHarness
                             'message' => 'Write queued. UI shows Confirm/Cancel buttons. Reply with ONE short sentence; do not invent Confirm text; do not claim it ran.',
                             'summary' => $row['summary'],
                         ];
-                        $trace[] = ['op_id' => $opId, 'status' => 'pending', 'args' => $args, 'token' => $row['token']];
+                        $trace[] = [
+                            'op_id' => $opId,
+                            'label' => self::humanOpTitle($opId),
+                            'status' => 'pending',
+                            'args' => $args,
+                            'token' => $row['token'],
+                        ];
                         self::emitProgress($onProgress, [
                             'phase' => 'done',
                             'op_id' => $opId,
@@ -242,6 +258,7 @@ final class AssistantHarness
                 $status = $inv['ok'] ? 'ok' : 'error';
                 $trace[] = [
                     'op_id' => $opId,
+                    'label' => self::humanOpTitle($opId),
                     'status' => $status,
                     'args' => $args,
                 ];
@@ -306,7 +323,7 @@ final class AssistantHarness
     }
 
     /**
-     * Human-readable harness progress line (bot / UI).
+     * Human-readable harness progress line (bot / UI), localized & compact.
      *
      * @param array<string,mixed> $ev
      */
@@ -317,21 +334,15 @@ final class AssistantHarness
         if ($opId === '') {
             return '';
         }
-        $desc = trim((string)($ev['description'] ?? ''));
-        // Drop long "[requires user confirmation…]" suffix for display.
-        $desc = preg_replace('/\s*\[requires user confirmation[^\]]*\]\s*/i', '', $desc) ?? $desc;
-        $desc = trim($desc);
+        $title = self::humanOpTitle($opId);
         $argsBrief = self::formatArgsBrief(is_array($ev['args'] ?? null) ? $ev['args'] : []);
         $side = (string)($ev['side_effect'] ?? 'read');
 
         if ($phase === 'start') {
             $icon = $side === 'write' ? '📝' : '🔧';
-            $line = $icon . ' ' . $opId;
-            if ($desc !== '') {
-                $line .= ' — ' . $desc;
-            }
+            $line = $icon . ' ' . $title;
             if ($argsBrief !== '') {
-                $line .= "\n" . $argsBrief;
+                $line .= ' ' . $argsBrief;
             }
             return $line;
         }
@@ -342,17 +353,68 @@ final class AssistantHarness
         $status = (string)($ev['status'] ?? '');
         if ($status === 'pending') {
             $sum = trim((string)($ev['summary'] ?? ''));
-            return '⏳ ' . $opId . ' → ' . t('assistant.tool.pending')
-                . ($sum !== '' ? "\n" . $sum : '');
+            $line = '⏳ ' . $title . ' → ' . t('assistant.tool.pending');
+            if ($sum !== '' && $sum !== $title) {
+                $line .= ' · ' . $sum;
+            }
+            return $line;
         }
         if ($status === 'ok') {
-            return '✅ ' . $opId;
+            return '✅ ' . $title;
         }
         if ($status === 'forbidden') {
-            return '🚫 ' . $opId . ' — ' . t('assistant.tool.forbidden');
+            return '🚫 ' . $title . ' — ' . t('assistant.tool.forbidden');
         }
         $err = trim((string)($ev['error'] ?? ''));
-        return '❌ ' . $opId . ($err !== '' ? ' — ' . $err : '');
+        return '❌ ' . $title . ($err !== '' ? ' — ' . $err : '');
+    }
+
+    /** Localized compact title: «Счета · поиск». */
+    public static function humanOpTitle(string $opId): string
+    {
+        $opId = trim($opId);
+        if ($opId === '') {
+            return '';
+        }
+        $exactKey = 'assistant.tool.op.' . $opId;
+        $exact = t($exactKey);
+        if ($exact !== $exactKey) {
+            return $exact;
+        }
+        $parts = explode('.', $opId);
+        $mod = (string)($parts[0] ?? '');
+        $action = (string)(end($parts) ?: '');
+        $area = count($parts) >= 3 ? (string)$parts[1] : '';
+
+        $areaKey = $area !== '' ? 'assistant.tool.area.' . $mod . '.' . $area : '';
+        $modKey = 'assistant.tool.mod.' . $mod;
+        $place = '';
+        if ($areaKey !== '') {
+            $place = t($areaKey);
+            if ($place === $areaKey) {
+                $place = '';
+            }
+        }
+        if ($place === '') {
+            $place = t($modKey);
+            if ($place === $modKey) {
+                $modNameKey = $mod . '.module.name';
+                $place = t($modNameKey);
+                if ($place === $modNameKey) {
+                    $place = $mod !== '' ? $mod : $opId;
+                }
+            }
+        }
+
+        $actKey = 'assistant.tool.act.' . $action;
+        $act = t($actKey);
+        if ($act === $actKey) {
+            $act = $action !== '' ? $action : '';
+        }
+        if ($place !== '' && $act !== '') {
+            return $place . ' · ' . $act;
+        }
+        return $place !== '' ? $place : $opId;
     }
 
     /**
@@ -364,8 +426,8 @@ final class AssistantHarness
             return '';
         }
         $prefer = [
-            'q', 'id', 'account_id', 'type_id', 'summ', 'supplier_id', 'descr',
-            'day', 'year', 'month', 'direction', 'dt', 'enabled', 'name',
+            'q', 'summ', 'account_id', 'type_id', 'supplier_id', 'descr',
+            'id', 'day', 'year', 'month', 'name', 'direction',
         ];
         $bits = [];
         foreach ($prefer as $k) {
@@ -373,26 +435,33 @@ final class AssistantHarness
                 continue;
             }
             $v = is_scalar($args[$k]) ? (string)$args[$k] : (string)json_encode($args[$k], JSON_UNESCAPED_UNICODE);
-            if ((function_exists('mb_strlen') ? mb_strlen($v) : strlen($v)) > 60) {
-                $v = (function_exists('mb_substr') ? mb_substr($v, 0, 60) : substr($v, 0, 60)) . '…';
+            if ((function_exists('mb_strlen') ? mb_strlen($v) : strlen($v)) > 48) {
+                $v = (function_exists('mb_substr') ? mb_substr($v, 0, 48) : substr($v, 0, 48)) . '…';
             }
-            $bits[] = $k . '=' . $v;
-            if (count($bits) >= 6) {
+            $argKey = 'assistant.tool.arg.' . $k;
+            $tpl = t($argKey, ['v' => $v]);
+            $bits[] = $tpl !== $argKey ? $tpl : $v;
+            if (count($bits) >= 5) {
                 break;
             }
         }
-        if ($bits === []) {
-            foreach ($args as $k => $v) {
-                if (!is_scalar($v) || $v === '') {
-                    continue;
-                }
-                $bits[] = (string)$k . '=' . (string)$v;
-                if (count($bits) >= 4) {
-                    break;
-                }
+        return $bits !== [] ? implode(' · ', $bits) : '';
+    }
+
+    /** Short success after Confirm — green check, optional id. */
+    public static function formatConfirmDone($result): string
+    {
+        $id = 0;
+        if (is_array($result)) {
+            $id = (int)($result['id'] ?? 0);
+            if ($id < 1 && is_array($result['row'] ?? null)) {
+                $id = (int)($result['row']['id'] ?? 0);
             }
         }
-        return $bits !== [] ? implode(' · ', $bits) : '';
+        if ($id > 0) {
+            return t('assistant.confirm.done_id', ['id' => (string)$id]);
+        }
+        return t('assistant.confirm.done');
     }
 
     /** @param callable|null $onProgress @param array<string,mixed> $ev */
@@ -545,27 +614,9 @@ final class AssistantHarness
      */
     private static function summarizeWrite(string $opId, array $args, string $description): string
     {
-        $bits = [$opId];
-        $keys = ['day', 'year', 'month', 'emp', 'id', 'profile', 'account_id', 'type_id', 'summ', 'supplier_id', 'descr', 'direction'];
-        if (strpos($opId, 'ledger.moves') === 0) {
-            $keys = ['account_id', 'type_id', 'summ', 'supplier_id', 'descr', 'direction', 'dt'];
-        } elseif ($description !== '') {
-            $bits[] = $description;
-        }
-        foreach ($keys as $k) {
-            if (!isset($args[$k]) || $args[$k] === '' || $args[$k] === null) {
-                continue;
-            }
-            $v = is_scalar($args[$k]) ? (string)$args[$k] : (string)json_encode($args[$k], JSON_UNESCAPED_UNICODE);
-            if ($k === 'descr' && (function_exists('mb_strlen') ? mb_strlen($v) : strlen($v)) > 80) {
-                $v = (function_exists('mb_substr') ? mb_substr($v, 0, 80) : substr($v, 0, 80)) . '…';
-            }
-            $bits[] = $k . '=' . $v;
-        }
-        if (count($bits) === 1 && $description !== '') {
-            $bits[] = $description;
-        }
-        $joined = implode(' · ', $bits);
+        $title = self::humanOpTitle($opId);
+        $argsBrief = self::formatArgsBrief($args);
+        $joined = $argsBrief !== '' ? $title . ' · ' . $argsBrief : $title;
         return function_exists('mb_substr') ? mb_substr($joined, 0, 500) : substr($joined, 0, 500);
     }
 

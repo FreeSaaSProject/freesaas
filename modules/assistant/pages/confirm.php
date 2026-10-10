@@ -34,17 +34,8 @@ if (!$result['ok']) {
 }
 
 $message = $result['action'] === 'confirm'
-    ? t('assistant.confirm.done')
+    ? AssistantHarness::formatConfirmDone($result['result'] ?? null)
     : t('assistant.confirm.cancelled');
-if (!empty($result['ok']) && $action === 'confirm' && is_array($result['result'] ?? null)) {
-    $snippet = json_encode($result['result'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if (is_string($snippet) && $snippet !== '') {
-        if (strlen($snippet) > 1500) {
-            $snippet = substr($snippet, 0, 1500) . '…';
-        }
-        $message .= "\n" . $snippet;
-    }
-}
 
 if ($userId > 0 && class_exists('AssistantDialog', false)) {
     $history = AssistantDialog::getHistory($userId);

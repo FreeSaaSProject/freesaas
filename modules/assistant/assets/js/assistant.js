@@ -76,7 +76,7 @@
     }
     return trace
       .map(function (step) {
-        if (!step || !step.op_id) {
+        if (!step || (!step.op_id && !step.label)) {
           return '';
         }
         var st = step.status || '';
@@ -87,22 +87,31 @@
               ? '⏳'
               : st === 'forbidden'
                 ? '🚫'
-                : '❌';
+                : st === 'error'
+                  ? '❌'
+                  : '🔧';
+        var title = step.label || step.op_id;
         var args = step.args || {};
         var bits = [];
-        ['q', 'id', 'account_id', 'type_id', 'summ', 'supplier_id', 'descr'].forEach(
-          function (k) {
-            if (args[k] !== undefined && args[k] !== null && args[k] !== '') {
-              bits.push(k + '=' + String(args[k]).slice(0, 40));
-            }
-          }
-        );
-        return (
-          mark +
-          ' ' +
-          step.op_id +
-          (bits.length ? ' · ' + bits.join(' · ') : '')
-        );
+        if (args.q) {
+          bits.push('«' + String(args.q).slice(0, 40) + '»');
+        }
+        if (args.summ) {
+          bits.push(String(args.summ));
+        }
+        if (args.account_id) {
+          bits.push('#' + args.account_id);
+        }
+        if (args.type_id) {
+          bits.push('t' + args.type_id);
+        }
+        if (args.supplier_id) {
+          bits.push('s' + args.supplier_id);
+        }
+        if (args.descr) {
+          bits.push(String(args.descr).slice(0, 32));
+        }
+        return mark + ' ' + title + (bits.length ? ' · ' + bits.join(' · ') : '');
       })
       .filter(Boolean)
       .join('\n');
