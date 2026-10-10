@@ -24,6 +24,8 @@ return [
     'updates.status_current' => 'Up to date',
     'updates.status_current_at' => 'Up to date as of {when}',
     'updates.status_available' => 'Update available',
+    'updates.status_local_only' => 'Local only (not on remote)',
+    'updates.status_check_error' => 'Check error',
     'updates.btn_update_found' => 'Update found',
     'updates.status_hint' => 'Candidate',
     'updates.btn_check' => 'Check all for updates',

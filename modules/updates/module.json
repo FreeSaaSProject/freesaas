@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "0.3.8",
+    "version": "0.3.9",
     "type": "product",
     "catalog": {
         "categories": [
@@ -77,12 +77,24 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "repo": { "type": "string" },
-                        "channel": { "type": "string" },
-                        "token": { "type": "string" },
-                        "clear_token": { "type": "string" },
-                        "ref": { "type": "string" },
-                        "asset": { "type": "string" }
+                        "repo": {
+                            "type": "string"
+                        },
+                        "channel": {
+                            "type": "string"
+                        },
+                        "token": {
+                            "type": "string"
+                        },
+                        "clear_token": {
+                            "type": "string"
+                        },
+                        "ref": {
+                            "type": "string"
+                        },
+                        "asset": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -146,7 +158,9 @@
     "tables": [],
     "migrators": [],
     "hooks": {
-        "subscribe": ["core.notices.collect"],
+        "subscribe": [
+            "core.notices.collect"
+        ],
         "publish": []
     }
 }

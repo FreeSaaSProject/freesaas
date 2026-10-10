@@ -1094,23 +1094,44 @@ final class UpdateEngine
      */
     private static function checkOnePackage(array $p): array
     {
-        $remote = self::resolveRemoteMeta($p);
-        $local = self::localVersion((string)$p['id']);
-        $remoteVer = (string)$remote['version'];
-        return self::enrichStatusRow([
-            'id' => $p['id'],
-            'kind' => $p['kind'],
-            'bundle' => (string)($p['bundle'] ?? ''),
-            'repo' => (string)($p['repo'] ?? ''),
-            'channel' => (string)($p['channel'] ?? ''),
-            'ref' => (string)($remote['ref'] ?? ''),
-            'local_version' => $local,
-            'remote_version' => $remoteVer,
-            'update_available' => self::isNewer($remoteVer, $local),
-            'url' => (string)($remote['url'] ?? ''),
-            'sha256' => $remote['sha256'] ?? null,
-            'artifact' => $remote['artifact'] ?? null,
-        ]);
+        $id = (string)$p['id'];
+        $local = self::localVersion($id);
+        try {
+            $remote = self::resolveRemoteMeta($p);
+            $remoteVer = (string)$remote['version'];
+            return self::enrichStatusRow([
+                'id' => $id,
+                'kind' => $p['kind'],
+                'bundle' => (string)($p['bundle'] ?? ''),
+                'repo' => (string)($p['repo'] ?? ''),
+                'channel' => (string)($p['channel'] ?? ''),
+                'ref' => (string)($remote['ref'] ?? ''),
+                'local_version' => $local,
+                'remote_version' => $remoteVer,
+                'update_available' => self::isNewer($remoteVer, $local),
+                'url' => (string)($remote['url'] ?? ''),
+                'sha256' => $remote['sha256'] ?? null,
+                'artifact' => $remote['artifact'] ?? null,
+            ]);
+        } catch (Throwable $e) {
+            // Local-only / not yet pushed to the monorepo ref — do not abort the whole check.
+            $msg = $e->getMessage();
+            $missing = (bool)preg_match('/\b404\b/', $msg)
+                || stripos($msg, 'not found') !== false;
+            return self::enrichStatusRow([
+                'id' => $id,
+                'kind' => $p['kind'],
+                'bundle' => (string)($p['bundle'] ?? ''),
+                'repo' => (string)($p['repo'] ?? ''),
+                'channel' => (string)($p['channel'] ?? ''),
+                'ref' => (string)($p['ref'] ?? $p['channel'] ?? ''),
+                'local_version' => $local,
+                'remote_version' => '',
+                'update_available' => false,
+                'remote_missing' => $missing,
+                'check_error' => $msg,
+            ]);
+        }
     }
 
     /** Progressive check for UI (one package per tick). */
@@ -1180,25 +1201,17 @@ final class UpdateEngine
             'n' => (string)($ti + 1),
             'total' => (string)$n,
         ]);
-        try {
-            $row = self::checkOnePackage($p);
-            if (!isset($job['results']) || !is_array($job['results'])) {
-                $job['results'] = [];
-            }
-            $job['results'][] = $row;
-            $job['target_index'] = $ti + 1;
-            $job['progress'] = (int)floor((($ti + 1) / max(1, $n)) * 100);
-            $job['updated_at'] = time();
-            self::jobSave($job);
-            return $job;
-        } catch (Throwable $e) {
-            $job['status'] = 'error';
-            $job['error'] = $e->getMessage();
-            $job['message'] = $e->getMessage();
-            $job['updated_at'] = time();
-            self::jobSave($job);
-            return $job;
+        // checkOnePackage never throws — remote 404 / local-only modules become soft rows.
+        $row = self::checkOnePackage($p);
+        if (!isset($job['results']) || !is_array($job['results'])) {
+            $job['results'] = [];
         }
+        $job['results'][] = $row;
+        $job['target_index'] = $ti + 1;
+        $job['progress'] = (int)floor((($ti + 1) / max(1, $n)) * 100);
+        $job['updated_at'] = time();
+        self::jobSave($job);
+        return $job;
     }
 
     /**

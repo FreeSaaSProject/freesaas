@@ -24,6 +24,8 @@ return [
     'updates.status_current' => 'Актуально',
     'updates.status_current_at' => 'Актуально на {when}',
     'updates.status_available' => 'Есть обновление',
+    'updates.status_local_only' => 'Только локально (нет на remote)',
+    'updates.status_check_error' => 'Ошибка проверки',
     'updates.btn_update_found' => 'Обновить найденное',
     'updates.status_hint' => 'Кандидат',
     'updates.btn_check' => 'Проверить обновления у всех',

@@ -182,11 +182,17 @@ $jobI18n = [
             $remoteVer = (string)($src['remote_version'] ?? '');
             $avail = !empty($src['update_available']);
             $checked = $remoteVer !== '';
+            $remoteMissing = !empty($src['remote_missing']);
+            $checkError = trim((string)($src['check_error'] ?? ''));
             $rowRepo = (string)($src['repo'] ?? '');
             $rowBundle = (string)($src['bundle'] ?? '');
             $showSrc = ($rowRepo !== '' && $defaultRepo !== '' && $rowRepo !== $defaultRepo)
                 || ($rowBundle === 'external');
-            if ($checked && $avail) {
+            if ($remoteMissing || ($checkError !== '' && !$checked)) {
+                $stHtml = '<span class="upd-status upd-status--unk" title="' . e($checkError) . '">'
+                    . e(t($remoteMissing ? 'updates.status_local_only' : 'updates.status_check_error'))
+                    . '</span>';
+            } elseif ($checked && $avail) {
                 $stHtml = '<span class="upd-status upd-status--avail">' . e(t('updates.status_available')) . '</span>';
             } elseif ($checked) {
                 $stHtml = '<span class="upd-status upd-status--ok"><span class="upd-check" aria-hidden="true">✓</span> '
