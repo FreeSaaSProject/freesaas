@@ -6,7 +6,8 @@ declare(strict_types=1);
  */
 final class AssistantHarness
 {
-    public const MAX_ITERATIONS = 6;
+    /** LLM rounds; ledger create often needs several list lookups + one write. */
+    public const MAX_ITERATIONS = 12;
 
     /**
      * @param list<array{role:string,content?:string,tool_calls?:mixed,tool_call_id?:string,name?:string}> $messages
@@ -40,6 +41,7 @@ final class AssistantHarness
         $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
         $system .= "\nToday is {$today}. Yesterday is {$yesterday}.";
+        $system .= "\nCall several read tools in one step when useful. After a write is queued for confirmation, stop — do not keep searching.";
 
         $norm = [];
         $norm[] = ['role' => 'system', 'content' => $system];
@@ -214,6 +216,19 @@ final class AssistantHarness
                     'role' => 'tool',
                     'tool_call_id' => $tcId,
                     'content' => $encoded,
+                ];
+            }
+
+            // Write already queued — show Confirm buttons now; skip extra LLM rounds.
+            if ($pending !== []) {
+                return [
+                    'ok' => true,
+                    'text' => $text !== '' ? $text : t('assistant.confirm.press_buttons'),
+                    'messages' => $norm,
+                    'pending_actions' => $pending,
+                    'tool_trace' => $trace,
+                    'error' => '',
+                    'profile' => $profile,
                 ];
             }
         }
