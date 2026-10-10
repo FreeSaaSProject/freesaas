@@ -248,6 +248,11 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                     }
                 }
             }
+            // Fallback when preferred home is missing (e.g. updates disabled).
+            if ($homeHref === null && $g['items'] !== []) {
+                $homeHref = (string)$g['items'][0]['path'];
+                $homeActive = !empty($g['items'][0]['active']);
+            }
       ?>
         <div class="rail-group<?= $isOpen ? ' is-open' : '' ?>" data-group-key="<?= e($g['key']) ?>">
           <div class="rail-group-bar">

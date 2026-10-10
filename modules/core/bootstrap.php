@@ -23,7 +23,7 @@ ModuleManager::registerMenuGroup('core.menu.group.warehouse', 52);
 ModuleManager::registerMenuGroup('core.menu.group.accounting', 55, '/payments');
 ModuleManager::registerMenuGroup('core.menu.group.finance', 58, '/ledger/moves');
 ModuleManager::registerMenuGroup('core.menu.group.team', 60, '/users');
-ModuleManager::registerMenuGroup('core.menu.group.system', 70, '/settings');
+ModuleManager::registerMenuGroup('core.menu.group.system', 70, '/updates');
 
 $pages = [
     '/login' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'login.php'],

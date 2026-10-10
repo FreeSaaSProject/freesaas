@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "0.3.9",
+    "version": "0.3.10",
     "type": "product",
     "catalog": {
         "categories": [
@@ -141,8 +141,8 @@
     "menu": [
         {
             "group": "core.menu.group.system",
-            "kind": "settings",
-            "num": 4,
+            "kind": "work",
+            "num": 0,
             "path": "/updates",
             "title": "updates.menu.list"
         },
