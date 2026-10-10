@@ -306,25 +306,70 @@ final class FitFoodBotPlugin
     /** @param array<string,mixed> $ctx */
     private static function processFoodInput(array $ctx, int $uid, string $text): void
     {
-        $parsed = self::parseFoodText($text);
-        if ($parsed === null) {
+        $items = self::parseMultiFoodItems($text);
+        if ($items === []) {
             self::reply($ctx, t('wellness.bot.parse_hint'), self::kbHome());
             return;
         }
-        $cands = FitFoodsRepository::searchByName($uid, $parsed['food_query'], 8);
+        $first = array_shift($items);
+        self::startFoodItem(
+            $ctx,
+            $uid,
+            (string)$first['food_query'],
+            (float)$first['weight_grams'],
+            $items,
+            [],
+            count($items) + 1
+        );
+    }
+
+    /**
+     * Resolve one food line; remaining $queue items are asked after this one.
+     *
+     * @param array<string,mixed> $ctx
+     * @param list<array{food_query:string,weight_grams:float}> $queue
+     * @param list<string> $results
+     */
+    private static function startFoodItem(
+        array $ctx,
+        int $uid,
+        string $foodQuery,
+        float $weight,
+        array $queue,
+        array $results,
+        int $batchTotal
+    ): void {
+        $foodQuery = trim($foodQuery);
+        if ($foodQuery === '' || $weight <= 0) {
+            self::advanceFoodQueue($ctx, $uid, $queue, $results, $batchTotal);
+            return;
+        }
+        $cands = FitFoodsRepository::searchByName($uid, $foodQuery, 8);
         if ($cands === []) {
-            self::reply($ctx, t('wellness.bot.no_foods'), self::kbHome());
-            self::setState($ctx, 'await_input', ['user_id' => $uid]);
+            $results[] = t('wellness.bot.batch_skip', ['q' => $foodQuery]);
+            self::advanceFoodQueue($ctx, $uid, $queue, $results, $batchTotal);
             return;
         }
         if (count($cands) === 1) {
-            self::logFood($ctx, $uid, (int)$cands[0]['id'], $parsed['weight_grams']);
+            self::logFoodAndContinue(
+                $ctx,
+                $uid,
+                (int)$cands[0]['id'],
+                $weight,
+                $queue,
+                $results,
+                $batchTotal
+            );
             return;
         }
         self::setState($ctx, 'await_choice', [
             'user_id' => $uid,
-            'weight' => $parsed['weight_grams'],
+            'weight' => $weight,
+            'food_query' => $foodQuery,
             'candidates' => $cands,
+            'queue' => array_values($queue),
+            'results' => array_values($results),
+            'batch_total' => max(1, $batchTotal),
         ]);
         $rows = [];
         foreach ($cands as $i => $f) {
@@ -334,10 +379,57 @@ final class FitFoodBotPlugin
             ]];
         }
         $rows[] = [['text' => t('wellness.bot.cancel'), 'callback_data' => 'fit_food_entry_cancel']];
-        self::reply($ctx, t('wellness.bot.pick_food_weight', [
-            'q' => $parsed['food_query'],
-            'g' => (string)$parsed['weight_grams'],
+        $prefix = $batchTotal > 1
+            ? t('wellness.bot.batch_progress', [
+                'n' => (string)(count($results) + 1),
+                'total' => (string)$batchTotal,
+            ]) . "\n"
+            : '';
+        self::reply($ctx, $prefix . t('wellness.bot.pick_food_weight', [
+            'q' => $foodQuery,
+            'g' => (string)$weight,
         ]), ['inline_keyboard' => $rows]);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param list<array{food_query:string,weight_grams:float}> $queue
+     * @param list<string> $results
+     */
+    private static function advanceFoodQueue(
+        array $ctx,
+        int $uid,
+        array $queue,
+        array $results,
+        int $batchTotal
+    ): void {
+        if ($queue !== []) {
+            $next = array_shift($queue);
+            self::startFoodItem(
+                $ctx,
+                $uid,
+                (string)($next['food_query'] ?? ''),
+                (float)($next['weight_grams'] ?? 0),
+                $queue,
+                $results,
+                $batchTotal
+            );
+            return;
+        }
+        self::finishFoodBatch($ctx, $uid, $results);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param list<string> $results
+     */
+    private static function finishFoodBatch(array $ctx, int $uid, array $results): void
+    {
+        self::setState($ctx, 'await_input', ['user_id' => $uid]);
+        $body = $results !== []
+            ? implode("\n", $results)
+            : t('wellness.bot.batch_empty');
+        self::reply($ctx, $body . "\n\n" . self::statusText($uid), self::kbHome());
     }
 
     /** @param array<string,mixed> $ctx */
@@ -347,19 +439,42 @@ final class FitFoodBotPlugin
         $data = is_array($state['data'] ?? null) ? $state['data'] : [];
         $cands = is_array($data['candidates'] ?? null) ? $data['candidates'] : [];
         $weight = (float)($data['weight'] ?? 0);
+        $queue = is_array($data['queue'] ?? null) ? $data['queue'] : [];
+        $results = is_array($data['results'] ?? null) ? $data['results'] : [];
+        $batchTotal = max(1, (int)($data['batch_total'] ?? 1));
         if (!isset($cands[$idx]) || $weight <= 0) {
             self::showHome($ctx, $uid);
             return;
         }
-        self::logFood($ctx, $uid, (int)$cands[$idx]['id'], $weight);
+        self::logFoodAndContinue(
+            $ctx,
+            $uid,
+            (int)$cands[$idx]['id'],
+            $weight,
+            $queue,
+            $results,
+            $batchTotal
+        );
     }
 
-    /** @param array<string,mixed> $ctx */
-    private static function logFood(array $ctx, int $uid, int $foodId, float $weight): void
-    {
+    /**
+     * @param array<string,mixed> $ctx
+     * @param list<array{food_query:string,weight_grams:float}> $queue
+     * @param list<string> $results
+     */
+    private static function logFoodAndContinue(
+        array $ctx,
+        int $uid,
+        int $foodId,
+        float $weight,
+        array $queue,
+        array $results,
+        int $batchTotal
+    ): void {
         $food = FitFoodsRepository::findOwned($foodId);
         if ($food === null) {
-            self::reply($ctx, t('wellness.bot.no_foods'), self::kbHome());
+            $results[] = t('wellness.bot.no_foods');
+            self::advanceFoodQueue($ctx, $uid, $queue, $results, $batchTotal);
             return;
         }
         try {
@@ -374,13 +489,18 @@ final class FitFoodBotPlugin
             self::reply($ctx, self::saveFailText($e), self::kbHome());
             return;
         }
-        self::setState($ctx, 'await_input', ['user_id' => $uid]);
-        $line = t('wellness.bot.logged', [
+        $results[] = t('wellness.bot.logged', [
             'name' => (string)$food['name'],
             'g' => (string)$weight,
             'kcal' => (string)$data['ccals'],
         ]);
-        self::reply($ctx, $line . "\n\n" . self::statusText($uid), self::kbHome());
+        self::advanceFoodQueue($ctx, $uid, $queue, $results, $batchTotal);
+    }
+
+    /** @param array<string,mixed> $ctx */
+    private static function logFood(array $ctx, int $uid, int $foodId, float $weight): void
+    {
+        self::logFoodAndContinue($ctx, $uid, $foodId, $weight, [], [], 1);
     }
 
     /** @param array<string,mixed> $ctx */
@@ -639,30 +759,71 @@ final class FitFoodBotPlugin
         return implode("\n", $lines);
     }
 
-    /** @return array{food_query:string,weight_grams:float}|null */
-    private static function parseFoodText(string $text): ?array
+    /**
+     * Split "гречка 130г, молоко 3.2 116" into separate food/weight pairs (oper parse_multi_items).
+     *
+     * @return list<array{food_query:string,weight_grams:float}>
+     */
+    private static function parseMultiFoodItems(string $text): array
     {
         $src = trim($text);
         if ($src === '') {
+            return [];
+        }
+        $parts = preg_split('/\s*(?:,|;|\s+и\s+)\s*/iu', $src, -1, PREG_SPLIT_NO_EMPTY);
+        if (!is_array($parts) || $parts === []) {
+            $parts = [$src];
+        }
+        $items = [];
+        foreach ($parts as $partRaw) {
+            $one = self::parseFoodText((string)$partRaw);
+            if ($one !== null) {
+                $items[] = $one;
+            }
+        }
+        return $items;
+    }
+
+    /** @return array{food_query:string,weight_grams:float}|null */
+    private static function parseFoodText(string $text): ?array
+    {
+        $part = trim($text);
+        if ($part === '') {
             return null;
         }
+        $part = preg_replace('/^(добав(ь|ить|ьте)\s+|впиши(те)?\s+|занеси(те)?\s+)/iu', '', $part);
+        $part = preg_replace('/^и\s+/iu', '', (string)$part);
+        $part = trim((string)$part, " \t\n\r\0\x0B,.;:-");
+        if ($part === '') {
+            return null;
+        }
+
+        $name = '';
         $weight = 0.0;
-        $food = $src;
-        if (preg_match('/(\d+(?:[.,]\d+)?)\s*(?:грамм(?:а|ов)?|гр|г)\b/iu', $src, $m, PREG_OFFSET_CAPTURE)) {
-            $weight = (float)str_replace(',', '.', $m[1][0]);
-            $start = (int)$m[0][1];
-            $len = strlen($m[0][0]);
-            $food = trim(substr($src, 0, $start) . ' ' . substr($src, $start + $len));
-        } elseif (preg_match('/(\d+(?:[.,]\d+)?)$/u', $src, $m, PREG_OFFSET_CAPTURE)) {
-            $weight = (float)str_replace(',', '.', $m[1][0]);
-            $food = trim(substr($src, 0, (int)$m[0][1]));
+        if (preg_match('/^(.+?)\s+(\d+(?:[.,]\d+)?)\s*(?:грамм(?:а|ов)?|гр|г)\b/iu', $part, $m1)) {
+            $name = trim((string)$m1[1]);
+            $weight = (float)str_replace(',', '.', (string)$m1[2]);
+        } elseif (preg_match('/^(\d+(?:[.,]\d+)?)\s*(?:грамм(?:а|ов)?|гр|г)\s+(.+)$/iu', $part, $m2)) {
+            $weight = (float)str_replace(',', '.', (string)$m2[1]);
+            $name = trim((string)$m2[2]);
+        } elseif (preg_match('/^(\d+(?:[.,]\d+)?)\s+(.+)$/iu', $part, $m4)
+            && !preg_match('/\d/u', (string)$m4[2])) {
+            // "150 картошка" — вес первым, в названии нет цифр
+            $weight = (float)str_replace(',', '.', (string)$m4[1]);
+            $name = trim((string)$m4[2]);
+        } elseif (preg_match('/^(.+?)\s+(\d+(?:[.,]\d+)?)$/iu', $part, $m3)) {
+            // "сырники 5% 161" / "молоко 3.2 116" — вес в конце
+            $name = trim((string)$m3[1]);
+            $weight = (float)str_replace(',', '.', (string)$m3[2]);
         }
-        $food = preg_replace('/^(добав(ь|ить|ьте)\s+|впиши(те)?\s+|занеси(те)?\s+)/iu', '', (string)$food);
-        $food = trim((string)$food, " \t\n\r\0\x0B,.;:-");
-        if ($weight <= 0 || $food === '') {
+        $name = trim($name, " \t\n\r\0\x0B,.;:-");
+        if ($name === '' || $weight <= 0) {
             return null;
         }
-        return ['food_query' => $food, 'weight_grams' => $weight];
+        if (preg_match('/^(добав(ь|ить|ьте)?|впиши(те)?|занеси(те)?)$/iu', $name)) {
+            return null;
+        }
+        return ['food_query' => $name, 'weight_grams' => $weight];
     }
 
     /** @param array<string,mixed> $ctx */
