@@ -18,8 +18,12 @@ if ($historyJson === false) {
 <div class="assistant-chat" id="assistant-chat"
      data-chat-url="/assistant/chat"
      data-confirm-url="/assistant/confirm"
+     data-clear-url="/assistant/clear"
      data-history="<?= e($historyJson) ?>"
      data-i18n="<?= e(json_encode($i18n, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}') ?>">
+  <div class="assistant-chat__toolbar">
+    <button type="button" class="btn" id="assistant-chat-clear"><?= te('assistant.chat.clear') ?></button>
+  </div>
   <div class="assistant-chat__log" id="assistant-chat-log" aria-live="polite"></div>
   <form class="assistant-chat__form" id="assistant-chat-form">
     <label class="sr-only" for="assistant-chat-input"><?= te('assistant.chat.placeholder') ?></label>

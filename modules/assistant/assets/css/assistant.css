@@ -5,6 +5,12 @@
   max-width: 52rem;
 }
 
+.assistant-chat__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
 .assistant-chat__log {
   min-height: 16rem;
   max-height: 28rem;

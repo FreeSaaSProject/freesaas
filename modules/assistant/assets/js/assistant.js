@@ -10,6 +10,8 @@
   var sendBtn = document.getElementById('assistant-chat-send');
   var chatUrl = root.getAttribute('data-chat-url') || '/assistant/chat';
   var confirmUrl = root.getAttribute('data-confirm-url') || '/assistant/confirm';
+  var clearUrl = root.getAttribute('data-clear-url') || '/assistant/clear';
+  var clearBtn = document.getElementById('assistant-chat-clear');
   var i18n = {};
   try {
     i18n = JSON.parse(root.getAttribute('data-i18n') || '{}') || {};
@@ -165,6 +167,40 @@
   }
 
   renderHistory(history);
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      setBusy(true);
+      fetch(clearUrl, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: '{}',
+      })
+        .then(function (r) {
+          return r.json().then(function (j) {
+            return { ok: r.ok, json: j };
+          });
+        })
+        .then(function (res) {
+          setBusy(false);
+          if (!res.ok || !res.json || !res.json.ok) {
+            appendMsg(t('assistant', 'Assistant'), (res.json && res.json.error) || t('error', 'Error'));
+            return;
+          }
+          history = [];
+          renderHistory(history);
+          appendMsg(t('assistant', 'Assistant'), res.json.text || t('cleared', 'Dialog cleared.'));
+        })
+        .catch(function () {
+          setBusy(false);
+          appendMsg(t('assistant', 'Assistant'), t('error', 'Error'));
+        });
+    });
+  }
 
   form.addEventListener('submit', function (e) {
     e.preventDefault();

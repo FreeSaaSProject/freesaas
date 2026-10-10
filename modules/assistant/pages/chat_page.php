@@ -33,6 +33,8 @@ View::render('chat', [
         'pending' => t('assistant.confirm.pending', ['summary' => '{summary}']),
         'confirm_done' => t('assistant.confirm.done'),
         'confirm_cancelled' => t('assistant.confirm.cancelled'),
+        'clear' => t('assistant.chat.clear'),
+        'cleared' => t('assistant.chat.cleared'),
     ],
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('assistant.menu.chat'), 'current' => true],

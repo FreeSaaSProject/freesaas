@@ -28,6 +28,11 @@ $pages = [
         'methods' => ['POST'],
         'file' => 'confirm.php',
     ],
+    '/assistant/clear' => [
+        'permission' => 'assistant.use',
+        'methods' => ['POST'],
+        'file' => 'clear.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {

@@ -36,7 +36,28 @@ final class AssistantBotPlugin
                     $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
                     $uid = (int)($user['id'] ?? 0);
                     self::setState($ctx, 'await_input', ['user_id' => $uid]);
-                    self::replyChrome($ctx, t('assistant.bot.hint'));
+                    self::replyChrome($ctx, t('assistant.bot.hint'), self::kbChrome());
+                    return true;
+                }
+                if ($data === 'assistant:clear') {
+                    $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
+                    $uid = (int)($user['id'] ?? 0);
+                    if ($uid < 1) {
+                        return true;
+                    }
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                    try {
+                        Auth::runAs($uid, static function () use ($uid): void {
+                            if (!Auth::can('assistant.use')) {
+                                return;
+                            }
+                            AssistantDialog::clearSession($uid);
+                        });
+                    } catch (Throwable $e) {
+                        self::replySplit($ctx, t('assistant.bot.denied'));
+                        return true;
+                    }
+                    self::replySplit($ctx, t('assistant.bot.cleared'));
                     return true;
                 }
                 if (preg_match('/^assistant:(ok|no):([a-f0-9]{16})$/', $data, $m)) {
@@ -219,11 +240,7 @@ final class AssistantBotPlugin
                         ];
                     }
                     if ($rows !== []) {
-                        $rows[] = [[
-                            'text' => t('bots.cabinet.refresh'),
-                            'callback_data' => 'cabinet',
-                        ]];
-                        $keyboard = ['inline_keyboard' => $rows];
+                        $keyboard = self::kbChrome($rows);
                     }
                 }
 
@@ -233,6 +250,20 @@ final class AssistantBotPlugin
                 return true;
             },
         ]);
+    }
+
+    /**
+     * @param list<list<array<string,string>>> $frontRows
+     * @return array{inline_keyboard:list<list<array<string,string>>>}
+     */
+    private static function kbChrome(array $frontRows = []): array
+    {
+        $rows = $frontRows;
+        $rows[] = [
+            ['text' => t('assistant.bot.clear'), 'callback_data' => 'assistant:clear'],
+            ['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet'],
+        ];
+        return ['inline_keyboard' => $rows];
     }
 
     /**
@@ -268,14 +299,7 @@ final class AssistantBotPlugin
         }
         if (class_exists('BotClient', false)) {
             BotClient::replyKeep($ctx, $text);
-            $chrome = $markup;
-            if ($chrome === null) {
-                $chrome = [
-                    'inline_keyboard' => [[
-                        ['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet'],
-                    ]],
-                ];
-            }
+            $chrome = $markup ?? self::kbChrome();
             BotClient::replyUi($ctx, t('assistant.bot.actions_bar'), $chrome);
             return;
         }

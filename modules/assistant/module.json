@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -29,7 +29,8 @@
         "pages": [
             "/assistant",
             "/assistant/chat",
-            "/assistant/confirm"
+            "/assistant/confirm",
+            "/assistant/clear"
         ]
     },
     "agent": {
@@ -51,6 +52,15 @@
                 "side_effect": "write",
                 "assistant": false,
                 "description": "Confirm or cancel a pending write tool; body: token, action=confirm|cancel"
+            },
+            {
+                "id": "assistant.clear",
+                "method": "POST",
+                "path": "/assistant/clear",
+                "permission": "assistant.use",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Clear shared dialog history and cancel pending confirms for the current user"
             }
         ]
     },

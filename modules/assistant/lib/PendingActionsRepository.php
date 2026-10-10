@@ -79,6 +79,21 @@ final class PendingActionsRepository
         return is_array($rows) ? $rows : [];
     }
 
+    /** Cancel all pending writes for a user (e.g. dialog clear). @return int */
+    public static function cancelAllPendingForUser(int $userId): int
+    {
+        if ($userId < 1 || !self::tableReady()) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_assistant_pending
+             SET STATUS = \'cancelled\', RESOLVED_AT = ?
+             WHERE ID_USER = ? AND STATUS = \'pending\''
+        );
+        $st->execute([time(), $userId]);
+        return $st->rowCount();
+    }
+
     /**
      * @param array<string,mixed>|null $result
      */

@@ -67,6 +67,15 @@ final class AssistantDialog
         Database::pdo()->prepare('DELETE FROM base_assistant_dialog WHERE ID_USER = ?')->execute([$userId]);
     }
 
+    /** Clear shared history and cancel pending write confirms. */
+    public static function clearSession(int $userId): void
+    {
+        self::clear($userId);
+        if (class_exists('PendingActionsRepository', false)) {
+            PendingActionsRepository::cancelAllPendingForUser($userId);
+        }
+    }
+
     /**
      * @param mixed $raw
      * @return list<array{role:string,content:string}>
