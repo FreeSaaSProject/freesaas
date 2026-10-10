@@ -384,6 +384,12 @@ if ($wantsJson) {
     $itemPayload = NewsRepository::forAgent($row, $withBody);
     $checklistItems = !$isFolder ? NewsChecklistRepository::listFor($id) : [];
     $checklistProgress = !$isFolder ? NewsChecklistRepository::progress($id) : ['done' => 0, 'total' => 0, 'pct' => 0];
+    $gcalLinked = 0;
+    if (!$isFolder && (int)$row['TYPE'] === 2 && class_exists('GcalSyncRepository', false)
+        && ModuleManager::isEnabled('gcal')
+    ) {
+        $gcalLinked = !empty(GcalSyncRepository::linkedNewsIds([$id])[$id]) ? 1 : 0;
+    }
 
     AgentHttp::emit([
         'ok' => true,
@@ -414,6 +420,7 @@ if ($wantsJson) {
         ],
         'checklist' => NewsChecklistRepository::listForAgent($checklistItems),
         'checklist_progress' => $checklistProgress,
+        'gcal_linked' => $gcalLinked,
         'versions' => $versions,
         'active_log_id' => $did > 0 ? $did : null,
         'contract_locked' => $contractLocked,

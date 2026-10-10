@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-10T19:38:15+00:00",
+    "generated_at": "2026-10-10T20:06:40+00:00",
     "modules": [
         {
             "id": "asr",
@@ -236,7 +236,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -345,7 +345,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -471,7 +471,7 @@
         },
         {
             "id": "clientics",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Clientics",
@@ -661,7 +661,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.2",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -1272,7 +1272,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1452,7 +1452,7 @@
         },
         {
             "id": "yclients",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "YClients",

@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.28",
+    "version": "0.3.30",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -100,18 +100,30 @@
             "/agent/update",
             "/agent/update/check",
             "/agent/update/apply",
-            "/core/jobs/habits-reminders"
+            "/core/jobs/habits-reminders",
+            "/cron",
+            "/cron/tick"
         ]
     },
     "agent": {
         "ops": [
+            {
+                "id": "core.cron.tick",
+                "method": "POST",
+                "path": "/cron/tick",
+                "permission": "",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Platform cron tick: run due Cron::register jobs. Auth: X-FreeSaaS-Agent-Token. Optional job=id, force=1."
+            },
             {
                 "id": "core.jobs.habits_reminders",
                 "method": "POST",
                 "path": "/core/jobs/habits-reminders",
                 "permission": "",
                 "side_effect": "write",
-                "description": "Enqueue due my_tasks habit reminders (cron every 1–5 min). Auth: X-FreeSaaS-Agent-Token. Optional simulate=1. Drain via POST /bots/sends/work."
+                "assistant": false,
+                "description": "Enqueue due my_tasks habit reminders (also via /cron/tick job habits.reminders). Auth: X-FreeSaaS-Agent-Token. Optional simulate=1. Drain via bots.sends_drain."
             },
             {
                 "id": "core.modules.list",
@@ -422,7 +434,7 @@
                 "method": "GET",
                 "path": "/news",
                 "permission": "core.news",
-                "description": "List news/tickets/DMs (access-filtered). Query: type=1|2|3|4, pid=folder, q, status, unread=1, unsigned=1 (needs SIGN_REQ ack), sort/dir/page",
+                "description": "List news/tickets/DMs (access-filtered). Items include gcal_linked (1 if synced to Google Calendar). Query: type=1|2|3|4, pid=folder, q, status, unread=1, unsigned=1, sort/dir/page",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -457,7 +469,7 @@
                 "method": "GET",
                 "path": "/news/{id}",
                 "permission": "core.news",
-                "description": "News item JSON (body, access, needs_sign, paged comments, versions). Folders → is_folder+list_path. Comments default: top-level, limit=20, excerpt=500, order=desc; drill with comments_pid; page with comments_offset; skip with comments=0; one row comments_id; full text comments_excerpt=0; omit body with body=0. See comments_meta.has_more/child_count.",
+                "description": "News item JSON: item, checklist[], checklist_progress{done,total,pct}, gcal_linked (TYPE=2), paged comments, versions, needs_sign, users_resp. Folders → is_folder+list_path. Comments default: top-level, limit=20, excerpt=500, order=desc; drill comments_pid; page comments_offset; skip comments=0; one row comments_id; full text comments_excerpt=0; omit body body=0.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -562,7 +574,7 @@
                 "path": "/news/{id}",
                 "permission": "core.news",
                 "side_effect": "write",
-                "description": "News item actions. Comments: comment/edit_comment/hide_comment/show_comment/delete_comment (superadmin can hard-delete any without replies). Checklist: checklist_add (title, multiline ok), checklist_toggle|rename|delete (item_id), checklist_sort_done (done_position=top|bottom). Also like, favorite, delete (item), restore_version.",
+                "description": "News item actions. Comments: comment (optional ticket fields new_status/ticket_deadline/id_curator/users_resp[]/users_resp_present; contract offer price_offer+offer_deadline), edit_comment (SA may pass price_offer/offer_deadline), hide/show/delete_comment (SA hard-delete any without replies). Checklist: checklist_add (title multiline), toggle|rename|delete (item_id), checklist_sort_done (done_position=top|bottom). Also like, favorite, delete, restore_version.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -570,8 +582,9 @@
                             "type": "string",
                             "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|checklist_add|checklist_toggle|checklist_rename|checklist_delete|checklist_sort_done|like|favorite|delete|restore_version|color_comment"
                         },
-                        "title": { "type": "string", "description": "Checklist item title (add/rename)" },
+                        "title": { "type": "string", "description": "Checklist item title (add/rename); multiline paste ok for add" },
                         "item_id": { "type": "integer", "description": "Checklist item id" },
+                        "done_position": { "type": "string", "description": "checklist_sort_done: top|bottom" },
                         "text": {
                             "type": "string",
                             "description": "Body for comment or edit_comment"
@@ -588,6 +601,13 @@
                             "type": "integer",
                             "description": "Parent comment id when replying"
                         },
+                        "new_status": { "type": "integer", "description": "Ticket status id; -1 = no change" },
+                        "ticket_deadline": { "type": "string", "description": "YYYY-MM-DD ticket deadline" },
+                        "id_curator": { "type": "integer", "description": "Ticket curator user id; 0 = clear" },
+                        "users_resp": { "description": "Assignee user id[] when users_resp_present=1" },
+                        "users_resp_present": { "type": "integer", "description": "1 = apply users_resp (empty clears assignees)" },
+                        "price_offer": { "type": "integer", "description": "Contract offer price (comment add/edit)" },
+                        "offer_deadline": { "type": "string", "description": "YYYY-MM-DD offer deadline" },
                         "log_id": {
                             "type": "integer",
                             "description": "Version id for restore_version"
@@ -630,6 +650,7 @@
         ]
     },
     "jobs": [
+        "GET/POST /cron/tick",
         "/core/jobs/habits-reminders"
     ],
     "menu": [
@@ -676,6 +697,13 @@
             "num": 3,
             "path": "/db",
             "title": "core.menu.db"
+        },
+        {
+            "group": "core.menu.group.system",
+            "kind": "settings",
+            "num": 4,
+            "path": "/cron",
+            "title": "core.menu.cron"
         }
     ],
     "configSchema": {
@@ -703,6 +731,8 @@
         "base_news_statuses",
         "base_news_logs",
         "base_news_checklist",
+        "base_cron_job_state",
+        "base_cron_runs",
         "base_admin_statuses",
         "base_views",
         "base_likes",

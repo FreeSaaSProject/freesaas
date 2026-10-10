@@ -3,7 +3,7 @@
     "name": "gcal.module.name",
     "description": "gcal.module.description",
     "summary": "gcal.module.summary",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "type": "product",
     "catalog": {
         "categories": [
@@ -102,7 +102,24 @@
                 "method": "GET",
                 "path": "/gcal/work",
                 "permission": "gcal.manage",
-                "description": "Queue pending count; POST drains queue (cron/agent)"
+                "side_effect": "read",
+                "description": "Queue pending count + enabled flag (JSON). Does not drain."
+            },
+            {
+                "id": "gcal.queue.drain",
+                "method": "POST",
+                "path": "/gcal/work",
+                "permission": "gcal.manage",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Drain sync queue + optional reconcile. Body/query: limit (1–100), reconcile=0 to skip inbound deadline pull",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "limit": { "type": "integer" },
+                        "reconcile": { "type": "integer", "description": "0 = skip reconcile" }
+                    }
+                }
             }
         ]
     }
