@@ -41,15 +41,21 @@ EventBus::on('comments.form.offer_fields', static function ($payload) {
     $lblPrice = te('contracts.offer.price');
     $phOptional = te('contracts.offer.optional');
     $lblDeadline = te('contracts.offer.deadline');
+    $lblToggle = te('contracts.offer.toggle');
+    // Hidden by default under <details>; inputs stay in #comment-form so POST is unchanged.
+    // Empty price ⇒ prepare_add skips offer even if deadline is posted.
     $payload['html'] = <<<HTML
-<div class="offer-fields">
-  <label>{$lblPrice}
-    <input type="number" name="price_offer" min="0" step="1" placeholder="{$phOptional}">
-  </label>
-  <label>{$lblDeadline}
-    <input type="date" name="offer_deadline" value="{$dl}">
-  </label>
-</div>
+<details class="offer-fields-wrap">
+  <summary class="offer-fields-toggle">{$lblToggle}</summary>
+  <div class="offer-fields">
+    <label>{$lblPrice}
+      <input type="number" name="price_offer" min="0" step="1" placeholder="{$phOptional}">
+    </label>
+    <label>{$lblDeadline}
+      <input type="date" name="offer_deadline" value="{$dl}" data-offer-default-dl="{$dl}">
+    </label>
+  </div>
+</details>
 HTML;
     return $payload;
 });
@@ -64,15 +70,19 @@ EventBus::on('comments.form.edit_fields', static function ($payload) {
     $lblPrice = te('contracts.offer.price');
     $phOptional = te('contracts.offer.optional');
     $lblDeadline = te('contracts.offer.deadline');
+    $lblToggle = te('contracts.offer.toggle');
     $payload['html'] = <<<HTML
-<div class="offer-fields">
-  <label>{$lblPrice}
-    <input type="number" name="price_offer" min="0" step="1" placeholder="{$phOptional}">
-  </label>
-  <label>{$lblDeadline}
-    <input type="date" name="offer_deadline" value="">
-  </label>
-</div>
+<details class="offer-fields-wrap" open>
+  <summary class="offer-fields-toggle">{$lblToggle}</summary>
+  <div class="offer-fields">
+    <label>{$lblPrice}
+      <input type="number" name="price_offer" min="0" step="1" placeholder="{$phOptional}">
+    </label>
+    <label>{$lblDeadline}
+      <input type="date" name="offer_deadline" value="">
+    </label>
+  </div>
+</details>
 HTML;
     return $payload;
 });

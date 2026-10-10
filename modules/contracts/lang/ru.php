@@ -13,6 +13,7 @@ return [
     'contracts.offer.price' => 'Ваша цена (₽)',
     'contracts.offer.optional' => 'опционально',
     'contracts.offer.deadline' => 'Дедлайн предложения',
+    'contracts.offer.toggle' => 'Предложить цену / контракт',
     'contracts.offer.auto_text' => 'Предложение: {price} ₽ до {date}',
     'contracts.err.deadline_required' => 'Для цены нужен дедлайн',
     'contracts.err.deadline_future' => 'Укажите будущий дедлайн для цены',

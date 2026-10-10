@@ -2252,13 +2252,52 @@ table.data tr.is-disabled td a {
   margin: 0;
   padding: 0.2rem 0;
 }
+.offer-fields-wrap {
+  margin: 0.5rem 0 0.75rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--line);
+}
+.offer-fields-toggle {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  user-select: none;
+}
+.offer-fields-toggle::-webkit-details-marker { display: none; }
+.offer-fields-toggle::before {
+  content: '▸';
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.offer-fields-wrap[open] > .offer-fields-toggle::before {
+  content: '▾';
+}
+.offer-fields-wrap[open] > .offer-fields-toggle {
+  color: inherit;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
 .offer-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(160px, 100%), 1fr));
-  gap: 0.75rem;
-  margin: 0.75rem 0;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--line);
+  grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+  gap: 0.65rem;
+  margin: 0;
+  max-width: 28rem;
+}
+.offer-fields label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0;
+}
+.offer-fields input {
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
 }
 
 .contract-box {

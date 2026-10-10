@@ -13,6 +13,7 @@ return [
     'contracts.offer.price' => 'Your price (₽)',
     'contracts.offer.optional' => 'optional',
     'contracts.offer.deadline' => 'Offer deadline',
+    'contracts.offer.toggle' => 'Propose price / contract',
     'contracts.offer.auto_text' => 'Offer: {price} ₽ by {date}',
     'contracts.err.deadline_required' => 'A price needs a deadline',
     'contracts.err.deadline_future' => 'Set a future deadline for the price',
