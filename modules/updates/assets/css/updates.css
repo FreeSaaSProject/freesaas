@@ -97,6 +97,20 @@ body.upd-job-busy { overflow: hidden; }
   font-size: 0.85rem !important;
   font-weight: 600 !important;
 }
+.upd-btn-check-all {
+  background: #1a7f37 !important;
+  color: #fff !important;
+  border-color: #1a7f37 !important;
+}
+.upd-btn-check-all:hover {
+  filter: brightness(1.08);
+}
+.upd-settings-foot a {
+  color: var(--muted, #666);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+.upd-settings-foot a:hover { color: var(--text, #1a1a1a); }
 .upd-status--ok { color: #1a7f37; font-weight: 600; }
 .upd-status--avail { color: #9a6700; font-weight: 600; }
 .upd-status--unk { color: var(--muted, #666); }

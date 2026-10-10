@@ -112,7 +112,9 @@ $jobI18n = [
 <section class="page-head">
   <p class="lede"><?= te('updates.lede') ?></p>
   <div class="actions">
-    <a class="btn-secondary" href="/updates/settings"><?= te('updates.menu.settings') ?></a>
+    <?php if ($updateConfigured): ?>
+    <button type="button" class="btn-primary upd-btn-check-all" data-upd-check="all"><?= te('updates.btn_check_all') ?></button>
+    <?php endif; ?>
   </div>
 </section>
 
@@ -224,13 +226,15 @@ $jobI18n = [
         </tbody>
       </table>
     </div>
+    <?php if ($updateCanApply && $updateAvailableCount > 0): ?>
     <div class="actions" style="margin-top:.75rem">
-      <button type="button" class="btn-secondary" data-upd-check="all"><?= te('updates.btn_check_all') ?></button>
-      <?php if ($updateCanApply && $updateAvailableCount > 0): ?>
       <button type="button" class="btn-primary" data-upd-apply="all"><?= te('updates.btn_update_available') ?></button>
-      <?php endif; ?>
     </div>
+    <?php endif; ?>
   <?php endif; ?>
+  <p class="upd-settings-foot muted" style="margin-top:1.25rem">
+    <a href="/updates/settings"><?= te('updates.menu.settings') ?></a>
+  </p>
 </section>
 
 <div id="upd-job-overlay" class="upd-job-overlay" hidden>
