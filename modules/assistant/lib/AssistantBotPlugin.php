@@ -208,8 +208,8 @@ final class AssistantBotPlugin
                     $reply = t('assistant.chat.thinking');
                 }
                 $pending = is_array($out['pending_actions'] ?? null) ? $out['pending_actions'] : [];
-                if ($pending === [] && preg_match('/\b(confirm|подтверд)/iu', $reply)) {
-                    // LLM role-played Confirm without calling a write tool.
+                if ($pending === [] && self::looksLikeFakeConfirmUi($reply)) {
+                    // LLM told the user to press Confirm without queueing a write tool.
                     $reply = t('assistant.confirm.not_queued');
                 }
                 $keyboard = null;
@@ -302,6 +302,15 @@ final class AssistantBotPlugin
             return;
         }
         self::replyChrome($ctx, $text, $markup);
+    }
+
+    /** True when the model invents Confirm/Cancel UI without a pending write. */
+    private static function looksLikeFakeConfirmUi(string $reply): bool
+    {
+        return (bool)preg_match(
+            '/нажм\w*.{0,48}(confirm|подтверд)|(press|click).{0,40}confirm|кнопк\w*.{0,24}(confirm|подтверд)|ожида\w*.{0,24}подтверд/iu',
+            $reply
+        );
     }
 
     /** Tool progress line (kept in chat, no actions bar). @param array<string,mixed> $ctx */

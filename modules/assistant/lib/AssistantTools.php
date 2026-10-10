@@ -37,7 +37,9 @@ final class AssistantTools
             $params = self::buildParameters($op);
             $desc = (string)($op['description'] ?? $op['id']);
             if ($side === 'write') {
-                $desc .= ' [requires user confirmation before execution]';
+                // Wording matters: models otherwise wait for the user to type "Confirm"
+                // instead of calling the tool (UI buttons appear after the call).
+                $desc .= ' [CALL NOW to queue; UI shows Confirm/Cancel — do not wait for the user to type Confirm]';
             }
             $out[] = [
                 'id' => (string)$op['id'],

@@ -94,7 +94,10 @@ if ($reply === '') {
     $reply = t('assistant.chat.thinking');
 }
 $pendingOut = is_array($result['pending_actions'] ?? null) ? $result['pending_actions'] : [];
-if ($pendingOut === [] && preg_match('/\b(confirm|подтверд)/iu', $reply)) {
+if ($pendingOut === [] && preg_match(
+    '/нажм\w*.{0,48}(confirm|подтверд)|(press|click).{0,40}confirm|кнопк\w*.{0,24}(confirm|подтверд)|ожида\w*.{0,24}подтверд/iu',
+    $reply
+)) {
     $reply = t('assistant.confirm.not_queued');
 }
 $history[] = ['role' => 'assistant', 'content' => $reply];

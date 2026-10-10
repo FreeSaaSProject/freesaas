@@ -428,7 +428,7 @@ final class AssistantHarness
         }
         $prefer = [
             'q', 'summ', 'account_id', 'type_id', 'supplier_id', 'descr',
-            'id', 'day', 'year', 'month', 'name', 'direction',
+            'food_id', 'weight', 'id', 'day', 'year', 'month', 'name', 'direction',
         ];
         $bits = [];
         foreach ($prefer as $k) {

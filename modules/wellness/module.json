@@ -2,7 +2,7 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.2.9",
+    "version": "0.2.10",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -126,21 +126,21 @@
                 "method": "POST",
                 "path": "/wellness/food-diary/new",
                 "permission": "wellness.edit",
-                "description": "Log food for current user; nutrition computed from food per 100g * weight/100",
+                "description": "Log one food diary entry NOW (food_id + weight grams). First wellness.foods.list(q=…). For several foods call this tool once per item in the same step. UI Confirm buttons appear after the call.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "food_id": {
                             "type": "integer",
-                            "description": "Own food catalog id"
+                            "description": "Own food catalog id from wellness.foods.list"
                         },
                         "weight": {
                             "type": "number",
-                            "description": "Grams"
+                            "description": "Grams eaten"
                         },
                         "dt": {
                             "type": "string",
-                            "description": "Date/time (Y-m-d or Y-m-d H:i:s or datetime-local)"
+                            "description": "Optional date/time; default now"
                         }
                     },
                     "additionalProperties": true,
