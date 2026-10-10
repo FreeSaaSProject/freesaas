@@ -519,9 +519,9 @@ final class AssistantHarness
     }
 
     /**
-     * If the user typed Confirm/Cancel and has a pending write, resolve the latest one.
+     * If the user typed Confirm/Cancel and has pending writes, resolve the whole batch.
      *
-     * @return array{ok:bool,action:string,result:?array,error:string,handled:bool}|null
+     * @return array{ok:bool,action:string,result:?array,error:string,handled:bool,done?:int,failed?:int}|null
      */
     public static function tryResolveConfirmText(string $text, int $userId): ?array
     {
@@ -529,7 +529,7 @@ final class AssistantHarness
         if ($intent === null || $userId < 1) {
             return null;
         }
-        $rows = PendingActionsRepository::listPendingForUser($userId, 1);
+        $rows = PendingActionsRepository::listPendingForUser($userId, 20);
         if ($rows === []) {
             // «Делай» without a queued write must reach the LLM so it can call the write tool.
             if ($intent === 'confirm' && self::isSoftDoConfirmPhrase($text)) {
@@ -543,8 +543,14 @@ final class AssistantHarness
                 'handled' => true,
             ];
         }
-        $token = (string)($rows[0]['TOKEN'] ?? '');
-        if ($token === '') {
+        $tokens = [];
+        foreach ($rows as $row) {
+            $tok = (string)($row['TOKEN'] ?? '');
+            if ($tok !== '') {
+                $tokens[] = $tok;
+            }
+        }
+        if ($tokens === []) {
             return [
                 'ok' => false,
                 'action' => $intent,
@@ -553,9 +559,120 @@ final class AssistantHarness
                 'handled' => true,
             ];
         }
-        $resolved = self::resolvePending($token, $intent, $userId);
+        $resolved = self::resolvePendingBatch($tokens, $intent, $userId);
         $resolved['handled'] = true;
         return $resolved;
+    }
+
+    /**
+     * Confirm/cancel several pending writes in creation order (oldest first).
+     *
+     * @param list<string> $tokens
+     * @return array{ok:bool,action:string,result:?array,error:string,done:int,failed:int,results:list}
+     */
+    public static function resolvePendingBatch(array $tokens, string $action, int $userId): array
+    {
+        $action = strtolower(trim($action));
+        $tokens = array_values(array_unique(array_filter(array_map('strval', $tokens))));
+        if ($tokens === [] || !in_array($action, ['confirm', 'cancel'], true)) {
+            return [
+                'ok' => false,
+                'action' => $action,
+                'result' => null,
+                'error' => t('assistant.confirm.not_found'),
+                'done' => 0,
+                'failed' => 0,
+                'results' => [],
+            ];
+        }
+
+        $rows = [];
+        foreach ($tokens as $token) {
+            $row = PendingActionsRepository::findByToken($token);
+            if ($row === null) {
+                continue;
+            }
+            $rows[] = $row;
+        }
+        usort($rows, static function (array $a, array $b): int {
+            $ca = (int)($a['CREATED_AT'] ?? 0);
+            $cb = (int)($b['CREATED_AT'] ?? 0);
+            if ($ca !== $cb) {
+                return $ca <=> $cb;
+            }
+            return ((int)($a['ID'] ?? 0)) <=> ((int)($b['ID'] ?? 0));
+        });
+
+        $done = 0;
+        $failed = 0;
+        $results = [];
+        $lastOk = null;
+        $lastError = '';
+        foreach ($rows as $row) {
+            $token = (string)($row['TOKEN'] ?? '');
+            if ($token === '') {
+                continue;
+            }
+            $one = self::resolvePending($token, $action, $userId);
+            $results[] = $one;
+            if (!empty($one['ok'])) {
+                $done++;
+                $lastOk = $one['result'];
+            } else {
+                $failed++;
+                $lastError = (string)($one['error'] ?? '');
+            }
+        }
+
+        if ($done < 1 && $failed < 1) {
+            return [
+                'ok' => false,
+                'action' => $action,
+                'result' => null,
+                'error' => t('assistant.confirm.not_found'),
+                'done' => 0,
+                'failed' => 0,
+                'results' => $results,
+            ];
+        }
+
+        return [
+            'ok' => $done > 0,
+            'action' => $action,
+            'result' => $lastOk,
+            'error' => $done > 0 ? '' : $lastError,
+            'done' => $done,
+            'failed' => $failed,
+            'results' => $results,
+        ];
+    }
+
+    /** Human reply after single or batch confirm. */
+    public static function formatConfirmBatchDone(array $batch): string
+    {
+        $action = (string)($batch['action'] ?? 'confirm');
+        $done = (int)($batch['done'] ?? 0);
+        $failed = (int)($batch['failed'] ?? 0);
+        if ($action === 'cancel') {
+            return $done > 1
+                ? t('assistant.confirm.cancelled_n', ['n' => (string)$done])
+                : t('assistant.confirm.cancelled');
+        }
+        if ($done > 1) {
+            $text = t('assistant.confirm.done_n', ['n' => (string)$done]);
+        } elseif ($done === 1) {
+            $text = self::formatConfirmDone($batch['result'] ?? null);
+        } else {
+            $text = t('assistant.chat.error');
+        }
+        if ($failed > 0) {
+            $text .= "\n" . t('assistant.confirm.failed_n', ['n' => (string)$failed]);
+            $err = trim((string)($batch['error'] ?? ''));
+            if ($err !== '') {
+                $text .= ': ' . $err;
+            }
+        }
+        return $text;
     }
 
     /**

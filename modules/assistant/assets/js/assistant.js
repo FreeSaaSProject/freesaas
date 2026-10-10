@@ -41,33 +41,48 @@
     if (!wrap || !pending || !pending.length) {
       return;
     }
+    var tokens = [];
+    var list = document.createElement('div');
+    list.className = 'assistant-chat__pending-list';
     pending.forEach(function (p) {
-      var row = document.createElement('div');
-      row.className = 'assistant-chat__pending';
-      var label = document.createElement('span');
-      label.textContent = t('pending', 'Confirm: {summary}').replace(
-        '{summary}',
-        p.summary || p.op_id || ''
-      );
-      var ok = document.createElement('button');
-      ok.type = 'button';
-      ok.className = 'btn';
-      ok.textContent = t('confirm', 'Confirm');
-      var no = document.createElement('button');
-      no.type = 'button';
-      no.className = 'btn';
-      no.textContent = t('cancel', 'Cancel');
-      ok.addEventListener('click', function () {
-        resolvePending(p.token, 'confirm', wrap);
-      });
-      no.addEventListener('click', function () {
-        resolvePending(p.token, 'cancel', wrap);
-      });
-      row.appendChild(label);
-      row.appendChild(ok);
-      row.appendChild(no);
-      wrap.appendChild(row);
+      if (!p || !p.token) {
+        return;
+      }
+      tokens.push(p.token);
+      var line = document.createElement('div');
+      line.className = 'assistant-chat__pending-item';
+      line.textContent = '• ' + (p.summary || p.op_id || p.token);
+      list.appendChild(line);
     });
+    if (!tokens.length) {
+      return;
+    }
+    wrap.appendChild(list);
+    var row = document.createElement('div');
+    row.className = 'assistant-chat__pending';
+    var ok = document.createElement('button');
+    ok.type = 'button';
+    ok.className = 'btn';
+    ok.textContent =
+      tokens.length > 1
+        ? t('confirm_all', 'Confirm all')
+        : t('confirm', 'Confirm');
+    var no = document.createElement('button');
+    no.type = 'button';
+    no.className = 'btn';
+    no.textContent =
+      tokens.length > 1
+        ? t('cancel_all', 'Cancel all')
+        : t('cancel', 'Cancel');
+    ok.addEventListener('click', function () {
+      resolvePendingBatch(tokens, 'confirm', wrap);
+    });
+    no.addEventListener('click', function () {
+      resolvePendingBatch(tokens, 'cancel', wrap);
+    });
+    row.appendChild(ok);
+    row.appendChild(no);
+    wrap.appendChild(row);
   }
 
   function formatTrace(trace) {
@@ -193,8 +208,12 @@
     }
   }
 
-  function resolvePending(token, action, wrap) {
+  function resolvePendingBatch(tokens, action, wrap) {
     setBusy(true);
+    var body =
+      tokens.length === 1
+        ? { token: tokens[0], action: action }
+        : { tokens: tokens, action: action };
     fetch(confirmUrl, {
       method: 'POST',
       headers: {
@@ -202,7 +221,7 @@
         'Content-Type': 'application/json',
       },
       credentials: 'same-origin',
-      body: JSON.stringify({ token: token, action: action }),
+      body: JSON.stringify(body),
     })
       .then(function (r) {
         return r.json().then(function (j) {
@@ -211,6 +230,14 @@
       })
       .then(function (res) {
         setBusy(false);
+        if (wrap) {
+          var stale = wrap.querySelectorAll(
+            '.assistant-chat__pending, .assistant-chat__pending-list'
+          );
+          stale.forEach(function (el) {
+            el.remove();
+          });
+        }
         if (res.json && Array.isArray(res.json.history)) {
           applyServerHistory(res.json.history);
           return;
@@ -223,12 +250,6 @@
               : t('error', 'Error');
         appendMsg(t('assistant', 'Assistant'), msg);
         history.push({ role: 'assistant', content: msg });
-        if (wrap) {
-          var buttons = wrap.querySelectorAll('.assistant-chat__pending');
-          buttons.forEach(function (el) {
-            el.remove();
-          });
-        }
       })
       .catch(function () {
         setBusy(false);

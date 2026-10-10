@@ -60,6 +60,47 @@ final class AssistantBotPlugin
                     self::replySplit($ctx, t('assistant.bot.cleared'));
                     return true;
                 }
+                if ($data === 'assistant:ok_all' || $data === 'assistant:no_all') {
+                    $action = $data === 'assistant:ok_all' ? 'confirm' : 'cancel';
+                    $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
+                    $uid = (int)($user['id'] ?? 0);
+                    if ($uid < 1) {
+                        return true;
+                    }
+                    $st = self::state($ctx);
+                    $stData = is_array($st['data'] ?? null) ? $st['data'] : [];
+                    $tokens = is_array($stData['pending_batch'] ?? null) ? $stData['pending_batch'] : [];
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                    try {
+                        $result = Auth::runAs($uid, static function () use ($tokens, $action, $uid) {
+                            if (!Auth::can('assistant.use')) {
+                                return [
+                                    'ok' => false,
+                                    'action' => $action,
+                                    'result' => null,
+                                    'error' => t('assistant.bot.denied'),
+                                    'done' => 0,
+                                    'failed' => 0,
+                                    'results' => [],
+                                ];
+                            }
+                            return AssistantHarness::resolvePendingBatch(
+                                array_map('strval', $tokens),
+                                $action,
+                                $uid
+                            );
+                        });
+                    } catch (Throwable $e) {
+                        self::replySplit($ctx, t('assistant.bot.denied'));
+                        return true;
+                    }
+                    $text = !empty($result['ok']) || (int)($result['done'] ?? 0) > 0
+                        ? AssistantHarness::formatConfirmBatchDone($result)
+                        : (string)($result['error'] ?? t('assistant.chat.error'));
+                    self::appendAssistantHistory($uid, $text);
+                    self::replySplit($ctx, $text);
+                    return true;
+                }
                 if (preg_match('/^assistant:(ok|no):([a-f0-9]{16})$/', $data, $m)) {
                     $action = $m[1] === 'ok' ? 'confirm' : 'cancel';
                     $token = $m[2];
@@ -136,12 +177,8 @@ final class AssistantBotPlugin
                 }
                 if (is_array($textConfirm) && !empty($textConfirm['handled'])) {
                     self::setState($ctx, 'await_input', ['user_id' => $uid]);
-                    if (!empty($textConfirm['ok']) && ($textConfirm['action'] ?? '') === 'confirm') {
-                        $reply = AssistantHarness::formatConfirmDone($textConfirm['result'] ?? null);
-                        self::appendAssistantHistory($uid, $reply);
-                        self::replySplit($ctx, $reply);
-                    } elseif (!empty($textConfirm['ok'])) {
-                        $reply = t('assistant.confirm.cancelled');
+                    if (!empty($textConfirm['ok']) || (int)($textConfirm['done'] ?? 0) > 0) {
+                        $reply = AssistantHarness::formatConfirmBatchDone($textConfirm);
                         self::appendAssistantHistory($uid, $reply);
                         self::replySplit($ctx, $reply);
                     } else {
@@ -178,8 +215,8 @@ final class AssistantBotPlugin
                             'on_progress' => static function (array $ev) use ($ctx): void {
                                 $phase = (string)($ev['phase'] ?? '');
                                 $status = (string)($ev['status'] ?? '');
-                                // Live «calling…»; result only for pending/error (skip noisy ✅ ok).
-                                if ($phase === 'done' && $status === 'ok') {
+                                // Live «calling…»; skip ok/pending noise (batch UI lists pending once).
+                                if ($phase === 'done' && ($status === 'ok' || $status === 'pending')) {
                                     return;
                                 }
                                 $line = AssistantHarness::formatProgressEvent($ev);
@@ -214,36 +251,65 @@ final class AssistantBotPlugin
                 }
                 $keyboard = null;
                 $display = $reply;
+                $batchTokens = [];
                 if ($pending !== []) {
-                    $rows = [];
+                    $lines = [];
                     foreach ($pending as $p) {
                         if (!is_array($p)) {
                             continue;
                         }
                         $token = (string)($p['token'] ?? '');
-                        $summary = (string)($p['summary'] ?? '');
+                        $summary = trim((string)($p['summary'] ?? ''));
                         if ($token === '') {
                             continue;
                         }
-                        $display .= "\n\n" . t('assistant.confirm.pending', ['summary' => $summary]);
-                        $rows[] = [
-                            [
-                                'text' => t('assistant.confirm.btn'),
-                                'callback_data' => 'assistant:ok:' . $token,
-                            ],
-                            [
-                                'text' => t('assistant.confirm.cancel'),
-                                'callback_data' => 'assistant:no:' . $token,
-                            ],
-                        ];
+                        $batchTokens[] = $token;
+                        if ($summary !== '') {
+                            $lines[] = '• ' . $summary;
+                        }
                     }
-                    if ($rows !== []) {
-                        $keyboard = self::kbChrome($rows);
+                    if ($batchTokens !== []) {
+                        $n = count($batchTokens);
+                        $display .= "\n\n" . t('assistant.confirm.pending_n', ['n' => (string)$n]);
+                        if ($lines !== []) {
+                            $display .= "\n" . implode("\n", $lines);
+                        }
+                        if ($n === 1) {
+                            $tok = $batchTokens[0];
+                            $keyboard = self::kbChrome([[
+                                [
+                                    'text' => t('assistant.confirm.btn'),
+                                    'callback_data' => 'assistant:ok:' . $tok,
+                                ],
+                                [
+                                    'text' => t('assistant.confirm.cancel'),
+                                    'callback_data' => 'assistant:no:' . $tok,
+                                ],
+                            ]]);
+                            self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                        } else {
+                            self::setState($ctx, 'await_input', [
+                                'user_id' => $uid,
+                                'pending_batch' => $batchTokens,
+                            ]);
+                            $keyboard = self::kbChrome([[
+                                [
+                                    'text' => t('assistant.confirm.btn_all'),
+                                    'callback_data' => 'assistant:ok_all',
+                                ],
+                                [
+                                    'text' => t('assistant.confirm.cancel_all'),
+                                    'callback_data' => 'assistant:no_all',
+                                ],
+                            ]]);
+                        }
                     }
                 }
 
                 self::saveHistory($uid, $history, $reply);
-                self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                if ($batchTokens === [] || count($batchTokens) === 1) {
+                    self::setState($ctx, 'await_input', ['user_id' => $uid]);
+                }
                 self::replySplit($ctx, $display, $keyboard);
                 return true;
             },

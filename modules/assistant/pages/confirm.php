@@ -17,25 +17,51 @@ if ($bodyIn === []) {
     $bodyIn = $_POST;
 }
 
-$token = trim((string)($bodyIn['token'] ?? ''));
 $action = trim((string)($bodyIn['action'] ?? ''));
-if ($token === '' || $action === '') {
-    AgentHttp::error('token and action required');
+$tokens = [];
+if (isset($bodyIn['tokens']) && is_array($bodyIn['tokens'])) {
+    foreach ($bodyIn['tokens'] as $tok) {
+        $tok = trim((string)$tok);
+        if ($tok !== '') {
+            $tokens[] = $tok;
+        }
+    }
+}
+$token = trim((string)($bodyIn['token'] ?? ''));
+if ($token !== '') {
+    $tokens[] = $token;
+}
+$tokens = array_values(array_unique($tokens));
+if ($tokens === [] || $action === '') {
+    AgentHttp::error('token(s) and action required');
 }
 
 $userId = Auth::userId();
-$result = AssistantHarness::resolvePending($token, $action, $userId);
-if (!$result['ok']) {
+$result = count($tokens) === 1
+    ? AssistantHarness::resolvePending($tokens[0], $action, $userId) + ['done' => 0, 'failed' => 0, 'results' => []]
+    : AssistantHarness::resolvePendingBatch($tokens, $action, $userId);
+
+if (count($tokens) === 1) {
+    // Normalize single resolve into batch-shaped reply fields.
+    if (!empty($result['ok'])) {
+        $result['done'] = 1;
+        $result['failed'] = 0;
+    } else {
+        $result['done'] = 0;
+        $result['failed'] = 1;
+    }
+    $result['results'] = [$result];
+}
+
+if (empty($result['ok']) && (int)($result['done'] ?? 0) < 1) {
     AgentHttp::error(
-        $result['error'] !== '' ? $result['error'] : t('assistant.chat.error'),
+        ($result['error'] ?? '') !== '' ? (string)$result['error'] : t('assistant.chat.error'),
         400,
-        ['action' => $result['action']]
+        ['action' => $result['action'] ?? $action]
     );
 }
 
-$message = $result['action'] === 'confirm'
-    ? AssistantHarness::formatConfirmDone($result['result'] ?? null)
-    : t('assistant.confirm.cancelled');
+$message = AssistantHarness::formatConfirmBatchDone($result);
 
 if ($userId > 0 && class_exists('AssistantDialog', false)) {
     $history = AssistantDialog::getHistory($userId);
@@ -45,8 +71,10 @@ if ($userId > 0 && class_exists('AssistantDialog', false)) {
 
 AgentHttp::emit([
     'ok' => true,
-    'action' => $result['action'],
-    'result' => $result['result'],
+    'action' => $result['action'] ?? $action,
+    'result' => $result['result'] ?? null,
+    'done' => (int)($result['done'] ?? 0),
+    'failed' => (int)($result['failed'] ?? 0),
     'message' => $message,
     'history' => class_exists('AssistantDialog', false)
         ? AssistantDialog::getHistory($userId)

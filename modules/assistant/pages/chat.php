@@ -29,10 +29,8 @@ if ($message !== '') {
     $textConfirm = AssistantHarness::tryResolveConfirmText($message, $userId);
     if (is_array($textConfirm) && !empty($textConfirm['handled'])) {
         $history[] = ['role' => 'user', 'content' => $message];
-        if (!empty($textConfirm['ok']) && ($textConfirm['action'] ?? '') === 'confirm') {
-            $reply = AssistantHarness::formatConfirmDone($textConfirm['result'] ?? null);
-        } elseif (!empty($textConfirm['ok'])) {
-            $reply = t('assistant.confirm.cancelled');
+        if (!empty($textConfirm['ok']) || (int)($textConfirm['done'] ?? 0) > 0) {
+            $reply = AssistantHarness::formatConfirmBatchDone($textConfirm);
         } else {
             $reply = (string)($textConfirm['error'] ?? t('assistant.chat.error'));
         }
