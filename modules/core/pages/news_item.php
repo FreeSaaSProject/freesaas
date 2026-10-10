@@ -164,6 +164,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     if (!NewsChecklistRepository::delete($itemId, $id)) {
                         throw new RuntimeException(t('core.checklist.err.not_found'));
                     }
+                } elseif ($action === 'checklist_sort_done') {
+                    $pos = (string)($_POST['done_position'] ?? 'bottom');
+                    if ($pos !== 'top' && $pos !== 'bottom') {
+                        $pos = 'bottom';
+                    }
+                    NewsChecklistRepository::sortByDone($id, $pos);
                 } else {
                     throw new RuntimeException('unknown checklist action');
                 }

@@ -154,6 +154,39 @@ final class NewsChecklistRepository
         return true;
     }
 
+    /**
+     * Reorder items: done to bottom or top (relative order within groups kept).
+     *
+     * @param 'bottom'|'top' $donePosition
+     */
+    public static function sortByDone(int $newsId, string $donePosition = 'bottom'): void
+    {
+        if ($newsId < 1 || !self::tableReady()) {
+            return;
+        }
+        $doneFirst = $donePosition === 'top';
+        $items = self::listFor($newsId);
+        if ($items === []) {
+            return;
+        }
+        $open = [];
+        $done = [];
+        foreach ($items as $it) {
+            if (!empty($it['DONE'])) {
+                $done[] = $it;
+            } else {
+                $open[] = $it;
+            }
+        }
+        $ordered = $doneFirst ? array_merge($done, $open) : array_merge($open, $done);
+        $st = Database::pdo()->prepare('UPDATE base_news_checklist SET SORT = ? WHERE ID = ? AND ID_NEWS = ?');
+        $sort = 10;
+        foreach ($ordered as $it) {
+            $st->execute([$sort, (int)$it['ID'], $newsId]);
+            $sort += 10;
+        }
+    }
+
     public static function find(int $id): ?array
     {
         if ($id < 1 || !self::tableReady()) {

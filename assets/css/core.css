@@ -2435,6 +2435,40 @@ table.data tr.is-disabled td a {
   gap: 0.5rem;
 }
 .checklist-item.is-done span { text-decoration: line-through; color: var(--muted); }
+.checklist-progress-label {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.checklist-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  margin: 0.15rem 0 0.25rem;
+}
+.checklist-add-wrap {
+  margin-top: 0.5rem;
+}
+.checklist-add-toggle {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+  user-select: none;
+}
+.checklist-add-toggle::-webkit-details-marker { display: none; }
+.checklist-add-toggle::before {
+  content: '▸';
+  font-size: 0.75rem;
+}
+.checklist-add-wrap[open] > .checklist-add-toggle::before { content: '▾'; }
+.checklist-add-wrap[open] > .checklist-add-toggle {
+  color: inherit;
+  font-weight: 600;
+  margin-bottom: 0.4rem;
+}
 .checklist-add {
   display: grid;
   gap: 0.45rem;
