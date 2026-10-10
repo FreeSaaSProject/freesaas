@@ -16,12 +16,34 @@ final class Auth
             return;
         }
         session_name(self::SESSION_NAME);
+        // Own dir: shared-hosting /tmp GC from other apps (short gc_maxlifetime) deletes our files.
+        // UpdateEngine never overwrites var/.
+        self::ensureSessionSavePath();
         // GC must cover the longest cookie; remember flag is known only after start.
         self::applySessionIni(self::rememberLifetimeSeconds());
         session_set_cookie_params(self::cookieParams(0));
         session_start();
         if (!empty($_SESSION['user_id']) && !empty($_SESSION['remember'])) {
             self::touchSessionCookie();
+        }
+    }
+
+    /** Put PHP session files under var/sessions (isolated from system /tmp). */
+    private static function ensureSessionSavePath(): void
+    {
+        if (!function_exists('base_path')) {
+            return;
+        }
+        $dir = base_path('var/sessions');
+        if (!is_dir($dir)) {
+            $parent = base_path('var');
+            if (!is_dir($parent)) {
+                @mkdir($parent, 0775, true);
+            }
+            @mkdir($dir, 0700, true);
+        }
+        if (is_dir($dir) && is_writable($dir)) {
+            session_save_path($dir);
         }
     }
 
@@ -40,7 +62,11 @@ final class Auth
 
     private static function isHttps(): bool
     {
-        return !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
+            return true;
+        }
+        $fwd = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+        return $fwd === 'https';
     }
 
     private static function rememberDays(): int

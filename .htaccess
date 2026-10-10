@@ -16,8 +16,8 @@ DirectorySlash Off
   RewriteRule ^modules/?$ index.php [L,QSA]
   RewriteRule ^modules/ index.php [L,QSA]
 
-  # Block direct web access to internals
-  RewriteRule ^(app|cfg|bin|docs)/ - [F,L]
+  # Block direct web access to internals (var/ holds sessions, dumps, job locks).
+  RewriteRule ^(app|cfg|bin|docs|var|log)/ - [F,L]
 
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
