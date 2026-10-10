@@ -35,10 +35,7 @@ final class CollectRunner
              WHERE ID_RECORD > 0 AND ID_RECORD NOT IN (SELECT ID FROM base_records)'
         );
 
-        if ($fullRebuild && $onlyAdminIds === null && !$hasWindow) {
-            $pdo->exec('TRUNCATE TABLE base_records_collections_datas');
-            $pdo->exec('TRUNCATE TABLE base_records_collections');
-        }
+        // Never TRUNCATE all collections — clear per admin (or window) before rebuild.
 
         $scripts = self::loadScripts();
         if ($scripts['by_id'] === []) {
@@ -82,7 +79,7 @@ final class CollectRunner
             }
             if ($hasWindow) {
                 self::deleteCollectionsInWindow($pdo, $adminId, $winStart, $winEnd);
-            } elseif (!$fullRebuild || $onlyAdminIds !== null) {
+            } else {
                 $ids = $pdo->prepare('SELECT ID FROM base_records_collections WHERE ID_ADMIN = ?');
                 $ids->execute([$adminId]);
                 $colIds = array_map('intval', $ids->fetchAll(PDO::FETCH_COLUMN) ?: []);

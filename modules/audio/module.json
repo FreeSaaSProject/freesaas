@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -187,7 +187,24 @@
         "base_records_reviews",
         "base_audio_settings"
     ],
-    "migrators": [],
+    "migrators": [
+        {
+            "id": "export_record_scores",
+            "mode": "export",
+            "source": [
+                "base_records"
+            ],
+            "target": []
+        },
+        {
+            "id": "import_record_scores",
+            "mode": "fill",
+            "source": [],
+            "target": [
+                "base_records"
+            ]
+        }
+    ],
     "hooks": {
         "subscribe": [
             "core.user_edit.sections",

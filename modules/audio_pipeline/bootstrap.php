@@ -52,23 +52,12 @@ foreach ($jobRoutes as $path => $file) {
 }
 
 EventBus::on('audio_dicts.changed', static function ($payload) {
+    // NEVER wipe instances / collections / SCORE for the whole DB here.
+    // A single key/dict/type/trash save used to call markAllForReparse() and
+    // zero every SCORE + DELETE all instances — that bit production.
+    // Safe reaction: refresh stem lemma cache only. Day/record reparse stays
+    // explicit via calendar Re-® or /audio/jobs/stem?reset=1&day=…|record=….
     StemRunner::invalidateCaches();
-    $entity = is_array($payload) ? (string)($payload['entity'] ?? '') : '';
-    // Keys / dicts / types / trashes change lemma matching → full reparse backlog.
-    if (in_array($entity, ['keys', 'dicts', 'types', 'trashes'], true)) {
-        StemRunner::markAllForReparse();
-    }
-    // Script graph change → rebuild collections from existing instances.
-    if ($entity === 'scripts' && class_exists('CollectRunner', false)) {
-        // Deferred: cron /audio/jobs/collect?full=1; avoid long request on save.
-        // Mark via collections truncate so next collect rebuilds everyone.
-        if (Database::tableExists('base_records_collections_datas')) {
-            Database::pdo()->exec('TRUNCATE TABLE base_records_collections_datas');
-        }
-        if (Database::tableExists('base_records_collections')) {
-            Database::pdo()->exec('TRUNCATE TABLE base_records_collections');
-        }
-    }
     return is_array($payload) ? $payload : [];
 });
 

@@ -94,39 +94,17 @@ final class StemRunner
     }
 
     /**
+     * @deprecated Global wipe removed — never clears the whole DB.
+     * Use resetDay($start, $end, …) or stem?reset=1&day=YYYY-MM-DD|record=ID.
+     *
      * @return array{records:int,instances:int,collections:int,collections_datas:int}
      */
     public static function markAllForReparse(): array
     {
-        $pdo = Database::pdo();
-        $stats = [
-            'records' => 0,
-            'instances' => 0,
-            'collections' => 0,
-            'collections_datas' => 0,
-        ];
-        if (!Database::tableExists('base_records')) {
-            return $stats;
-        }
-        $stats['records'] = (int)$pdo->query(
-            'SELECT COUNT(*) FROM base_records WHERE DT_TRANSCRIBED > 1'
-        )->fetchColumn();
-        $pdo->exec(
-            "UPDATE base_records SET DT_PARSED = 0, KEY_TYPES = '', OFFERS = '0',
-             INTERSECTIONS = '', SCORE = '0', STRINGS = '0', STRINGS_NOK = '0'
-             WHERE DT_TRANSCRIBED > 1"
+        throw new RuntimeException(
+            'markAllForReparse is disabled: refuse global SCORE/instances wipe. '
+            . 'Reparse a day or record only (StemRunner::resetDay / stem?reset=1&day=…|record=…).'
         );
-        if (Database::tableExists('base_records_instances')) {
-            $stats['instances'] = (int)$pdo->exec('DELETE FROM base_records_instances');
-        }
-        if (Database::tableExists('base_records_collections_datas')) {
-            $pdo->exec('TRUNCATE TABLE base_records_collections_datas');
-        }
-        if (Database::tableExists('base_records_collections')) {
-            $pdo->exec('TRUNCATE TABLE base_records_collections');
-        }
-
-        return $stats;
     }
 
     /**

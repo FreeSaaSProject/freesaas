@@ -10,32 +10,83 @@ final class DataMigrator
     {
         $report = [];
         foreach (ModuleManager::all() as $modId => $meta) {
-            if (empty($meta['_enabled'])) continue;
-            $migrators = $meta['migrators'] ?? [];
-            if (!is_array($migrators)) continue;
-            $dir = $meta['_dir'] . '/migrators';
-            foreach ($migrators as $spec) {
-                if (!is_array($spec) || empty($spec['id'])) continue;
-                $id = (string)$spec['id'];
-                $file = $dir . '/' . $id . '.php';
-                if (!is_file($file)) {
-                    $report[] = ['module' => $modId, 'id' => $id, 'status' => 'error', 'message' => 'File missing'];
-                    continue;
-                }
-                try {
-                    /** @var callable $fn */
-                    $fn = require $file;
-                    if (!is_callable($fn)) {
-                        throw new RuntimeException('Migrator must return callable');
-                    }
-                    $stats = $fn(Database::pdo(), $spec);
-                    $report[] = ['module' => $modId, 'id' => $id, 'status' => 'ok', 'stats' => is_array($stats) ? $stats : []];
-                } catch (Throwable $e) {
-                    $report[] = ['module' => $modId, 'id' => $id, 'status' => 'error', 'message' => $e->getMessage()];
-                }
+            if (empty($meta['_enabled'])) {
+                continue;
+            }
+            foreach (self::specsForModule((string)$modId, $meta) as $spec) {
+                $report[] = self::runSpec((string)$modId, $meta, $spec);
             }
         }
         return $report;
+    }
+
+    /**
+     * Run one migrator by module id + migrator id (safe; does not run the whole catalog).
+     *
+     * @return array{module:string,id:string,status:string,message?:string,stats?:array}
+     */
+    public static function runOne(string $moduleId, string $migratorId): array
+    {
+        $moduleId = trim($moduleId);
+        $migratorId = trim($migratorId);
+        if ($moduleId === '' || $migratorId === '') {
+            return ['module' => $moduleId, 'id' => $migratorId, 'status' => 'error', 'message' => 'module and id required'];
+        }
+        $meta = ModuleManager::get($moduleId);
+        if ($meta === null) {
+            return ['module' => $moduleId, 'id' => $migratorId, 'status' => 'error', 'message' => 'Unknown module'];
+        }
+        foreach (self::specsForModule($moduleId, $meta) as $spec) {
+            if ((string)($spec['id'] ?? '') === $migratorId) {
+                return self::runSpec($moduleId, $meta, $spec);
+            }
+        }
+        return ['module' => $moduleId, 'id' => $migratorId, 'status' => 'error', 'message' => 'Migrator not declared in module.json'];
+    }
+
+    /**
+     * @param array<string,mixed> $meta
+     * @return list<array<string,mixed>>
+     */
+    private static function specsForModule(string $modId, array $meta): array
+    {
+        $migrators = $meta['migrators'] ?? [];
+        if (!is_array($migrators)) {
+            return [];
+        }
+        $out = [];
+        foreach ($migrators as $spec) {
+            if (is_array($spec) && !empty($spec['id'])) {
+                $out[] = $spec;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $meta
+     * @param array<string,mixed> $spec
+     * @return array{module:string,id:string,status:string,message?:string,stats?:array}
+     */
+    private static function runSpec(string $modId, array $meta, array $spec): array
+    {
+        $id = (string)$spec['id'];
+        $dir = (string)($meta['_dir'] ?? '') . '/migrators';
+        $file = $dir . '/' . $id . '.php';
+        if (!is_file($file)) {
+            return ['module' => $modId, 'id' => $id, 'status' => 'error', 'message' => 'File missing'];
+        }
+        try {
+            /** @var callable $fn */
+            $fn = require $file;
+            if (!is_callable($fn)) {
+                throw new RuntimeException('Migrator must return callable');
+            }
+            $stats = $fn(Database::pdo(), $spec);
+            return ['module' => $modId, 'id' => $id, 'status' => 'ok', 'stats' => is_array($stats) ? $stats : []];
+        } catch (Throwable $e) {
+            return ['module' => $modId, 'id' => $id, 'status' => 'error', 'message' => $e->getMessage()];
+        }
     }
 
     /**
