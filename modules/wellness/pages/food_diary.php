@@ -9,7 +9,7 @@ if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
 }
 
 $reqPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?: '/wellness');
-$path = str_starts_with($reqPath, '/wellness/food-diary') ? '/wellness/food-diary' : '/wellness';
+$path = strpos($reqPath, '/wellness/food-diary') === 0 ? '/wellness/food-diary' : '/wellness';
 $listId = 'wellness_food_diary';
 
 $lq = ListQuery::resolve([
