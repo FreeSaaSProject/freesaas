@@ -562,13 +562,13 @@
                 "path": "/news/{id}",
                 "permission": "core.news",
                 "side_effect": "write",
-                "description": "News item actions. Comments: comment/edit_comment/hide_comment/show_comment/delete_comment (superadmin can hard-delete any without replies). Checklist: checklist_add (title), checklist_toggle|rename|delete (item_id). Also like, favorite, delete (item), restore_version.",
+                "description": "News item actions. Comments: comment/edit_comment/hide_comment/show_comment/delete_comment (superadmin can hard-delete any without replies). Checklist: checklist_add (title, multiline ok), checklist_toggle|rename|delete (item_id), checklist_sort_done (done_position=top|bottom). Also like, favorite, delete (item), restore_version.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "action": {
                             "type": "string",
-                            "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|checklist_add|checklist_toggle|checklist_rename|checklist_delete|like|favorite|delete|restore_version|color_comment"
+                            "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|checklist_add|checklist_toggle|checklist_rename|checklist_delete|checklist_sort_done|like|favorite|delete|restore_version|color_comment"
                         },
                         "title": { "type": "string", "description": "Checklist item title (add/rename)" },
                         "item_id": { "type": "integer", "description": "Checklist item id" },
