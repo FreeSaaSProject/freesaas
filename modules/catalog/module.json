@@ -4,6 +4,7 @@
     "description": "catalog.module.description",
     "version": "0.1.0",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0"
     },
@@ -165,6 +166,8 @@
             "core.bulk.check_item"
         ],
         "publish": [
+            "catalog.product_edit.sections",
+            "catalog.product_edit.save",
             "catalog.product_edit.after"
         ]
     },

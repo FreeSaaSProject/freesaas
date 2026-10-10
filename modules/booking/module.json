@@ -1,0 +1,108 @@
+{
+    "id": "booking",
+    "name": "booking.module.name",
+    "description": "booking.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "runtime": "both",
+    "requires": {
+        "core": ">=0.3.0",
+        "catalog": ">=0.1.0",
+        "clients": ">=0.1.0",
+        "workweeks": ">=0.1.0",
+        "calendar": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "orders": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "rates": ">=0.1.0"
+    },
+    "provides": [
+        "booking.slots",
+        "booking.availability",
+        "booking.book"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "booking.view",
+            "label": "booking.perm.view"
+        },
+        {
+            "id": "booking.edit",
+            "label": "booking.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/booking/new",
+            "/booking/availability",
+            "/booking/book",
+            "/booking/clients"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "booking.new",
+                "method": "GET",
+                "path": "/booking/new",
+                "permission": "booking.edit",
+                "description": "Staff booking UI; query date, product_ids[], operator_id|staff, hour, ret"
+            },
+            {
+                "id": "booking.availability",
+                "method": "GET",
+                "path": "/booking/availability",
+                "permission": "booking.view",
+                "description": "Slots for date + product_ids (+ optional operator_id); filters by rates/restrict/shifts like legacy shop"
+            },
+            {
+                "id": "booking.book",
+                "method": "POST",
+                "path": "/booking/book",
+                "permission": "booking.edit",
+                "description": "Create advance order + ensure client card: phone, product_ids, operator_id, dt_start, optional client_name/client_id/comment"
+            },
+            {
+                "id": "booking.clients",
+                "method": "GET",
+                "path": "/booking/clients",
+                "permission": "booking.edit",
+                "description": "Client phone digit search for booking UI; query q=digits&limit="
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "calendar.menu.group",
+            "num": 15,
+            "kind": "work",
+            "path": "/booking/new",
+            "title": "booking.menu.new",
+            "permission": "booking.edit"
+        }
+    ],
+    "configSchema": [],
+    "tables": [],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": [
+            "booking.book.before",
+            "booking.book.after"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "site",
+            "team"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "journal"
+        ],
+        "screenshots": []
+    }
+}

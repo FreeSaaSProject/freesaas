@@ -27,7 +27,7 @@ return static function (PDO $pdo, array $spec): array {
                 price, price2, price3, price4, price5,
                 IS_MATERIAL, TYPE, TIME, TIME_NET, DESCR_PROC,
                 ID_UNIT, ID_UNITU, ID_SUPPLIER, AMOUNT_IN_STOCK_REQ, AMOUNT_IN_STOCK_MAX,
-                CAN_BE_SOLD_ADMIN, CAN_BE_EXECUTED_ADMIN, IS_STATUS_CARD, HIDE_IN_HISTORY,
+                IS_STATUS_CARD, HIDE_IN_HISTORY,
                 `1C_ID`, dop_cat, AMOUNT_DONE, ID_ADMIN_LAST_UPDATE, DT_ADMIN_LAST_UPDATE
          FROM phpshop_products'
     )->fetchAll(PDO::FETCH_ASSOC) ?: [];
@@ -38,14 +38,14 @@ return static function (PDO $pdo, array $spec): array {
             price, price2, price3, price4, price5,
             is_material, type_id, time_sec, time_net, descr_proc,
             unit_id, unit_use_id, supplier_id, stock_min, stock_max,
-            can_be_sold, can_be_executed, is_status_card, hide_in_history,
+            hide_on_site, hide_in_history,
             onec_id, dop_cat, amount_done, last_admin_id, last_admin_at
          ) VALUES (
             ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?,
-            ?, ?, ?, ?,
+            ?, ?,
             ?, ?, ?, ?, ?
          )'
     );
@@ -87,8 +87,6 @@ return static function (PDO $pdo, array $spec): array {
             (int)($r['ID_SUPPLIER'] ?? 0),
             (int)($r['AMOUNT_IN_STOCK_REQ'] ?? 0),
             (int)($r['AMOUNT_IN_STOCK_MAX'] ?? 0),
-            (int)($r['CAN_BE_SOLD_ADMIN'] ?? 0) ? 1 : 0,
-            (int)($r['CAN_BE_EXECUTED_ADMIN'] ?? 0) ? 1 : 0,
             (int)($r['IS_STATUS_CARD'] ?? 0) ? 1 : 0,
             (int)($r['HIDE_IN_HISTORY'] ?? 0) ? 1 : 0,
             (string)($r['1C_ID'] ?? ''),

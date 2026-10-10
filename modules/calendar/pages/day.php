@@ -34,30 +34,34 @@ if (isset($_GET['shift_ok'])) {
 
 $events = EventsRepository::listForDayRange($dayStart, $dayEnd, $staffFilter);
 $procedures = ProceduresRepository::listForDayRange($dayStart, $dayEnd, $staffFilter);
+$orders = CalendarTimeline::advanceOrdersForRange($dayStart, $dayEnd, $staffFilter);
 $shifts = WorkweeksRepository::listForDay($dayStart);
 
 $dateLabel = date('d.m.Y', $dayStart);
 $canEdit = Auth::can('calendar.edit');
 $canCreate = EventsRepository::canCreate();
 
-$opIds = CalendarTimeline::collectOperatorIds($events, $procedures);
+$opIds = CalendarTimeline::collectOperatorIds($events, $procedures, $orders);
 foreach ($shifts as $sh) {
     $opIds[] = (int)$sh['id_operator'];
 }
 if ($staffId > 0 && $opIds === []) {
     $opIds = [$staffId];
 }
-$stackOpIds = CalendarTimeline::collectOperatorIds($events, $procedures);
+$stackOpIds = CalendarTimeline::collectOperatorIds($events, $procedures, $orders);
 if ($staffId > 0 && $stackOpIds === []) {
     $stackOpIds = [$staffId];
 }
 $stacks = CalendarTimeline::staffStacks($stackOpIds);
 $colors = CalendarTimeline::operatorColors($opIds);
-$chips = CalendarTimeline::chipsForDay($dayStart, $events, $procedures, $stacks, $colors, $canEdit);
+$chips = CalendarTimeline::chipsForDay($dayStart, $events, $procedures, $stacks, $colors, $canEdit, $orders);
 $retDay = '/calendar/day/' . $dateParam . ($staffId > 0 && !$myOnly ? ('?staff=' . $staffId) : '');
 foreach ($chips as &$chip) {
     if (($chip['kind'] === 'event' || $chip['kind'] === 'block') && $canEdit) {
         $chip['href'] .= '?ret=' . rawurlencode($retDay);
+    }
+    if ($chip['kind'] === 'order') {
+        $chip['href'] .= (strpos($chip['href'], '?') !== false ? '&' : '?') . 'ret=' . rawurlencode($retDay);
     }
 }
 unset($chip);
@@ -130,6 +134,7 @@ if ($wantsJson) {
         'can_create' => $canCreate,
         'events' => EventsRepository::listForAgent($events),
         'procedures' => $procedures,
+        'orders' => $orders,
         'shifts' => WorkweeksRepository::listForAgent($shifts),
     ]);
     return;

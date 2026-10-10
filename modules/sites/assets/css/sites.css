@@ -1,0 +1,44 @@
+/* Sites CMS admin (pages / promo LPs / redirects) */
+
+.likespa-page-name,
+.sites-page-name {
+  display: inline-block;
+  margin-left: calc(var(--depth, 0) * 1.25rem);
+}
+.likespa-page-name.is-strong,
+.sites-page-name.is-strong {
+  font-weight: 600;
+}
+.likespa-page-add-child,
+.sites-page-add-child {
+  margin-left: 0.4rem;
+  font-size: 0.85em;
+  text-decoration: none;
+}
+
+.likespa-lp-modules,
+.sites-lp-modules {
+  margin-top: 1rem;
+}
+.likespa-lp-mod,
+.sites-lp-mod {
+  border: 1px solid var(--line, #ddd);
+  border-radius: 8px;
+  padding: 0.35rem 0.75rem 0.75rem;
+  margin: 0.5rem 0;
+  background: var(--bg-elev, transparent);
+}
+.likespa-lp-mod > summary,
+.sites-lp-mod > summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.35rem 0;
+}
+.likespa-lp-mod > summary code,
+.sites-lp-mod > summary code {
+  margin-right: 0.4rem;
+}
+.likespa-lp-mod-body,
+.sites-lp-mod-body {
+  margin-top: 0.5rem;
+}

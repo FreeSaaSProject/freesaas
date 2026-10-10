@@ -122,6 +122,9 @@ return [
     'terminals.user_edit.sec' => 'Terminal / staff bracelet',
     'terminals.user_edit.hint' => 'NFC UID used by terminals to recognize this staff member without calling 1C. Clear to unlink. Not the locker bracelet registry.',
     'terminals.user_edit.bracelet_uid' => 'Staff bracelet (UID)',
+    'terminals.product_edit.sec' => '1C',
+    'terminals.product_edit.hint' => '1C nomenclature id for terminal sync. The catalog column keeps its value even if terminals is disabled.',
+    'terminals.product_edit.onec_id' => '1C ID',
     'terminals.module.description' => 'Device registry, bracelets, therm occupancy/orders; 1C/volgatermy sync jobs.',
     'terminals.module.summary' => 'Enable for thermal-area terminals and bracelet flow. Soft catalog/clients. Configure cfg/modules/terminals.ini for sync tokens. Disableable — only where therm hardware/1C sync is used.',
 ];

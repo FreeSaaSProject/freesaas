@@ -220,14 +220,12 @@ if (ModuleManager::isEnabled('bonuses')) {
     }
 }
 
-$staffNames = [];
-foreach (UsersRepository::listEnabledStaff() as $u) {
-    $label = trim((string)$u['name']);
-    if ($label === '') {
-        $label = (string)$u['login'];
-    }
-    $staffNames[(int)$u['id']] = $label;
+$dayForStaff = (int)($row['dtstart'] ?? 0);
+if ($dayForStaff <= 0) {
+    $dayForStaff = time();
 }
+$keepOp = (int)($row['id_operator'] ?? 0);
+$staffNames = EventsRepository::staffChoicesForDay($dayForStaff, $keepOp);
 
 $productNames = ProductsRepository::names(true);
 $productPrices = ProductsRepository::priceMap(true);

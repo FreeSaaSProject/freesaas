@@ -118,12 +118,29 @@ final class Router
         self::$matched = is_array($matched) ? $matched : null;
 
         if ($matched === null) {
+            $nf = EventBus::emit('router.not_found', [
+                'path' => $path,
+                'method' => $method,
+                'handled' => false,
+            ]);
+            if (!empty($nf['handled'])) {
+                return;
+            }
             http_response_code(404);
+            $layout = (class_exists('AppRuntime', false) && AppRuntime::isStorefront()) ? '' : 'layout';
+            if ($layout === '' && class_exists('SiteTheme', false)) {
+                SiteTheme::render('error', [
+                    'title' => t('sites.error.not_found_title'),
+                    'message' => t('sites.error.not_found_message'),
+                    'hint' => $path,
+                ], 'layout');
+                return;
+            }
             View::render('error', [
                 'title' => 'Not found',
                 'message' => 'Route not found: ' . $path,
                 'hint' => 'Enable the owning module or check Module Manager routes.',
-            ]);
+            ], $layout === '' ? 'layout' : $layout);
             return;
         }
 

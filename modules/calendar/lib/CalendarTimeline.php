@@ -203,6 +203,7 @@ final class CalendarTimeline
      * @param list<array<string,mixed>> $events
      * @param list<array<string,mixed>> $procedures
      * @param array<int,array{bg:string,fg:string}> $colors
+     * @param list<array<string,mixed>> $orders advance website orders (base_orders)
      * @return list<array<string,mixed>>
      */
     public static function chipsForDay(
@@ -211,7 +212,8 @@ final class CalendarTimeline
         array $procedures,
         array $stacks,
         array $colors,
-        bool $canEditEvents
+        bool $canEditEvents,
+        array $orders = []
     ): array {
         $width = (float)($stacks['width'] ?? 95);
         $lefts = $stacks['lefts'] ?? [0 => 0.0];
@@ -317,7 +319,70 @@ final class CalendarTimeline
             ];
         }
 
+        foreach ($orders as $ord) {
+            $ts = (int)($ord['dt_event'] ?? 0);
+            if ($ts <= 0) {
+                continue;
+            }
+            $op = (int)($ord['id_cosmetolog'] ?? $ord['id_operator'] ?? 0);
+            $end = $ts + self::orderDurationSec($ord);
+            $pos = self::position($dayStart, $ts, $end);
+            $phone = trim((string)($ord['phone'] ?? ''));
+            $status = trim((string)($ord['status'] ?? ''));
+            $label = date('H:i', $ts) . ' ' . t('calendar.widget.board.order');
+            if ($phone !== '') {
+                $label .= ' ' . $phone;
+            }
+            $info = '<div class="calendar-info-head">' . t('calendar.widget.board.order')
+                . ' #' . (int)($ord['id'] ?? 0) . '</div>'
+                . '<div>' . date('H:i', $ts) . ' – ' . date('H:i', $end) . '</div>';
+            if ($phone !== '') {
+                $info .= '<div>' . $phone . '</div>';
+            }
+            if ($status !== '') {
+                $info .= '<div class="muted">' . $status . '</div>';
+            }
+            if (isset($ord['summ_real'])) {
+                $info .= '<div><b>' . number_format((float)$ord['summ_real'], 0, '.', ' ') . '</b></div>';
+            }
+            $chips[] = [
+                'kind' => 'order',
+                'id' => (int)($ord['id'] ?? 0),
+                'href' => '/orders/' . (int)($ord['id'] ?? 0) . '/edit',
+                'top' => $pos['top'],
+                'height' => $pos['height'],
+                'left' => $lefts[$op] ?? ($lefts[0] ?? 0.0),
+                'width' => $width,
+                'bg' => 'rgba(251, 191, 36, 0.45)',
+                'fg' => 'var(--text)',
+                'is_block' => false,
+                'label' => $label,
+                'title' => $label,
+                'info' => $info,
+            ];
+        }
+
         return $chips;
+    }
+
+    /** @param array<string,mixed> $ord */
+    public static function orderDurationSec(array $ord): int
+    {
+        $lines = [];
+        if (class_exists(OrdersRepository::class, false)) {
+            $lines = OrdersRepository::decodeCart((string)($ord['cart'] ?? ''));
+        }
+        $total = 0;
+        foreach ($lines as $line) {
+            $id = (int)($line['id'] ?? 0);
+            $sec = 0;
+            if ($id > 0 && class_exists(ProductsRepository::class, false)) {
+                $p = ProductsRepository::find($id);
+                $sec = $p ? max(0, (int)($p['time_sec'] ?? 0)) : 0;
+            }
+            $total += $sec > 0 ? $sec : 1800;
+        }
+        return max(900, $total > 0 ? $total : 1800);
     }
 
     /**
@@ -342,54 +407,21 @@ final class CalendarTimeline
             $stacks['lefts'][$oid] = 2.0;
         }
 
-        $chips = self::chipsForDay($dayStart, $events, $procedures, $stacks, $colors, Auth::can('calendar.edit'));
+        $chips = self::chipsForDay(
+            $dayStart,
+            $events,
+            $procedures,
+            $stacks,
+            $colors,
+            Auth::can('calendar.edit'),
+            $orders
+        );
         foreach ($chips as &$chip) {
             $chip['left'] = 2.0;
             $chip['width'] = 96.0;
             $chip['href'] = '#';
         }
         unset($chip);
-
-        foreach ($orders as $ord) {
-            $ts = (int)($ord['dt_event'] ?? 0);
-            if ($ts <= 0) {
-                continue;
-            }
-            $pos = self::position($dayStart, $ts, $ts + 1800);
-            $phone = trim((string)($ord['phone'] ?? ''));
-            $status = trim((string)($ord['status'] ?? ''));
-            $label = date('H:i', $ts) . ' ' . t('calendar.widget.board.order');
-            if ($phone !== '') {
-                $label .= ' ' . $phone;
-            }
-            $info = '<div class="calendar-info-head">' . t('calendar.widget.board.order')
-                . ' #' . (int)($ord['id'] ?? 0) . '</div>'
-                . '<div>' . date('H:i', $ts) . '</div>';
-            if ($phone !== '') {
-                $info .= '<div>' . $phone . '</div>';
-            }
-            if ($status !== '') {
-                $info .= '<div class="muted">' . $status . '</div>';
-            }
-            if (isset($ord['summ_real'])) {
-                $info .= '<div><b>' . number_format((float)$ord['summ_real'], 0, '.', ' ') . '</b></div>';
-            }
-            $chips[] = [
-                'kind' => 'order',
-                'id' => (int)($ord['id'] ?? 0),
-                'href' => '#',
-                'top' => $pos['top'],
-                'height' => $pos['height'],
-                'left' => 2.0,
-                'width' => 96.0,
-                'bg' => 'rgba(251, 191, 36, 0.35)',
-                'fg' => 'var(--text)',
-                'is_block' => false,
-                'label' => $label,
-                'title' => $label,
-                'info' => $info,
-            ];
-        }
 
         usort($chips, static function (array $a, array $b): int {
             return ((int)$a['top'] <=> (int)$b['top']) ?: ((int)$a['id'] <=> (int)$b['id']);
@@ -409,12 +441,38 @@ final class CalendarTimeline
         foreach ($itemLists as $list) {
             foreach ($list as $row) {
                 $op = (int)($row['id_operator'] ?? 0);
+                if ($op < 1) {
+                    $op = (int)($row['id_cosmetolog'] ?? 0);
+                }
                 if ($op > 0) {
                     $ids[$op] = true;
                 }
             }
         }
         return array_keys($ids);
+    }
+
+    /**
+     * Advance orders for calendar timeline (cashComplete / pay-ready).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function advanceOrdersForRange(int $dayStart, int $dayEnd, ?int $staffId = null): array
+    {
+        if (!class_exists(OrdersRepository::class, false) || !Database::tableExists('base_orders')) {
+            return [];
+        }
+        $rows = OrdersRepository::listForDayRange($dayStart, $dayEnd, $staffId);
+        $allow = array_fill_keys(OrdersRepository::NEW_STATUSES, true);
+        $out = [];
+        foreach ($rows as $row) {
+            $status = (string)($row['status'] ?? '');
+            if (!isset($allow[$status])) {
+                continue;
+            }
+            $out[] = $row;
+        }
+        return $out;
     }
 
     /**

@@ -122,6 +122,9 @@ return [
     'terminals.user_edit.sec' => 'Терминал / браслет сотрудника',
     'terminals.user_edit.hint' => 'NFC UID, по которому терминал узнаёт сотрудника без запроса в 1С. Пустое поле снимает привязку. Не путать с реестром браслетов шкафчиков.',
     'terminals.user_edit.bracelet_uid' => 'Браслет сотрудника (UID)',
+    'terminals.product_edit.sec' => '1С',
+    'terminals.product_edit.hint' => 'Идентификатор номенклатуры в 1С для синхронизации терминалов. Колонка в каталоге сохраняется даже если модуль terminals выключить.',
+    'terminals.product_edit.onec_id' => 'ID 1С',
     'terminals.module.description' => 'Реестр устройств, браслеты, занятость/заказы терм; джобы синка 1C/volgatermy.',
     'terminals.module.summary' => 'Включайте для терминалов терм и браслетов. Мягко catalog/clients. Токены синка — cfg/modules/terminals.ini. Отключаемый — только где есть железо/1C.',
 ];

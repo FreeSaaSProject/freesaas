@@ -288,47 +288,459 @@ final class OrdersRepository
     }
 
     /**
-     * Limited update: status, staff, comment, mail, free_ticket.
+     * Staff edit (oper edit_order parity): status, staff, event time, client contact,
+     * cart lines, sums, promo, free_ticket, comment.
      *
-     * @param array{status?:string,id_cosmetolog?:int,comment?:string,mail?:string,free_ticket?:int} $data
+     * @param array{
+     *   status?:string,
+     *   id_cosmetolog?:int,
+     *   id_user?:int,
+     *   phone?:string,
+     *   mail?:string,
+     *   comment?:string,
+     *   free_ticket?:int,
+     *   dt_event?:int,
+     *   summ?:float,
+     *   summ_real?:float,
+     *   id_promocode?:int,
+     *   text_promocode?:string,
+     *   cart_lines?:list<array{id:int,name:string,price:float,price_original:float}>
+     * } $data
      */
     public static function update(int $id, array $data): void
     {
         if ($id < 1) {
             throw new InvalidArgumentException(t('orders.err.not_found', ['id' => $id]));
         }
-        $status = (string)($data['status'] ?? '0');
-        if (!in_array($status, self::editableStatuses(), true)) {
-            $status = '0';
+        $prev = self::find($id);
+        if ($prev === null) {
+            throw new InvalidArgumentException(t('orders.err.not_found', ['id' => $id]));
         }
+
+        $status = (string)($data['status'] ?? $prev['status'] ?? '0');
+        if (!in_array($status, self::editableStatuses(), true)) {
+            $status = (string)($prev['status'] ?? '0');
+        }
+        $comment = (string)($data['comment'] ?? $prev['comment'] ?? '');
+        $audit = [];
+        if ($status !== (string)($prev['status'] ?? '')) {
+            $audit[] = 'Изм.ст-с: ' . (string)($prev['status'] ?? '') . ' → ' . $status;
+        }
+        $newCosm = max(0, (int)($data['id_cosmetolog'] ?? $prev['id_cosmetolog'] ?? 0));
+        if ($newCosm !== (int)($prev['id_cosmetolog'] ?? 0)) {
+            $audit[] = 'Изм.спец: #' . (int)($prev['id_cosmetolog'] ?? 0) . ' → #' . $newCosm;
+        }
+        $dtEvent = max(0, (int)($data['dt_event'] ?? $prev['dt_event'] ?? 0));
+        if ($dtEvent !== (int)($prev['dt_event'] ?? 0)) {
+            $audit[] = 'Изм.даты: '
+                . ((int)($prev['dt_event'] ?? 0) > 0 ? date('d.m.Y H:i', (int)$prev['dt_event']) : '—')
+                . ' → '
+                . ($dtEvent > 0 ? date('d.m.Y H:i', $dtEvent) : '—');
+        }
+
+        $cartLines = null;
+        $cartSql = '';
+        $cartParams = [];
+        $cartChanged = false;
+        if (array_key_exists('cart_lines', $data) && is_array($data['cart_lines'])) {
+            $cartLines = $data['cart_lines'];
+            $newCart = self::encodeCart($cartLines);
+            $oldCart = (string)($prev['cart'] ?? '');
+            $cartChanged = $newCart !== $oldCart;
+            $cartSql = ', CART = ?';
+            $cartParams[] = $newCart;
+        }
+
+        $summ = round((float)($data['summ'] ?? $prev['summ'] ?? 0), 2);
+        $summReal = round((float)($data['summ_real'] ?? $prev['summ_real'] ?? 0), 2);
+        if ($cartLines !== null) {
+            $cartTotal = self::cartLinesTotal($cartLines);
+            // Always keep base summ in sync with cart composition/prices.
+            $summ = $cartTotal;
+            $oldCartTotal = self::cartLinesTotal(self::decodeCart((string)($prev['cart'] ?? '')));
+            $oldReal = round((float)($prev['summ_real'] ?? 0), 2);
+            $postedReal = round((float)($data['summ_real'] ?? $oldReal), 2);
+            // Sync check amount when cart changed and staff had not set a distinct discount
+            // (summ_real ≈ previous cart total / previous summ).
+            if ($cartChanged && (
+                abs($oldReal - $oldCartTotal) < 0.02
+                || abs($oldReal - round((float)($prev['summ'] ?? 0), 2)) < 0.02
+                || abs($postedReal - $oldReal) < 0.02
+            )) {
+                $summReal = $cartTotal;
+            } else {
+                $summReal = $postedReal;
+            }
+        }
+        if ($summ !== round((float)($prev['summ'] ?? 0), 2)) {
+            $audit[] = 'Изм.базов.цена: ' . (string)($prev['summ'] ?? 0) . ' → ' . $summ;
+        }
+        if ($summReal !== round((float)($prev['summ_real'] ?? 0), 2)) {
+            $audit[] = 'Изм.реал.цена: ' . (string)($prev['summ_real'] ?? 0) . ' → ' . $summReal;
+        }
+        if ($audit !== []) {
+            $comment = trim($comment . ' ' . implode('; ', $audit));
+        }
+
+        $merged = array_merge($data, [
+            'status' => $status,
+            'id_cosmetolog' => $newCosm,
+            'dt_event' => $dtEvent,
+            'summ' => $summ,
+            'summ_real' => $summReal,
+        ]);
+        if (class_exists(BookingValidate::class, false)) {
+            BookingValidate::assertOrderUpdate($id, $prev, $merged, $cartLines);
+        }
+
         $st = Database::pdo()->prepare(
             'UPDATE base_orders SET
-                STATUS = ?, ID_COSMETOLOG = ?, COMMENT = ?, MAIL = ?, FREE_TICKET = ?
+                STATUS = ?, ID_COSMETOLOG = ?, ID_USER = ?, PHONE = ?, MAIL = ?,
+                COMMENT = ?, FREE_TICKET = ?, DT_EVENT_NEW = ?,
+                SUMM = ?, SUMM_REAL = ?,
+                ID_PROMOCODE = ?, TEXT_PROMOCODE = ?
+                ' . $cartSql . '
              WHERE ID = ?'
         );
-        $st->execute([
+        $params = [
             $status,
-            max(0, (int)($data['id_cosmetolog'] ?? 0)),
-            (string)($data['comment'] ?? ''),
+            $newCosm,
+            max(0, (int)($data['id_user'] ?? $prev['id_user'] ?? 0)),
+            mb_substr(preg_replace('/\D+/', '', (string)($data['phone'] ?? $prev['phone'] ?? '')) ?? '', 0, 32),
             mb_substr((string)($data['mail'] ?? ''), 0, 50),
+            $comment,
             !empty($data['free_ticket']) ? 1 : 0,
-            $id,
-        ]);
+            $dtEvent,
+            $summ,
+            $summReal,
+            max(0, (int)($data['id_promocode'] ?? $prev['id_promocode'] ?? 0)),
+            mb_substr((string)($data['text_promocode'] ?? $prev['text_promocode'] ?? ''), 0, 255),
+        ];
+        foreach ($cartParams as $cp) {
+            $params[] = $cp;
+        }
+        $params[] = $id;
+        $st->execute($params);
+    }
+
+    /**
+     * @param list<array{price?:float|int|string}> $lines
+     */
+    public static function cartLinesTotal(array $lines): float
+    {
+        $sum = 0.0;
+        foreach ($lines as $line) {
+            $sum += (float)($line['price'] ?? 0);
+        }
+        return round($sum, 2);
     }
 
     /**
      * @param array<string,mixed> $post
-     * @return array{status:string,id_cosmetolog:int,comment:string,mail:string,free_ticket:int}
+     * @return array<string,mixed>
      */
     public static function dataFromPost(array $post): array
     {
+        $dtEvent = self::parseDtEvent(
+            (string)($post['dt_event'] ?? ''),
+            (string)($post['dt_event_date'] ?? ''),
+            (string)($post['dt_event_time'] ?? '')
+        );
+
+        $cartLines = self::cartLinesFromPost($post);
+
         return [
             'status' => (string)($post['status'] ?? '0'),
             'id_cosmetolog' => max(0, (int)($post['id_cosmetolog'] ?? 0)),
-            'comment' => (string)($post['comment'] ?? ''),
+            'id_user' => max(0, (int)($post['id_user'] ?? 0)),
+            'phone' => (string)($post['phone'] ?? ''),
             'mail' => trim((string)($post['mail'] ?? '')),
+            'comment' => (string)($post['comment'] ?? ''),
             'free_ticket' => !empty($post['free_ticket']) ? 1 : 0,
+            'dt_event' => $dtEvent,
+            'summ' => (float)str_replace(',', '.', (string)($post['summ'] ?? '0')),
+            'summ_real' => (float)str_replace(',', '.', (string)($post['summ_real'] ?? '0')),
+            'id_promocode' => max(0, (int)($post['id_promocode'] ?? 0)),
+            'text_promocode' => trim((string)($post['text_promocode'] ?? '')),
+            'cart_lines' => $cartLines,
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $post
+     * @return list<array{id:int,name:string,price:float,price_original:float}>
+     */
+    public static function cartLinesFromPost(array $post): array
+    {
+        $ids = $post['cart_id'] ?? [];
+        $prices = $post['cart_price'] ?? [];
+        $origs = $post['cart_price_orig'] ?? [];
+        $remove = $post['cart_remove'] ?? [];
+        $deleteOne = (int)($post['cart_delete'] ?? -1);
+        if (!is_array($ids)) {
+            return [];
+        }
+
+        $keptIndexes = [];
+        foreach ($ids as $i => $rawId) {
+            if (!empty($remove[$i]) || (int)$i === $deleteOne) {
+                continue;
+            }
+            $keptIndexes[] = (int)$i;
+        }
+        // Last service cannot be removed — only replaced via selector.
+        if ($keptIndexes === [] && $ids !== []) {
+            $keptIndexes[] = (int)array_key_first($ids);
+        }
+
+        $out = [];
+        foreach ($keptIndexes as $i) {
+            $id = (int)($ids[$i] ?? 0);
+            $price = is_array($prices)
+                ? (float)str_replace(',', '.', (string)($prices[$i] ?? '0'))
+                : 0.0;
+            $orig = is_array($origs)
+                ? (float)str_replace(',', '.', (string)($origs[$i] ?? (string)$price))
+                : $price;
+            $name = '';
+            if ($id > 0 && class_exists(ProductsRepository::class, false)) {
+                $p = ProductsRepository::find($id);
+                if ($p !== null) {
+                    $name = (string)($p['name'] ?? '');
+                    $catPrice = (float)($p['price3'] ?? 0);
+                    if ($catPrice <= 0) {
+                        $catPrice = (float)($p['price'] ?? 0);
+                    }
+                    if ($price <= 0) {
+                        $price = $catPrice;
+                    }
+                    if ($orig <= 0) {
+                        $orig = $catPrice > 0 ? $catPrice : $price;
+                    }
+                }
+            }
+            if ($id < 1 && $price <= 0) {
+                continue;
+            }
+            $out[] = [
+                'id' => $id,
+                'name' => $name,
+                'price' => $price,
+                'price_original' => $orig > 0 ? $orig : $price,
+            ];
+        }
+
+        $addId = (int)($post['cart_add_id'] ?? 0);
+        if ($addId > 0 && class_exists(ProductsRepository::class, false)) {
+            $p = ProductsRepository::find($addId);
+            if ($p !== null) {
+                $price = (float)($p['price3'] ?? 0);
+                if ($price <= 0) {
+                    $price = (float)($p['price'] ?? 0);
+                }
+                $out[] = [
+                    'id' => $addId,
+                    'name' => (string)($p['name'] ?? ''),
+                    'price' => $price,
+                    'price_original' => $price,
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Staff on shift for the order day (+ always include current assignee).
+     *
+     * @return list<array{id:int,name:string}>
+     */
+    public static function staffOptionsForDay(int $dayStart, int $includeStaffId = 0): array
+    {
+        $byId = [];
+        if ($dayStart > 0 && class_exists(WorkweeksRepository::class, false)) {
+            foreach (WorkweeksRepository::listForDay($dayStart) as $shift) {
+                $oid = (int)($shift['id_operator'] ?? 0);
+                if ($oid < 1 || !empty($shift['assist_team'])) {
+                    continue;
+                }
+                $name = trim((string)($shift['operator_name'] ?? ''));
+                if ($name === '') {
+                    $name = '#' . $oid;
+                }
+                $byId[$oid] = ['id' => $oid, 'name' => $name];
+            }
+        }
+        if ($includeStaffId > 0 && !isset($byId[$includeStaffId])) {
+            $name = '#' . $includeStaffId;
+            if (class_exists(UsersRepository::class, false)) {
+                $u = UsersRepository::find($includeStaffId);
+                if ($u !== null) {
+                    $label = trim((string)($u['name'] ?? ''));
+                    if ($label === '') {
+                        $label = (string)($u['login'] ?? '');
+                    }
+                    if ($label !== '') {
+                        $name = $label;
+                    }
+                }
+            }
+            $byId[$includeStaffId] = [
+                'id' => $includeStaffId,
+                'name' => $name . ' (' . t('orders.edit.staff_not_on_shift') . ')',
+            ];
+        }
+        $out = array_values($byId);
+        usort($out, static function (array $a, array $b): int {
+            return strcasecmp($a['name'], $b['name']);
+        });
+        return $out;
+    }
+
+    public static function parseDtEvent(string $datetimeLocal, string $date = '', string $time = ''): int
+    {
+        $datetimeLocal = trim($datetimeLocal);
+        if ($datetimeLocal !== '') {
+            // HTML datetime-local: Y-m-d\TH:i
+            $norm = str_replace('T', ' ', $datetimeLocal);
+            if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/', $norm)) {
+                $ts = strtotime($norm);
+                if ($ts !== false) {
+                    return $ts;
+                }
+            }
+        }
+        $date = trim($date);
+        $time = trim($time);
+        if ($date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            if ($time === '' || !preg_match('/^\d{1,2}:\d{2}/', $time)) {
+                $time = '12:00';
+            }
+            $ts = strtotime($date . ' ' . $time);
+            if ($ts !== false) {
+                return $ts;
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Create a website order (storefront / public checkout).
+     *
+     * @param array{
+     *   phone:string,
+     *   mail?:string,
+     *   comment?:string,
+     *   cart_lines?:list<array{id?:int,name?:string,price?:float,price_original?:float}>,
+     *   cart?:string,
+     *   summ?:float,
+     *   summ_real?:float,
+     *   status?:string,
+     *   id_user?:int,
+     *   id_cosmetolog?:int,
+     *   dt_event?:int,
+     *   id_promocode?:int,
+     *   text_promocode?:string,
+     *   free_ticket?:int,
+     *   uid?:string
+     * } $data
+     */
+    public static function create(array $data): int
+    {
+        if (!Database::tableExists('base_orders')) {
+            throw new RuntimeException('base_orders missing');
+        }
+        $phone = preg_replace('/\D+/', '', (string)($data['phone'] ?? '')) ?? '';
+        if ($phone === '') {
+            throw new InvalidArgumentException('phone required');
+        }
+        $lines = $data['cart_lines'] ?? null;
+        $cart = (string)($data['cart'] ?? '');
+        if ($cart === '' && is_array($lines)) {
+            $cart = self::encodeCart($lines);
+        }
+        $summ = round((float)($data['summ'] ?? 0), 2);
+        $summReal = round((float)($data['summ_real'] ?? $summ), 2);
+        if ($summ <= 0 && is_array($lines)) {
+            foreach ($lines as $line) {
+                $summ += (float)($line['price'] ?? 0);
+            }
+            $summ = round($summ, 2);
+            if ($summReal <= 0) {
+                $summReal = $summ;
+            }
+        }
+        $status = trim((string)($data['status'] ?? 'cashComplete'));
+        if ($status === '') {
+            $status = 'cashComplete';
+        }
+        $now = time();
+        $uid = trim((string)($data['uid'] ?? ''));
+        if ($uid === '') {
+            $uid = substr(bin2hex(random_bytes(8)), 0, 15);
+        }
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_orders (
+                DT_CREATE, DT_UPDATE_BY_USER, DT_SAVE, DT_EVENT_NEW,
+                ID_USER, ID_SERT, ID_EVENT_PAID, ID_EVENT_USE, ID_COSMETOLOG,
+                CART, PHONE, MAIL, STATUS, COMMENT, PPP_LOG,
+                EPAID, SBER_ID, SBER_LINK, SBER_STATUS,
+                SUMM, SUMM_REAL, SUMM_SBER, SUMM_BONUS, UID,
+                ID_PROMOCODE, TEXT_PROMOCODE, FREE_TICKET
+             ) VALUES (
+                ?, ?, ?, ?,
+                ?, 0, 0, 0, ?,
+                ?, ?, ?, ?, ?, \'\',
+                0, \'\', \'\', 0,
+                ?, ?, 0, 0, ?,
+                ?, ?, ?
+             )'
+        );
+        $st->execute([
+            $now,
+            $now,
+            $now,
+            max(0, (int)($data['dt_event'] ?? $now)),
+            max(0, (int)($data['id_user'] ?? 0)),
+            max(0, (int)($data['id_cosmetolog'] ?? 0)),
+            $cart,
+            mb_substr($phone, 0, 11),
+            mb_substr(trim((string)($data['mail'] ?? '')), 0, 50),
+            mb_substr($status, 0, 255),
+            (string)($data['comment'] ?? ''),
+            $summ,
+            $summReal,
+            mb_substr($uid, 0, 15),
+            max(0, (int)($data['id_promocode'] ?? 0)),
+            mb_substr((string)($data['text_promocode'] ?? ''), 0, 255),
+            !empty($data['free_ticket']) ? 1 : 0,
+        ]);
+        return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
+     * Serialize cart lines for base_orders.CART (legacy PHP serialize).
+     *
+     * @param list<array{id?:int,name?:string,price?:float,price_original?:float}> $lines
+     */
+    public static function encodeCart(array $lines): string
+    {
+        $cart = [];
+        foreach ($lines as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $price = (float)($item['price'] ?? 0);
+            $cart[] = [
+                'id' => (int)($item['id'] ?? 0),
+                'name' => (string)($item['name'] ?? ''),
+                'price' => $price,
+                'price_original' => isset($item['price_original'])
+                    ? (float)$item['price_original']
+                    : $price,
+            ];
+        }
+        return serialize($cart);
     }
 
     /**

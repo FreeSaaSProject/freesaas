@@ -9,7 +9,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_users` procedure restricts (`RESTRICT_TYPES*`, `RESTRICT_PROCS`) | procedures (columns + UI) | Added by procedures migration; only when procedures enabled |
 | `base_staff_bracelets` | terminals | Staff NFC UID ↔ user (no column on `base_users`) |
 | `base_clients`, `base_client_statuses`, `base_shopusers_tags`, `base_client_tag_links` | clients | CRM clients; login = phone |
-| `base_categories`, `base_products`, `base_product_relations` | catalog | Categories / products / relations |
+| `base_categories`, `base_products`, `base_product_relations` | catalog | Categories / products / relations. Column `base_products.onec_id` is written via `terminals` (product edit section); catalog create/update leave it untouched so values survive module disable. |
 | `base_units` | units | UoM dictionary |
 | `base_suppliers` | suppliers | Suppliers dictionary |
 | `base_stocks` | stocks | Warehouses + leftovers |
@@ -17,10 +17,11 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_good_defaults` | norms | Procedure → material norms |
 | `base_sheet_accounts` / `base_sheet_moves` | sheets | Linen ledger (disableable) |
 | `base_term_scans` | likespa | Terminal scans / promoter conversion (disableable) |
-| `base_promopages` | likespa | Client-site promo / LP pages |
-| `base_page_categories` | likespa | Client-site articles tree (migrator from `phpshop_page_categories`) |
-| `base_redirects` | likespa | Site URL redirects (oper show_redirects) |
-| `base_system` site fields (`name`, `title`, `keywords`, `tel`) | likespa (write) / core (table) | `SystemSite`; UI `/likespa/site`; company on `/settings` |
+| `base_site_hosts` | sites | Public domains: theme, home promo, catalog root, phone; resolve by `HTTP_HOST` |
+| `base_promopages` | sites | Public promo / LP pages (home content via `base_site_hosts.promo_id`) |
+| `base_page_categories` | sites | Site articles tree; `site_host_id` (0 = all hosts) |
+| `base_redirects` | sites | Site URL redirects; `site_host_id` (0 = all hosts) |
+| `base_system` site fields (`name`, `title`, `keywords`, `tel`) | sites (write) / core (table) | Fallback SEO/contacts UI `/sites/seo`; per-host name/tel on `base_site_hosts` |
 | `base_system` flyer / promo (`flyerEnabled`, `flyerDiscount`, `PROMO_*`) | likespa (write) / core (table) | `SystemFlyerPromo`; UI `/likespa/settings` |
 | `base_system` work hours (`work_hour_start`, `work_hour_end`) | calendar (write) / core (table) | `CalendarTimeline::updateWorkHours`; UI `/calendar/settings` |
 | `base_terminals`, `base_bracelets`, `base_terminals_activations` | terminals | Device registry + locker bracelet UIDs (disableable) |
@@ -51,7 +52,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_tinvest_accounts` / `base_broker_snapshots` / `base_broker_positions` | liquid_assets | T-Invest bindings + broker portfolio snapshots |
 | `base_bank_connections` / `base_bank_account_links` / `base_bank_tx_map` | banks | Bank OAuth connections, account links, statement→move map |
 | — (read models) | finance / procents | Reports over ledger/rates/procedures |
-| `base_orders` | orders | Website/cart orders |
+| `base_orders` | orders | Website/cart orders (admin UI + storefront `sites` checkout via `OrdersRepository::create`) |
 | `base_polls` | polls | Poll definition tree (EL_TYPE poll/question/answer) |
 | `base_poll_invites` | poll_invites | Poll invite instances + answers in DATA_OPTS |
 

@@ -280,15 +280,16 @@ final class EventsRepository
 
         $now = time();
         $creator = Auth::userId();
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_events
-             (ID_OPERATOR, ID_OPERATOR_CREATE, ID_USER, ID_PROMO_ACT, DTCREATE, DTSTART, DTEND, DTUPDATE,
-              FIX_MOVE, CONTENT, CONTENT_PRICE, SMS, DESCR, NODEFTIMEXPL, PHONE, NAME,
-              BONUS_DISCOUNT, BONUS_USE, PAY, PPP_LOG, IS_BLOCK, REAL_SUMM, ENABLED,
-              EVT_TIME_RECOM, EVT_TIME_REAL, EVT_COSM_ACCEPT, EVT_DECLINE_REASON, EVT_DT_COSM_MOD)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
+        // Legacy shared table: several NOT NULL columns have no DEFAULT in old dumps.
+        $cols = [
+            'ID_OPERATOR', 'ID_OPERATOR_CREATE', 'ID_USER', 'ID_PROMO_ACT',
+            'DTCREATE', 'DTSTART', 'DTEND', 'DTUPDATE',
+            'FIX_MOVE', 'CONTENT', 'CONTENT_PRICE', 'SMS', 'DESCR', 'NODEFTIMEXPL',
+            'PHONE', 'NAME', 'BONUS_DISCOUNT', 'BONUS_USE', 'PAY', 'PPP_LOG',
+            'IS_BLOCK', 'REAL_SUMM', 'ENABLED',
+            'EVT_TIME_RECOM', 'EVT_TIME_REAL', 'EVT_COSM_ACCEPT', 'EVT_DECLINE_REASON', 'EVT_DT_COSM_MOD',
+        ];
+        $vals = [
             $data['id_operator'],
             $creator,
             $data['id_user'],
@@ -311,13 +312,33 @@ final class EventsRepository
             '',
             $data['is_block'],
             $data['real_summ'],
-            0,
+            // Active client events ENABLED=1; legacy blocks commonly use 0 (still occupy via BookingOccupancy).
+            !empty($data['is_block']) ? 0 : 1,
             0,
             0,
             0,
             '',
             0,
-        ]);
+        ];
+        // Optional legacy columns (present on oper dumps, often without DEFAULT).
+        $optional = [
+            'DTENABLE' => 0,
+            'OPERATOR_ENABLED' => 0,
+            'UPSALE_DATA' => '',
+            'CONTENT_DATA' => '',
+            'NONEWEXPL' => '',
+        ];
+        foreach ($optional as $col => $default) {
+            if (Database::columnExists('base_events', $col)) {
+                $cols[] = $col;
+                $vals[] = $default;
+            }
+        }
+        $placeholders = implode(', ', array_fill(0, count($cols), '?'));
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_events (' . implode(', ', $cols) . ') VALUES (' . $placeholders . ')'
+        );
+        $st->execute($vals);
         $id = (int)Database::pdo()->lastInsertId();
         self::logChange($id, 'create', '', self::snapshotText($data), '');
         return $id;
@@ -546,6 +567,127 @@ final class EventsRepository
             if ($normalized !== null) {
                 $out[] = $normalized;
             }
+        }
+        return $out;
+    }
+
+    /**
+     * Operator <select> for event create/edit (oper getOperators).
+     * Day shifts with CAN_BE_ASSIGNED (procedures), excl. ASSIST_TEAM;
+     * always keeps $keepOperatorId even if off-shift / disabled.
+     *
+     * @return array<int,string> id => label
+     */
+    public static function staffChoicesForDay(int $dayStart, int $keepOperatorId = 0): array
+    {
+        if ($dayStart <= 0) {
+            $dayStart = time();
+        }
+        $dayStart = (int)strtotime(date('Y-m-d 00:00:00', $dayStart));
+        $myOnly = !empty(Auth::statusFlags()['EVT_MY_ONLY']);
+        $selfId = Auth::userId();
+        $out = [];
+
+        $candidateIds = [];
+        if (class_exists('WorkweeksRepository', false) && Database::tableExists('base_workweeks')) {
+            foreach (WorkweeksRepository::listForDay($dayStart) as $sh) {
+                $oid = (int)($sh['id_operator'] ?? 0);
+                if ($oid < 1) {
+                    continue;
+                }
+                if ($myOnly && $oid !== $selfId) {
+                    continue;
+                }
+                if ((int)($sh['assist_team'] ?? 0) > 0) {
+                    continue;
+                }
+                $candidateIds[$oid] = trim((string)($sh['operator_name'] ?? ''));
+            }
+        }
+
+        $canProc = self::usersCanTakeProcedures(array_keys($candidateIds));
+        foreach ($candidateIds as $oid => $label) {
+            if (empty($canProc[$oid])) {
+                continue;
+            }
+            if ($label === '') {
+                $label = '#' . $oid;
+            }
+            $out[$oid] = $label;
+        }
+
+        // No workweeks / empty day: still offer assignable procedure staff (not assistants).
+        if ($out === [] && !$myOnly && class_exists('WorkweeksRepository', false)) {
+            foreach (WorkweeksRepository::listAssignableStaff() as $oid => $card) {
+                $oid = (int)$oid;
+                if ($oid < 1 || (int)($card['group'] ?? 0) === 3) {
+                    continue;
+                }
+                if (empty(self::usersCanTakeProcedures([$oid])[$oid])) {
+                    continue;
+                }
+                $out[$oid] = (string)($card['label'] ?? ('#' . $oid));
+            }
+        } elseif ($out === [] && $myOnly && $selfId > 0) {
+            $u = class_exists('UsersRepository', false) ? UsersRepository::find($selfId) : null;
+            $label = $u ? trim((string)(($u['name'] ?? '') !== '' ? $u['name'] : ($u['login'] ?? ''))) : '';
+            $out[$selfId] = $label !== '' ? $label : ('#' . $selfId);
+        }
+
+        if ($keepOperatorId > 0 && !isset($out[$keepOperatorId])) {
+            if (!$myOnly || $keepOperatorId === $selfId) {
+                $u = class_exists('UsersRepository', false) ? UsersRepository::find($keepOperatorId) : null;
+                $label = $u ? trim((string)(($u['name'] ?? '') !== '' ? $u['name'] : ($u['login'] ?? ''))) : '';
+                if ($label === '') {
+                    $label = '#' . $keepOperatorId;
+                }
+                if ($u && (string)($u['enabled'] ?? '1') === '0') {
+                    $label .= ' (' . t('core.users.filter_disabled') . ')';
+                }
+                $label .= ' — ' . t('calendar.event.operator_not_on_shift');
+                $out[$keepOperatorId] = $label;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param list<int> $userIds
+     * @return array<int,bool>
+     */
+    private static function usersCanTakeProcedures(array $userIds): array
+    {
+        $out = [];
+        $ids = [];
+        foreach ($userIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $ids[$id] = true;
+                $out[$id] = false;
+            }
+        }
+        if ($ids === [] || !Database::tableExists('base_users')) {
+            return $out;
+        }
+        if (!Database::tableExists('base_admin_statuses')
+            || !Database::columnExists('base_admin_statuses', 'CAN_BE_ASSIGNED')
+        ) {
+            foreach (array_keys($ids) as $id) {
+                $out[$id] = true;
+            }
+            return $out;
+        }
+        $statusCol = Database::columnExists('base_users', 'ID_STATUS') ? 'ID_STATUS' : 'name_enabled';
+        $in = implode(',', array_map('intval', array_keys($ids)));
+        $rows = Database::pdo()->query(
+            "SELECT u.id, COALESCE(st.CAN_BE_ASSIGNED, 0) AS can_be_assigned
+             FROM base_users u
+             LEFT JOIN base_admin_statuses st ON st.ID = u.`$statusCol`
+             WHERE u.id IN ($in)"
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        foreach ($rows as $row) {
+            $out[(int)$row['id']] = (int)$row['can_be_assigned'] > 0;
         }
         return $out;
     }

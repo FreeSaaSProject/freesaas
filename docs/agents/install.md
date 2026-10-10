@@ -96,6 +96,28 @@ Expect `setup.pending: 0` (or no pending migrations) and health without `platfor
 
 If `cfg/` is not writable from PHP, pre-set `agent_token` in the ini via FTP, then call bootstrap with the same token in the header (or body).
 
+## Dual host (admin + public storefront)
+
+Same package, same `[connect]` database, two vhosts:
+
+1. **Admin** — `DirectoryIndex index.php` (default `.htaccess`).
+2. **Public** — `SetEnv FREESAAS_FRONT site` in the vhost, **or** use [`cfg/htaccess.storefront.example`](../../cfg/htaccess.storefront.example) / `site.php`.
+
+Enable module `sites` (alpha — `--accept-risk`) plus `catalog` / `orders` / `clients` as needed. Set `app.public_host` / `app.admin_host` (or `cfg/modules/sites.ini`). Full runbook: [sites.md](sites.md).
+
+Bootstrap example with storefront modules:
+
+```bash
+php bin/freesaas.php bootstrap \
+  --login=admin \
+  --password='change-me-now-8+' \
+  --agent-token='a-long-random-secret' \
+  --modules=sites,catalog,orders,clients \
+  --format=json
+# sites is alpha: enable with risk ack if bootstrap did not
+php bin/freesaas.php module enable sites --accept-risk --format=json
+```
+
 ## Background jobs (cron)
 
 Bootstrap does **not** install crontab. For bots queue, bank/CRM syncs, audio pipeline workers, etc., schedule CLI or HTTP agent jobs on the host, for example:

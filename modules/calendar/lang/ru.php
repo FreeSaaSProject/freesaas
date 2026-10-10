@@ -80,6 +80,7 @@ return [
     'calendar.event.col_dtstart' => 'Начало',
     'calendar.event.col_dtend' => 'Окончание',
     'calendar.event.col_operator' => 'Исполнитель',
+    'calendar.event.operator_not_on_shift' => 'не назначен на р.д.!',
     'calendar.event.col_is_block' => 'Блок (занятость без клиента)',
     'calendar.event.col_fix_move' => 'Зафиксировать (не двигать)',
     'calendar.event.col_id_user' => 'ID клиента',

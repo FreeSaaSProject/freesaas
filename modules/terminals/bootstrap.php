@@ -100,6 +100,41 @@ Health::register('terminals.onec', 'terminals', static function (): array {
     ];
 }, '1C club API config');
 
+EventBus::on('catalog.product_edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Database::tableExists('base_products') || !Database::columnExists('base_products', 'onec_id')) {
+        return $payload;
+    }
+    if (!class_exists(ProductsRepository::class)) {
+        return $payload;
+    }
+    $row = is_array($payload['row'] ?? null) ? $payload['row'] : [];
+    $productOnecId = (string)($row['onec_id'] ?? '');
+    ob_start();
+    require __DIR__ . '/views/_product_edit_onec.php';
+    $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+EventBus::on('catalog.product_edit.save', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $id = (int)($payload['product_id'] ?? 0);
+    if ($id < 1 || !class_exists(ProductsRepository::class)) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    // Posted only while terminals section is on the form; empty clears the id.
+    if (!array_key_exists('onec_id', $post)) {
+        return $payload;
+    }
+    ProductsRepository::setOnecId($id, (string)$post['onec_id']);
+    return $payload;
+});
+
 EventBus::on('core.user_edit.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

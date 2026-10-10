@@ -66,6 +66,7 @@ View::render('view', [
     'canEdit' => Auth::can('orders.edit'),
     'listUrl' => $listUrl,
     'breadcrumbs' => Breadcrumbs::withHome([
+        ['label' => t('calendar.menu.group'), 'href' => '/calendar'],
         ['label' => t('orders.menu.list'), 'href' => $listUrl],
         ['label' => '#' . $id, 'current' => true],
     ]),

@@ -31,13 +31,28 @@ Session auth; `?format=json` or `Accept: application/json`. Ops: `module.json` �
 curl -sS -b jar.txt 'https://example/ledger/moves?format=json&account_id=20&promise=3'
 curl -sS -b jar.txt 'https://example/ledger/moves/123/edit?format=json'
 curl -sS -b jar.txt -X POST 'https://example/ledger/moves/new?format=json' \
-  -d 'type_id=4&account_id=20&direction=-1&summ=100&dt=2026-10-31T12:00&descr=test'
+  -d 'type_id=4&account_id=20&direction=-1&summ=1%20203%20323,23&dt=2026-10-31T12:00&descr=test'
+curl -sS -b jar.txt -X POST 'https://example/ledger/moves/123/edit?format=json' \
+  -d 'action=copy'
+curl -sS -b jar.txt -X POST 'https://example/ledger/moves/123/edit?format=json' \
+  -d 'action=delete'
 curl -sS -b jar.txt -X POST 'https://example/ledger/moves?format=json' \
   -d 'recon_action=save&recon_account_id=20&bank_balance=1000'
 curl -sS -b jar.txt 'https://example/ledger/moves/attach-act?format=json&id=123'
 curl -sS -b jar.txt -X POST 'https://example/ledger/moves/attach-act?format=json' \
   -d 'ids=123&act2_in=456'
 ```
+
+### Copy / delete
+
+| Op | Form |
+|----|------|
+| `ledger.moves.copy` | `POST /ledger/moves/{id}/edit` · `action=copy` → new move (dt=now, `(copy)` in descr), JSON `{id, source_id, row}` |
+| `ledger.moves.delete` | `POST /ledger/moves/{id}/edit` · `action=delete` soft-delete |
+
+UI bulk **Copy and open** is the same copy for a single selected row (`max_selection=1`).
+
+Sums (`summ`, recon `bank_balance`) accept clipboard forms like `1 203 323,23`.
 
 ### Filters on `/ledger/moves`
 

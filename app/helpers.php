@@ -105,7 +105,12 @@ function linkify_html(string $html): string {
         '#<a\s+([^>]*href=["\']([^"\']+)["\'][^>]*)>(.*?)</a>#is',
         static function (array $m): string {
             $href = $m[2];
-            $inner = trim(strip_tags($m[3]));
+            $innerHtml = $m[3];
+            $inner = trim(strip_tags($innerHtml));
+            // Keep media-only anchors (e.g. 2GIS rating badge <a><img></a>).
+            if ($inner === '' && preg_match('#<(img|svg|picture)\b#i', $innerHtml)) {
+                return '<a ' . $m[1] . '>' . $innerHtml . '</a>';
+            }
             $label = short_url_label($inner !== '' ? $inner : $href);
             $attrs = $m[1];
             if (stripos($attrs, 'class=') === false) {
@@ -149,6 +154,105 @@ function safe_html(string $html): string {
     $html = preg_replace('#</?(script|iframe|object|embed|form)[^>]*>#i', '', $html) ?? $html;
     $allowed = '<p><br><br/><b><strong><i><em><u><s><ul><ol><li><a><span><div><h1><h2><h3><h4><blockquote><code><pre><hr><img>';
     return linkify_html(strip_tags($html, $allowed));
+}
+
+/**
+ * CMS article body: safe_html plus allowlisted review widgets (Yandex Maps / 2GIS).
+ * Do not use for news or comments — those stay on safe_html.
+ */
+function page_html(string $html): string {
+    $kept = [];
+    $html = preg_replace_callback(
+        '#<iframe\b([^>]*)>(.*?)</iframe>|<iframe\b([^>]*)/?>#is',
+        static function (array $m) use (&$kept): string {
+            $attrs = isset($m[1]) && $m[1] !== '' ? $m[1] : (string)($m[3] ?? '');
+            $built = page_html_build_iframe($attrs);
+            if ($built === null) {
+                return '';
+            }
+            $i = count($kept);
+            $kept[] = $built;
+            return '{{PAGE_IFRAME_' . $i . '}}';
+        },
+        $html
+    ) ?? $html;
+    $out = safe_html($html);
+    foreach ($kept as $i => $iframe) {
+        $out = str_replace('{{PAGE_IFRAME_' . $i . '}}', $iframe, $out);
+    }
+    return $out;
+}
+
+/** @return non-empty-string|null */
+function page_html_build_iframe(string $attrBlob): ?string {
+    if (!preg_match_all('/([a-zA-Z_:][-a-zA-Z0-9_:]*)\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s>]+))/', $attrBlob, $mm, PREG_SET_ORDER)) {
+        return null;
+    }
+    $attrs = [];
+    foreach ($mm as $row) {
+        $name = strtolower($row[1]);
+        if (preg_match('/=\s*"/', $row[0])) {
+            $val = $row[2];
+        } elseif (preg_match("/=\s*'/", $row[0])) {
+            $val = $row[3];
+        } else {
+            $val = $row[4] ?? '';
+        }
+        $attrs[$name] = html_entity_decode($val, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    }
+    $src = trim((string)($attrs['src'] ?? ''));
+    if ($src === '' || !page_html_iframe_src_allowed($src)) {
+        return null;
+    }
+    $allowedKeys = ['src', 'width', 'height', 'title', 'loading', 'style', 'frameborder', 'allowfullscreen', 'referrerpolicy'];
+    $parts = [];
+    foreach ($allowedKeys as $key) {
+        if (!array_key_exists($key, $attrs)) {
+            continue;
+        }
+        $val = trim((string)$attrs[$key]);
+        if ($val === '') {
+            continue;
+        }
+        if ($key === 'src') {
+            $val = $src;
+        }
+        if ($key === 'allowfullscreen' && !preg_match('/^(1|true|allowfullscreen)$/i', $val)) {
+            $val = 'true';
+        }
+        if ($key === 'style' && preg_match('/expression|javascript|url\s*\(\s*[\'"]?\s*javascript/i', $val)) {
+            continue;
+        }
+        $parts[] = $key . '="' . htmlspecialchars($val, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '"';
+    }
+    if ($parts === []) {
+        return null;
+    }
+    return '<iframe ' . implode(' ', $parts) . '></iframe>';
+}
+
+function page_html_iframe_src_allowed(string $src): bool {
+    if (preg_match('#^\s*javascript:#i', $src) || preg_match('#^\s*data:#i', $src)) {
+        return false;
+    }
+    $p = parse_url($src);
+    if (!is_array($p) || empty($p['scheme']) || empty($p['host'])) {
+        return false;
+    }
+    $scheme = strtolower((string)$p['scheme']);
+    if ($scheme !== 'https' && $scheme !== 'http') {
+        return false;
+    }
+    $host = strtolower((string)$p['host']);
+    $path = (string)($p['path'] ?? '');
+    if (in_array($host, ['yandex.ru', 'www.yandex.ru', 'yandex.com', 'www.yandex.com'], true)
+        && preg_match('#^/maps-reviews-widget/#', $path)) {
+        return true;
+    }
+    if ($host === 'widget.2gis.ru') {
+        return true;
+    }
+    return false;
 }
 
 /**

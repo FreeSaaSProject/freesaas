@@ -5,6 +5,9 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | Runbook | When |
 |---------|------|
 | [install.md](install.md) | Greenfield / shared-host bootstrap (first admin + token + migrate) |
+| [sites.md](sites.md) | Public storefront (`site.php`): dual host, themes, cart → `base_orders` |
+| [booking.md](booking.md) | Slot engine + advance book into orders (alpha); `/t` later |
+| [themes.md](themes.md) | Port legacy skin → `themes/<id>/`, bind host, sync to storefront copy |
 | [create-module.md](create-module.md) | New product module |
 | [modify-module.md](modify-module.md) | Change existing module / field / EventBus |
 | [migrations.md](migrations.md) | Schema / data migrators |

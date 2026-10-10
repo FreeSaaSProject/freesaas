@@ -26,14 +26,17 @@ final class ProductsRepository
      * @param array{
      *   q?:string,
      *   category?:int|null,
+     *   category_ids?:list<int>|null,
      *   folder?:int|null,
      *   enabled?:string|null,
      *   is_material?:string|null,
+     *   hide_on_site?:string|null,
      *   order?:string,
      *   limit?:int,
      *   offset?:int
      * } $opts
      *   folder: browse mode — category match + dop_cat (incl. 0 = root orphans)
+     *   category_ids: restrict to these category ids (storefront host root subtree)
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function list(array $opts = []): array
@@ -66,6 +69,25 @@ final class ProductsRepository
             $where[] = 'p.category = ?';
             $params[] = (int)$opts['category'];
         }
+        if (!empty($opts['category_ids']) && is_array($opts['category_ids'])) {
+            $ids = [];
+            foreach ($opts['category_ids'] as $cid) {
+                $cid = (int)$cid;
+                if ($cid > 0) {
+                    $ids[] = $cid;
+                }
+            }
+            $ids = array_values(array_unique($ids));
+            if ($ids === []) {
+                $where[] = '0=1';
+            } else {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $where[] = "p.category IN ($placeholders)";
+                foreach ($ids as $cid) {
+                    $params[] = $cid;
+                }
+            }
+        }
         if (array_key_exists('enabled', $opts) && $opts['enabled'] !== null && $opts['enabled'] !== '') {
             $where[] = 'p.enabled = ?';
             $params[] = (int)$opts['enabled'];
@@ -73,6 +95,13 @@ final class ProductsRepository
         if (array_key_exists('is_material', $opts) && $opts['is_material'] !== null && $opts['is_material'] !== '') {
             $where[] = 'p.is_material = ?';
             $params[] = (int)$opts['is_material'];
+        }
+        if (array_key_exists('hide_on_site', $opts) && $opts['hide_on_site'] !== null && $opts['hide_on_site'] !== '') {
+            $col = Database::columnExists('base_products', 'hide_on_site')
+                ? 'p.hide_on_site'
+                : 'p.is_status_card';
+            $where[] = $col . ' = ?';
+            $params[] = (int)$opts['hide_on_site'];
         }
         $sqlWhere = implode(' AND ', $where);
         $stc = $pdo->prepare("SELECT COUNT(*) FROM base_products p WHERE $sqlWhere");
@@ -91,9 +120,13 @@ final class ProductsRepository
             : '';
         $catName = $joinCat !== '' ? 'c.name AS category_name' : 'NULL AS category_name';
 
+        $hideCol = Database::columnExists('base_products', 'hide_on_site')
+            ? 'p.hide_on_site'
+            : 'p.is_status_card AS hide_on_site';
+        $typeCol = Database::columnExists('base_products', 'type_id') ? 'p.type_id' : '0 AS type_id';
         $sql = "SELECT p.id, p.category, p.name, p.name_price, p.enabled, p.num,
                        p.price, p.price2, p.price3, p.price4, p.price5,
-                       p.is_material, p.time_sec, p.time_net, p.onec_id, $catName
+                       p.is_material, $hideCol, p.time_sec, p.time_net, p.onec_id, $typeCol, $catName
                 FROM base_products p
                 $joinCat
                 WHERE $sqlWhere
@@ -151,7 +184,7 @@ final class ProductsRepository
                     price, price2, price3, price4, price5,
                     is_material, type_id, time_sec, time_net, descr_proc,
                     unit_id, unit_use_id, supplier_id, stock_min, stock_max,
-                    can_be_sold, can_be_executed, is_status_card, hide_in_history,
+                    hide_on_site, hide_in_history,
                     onec_id, dop_cat, amount_done, last_admin_id, last_admin_at
              FROM base_products WHERE id = ? LIMIT 1'
         );
@@ -266,11 +299,8 @@ final class ProductsRepository
             'supplier_id' => max(0, (int)($post['supplier_id'] ?? 0)),
             'stock_min' => max(0, (int)($post['stock_min'] ?? 0)),
             'stock_max' => max(0, (int)($post['stock_max'] ?? 0)),
-            'can_be_sold' => !empty($post['can_be_sold']) ? 1 : 0,
-            'can_be_executed' => !empty($post['can_be_executed']) ? 1 : 0,
-            'is_status_card' => !empty($post['is_status_card']) ? 1 : 0,
+            'hide_on_site' => !empty($post['hide_on_site']) || !empty($post['is_status_card']) ? 1 : 0,
             'hide_in_history' => !empty($post['hide_in_history']) ? 1 : 0,
-            'onec_id' => mb_substr(trim((string)($post['onec_id'] ?? '')), 0, 40),
             'dop_cat' => mb_substr(trim((string)($post['dop_cat'] ?? '')), 0, 255),
         ];
     }
@@ -286,15 +316,15 @@ final class ProductsRepository
                 price, price2, price3, price4, price5,
                 is_material, type_id, time_sec, time_net, descr_proc,
                 unit_id, unit_use_id, supplier_id, stock_min, stock_max,
-                can_be_sold, can_be_executed, is_status_card, hide_in_history,
-                onec_id, dop_cat, amount_done, last_admin_id, last_admin_at
+                hide_on_site, hide_in_history,
+                dop_cat, amount_done, last_admin_id, last_admin_at
              ) VALUES (
                 ?, ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?,
                 ?, ?, ?, ?, ?,
-                ?, ?, ?, ?,
-                ?, ?, 0, ?, ?
+                ?, ?,
+                ?, 0, ?, ?
              )'
         );
         $st->execute([
@@ -319,11 +349,8 @@ final class ProductsRepository
             $data['supplier_id'],
             $data['stock_min'],
             $data['stock_max'],
-            $data['can_be_sold'],
-            $data['can_be_executed'],
-            $data['is_status_card'],
+            $data['hide_on_site'],
             $data['hide_in_history'],
-            $data['onec_id'],
             $data['dop_cat'],
             $adminId,
             $now,
@@ -343,8 +370,8 @@ final class ProductsRepository
              price = ?, price2 = ?, price3 = ?, price4 = ?, price5 = ?,
              is_material = ?, type_id = ?, time_sec = ?, time_net = ?, descr_proc = ?,
              unit_id = ?, unit_use_id = ?, supplier_id = ?, stock_min = ?, stock_max = ?,
-             can_be_sold = ?, can_be_executed = ?, is_status_card = ?, hide_in_history = ?,
-             onec_id = ?, dop_cat = ?, last_admin_id = ?, last_admin_at = ?
+             hide_on_site = ?, hide_in_history = ?,
+             dop_cat = ?, last_admin_id = ?, last_admin_at = ?
              WHERE id = ?'
         );
         $st->execute([
@@ -369,16 +396,87 @@ final class ProductsRepository
             $data['supplier_id'],
             $data['stock_min'],
             $data['stock_max'],
-            $data['can_be_sold'],
-            $data['can_be_executed'],
-            $data['is_status_card'],
+            $data['hide_on_site'],
             $data['hide_in_history'],
-            $data['onec_id'],
             $data['dop_cat'],
             Auth::userId(),
             time(),
             $id,
         ]);
+    }
+
+    /**
+     * Product↔1C id (column on base_products; UI/save owned by terminals when enabled).
+     * Catalog create/update deliberately omit this field so disabling terminals keeps values.
+     */
+    public static function setOnecId(int $id, string $onecId): void
+    {
+        if ($id < 1 || !Database::tableExists('base_products')) {
+            return;
+        }
+        if (!Database::columnExists('base_products', 'onec_id')) {
+            return;
+        }
+        $onecId = mb_substr(trim($onecId), 0, 40);
+        $st = Database::pdo()->prepare(
+            'UPDATE base_products SET onec_id = ?, last_admin_id = ?, last_admin_at = ? WHERE id = ?'
+        );
+        $st->execute([$onecId, Auth::userId(), time(), $id]);
+    }
+
+    /**
+     * Public storefront catalog: enabled, not material, not hide_on_site.
+     *
+     * @param array{category?:int|null,category_ids?:list<int>|null,limit?:int,offset?:int,order?:string} $opts
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public static function listForStorefront(array $opts = []): array
+    {
+        $filters = [
+            'enabled' => '1',
+            'is_material' => '0',
+            'hide_on_site' => '0',
+            'order' => (string)($opts['order'] ?? 'p.num ASC, p.name ASC'),
+            'limit' => (int)($opts['limit'] ?? 200),
+            'offset' => (int)($opts['offset'] ?? 0),
+        ];
+        if (array_key_exists('category', $opts) && $opts['category'] !== null && (int)$opts['category'] > 0) {
+            $filters['category'] = (int)$opts['category'];
+        }
+        if (!empty($opts['category_ids']) && is_array($opts['category_ids'])) {
+            $filters['category_ids'] = $opts['category_ids'];
+        }
+        return self::list($filters);
+    }
+
+    /** Visible on public site (after find). Optional host catalog root subtree. */
+    public static function isStorefrontVisible(?array $product, ?array $allowedCategoryIds = null): bool
+    {
+        if ($product === null) {
+            return false;
+        }
+        if (empty($product['enabled'])) {
+            return false;
+        }
+        if (!empty($product['is_material'])) {
+            return false;
+        }
+        if (!empty($product['hide_on_site']) || !empty($product['is_status_card'])) {
+            return false;
+        }
+        if ($allowedCategoryIds !== null) {
+            $allow = [];
+            foreach ($allowedCategoryIds as $cid) {
+                $cid = (int)$cid;
+                if ($cid > 0) {
+                    $allow[$cid] = true;
+                }
+            }
+            if ($allow === [] || !isset($allow[(int)($product['category'] ?? 0)])) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Apply component rollup prices/times to product. */

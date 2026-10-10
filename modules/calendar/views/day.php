@@ -37,6 +37,12 @@ if ($staffId > 0) {
     $newEventUrl .= '&staff=' . $staffId;
 }
 $newEventUrl .= '&ret=' . rawurlencode($dayUrl($date));
+$canBook = class_exists(ModuleManager::class, false)
+    && ModuleManager::isEnabled('booking')
+    && Auth::can('booking.edit');
+$newBookingUrl = '/booking/new?date=' . rawurlencode($date)
+    . ($staffId > 0 ? ('&staff=' . $staffId) : '')
+    . '&ret=' . rawurlencode($dayUrl($date));
 ?>
 <section class="page-head page-head-compact">
   <div class="page-actions calendar-period-nav" data-calendar-nav="day"
@@ -44,6 +50,9 @@ $newEventUrl .= '&ret=' . rawurlencode($dayUrl($date));
        data-next="<?= e($dayUrl($nextDate)) ?>">
     <?php if (!empty($canCreate)): ?>
       <a class="btn-primary" href="<?= e($newEventUrl) ?>"><?= te('calendar.day.add_event') ?></a>
+    <?php endif; ?>
+    <?php if ($canBook): ?>
+      <a class="btn-secondary" href="<?= e($newBookingUrl) ?>"><?= te('booking.calendar.add_booking') ?></a>
     <?php endif; ?>
     <a class="btn-secondary" href="<?= e($dayUrl($prevDate)) ?>" title="<?= te('calendar.day.prev') ?>" aria-label="<?= te('calendar.day.prev') ?>">«</a>
     <a class="btn-secondary" href="<?= e($dayUrl($nextDate)) ?>" title="<?= te('calendar.day.next') ?>" aria-label="<?= te('calendar.day.next') ?>">»</a>

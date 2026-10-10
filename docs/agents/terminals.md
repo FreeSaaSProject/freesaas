@@ -78,6 +78,8 @@ Own tables (no ALTER of `base_clients` / `base_users`):
 | `base_client_onec_bindings` | Current 1C ticket id for a client (`onec_id` + `dt_valid` unix). Upsert by `client_id`; expire via `ClientOnecBindingsRepository::expireStale`. Visit history stays in `base_fullstats` / `base_procedures`. |
 | `base_staff_bracelets` | Permanent staff NFC UID ↔ `user_id`. Edit on staff user form via `core.user_edit.*` (persists in this table, not `UsersRepository`). |
 
+Product nomenclature `base_products.onec_id`: column stays on catalog table; UI/save via `catalog.product_edit.sections` / `.save` when `terminals` is on. Catalog create/update never touch the column, so values remain if the module is disabled.
+
 Not the same as `base_bracelets` (locker UID↔NUM registry) or `base_procedures.1C_BRACELET` (sale-time snapshot).
 
 Terminal writers should resolve staff with `StaffBraceletsRepository::findByUid` before guest ticket → `ClientOnecBindingsRepository` flow. Live `/t` UI still lives on the site until ported.

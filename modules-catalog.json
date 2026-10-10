@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-09T17:00:37+00:00",
+    "generated_at": "2026-10-10T09:59:34+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.3",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -305,8 +305,47 @@
             }
         },
         {
+            "id": "booking",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Booking",
+                "ru": "Запись"
+            },
+            "description": {
+                "en": "Shared slot engine and advance order booking (masters / times).",
+                "ru": "Общий слот-движок и предварительная запись (мастера / время)."
+            },
+            "summary": {
+                "en": "Enable for availability API, staff /booking/new, and storefront /cart wizard. Needs catalog, clients, workweeks, calendar; soft orders + procedures for occupancy. Alpha — /t still later.",
+                "ru": "Включать для API слотов, staff /booking/new и wizard в /cart. Нужны catalog, clients, workweeks, calendar; soft orders + procedures для занятости. Alpha — /t ещё позже."
+            },
+            "requires": {
+                "core": ">=0.3.0",
+                "catalog": ">=0.1.0",
+                "clients": ">=0.1.0",
+                "workweeks": ">=0.1.0",
+                "calendar": ">=0.1.0"
+            },
+            "optionalRequires": {
+                "orders": ">=0.1.0",
+                "procedures": ">=0.1.0",
+                "rates": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "site",
+                    "team"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "journal"
+                ]
+            }
+        },
+        {
             "id": "bots",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -622,7 +661,7 @@
         },
         {
             "id": "ledger",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -753,7 +792,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -773,7 +812,9 @@
             },
             "optionalRequires": {
                 "catalog": ">=0.1.0",
-                "procedures": ">=0.1.0"
+                "procedures": ">=0.1.0",
+                "sites": ">=0.1.0",
+                "booking": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -994,6 +1035,41 @@
                 ],
                 "maturity": "beta",
                 "tags": []
+            }
+        },
+        {
+            "id": "sites",
+            "version": "0.2.0",
+            "type": "product",
+            "name": {
+                "en": "Sites",
+                "ru": "Сайты"
+            },
+            "description": {
+                "en": "Public storefront + CMS: articles, promo pages, redirects, themes, shop",
+                "ru": "Публичная витрина и CMS: статьи, промо, редиректы, темы, магазин"
+            },
+            "summary": {
+                "en": "Enable for the public site host (site.php) and CMS admin. Soft-deps: catalog, orders, clients, booking (cart appointment wizard). Theme under themes/. Same DB as admin.",
+                "ru": "Включайте на хосте публичного сайта (site.php) и для CMS в админке. Мягкие зависимости: catalog, orders, clients, booking (wizard записи в корзине). Тема в themes/. Та же БД."
+            },
+            "requires": {
+                "core": ">=0.3.0"
+            },
+            "optionalRequires": {
+                "catalog": ">=0.1.0",
+                "orders": ">=0.1.0",
+                "clients": ">=0.1.0",
+                "booking": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "site"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "embed"
+                ]
             }
         },
         {
@@ -1279,7 +1355,7 @@
         },
         {
             "id": "wellness",
-            "version": "0.2.6",
+            "version": "0.2.9",
             "type": "product",
             "name": {
                 "en": "Health & fitness",

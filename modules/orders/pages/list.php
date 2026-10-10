@@ -98,6 +98,7 @@ View::render('list', [
     'showAll' => $lq['show_all'],
     'filters' => $filters,
     'breadcrumbs' => Breadcrumbs::withHome([
+        ['label' => t('calendar.menu.group'), 'href' => '/calendar'],
         $ordersCrumb,
     ]),
 ], 'layout', 'orders');

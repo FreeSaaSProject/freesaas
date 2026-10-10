@@ -73,11 +73,13 @@ if (isset($_GET['shift_ok'])) {
 
 $events = EventsRepository::listForDayRange($monday, $weekEnd, $staffFilter);
 $procedures = ProceduresRepository::listForDayRange($monday, $weekEnd, $staffFilter);
+$orders = CalendarTimeline::advanceOrdersForRange($monday, $weekEnd, $staffFilter);
 
 $eventsByDate = CalendarWeek::groupByDate($events, 'dtstart');
 $procsByDate = CalendarWeek::groupByDate($procedures, 'dtstart');
+$ordersByDate = CalendarWeek::groupByDate($orders, 'dt_event');
 
-$allOpIds = CalendarTimeline::collectOperatorIds($events, $procedures);
+$allOpIds = CalendarTimeline::collectOperatorIds($events, $procedures, $orders);
 $shiftsByDate = [];
 foreach ($days as $day) {
     $shiftsByDate[$day['date']] = WorkweeksRepository::listForDay((int)$day['ts']);
@@ -103,6 +105,7 @@ foreach ($days as $day) {
     $d = $day['date'];
     $dayEvents = $eventsByDate[$d] ?? [];
     $dayProcs = $procsByDate[$d] ?? [];
+    $dayOrders = $ordersByDate[$d] ?? [];
     $shifts = $shiftsByDate[$d] ?? [];
     if ($staffId > 0) {
         $shifts = array_values(array_filter(
@@ -111,7 +114,7 @@ foreach ($days as $day) {
         ));
     }
 
-    $opIds = CalendarTimeline::collectOperatorIds($dayEvents, $dayProcs);
+    $opIds = CalendarTimeline::collectOperatorIds($dayEvents, $dayProcs, $dayOrders);
     if ($staffId > 0 && $opIds === []) {
         $opIds = [$staffId];
     }
@@ -122,11 +125,15 @@ foreach ($days as $day) {
         $dayProcs,
         $stacks,
         $colors,
-        $canEdit
+        $canEdit,
+        $dayOrders
     );
     foreach ($chips as &$chip) {
         if (($chip['kind'] === 'event' || $chip['kind'] === 'block') && $canEdit) {
             $chip['href'] .= '?ret=' . rawurlencode($weekRet);
+        }
+        if ($chip['kind'] === 'order') {
+            $chip['href'] .= (strpos($chip['href'], '?') !== false ? '&' : '?') . 'ret=' . rawurlencode($weekRet);
         }
     }
     unset($chip);
@@ -211,6 +218,7 @@ if ($wantsJson) {
             'is_today' => !empty($day['is_today']),
             'events' => EventsRepository::listForAgent($eventsByDate[$d] ?? []),
             'procedures' => $procsByDate[$d] ?? [],
+            'orders' => $ordersByDate[$d] ?? [],
             'shifts' => WorkweeksRepository::listForAgent($dayShifts),
         ];
     }

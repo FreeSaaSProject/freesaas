@@ -2,19 +2,23 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0",
         "clients": ">=0.1.0"
     },
     "optionalRequires": {
         "catalog": ">=0.1.0",
-        "procedures": ">=0.1.0"
+        "procedures": ">=0.1.0",
+        "sites": ">=0.1.0",
+        "booking": ">=0.1.0"
     },
     "provides": [
         "orders.list",
-        "orders.for_day"
+        "orders.for_day",
+        "orders.create"
     ],
     "migrations": "migrations/",
     "permissions": [
@@ -62,17 +66,19 @@
                 "method": "POST",
                 "path": "/orders/{id}/edit",
                 "permission": "orders.edit",
-                "description": "Update order status, cosmetologist, comment, mail, free_ticket"
+                "description": "Update order: status, staff, dt_event, client, cart lines, sums, promo, free_ticket, comment"
             }
         ]
     },
     "jobs": [],
     "menu": [
         {
-            "group": "likespa.menu.group",
-            "num": 20,
+            "group": "calendar.menu.group",
+            "num": 25,
+            "kind": "work",
             "path": "/orders",
-            "title": "orders.menu.list"
+            "title": "orders.menu.list",
+            "permission": "orders.view"
         }
     ],
     "configSchema": [],

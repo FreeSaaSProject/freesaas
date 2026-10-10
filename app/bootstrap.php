@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/helpers.php';
 require_once __DIR__ . '/Config.php';
+require_once __DIR__ . '/AppRuntime.php';
 require_once __DIR__ . '/Database.php';
 require_once __DIR__ . '/EventBus.php';
 require_once __DIR__ . '/Auth.php';
@@ -35,6 +36,7 @@ require_once dirname(__DIR__) . '/modules/core/lib/UsersRepository.php';
 StageTiming::reset(microtime(true));
 
 Config::load(base_path('cfg/config.ini'));
+AppRuntime::boot();
 StageTiming::mark('Config');
 
 $tz = (string)Config::get('app', 'timezone', 'UTC');

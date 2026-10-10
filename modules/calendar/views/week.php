@@ -43,6 +43,12 @@ foreach ($dayColumns as $col) {
         break;
     }
 }
+$canBook = class_exists(ModuleManager::class, false)
+    && ModuleManager::isEnabled('booking')
+    && Auth::can('booking.edit');
+$newBookingUrl = '/booking/new?date=' . rawurlencode($dayLinkDate)
+    . ($staffId > 0 ? ('&staff=' . $staffId) : '')
+    . '&ret=' . rawurlencode($weekUrl($monday));
 ?>
 <section class="page-head page-head-compact">
   <div class="page-actions calendar-period-nav" data-calendar-nav="week"
@@ -56,6 +62,9 @@ foreach ($dayColumns as $col) {
     </select>
     <a class="btn-secondary" href="<?= e($weekUrl($nextWeek)) ?>" title="<?= te('calendar.week.next') ?>" aria-label="<?= te('calendar.week.next') ?>">»</a>
     <a class="btn-secondary" href="<?= e($dayUrl($dayLinkDate)) ?>"><?= te('calendar.week.to_day') ?></a>
+    <?php if ($canBook): ?>
+      <a class="btn-secondary" href="<?= e($newBookingUrl) ?>"><?= te('booking.calendar.add_booking') ?></a>
+    <?php endif; ?>
   </div>
 </section>
 

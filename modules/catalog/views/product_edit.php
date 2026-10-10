@@ -53,9 +53,6 @@ $backHref = $backHref ?? '/catalog';
     <label><?= te('catalog.col.num') ?>
       <input type="number" name="num" value="<?= e((string)($row['num'] ?? '0')) ?>">
     </label>
-    <label><?= te('catalog.product.onec_id') ?>
-      <input name="onec_id" maxlength="40" value="<?= e((string)($row['onec_id'] ?? '')) ?>">
-    </label>
     <label><?= te('catalog.product.dop_cat') ?>
       <input name="dop_cat" maxlength="255" value="<?= e((string)($row['dop_cat'] ?? '')) ?>">
     </label>
@@ -76,20 +73,7 @@ $backHref = $backHref ?? '/catalog';
   </fieldset>
 
   <fieldset>
-    <legend><?= te('catalog.product.sec_prices') ?></legend>
-    <?php for ($i = 1; $i <= 5; $i++):
-      $key = $i === 1 ? 'price' : ('price' . $i);
-    ?>
-      <label><?= te('catalog.product.price_n', ['n' => $i]) ?>
-        <input type="number" step="0.01" name="<?= e($key) ?>" value="<?= e((string)($row[$key] ?? '0')) ?>">
-      </label>
-    <?php endfor; ?>
-    <label><?= te('catalog.product.time_sec') ?>
-      <input type="number" min="0" name="time_sec" value="<?= e((string)($row['time_sec'] ?? '0')) ?>">
-    </label>
-    <label><?= te('catalog.product.time_net') ?>
-      <input type="number" min="0" name="time_net" value="<?= e((string)($row['time_net'] ?? '0')) ?>">
-    </label>
+    <legend><?= te('catalog.product.sec_type') ?></legend>
     <label><?= te('catalog.product.type_id') ?>
       <?php if (!empty($procedureTypeNames)): ?>
       <select name="type_id">
@@ -101,22 +85,37 @@ $backHref = $backHref ?? '/catalog';
       <?php else: ?>
       <input type="number" min="0" name="type_id" value="<?= e((string)($row['type_id'] ?? '0')) ?>">
       <?php endif; ?>
+      <span class="field-hint muted"><?= te('catalog.product.type_id_hint') ?></span>
     </label>
+  </fieldset>
+
+  <fieldset>
+    <legend><?= te('catalog.product.sec_time') ?></legend>
+    <label><?= te('catalog.product.time_sec') ?>
+      <input type="number" min="0" name="time_sec" value="<?= e((string)($row['time_sec'] ?? '0')) ?>">
+    </label>
+    <label><?= te('catalog.product.time_net') ?>
+      <input type="number" min="0" name="time_net" value="<?= e((string)($row['time_net'] ?? '0')) ?>">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend><?= te('catalog.product.sec_prices') ?></legend>
+    <?php for ($i = 1; $i <= 5; $i++):
+      $key = $i === 1 ? 'price' : ('price' . $i);
+    ?>
+      <label><?= te('catalog.product.price_n', ['n' => $i]) ?>
+        <input type="number" step="0.01" name="<?= e($key) ?>" value="<?= e((string)($row[$key] ?? '0')) ?>">
+      </label>
+    <?php endfor; ?>
   </fieldset>
 
   <fieldset>
     <legend><?= te('catalog.product.sec_flags') ?></legend>
     <label class="check">
-      <input type="checkbox" name="can_be_sold" value="1"<?= !empty($row['can_be_sold']) ? ' checked' : '' ?>>
-      <?= te('catalog.product.can_be_sold') ?>
-    </label>
-    <label class="check">
-      <input type="checkbox" name="can_be_executed" value="1"<?= !empty($row['can_be_executed']) ? ' checked' : '' ?>>
-      <?= te('catalog.product.can_be_executed') ?>
-    </label>
-    <label class="check">
-      <input type="checkbox" name="is_status_card" value="1"<?= !empty($row['is_status_card']) ? ' checked' : '' ?>>
-      <?= te('catalog.product.is_status_card') ?>
+      <input type="checkbox" name="hide_on_site" value="1"<?= !empty($row['hide_on_site']) || !empty($row['is_status_card']) ? ' checked' : '' ?>>
+      <?= te('catalog.product.hide_on_site') ?>
+      <span class="field-hint muted"><?= te('catalog.product.hide_on_site_hint') ?></span>
     </label>
     <label class="check">
       <input type="checkbox" name="hide_in_history" value="1"<?= !empty($row['hide_in_history']) ? ' checked' : '' ?>>
@@ -158,6 +157,18 @@ $backHref = $backHref ?? '/catalog';
       <input type="number" min="0" name="stock_max" value="<?= e((string)($row['stock_max'] ?? '0')) ?>">
     </label>
   </fieldset>
+
+  <?php
+  $sections = EventBus::emit('catalog.product_edit.sections', [
+      'product_id' => $pid,
+      'is_new' => $isNew,
+      'row' => $row,
+      'html' => '',
+  ]);
+  if (!empty($sections['html'])) {
+      echo $sections['html'];
+  }
+  ?>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>

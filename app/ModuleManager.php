@@ -52,6 +52,11 @@ final class ModuleManager
             if (empty($meta['_enabled'])) {
                 continue;
             }
+            if (!self::bootsInCurrentRuntime($id)) {
+                // Keep config-enabled for admin UI / migrations; skip bootstrap in this role.
+                self::$modules[$id]['_runtime_skip'] = true;
+                continue;
+            }
             $block = self::unmetRequiredDeps($id);
             if ($block !== null) {
                 error_log("[ModuleManager] Module '$id' blocked: $block");
@@ -66,6 +71,36 @@ final class ModuleManager
         }
     }
 
+    /**
+     * Manifest runtime: admin | storefront | both.
+     * Missing key defaults to admin (existing modules stay staff-only until opted in).
+     */
+    public static function runtimeOf(string $id): string
+    {
+        $meta = self::$modules[$id] ?? [];
+        $r = strtolower(trim((string)($meta['runtime'] ?? 'admin')));
+        if ($r === 'site' || $r === 'public') {
+            $r = 'storefront';
+        }
+        if (!in_array($r, ['admin', 'storefront', 'both'], true)) {
+            return 'admin';
+        }
+        return $r;
+    }
+
+    /** Whether this module's bootstrap should run for the current AppRuntime role. */
+    public static function bootsInCurrentRuntime(string $id): bool
+    {
+        $r = self::runtimeOf($id);
+        if ($r === 'both') {
+            return true;
+        }
+        if (!class_exists('AppRuntime', false)) {
+            return $r === 'admin';
+        }
+        return AppRuntime::isStorefront() ? ($r === 'storefront') : ($r === 'admin');
+    }
+
     /** @return array<string, array> */
     public static function all(): array
     {
@@ -73,6 +108,19 @@ final class ModuleManager
     }
 
     public static function isEnabled(string $id): bool
+    {
+        if (empty(self::$modules[$id]['_enabled'])) {
+            return false;
+        }
+        // Runtime-skipped modules are config-enabled but not booted in this process.
+        if (!empty(self::$modules[$id]['_runtime_skip'])) {
+            return false;
+        }
+        return true;
+    }
+
+    /** Config/registry enabled flag (ignores storefront runtime skip). */
+    public static function isConfigEnabled(string $id): bool
     {
         return !empty(self::$modules[$id]['_enabled']);
     }

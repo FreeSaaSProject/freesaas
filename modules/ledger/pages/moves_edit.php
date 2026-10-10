@@ -71,6 +71,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             redirect('/ledger/moves?deleted=1');
             return;
         }
+        if ($action === 'copy') {
+            if ($isNew) {
+                throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));
+            }
+            $newId = LedgerMovesRepository::copyAndEnter($id);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'action' => 'copy',
+                    'source_id' => $id,
+                    'id' => $newId,
+                    'row' => LedgerMovesRepository::find($newId),
+                ]);
+                return;
+            }
+            redirect('/ledger/moves/' . $newId . '/edit');
+            return;
+        }
         $data = LedgerMovesRepository::dataFromPost($_POST, $isNew ? null : $row);
         if ($isNew) {
             $newId = LedgerMovesRepository::create($data);

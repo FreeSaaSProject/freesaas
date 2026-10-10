@@ -76,6 +76,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     throw new InvalidArgumentException(t('catalog.browse.err.folders_block_product'));
                 }
                 $newId = ProductsRepository::create($data);
+                EventBus::emit('catalog.product_edit.save', [
+                    'product_id' => $newId,
+                    'is_new' => true,
+                    'post' => $_POST,
+                    'row' => ProductsRepository::find($newId),
+                ]);
                 if ($wantsJson) {
                     AgentHttp::emit([
                         'ok' => true,
@@ -88,6 +94,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 return;
             }
             ProductsRepository::update($id, $data);
+            EventBus::emit('catalog.product_edit.save', [
+                'product_id' => $id,
+                'is_new' => false,
+                'post' => $_POST,
+                'row' => ProductsRepository::find($id),
+            ]);
             $message = t('core.common.saved');
             $row = ProductsRepository::find($id) ?: $row;
         }

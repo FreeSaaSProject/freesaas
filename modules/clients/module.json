@@ -4,6 +4,7 @@
     "description": "clients.module.description",
     "version": "0.1.1",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0"
     },

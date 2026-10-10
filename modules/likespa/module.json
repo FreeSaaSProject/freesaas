@@ -2,8 +2,9 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0"
     },
@@ -12,17 +13,15 @@
         "audio": ">=0.1.0",
         "workweeks": ">=0.1.0",
         "procedures": ">=0.1.0",
-        "payments": ">=0.1.0"
+        "payments": ">=0.1.0",
+        "sites": ">=0.2.0",
+        "booking": ">=0.1.0"
     },
     "provides": [
         "likespa.term_scans",
         "likespa.promo",
         "likespa.dops",
-        "likespa.restores",
-        "likespa.site",
-        "likespa.promopages",
-        "likespa.pages",
-        "likespa.redirects"
+        "likespa.restores"
     ],
     "migrations": "migrations/",
     "permissions": [
@@ -41,18 +40,6 @@
         {
             "id": "likespa.restores",
             "label": "likespa.perm.restores"
-        },
-        {
-            "id": "likespa.promopages",
-            "label": "likespa.perm.promopages"
-        },
-        {
-            "id": "likespa.pages",
-            "label": "likespa.perm.pages"
-        },
-        {
-            "id": "likespa.redirects",
-            "label": "likespa.perm.redirects"
         }
     ],
     "routes": {
@@ -62,16 +49,6 @@
             "/likespa/restores",
             "/likespa/restores/new",
             "/likespa/restores/{id}/edit",
-            "/likespa/site",
-            "/likespa/promopages",
-            "/likespa/promopages/new",
-            "/likespa/promopages/{id}/edit",
-            "/likespa/pages",
-            "/likespa/pages/new",
-            "/likespa/pages/{id}/edit",
-            "/likespa/redirects",
-            "/likespa/redirects/new",
-            "/likespa/redirects/{id}/edit",
             "/likespa/settings"
         ]
     },
@@ -111,27 +88,6 @@
                 "path": "/likespa/restores/{id}/edit",
                 "permission": "likespa.restores",
                 "description": "Update restore reason/summ/sign; re-runs settlement side effects"
-            },
-            {
-                "id": "likespa.promopages.list",
-                "method": "GET",
-                "path": "/likespa/promopages",
-                "permission": "likespa.promopages",
-                "description": "List promo pages; filters: q, enabled"
-            },
-            {
-                "id": "likespa.pages.list",
-                "method": "GET",
-                "path": "/likespa/pages",
-                "permission": "likespa.pages",
-                "description": "List site articles (page categories); filters: q, enabled, parent"
-            },
-            {
-                "id": "likespa.redirects.list",
-                "method": "GET",
-                "path": "/likespa/redirects",
-                "permission": "likespa.redirects",
-                "description": "List URL redirects; filters: q, enabled"
             }
         ]
     },
@@ -139,37 +95,9 @@
     "menu": [
         {
             "group": "likespa.menu.group",
-            "num": 5,
-            "path": "/likespa/site",
-            "title": "likespa.menu.site",
-            "kind": "settings"
-        },
-        {
-            "group": "likespa.menu.group",
             "num": 10,
             "path": "/likespa/term-scans",
             "title": "likespa.menu.term_scans"
-        },
-        {
-            "group": "likespa.menu.group",
-            "num": 25,
-            "path": "/likespa/promopages",
-            "title": "likespa.menu.promopages",
-            "kind": "crud"
-        },
-        {
-            "group": "likespa.menu.group",
-            "num": 26,
-            "path": "/likespa/pages",
-            "title": "likespa.menu.pages",
-            "kind": "crud"
-        },
-        {
-            "group": "likespa.menu.group",
-            "num": 27,
-            "path": "/likespa/redirects",
-            "title": "likespa.menu.redirects",
-            "kind": "crud"
         },
         {
             "group": "procedures.menu.group",
@@ -188,47 +116,23 @@
     ],
     "configSchema": [],
     "tables": [
-        "base_term_scans",
-        "base_promopages",
-        "base_page_categories",
-        "base_redirects"
+        "base_term_scans"
     ],
-    "migrators": [
-        {
-            "id": "phpshop_page_categories_to_base_page_categories",
-            "mode": "replace",
-            "source": [
-                "phpshop_page_categories"
-            ],
-            "target": [
-                "base_page_categories"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "audio_reports.calendar.cell",
             "core.user_edit.sections",
             "core.user_edit.save",
-            "core.user_edit.profile"
+            "core.user_edit.profile",
+            "sites.cart.booking",
+            "booking.book.before"
         ],
         "publish": []
     },
     "bulkActions": [
         {
             "list_id": "likespa_restores",
-            "action": "delete"
-        },
-        {
-            "list_id": "likespa_promopages",
-            "action": "delete"
-        },
-        {
-            "list_id": "likespa_pages",
-            "action": "delete"
-        },
-        {
-            "list_id": "likespa_redirects",
             "action": "delete"
         }
     ],

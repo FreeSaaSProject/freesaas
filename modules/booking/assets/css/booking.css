@@ -1,0 +1,43 @@
+.booking-steps {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.25rem;
+}
+.booking-product-groups {
+  max-height: 22rem;
+  overflow: auto;
+  border: 1px solid var(--border, #ddd);
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+}
+.booking-cat {
+  margin: 0.35rem 0;
+}
+.booking-cat summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.booking-product-list {
+  list-style: none;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0 0 0 0.25rem;
+}
+.booking-product-list li {
+  margin: 0.2rem 0;
+}
+.booking-product-list label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: baseline;
+  font-weight: normal;
+}
+.booking-client-suggest ul {
+  list-style: none;
+  margin: 0.35rem 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.booking-client-new {
+  color: var(--warn, #a60);
+}

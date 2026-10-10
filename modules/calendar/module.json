@@ -63,7 +63,7 @@
                 "method": "GET",
                 "path": "/calendar/day/{date}",
                 "permission": "calendar.view",
-                "description": "Single day: events, procedures, shifts; optional staff="
+                "description": "Single day: events, procedures, advance orders, shifts; optional staff="
             },
             {
                 "id": "calendar.events.get",

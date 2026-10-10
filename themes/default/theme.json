@@ -1,0 +1,6 @@
+{
+  "id": "default",
+  "name": "Default",
+  "version": "0.1.0",
+  "regions": ["header", "footer", "home", "product", "cart"]
+}

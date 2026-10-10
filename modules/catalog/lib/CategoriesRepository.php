@@ -17,7 +17,7 @@ final class CategoriesRepository
     }
 
     /**
-     * @param array{q?:string,order?:string,limit?:int,offset?:int} $opts
+     * @param array{q?:string,hidden?:string|null,parent_id?:int|null,order?:string,limit?:int,offset?:int} $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function list(array $opts = []): array
@@ -35,6 +35,14 @@ final class CategoriesRepository
             $params[] = $like;
             $params[] = $like;
             $params[] = $q;
+        }
+        if (array_key_exists('hidden', $opts) && $opts['hidden'] !== null && $opts['hidden'] !== '') {
+            $where[] = 'hidden = ?';
+            $params[] = (int)$opts['hidden'];
+        }
+        if (array_key_exists('parent_id', $opts) && $opts['parent_id'] !== null && $opts['parent_id'] !== '') {
+            $where[] = 'parent_id = ?';
+            $params[] = (int)$opts['parent_id'];
         }
         $sqlWhere = implode(' AND ', $where);
         $stc = $pdo->prepare("SELECT COUNT(*) FROM base_categories WHERE $sqlWhere");
@@ -70,6 +78,78 @@ final class CategoriesRepository
             $out[(int)$r['id']] = (string)$r['name'];
         }
         return $out;
+    }
+
+    /**
+     * Categories visible on the public storefront (not hidden).
+     *
+     * @param list<int>|null $onlyIds when set, restrict to these category ids
+     * @return list<array<string,mixed>>
+     */
+    public static function listForStorefront(?int $parentId = null, ?array $onlyIds = null): array
+    {
+        $opts = [
+            'hidden' => '0',
+            'order' => 'num ASC, name ASC',
+            'limit' => 500,
+        ];
+        if ($parentId !== null) {
+            $opts['parent_id'] = $parentId;
+        }
+        $items = self::list($opts)['items'];
+        if ($onlyIds === null) {
+            return $items;
+        }
+        $allow = [];
+        foreach ($onlyIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $allow[$id] = true;
+            }
+        }
+        if ($allow === []) {
+            return [];
+        }
+        $out = [];
+        foreach ($items as $cat) {
+            $id = (int)($cat['id'] ?? 0);
+            if (isset($allow[$id])) {
+                $out[] = $cat;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Root category id + all descendants (any depth), like legacy Balance SPA folder filter.
+     *
+     * @return list<int>
+     */
+    public static function descendantIds(int $rootId): array
+    {
+        $rootId = max(0, $rootId);
+        if ($rootId < 1 || !Database::tableExists('base_categories')) {
+            return [];
+        }
+        $ids = [$rootId];
+        $pending = [$rootId];
+        $guard = 0;
+        while ($pending !== [] && $guard++ < 50) {
+            $placeholders = implode(',', array_fill(0, count($pending), '?'));
+            $st = Database::pdo()->prepare(
+                "SELECT id FROM base_categories WHERE parent_id IN ($placeholders)"
+            );
+            $st->execute($pending);
+            $pending = [];
+            foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $cid) {
+                $cid = (int)$cid;
+                if ($cid > 0 && !in_array($cid, $ids, true)) {
+                    $ids[] = $cid;
+                    $pending[] = $cid;
+                }
+            }
+        }
+        return $ids;
     }
 
     public static function find(int $id): ?array

@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/OrdersRepository.php';
 
+Assets::register('orders', [
+    'css' => ['assets/css/orders.css'],
+]);
+
 $pages = [
     '/orders' => ['permission' => 'orders.view', 'methods' => ['GET'], 'file' => 'list.php'],
     '/orders/{id}' => ['permission' => 'orders.view', 'methods' => ['GET'], 'file' => 'view.php'],

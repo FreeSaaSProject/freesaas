@@ -80,6 +80,7 @@ return [
     'calendar.event.col_dtstart' => 'Start',
     'calendar.event.col_dtend' => 'End',
     'calendar.event.col_operator' => 'Performer',
+    'calendar.event.operator_not_on_shift' => 'not on shift that day!',
     'calendar.event.col_is_block' => 'Block (busy without client)',
     'calendar.event.col_fix_move' => 'Fixed (do not move)',
     'calendar.event.col_id_user' => 'Client ID',

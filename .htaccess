@@ -9,15 +9,28 @@ DirectorySlash Off
 
   # Allow static assets shipped inside modules (css/js/images/fonts only).
   RewriteCond %{REQUEST_FILENAME} -f
-  RewriteRule ^modules/[^/]+/assets/.+\.(css|js|png|jpe?g|gif|svg|webp|woff2?)$ - [L]
+  RewriteRule ^modules/[^/]+/assets/.+\.(css|js|png|jpe?g|gif|svg|webp|woff2?|ttf|otf|eot)$ - [L]
+
+  # Storefront themes (themes/<id>/assets/…). Fonts: woff/woff2/ttf/otf/eot.
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^themes/[^/]+/assets/.+\.(css|js|png|jpe?g|gif|svg|webp|woff2?|ttf|otf|eot)$ - [L]
 
   # /modules collides with the on-disk modules/ directory (Apache 403 with -Indexes).
   # Always send it (and anything under it) to the front controller; never serve PHP from there.
   RewriteRule ^modules/?$ index.php [L,QSA]
   RewriteRule ^modules/ index.php [L,QSA]
 
-  # Block direct web access to internals (var/ holds sessions, dumps, job locks).
+  # Block direct web access to internals (themes PHP/layouts stay private).
+  # var/ holds sessions, dumps, job locks — must not be HTTP-readable.
   RewriteRule ^(app|cfg|bin|docs|var|log)/ - [F,L]
+  RewriteRule ^themes/[^/]+/(layouts|views|partials)/ - [F,L]
+
+  # Front controller: default index.php (admin).
+  # Storefront vhost: set env FREESAAS_FRONT=site (SetEnv in vhost) or use htaccess.storefront.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{ENV:FREESAAS_FRONT} ^site$ [NC]
+  RewriteRule ^ site.php [L,QSA]
 
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
