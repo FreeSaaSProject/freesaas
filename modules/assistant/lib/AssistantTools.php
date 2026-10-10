@@ -133,11 +133,28 @@ final class AssistantTools
         }
 
         try {
-            $result = self::dispatchOp($opMeta, $args);
+            $result = self::dispatchOp($opMeta, self::normalizeArgs($opId, $args));
             return $result;
         } catch (Throwable $e) {
             return ['ok' => false, 'data' => null, 'error' => t('assistant.err.invoke') . ': ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Fill implied form actions for known write ops (LLM often omits action=delete|copy).
+     *
+     * @param array<string,mixed> $args
+     * @return array<string,mixed>
+     */
+    public static function normalizeArgs(string $opId, array $args): array
+    {
+        if ($opId !== '' && preg_match('/\.delete$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
+            $args['action'] = 'delete';
+        }
+        if ($opId !== '' && preg_match('/\.copy$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
+            $args['action'] = 'copy';
+        }
+        return $args;
     }
 
     /**

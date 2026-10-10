@@ -185,6 +185,7 @@ final class AssistantHarness
                 $opId = (string)$op['id'];
                 $side = (string)$op['side_effect'];
                 $desc = (string)$op['description'];
+                $args = AssistantTools::normalizeArgs($opId, $args);
                 self::emitProgress($onProgress, [
                     'phase' => 'start',
                     'op_id' => $opId,

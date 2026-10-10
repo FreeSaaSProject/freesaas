@@ -209,7 +209,8 @@ final class AssistantBotPlugin
                 }
                 $pending = is_array($out['pending_actions'] ?? null) ? $out['pending_actions'] : [];
                 if ($pending === [] && preg_match('/\b(confirm|подтверд)/iu', $reply)) {
-                    $reply .= "\n\n" . t('assistant.confirm.none');
+                    // LLM role-played Confirm without calling a write tool.
+                    $reply = t('assistant.confirm.not_queued');
                 }
                 $keyboard = null;
                 $display = $reply;

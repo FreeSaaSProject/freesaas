@@ -95,7 +95,7 @@ if ($reply === '') {
 }
 $pendingOut = is_array($result['pending_actions'] ?? null) ? $result['pending_actions'] : [];
 if ($pendingOut === [] && preg_match('/\b(confirm|подтверд)/iu', $reply)) {
-    $reply .= "\n\n" . t('assistant.confirm.none');
+    $reply = t('assistant.confirm.not_queued');
 }
 $history[] = ['role' => 'assistant', 'content' => $reply];
 AssistantDialog::saveHistory($userId, $history);

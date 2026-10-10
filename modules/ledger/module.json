@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -115,7 +115,7 @@
                 "method": "GET",
                 "path": "/ledger/moves",
                 "permission": "ledger.view",
-                "description": "List moves; filters: q, account_id, type_id, year, month, payment_id, supplier_id, promise (1|2|3); recon fields when account_id set"
+                "description": "List account moves (newest first). Use q to search purpose/descr (e.g. курица). Also: account_id, type_id, year, month, supplier_id."
             },
             {
                 "id": "ledger.moves.recon",
@@ -163,7 +163,14 @@
                 "method": "POST",
                 "path": "/ledger/moves/{id}/edit",
                 "permission": "ledger.edit",
-                "description": "Soft-delete move; form action=delete"
+                "description": "Soft-delete one move by id. Find id via ledger.moves.list first (q=keyword). UI will ask user to Confirm. action=delete is filled automatically.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "integer", "description": "base_account_moves.ID to delete"}
+                    },
+                    "required": ["id"]
+                }
             },
             {
                 "id": "ledger.moves.transfer",
