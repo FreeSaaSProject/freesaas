@@ -95,6 +95,7 @@ return [
     'core.login.password_show' => 'Show password',
     'core.login.password_hide' => 'Hide password',
     'core.login.submit' => 'Sign in',
+    'core.login.remember' => 'Remember me',
     'core.login.error.no_table' => 'The base_users table does not exist yet. Open /db (CLI: php bin/freesaas.php migrate run) and import the data.',
     'core.login.error.bad_credentials' => 'Wrong login or password (or the password has expired).',
     'core.home.command' => 'Command',

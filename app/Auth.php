@@ -3,13 +3,97 @@ declare(strict_types=1);
 
 final class Auth
 {
+    private const SESSION_NAME = 'freesaas';
+    private const GC_MIN_SECONDS = 86400;
+    private const REMEMBER_DAYS_DEFAULT = 7;
+
     public static function startSession(): void
+    {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (!empty($_SESSION['user_id']) && !empty($_SESSION['remember'])) {
+                self::touchSessionCookie();
+            }
+            return;
+        }
+        session_name(self::SESSION_NAME);
+        // GC must cover the longest cookie; remember flag is known only after start.
+        self::applySessionIni(self::rememberLifetimeSeconds());
+        session_set_cookie_params(self::cookieParams(0));
+        session_start();
+        if (!empty($_SESSION['user_id']) && !empty($_SESSION['remember'])) {
+            self::touchSessionCookie();
+        }
+    }
+
+    /** @return array{lifetime:int,path:string,domain:string,secure:bool,httponly:bool,samesite:string} */
+    private static function cookieParams(int $lifetime): array
+    {
+        return [
+            'lifetime' => $lifetime,
+            'path' => '/',
+            'domain' => '',
+            'secure' => self::isHttps(),
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ];
+    }
+
+    private static function isHttps(): bool
+    {
+        return !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+    }
+
+    private static function rememberDays(): int
+    {
+        $raw = class_exists('Config', false)
+            ? (int)Config::get('app', 'session_remember_days', (string)self::REMEMBER_DAYS_DEFAULT)
+            : self::REMEMBER_DAYS_DEFAULT;
+        return max(1, min(365, $raw > 0 ? $raw : self::REMEMBER_DAYS_DEFAULT));
+    }
+
+    private static function rememberLifetimeSeconds(): int
+    {
+        return self::rememberDays() * 86400;
+    }
+
+    private static function applySessionIni(int $lifetimeSeconds): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
-        session_name('freesaas');
-        session_start();
+        $gc = max(self::GC_MIN_SECONDS, $lifetimeSeconds);
+        ini_set('session.gc_maxlifetime', (string)$gc);
+        ini_set('session.use_strict_mode', '1');
+        ini_set('session.use_only_cookies', '1');
+    }
+
+    /** Sliding refresh of the session cookie when "remember me" is on. */
+    public static function touchSessionCookie(): void
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE || session_id() === '') {
+            return;
+        }
+        $lifetime = self::rememberLifetimeSeconds();
+        $params = self::cookieParams($lifetime);
+        setcookie(session_name(), session_id(), [
+            'expires' => time() + $lifetime,
+            'path' => $params['path'],
+            'secure' => $params['secure'],
+            'httponly' => $params['httponly'],
+            'samesite' => $params['samesite'],
+        ]);
+    }
+
+    private static function clearSessionCookie(): void
+    {
+        $params = self::cookieParams(0);
+        setcookie(session_name(), '', [
+            'expires' => time() - 42000,
+            'path' => $params['path'],
+            'secure' => $params['secure'],
+            'httponly' => $params['httponly'],
+            'samesite' => $params['samesite'],
+        ]);
     }
 
     public static function check(): bool
@@ -186,7 +270,7 @@ final class Auth
         return sha1(md5($plain . $salt));
     }
 
-    public static function attempt(string $login, string $password): bool
+    public static function attempt(string $login, string $password, bool $remember = true): bool
     {
         if (!Database::tableExists('base_users')) {
             return false;
@@ -226,10 +310,13 @@ final class Auth
             }
         }
 
+        session_regenerate_id(true);
+
         $_SESSION['user_id'] = (int)$row['id'];
         $_SESSION['login'] = (string)$row['login'];
         $_SESSION['user_name'] = (string)$row['name'];
         $_SESSION['permissions'] = $permissions;
+        $_SESSION['remember'] = $remember ? 1 : 0;
         self::setStatusContext((int)$row['ID_STATUS'], (int)($row['ID_STATUS2'] ?? 0));
 
         $userLocale = I18n::normalize(isset($row['locale']) ? (string)$row['locale'] : null);
@@ -237,6 +324,19 @@ final class Auth
             $_SESSION['locale'] = $userLocale;
             I18n::setLocale($userLocale);
             I18n::persistCookie($userLocale);
+        }
+
+        if ($remember) {
+            self::touchSessionCookie();
+        } else {
+            $params = self::cookieParams(0);
+            setcookie(session_name(), session_id(), [
+                'expires' => 0,
+                'path' => $params['path'],
+                'secure' => $params['secure'],
+                'httponly' => $params['httponly'],
+                'samesite' => $params['samesite'],
+            ]);
         }
 
         EventBus::emit('core.auth.after_login', [
@@ -254,8 +354,7 @@ final class Auth
         }
         $_SESSION = [];
         if (ini_get('session.use_cookies')) {
-            $p = session_get_cookie_params();
-            setcookie(session_name(), '', time() - 42000, $p['path'], $p['domain'], (bool)$p['secure'], (bool)$p['httponly']);
+            self::clearSessionCookie();
         }
         session_destroy();
     }

@@ -14,9 +14,10 @@ if (Auth::check()) {
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $login = (string)($_POST['login'] ?? '');
     $password = (string)($_POST['password'] ?? '');
+    $remember = isset($_POST['remember']) && (string)$_POST['remember'] !== '0';
     if (!Database::tableExists('base_users')) {
         $error = t('core.login.error.no_table');
-    } elseif (Auth::attempt($login, $password)) {
+    } elseif (Auth::attempt($login, $password, $remember)) {
         $afterLogin();
     } else {
         $error = t('core.login.error.bad_credentials');
