@@ -37,6 +37,26 @@ $mode = $cfg['mode'] ?? 'local';
     </label>
   </div>
   <div class="form-row-inline">
+    <label for="audio-ftp-pass"><?= te('audio.settings.ftp_pass') ?>
+      <span class="auth-pass">
+        <input type="password" name="audio_ftp_pass" id="audio-ftp-pass"
+               value="<?= e($cfg['ftp_pass'] ?? '') ?>"
+               autocomplete="new-password">
+        <button type="button"
+                class="auth-pass-toggle"
+                data-password-toggle
+                aria-pressed="false"
+                aria-label="<?= te('audio.settings.ftp_pass_show') ?>"
+                data-label-show="<?= te('audio.settings.ftp_pass_show') ?>"
+                data-label-hide="<?= te('audio.settings.ftp_pass_hide') ?>"
+                title="<?= te('audio.settings.ftp_pass_show') ?>">
+          <span class="auth-pass-icon" aria-hidden="true"></span>
+        </button>
+      </span>
+    </label>
+  </div>
+  <p class="muted"><?= te('audio.settings.ftp_pass_hint') ?></p>
+  <div class="form-row-inline">
     <label><?= te('audio.settings.ftp_base') ?>
       <input name="audio_ftp_base" value="<?= e($cfg['ftp_base_path'] ?? '/') ?>">
     </label>
@@ -47,5 +67,4 @@ $mode = $cfg['mode'] ?? 'local';
       <input name="audio_stem_cache" value="<?= e($cfg['stem_cache_dir'] ?? 'var/audio_stem_cache') ?>">
     </label>
   </div>
-  <p class="muted"><?= te('audio.settings.ftp_pass_hint') ?></p>
 </fieldset>

@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Local / FTP abstraction for audio inbox, parsed, and chunk directories.
- * Port of oper FileStorage — secrets (ftp_pass) only from Config ini.
+ * Port of oper FileStorage — ftp_pass from AudioSettingsRepository (DB + ini).
  */
 final class FileStorage
 {

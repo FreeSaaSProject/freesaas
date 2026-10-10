@@ -27,6 +27,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         foreach ($map as $key => $value) {
             AudioSettingsRepository::set($key, $value);
         }
+        // Password field is always posted; empty clears it.
+        AudioSettingsRepository::setFtpPass((string)($post['audio_ftp_pass'] ?? ''));
 
         EventBus::emit('audio.settings.save', [
             'post' => $post,
