@@ -772,20 +772,21 @@ final class FitFoodBotPlugin
         $ymd = date('Y-m-d');
         [$from, $to] = WellnessOwner::dayRange($ymd);
         $list = FitFoodlogsRepository::list(['from' => $from, 'to' => $to, 'limit' => 40, 'order' => 'l.DT ASC, l.ID ASC']);
-        $lines = ['<b>' . t('wellness.bot.title') . '</b>', ''];
-        $n = 1;
-        foreach ($list['items'] as $row) {
-            $lines[] = $n . ': ' . date('H:i', (int)$row['dt']) . ' — ' . e((string)$row['food_name'])
-                . ' ' . (float)$row['weight'] . 'g (' . (int)$row['ccals'] . ')';
-            $n++;
+        $lines = ['<b>' . t('wellness.bot.title') . '</b>'];
+        $menu = self::formatDayMenuLines($list['items'], true);
+        if ($menu !== []) {
+            $lines[] = '';
+            foreach ($menu as $line) {
+                $lines[] = $line;
+            }
         }
         $t = $list['totals'];
         $lines[] = '';
         $lines[] = '<b>' . t('wellness.bot.totals', [
-            'c' => (string)$t['ccals'],
-            'p' => (string)$t['proteins'],
-            'f' => (string)$t['fats'],
-            'u' => (string)$t['carbs'],
+            'c' => (string)(int)round((float)$t['ccals']),
+            'p' => (string)(int)round((float)$t['proteins']),
+            'f' => (string)(int)round((float)$t['fats']),
+            'u' => (string)(int)round((float)$t['carbs']),
         ]) . '</b>';
         $sports = FitWorkoutsRepository::list(['from' => $from, 'to' => $to, 'limit' => 10]);
         $lines[] = '';
@@ -870,14 +871,66 @@ final class FitFoodBotPlugin
     /** @param list<array<string,mixed>> $items */
     private static function formatNumberedFoodLines(array $items): string
     {
+        return implode("\n", self::formatDayMenuLines($items, true));
+    }
+
+    /**
+     * Day menu like elos63 bot: meal headings (gap > 2h) with КБЖУ, then item lines.
+     * When $numbered, keeps 1-based indices across the day (edit/delete map).
+     *
+     * @param list<array<string,mixed>> $items
+     * @return list<string>
+     */
+    private static function formatDayMenuLines(array $items, bool $numbered = false): array
+    {
+        if ($items === []) {
+            return [];
+        }
+        $meals = FitFoodlogsRepository::groupByMeals($items);
         $lines = [];
         $n = 1;
-        foreach ($items as $row) {
-            $lines[] = $n . ': ' . date('H:i', (int)$row['dt']) . ' — ' . e((string)$row['food_name'])
-                . ' ' . (float)$row['weight'] . 'g (' . (int)$row['ccals'] . ')';
-            $n++;
+        foreach ($meals as $meal) {
+            $tot = $meal['totals'];
+            $heading = self::mealTitle((string)$meal['label']);
+            $lines[] = '';
+            $lines[] = '<b>' . e(t('wellness.bot.meal_heading', [
+                'name' => $heading,
+                'c' => (string)(int)round((float)$tot['ccals']),
+                'p' => (string)(int)round((float)$tot['proteins']),
+                'f' => (string)(int)round((float)$tot['fats']),
+                'u' => (string)(int)round((float)$tot['carbs']),
+            ])) . '</b>';
+            foreach ($meal['items'] as $row) {
+                $time = date('H:i', (int)($row['dt'] ?? 0));
+                $name = e((string)($row['food_name'] ?? ''));
+                $w = round((float)($row['weight'] ?? 0));
+                $kcal = (int)($row['ccals'] ?? 0);
+                if ($numbered) {
+                    $lines[] = $n . ': ' . $time . ' — ' . $name . ' (' . $w . 'г, ' . $kcal . ')';
+                    $n++;
+                } else {
+                    $lines[] = $time . ' — ' . $name . ' (' . $w . 'г)';
+                }
+            }
         }
-        return implode("\n", $lines);
+        // Drop leading blank from first meal header.
+        if ($lines !== [] && $lines[0] === '') {
+            array_shift($lines);
+        }
+        return $lines;
+    }
+
+    private static function mealTitle(string $label): string
+    {
+        $label = trim($label);
+        if ($label === '') {
+            return $label;
+        }
+        if (function_exists('mb_substr') && function_exists('mb_strtoupper')) {
+            return mb_strtoupper(mb_substr($label, 0, 1, 'UTF-8'), 'UTF-8')
+                . mb_substr($label, 1, null, 'UTF-8');
+        }
+        return strtoupper(substr($label, 0, 1)) . substr($label, 1);
     }
 
     /**

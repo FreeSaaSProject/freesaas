@@ -2,7 +2,7 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.2.10",
+    "version": "0.2.12",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -27,6 +27,7 @@
     "routes": {
         "pages": [
             "/wellness",
+            "/wellness/calendar",
             "/wellness/food-diary",
             "/wellness/food-diary/new",
             "/wellness/food-diary/{id}/edit",
@@ -61,7 +62,7 @@
             {
                 "id": "wellness.calendar.month",
                 "method": "GET",
-                "path": "/wellness",
+                "path": "/wellness/calendar",
                 "permission": "wellness.view",
                 "side_effect": "read",
                 "description": "Current-user month overview: eaten/burned kcal series, weight, day markers",
@@ -83,9 +84,9 @@
             {
                 "id": "wellness.food_diary.list",
                 "method": "GET",
-                "path": "/wellness/food-diary",
+                "path": "/wellness",
                 "permission": "wellness.view",
-                "description": "List own food diary entries; returns totals/workouts/health for the day when date set",
+                "description": "List own food diary for a day (default today); morning→evening; meals grouped by >2h gaps (breakfast…snacks) with per-meal weight/kcal totals; also workouts/health/target",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -1003,14 +1004,14 @@
             "num": 10,
             "kind": "work",
             "path": "/wellness",
-            "title": "wellness.menu.calendar"
+            "title": "wellness.menu.food_diary"
         },
         {
             "group": "wellness.menu.group",
-            "num": 20,
+            "num": 15,
             "kind": "work",
-            "path": "/wellness/food-diary",
-            "title": "wellness.menu.food_diary"
+            "path": "/wellness/calendar",
+            "title": "wellness.menu.calendar"
         },
         {
             "group": "wellness.menu.group",

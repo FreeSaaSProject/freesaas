@@ -205,4 +205,114 @@ final class FitFoodlogsRepository
         $st->execute($params);
         return $st->rowCount();
     }
+
+    /**
+     * Gap threshold between meals (elos63: > 2 hours starts a new meal).
+     */
+    public const MEAL_GAP_SECONDS = 7200;
+
+    /**
+     * Meal label keys in chronological order (translation keys).
+     *
+     * @return list<string>
+     */
+    public static function mealLabelKeys(): array
+    {
+        return [
+            'wellness.meal.breakfast',
+            'wellness.meal.brunch',
+            'wellness.meal.lunch',
+            'wellness.meal.afternoon',
+            'wellness.meal.dinner',
+            'wellness.meal.snacks',
+        ];
+    }
+
+    /**
+     * Group diary rows into floating meals (gap > 2h), morning → evening.
+     * Oper show_fit_foodlogs: labels cycle; once at «snacks» further gaps stay in that meal.
+     *
+     * @param list<array<string,mixed>> $items
+     * @return list<array{
+     *   key:string,label:string,
+     *   items:list<array<string,mixed>>,
+     *   totals:array{weight:float,ccals:int,proteins:float,fats:float,carbs:float}
+     * }>
+     */
+    public static function groupByMeals(array $items): array
+    {
+        if ($items === []) {
+            return [];
+        }
+
+        usort($items, static function (array $a, array $b): int {
+            $da = (int)($a['dt'] ?? 0);
+            $db = (int)($b['dt'] ?? 0);
+            if ($da !== $db) {
+                return $da <=> $db;
+            }
+            return (int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0);
+        });
+
+        $labelKeys = self::mealLabelKeys();
+        $maxIdx = count($labelKeys) - 1;
+        $meals = [];
+        $mealIdx = -1;
+        $lastDt = 0;
+
+        foreach ($items as $row) {
+            $dt = (int)($row['dt'] ?? 0);
+            $openNew = $lastDt === 0 || ($dt - $lastDt) > self::MEAL_GAP_SECONDS;
+            if ($openNew && $mealIdx < $maxIdx) {
+                $mealIdx++;
+                $key = $labelKeys[$mealIdx];
+                $meals[] = [
+                    'key' => $key,
+                    'label' => t($key),
+                    'items' => [],
+                    'totals' => [
+                        'weight' => 0.0,
+                        'ccals' => 0,
+                        'proteins' => 0.0,
+                        'fats' => 0.0,
+                        'carbs' => 0.0,
+                    ],
+                ];
+            } elseif ($meals === []) {
+                $mealIdx = 0;
+                $key = $labelKeys[0];
+                $meals[] = [
+                    'key' => $key,
+                    'label' => t($key),
+                    'items' => [],
+                    'totals' => [
+                        'weight' => 0.0,
+                        'ccals' => 0,
+                        'proteins' => 0.0,
+                        'fats' => 0.0,
+                        'carbs' => 0.0,
+                    ],
+                ];
+            }
+
+            $mi = count($meals) - 1;
+            $meals[$mi]['items'][] = $row;
+            $meals[$mi]['totals']['weight'] += (float)($row['weight'] ?? 0);
+            $meals[$mi]['totals']['ccals'] += (int)($row['ccals'] ?? 0);
+            $meals[$mi]['totals']['proteins'] += (float)($row['proteins'] ?? 0);
+            $meals[$mi]['totals']['fats'] += (float)($row['fats'] ?? 0);
+            $meals[$mi]['totals']['carbs'] += (float)($row['carbs'] ?? 0);
+            $lastDt = $dt > 0 ? $dt : $lastDt;
+        }
+
+        foreach ($meals as &$meal) {
+            $meal['totals']['weight'] = round((float)$meal['totals']['weight'], 1);
+            $meal['totals']['proteins'] = round((float)$meal['totals']['proteins'], 2);
+            $meal['totals']['fats'] = round((float)$meal['totals']['fats'], 2);
+            $meal['totals']['carbs'] = round((float)$meal['totals']['carbs'], 2);
+        }
+        unset($meal);
+
+        return $meals;
+    }
 }

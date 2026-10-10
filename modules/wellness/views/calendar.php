@@ -27,8 +27,8 @@ $today = date('Y-m-d');
 ?>
 <section class="page-head wellness-cal-head">
   <nav class="wellness-cal-nav" aria-label="<?= te('wellness.calendar.aria') ?>">
-    <a class="btn-secondary" href="/wellness?year=<?= (int)$prevYear ?>&month=<?= (int)$prevMonth ?>" title="<?= te('wellness.calendar.prev') ?>">«</a>
-    <form method="get" action="/wellness" class="wellness-cal-jump" data-auto-filter>
+    <a class="btn-secondary" href="/wellness/calendar?year=<?= (int)$prevYear ?>&month=<?= (int)$prevMonth ?>" title="<?= te('wellness.calendar.prev') ?>">«</a>
+    <form method="get" action="/wellness/calendar" class="wellness-cal-jump" data-auto-filter>
       <select name="month">
         <?php for ($m = 1; $m <= 12; $m++): ?>
           <option value="<?= $m ?>"<?= $m === (int)$month ? ' selected' : '' ?>><?= e(date('F', mktime(0, 0, 0, $m, 1))) ?></option>
@@ -40,7 +40,7 @@ $today = date('Y-m-d');
         <?php endfor; ?>
       </select>
     </form>
-    <a class="btn-secondary" href="/wellness?year=<?= (int)$nextYear ?>&month=<?= (int)$nextMonth ?>" title="<?= te('wellness.calendar.next') ?>">»</a>
+    <a class="btn-secondary" href="/wellness/calendar?year=<?= (int)$nextYear ?>&month=<?= (int)$nextMonth ?>" title="<?= te('wellness.calendar.next') ?>">»</a>
     <strong class="wellness-cal-title"><?= e($monthLabel) ?></strong>
   </nav>
 </section>

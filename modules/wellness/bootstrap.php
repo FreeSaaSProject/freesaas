@@ -25,7 +25,8 @@ Assets::register('wellness', [
 ModuleManager::registerMenuGroup('wellness.menu.group', 45, '/wellness');
 
 $pages = [
-    '/wellness' => ['permission' => 'wellness.view', 'methods' => ['GET'], 'file' => 'calendar.php'],
+    '/wellness' => ['permission' => 'wellness.view', 'methods' => ['GET', 'POST'], 'file' => 'food_diary.php'],
+    '/wellness/calendar' => ['permission' => 'wellness.view', 'methods' => ['GET'], 'file' => 'calendar.php'],
     '/wellness/food-diary' => ['permission' => 'wellness.view', 'methods' => ['GET', 'POST'], 'file' => 'food_diary.php'],
     '/wellness/food-diary/new' => ['permission' => 'wellness.edit', 'methods' => ['GET', 'POST'], 'file' => 'foodlog_edit.php'],
     '/wellness/food-diary/{id}/edit' => ['permission' => 'wellness.edit', 'methods' => ['GET', 'POST'], 'file' => 'foodlog_edit.php'],

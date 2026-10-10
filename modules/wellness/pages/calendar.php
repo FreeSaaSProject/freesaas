@@ -39,6 +39,7 @@ $daysInMonth = (int)date('t', $monthStart);
 View::render('calendar', [
     'title' => t('wellness.calendar.title'),
     'breadcrumbs' => Breadcrumbs::withHome([
+        ['label' => t('wellness.menu.food_diary'), 'href' => '/wellness'],
         ['label' => t('wellness.menu.calendar'), 'current' => true],
     ]),
     'breadcrumbs_aria' => t('wellness.calendar.aria'),
