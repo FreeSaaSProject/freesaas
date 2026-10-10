@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-10T19:20:42+00:00",
+    "generated_at": "2026-10-10T19:26:45+00:00",
     "modules": [
         {
             "id": "asr",
@@ -661,7 +661,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -683,9 +683,15 @@
                 "comments": ">=0.1.0"
             },
             "catalog": {
-                "categories": [],
+                "categories": [
+                    "integrations"
+                ],
                 "maturity": "beta",
-                "tags": []
+                "tags": [
+                    "integration",
+                    "oauth",
+                    "sync"
+                ]
             }
         },
         {
