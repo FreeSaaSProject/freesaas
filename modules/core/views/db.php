@@ -17,6 +17,7 @@
 /** @var list<string> $allTables */
 /** @var list<string> $foreignTables */
 /** @var list<array{file:string,bytes:int,mtime:int,stamp?:string,label?:string}> $dumps */
+/** @var list<array{table:string,owned:bool,rows:int,data_bytes:int,index_bytes:int,total_bytes:int,engine:string}> $inventory */
 /** @var bool $agentTokenOk */
 /** @var list<array<string,mixed>> $diag */
 /** @var int $diagNeedCount */
@@ -32,6 +33,7 @@ $ownedTables = $ownedTables ?? [];
 $allTables = $allTables ?? [];
 $foreignTables = $foreignTables ?? [];
 $dumps = $dumps ?? [];
+$inventory = $inventory ?? [];
 $agentTokenOk = !empty($agentTokenOk);
 $maintReport = $maintReport ?? [];
 $diag = $diag ?? [];
@@ -201,6 +203,18 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       <a href="/settings"><?= te('core.menu.settings') ?></a>
     </p>
   <?php endif; ?>
+
+  <form method="post" enctype="multipart/form-data" class="db-upload-form" id="db-upload-form">
+    <input type="hidden" name="action" value="db_upload">
+    <label class="field">
+      <span><?= te('core.db.upload_label') ?></span>
+      <input type="file" name="dump" required accept=".sql,.sql.gz,application/gzip,application/sql,text/plain">
+    </label>
+    <p class="muted"><?= te('core.db.upload_help', ['limit' => DbTools::phpUploadLimitLabel()]) ?></p>
+    <div class="actions">
+      <button class="btn-secondary" type="submit"><?= te('core.db.btn_upload') ?></button>
+    </div>
+  </form>
 
   <form method="post" id="db-fetch-form" class="db-job-form db-fetch-form" data-db-job="fetch">
     <input type="hidden" name="action" value="db_fetch">
@@ -439,6 +453,60 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       </li>
     <?php endforeach; ?>
   </ul>
+<?php endif; ?>
+
+<?php if ($canDb): ?>
+<section class="calendar-section">
+  <h2 class="subhead"><?= te('core.db.inventory_heading') ?></h2>
+  <p class="muted"><?= te('core.db.inventory_help') ?></p>
+  <?php if ($inventory === []): ?>
+    <p class="muted"><?= te('core.db.inventory_empty') ?></p>
+  <?php else: ?>
+    <?php
+      $invRows = 0;
+      $invBytes = 0;
+      $invOwned = 0;
+      foreach ($inventory as $inv) {
+          $invRows += (int)$inv['rows'];
+          $invBytes += (int)$inv['total_bytes'];
+          if (!empty($inv['owned'])) {
+              $invOwned++;
+          }
+      }
+    ?>
+    <p class="muted"><?= te('core.db.inventory_totals', [
+        'tables' => (string)count($inventory),
+        'owned' => (string)$invOwned,
+        'foreign' => (string)(count($inventory) - $invOwned),
+        'rows' => number_format($invRows, 0, '.', ' '),
+        'size' => $formatBytes($invBytes),
+    ]) ?></p>
+    <table class="data">
+      <thead>
+        <tr>
+          <th><?= te('core.db.col.table') ?></th>
+          <th><?= te('core.db.col.scope') ?></th>
+          <th><?= te('core.db.col.rows') ?></th>
+          <th><?= te('core.db.col.size') ?></th>
+          <th><?= te('core.db.col.engine') ?></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($inventory as $inv): ?>
+          <tr>
+            <td><code><?= e((string)$inv['table']) ?></code></td>
+            <td class="muted"><?= !empty($inv['owned']) ? te('core.db.badge_owned') : te('core.db.badge_foreign') ?></td>
+            <td><?= e(number_format((int)$inv['rows'], 0, '.', ' ')) ?></td>
+            <td title="<?= e($formatBytes((int)$inv['data_bytes']) . ' + ' . $formatBytes((int)$inv['index_bytes'])) ?>">
+              <?= e($formatBytes((int)$inv['total_bytes'])) ?>
+            </td>
+            <td class="muted"><?= e((string)$inv['engine']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  <?php endif; ?>
+</section>
 <?php endif; ?>
 
 <?php if ($canDb): ?>

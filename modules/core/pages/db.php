@@ -17,9 +17,11 @@ $allTables = [];
 $foreignTables = [];
 try {
     $ownedTables = DbTools::ownedTables();
-    if ($isExpert && $canDb) {
+    if ($canDb) {
         $allTables = DbTools::allTables();
-        $foreignTables = DbTools::foreignTables();
+        if ($isExpert) {
+            $foreignTables = DbTools::foreignTables();
+        }
     }
 } catch (Throwable $e) {
     // DB may be mid-setup
@@ -41,6 +43,19 @@ $resolveTables = static function (?array $posted) use ($isExpert, $ownedTables, 
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)($_POST['action'] ?? $_GET['action'] ?? '');
+
+    // post_max_size exceeded: PHP empties $_POST/$_FILES but Content-Type stays multipart.
+    if ($action === ''
+        && empty($_POST)
+        && empty($_FILES)
+        && stripos((string)($_SERVER['CONTENT_TYPE'] ?? ''), 'multipart/form-data') !== false
+    ) {
+        $error = t('core.db.err.upload_too_large', ['limit' => DbTools::phpUploadLimitLabel()]);
+        if ($wantsJson) {
+            AgentHttp::error($error, 400);
+        }
+        $action = '__upload_blocked__';
+    }
 
     if ($action === 'mode') {
         if (!$canDb) {
@@ -164,7 +179,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     }
                     $job = DbTools::jobStart('fetch', ['url' => $url]);
                 } elseif ($op === 'diagnose') {
-                    $scope = ($isExpert && $allTables !== []) ? $allTables : $ownedTables;
+                    // All tables (owned + foreign): feeds maintenance hints and inventory table.
+                    $scope = $allTables !== [] ? $allTables : DbTools::allTables();
+                    if ($scope === []) {
+                        $scope = $ownedTables;
+                    }
                     $job = DbTools::jobStart('diagnose', [
                         'tables' => $scope,
                         'owned' => $ownedTables,
@@ -217,7 +236,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } catch (Throwable $e) {
             AgentHttp::error($e->getMessage(), 400);
         }
-    } elseif (in_array($action, ['db_dump', 'db_restore', 'db_delete_dump', 'db_check', 'db_repair', 'db_optimize', 'db_drop'], true)) {
+    } elseif (in_array($action, ['db_dump', 'db_restore', 'db_delete_dump', 'db_upload', 'db_check', 'db_repair', 'db_optimize', 'db_drop'], true)) {
         if (!$canDb) {
             $error = t('core.db.err.forbidden');
             if ($wantsJson) {
@@ -227,7 +246,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             AgentHttp::error(t('core.db.err.drop_ui_only'), 403);
         } else {
             try {
-                if ($action === 'db_dump') {
+                if ($action === 'db_upload') {
+                    $upload = $_FILES['dump'] ?? null;
+                    if (!is_array($upload)) {
+                        throw new InvalidArgumentException(t('core.db.err.upload_missing'));
+                    }
+                    $result = DbTools::saveUploadedDump($upload);
+                    $message = t('core.db.msg.upload_ok', ['file' => $result['file']]);
+                    if ($wantsJson) {
+                        AgentHttp::emit(['ok' => true, 'action' => 'db_upload', 'dump' => $result, 'message' => $message]);
+                    }
+                } elseif ($action === 'db_dump') {
                     $posted = isset($_POST['tables']) && is_array($_POST['tables']) ? $_POST['tables'] : null;
                     $tables = $resolveTables($posted);
                     $result = DbTools::dump($tables, null);
@@ -374,6 +403,16 @@ if ($canDb && !empty($_SESSION['freesaas_db_diag']) && is_array($_SESSION['frees
     }
 }
 
+// TEMP: inventory on GET via SHOW TABLE STATUS only (no CHECK) — timing check.
+$inventory = [];
+if ($canDb) {
+    try {
+        $inventory = DbTools::tableInventory();
+    } catch (Throwable $e) {
+        // ignore
+    }
+}
+
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     AgentHttp::emit([
         'ok' => true,
@@ -390,6 +429,7 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             'owned_count' => count($ownedTables),
         ],
         'dumps' => $dumps,
+        'inventory' => $inventory,
         'diagnose_ran' => $diagRan,
         'diagnose_at' => $diagAt,
         'diagnose_need' => $diagNeedCount,
@@ -397,6 +437,7 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'schema'], 'description' => 'Apply all pending schema migrations'],
             ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'data'], 'description' => 'Run data migrators (replace; optional)'],
             ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'db_dump'], 'description' => 'Dump owned tables (session + core.db)'],
+            ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'db_upload'], 'description' => 'Upload .sql/.sql.gz (multipart field dump; does not restore)'],
             ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'db_restore', 'file' => '…'], 'description' => 'Restore dump (owned allow-list in normal mode)'],
             ['method' => 'GET', 'path' => '/agent/db', 'auth' => 'agent_token', 'description' => 'Platform DB status'],
             ['method' => 'GET', 'path' => '/agent/db/migrate', 'auth' => 'agent_token', 'description' => 'Schema migrate status'],
@@ -427,6 +468,7 @@ View::render('db', [
     'allTables' => $allTables,
     'foreignTables' => $foreignTables,
     'dumps' => $dumps,
+    'inventory' => $inventory,
     'agentTokenOk' => $agentTokenOk,
     'diag' => $diag,
     'diagNeedCount' => $diagNeedCount,

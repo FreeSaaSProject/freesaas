@@ -126,6 +126,51 @@ final class DbTools
         return $out;
     }
 
+    /**
+     * Fast inventory via SHOW TABLE STATUS only (no CHECK TABLE).
+     * InnoDB Rows are approximate. Size = Data_length + Index_length.
+     *
+     * @return list<array{
+     *   table:string,
+     *   owned:bool,
+     *   rows:int,
+     *   data_bytes:int,
+     *   index_bytes:int,
+     *   total_bytes:int,
+     *   engine:string
+     * }>
+     */
+    public static function tableInventory(): array
+    {
+        $owned = array_fill_keys(self::ownedTables(), true);
+        $st = Database::pdo()->query('SHOW TABLE STATUS');
+        $out = [];
+        if ($st === false) {
+            return [];
+        }
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $name = (string)($row['Name'] ?? '');
+            if ($name === '' || !self::isValidTableName($name)) {
+                continue;
+            }
+            $data = (int)($row['Data_length'] ?? 0);
+            $index = (int)($row['Index_length'] ?? 0);
+            $out[] = [
+                'table' => $name,
+                'owned' => isset($owned[$name]),
+                'rows' => (int)($row['Rows'] ?? 0),
+                'data_bytes' => $data,
+                'index_bytes' => $index,
+                'total_bytes' => $data + $index,
+                'engine' => (string)($row['Engine'] ?? ''),
+            ];
+        }
+        usort($out, static function (array $a, array $b): int {
+            return strcmp($a['table'], $b['table']);
+        });
+        return $out;
+    }
+
     public static function isValidTableName(string $name): bool
     {
         return (bool)preg_match('/^[A-Za-z0-9_]+$/', $name);
@@ -2445,6 +2490,145 @@ final class DbTools
         }
     }
 
+    /**
+     * Save a browser-uploaded .sql / .sql.gz into var/db_dumps/ (does not restore).
+     *
+     * @param array{name?:string,type?:string,tmp_name?:string,error?:int,size?:int} $file $_FILES item
+     * @return array{ok:bool,file:string,path:string,bytes:int}
+     */
+    public static function saveUploadedDump(array $file): array
+    {
+        $err = (int)($file['error'] ?? UPLOAD_ERR_NO_FILE);
+        if ($err === UPLOAD_ERR_NO_FILE) {
+            throw new InvalidArgumentException(t('core.db.err.upload_missing'));
+        }
+        if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) {
+            throw new InvalidArgumentException(t('core.db.err.upload_too_large', [
+                'limit' => self::phpUploadLimitLabel(),
+            ]));
+        }
+        if ($err !== UPLOAD_ERR_OK) {
+            throw new InvalidArgumentException(t('core.db.err.upload_failed', ['code' => (string)$err]));
+        }
+
+        $tmp = (string)($file['tmp_name'] ?? '');
+        $size = (int)($file['size'] ?? 0);
+        if ($tmp === '' || !is_uploaded_file($tmp)) {
+            throw new InvalidArgumentException(t('core.db.err.upload_failed', ['code' => 'tmp']));
+        }
+        if ($size <= 0) {
+            throw new InvalidArgumentException(t('core.db.err.upload_empty'));
+        }
+        if ($size > self::FETCH_MAX_BYTES) {
+            throw new InvalidArgumentException(t('core.db.err.upload_too_large', [
+                'limit' => '2 GiB',
+            ]));
+        }
+
+        $orig = basename(str_replace(["\0", '\\'], '', (string)($file['name'] ?? '')));
+        $ext = '';
+        if (preg_match('/\.sql\.gz$/i', $orig)) {
+            $ext = '.sql.gz';
+        } elseif (preg_match('/\.sql$/i', $orig)) {
+            $ext = '.sql';
+        } else {
+            throw new InvalidArgumentException(t('core.db.err.upload_type'));
+        }
+
+        $head = (string)@file_get_contents($tmp, false, null, 0, 16);
+        if ($ext === '.sql.gz') {
+            if (strlen($head) < 2 || $head[0] !== "\x1f" || $head[1] !== "\x8b") {
+                throw new InvalidArgumentException(t('core.db.err.upload_type'));
+            }
+        } else {
+            $probe = ltrim($head);
+            if ($probe === '' || ($probe[0] !== '-' && $probe[0] !== '/' && strncasecmp($probe, 'DROP', 4) !== 0
+                && strncasecmp($probe, 'CREATE', 6) !== 0 && strncasecmp($probe, 'INSERT', 6) !== 0
+                && strncasecmp($probe, 'SET', 3) !== 0 && strncasecmp($probe, '/*!', 3) !== 0)) {
+                throw new InvalidArgumentException(t('core.db.err.upload_type'));
+            }
+        }
+
+        $label = (string)preg_replace('/\.sql(\.gz)?$/i', '', $orig);
+        $label = (string)preg_replace('/[^A-Za-z0-9._-]+/', '-', $label);
+        $label = trim($label, '.-_');
+        if ($label === '') {
+            $label = 'local';
+        }
+        if (strlen($label) > 80) {
+            $label = substr($label, 0, 80);
+        }
+
+        $basename = date('Y-m-d_H-i-s') . '-upload-' . $label . $ext;
+        if (!preg_match('/^[A-Za-z0-9._-]+\.sql(\.gz)?$/i', $basename)) {
+            throw new InvalidArgumentException(t('core.db.err.upload_type'));
+        }
+
+        $dir = self::dumpsDir();
+        $dest = $dir . '/' . $basename;
+        if (is_file($dest)) {
+            $basename = date('Y-m-d_H-i-s') . '-upload-' . $label . '-' . substr(bin2hex(random_bytes(3)), 0, 6) . $ext;
+            $dest = $dir . '/' . $basename;
+        }
+
+        if (!@move_uploaded_file($tmp, $dest)) {
+            throw new RuntimeException(t('core.db.err.upload_save'));
+        }
+        @chmod($dest, 0664);
+
+        return [
+            'ok' => true,
+            'file' => $basename,
+            'path' => $dest,
+            'bytes' => (int)filesize($dest),
+        ];
+    }
+
+    /** Effective browser-upload cap from PHP ini (and 2 GiB hard max), human-readable. */
+    public static function phpUploadLimitLabel(): string
+    {
+        $bytes = self::phpUploadLimitBytes();
+        if ($bytes >= 1073741824) {
+            return rtrim(rtrim(number_format($bytes / 1073741824, 1, '.', ''), '0'), '.') . ' GiB';
+        }
+        if ($bytes >= 1048576) {
+            return rtrim(rtrim(number_format($bytes / 1048576, 1, '.', ''), '0'), '.') . ' MiB';
+        }
+        return (string)max(1, (int)round($bytes / 1024)) . ' KiB';
+    }
+
+    public static function phpUploadLimitBytes(): int
+    {
+        $upload = self::iniBytes('upload_max_filesize');
+        $post = self::iniBytes('post_max_size');
+        $lim = self::FETCH_MAX_BYTES;
+        if ($upload > 0) {
+            $lim = min($lim, $upload);
+        }
+        if ($post > 0) {
+            $lim = min($lim, $post);
+        }
+        return max(1, $lim);
+    }
+
+    private static function iniBytes(string $key): int
+    {
+        $raw = trim((string)ini_get($key));
+        if ($raw === '' || $raw === '0') {
+            return 0;
+        }
+        $n = (float)$raw;
+        $u = strtolower(substr($raw, -1));
+        if ($u === 'g') {
+            $n *= 1024 * 1024 * 1024;
+        } elseif ($u === 'm') {
+            $n *= 1024 * 1024;
+        } elseif ($u === 'k') {
+            $n *= 1024;
+        }
+        return (int)$n;
+    }
+
     private static function readDumpContents(string $path): string
     {
         if (preg_match('/\.gz$/i', $path)) {
@@ -2721,8 +2905,8 @@ final class DbTools
      * @param list<string> $checkTexts
      * @param list<string> $ownedTables
      * @return array{
-     *   table:string,owned:bool,check_ok:bool,check_text:string,data_length:int,data_free:int,
-     *   rows:int,engine:string,needs_repair:bool,needs_optimize:bool,reasons:list<string>
+     *   table:string,owned:bool,check_ok:bool,check_text:string,data_length:int,index_length:int,
+     *   data_free:int,rows:int,engine:string,needs_repair:bool,needs_optimize:bool,reasons:list<string>
      * }
      */
     private static function diagnoseRow(
@@ -2734,6 +2918,7 @@ final class DbTools
     ): array {
         $ownedSet = array_fill_keys($ownedTables, true);
         $dataLen = (int)($stRow['Data_length'] ?? 0);
+        $indexLen = (int)($stRow['Index_length'] ?? 0);
         $dataFree = (int)($stRow['Data_free'] ?? 0);
         $rows = (int)($stRow['Rows'] ?? 0);
         $engine = (string)($stRow['Engine'] ?? '');
@@ -2769,6 +2954,7 @@ final class DbTools
             'check_ok' => $checkOk,
             'check_text' => implode('; ', $checkTexts),
             'data_length' => $dataLen,
+            'index_length' => $indexLen,
             'data_free' => $dataFree,
             'rows' => $rows,
             'engine' => $engine,
@@ -2789,6 +2975,7 @@ final class DbTools
      *   check_ok:bool,
      *   check_text:string,
      *   data_length:int,
+     *   index_length:int,
      *   data_free:int,
      *   rows:int,
      *   engine:string,

@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.13",
+    "version": "0.3.16",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -398,6 +398,14 @@
                 "path": "/db",
                 "permission": "core.db",
                 "description": "Restore dump file (POST action=db_restore&file=…&format=json; owned allow-list in normal mode)",
+                "assistant": false
+            },
+            {
+                "id": "core.db.upload",
+                "method": "POST",
+                "path": "/db",
+                "permission": "core.db",
+                "description": "Upload .sql/.sql.gz into var/db_dumps/ (multipart field dump, action=db_upload; does not restore)",
                 "assistant": false
             },
             {
