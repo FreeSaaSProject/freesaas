@@ -76,7 +76,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   system status [--format=json]
   bootstrap --login=… --password=… [--name=…] [--agent-token=…] [--modules=a,b] [--format=json]
   module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
-  module inspect|install|enable [--accept-risk]|disable|validate …
+  module inspect|install|enable [--accept-risk]|disable|validate|bump …
+  module bump <id> [--patch|--minor|--major|--set=x.y.z]
   migrate status|run [--module=id] [--format=json]
   db status|dumps|dump|restore|delete-dump|check|repair|optimize [--file=…] [--label=…] [--format=json]
   locale list|validate [--locale=xx] [--format=json]
@@ -187,7 +188,26 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         $id = $args[2] ?? '';
         freesaas_emit_ops(AgentOps::moduleValidate($id !== '' ? $id : null));
     }
-    Cli::usage('Usage: module list [--q=] [--category=] [--tag=] [--status=] [--maturity=alpha|beta|release] | inspect|install|enable [--accept-risk]|disable|validate …');
+    if ($sub === 'bump') {
+        $id = $args[2] ?? '';
+        if ($id === '') {
+            Cli::usage('Usage: module bump <id> [--patch|--minor|--major|--set=x.y.z]');
+        }
+        $mode = 'patch';
+        $set = null;
+        if (!empty($opts['major'])) {
+            $mode = 'major';
+        } elseif (!empty($opts['minor'])) {
+            $mode = 'minor';
+        } elseif (isset($opts['set']) && (string)$opts['set'] !== '') {
+            $mode = 'set';
+            $set = (string)$opts['set'];
+        } elseif (!empty($opts['patch'])) {
+            $mode = 'patch';
+        }
+        freesaas_emit_ops(AgentOps::moduleBump($id, $mode, $set));
+    }
+    Cli::usage('Usage: module list|inspect|install|enable|disable|validate|bump …');
 }
 
 /** @param array<string, string|bool> $opts */

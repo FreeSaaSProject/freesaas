@@ -279,6 +279,21 @@ final class AgentOps
         return ['ok' => $ok, 'results' => $all, 'http' => $ok ? 200 : 422];
     }
 
+    /**
+     * Bump modules/<id>/module.json → version (sole place UpdateEngine reads).
+     * Core also syncs root VERSION (derived copy only).
+     *
+     * @return array<string,mixed>
+     */
+    public static function moduleBump(string $id, string $mode = 'patch', ?string $set = null): array
+    {
+        $id = trim($id);
+        if ($id === '') {
+            return ['ok' => false, 'error' => 'module id required', 'http' => 400];
+        }
+        return UpdateEngine::bumpVersion($id, $mode, $set);
+    }
+
     /** @return array{ok:bool,modules:list,setup:array,pending:list,http:int} */
     public static function migrateStatus(?string $module = null): array
     {
@@ -567,7 +582,7 @@ final class AgentOps
                     'path' => '/agent/update/check',
                     'op' => 'update.check',
                     'query' => ['target'],
-                    'description' => 'Contents API: VERSION + module.json per package. Optional target=core|moduleId',
+                    'description' => 'Contents API: modules/<id>/module.json → version per package. Optional target=core|moduleId',
                 ],
                 [
                     'method' => 'POST',

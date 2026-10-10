@@ -70,7 +70,7 @@ return [
     'updates.settings.channel_main' => 'main — branch; zipball on apply',
     'updates.settings.channel_stable' => 'stable — latest Release + full zip',
     'updates.settings.channel_latest' => 'latest — same as stable',
-    'updates.settings.channel_help' => 'Check always reads VERSION/module.json on the channel ref. Apply: main → zipball; stable → freesaas-*.zip from the release.',
+    'updates.settings.channel_help' => 'Check reads modules/<id>/module.json → version on the channel ref. Apply: main → zipball; stable → freesaas-*.zip from the release.',
     'updates.settings.ref' => 'Ref (optional)',
     'updates.settings.ref_ph' => 'empty = from channel (main / release tag)',
     'updates.settings.asset' => 'Release zip name (optional)',

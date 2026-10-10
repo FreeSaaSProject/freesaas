@@ -70,7 +70,7 @@ return [
     'updates.settings.channel_main' => 'main — ветка, zipball при установке',
     'updates.settings.channel_stable' => 'stable — последний Release + полный zip',
     'updates.settings.channel_latest' => 'latest — то же, что stable',
-    'updates.settings.channel_help' => 'Check всегда смотрит VERSION/module.json на ref канала. Apply: main → zipball; stable → freesaas-*.zip с релиза.',
+    'updates.settings.channel_help' => 'Check читает modules/<id>/module.json → version на ref канала. Apply: main → zipball; stable → freesaas-*.zip с релиза.',
     'updates.settings.ref' => 'Ref (необязательно)',
     'updates.settings.ref_ph' => 'пусто = из канала (main / tag релиза)',
     'updates.settings.asset' => 'Имя zip на Release (необязательно)',

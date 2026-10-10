@@ -32,10 +32,13 @@ for arg in "$@"; do
 done
 
 mkdir -p "$DIST"
-VERSION="$(tr -d '[:space:]' < "$ROOT/VERSION" 2>/dev/null || true)"
+# Canonical platform version: modules/core/module.json (root VERSION is derived).
+VERSION="$(php -r '$j=json_decode(file_get_contents($argv[1]),true); echo trim((string)($j["version"]??""));' "$ROOT/modules/core/module.json")"
 if [[ -z "$VERSION" ]]; then
-  VERSION="$(php -r '$j=json_decode(file_get_contents($argv[1]),true); echo $j["version"]??"0.0.0";' "$ROOT/modules/core/module.json")"
+  echo "error: modules/core/module.json missing version" >&2
+  exit 1
 fi
+printf '%s\n' "$VERSION" > "$ROOT/VERSION"
 
 sha256_file() {
   if command -v shasum >/dev/null 2>&1; then

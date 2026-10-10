@@ -4,7 +4,8 @@ declare(strict_types=1);
 /**
  * Self-update engine.
  *
- * Check: reads VERSION + each modules/<id>/module.json from the git ref (Contents API).
+ * Check: reads modules/<id>/module.json → version from the git ref (Contents API).
+ * Core is the same path: modules/core/module.json (root VERSION is a derived copy only).
  * Apply (monorepo): one zipball/release zip for the whole tree; overlay selected paths.
  * External modules ([module.x] other repo): own archive.
  *
@@ -521,32 +522,90 @@ final class UpdateEngine
         return $out;
     }
 
+    /** Canonical version file for a package (core included). */
+    public static function versionJsonPath(string $target): string
+    {
+        $target = self::normalizeTarget($target);
+        return base_path('modules/' . $target . '/module.json');
+    }
+
     public static function localVersion(string $target): string
     {
         $target = self::normalizeTarget($target);
-        if ($target === 'core') {
-            $verFile = base_path('VERSION');
-            if (is_file($verFile)) {
-                $v = trim((string)@file_get_contents($verFile));
-                if ($v !== '') {
-                    return $v;
-                }
-            }
-            $meta = ModuleManager::get('core');
-            return is_array($meta) ? (string)($meta['version'] ?? '0.0.0') : '0.0.0';
-        }
         $meta = ModuleManager::get($target);
-        if (is_array($meta) && isset($meta['version'])) {
-            return (string)$meta['version'];
+        if (is_array($meta) && isset($meta['version']) && trim((string)$meta['version']) !== '') {
+            return trim((string)$meta['version']);
         }
-        $jsonPath = base_path('modules/' . $target . '/module.json');
+        $jsonPath = self::versionJsonPath($target);
         if (is_file($jsonPath)) {
             $data = json_decode((string)@file_get_contents($jsonPath), true);
-            if (is_array($data) && isset($data['version'])) {
-                return (string)$data['version'];
+            if (is_array($data) && isset($data['version']) && trim((string)$data['version']) !== '') {
+                return trim((string)$data['version']);
             }
         }
         return '0.0.0';
+    }
+
+    /**
+     * Bump modules/<id>/module.json → version. For core, also syncs root VERSION.
+     *
+     * @param 'patch'|'minor'|'major'|'set' $mode
+     * @return array{ok:bool,id:string,from:string,to:string,file:string,synced_root_version?:bool,error?:string,http:int}
+     */
+    public static function bumpVersion(string $id, string $mode = 'patch', ?string $set = null): array
+    {
+        $id = self::normalizeTarget($id);
+        $path = self::versionJsonPath($id);
+        if (!is_file($path)) {
+            return ['ok' => false, 'id' => $id, 'from' => '', 'to' => '', 'file' => $path, 'error' => 'module.json not found', 'http' => 404];
+        }
+        $raw = (string)@file_get_contents($path);
+        if ($raw === '' || !preg_match('/"version"\s*:\s*"([^"]*)"/', $raw, $m)) {
+            return ['ok' => false, 'id' => $id, 'from' => '', 'to' => '', 'file' => $path, 'error' => 'version field missing', 'http' => 422];
+        }
+        $from = trim($m[1]);
+        $mode = strtolower(trim($mode));
+        if ($mode === 'set' || $set !== null) {
+            $to = trim((string)$set);
+            if ($to === '' || !preg_match('/^\d+\.\d+\.\d+/', $to)) {
+                return ['ok' => false, 'id' => $id, 'from' => $from, 'to' => '', 'file' => $path, 'error' => 'set= requires x.y.z', 'http' => 422];
+            }
+        } else {
+            if (!in_array($mode, ['patch', 'minor', 'major'], true)) {
+                $mode = 'patch';
+            }
+            $to = self::bumpSemver($from !== '' ? $from : '0.0.0', $mode);
+        }
+        if ($to === $from) {
+            return ['ok' => true, 'id' => $id, 'from' => $from, 'to' => $to, 'file' => $path, 'http' => 200];
+        }
+        $next = preg_replace('/"version"\s*:\s*"[^"]*"/', '"version": "' . $to . '"', $raw, 1);
+        if (!is_string($next) || @file_put_contents($path, $next) === false) {
+            return ['ok' => false, 'id' => $id, 'from' => $from, 'to' => $to, 'file' => $path, 'error' => 'cannot write module.json', 'http' => 500];
+        }
+        $out = ['ok' => true, 'id' => $id, 'from' => $from, 'to' => $to, 'file' => $path, 'http' => 200];
+        if ($id === 'core') {
+            $out['synced_root_version'] = @file_put_contents(base_path('VERSION'), $to . "\n") !== false;
+        }
+        return $out;
+    }
+
+    /** @param 'patch'|'minor'|'major' $mode */
+    private static function bumpSemver(string $ver, string $mode): string
+    {
+        if (!preg_match('/^(\d+)\.(\d+)\.(\d+)/', $ver, $m)) {
+            return '0.0.1';
+        }
+        $a = (int)$m[1];
+        $b = (int)$m[2];
+        $c = (int)$m[3];
+        if ($mode === 'major') {
+            return ($a + 1) . '.0.0';
+        }
+        if ($mode === 'minor') {
+            return $a . '.' . ($b + 1) . '.0';
+        }
+        return $a . '.' . $b . '.' . ($c + 1);
     }
 
     public static function repoFromUrl(string $url): string
@@ -1446,25 +1505,17 @@ final class UpdateEngine
         $id = (string)$pkg['id'];
         $kind = (string)$pkg['kind'];
 
-        // Version from live files on the ref (no release catalog required).
-        if ($kind === 'core') {
-            $ver = trim(self::githubFileContents($repo, 'VERSION', $ref, $token));
-            if ($ver === '') {
-                $raw = self::githubFileContents($repo, 'modules/core/module.json', $ref, $token);
-                $j = json_decode($raw, true);
-                $ver = is_array($j) ? trim((string)($j['version'] ?? '')) : '';
-            }
+        // Version from modules/<id>/module.json on the ref (core included). Root VERSION is not used.
+        if ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') === '') {
+            $path = 'module.json';
+        } elseif ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') !== '') {
+            $path = rtrim((string)$pkg['path_prefix'], '/') . '/module.json';
         } else {
-            $path = ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') === '')
-                ? 'module.json'
-                : ('modules/' . $id . '/module.json');
-            if ($bundle === 'external' && (string)($pkg['path_prefix'] ?? '') !== '') {
-                $path = rtrim((string)$pkg['path_prefix'], '/') . '/module.json';
-            }
-            $raw = self::githubFileContents($repo, $path, $ref, $token);
-            $j = json_decode($raw, true);
-            $ver = is_array($j) ? trim((string)($j['version'] ?? '')) : '';
+            $path = 'modules/' . ($kind === 'core' ? 'core' : $id) . '/module.json';
         }
+        $raw = self::githubFileContents($repo, $path, $ref, $token);
+        $j = json_decode($raw, true);
+        $ver = is_array($j) ? trim((string)($j['version'] ?? '')) : '';
         if ($ver === '') {
             throw new RuntimeException('Cannot read remote version for ' . $id . ' @ ' . $ref);
         }

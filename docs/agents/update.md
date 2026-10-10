@@ -10,11 +10,13 @@ UI: **`updates`** (`/updates`). Engine: [`app/UpdateEngine.php`](../../app/Updat
 
 For each package, UpdateEngine reads the live file from the configured git ref via GitHub Contents API:
 
-| Package | Remote version from |
-|---------|---------------------|
-| `core` | `VERSION` (fallback: `modules/core/module.json`) |
+| Package | Remote / local version from (sole source) |
+|---------|-------------------------------------------|
+| `core` | `modules/core/module.json` → `version` |
 | module in monorepo | `modules/<id>/module.json` → `version` |
 | external `[module.x]` | that repo’s `module.json` (or path under `path_prefix`) |
+
+Root `VERSION` is a **derived** copy of core (written by `module bump core` / release build). Agents must not edit it for update detection.
 
 ~1 request per module (~40–45 with a token is fine).
 
@@ -110,7 +112,7 @@ Apply requires `updates.apply` + `SUPERADMIN_ACCESS`.
 
 ## Publish flow
 
-1. Bump `VERSION` (+ `modules/core/module.json`); commit & push.
-2. Tag / publish a GitHub Release → CI attaches `freesaas-*.zip` + manifest.
+1. Bump the package that changed: `php bin/freesaas.php module bump <id>` (or `module bump core` for platform/`app/` changes). Commit & **push** (unpushed bumps are invisible to Check).
+2. Tag / publish a GitHub Release → CI attaches `freesaas-*.zip` + manifest (for `channel=stable`).
 3. Instances on `channel=stable` pull the release; `channel=main` can use zipball without a Release.
 4. Private module in another repo → `[module.id]` + optional `--module=id` zip.
