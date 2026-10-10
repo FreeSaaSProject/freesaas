@@ -339,45 +339,85 @@ EventBus::on('comments.form.ticket_controls', static function ($payload) {
     }
 
     $respChecks = '';
+    $respChips = '';
     foreach ($staff as $u) {
-        $checked = in_array((int)$u['id'], $respIds, true) ? ' checked' : '';
+        $uidStaff = (int)$u['id'];
+        $isOn = in_array($uidStaff, $respIds, true);
+        $checked = $isOn ? ' checked' : '';
         $disabled = $contractLocked ? ' disabled' : '';
-        $respChecks .= '<label class="check">'
-            . '<input type="checkbox" name="users_resp[]" value="' . (int)$u['id'] . '"'
-            . $checked . $disabled . '>'
-            . UsersRepository::badgeHtml((int)$u['id'], false)
-            . '<span>' . e(($u['name'] ?: $u['login'])) . '</span>'
+        $badge = UsersRepository::badgeHtml($uidStaff, false);
+        $label = e(($u['name'] ?: $u['login']));
+        $badgeAttr = htmlspecialchars($badge, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $respChecks .= '<label class="check ticket-resp-option">'
+            . '<input type="checkbox" name="users_resp[]" value="' . $uidStaff . '"'
+            . $checked . $disabled
+            . ' data-ticket-resp-cb'
+            . ' data-resp-badge="' . $badgeAttr . '">'
+            . $badge
+            . '<span>' . $label . '</span>'
             . '</label>';
+        if ($isOn) {
+            $respChips .= '<span class="ticket-resp-chip" data-resp-id="' . $uidStaff . '">'
+                . $badge
+                . '</span>';
+        }
+    }
+    $respNone = te('core.ticket.resp_none');
+    if ($respChips === '') {
+        $respChips = '<span class="muted ticket-resp-empty">' . e($respNone) . '</span>';
     }
 
     $lockNote = $contractLocked
-        ? '<p class="flash flash-warn" style="margin:0">' . te('core.ticket.contract_locked') . '</p>'
+        ? '<p class="flash flash-warn ticket-lock-note">' . te('core.ticket.contract_locked') . '</p>'
         : '';
-    $curatorLabel = te('core.ticket.curator') . ($contractLocked ? ' <i class="muted">' . te('core.ticket.contract_tag') . '</i>' : '');
-    $respLegend = te('core.ticket.responsible') . ($contractLocked ? ' ' . te('core.ticket.contract_tag') : '');
     $lblStatus = te('core.ticket.status');
     $lblDeadline = te('core.ticket.deadline');
-    $fieldsetDisabled = $contractLocked ? ' disabled' : '';
+    $lblCurator = te('core.ticket.curator');
+    $lblResp = te('core.ticket.responsible');
+    $lblChange = te('core.ticket.resp_change');
+    $lblDone = te('core.ticket.resp_done');
+    $lblDlg = te('core.ticket.resp_dialog');
+    $respNoneAttr = e($respNone);
     $selectDisabled = $contractLocked ? ' disabled' : '';
     $respPresent = $contractLocked ? '0' : '1';
-
+    $changeBtn = $contractLocked
+        ? ''
+        : '<button type="button" class="btn-secondary btn-sm" data-ticket-resp-open>'
+            . $lblChange . '</button>';
+    // Checkboxes stay in the comment form (dialog is a child of ticket-controls → form)
+    // so users_resp[] always posts with the submit. Locked: present=0 → prepare_add skips.
     $payload['html'] = <<<HTML
-<div class="ticket-controls">
+<div class="ticket-controls" data-ticket-controls>
   {$lockNote}
-  <label>{$lblStatus}
-    <select name="new_status">{$statusOpts}</select>
-  </label>
-  <label>{$lblDeadline}
-    <input type="date" name="ticket_deadline" value="{$deadlineVal}">
-  </label>
-  <label>{$curatorLabel}
-    <select name="id_curator"{$selectDisabled}>{$curatorOpts}</select>
-  </label>
-  <fieldset class="resp-pick"{$fieldsetDisabled}>
-    <legend>{$respLegend}</legend>
+  <div class="ticket-controls-row">
+    <label class="ticket-field">
+      <span class="ticket-field-label">{$lblStatus}</span>
+      <select name="new_status" class="ticket-select">{$statusOpts}</select>
+    </label>
+    <label class="ticket-field">
+      <span class="ticket-field-label">{$lblDeadline}</span>
+      <input type="date" name="ticket_deadline" value="{$deadlineVal}">
+    </label>
+    <label class="ticket-field">
+      <span class="ticket-field-label">{$lblCurator}</span>
+      <select name="id_curator" class="ticket-select"{$selectDisabled}>{$curatorOpts}</select>
+    </label>
+  </div>
+  <div class="ticket-resp" data-ticket-resp>
     <input type="hidden" name="users_resp_present" value="{$respPresent}">
-    <div class="resp-checks">{$respChecks}</div>
-  </fieldset>
+    <div class="ticket-resp-summary">
+      <span class="ticket-field-label">{$lblResp}</span>
+      <div class="ticket-resp-chips" data-ticket-resp-chips data-empty="{$respNoneAttr}">{$respChips}</div>
+      {$changeBtn}
+    </div>
+    <dialog class="ticket-resp-dialog" data-ticket-resp-dialog>
+      <div class="ticket-resp-dialog-bar">
+        <strong>{$lblDlg}</strong>
+        <button type="button" class="btn-secondary btn-sm" data-ticket-resp-close>{$lblDone}</button>
+      </div>
+      <div class="ticket-resp-checks" data-ticket-resp-list>{$respChecks}</div>
+    </dialog>
+  </div>
 </div>
 HTML;
     return $payload;

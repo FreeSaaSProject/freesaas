@@ -124,4 +124,46 @@
   if (dlg) {
     dlg.addEventListener('cancel', function () { closeEditDlg(); });
   }
+
+  // Compact ticket assignees: chips + dialog (checkboxes stay inside #comment-form)
+  document.querySelectorAll('[data-ticket-resp]').forEach(function (root) {
+    var chips = root.querySelector('[data-ticket-resp-chips]');
+    var respDlg = root.querySelector('[data-ticket-resp-dialog]');
+    var openBtn = root.querySelector('[data-ticket-resp-open]');
+    var closeBtn = root.querySelector('[data-ticket-resp-close]');
+    var emptyLabel = chips ? (chips.getAttribute('data-empty') || '—') : '—';
+
+    function syncChips() {
+      if (!chips) return;
+      var html = '';
+      root.querySelectorAll('[data-ticket-resp-cb]').forEach(function (cb) {
+        if (!cb.checked) return;
+        var badge = cb.getAttribute('data-resp-badge') || '';
+        html += '<span class="ticket-resp-chip" data-resp-id="' + cb.value + '">' + badge + '</span>';
+      });
+      chips.innerHTML = html || ('<span class="muted ticket-resp-empty">' + emptyLabel + '</span>');
+    }
+
+    function openResp() {
+      if (!respDlg) return;
+      if (typeof respDlg.showModal === 'function') respDlg.showModal();
+      else respDlg.setAttribute('open', 'open');
+    }
+    function closeResp() {
+      if (!respDlg) return;
+      if (typeof respDlg.close === 'function') respDlg.close();
+      else respDlg.removeAttribute('open');
+      syncChips();
+    }
+
+    if (openBtn) openBtn.addEventListener('click', function (e) { e.preventDefault(); openResp(); });
+    if (closeBtn) closeBtn.addEventListener('click', function (e) { e.preventDefault(); closeResp(); });
+    if (respDlg) {
+      respDlg.addEventListener('close', syncChips);
+      respDlg.addEventListener('cancel', function () { syncChips(); });
+    }
+    root.querySelectorAll('[data-ticket-resp-cb]').forEach(function (cb) {
+      cb.addEventListener('change', syncChips);
+    });
+  });
 })();
