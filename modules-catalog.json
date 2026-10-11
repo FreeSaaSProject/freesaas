@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-11T14:00:20+00:00",
+    "generated_at": "2026-10-11T20:47:55+00:00",
     "modules": [
         {
             "id": "asr",
@@ -405,7 +405,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1001,7 +1001,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.1",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1035,7 +1035,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1197,7 +1197,7 @@
         },
         {
             "id": "stickers",
-            "version": "0.1.1",
+            "version": "0.1.11",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1219,7 +1219,9 @@
             "optionalRequires": {
                 "suppliers": ">=0.1.0",
                 "units": ">=0.1.0",
-                "bots": ">=0.1.0"
+                "bots": ">=0.1.0",
+                "procedures": ">=0.1.0",
+                "ledger": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1323,7 +1325,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.4",
+            "version": "0.1.22",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1385,7 +1387,7 @@
         },
         {
             "id": "updates",
-            "version": "0.3.13",
+            "version": "0.3.14",
             "type": "product",
             "name": {
                 "en": "Updates",

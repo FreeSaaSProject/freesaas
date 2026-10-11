@@ -433,7 +433,7 @@ HTTP (тот же `Health::run` / `AgentOps`):
 
 - `GET /health` — публичный минимальный JSON (`status`, `liveness`, `readiness`, `summary`)
 - `GET /health/detail` — полный список checks (нужен `core.modules`); `?module=id`
-- **`/agent/*`** — полный ops-API для агентов на shared hosting (токен `app.agent_token`, заголовок `X-FreeSaaS-Agent-Token`). Каталог: `GET /agent`. Первый подъём: `POST /agent/bootstrap` ([`agents/install.md`](agents/install.md)). Самообновление: [`agents/update.md`](agents/update.md). См. [`agents/remote-api.md`](agents/remote-api.md).
+- **`/agent/*`** — полный ops-API для агентов на shared hosting (токен `app.agent_token`, заголовок `X-FreeSaaS-Agent-Token`; всегда обязателен). Первый HTTP-подъём: pre-set токена **или** `var/setup.key`, затем `POST /agent/bootstrap` — анонимного virgin bootstrap нет ([`agents/install.md`](agents/install.md)). Каталог: `GET /agent`. Самообновление: [`agents/update.md`](agents/update.md). См. [`agents/remote-api.md`](agents/remote-api.md).
 
 Health: платформенные checks (DB, ledger, config, blocked modules, agent_token) + авто-проверка `tables[]` из `module.json` + модульные `Health::register` (например `asr.worker_token`). Модули регистрируют checks в `bootstrap.php`.
 

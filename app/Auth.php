@@ -53,10 +53,18 @@ final class Auth
     /** @return array{lifetime:int,path:string,domain:string,secure:bool,httponly:bool,samesite:string} */
     private static function cookieParams(int $lifetime): array
     {
+        $domain = '';
+        if (class_exists('Config', false)) {
+            $raw = trim((string)Config::get('app', 'session_cookie_domain', ''));
+            // Leading dot optional; reject hostnames with path/scheme.
+            if ($raw !== '' && preg_match('/^\.?[a-z0-9.-]+$/i', $raw) && strpos($raw, '/') === false) {
+                $domain = $raw;
+            }
+        }
         return [
             'lifetime' => $lifetime,
             'path' => '/',
-            'domain' => '',
+            'domain' => $domain,
             'secure' => self::isHttps(),
             'httponly' => true,
             'samesite' => 'Lax',
@@ -130,6 +138,7 @@ final class Auth
         setcookie(session_name(), session_id(), [
             'expires' => time() + $lifetime,
             'path' => $params['path'],
+            'domain' => $params['domain'],
             'secure' => $params['secure'],
             'httponly' => $params['httponly'],
             'samesite' => $params['samesite'],
@@ -142,6 +151,7 @@ final class Auth
         setcookie(session_name(), '', [
             'expires' => time() - 42000,
             'path' => $params['path'],
+            'domain' => $params['domain'],
             'secure' => $params['secure'],
             'httponly' => $params['httponly'],
             'samesite' => $params['samesite'],
@@ -775,6 +785,7 @@ final class Auth
             setcookie(session_name(), session_id(), [
                 'expires' => 0,
                 'path' => $params['path'],
+                'domain' => $params['domain'],
                 'secure' => $params['secure'],
                 'httponly' => $params['httponly'],
                 'samesite' => $params['samesite'],

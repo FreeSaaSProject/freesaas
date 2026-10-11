@@ -2,8 +2,9 @@
     "id": "stickers",
     "name": "stickers.module.name",
     "description": "stickers.module.description",
-    "version": "0.1.1",
+    "version": "0.1.11",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0",
         "stocks": ">=0.1.0",
@@ -12,7 +13,9 @@
     "optionalRequires": {
         "suppliers": ">=0.1.0",
         "units": ">=0.1.0",
-        "bots": ">=0.1.0"
+        "bots": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "ledger": ">=0.1.0"
     },
     "provides": [
         "stickers.receipts",
@@ -41,11 +44,15 @@
             "/stickers/ins",
             "/stickers/ins/new",
             "/stickers/ins/{id}/edit",
+            "/stickers/ins/print",
             "/stickers/outs",
             "/stickers/writeoffs",
             "/stickers/writeoffs/new",
             "/stickers/writeoffs/{id}/edit",
-            "/stickers/writeoff"
+            "/stickers/writeoff",
+            "/stickers/status",
+            "/stickers/printstickers",
+            "/qr2.php"
         ]
     },
     "agent": {
@@ -161,6 +168,76 @@
                 "path": "/stickers/writeoff",
                 "permission": "stickers.writeoff",
                 "description": "Execute amount writeoff: id_sticker, amount, descr"
+            },
+            {
+                "id": "stickers.qr.diagnose",
+                "method": "GET",
+                "path": "/stickers/status",
+                "permission": "stickers.view",
+                "side_effect": "read",
+                "description": "Diagnose stickers/QR: hosts, cookie domain, soft deps, tables, issues[]"
+            },
+            {
+                "id": "stickers.qr.scan",
+                "method": "GET",
+                "path": "/qr2.php",
+                "side_effect": "read",
+                "description": "QR sticker status by q=HASH; in-handler GOOD_USE; returns phase/forms/actions",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": {"type": "string", "description": "32-hex sticker HASH"},
+                        "token": {"type": "string", "description": "Optional unused op token"}
+                    },
+                    "required": ["q"]
+                }
+            },
+            {
+                "id": "stickers.qr.act",
+                "method": "POST",
+                "path": "/qr2.php",
+                "side_effect": "write",
+                "description": "QR sticker mutation step (activate/revi/move/dismiss/cancel); csrf + token + GOOD_USE",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": {"type": "string"},
+                        "token": {"type": "string"},
+                        "action": {"type": "string"},
+                        "weight": {"type": "number"},
+                        "weight2": {"type": "number"},
+                        "amount": {"type": "number"},
+                        "confirm": {"type": "integer"},
+                        "proc_event": {"type": "string"},
+                        "idStockNew": {"type": "integer"},
+                        "csrf": {"type": "string"}
+                    },
+                    "required": ["q", "token"]
+                }
+            },
+            {
+                "id": "stickers.print.preview",
+                "method": "GET",
+                "path": "/stickers/ins/print",
+                "permission": "stickers.edit",
+                "side_effect": "read",
+                "description": "Pending print sheet (optional ?ids=); A4 5×13 multi-page; /qr2.php URLs + SVG"
+            },
+            {
+                "id": "stickers.print.run",
+                "method": "POST",
+                "path": "/stickers/ins/print",
+                "permission": "stickers.edit",
+                "side_effect": "write",
+                "description": "Confirm print batch preview (csrf); returns sticker URLs (does not mark DT_PRINT)"
+            },
+            {
+                "id": "stickers.print.public",
+                "method": "GET",
+                "path": "/stickers/printstickers",
+                "permission": "public",
+                "side_effect": "read",
+                "description": "Anonymous A4 print when public_print_enabled=1; 404 when off; GET-only sheet"
             }
         ]
     },
@@ -180,6 +257,13 @@
         },
         {
             "group": "core.menu.group.warehouse",
+            "num": 6,
+            "path": "/stickers/ins/print",
+            "title": "stickers.menu.print",
+            "kind": "work"
+        },
+        {
+            "group": "core.menu.group.warehouse",
             "num": 4,
             "path": "/stickers/writeoffs",
             "title": "stickers.menu.writeoffs"
@@ -189,6 +273,13 @@
             "num": 5,
             "path": "/stickers/outs",
             "title": "stickers.menu.outs"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 90,
+            "path": "/stickers/status",
+            "title": "stickers.menu.status",
+            "kind": "settings"
         }
     ],
     "configSchema": [],

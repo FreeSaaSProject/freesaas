@@ -76,7 +76,7 @@ final class StickerWriteoff
         $descr = trim((string)($options['descr'] ?? ''));
         if ($descr === '') {
             $descr = t('stickers.writeoff.line_descr', [
-                'user' => $userId,
+                'user' => StickerInsRepository::userAcronym($userId),
                 'qty' => $amount,
             ]);
         }
@@ -85,8 +85,11 @@ final class StickerWriteoff
         $pdo->beginTransaction();
         try {
             $newOut = (float)$row['qtyu_out'] + $amount;
-            $log = (string)$row['log'] . '<BR>[' . $userId . '][' . date('d.m.Y H:i') . '] '
-                . t('stickers.writeoff.log_spent', ['qty' => $amount]);
+            $log = StickerInsRepository::appendLog(
+                (string)$row['log'],
+                $userId,
+                t('stickers.writeoff.log_spent', ['qty' => $amount])
+            );
             $pdo->prepare(
                 'UPDATE base_good_sticker_ins SET QTYU_OUT = ?, LOG = ? WHERE ID = ?'
             )->execute([$newOut, $log, $stickerId]);
@@ -155,8 +158,11 @@ final class StickerWriteoff
 
         $qty = (float)$rowOut['qtyu'];
         $newOut = max(0.0, (float)$sticker['qtyu_out'] - $qty);
-        $log = (string)$sticker['log'] . '<BR>[' . $userId . '][' . date('d.m.Y H:i') . '] '
-            . t('stickers.writeoff.log_cancel', ['qty' => $qty, 'out' => $outId]);
+        $log = StickerInsRepository::appendLog(
+            (string)$sticker['log'],
+            $userId,
+            t('stickers.writeoff.log_cancel', ['qty' => $qty, 'out' => $outId])
+        );
 
         $pdo = Database::pdo();
         $pdo->beginTransaction();

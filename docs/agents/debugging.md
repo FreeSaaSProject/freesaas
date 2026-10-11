@@ -6,7 +6,7 @@
 php bin/freesaas.php system status --format=json
 php bin/freesaas.php health --format=json
 curl -sS https://<host>/health
-# Full ops without SSH (set app.agent_token first, or POST /agent/bootstrap on virgin):
+# Full ops without SSH (set app.agent_token first, then /agent/*; bootstrap also needs that token or setup.key):
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" https://<host>/agent/health
 ```
 

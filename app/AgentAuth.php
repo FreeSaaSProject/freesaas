@@ -5,8 +5,10 @@ declare(strict_types=1);
  * Token gate for HTTP /agent/* API (shared hosting without SSH).
  * Config: app.agent_token in cfg/config.ini (never commit real values).
  *
- * Break-glass: valid var/setup.key unlocks POST /agent/rescue and /agent/bootstrap.
- * Virgin installs are NOT open: pre-set app.agent_token (FTP) or setup.key required.
+ * Break-glass: valid var/setup.key unlocks POST /agent/rescue and /agent/bootstrap only
+ * (AgentAuth::assertToken($allowSetupKey=true)). Virgin installs are NOT open:
+ * pre-set app.agent_token (FTP) or upload setup.key — see docs/agents/install.md.
+ * Docs that claim anonymous GET /agent or POST /agent/bootstrap are obsolete.
  *
  * Auth: header X-FreeSaaS-Agent-Token or Authorization: Bearer only (never ?token=).
  * Dump download may use a short-lived HMAC sig in the query (see signDumpFile).

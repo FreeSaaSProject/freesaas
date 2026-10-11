@@ -59,8 +59,28 @@ $suppliers = [];
 if (class_exists('SuppliersRepository', false)) {
     $suppliers = SuppliersRepository::names(true);
 }
-$stickers = !$isNew ? StickerInsRepository::list(['id_act' => $id, 'limit' => 200, 'order' => 'ID ASC'])['items'] : [];
+$stickers = !$isNew ? StickerInsRepository::listGroupedForAct($id) : [];
+$actSumsPack = !$isNew
+    ? StickerInsRepository::listSums(['id_act' => $id])
+    : ['total' => 0, 'sums' => StickerInsRepository::emptySums()];
+$sums = $actSumsPack['sums'];
+$sumsTotal = (int)$actSumsPack['total'];
+$dpsMoves = !$isNew ? (Acts2InDps::movesByActIds([$id])[$id] ?? []) : [];
 $products = class_exists('ProductsRepository', false) ? ProductsRepository::names(false) : [];
+$units = class_exists('UnitsRepository', false) ? UnitsRepository::names() : [];
+$productUnits = [];
+foreach ($stickers as $s) {
+    $gid = (int)$s['id_good'];
+    if ($gid > 0 && !isset($productUnits[$gid]) && class_exists('ProductsRepository', false)) {
+        $pr = ProductsRepository::find($gid);
+        if ($pr) {
+            $productUnits[$gid] = [
+                'unit' => $units[(int)($pr['unit_id'] ?? 0)] ?? '',
+                'unitu' => $units[(int)($pr['unit_use_id'] ?? 0)] ?? '',
+            ];
+        }
+    }
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -68,9 +88,14 @@ if ($wantsJson) {
         'is_new' => $isNew,
         'item' => $row,
         'stickers' => $stickers,
+        'sums' => $sums,
+        'sums_total' => $sumsTotal,
+        'dps' => $dpsMoves,
+        'grouped' => true,
         'stocks' => $stocks,
         'suppliers' => $suppliers,
         'products' => $products,
+        'product_units' => $productUnits,
     ]);
     return;
 }
@@ -82,7 +107,12 @@ View::render('receipt_edit', [
     'stocks' => $stocks,
     'suppliers' => $suppliers,
     'stickers' => $stickers,
+    'sums' => $sums,
+    'sumsTotal' => $sumsTotal,
+    'dpsMoves' => $dpsMoves,
+    'ledgerOn' => Acts2InDps::ledgerReady(),
     'products' => $products,
+    'productUnits' => $productUnits,
     'canWriteoff' => Auth::can('stickers.writeoff'),
     'message' => $message,
     'error' => $error,

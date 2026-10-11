@@ -12,6 +12,10 @@ php bin/freesaas.php module enable ledger --format=json
 
 Mark payroll move types on `/account-move-types` via **FOT role** (`FOT_KIND`: bank=1 / cash=2). Names are free-form (any locale).
 
+**No built-in chart seed.** After enable, if accounts/types are empty (or FOT/act-in missing for soft deps), the agent must interview the operator and create a structure — see **[ledger-chart.md](ledger-chart.md)** (variants, flags, anti-patterns). Do not hardcode brand-specific type names into modules.
+
+Stickers receipt list: bulk **Create DPS…** picks a move type with `ID_ACT_IN_ENABLED` (needs `ledger.edit`); there are no fixed “consumables/tea/…” actions.
+
 ## Human UI
 
 | Path | Role |

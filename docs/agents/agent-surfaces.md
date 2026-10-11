@@ -9,8 +9,8 @@ FreeSaaS exposes **two** machine interfaces on purpose (not four). CLI and HTTP 
 | **Purpose** | Install, lifecycle, schema, health, self-update, **module repair** (ini secrets, webhook subscribe, LLM tokens) |
 | **CLI** | `php bin/freesaas.php … --format=json` (same `AgentOps` as HTTP) |
 | **HTTP** | `/agent/*` (catalog at `GET /agent`) |
-| **Auth** | `X-FreeSaaS-Agent-Token` = `app.agent_token` in `cfg/config.ini` |
-| **Virgin** | Before first staff user: `GET /agent` + `POST /agent/bootstrap` without header; bootstrap must set token |
+| **Auth** | `X-FreeSaaS-Agent-Token` = `app.agent_token` in `cfg/config.ini` (always required for `/agent/*`) |
+| **First install** | HTTP: pre-set `agent_token` **or** `var/setup.key` + `X-FreeSaaS-Setup-Key` — **no** anonymous bootstrap. CLI: `freesaas.php bootstrap` (no HTTP gate). See [install.md](install.md) |
 
 Typical ops: `bootstrap`, `system status`, `module list/inspect/enable/install/disable/validate`, `migrate`, `db *`, `health`, `doctor`, `update *`, plus module-registered repair ops under `/agent/bots/*`, `/agent/gcal/*`, `/agent/llm/*` (`AgentOps::registerModuleOp` from enabled-module bootstrap).
 

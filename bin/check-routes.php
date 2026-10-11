@@ -77,6 +77,11 @@ $allowed = [
     // Floor NFC shell (terminals); frozen query terminalid/braceletid/token
     '/t' => ['methods' => ['GET', 'POST'], 'why' => 'NFC terminal web shell'],
 
+    // Warehouse sticker QR (printed labels → mothersite); guest→/, staff GOOD_USE in handler
+    '/qr2.php' => ['methods' => ['GET', 'POST'], 'why' => 'legacy sticker QR scan gate'],
+    // Optional anonymous A4 print (handler 404 unless stickers.public_print_enabled)
+    '/stickers/printstickers' => ['methods' => ['GET'], 'why' => 'optional anonymous sticker A4 print sheet'],
+
     // LikeSpa legacy drop-in APIs (handlers 503 unless legacy_api_enabled)
     '/api_termy.php' => ['methods' => ['GET'], 'why' => 'Termy order-mode booking drop-in'],
     '/api.php' => ['methods' => ['GET'], 'why' => 'legacy booking/terminal API drop-in'],

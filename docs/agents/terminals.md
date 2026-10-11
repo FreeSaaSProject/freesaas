@@ -31,6 +31,7 @@ Permissions: `terminals.view`, `terminals.edit`, `terminals.sync` (jobs use `wor
 | `/terminals/settings` | Superadmin: flags + secrets |
 | `/t` | Public NFC floor shell (no admin chrome) |
 | `/terminals/t/status` | Staff diagnose for /t (claim / 1C / soft-deps) |
+| `/terminals/1c` | **1C diagnostics** console (legacy `/1c`): bracelet/client lookup, price, sale/unsale, raw dump. Permission `terminals.edit`. Live API only (`onecLive`); no cheese-password — session auth. Modes: `/terminals/1c/{mode}` |
 | `/terminals/floor` | Staff/agent procedure-mode book/cancel |
 
 ## Agent JSON (session)
@@ -40,6 +41,8 @@ Same routes as UI; `?format=json` or `Accept: application/json`. See `module.jso
 ```bash
 curl -sS -b jar.txt 'https://example/terminals?format=json'
 curl -sS -b jar.txt 'https://example/terminals/t/status?terminalid=1&format=json'
+curl -sS -b jar.txt 'https://example/terminals/1c?format=json'
+curl -sS -b jar.txt 'https://example/terminals/1c/clientByCard?NFCUID=503AE7A6&format=json'
 curl -sS -b jar.txt -X POST -H 'Content-Type: application/json' -H 'Accept: application/json' \
   'https://example/terminals/floor' \
   -d '{"action":"book","product_id":9,"operator_id":51,"dt_start":1760500800,"terminal_id":1,"disable_1c":true}'

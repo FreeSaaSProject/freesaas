@@ -47,7 +47,28 @@ declare(strict_types=1);
     <label class="check"><input type="checkbox" name="activate" value="1"<?= !empty($row['dt_print']) ? ' checked' : '' ?>> <?= te('stickers.ins.activate') ?></label>
     <?php if (!$isNew): ?>
       <p class="muted"><?= te('stickers.col.pin') ?>: <code><?= e((string)($row['pin'] ?? '')) ?></code>
+        · HASH: <code><?= e((string)($row['hash'] ?? '')) ?></code>
         · <?= te('stickers.col.left') ?>: <strong><?= e((string)StickerInsRepository::remaining($row)) ?></strong></p>
+      <?php $logHtml = StickerInsRepository::formatLogHtml((string)($row['log'] ?? '')); ?>
+      <?php if ($logHtml !== ''): ?>
+        <div class="sticker-log">
+          <strong><?= te('stickers.col.log') ?></strong>
+          <div class="sticker-log-body muted"><?= $logHtml ?></div>
+        </div>
+        <style>.sticker-log{margin:0.5rem 0}.sticker-log-body{margin:0.25rem 0 0;font-size:0.9rem;line-height:1.55}.sticker-log-body .user-badge{vertical-align:baseline}</style>
+      <?php endif; ?>
+      <?php
+        $hash = (string)($row['hash'] ?? '');
+        $qrUrl = $hash !== '' ? StickerQr::absoluteScanUrl($hash, !empty($row['dt_revision']) ? ['do' => 2] : []) : '';
+      ?>
+      <?php if ($qrUrl !== '' && (Auth::capability('SUPERADMIN_ACCESS') || !empty($row['dt_revision']))): ?>
+        <div class="sticker-qr-preview">
+          <p><?= te('stickers.ins.qr_preview') ?>:
+            <a href="<?= e($qrUrl) ?>" target="_blank" rel="noopener"><?= e($qrUrl) ?></a>
+          </p>
+          <div style="background:#fff;display:inline-block;padding:4px"><?= StickerQr::svgHtml($qrUrl, 120) ?></div>
+        </div>
+      <?php endif; ?>
     <?php endif; ?>
   </fieldset>
   <div class="page-actions">

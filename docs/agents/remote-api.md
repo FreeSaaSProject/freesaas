@@ -16,11 +16,11 @@ agent_token="a-long-random-secret"
 
 Or generate it in the UI: **Settings → Agent token** (`/settings`). Regenerating invalidates old dump links and `/agent/*` calls.
 
-Copy from `cfg/config.example.ini` comment. Empty / `CHANGE_ME` → `/agent/*` returns **503** (except virgin catalog + bootstrap).
+Copy from `cfg/config.example.ini` comment. Empty / `CHANGE_ME` → every `/agent/*` call returns **503** until you set a token (or use `var/setup.key` for bootstrap/rescue only).
 
 ## Auth
 
-Send on every request (after bootstrap):
+Send on every `/agent/*` request:
 
 - Header: `X-FreeSaaS-Agent-Token: <secret>`
 - or `Authorization: Bearer <secret>`
@@ -29,10 +29,12 @@ Do **not** put the agent token in the query string or POST body (`?token=` is ig
 
 Dump download (`GET /agent/db/dump/file`): same headers, **or** a short-lived signed URL from `/db` → «Copy link» (`?file=&exp=&sig=` — HMAC, not the raw token).
 
-**Virgin install** (no staff users yet):
+**First install (HTTP):** there is **no** anonymous virgin door. Before `POST /agent/bootstrap` you must either:
 
-- `GET /agent` (catalog) and `POST /agent/bootstrap` work **without** a prior header.
-- Bootstrap JSON **must** include `agent_token` (or it must already be set in config) so later calls can authenticate.
+1. Pre-set `app.agent_token` in `cfg/config.ini` (FTP) and send `X-FreeSaaS-Agent-Token`, **or**
+2. Upload `var/setup.key` (from `php bin/freesaas.php setup-key generate`) and send `X-FreeSaaS-Setup-Key` (bootstrap JSON should still include `agent_token` for later calls).
+
+Canonical steps: [install.md](install.md). CLI bootstrap does not need HTTP auth.
 
 ## Catalog
 
@@ -40,23 +42,24 @@ Dump download (`GET /agent/db/dump/file`): same headers, **or** a short-lived si
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://example.com/agent"
 ```
 
-Returns `ops[]` with method/path (includes bootstrap), plus top-level `maturity_policy` (alpha/beta/release agent rules). Module ops declare `query` / `body` where relevant (`module.list` filters, `module.enable` → `accept_risk`).
+Returns `ops[]` with method/path (includes bootstrap), `auth.bootstrap_note`, plus top-level `maturity_policy` (alpha/beta/release agent rules). Module ops declare `query` / `body` where relevant (`module.list` filters, `module.enable` → `accept_risk`).
 
 ## Bootstrap
 
 ```bash
+# Token already in cfg/config.ini
 curl -sS -X POST "https://example.com/agent/bootstrap" \
   -H "Content-Type: application/json" \
+  -H "X-FreeSaaS-Agent-Token: a-long-random-secret" \
   -d '{
     "login": "admin",
     "password": "change-me-now-8+",
     "name": "Admin",
-    "agent_token": "a-long-random-secret",
     "modules": ["units","clients"]
   }'
 ```
 
-Creates first admin + migrations + persists token. Safe to re-run: skips admin creation if users already exist.
+Creates first admin + migrations (+ persists `agent_token` from JSON when using setup.key). Safe to re-run: skips admin creation if users already exist.
 
 ## Examples
 
@@ -166,6 +169,6 @@ Self-update (HTTPS zip + token): see [update.md](update.md). Or upload files man
 
 - Use a long random token; rotate if leaked.
 - Prefer HTTPS only.
-- Do not commit `agent_token`.
+- Do not commit `agent_token` or `var/setup.key`.
 - Token grants full ops surface (enable/disable/migrate) — treat like root.
-- Close the virgin window ASAP (bootstrap creates the first user).
+- No open virgin HTTP bootstrap: a secret (token or setup.key) must exist before the first `/agent/*` call.

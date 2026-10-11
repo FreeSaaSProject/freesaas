@@ -27,21 +27,25 @@ php bin/freesaas.php doctor --format=json
 # or: php bin/smoke.php --format=json
 ```
 
-Shared hosting without SSH:
+Shared hosting without SSH — **pre-set** `app.agent_token` in `cfg/config.ini` (FTP), then:
 
 ```bash
 curl -sS -X POST "https://example.com/agent/bootstrap" \
   -H "Content-Type: application/json" \
-  -d '{"login":"admin","password":"change-me-now-8+","agent_token":"a-long-random-secret"}'
+  -H "X-FreeSaaS-Agent-Token: a-long-random-secret" \
+  -d '{"login":"admin","password":"change-me-now-8+"}'
 curl -sS -H "X-FreeSaaS-Agent-Token: a-long-random-secret" \
   "https://example.com/agent/doctor"
 ```
+
+No token in ini yet? Upload `var/setup.key` and use `X-FreeSaaS-Setup-Key` — full steps in [install.md](install.md). There is no anonymous HTTP bootstrap.
 
 ## Next
 
 | Goal | Doc |
 |------|-----|
 | Enable modules | `php bin/freesaas.php module enable <id> --format=json` — [remote-api.md](remote-api.md) |
+| Ledger chart empty after enable | Interview + seed — [ledger-chart.md](ledger-chart.md) |
 | Product CRM tools / MCP | [agent-surfaces.md](agent-surfaces.md), [connect-mcp.md](connect-mcp.md) |
 | New module | [create-module.md](create-module.md) or `module create` |
 | Broken install | [repair.md](repair.md), [debugging.md](debugging.md) |

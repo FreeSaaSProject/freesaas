@@ -113,6 +113,134 @@ final class OnecClient
     }
 
     /**
+     * "XXX,YYYYY" card code → NFC hex UID (legacy codeTxt2Hex).
+     * Plain hex without comma is returned uppercased.
+     */
+    public static function braceletCardToUid(string $braceTxt): string
+    {
+        $braceTxt = trim($braceTxt);
+        if ($braceTxt === '') {
+            return '';
+        }
+        if (strpos($braceTxt, ',') === false) {
+            return strtoupper(preg_replace('/[^0-9A-Fa-f]/', '', $braceTxt) ?? '');
+        }
+        $parts = explode(',', $braceTxt, 2);
+        $part1 = (int)trim($parts[0]);
+        $part2 = (int)trim($parts[1] ?? '0');
+        $hexPart1 = str_pad(dechex($part1), 2, '0', STR_PAD_LEFT);
+        $hexPart2Full = str_pad(dechex($part2), 4, '0', STR_PAD_LEFT);
+        $byte0 = substr($hexPart2Full, 2, 2);
+        $byte1 = substr($hexPart2Full, 0, 2);
+
+        return strtoupper($byte0 . $byte1 . $hexPart1);
+    }
+
+    /**
+     * Normalize bracelet card to "XXX,YYYYY" (pad parts). Hex input is converted.
+     */
+    public static function normalizeCard(string $cardOrUid): string
+    {
+        $cardOrUid = trim($cardOrUid);
+        if ($cardOrUid === '') {
+            return '';
+        }
+        if (strpos($cardOrUid, ',') !== false) {
+            $parts = explode(',', $cardOrUid, 2);
+
+            return str_pad(trim($parts[0]), 3, '0', STR_PAD_LEFT)
+                . ','
+                . str_pad(trim($parts[1] ?? '0'), 5, '0', STR_PAD_LEFT);
+        }
+
+        return self::braceletUidToCard($cardOrUid);
+    }
+
+    /**
+     * Staff-console debug call: full URL or path relative to 1c_url.
+     * Secrets are not returned — only meta that Basic/apikey/terminal were sent.
+     *
+     * @param array<string,mixed>|null $jsonBody
+     * @return array{
+     *   ok:bool,
+     *   http:int,
+     *   url:string,
+     *   method:string,
+     *   headers_meta:list<string>,
+     *   body_sent:?array<string,mixed>,
+     *   raw:string,
+     *   decoded:mixed,
+     *   error:string
+     * }
+     */
+    public static function raw(string $method, string $urlOrPath, ?array $jsonBody = null): array
+    {
+        $empty = [
+            'ok' => false,
+            'http' => 0,
+            'url' => '',
+            'method' => strtoupper($method),
+            'headers_meta' => [],
+            'body_sent' => $jsonBody,
+            'raw' => '',
+            'decoded' => null,
+            'error' => '',
+        ];
+        if (!TerminalsConfig::onecLive()) {
+            $empty['error'] = TerminalsConfig::onecEnabled()
+                ? t('terminals.t.err.onec_config')
+                : t('terminals.onec.err.disabled');
+
+            return $empty;
+        }
+        $cfg = TerminalsConfig::onec();
+        $method = strtoupper($method);
+        $urlOrPath = trim($urlOrPath);
+        if ($urlOrPath === '') {
+            $empty['error'] = 'url required';
+
+            return $empty;
+        }
+        if (preg_match('#^https?://#i', $urlOrPath) === 1) {
+            $url = $urlOrPath;
+        } else {
+            $url = rtrim($cfg['url'], '/') . '/' . ltrim($urlOrPath, '/');
+        }
+        if (strpos($url, 'get_time') !== false) {
+            $url = str_replace('/api/v2/get_time', '/api_ipn/int/get_time/', $url);
+            if (strpos($url, 'api_ipn/int') === false) {
+                $url = str_replace('api/v2', 'api_ipn/int', $url);
+            }
+        }
+        $res = self::request($method, $url, $cfg, $jsonBody);
+        $raw = (string)($res['raw'] ?? '');
+        $decoded = null;
+        if ($raw !== '') {
+            $try = json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                $decoded = $try;
+            }
+        }
+
+        return [
+            'ok' => !empty($res['ok']),
+            'http' => (int)($res['http'] ?? 0),
+            'url' => $url,
+            'method' => $method,
+            'headers_meta' => [
+                'Accept: application/json',
+                'Authorization: Basic ***',
+                'terminalid:' . $cfg['terminal'],
+                'apikey: ***',
+            ],
+            'body_sent' => $jsonBody,
+            'raw' => $raw,
+            'decoded' => $decoded,
+            'error' => (string)($res['error'] ?? ''),
+        ];
+    }
+
+    /**
      * Resolve guest by bracelet card via 1C client_by_card → client_by_id → debt_detail.
      *
      * @return array{ok:bool,client_id?:string,name?:string,time?:int,data?:array<string,mixed>,error?:string,stub?:bool}

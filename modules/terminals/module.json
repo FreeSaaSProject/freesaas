@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.21",
+    "version": "0.1.22",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -49,6 +49,8 @@
             "/terminals/fullstats/{id}/edit",
             "/terminals/settings",
             "/terminals/t/status",
+            "/terminals/1c",
+            "/terminals/1c/{mode}",
             "/terminals/floor",
             "/t",
             "/terminals/jobs/load",
@@ -70,6 +72,35 @@
                         "terminalid": {
                             "type": "integer",
                             "description": "Optional terminal id"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "terminals.onec.diag",
+                "method": "GET",
+                "path": "/terminals/1c",
+                "permission": "terminals.edit",
+                "side_effect": "read",
+                "description": "1C diagnostic console snapshot; optional path /terminals/1c/{mode} (clientByCard, price, debt, …); mutations POST sale/unsale/cardtoticket",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "description": "Optional mode when calling /terminals/1c/{mode}"
+                        },
+                        "NFCUID": {
+                            "type": "string"
+                        },
+                        "CARD": {
+                            "type": "string"
+                        },
+                        "PHONE": {
+                            "type": "string"
+                        },
+                        "ONECID": {
+                            "type": "string"
                         }
                     }
                 }
@@ -264,6 +295,13 @@
             "num": 40,
             "path": "/terminals/fullstats",
             "title": "terminals.menu.fullstats",
+            "kind": "work"
+        },
+        {
+            "group": "terminals.menu.group",
+            "num": 50,
+            "path": "/terminals/1c",
+            "title": "terminals.menu.onec",
             "kind": "work"
         },
         {

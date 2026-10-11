@@ -6,7 +6,10 @@ declare(strict_types=1);
 /** @var int $idStock */
 /** @var array<int,string> $stocks */
 /** @var array<int,string> $suppliers */
+/** @var array<int, list<array{id:int,summ:float,type_id:int,account_id:int}>> $dpsByAct */
+/** @var bool $ledgerOn */
 /** @var bool $canEdit */
+/** @var bool $canDps */
 /** @var string $sort */
 /** @var string $dir */
 /** @var int $page */
@@ -17,7 +20,9 @@ declare(strict_types=1);
 $path = '/stickers/receipts';
 $listId = 'stickers_receipts';
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, !empty($showAll));
-$colSpan = 7 + BulkActions::colSpanExtra($listId);
+$colSpan = 8 + BulkActions::colSpanExtra($listId);
+$dpsByAct = is_array($dpsByAct ?? null) ? $dpsByAct : [];
+$ledgerOn = !empty($ledgerOn);
 ?>
 <section class="page-head">
   <?php if ($canEdit): ?>
@@ -27,6 +32,9 @@ $colSpan = 7 + BulkActions::colSpanExtra($listId);
   <?php endif; ?>
 </section>
 <?php if (!empty($bulkFlash)): ?><?= BulkActions::flashHtml($bulkFlash) ?><?php endif; ?>
+<?php if ($ledgerOn): ?>
+  <p class="muted"><?= te('stickers.receipts.dps_hint') ?></p>
+<?php endif; ?>
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
   <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= te('stickers.list.search_placeholder') ?>" data-filter-debounce>
@@ -40,7 +48,7 @@ $colSpan = 7 + BulkActions::colSpanExtra($listId);
 <?= $pager ?>
 <?= BulkActions::beginForm($listId, ListQuery::url($path, $filters, [])) ?>
 <?= BulkActions::bar($listId) ?>
-<div class="table-wrap"><table class="data">
+<div class="table-wrap"><table class="data data--compact">
 <thead><tr>
   <?= BulkActions::th($listId) ?>
   <?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?>
@@ -49,18 +57,35 @@ $colSpan = 7 + BulkActions::colSpanExtra($listId);
   <th><?= te('stickers.col.stock') ?></th>
   <th><?= te('stickers.col.supplier') ?></th>
   <?= ListQuery::sortTh(t('stickers.col.summ'), 'summ', $sort, $dir, $path, $filters) ?>
+  <th><?= te('stickers.col.dps') ?></th>
   <th><?= te('stickers.col.signed') ?></th>
 </tr></thead>
 <tbody>
 <?php foreach ($items as $r): ?>
+  <?php
+    $aid = (int)$r['id'];
+    $moves = $dpsByAct[$aid] ?? [];
+  ?>
   <tr>
-    <?= BulkActions::td($listId, (int)$r['id']) ?>
-    <td><?php if ($canEdit): ?><a href="/stickers/receipts/<?= (int)$r['id'] ?>/edit"><?= (int)$r['id'] ?></a><?php else: ?><?= (int)$r['id'] ?><?php endif; ?></td>
+    <?= BulkActions::td($listId, $aid) ?>
+    <td><?php if ($canEdit): ?><a href="/stickers/receipts/<?= $aid ?>/edit"><?= $aid ?></a><?php else: ?><?= $aid ?><?php endif; ?></td>
     <td class="muted"><?= (int)$r['dt_create'] > 0 ? e(date('d.m.Y H:i', (int)$r['dt_create'])) : '—' ?></td>
     <td><?= e((string)$r['descr']) ?></td>
     <td><?= e($stocks[(int)$r['id_stock']] ?? ('#' . (int)$r['id_stock'])) ?></td>
     <td><?= e($suppliers[(int)$r['id_supplier']] ?? ('#' . (int)$r['id_supplier'])) ?></td>
-    <td><?= e((string)$r['summ']) ?></td>
+    <td><b><?= e((string)$r['summ']) ?></b></td>
+    <td class="st-dps">
+      <?php if ($moves !== []): ?>
+        <?php foreach ($moves as $m): ?>
+          <a href="/ledger/moves/<?= (int)$m['id'] ?>/edit">П-<?= (int)$m['id'] ?></a>
+          <span class="muted"><?= e((string)$m['summ']) ?></span><br>
+        <?php endforeach; ?>
+      <?php elseif ($ledgerOn): ?>
+        <b class="st-dps-miss"><?= te('stickers.dps.none') ?></b>
+      <?php else: ?>
+        <span class="muted">—</span>
+      <?php endif; ?>
+    </td>
     <td><?= !empty($r['is_signed']) ? te('core.common.yes') : '' ?></td>
   </tr>
 <?php endforeach; ?>
@@ -68,3 +93,4 @@ $colSpan = 7 + BulkActions::colSpanExtra($listId);
 </tbody></table></div>
 <?= BulkActions::endForm($listId) ?>
 <?= $pager ?>
+<style>.st-dps-miss{color:var(--danger,#c33);font-size:0.85rem}</style>

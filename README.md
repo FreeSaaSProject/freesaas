@@ -16,8 +16,8 @@ php bin/freesaas.php health --format=json
 php bin/smoke.php --format=json
 ```
 
-Shared hosting (no SSH): `POST /agent/bootstrap` — [docs/agents/install.md](docs/agents/install.md).  
-Ops twin: CLI or `/agent/*` with `X-FreeSaaS-Agent-Token`.  
+Shared hosting (no SSH): pre-set `app.agent_token` (or `var/setup.key`), then `POST /agent/bootstrap` — [docs/agents/install.md](docs/agents/install.md).  
+Ops twin: CLI or `/agent/*` with `X-FreeSaaS-Agent-Token` (no anonymous virgin HTTP).  
 Product tools (CRM ops): session JSON or MCP `/llm/mcp` + OAuth — [docs/agents/agent-surfaces.md](docs/agents/agent-surfaces.md).
 
 ## Docs

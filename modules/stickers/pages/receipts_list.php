@@ -26,12 +26,20 @@ $result = Acts2InRepository::list([
 ]);
 $stocks = class_exists('StocksRepository', false) ? StocksRepository::names() : [];
 $suppliers = class_exists('SuppliersRepository', false) ? SuppliersRepository::names(false) : [];
+$actIds = [];
+foreach ($result['items'] as $it) {
+    $actIds[] = (int)$it['id'];
+}
+$dpsByAct = Acts2InDps::movesByActIds($actIds);
+$ledgerOn = Acts2InDps::ledgerReady();
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'total' => $result['total'],
         'items' => $result['items'],
+        'dps_by_act' => $dpsByAct,
+        'ledger_enabled' => $ledgerOn,
         'filters' => [
             'q' => $q,
             'id_stock' => $idStock > 0 ? $idStock : null,
@@ -53,7 +61,10 @@ View::render('receipts_list', [
     'idStock' => $idStock,
     'stocks' => $stocks,
     'suppliers' => $suppliers,
+    'dpsByAct' => $dpsByAct,
+    'ledgerOn' => $ledgerOn,
     'canEdit' => Auth::can('stickers.edit'),
+    'canDps' => $ledgerOn && Auth::can('ledger.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
     'page' => $lq['page'],

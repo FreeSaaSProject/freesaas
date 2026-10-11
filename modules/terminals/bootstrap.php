@@ -10,6 +10,7 @@ require_once __DIR__ . '/lib/StaffBraceletsRepository.php';
 require_once __DIR__ . '/lib/TermloadsRepository.php';
 require_once __DIR__ . '/lib/FullstatsRepository.php';
 require_once __DIR__ . '/lib/OnecClient.php';
+require_once __DIR__ . '/lib/OnecConsole.php';
 require_once __DIR__ . '/lib/TerminalBooking.php';
 require_once __DIR__ . '/lib/TerminalFloorHome.php';
 require_once __DIR__ . '/lib/TerminalFloorCatalog.php';
@@ -34,6 +35,8 @@ $pages = [
     '/terminals/fullstats/{id}/edit' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'fullstats_edit.php'],
     '/terminals/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/terminals/t/status' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 't_status.php'],
+    '/terminals/1c' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'onec.php'],
+    '/terminals/1c/{mode}' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'onec.php'],
     '/terminals/floor' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'floor_book.php'],
     '/t' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 't.php'],
     '/terminals/jobs/load' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_load.php'],

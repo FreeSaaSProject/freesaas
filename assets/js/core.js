@@ -439,8 +439,8 @@
         submitFilter();
       });
     });
-    var search = form.querySelector('input[data-filter-debounce], input[type="search"]');
-    if (search) {
+    // Bind every debounced / search field (forms often have 2+: PIN + product name).
+    form.querySelectorAll('input[data-filter-debounce], input[type="search"]').forEach(function (search) {
       var t = null;
       var last = search.value;
       search.addEventListener('input', function () {
@@ -459,7 +459,7 @@
           submitFilter();
         }
       });
-    }
+    });
   });
 
   // Pager: keyboard ←/→ (no swipe — conflicts with horizontal table scroll on mobile)

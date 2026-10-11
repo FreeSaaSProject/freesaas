@@ -2,7 +2,7 @@
 
 Schema migrations, optional data migrators, SQL backups of FreeSaaS-owned tables, and CHECK/REPAIR/OPTIMIZE.
 
-**Auth:** `/db` requires a staff session + permission `core.db` (not public). Greenfield / lost-login: CLI `migrate run` / `bootstrap` / `rescue`, or HTTP `/agent/*` with `agent_token` (virgin bootstrap) / `var/setup.key` (rescue). Destructive data migrators: prefer CLI `php bin/data-migrate.php --module=… --id=…` (full run needs `--i-understand-replace`).
+**Auth:** `/db` requires a staff session + permission `core.db` (not public). Greenfield / lost-login: CLI `migrate run` / `bootstrap` / `rescue`, or HTTP `/agent/*` with pre-set `agent_token` or `var/setup.key` (bootstrap/rescue only — no anonymous virgin door). Destructive data migrators: prefer CLI `php bin/data-migrate.php --module=… --id=…` (full run needs `--i-understand-replace`).
 
 ## Human UI
 

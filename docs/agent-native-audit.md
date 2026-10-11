@@ -588,7 +588,7 @@ Product MCP is **in scope and shipped**; see [Future Agent Layer](#future-agent-
 | `doctor` (+ `/agent/doctor`) | **Done** |
 | `GET /health` + `/health/detail` | **Done** |
 | HTTP `/agent/*` + `app.agent_token` (CLI twin for shared hosting) | **Done** |
-| Autonomous bootstrap (`POST /agent/bootstrap` + CLI `bootstrap`) | **Done** — [`docs/agents/install.md`](agents/install.md) |
+| Autonomous bootstrap (`POST /agent/bootstrap` + CLI `bootstrap`) | **Done** — HTTP needs pre-set token or `setup.key` (no open virgin); [`install.md`](agents/install.md) |
 | Product MCP `/llm/mcp` + OAuth | **Done** — [`docs/agents/llm.md`](agents/llm.md) |
 | Dual-license AGPL + commercial + CLA | **Done** |
 | `bin/smoke.php` | **Done** |

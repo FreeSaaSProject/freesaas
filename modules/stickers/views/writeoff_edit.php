@@ -34,19 +34,47 @@ declare(strict_types=1);
   </div>
 </form>
 <?php if (!$isNew): ?>
+  <?php
+    $outQty = 0.0;
+    $outSum = 0.0;
+    foreach ($outs as $o) {
+        $outQty += (float)($o['qtyu'] ?? 0);
+        $outSum += (float)($o['summ'] ?? 0);
+    }
+    $outQty = round($outQty, 3);
+    $outSum = round($outSum, 2);
+  ?>
   <h2><?= te('stickers.menu.outs') ?></h2>
-  <div class="table-wrap"><table class="data">
-    <thead><tr><th>ID</th><th><?= te('stickers.col.sticker') ?></th><th><?= te('stickers.col.good') ?></th><th><?= te('stickers.col.qty') ?></th></tr></thead>
+  <div class="table-wrap"><table class="data data--compact">
+    <thead><tr>
+      <th>ID</th>
+      <th><?= te('stickers.col.sticker') ?></th>
+      <th><?= te('stickers.col.good') ?></th>
+      <th><?= te('stickers.col.user') ?></th>
+      <th><?= te('stickers.col.qty') ?></th>
+      <th><?= te('stickers.col.summ') ?></th>
+    </tr></thead>
     <tbody>
     <?php foreach ($outs as $o): ?>
       <tr>
         <td><?= (int)$o['id'] ?></td>
         <td><a href="/stickers/ins/<?= (int)$o['id_sticker'] ?>/edit"><?= (int)$o['id_sticker'] ?></a></td>
         <td><?= e($products[(int)$o['id_good']] ?? ('#' . (int)$o['id_good'])) ?></td>
+        <td><?= class_exists('UsersRepository', false) ? UsersRepository::badgeHtml((int)($o['id_user'] ?? 0), false, true) : e((string)($o['id_user'] ?? '')) ?></td>
         <td><?= e((string)$o['qtyu']) ?></td>
+        <td><?= e((string)($o['summ'] ?? '0')) ?></td>
       </tr>
     <?php endforeach; ?>
-    <?php if (!$outs): ?><tr><td colspan="4" class="muted"><?= te('stickers.list.empty') ?></td></tr><?php endif; ?>
+    <?php if (!$outs): ?><tr><td colspan="6" class="muted"><?= te('stickers.list.empty') ?></td></tr><?php endif; ?>
+      <tr class="st-totals">
+        <td colspan="3"><b><?= te('stickers.list.totals') ?></b>
+          <span class="muted"><?= te('stickers.list.totals_rows', ['n' => count($outs)]) ?></span>
+        </td>
+        <td></td>
+        <td><b><?= e((string)$outQty) ?></b></td>
+        <td><b><?= e((string)$outSum) ?></b></td>
+      </tr>
     </tbody>
   </table></div>
+  <style>.st-totals td{border-top:2px solid var(--border,#ccc);background:var(--bg-muted,rgba(0,0,0,.04))}</style>
 <?php endif; ?>
