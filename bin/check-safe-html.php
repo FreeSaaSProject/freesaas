@@ -55,6 +55,11 @@ foreach ($pos as $in => $needle) {
     $assert(strpos($out, $needle) !== false, "positive keeps formatting: $needle");
 }
 
+$svgData = safe_html('<img src="data:image/svg+xml;base64,PHN2Zy4uLg==" alt="x">');
+$assert(strpos($svgData, 'data:image/svg') === false, 'reject data:image/svg+xml');
+$huge = 'data:image/png;base64,' . str_repeat('A', 50 * 1024);
+$assert(strpos(safe_html('<img src="' . $huge . '" alt="x">'), 'data:image/png') === false, 'reject oversized data URI');
+
 $internal = safe_html('<a href="/users">staff</a>');
 $assert(strpos($internal, 'target=') === false, 'internal link no target=_blank');
 

@@ -96,7 +96,7 @@ final class Csrf
             return true;
         }
         $prefixes = [
-            '/agent',
+            '/agent/',
             '/bots/webhook/',
             '/oauth/',
             '/.well-known/',
@@ -112,6 +112,8 @@ final class Csrf
             '/llm/api/',
         ];
         foreach ($prefixes as $p) {
+            // Exact directory root (/agent) or prefix with trailing slash (/agent/…).
+            // Trailing slash prevents /agent matching /agents, /agent-ops, etc.
             if ($path === rtrim($p, '/') || strpos($path, $p) === 0) {
                 return true;
             }

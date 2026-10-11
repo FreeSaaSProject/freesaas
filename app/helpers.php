@@ -201,7 +201,7 @@ function html_link_is_external(string $href): bool
 }
 
 /**
- * Allow http(s), mailto, tel, relative, #fragments; optional data:image/*;base64 for <img src>.
+ * Allow http(s), mailto, tel, relative, #fragments; optional raster data:image (png/jpeg/gif/webp), max 48KiB.
  */
 function html_safe_url(string $url, bool $allowMailtoTel = false, bool $allowDataImage = false): bool
 {
@@ -213,8 +213,11 @@ function html_safe_url(string $url, bool $allowMailtoTel = false, bool $allowDat
         return false;
     }
     if (preg_match('#^\s*data\s*:#i', $url)) {
+        // Raster only (no svg+xml — historical XSS surface). Soft cap for TEXT columns (~64KiB).
+        $maxDataUri = 48 * 1024;
         if ($allowDataImage
-            && preg_match('#^\s*data:image/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=\s]+$#i', $url)
+            && strlen($url) <= $maxDataUri
+            && preg_match('#^\s*data:image/(png|jpe?g|gif|webp);base64,[a-z0-9+/=\s]+$#i', $url)
         ) {
             return true;
         }
