@@ -18,6 +18,7 @@ require_once __DIR__ . '/lib/MyTasksHabits.php';
 require_once __DIR__ . '/lib/MyTasksHabitsBot.php';
 require_once __DIR__ . '/lib/NewsBotPlugin.php';
 require_once __DIR__ . '/lib/PasswordRestoreBotPlugin.php';
+require_once __DIR__ . '/lib/LoginLinksRepository.php';
 
 // Shared rail groups (core.menu.group.*) — product modules register their own keys.
 ModuleManager::registerMenuGroup('core.menu.group.desktop', 10, '/');
@@ -30,6 +31,7 @@ ModuleManager::registerMenuGroup('core.menu.group.system', 70, '/updates');
 
 $pages = [
     '/login' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'login.php'],
+    '/login/t/{token}' => ['public' => true, 'methods' => ['GET'], 'file' => 'login_token.php'],
     '/logout' => ['permission' => 'core.home', 'methods' => ['POST'], 'handler' => 'logout'],
 
     '/' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'home.php'],
@@ -40,7 +42,7 @@ $pages = [
 
     '/users' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'users.php'],
     '/users/new' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
-    '/users/{id}' => ['permission' => 'core.users', 'methods' => ['GET'], 'file' => 'user.php'],
+    '/users/{id}' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user.php'],
     '/users/{id}/edit' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
     '/statuses' => ['permission' => 'core.statuses', 'methods' => ['GET'], 'file' => 'statuses.php'],
     '/statuses/new' => ['permission' => 'core.statuses', 'methods' => ['GET', 'POST'], 'file' => 'status_edit.php'],

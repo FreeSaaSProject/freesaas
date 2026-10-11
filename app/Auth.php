@@ -290,41 +290,256 @@ final class Auth
         return false;
     }
 
-    public static function hashPassword(string $plain): string
+    /** Failed attempts before temporary lockout. */
+    public const LOCK_THRESHOLD = 5;
+
+    /** Lockout duration in minutes. */
+    public const LOCK_MINUTES = 15;
+
+    /** Minimum password length for ordinary staff. */
+    public const PASSWORD_MIN = 8;
+
+    /** Minimum password length for SUPERADMIN_ACCESS roles. */
+    public const PASSWORD_MIN_SUPER = 10;
+
+    /**
+     * Preferred password_hash algorithm (argon2id when available).
+     *
+     * @return string|int
+     */
+    public static function preferredAlgo()
+    {
+        return defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_BCRYPT;
+    }
+
+    /**
+     * Legacy FreeSaaS / oper hash: sha1(md5(plain . salts.site)).
+     * Read-only — never write new passwords with this.
+     * Do not rotate salts.site: it is required to verify remaining legacy rows.
+     */
+    public static function legacyHash(string $plain): string
     {
         $salt = (string)Config::get('salts', 'site', '');
+
         return sha1(md5($plain . $salt));
     }
 
-    public static function attempt(string $login, string $password, bool $remember = true): bool
+    public static function isLegacyHash(string $stored): bool
     {
-        if (!Database::tableExists('base_users')) {
+        return (bool)preg_match('/^[0-9a-f]{40}$/i', $stored);
+    }
+
+    /** Write path: modern password_hash (argon2id or bcrypt). */
+    public static function hashPassword(string $plain): string
+    {
+        $hash = password_hash($plain, self::preferredAlgo());
+        if (!is_string($hash) || $hash === '') {
+            throw new RuntimeException('password_hash failed');
+        }
+
+        return $hash;
+    }
+
+    public static function verifyPassword(string $plain, string $stored): bool
+    {
+        $stored = (string)$stored;
+        if ($stored === '') {
             return false;
         }
-        $cols = 'id, login, password, name, ID_STATUS, status, enabled, expire';
+        if (self::isLegacyHash($stored)) {
+            return hash_equals(strtolower($stored), self::legacyHash($plain));
+        }
+
+        return password_verify($plain, $stored);
+    }
+
+    public static function needsRehash(string $stored): bool
+    {
+        if (self::isLegacyHash($stored)) {
+            return true;
+        }
+
+        return password_needs_rehash($stored, self::preferredAlgo());
+    }
+
+    /**
+     * Server-side password policy. Returns null when OK, else i18n key suffix
+     * under core.password.policy.* (too_short / too_short_super).
+     */
+    public static function passwordPolicyError(string $plain, bool $requireStrong = false): ?string
+    {
+        $min = $requireStrong ? self::PASSWORD_MIN_SUPER : self::PASSWORD_MIN;
+        if (strlen($plain) < $min) {
+            return $requireStrong ? 'too_short_super' : 'too_short';
+        }
+
+        return null;
+    }
+
+    /**
+     * @return 'ok'|'bad_credentials'|'locked'|'expired'|'disabled'
+     */
+    public static function attemptStatus(string $login, string $password, bool $remember = true): string
+    {
+        if (!Database::tableExists('base_users')) {
+            return 'bad_credentials';
+        }
+        $login = trim($login);
+        $password = trim($password);
+        if ($login === '' || $password === '') {
+            return 'bad_credentials';
+        }
+
+        $cols = 'id, login, password, name, ID_STATUS, status, enabled, expire, retries';
         if (Database::columnExists('base_users', 'ID_STATUS2')) {
             $cols .= ', ID_STATUS2';
         }
         if (Database::columnExists('base_users', 'locale')) {
             $cols .= ', locale';
         }
+        if (Database::columnExists('base_users', 'locked_until')) {
+            $cols .= ', locked_until';
+        }
         $st = Database::pdo()->prepare(
-            "SELECT $cols FROM base_users WHERE login = ? AND enabled = '1' LIMIT 1"
+            "SELECT $cols FROM base_users WHERE login = ? LIMIT 1"
         );
-        $st->execute([trim($login)]);
+        $st->execute([$login]);
         $row = $st->fetch();
         if (!$row) {
-            return false;
-        }
-        $hash = self::hashPassword(trim($password));
-        if (!hash_equals((string)$row['password'], $hash)) {
-            return false;
-        }
-        $expire = (int)$row['expire'];
-        if ($expire > 0 && $expire < time()) {
-            return false;
+            return 'bad_credentials';
         }
 
+        if ((string)$row['enabled'] !== '1') {
+            return 'disabled';
+        }
+
+        if (self::isLockedRow($row)) {
+            return 'locked';
+        }
+
+        if (!self::verifyPassword($password, (string)$row['password'])) {
+            self::recordFailedLogin((int)$row['id']);
+            // Re-check: may have just crossed the threshold.
+            $fresh = self::fetchLockState((int)$row['id']);
+            if ($fresh !== null && self::isLockedRow($fresh)) {
+                return 'locked';
+            }
+
+            return 'bad_credentials';
+        }
+
+        $expire = (int)$row['expire'];
+        if ($expire > 0 && $expire < time()) {
+            return 'expired';
+        }
+
+        self::clearLoginFailures((int)$row['id']);
+
+        if (self::needsRehash((string)$row['password'])) {
+            try {
+                if (class_exists('UsersRepository', false)) {
+                    UsersRepository::updatePasswordHash((int)$row['id'], self::hashPassword($password));
+                } else {
+                    $upd = Database::pdo()->prepare('UPDATE base_users SET password = ? WHERE id = ?');
+                    $upd->execute([self::hashPassword($password), (int)$row['id']]);
+                }
+            } catch (Throwable $e) {
+                // Login still succeeds; rehash can retry next time.
+                error_log('[auth] rehash failed user=' . (int)$row['id'] . ' ' . $e->getMessage());
+            }
+        }
+
+        self::establishSession($row, $remember);
+
+        return 'ok';
+    }
+
+    public static function attempt(string $login, string $password, bool $remember = true): bool
+    {
+        return self::attemptStatus($login, $password, $remember) === 'ok';
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     */
+    private static function isLockedRow(array $row): bool
+    {
+        if (!isset($row['locked_until']) || $row['locked_until'] === null || $row['locked_until'] === '') {
+            return false;
+        }
+        $ts = strtotime((string)$row['locked_until']);
+
+        return $ts !== false && $ts > time();
+    }
+
+    /** @return array{retries:int,locked_until:?string}|null */
+    private static function fetchLockState(int $userId): ?array
+    {
+        if ($userId <= 0 || !Database::columnExists('base_users', 'locked_until')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT retries, locked_until FROM base_users WHERE id = ? LIMIT 1'
+        );
+        $st->execute([$userId]);
+        $row = $st->fetch();
+
+        return is_array($row) ? $row : null;
+    }
+
+    private static function recordFailedLogin(int $userId): void
+    {
+        if ($userId <= 0 || !Database::tableExists('base_users')) {
+            return;
+        }
+        $hasLock = Database::columnExists('base_users', 'locked_until');
+        $hasLast = Database::columnExists('base_users', 'last_failed_at');
+        $threshold = self::LOCK_THRESHOLD;
+        $minutes = self::LOCK_MINUTES;
+        if ($hasLock && $hasLast) {
+            $sql = 'UPDATE base_users SET
+                retries = LEAST(255, retries + 1),
+                last_failed_at = NOW(),
+                locked_until = IF(retries + 1 >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until)
+                WHERE id = ?';
+            Database::pdo()->prepare($sql)->execute([$threshold, $minutes, $userId]);
+        } elseif ($hasLock) {
+            $sql = 'UPDATE base_users SET
+                retries = LEAST(255, retries + 1),
+                locked_until = IF(retries + 1 >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until)
+                WHERE id = ?';
+            Database::pdo()->prepare($sql)->execute([$threshold, $minutes, $userId]);
+        } else {
+            Database::pdo()->prepare(
+                'UPDATE base_users SET retries = LEAST(255, retries + 1) WHERE id = ?'
+            )->execute([$userId]);
+        }
+    }
+
+    private static function clearLoginFailures(int $userId): void
+    {
+        if ($userId <= 0 || !Database::tableExists('base_users')) {
+            return;
+        }
+        $sets = ['retries = 0'];
+        if (Database::columnExists('base_users', 'locked_until')) {
+            $sets[] = 'locked_until = NULL';
+        }
+        if (Database::columnExists('base_users', 'last_failed_at')) {
+            $sets[] = 'last_failed_at = NULL';
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_users SET ' . implode(', ', $sets) . ' WHERE id = ?'
+        )->execute([$userId]);
+    }
+
+    /**
+     * Establish session from a loaded user row (password login or one-time link).
+     *
+     * @param array<string,mixed> $row
+     */
+    public static function establishSession(array $row, bool $remember = true): void
+    {
         $permissions = [];
         $raw = $row['status'] ?? null;
         if (is_string($raw) && $raw !== '') {
@@ -373,6 +588,16 @@ final class Auth
             'user_id' => (int)$row['id'],
             'login' => (string)$row['login'],
         ]);
+    }
+
+    /** Clear lockout counters (CLI / admin). */
+    public static function unlockUser(int $userId): bool
+    {
+        if ($userId <= 0 || !Database::tableExists('base_users')) {
+            return false;
+        }
+        self::clearLoginFailures($userId);
+
         return true;
     }
 

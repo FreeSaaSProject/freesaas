@@ -388,9 +388,10 @@ if ($wantsJson) {
 
 $genPass = '';
 try {
-    $genPass = bin2hex(random_bytes(4));
+    // 12 hex chars — meets staff (8) and superadmin (10) policy.
+    $genPass = bin2hex(random_bytes(6));
 } catch (Throwable $e) {
-    $genPass = substr(sha1((string)microtime(true)), 0, 8);
+    $genPass = substr(sha1((string)microtime(true)), 0, 12);
 }
 
 $sections = EventBus::emit('core.user_edit.sections', [

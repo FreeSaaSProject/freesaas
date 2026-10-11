@@ -6,10 +6,14 @@
 /** @var string $profileChannelsHtml */
 /** @var string $profileFlagsHtml */
 /** @var string $profileSiteHtml */
+/** @var bool $canManageAuth */
+/** @var array{type?:string,message?:string}|null $flash */
 $uid = (int)$user['id'];
 $profileChannelsHtml = (string)($profileChannelsHtml ?? '');
 $profileFlagsHtml = (string)($profileFlagsHtml ?? '');
 $profileSiteHtml = (string)($profileSiteHtml ?? '');
+$canManageAuth = !empty($canManageAuth);
+$flash = is_array($flash ?? null) ? $flash : null;
 ?>
 <section class="page-head">
   <div class="page-head-row">
@@ -21,10 +25,23 @@ $profileSiteHtml = (string)($profileSiteHtml ?? '');
       <p class="lede"><code><?= e((string)$user['login']) ?></code> · <?= e($statusName) ?></p>
     </div>
     <div class="page-actions">
+      <?php if ($canManageAuth): ?>
+      <form method="post" class="inline-form" action="/users/<?= $uid ?>">
+        <input type="hidden" name="action" value="login_link">
+        <button type="submit" class="btn"><?= te('core.user.login_link_create') ?></button>
+      </form>
+      <form method="post" class="inline-form" action="/users/<?= $uid ?>">
+        <input type="hidden" name="action" value="unlock">
+        <button type="submit" class="btn"><?= te('core.user.unlock') ?></button>
+      </form>
+      <?php endif; ?>
       <a class="btn-primary" href="/users/<?= $uid ?>/edit"><?= te('core.common.edit') ?></a>
     </div>
   </div>
 </section>
+<?php if ($flash !== null && ($flash['message'] ?? '') !== ''): ?>
+  <div class="flash flash-<?= e((string)($flash['type'] ?? 'ok')) ?>"><?= e((string)$flash['message']) ?></div>
+<?php endif; ?>
 
 <div class="detail-grid">
   <div class="widget">

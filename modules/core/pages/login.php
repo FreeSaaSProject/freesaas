@@ -17,10 +17,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $remember = isset($_POST['remember']) && (string)$_POST['remember'] !== '0';
     if (!Database::tableExists('base_users')) {
         $error = t('core.login.error.no_table');
-    } elseif (Auth::attempt($login, $password, $remember)) {
-        $afterLogin();
     } else {
-        $error = t('core.login.error.bad_credentials');
+        $status = Auth::attemptStatus($login, $password, $remember);
+        if ($status === 'ok') {
+            $afterLogin();
+        }
+        $map = [
+            'locked' => 'core.login.error.locked',
+            'expired' => 'core.login.error.expired',
+            'disabled' => 'core.login.error.disabled',
+            'bad_credentials' => 'core.login.error.bad_credentials',
+        ];
+        $error = t($map[$status] ?? 'core.login.error.bad_credentials');
     }
 }
 

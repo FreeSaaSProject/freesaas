@@ -81,12 +81,7 @@ final class PasswordRestoreBotPlugin
             self::reply($ctx, t('core.bot.password_restore.disabled'), $menuKb);
             return;
         }
-        $salt = (string)Config::get('salts', 'site', '');
-        if ($salt === '') {
-            self::reply($ctx, t('core.bot.password_restore.cfg_error'), $menuKb);
-            return;
-        }
-        $plain = self::generatePassword();
+        $plain = self::generatePassword(12);
         try {
             UsersRepository::update($uid, [
                 'password_plain' => $plain,
@@ -98,7 +93,10 @@ final class PasswordRestoreBotPlugin
             return;
         }
         $safe = htmlspecialchars($plain, ENT_QUOTES, 'UTF-8');
-        $text = t('core.bot.password_restore.done', ['password' => $safe]);
+        $text = t('core.bot.password_restore.done', [
+            'password' => $safe,
+            'days' => (string)self::EXPIRE_DAYS,
+        ]);
         self::replyHtml($ctx, $text, $menuKb);
     }
 
@@ -111,19 +109,17 @@ final class PasswordRestoreBotPlugin
         return (string)($row['enabled'] ?? '') === '1';
     }
 
-    private static function generatePassword(int $len = 6): string
+    /** ≥12 chars from 62-symbol alphabet (~71 bits at len=12). */
+    private static function generatePassword(int $len = 12): string
     {
-        $digits = '0123456789';
-        $specials = '!@#$%&*';
+        $len = max(12, $len);
+        $alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        $max = strlen($alphabet) - 1;
         $out = '';
         for ($i = 0; $i < $len; $i++) {
-            $out .= $digits[random_int(0, strlen($digits) - 1)];
+            $out .= $alphabet[random_int(0, $max)];
         }
-        $nSpecial = min(2, max(0, $len - 2));
-        for ($i = 0; $i < $nSpecial; $i++) {
-            $pos = random_int(0, strlen($out) - 1);
-            $out[$pos] = $specials[random_int(0, strlen($specials) - 1)];
-        }
+
         return $out;
     }
 

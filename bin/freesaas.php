@@ -81,6 +81,9 @@ try {
         case 'cron':
             freesaas_cmd_cron($sub, $opts);
             break;
+        case 'user':
+            freesaas_cmd_user($sub, $args, $opts);
+            break;
         default:
             Cli::usage("Unknown command: {$cmd}\n\n" . freesaas_cli_help());
     }
@@ -111,7 +114,91 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]
   core habits-reminders [--simulate] [--format=json]
   cron tick [--job=id] [--force] [--format=json]
+  user unlock <login> [--format=json]
+  user login-link <login> [--ttl=15] [--format=json]
+  user hash-audit [--format=json]
 TXT;
+}
+
+/**
+ * @param list<string> $args
+ * @param array<string, string|bool> $opts
+ */
+function freesaas_cmd_user(string $sub, array $args, array $opts): void
+{
+    require_once base_path('modules/core/lib/UsersRepository.php');
+    require_once base_path('modules/core/lib/LoginLinksRepository.php');
+
+    if ($sub === 'unlock') {
+        $login = trim((string)($args[2] ?? ''));
+        if ($login === '') {
+            Cli::usage('Usage: user unlock <login> [--format=json]');
+        }
+        $row = UsersRepository::findByLogin($login);
+        if ($row === null) {
+            Cli::fail('user not found: ' . $login, Cli::EXIT_FAIL);
+        }
+        Auth::unlockUser((int)$row['id']);
+        freesaas_emit_ops([
+            'ok' => true,
+            'login' => $login,
+            'unlocked' => true,
+        ]);
+        return;
+    }
+
+    if ($sub === 'login-link') {
+        $login = trim((string)($args[2] ?? ''));
+        if ($login === '') {
+            Cli::usage('Usage: user login-link <login> [--ttl=15] [--format=json]');
+        }
+        $row = UsersRepository::findByLogin($login);
+        if ($row === null) {
+            Cli::fail('user not found: ' . $login, Cli::EXIT_FAIL);
+        }
+        $ttl = isset($opts['ttl']) ? (int)$opts['ttl'] : LoginLinksRepository::DEFAULT_TTL_MINUTES;
+        try {
+            $link = LoginLinksRepository::create((int)$row['id'], 0, $ttl);
+        } catch (Throwable $e) {
+            Cli::fail($e->getMessage(), Cli::EXIT_FAIL);
+        }
+        freesaas_emit_ops([
+            'ok' => true,
+            'login' => $login,
+            'url' => $link['url'],
+            'expires_at' => $link['expires_at'],
+            'ttl_minutes' => $link['ttl_minutes'],
+        ]);
+        return;
+    }
+
+    if ($sub === 'hash-audit') {
+        if (!Database::tableExists('base_users')) {
+            Cli::fail('base_users missing', Cli::EXIT_FAIL);
+        }
+        $st = Database::pdo()->query(
+            'SELECT
+                COUNT(*) AS total,
+                SUM(CASE WHEN password REGEXP \'^[0-9a-fA-F]{40}$\' THEN 1 ELSE 0 END) AS legacy,
+                SUM(CASE WHEN password LIKE \'$2y$%\' OR password LIKE \'$2a$%\' THEN 1 ELSE 0 END) AS bcrypt,
+                SUM(CASE WHEN password LIKE \'$argon2%\' THEN 1 ELSE 0 END) AS argon2
+             FROM base_users'
+        );
+        $row = $st ? $st->fetch(PDO::FETCH_ASSOC) : [];
+        $total = (int)($row['total'] ?? 0);
+        $legacy = (int)($row['legacy'] ?? 0);
+        freesaas_emit_ops([
+            'ok' => true,
+            'total' => $total,
+            'legacy' => $legacy,
+            'bcrypt' => (int)($row['bcrypt'] ?? 0),
+            'argon2' => (int)($row['argon2'] ?? 0),
+            'modern' => max(0, $total - $legacy),
+        ]);
+        return;
+    }
+
+    Cli::usage('Usage: user unlock|login-link|hash-audit …');
 }
 
 /** @param array<string, string|bool> $opts */

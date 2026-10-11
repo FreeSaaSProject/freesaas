@@ -17,7 +17,7 @@ return static function (PDO $pdo): void {
                 id INT UNSIGNED NOT NULL AUTO_INCREMENT,
                 status BLOB NOT NULL,
                 login VARCHAR(64) NOT NULL DEFAULT '',
-                password VARCHAR(64) NOT NULL DEFAULT '',
+                password VARCHAR(255) NOT NULL DEFAULT '',
                 mail VARCHAR(64) NOT NULL DEFAULT '',
                 tel VARCHAR(64) NOT NULL DEFAULT '',
                 enabled ENUM('0','1') NOT NULL DEFAULT '0',

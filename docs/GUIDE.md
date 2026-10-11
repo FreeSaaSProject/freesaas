@@ -342,7 +342,7 @@ return static function (PDO $pdo): void {
 3. **Роль**: колонки-флаги в `base_admin_statuses` → `Auth::capability('FLAG')`.
 4. Футер layout: если namespaced permissions не сохранены — предупреждение настроить профиль; если суперадмин открыл экран с выключенной личной галочкой — напоминание про bypass.
 
-Пароль: `sha1(md5(plain . site_salt))` — совместимо с legacy.
+Пароль: новые записи — `password_hash` (argon2id/bcrypt); legacy `sha1(md5(plain . salts.site))` проверяется и при успешном входе перехешируется. `salts.site` не ротировать. Блокировка: `retries` + `locked_until` (5/15 мин). Ссылка входа без бота: `php bin/freesaas.php user login-link <login>` или кнопка в карточке сотрудника.
 
 ---
 

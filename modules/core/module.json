@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.40",
+    "version": "0.3.41",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -56,6 +56,7 @@
             "/",
             "/dashboard",
             "/login",
+            "/login/t/{token}",
             "/locale",
             "/logout",
             "/modules",
@@ -791,7 +792,8 @@
         "base_admin_statuses",
         "base_views",
         "base_likes",
-        "base_user_prefs"
+        "base_user_prefs",
+        "base_user_login_links"
     ],
     "migrators": [
         {

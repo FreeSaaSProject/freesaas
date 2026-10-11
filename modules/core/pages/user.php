@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once base_path('modules/core/lib/UsersRepository.php');
+require_once base_path('modules/core/lib/LoginLinksRepository.php');
 
 $wantsJson = AgentHttp::wantsJson();
 
@@ -15,6 +16,39 @@ if (!$user) {
     View::render('error', ['title' => t('core.common.not_found'), 'message' => t('core.user.err.not_found', ['id' => $id])]);
     return;
 }
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && Auth::capability('SUPERADMIN_ACCESS')) {
+    $action = (string)($_POST['action'] ?? '');
+    if ($action === 'login_link') {
+        try {
+            $link = LoginLinksRepository::create($id, Auth::userId(), 15);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'url' => $link['url'],
+                    'expires_at' => $link['expires_at'],
+                    'ttl_minutes' => $link['ttl_minutes'],
+                ]);
+            }
+            flash_set('ok', t('core.user.login_link_flash', ['url' => $link['url']]));
+        } catch (Throwable $e) {
+            if ($wantsJson) {
+                AgentHttp::error(t('core.user.login_link_error'), 400);
+            }
+            flash_set('error', t('core.user.login_link_error'));
+        }
+        redirect('/users/' . $id);
+    }
+    if ($action === 'unlock') {
+        Auth::unlockUser($id);
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'unlocked' => true]);
+        }
+        flash_set('ok', t('core.user.unlock_ok'));
+        redirect('/users/' . $id);
+    }
+}
+
 $statuses = UsersRepository::statusNames();
 $statusName = $statuses[(int)$user['ID_STATUS']] ?? ('#' . $user['ID_STATUS']);
 $partnerStatusName = '';
@@ -49,6 +83,8 @@ View::render('user', [
     'statusName' => $statusName,
     'partnerStatusName' => $partnerStatusName,
     'favoritesCount' => count(UsersRepository::favoriteIds($id)),
+    'canManageAuth' => Auth::capability('SUPERADMIN_ACCESS'),
+    'flash' => flash_take(),
     'profileChannelsHtml' => is_array($profile) ? (string)($profile['html_channels'] ?? '') : '',
     'profileFlagsHtml' => is_array($profile) ? (string)($profile['html_flags'] ?? '') : '',
     'profileSiteHtml' => is_array($profile) ? (string)($profile['html_site'] ?? '') : '',

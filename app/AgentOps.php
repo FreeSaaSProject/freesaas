@@ -998,10 +998,10 @@ final class AgentOps
                 'hint' => 'php bin/freesaas.php rescue --login=admin --password=…',
             ];
         }
-        if (strlen($password) < 8) {
+        if (Auth::passwordPolicyError($password, true) !== null) {
             return [
                 'ok' => false,
-                'error' => 'password must be at least 8 characters',
+                'error' => 'password must be at least ' . Auth::PASSWORD_MIN_SUPER . ' characters for admin rescue',
                 'http' => 400,
             ];
         }
@@ -1369,10 +1369,10 @@ final class AgentOps
                     'steps' => $steps,
                 ];
             }
-            if (strlen($password) < 8) {
+            if (Auth::passwordPolicyError($password, true) !== null) {
                 return [
                     'ok' => false,
-                    'error' => 'password must be at least 8 characters',
+                    'error' => 'password must be at least ' . Auth::PASSWORD_MIN_SUPER . ' characters for first admin',
                     'http' => 400,
                     'steps' => $steps,
                 ];

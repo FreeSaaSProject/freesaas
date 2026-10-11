@@ -111,6 +111,23 @@ if ($csrfCode !== 0) {
     $sections['csrf']['output'] = implode("\n", $csrfLines);
 }
 
+// Password hash / policy regressions (bin/check-password.php)
+$pwLines = [];
+$pwCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-password.php') . ' 2>&1',
+    $pwLines,
+    $pwCode
+);
+$sections['password'] = [
+    'ok' => $pwCode === 0,
+    'exit' => $pwCode,
+];
+if ($pwCode !== 0) {
+    $failed = true;
+    $sections['password']['output'] = implode("\n", $pwLines);
+}
+
 $out = ['ok' => !$failed, 'sections' => $sections];
 if (in_array('--format=json', $argv, true) || in_array('--json', $argv, true)) {
     Cli::setJson(true);

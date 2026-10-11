@@ -90,7 +90,7 @@ if ($newsAfterTs > 0) {
   <h2 class="form-section-title"><?= te('core.user_edit.sec_password') ?></h2>
   <label><?= $isNew ? te('core.user_edit.password') : te('core.user_edit.new_password') ?>
     <div class="input-row">
-      <input type="password" name="password" id="password" autocomplete="new-password" placeholder="<?= $isNew ? te('core.user_edit.password_optional') : '' ?>">
+      <input type="password" name="password" id="password" autocomplete="new-password" minlength="8" placeholder="<?= $isNew ? te('core.user_edit.password_optional') : '' ?>">
       <button class="btn-secondary" type="button" id="gen-pass" data-pass="<?= e($genPass) ?>"><?= te('core.user_edit.generate') ?></button>
     </div>
   </label>

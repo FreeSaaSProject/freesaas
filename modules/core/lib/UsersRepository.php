@@ -688,9 +688,29 @@ final class UsersRepository
             $fields[] = "`$col` = ?";
             $params[] = $data[$col];
         }
+        $passwordChanged = false;
         if (!empty($data['password_plain'])) {
+            $plain = (string)$data['password_plain'];
+            $statusId = array_key_exists('ID_STATUS', $data)
+                ? (int)$data['ID_STATUS']
+                : (int)((self::find($id)['ID_STATUS'] ?? 0));
+            $status2Id = array_key_exists('ID_STATUS2', $data)
+                ? (int)$data['ID_STATUS2']
+                : (int)((self::find($id)['ID_STATUS2'] ?? 0));
+            self::assertPasswordPolicy($plain, $statusId, $status2Id);
             $fields[] = '`password` = ?';
-            $params[] = Auth::hashPassword((string)$data['password_plain']);
+            $params[] = Auth::hashPassword($plain);
+            $passwordChanged = true;
+            if (Database::columnExists('base_users', 'locked_until')) {
+                $fields[] = '`locked_until` = NULL';
+            }
+            if (Database::columnExists('base_users', 'last_failed_at')) {
+                $fields[] = '`last_failed_at` = NULL';
+            }
+            if (!array_key_exists('retries', $data) && Database::columnExists('base_users', 'retries')) {
+                $fields[] = '`retries` = ?';
+                $params[] = 0;
+            }
         }
         if (array_key_exists('status_blob', $data) && Database::columnExists('base_users', 'status')) {
             $fields[] = '`status` = ?';
@@ -703,6 +723,29 @@ final class UsersRepository
         $sql = 'UPDATE base_users SET ' . implode(', ', $fields) . ' WHERE id = ?';
         Database::pdo()->prepare($sql)->execute($params);
         unset(self::$findCache[$id]);
+        if ($passwordChanged && class_exists('LoginLinksRepository', false)) {
+            LoginLinksRepository::invalidateForUser($id);
+        }
+    }
+
+    /** Rehash-on-login / CLI path — no policy check (already verified password). */
+    public static function updatePasswordHash(int $id, string $hash): void
+    {
+        if ($id < 1 || $hash === '' || !Database::tableExists('base_users')) {
+            return;
+        }
+        Database::pdo()->prepare('UPDATE base_users SET password = ? WHERE id = ?')
+            ->execute([$hash, $id]);
+        unset(self::$findCache[$id]);
+    }
+
+    public static function assertPasswordPolicy(string $plain, int $statusId = 0, int $status2Id = 0): void
+    {
+        $strong = self::statusIsSuperadmin($statusId) || self::statusIsSuperadmin($status2Id);
+        $err = Auth::passwordPolicyError($plain, $strong);
+        if ($err !== null) {
+            throw new InvalidArgumentException(t('core.password.policy.' . $err));
+        }
     }
 
     public static function countUsers(): int
@@ -824,6 +867,11 @@ final class UsersRepository
         if (self::findByLogin($login) !== null) {
             throw new RuntimeException('login already exists: ' . $login);
         }
+        self::assertPasswordPolicy(
+            $password,
+            (int)($data['ID_STATUS'] ?? 0),
+            (int)($data['ID_STATUS2'] ?? 0)
+        );
 
         $cols = [];
         $vals = [];
