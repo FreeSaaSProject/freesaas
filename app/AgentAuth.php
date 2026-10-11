@@ -5,10 +5,8 @@ declare(strict_types=1);
  * Token gate for HTTP /agent/* API (shared hosting without SSH).
  * Config: app.agent_token in cfg/config.ini (never commit real values).
  *
- * Exceptions:
- * - Virgin install (no staff users): GET /agent and POST /agent/bootstrap may skip the
- *   prior token; bootstrap must supply agent_token in JSON to persist it.
- * - Break-glass: valid var/setup.key unlocks POST /agent/rescue (and bootstrap if needed).
+ * Break-glass: valid var/setup.key unlocks POST /agent/rescue and /agent/bootstrap.
+ * Virgin installs are NOT open: pre-set app.agent_token (FTP) or setup.key required.
  */
 final class AgentAuth
 {
@@ -40,19 +38,19 @@ final class AgentAuth
     /**
      * Gate for /agent/* routes.
      *
-     * @param bool $allowVirginBootstrap skip token when install has no users
      * @param bool $allowSetupKey accept valid SetupKey as break-glass
      */
-    public static function assertToken(bool $allowVirginBootstrap = false, bool $allowSetupKey = false): void
+    public static function assertToken(bool $allowSetupKey = false): void
     {
         if ($allowSetupKey && SetupKey::verify()) {
             return;
         }
-        if ($allowVirginBootstrap && AgentOps::isVirginInstall()) {
-            return;
-        }
         if (!self::isConfigured()) {
-            self::deny(503, 'agent_token not configured (set app.agent_token in cfg/config.ini)');
+            $hint = 'set app.agent_token in cfg/config.ini';
+            if (AgentOps::isVirginInstall()) {
+                $hint .= ' (or upload var/setup.key and POST /agent/bootstrap with X-FreeSaaS-Setup-Key)';
+            }
+            self::deny(503, 'agent_token not configured (' . $hint . ')');
         }
         $expected = self::configuredToken();
         $got = self::providedToken();

@@ -664,6 +664,7 @@ return [
     'core.news_edit.title_edit' => 'Edit',
     'core.news_edit.err.no_access' => 'No access to entry #{id}',
     'core.news_edit.err.name_required' => 'Enter a title',
+    'core.news_edit.err.unsafe_html' => 'The body contains unsafe HTML (scripts, event handlers, or javascript: links). Remove them and try again.',
     'core.news_edit.name' => 'Title',
     'core.news_edit.short' => 'Summary',
     'core.news_edit.body' => 'Body',

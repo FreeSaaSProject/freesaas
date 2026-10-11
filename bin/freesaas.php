@@ -225,7 +225,8 @@ function freesaas_cmd_setup_key(string $sub, array $opts): void
             'ok' => true,
             'path' => SetupKey::path(),
             'setup_key' => $key,
-            'hint' => 'HTTP: POST /agent/rescue with header X-FreeSaaS-Setup-Key (or body setup_key). Delete after use: setup-key clear',
+            'ttl_seconds' => SetupKey::TTL_SECONDS,
+            'hint' => 'HTTP: header X-FreeSaaS-Setup-Key or JSON body setup_key (not query). Auto-cleared on rescue/bootstrap; TTL 24h; or setup-key clear',
         ]);
         return;
     }

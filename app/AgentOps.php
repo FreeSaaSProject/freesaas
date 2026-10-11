@@ -842,7 +842,7 @@ final class AgentOps
                 'config' => 'app.agent_token',
                 'setup_key_header' => 'X-FreeSaaS-Setup-Key',
                 'setup_key_file' => 'var/setup.key',
-                'bootstrap_note' => 'POST /agent/bootstrap on virgin install may include agent_token in JSON body without prior header',
+                'bootstrap_note' => 'POST /agent/bootstrap requires pre-set app.agent_token or var/setup.key (no open virgin door)',
                 'rescue_note' => 'POST /agent/rescue with agent_token or setup.key resets/creates superadmin (CLI: rescue)',
             ],
             'maturity_policy' => ModuleCatalog::maturityPolicy(),
@@ -853,7 +853,7 @@ final class AgentOps
                     'method' => 'POST',
                     'path' => '/agent/rescue',
                     'op' => 'rescue',
-                    'description' => 'Reset or create superadmin (agent_token or var/setup.key). Does not run destructive data migrators.',
+                    'description' => 'Reset or create superadmin (agent_token or var/setup.key). Auto-clears setup.key on success.',
                 ],
                 ['method' => 'GET', 'path' => '/agent/system/status', 'op' => 'system.status'],
 
@@ -1121,7 +1121,8 @@ final class AgentOps
             ];
         }
 
-        if ($clearKey) {
+        // Always drop break-glass key after successful rescue (flag kept for API compat).
+        if (SetupKey::exists() || $clearKey) {
             SetupKey::clear();
             $steps[] = ['step' => 'setup_key', 'status' => 'cleared'];
         }
@@ -1430,6 +1431,11 @@ final class AgentOps
             }
         } catch (Throwable $e) {
             $steps[] = ['step' => 'system_row', 'status' => 'skip', 'message' => $e->getMessage()];
+        }
+
+        if (SetupKey::exists()) {
+            SetupKey::clear();
+            $steps[] = ['step' => 'setup_key', 'status' => 'cleared'];
         }
 
         $health = Health::run(null);

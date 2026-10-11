@@ -228,6 +228,9 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
                 $text = (string)($prepared['text'] ?? $text);
                 $extra = is_array($prepared['extra'] ?? null) ? $prepared['extra'] : $extra;
             }
+            if (html_ugc_reject_reason($text) !== null) {
+                throw new InvalidArgumentException(t('comments.err.unsafe_html'));
+            }
             if ($extra !== []) {
                 CommentsRepository::updateFields($cid, $text, $extra);
             } else {
@@ -277,6 +280,9 @@ EventBus::on('core.news_item.handle_post', static function ($payload) {
                 $row = $prepared['row'];
             }
 
+            if (html_ugc_reject_reason($text) !== null) {
+                throw new InvalidArgumentException(t('comments.err.unsafe_html'));
+            }
             if (trim($text) === '' && !$statusUp) {
                 throw new InvalidArgumentException(t('comments.err.text_required'));
             }

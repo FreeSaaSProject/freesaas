@@ -104,22 +104,20 @@ function linkify_html(string $html): string {
     $html = (string)preg_replace_callback(
         '#<a\s+([^>]*href=["\']([^"\']+)["\'][^>]*)>(.*?)</a>#is',
         static function (array $m): string {
-            $href = $m[2];
+            $href = html_entity_decode($m[2], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if (!html_safe_url($href, true)) {
+                $inner = trim(strip_tags($m[3]));
+                return e($inner !== '' ? $inner : $href);
+            }
             $innerHtml = $m[3];
             $inner = trim(strip_tags($innerHtml));
             // Keep media-only anchors (e.g. 2GIS rating badge <a><img></a>).
-            if ($inner === '' && preg_match('#<(img|svg|picture)\b#i', $innerHtml)) {
-                return '<a ' . $m[1] . '>' . $innerHtml . '</a>';
+            if ($inner === '' && preg_match('#<(img|picture)\b#i', $innerHtml)) {
+                return '<a href="' . e($href) . '" rel="nofollow ugc noopener" target="_blank">' . $innerHtml . '</a>';
             }
             $label = short_url_label($inner !== '' ? $inner : $href);
-            $attrs = $m[1];
-            if (stripos($attrs, 'class=') === false) {
-                $attrs .= ' class="url-short"';
-            }
-            if (stripos($attrs, 'title=') === false) {
-                $attrs .= ' title="' . e($href) . '"';
-            }
-            return '<a ' . $attrs . '>' . e($label) . '</a>';
+            return '<a href="' . e($href) . '" rel="nofollow ugc noopener" target="_blank" class="url-short" title="' . e($href) . '">'
+                . e($label) . '</a>';
         },
         $html
     );
@@ -147,13 +145,235 @@ function linkify_html(string $html): string {
 }
 
 /**
- * Soft HTML for news BIG (legacy Pell HTML). Keeps unicode emoji; strips scripts.
+ * Soft HTML for news BIG / comments (legacy Pell HTML).
+ * DOM allow-list: tags + per-tag attributes; strips on*, style, javascript:/data: URLs.
  */
-function safe_html(string $html): string {
-    $html = preg_replace('#<(script|iframe|object|embed|form)[^>]*>.*?</\1>#is', '', $html) ?? $html;
-    $html = preg_replace('#</?(script|iframe|object|embed|form)[^>]*>#i', '', $html) ?? $html;
-    $allowed = '<p><br><br/><b><strong><i><em><u><s><strike><del><ul><ol><li><a><span><div><h1><h2><h3><h4><blockquote><code><pre><hr><img>';
-    return linkify_html(strip_tags($html, $allowed));
+function safe_html(string $html): string
+{
+    return linkify_html(html_sanitize($html));
+}
+
+/**
+ * Fast reject for obvious XSS before storing UGC. Returns i18n reason key suffix or null if OK.
+ * Authoritative filtering is still html_sanitize() on render.
+ */
+function html_ugc_reject_reason(string $html): ?string
+{
+    if ($html === '') {
+        return null;
+    }
+    if (preg_match('/\bon[a-z]+\s*=/i', $html)) {
+        return 'event_handler';
+    }
+    $decoded = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    if (preg_match('/\bjavascript\s*:/i', $decoded)) {
+        return 'javascript_url';
+    }
+    if (preg_match('/\bdata\s*:\s*text\s*\/\s*html/i', $decoded)) {
+        return 'data_html';
+    }
+    return null;
+}
+
+/**
+ * Allow http(s), mailto, tel, relative, and #fragments. Reject javascript:/data:/vbscript:.
+ */
+function html_safe_url(string $url, bool $allowMailtoTel = false): bool
+{
+    $url = trim(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    if ($url === '' || $url[0] === '#') {
+        return true;
+    }
+    if (preg_match('#^\s*(javascript|data|vbscript)\s*:#i', $url)) {
+        return false;
+    }
+    // Protocol-relative
+    if (strpos($url, '//') === 0) {
+        return true;
+    }
+    // Relative path / query
+    if ($url[0] === '/' || $url[0] === '?' || $url[0] === '.') {
+        return true;
+    }
+    if (!preg_match('#^[a-zA-Z][a-zA-Z0-9+.-]*:#', $url)) {
+        return true; // bare relative like "foo.jpg"
+    }
+    $scheme = strtolower((string)(parse_url($url, PHP_URL_SCHEME) ?? ''));
+    if ($scheme === 'http' || $scheme === 'https') {
+        return true;
+    }
+    if ($allowMailtoTel && ($scheme === 'mailto' || $scheme === 'tel')) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * DOM-based HTML sanitizer (no Composer). On parse failure → escaped plain text.
+ */
+function html_sanitize(string $html): string
+{
+    $html = (string)$html;
+    if (trim($html) === '') {
+        return '';
+    }
+    if (!class_exists('DOMDocument')) {
+        return htmlspecialchars(strip_tags($html), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    /** @var array<string, list<string>> $allowed */
+    $allowed = [
+        'p' => [],
+        'br' => [],
+        'b' => [],
+        'strong' => [],
+        'i' => [],
+        'em' => [],
+        'u' => [],
+        's' => [],
+        'strike' => [],
+        'del' => [],
+        'ul' => [],
+        'ol' => [],
+        'li' => [],
+        'a' => ['href', 'title', 'target', 'rel'],
+        'span' => [],
+        'div' => [],
+        'h1' => [],
+        'h2' => [],
+        'h3' => [],
+        'h4' => [],
+        'blockquote' => [],
+        'code' => [],
+        'pre' => [],
+        'hr' => [],
+        'img' => ['src', 'alt', 'width', 'height'],
+    ];
+
+    $doc = new DOMDocument();
+    $prev = libxml_use_internal_errors(true);
+    $ok = false;
+    try {
+        $wrapped = '<!DOCTYPE html><html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"></head>'
+            . '<body><div id="fs-sanitize-root">' . $html . '</div></body></html>';
+        $ok = @$doc->loadHTML($wrapped, LIBXML_NONET);
+    } finally {
+        libxml_clear_errors();
+        libxml_use_internal_errors($prev);
+    }
+    if (!$ok) {
+        return htmlspecialchars(strip_tags($html), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    $root = $doc->getElementById('fs-sanitize-root');
+    if (!$root instanceof DOMElement) {
+        return htmlspecialchars(strip_tags($html), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    $xpath = new DOMXPath($doc);
+    $nodes = [];
+    foreach ($xpath->query('.//*', $root) ?: [] as $el) {
+        if ($el instanceof DOMElement) {
+            $nodes[] = $el;
+        }
+    }
+    for ($i = count($nodes) - 1; $i >= 0; $i--) {
+        $el = $nodes[$i];
+        if (!$el->parentNode) {
+            continue;
+        }
+        $tag = strtolower($el->tagName);
+        if (!isset($allowed[$tag])) {
+            $parent = $el->parentNode;
+            while ($el->firstChild) {
+                $parent->insertBefore($el->firstChild, $el);
+            }
+            $parent->removeChild($el);
+            continue;
+        }
+        html_sanitize_attrs($el, $allowed[$tag]);
+    }
+
+    // Drop comments under root
+    foreach ($xpath->query('.//comment()', $root) ?: [] as $c) {
+        if ($c->parentNode) {
+            $c->parentNode->removeChild($c);
+        }
+    }
+
+    $out = '';
+    foreach ($root->childNodes as $child) {
+        $out .= $doc->saveHTML($child);
+    }
+    return $out;
+}
+
+/**
+ * @param list<string> $allowedAttrs
+ */
+function html_sanitize_attrs(DOMElement $el, array $allowedAttrs): void
+{
+    if (!$el->hasAttributes()) {
+        return;
+    }
+    $toRemove = [];
+    foreach (iterator_to_array($el->attributes) as $attr) {
+        if (!$attr instanceof DOMAttr) {
+            continue;
+        }
+        $name = strtolower($attr->name);
+        if (strpos($name, 'on') === 0
+            || $name === 'style'
+            || $name === 'srcdoc'
+            || $name === 'formaction'
+            || strpos($name, ':') !== false
+        ) {
+            $toRemove[] = $attr->name;
+            continue;
+        }
+        if (!in_array($name, $allowedAttrs, true)) {
+            $toRemove[] = $attr->name;
+            continue;
+        }
+        $val = (string)$attr->value;
+        if (($name === 'href' || $name === 'src') && !html_safe_url($val, $name === 'href')) {
+            $toRemove[] = $attr->name;
+            continue;
+        }
+        if ($name === 'target') {
+            $t = strtolower(trim($val));
+            if ($t !== '_blank' && $t !== '_self') {
+                $toRemove[] = $attr->name;
+            }
+        }
+    }
+    foreach ($toRemove as $n) {
+        $el->removeAttribute($n);
+    }
+
+    if (strtolower($el->tagName) === 'a') {
+        if (strtolower($el->getAttribute('target')) === '_blank' || $el->hasAttribute('href')) {
+            $el->setAttribute('rel', 'nofollow ugc noopener');
+        }
+        if ($el->hasAttribute('href') && !$el->hasAttribute('target')) {
+            // leave target unset for same-tab relative links
+        }
+    }
+}
+
+/** Send hardening headers (CSP Report-Only first — many views still use inline handlers). */
+function security_headers_send(): void
+{
+    if (headers_sent()) {
+        return;
+    }
+    header(
+        "Content-Security-Policy-Report-Only: default-src 'self'; img-src 'self' data: https:; "
+        . "script-src 'self'; style-src 'self' 'unsafe-inline'; object-src 'none'; "
+        . "base-uri 'self'; frame-ancestors 'self'"
+    );
+    header('X-Content-Type-Options: nosniff');
+    header('Referrer-Policy: strict-origin-when-cross-origin');
 }
 
 /**

@@ -88,12 +88,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if ($payload['HAS_CHILDREN']) {
         $payload['COMMENTS_LOCKED'] = 1;
     }
+    $ugcReject = html_ugc_reject_reason((string)$payload['BIG']);
     if ($payload['NAME'] === '') {
         $error = t('core.news_edit.err.name_required');
         $row = array_merge($row ?: [], $payload);
     } elseif ((int)$payload['TYPE'] === 3 && $payload['ACCESS_USER'] === '') {
         $error = t('core.news_edit.err.recipient_required');
         $row = array_merge($row ?: [], $payload);
+    } elseif ($ugcReject !== null) {
+        $error = t('core.news_edit.err.unsafe_html');
+        $row = array_merge($row ?: [], $payload);
+        if ($wantsJson) {
+            AgentHttp::error($error, 400);
+            return;
+        }
     } else {
         try {
             if ($isNew) {

@@ -6,10 +6,7 @@ declare(strict_types=1);
  */
 $path = request_path();
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-// Virgin install: catalog + bootstrap without prior token (bootstrap persists agent_token).
-// Break-glass: valid var/setup.key unlocks rescue (and bootstrap if needed).
-$allowVirgin = ($method === 'POST' && $path === '/agent/bootstrap')
-    || ($method === 'GET' && ($path === '/agent' || $path === '/agent/'));
+// Break-glass: valid var/setup.key unlocks rescue / bootstrap (never a free virgin door).
 $allowSetupKey = ($method === 'POST' && ($path === '/agent/rescue' || $path === '/agent/bootstrap'));
 
 // JSON body may carry setup_key — promote before the gate (php://input is cached).
@@ -20,7 +17,7 @@ if ($allowSetupKey && SetupKey::providedKey() === '') {
     }
 }
 
-AgentAuth::assertToken($allowVirgin, $allowSetupKey);
+AgentAuth::assertToken($allowSetupKey);
 
 // Binary dump download (not JSON) — for cross-host fetch by URL + ?token=
 if ($path === '/agent/db/dump/file' && $method === 'GET') {

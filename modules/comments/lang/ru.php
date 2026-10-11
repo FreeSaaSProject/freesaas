@@ -37,6 +37,7 @@ return [
     'comments.edit.cancel' => 'Отмена',
     'comments.err.empty' => 'Пустой комментарий',
     'comments.err.text_required' => 'Введите текст комментария',
+    'comments.err.unsafe_html' => 'В комментарии небезопасный HTML (обработчики событий или ссылки javascript:).',
     'comments.err.not_found' => 'Комментарий не найден',
     'comments.err.locked' => 'Комментарии отключены',
     'comments.err.edit_denied' => 'Нет прав на редактирование',

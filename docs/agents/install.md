@@ -22,11 +22,24 @@ Module product secrets (optional): copy `modules/<id>/config.example.ini` → `c
 
 ### Shared hosting (HTTPS only)
 
-No `agent_token` in config yet is OK while the install has **zero** staff users (`base_users` empty or missing).
+Virgin install is **not** open: pre-set `app.agent_token` in `cfg/config.ini` (FTP), **or** upload `var/setup.key` (from `php bin/freesaas.php setup-key generate`).
 
 ```bash
+# Option A — token already in cfg/config.ini [app] agent_token=…
 curl -sS -X POST "https://example.com/agent/bootstrap" \
   -H "Content-Type: application/json" \
+  -H "X-FreeSaaS-Agent-Token: a-long-random-secret" \
+  -d '{
+    "login": "admin",
+    "password": "change-me-now-8+",
+    "name": "Admin",
+    "modules": ["units","suppliers","clients"]
+  }'
+
+# Option B — break-glass file (TTL 24h; auto-cleared after successful bootstrap)
+curl -sS -X POST "https://example.com/agent/bootstrap" \
+  -H "Content-Type: application/json" \
+  -H "X-FreeSaaS-Setup-Key: $(cat var/setup.key)" \
   -d '{
     "login": "admin",
     "password": "change-me-now-8+",
@@ -38,12 +51,12 @@ curl -sS -X POST "https://example.com/agent/bootstrap" \
 
 Effects:
 
-1. Saves `app.agent_token` into `cfg/config.ini`
+1. Saves `app.agent_token` into `cfg/config.ini` when provided in JSON
 2. Runs schema migrations (enabled modules + any listed in `modules`)
 3. Ensures a Superadmin role (`SUPERADMIN_ACCESS`; shift flags `EVT_ASSIGN` / `CAN_BE_ASSIGNED` when present)
 4. Creates the first staff user with all discovered permissions
 5. Seeds `base_system` if empty
-6. Returns health summary
+6. Clears `var/setup.key` if present; returns health summary
 
 Then sign in at `/login`. Further ops:
 
@@ -53,7 +66,7 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://example.com/agent"
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://example.com/agent/health"
 ```
 
-Catalog `GET /agent` is also open **only while virgin**; after the first user exists, token is required.
+`GET /agent` always requires `agent_token` (or is 503 until configured).
 
 ### CLI (SSH / local)
 
@@ -86,13 +99,16 @@ Expect `setup.pending: 0` (or no pending migrations) and health without `platfor
 # SSH / local — always available (no setup.key needed)
 php bin/freesaas.php rescue --login=admin --password='new-secret-8+' --format=json
 
-# Shared hosting without SSH: generate key locally, FTP-upload var/setup.key (0600), then:
+# Shared hosting without SSH: generate key locally, FTP-upload var/setup.key (0600, TTL 24h), then:
 php bin/freesaas.php setup-key generate --format=json   # copy file to host
 curl -sS -X POST "https://example.com/agent/rescue" \
   -H "Content-Type: application/json" \
   -H "X-FreeSaaS-Setup-Key: $(cat var/setup.key)" \
-  -d '{"login":"admin","password":"new-secret-8+","clear_setup_key":true}'
+  -d '{"login":"admin","password":"new-secret-8+"}'
+# setup.key is cleared automatically on success; health warns while the file remains
 ```
+
+Pass `setup_key` only via header or JSON body — never query string.
 
 Schema-only (safe) while oper still runs: `migrate run`. Oper→FreeSaaS **data** replace migrators are intentional and destructive — run later via CLI with `--module`/`--id` or `--i-understand-replace`, or via authenticated `/db` after rescue/login.
 
@@ -108,11 +124,11 @@ Schema-only (safe) while oper still runs: `migrate run`. Oper→FreeSaaS **data*
 
 | Step | Action |
 |------|--------|
-| 1 | FTP upload code + write `cfg/config.ini` with DB + salts |
-| 2 | `POST /agent/bootstrap` with `login`, `password`, `agent_token` in JSON |
-| 3 | Use header `X-FreeSaaS-Agent-Token` for `/agent/*` forever after |
+| 1 | FTP upload code + write `cfg/config.ini` with DB + salts **and** `app.agent_token=…` (or upload `var/setup.key`) |
+| 2 | `POST /agent/bootstrap` with header `X-FreeSaaS-Agent-Token` (or `X-FreeSaaS-Setup-Key`) + `login` / `password` (+ `agent_token` in JSON if using setup.key) |
+| 3 | Use header `X-FreeSaaS-Agent-Token` for `/agent/*` forever after; setup.key is auto-cleared |
 
-If `cfg/` is not writable from PHP, pre-set `agent_token` in the ini via FTP, then call bootstrap with the same token in the header (or body).
+There is no anonymous virgin bootstrap — a secret must exist before the first HTTP call.
 
 ## Dual host (admin + public storefront)
 

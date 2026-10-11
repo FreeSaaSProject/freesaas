@@ -77,6 +77,23 @@ if (($health['status'] ?? '') === 'fail') {
     $failed = true;
 }
 
+// safe_html XSS regressions (bin/check-safe-html.php)
+$safeHtmlLines = [];
+$safeHtmlCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-safe-html.php') . ' 2>&1',
+    $safeHtmlLines,
+    $safeHtmlCode
+);
+$sections['safe_html'] = [
+    'ok' => $safeHtmlCode === 0,
+    'exit' => $safeHtmlCode,
+];
+if ($safeHtmlCode !== 0) {
+    $failed = true;
+    $sections['safe_html']['output'] = implode("\n", $safeHtmlLines);
+}
+
 $out = ['ok' => !$failed, 'sections' => $sections];
 if (in_array('--format=json', $argv, true) || in_array('--json', $argv, true)) {
     Cli::setJson(true);

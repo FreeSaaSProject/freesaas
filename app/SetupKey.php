@@ -4,10 +4,14 @@ declare(strict_types=1);
 /**
  * Break-glass key for shared-hosting recovery when staff login is lost.
  * File: var/setup.key (gitignored; mode 0600). Generate via CLI setup-key.
+ * TTL: file mtime older than TTL_SECONDS → auto-cleared on verify/health.
  */
 final class SetupKey
 {
     public const HEADER = 'HTTP_X_FREESAAS_SETUP_KEY';
+
+    /** Default lifetime after generate (24h). */
+    public const TTL_SECONDS = 86400;
 
     public static function path(): string
     {
@@ -17,6 +21,40 @@ final class SetupKey
     public static function exists(): bool
     {
         return is_file(self::path());
+    }
+
+    public static function ageSeconds(): ?int
+    {
+        if (!self::exists()) {
+            return null;
+        }
+        $mtime = @filemtime(self::path());
+        if ($mtime === false) {
+            return null;
+        }
+        return max(0, time() - $mtime);
+    }
+
+    public static function isExpired(): bool
+    {
+        $age = self::ageSeconds();
+        if ($age === null) {
+            return true;
+        }
+        return $age > self::TTL_SECONDS;
+    }
+
+    /** Delete key if missing/unreadable/expired. Returns true when a file was removed. */
+    public static function purgeExpired(): bool
+    {
+        if (!self::exists()) {
+            return false;
+        }
+        if (!self::isExpired()) {
+            return false;
+        }
+        self::clear();
+        return true;
     }
 
     /**
@@ -44,17 +82,21 @@ final class SetupKey
         }
     }
 
+    /**
+     * Key from header or POST/JSON body only — never query (logs / Referer / history).
+     */
     public static function providedKey(): string
     {
         $got = (string)($_SERVER[self::HEADER] ?? '');
         if ($got !== '') {
             return trim($got);
         }
-        return trim((string)($_GET['setup_key'] ?? $_POST['setup_key'] ?? ''));
+        return trim((string)($_POST['setup_key'] ?? ''));
     }
 
     public static function verify(?string $provided = null): bool
     {
+        self::purgeExpired();
         $provided = trim((string)($provided ?? self::providedKey()));
         if ($provided === '' || !self::exists()) {
             return false;

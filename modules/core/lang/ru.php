@@ -664,6 +664,7 @@ return [
     'core.news_edit.title_edit' => 'Редактирование',
     'core.news_edit.err.no_access' => 'Нет доступа к записи #{id}',
     'core.news_edit.err.name_required' => 'Укажите название',
+    'core.news_edit.err.unsafe_html' => 'В тексте есть небезопасный HTML (скрипты, обработчики событий или ссылки javascript:). Уберите их и сохраните снова.',
     'core.news_edit.name' => 'Название',
     'core.news_edit.short' => 'Кратко',
     'core.news_edit.body' => 'Текст',

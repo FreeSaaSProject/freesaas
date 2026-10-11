@@ -37,6 +37,7 @@ return [
     'comments.edit.cancel' => 'Cancel',
     'comments.err.empty' => 'Empty comment',
     'comments.err.text_required' => 'Enter a comment',
+    'comments.err.unsafe_html' => 'Comment contains unsafe HTML (event handlers or javascript: links).',
     'comments.err.not_found' => 'Comment not found',
     'comments.err.locked' => 'Comments are turned off',
     'comments.err.edit_denied' => 'You are not allowed to edit this comment',

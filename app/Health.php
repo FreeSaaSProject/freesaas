@@ -89,6 +89,23 @@ final class Health
             }
         }, 'Pending schema migrations');
 
+        self::register('platform.setup_key', 'core', static function (): array {
+            SetupKey::purgeExpired();
+            if (!SetupKey::exists()) {
+                return ['status' => 'ok', 'message' => 'no setup.key'];
+            }
+            $age = SetupKey::ageSeconds() ?? 0;
+            return [
+                'status' => 'degraded',
+                'message' => 'var/setup.key present — break-glass still active; clear after use',
+                'meta' => [
+                    'age_seconds' => $age,
+                    'ttl_seconds' => SetupKey::TTL_SECONDS,
+                    'fixbook' => 'php bin/freesaas.php setup-key clear',
+                ],
+            ];
+        }, 'Setup break-glass key');
+
         self::register('platform.route_auth', 'core', static function (): array {
             $bad = [];
             foreach (ModuleManager::routes() as $path => $route) {

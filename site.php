@@ -14,6 +14,7 @@ ini_set('display_errors', '1');
 define('FREESAAS_ROLE', 'storefront');
 
 require_once __DIR__ . '/app/bootstrap.php';
+security_headers_send();
 
 try {
     if (class_exists('SitesFront', false)) {
