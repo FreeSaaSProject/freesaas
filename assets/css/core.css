@@ -305,6 +305,17 @@ body.app-shell.is-layout-gate {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.topbar-logout-form,
+.rail-logout-form { display: inline; margin: 0; }
+button.topbar-logout,
+button.rail-logout {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
 .topbar-logout {
   color: var(--muted);
   font-size: 0.8rem;

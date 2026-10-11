@@ -76,7 +76,7 @@ Menu: Audio analytics → LLM studies (`/audio/llm-studies`).
 
 - Tabs: regular / cyclic / spawned
 - Create: employee+range, record IDs, or cyclic template (trigger product + amounts)
-- Process queue on study page or `GET /audio/llm-studies/work?study_id=&limit=&format=json`
+- Process queue on study page or `POST /audio/llm-studies/work` (session + CSRF; body `study_id`, `limit`, `action`, `format=json`)
 
 Agent ops: see `modules/audio_llm/module.json` → `agent.ops`.
 

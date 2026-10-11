@@ -111,12 +111,15 @@ function linkify_html(string $html): string {
             }
             $innerHtml = $m[3];
             $inner = trim(strip_tags($innerHtml));
+            $external = html_link_is_external($href);
+            $target = $external ? ' target="_blank"' : '';
+            $rel = ' rel="nofollow ugc noopener"';
             // Keep media-only anchors (e.g. 2GIS rating badge <a><img></a>).
             if ($inner === '' && preg_match('#<(img|picture)\b#i', $innerHtml)) {
-                return '<a href="' . e($href) . '" rel="nofollow ugc noopener" target="_blank">' . $innerHtml . '</a>';
+                return '<a href="' . e($href) . '"' . $rel . $target . '>' . $innerHtml . '</a>';
             }
             $label = short_url_label($inner !== '' ? $inner : $href);
-            return '<a href="' . e($href) . '" rel="nofollow ugc noopener" target="_blank" class="url-short" title="' . e($href) . '">'
+            return '<a href="' . e($href) . '"' . $rel . $target . ' class="url-short" title="' . e($href) . '">'
                 . e($label) . '</a>';
         },
         $html
@@ -135,7 +138,9 @@ function linkify_html(string $html): string {
             '#(https?://[^\s<]+)#iu',
             static function (array $m): string {
                 $url = rtrim($m[1], '.,);]');
-                return '<a href="' . e($url) . '" rel="noopener noreferrer" target="_blank" class="url-short" title="' . e($url) . '">'
+                $external = html_link_is_external($url);
+                $target = $external ? ' target="_blank"' : '';
+                return '<a href="' . e($url) . '" rel="noopener noreferrer"' . $target . ' class="url-short" title="' . e($url) . '">'
                     . e(short_url_label($url)) . '</a>';
             },
             $part
@@ -154,37 +159,65 @@ function safe_html(string $html): string
 }
 
 /**
- * Fast reject for obvious XSS before storing UGC. Returns i18n reason key suffix or null if OK.
- * Authoritative filtering is still html_sanitize() on render.
+ * Narrow write-time reject: only event handlers inside tags (not prose like "JavaScript: …").
+ * Authoritative filtering remains html_sanitize() on render.
  */
 function html_ugc_reject_reason(string $html): ?string
 {
     if ($html === '') {
         return null;
     }
-    if (preg_match('/\bon[a-z]+\s*=/i', $html)) {
+    if (preg_match('/<[a-z][^>]*\son[a-z]+\s*=/i', $html)) {
         return 'event_handler';
     }
     $decoded = html_entity_decode($html, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    if (preg_match('/\bjavascript\s*:/i', $decoded)) {
+    if (preg_match('/<[^>]+href\s*=\s*["\']?\s*javascript\s*:/i', $decoded)) {
         return 'javascript_url';
-    }
-    if (preg_match('/\bdata\s*:\s*text\s*\/\s*html/i', $decoded)) {
-        return 'data_html';
     }
     return null;
 }
 
+/** True when href should open in a new tab (absolute http(s) to another host). */
+function html_link_is_external(string $href): bool
+{
+    $href = trim(html_entity_decode($href, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
+    if ($href === '' || $href[0] === '#' || $href[0] === '/' || $href[0] === '?' || $href[0] === '.') {
+        return false;
+    }
+    if (strpos($href, '//') === 0) {
+        return true;
+    }
+    $scheme = strtolower((string)(parse_url($href, PHP_URL_SCHEME) ?? ''));
+    if ($scheme !== 'http' && $scheme !== 'https') {
+        return false;
+    }
+    $host = strtolower((string)(parse_url($href, PHP_URL_HOST) ?? ''));
+    if ($host === '') {
+        return false;
+    }
+    $req = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+    $reqHost = $req !== '' ? explode(':', $req)[0] : '';
+    return $reqHost === '' || $host !== $reqHost;
+}
+
 /**
- * Allow http(s), mailto, tel, relative, and #fragments. Reject javascript:/data:/vbscript:.
+ * Allow http(s), mailto, tel, relative, #fragments; optional data:image/*;base64 for <img src>.
  */
-function html_safe_url(string $url, bool $allowMailtoTel = false): bool
+function html_safe_url(string $url, bool $allowMailtoTel = false, bool $allowDataImage = false): bool
 {
     $url = trim(html_entity_decode($url, ENT_QUOTES | ENT_HTML5, 'UTF-8'));
     if ($url === '' || $url[0] === '#') {
         return true;
     }
-    if (preg_match('#^\s*(javascript|data|vbscript)\s*:#i', $url)) {
+    if (preg_match('#^\s*javascript\s*:#i', $url) || preg_match('#^\s*vbscript\s*:#i', $url)) {
+        return false;
+    }
+    if (preg_match('#^\s*data\s*:#i', $url)) {
+        if ($allowDataImage
+            && preg_match('#^\s*data:image/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=\s]+$#i', $url)
+        ) {
+            return true;
+        }
         return false;
     }
     // Protocol-relative
@@ -294,11 +327,23 @@ function html_sanitize(string $html): string
         html_sanitize_attrs($el, $allowed[$tag]);
     }
 
-    // Drop comments under root
+    // Drop HTML comments under root
     foreach ($xpath->query('.//comment()', $root) ?: [] as $c) {
         if ($c->parentNode) {
             $c->parentNode->removeChild($c);
         }
+    }
+
+    // Strip literal <!-- / --> left in text after unwrapping <style> etc. (layout break)
+    foreach ($xpath->query('.//text()', $root) ?: [] as $textNode) {
+        if (!$textNode instanceof DOMText) {
+            continue;
+        }
+        $t = (string)$textNode->nodeValue;
+        if (strpos($t, '<!--') === false && strpos($t, '-->') === false) {
+            continue;
+        }
+        $textNode->nodeValue = str_replace(['<!--', '-->'], '', $t);
     }
 
     $out = '';
@@ -336,9 +381,16 @@ function html_sanitize_attrs(DOMElement $el, array $allowedAttrs): void
             continue;
         }
         $val = (string)$attr->value;
-        if (($name === 'href' || $name === 'src') && !html_safe_url($val, $name === 'href')) {
+        if ($name === 'href' && !html_safe_url($val, true)) {
             $toRemove[] = $attr->name;
             continue;
+        }
+        if ($name === 'src') {
+            $allowData = strtolower($el->tagName) === 'img';
+            if (!html_safe_url($val, false, $allowData)) {
+                $toRemove[] = $attr->name;
+                continue;
+            }
         }
         if ($name === 'target') {
             $t = strtolower(trim($val));
@@ -351,12 +403,13 @@ function html_sanitize_attrs(DOMElement $el, array $allowedAttrs): void
         $el->removeAttribute($n);
     }
 
-    if (strtolower($el->tagName) === 'a') {
-        if (strtolower($el->getAttribute('target')) === '_blank' || $el->hasAttribute('href')) {
-            $el->setAttribute('rel', 'nofollow ugc noopener');
-        }
-        if ($el->hasAttribute('href') && !$el->hasAttribute('target')) {
-            // leave target unset for same-tab relative links
+    if (strtolower($el->tagName) === 'a' && $el->hasAttribute('href')) {
+        $href = (string)$el->getAttribute('href');
+        $el->setAttribute('rel', 'nofollow ugc noopener');
+        if (html_link_is_external($href)) {
+            $el->setAttribute('target', '_blank');
+        } else {
+            $el->removeAttribute('target');
         }
     }
 }

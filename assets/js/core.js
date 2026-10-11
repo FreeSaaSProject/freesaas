@@ -14,6 +14,46 @@
     return text;
   };
 
+  /** CSRF token from <meta name="csrf-token"> for same-origin fetch/XHR. */
+  window.freesaasCsrfToken = function () {
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m ? (m.getAttribute('content') || '') : '';
+  };
+
+  // Attach X-CSRF-Token on same-origin mutating fetch (session cookie auth).
+  if (typeof window.fetch === 'function') {
+    var _fetch = window.fetch.bind(window);
+    window.fetch = function (input, init) {
+      init = init ? Object.assign({}, init) : {};
+      var method = String(init.method || 'GET').toUpperCase();
+      var url = typeof input === 'string' ? input : (input && input.url) || '';
+      var mutating = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
+      var sameOrigin = !url || url.charAt(0) === '/' || url.indexOf(window.location.origin) === 0;
+      if (mutating && sameOrigin) {
+        var token = window.freesaasCsrfToken();
+        if (token) {
+          var headers = init.headers;
+          if (!headers || typeof headers === 'undefined') {
+            init.headers = { 'X-CSRF-Token': token };
+          } else if (typeof Headers !== 'undefined' && headers instanceof Headers) {
+            if (!headers.has('X-CSRF-Token') && !headers.has('x-csrf-token')) {
+              headers.set('X-CSRF-Token', token);
+            }
+          } else if (Array.isArray(headers)) {
+            init.headers = headers.concat([['X-CSRF-Token', token]]);
+          } else {
+            var h = Object.assign({}, headers);
+            if (!h['X-CSRF-Token'] && !h['x-csrf-token']) {
+              h['X-CSRF-Token'] = token;
+            }
+            init.headers = h;
+          }
+        }
+      }
+      return _fetch(input, init);
+    };
+  }
+
   // MPA navigation progress bar
   // Must paint synchronously in the click/submit handler — browsers freeze
   // timers/paints on the old document once navigation starts, so a delayed

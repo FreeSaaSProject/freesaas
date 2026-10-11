@@ -1,9 +1,10 @@
 <?php
 declare(strict_types=1);
 
-$studyId = (int)($_GET['study_id'] ?? $_POST['study_id'] ?? 0);
-$limit = max(1, min(100, (int)($_GET['limit'] ?? $_POST['limit'] ?? 1)));
-$action = trim((string)($_GET['action'] ?? $_POST['action'] ?? 'process'));
+// Mutations are POST-only (route methods). Prefer body; accept query for tool compat.
+$studyId = (int)($_POST['study_id'] ?? $_GET['study_id'] ?? 0);
+$limit = max(1, min(100, (int)($_POST['limit'] ?? $_GET['limit'] ?? 1)));
+$action = trim((string)($_POST['action'] ?? $_GET['action'] ?? 'process'));
 
 if ($action === 'reset' && $studyId > 0) {
     $res = StudyRunner::reset($studyId);
@@ -20,7 +21,7 @@ if ($action === 'summary' && $studyId > 0) {
     ]);
 }
 if ($action === 'retry' && $studyId > 0) {
-    $recordId = (int)($_GET['record_id'] ?? $_POST['record_id'] ?? 0);
+    $recordId = (int)($_POST['record_id'] ?? $_GET['record_id'] ?? 0);
     $res = StudyRunner::retryResult($studyId, $recordId);
     AgentHttp::emit(['ok' => $res['ok'], 'error' => $res['error'], 'record_id' => $res['record_id'], 'progress' => StudyRunner::progress($studyId)]);
 }

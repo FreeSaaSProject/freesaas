@@ -2,7 +2,7 @@
     "id": "audio_llm",
     "name": "audio_llm.module.name",
     "description": "audio_llm.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -63,10 +63,10 @@
             },
             {
                 "id": "audio_llm.studies.work",
-                "method": "GET",
+                "method": "POST",
                 "path": "/audio/llm-studies/work",
                 "permission": "audio_llm.edit",
-                "description": "Process queue: study_id=&limit=; also action=retry|reset|summary"
+                "description": "Process queue (POST + CSRF): study_id, limit; action=process|retry|reset|summary|process_all"
             }
         ]
     },

@@ -13,6 +13,9 @@ final class View
         if (class_exists('NavContext', false)) {
             $content = NavContext::enrichContent($content);
         }
+        if (class_exists('Csrf', false)) {
+            $content = Csrf::injectForms($content);
+        }
         if (class_exists('StageTiming', false)) {
             StageTiming::mark('Page view');
         }

@@ -192,6 +192,17 @@ final class Router
             return;
         }
 
+        // CSRF + same-site for unsafe methods (cookie session). Token-auth paths exempt.
+        $unsafe = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+        $csrfOff = array_key_exists('csrf', $route) && $route['csrf'] === false;
+        if ($unsafe && !$csrfOff && !Csrf::isExemptPath($path)) {
+            if (!Csrf::isSameSiteRequest()) {
+                Csrf::deny('cross_site');
+            }
+            if (!Csrf::verify()) {
+                Csrf::deny('csrf');
+            }
+        }
 
         $handler = $route['handler'];
         StageTiming::mark('Route match & auth');

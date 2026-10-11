@@ -87,6 +87,9 @@ final class SiteTheme
     public static function render(string $view, array $data = [], string $layout = 'layout'): void
     {
         $content = self::capture($view, $data);
+        if (class_exists('Csrf', false)) {
+            $content = Csrf::injectForms($content);
+        }
         $data['content'] = $content;
         $layoutFile = self::path('layouts/' . $layout . '.php');
         if (!is_file($layoutFile)) {

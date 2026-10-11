@@ -101,6 +101,7 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <?= class_exists('Csrf', false) ? Csrf::metaTag() : '' ?>
   <title><?= e($title ?? t('core.menu.home')) ?> · <?= e($titleSuffix) ?></title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/favicon-32.png" type="image/png" sizes="32x32">
@@ -152,7 +153,9 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
     </div>
     <?php if ($userId > 0): ?>
       <?= UsersRepository::badgeHtml($userId, true) ?>
-      <a class="topbar-logout" href="/logout"><?= te('core.layout.logout') ?></a>
+      <form method="post" action="/logout" class="inline-form topbar-logout-form">
+        <button type="submit" class="topbar-logout"><?= te('core.layout.logout') ?></button>
+      </form>
     <?php endif; ?>
   </header>
 
@@ -309,7 +312,9 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
             <div class="rail-extra"><?= $gateChrome ?></div>
           <?php endif; ?>
           <?= UsersRepository::badgeHtml($userId, true) ?>
-          <a class="rail-logout" href="/logout"><?= te('core.layout.logout') ?></a>
+          <form method="post" action="/logout" class="inline-form rail-logout-form">
+            <button type="submit" class="rail-logout"><?= te('core.layout.logout') ?></button>
+          </form>
         </div>
       <?php endif; ?>
     </div>

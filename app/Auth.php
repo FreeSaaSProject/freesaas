@@ -365,6 +365,10 @@ final class Auth
             ]);
         }
 
+        if (class_exists('Csrf', false)) {
+            Csrf::rotate();
+        }
+
         EventBus::emit('core.auth.after_login', [
             'user_id' => (int)$row['id'],
             'login' => (string)$row['login'],

@@ -11,7 +11,8 @@ require_once __DIR__ . '/lib/CyclicDayRunner.php';
 $pages = [
     '/audio/llm-studies' => ['permission' => 'audio_llm.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/audio/llm-studies/new' => ['permission' => 'audio_llm.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
-    '/audio/llm-studies/work' => ['permission' => 'audio_llm.edit', 'methods' => ['GET', 'POST'], 'file' => 'work.php'],
+    '/audio/llm-studies/work' => ['permission' => 'audio_llm.edit', 'methods' => ['POST'], 'file' => 'work.php'],
+
     '/audio/llm-studies/{id}' => ['permission' => 'audio_llm.view', 'methods' => ['GET', 'POST'], 'file' => 'view.php'],
 ];
 

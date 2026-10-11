@@ -94,6 +94,23 @@ if ($safeHtmlCode !== 0) {
     $sections['safe_html']['output'] = implode("\n", $safeHtmlLines);
 }
 
+// CSRF helpers (bin/check-csrf.php)
+$csrfLines = [];
+$csrfCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-csrf.php') . ' 2>&1',
+    $csrfLines,
+    $csrfCode
+);
+$sections['csrf'] = [
+    'ok' => $csrfCode === 0,
+    'exit' => $csrfCode,
+];
+if ($csrfCode !== 0) {
+    $failed = true;
+    $sections['csrf']['output'] = implode("\n", $csrfLines);
+}
+
 $out = ['ok' => !$failed, 'sections' => $sections];
 if (in_array('--format=json', $argv, true) || in_array('--json', $argv, true)) {
     Cli::setJson(true);

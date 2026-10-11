@@ -30,7 +30,8 @@ ModuleManager::registerMenuGroup('core.menu.group.system', 70, '/updates');
 
 $pages = [
     '/login' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'login.php'],
-    '/logout' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'handler' => 'logout'],
+    '/logout' => ['permission' => 'core.home', 'methods' => ['POST'], 'handler' => 'logout'],
+
     '/' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'home.php'],
     '/dashboard' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'file' => 'dashboard.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
