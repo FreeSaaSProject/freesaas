@@ -17,11 +17,11 @@ or loaded at runtime from CDNs.
 
 ## Out of scope (not part of public FreeSaaS)
 
-Instance-specific storefront themes and branding (for example a private
-`themes/likespa` pack) are **not** part of the public FreeSaaS distribution.
-They live in separate private repositories or local deploy trees and are
-excluded from this audit. Do not treat such themes as AGPL-covered FreeSaaS
-assets.
+Instance-specific storefront themes and branding are **not** part of the public
+FreeSaaS distribution. The LikeSpa pack lives in the private GitHub repository
+[`ilcommm/freesaas-theme-likespa`](https://github.com/ilcommm/freesaas-theme-likespa)
+and is deployed onto hosts as `themes/likespa/` (gitignored here). Do not treat
+such themes as AGPL-covered FreeSaaS assets.
 
 The public tree ships [`themes/default/`](themes/default/) as the reference
 first-party storefront theme.
