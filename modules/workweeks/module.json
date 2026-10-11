@@ -11,7 +11,8 @@
     "optionalRequires": {
         "comments": ">=0.1.0",
         "cabinets": ">=0.1.0",
-        "tables": ">=0.1.0"
+        "tables": ">=0.1.0",
+        "bots": ">=0.1.0"
     },
     "migrations": "migrations/",
     "permissions": [

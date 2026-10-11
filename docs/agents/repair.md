@@ -13,8 +13,9 @@ Response fields:
 
 | Field | Meaning |
 |-------|---------|
-| `ok` / `status` | Overall (`ok` \| `degraded` \| `fail`) |
-| `error_codes` | Stable codes (see below) |
+| `ok` / `status` | Overall (`ok` \| `degraded` \| `fail`). `ok=true` when no hard `error_codes` |
+| `error_codes` | Hard failures (HTTP 503 when non-empty) |
+| `warning_codes` | Soft gaps (`agent_token_unconfigured`, `health_degraded`, …) — status `degraded`, still HTTP 200 |
 | `sections` | Per-check detail |
 | `hints` | Suggested next CLI commands |
 | `issue_body` | Markdown ready for a GitHub issue |
@@ -25,15 +26,23 @@ Response fields:
 |--------------|------|
 | `config_missing` | `cp cfg/config.example.ini cfg/config.ini` and set DB/salts |
 | `db_connect_fail` | Fix `[connect]` / start MySQL; Docker: `docker compose ps` |
-| `agent_token_missing` | Set `app.agent_token` or bootstrap with `--agent-token` |
 | `schema_pending` | `php bin/freesaas.php migrate run --format=json` |
 | `schema_status_fail` | Check DB rights; `db check` / `db repair` |
 | `module_blocked` | `module list --status=blocked`; fix `requires` / enable deps |
-| `module_validate_fail` | `module validate`; fix manifest/hooks |
+| `module_validate_fail` | `module validate`; fix manifest/hooks / soft-deps |
 | `health_fail` | `health --format=json`; module-specific repair |
 | `locale_fail` | `locale validate`; add missing keys in `lang/{ru,en}.php` |
 | `scaffold_invalid_id` / `scaffold_exists` | Pick another module id |
 | `module_not_found` | Typo or not on disk — `module install` from catalog |
+
+### Warning codes (do not flip `ok` to false)
+
+| `warning_code` | Next |
+|----------------|------|
+| `agent_token_unconfigured` | Optional: set `app.agent_token` for HTTP `/agent/*` (CLI works without it) |
+| `health_degraded` | `health --format=json` — inspect checks with `error_code` / `degraded` (cron, bank config, …) |
+
+Optional tokens (`*_token_unconfigured`, `llm_profile_unconfigured`, `bots_token_unconfigured`) appear on **health** checks as `status=skipped` + `error_code`, not as doctor hard fails.
 
 Related: [debugging.md](debugging.md), [migrations.md](migrations.md), [QUICKSTART.md](QUICKSTART.md).
 

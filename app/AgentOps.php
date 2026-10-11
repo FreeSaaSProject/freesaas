@@ -170,6 +170,95 @@ final class AgentOps
         }
         $manifest = is_array($meta) ? $meta : [];
         unset($manifest['_dir']);
+
+        $hooks = [
+            'publish' => [],
+            'subscribe' => [],
+        ];
+        foreach (['publish', 'subscribe'] as $side) {
+            $list = $manifest['hooks'][$side] ?? [];
+            if (!is_array($list)) {
+                continue;
+            }
+            foreach ($list as $ev) {
+                if (is_string($ev) && $ev !== '') {
+                    $hooks[$side][] = $ev;
+                }
+            }
+        }
+
+        $agentOps = [];
+        if (class_exists('AgentHttp', false)) {
+            $agentOps = AgentHttp::opsForModule($id);
+        } else {
+            foreach ($manifest['agent']['ops'] ?? [] as $row) {
+                if (is_array($row)) {
+                    $agentOps[] = $row;
+                }
+            }
+        }
+
+        $bulkManifest = [];
+        foreach ($manifest['bulkActions'] ?? [] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $bulkManifest[] = [
+                'list_id' => (string)($row['list_id'] ?? ''),
+                'action' => (string)($row['action'] ?? ''),
+                'label' => (string)($row['label'] ?? ''),
+                'permission' => isset($row['permission']) ? (string)$row['permission'] : null,
+            ];
+        }
+        $bulkRuntime = class_exists('BulkActions', false) ? BulkActions::catalog($id) : [];
+
+        $capabilityGroups = [];
+        if (class_exists('StatusesRepository', false)) {
+            foreach (StatusesRepository::fieldGroups() as $g) {
+                if (!is_array($g)) {
+                    continue;
+                }
+                $when = (string)($g['when'] ?? '');
+                if ($id === 'core' && $when === 'always') {
+                    $capabilityGroups[] = $g;
+                }
+            }
+            // Product groups registered at boot (when = module id).
+            if (method_exists('StatusesRepository', 'registeredFieldGroups')) {
+                foreach (StatusesRepository::registeredFieldGroups() as $g) {
+                    if (!is_array($g)) {
+                        continue;
+                    }
+                    if ((string)($g['when'] ?? '') === $id) {
+                        $capabilityGroups[] = $g;
+                    }
+                }
+            }
+        }
+
+        $softDeps = [];
+        $optional = is_array($detail['optionalRequires'] ?? null) ? $detail['optionalRequires'] : [];
+        foreach ($optional as $depId => $constraint) {
+            $depId = (string)$depId;
+            if ($depId === '') {
+                continue;
+            }
+            $depMeta = ModuleManager::get($depId);
+            $softDeps[] = [
+                'id' => $depId,
+                'constraint' => is_string($constraint) ? $constraint : (string)$constraint,
+                'present' => $depMeta !== null,
+                'enabled' => $depMeta !== null && !empty($depMeta['_enabled']),
+            ];
+        }
+
+        $tables = [];
+        foreach ($manifest['tables'] ?? [] as $t) {
+            if (is_string($t) && $t !== '') {
+                $tables[] = $t;
+            }
+        }
+
         return [
             'ok' => true,
             'module' => [
@@ -196,11 +285,20 @@ final class AgentOps
                 'provides' => $detail['provides'],
                 'requires' => $detail['requires'],
                 'optionalRequires' => $detail['optionalRequires'],
+                'soft_deps' => $softDeps,
                 'can_enable' => $detail['can_enable'],
                 'can_disable' => $detail['can_disable'],
                 'can_toggle' => $detail['can_toggle'],
                 'required_by' => $detail['required_by'],
                 'permissions' => $detail['permissions'] ?? [],
+                'tables' => $tables,
+                'hooks' => $hooks,
+                'agent_ops' => $agentOps,
+                'bulk_actions' => [
+                    'manifest' => $bulkManifest,
+                    'runtime' => $bulkRuntime,
+                ],
+                'capability_groups' => $capabilityGroups,
                 'routes_pages' => $detail['routes_pages'] ?? [],
                 'runtime_routes' => $routes,
                 'manifest' => $manifest,
@@ -508,12 +606,13 @@ final class AgentOps
     /**
      * Orchestrated diagnose for agents: config → DB → migrate → validate → health → locale.
      *
-     * @return array{ok:bool,status:string,error_codes:list<string>,sections:array,hints:list<string>,issue_body:string,http:int}
+     * @return array{ok:bool,status:string,error_codes:list<string>,warning_codes:list<string>,sections:array,hints:list<string>,issue_body:string,http:int}
      */
     public static function doctor(): array
     {
         $sections = [];
         $codes = [];
+        $warnings = [];
         $hints = [];
 
         $configPath = Config::path();
@@ -550,10 +649,16 @@ final class AgentOps
 
         $token = trim((string)Config::get('app', 'agent_token', ''));
         $tokenOk = $token !== '' && strtoupper($token) !== 'CHANGE_ME';
-        $sections['agent_token'] = ['ok' => $tokenOk, 'configured' => $tokenOk];
+        $sections['agent_token'] = [
+            'ok' => true,
+            'configured' => $tokenOk,
+            'status' => $tokenOk ? 'ok' : 'skipped',
+            'error_code' => $tokenOk ? null : 'agent_token_unconfigured',
+        ];
         if (!$tokenOk && !self::isVirginInstall()) {
-            $codes[] = 'agent_token_missing';
-            $hints[] = 'Set app.agent_token in cfg/config.ini or Settings → Agent token.';
+            // Soft: CLI still works; HTTP /agent/* optional.
+            $warnings[] = 'agent_token_unconfigured';
+            $hints[] = 'Optional: set app.agent_token for HTTP /agent/* (CLI does not need it).';
         }
 
         $migrate = ['ok' => true, 'pending_total' => 0, 'skipped' => false];
@@ -653,18 +758,26 @@ final class AgentOps
         $sections['locale'] = $localeSec;
 
         $codes = array_values(array_unique($codes));
+        $warnings = array_values(array_unique($warnings));
+        if (!empty($sections['health']['status']) && $sections['health']['status'] === 'degraded') {
+            $warnings[] = 'health_degraded';
+            $warnings = array_values(array_unique($warnings));
+        }
         $ok = $codes === [];
-        $status = $ok ? 'ok' : 'fail';
-        if ($ok && !empty($sections['health']['status']) && $sections['health']['status'] === 'degraded') {
+        $status = 'ok';
+        if (!$ok) {
+            $status = 'fail';
+        } elseif ($warnings !== [] || (!empty($sections['health']['status']) && $sections['health']['status'] === 'degraded')) {
             $status = 'degraded';
         }
 
-        $issueBody = self::doctorIssueBody($status, $codes, $sections);
+        $issueBody = self::doctorIssueBody($status, $codes, $warnings, $sections);
 
         return [
             'ok' => $ok,
             'status' => $status,
             'error_codes' => $codes,
+            'warning_codes' => $warnings,
             'sections' => $sections,
             'hints' => $hints,
             'issue_body' => $issueBody,
@@ -675,17 +788,24 @@ final class AgentOps
 
     /**
      * @param list<string> $codes
+     * @param list<string> $warnings
      * @param array<string,mixed> $sections
      */
-    private static function doctorIssueBody(string $status, array $codes, array $sections): string
+    private static function doctorIssueBody(string $status, array $codes, array $warnings, array $sections): string
     {
         $json = json_encode(
-            ['status' => $status, 'error_codes' => $codes, 'sections' => $sections],
+            [
+                'status' => $status,
+                'error_codes' => $codes,
+                'warning_codes' => $warnings,
+                'sections' => $sections,
+            ],
             JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
         );
         return "## Agent doctor report\n\n"
             . "**Status:** `{$status}`\n"
-            . '**Codes:** ' . ($codes === [] ? '_(none)_' : '`' . implode('`, `', $codes) . '`') . "\n\n"
+            . '**Errors:** ' . ($codes === [] ? '_(none)_' : '`' . implode('`, `', $codes) . '`') . "\n"
+            . '**Warnings:** ' . ($warnings === [] ? '_(none)_' : '`' . implode('`, `', $warnings) . '`') . "\n\n"
             . "```json\n" . ($json ?: '{}') . "\n```\n\n"
             . "Before a PR: accept CLA — see CONTRIBUTING.md\n";
     }

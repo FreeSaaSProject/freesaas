@@ -46,14 +46,16 @@ final class NoticesRepository
             $titles = [1 => t('core.notice.unread_title.1'), 2 => t('core.notice.unread_title.2'), 3 => t('core.notice.unread_title.3')];
             $acc = NewsRepository::accessWhereSql($userId, 'n');
             $accSql = $acc['sql'] !== '' ? ' AND (' . $acc['sql'] . ')' : '';
+            // NOT IN (materialized id set) beats correlated NOT EXISTS when
+            // base_views only has weak/legacy TYPE_OBJ-prefix indexes.
             $st = $pdo->prepare(
                 'SELECT n.TYPE AS t, COUNT(*) AS c FROM base_news n
                  WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.TYPE IN (1,2,3)'
                 . $andExcl($excl)
                 . $accSql . '
-                   AND NOT EXISTS (
-                     SELECT 1 FROM base_views v
-                     WHERE v.ID_OBJ = n.ID AND v.TYPE_OBJ = \'base_news\' AND v.ID_USER = ?
+                   AND n.ID NOT IN (
+                     SELECT v.ID_OBJ FROM base_views v
+                     WHERE v.TYPE_OBJ = \'base_news\' AND v.ID_USER = ?
                    )
                  GROUP BY n.TYPE'
             );
@@ -124,9 +126,9 @@ final class NoticesRepository
                  WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.SIGN_REQ = 1 AND n.TYPE IN (1,2,3)'
                 . $andExcl($excl)
                 . $accSql . '
-                   AND NOT EXISTS (
-                     SELECT 1 FROM base_views v
-                     WHERE v.ID_OBJ = n.ID AND v.TYPE_OBJ = \'base_news_sign\' AND v.ID_USER = ?
+                   AND n.ID NOT IN (
+                     SELECT v.ID_OBJ FROM base_views v
+                     WHERE v.TYPE_OBJ = \'base_news_sign\' AND v.ID_USER = ?
                    )
                  GROUP BY n.TYPE'
             );

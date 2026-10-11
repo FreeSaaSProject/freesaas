@@ -95,8 +95,9 @@ Health::register('banks.worker_token', 'banks', static function (): array {
         return ['status' => 'ok', 'message' => 'worker_token configured'];
     }
     return [
-        'status' => 'degraded',
-        'message' => 'banks.worker_token missing or CHANGE_ME — jobs will reject',
+        'status' => 'skipped',
+        'error_code' => 'banks_worker_token_unconfigured',
+        'message' => 'banks.worker_token missing or CHANGE_ME — jobs will reject until set',
         'meta' => ['hint' => 'cfg/modules/banks.ini'],
     ];
 }, 'Banks job worker token');

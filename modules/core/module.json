@@ -2,11 +2,14 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.33",
+    "version": "0.3.35",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
-        "bots": ">=0.1.0"
+        "bots": ">=0.1.0",
+        "contracts": ">=0.1.0",
+        "gcal": ">=0.1.0",
+        "stocks": ">=0.1.0"
     },
     "provides": [
         "core.auth",

@@ -42,6 +42,16 @@ final class StatusesRepository
     }
 
     /**
+     * Product field groups registered via registerFieldGroup (when = module id).
+     *
+     * @return list<array{title:string,when:string,fields:list<array{key:string,label:string,type:string}>}>
+     */
+    public static function registeredFieldGroups(): array
+    {
+        return self::$registeredGroups;
+    }
+
+    /**
      * Core-owned editable field groups (when=always only).
      *
      * @return list<array{title:string,when:string,fields:list<array{key:string,label:string,type:string}>}>

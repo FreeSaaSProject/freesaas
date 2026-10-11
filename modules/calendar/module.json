@@ -15,7 +15,9 @@
     },
     "optionalRequires": {
         "cabinets": ">=0.1.0",
-        "tables": ">=0.1.0"
+        "tables": ">=0.1.0",
+        "booking": ">=0.1.0",
+        "bonuses": ">=0.1.0"
     },
     "provides": [
         "calendar.week",

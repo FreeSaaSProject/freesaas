@@ -7,7 +7,10 @@
     "requires": {
         "core": ">=0.3.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "ledger": ">=0.1.0",
+        "bots": ">=0.1.0"
+    },
     "provides": [
         "payments.list",
         "payments.types"

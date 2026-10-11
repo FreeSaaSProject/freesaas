@@ -7,7 +7,7 @@ php bin/freesaas.php module list --format=json
 php bin/freesaas.php module inspect <id> --format=json
 ```
 
-Use `runtime_routes`, `hooks`, `tables`, `bulkActions` from inspect + manifest. Prefer EventBus names from hooks over guessing.
+Use `runtime_routes`, `hooks`, `tables`, `agent_ops`, `bulk_actions`, `capability_groups`, `soft_deps` from inspect. Prefer EventBus names from hooks over guessing. `module validate` flags undeclared `isEnabled` and foreign `pages/`/`views/` requires.
 
 ## Common change: add a field
 

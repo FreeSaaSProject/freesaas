@@ -284,6 +284,15 @@ final class ModuleValidator
             $warnings[] = 'tables listed but migrations/ directory missing';
         }
 
+        // Soft-dep honesty: isEnabled / foreign page|view requires vs requires+optionalRequires
+        $soft = self::scanSoftDeps($moduleId, $dir, $meta);
+        foreach ($soft['errors'] as $msg) {
+            $errors[] = $msg;
+        }
+        foreach ($soft['warnings'] as $msg) {
+            $warnings[] = $msg;
+        }
+
         // Dependency cycle (simple DFS from this module through hard requires)
         $cycle = self::findCycle($moduleId, [], []);
         if ($cycle !== null) {
@@ -296,6 +305,126 @@ final class ModuleValidator
             'errors' => $errors,
             'warnings' => $warnings,
         ];
+    }
+
+    /**
+     * Scan module PHP for ModuleManager::isEnabled and foreign pages/views requires.
+     *
+     * @param array<string,mixed> $meta
+     * @return array{errors:list<string>,warnings:list<string>}
+     */
+    public static function scanSoftDeps(string $moduleId, string $dir, array $meta): array
+    {
+        $errors = [];
+        $warnings = [];
+        $hard = [];
+        foreach ($meta['requires'] ?? [] as $depId => $_) {
+            $depId = (string)$depId;
+            if ($depId !== '') {
+                $hard[$depId] = true;
+            }
+        }
+        $soft = [];
+        foreach ($meta['optionalRequires'] ?? [] as $depId => $_) {
+            $depId = (string)$depId;
+            if ($depId !== '') {
+                $soft[$depId] = true;
+            }
+        }
+        $declared = $hard + $soft;
+        $undeclaredEnabled = [];
+        $foreign = [];
+
+        if (!is_dir($dir)) {
+            return ['errors' => $errors, 'warnings' => $warnings];
+        }
+
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($it as $file) {
+            if (!$file->isFile() || substr($file->getFilename(), -4) !== '.php') {
+                continue;
+            }
+            $path = $file->getPathname();
+            // Scaffold templates embed example t() / isEnabled strings — not runtime.
+            if (strpos($path, 'ModuleScaffold') !== false) {
+                continue;
+            }
+            $src = (string)@file_get_contents($path);
+            if ($src === '') {
+                continue;
+            }
+            $rel = $path;
+            $root = base_path('');
+            if ($root !== '' && strpos($rel, $root) === 0) {
+                $rel = ltrim(substr($rel, strlen($root)), '/\\');
+            }
+
+            if (preg_match_all("/ModuleManager::isEnabled\(\s*['\"]([a-z0-9_]+)['\"]\s*\)/", $src, $m)) {
+                foreach ($m[1] as $dep) {
+                    if ($dep === $moduleId || $dep === 'core') {
+                        continue;
+                    }
+                    if (!isset($declared[$dep])) {
+                        $undeclaredEnabled[$dep][$rel] = true;
+                    }
+                }
+            }
+
+            if (preg_match_all(
+                "/(?:require|include)(?:_once)?\s*\(?\s*base_path\(\s*['\"]modules\/([a-z0-9_]+)\/(pages|views)\/([^'\"]+)['\"]/",
+                $src,
+                $m,
+                PREG_SET_ORDER
+            )) {
+                foreach ($m as $hit) {
+                    $other = (string)$hit[1];
+                    if ($other === $moduleId) {
+                        continue;
+                    }
+                    $kind = (string)$hit[2];
+                    $target = $kind . '/' . (string)$hit[3];
+                    $foreign[] = [
+                        'other' => $other,
+                        'kind' => $kind,
+                        'target' => $target,
+                        'file' => $rel,
+                        'hard' => isset($hard[$other]),
+                        'soft' => isset($soft[$other]),
+                    ];
+                }
+            }
+        }
+
+        ksort($undeclaredEnabled);
+        foreach ($undeclaredEnabled as $dep => $files) {
+            $sample = array_slice(array_keys($files), 0, 3);
+            $warnings[] = 'isEnabled("' . $dep . '") without requires/optionalRequires'
+                . ' (add optionalRequires.' . $dep . ') in ' . implode(', ', $sample);
+        }
+
+        foreach ($foreign as $row) {
+            $other = $row['other'];
+            $msg = 'foreign ' . $row['kind'] . ' require of ' . $other . '/' . $row['target']
+                . ' via ' . $row['file'];
+            if ($row['kind'] === 'pages') {
+                if ($row['hard']) {
+                    $warnings[] = $msg . ' (hard require OK; prefer shared lib/EventBus for new code)';
+                } else {
+                    $errors[] = $msg . ' — declare in requires or stop page-level cross-require';
+                }
+            } else {
+                // views
+                if ($row['hard'] || $row['soft']) {
+                    $warnings[] = $msg . ' (declared; prefer EventBus embed for new code)';
+                } else {
+                    $errors[] = $msg . ' — declare in requires/optionalRequires';
+                }
+            }
+        }
+
+        return ['errors' => $errors, 'warnings' => $warnings];
     }
 
     /**

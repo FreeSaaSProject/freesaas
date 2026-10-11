@@ -159,8 +159,9 @@ Health::register('terminals.worker_token', 'terminals', static function (): arra
         return ['status' => 'ok', 'message' => 'worker_token configured'];
     }
     return [
-        'status' => 'degraded',
-        'message' => 'terminals.worker_token missing or CHANGE_ME — jobs will reject',
+        'status' => 'skipped',
+        'error_code' => 'terminals_worker_token_unconfigured',
+        'message' => 'terminals.worker_token missing or CHANGE_ME — jobs will reject until set',
         'meta' => ['hint' => '/terminals/settings'],
     ];
 }, 'Terminals job worker token');

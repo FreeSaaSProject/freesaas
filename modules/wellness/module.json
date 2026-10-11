@@ -8,7 +8,8 @@
         "core": ">=0.3.0"
     },
     "optionalRequires": {
-        "asr": ">=0.1.0"
+        "asr": ">=0.1.0",
+        "bots": ">=0.1.0"
     },
     "provides": [
         "wellness.calendar"

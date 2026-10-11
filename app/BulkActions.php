@@ -43,6 +43,54 @@ final class BulkActions
         self::$actions[$listId][$actionId] = $def;
     }
 
+    /**
+     * Machine-readable catalog (no callables). Optional module filter by list_id prefix.
+     *
+     * @return list<array{list_id:string,action:string,label:string,permission:?string,capability:?string,group:?string}>
+     */
+    public static function catalog(?string $moduleId = null): array
+    {
+        $moduleId = $moduleId !== null ? trim($moduleId) : '';
+        $out = [];
+        foreach (self::$actions as $listId => $actions) {
+            $listId = (string)$listId;
+            if ($moduleId !== '' && !self::listBelongsToModule($listId, $moduleId)) {
+                continue;
+            }
+            foreach ($actions as $actionId => $def) {
+                if (!is_array($def)) {
+                    continue;
+                }
+                $out[] = [
+                    'list_id' => $listId,
+                    'action' => (string)$actionId,
+                    'label' => (string)($def['label'] ?? ''),
+                    'permission' => isset($def['permission']) ? (string)$def['permission'] : null,
+                    'capability' => isset($def['capability']) ? (string)$def['capability'] : null,
+                    'group' => isset($def['group']) ? (string)$def['group'] : null,
+                ];
+            }
+        }
+        return $out;
+    }
+
+    private static function listBelongsToModule(string $listId, string $moduleId): bool
+    {
+        if ($listId === $moduleId) {
+            return true;
+        }
+        if (strpos($listId, $moduleId . '_') === 0) {
+            return true;
+        }
+        if (strpos($listId, $moduleId . '.') === 0) {
+            return true;
+        }
+        // e.g. audio_scripts owned by audio_dicts, payment_types by payments
+        $compact = str_replace('_', '', $moduleId);
+        $listCompact = str_replace('_', '', $listId);
+        return $compact !== '' && strpos($listCompact, $compact) === 0;
+    }
+
     public static function hasVisible(string $listId): bool
     {
         return self::visibleActions($listId) !== [];

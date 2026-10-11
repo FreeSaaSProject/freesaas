@@ -67,8 +67,9 @@ Health::register('yclients.worker_token', 'yclients', static function (): array 
         return ['status' => 'ok', 'message' => 'worker_token configured'];
     }
     return [
-        'status' => 'degraded',
-        'message' => 'yclients.worker_token missing or CHANGE_ME — jobs will reject',
+        'status' => 'skipped',
+        'error_code' => 'yclients_worker_token_unconfigured',
+        'message' => 'yclients.worker_token missing or CHANGE_ME — jobs will reject until set',
         'meta' => ['hint' => '/yclients/settings'],
     ];
 }, 'YClients job worker token');

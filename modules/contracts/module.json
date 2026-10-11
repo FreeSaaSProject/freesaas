@@ -8,7 +8,9 @@
         "core": ">=0.3.0",
         "comments": ">=0.1.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "payments": ">=0.1.0"
+    },
     "provides": [
         "contracts.offer",
         "contracts.list"

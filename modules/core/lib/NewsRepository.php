@@ -113,21 +113,17 @@ final class NewsRepository
                 $where[] = $archiveSql;
             }
             if ($unread) {
-                $where[] = 'NOT EXISTS (
-                    SELECT 1 FROM base_views v
-                    WHERE v.ID_OBJ = base_news.ID
-                      AND v.TYPE_OBJ = \'base_news\'
-                      AND v.ID_USER = ?
+                $where[] = 'ID NOT IN (
+                    SELECT v.ID_OBJ FROM base_views v
+                    WHERE v.TYPE_OBJ = \'base_news\' AND v.ID_USER = ?
                 )';
                 $params[] = $userId;
             }
             if ($unsigned) {
                 $where[] = 'SIGN_REQ = 1';
-                $where[] = 'NOT EXISTS (
-                    SELECT 1 FROM base_views v
-                    WHERE v.ID_OBJ = base_news.ID
-                      AND v.TYPE_OBJ = \'base_news_sign\'
-                      AND v.ID_USER = ?
+                $where[] = 'ID NOT IN (
+                    SELECT v.ID_OBJ FROM base_views v
+                    WHERE v.TYPE_OBJ = \'base_news_sign\' AND v.ID_USER = ?
                 )';
                 $params[] = $userId;
             }

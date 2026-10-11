@@ -12,7 +12,8 @@
         "catalog": ">=0.1.0",
         "orders": ">=0.1.0",
         "clients": ">=0.1.0",
-        "booking": ">=0.1.0"
+        "booking": ">=0.1.0",
+        "procedures": ">=0.1.0"
     },
     "provides": [
         "sites.storefront",

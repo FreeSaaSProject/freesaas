@@ -17,22 +17,22 @@ Related docs:
 
 ## Executive Summary
 
-> **Current readiness (~84/100).** Public OSS release **v0.3.33**: CLI + `/agent/*`, bootstrap, `doctor`, health/validate/smoke, locale discovery (~5518 ru/en keys), `module create` / `add-migration`, Docker Compose, ~388 `agent.ops`, product MCP `/llm/mcp` + OAuth, dual-license + CLA, agent QUICKSTART/connect/skills/cases. Instance theme stripped from public history; release zip ships `modules/likespa` + `themes/default` only.
+> **Current readiness (~87/100).** Platform **v0.3.34** after Wave A: soft-dep honesty in `module validate`, richer `module inspect` (agent_ops/hooks/bulk/capabilities/soft_deps), optional tokens as health `skipped` + `error_code`, doctor `warning_codes` (no false 503 for missing `agent_token`). Public OSS baseline was v0.3.33.
 >
-> **Remaining drag (post-OSS):** no uninstall/`drop_owned`, soft-dep honesty uneven, plurals/number formatting, Core still partly oper-shaped, platform lifecycle not on staff OAuth (intentional dual surface), no marketplace / PHPUnit suite, health often `degraded` on real instances (config/tokens), not `fail`.
+> **Remaining drag:** no uninstall/`drop_owned`, residual foreign page/view requires (warned), plurals/number formatting, Core still partly oper-shaped, dual auth surfaces (intentional), no marketplace / PHPUnit, real-world health `degraded` when cron/bank config incomplete (not optional tokens).
 
 **Historical baseline (2026-10-05, pre-P1):** score **56/100** — thin CLI, no validate/health, broken i18n checker, unreliable manifests. Kept only as archaeology; do not treat body “Critical Gaps” prose from that era as today’s blockers without checking the [Resolved vs open](#resolved-vs-still-open) table.
 
-**Agent Readiness:** **56** → **~75** (P1) → **~78** (MCP + packaging draft) → **~84** (public release + doctor/scaffold/Docker/theme split).
+**Agent Readiness:** **56** → **~75** (P1) → **~78** (MCP + packaging) → **~84** (public release) → **~87** (Wave A: soft-deps + inspect + doctor noise).
 
 | Dimension | Baseline | Now | Note |
 |-----------|---------:|----:|------|
 | Discoverability (docs + manifests) | 60 | 88 | QUICKSTART, connect-*, cases, skills; public README pitch |
 | New CRUD module authoring | 70 | 85 | `module create` + units template + authoring-contract |
-| Cross-module extension | 55 | 62 | EventBus strong; soft deps still uneven |
-| Machine-readable contracts | 40 | 78 | `agent.ops` (~388), validate, inspect, maturity |
+| Cross-module extension | 55 | 72 | validate soft-dep honesty; legacy foreign requires warned |
+| Machine-readable contracts | 40 | 84 | inspect exports ops/hooks/bulk/caps/soft_deps |
 | CLI / admin ops without UI | 25 | 90 | `freesaas.php` + `/agent/*` + doctor |
-| Self-verification | 15 | 88 | health + smoke + doctor + issue_body |
+| Self-verification | 15 | 90 | doctor warning_codes; optional tokens skipped not degraded |
 | Localization automation | 55 | 78 | discovery + validate; plurals still weak |
 | Lifecycle (install/uninstall) | 35 | 58 | bootstrap/enable/install yes; uninstall no |
 | Platform purity (vs LikeSpa) | 50 | 70 | theme private; likespa module public & disableable |
@@ -95,7 +95,7 @@ flowchart LR
 | OSS packaging / LICENSE | **Resolved** — public `freesaas`, AGPL + CLA |
 | Instance theme in public tree | **Resolved** — private theme repo; purged from history |
 | Manifest hooks prose/phantoms | **Mostly resolved** — validate + dotted events; soft drift remains |
-| Soft / cross-module coupling | **Open** — still uneven; ban new page-level foreign `require` |
+| Soft / cross-module coupling | **Mostly resolved** — validate honesty + declared optionalRequires; legacy foreign requires = warnings |
 | No uninstall / drop_owned | **Open** — disable-only (documented) |
 | Core LikeSpa / oper residue | **Partially open** — theme out; tickets/flags/menu homes still Core-shaped |
 | Plurals / ICU / number format | **Open** — P2 quality |
@@ -108,9 +108,8 @@ Problems that remain after the OSS tranche. Prefer small evolutionary fixes.
 
 ### 1. Soft / cross-module coupling
 
-- **Problem:** `optionalRequires` is incomplete vs runtime `isEnabled` / `class_exists` / occasional foreign `require`.
-- **Broken scenario:** Disable optional module → blank feature or hard error; agent cannot see risk from JSON alone.
-- **Minimal fix:** Ban new page-level cross-requires; validate soft-dep honesty; EventBus for UI extension.
+- **Status:** Wave A — `ModuleValidator::scanSoftDeps` warns on undeclared `isEnabled`, errors on undeclared foreign `pages/`/`views/` requires; manifests honesty-fixed; inspect exposes `soft_deps`.
+- **Residual:** a few declared foreign page/view requires (calendar→workweeks nazop, audio_reports embeds) — prefer EventBus for new code.
 
 ### 2. No uninstall / rollback lifecycle
 
@@ -217,7 +216,7 @@ Agent adds `app/lang/es.php` + `modules/*/lang/es.php`, runs `locale validate`, 
 | Backend / UI | Yes | scaffold / clone `units` |
 | Permissions | Yes | `module.json` + route `permission` |
 | Localization | Yes | scaffold ships `lang/ru.php` + `en.php` |
-| Events | Partial | GUIDE EventBus; soft-dep honesty uneven |
+| Events | Stronger | EventBus + validate soft-dep honesty; legacy foreign requires warned |
 | Verify | Yes | `module validate`, `health`, `doctor`, smoke |
 | Install/enable | Yes | CLI / `/agent/*` / UI |
 | Uninstall | **No** | disable-only |
@@ -311,7 +310,7 @@ Also shipped beyond original P1: bootstrap HTTP twin, product MCP/OAuth, `doctor
 | P2.2 | Notifications module + EventBus integration pattern | B6 |
 | P2.3 | Topological boot order | B2 |
 | P2.4 | Plurals / number / currency helpers | A5 |
-| P2.5 | Inspect exports: capabilities, BulkActions | A1 |
+| P2.5 | Inspect exports: capabilities, BulkActions | **Done** (Wave A) |
 | P2.6 | Structured logging | A6 |
 | P2.7 | Broader automated tests | A4 |
 
@@ -604,7 +603,7 @@ Product MCP is **in scope and shipped**; see [Future Agent Layer](#future-agent-
 
 ---
 
-## Appendix: Score rationale (56 → ~75 → ~78 → **~84**)
+## Appendix: Score rationale (56 → ~75 → ~78 → ~84 → **~87**)
 
 Weighted judgment, not a formula.
 
@@ -613,6 +612,7 @@ Weighted judgment, not a formula.
 | 2026-10-05 baseline | 56 | Kernel + docs; ops thin |
 | Post-P1 | ~75 | CLI, health, validate, bootstrap, smoke, runbooks |
 | MCP + packaging draft | ~78 | `/llm/mcp`, dual-license docs |
-| **Public release 2026-10-11** | **~84** | doctor, scaffold, Docker, QUICKSTART/connect/skills/cases, public `freesaas`, theme split/history purge, ~388 agent.ops, locale ~5518 |
+| Public release 2026-10-11 | ~84 | doctor, scaffold, Docker, QUICKSTART/connect/skills/cases, public `freesaas`, theme split/history purge, ~388 agent.ops, locale ~5518 |
+| **Wave A (soft-deps + inspect)** | **~87** | validate soft-dep honesty, inspect exports, optional tokens skipped, doctor `warning_codes` |
 
-**Still capping the score:** uninstall, soft-dep honesty, Core purity leftovers, plurals, no marketplace/PHPUnit, intentional dual auth surfaces, real-world health `degraded` (missing optional tokens/config) on busy instances.
+**Still capping the score:** uninstall (`drop_owned`), Core purity leftovers, plurals, no marketplace/PHPUnit, intentional dual auth surfaces, health `degraded` when cron/real config incomplete.

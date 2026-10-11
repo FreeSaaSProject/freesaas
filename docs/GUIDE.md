@@ -413,9 +413,9 @@ View::render('index', ['title' => 'My feature', /* ... */], 'layout', 'myfeature
 | `php bin/freesaas.php module list [--q=] [--category=] [--tag=] [--status=] [--maturity=]` | Каталог модулей (bilocale name/description, filters); `available[]` — ещё не на диске |
 | `php bin/freesaas.php module install <id>` | Скачать модуль с репо обновлений (не на диске); дальше `module enable` |
 | `php bin/freesaas.php module enable <id> [--accept-risk]` | Включить; для alpha/beta нужен `--accept-risk` |
-| `php bin/freesaas.php module inspect <id>` | Манифест + runtime routes + status |
+| `php bin/freesaas.php module inspect <id>` | Манифест + routes + `agent_ops` / hooks / bulk / soft_deps / capabilities |
 | `php bin/freesaas.php module enable\|disable <id>` | Вкл/выкл (при enable — schema migrate) |
-| `php bin/freesaas.php module validate [id]` | Структура модуля / все модули |
+| `php bin/freesaas.php module validate [id]` | Структура + soft-dep honesty (`isEnabled` / foreign pages) |
 | `php bin/freesaas.php migrate status\|run [--module=id]` | Статус и прогон schema-миграций |
 | `php bin/freesaas.php locale list\|validate [--locale=xx]` | Поддерживаемые локали (discovery `app/lang`) и паритет каталогов |
 | `php bin/freesaas.php health [--module=id]` | Liveness/readiness/health checks |

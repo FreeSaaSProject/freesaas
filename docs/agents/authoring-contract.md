@@ -14,7 +14,7 @@ php bin/build-modules-catalog.php   # monorepo remote install index
 php bin/freesaas.php doctor --format=json
 ```
 
-Inspect shape: `module inspect <id>` / `GET /agent/modules/{id}` — maturity, requires, agent_ops, tables.
+Inspect shape: `module inspect <id>` / `GET /agent/modules/{id}` — maturity, requires/`optionalRequires`/`soft_deps`, `agent_ops`, `tables`, `hooks`, `bulk_actions` (manifest+runtime), `capability_groups`, `runtime_routes`.
 
 Register MCP tools: add `module.json` → `agent.ops[]` + `AgentHttp::emit` on the page (auto-discovered). No separate MCP registry API.
 

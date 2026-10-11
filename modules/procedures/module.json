@@ -12,7 +12,8 @@
     },
     "optionalRequires": {
         "tables": ">=0.1.0",
-        "bots": ">=0.1.0"
+        "bots": ">=0.1.0",
+        "procents": ">=0.1.0"
     },
     "provides": [
         "procedures.list",

@@ -16,7 +16,7 @@ final class Health
     private static $defaultsRegistered = false;
 
     /**
-     * @param callable(): array{status:string,message?:string,meta?:array} $fn
+     * @param callable(): array{status:string,message?:string,error_code?:string,meta?:array} $fn
      */
     public static function register(string $id, string $module, callable $fn, string $label = ''): void
     {
@@ -124,12 +124,19 @@ final class Health
 
         self::register('platform.agent_token', 'core', static function (): array {
             if (!class_exists('AgentAuth', false)) {
-                return ['status' => 'skipped', 'message' => 'AgentAuth not loaded'];
+                return [
+                    'status' => 'skipped',
+                    'error_code' => 'agent_auth_unavailable',
+                    'message' => 'AgentAuth not loaded',
+                ];
             }
             if (!AgentAuth::isConfigured()) {
+                // Optional: CLI ops work without HTTP twin — do not roll up as degraded.
                 return [
-                    'status' => 'degraded',
-                    'message' => 'app.agent_token not set — HTTP /agent/* API disabled (CLI still works)',
+                    'status' => 'skipped',
+                    'error_code' => 'agent_token_unconfigured',
+                    'message' => 'app.agent_token not set — HTTP /agent/* disabled (CLI still works)',
+                    'meta' => ['runbook' => 'Set app.agent_token in cfg/config.ini or Settings → Agent token'],
                 ];
             }
             return ['status' => 'ok', 'message' => 'agent_token configured'];
@@ -213,7 +220,7 @@ final class Health
      *   status: string,
      *   liveness: string,
      *   readiness: string,
-     *   checks: list<array{id:string,module:string,status:string,message:string,duration_ms:float,meta?:array}>,
+     *   checks: list<array{id:string,module:string,status:string,message:string,duration_ms:float,error_code?:string,meta?:array}>,
      *   summary: array{ok:int,degraded:int,fail:int,skipped:int}
      * }
      */
@@ -248,6 +255,10 @@ final class Health
                 'message' => (string)($result['message'] ?? $def['label'] ?? ''),
                 'duration_ms' => round((microtime(true) - $t0) * 1000, 2),
             ];
+            $code = trim((string)($result['error_code'] ?? ''));
+            if ($code !== '') {
+                $row['error_code'] = $code;
+            }
             if (isset($result['meta']) && is_array($result['meta'])) {
                 $row['meta'] = $result['meta'];
             }

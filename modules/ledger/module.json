@@ -22,7 +22,8 @@
         "payments": ">=0.1.0",
         "suppliers": ">=0.1.0",
         "stickers": ">=0.1.0",
-        "funds": ">=0.1.0"
+        "funds": ">=0.1.0",
+        "banks": ">=0.1.0"
     },
     "provides": [
         "ledger.accounts",

@@ -8,6 +8,7 @@
         "core": ">=0.3.0",
         "audio": ">=0.1.0"
     },
+    "optionalRequires": {},
     "migrations": "migrations/",
     "permissions": [
         {

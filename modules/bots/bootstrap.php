@@ -275,7 +275,8 @@ Health::register('bots.tokens', 'bots', static function (): array {
         ];
     }
     return [
-        'status' => 'degraded',
+        'status' => 'skipped',
+        'error_code' => 'bots_token_unconfigured',
         'message' => t('bots.health.missing'),
         'meta' => ['hint' => '/bots/settings'],
     ];

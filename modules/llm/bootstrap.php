@@ -161,7 +161,8 @@ Health::register('llm.profile', 'llm', static function (): array {
         ];
     }
     return [
-        'status' => 'degraded',
+        'status' => 'skipped',
+        'error_code' => 'llm_profile_unconfigured',
         'message' => t('llm.health.missing'),
         'meta' => ['hint' => '/llm/tokens'],
     ];
