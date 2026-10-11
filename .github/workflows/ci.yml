@@ -33,7 +33,7 @@ jobs:
           if (!is_array($ini)) { fwrite(STDERR, "bad ini\n"); exit(1); }
           $ini["connect"]["host"] = "127.0.0.1";
           $ini["connect"]["user_db"] = "ci";
-          $ini["connect"]["password"] = "ci";
+          $ini["connect"]["pass_db"] = "ci";
           $ini["connect"]["dbase"] = "ci";
           $ini["app"]["agent_token"] = "ci-static-agent-token";
           foreach (glob("modules/*/module.json") as $f) {
@@ -117,7 +117,7 @@ jobs:
           $ini = parse_ini_file("cfg/config.ini", true, INI_SCANNER_RAW);
           $ini["connect"]["host"] = "127.0.0.1";
           $ini["connect"]["user_db"] = "freesaas";
-          $ini["connect"]["password"] = "freesaas";
+          $ini["connect"]["pass_db"] = "freesaas";
           $ini["connect"]["dbase"] = "freesaas";
           $ini["app"]["agent_token"] = "ci-install-agent-token";
           $mods = [];

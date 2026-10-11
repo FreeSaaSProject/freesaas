@@ -49,6 +49,14 @@ $routes = ModuleManager::routes();
 $tg = $routes['/bots/webhook/telegram/{channel}'] ?? null;
 $check('webhook_post_only', is_array($tg) && ($tg['methods'] ?? []) === ['POST']);
 
+// Secret / route checks above are DB-free. Dedup + link-code need MySQL.
+try {
+    Database::pdo()->query('SELECT 1');
+} catch (Throwable $e) {
+    echo 'SKIP no database: ' . $e->getMessage() . PHP_EOL;
+    exit($fail > 0 ? 1 : 0);
+}
+
 if (BotWebhookUpdatesRepository::tableReady()) {
     $uid = (int)(microtime(true) * 1000) + random_int(1, 999);
     $check('dedup_first', BotWebhookUpdatesRepository::claim('telegram', 'staff', $uid) === true);
