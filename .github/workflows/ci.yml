@@ -64,7 +64,8 @@ jobs:
           set -euo pipefail
           : > /tmp/no-strict.txt
           while IFS= read -r f; do
-            case "$f" in */vendor/*) continue ;; esac
+            # Bundled third-party (Composer vendor, LGPL phpqrcode, …) — do not require our style.
+            case "$f" in */vendor/*|*/phpqrcode/*) continue ;; esac
             grep -q 'declare(strict_types=1)' "$f" || echo "$f" >> /tmp/no-strict.txt
           done < <(git ls-files '*.php')
           if [ -s /tmp/no-strict.txt ]; then
@@ -72,7 +73,7 @@ jobs:
             cat /tmp/no-strict.txt
             exit 1
           fi
-          echo "strict_types ok (all non-vendor tracked PHP)"
+          echo "strict_types ok (all first-party tracked PHP)"
 
       - name: Module validate
         run: php bin/module-validate.php --format=json
