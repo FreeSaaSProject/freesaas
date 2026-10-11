@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** Shared language switcher (topbar / auth / rail). */
 $curLocale = I18n::locale();
 $returnPath = request_path();

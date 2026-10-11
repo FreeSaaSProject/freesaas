@@ -2,7 +2,7 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "0.2.7",
+    "version": "0.2.8",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -130,7 +130,8 @@
         "base_bot_links",
         "base_bot_chat_state",
         "base_bot_webhook_updates",
-        "base_bot_link_codes"
+        "base_bot_link_codes",
+        "base_bot_link_throttle"
     ],
     "migrators": [
         {

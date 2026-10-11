@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,mixed> $invite */
 /** @var array<string,mixed>|null $poll */
 /** @var array{path:list<array{qid:int,question:array<string,mixed>,answer:mixed}>,next_qid:int,done:bool,needs_sign:bool} $state */

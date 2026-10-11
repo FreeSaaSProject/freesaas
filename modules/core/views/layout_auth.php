@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var string $content */
 /** @var string $title */
 $brand = (string)Config::get('app', 'name', 'FreeSaaS');

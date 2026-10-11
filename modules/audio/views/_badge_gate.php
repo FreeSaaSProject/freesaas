@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var bool $forced */
 /** @var array<string,string> $options */
 $forced = !empty($forced);

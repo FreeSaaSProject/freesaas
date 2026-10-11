@@ -191,7 +191,7 @@ function freesaas_cmd_bot(string $sub, array $args, array $opts): void
             'ttl_seconds' => $code['ttl_seconds'],
             'bot_source' => $source,
             'id_entity' => $entityId,
-            'hint' => 'Send this 6-digit code to the bot from the chat to link',
+            'hint' => 'Send this 10-character code to the bot from the chat to link',
         ]);
         return;
     }

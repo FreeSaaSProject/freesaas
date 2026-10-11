@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array{id:string,title:string,module:string,enabled:bool,settings:array,settings_schema:array}> $layout */
 /** @var list<array{path:string,title:string,group:string}> $menuLayout */
 /** @var bool $railPeek */

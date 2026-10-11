@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array $user */
 if (!Database::columnExists('base_users', 'IS_ACCEPTOR')) {
     return;

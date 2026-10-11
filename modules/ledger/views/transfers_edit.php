@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,mixed> $row */
 /** @var array<int,string> $accounts */
 /** @var array<int,string> $transferTypes */

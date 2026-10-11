@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,string> $cfg */
 /** @var array<int,string> $moveTypes */
 /** @var list<array{id:string,label:string,configured:bool}> $providers */

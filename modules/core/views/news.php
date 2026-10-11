@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array $items */
 /** @var array $folders */
 /** @var int $total */

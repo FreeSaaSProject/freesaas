@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,mixed> $row */
 /** @var string $message */
 /** @var string $error */

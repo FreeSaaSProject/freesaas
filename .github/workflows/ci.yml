@@ -1,0 +1,185 @@
+name: CI
+
+# Static checks on every push/PR; install job catches MariaDB/MySQL blockers (B1/B2).
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  static:
+    name: static (PHP ${{ matrix.php }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.1', '8.2', '8.4']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Config from example (all modules on)
+        run: |
+          cp cfg/config.example.ini cfg/config.ini
+          php -r '
+          $ini = parse_ini_file("cfg/config.ini", true, INI_SCANNER_RAW);
+          if (!is_array($ini)) { fwrite(STDERR, "bad ini\n"); exit(1); }
+          $ini["connect"]["host"] = "127.0.0.1";
+          $ini["connect"]["user_db"] = "ci";
+          $ini["connect"]["password"] = "ci";
+          $ini["connect"]["dbase"] = "ci";
+          $ini["app"]["agent_token"] = "ci-static-agent-token";
+          foreach (glob("modules/*/module.json") as $f) {
+            $ini["modules"][basename(dirname($f))] = "1";
+          }
+          $out = "";
+          foreach ($ini as $sec => $vals) {
+            $out .= "[" . $sec . "]\n";
+            foreach ($vals as $k => $v) { $out .= $k . "=" . $v . "\n"; }
+            $out .= "\n";
+          }
+          file_put_contents("cfg/config.ini", $out);
+          '
+
+      - name: PHP lint
+        run: |
+          set -euo pipefail
+          find app bin modules -name '*.php' -not -path '*/vendor/*' -print0 \
+            | xargs -0 -n1 php -l >/tmp/php-l.txt
+          # Fail only on parse errors (php -l prints "No syntax errors" on success)
+          if grep -E -i 'parse error|fatal error|errors parsing' /tmp/php-l.txt; then
+            exit 1
+          fi
+          echo "php -l ok ($(wc -l < /tmp/php-l.txt) files)"
+
+      - name: Module validate
+        run: php bin/module-validate.php --format=json
+
+      - name: i18n check
+        run: php bin/check-i18n.php --format=json
+
+      - name: Security helper checks
+        run: |
+          php bin/check-safe-html.php
+          php bin/check-csrf.php
+          php bin/check-password.php
+
+      - name: Public route allow-list
+        run: php bin/check-routes.php
+
+  install:
+    name: install (${{ matrix.db }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - db: mariadb:10.11
+            php: '8.2'
+          - db: mysql:8.0
+            php: '8.2'
+    services:
+      db:
+        image: ${{ matrix.db }}
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: freesaas
+          MYSQL_USER: freesaas
+          MYSQL_PASSWORD: freesaas
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: pdo_mysql
+          coverage: none
+
+      - name: Config + enable all modules
+        run: |
+          cp cfg/config.example.ini cfg/config.ini
+          php -r '
+          $ini = parse_ini_file("cfg/config.ini", true, INI_SCANNER_RAW);
+          $ini["connect"]["host"] = "127.0.0.1";
+          $ini["connect"]["user_db"] = "freesaas";
+          $ini["connect"]["password"] = "freesaas";
+          $ini["connect"]["dbase"] = "freesaas";
+          $ini["app"]["agent_token"] = "ci-install-agent-token";
+          $mods = [];
+          foreach (glob("modules/*/module.json") as $f) {
+            $id = basename(dirname($f));
+            $ini["modules"][$id] = "1";
+            $mods[] = $id;
+          }
+          $out = "";
+          foreach ($ini as $sec => $vals) {
+            $out .= "[" . $sec . "]\n";
+            foreach ($vals as $k => $v) { $out .= $k . "=" . $v . "\n"; }
+            $out .= "\n";
+          }
+          file_put_contents("cfg/config.ini", $out);
+          file_put_contents("/tmp/freesaas-all-modules.txt", implode(",", $mods));
+          echo "modules=" . count($mods) . "\n";
+          '
+
+      - name: Bootstrap
+        run: |
+          MODS=$(cat /tmp/freesaas-all-modules.txt)
+          php bin/freesaas.php bootstrap \
+            --login=ciadmin \
+            --password='CiTestPass1!' \
+            --name='CI Admin' \
+            --agent-token='ci-install-agent-token' \
+            --modules="$MODS" \
+            --format=json
+
+      - name: Migrate run (idempotent second pass)
+        run: |
+          set -euo pipefail
+          php bin/freesaas.php migrate run --format=json | tee /tmp/mig1.json
+          php -r '$j=json_decode(file_get_contents("/tmp/mig1.json"),true); if(empty($j["ok"])){fwrite(STDERR,"migrate1 not ok\n"); exit(1);} echo "applied1=".($j["applied"]??"?")."\n";'
+          php bin/freesaas.php migrate run --format=json | tee /tmp/mig2.json
+          php -r '
+          $j=json_decode(file_get_contents("/tmp/mig2.json"),true);
+          if(empty($j["ok"])){fwrite(STDERR,"migrate2 not ok\n"); exit(1);}
+          $a=(int)($j["applied"]??-1);
+          if($a!==0){fwrite(STDERR,"expected applied===0 on second migrate, got $a\n"); exit(1);}
+          echo "applied2=0 ok\n";
+          '
+
+      - name: Health (no fail)
+        run: |
+          php bin/freesaas.php health --format=json | tee /tmp/health.json
+          php -r '
+          $j=json_decode(file_get_contents("/tmp/health.json"),true);
+          $st=(string)($j["status"]??"");
+          if($st==="fail"){fwrite(STDERR,"health status=fail\n"); exit(1);}
+          echo "health status=$st\n";
+          '
+
+      - name: Smoke
+        run: php bin/smoke.php --format=json
+
+      - name: Round-trip CLI (auth / bots)
+        run: |
+          set -euo pipefail
+          php bin/freesaas.php user hash-audit --format=json
+          php bin/freesaas.php user login-link ciadmin --ttl=15 --format=json
+          php bin/freesaas.php bot link-code ciadmin --ttl=600 --format=json
+          php bin/freesaas.php bot unlink ciadmin --format=json || true
+          php bin/freesaas.php user logout-all ciadmin --format=json

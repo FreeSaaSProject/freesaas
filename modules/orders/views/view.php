@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,mixed> $order */
 /** @var list<array{id:int,name:string,price:float,price_original:float}> $cart */
 /** @var array<string,mixed>|null $procedure */

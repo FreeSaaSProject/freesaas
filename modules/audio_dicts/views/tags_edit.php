@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var ?array $row */
 /** @var bool $isNew */
 /** @var string $error */

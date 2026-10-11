@@ -137,6 +137,18 @@ Same package, same `[connect]` database, two vhosts:
 1. **Admin** — `DirectoryIndex index.php` (default `.htaccess`).
 2. **Public** — `SetEnv FREESAAS_FRONT site` in the vhost, **or** use [`cfg/htaccess.storefront.example`](../../cfg/htaccess.storefront.example) / `site.php`.
 
+## nginx (deny sensitive paths)
+
+Apache ships path denials in root `.htaccess` (`app|cfg|bin|docs|var|log`, theme PHP, module PHP outside `assets/`). nginx ignores `.htaccess` — add an equivalent block to the vhost (document root = FreeSaaS package root):
+
+```nginx
+location ~ ^/(app|cfg|bin|docs|var|log)/ { deny all; }
+location ~ ^/themes/[^/]+/(layouts|views|partials)/ { deny all; }
+location ~ ^/modules/[^/]+/(?!assets/).*\.(php)$ { deny all; }
+```
+
+`var/` holds PHP sessions, DB dumps (`var/db_dumps/`), and optional `var/setup.key` — never serve it.
+
 Enable module `sites` (alpha — `--accept-risk`) plus `catalog` / `orders` / `clients` as needed. Set `app.public_host` / `app.admin_host` (or `cfg/modules/sites.ini`). Full runbook: [sites.md](sites.md).
 
 Bootstrap example with storefront modules:

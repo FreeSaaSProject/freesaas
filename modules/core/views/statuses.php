@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array> $items */
 ?>
 <section class="page-head">

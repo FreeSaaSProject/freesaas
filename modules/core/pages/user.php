@@ -55,6 +55,31 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && Auth::capability('SUPERA
         flash_set('ok', t('core.user.logout_all_ok'));
         redirect('/users/' . $id);
     }
+    if ($action === 'bot_link_code' && ModuleManager::isEnabled('bots')) {
+        require_once base_path('modules/bots/lib/BotLinksRepository.php');
+        require_once base_path('modules/bots/lib/BotLinkCodesRepository.php');
+        try {
+            $code = BotLinkCodesRepository::create(BotLinksRepository::SOURCE_STAFF, $id);
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'code' => $code['code'],
+                    'expires_at' => $code['expires_at'],
+                    'ttl_seconds' => $code['ttl_seconds'],
+                ]);
+            }
+            flash_set('ok', t('core.user.bot_link_code_flash', [
+                'code' => $code['code'],
+                'minutes' => (string)max(1, (int)ceil($code['ttl_seconds'] / 60)),
+            ]));
+        } catch (Throwable $e) {
+            if ($wantsJson) {
+                AgentHttp::error(t('core.user.bot_link_code_error'), 400);
+            }
+            flash_set('error', t('core.user.bot_link_code_error'));
+        }
+        redirect('/users/' . $id);
+    }
 }
 
 $statuses = UsersRepository::statusNames();
@@ -92,6 +117,7 @@ View::render('user', [
     'partnerStatusName' => $partnerStatusName,
     'favoritesCount' => count(UsersRepository::favoriteIds($id)),
     'canManageAuth' => Auth::capability('SUPERADMIN_ACCESS'),
+    'canBotLinkCode' => Auth::capability('SUPERADMIN_ACCESS') && ModuleManager::isEnabled('bots'),
     'flash' => flash_take(),
     'profileChannelsHtml' => is_array($profile) ? (string)($profile['html_channels'] ?? '') : '',
     'profileFlagsHtml' => is_array($profile) ? (string)($profile['html_flags'] ?? '') : '',

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var int $todayCount */
 /** @var int $futureCount */
 $todayCount = (int)($todayCount ?? 0);

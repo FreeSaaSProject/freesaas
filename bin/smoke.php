@@ -3,9 +3,10 @@
 declare(strict_types=1);
 
 /**
- * Minimal agent/CI smoke: system status + module validate + locale validate + health.
- * Does not fail the whole run on module validate warnings-as-errors from legacy hooks prose —
- * validate errors fail; health fail fails; locale fail fails.
+ * Minimal agent/CI smoke: system + module validate + locale validate + health
+ * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook.
+ * PHP lint (`php -l`) and public-route allow-list (`bin/check-routes.php`) run in
+ * `.github/workflows/ci.yml` static job — not here (no need for a DB-less lint loop in smoke).
  *
  * Exit: 0 ok, 1 fail
  */

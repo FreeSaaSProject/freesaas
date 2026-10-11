@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-11T08:57:32+00:00",
+    "generated_at": "2026-10-11T10:53:31+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.13",
+            "version": "0.1.14",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -72,7 +72,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -135,7 +135,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -204,7 +204,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -347,7 +347,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.6",
+            "version": "0.2.8",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -1382,7 +1382,7 @@
         },
         {
             "id": "updates",
-            "version": "0.3.12",
+            "version": "0.3.13",
             "type": "product",
             "name": {
                 "en": "Updates",

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array{reward?:bool,ticket?:int,no_records?:bool,comment_id?:int} $meta */
 $meta = is_array($meta ?? null) ? $meta : [];
 $ticket = (int)($meta['ticket'] ?? 0);

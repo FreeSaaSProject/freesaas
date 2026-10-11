@@ -39,6 +39,8 @@ php bin/freesaas.php bot link-code client:42 --format=json     # client id
 php bin/freesaas.php bot unlink admin --platform=telegram --format=json
 ```
 
+Staff UI: **Bot link code** on `/users/{id}` (superadmin). Codes are 10 chars from a 32-symbol alphabet (≈50 bits), TTL 10 minutes; 3 wrong guesses burn the code; 5 wrong guesses from a chat lock that chat for 15 minutes. Consume is transactional (`FOR UPDATE` + `rowCount`).
+
 Writes chat ids into **`base_bot_links`** (`BOT_SOURCE` 2=staff, 1=client). Existing different chat is not overwritten (unlink first). Disabled users/clients are not linkable.
 
 ## Bot types (menu)

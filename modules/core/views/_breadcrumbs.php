@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * @var list<array{label:string, href?:?string, current?:bool}> $items
  * @var string $ariaLabel

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * @var float $pct 0..100+
  * @var string $labelShort

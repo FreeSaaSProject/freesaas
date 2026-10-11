@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,string> $cfg */
 $mode = $cfg['mode'] ?? 'local';
 ?>

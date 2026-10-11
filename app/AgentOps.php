@@ -891,7 +891,7 @@ final class AgentOps
                 ['method' => 'GET', 'path' => '/agent/db/migrate', 'op' => 'migrate.status', 'query' => ['module']],
                 ['method' => 'POST', 'path' => '/agent/db/migrate/run', 'op' => 'migrate.run', 'query' => ['module']],
                 ['method' => 'GET', 'path' => '/agent/db/dumps', 'op' => 'db.dumps'],
-                ['method' => 'GET', 'path' => '/agent/db/dump/file', 'op' => 'db.dump_file', 'query' => ['file', 'token']],
+                ['method' => 'GET', 'path' => '/agent/db/dump/file', 'op' => 'db.dump_file', 'query' => ['file', 'exp', 'sig']],
                 ['method' => 'POST', 'path' => '/agent/db/dump', 'op' => 'db.dump', 'query' => ['label']],
                 ['method' => 'POST', 'path' => '/agent/db/restore', 'op' => 'db.restore', 'query' => ['file']],
                 ['method' => 'POST', 'path' => '/agent/db/dump/delete', 'op' => 'db.dump_delete', 'query' => ['file']],

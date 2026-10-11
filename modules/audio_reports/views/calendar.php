@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Oper-style month grid: days as cells, staff grouped by position inside each day.
  *

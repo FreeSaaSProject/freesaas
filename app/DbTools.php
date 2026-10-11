@@ -837,20 +837,21 @@ final class DbTools
     }
 
     /**
-     * Absolute fetch URL with agent_token for paste into another instance «Fetch by URL».
+     * Absolute fetch URL with short-lived HMAC sig for paste into another instance «Fetch by URL».
      * Null when agent_token is not configured or file name is invalid.
+     * Does not put the raw agent_token in the query string.
      */
     public static function agentDumpFetchUrl(string $file): ?string
     {
-        if (!AgentAuth::isConfigured()) {
+        // 1h TTL: cross-host fetch may stream large dumps with Range retries.
+        $signed = AgentAuth::signDumpFile($file, 3600);
+        if ($signed === null) {
             return null;
         }
         $file = basename(str_replace(["\0", '\\'], '', $file));
-        if ($file === '' || !preg_match('/^[A-Za-z0-9._-]+\.sql(\.gz)?$/i', $file)) {
-            return null;
-        }
         return self::publicOrigin() . '/agent/db/dump/file?file=' . rawurlencode($file)
-            . '&token=' . rawurlencode(AgentAuth::configuredToken());
+            . '&exp=' . (string)$signed['exp']
+            . '&sig=' . rawurlencode($signed['sig']);
     }
 
     private static function dumpWriteChunk(string $path, string $chunk, bool $gzip, bool $create): void
@@ -1251,7 +1252,7 @@ final class DbTools
         $scheme = (string)($parts['scheme'] ?? 'https');
         $host = (string)($parts['host'] ?? 'example.com');
         $hint = $scheme . '://' . $host . '/agent/db/dump/file?file='
-            . rawurlencode($file) . '&token=…';
+            . rawurlencode($file) . '&exp=…&sig=…';
         throw new InvalidArgumentException(t('core.db.err.fetch_session_url', ['hint' => $hint]));
     }
 

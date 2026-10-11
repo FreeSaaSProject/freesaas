@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array<string,mixed>> $cards */
 /** @var list<array{id:string,cards:list<array<string,mixed>>}> $sections */
 /** @var list<array<string,mixed>> $installable */

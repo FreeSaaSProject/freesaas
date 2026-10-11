@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Mini day board for home (events + procedures + orders, no staff/blocks).
  *

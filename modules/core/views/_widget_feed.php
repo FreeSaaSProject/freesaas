@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var int $type */
 /** @var string $label */
 /** @var string|null $add */

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,mixed> $conn */
 /** @var list<array<string,mixed>> $links */
 /** @var array<int,string> $ledgerAccounts */

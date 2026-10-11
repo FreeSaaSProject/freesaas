@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Summary report body (cards, growth, leaders, day panel).
  *

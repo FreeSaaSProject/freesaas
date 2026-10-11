@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var string $date */
 /** @var string $dateLabel */
 /** @var string $prevDate */

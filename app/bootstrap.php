@@ -59,6 +59,9 @@ try {
         ModuleManager::syncRegistry();
     }
 } catch (Throwable $e) {
-    // DB may not be ready before first schema migrate
-    error_log('[bootstrap] ' . $e->getMessage());
+    // DB may not be ready before first schema migrate / static CI without MySQL.
+    $msg = $e->getMessage();
+    if (stripos($msg, '2002') === false && stripos($msg, 'Connection refused') === false) {
+        error_log('[bootstrap] ' . $msg);
+    }
 }

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Oper-style red banner when inbox has unparsed audio files.
  *

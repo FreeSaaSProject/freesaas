@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array{path:string,title:string,group:string}> $commands */
 $commands = $commands ?? [];
 ?>

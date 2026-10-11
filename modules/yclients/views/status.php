@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,mixed> $payload */
 $maps = is_array($payload['map_counts'] ?? null) ? $payload['map_counts'] : [];
 $jobs = is_array($payload['jobs'] ?? null) ? $payload['jobs'] : [];

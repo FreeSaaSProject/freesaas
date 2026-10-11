@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Full-page nazop (non-AJAX fallback).
  * @var string $html

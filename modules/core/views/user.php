@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array $user */
 /** @var string $statusName */
 /** @var string $partnerStatusName */
@@ -7,12 +8,14 @@
 /** @var string $profileFlagsHtml */
 /** @var string $profileSiteHtml */
 /** @var bool $canManageAuth */
+/** @var bool $canBotLinkCode */
 /** @var array{type?:string,message?:string}|null $flash */
 $uid = (int)$user['id'];
 $profileChannelsHtml = (string)($profileChannelsHtml ?? '');
 $profileFlagsHtml = (string)($profileFlagsHtml ?? '');
 $profileSiteHtml = (string)($profileSiteHtml ?? '');
 $canManageAuth = !empty($canManageAuth);
+$canBotLinkCode = !empty($canBotLinkCode);
 $flash = is_array($flash ?? null) ? $flash : null;
 ?>
 <section class="page-head">
@@ -38,6 +41,12 @@ $flash = is_array($flash ?? null) ? $flash : null;
             onsubmit="return confirm(<?= tj('core.user.logout_all_confirm') ?>)">
         <input type="hidden" name="action" value="logout_all">
         <button type="submit" class="btn"><?= te('core.user.logout_all') ?></button>
+      </form>
+      <?php endif; ?>
+      <?php if ($canBotLinkCode): ?>
+      <form method="post" class="inline-form" action="/users/<?= $uid ?>">
+        <input type="hidden" name="action" value="bot_link_code">
+        <button type="submit" class="btn"><?= te('core.user.bot_link_code') ?></button>
       </form>
       <?php endif; ?>
       <a class="btn-primary" href="/users/<?= $uid ?>/edit"><?= te('core.common.edit') ?></a>

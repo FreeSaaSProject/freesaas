@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array{day:string,items:list<array{id:int,value:int,label:string}>,max:int,total_samples:int} $data */
 $day = (string)$data['day'];
 $max = max(1, (int)$data['max']);

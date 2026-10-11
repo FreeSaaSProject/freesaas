@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Oper-style nazop matrix (days × operators).
  *

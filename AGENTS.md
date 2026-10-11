@@ -215,8 +215,9 @@ Prefer extending these via hooks before forking page logic.
 
 ## Testing / verify locally
 
-- After schema or module changes: `php bin/smoke.php` (system + locale + module validate + health).
+- After schema or module changes: `php bin/smoke.php` (system + locale + module validate + health + `check-safe-html` / `check-csrf` / `check-password` / `check-session` / `check-bots-webhook`).
 - Prefer CLI: `php bin/freesaas.php module validate <id>`, `health`, `locale validate`.
+- Before PR (also in `.github/workflows/ci.yml`): `php -l` on changed PHP, `bin/check-i18n.php`, `bin/check-routes.php` (public-route allow-list; enable all modules in `cfg/config.ini` first), plus the `bin/check-*.php` helpers above.
 - Smoke the affected route in browser if UI changed.
 - Keep StageTiming marks only if already used on that page path.
 - Lifecycle: uninstall is **disable-only** (tables remain); see agent-native-audit.

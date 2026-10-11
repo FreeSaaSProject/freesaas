@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array $user */
 $checked = !empty($user['STOCK_REVISION']) ? ' checked' : '';
 ?>

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array> $items */
 /** @var int $total */
 /** @var bool $scoped */

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var bool $isNew */
 /** @var array $row */
 /** @var list<array{title:string,when:string,fields:list<array{key:string,label:string,type:string}>}> $groups */

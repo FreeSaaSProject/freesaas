@@ -149,15 +149,29 @@ final class LoginLinksRepository
 
     public static function absoluteUrl(string $token): string
     {
-        $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-            || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
-        $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        $fromConfig = false;
+        $host = '';
+        if (class_exists('Config', false)) {
+            $host = trim((string)Config::get('app', 'admin_host', ''));
+            if ($host === '') {
+                $host = trim((string)Config::get('app', 'public_host', ''));
+            }
+            $fromConfig = $host !== '';
+        }
+        $host = preg_replace('#^https?://#i', '', $host) ?? '';
+        $host = rtrim($host, '/');
         if ($host === '') {
-            // CLI: relative path is enough for ops to prefix with their host.
+            $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        }
+        if ($host === '') {
             return '/login/t/' . $token;
         }
+        $https = $fromConfig
+            || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
         $scheme = $https ? 'https' : 'http';
 
         return $scheme . '://' . $host . '/login/t/' . $token;
     }
 }
+

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var string $brand Product name (FreeSaaS) */
 /** @var string $instance Company display name */
 /** @var string $brandClass CSS class: rail-brand | topbar-brand */

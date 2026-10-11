@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var bool $canEdit */
 /** @var string $error */
 /** @var string $admin_host */

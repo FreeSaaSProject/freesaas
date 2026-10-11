@@ -17,9 +17,13 @@ if ($allowSetupKey && SetupKey::providedKey() === '') {
     }
 }
 
-AgentAuth::assertToken($allowSetupKey);
+// Binary dump download (not JSON) — header/Bearer or short-lived ?exp=&sig= (never raw ?token=).
+if ($path === '/agent/db/dump/file' && $method === 'GET') {
+    AgentAuth::assertDumpFileAccess();
+} else {
+    AgentAuth::assertToken($allowSetupKey);
+}
 
-// Binary dump download (not JSON) — for cross-host fetch by URL + ?token=
 if ($path === '/agent/db/dump/file' && $method === 'GET') {
     try {
         $file = (string)($_GET['file'] ?? '');

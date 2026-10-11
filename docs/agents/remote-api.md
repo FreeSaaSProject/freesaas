@@ -23,7 +23,11 @@ Copy from `cfg/config.example.ini` comment. Empty / `CHANGE_ME` → `/agent/*` r
 Send on every request (after bootstrap):
 
 - Header: `X-FreeSaaS-Agent-Token: <secret>`
-- or query/body: `?token=<secret>` (prefer header)
+- or `Authorization: Bearer <secret>`
+
+Do **not** put the agent token in the query string or POST body (`?token=` is ignored). It leaks into access logs, Referer, and browser history.
+
+Dump download (`GET /agent/db/dump/file`): same headers, **or** a short-lived signed URL from `/db` → «Copy link» (`?file=&exp=&sig=` — HMAC, not the raw token).
 
 **Virgin install** (no staff users yet):
 

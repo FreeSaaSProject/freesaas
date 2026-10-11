@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array<string,mixed>> $moves */
 /** @var list<int> $ids */
 /** @var array<int,string> $actOptions */

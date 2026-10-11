@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Injected into calendar event edit via EventBus calendar.event.sections.
  *

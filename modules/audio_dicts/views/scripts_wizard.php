@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var string $error */
 /** @var string $path */
 /** @var array $meta */

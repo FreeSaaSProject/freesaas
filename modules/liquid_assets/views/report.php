@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array{y:int,m:int,ym:string,month_start:int,month_end:int,prev_ym:string,next_ym:string,title:string,is_current:bool} $period */
 /** @var array<string,mixed> $report */
 /** @var array{ok:bool,message:string}|null $syncFlash */

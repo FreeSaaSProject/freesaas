@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var array<string,int> $bounds */
 $fields = [
     'rate_start' => ['hourStartOffRate', 'minStartOffRate'],

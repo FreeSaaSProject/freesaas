@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var int $year */
 /** @var list<int> $years */
 /** @var int $yStart */

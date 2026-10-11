@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var int $folderId */
 /** @var array<string,mixed>|null $folder */
 /** @var list<array{label:string, href?:?string, current?:bool}> $breadcrumbs */

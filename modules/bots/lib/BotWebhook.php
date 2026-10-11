@@ -461,25 +461,53 @@ final class BotWebhook
         if (!class_exists('BotLinkCodesRepository', false) || !BotLinkCodesRepository::tableReady()) {
             return false;
         }
-        $consumed = BotLinkCodesRepository::consume($text);
-        if ($consumed === null) {
+        if (!BotLinkCodesRepository::looksLikeCode($text)) {
             return false;
         }
-        $wantSource = BotLinksRepository::audienceToSource($cfg['audience']);
-        if ((int)$consumed['bot_source'] !== $wantSource) {
+        $channel = $cfg['audience'];
+        if (BotLinkCodesRepository::isChatLocked($platform, $channel, $chatId)) {
             BotClient::sendUiMessage(
                 $platform,
                 $cfg['token'],
                 $chatId,
-                t('bots.auth.code_wrong_audience'),
+                t('bots.auth.code_chat_locked'),
                 null,
                 '',
                 null,
                 $cfg['audience']
             );
 
-            return true; // handled (rejected)
+            return true;
         }
+
+        $wantSource = BotLinksRepository::audienceToSource($cfg['audience']);
+        $consumed = BotLinkCodesRepository::consume($text, $wantSource);
+        if (empty($consumed['ok'])) {
+            $reason = (string)($consumed['reason'] ?? 'not_found');
+            if ($reason !== 'wrong_audience' && $reason !== 'shape') {
+                BotLinkCodesRepository::registerCodeMiss($text);
+            }
+            $locked = BotLinkCodesRepository::recordChatFail($platform, $channel, $chatId);
+            $msg = $locked
+                ? t('bots.auth.code_chat_locked')
+                : ($reason === 'wrong_audience'
+                    ? t('bots.auth.code_wrong_audience')
+                    : t('bots.auth.code_invalid'));
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                $msg,
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
+
+            return true;
+        }
+
+        BotLinkCodesRepository::clearChatFails($platform, $channel, $chatId);
         $entityId = (int)$consumed['id_entity'];
         $result = $cfg['audience'] === 'client'
             ? BotIdentity::bindClient($entityId, $platform, $chatId)

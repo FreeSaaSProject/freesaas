@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array<string,mixed>> $items */
 /** @var list<array{id:string,label:string,configured:bool,connection_id:int}> $providers */
 /** @var bool $canConnect */

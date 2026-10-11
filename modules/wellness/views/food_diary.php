@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /** @var list<array<string,mixed>> $items */
 /** @var list<array{key:string,label:string,items:list<array<string,mixed>>,totals:array<string,float|int>}> $meals */
 /** @var list<array<string,mixed>> $workouts */

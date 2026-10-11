@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 /**
  * Oper-style timeline grid (week or single day).
  *
