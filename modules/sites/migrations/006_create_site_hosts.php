@@ -71,10 +71,17 @@ return static function (PDO $pdo): void {
     }
 
     // Prefer base_system (UTF-8 in DB). connect.sitename in ini is often legacy/broken encoding.
+    // Greenfield core creates base_system without tel (oper/legacy only) — probe columns.
     $tel = '';
     $name = '';
     if (Database::tableExists('base_system')) {
-        $sys = $pdo->query('SELECT name, tel FROM base_system ORDER BY id ASC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
+        $sel = ['name'];
+        if (Database::columnExists('base_system', 'tel')) {
+            $sel[] = 'tel';
+        }
+        $sys = $pdo->query(
+            'SELECT ' . implode(', ', $sel) . ' FROM base_system ORDER BY id ASC LIMIT 1'
+        )->fetch(PDO::FETCH_ASSOC);
         if (is_array($sys)) {
             if (trim((string)($sys['tel'] ?? '')) !== '') {
                 $tel = mb_substr(trim((string)$sys['tel']), 0, 64, 'UTF-8');

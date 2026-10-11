@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "type": "product",
     "runtime": "both",
     "requires": {

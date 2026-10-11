@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-11T10:53:31+00:00",
+    "generated_at": "2026-10-11T11:22:11+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1123,7 +1123,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "Sites",
