@@ -19,9 +19,19 @@ Please include your organization (if any), intended use (internal SaaS,
 on-prem redistribution, OEM/integration, etc.), and the FreeSaaS version or
 git revision you plan to ship.
 
-## Third-party components
+## Scope of a commercial license
 
-A commercial license covers **FreeSaaS code** owned by Ilya Kleshnin. Third-party
-libraries, fonts, themes, and other components remain under their own licenses.
-See [`THIRD_PARTY.md`](THIRD_PARTY.md). You must continue to comply with those
-terms even when using FreeSaaS under a commercial license.
+Unless a written commercial agreement says otherwise, a commercial license from
+the copyright holder covers:
+
+1. **FreeSaaS code owned by Ilya Kleshnin**; and
+2. **Contributions** incorporated into FreeSaaS for which the Maintainer has
+   received the right to distribute under commercial/alternative license terms
+   under the [Contributor License Agreement](CLA.md) (contributors retain
+   copyright ownership; they grant a license that includes commercial
+   sublicensing — see CLA §2).
+
+It does **not** by itself re-license third-party libraries, fonts, themes, or
+other components that remain under their own licenses. See
+[`THIRD_PARTY.md`](THIRD_PARTY.md). You must continue to comply with those terms
+even when using FreeSaaS under a commercial license.
