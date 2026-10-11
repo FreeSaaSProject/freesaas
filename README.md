@@ -35,3 +35,14 @@ Shared hosting without SSH: `POST /agent/bootstrap` — see [docs/agents/install
 
 - Runtime tables: `base_*` only.
 - Modules live in `modules/<id>/` with `module.json`.
+
+## Licensing
+
+FreeSaaS is dual-licensed:
+
+- **Open source:** [GNU Affero General Public License v3 or later](LICENSE) (`AGPL-3.0-or-later`).
+- **Commercial:** optional license from the copyright holder for use, modification, integration, or distribution without AGPL obligations — see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+
+Copyright © 2026 Ilya Kleshnin. “FreeSaaS” is the project name, not a separate legal entity.
+
+External contributions require accepting the [CLA](CLA.md) — see [CONTRIBUTING.md](CONTRIBUTING.md). Third-party components and their licenses: [THIRD_PARTY.md](THIRD_PARTY.md).

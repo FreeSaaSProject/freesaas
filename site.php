@@ -1,10 +1,12 @@
 <?php
-declare(strict_types=1);
-
 /**
+ * Copyright (C) 2026 Ilya Kleshnin
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ *
  * Storefront front controller (public site host).
  * Same package as index.php; AppRuntime role = storefront.
  */
+declare(strict_types=1);
 
 error_reporting(E_ALL);
 ini_set('display_errors', '1');
