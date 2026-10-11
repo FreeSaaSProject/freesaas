@@ -28,11 +28,13 @@ return static function (PDO $pdo): void {
                 `expires_at` INT UNSIGNED NOT NULL,
                 `used_at` INT UNSIGNED NULL DEFAULT NULL,
                 `created_at` INT UNSIGNED NOT NULL,
+                `fail_count` TINYINT UNSIGNED NOT NULL DEFAULT 0,
                 PRIMARY KEY (`id`),
                 UNIQUE KEY `uq_bot_link_code_hash` (`code_hash`),
                 KEY `idx_bot_link_code_entity` (`bot_source`, `id_entity`),
                 KEY `idx_bot_link_code_exp` (`expires_at`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+        Database::clearSchemaCache();
     }
 };

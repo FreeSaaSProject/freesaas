@@ -125,6 +125,9 @@ final class SchemaMigrator
                     throw new RuntimeException('Migration must return callable');
                 }
                 $fn(Database::pdo());
+                // Next migration in this module must see tables/columns just created
+                // (tableExists/columnExists caches would otherwise skip ALTERs).
+                Database::clearSchemaCache();
                 self::markApplied($moduleId, $migId);
                 $report[] = ['module' => $moduleId, 'id' => $migId, 'file' => $file, 'status' => 'ok'];
             } catch (Throwable $e) {

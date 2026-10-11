@@ -182,7 +182,7 @@ final class BotLinkCodesRepository
                 $started = true;
             }
             $st = $pdo->prepare(
-                'SELECT id, bot_source, id_entity, expires_at, used_at, fail_count
+                'SELECT id, bot_source, id_entity, expires_at, used_at
                  FROM base_bot_link_codes WHERE code_hash = ? LIMIT 1 FOR UPDATE'
             );
             $st->execute([$hash]);

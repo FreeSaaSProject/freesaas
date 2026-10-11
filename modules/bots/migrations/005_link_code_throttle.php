@@ -5,6 +5,8 @@ declare(strict_types=1);
  * Link-code strength: fail_count on codes + per-chat throttle table.
  */
 return static function (PDO $pdo): void {
+    // Prefer information_schema over cached tableExists (004 may have just created the table).
+    Database::clearSchemaCache();
     if (Database::tableExists('base_bot_link_codes')
         && !Database::columnExists('base_bot_link_codes', 'fail_count')
     ) {
@@ -12,6 +14,7 @@ return static function (PDO $pdo): void {
             'ALTER TABLE `base_bot_link_codes`
              ADD COLUMN `fail_count` TINYINT UNSIGNED NOT NULL DEFAULT 0'
         );
+        Database::clearSchemaCache();
     }
 
     if (!Database::tableExists('base_bot_link_throttle')) {
@@ -26,5 +29,6 @@ return static function (PDO $pdo): void {
                 PRIMARY KEY (`platform`, `channel`, `chat_id`)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+        Database::clearSchemaCache();
     }
 };
