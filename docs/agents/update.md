@@ -1,8 +1,17 @@
 # Self-update (core + modules)
 
-Instances pull code over HTTPS (optional token) without git CLI. After overlay: existing migrate → health.
+Instances pull code over HTTPS (optional token) without git CLI.
 
-UI: **`updates`** (`/updates`). Engine: [`app/UpdateEngine.php`](../../app/UpdateEngine.php).
+UI: **`updates`** (`/updates`). Facade: [`app/UpdateEngine.php`](../../app/UpdateEngine.php). Implementation: [`app/Update/`](../../app/Update/) (`UpdateApply`, `UpdateRollback`, `UpdateOverlay`, …).
+
+### Apply safety
+
+1. **Snapshot** files that overlay will touch → `var/updates/rollback/<id>/`.
+2. **Overlay** into the live tree (deny-list still skipped).
+3. Optional **DB dump** if `db_backup_before_migrate=1` in `[updates]` / `--db-backup` / settings checkbox (default **off** — full dumps are slow on large tables like `base_records`).
+4. **Migrate** (unless `--no-migrate`).
+5. **Health** — required for `ok` (UI job and sync apply).
+6. On failure: restore files from snapshot; restore DB dump only if migrate failed **and** a dump was taken. Health failure after a successful migrate does not auto-restore DB (`needs_manual_db_review`). Sync multi-package stops on the first failure.
 
 ## How it works
 
@@ -41,6 +50,7 @@ CLI / agent: `php bin/freesaas.php module install <id>` · `POST /agent/modules/
 - Channel `stable` / `latest` → latest Release: prefer one **full** asset (`freesaas-<ver>.zip` or `asset=`), else zipball of the release tag.
 - Overlay skips deny-list (`cfg/`, `var/`, …) and any module that has its own `[module.<id>]` (private/external).
 - External modules: download that repo’s archive and overlay only `modules/<id>/`.
+- Success = migrate (if enabled) **and** health not `fail`.
 
 Product modules are **not** shipped as separate zips from this monorepo. If a module later lives in another repo, add `[module.id]` and build with `bin/build-release-artifacts.sh --module=id`.
 
@@ -91,6 +101,7 @@ php bin/freesaas.php update check --target=banks --format=json
 php bin/freesaas.php update apply --target=core --format=json
 php bin/freesaas.php update apply --target=all --format=json
 php bin/freesaas.php update apply --target=core --no-migrate --format=json
+php bin/freesaas.php update apply --target=core --db-backup --format=json
 ```
 
 ## HTTP platform (`app.agent_token`)

@@ -998,12 +998,16 @@ final class AgentOps
             'protocol' => 'freesaas-agent/1',
             'auth' => [
                 'header' => 'X-FreeSaaS-Agent-Token',
-                'query' => 'token',
+                'bearer' => true,
+                'query' => null,
+                'query_note' => '?token= is ignored (leaks into logs); use header or Bearer only',
                 'config' => 'app.agent_token',
                 'setup_key_header' => 'X-FreeSaaS-Setup-Key',
                 'setup_key_file' => 'var/setup.key',
-                'bootstrap_note' => 'POST /agent/bootstrap requires pre-set app.agent_token or var/setup.key (no open virgin door)',
+                'virgin_open' => false,
+                'bootstrap_note' => 'POST /agent/bootstrap requires pre-set app.agent_token (header) or var/setup.key (X-FreeSaaS-Setup-Key); no anonymous virgin door. CLI bootstrap needs no HTTP auth.',
                 'rescue_note' => 'POST /agent/rescue with agent_token or setup.key resets/creates superadmin (CLI: rescue)',
+                'docs' => 'docs/agents/install.md',
             ],
             'maturity_policy' => ModuleCatalog::maturityPolicy(),
             'ops' => [
@@ -1085,9 +1089,9 @@ final class AgentOps
                     'method' => 'POST',
                     'path' => '/agent/update/apply',
                     'op' => 'update.apply',
-                    'query' => ['target', 'migrate'],
-                    'body' => ['target', 'migrate'],
-                    'description' => 'Download one monorepo zip/zipball + overlay + migrate. target=core|moduleId|all.',
+                    'query' => ['target', 'migrate', 'db_backup'],
+                    'body' => ['target', 'migrate', 'db_backup'],
+                    'description' => 'Snapshot files → overlay → migrate → health (ok). Optional db_backup. target=core|moduleId|all.',
                 ],
             ],
             'cli' => 'php bin/freesaas.php … --format=json',
@@ -1113,9 +1117,9 @@ final class AgentOps
     /**
      * @return array<string,mixed>
      */
-    public static function updateApply(?string $target = null, bool $migrate = true): array
+    public static function updateApply(?string $target = null, bool $migrate = true, bool $dbBackup = false): array
     {
-        return UpdateEngine::apply($target, $migrate);
+        return UpdateEngine::apply($target, $migrate, $dbBackup);
     }
 
     /**

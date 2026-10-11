@@ -70,7 +70,7 @@ return [
     'updates.settings.channel_main' => 'main — ветка, zipball при установке',
     'updates.settings.channel_stable' => 'stable — последний Release + полный zip',
     'updates.settings.channel_latest' => 'latest — то же, что stable',
-    'updates.settings.channel_help' => 'Check читает modules/<id>/module.json → version на ref канала. Apply: main → zipball; stable → freesaas-*.zip с релиза.',
+    'updates.settings.channel_help' => 'Check читает modules/<id>/module.json → version на ref канала. Apply: snapshot файлов → overlay → migrate → health; main → zipball; stable → freesaas-*.zip с релиза.',
     'updates.settings.ref' => 'Ref (необязательно)',
     'updates.settings.ref_ph' => 'пусто = из канала (main / tag релиза)',
     'updates.settings.asset' => 'Имя zip на Release (необязательно)',
@@ -98,6 +98,9 @@ return [
     'updates.job.step_extract' => 'Распаковка {id}…',
     'updates.job.step_overlay' => 'Установка файлов {id}…',
     'updates.job.step_migrate' => 'Миграции {id}…',
+    'updates.job.step_health' => 'Проверка health {id}…',
     'updates.job.step_finalize' => 'Завершение {id}…',
+    'updates.settings.db_backup' => 'Снимок БД перед миграцией',
+    'updates.settings.db_backup_help' => 'Опционально: полный дамп owned-таблиц перед migrate. На больших БД (например base_records) очень медленно. По умолчанию выкл — откатываются только файлы.',
     'updates.job.bad_json' => 'Некорректный JSON-ответ',
 ];

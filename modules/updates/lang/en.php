@@ -70,7 +70,7 @@ return [
     'updates.settings.channel_main' => 'main — branch; zipball on apply',
     'updates.settings.channel_stable' => 'stable — latest Release + full zip',
     'updates.settings.channel_latest' => 'latest — same as stable',
-    'updates.settings.channel_help' => 'Check reads modules/<id>/module.json → version on the channel ref. Apply: main → zipball; stable → freesaas-*.zip from the release.',
+    'updates.settings.channel_help' => 'Check reads modules/<id>/module.json → version on the channel ref. Apply: file snapshot → overlay → migrate → health; main → zipball; stable → freesaas-*.zip from the release.',
     'updates.settings.ref' => 'Ref (optional)',
     'updates.settings.ref_ph' => 'empty = from channel (main / release tag)',
     'updates.settings.asset' => 'Release zip name (optional)',
@@ -98,6 +98,9 @@ return [
     'updates.job.step_extract' => 'Extracting {id}…',
     'updates.job.step_overlay' => 'Installing files {id}…',
     'updates.job.step_migrate' => 'Migrating {id}…',
+    'updates.job.step_health' => 'Health check {id}…',
     'updates.job.step_finalize' => 'Finalizing {id}…',
+    'updates.settings.db_backup' => 'Database dump before migrate',
+    'updates.settings.db_backup_help' => 'Optional: full dump of owned tables before migrate. Very slow on large DBs (e.g. base_records). Off by default — only files are rolled back.',
     'updates.job.bad_json' => 'Bad JSON response',
 ];

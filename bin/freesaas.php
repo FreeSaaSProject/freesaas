@@ -114,7 +114,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   health [--module=id] [--format=json]
   doctor [--format=json] [--issue-body]
   i18n check [--locale=xx] [--format=json]
-  update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]
+  update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--db-backup] [--format=json]
   core habits-reminders [--simulate] [--format=json]
   cron tick [--job=id] [--force] [--format=json]
   user unlock <login> [--format=json]
@@ -381,10 +381,11 @@ function freesaas_cmd_update(string $sub, array $opts): void
     }
     if ($sub === 'apply') {
         $migrate = empty($opts['no-migrate']);
-        freesaas_emit_ops(AgentOps::updateApply($target, $migrate));
+        $dbBackup = !empty($opts['db-backup']) || !empty($opts['db_backup']);
+        freesaas_emit_ops(AgentOps::updateApply($target, $migrate, $dbBackup));
         return;
     }
-    Cli::usage('Usage: update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]');
+    Cli::usage('Usage: update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--db-backup] [--format=json]');
 }
 
 /** @param array<string,mixed> $r */

@@ -49,6 +49,13 @@ $channel = (string)($cfg['channel'] ?? 'main');
     <?= te('updates.settings.clear_token') ?>
   </label>
   <?php endif; ?>
+  <label class="check">
+    <input type="checkbox" name="db_backup_before_migrate" value="1"
+      <?= !empty($cfg['db_backup_before_migrate']) ? ' checked' : '' ?>
+      <?= $canSave ? '' : 'disabled' ?>>
+    <?= te('updates.settings.db_backup') ?>
+  </label>
+  <p class="muted form-hint"><?= te('updates.settings.db_backup_help') ?></p>
   <input type="hidden" name="provider" value="github">
   <div class="page-actions">
     <?php if ($canSave): ?>

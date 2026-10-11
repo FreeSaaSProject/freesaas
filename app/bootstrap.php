@@ -33,6 +33,7 @@ require_once __DIR__ . '/AgentAuth.php';
 
 require_once __DIR__ . '/AgentHttpCaptureSignal.php';
 require_once __DIR__ . '/AgentHttp.php';
+require_once __DIR__ . '/Update/_load.php';
 require_once __DIR__ . '/UpdateEngine.php';
 
 // Status flags registry used by product modules during boot (before core routes).

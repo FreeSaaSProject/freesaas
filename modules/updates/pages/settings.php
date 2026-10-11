@@ -19,6 +19,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'asset' => (string)($_POST['asset'] ?? ''),
             'token' => (string)($_POST['token'] ?? ''),
             'clear_token' => !empty($_POST['clear_token']),
+            'db_backup_before_migrate' => !empty($_POST['db_backup_before_migrate']),
         ]);
         $message = t('core.common.saved');
         if ($wantsJson) {

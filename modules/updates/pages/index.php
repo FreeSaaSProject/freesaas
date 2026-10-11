@@ -84,7 +84,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (isset($_POST['migrate'])) {
                 $migrate = !in_array(strtolower((string)$_POST['migrate']), ['0', 'false', 'no'], true);
             }
-            $job = UpdateEngine::jobStart($target === 'all' ? null : $target, $migrate);
+            $dbBackup = !empty($_POST['db_backup']) || !empty($_POST['db_backup_before_migrate']);
+            $job = UpdateEngine::jobStart($target === 'all' ? null : $target, $migrate, $dbBackup);
             if ($wantsJson) {
                 AgentHttp::emit([
                     'ok' => true,
