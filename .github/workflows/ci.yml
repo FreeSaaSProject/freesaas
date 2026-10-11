@@ -59,6 +59,21 @@ jobs:
           fi
           echo "php -l ok ($(wc -l < /tmp/php-l.txt) files)"
 
+      - name: strict_types guard (non-vendor)
+        run: |
+          set -euo pipefail
+          : > /tmp/no-strict.txt
+          while IFS= read -r f; do
+            case "$f" in */vendor/*) continue ;; esac
+            grep -q 'declare(strict_types=1)' "$f" || echo "$f" >> /tmp/no-strict.txt
+          done < <(git ls-files '*.php')
+          if [ -s /tmp/no-strict.txt ]; then
+            echo "Missing declare(strict_types=1) in:"
+            cat /tmp/no-strict.txt
+            exit 1
+          fi
+          echo "strict_types ok (all non-vendor tracked PHP)"
+
       - name: Module validate
         run: php bin/module-validate.php --format=json
 
