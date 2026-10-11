@@ -4,10 +4,170 @@ declare(strict_types=1);
 /**
  * Shared agent/ops operations used by CLI and HTTP /agent/* API.
  *
+ * Module repair ops (bots/gcal/llm secrets, subscribe, …) register via
+ * registerModuleOp() from enabled-module bootstrap — same Surface A auth.
+ *
  * @return array{ok:bool, http?:int, error?:string, ...}
  */
 final class AgentOps
 {
+    /** @var list<array{method:string,path:string,op:string,handler:callable,description?:string,body?:list<string>,query?:list<string>}> */
+    private static array $moduleOps = [];
+
+    /**
+     * Register a Surface A op under /agent/* (module bootstrap; same agent_token).
+     *
+     * @param callable():array<string,mixed> $handler
+     * @param array{description?:string,body?:list<string>,query?:list<string>} $meta
+     */
+    public static function registerModuleOp(
+        string $method,
+        string $path,
+        string $opId,
+        callable $handler,
+        array $meta = []
+    ): void {
+        $method = strtoupper(trim($method));
+        $path = '/' . trim($path, '/');
+        if ($path === '/') {
+            return;
+        }
+        if (strpos($path, '/agent/') !== 0) {
+            throw new InvalidArgumentException('registerModuleOp path must start with /agent/');
+        }
+        $opId = trim($opId);
+        if ($method === '' || $opId === '') {
+            return;
+        }
+        foreach (self::$moduleOps as $row) {
+            if ($row['method'] === $method && $row['path'] === $path) {
+                return;
+            }
+        }
+        $entry = [
+            'method' => $method,
+            'path' => $path,
+            'op' => $opId,
+            'handler' => $handler,
+        ];
+        if (isset($meta['description']) && is_string($meta['description']) && $meta['description'] !== '') {
+            $entry['description'] = $meta['description'];
+        }
+        if (isset($meta['body']) && is_array($meta['body'])) {
+            $entry['body'] = array_values($meta['body']);
+        }
+        if (isset($meta['query']) && is_array($meta['query'])) {
+            $entry['query'] = array_values($meta['query']);
+        }
+        self::$moduleOps[] = $entry;
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    public static function dispatchModuleOp(string $path, string $method): ?array
+    {
+        $method = strtoupper(trim($method));
+        $path = $path === '/' ? '/' : ('/' . trim($path, '/'));
+        foreach (self::$moduleOps as $row) {
+            if ($row['method'] === $method && $row['path'] === $path) {
+                $out = ($row['handler'])();
+                return is_array($out) ? $out : ['ok' => false, 'error' => 'invalid handler result', 'http' => 500];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @return list<array{method:string,path:string,op:string,description?:string,body?:list<string>,query?:list<string>}>
+     */
+    public static function moduleCatalogOps(): array
+    {
+        $out = [];
+        foreach (self::$moduleOps as $row) {
+            $item = [
+                'method' => $row['method'],
+                'path' => $row['path'],
+                'op' => $row['op'],
+            ];
+            if (isset($row['description'])) {
+                $item['description'] = $row['description'];
+            }
+            if (isset($row['body'])) {
+                $item['body'] = $row['body'];
+            }
+            if (isset($row['query'])) {
+                $item['query'] = $row['query'];
+            }
+            $out[] = $item;
+        }
+
+        return $out;
+    }
+
+    /**
+     * JSON body + form fields for module op handlers (POST).
+     *
+     * @return array<string,mixed>
+     */
+    public static function requestInput(): array
+    {
+        $out = [];
+        if (function_exists('agent_api_json_body')) {
+            $out = agent_api_json_body();
+        } else {
+            $raw = function_exists('request_raw_body') ? request_raw_body() : (string)file_get_contents('php://input');
+            if (trim($raw) !== '') {
+                $data = json_decode($raw, true);
+                if (is_array($data)) {
+                    $out = $data;
+                }
+            }
+        }
+        foreach ($_POST as $k => $v) {
+            if (!array_key_exists((string)$k, $out)) {
+                $out[(string)$k] = $v;
+            }
+        }
+        foreach ($_GET as $k => $v) {
+            if (!array_key_exists((string)$k, $out)) {
+                $out[(string)$k] = $v;
+            }
+        }
+
+        return $out;
+    }
+
+    /** Public origin for webhook subscribe URLs (https://host, no trailing slash). */
+    public static function publicOrigin(): string
+    {
+        $host = '';
+        if (class_exists('Config', false)) {
+            $host = trim((string)Config::get('app', 'admin_host', ''));
+            if ($host === '') {
+                $host = trim((string)Config::get('app', 'public_host', ''));
+            }
+            if ($host === '') {
+                $host = trim((string)Config::get('app', 'base_url', ''));
+            }
+        }
+        $host = preg_replace('#^https?://#i', '', $host) ?? '';
+        $host = rtrim($host, '/');
+        $fromConfig = $host !== '';
+        if ($host === '') {
+            $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        }
+        if ($host === '') {
+            return '';
+        }
+        $https = $fromConfig
+            || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+            || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
+
+        return ($https ? 'https' : 'http') . '://' . $host;
+    }
+
     /**
      * @return array{ok:bool,php_version:string,config:string,locale:string,locales_supported:list<string>,modules_discovered:int,modules_enabled:int,modules_blocked:int,database:string,database_error?:string,http?:int}
      */
@@ -833,7 +993,7 @@ final class AgentOps
      */
     public static function catalog(): array
     {
-        return [
+        $catalog = [
             'ok' => true,
             'protocol' => 'freesaas-agent/1',
             'auth' => [
@@ -933,6 +1093,9 @@ final class AgentOps
             'cli' => 'php bin/freesaas.php … --format=json',
             'http' => 200,
         ];
+        $catalog['ops'] = array_merge($catalog['ops'], self::moduleCatalogOps());
+
+        return $catalog;
     }
 
     /** @return array<string,mixed> */

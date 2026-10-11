@@ -29,6 +29,28 @@ Webhook paths (**POST only** + secret header):
 - Empty webhook secret is **rejected** (fail-closed). Dev-only escape: `allow_unsigned_webhooks=1` in `cfg/modules/bots.ini`. Saving `/bots/settings` with a token and empty secret auto-generates a 64-hex secret.
 - Health `bots.webhook_secrets` is **degraded** when a token is set without a secret.
 
+### Platform agent repair (Surface A — `agent_token`)
+
+Same auth as `/agent/health` (not staff session). Secrets stay masked in JSON.
+
+```bash
+# Diagnose / save (empty secret → autogen when token set)
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://example.com/agent/bots/settings"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" -d '{}' \
+  "https://example.com/agent/bots/settings"
+
+# Register Max/Telegram webhook with secret from ini (needs app.admin_host or url=)
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"audience":"staff","platform":"max"}' \
+  "https://example.com/agent/bots/webhook/subscribe"
+
+php bin/freesaas.php bot subscribe --audience=staff --platform=max --format=json
+```
+
+Also: `POST /agent/bots/link-code`, `POST /agent/bots/unlink` (HTTP twins of CLI below).
+
 ### Linking a chat (anti account-takeover)
 
 Phone text alone is **not** accepted. Telegram: share **your own** contact (`contact.user_id` must equal `from.id`). Max / alternative: one-time code:

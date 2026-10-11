@@ -20,6 +20,22 @@ Or Modules UI. Secrets live only in `cfg/modules/llm.ini` (gitignored). Do not c
 
 Health check `llm.profile` warns when no enabled profile has a key.
 
+### Platform agent (Surface A — `agent_token`)
+
+Fill/diagnose without a staff session (keys masked in GET responses):
+
+```bash
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://example.com/agent/llm/status"
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://example.com/agent/llm/tokens"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"main","api_key":"sk-…","label":"Main","set_default":true,"enabled":true}' \
+  "https://example.com/agent/llm/tokens"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" -d '{"profile":"main"}' \
+  "https://example.com/agent/llm/ping"
+```
+
 ## Chat (agents / bots)
 
 ```bash

@@ -42,4 +42,7 @@ return [
     'gcal.err.app' => 'Set Client ID and Secret in settings',
     'gcal.err.disabled' => 'Sync is disabled',
     'gcal.inbound.deadline' => 'Deadline shifted from Google Calendar: {date}',
+    'gcal.health.app_ok' => 'GCal OAuth app configured; queue pending: {n}',
+    'gcal.health.app_missing' => 'GCal client_id/client_secret not set',
+    'gcal.health.app_disabled' => 'GCal credentials set but sync disabled',
 ];

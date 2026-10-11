@@ -2,7 +2,7 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "0.2.9",
+    "version": "0.2.10",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -33,7 +33,11 @@
             "/bots/sends/test",
             "/bots/plugins",
             "/bots/webhook/telegram/{channel}",
-            "/bots/webhook/max/{channel}"
+            "/bots/webhook/max/{channel}",
+            "/agent/bots/settings",
+            "/agent/bots/webhook/subscribe",
+            "/agent/bots/link-code",
+            "/agent/bots/unlink"
         ]
     },
     "agent": {

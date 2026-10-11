@@ -31,7 +31,8 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [clients.md](clients.md) | Client CRM: list/get/create/update + statuses/tags JSON |
 | [bonuses.md](bonuses.md) | Client loyalty ledger + event apply (JSON) |
 | [ledger.md](ledger.md) | Company accounts / ДПС / recon / promised payments (JSON) |
-| [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins |
+| [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins; `/agent/bots/*` repair |
+| [gcal.md](gcal.md) | Google Calendar sync; `/agent/gcal/*` diagnose/repair |
 | [likespa-restores.md](likespa-restores.md) | LikeSpa pack: legacy cutover, restores, FREE_TICKET, settlement JSON |
 | [terminals.md](terminals.md) | Terminals/therms: registry, occupancy, sync jobs + JSON |
 | [yclients.md](yclients.md) | YClients pull: settings tokens, session ping, clients import JSON |

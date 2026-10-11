@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-11T11:32:50+00:00",
+    "generated_at": "2026-10-11T12:16:13+00:00",
     "modules": [
         {
             "id": "asr",
@@ -347,7 +347,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.9",
+            "version": "0.2.10",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -667,7 +667,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -813,7 +813,7 @@
         },
         {
             "id": "llm",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "type": "product",
             "name": {
                 "en": "LLM",

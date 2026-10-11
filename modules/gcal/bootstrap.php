@@ -7,8 +7,10 @@ require_once __DIR__ . '/lib/GcalOAuth.php';
 require_once __DIR__ . '/lib/GcalApi.php';
 require_once __DIR__ . '/lib/GcalSyncService.php';
 require_once __DIR__ . '/lib/GcalBotPlugin.php';
+require_once __DIR__ . '/lib/GcalAgentOps.php';
 
 GcalBotPlugin::register();
+GcalAgentOps::register();
 
 ModuleManager::registerRoute('/gcal/settings', [
     'module' => 'gcal',
@@ -75,6 +77,32 @@ Cron::register('gcal.queue_drain', [
         ];
     },
 ]);
+
+Health::register('gcal.app', 'gcal', static function (): array {
+    if (!GcalConfig::appConfigured()) {
+        return [
+            'status' => 'skipped',
+            'error_code' => 'gcal_app_unconfigured',
+            'message' => t('gcal.health.app_missing'),
+            'meta' => ['hint' => '/agent/gcal/settings'],
+        ];
+    }
+    if (!GcalConfig::enabled()) {
+        return [
+            'status' => 'degraded',
+            'error_code' => 'gcal_disabled',
+            'message' => t('gcal.health.app_disabled'),
+            'meta' => ['hint' => '/agent/gcal/settings'],
+        ];
+    }
+    $pending = GcalSyncRepository::pendingCount();
+
+    return [
+        'status' => 'ok',
+        'message' => t('gcal.health.app_ok', ['n' => (string)$pending]),
+        'meta' => ['queue_pending' => $pending],
+    ];
+}, 'Google Calendar OAuth app');
 
 EventBus::on('core.news.feed_chips', static function ($payload) {
     if (!is_array($payload) || !GcalConfig::enabled()) {

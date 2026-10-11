@@ -114,9 +114,25 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"target":"core"}' \
   "https://example.com/agent/update/apply"
+
+# Module repair (enabled modules register these into GET /agent catalog)
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/bots/settings"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"audience":"staff","platform":"max"}' \
+  "https://example.com/agent/bots/webhook/subscribe"
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/gcal/status"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"id":"main","api_key":"sk-…","set_default":true}' \
+  "https://example.com/agent/llm/tokens"
 ```
 
 JSON shape matches CLI `--format=json` (via shared `AgentOps`). HTTP status: 200 ok, 400 bootstrap validation, 401 bad token, 503 token unset / health fail, 422 validate fail, 404 unknown module/path, 409 update lock.
+
+Module repair paths are still Surface A (same token) — not a fourth auth layer. See [agent-surfaces.md](agent-surfaces.md).
 
 ## Background cron (same agent token, not under `/agent/*`)
 

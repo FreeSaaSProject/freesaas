@@ -42,4 +42,7 @@ return [
     'gcal.err.app' => 'Задайте Client ID и Secret в настройках',
     'gcal.err.disabled' => 'Синхронизация выключена',
     'gcal.inbound.deadline' => 'Дедлайн сдвинут из Google Calendar: {date}',
+    'gcal.health.app_ok' => 'OAuth-приложение GCal задано; в очереди: {n}',
+    'gcal.health.app_missing' => 'Не заданы client_id/client_secret GCal',
+    'gcal.health.app_disabled' => 'Учётные данные GCal заданы, но синхронизация выключена',
 ];

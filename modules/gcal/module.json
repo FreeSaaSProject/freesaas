@@ -3,7 +3,7 @@
     "name": "gcal.module.name",
     "description": "gcal.module.description",
     "summary": "gcal.module.summary",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "catalog": {
         "categories": [
@@ -55,7 +55,10 @@
             "/gcal/oauth",
             "/gcal/oauth/start",
             "/gcal/work",
-            "/gcal/enqueue"
+            "/gcal/enqueue",
+            "/agent/gcal/status",
+            "/agent/gcal/settings",
+            "/agent/gcal/queue/drain"
         ]
     },
     "hooks": {

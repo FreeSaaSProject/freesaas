@@ -15,6 +15,9 @@ require_once __DIR__ . '/lib/BotWebhook.php';
 require_once __DIR__ . '/lib/BotWebhookUpdatesRepository.php';
 require_once __DIR__ . '/lib/BotLinkCodesRepository.php';
 require_once __DIR__ . '/lib/BotChatState.php';
+require_once __DIR__ . '/lib/BotsAgentOps.php';
+
+BotsAgentOps::register();
 
 ModuleManager::registerMenuGroup('bots.menu.group', 68, '/bots/types/staff');
 

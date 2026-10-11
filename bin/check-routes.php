@@ -80,6 +80,19 @@ $allowed = [
     '/bots/webhook/telegram/{channel}' => ['methods' => ['POST'], 'why' => 'Telegram webhook'],
     '/bots/webhook/max/{channel}' => ['methods' => ['POST'], 'why' => 'Max webhook'],
 
+    // Surface A module repair (agent_token gated in agent_api.php)
+    '/agent/bots/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token bots settings'],
+    '/agent/bots/webhook/subscribe' => ['methods' => ['POST'], 'why' => 'agent_token bots subscribe'],
+    '/agent/bots/link-code' => ['methods' => ['POST'], 'why' => 'agent_token bots link-code'],
+    '/agent/bots/unlink' => ['methods' => ['POST'], 'why' => 'agent_token bots unlink'],
+    '/agent/gcal/status' => ['methods' => ['GET'], 'why' => 'agent_token gcal status'],
+    '/agent/gcal/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token gcal settings'],
+    '/agent/gcal/queue/drain' => ['methods' => ['POST'], 'why' => 'agent_token gcal drain'],
+    '/agent/llm/status' => ['methods' => ['GET'], 'why' => 'agent_token llm status'],
+    '/agent/llm/tokens' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token llm tokens'],
+    '/agent/llm/tokens/delete' => ['methods' => ['POST'], 'why' => 'agent_token llm token delete'],
+    '/agent/llm/ping' => ['methods' => ['POST'], 'why' => 'agent_token llm ping'],
+
     // OAuth / MCP (llm)
     '/oauth/authorize' => ['methods' => ['GET', 'POST'], 'why' => 'OAuth authorize'],
     '/oauth/token' => ['methods' => ['POST', 'OPTIONS'], 'why' => 'OAuth token'],

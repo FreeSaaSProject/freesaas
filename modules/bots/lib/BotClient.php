@@ -669,6 +669,78 @@ final class BotClient
     }
 
     /**
+     * Register inbound webhook with the messenger (uses channel token + secret from ini).
+     *
+     * @return array{ok:bool,error:string,platform:string,audience:string,url:string,data:?array}
+     */
+    public static function subscribeWebhook(string $audience, string $platform, string $webhookUrl): array
+    {
+        $audience = strtolower(trim($audience));
+        $platform = strtolower(trim($platform));
+        $webhookUrl = trim($webhookUrl);
+        $empty = [
+            'ok' => false,
+            'error' => '',
+            'platform' => $platform,
+            'audience' => $audience,
+            'url' => $webhookUrl,
+            'data' => null,
+        ];
+        $cfg = BotsConfig::channel($audience, $platform);
+        if ($cfg === null) {
+            $empty['error'] = 'unknown audience/platform';
+            return $empty;
+        }
+        if ($cfg['token'] === '') {
+            $empty['error'] = 'token not configured';
+            return $empty;
+        }
+        if ($webhookUrl === '' || stripos($webhookUrl, 'https://') !== 0) {
+            $empty['error'] = 'webhook url must be https://…';
+            return $empty;
+        }
+        $secret = $cfg['webhook_secret'];
+        if ($secret === '') {
+            $secret = BotsConfig::generateWebhookSecret();
+            Config::set('bots', $audience . '_' . $platform . '_webhook_secret', $secret);
+        }
+        if ($platform === 'telegram') {
+            $fields = [
+                'url' => $webhookUrl,
+                'secret_token' => $secret,
+                'allowed_updates' => json_encode(['message', 'callback_query'], JSON_UNESCAPED_UNICODE),
+            ];
+            $res = self::tgRequest($cfg['token'], 'setWebhook', $fields);
+            return [
+                'ok' => $res['ok'],
+                'error' => $res['error'],
+                'platform' => $platform,
+                'audience' => $audience,
+                'url' => $webhookUrl,
+                'data' => $res['data'],
+            ];
+        }
+        if ($platform === 'max') {
+            // Max secret charset: A-Z a-z 0-9 _ - (hex is fine).
+            $res = self::maxRequest($cfg['token'], 'POST', '/subscriptions', [], [
+                'url' => $webhookUrl,
+                'update_types' => ['message_created', 'message_callback', 'bot_started'],
+                'secret' => $secret,
+            ]);
+            return [
+                'ok' => $res['ok'],
+                'error' => $res['error'],
+                'platform' => $platform,
+                'audience' => $audience,
+                'url' => $webhookUrl,
+                'data' => $res['data'],
+            ];
+        }
+        $empty['error'] = 'unsupported platform';
+        return $empty;
+    }
+
+    /**
      * @param array<string,mixed> $fields
      * @return array{ok:bool,data:?array,error:string}
      */

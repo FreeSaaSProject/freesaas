@@ -123,6 +123,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   user hash-audit [--format=json]
   bot unlink <login|client:<id>> [--platform=telegram|max] [--format=json]
   bot link-code <login|client:<id>> [--ttl=600] [--format=json]
+  bot subscribe --audience=staff|client --platform=telegram|max [--url=https://…] [--format=json]
 TXT;
 }
 
@@ -136,10 +137,42 @@ function freesaas_cmd_bot(string $sub, array $args, array $opts): void
         Cli::fail('bots module disabled', Cli::EXIT_FAIL);
     }
     require_once base_path('modules/bots/lib/BotsConfig.php');
+    require_once base_path('modules/bots/lib/BotClient.php');
     require_once base_path('modules/bots/lib/BotLinksRepository.php');
     require_once base_path('modules/bots/lib/BotIdentity.php');
     require_once base_path('modules/bots/lib/BotLinkCodesRepository.php');
+    require_once base_path('modules/bots/lib/BotsAgentOps.php');
     require_once base_path('modules/core/lib/UsersRepository.php');
+
+    if ($sub === 'subscribe') {
+        $audience = isset($opts['audience']) ? strtolower(trim((string)$opts['audience'])) : 'staff';
+        $platform = isset($opts['platform']) ? strtolower(trim((string)$opts['platform'])) : '';
+        if ($platform === '' || !in_array($platform, BotsConfig::PLATFORMS, true)) {
+            Cli::usage('Usage: bot subscribe --audience=staff|client --platform=telegram|max [--url=https://…]');
+        }
+        if (!in_array($audience, BotsConfig::AUDIENCES, true)) {
+            Cli::fail('audience must be staff|client', Cli::EXIT_FAIL);
+        }
+        $url = isset($opts['url']) ? trim((string)$opts['url']) : '';
+        if ($url === '') {
+            $origin = AgentOps::publicOrigin();
+            if ($origin === '') {
+                Cli::fail('pass --url=https://… or set app.admin_host', Cli::EXIT_FAIL);
+            }
+            $url = $origin . '/bots/webhook/' . $platform . '/' . $audience;
+        }
+        $res = BotClient::subscribeWebhook($audience, $platform, $url);
+        if (!$res['ok']) {
+            Cli::fail($res['error'] !== '' ? $res['error'] : 'subscribe failed', Cli::EXIT_FAIL);
+        }
+        freesaas_emit_ops([
+            'ok' => true,
+            'platform' => $res['platform'],
+            'audience' => $res['audience'],
+            'url' => $res['url'],
+        ]);
+        return;
+    }
 
     $target = trim((string)($args[2] ?? ''));
     if ($sub === 'unlink' || $sub === 'link-code') {
@@ -196,7 +229,7 @@ function freesaas_cmd_bot(string $sub, array $args, array $opts): void
         return;
     }
 
-    Cli::usage('Usage: bot unlink|link-code …');
+    Cli::usage('Usage: bot unlink|link-code|subscribe …');
 }
 
 /**
