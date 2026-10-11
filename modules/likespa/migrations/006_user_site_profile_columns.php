@@ -23,5 +23,6 @@ return static function (PDO $pdo): void {
 
     $ensure('link_ok', "`link_ok` VARCHAR(512) NOT NULL DEFAULT ''");
     $ensure('photo', "`photo` VARCHAR(512) NOT NULL DEFAULT ''");
-    $ensure('site_descr', "`site_descr` TEXT NOT NULL");
+    // Nullable: TEXT cannot have DEFAULT on many MySQL/MariaDB builds; create() writes ''.
+    $ensure('site_descr', '`site_descr` TEXT NULL');
 };
