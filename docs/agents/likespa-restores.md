@@ -6,10 +6,12 @@ Product module `likespa`: restores, FREE_TICKET, flyer/promo, term scans, calend
 
 1. Enable `sites` (+ catalog/orders/clients) on the shared FreeSaaS DB; enable `likespa` when you need instance features.
 2. Run sites migrations `006`/`007` — seeds default host from `public_host` / `mothersite`.
-3. Port the public skin into `themes/<id>/` ([`themes.md`](themes.md)); set `base_site_hosts.theme` (often `likespa`).
-4. Add a second host row (e.g. balance) with its promo + catalog folder (legacy Balance used category **16**).
-5. Point public vhosts at `site.php` (or rsync to a storefront-only tree like `likespa2.hm`). Keep old trees until parity.
-6. Retire old PHPShop trees; do not keep writing `phpshop_*` from the new runtime.
+3. Port skins into `themes/<id>/` ([`themes.md`](themes.md)): `likespa` from likespa.hm, `balance` from balance-spa.hm (`balance-dark.css` + logos).
+4. Storefront trees (same package, `app.role=storefront`, storefront `.htaccess` → `site.php`):
+   - `likespa2.hm` — host theme `likespa`, catalog roots as needed, FREE_TICKET on
+   - `balance-spa2.hm` — host theme `balance`, promo `balance` (#10), catalog root **16**, FREE_TICKET off
+5. Symlink or sync `UserFiles/` from the legacy tree for promo/media URLs.
+6. Keep old PHPShop trees until parity; do not keep writing `phpshop_*` from the new runtime.
 
 ## Procedure restores
 

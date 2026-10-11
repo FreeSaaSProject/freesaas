@@ -87,6 +87,23 @@
     }, 520);
   }
 
+  function csrfToken(form) {
+    if (form) {
+      var inp = form.querySelector('input[name="csrf"]');
+      if (inp && inp.value) {
+        return String(inp.value);
+      }
+    }
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta) {
+      var content = meta.getAttribute('content');
+      if (content) {
+        return String(content);
+      }
+    }
+    return '';
+  }
+
   function addViaAjax(btn, productId, form) {
     if (btn.getAttribute('data-cart-busy') === '1') {
       return;
@@ -98,6 +115,10 @@
     body.append('add', '1');
     body.append('product_id', String(productId));
     body.append('ajax', '1');
+    var token = csrfToken(form);
+    if (token) {
+      body.append('csrf', token);
+    }
     if (form) {
       var ret = form.querySelector('[name="ret"]');
       if (ret && ret.value) {
@@ -105,13 +126,18 @@
       }
     }
 
+    var headers = {
+      'X-Requested-With': 'XMLHttpRequest',
+      Accept: 'application/json'
+    };
+    if (token) {
+      headers['X-CSRF-Token'] = token;
+    }
+
     fetch('/cart', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: {
-        'X-Requested-With': 'XMLHttpRequest',
-        Accept: 'application/json'
-      },
+      headers: headers,
       body: body
     })
       .then(function (res) {
@@ -133,9 +159,20 @@
         btn.classList.remove('is-adding');
         if (form) {
           form.removeEventListener('submit', onFormSubmit, true);
-          if (typeof form.requestSubmit === 'function') {
-            form.requestSubmit();
+          var submitter =
+            form.querySelector('.cd-add-to-cart') ||
+            form.querySelector('button[name="add"]') ||
+            form.querySelector('button[type="submit"]');
+          if (typeof form.requestSubmit === 'function' && submitter) {
+            form.requestSubmit(submitter);
           } else {
+            if (!form.querySelector('input[name="add"]')) {
+              var hiddenAdd = document.createElement('input');
+              hiddenAdd.type = 'hidden';
+              hiddenAdd.name = 'add';
+              hiddenAdd.value = '1';
+              form.appendChild(hiddenAdd);
+            }
             form.submit();
           }
         }
