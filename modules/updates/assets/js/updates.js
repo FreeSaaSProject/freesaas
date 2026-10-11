@@ -154,11 +154,22 @@
   }
 
   function postForm(fd) {
+    // Ensure CSRF even if core.js cache is stale (FormData + header).
+    try {
+      var tok = (window.freesaasCsrfToken && window.freesaasCsrfToken()) || '';
+      if (!tok) {
+        var inp = document.querySelector('input[name="csrf"]');
+        tok = inp ? String(inp.value || '') : '';
+      }
+      if (tok && fd && typeof fd.set === 'function' && !fd.has('csrf')) {
+        fd.set('csrf', tok);
+      }
+    } catch (ignore) { /* ignore */ }
     return fetch('/updates', {
       method: 'POST',
       body: fd,
       credentials: 'same-origin',
-      headers: { Accept: 'application/json' }
+      headers: { Accept: 'application/json', 'X-CSRF-Token': (window.freesaasCsrfToken && window.freesaasCsrfToken()) || '' }
     }).then(function (r) {
       return r.text().then(function (text) {
         var j = null;

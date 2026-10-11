@@ -14,18 +14,21 @@
     return text;
   };
 
-  /** CSRF token from <meta name="csrf-token"> for same-origin fetch/XHR. */
+  /** CSRF token from <meta name="csrf-token"> or any injected form field. */
   window.freesaasCsrfToken = function () {
     var m = document.querySelector('meta[name="csrf-token"]');
-    return m ? (m.getAttribute('content') || '') : '';
+    var t = m ? (m.getAttribute('content') || '') : '';
+    if (t) return t;
+    var inp = document.querySelector('input[name="csrf"]');
+    return inp ? String(inp.value || '') : '';
   };
 
-  // Attach X-CSRF-Token on same-origin mutating fetch (session cookie auth).
+  // Attach CSRF on same-origin mutating fetch (header + FormData/URLSearchParams body).
   if (typeof window.fetch === 'function') {
     var _fetch = window.fetch.bind(window);
     window.fetch = function (input, init) {
       init = init ? Object.assign({}, init) : {};
-      var method = String(init.method || 'GET').toUpperCase();
+      var method = String(init.method || (input && input.method) || 'GET').toUpperCase();
       var url = typeof input === 'string' ? input : (input && input.url) || '';
       var mutating = method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS';
       var sameOrigin = !url || url.charAt(0) === '/' || url.indexOf(window.location.origin) === 0;
@@ -48,6 +51,18 @@
             }
             init.headers = h;
           }
+          // FormData/URLSearchParams: body field survives proxies that strip custom headers.
+          try {
+            if (typeof FormData !== 'undefined' && init.body instanceof FormData) {
+              if (!init.body.has('csrf')) {
+                init.body.append('csrf', token);
+              }
+            } else if (typeof URLSearchParams !== 'undefined' && init.body instanceof URLSearchParams) {
+              if (!init.body.has('csrf')) {
+                init.body.append('csrf', token);
+              }
+            }
+          } catch (ignore) { /* ignore */ }
         }
       }
       return _fetch(input, init);
