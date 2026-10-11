@@ -1,8 +1,8 @@
 # FreeSaaS — Agent-Native Architecture Audit
 
-**Date:** 2026-10-05 (appendix refreshed 2026-10-11)  
-**Scope:** Modular FreeSaaS platform (likespa instance lineage).  
-**Audience:** Product owners and coding agents. This document is both a diagnosis and a **working standard** for subsequent platform and module work.
+**Date:** 2026-10-11 (full recount; original diagnosis 2026-10-05)  
+**Scope:** Public platform [`ilcommm/freesaas`](https://github.com/ilcommm/freesaas) (AGPL dual-license). Instance branding theme lives in private [`ilcommm/freesaas-theme-likespa`](https://github.com/ilcommm/freesaas-theme-likespa).  
+**Audience:** Product owners and coding agents. Working standard for platform/module work + readiness scoreboard.
 
 Related docs:
 
@@ -11,41 +11,40 @@ Related docs:
 - [`docs/TABLE_MAP.md`](TABLE_MAP.md) — `base_*` table ownership by module
 - [`docs/agents/QUICKSTART.md`](agents/QUICKSTART.md) — fast install
 - [`docs/agents/agent-surfaces.md`](agents/agent-surfaces.md) — platform token vs product MCP/OAuth
+- [`docs/LAUNCH.md`](LAUNCH.md) — distribution narrative
 
 ---
 
 ## Executive Summary
 
-> **Current readiness (~78/100).** P1 ops are shipped: CLI + `/agent/*`, bootstrap, health, validate, locale discovery, smoke, runbooks, dual-license packaging. Live **product MCP** (`/llm/mcp` + OAuth) exists — see [`docs/agents/llm.md`](agents/llm.md). Remaining drag: no uninstall/drop, soft-dep honesty, scaffold/`doctor` maturity, README/agent distribution packaging, dual agent surfaces (token vs OAuth) not yet unified for lifecycle.
+> **Current readiness (~84/100).** Public OSS release **v0.3.33**: CLI + `/agent/*`, bootstrap, `doctor`, health/validate/smoke, locale discovery (~5518 ru/en keys), `module create` / `add-migration`, Docker Compose, ~388 `agent.ops`, product MCP `/llm/mcp` + OAuth, dual-license + CLA, agent QUICKSTART/connect/skills/cases. Instance theme stripped from public history; release zip ships `modules/likespa` + `themes/default` only.
 >
-> The historical diagnosis below (score **56**) describes the pre-P1 baseline and remains useful as the problem statement. Prefer the [Appendix: Current CLI vs target](#appendix-current-cli-vs-target) and [Score rationale](#appendix-score-rationale-was-56--75-after-p1--http--bootstrap) for “what works today”.
+> **Remaining drag (post-OSS):** no uninstall/`drop_owned`, soft-dep honesty uneven, plurals/number formatting, Core still partly oper-shaped, platform lifecycle not on staff OAuth (intentional dual surface), no marketplace / PHPUnit suite, health often `degraded` on real instances (config/tokens), not `fail`.
 
-FreeSaaS already has a real **agent-friendly kernel**: filesystem module discovery, `module.json` + `bootstrap.php`, hard dependency graph, enable-time schema migrations, EventBus extension points, shared list/bulk/nav primitives, and operational docs (`AGENTS.md` + GUIDE). An unfamiliar agent can clone a simple CRUD module from `units` / `suppliers` and often succeed.
+**Historical baseline (2026-10-05, pre-P1):** score **56/100** — thin CLI, no validate/health, broken i18n checker, unreliable manifests. Kept only as archaeology; do not treat body “Critical Gaps” prose from that era as today’s blockers without checking the [Resolved vs open](#resolved-vs-still-open) table.
 
-**Historical baseline (2026-10-05, pre-P1):** manifests incomplete; no uninstall; thin CLI; broken i18n checker; no validate/health; soft coupling outside manifests.
+**Agent Readiness:** **56** → **~75** (P1) → **~78** (MCP + packaging draft) → **~84** (public release + doctor/scaffold/Docker/theme split).
 
-**Agent Readiness (baseline): 56/100** → **current ~78/100** (see appendix).
+| Dimension | Baseline | Now | Note |
+|-----------|---------:|----:|------|
+| Discoverability (docs + manifests) | 60 | 88 | QUICKSTART, connect-*, cases, skills; public README pitch |
+| New CRUD module authoring | 70 | 85 | `module create` + units template + authoring-contract |
+| Cross-module extension | 55 | 62 | EventBus strong; soft deps still uneven |
+| Machine-readable contracts | 40 | 78 | `agent.ops` (~388), validate, inspect, maturity |
+| CLI / admin ops without UI | 25 | 90 | `freesaas.php` + `/agent/*` + doctor |
+| Self-verification | 15 | 88 | health + smoke + doctor + issue_body |
+| Localization automation | 55 | 78 | discovery + validate; plurals still weak |
+| Lifecycle (install/uninstall) | 35 | 58 | bootstrap/enable/install yes; uninstall no |
+| Platform purity (vs LikeSpa) | 50 | 70 | theme private; likespa module public & disableable |
+| Licensing / OSS packaging | — | 95 | AGPL + commercial + CLA; public repo `freesaas` |
 
-| Dimension | Baseline | Current (approx.) | Note |
-|-----------|---------:|------------------:|------|
-| Discoverability (docs + manifests) | 60 | 80 | Runbooks + QUICKSTART; hooks cleaned |
-| New CRUD module authoring | 70 | 75 | Template + `module create` scaffold |
-| Cross-module extension | 55 | 60 | EventBus strong; soft deps still uneven |
-| Machine-readable contracts | 40 | 70 | `agent.ops`, validate, inspect |
-| CLI / admin ops without UI | 25 | 85 | `freesaas.php` + `/agent/*` |
-| Self-verification | 15 | 80 | health + smoke + doctor |
-| Localization automation | 55 | 70 | locale discovery; plurals still weak |
-| Lifecycle (install/uninstall) | 35 | 55 | bootstrap/enable yes; uninstall no |
-| Platform purity (vs LikeSpa) | 50 | 55 | Core still partially oper-shaped |
-| Licensing / OSS packaging | — | 90 | AGPL dual-license + CLA |
+**Architecture verdict:** Do **not** rewrite Core. Evolve: honest contracts, CLI-first ops, keep product out of Core. Product MCP adapts `agent.ops`; platform lifecycle stays `agent_token`/CLI until an explicit admin threat model.
 
-**Architecture verdict:** Do **not** rewrite Core. Evolve: honest contracts, CLI-first ops, health/validate, keep product out of Core. Product MCP is an adapter over `agent.ops`, not a second CRM.
+**Control answers (2026-10-11):**
 
-**Control answers (current):**
-
-1. Can an unfamiliar agent turn FreeSaaS into an IS for an arbitrary business **today**? **Mostly yes** for selecting/enabling existing modules via CLI/HTTP; inventing new domains needs scaffold + EventBus research; cannot safely uninstall.
-2. Can an unfamiliar agent create a full new module from the repo alone? **Yes** for CRUD via `module create` / units template + validate/health; full uninstall still missing.
-3. Can an agent add a new language without changing business logic? **Yes** for catalogs via discovery; plurals/number formatting remain quality gaps.
+1. Can an unfamiliar agent turn FreeSaaS into an IS for an arbitrary business **today**? **Yes** for composing existing modules (CLI/HTTP + cases); new domains via scaffold; cannot safely uninstall experiments.
+2. Can an unfamiliar agent create a full new module from the repo alone? **Yes** for CRUD (`module create` → enable → validate → health); acceptance bar is met for units-class modules without uninstall.
+3. Can an agent add a new language without changing business logic? **Yes** for catalogs via discovery + `locale validate`; plurals/number/currency formatting remain quality gaps.
 
 ---
 
@@ -53,90 +52,83 @@ FreeSaaS already has a real **agent-friendly kernel**: filesystem module discove
 
 Do not redesign these — extend them.
 
-1. **Module filesystem contract** — `modules/<id>/module.json` discovered by [`app/ModuleManager.php`](../app/ModuleManager.php) `discover()`; enabled modules boot `bootstrap.php`.
+1. **Module filesystem contract** — `modules/<id>/module.json` discovered by [`app/ModuleManager.php`](../app/ModuleManager.php) `discover()`; enabled modules boot `bootstrap.php` (~48 modules).
 2. **Hard dependencies** — `requires` with semver; unmet deps block boot; disable refused if dependents enabled; `core` always on.
 3. **Enable-time schema migrate** — `ModuleManager::setEnabled(true)` runs [`SchemaMigrator::runModule`](../app/SchemaMigrator.php) before writing config.
 4. **EventBus spine** — hubs such as `core.dashboard.*`, `core.user_edit.*`, `core.layout.gate`, `core.bulk.check_item`, `core.settings.*`, `comments.*`, product settings events.
 5. **Shared primitives** — `ListQuery`, `BulkActions`, `NavContext`, `Assets`, `View`, `Auth` (`can` / `canSeeInMenu` / `capability`).
-6. **Operational agent docs** — [`AGENTS.md`](../AGENTS.md) checklist; GUIDE «Как добавить новый модуль».
-7. **i18n chrome culture** — `t` / `te` / `tj`; every module ships `lang/ru.php` + `lang/en.php`; ~2473 keys with ru/en parity when catalogs are scanned directly.
-8. **CRUD authoring template** — [`modules/units/`](../modules/units/) (mirror: `suppliers`): manifest, bootstrap routes, repository, list/edit pages, migration, BulkActions.
+6. **Operational agent surface** — CLI `bin/freesaas.php`, HTTP `/agent/*`, `doctor`, smoke; runbooks under [`docs/agents/`](agents/).
+7. **i18n chrome culture** — `t` / `te` / `tj`; every module ships `lang/ru.php` + `lang/en.php`; ~5518 keys with ru/en parity (`locale validate` ok).
+8. **CRUD authoring** — `module create` scaffold + [`modules/units/`](../modules/units/) template; [`authoring-contract.md`](agents/authoring-contract.md).
 9. **Hard rules** — runtime `base_*` only; no second router/DI; product config in `cfg/modules/*.ini`.
-10. **Additive migrations ledger** — `base_schema_migrations`; CLI `php bin/schema-migrate.php` / `php bin/data-migrate.php`.
+10. **Additive migrations ledger** — `base_schema_migrations`; CLI `migrate status|run`.
+11. **Product MCP + OAuth** — `/llm/mcp`, `agent.ops` (~388), assistant confirm writes; read-only `core.doctor` / `core.health.detail` on session/MCP.
+12. **Public packaging** — AGPL dual-license + CLA; Docker Compose; release zip excludes private themes; UpdateEngine → `ilcommm/freesaas`.
 
 ```mermaid
 flowchart LR
-  agent[Agent] --> docs[AGENTS_GUIDE]
+  agent[Agent] --> docs[AGENTS_QUICKSTART]
   agent --> manifest[module_json]
   agent --> bootstrap[bootstrap_php]
-  agent --> cli[bin_CLI]
+  agent --> cli[bin_freesaas]
+  agent --> mcp[llm_mcp_OAuth]
   manifest --> discover[ModuleManager]
   bootstrap --> routes[registerRoute]
   bootstrap --> events[EventBus]
   cli --> migrate[SchemaMigrator]
-  agent -.->|missing| validate[module_validate]
+  cli --> doctor[doctor_health_smoke]
   agent -.->|missing| uninstall[uninstall]
-  agent -.->|unreliable| hooks[hooks_JSON]
+  agent -.->|uneven| softDeps[soft_deps]
 ```
 
 ---
 
-## Critical Gaps
+## Resolved vs still open
 
-Problems that are expensive if ignored while the refactor continues. Prefer small evolutionary fixes.
+| Was critical (2026-10-05) | Status now |
+|---------------------------|------------|
+| Thin CLI / no enable/health/validate | **Resolved** — `freesaas.php` + `/agent/*` |
+| Broken i18n checker / no smoke | **Resolved** — `locale validate`, `smoke`, `doctor` |
+| Locale allowlist hardcoded only | **Resolved** — discovery from `app/lang` + config |
+| No bootstrap for agents | **Resolved** — CLI + `POST /agent/bootstrap` |
+| No product MCP | **Resolved** — `/llm/mcp` + OAuth |
+| OSS packaging / LICENSE | **Resolved** — public `freesaas`, AGPL + CLA |
+| Instance theme in public tree | **Resolved** — private theme repo; purged from history |
+| Manifest hooks prose/phantoms | **Mostly resolved** — validate + dotted events; soft drift remains |
+| Soft / cross-module coupling | **Open** — still uneven; ban new page-level foreign `require` |
+| No uninstall / drop_owned | **Open** — disable-only (documented) |
+| Core LikeSpa / oper residue | **Partially open** — theme out; tickets/flags/menu homes still Core-shaped |
+| Plurals / ICU / number format | **Open** — P2 quality |
+| Platform lifecycle on OAuth | **Open by design** — dual surface; see agent-surfaces |
+| Marketplace / full PHPUnit | **Out of scope** for now |
 
-### 1. Manifest is not a trustworthy contract
+## Critical gaps (still expensive)
 
-- **Problem:** Fields `hooks`, `provides`, `routes.pages`, `configSchema`, `jobs`, `migrations` (string) are largely documentation-only or inaccurate. Runtime truth is `bootstrap.php`.
-- **Where:** e.g. [`modules/stocks/module.json`](../modules/stocks/module.json) — empty `hooks` while bootstrap listens to `core.user_edit.*`; [`modules/calendar/module.json`](../modules/calendar/module.json) — English prose in `publish`; [`modules/audio/module.json`](../modules/audio/module.json) — phantom `audio.records.for_day` / `audio.badge.state`; catalog `routes.pages` missing paths present in bootstrap.
-- **Broken scenario:** Agent Test A — agent trusts `hooks`/`provides` to wire warehouse ↔ notifications; wires to non-events.
-- **Minimal fix:** Stop prose in hooks; validate JSON against runtime (`bin/module-inspect` / `module-validate`); prefer generate-or-verify over a second hand-written schema. See [Requirements: Platform A1](#requirements-platform) and [Modules B1](#requirements-modules).
-- **Cost later:** Agents and humans learn false APIs; drift compounds across 28+ modules.
+Problems that remain after the OSS tranche. Prefer small evolutionary fixes.
+
+### 1. Soft / cross-module coupling
+
+- **Problem:** `optionalRequires` is incomplete vs runtime `isEnabled` / `class_exists` / occasional foreign `require`.
+- **Broken scenario:** Disable optional module → blank feature or hard error; agent cannot see risk from JSON alone.
+- **Minimal fix:** Ban new page-level cross-requires; validate soft-dep honesty; EventBus for UI extension.
 
 ### 2. No uninstall / rollback lifecycle
 
-- **Problem:** Only enable/disable. Disable leaves tables, registry rows, and data. No down migrations.
-- **Where:** [`app/ModuleManager.php`](../app/ModuleManager.php), [`app/SchemaMigrator.php`](../app/SchemaMigrator.php); UI `/modules`.
-- **Broken scenario:** Agent creates experimental `equipment` module, then «remove without damaging the rest» — cannot.
-- **Minimal fix:** Document **disable-only** policy now; reserve `uninstall.strategy` in manifest; implement drop later (P2).
-- **Cost later:** OSS installs accumulate irreversible schema; agents fear creating modules.
+- **Problem:** Only enable/disable. Disable leaves tables and data. No down migrations.
+- **Policy:** disable-only until `uninstall.strategy=drop_owned` (P2.1).
+- **Cost later:** OSS installs accumulate irreversible schema; agents fear experimental modules.
 
-### 3. No self-check harness
+### 3. Core still partly oper-shaped
 
-- **Problem:** No `tests/`, no CI, no `module validate`. [`bin/check-i18n.php`](../bin/check-i18n.php) fatals (incomplete bootstrap vs full app — missing `Assets` and peers) and only spot-checks four modules’ `module.json` labels.
-- **Broken scenario:** After Agent Test B/C — agent cannot answer «I broke nothing?»
-- **Minimal fix:** Fix check-i18n bootstrap; add `module-validate` + exit codes; smoke script (P1). See [A4](#a4-validate--self-check).
-- **Cost later:** Every agent change needs human browser smoke; regressions undetectable.
+- **Problem:** Ticket TYPE quirks, some status flags, menu group homes, residual product-shaped defaults.
+- **Mitigation done:** instance theme private; likespa is a normal disableable product module.
+- **Minimal fix:** No new product rules in Core; extract residuals over time ([A7](#a7-core-hygiene)).
 
-### 4. Thin CLI — admin ops are UI/ini-bound
+### 4. Dual agent surfaces (not a bug — document forever)
 
-- **Problem:** Only all-module schema migrate and destructive data migrate. Enable/disable, pending migration list, health — UI or hand-edited ini.
-- **Where:** [`bin/`](../bin/), GUIDE CLI table; modules UI [`modules/core/pages/modules.php`](../modules/core/pages/modules.php).
-- **Broken scenario:** Headless agent must edit `cfg/config.ini` or click `/modules`.
-- **Minimal fix:** CLI-first surface ([A2](#a2-lifecycle--admin-operations)); HTTP health optional duplicate of same logic.
-- **Cost later:** MCP/skills built on UI scraping or fragile ini edits.
-
-### 5. Soft / cross-module coupling hidden outside manifests
-
-- **Problem:** `optionalRequires` is UI/docs; runtime uses `isEnabled`, `class_exists`, `tableExists`, and direct `require` of another module’s pages/libs (e.g. calendar → workweeks nazop; catalog product_edit loading foreign repos by path).
-- **Broken scenario:** Disable optional module → silent fatal or blank feature; agent cannot see risk from JSON alone.
-- **Minimal fix:** Ban new page-level cross-requires; require `optionalRequires` + `isEnabled` guards; validate soft-dep honesty over time.
-- **Cost later:** Undebuggable partial installs.
-
-### 6. Locale allowlist hardcoded in Core
-
-- **Problem:** [`app/I18n.php`](../app/I18n.php) `$supported = ['ru','en']`. New locale needs a code change even if catalog files exist.
-- **Broken scenario:** «Make this install fully Spanish» — agent must patch Core, not only add `lang/es.php` files.
-- **Minimal fix:** Discover locales from catalogs/config ([A5](#a5-platform-localization)).
-- **Cost later:** Every language becomes a Core PR.
-
-### 7. Core still LikeSpa / oper-shaped
-
-- **Problem:** Tickets `TYPE=2`, medical/admin status flags, menu group homes pointing at catalog/payments/ledger, default `dbase=likespa`, Telegram/Max field stubs and feature gates in user edit, hardcoded RU change-log fragments in ticket flow.
-- **Where:** `modules/core`, [`app/Database.php`](../app/Database.php) default, [`modules/core/views/user_edit.php`](../modules/core/views/user_edit.php) (e.g. literal `Telegram chat_id`).
-- **Broken scenario:** Generic OSS reader assumes spa/medical CRM is «the platform».
-- **Minimal fix:** No new product rules in Core; extract/gate residuals; bot/Telegram → product module ([A7](#a7-core-hygiene)).
-- **Cost later:** Platform purity almost impossible to recover.
+- **Platform:** `agent_token` / CLI — bootstrap, enable, migrate, update, doctor twin.
+- **Product:** session / OAuth MCP — CRM `agent.ops`.
+- Unifying lifecycle into staff OAuth needs an explicit admin scope threat model (not shipped).
 
 ---
 
@@ -178,29 +170,28 @@ Do not treat product MCP as a second source of truth — tools mirror `agent.ops
 
 ## Localization Readiness
 
-**Chrome readiness: ~62/100**  
-**Full-installation localization: ~40/100**
+**Chrome readiness: ~80/100**  
+**Full-installation localization: ~55/100**
 
 ### What works
 
-- Dual catalogs for all 28 modules + `app/lang`
-- Key parity ru/en (~2473 / ~2473 when scanned from files)
+- Dual catalogs for all modules + `app/lang` (~5518 / ~5518 ru/en; `locale validate` → ok)
+- Locale list from discovery / `app.locales` config (not a hardcoded two-locale PHP array)
 - Fallback: non-`ru` loads `ru` then overlays primary locale
 - JS dict via `I18n::jsDict()` / `core.layout.gate` → `js_i18n`
-- Module names, menu, permissions intended as i18n keys
+- Module names, menu, permissions as i18n keys
 - Missing key returns the key string (no crash)
+- `doctor` fails the install if locale catalogs diverge
 
 ### Gaps
 
 | Gap | Impact |
 |-----|--------|
-| `$supported` hardcoded | New locale needs Core edit |
-| `bin/check-i18n.php` broken + partial module.json scan | Agent cannot auto-prove completeness |
 | No plural / ICU choice API | «N days» awkward |
 | Numbers via ad-hoc `number_format(..., '.', ' ')` | RU-biased |
 | Dates: thin `I18n::formatDate` if/else | No Intl month names centrally |
-| Residual hardcoded labels | e.g. `Telegram chat_id`, `Max user_id` in user_edit view |
-| Operational RU strings | payments/ledger/comments descriptions |
+| Residual hardcoded labels | occasional product chrome |
+| Operational RU strings | some payments/ledger/comments descriptions |
 | No email / Telegram / installer locale layer | Product messaging outside chrome |
 | UGC / DB `NAME` intentionally untranslated | Correct — document only |
 
@@ -218,31 +209,28 @@ Agent adds `app/lang/es.php` + `modules/*/lang/es.php`, runs `locale validate`, 
 
 | Step | Clear from repo? | Source |
 |------|------------------|--------|
-| Where to create | Yes | `modules/<id>/`, AGENTS.md, GUIDE |
-| Required files | Mostly | Checklist; template `units` |
-| Register routes | Yes | `ModuleManager::registerRoute` samples |
+| Where to create | Yes | `module create`, AGENTS.md, authoring-contract |
+| Required files | Yes | Scaffold + checklist |
+| Register routes | Yes | Generated bootstrap + samples |
 | Declare deps | Yes | `requires` / `optionalRequires` |
-| Migrations | Yes | `migrations/NNN_*.php` + SchemaMigrator |
-| Backend / UI | Yes | clone units list/edit/repo |
+| Migrations | Yes | `module add-migration` + SchemaMigrator |
+| Backend / UI | Yes | scaffold / clone `units` |
 | Permissions | Yes | `module.json` + route `permission` |
-| Localization | Yes | `lang/ru.php` + `en.php` + `t()` |
-| Events | Partial | GUIDE EventBus table; manifests often wrong |
-| Tests | **No** | No harness |
-| Install/enable | Partial | UI `/modules` or ini; no CLI |
-| Uninstall | **No** | Missing |
-| Verify result | **No** | Browser smoke only |
+| Localization | Yes | scaffold ships `lang/ru.php` + `en.php` |
+| Events | Partial | GUIDE EventBus; soft-dep honesty uneven |
+| Verify | Yes | `module validate`, `health`, `doctor`, smoke |
+| Install/enable | Yes | CLI / `/agent/*` / UI |
+| Uninstall | **No** | disable-only |
 
-### Guessing required today (defects)
+### Remaining guesses
 
 1. Menu: join `core.menu.group.*` vs `registerMenuGroup` for a new rail section  
-2. When EventBus vs direct foreign `require_once`  
+2. When EventBus vs (forbidden) foreign `pages/` require  
 3. Permission vs `capability` / `registerFieldGroup`  
 4. Transfer history: invent own tables; no entity schema language  
-5. Link to staff: which user columns/APIs are stable  
-6. How to prove enable succeeded beyond opening UI  
-7. Boot order alphabetical — not dependency order  
+5. Boot order still alphabetical — not dependency topological  
 
-**Verdict:** A new agent can ship a **usable CRUD+history module** by cloning `units` and reading AGENTS.md/GUIDE, but cannot meet the future [module acceptance bar](#b7-module-acceptance) without platform validate/health/CLI work.
+**Verdict:** A new agent can ship a **units-class CRUD module** and meet [module acceptance](#b7-module-acceptance) (validate/health/locale) without tribal knowledge. Complex history/domain modules still need EventBus research. Uninstall remains the gap.
 
 ---
 
@@ -259,9 +247,9 @@ Agent adds `app/lang/es.php` + `modules/*/lang/es.php`, runs `locale validate`, 
 | Warehouse | Partial | `stocks` + `stickers` + `catalog`; soft deps; capabilities not in JSON |
 | Finance reports | Yes | `finance` requires `ledger`; optional `funds` |
 | Liquid assets / T-Invest | Yes | `liquid_assets` requires `ledger`; optional `funds`; disableable |
-| Telegram notifications | **No** | Stub fields only; no sender module, no events |
+| Telegram / Max transport | Yes | `bots` module + `BotPlugins` / `bots.send` (not Core stubs) |
 
-Agent must still open PHP to learn real hooks, BulkActions, and role flags.
+Agent should prefer `module inspect` + `agent.ops` + EventBus docs over reading every repository.
 
 ### Scenario B — Unknown feature
 
@@ -269,15 +257,15 @@ See [Module Authoring Test](#module-authoring-test).
 
 ### Scenario C — Modify stocks + Telegram alert
 
-1. Find module — easy (`stocks`).  
-2. Data model — read repository + migrations (tables list in JSON incomplete vs reality over time).  
-3. Public vs internal — no formal boundary; repos are de facto API.  
-4. Add min-qty field — feasible additive migration.  
-5. Migrate existing installs — `SchemaMigrator` OK.  
-6. Emit event — possible; not documented in stocks hooks today.  
-7. Connect Telegram — **no target module**; agent invents coupling.  
-8. UI + i18n — straightforward if following `t()`.  
-9. Test — manual only.
+1. Find module — easy (`stocks` / inspect).  
+2. Data model — repository + migrations (`module add-migration`).  
+3. Public vs internal — repos are de facto API; prefer EventBus.  
+4. Add min-qty field — additive migration OK.  
+5. Migrate — `migrate run --module=stocks`.  
+6. Emit event — possible; declare in `hooks.publish`.  
+7. Connect Telegram — via `bots` / EventBus, not inventing Core coupling.  
+8. UI + i18n — `t()` both locales.  
+9. Verify — `module validate`, `health`, `doctor` (not browser-only).
 
 ---
 
@@ -290,38 +278,32 @@ See [Module Authoring Test](#module-authoring-test).
 | Status flags ZGV/STA/MARKET/ASSIST/PARTNER | Owning product modules via `registerFieldGroup` |
 | Menu homes → `/catalog`, `/payments`, `/ledger/moves` | Product modules; resilient fallbacks |
 | Messenger chat ids / bot gates in core user edit | Product `bots` module (`base_bot_links`, not columns on `base_users`) |
-| `dbase=likespa`, repo path branding | Deployment only |
+| `dbase=` default / host branding | Deployment only; public repo is `ilcommm/freesaas` |
 | sheets linen, massage tables, audio ASR workers | Already product modules — OK |
 
 ---
 
 ## Recommendations
 
-### P0 — during current refactor
+### P0 — architectural (mostly landed)
 
-Architectural decisions expensive to reverse. Map to requirements A/B below.
+| ID | Action | Status |
+|----|--------|--------|
+| P0.1 | Validate contracts; stop prose/phantoms in `hooks` | **Mostly done** — keep enforcing |
+| P0.2 | Document lifecycle: **disable-only**; reserve `uninstall.strategy` | **Done** (policy); implement drop = P2.1 |
+| P0.3 | No new LikeSpa/Telegram product rules in `app/` or core chrome | **Ongoing** |
+| P0.4 | Locale list from discovery/config | **Done** |
+| P0.5 | Ban **new** direct `require` of another module’s `pages/` | **Ongoing** |
 
-| ID | Action | Req |
-|----|--------|-----|
-| P0.1 | Single source of truth for contracts: **validate/generate from runtime**; stop prose and phantoms in `hooks` | A1, B1 |
-| P0.2 | Document lifecycle: **disable-only**; reserve `uninstall.strategy` | A2, B3 |
-| P0.3 | No new LikeSpa/Telegram product rules in `app/` or core chrome | A7 |
-| P0.4 | Locale list from discovery/config, not hardcoded PHP array | A5 |
-| P0.5 | Ban **new** direct `require` of another module’s `pages/`; EventBus + `isEnabled` | B2, B6 |
+### P1 — before first OSS release — **DONE** (v0.3.33)
 
-### P1 — before first OSS release
+| ID | Action | Status |
+|----|--------|--------|
+| P1.1–P1.7 | i18n checker, CLI ops, health, manifests, smoke, runbooks, leftover labels | **Done** |
 
-| ID | Action | Req |
-|----|--------|-----|
-| P1.1 | Fix `bin/check-i18n.php`; exit codes; all modules’ manifest labels | A4, A5 |
-| P1.2 | CLI: system status, module list/inspect/enable/disable, migrate status/run `--module`, locale validate, module validate, health | A2–A4, C |
-| P1.3 | Platform health aggregation + module check registration API | A3, B4 |
-| P1.4 | Clean priority manifests; optional `bulkActions` field | B1 |
-| P1.5 | Minimal smoke script (lint + validate + i18n) | A4, B7 |
-| P1.6 | Runbooks `docs/agents/` (create/modify/migrate/locale/debug) | A8 |
-| P1.7 | i18n leftover labels (Telegram/Max fields) | B5 |
+Also shipped beyond original P1: bootstrap HTTP twin, product MCP/OAuth, `doctor`, `module create`, Docker, public packaging.
 
-### P2 — after OSS release
+### P2 — after OSS release (active backlog)
 
 | ID | Action | Req |
 |----|--------|-----|
@@ -337,10 +319,10 @@ Architectural decisions expensive to reverse. Map to requirements A/B below.
 
 | ID | Action | Note |
 |----|--------|------|
-| P3.1 | MCP adapter over CLI | **Superseded in practice** by in-process product MCP (`/llm/mcp`); platform lifecycle still CLI/`agent_token` |
-| P3.2 | Skills set (≤5) | Docs under `docs/skills/` |
-| P3.3 | Public capability registry / marketplace | Still prospective |
-| P3.4 | Agent installer | Docker Compose path; utterance installer later |
+| P3.1 | MCP adapter over CLI | **Superseded** by in-process product MCP; lifecycle stays token/CLI |
+| P3.2 | Skills set (≤5) | **Done** — `docs/skills/` |
+| P3.3 | Public capability registry / marketplace | Prospective |
+| P3.4 | Agent installer | Docker Compose shipped; utterance installer later |
 | P3.5 | Optional OpenAPI islands | `/llm/openapi.json` for tools |
 
 ---
@@ -552,35 +534,37 @@ Aggregation rule (recommended): any `fail` → overall `fail`; else any `degrade
 **Discover capabilities**
 
 ```bash
-php bin/module.php list --format=json
-php bin/module.php inspect stocks --format=json
+php bin/freesaas.php module list --format=json
+php bin/freesaas.php module inspect stocks --format=json
+php bin/freesaas.php doctor --format=json
 ```
 
 **Install / enable**
 
 ```bash
-php bin/module.php enable equipment
-php bin/migrate.php run --module=equipment
-php bin/health.php --module=equipment --format=json
+php bin/freesaas.php module create equipment --title='Equipment' --format=json
+php bin/freesaas.php module enable equipment --accept-risk --format=json
+php bin/freesaas.php migrate run --module=equipment --format=json
+php bin/freesaas.php health --module=equipment --format=json
 ```
 
 **Change + verify**
 
 ```bash
-php bin/module.php validate --module=stocks
-php bin/check-i18n.php   # or locale validate
-php bin/health.php --format=json
+php bin/freesaas.php module validate stocks --format=json
+php bin/freesaas.php locale validate --format=json
+php bin/smoke.php --format=json
 ```
 
 **Add locale**
 
 ```bash
 # add app/lang/es.php + modules/*/lang/es.php
-php bin/locale.php validate --locale=es
+php bin/freesaas.php locale validate --locale=es --format=json
 # enable via config discovery — no business-logic edit
 ```
 
-Exact binary layout may be one `bin/freesaas.php` with subcommands; the audit requires the **operations**, not a specific CLI framework.
+Canonical binary: `bin/freesaas.php` (HTTP twin `/agent/*`).
 
 ### Out of scope for Core now
 
@@ -611,12 +595,24 @@ Product MCP is **in scope and shipped**; see [Future Agent Layer](#future-agent-
 | `bin/smoke.php` | **Done** |
 | `bin/check-i18n.php` | **Fixed** (full bootstrap; exit codes) |
 | Manifest hooks prose cleanup | **Done** (bulkActions field; dotted events only) |
-| `docs/agents/*` runbooks | **Done** (incl. QUICKSTART, agent-surfaces, cases, repair) |
+| `docs/agents/*` runbooks | **Done** (QUICKSTART, agent-surfaces, cases, repair, connect-*, skills) |
+| Docker Compose greenfield | **Done** |
+| Public repo `ilcommm/freesaas` + private theme repo | **Done** |
+| MCP tools `core.doctor` / `core.health.detail` | **Done** |
 | Real uninstall / drop tables | Not yet (disable-only) |
 | `php bin/data-migrate.php` | Unchanged (destructive; document) |
 
 ---
 
-## Appendix: Score rationale (was 56 → ~75 after P1 → ~78 with MCP + packaging)
+## Appendix: Score rationale (56 → ~75 → ~78 → **~84**)
 
-Weighted judgment, not a formula. After CLI/health/validate/locale discovery/HTTP health/hooks cleanup/runbooks/**autonomous bootstrap**/product MCP/licensing, readiness nearer **~78**. Remaining drag: no uninstall, LikeSpa residue in Core, soft-dep honesty, plurals, platform lifecycle not on OAuth/MCP.
+Weighted judgment, not a formula.
+
+| Era | Score | What moved the needle |
+|-----|------:|------------------------|
+| 2026-10-05 baseline | 56 | Kernel + docs; ops thin |
+| Post-P1 | ~75 | CLI, health, validate, bootstrap, smoke, runbooks |
+| MCP + packaging draft | ~78 | `/llm/mcp`, dual-license docs |
+| **Public release 2026-10-11** | **~84** | doctor, scaffold, Docker, QUICKSTART/connect/skills/cases, public `freesaas`, theme split/history purge, ~388 agent.ops, locale ~5518 |
+
+**Still capping the score:** uninstall, soft-dep honesty, Core purity leftovers, plurals, no marketplace/PHPUnit, intentional dual auth surfaces, real-world health `degraded` (missing optional tokens/config) on busy instances.
