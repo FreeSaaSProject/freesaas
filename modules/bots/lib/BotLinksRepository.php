@@ -136,32 +136,71 @@ final class BotLinksRepository
         if ($entity === null) {
             return null;
         }
+        if ((string)($entity['enabled'] ?? '') !== '1') {
+            return null;
+        }
         $entity['telegram_chat_id'] = BotIdentity::chatIdValue($link['telegram_chat_id'] ?? '');
         $entity['max_user_id'] = BotIdentity::chatIdValue($link['max_user_id'] ?? '');
         $entity['BOT_NO_SEND'] = !empty($link['BOT_NO_SEND']) ? 1 : 0;
         return $entity;
     }
 
-    public static function bindPlatform(int $source, int $entityId, string $platform, string $chatId): bool
+    /**
+     * Bind chat id. Refuses to silently steal an existing different chat.
+     *
+     * @return 'ok'|'conflict'|'fail'
+     */
+    public static function bindPlatform(int $source, int $entityId, string $platform, string $chatId): string
     {
         if (!self::tableReady() || $entityId < 1) {
-            return false;
+            return 'fail';
         }
         $chatId = BotIdentity::chatIdValue($chatId);
         if ($chatId === '') {
-            return false;
+            return 'fail';
         }
         $existing = self::find($source, $entityId) ?? [
             'telegram_chat_id' => '',
             'max_user_id' => '',
             'BOT_NO_SEND' => 0,
         ];
-        if ($platform === 'max') {
-            $existing['max_user_id'] = $chatId;
-        } else {
-            $existing['telegram_chat_id'] = $chatId;
+        $key = $platform === 'max' ? 'max_user_id' : 'telegram_chat_id';
+        $old = BotIdentity::chatIdValue($existing[$key] ?? '');
+        if ($old !== '' && $old !== $chatId) {
+            return 'conflict';
+        }
+        $existing[$key] = $chatId;
+        self::upsert($source, $entityId, $existing);
+
+        return 'ok';
+    }
+
+    /** Clear one platform (or both when $platform === ''). */
+    public static function unbindPlatform(int $source, int $entityId, string $platform = ''): bool
+    {
+        if (!self::tableReady() || $entityId < 1) {
+            return false;
+        }
+        $existing = self::find($source, $entityId);
+        if ($existing === null) {
+            return true;
+        }
+        $platform = strtolower(trim($platform));
+        if ($platform === '' || $platform === 'telegram') {
+            $existing['telegram_chat_id'] = '';
+        }
+        if ($platform === '' || $platform === 'max') {
+            $existing['max_user_id'] = '';
+        }
+        if ($existing['telegram_chat_id'] === '' && $existing['max_user_id'] === '') {
+            Database::pdo()->prepare(
+                'DELETE FROM base_bot_links WHERE BOT_SOURCE = ? AND ID_ENTITY = ?'
+            )->execute([$source, $entityId]);
+
+            return true;
         }
         self::upsert($source, $entityId, $existing);
+
         return true;
     }
 

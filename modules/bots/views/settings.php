@@ -34,6 +34,7 @@ declare(strict_types=1);
       <label><?= te('bots.settings.secret') ?>
         <input name="<?= e($id) ?>_webhook_secret" value="<?= !empty($ch['has_secret']) ? '••••••••' : '' ?>" autocomplete="off">
       </label>
+      <p class="muted"><?= te('bots.settings.secret_hint') ?></p>
       <p class="muted"><?= te('bots.settings.webhook') ?>: <code><?= e((string)$ch['webhook_path']) ?></code></p>
     <?php endforeach; ?>
   </fieldset>

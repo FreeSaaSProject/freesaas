@@ -15,7 +15,7 @@ php bin/freesaas.php health --module=bots --format=json
 php bin/smoke.php
 ```
 
-Webhook paths (public + secret header):
+Webhook paths (**POST only** + secret header):
 
 | Channel | Path |
 |---------|------|
@@ -24,10 +24,22 @@ Webhook paths (public + secret header):
 | Client Telegram | `POST /bots/webhook/telegram/client` |
 | Client Max | `POST /bots/webhook/max/client` |
 
-- Telegram secret header: `X-Telegram-Bot-Api-Secret-Token`
+- Telegram secret header: `X-Telegram-Bot-Api-Secret-Token` (must match `*_webhook_secret`; pass the same value as `secret_token` to Telegram `setWebhook`)
 - Max secret header: `X-Max-Bot-Api-Secret`
+- Empty webhook secret is **rejected** (fail-closed). Dev-only escape: `allow_unsigned_webhooks=1` in `cfg/modules/bots.ini`. Saving `/bots/settings` with a token and empty secret auto-generates a 64-hex secret.
+- Health `bots.webhook_secrets` is **degraded** when a token is set without a secret.
 
-Staff/client link by phone → `base_users.tel` / `base_clients.tel` → writes chat ids into **`base_bot_links`** (`BOT_SOURCE` 2=staff, 1=client). Do not store messenger ids on `base_users` / `base_clients`.
+### Linking a chat (anti account-takeover)
+
+Phone text alone is **not** accepted. Telegram: share **your own** contact (`contact.user_id` must equal `from.id`). Max / alternative: one-time code:
+
+```bash
+php bin/freesaas.php bot link-code admin --format=json          # staff login
+php bin/freesaas.php bot link-code client:42 --format=json     # client id
+php bin/freesaas.php bot unlink admin --platform=telegram --format=json
+```
+
+Writes chat ids into **`base_bot_links`** (`BOT_SOURCE` 2=staff, 1=client). Existing different chat is not overwritten (unlink first). Disabled users/clients are not linkable.
 
 ## Bot types (menu)
 

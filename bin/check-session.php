@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 /**
  * Session guard / auth_epoch regressions (needs DB).
+ *
+ * Uses a disposable temp user (never bumps live staff). Works on MyISAM
+ * where transactions do not roll back DML.
+ *
  * Exit 0 ok, 1 fail.
  */
 
@@ -17,10 +21,90 @@ $check = static function (string $name, bool $ok) use (&$fail): void {
     }
 };
 
+/**
+ * Insert a minimal disposable staff row filling NOT NULL columns without defaults.
+ *
+ * @return int new id
+ */
+function check_session_insert_temp(PDO $pdo, string $login, string $passwordHash): int
+{
+    $cols = $pdo->query('SHOW COLUMNS FROM base_users')->fetchAll(PDO::FETCH_ASSOC);
+    if (!is_array($cols) || $cols === []) {
+        throw new RuntimeException('SHOW COLUMNS base_users failed');
+    }
+    $names = [];
+    $placeholders = [];
+    $params = [];
+    foreach ($cols as $c) {
+        if (!is_array($c)) {
+            continue;
+        }
+        $field = (string)($c['Field'] ?? '');
+        if ($field === '') {
+            continue;
+        }
+        if (stripos((string)($c['Extra'] ?? ''), 'auto_increment') !== false) {
+            continue;
+        }
+        $names[] = '`' . str_replace('`', '``', $field) . '`';
+        if ($field === 'login') {
+            $placeholders[] = '?';
+            $params[] = $login;
+        } elseif ($field === 'password') {
+            $placeholders[] = '?';
+            $params[] = $passwordHash;
+        } elseif ($field === 'name') {
+            $placeholders[] = '?';
+            $params[] = 'check-session';
+        } elseif ($field === 'enabled') {
+            $placeholders[] = '?';
+            $params[] = '1';
+        } elseif ($field === 'auth_epoch') {
+            $placeholders[] = '?';
+            $params[] = 0;
+        } elseif ($field === 'status') {
+            $placeholders[] = '?';
+            $params[] = serialize(['permissions' => []]);
+        } elseif (($c['Null'] ?? '') === 'YES') {
+            $placeholders[] = 'NULL';
+        } elseif (array_key_exists('Default', $c) && $c['Default'] !== null) {
+            $placeholders[] = '?';
+            $params[] = $c['Default'];
+        } else {
+            $type = strtolower((string)($c['Type'] ?? ''));
+            if (preg_match('/^(tiny|small|medium|big)?int|decimal|float|double|year/', $type)) {
+                $placeholders[] = '?';
+                $params[] = 0;
+            } elseif (strpos($type, 'enum(') === 0 && preg_match("/enum\\('((?:\\\\'|[^'])*)'/", $type, $m)) {
+                $placeholders[] = '?';
+                $params[] = stripcslashes($m[1]);
+            } elseif (strpos($type, 'datetime') !== false || $type === 'timestamp') {
+                $placeholders[] = '?';
+                $params[] = date('Y-m-d H:i:s');
+            } elseif ($type === 'date') {
+                $placeholders[] = '?';
+                $params[] = '1970-01-01';
+            } else {
+                $placeholders[] = '?';
+                $params[] = '';
+            }
+        }
+    }
+    $sql = 'INSERT INTO base_users (' . implode(',', $names) . ') VALUES (' . implode(',', $placeholders) . ')';
+    $pdo->prepare($sql)->execute($params);
+
+    return (int)$pdo->lastInsertId();
+}
+
 try {
     Database::pdo()->query('SELECT 1');
 } catch (Throwable $e) {
-    echo "SKIP no database: " . $e->getMessage() . PHP_EOL;
+    echo 'SKIP no database: ' . $e->getMessage() . PHP_EOL;
+    exit(0);
+}
+
+if (!Database::tableExists('base_users')) {
+    echo "SKIP base_users missing\n";
     exit(0);
 }
 
@@ -31,52 +115,86 @@ $_SESSION = [];
 $_SESSION['user_id'] = 0;
 $check('check_empty', !Auth::check());
 
-// Pick an enabled user for synthetic session tests.
-$st = Database::pdo()->query(
-    "SELECT id, login, auth_epoch, enabled FROM base_users WHERE enabled = '1' ORDER BY id ASC LIMIT 1"
-);
-$row = $st ? $st->fetch(PDO::FETCH_ASSOC) : false;
-if (!is_array($row)) {
-    echo "SKIP no enabled users\n";
-    exit($fail > 0 ? 1 : 0);
+$pdo = Database::pdo();
+$tempId = 0;
+$login = '_check_session_' . bin2hex(random_bytes(4));
+
+try {
+    $tempId = check_session_insert_temp($pdo, $login, Auth::hashPassword(bin2hex(random_bytes(8))));
+    $check('temp_user_created', $tempId > 0);
+
+    $st = $pdo->prepare(
+        'SELECT id, login'
+        . (Database::columnExists('base_users', 'auth_epoch') ? ', auth_epoch' : '')
+        . ' FROM base_users WHERE id = ? LIMIT 1'
+    );
+    $st->execute([$tempId]);
+    $row = $st->fetch(PDO::FETCH_ASSOC);
+    if (!is_array($row)) {
+        throw new RuntimeException('temp user missing after insert');
+    }
+
+    $uid = (int)$row['id'];
+    $epoch = (int)($row['auth_epoch'] ?? 0);
+
+    $_SESSION['user_id'] = $uid;
+    $_SESSION['login'] = (string)$row['login'];
+    $_SESSION['user_name'] = 'check-session';
+    $_SESSION['permissions'] = [];
+    $_SESSION['auth_epoch'] = $epoch;
+    $_SESSION['_seen_at'] = time();
+    $_SESSION['_guard_at'] = 0;
+    $_SESSION['_regen_at'] = time();
+    Auth::setStatusContext(0, 0);
+
+    $check('guard_ok', Auth::check(true));
+
+    $_SESSION['user_id'] = $uid;
+    $_SESSION['auth_epoch'] = $epoch - 1;
+    $_SESSION['_guard_at'] = 0;
+    $_SESSION['_seen_at'] = time();
+    $check('stale_epoch_logs_out', !Auth::check(true));
+    $check('session_cleared', empty($_SESSION['user_id']));
+
+    $_SESSION['user_id'] = $uid;
+    $_SESSION['auth_epoch'] = $epoch;
+    $_SESSION['_seen_at'] = time() - (8 * 86400);
+    $_SESSION['_guard_at'] = time();
+    $check('idle_timeout', !Auth::check(false));
+
+    if (Database::columnExists('base_users', 'auth_epoch')) {
+        $before = $epoch;
+        $after = Auth::bumpAuthEpoch($uid);
+        $check('bump_increments', $after === $before + 1 || ($before === 0 && $after >= 1));
+    } else {
+        echo "SKIP bump_increments (no auth_epoch)\n";
+    }
+} catch (Throwable $e) {
+    echo 'FAIL temp_user_setup ' . $e->getMessage() . PHP_EOL;
+    $fail++;
+} finally {
+    if ($tempId > 0) {
+        try {
+            $pdo->prepare('DELETE FROM base_users WHERE id = ?')->execute([$tempId]);
+        } catch (Throwable $e) {
+            echo 'FAIL temp_user_cleanup ' . $e->getMessage() . PHP_EOL;
+            $fail++;
+        }
+    }
+    $_SESSION = [];
 }
 
-$uid = (int)$row['id'];
-$epoch = (int)($row['auth_epoch'] ?? 0);
-
-$_SESSION['user_id'] = $uid;
-$_SESSION['login'] = (string)$row['login'];
-$_SESSION['user_name'] = 'test';
-$_SESSION['permissions'] = [];
-$_SESSION['auth_epoch'] = $epoch;
-$_SESSION['_seen_at'] = time();
-$_SESSION['_guard_at'] = 0;
-$_SESSION['_regen_at'] = time();
-Auth::setStatusContext(0, 0);
-
-$check('guard_ok', Auth::check(true));
-
-// Stale epoch → logout
-$_SESSION['user_id'] = $uid;
-$_SESSION['auth_epoch'] = $epoch - 1;
-$_SESSION['_guard_at'] = 0;
-$_SESSION['_seen_at'] = time();
-$check('stale_epoch_logs_out', !Auth::check(true));
-$check('session_cleared', empty($_SESSION['user_id']));
-
-// Idle timeout
-$_SESSION['user_id'] = $uid;
-$_SESSION['auth_epoch'] = $epoch;
-$_SESSION['_seen_at'] = time() - (8 * 86400);
-$_SESSION['_guard_at'] = time();
-$check('idle_timeout', !Auth::check(false));
-
-// bumpAuthEpoch increments
-$before = $epoch;
-$after = Auth::bumpAuthEpoch($uid);
-$check('bump_increments', $after === $before + 1 || ($before === 0 && $after >= 1));
-// restore epoch for the live user (avoid stranding real admin sessions in shared DB)
-Database::pdo()->prepare('UPDATE base_users SET auth_epoch = ? WHERE id = ?')
-    ->execute([$before, $uid]);
+$ref = new ReflectionClass('Auth');
+$m = $ref->getMethod('dummyPasswordHash');
+$m->setAccessible(true);
+$dummy = (string)$m->invoke(null);
+$algo = Auth::preferredAlgo();
+$expectArgon = defined('PASSWORD_ARGON2ID') && $algo === PASSWORD_ARGON2ID;
+$check(
+    'dummy_matches_preferred_algo',
+    $expectArgon
+        ? strpos($dummy, '$argon2') === 0
+        : (strpos($dummy, '$2y$') === 0 || strpos($dummy, '$2a$') === 0)
+);
 
 exit($fail > 0 ? 1 : 0);

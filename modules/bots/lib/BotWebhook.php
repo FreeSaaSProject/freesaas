@@ -6,6 +6,15 @@ final class BotWebhook
 {
     public static function handle(string $platform, string $channel): void
     {
+        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        if ($method !== 'POST') {
+            http_response_code(405);
+            header('Allow: POST');
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => false, 'error' => 'method_not_allowed']);
+            return;
+        }
+
         $platform = strtolower(trim($platform));
         $channel = strtolower(trim($channel));
         if (!in_array($platform, BotsConfig::PLATFORMS, true) || !in_array($channel, BotsConfig::AUDIENCES, true)) {
@@ -30,12 +39,19 @@ final class BotWebhook
             return;
         }
 
-        $raw = file_get_contents('php://input');
-        $update = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+        $raw = function_exists('request_raw_body') ? request_raw_body() : (string)file_get_contents('php://input');
+        $update = $raw !== '' ? json_decode($raw, true) : null;
         if (!is_array($update)) {
             http_response_code(400);
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['ok' => false, 'error' => 'invalid json']);
+            return;
+        }
+
+        $updateId = (int)($update['update_id'] ?? $update['updateId'] ?? 0);
+        if ($updateId > 0 && !BotWebhookUpdatesRepository::claim($platform, $channel, $updateId)) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['ok' => true, 'deduped' => true]);
             return;
         }
 
@@ -44,6 +60,9 @@ final class BotWebhook
                 self::handleMax($cfg, $update);
             } else {
                 self::handleTelegram($cfg, $update);
+            }
+            if (random_int(1, 50) === 1) {
+                BotWebhookUpdatesRepository::prune();
             }
         } catch (Throwable $e) {
             error_log('[bots.webhook] ' . $e->getMessage());
@@ -56,14 +75,22 @@ final class BotWebhook
     private static function verifySecret(string $platform, string $expected): bool
     {
         if ($expected === '') {
-            // Allow empty secret only in local/dev; still accept to ease bring-up.
-            return true;
+            if (BotsConfig::allowUnsignedWebhooks()) {
+                error_log('[bots.webhook] unsigned webhook accepted (allow_unsigned_webhooks=1)');
+
+                return true;
+            }
+            error_log('[bots.webhook] rejected: empty webhook_secret (fail-closed)');
+
+            return false;
         }
         if ($platform === 'max') {
             $got = (string)($_SERVER['HTTP_X_MAX_BOT_API_SECRET'] ?? '');
+
             return hash_equals($expected, $got);
         }
         $got = (string)($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '');
+
         return hash_equals($expected, $got);
     }
 
@@ -99,7 +126,22 @@ final class BotWebhook
 
         if (isset($msg['contact']) && is_array($msg['contact'])) {
             $phone = (string)($msg['contact']['phone_number'] ?? '');
-            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $phone): void {
+            $fromId = (string)($msg['from']['id'] ?? '');
+            $contactUid = isset($msg['contact']['user_id']) ? (string)$msg['contact']['user_id'] : '';
+            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $phone, $fromId, $contactUid): void {
+                if ($fromId === '' || $contactUid === '' || $contactUid !== $fromId) {
+                    BotClient::sendUiMessage(
+                        'telegram',
+                        $cfg['token'],
+                        $chatId,
+                        t('bots.auth.contact_must_be_own'),
+                        null,
+                        '',
+                        null,
+                        $cfg['audience']
+                    );
+                    return;
+                }
                 self::tryLinkPhone($cfg, 'telegram', $chatId, $phone);
                 $user = self::resolveUser($cfg['audience'], 'telegram', $chatId);
                 self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
@@ -120,15 +162,28 @@ final class BotWebhook
         }
 
         if ($user === null && $text !== '') {
-            $tel = BotIdentity::normalizePhone($text);
-            if ($tel !== null) {
-                self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $tel): void {
-                    self::tryLinkPhone($cfg, 'telegram', $chatId, $tel);
+            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $text): void {
+                if (self::tryLinkCode($cfg, 'telegram', $chatId, $text)) {
                     $user = self::resolveUser($cfg['audience'], 'telegram', $chatId);
                     self::sendCabinetOrAuth($cfg, 'telegram', $chatId, $user);
-                });
-                return;
-            }
+                    return;
+                }
+                if (BotIdentity::normalizePhone($text) !== null) {
+                    BotClient::sendUiMessage(
+                        'telegram',
+                        $cfg['token'],
+                        $chatId,
+                        t('bots.auth.phone_text_disabled'),
+                        null,
+                        '',
+                        null,
+                        $cfg['audience']
+                    );
+                    return;
+                }
+                self::sendAuthPrompt($cfg, 'telegram', $chatId, null);
+            });
+            return;
         }
 
         self::processInbound($cfg, 'telegram', $chatId, $user, $text !== '' ? 'text' : 'message', [
@@ -140,7 +195,6 @@ final class BotWebhook
     /** @param array{audience:string,platform:string,token:string,webhook_secret:string} $cfg */
     private static function handleMax(array $cfg, array $update): void
     {
-        // Max webhook shapes vary; support update_type + message / callback.
         $type = (string)($update['update_type'] ?? $update['type'] ?? '');
         $callback = is_array($update['callback'] ?? null) ? $update['callback'] : null;
         if ($callback !== null || $type === 'message_callback') {
@@ -188,10 +242,18 @@ final class BotWebhook
 
         $contactPhone = (string)($msg['body']['contact']['vcf_phone'] ?? $msg['contact']['phone_number'] ?? '');
         if ($contactPhone !== '') {
-            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $contactPhone): void {
-                self::tryLinkPhone($cfg, 'max', $chatId, $contactPhone);
-                $user = self::resolveUser($cfg['audience'], 'max', $chatId);
-                self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
+            // Max contact cards are not proven to belong to the sender — require a link code.
+            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId): void {
+                BotClient::sendUiMessage(
+                    'max',
+                    $cfg['token'],
+                    $chatId,
+                    t('bots.auth.use_link_code'),
+                    null,
+                    '',
+                    null,
+                    $cfg['audience']
+                );
             });
             return;
         }
@@ -203,15 +265,28 @@ final class BotWebhook
             return;
         }
         if ($user === null && $text !== '') {
-            $tel = BotIdentity::normalizePhone($text);
-            if ($tel !== null) {
-                self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $tel): void {
-                    self::tryLinkPhone($cfg, 'max', $chatId, $tel);
+            self::withUiSession($cfg['audience'], null, static function () use ($cfg, $chatId, $text): void {
+                if (self::tryLinkCode($cfg, 'max', $chatId, $text)) {
                     $user = self::resolveUser($cfg['audience'], 'max', $chatId);
                     self::sendCabinetOrAuth($cfg, 'max', $chatId, $user);
-                });
-                return;
-            }
+                    return;
+                }
+                if (BotIdentity::normalizePhone($text) !== null) {
+                    BotClient::sendUiMessage(
+                        'max',
+                        $cfg['token'],
+                        $chatId,
+                        t('bots.auth.use_link_code'),
+                        null,
+                        '',
+                        null,
+                        $cfg['audience']
+                    );
+                    return;
+                }
+                self::sendAuthPrompt($cfg, 'max', $chatId, null);
+            });
+            return;
         }
         self::processInbound($cfg, 'max', $chatId, $user, $text !== '' ? 'text' : 'message', [
             'text' => $text,
@@ -357,7 +432,6 @@ final class BotWebhook
                 ['text' => t('bots.auth.send_phone_hint'), 'callback_data' => 'auth_hint'],
             ]],
         ];
-        // Reply keyboard contact request (Telegram); Max falls back to text phone.
         if ($platform === 'telegram') {
             $markup = [
                 'keyboard' => [[
@@ -377,6 +451,79 @@ final class BotWebhook
             $messageId,
             $cfg['audience']
         );
+    }
+
+    /**
+     * @param array{audience:string,platform:string,token:string,webhook_secret:string} $cfg
+     */
+    private static function tryLinkCode(array $cfg, string $platform, string $chatId, string $text): bool
+    {
+        if (!class_exists('BotLinkCodesRepository', false) || !BotLinkCodesRepository::tableReady()) {
+            return false;
+        }
+        $consumed = BotLinkCodesRepository::consume($text);
+        if ($consumed === null) {
+            return false;
+        }
+        $wantSource = BotLinksRepository::audienceToSource($cfg['audience']);
+        if ((int)$consumed['bot_source'] !== $wantSource) {
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                t('bots.auth.code_wrong_audience'),
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
+
+            return true; // handled (rejected)
+        }
+        $entityId = (int)$consumed['id_entity'];
+        $result = $cfg['audience'] === 'client'
+            ? BotIdentity::bindClient($entityId, $platform, $chatId)
+            : BotIdentity::bindStaff($entityId, $platform, $chatId);
+        if ($result === 'conflict') {
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                t('bots.auth.link_conflict'),
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
+
+            return true;
+        }
+        if ($result !== 'ok') {
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                t('bots.auth.link_failed'),
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
+
+            return true;
+        }
+        BotClient::sendUiMessage(
+            $platform,
+            $cfg['token'],
+            $chatId,
+            t('bots.auth.linked'),
+            null,
+            '',
+            null,
+            $cfg['audience']
+        );
+
+        return true;
     }
 
     /** @param array{audience:string,platform:string,token:string,webhook_secret:string} $cfg */
@@ -411,17 +558,8 @@ final class BotWebhook
                 );
                 return;
             }
-            BotIdentity::bindClient((int)$row['id'], $platform, $chatId);
-            BotClient::sendUiMessage(
-                $platform,
-                $cfg['token'],
-                $chatId,
-                t('bots.auth.linked'),
-                null,
-                '',
-                null,
-                $cfg['audience']
-            );
+            $result = BotIdentity::bindClient((int)$row['id'], $platform, $chatId);
+            self::replyBindResult($cfg, $platform, $chatId, $result);
             return;
         }
         $row = BotIdentity::findStaffByPhone($tel);
@@ -438,12 +576,34 @@ final class BotWebhook
             );
             return;
         }
-        BotIdentity::bindStaff((int)$row['id'], $platform, $chatId);
+        $result = BotIdentity::bindStaff((int)$row['id'], $platform, $chatId);
+        self::replyBindResult($cfg, $platform, $chatId, $result);
+    }
+
+    /** @param array{audience:string,platform:string,token:string,webhook_secret:string} $cfg */
+    private static function replyBindResult(array $cfg, string $platform, string $chatId, string $result): void
+    {
+        if ($result === 'ok') {
+            BotClient::sendUiMessage(
+                $platform,
+                $cfg['token'],
+                $chatId,
+                t('bots.auth.linked'),
+                null,
+                '',
+                null,
+                $cfg['audience']
+            );
+            return;
+        }
+        $msg = $result === 'conflict'
+            ? t('bots.auth.link_conflict')
+            : t('bots.auth.link_failed');
         BotClient::sendUiMessage(
             $platform,
             $cfg['token'],
             $chatId,
-            t('bots.auth.linked'),
+            $msg,
             null,
             '',
             null,

@@ -84,6 +84,9 @@ try {
         case 'user':
             freesaas_cmd_user($sub, $args, $opts);
             break;
+        case 'bot':
+            freesaas_cmd_bot($sub, $args, $opts);
+            break;
         default:
             Cli::usage("Unknown command: {$cmd}\n\n" . freesaas_cli_help());
     }
@@ -118,7 +121,82 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   user login-link <login> [--ttl=15] [--format=json]
   user logout-all <login> [--format=json]
   user hash-audit [--format=json]
+  bot unlink <login|client:<id>> [--platform=telegram|max] [--format=json]
+  bot link-code <login|client:<id>> [--ttl=600] [--format=json]
 TXT;
+}
+
+/**
+ * @param list<string> $args
+ * @param array<string, string|bool> $opts
+ */
+function freesaas_cmd_bot(string $sub, array $args, array $opts): void
+{
+    if (!ModuleManager::isEnabled('bots')) {
+        Cli::fail('bots module disabled', Cli::EXIT_FAIL);
+    }
+    require_once base_path('modules/bots/lib/BotsConfig.php');
+    require_once base_path('modules/bots/lib/BotLinksRepository.php');
+    require_once base_path('modules/bots/lib/BotIdentity.php');
+    require_once base_path('modules/bots/lib/BotLinkCodesRepository.php');
+    require_once base_path('modules/core/lib/UsersRepository.php');
+
+    $target = trim((string)($args[2] ?? ''));
+    if ($sub === 'unlink' || $sub === 'link-code') {
+        if ($target === '') {
+            Cli::usage('Usage: bot ' . $sub . ' <login|client:<id>> …');
+        }
+        $source = BotLinksRepository::SOURCE_STAFF;
+        $entityId = 0;
+        if (stripos($target, 'client:') === 0) {
+            $source = BotLinksRepository::SOURCE_CLIENT;
+            $entityId = (int)substr($target, 7);
+        } else {
+            $row = UsersRepository::findByLogin($target);
+            if ($row === null) {
+                Cli::fail('staff login not found: ' . $target, Cli::EXIT_FAIL);
+            }
+            $entityId = (int)$row['id'];
+        }
+        if ($entityId < 1) {
+            Cli::fail('invalid target', Cli::EXIT_FAIL);
+        }
+
+        if ($sub === 'unlink') {
+            $platform = isset($opts['platform']) ? strtolower(trim((string)$opts['platform'])) : '';
+            if ($platform !== '' && !in_array($platform, ['telegram', 'max'], true)) {
+                Cli::fail('platform must be telegram|max', Cli::EXIT_FAIL);
+            }
+            BotLinksRepository::unbindPlatform($source, $entityId, $platform);
+            freesaas_emit_ops([
+                'ok' => true,
+                'unlinked' => true,
+                'bot_source' => $source,
+                'id_entity' => $entityId,
+                'platform' => $platform === '' ? 'all' : $platform,
+            ]);
+            return;
+        }
+
+        $ttl = isset($opts['ttl']) ? (int)$opts['ttl'] : BotLinkCodesRepository::TTL_SECONDS;
+        try {
+            $code = BotLinkCodesRepository::create($source, $entityId, $ttl);
+        } catch (Throwable $e) {
+            Cli::fail($e->getMessage(), Cli::EXIT_FAIL);
+        }
+        freesaas_emit_ops([
+            'ok' => true,
+            'code' => $code['code'],
+            'expires_at' => $code['expires_at'],
+            'ttl_seconds' => $code['ttl_seconds'],
+            'bot_source' => $source,
+            'id_entity' => $entityId,
+            'hint' => 'Send this 6-digit code to the bot from the chat to link',
+        ]);
+        return;
+    }
+
+    Cli::usage('Usage: bot unlink|link-code …');
 }
 
 /**

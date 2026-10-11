@@ -550,10 +550,21 @@ final class Auth
     }
 
     /**
-     * Dummy bcrypt hash so missing logins still hit password_verify (timing).
-     * Not a real password — verify always fails.
+     * Dummy hash using preferredAlgo() so missing-login timing matches
+     * modern wrong-password verifies (not a fixed bcrypt string).
      */
-    private const DUMMY_PASSWORD_HASH = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
+    private static function dummyPasswordHash(): string
+    {
+        static $hash = null;
+        if (!is_string($hash) || $hash === '') {
+            $hash = password_hash("\0freesaas-dummy-never-match", self::preferredAlgo());
+            if (!is_string($hash) || $hash === '') {
+                $hash = password_hash("\0freesaas-dummy-never-match", PASSWORD_BCRYPT);
+            }
+        }
+
+        return is_string($hash) ? $hash : '';
+    }
 
     /**
      * @return 'ok'|'bad_credentials'|'locked'|'expired'|'disabled'
@@ -589,9 +600,10 @@ final class Auth
         $row = $st->fetch();
 
         // Always verify (dummy hash when login missing) before revealing account state.
-        $stored = is_array($row) ? (string)$row['password'] : self::DUMMY_PASSWORD_HASH;
+        $dummy = self::dummyPasswordHash();
+        $stored = is_array($row) ? (string)$row['password'] : $dummy;
         if ($stored === '') {
-            $stored = self::DUMMY_PASSWORD_HASH;
+            $stored = $dummy;
         }
         $passwordOk = self::verifyPassword($password, $stored);
 

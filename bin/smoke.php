@@ -128,7 +128,7 @@ if ($pwCode !== 0) {
     $sections['password']['output'] = implode("\n", $pwLines);
 }
 
-// Session guard / auth_epoch (bin/check-session.php)
+// Session guard / auth_epoch (disposable temp user; never bumps live staff)
 $sessionLines = [];
 $sessionCode = 0;
 exec(
@@ -143,6 +143,23 @@ $sections['session'] = [
 if ($sessionCode !== 0) {
     $failed = true;
     $sections['session']['output'] = implode("\n", $sessionLines);
+}
+
+// Bots webhook / link security (bin/check-bots-webhook.php)
+$botsLines = [];
+$botsCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-bots-webhook.php') . ' 2>&1',
+    $botsLines,
+    $botsCode
+);
+$sections['bots_webhook'] = [
+    'ok' => $botsCode === 0,
+    'exit' => $botsCode,
+];
+if ($botsCode !== 0) {
+    $failed = true;
+    $sections['bots_webhook']['output'] = implode("\n", $botsLines);
 }
 
 $out = ['ok' => !$failed, 'sections' => $sections];

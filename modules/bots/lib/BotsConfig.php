@@ -44,6 +44,33 @@ final class BotsConfig
     }
 
     /**
+     * Dev-only: accept webhooks when channel secret is empty.
+     * Default false (fail-closed). Never enable on production.
+     */
+    public static function allowUnsignedWebhooks(): bool
+    {
+        return (string)Config::get('bots', 'allow_unsigned_webhooks', '0') === '1';
+    }
+
+    public static function generateWebhookSecret(): string
+    {
+        return bin2hex(random_bytes(32));
+    }
+
+    /** Channels that have a token but no webhook secret. */
+    public static function channelsMissingSecret(): array
+    {
+        $out = [];
+        foreach (self::listForUi() as $row) {
+            if (!empty($row['has_token']) && empty($row['has_secret'])) {
+                $out[] = (string)$row['id'];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
      * @return list<array{id:string,audience:string,platform:string,has_token:bool,token_masked:string,has_secret:bool,webhook_path:string}>
      */
     public static function listForUi(): array
@@ -98,10 +125,16 @@ final class BotsConfig
             if (array_key_exists($secretKey, $post)) {
                 $raw = trim((string)$post[$secretKey]);
                 if ($raw === '') {
-                    Config::set('bots', $secretKey, '');
+                    // Empty submit: keep existing, or leave empty for auto-gen below.
                 } elseif (!self::looksMasked($raw)) {
                     Config::set('bots', $secretKey, $raw);
                 }
+            }
+            // Auto-generate secret when token is set and secret still empty.
+            $token = trim((string)Config::get('bots', $tokenKey, ''));
+            $secret = trim((string)Config::get('bots', $secretKey, ''));
+            if ($token !== '' && $secret === '') {
+                Config::set('bots', $secretKey, self::generateWebhookSecret());
             }
         }
         Config::set('bots', 'max_ssl_insecure', !empty($post['max_ssl_insecure']) ? '1' : '0');

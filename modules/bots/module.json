@@ -2,7 +2,7 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "0.2.6",
+    "version": "0.2.7",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -128,7 +128,9 @@
     "tables": [
         "base_telegram_sends",
         "base_bot_links",
-        "base_bot_chat_state"
+        "base_bot_chat_state",
+        "base_bot_webhook_updates",
+        "base_bot_link_codes"
     ],
     "migrators": [
         {

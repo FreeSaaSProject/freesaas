@@ -41,7 +41,7 @@ final class BotIdentity
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT id, name, tel, enabled FROM base_users WHERE tel = ? LIMIT 1'
+            "SELECT id, name, tel, enabled FROM base_users WHERE tel = ? AND enabled = '1' LIMIT 1"
         );
         $st->execute([$tel]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -61,13 +61,23 @@ final class BotIdentity
         );
     }
 
-    public static function bindStaff(int $userId, string $platform, string $chatId): bool
+    /** @return 'ok'|'conflict'|'fail' */
+    public static function bindStaff(int $userId, string $platform, string $chatId): string
     {
         return BotLinksRepository::bindPlatform(
             BotLinksRepository::SOURCE_STAFF,
             $userId,
             $platform,
             $chatId
+        );
+    }
+
+    public static function unbindStaff(int $userId, string $platform = ''): bool
+    {
+        return BotLinksRepository::unbindPlatform(
+            BotLinksRepository::SOURCE_STAFF,
+            $userId,
+            $platform
         );
     }
 
@@ -78,7 +88,7 @@ final class BotIdentity
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT id, name, tel, enabled FROM base_clients WHERE tel = ? LIMIT 1'
+            "SELECT id, name, tel, enabled FROM base_clients WHERE tel = ? AND enabled = '1' LIMIT 1"
         );
         $st->execute([$tel]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -98,13 +108,23 @@ final class BotIdentity
         );
     }
 
-    public static function bindClient(int $clientId, string $platform, string $chatId): bool
+    /** @return 'ok'|'conflict'|'fail' */
+    public static function bindClient(int $clientId, string $platform, string $chatId): string
     {
         return BotLinksRepository::bindPlatform(
             BotLinksRepository::SOURCE_CLIENT,
             $clientId,
             $platform,
             $chatId
+        );
+    }
+
+    public static function unbindClient(int $clientId, string $platform = ''): bool
+    {
+        return BotLinksRepository::unbindPlatform(
+            BotLinksRepository::SOURCE_CLIENT,
+            $clientId,
+            $platform
         );
     }
 

@@ -12,6 +12,8 @@ require_once __DIR__ . '/lib/BotPlugins.php';
 require_once __DIR__ . '/lib/BotMenuCatalog.php';
 require_once __DIR__ . '/lib/BotSend.php';
 require_once __DIR__ . '/lib/BotWebhook.php';
+require_once __DIR__ . '/lib/BotWebhookUpdatesRepository.php';
+require_once __DIR__ . '/lib/BotLinkCodesRepository.php';
 require_once __DIR__ . '/lib/BotChatState.php';
 
 ModuleManager::registerMenuGroup('bots.menu.group', 68, '/bots/types/staff');
@@ -91,7 +93,7 @@ Cron::register('bots.sends_drain', [
 
 ModuleManager::registerRoute('/bots/webhook/telegram/{channel}', [
     'module' => 'bots',
-    'methods' => ['POST', 'GET'],
+    'methods' => ['POST'],
     'public' => true,
     'handler' => static function (): void {
         BotWebhook::handle('telegram', (string)(Router::param('channel') ?? ''));
@@ -100,7 +102,7 @@ ModuleManager::registerRoute('/bots/webhook/telegram/{channel}', [
 
 ModuleManager::registerRoute('/bots/webhook/max/{channel}', [
     'module' => 'bots',
-    'methods' => ['POST', 'GET'],
+    'methods' => ['POST'],
     'public' => true,
     'handler' => static function (): void {
         BotWebhook::handle('max', (string)(Router::param('channel') ?? ''));
@@ -281,6 +283,32 @@ Health::register('bots.tokens', 'bots', static function (): array {
         'meta' => ['hint' => '/bots/settings'],
     ];
 }, 'Bot tokens');
+
+Health::register('bots.webhook_secrets', 'bots', static function (): array {
+    $missing = BotsConfig::channelsMissingSecret();
+    if ($missing === []) {
+        if (!BotsConfig::anyTokenConfigured()) {
+            return [
+                'status' => 'skipped',
+                'message' => t('bots.health.secrets_skipped'),
+            ];
+        }
+        return [
+            'status' => 'ok',
+            'message' => t('bots.health.secrets_ok'),
+        ];
+    }
+    return [
+        'status' => 'degraded',
+        'error_code' => 'bots_webhook_secret_missing',
+        'message' => t('bots.health.secrets_missing', ['channels' => implode(', ', $missing)]),
+        'meta' => [
+            'channels' => $missing,
+            'hint' => '/bots/settings',
+            'allow_unsigned' => BotsConfig::allowUnsignedWebhooks(),
+        ],
+    ];
+}, 'Bot webhook secrets');
 
 Health::register('bots.queue', 'bots', static function (): array {
     if (!BotSendsRepository::tableReady()) {

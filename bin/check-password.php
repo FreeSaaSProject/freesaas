@@ -35,6 +35,21 @@ $check('modern_verify', Auth::verifyPassword('secret-password-ok', $sample));
 $check('modern_wrong_fails', !Auth::verifyPassword('nope', $sample));
 $check('empty_stored_fails', !Auth::verifyPassword('x', ''));
 
+// Dummy hash for missing logins must use preferredAlgo (not a fixed bcrypt string).
+$ref = new ReflectionClass('Auth');
+$dm = $ref->getMethod('dummyPasswordHash');
+$dm->setAccessible(true);
+$dummy = (string)$dm->invoke(null);
+$algo = Auth::preferredAlgo();
+$expectArgon = defined('PASSWORD_ARGON2ID') && $algo === PASSWORD_ARGON2ID;
+$check(
+    'dummy_preferred_algo',
+    $expectArgon
+        ? strpos($dummy, '$argon2') === 0
+        : (strpos($dummy, '$2y$') === 0 || strpos($dummy, '$2a$') === 0)
+);
+$check('dummy_never_verifies', !Auth::verifyPassword('anything', $dummy));
+
 $check('policy_short', Auth::passwordPolicyError('a') === 'too_short');
 $check('policy_7', Auth::passwordPolicyError('1234567') === 'too_short');
 $check('policy_8_ok', Auth::passwordPolicyError('12345678') === null);
