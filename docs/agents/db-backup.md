@@ -2,10 +2,12 @@
 
 Schema migrations, optional data migrators, SQL backups of FreeSaaS-owned tables, and CHECK/REPAIR/OPTIMIZE.
 
+**Auth:** `/db` requires a staff session + permission `core.db` (not public). Greenfield / lost-login: CLI `migrate run` / `bootstrap` / `rescue`, or HTTP `/agent/*` with `agent_token` (virgin bootstrap) / `var/setup.key` (rescue). Destructive data migrators: prefer CLI `php bin/data-migrate.php --module=… --id=…` (full run needs `--i-understand-replace`).
+
 ## Human UI
 
 - Path: **`/db`** (rail: Settings → Database)
-- Permission: **`core.db`**
+- Permission: **`core.db`** (session required)
 - Modes (per-user pref `db_tools_mode`):
   - **normal** (default): dump/restore/maintenance on owned tables only (`module.json` → `tables`); no table picker; no DROP
   - **expert**: all tables in the connect DB; selection; DROP (UI only) with confirm; banner warns to return to normal

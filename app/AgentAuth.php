@@ -5,8 +5,10 @@ declare(strict_types=1);
  * Token gate for HTTP /agent/* API (shared hosting without SSH).
  * Config: app.agent_token in cfg/config.ini (never commit real values).
  *
- * Exception: on a virgin install (no staff users), GET /agent and POST /agent/bootstrap
- * may run without a prior token; bootstrap must supply agent_token in JSON to persist it.
+ * Exceptions:
+ * - Virgin install (no staff users): GET /agent and POST /agent/bootstrap may skip the
+ *   prior token; bootstrap must supply agent_token in JSON to persist it.
+ * - Break-glass: valid var/setup.key unlocks POST /agent/rescue (and bootstrap if needed).
  */
 final class AgentAuth
 {
@@ -36,11 +38,16 @@ final class AgentAuth
     }
 
     /**
-     * Gate for /agent/* routes. $allowVirginBootstrap skips token when install has no users
-     * (bootstrap will require agent_token in JSON body instead).
+     * Gate for /agent/* routes.
+     *
+     * @param bool $allowVirginBootstrap skip token when install has no users
+     * @param bool $allowSetupKey accept valid SetupKey as break-glass
      */
-    public static function assertToken(bool $allowVirginBootstrap = false): void
+    public static function assertToken(bool $allowVirginBootstrap = false, bool $allowSetupKey = false): void
     {
+        if ($allowSetupKey && SetupKey::verify()) {
+            return;
+        }
         if ($allowVirginBootstrap && AgentOps::isVirginInstall()) {
             return;
         }

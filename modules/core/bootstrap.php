@@ -35,7 +35,8 @@ $pages = [
     '/dashboard' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'file' => 'dashboard.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
     '/modules/{id}' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules_detail.php'],
-    '/db' => ['public' => true, 'permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
+    '/db' => ['permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
+
     '/users' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'users.php'],
     '/users/new' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
     '/users/{id}' => ['permission' => 'core.users', 'methods' => ['GET'], 'file' => 'user.php'],
@@ -50,6 +51,8 @@ $pages = [
     '/doctor' => ['permission' => 'core.modules', 'methods' => ['GET'], 'file' => 'doctor.php'],
     '/agent' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/bootstrap' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/rescue' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+
     '/agent/system/status' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/modules' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],

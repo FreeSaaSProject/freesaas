@@ -57,29 +57,34 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $action = '__upload_blocked__';
     }
 
-    if ($action === 'mode') {
-        if (!$canDb) {
-            $error = t('core.db.err.forbidden');
-            if ($wantsJson) {
-                AgentHttp::error($error, 403);
-            }
-        } else {
-            $newMode = (string)($_POST['mode'] ?? '') === DbTools::MODE_EXPERT
-                ? DbTools::MODE_EXPERT
-                : DbTools::MODE_NORMAL;
-            DbTools::setModeForUser($uid, $newMode);
-            $mode = $newMode;
-            $isExpert = $mode === DbTools::MODE_EXPERT;
-            unset($_SESSION['freesaas_db_diag']);
-            $message = $isExpert ? t('core.db.msg.mode_expert') : t('core.db.msg.mode_normal');
-            if ($isExpert) {
-                $allTables = DbTools::allTables();
-                $foreignTables = DbTools::foreignTables();
-            }
-            if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'action' => 'mode', 'mode' => $mode, 'message' => $message]);
-            }
+    // Defense in depth: every mutating action requires session + core.db
+    // (Router also enforces permission; schema/data must never run anonymously).
+    if (!$canDb) {
+        $error = t('core.db.err.forbidden');
+        if ($wantsJson) {
+            AgentHttp::error($error, 403);
         }
+        $action = '__forbidden__';
+    }
+
+    if ($action === 'mode') {
+        $newMode = (string)($_POST['mode'] ?? '') === DbTools::MODE_EXPERT
+            ? DbTools::MODE_EXPERT
+            : DbTools::MODE_NORMAL;
+        DbTools::setModeForUser($uid, $newMode);
+        $mode = $newMode;
+        $isExpert = $mode === DbTools::MODE_EXPERT;
+        unset($_SESSION['freesaas_db_diag']);
+        $message = $isExpert ? t('core.db.msg.mode_expert') : t('core.db.msg.mode_normal');
+        if ($isExpert) {
+            $allTables = DbTools::allTables();
+            $foreignTables = DbTools::foreignTables();
+        }
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'action' => 'mode', 'mode' => $mode, 'message' => $message]);
+        }
+    } elseif ($action === '__forbidden__') {
+        // error already set
     } elseif ($action === 'schema') {
         $schemaReport = SchemaMigrator::runAll();
         try {
@@ -377,7 +382,7 @@ $userCount = $hasUsers
     : 0;
 $dumps = [];
 try {
-    if ($canDb || $wantsJson) {
+    if ($canDb) {
         $dumps = DbTools::listDumps();
     }
 } catch (Throwable $e) {
@@ -414,6 +419,9 @@ if ($canDb) {
 }
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    if (!$canDb) {
+        AgentHttp::error(t('core.db.err.forbidden'), 403);
+    }
     AgentHttp::emit([
         'ok' => true,
         'mode' => $mode,
@@ -434,11 +442,11 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'diagnose_at' => $diagAt,
         'diagnose_need' => $diagNeedCount,
         'ops' => [
-            ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'schema'], 'description' => 'Apply all pending schema migrations'],
-            ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'data'], 'description' => 'Run data migrators (replace; optional)'],
-            ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'db_dump'], 'description' => 'Dump owned tables (session + core.db)'],
-            ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'db_upload'], 'description' => 'Upload .sql/.sql.gz (multipart field dump; does not restore)'],
-            ['method' => 'POST', 'path' => '/db', 'body' => ['action' => 'db_restore', 'file' => '…'], 'description' => 'Restore dump (owned allow-list in normal mode)'],
+            ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'schema'], 'description' => 'Apply all pending schema migrations'],
+            ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'data'], 'description' => 'Run data migrators (replace; destructive — prefer CLI)'],
+            ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'db_dump'], 'description' => 'Dump owned tables'],
+            ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'db_upload'], 'description' => 'Upload .sql/.sql.gz (multipart field dump; does not restore)'],
+            ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'db_restore', 'file' => '…'], 'description' => 'Restore dump (owned allow-list in normal mode)'],
             ['method' => 'GET', 'path' => '/agent/db', 'auth' => 'agent_token', 'description' => 'Platform DB status'],
             ['method' => 'GET', 'path' => '/agent/db/migrate', 'auth' => 'agent_token', 'description' => 'Schema migrate status'],
             ['method' => 'POST', 'path' => '/agent/db/migrate/run', 'auth' => 'agent_token', 'description' => 'Schema migrate run'],

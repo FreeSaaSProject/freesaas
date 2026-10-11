@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.35",
+    "version": "0.3.36",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -78,6 +78,7 @@
             "/doctor",
             "/agent",
             "/agent/bootstrap",
+            "/agent/rescue",
             "/agent/system/status",
             "/agent/modules",
             "/agent/modules/{id}",

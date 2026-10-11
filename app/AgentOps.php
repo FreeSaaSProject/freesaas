@@ -840,13 +840,23 @@ final class AgentOps
                 'header' => 'X-FreeSaaS-Agent-Token',
                 'query' => 'token',
                 'config' => 'app.agent_token',
+                'setup_key_header' => 'X-FreeSaaS-Setup-Key',
+                'setup_key_file' => 'var/setup.key',
                 'bootstrap_note' => 'POST /agent/bootstrap on virgin install may include agent_token in JSON body without prior header',
+                'rescue_note' => 'POST /agent/rescue with agent_token or setup.key resets/creates superadmin (CLI: rescue)',
             ],
             'maturity_policy' => ModuleCatalog::maturityPolicy(),
             'ops' => [
                 ['method' => 'GET', 'path' => '/agent', 'op' => 'catalog'],
                 ['method' => 'POST', 'path' => '/agent/bootstrap', 'op' => 'bootstrap'],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/rescue',
+                    'op' => 'rescue',
+                    'description' => 'Reset or create superadmin (agent_token or var/setup.key). Does not run destructive data migrators.',
+                ],
                 ['method' => 'GET', 'path' => '/agent/system/status', 'op' => 'system.status'],
+
                 [
                     'method' => 'GET',
                     'path' => '/agent/modules',
@@ -947,6 +957,7 @@ final class AgentOps
 
     /**
      * True when the install has no staff users yet (or users table missing).
+     * Fail closed: DB/probe errors are NOT treated as virgin (would skip agent_token).
      */
     public static function isVirginInstall(): bool
     {
@@ -957,8 +968,173 @@ final class AgentOps
             require_once base_path('modules/core/lib/UsersRepository.php');
             return UsersRepository::countUsers() < 1;
         } catch (Throwable $e) {
-            return true;
+            return false;
         }
+    }
+
+    /**
+     * Break-glass: reset or create a superadmin (CLI always; HTTP needs setup.key or agent_token).
+     *
+     * @param array{login?:string,password?:string,name?:string,mail?:string,clear_setup_key?:bool,migrate?:bool} $opts
+     * @return array<string,mixed>
+     */
+    public static function rescue(array $opts): array
+    {
+        require_once base_path('modules/core/lib/UsersRepository.php');
+        require_once base_path('modules/core/lib/StatusesRepository.php');
+
+        $login = trim((string)($opts['login'] ?? ''));
+        $password = (string)($opts['password'] ?? '');
+        $name = trim((string)($opts['name'] ?? ''));
+        $mail = trim((string)($opts['mail'] ?? ''));
+        $wantMigrate = !array_key_exists('migrate', $opts) || !empty($opts['migrate']);
+        $clearKey = !empty($opts['clear_setup_key']);
+
+        if ($login === '' || $password === '') {
+            return [
+                'ok' => false,
+                'error' => 'login and password required',
+                'http' => 400,
+                'hint' => 'php bin/freesaas.php rescue --login=admin --password=…',
+            ];
+        }
+        if (strlen($password) < 8) {
+            return [
+                'ok' => false,
+                'error' => 'password must be at least 8 characters',
+                'http' => 400,
+            ];
+        }
+
+        $steps = [];
+        try {
+            Database::pdo()->query('SELECT 1');
+            $steps[] = ['step' => 'database', 'status' => 'ok'];
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'error' => 'database: ' . $e->getMessage(),
+                'http' => 503,
+                'steps' => $steps,
+            ];
+        }
+
+        if ($wantMigrate) {
+            $migrateReport = SchemaMigrator::runAll();
+            try {
+                foreach (SchemaMigrator::runModule('core') as $row) {
+                    $migrateReport[] = $row;
+                }
+            } catch (Throwable $e) {
+                // ignore duplicate
+            }
+            Database::clearSchemaCache();
+            $migOk = true;
+            foreach ($migrateReport as $r) {
+                if (($r['status'] ?? '') === 'error') {
+                    $migOk = false;
+                    break;
+                }
+            }
+            $steps[] = [
+                'step' => 'migrate',
+                'status' => $migOk ? 'ok' : 'error',
+                'report' => $migrateReport,
+            ];
+            if (!$migOk) {
+                return [
+                    'ok' => false,
+                    'error' => 'schema migrate failed',
+                    'http' => 500,
+                    'steps' => $steps,
+                ];
+            }
+        }
+
+        try {
+            $statusId = self::ensureSuperadminStatus();
+            $steps[] = ['step' => 'superadmin_status', 'status' => 'ok', 'status_id' => $statusId];
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'error' => 'status: ' . $e->getMessage(),
+                'http' => 500,
+                'steps' => $steps,
+                'hint' => 'Run schema migrate first: php bin/freesaas.php migrate run',
+            ];
+        }
+
+        $perms = [];
+        foreach (UsersRepository::availablePermissionKeys() as $g) {
+            foreach ($g['keys'] as $key) {
+                $pid = is_array($key) ? (string)$key['id'] : (string)$key;
+                if ($pid !== '') {
+                    $perms[$pid] = 1;
+                }
+            }
+        }
+        $blob = UsersRepository::encodeStatusBlob(null, $perms);
+
+        try {
+            $existing = UsersRepository::findByLogin($login);
+            if ($existing !== null) {
+                $userId = (int)$existing['id'];
+                UsersRepository::update($userId, [
+                    'password_plain' => $password,
+                    'enabled' => '1',
+                    'ID_STATUS' => $statusId,
+                    'status_blob' => $blob,
+                    'name' => $name !== '' ? $name : (string)($existing['name'] ?? $login),
+                    'mail' => $mail !== '' ? $mail : (string)($existing['mail'] ?? ''),
+                ]);
+                $steps[] = [
+                    'step' => 'admin_user',
+                    'status' => 'ok',
+                    'action' => 'reset',
+                    'user_id' => $userId,
+                    'login' => $login,
+                ];
+            } else {
+                $userId = UsersRepository::create([
+                    'login' => $login,
+                    'password_plain' => $password,
+                    'name' => $name !== '' ? $name : $login,
+                    'mail' => $mail,
+                    'enabled' => '1',
+                    'ID_STATUS' => $statusId,
+                    'status_blob' => $blob,
+                ]);
+                $steps[] = [
+                    'step' => 'admin_user',
+                    'status' => 'ok',
+                    'action' => 'created',
+                    'user_id' => $userId,
+                    'login' => $login,
+                ];
+            }
+        } catch (Throwable $e) {
+            return [
+                'ok' => false,
+                'error' => 'admin user: ' . $e->getMessage(),
+                'http' => 500,
+                'steps' => $steps,
+            ];
+        }
+
+        if ($clearKey) {
+            SetupKey::clear();
+            $steps[] = ['step' => 'setup_key', 'status' => 'cleared'];
+        }
+
+        return [
+            'ok' => true,
+            'login' => $login,
+            'user_id' => $userId,
+            'login_url' => '/login',
+            'steps' => $steps,
+            'message' => 'Rescue complete — sign in at /login',
+            'http' => 200,
+        ];
     }
 
     /**

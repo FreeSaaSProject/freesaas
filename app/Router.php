@@ -166,10 +166,16 @@ final class Router
 
         $perm = $route['permission'] ?? null;
         $public = !empty($route['public']);
-        if (!$public && !Auth::check()) {
+        $capability = $route['capability'] ?? null;
+        $needsAuth = !$public
+            || ($perm !== null && $perm !== '')
+            || (is_string($capability) && $capability !== '');
+        if ($needsAuth && !Auth::check()) {
             redirect('/login');
         }
-        if ($perm && Auth::check() && !Auth::can($perm)) {
+        // permission/capability always enforce Auth::can — never skip for anonymous
+        // even if a route was mistakenly marked public => true.
+        if ($perm && !Auth::can($perm)) {
             http_response_code(403);
             View::render('error', [
                 'title' => 'Forbidden',
@@ -177,9 +183,7 @@ final class Router
             ]);
             return;
         }
-
-        $capability = $route['capability'] ?? null;
-        if (is_string($capability) && $capability !== '' && Auth::check() && !Auth::capability($capability)) {
+        if (is_string($capability) && $capability !== '' && !Auth::capability($capability)) {
             http_response_code(403);
             View::render('error', [
                 'title' => 'Forbidden',
@@ -187,6 +191,7 @@ final class Router
             ]);
             return;
         }
+
 
         $handler = $route['handler'];
         StageTiming::mark('Route match & auth');

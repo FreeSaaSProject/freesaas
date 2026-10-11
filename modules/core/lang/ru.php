@@ -138,7 +138,7 @@ return [
     'core.login.password_hide' => 'Скрыть пароль',
     'core.login.submit' => 'Войти',
     'core.login.remember' => 'Запомнить меня',
-    'core.login.error.no_table' => 'Таблица base_users ещё не создана. Откройте /db (CLI: php bin/freesaas.php migrate run) и импортируйте данные.',
+    'core.login.error.no_table' => 'Таблица base_users ещё не создана. Выполните schema-миграции (CLI: php bin/freesaas.php migrate run), затем bootstrap или rescue для создания админа.',
     'core.login.error.bad_credentials' => 'Неверный логин или пароль (или пароль истёк).',
     'core.home.command' => 'Команда',
     'core.home.command_placeholder' => 'Перейти… сотрудники, лента, настройки',

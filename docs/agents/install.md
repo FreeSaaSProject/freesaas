@@ -78,6 +78,24 @@ php bin/freesaas.php health --format=json
 
 Expect `setup.pending: 0` (or no pending migrations) and health without `platform.schema_pending` fail.
 
+## Lost login / break-glass
+
+`/db` is **not** anonymous. If staff login is lost but the DB still has users:
+
+```bash
+# SSH / local — always available (no setup.key needed)
+php bin/freesaas.php rescue --login=admin --password='new-secret-8+' --format=json
+
+# Shared hosting without SSH: generate key locally, FTP-upload var/setup.key (0600), then:
+php bin/freesaas.php setup-key generate --format=json   # copy file to host
+curl -sS -X POST "https://example.com/agent/rescue" \
+  -H "Content-Type: application/json" \
+  -H "X-FreeSaaS-Setup-Key: $(cat var/setup.key)" \
+  -d '{"login":"admin","password":"new-secret-8+","clear_setup_key":true}'
+```
+
+Schema-only (safe) while oper still runs: `migrate run`. Oper→FreeSaaS **data** replace migrators are intentional and destructive — run later via CLI with `--module`/`--id` or `--i-understand-replace`, or via authenticated `/db` after rescue/login.
+
 ## Staff roles: least privilege
 
 - Bootstrap creates the Superadmin role with `SUPERADMIN_ACCESS` for the first admin (director) only.

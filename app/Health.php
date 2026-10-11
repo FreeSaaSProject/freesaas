@@ -81,13 +81,43 @@ final class Health
                     'status' => 'fail',
                     'message' => 'schema migrations pending: ' . (int)($setup['pending'] ?? 0),
                     'meta' => array_merge($setup, [
-                        'fixbook' => 'POST /db action=schema or php bin/freesaas.php migrate run --format=json or POST /agent/db/migrate/run',
+                        'fixbook' => 'php bin/freesaas.php migrate run --format=json (or session /db + core.db, or POST /agent/db/migrate/run + agent_token)',
                     ]),
                 ];
             } catch (Throwable $e) {
                 return ['status' => 'fail', 'message' => $e->getMessage()];
             }
         }, 'Pending schema migrations');
+
+        self::register('platform.route_auth', 'core', static function (): array {
+            $bad = [];
+            foreach (ModuleManager::routes() as $path => $route) {
+                if (!is_array($route)) {
+                    continue;
+                }
+                $public = !empty($route['public']);
+                $perm = $route['permission'] ?? null;
+                $cap = $route['capability'] ?? null;
+                if ($public && $perm) {
+                    $bad[] = $path . ' (public+permission)';
+                }
+                if ($public && is_string($cap) && $cap !== '') {
+                    $bad[] = $path . ' (public+capability)';
+                }
+            }
+            $db = ModuleManager::routes()['/db'] ?? null;
+            if (is_array($db) && !empty($db['public'])) {
+                $bad[] = '/db must not be public';
+            }
+            if ($bad !== []) {
+                return [
+                    'status' => 'fail',
+                    'message' => 'insecure route auth: ' . implode('; ', $bad),
+                    'meta' => ['issues' => $bad],
+                ];
+            }
+            return ['status' => 'ok', 'message' => 'no public+permission/capability traps'];
+        }, 'Route auth hygiene');
 
         self::register('platform.config', 'core', static function (): array {
             $missing = [];

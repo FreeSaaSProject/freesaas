@@ -7,10 +7,20 @@ declare(strict_types=1);
 $path = request_path();
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 // Virgin install: catalog + bootstrap without prior token (bootstrap persists agent_token).
+// Break-glass: valid var/setup.key unlocks rescue (and bootstrap if needed).
 $allowVirgin = ($method === 'POST' && $path === '/agent/bootstrap')
     || ($method === 'GET' && ($path === '/agent' || $path === '/agent/'));
+$allowSetupKey = ($method === 'POST' && ($path === '/agent/rescue' || $path === '/agent/bootstrap'));
 
-AgentAuth::assertToken($allowVirgin);
+// JSON body may carry setup_key — promote before the gate (php://input is cached).
+if ($allowSetupKey && SetupKey::providedKey() === '') {
+    $peek = agent_api_json_body();
+    if (!empty($peek['setup_key']) && is_string($peek['setup_key'])) {
+        $_POST['setup_key'] = $peek['setup_key'];
+    }
+}
+
+AgentAuth::assertToken($allowVirgin, $allowSetupKey);
 
 // Binary dump download (not JSON) — for cross-host fetch by URL + ?token=
 if ($path === '/agent/db/dump/file' && $method === 'GET') {
@@ -105,6 +115,21 @@ function agent_api_dispatch(string $path, string $method, string $id): array
             $opts['modules'] = array_filter(array_map('trim', explode(',', $_POST['modules'])));
         }
         return AgentOps::bootstrap($opts);
+    }
+    if ($path === '/agent/rescue' && $method === 'POST') {
+        $opts = agent_api_json_body();
+        foreach (['login', 'password', 'name', 'mail', 'setup_key'] as $k) {
+            if (!isset($opts[$k]) && isset($_POST[$k])) {
+                $opts[$k] = $_POST[$k];
+            }
+        }
+        if (isset($opts['setup_key']) && is_string($opts['setup_key']) && $opts['setup_key'] !== '') {
+            $_POST['setup_key'] = (string)$opts['setup_key'];
+        }
+        if (!empty($opts['clear_setup_key']) || !empty($_POST['clear_setup_key'])) {
+            $opts['clear_setup_key'] = true;
+        }
+        return AgentOps::rescue($opts);
     }
     if ($path === '/agent/system/status' && $method === 'GET') {
         return AgentOps::systemStatus();
@@ -233,10 +258,16 @@ function agent_api_dispatch(string $path, string $method, string $id): array
 /** @return array<string,mixed> */
 function agent_api_json_body(): array
 {
+    static $cached = null;
+    if (is_array($cached)) {
+        return $cached;
+    }
     $raw = file_get_contents('php://input');
     if ($raw === false || trim($raw) === '') {
-        return [];
+        $cached = [];
+        return $cached;
     }
     $data = json_decode($raw, true);
-    return is_array($data) ? $data : [];
+    $cached = is_array($data) ? $data : [];
+    return $cached;
 }

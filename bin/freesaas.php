@@ -31,6 +31,12 @@ try {
         case 'bootstrap':
             freesaas_cmd_bootstrap($opts);
             break;
+        case 'setup-key':
+            freesaas_cmd_setup_key($sub, $opts);
+            break;
+        case 'rescue':
+            freesaas_cmd_rescue($opts);
+            break;
         case 'module':
             freesaas_cmd_module($sub, $args, $opts);
             break;
@@ -89,6 +95,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
 
   system status [--format=json]
   bootstrap --login=… --password=… [--name=…] [--agent-token=…] [--modules=a,b] [--format=json]
+  setup-key [generate|clear|path] [--format=json]
+  rescue --login=… --password=… [--name=…] [--clear-setup-key] [--no-migrate] [--format=json]
   module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
   module inspect|install|enable [--accept-risk]|disable|validate|bump|create|add-migration …
   module create <id> [--title=…]
@@ -196,6 +204,49 @@ function freesaas_cmd_bootstrap(array $opts): void
         }
     }
     freesaas_emit_ops(AgentOps::bootstrap($payload));
+}
+
+/** @param array<string, string|bool> $opts */
+function freesaas_cmd_setup_key(string $sub, array $opts): void
+{
+    $op = $sub !== '' ? $sub : 'generate';
+    if ($op === 'path') {
+        freesaas_emit_ops(['ok' => true, 'path' => SetupKey::path(), 'exists' => SetupKey::exists()]);
+        return;
+    }
+    if ($op === 'clear') {
+        SetupKey::clear();
+        freesaas_emit_ops(['ok' => true, 'cleared' => true, 'path' => SetupKey::path()]);
+        return;
+    }
+    if ($op === 'generate' || $op === '') {
+        $key = SetupKey::generate();
+        freesaas_emit_ops([
+            'ok' => true,
+            'path' => SetupKey::path(),
+            'setup_key' => $key,
+            'hint' => 'HTTP: POST /agent/rescue with header X-FreeSaaS-Setup-Key (or body setup_key). Delete after use: setup-key clear',
+        ]);
+        return;
+    }
+    Cli::usage('Usage: setup-key [generate|clear|path] [--format=json]');
+}
+
+/** @param array<string, string|bool> $opts */
+function freesaas_cmd_rescue(array $opts): void
+{
+    $payload = [
+        'login' => isset($opts['login']) ? (string)$opts['login'] : '',
+        'password' => isset($opts['password']) ? (string)$opts['password'] : '',
+        'name' => isset($opts['name']) ? (string)$opts['name'] : '',
+        'mail' => isset($opts['mail']) ? (string)$opts['mail'] : '',
+        'migrate' => !isset($opts['no-migrate']),
+        'clear_setup_key' => !empty($opts['clear-setup-key']) || !empty($opts['clear_setup_key']),
+    ];
+    if ($payload['login'] === '' || $payload['password'] === '') {
+        Cli::usage('Usage: rescue --login=admin --password=secret [--name=…] [--clear-setup-key] [--no-migrate]');
+    }
+    freesaas_emit_ops(AgentOps::rescue($payload));
 }
 
 /** @param list<string> $args */

@@ -35,7 +35,7 @@ try {
         echo '<h1>' . htmlspecialchars($data['title'], ENT_QUOTES, 'UTF-8') . '</h1>';
         echo '<p>' . htmlspecialchars($data['message'], ENT_QUOTES, 'UTF-8') . '</p>';
         if ($schema) {
-            echo '<p><a href="/db">/db</a> · CLI: <code>php bin/freesaas.php migrate run</code></p>';
+            echo '<p>CLI: <code>php bin/freesaas.php migrate run</code> · then <code>bootstrap</code> / <code>rescue</code> · or sign in and open /db</p>';
         }
         if ($data['detail'] !== '') {
             echo '<pre>' . htmlspecialchars($data['detail'], ENT_QUOTES, 'UTF-8') . '</pre>';

@@ -26,7 +26,9 @@ require_once __DIR__ . '/ModuleValidator.php';
 require_once __DIR__ . '/ModuleCatalog.php';
 require_once __DIR__ . '/ModuleScaffold.php';
 require_once __DIR__ . '/AgentOps.php';
+require_once __DIR__ . '/SetupKey.php';
 require_once __DIR__ . '/AgentAuth.php';
+
 require_once __DIR__ . '/AgentHttpCaptureSignal.php';
 require_once __DIR__ . '/AgentHttp.php';
 require_once __DIR__ . '/UpdateEngine.php';
