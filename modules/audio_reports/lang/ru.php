@@ -371,6 +371,7 @@ return [
     'audio_reports.summaries.err.profile_access' => 'Профиль не найден или нет доступа',
     'audio_reports.summaries.err.position' => 'Укажите должность',
     'audio_reports.summaries.err.unknown_action' => 'Неизвестное действие',
+    'audio_reports.summaries.err.post_required' => 'Требуется POST',
     'audio_reports.summaries.js.day' => 'День',
     'audio_reports.summaries.js.hours' => 'Часы',
     'audio_reports.summaries.js.need_position' => 'Сначала выберите должность',

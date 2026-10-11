@@ -34,6 +34,11 @@ $flash = is_array($flash ?? null) ? $flash : null;
         <input type="hidden" name="action" value="unlock">
         <button type="submit" class="btn"><?= te('core.user.unlock') ?></button>
       </form>
+      <form method="post" class="inline-form" action="/users/<?= $uid ?>"
+            onsubmit="return confirm(<?= tj('core.user.logout_all_confirm') ?>)">
+        <input type="hidden" name="action" value="logout_all">
+        <button type="submit" class="btn"><?= te('core.user.logout_all') ?></button>
+      </form>
       <?php endif; ?>
       <a class="btn-primary" href="/users/<?= $uid ?>/edit"><?= te('core.common.edit') ?></a>
     </div>

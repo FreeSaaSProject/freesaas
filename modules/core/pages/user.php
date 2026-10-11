@@ -47,6 +47,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && Auth::capability('SUPERA
         flash_set('ok', t('core.user.unlock_ok'));
         redirect('/users/' . $id);
     }
+    if ($action === 'logout_all') {
+        $epoch = Auth::bumpAuthEpoch($id);
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'logout_all' => true, 'auth_epoch' => $epoch]);
+        }
+        flash_set('ok', t('core.user.logout_all_ok'));
+        redirect('/users/' . $id);
+    }
 }
 
 $statuses = UsersRepository::statusNames();

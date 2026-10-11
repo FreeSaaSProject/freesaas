@@ -172,8 +172,18 @@
       if (label) label.style.opacity = '0.55';
       var profile = (qs('.ar-sum-month-pager', report) || {}).getAttribute
         ? qs('.ar-sum-month-pager', report).getAttribute('data-profile') : '0';
-      fetch('/audio/summaries/work?action=month&format=json&id_records_summary=' + encodeURIComponent(profile)
-        + '&year=' + encodeURIComponent(year) + '&month=' + encodeURIComponent(month), { credentials: 'same-origin' })
+      var fd = new FormData();
+      fd.append('action', 'month');
+      fd.append('format', 'json');
+      fd.append('id_records_summary', profile || '0');
+      fd.append('year', String(year));
+      fd.append('month', String(month));
+      fetch('/audio/summaries/work', {
+        method: 'POST',
+        body: fd,
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' }
+      })
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (!data || !data.ok || !data.counts) { goUrl(url); return; }

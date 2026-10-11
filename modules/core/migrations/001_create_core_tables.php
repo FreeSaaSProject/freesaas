@@ -33,6 +33,7 @@ return static function (PDO $pdo): void {
                 url VARCHAR(256) NOT NULL DEFAULT '',
                 retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
                 expire INT NOT NULL DEFAULT 0,
+                auth_epoch INT UNSIGNED NOT NULL DEFAULT 0,
                 favorites MEDIUMTEXT NULL,
                 showNewsAfter INT UNSIGNED NOT NULL DEFAULT 0,
                 IS_HIDDEN TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,

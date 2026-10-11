@@ -9,7 +9,7 @@ Session-auth product JSON for `audio_reports` summary profiles. Convention: [`mo
 | `audio_reports.summaries.list` | GET | `/audio/summaries` | `audio_reports.view` |
 | `audio_reports.summaries.get` | GET | `/audio/summaries/{id}` | `audio_reports.view` |
 | `audio_reports.summaries.save` | POST | `/audio/summaries/new` or `/audio/summaries/{id}` | `audio_reports.edit` |
-| `audio_reports.summaries.work` | GET/POST | `/audio/summaries/work` | view; edit for propose/preview/save |
+| `audio_reports.summaries.work` | POST (month/propose/preview/save); GET unused for month | `/audio/summaries/work` | view; edit for propose/preview/save |
 
 Ask for JSON with `?format=json` or `Accept: application/json`.
 
@@ -36,9 +36,9 @@ curl -sS -b jar.txt 'https://example.com/audio/summaries/1?format=json'
 curl -sS -b jar.txt -X POST 'https://example.com/audio/summaries/work?format=json' \
   -d 'action=propose&id_position=3&year=2026&month=9'
 
-# Month counts (for UI animation / light poll)
-curl -sS -b jar.txt \
-  'https://example.com/audio/summaries/work?format=json&action=month&id_records_summary=1&year=2026&month=9'
+# Month counts (for UI animation / light poll) — POST only
+curl -sS -b jar.txt -X POST 'https://example.com/audio/summaries/work?format=json' \
+  -d 'action=month&id_records_summary=1&year=2026&month=9'
 
 # Save (structured fields)
 curl -sS -b jar.txt -X POST 'https://example.com/audio/summaries/new?format=json' \

@@ -658,11 +658,13 @@ final class UsersRepository
         $st = Database::pdo()->prepare('UPDATE base_users SET enabled = ? WHERE id = ?');
         $st->execute([$enabled ? '1' : '0', $id]);
         unset(self::$findCache[$id]);
+        Auth::bumpAuthEpoch($id);
         return true;
     }
 
     public static function update(int $id, array $data): void
     {
+        $before = self::find($id);
         $fields = [];
         $params = [];
         $allowed = [
@@ -712,9 +714,11 @@ final class UsersRepository
                 $params[] = 0;
             }
         }
+        $statusBlobChanged = false;
         if (array_key_exists('status_blob', $data) && Database::columnExists('base_users', 'status')) {
             $fields[] = '`status` = ?';
             $params[] = (string)$data['status_blob'];
+            $statusBlobChanged = true;
         }
         if (!$fields) {
             return;
@@ -725,6 +729,22 @@ final class UsersRepository
         unset(self::$findCache[$id]);
         if ($passwordChanged && class_exists('LoginLinksRepository', false)) {
             LoginLinksRepository::invalidateForUser($id);
+        }
+
+        $bump = $passwordChanged || $statusBlobChanged;
+        if (!$bump && is_array($before)) {
+            foreach (['enabled', 'ID_STATUS', 'ID_STATUS2', 'expire'] as $k) {
+                if (!array_key_exists($k, $data)) {
+                    continue;
+                }
+                if ((string)($before[$k] ?? '') !== (string)$data[$k]) {
+                    $bump = true;
+                    break;
+                }
+            }
+        }
+        if ($bump) {
+            Auth::bumpAuthEpoch($id);
         }
     }
 

@@ -118,6 +118,10 @@ if ($action === 'save') {
 }
 
 if ($action === 'month') {
+    // Heavy read — require POST so cross-site GET cannot trigger CPU work.
+    if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
+        AgentHttp::error(t('audio_reports.summaries.err.post_required'), 405);
+    }
     $profileId = (int)($req['id_records_summary'] ?? $req['profile'] ?? $req['id'] ?? 0);
     $profile = $profileId > 0 ? SummariesRepository::find($profileId) : null;
     if (!$profile || empty($profile['ENABLED']) || !SummariesRepository::profileAllowedForViewer($profile)) {

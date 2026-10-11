@@ -116,6 +116,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   cron tick [--job=id] [--force] [--format=json]
   user unlock <login> [--format=json]
   user login-link <login> [--ttl=15] [--format=json]
+  user logout-all <login> [--format=json]
   user hash-audit [--format=json]
 TXT;
 }
@@ -172,6 +173,25 @@ function freesaas_cmd_user(string $sub, array $args, array $opts): void
         return;
     }
 
+    if ($sub === 'logout-all') {
+        $login = trim((string)($args[2] ?? ''));
+        if ($login === '') {
+            Cli::usage('Usage: user logout-all <login> [--format=json]');
+        }
+        $row = UsersRepository::findByLogin($login);
+        if ($row === null) {
+            Cli::fail('user not found: ' . $login, Cli::EXIT_FAIL);
+        }
+        $epoch = Auth::bumpAuthEpoch((int)$row['id']);
+        freesaas_emit_ops([
+            'ok' => true,
+            'login' => $login,
+            'logout_all' => true,
+            'auth_epoch' => $epoch,
+        ]);
+        return;
+    }
+
     if ($sub === 'hash-audit') {
         if (!Database::tableExists('base_users')) {
             Cli::fail('base_users missing', Cli::EXIT_FAIL);
@@ -198,7 +218,7 @@ function freesaas_cmd_user(string $sub, array $args, array $opts): void
         return;
     }
 
-    Cli::usage('Usage: user unlock|login-link|hash-audit …');
+    Cli::usage('Usage: user unlock|login-link|logout-all|hash-audit …');
 }
 
 /** @param array<string, string|bool> $opts */

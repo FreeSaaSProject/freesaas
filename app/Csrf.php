@@ -61,8 +61,22 @@ final class Csrf
         if ($hdr !== '') {
             return $hdr;
         }
-        // Some clients send the non-CGI form.
-        return trim((string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? ''));
+        // JSON body (assistant etc.): php://input is cached via request_raw_body().
+        $ct = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? ''));
+        if (strpos($ct, 'application/json') !== false && function_exists('request_raw_body')) {
+            $raw = request_raw_body();
+            if ($raw !== '') {
+                $data = json_decode($raw, true);
+                if (is_array($data) && isset($data[self::FIELD])) {
+                    $fromJson = trim((string)$data[self::FIELD]);
+                    if ($fromJson !== '') {
+                        return $fromJson;
+                    }
+                }
+            }
+        }
+
+        return '';
     }
 
     public static function verify(?string $provided = null): bool
@@ -190,14 +204,23 @@ final class Csrf
         return is_string($out) ? $out : $html;
     }
 
-    /** Deny with JSON or plain 403. */
+    /** Deny with JSON (error_code) when client asked for JSON, else plain 403. */
     public static function deny(string $reason = 'csrf'): void
     {
         http_response_code(403);
-        if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
+        $wantJson = class_exists('AgentHttp', false) && AgentHttp::wantsJson();
+        if (!$wantJson) {
+            $ct = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? ''));
+            $wantJson = strpos($ct, 'application/json') !== false;
+        }
+        if ($wantJson) {
             header('Content-Type: application/json; charset=utf-8');
             header('Cache-Control: no-store');
-            echo json_encode(['ok' => false, 'error' => $reason], JSON_UNESCAPED_UNICODE);
+            echo json_encode([
+                'ok' => false,
+                'error' => $reason,
+                'error_code' => $reason,
+            ], JSON_UNESCAPED_UNICODE);
             exit;
         }
         header('Content-Type: text/plain; charset=utf-8');

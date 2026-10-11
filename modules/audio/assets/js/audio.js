@@ -213,7 +213,8 @@
       fetch('/audio/api/dict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
-        body: body.toString(),
+        // URLSearchParams (not toString) so core.js can append csrf for hosts that strip headers.
+        body: body,
         credentials: 'same-origin',
       })
         .then(function (r) { return r.json(); })

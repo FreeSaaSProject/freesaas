@@ -344,6 +344,8 @@ return static function (PDO $pdo): void {
 
 Пароль: новые записи — `password_hash` (argon2id/bcrypt); legacy `sha1(md5(plain . salts.site))` проверяется и при успешном входе перехешируется. `salts.site` не ротировать. Блокировка: `retries` + `locked_until` (5/15 мин). Ссылка входа без бота: `php bin/freesaas.php user login-link <login>` или кнопка в карточке сотрудника.
 
+Сессии: `Auth::check()` перечитывает `enabled` / `auth_epoch` / права (троттлинг ~60 с; всегда на POST и capability-маршрутах). Смена пароля/роли/enabled бампает `auth_epoch` (чужие сессии умирают). Idle: `session_idle_minutes` (по умолчанию 120). «Выйти везде»: UI в карточке или `php bin/freesaas.php user logout-all <login>`.
+
 ---
 
 ## UI / фронт

@@ -6,6 +6,9 @@ final class Auth
     private const SESSION_NAME = 'freesaas';
     private const GC_MIN_SECONDS = 86400;
     private const REMEMBER_DAYS_DEFAULT = 7;
+    private const IDLE_MINUTES_DEFAULT = 120;
+    private const GUARD_SECONDS_DEFAULT = 60;
+    private const REGEN_SECONDS = 1800;
 
     public static function startSession(): void
     {
@@ -82,11 +85,34 @@ final class Auth
         return self::rememberDays() * 86400;
     }
 
+    /** Idle timeout (seconds). 0 = disabled. */
+    private static function idleSeconds(): int
+    {
+        $raw = class_exists('Config', false)
+            ? (int)Config::get('app', 'session_idle_minutes', (string)self::IDLE_MINUTES_DEFAULT)
+            : self::IDLE_MINUTES_DEFAULT;
+        if ($raw < 0) {
+            $raw = self::IDLE_MINUTES_DEFAULT;
+        }
+        // Cap at 7 days; 0 disables idle check.
+        return max(0, min(7 * 86400, $raw * 60));
+    }
+
+    private static function guardIntervalSeconds(): int
+    {
+        $raw = class_exists('Config', false)
+            ? (int)Config::get('app', 'session_guard_seconds', (string)self::GUARD_SECONDS_DEFAULT)
+            : self::GUARD_SECONDS_DEFAULT;
+
+        return max(5, min(600, $raw > 0 ? $raw : self::GUARD_SECONDS_DEFAULT));
+    }
+
     private static function applySessionIni(int $lifetimeSeconds): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
             return;
         }
+        // File GC must cover remember cookie; idle is enforced in check().
         $gc = max(self::GC_MIN_SECONDS, $lifetimeSeconds);
         ini_set('session.gc_maxlifetime', (string)$gc);
         ini_set('session.use_strict_mode', '1');
@@ -122,9 +148,156 @@ final class Auth
         ]);
     }
 
-    public static function check(): bool
+    /**
+     * @param bool $forceGuard Skip throttle (unsafe methods / capability routes).
+     */
+    public static function check(bool $forceGuard = false): bool
     {
+        if (empty($_SESSION['user_id'])) {
+            return false;
+        }
+        $now = time();
+        $idle = self::idleSeconds();
+        if ($idle > 0) {
+            $seen = (int)($_SESSION['_seen_at'] ?? 0);
+            if ($seen > 0 && ($now - $seen) > $idle) {
+                self::logout();
+
+                return false;
+            }
+        }
+
+        $guardAt = (int)($_SESSION['_guard_at'] ?? 0);
+        $due = $forceGuard || ($now - $guardAt) >= self::guardIntervalSeconds();
+        if ($due) {
+            if (!self::runSessionGuard()) {
+                return false;
+            }
+        }
+
+        $_SESSION['_seen_at'] = $now;
+
+        $regenAt = (int)($_SESSION['_regen_at'] ?? 0);
+        if ($regenAt > 0 && ($now - $regenAt) >= self::REGEN_SECONDS) {
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                session_regenerate_id(true);
+            }
+            $_SESSION['_regen_at'] = $now;
+            if (class_exists('Csrf', false)) {
+                Csrf::rotate();
+            }
+        }
+
         return !empty($_SESSION['user_id']);
+    }
+
+    /**
+     * Reload enabled / auth_epoch / permissions from DB. Returns false → logged out.
+     */
+    private static function runSessionGuard(): bool
+    {
+        $uid = (int)($_SESSION['user_id'] ?? 0);
+        if ($uid < 1) {
+            self::logout();
+
+            return false;
+        }
+        try {
+            $row = self::fetchGuardRow($uid);
+        } catch (Throwable $e) {
+            // DB blip: keep session, retry next interval.
+            error_log('[auth] session guard: ' . $e->getMessage());
+
+            return true;
+        }
+        if ($row === null || (string)($row['enabled'] ?? '') !== '1') {
+            self::logout();
+
+            return false;
+        }
+        $expire = (int)($row['expire'] ?? 0);
+        if ($expire > 0 && $expire < time()) {
+            self::logout();
+
+            return false;
+        }
+        if (Database::columnExists('base_users', 'auth_epoch')) {
+            $dbEpoch = (int)($row['auth_epoch'] ?? 0);
+            $sessEpoch = (int)($_SESSION['auth_epoch'] ?? 0);
+            if ($dbEpoch !== $sessEpoch) {
+                self::logout();
+
+                return false;
+            }
+            $_SESSION['auth_epoch'] = $dbEpoch;
+        }
+
+        // Soft refresh: revoked permissions / role flags apply without epoch bump.
+        $permissions = [];
+        $raw = $row['status'] ?? null;
+        if (is_string($raw) && $raw !== '') {
+            $un = @unserialize($raw, ['allowed_classes' => false]);
+            if (is_array($un) && isset($un['permissions']) && is_array($un['permissions'])) {
+                foreach ($un['permissions'] as $k => $v) {
+                    $permissions[(string)$k] = (int)$v;
+                }
+            }
+        }
+        $_SESSION['permissions'] = $permissions;
+        $_SESSION['login'] = (string)($row['login'] ?? $_SESSION['login'] ?? '');
+        $_SESSION['user_name'] = (string)($row['name'] ?? $_SESSION['user_name'] ?? '');
+        self::setStatusContext((int)($row['ID_STATUS'] ?? 0), (int)($row['ID_STATUS2'] ?? 0));
+        $_SESSION['_guard_at'] = time();
+
+        return true;
+    }
+
+    /** @return array<string,mixed>|null */
+    public static function fetchGuardRow(int $userId): ?array
+    {
+        if ($userId < 1 || !Database::tableExists('base_users')) {
+            return null;
+        }
+        $cols = 'id, login, name, ID_STATUS, status, enabled, expire';
+        if (Database::columnExists('base_users', 'ID_STATUS2')) {
+            $cols .= ', ID_STATUS2';
+        }
+        if (Database::columnExists('base_users', 'auth_epoch')) {
+            $cols .= ', auth_epoch';
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT $cols FROM base_users WHERE id = ? LIMIT 1"
+        );
+        $st->execute([$userId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * Invalidate all live sessions for this user (auth_epoch++).
+     * If the actor is that user, keep their current session by syncing the new epoch.
+     */
+    public static function bumpAuthEpoch(int $userId): int
+    {
+        if ($userId < 1 || !Database::tableExists('base_users')) {
+            return 0;
+        }
+        if (!Database::columnExists('base_users', 'auth_epoch')) {
+            return 0;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_users SET auth_epoch = auth_epoch + 1 WHERE id = ?'
+        )->execute([$userId]);
+        $st = Database::pdo()->prepare('SELECT auth_epoch FROM base_users WHERE id = ? LIMIT 1');
+        $st->execute([$userId]);
+        $epoch = (int)$st->fetchColumn();
+        if (session_status() === PHP_SESSION_ACTIVE && self::userId() === $userId) {
+            $_SESSION['auth_epoch'] = $epoch;
+            $_SESSION['_guard_at'] = time();
+        }
+
+        return $epoch;
     }
 
     public static function userId(): int
@@ -377,6 +550,12 @@ final class Auth
     }
 
     /**
+     * Dummy bcrypt hash so missing logins still hit password_verify (timing).
+     * Not a real password — verify always fails.
+     */
+    private const DUMMY_PASSWORD_HASH = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
+
+    /**
      * @return 'ok'|'bad_credentials'|'locked'|'expired'|'disabled'
      */
     public static function attemptStatus(string $login, string $password, bool $remember = true): string
@@ -400,34 +579,37 @@ final class Auth
         if (Database::columnExists('base_users', 'locked_until')) {
             $cols .= ', locked_until';
         }
+        if (Database::columnExists('base_users', 'auth_epoch')) {
+            $cols .= ', auth_epoch';
+        }
         $st = Database::pdo()->prepare(
             "SELECT $cols FROM base_users WHERE login = ? LIMIT 1"
         );
         $st->execute([$login]);
         $row = $st->fetch();
-        if (!$row) {
-            return 'bad_credentials';
-        }
 
-        if ((string)$row['enabled'] !== '1') {
-            return 'disabled';
+        // Always verify (dummy hash when login missing) before revealing account state.
+        $stored = is_array($row) ? (string)$row['password'] : self::DUMMY_PASSWORD_HASH;
+        if ($stored === '') {
+            $stored = self::DUMMY_PASSWORD_HASH;
         }
+        $passwordOk = self::verifyPassword($password, $stored);
 
-        if (self::isLockedRow($row)) {
-            return 'locked';
-        }
-
-        if (!self::verifyPassword($password, (string)$row['password'])) {
-            self::recordFailedLogin((int)$row['id']);
-            // Re-check: may have just crossed the threshold.
-            $fresh = self::fetchLockState((int)$row['id']);
-            if ($fresh !== null && self::isLockedRow($fresh)) {
-                return 'locked';
+        if (!is_array($row) || !$passwordOk) {
+            if (is_array($row) && !$passwordOk && !self::isLockedRow($row)) {
+                self::recordFailedLogin((int)$row['id']);
             }
 
             return 'bad_credentials';
         }
 
+        // Password correct — safe to explain why login cannot proceed.
+        if ((string)$row['enabled'] !== '1') {
+            return 'disabled';
+        }
+        if (self::isLockedRow($row)) {
+            return 'locked';
+        }
         $expire = (int)$row['expire'];
         if ($expire > 0 && $expire < time()) {
             return 'expired';
@@ -558,6 +740,13 @@ final class Auth
         $_SESSION['user_name'] = (string)$row['name'];
         $_SESSION['permissions'] = $permissions;
         $_SESSION['remember'] = $remember ? 1 : 0;
+        $_SESSION['auth_epoch'] = Database::columnExists('base_users', 'auth_epoch')
+            ? (int)($row['auth_epoch'] ?? 0)
+            : 0;
+        $now = time();
+        $_SESSION['_seen_at'] = $now;
+        $_SESSION['_guard_at'] = $now;
+        $_SESSION['_regen_at'] = $now;
         self::setStatusContext((int)$row['ID_STATUS'], (int)($row['ID_STATUS2'] ?? 0));
 
         $userLocale = I18n::normalize(isset($row['locale']) ? (string)$row['locale'] : null);
@@ -608,10 +797,12 @@ final class Auth
             EventBus::emit('core.auth.before_logout', ['user_id' => $uid]);
         }
         $_SESSION = [];
-        if (ini_get('session.use_cookies')) {
-            self::clearSessionCookie();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (ini_get('session.use_cookies') && !headers_sent()) {
+                self::clearSessionCookie();
+            }
+            session_destroy();
         }
-        session_destroy();
     }
 
     /**

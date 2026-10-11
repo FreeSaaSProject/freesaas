@@ -170,7 +170,10 @@ final class Router
         $needsAuth = !$public
             || ($perm !== null && $perm !== '')
             || (is_string($capability) && $capability !== '');
-        if ($needsAuth && !Auth::check()) {
+        $unsafe = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+        // Force session guard on mutations and capability gates (fresh rights / epoch).
+        $forceGuard = $unsafe || (is_string($capability) && $capability !== '');
+        if ($needsAuth && !Auth::check($forceGuard)) {
             redirect('/login');
         }
         // permission/capability always enforce Auth::can — never skip for anonymous
@@ -193,7 +196,6 @@ final class Router
         }
 
         // CSRF + same-site for unsafe methods (cookie session). Token-auth paths exempt.
-        $unsafe = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
         $csrfOff = array_key_exists('csrf', $route) && $route['csrf'] === false;
         if ($unsafe && !$csrfOff && !Csrf::isExemptPath($path)) {
             if (!Csrf::isSameSiteRequest()) {

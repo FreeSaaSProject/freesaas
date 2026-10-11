@@ -11,6 +11,27 @@ contribution (code, documentation, or other material) you submit to FreeSaaS.
 External contributions are accepted only after you accept this CLA
 (see [How to accept](#how-to-accept)).
 
+## Maintainer-operated automation and AI
+
+Commits created by AI agents or automation operated by the copyright
+holder/Maintainer (for example Cursor Agent, Codex, Claude, or similar tools
+run by the Maintainer) are considered contributions made **on behalf of that
+Maintainer**. They are **not** external contributions and **do not** require a
+separate CLA.
+
+Maintainer-operated automation/AI accounts are not “You” under this Agreement
+and are not treated as external contributors.
+
+`Co-authored-by` lines and other agent attribution in commits or pull requests
+are encouraged for transparency. Attribution alone does not make an agent an
+external contributor who must sign this CLA.
+
+If an external person or organization submits a pull request that was written
+or assisted by their own AI tools (Cursor, Claude, Codex, etc.), **that person
+or organization** must accept this CLA. They remain responsible for having the
+rights to grant the licenses below. The fact that AI helped generate the work
+does not remove licensing obligations.
+
 ## 1. Definitions
 
 **“You”** means the copyright owner or legal entity authorized by the copyright

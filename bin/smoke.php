@@ -128,6 +128,23 @@ if ($pwCode !== 0) {
     $sections['password']['output'] = implode("\n", $pwLines);
 }
 
+// Session guard / auth_epoch (bin/check-session.php)
+$sessionLines = [];
+$sessionCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-session.php') . ' 2>&1',
+    $sessionLines,
+    $sessionCode
+);
+$sections['session'] = [
+    'ok' => $sessionCode === 0,
+    'exit' => $sessionCode,
+];
+if ($sessionCode !== 0) {
+    $failed = true;
+    $sections['session']['output'] = implode("\n", $sessionLines);
+}
+
 $out = ['ok' => !$failed, 'sections' => $sections];
 if (in_array('--format=json', $argv, true) || in_array('--json', $argv, true)) {
     Cli::setJson(true);

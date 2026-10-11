@@ -259,8 +259,8 @@ function agent_api_json_body(): array
     if (is_array($cached)) {
         return $cached;
     }
-    $raw = file_get_contents('php://input');
-    if ($raw === false || trim($raw) === '') {
+    $raw = request_raw_body();
+    if (trim($raw) === '') {
         $cached = [];
         return $cached;
     }

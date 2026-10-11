@@ -51,7 +51,7 @@
             }
             init.headers = h;
           }
-          // FormData/URLSearchParams: body field survives proxies that strip custom headers.
+          // Body field survives proxies that strip custom headers.
           try {
             if (typeof FormData !== 'undefined' && init.body instanceof FormData) {
               if (!init.body.has('csrf')) {
@@ -60,6 +60,38 @@
             } else if (typeof URLSearchParams !== 'undefined' && init.body instanceof URLSearchParams) {
               if (!init.body.has('csrf')) {
                 init.body.append('csrf', token);
+              }
+            } else if (typeof init.body === 'string') {
+              var ct = '';
+              var hdrs = init.headers;
+              if (hdrs && typeof Headers !== 'undefined' && hdrs instanceof Headers) {
+                ct = String(hdrs.get('Content-Type') || hdrs.get('content-type') || '');
+              } else if (hdrs && !Array.isArray(hdrs) && typeof hdrs === 'object') {
+                ct = String(hdrs['Content-Type'] || hdrs['content-type'] || '');
+              } else if (Array.isArray(hdrs)) {
+                for (var i = 0; i < hdrs.length; i++) {
+                  if (String(hdrs[i][0] || '').toLowerCase() === 'content-type') {
+                    ct = String(hdrs[i][1] || '');
+                    break;
+                  }
+                }
+              }
+              ct = ct.toLowerCase();
+              if (ct.indexOf('application/json') !== -1) {
+                try {
+                  var obj = init.body === '' ? {} : JSON.parse(init.body);
+                  if (obj && typeof obj === 'object' && !Array.isArray(obj) && obj.csrf == null) {
+                    obj.csrf = token;
+                    init.body = JSON.stringify(obj);
+                  }
+                } catch (jsonIgnore) { /* leave body */ }
+              } else if (
+                ct.indexOf('application/x-www-form-urlencoded') !== -1 ||
+                (ct === '' && init.body.indexOf('=') !== -1)
+              ) {
+                if (!/(^|&)csrf=/.test(init.body)) {
+                  init.body += (init.body.length ? '&' : '') + 'csrf=' + encodeURIComponent(token);
+                }
               }
             }
           } catch (ignore) { /* ignore */ }

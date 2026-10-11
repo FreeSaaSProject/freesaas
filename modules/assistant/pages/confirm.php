@@ -5,9 +5,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
     AgentHttp::error('POST required', 405);
 }
 
-$raw = file_get_contents('php://input');
+$raw = request_raw_body();
 $bodyIn = [];
-if (is_string($raw) && $raw !== '' && strpos((string)($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json') !== false) {
+if ($raw !== '' && strpos((string)($_SERVER['CONTENT_TYPE'] ?? ''), 'application/json') !== false) {
     $decoded = json_decode($raw, true);
     if (is_array($decoded)) {
         $bodyIn = $decoded;

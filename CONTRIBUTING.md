@@ -15,6 +15,24 @@ The CLA is a copyright and patent **license grant** to the copyright holder
 to distribute FreeSaaS under AGPL-3.0-or-later and under optional commercial
 licenses ([`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md)).
 
+### Maintainer AI / automation (no CLA)
+
+Commits created by AI agents or automation operated by the copyright
+holder/maintainer (Cursor Agent, Codex, Claude, and similar tools the
+maintainer runs) are contributions **on behalf of the maintainer**. They are
+not external contributions and do **not** require a separate CLA.
+Maintainer-operated automation/AI accounts are not external contributors.
+
+`Co-authored-by` / agent attribution is welcome for transparency; it does not
+trigger a CLA requirement for maintainer-operated agents.
+
+### External AI-assisted PRs
+
+If you open a PR that your Cursor/Claude/Codex (or other AI) helped write,
+**you** (or your organization) still sign the CLA. You are responsible for
+having the rights to contribute. AI generation does not remove that duty.
+See [`CLA.md`](CLA.md) (“Maintainer-operated automation and AI”).
+
 ## Project conventions
 
 - Architecture and module rules: [`AGENTS.md`](AGENTS.md), [`docs/GUIDE.md`](docs/GUIDE.md).

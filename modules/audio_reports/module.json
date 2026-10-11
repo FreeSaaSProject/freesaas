@@ -2,7 +2,7 @@
     "id": "audio_reports",
     "name": "audio_reports.module.name",
     "description": "audio_reports.module.description",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -91,10 +91,10 @@
             },
             {
                 "id": "audio_reports.summaries.work",
-                "method": "GET",
+                "method": "POST",
                 "path": "/audio/summaries/work",
                 "permission": "audio_reports.view",
-                "description": "Work actions: propose|preview|save|month (edit for propose/preview/save)"
+                "description": "Work actions: propose|preview|save|month (edit for propose/preview/save; month is POST-only)"
             }
         ]
     },

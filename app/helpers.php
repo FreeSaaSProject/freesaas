@@ -723,6 +723,27 @@ function request_path(): string {
     return $path === '' ? '/' : $path;
 }
 
+/**
+ * Cached php://input (readable once per request). Use before/instead of
+ * file_get_contents('php://input') so CSRF and handlers share the same body.
+ *
+ * Tests may set $GLOBALS['FREESAAS_TEST_RAW_BODY'] (bypasses cache).
+ */
+function request_raw_body(): string
+{
+    if (array_key_exists('FREESAAS_TEST_RAW_BODY', $GLOBALS)) {
+        return (string)$GLOBALS['FREESAAS_TEST_RAW_BODY'];
+    }
+    static $cached = null;
+    if ($cached !== null) {
+        return $cached;
+    }
+    $raw = file_get_contents('php://input');
+    $cached = is_string($raw) ? $raw : '';
+
+    return $cached;
+}
+
 function base_path(string $rel = ''): string {
     return dirname(__DIR__) . ($rel !== '' ? '/' . ltrim($rel, '/') : '');
 }

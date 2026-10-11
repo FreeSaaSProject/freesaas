@@ -42,6 +42,15 @@ $assert(!Csrf::verify(), 'reject bad token');
 unset($_POST['csrf']);
 $_SERVER['HTTP_X_CSRF_TOKEN'] = $t;
 $assert(Csrf::verify(), 'verify header');
+unset($_SERVER['HTTP_X_CSRF_TOKEN']);
+
+// JSON body csrf (shared hosts may strip X-CSRF-Token).
+$_SERVER['CONTENT_TYPE'] = 'application/json';
+$GLOBALS['FREESAAS_TEST_RAW_BODY'] = json_encode(['csrf' => $t, 'message' => 'hi'], JSON_UNESCAPED_UNICODE);
+$assert(Csrf::verify(), 'verify json body csrf');
+$GLOBALS['FREESAAS_TEST_RAW_BODY'] = json_encode(['csrf' => 'deadbeef'], JSON_UNESCAPED_UNICODE);
+$assert(!Csrf::verify(), 'reject bad json body csrf');
+unset($_SERVER['CONTENT_TYPE'], $GLOBALS['FREESAAS_TEST_RAW_BODY']);
 
 $html = '<form method="post" action="/x"><input name="a" value="1"></form>'
     . '<form method="get" action="/y"><input name="b"></form>';

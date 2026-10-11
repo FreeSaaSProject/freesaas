@@ -371,6 +371,7 @@ return [
     'audio_reports.summaries.err.profile_access' => 'Profile not found or no access',
     'audio_reports.summaries.err.position' => 'Select a position',
     'audio_reports.summaries.err.unknown_action' => 'Unknown action',
+    'audio_reports.summaries.err.post_required' => 'POST required',
     'audio_reports.summaries.js.day' => 'Day',
     'audio_reports.summaries.js.hours' => 'Hours',
     'audio_reports.summaries.js.need_position' => 'Select a position first',

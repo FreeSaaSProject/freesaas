@@ -142,7 +142,8 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 - Route gate: `Auth::can('module.perm')` (superadmin always true).
 - Menu visibility: `Auth::canSeeInMenu('module.perm')` — personal checkboxes even for superadmin (hide unused modules from the rail).
 - Role flags from `base_admin_statuses`: `Auth::capability('FLAG_NAME')` (e.g. `CONTROL_ACCESS`, `SUPERADMIN_ACCESS`).
-- Password: new writes use `password_hash` (argon2id/bcrypt). Legacy rows `sha1(md5(plain . salts.site))` still verify; rehash-on-login upgrades them. Never rotate `salts.site`. Lockout via `retries` + `locked_until`; unlock/login-link: `php bin/freesaas.php user …`.
+- Password: new writes use `password_hash` (argon2id/bcrypt). Legacy rows `sha1(md5(plain . salts.site))` still verify; rehash-on-login upgrades them. Never rotate `salts.site`. Lockout via `retries` + `locked_until`; unlock/login-link/logout-all: `php bin/freesaas.php user …`.
+- Sessions: `Auth::check()` revalidates `enabled` / `auth_epoch` / permissions (throttled ~60s; always on POST and capability routes). Bump `auth_epoch` on password/role/enabled/permission changes. Idle: `session_idle_minutes` (default 120); remember cookie: `session_remember_days`.
 
 ## EventBus conventions
 

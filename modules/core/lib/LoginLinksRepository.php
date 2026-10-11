@@ -108,6 +108,9 @@ final class LoginLinksRepository
             if (Database::columnExists('base_users', 'locale')) {
                 $cols .= ', locale';
             }
+            if (Database::columnExists('base_users', 'auth_epoch')) {
+                $cols .= ', auth_epoch';
+            }
             $ust = $pdo->prepare("SELECT $cols FROM base_users WHERE id = ? LIMIT 1");
             $ust->execute([(int)$link['id_user']]);
             $user = $ust->fetch(PDO::FETCH_ASSOC);
