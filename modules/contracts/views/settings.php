@@ -23,5 +23,7 @@ $deadlinePenalty = !empty($deadlinePenalty);
     </label>
   </fieldset>
 
-  <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  <div class="page-actions">
+    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  </div>
 </form>

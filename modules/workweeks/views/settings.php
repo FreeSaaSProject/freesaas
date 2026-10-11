@@ -83,5 +83,7 @@ $newsOptions = $newsOptions ?? [];
     </fieldset>
   <?php endif; ?>
 
-  <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  <div class="page-actions">
+    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  </div>
 </form>

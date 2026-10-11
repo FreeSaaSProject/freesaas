@@ -34,6 +34,8 @@ declare(strict_types=1);
     <span class="field-hint muted"><?= te('sites.settings.field_admin_host_hint') ?></span>
   </label>
   <?php if ($canEdit): ?>
-    <p><button type="submit" class="btn-primary"><?= te('sites.settings.save') ?></button></p>
+    <div class="page-actions">
+      <button type="submit" class="btn-primary"><?= te('sites.settings.save') ?></button>
+    </div>
   <?php endif; ?>
 </form>

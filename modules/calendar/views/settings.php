@@ -15,5 +15,7 @@ declare(strict_types=1);
 
 <form method="post" class="form-grid">
   <?php require __DIR__ . '/_settings_hours.php'; ?>
-  <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  <div class="page-actions">
+    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  </div>
 </form>

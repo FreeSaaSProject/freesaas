@@ -42,5 +42,7 @@ declare(strict_types=1);
     <input type="checkbox" name="max_ssl_insecure" value="1"<?= $maxSsl ? ' checked' : '' ?>>
     <?= te('bots.settings.max_ssl_insecure') ?>
   </label>
-  <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  <div class="page-actions">
+    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  </div>
 </form>

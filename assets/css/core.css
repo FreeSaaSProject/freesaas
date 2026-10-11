@@ -2932,14 +2932,28 @@ details.check-fieldset > summary::-webkit-details-marker { display: none; }
   gap: 0.5rem;
   margin-bottom: 0.25rem;
 }
-.user-edit-form .page-actions-sticky {
+/* Sticky Save/Cancel on long admin forms (document scroll). */
+form.form-grid .page-actions,
+form.form-grid .form-actions,
+form.form .form-actions,
+.page-actions-sticky {
   position: sticky;
   bottom: 0;
   z-index: 20;
   margin-top: 1rem;
-  padding: 0.75rem 0 0.35rem;
+  padding: 0.75rem 0 max(0.35rem, env(safe-area-inset-bottom, 0px));
   background: linear-gradient(180deg, transparent 0%, var(--bg0) 28%);
   border-top: 1px solid var(--line);
+}
+dialog form .page-actions,
+dialog form .form-actions,
+.page-actions-static {
+  position: static;
+  z-index: auto;
+  margin-top: 0;
+  padding: 0;
+  background: none;
+  border-top: 0;
 }
 .form-grid select {
   border: 1px solid var(--line);

@@ -91,7 +91,9 @@ foreach ($timezoneOptions as $opt) {
   </fieldset>
 
   <?= $extraHtml ?? '' ?>
-  <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  <div class="page-actions">
+    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+  </div>
 </form>
 <?php endif; ?>
 

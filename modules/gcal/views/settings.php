@@ -55,7 +55,9 @@ $displayRedirect = $redirectUri !== '' ? $redirectUri : $defaultRedirect;
       </label>
     </div>
   </fieldset>
-  <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
+  <div class="page-actions">
+    <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
+  </div>
 </form>
 
 <section class="gcal-queue">

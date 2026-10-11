@@ -206,8 +206,20 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                 'active' => false,
             ];
         }
-        // Only the most specific matching item in a group is highlighted
-        // (so /calendar/settings does not also light up /calendar).
+        // Prefer the globally longest menu path so /stocks/leftovers does not
+        // also light up /stocks in another rail group (dictionaries vs warehouse).
+        $globalBestLen = -1;
+        foreach ($railGroups as $g) {
+            foreach ($g['items'] as $link) {
+                if (empty($link['matches'])) {
+                    continue;
+                }
+                $len = strlen((string)$link['path_key']);
+                if ($len > $globalBestLen) {
+                    $globalBestLen = $len;
+                }
+            }
+        }
         foreach ($railGroups as &$g) {
             $bestIdx = null;
             $bestLen = -1;
@@ -215,8 +227,11 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
                 if (empty($link['matches'])) {
                     continue;
                 }
-                $g['has_active'] = true;
                 $len = strlen((string)$link['path_key']);
+                if ($len < $globalBestLen) {
+                    continue;
+                }
+                $g['has_active'] = true;
                 if ($len > $bestLen) {
                     $bestLen = $len;
                     $bestIdx = $i;

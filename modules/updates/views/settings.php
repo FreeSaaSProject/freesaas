@@ -50,7 +50,7 @@ $channel = (string)($cfg['channel'] ?? 'main');
   </label>
   <?php endif; ?>
   <input type="hidden" name="provider" value="github">
-  <div class="actions">
+  <div class="page-actions">
     <?php if ($canSave): ?>
       <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
     <?php endif; ?>
