@@ -131,9 +131,12 @@ final class ProceduresRepository
         }
 
         $sqlWhere = implode(' AND ', $where);
-        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_procedures p WHERE $sqlWhere");
-        $stc->execute($params);
-        $total = (int)$stc->fetchColumn();
+        $total = 0;
+        if (empty($opts['skip_total'])) {
+            $stc = $pdo->prepare("SELECT COUNT(*) FROM base_procedures p WHERE $sqlWhere");
+            $stc->execute($params);
+            $total = (int)$stc->fetchColumn();
+        }
 
         $order = trim((string)($opts['order'] ?? ''));
         if ($order === '') {

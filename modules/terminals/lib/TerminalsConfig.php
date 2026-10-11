@@ -11,13 +11,14 @@ final class TerminalsConfig
             'registry_enabled' => '1',
             'analytics_enabled' => '1',
             'sync_enabled' => '1',
+            // Legacy phpshop_system.1C_ENABLED — off → stub/debug data, no live 1C calls.
+            '1c_enabled' => '1',
             '1c_url' => '',
             '1c_auth' => '',
             '1c_apikey' => '',
             '1c_terminal' => '',
             '1c_uid' => '',
             '1c_timeout_sec' => 30,
-            'orders_url' => 'https://volgatermy.ru/vtorders/',
             'worker_token' => 'CHANGE_ME',
             'booking_terminal_id' => '',
             'booking_admin_id' => '',
@@ -29,7 +30,7 @@ final class TerminalsConfig
     {
         $out = [];
         foreach (self::defaults() as $key => $default) {
-            if (in_array($key, ['registry_enabled', 'analytics_enabled', 'sync_enabled'], true)) {
+            if (in_array($key, ['registry_enabled', 'analytics_enabled', 'sync_enabled', '1c_enabled'], true)) {
                 $out[$key] = self::flag($key, (string)$default === '1') ? '1' : '0';
                 continue;
             }
@@ -53,7 +54,7 @@ final class TerminalsConfig
      */
     public static function saveFromPost(array $post): void
     {
-        foreach (['registry_enabled', 'analytics_enabled', 'sync_enabled'] as $key) {
+        foreach (['registry_enabled', 'analytics_enabled', 'sync_enabled', '1c_enabled'] as $key) {
             Config::set('terminals', $key, !empty($post[$key]) ? '1' : '0');
         }
 
@@ -62,12 +63,6 @@ final class TerminalsConfig
         Config::set('terminals', '1c_uid', trim((string)($post['1c_uid'] ?? '')));
         $timeout = max(5, min(120, (int)($post['1c_timeout_sec'] ?? 30)));
         Config::set('terminals', '1c_timeout_sec', (string)$timeout);
-
-        $ordersUrl = trim((string)($post['orders_url'] ?? ''));
-        if ($ordersUrl === '') {
-            $ordersUrl = (string)self::defaults()['orders_url'];
-        }
-        Config::set('terminals', 'orders_url', $ordersUrl);
 
         Config::set('terminals', 'booking_terminal_id', trim((string)($post['booking_terminal_id'] ?? '')));
         Config::set('terminals', 'booking_admin_id', trim((string)($post['booking_admin_id'] ?? '')));
@@ -125,12 +120,35 @@ final class TerminalsConfig
         return $t !== '' && $t !== 'CHANGE_ME';
     }
 
+    /** Global toggle (legacy «Активирован модуль связи с 1С»). */
+    public static function onecEnabled(): bool
+    {
+        return self::flag('1c_enabled', true);
+    }
+
+    /** Credentials present (independent of onecEnabled). */
     public static function onecReady(): bool
     {
         return trim(self::string('1c_url')) !== ''
             && trim(self::string('1c_auth')) !== ''
             && trim(self::string('1c_apikey')) !== ''
             && trim(self::string('1c_terminal')) !== '';
+    }
+
+    /** Live HTTP to 1C allowed: enabled + credentials. */
+    public static function onecLive(): bool
+    {
+        return self::onecEnabled() && self::onecReady();
+    }
+
+    /**
+     * Use stub/debug 1C responses (no network).
+     * Only when globally off (1c_enabled=0) or explicit per-call disable.
+     * Incomplete credentials while enabled must NOT stub — callers fail loudly.
+     */
+    public static function onecStubMode(bool $requestDisable = false): bool
+    {
+        return $requestDisable || !self::onecEnabled();
     }
 
     /** @return array{url:string,auth:string,apikey:string,terminal:string,uid:string,timeout:int} */
@@ -144,12 +162,6 @@ final class TerminalsConfig
             'uid' => trim(self::string('1c_uid')),
             'timeout' => max(5, self::int('1c_timeout_sec', 30)),
         ];
-    }
-
-    public static function ordersUrl(): string
-    {
-        $u = trim(self::string('orders_url', (string)self::defaults()['orders_url']));
-        return $u !== '' ? $u : (string)self::defaults()['orders_url'];
     }
 
     public static function maskSecret(string $raw): string

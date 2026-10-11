@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/CalendarOverlay.php';
 require_once __DIR__ . '/lib/ProcedureRestoresRepository.php';
 require_once __DIR__ . '/lib/SystemFlyerPromo.php';
 require_once __DIR__ . '/lib/FreeTicket.php';
+require_once __DIR__ . '/lib/LikespaLegacyApi.php';
 
 Assets::register('likespa', [
     'css' => ['likespa.css'],
@@ -47,7 +48,29 @@ $pages = [
         'methods' => ['GET', 'POST'],
         'file' => 'settings.php',
     ],
+    '/likespa/legacy-api/status' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET'],
+        'file' => 'legacy_api_status.php',
+    ],
+    // Always registered; handlers 503 when legacy_api_enabled=0 (check-routes / cutover).
+    '/api_termy.php' => [
+        'public' => true,
+        'methods' => ['GET'],
+        'file' => 'api_termy.php',
+    ],
+    '/api.php' => [
+        'public' => true,
+        'methods' => ['GET'],
+        'file' => 'api_full.php',
+    ],
+    '/api1c.php' => [
+        'public' => true,
+        'methods' => ['GET', 'POST', 'PUT', 'PATCH'],
+        'file' => 'api1c.php',
+    ],
 ];
+
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
     $route = [
@@ -57,6 +80,9 @@ foreach ($pages as $path => $def) {
             require base_path('modules/likespa/pages/' . $file);
         },
     ];
+    if (!empty($def['public'])) {
+        $route['public'] = true;
+    }
     if (!empty($def['capability'])) {
         $route['capability'] = $def['capability'];
     }
@@ -65,6 +91,20 @@ foreach ($pages as $path => $def) {
     }
     ModuleManager::registerRoute($path, $route);
 }
+
+EventBus::on('sites.diagnose', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $diag = LikespaLegacyApi::diagnose();
+    $payload['likespa_legacy_api'] = $diag;
+    if (!empty($diag['issues']) && is_array($payload['issues'] ?? null)) {
+        foreach ($diag['issues'] as $issue) {
+            $payload['issues'][] = 'likespa_legacy:' . $issue;
+        }
+    }
+    return $payload;
+});
 
 BulkActions::register('likespa_restores', 'delete', [
     'label' => 'core.bulk.delete',

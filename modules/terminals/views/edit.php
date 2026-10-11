@@ -21,7 +21,7 @@ $flag = static function (string $key) use ($row): bool {
     <input name="name" value="<?= e((string)($row['name'] ?? '')) ?>" required<?= $canEdit ? '' : ' disabled' ?>>
   </label>
   <label><?= te('terminals.col.code') ?>
-    <input name="code" value="" autocomplete="off" placeholder="<?= $isNew ? '' : e((string)($row['code_masked'] ?? '')) ?>"<?= $canEdit ? '' : ' disabled' ?><?= $isNew ? ' required' : '' ?>>
+    <input name="code" value="<?= e((string)($row['code'] ?? '')) ?>" autocomplete="off"<?= $canEdit ? '' : ' disabled' ?><?= $isNew ? ' required' : '' ?>>
     <span class="muted"><?= $isNew ? te('terminals.edit.code_new_hint') : te('terminals.edit.code_hint') ?></span>
   </label>
   <label class="check">

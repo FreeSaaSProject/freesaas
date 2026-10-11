@@ -39,6 +39,17 @@ $result = TerminalsRepository::list([
     'order' => $lq['order_sql'],
 ]);
 
+$extraStaffIds = [];
+foreach ($result['items'] as $row) {
+    foreach (['id_admin', 'id_executor', 'id_user_locked'] as $k) {
+        $sid = (int)($row[$k] ?? 0);
+        if ($sid > 0) {
+            $extraStaffIds[] = $sid;
+        }
+    }
+}
+$staffNames = UsersRepository::staffNamesIncluding($extraStaffIds);
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -66,4 +77,5 @@ View::render('list', [
     'showAll' => $lq['show_all'],
     'filters' => $filters,
     'bulkFlash' => BulkActions::consumeFlash(),
+    'staffNames' => $staffNames,
 ], 'layout', 'terminals');

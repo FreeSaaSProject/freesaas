@@ -25,7 +25,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_system` flyer / promo (`flyerEnabled`, `flyerDiscount`, `PROMO_*`) | likespa (write) / core (table) | `SystemFlyerPromo`; UI `/likespa/settings` |
 | `base_system` work hours (`work_hour_start`, `work_hour_end`) | calendar (write) / core (table) | `CalendarTimeline::updateWorkHours`; UI `/calendar/settings` |
 | `base_terminals`, `base_bracelets`, `base_terminals_activations` | terminals | Device registry + locker bracelet UIDs (disableable) |
-| `base_termloads`, `base_fullstats`, `base_term_orders` | terminals | Therm occupancy / ticket visits / Volga Termy orders |
+| `base_termloads`, `base_fullstats` | terminals | Therm occupancy / ticket visits |
+| `base_term_orders` | terminals (legacy) | Old Volga Termy feed; table may remain, UI/import removed |
 | `base_client_onec_bindings` | terminals | Current 1C ticket ↔ client (ephemeral TTL; no ALTER `base_clients`) |
 | `base_staff_bracelets` | terminals | Permanent staff NFC UID ↔ `base_users.id` (no ALTER `base_users`) |
 | `base_staff_report_profiles` | staff_reports | Per-position quality report config (traffic lights) |

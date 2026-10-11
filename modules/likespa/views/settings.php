@@ -37,6 +37,23 @@ $promoDiscounts = is_array($flyerPromo['promo_discounts'] ?? null) ? $flyerPromo
     <label class="check"><input type="checkbox" name="restores_enabled" value="1"<?= $on('restores_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.restores_enabled') ?></label>
   </fieldset>
 
+  <fieldset>
+    <legend><?= te('likespa.settings.sec.legacy_api') ?></legend>
+    <p class="muted"><?= te('likespa.settings.legacy_api_hint') ?></p>
+    <label class="check"><input type="checkbox" name="legacy_api_enabled" value="1"<?= $on('legacy_api_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.legacy_api_enabled') ?></label>
+    <label><?= te('likespa.settings.legacy_api_termy_category') ?>
+      <input type="number" name="legacy_api_termy_category" min="1" step="1"
+             value="<?= (int)$c('legacy_api_termy_category', '16') ?>">
+    </label>
+    <label><?= te('likespa.settings.legacy_api_key') ?>
+      <input type="password" name="legacy_api_key" value="" autocomplete="new-password">
+      <span class="muted"><?= te('likespa.settings.legacy_api_key_hint') ?>
+        <?= $c('legacy_api_key_set', '0') === '1' ? te('likespa.settings.legacy_api_key_set') : te('likespa.settings.legacy_api_key_empty') ?>
+      </span>
+    </label>
+    <p><a href="/likespa/legacy-api/status"><?= te('likespa.legacy_api.status_title') ?></a></p>
+  </fieldset>
+
   <?php if (!empty($hasFreeTicketCol)): ?>
   <fieldset>
     <legend><?= te('likespa.settings.sec.free_ticket') ?></legend>

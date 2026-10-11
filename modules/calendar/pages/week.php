@@ -171,6 +171,13 @@ foreach ($days as $day) {
             'price_col' => (int)($sh['price_col'] ?? 1),
         ];
     }
+    if (class_exists('ProceduresDayLoad', false)) {
+        $ts = (int)($day['ts'] ?? 0);
+        $shiftLabels = ProceduresDayLoad::decorateShiftLabels(
+            $shiftLabels,
+            ProceduresDayLoad::forDay($ts, $ts + 86400, $staffFilter)
+        );
+    }
 
     $dayColumns[] = [
         'day' => $day,

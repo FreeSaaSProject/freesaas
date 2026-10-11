@@ -15,7 +15,46 @@ declare(strict_types=1);
 $path = '/terminals/fullstats';
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
+
+$day = (string)$day;
+$dayNavActive = (bool)preg_match('/^\d{4}-\d{2}-\d{2}$/', $day);
+$today = date('Y-m-d');
+$isToday = ($dayNavActive && $day === $today);
+$urlToday = ListQuery::url($path, $filters, ['day' => $today, 'from' => '', 'to' => '', 'page' => 1]);
+$urlPrev = '';
+$urlNext = '';
+$dayLabel = '';
+if ($dayNavActive) {
+    $focus = $day;
+    $prevDay = date('Y-m-d', strtotime($focus . ' -1 day') ?: time());
+    $nextDay = date('Y-m-d', strtotime($focus . ' +1 day') ?: time());
+    $urlPrev = ListQuery::url($path, $filters, ['day' => $prevDay, 'from' => '', 'to' => '', 'page' => 1]);
+    $urlNext = ListQuery::url($path, $filters, ['day' => $nextDay, 'from' => '', 'to' => '', 'page' => 1]);
+    $dayLabel = I18n::formatDate(strtotime($focus . ' 12:00:00') ?: time(), 'date');
+}
 ?>
+<section class="page-head">
+  <div class="page-actions" style="gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <?php if ($dayNavActive): ?>
+      <nav class="pager" aria-label="<?= te('terminals.day_nav.aria') ?>"
+           data-pager-prev="<?= e($urlPrev) ?>"
+           data-pager-next="<?= e($urlNext) ?>">
+        <a class="btn-secondary" href="<?= e($urlPrev) ?>" title="<?= te('terminals.day_nav.prev') ?>" aria-label="<?= te('terminals.day_nav.prev') ?>">‹</a>
+        <strong><?= e($dayLabel) ?></strong>
+        <a class="btn-secondary" href="<?= e($urlNext) ?>" title="<?= te('terminals.day_nav.next') ?>" aria-label="<?= te('terminals.day_nav.next') ?>">›</a>
+        <?php if (!$isToday): ?>
+          <a class="btn-secondary" href="<?= e($urlToday) ?>"><?= te('terminals.day_nav.today') ?></a>
+        <?php else: ?>
+          <span class="pill"><?= te('terminals.day_nav.today') ?></span>
+        <?php endif; ?>
+        <span class="muted"><?= te('terminals.day_nav.keyboard') ?></span>
+      </nav>
+    <?php else: ?>
+      <a class="btn-secondary" href="<?= e($urlToday) ?>"><?= te('terminals.day_nav.today') ?></a>
+    <?php endif; ?>
+  </div>
+</section>
+
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
   <label><?= te('terminals.fullstats.search_day') ?>

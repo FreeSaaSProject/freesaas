@@ -6,3 +6,21 @@
 .termloads-bars .tl-val { width: 2.5rem; text-align: right; font-variant-numeric: tabular-nums; }
 .terminals-runtime { opacity: .75; }
 .terminals-flags { display: grid; gap: .35rem; }
+.terminals-list .term-limits {
+  margin: .35rem 0 0;
+  font-size: .85rem;
+  color: var(--danger, #b33);
+}
+.terminals-list .term-limits ul {
+  margin: .15rem 0 0;
+  padding-left: 1.1rem;
+}
+.terminals-list .term-selectors {
+  margin-top: .35rem;
+  font-size: .85rem;
+  color: var(--muted, #666);
+  line-height: 1.45;
+}
+.terminals-list .term-sel-on { color: var(--ok, #2a7); font-weight: 600; }
+.terminals-list .term-sel-off { color: var(--danger, #b33); font-weight: 600; }
+.terminals-list .term-until { font-size: .85rem; }

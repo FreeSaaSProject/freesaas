@@ -244,6 +244,21 @@ tr.is-block td { opacity: 0.75; }
   white-space: nowrap;
   border: 1px solid rgba(0, 0, 0, 0.15);
 }
+.calendar-tl-shift.is-load-min {
+  box-shadow: 0 0 0 2px #1a7a3c;
+  font-weight: 800;
+}
+.calendar-tl-shift.is-load-high {
+  box-shadow: 0 0 0 1px rgba(192, 57, 43, 0.45);
+}
+.cal-stat-staff-line.is-load-min .cal-stat-text {
+  color: #1a7a3c;
+  font-weight: 700;
+}
+.cal-stat-staff-line.is-load-high .cal-stat-text {
+  color: #a94442;
+  font-weight: 700;
+}
 .calendar-tl-shift.is-assist {
   font-style: italic;
   opacity: 0.85;

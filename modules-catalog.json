@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-11T12:28:29+00:00",
+    "generated_at": "2026-10-11T14:00:20+00:00",
     "modules": [
         {
             "id": "asr",
@@ -308,7 +308,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -739,7 +739,7 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.3",
+            "version": "0.3.4",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -872,7 +872,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1323,26 +1323,29 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.2",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
                 "ru": "Терминалы и термы"
             },
             "description": {
-                "en": "Device registry, bracelets, therm occupancy/orders; 1C/volgatermy sync jobs.",
-                "ru": "Реестр устройств, браслеты, занятость/заказы терм; джобы синка 1C/volgatermy."
+                "en": "Device registry, bracelets, therm occupancy; 1C sync jobs; live /t floor.",
+                "ru": "Реестр устройств, браслеты, занятость терм; джобы синка 1C; живой /t."
             },
             "summary": {
-                "en": "Enable for thermal-area terminals and bracelet flow. Soft catalog/clients. Configure cfg/modules/terminals.ini for sync tokens. Disableable — only where therm hardware/1C sync is used.",
-                "ru": "Включайте для терминалов терм и браслетов. Мягко catalog/clients. Токены синка — cfg/modules/terminals.ini. Отключаемый — только где есть железо/1C."
+                "en": "Enable for thermal-area terminals and bracelet flow. Soft catalog/clients/booking/procedures. Configure cfg/modules/terminals.ini for sync tokens. Disableable — only where therm hardware/1C sync is used.",
+                "ru": "Включайте для терминалов терм и браслетов. Мягко catalog/clients/booking/procedures. Токены синка — cfg/modules/terminals.ini. Отключаемый — только где есть железо/1C."
             },
             "requires": {
                 "core": ">=0.3.0"
             },
             "optionalRequires": {
                 "catalog": ">=0.1.0",
-                "clients": ">=0.1.0"
+                "clients": ">=0.1.0",
+                "booking": ">=0.1.0",
+                "procedures": ">=0.1.0",
+                "orders": ">=0.1.0"
             },
             "catalog": {
                 "categories": [

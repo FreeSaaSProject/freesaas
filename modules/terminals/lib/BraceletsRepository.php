@@ -70,6 +70,31 @@ final class BraceletsRepository
         return $row ?: null;
     }
 
+    public static function findByUid(string $uid): ?array
+    {
+        $uid = trim($uid);
+        if ($uid === '' || !Database::tableExists('base_bracelets')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, DT AS dt, UID AS uid, UID2 AS uid2, NUM AS num
+             FROM base_bracelets WHERE UID = ? OR UID2 = ? ORDER BY ID DESC LIMIT 1'
+        );
+        $st->execute([$uid, $uid]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public static function setNum(int $id, int $num): void
+    {
+        if ($id < 1 || !Database::tableExists('base_bracelets')) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_bracelets SET NUM = ? WHERE ID = ?'
+        )->execute([max(0, $num), $id]);
+    }
+
     /**
      * @param array<string,mixed> $post
      * @return array<string,mixed>

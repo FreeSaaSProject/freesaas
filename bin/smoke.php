@@ -163,6 +163,23 @@ if ($botsCode !== 0) {
     $sections['bots_webhook']['output'] = implode("\n", $botsLines);
 }
 
+// Terminals floor domain smoke (stub book/cancel/claim; skips if no fixtures)
+$floorLines = [];
+$floorCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-terminals-floor.php') . ' 2>&1',
+    $floorLines,
+    $floorCode
+);
+$sections['terminals_floor'] = [
+    'ok' => $floorCode === 0,
+    'exit' => $floorCode,
+];
+if ($floorCode !== 0) {
+    $failed = true;
+    $sections['terminals_floor']['output'] = implode("\n", $floorLines);
+}
+
 $out = ['ok' => !$failed, 'sections' => $sections];
 if (in_array('--format=json', $argv, true) || in_array('--json', $argv, true)) {
     Cli::setJson(true);

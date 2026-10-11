@@ -1,6 +1,6 @@
 # Booking (slots + advance orders)
 
-Alpha product module: shared **slot engine** and **order-mode** book into `base_orders`. Storefront cart wizard uses the same engine when `booking` is enabled (see Phase 2 below). Termy API and live `/t` come later.
+Alpha product module: shared **slot engine** and **order-mode** book into `base_orders`. Storefront cart wizard uses the same engine when `booking` is enabled. Termy drop-in HTTP lives in optional `likespa` (`/api_termy.php`); live floor `/t` is in `terminals`.
 
 ## Entities — do not mix
 
@@ -78,9 +78,11 @@ JSON: send `Accept: application/json` (or AgentHttp session). Permissions: `book
 
 Hooks: `booking.book.before` / `booking.book.after` (product modules may overlay order payload).
 
-## Frozen terminal URL (later phase)
+## Floor `/t` and Termy API
 
-Phones open `/t/?terminalid=…&braceletid=…&token=…` — do not rename. Staff day claim: `ID_ADMIN` + `DT_ADMIN_VALID`; one staff → one terminal.
+Phones open `/t/?terminalid=…&braceletid=…&token=…` — do not rename ([`terminals.md`](terminals.md)). Staff day claim: `ID_ADMIN` + `DT_ADMIN_VALID`. Legacy Termy clients: enable `likespa` `legacy_api_enabled` → `/api_termy.php?endpoint=` ([`likespa-restores.md`](likespa-restores.md), [`agent-surfaces.md`](agent-surfaces.md)).
+
+Staff cancel/list advance orders: `GET /booking/orders?client_id=`, `POST /booking/cancel` (`agent.ops` `booking.orders` / `booking.cancel`).
 
 ## Storefront cart wizard (Phase 2)
 

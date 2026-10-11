@@ -18,6 +18,8 @@ $pages = [
     '/booking/availability' => ['permission' => 'booking.view', 'methods' => ['GET'], 'file' => 'availability.php'],
     '/booking/book' => ['permission' => 'booking.edit', 'methods' => ['POST'], 'file' => 'book.php'],
     '/booking/clients' => ['permission' => 'booking.edit', 'methods' => ['GET'], 'file' => 'clients.php'],
+    '/booking/orders' => ['permission' => 'booking.view', 'methods' => ['GET'], 'file' => 'orders.php'],
+    '/booking/cancel' => ['permission' => 'booking.edit', 'methods' => ['POST', 'GET'], 'file' => 'cancel.php'],
 ];
 
 foreach ($pages as $path => $def) {

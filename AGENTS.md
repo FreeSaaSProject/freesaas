@@ -177,10 +177,10 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `stickers` | Receipt/writeoff acts + sticker ins/outs + writeoff service |
 | `norms` | Default consumptions (`base_good_defaults`); embed on catalog product edit |
 | `sheets` | LikeSpa linen accounts/moves (`base_sheet_*`); disableable |
-| `likespa` | Spa instance pack: flyer + promoter discounts (`/likespa/settings`), term scans, promoter bonus + dops on `/audio/calendar`; procedure restores + settlement (ACCOUNT=0); staff public profile; disableable. CMS moved to `sites`. |
+| `likespa` | Spa instance pack: flyer + promoter discounts (`/likespa/settings`), term scans, promoter bonus + dops on `/audio/calendar`; procedure restores + settlement (ACCOUNT=0); optional legacy drop-in `/api_termy.php` `/api.php` `/api1c.php` (`legacy_api_enabled`); staff public profile; disableable. CMS moved to `sites`. |
 | `sites` | Storefront + CMS: multi-host (`base_site_hosts`), SEO, articles, promo, redirects, themes (`site.php`); shop/cart + booking wizard; agent diagnose `GET /sites/status` — [`docs/agents/sites.md`](docs/agents/sites.md); themes: [`docs/agents/themes.md`](docs/agents/themes.md) |
-| `booking` | Slot engine + advance order book (`base_orders`); UI `/booking/new` in Calendar rail (not event slot-click); alpha; agent `/booking/availability` `/booking/book`; storefront `/cart` wizard when enabled — [`docs/agents/booking.md`](docs/agents/booking.md). `/t` later |
-| `terminals` | Device registry + bracelets + therm occupancy/orders; 1C/volgatermy sync jobs (`cfg/modules/terminals.ini`); disableable |
+| `booking` | Slot engine + advance order book (`base_orders`); UI `/booking/new` in Calendar rail (not event slot-click); alpha; agent `/booking/availability` `/booking/book` `/booking/orders` `/booking/cancel`; storefront `/cart` wizard when enabled — [`docs/agents/booking.md`](docs/agents/booking.md) |
+| `terminals` | Device registry + bracelets + therm occupancy; live `/t` floor shell; 1C sale/bracelet + sync jobs (`cfg/modules/terminals.ini`); disableable — [`docs/agents/terminals.md`](docs/agents/terminals.md) |
 | `staff_reports` | Staff quality day reports (traffic lights by position); rewards on `/audio/calendar`; generate via Re-® / `/staff-reports/generate` |
 | `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`, `base_procedure_restores` schema); restore UI lives in `likespa` |
 | `orders` | Website orders (`base_orders`, shared with site/oper); notice chips; `orders.for_day` for calendar |

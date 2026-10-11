@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -51,11 +51,23 @@
             "/likespa/restores",
             "/likespa/restores/new",
             "/likespa/restores/{id}/edit",
-            "/likespa/settings"
+            "/likespa/settings",
+            "/likespa/legacy-api/status",
+            "/api_termy.php",
+            "/api.php",
+            "/api1c.php"
         ]
     },
     "agent": {
         "ops": [
+            {
+                "id": "likespa.legacy_api.status",
+                "method": "GET",
+                "path": "/likespa/legacy-api/status",
+                "permission": "",
+                "side_effect": "read",
+                "description": "Legacy drop-in API diagnose (SUPERADMIN): enabled, routes, soft-deps, issues (no secrets)"
+            },
             {
                 "id": "likespa.restores.list",
                 "method": "GET",

@@ -1034,6 +1034,63 @@ final class OrdersRepository
         return [implode(' AND ', $parts), $params];
     }
 
+    /**
+     * Future advance orders for a client (Termy get_my_orders / booking list).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function listFutureByClient(int $clientId, int $limit = 50): array
+    {
+        if ($clientId < 1 || !Database::tableExists('base_orders')) {
+            return [];
+        }
+        $limit = max(1, min(200, $limit));
+        $in = self::newStatusInSql();
+        $st = Database::pdo()->prepare(
+            "SELECT ID AS id, UID AS uid, DT_CREATE AS dt_create, DT_EVENT_NEW AS dt_event,
+                    ID_USER AS id_user, ID_COSMETOLOG AS id_cosmetolog, PHONE AS phone,
+                    STATUS AS status, CART AS cart, SUMM AS summ, SUMM_REAL AS summ_real,
+                    COMMENT AS comment, FREE_TICKET AS free_ticket
+             FROM base_orders
+             WHERE ID_USER = ? AND STATUS IN ($in) AND DT_EVENT_NEW >= ?
+             ORDER BY DT_EVENT_NEW ASC, ID ASC
+             LIMIT $limit"
+        );
+        $st->execute([$clientId, time() - 3600]);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $n = self::normalizeRow($row);
+            $n['cart_lines'] = self::decodeCart((string)($row['cart'] ?? ''));
+            $items[] = $n;
+        }
+        return $items;
+    }
+
+    /**
+     * Client cancel of an advance order (legacy cancel_order → userCancelPay).
+     *
+     * @return array{ok:bool,cancelled?:int,error?:string}
+     */
+    public static function cancelForClient(int $orderId, int $clientId): array
+    {
+        if ($orderId < 1 || $clientId < 1) {
+            return ['ok' => false, 'cancelled' => 0, 'error' => 'invalid ids'];
+        }
+        $order = self::find($orderId);
+        if ($order === null) {
+            return ['ok' => false, 'cancelled' => 0, 'error' => 'not found'];
+        }
+        if ((int)($order['id_user'] ?? 0) !== $clientId) {
+            return ['ok' => false, 'cancelled' => 0, 'error' => 'forbidden'];
+        }
+        $status = (string)($order['status'] ?? '');
+        if (!in_array($status, self::NEW_STATUSES, true)) {
+            return ['ok' => false, 'cancelled' => 0, 'error' => 'not cancellable'];
+        }
+        self::update($orderId, ['status' => 'userCancelPay']);
+        return ['ok' => true, 'cancelled' => 1];
+    }
+
     private static function newStatusInSql(): string
     {
         return "'" . implode("','", self::NEW_STATUSES) . "'";

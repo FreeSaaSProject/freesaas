@@ -20,7 +20,13 @@ if (!$lines) {
           $seenAdmin = true;
       }
   ?>
-    <div class="cal-stat-staff-line<?= $isAdmin ? ' is-admin' : '' ?><?= $sep ? ' is-admin-first' : '' ?>">
+    <?php
+    $loadClass = '';
+    if (isset($line['load_pct']) && $line['load_pct'] !== null && empty($line['is_equipment'])) {
+        $loadClass = !empty($line['load_min']) ? ' is-load-min' : ' is-load-high';
+    }
+    ?>
+    <div class="cal-stat-staff-line<?= $isAdmin ? ' is-admin' : '' ?><?= $sep ? ' is-admin-first' : '' ?><?= $loadClass ?>">
       <span class="cal-stat-op" style="<?= !empty($line['bg']) ? ('background:' . e((string)$line['bg']) . ';color:' . e((string)($line['fg'] ?? '#000')) . ';') : '' ?>"><?= e((string)($line['acronym'] ?? '')) ?></span>
       <span class="cal-stat-text"><?= e((string)($line['text'] ?? '')) ?></span>
     </div>

@@ -2,19 +2,24 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.2",
+    "version": "0.1.21",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0"
     },
     "optionalRequires": {
         "catalog": ">=0.1.0",
-        "clients": ">=0.1.0"
+        "clients": ">=0.1.0",
+        "booking": ">=0.1.0",
+        "procedures": ">=0.1.0",
+        "orders": ">=0.1.0"
     },
     "provides": [
         "terminals.registry",
         "terminals.analytics",
-        "terminals.sync"
+        "terminals.sync",
+        "terminals.floor"
     ],
     "migrations": "migrations/",
     "permissions": [
@@ -42,15 +47,69 @@
             "/terminals/termloads",
             "/terminals/fullstats",
             "/terminals/fullstats/{id}/edit",
-            "/terminals/orders",
             "/terminals/settings",
+            "/terminals/t/status",
+            "/terminals/floor",
+            "/t",
             "/terminals/jobs/load",
-            "/terminals/jobs/tickets",
-            "/terminals/jobs/orders"
+            "/terminals/jobs/tickets"
         ]
     },
     "agent": {
         "ops": [
+            {
+                "id": "terminals.t.get",
+                "method": "GET",
+                "path": "/terminals/t/status",
+                "permission": "terminals.view",
+                "side_effect": "read",
+                "description": "Floor /t diagnose: 1C readiness, claim state, soft deps; query terminalid=",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "terminalid": {
+                            "type": "integer",
+                            "description": "Optional terminal id"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "terminals.floor.book",
+                "method": "POST",
+                "path": "/terminals/floor",
+                "permission": "terminals.edit",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Procedure-mode book/cancel: action=book|cancel, product_id, operator_id, dt_start, terminal_id, optional disable_1c",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "description": "book or cancel"
+                        },
+                        "product_id": {
+                            "type": "integer"
+                        },
+                        "operator_id": {
+                            "type": "integer"
+                        },
+                        "dt_start": {
+                            "type": "integer"
+                        },
+                        "terminal_id": {
+                            "type": "integer"
+                        },
+                        "procedure_id": {
+                            "type": "integer"
+                        },
+                        "disable_1c": {
+                            "type": "boolean"
+                        }
+                    }
+                }
+            },
             {
                 "id": "terminals.list",
                 "method": "GET",
@@ -63,7 +122,7 @@
                 "method": "GET",
                 "path": "/terminals/{id}/edit",
                 "permission": "terminals.view",
-                "description": "One terminal (CODE masked)"
+                "description": "One terminal including device CODE"
             },
             {
                 "id": "terminals.create",
@@ -142,13 +201,6 @@
                 "description": "Set ticket type flags; propagates by TICKET_TYPE"
             },
             {
-                "id": "terminals.orders.list",
-                "method": "GET",
-                "path": "/terminals/orders",
-                "permission": "terminals.view",
-                "description": "Term ticket orders; filters: day, from, to"
-            },
-            {
                 "id": "terminals.settings.get",
                 "method": "GET",
                 "path": "/terminals/settings",
@@ -177,22 +229,13 @@
                 "permission": "",
                 "assistant": false,
                 "description": "Sync 1C club_workload_detail → fullstats; auth X-Terminals-Token. Also Cron job terminals.tickets"
-            },
-            {
-                "id": "terminals.jobs.orders",
-                "method": "POST",
-                "path": "/terminals/jobs/orders",
-                "permission": "",
-                "assistant": false,
-                "description": "Import volgatermy orders; auth X-Terminals-Token. Also Cron job terminals.orders"
             }
         ]
     },
     "jobs": [
-        "platform Cron::register terminals.load|tickets|orders → /cron/tick",
+        "platform Cron::register terminals.load|tickets → /cron/tick",
         "/terminals/jobs/load",
-        "/terminals/jobs/tickets",
-        "/terminals/jobs/orders"
+        "/terminals/jobs/tickets"
     ],
     "menu": [
         {
@@ -221,13 +264,6 @@
             "num": 40,
             "path": "/terminals/fullstats",
             "title": "terminals.menu.fullstats",
-            "kind": "work"
-        },
-        {
-            "group": "terminals.menu.group",
-            "num": 50,
-            "path": "/terminals/orders",
-            "title": "terminals.menu.orders",
             "kind": "work"
         },
         {

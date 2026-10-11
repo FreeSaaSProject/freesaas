@@ -124,9 +124,10 @@ final class ProductsRepository
             ? 'p.hide_on_site'
             : 'p.is_status_card AS hide_on_site';
         $typeCol = Database::columnExists('base_products', 'type_id') ? 'p.type_id' : '0 AS type_id';
+        $dopCol = Database::columnExists('base_products', 'dop_cat') ? 'p.dop_cat' : "'' AS dop_cat";
         $sql = "SELECT p.id, p.category, p.name, p.name_price, p.enabled, p.num,
                        p.price, p.price2, p.price3, p.price4, p.price5,
-                       p.is_material, $hideCol, p.time_sec, p.time_net, p.onec_id, $typeCol, $catName
+                       p.is_material, $hideCol, p.time_sec, p.time_net, p.onec_id, $dopCol, $typeCol, $catName
                 FROM base_products p
                 $joinCat
                 WHERE $sqlWhere

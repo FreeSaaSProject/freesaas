@@ -2,8 +2,9 @@
     "id": "procents",
     "name": "procents.module.name",
     "description": "procents.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0",
         "rates": ">=0.1.0",

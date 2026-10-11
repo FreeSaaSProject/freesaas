@@ -73,6 +73,14 @@ $allowed = [
     '/cart/availability' => ['methods' => ['GET'], 'why' => 'cart slot availability'],
     '/cart/checkout' => ['methods' => ['POST'], 'why' => 'cart checkout'],
     '/promo/{code}' => ['methods' => ['GET'], 'why' => 'promo redirect'],
+
+    // Floor NFC shell (terminals); frozen query terminalid/braceletid/token
+    '/t' => ['methods' => ['GET', 'POST'], 'why' => 'NFC terminal web shell'],
+
+    // LikeSpa legacy drop-in APIs (handlers 503 unless legacy_api_enabled)
+    '/api_termy.php' => ['methods' => ['GET'], 'why' => 'Termy order-mode booking drop-in'],
+    '/api.php' => ['methods' => ['GET'], 'why' => 'legacy booking/terminal API drop-in'],
+    '/api1c.php' => ['methods' => ['GET', 'POST', 'PUT', 'PATCH'], 'why' => '1C reverse proxy drop-in'],
     '/robots.txt' => ['methods' => ['GET'], 'why' => 'SEO robots'],
     '/sitemap.xml' => ['methods' => ['GET'], 'why' => 'SEO sitemap'],
 
@@ -123,7 +131,6 @@ $allowed = [
     // Integration workers / OAuth callbacks
     '/banks/jobs/sync' => ['methods' => ['POST', 'GET'], 'why' => 'banks sync worker'],
     '/terminals/jobs/load' => ['methods' => ['POST', 'GET'], 'why' => 'terminals load worker'],
-    '/terminals/jobs/orders' => ['methods' => ['POST', 'GET'], 'why' => 'terminals orders worker'],
     '/terminals/jobs/tickets' => ['methods' => ['POST', 'GET'], 'why' => 'terminals tickets worker'],
     '/clientics/jobs/import-clients' => ['methods' => ['POST', 'GET'], 'why' => 'clientics import'],
     '/clientics/jobs/ping' => ['methods' => ['POST', 'GET'], 'why' => 'clientics ping'],

@@ -96,6 +96,11 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
                     } elseif ($g === 1) {
                         $gClass .= ' is-fl';
                     }
+                    if (!empty($sh['load_min'])) {
+                        $gClass .= ' is-load-min';
+                    } elseif (isset($sh['load_pct'])) {
+                        $gClass .= ' is-load-high';
+                    }
                     ?>
                     <span class="<?= e($gClass) ?>"
                           title="<?= e($sh['full']) ?>"
@@ -120,6 +125,11 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
                         $gClass .= ' is-admin';
                     } elseif ($g === 1) {
                         $gClass .= ' is-fl';
+                    }
+                    if (!empty($sh['load_min'])) {
+                        $gClass .= ' is-load-min';
+                    } elseif (isset($sh['load_pct'])) {
+                        $gClass .= ' is-load-high';
                     }
                     ?>
                     <span class="<?= e($gClass) ?>"

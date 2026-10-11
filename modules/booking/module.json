@@ -2,7 +2,7 @@
     "id": "booking",
     "name": "booking.module.name",
     "description": "booking.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -38,7 +38,9 @@
             "/booking/new",
             "/booking/availability",
             "/booking/book",
-            "/booking/clients"
+            "/booking/clients",
+            "/booking/orders",
+            "/booking/cancel"
         ]
     },
     "agent": {
@@ -62,7 +64,18 @@
                 "method": "POST",
                 "path": "/booking/book",
                 "permission": "booking.edit",
-                "description": "Create advance order + ensure client card: phone, product_ids, operator_id, dt_start, optional client_name/client_id/comment"
+                "side_effect": "write",
+                "description": "Create advance order + ensure client card: phone, product_ids, operator_id, dt_start, optional client_name/client_id/comment",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "phone": {"type": "string"},
+                        "product_ids": {"type": "array", "items": {"type": "integer"}},
+                        "operator_id": {"type": "integer"},
+                        "dt_start": {"type": "integer"}
+                    },
+                    "required": ["phone", "product_ids", "operator_id", "dt_start"]
+                }
             },
             {
                 "id": "booking.clients",
@@ -70,6 +83,37 @@
                 "path": "/booking/clients",
                 "permission": "booking.edit",
                 "description": "Client phone digit search for booking UI; query q=digits&limit="
+            },
+            {
+                "id": "booking.orders",
+                "method": "GET",
+                "path": "/booking/orders",
+                "permission": "booking.view",
+                "side_effect": "read",
+                "description": "Future advance orders for client_id",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "client_id": {"type": "integer"}
+                    },
+                    "required": ["client_id"]
+                }
+            },
+            {
+                "id": "booking.cancel",
+                "method": "POST",
+                "path": "/booking/cancel",
+                "permission": "booking.edit",
+                "side_effect": "write",
+                "description": "Cancel advance order for client: order_id + client_id → userCancelPay",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "order_id": {"type": "integer"},
+                        "client_id": {"type": "integer"}
+                    },
+                    "required": ["order_id", "client_id"]
+                }
             }
         ]
     },

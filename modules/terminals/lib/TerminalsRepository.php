@@ -78,7 +78,7 @@ final class TerminalsRepository
         $st->execute($params);
         $items = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-            $items[] = self::normalizeRow($row, true);
+            $items[] = self::normalizeRow($row, false);
         }
         return ['items' => $items, 'total' => $total];
     }
@@ -98,14 +98,146 @@ final class TerminalsRepository
         return $out;
     }
 
-    public static function find(int $id, bool $maskCode = true): ?array
+    public static function find(int $id, bool $maskCode = false): ?array
     {
         if ($id < 1 || !Database::tableExists('base_terminals')) {
             return null;
         }
-        $mass = self::MASS_COL;
+        $st = Database::pdo()->prepare(self::selectSql() . ' WHERE ID = ? LIMIT 1');
+        $st->execute([$id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::normalizeRow($row, $maskCode) : null;
+    }
+
+    /** Lookup by CODE — for /t auth. */
+    public static function findByCode(string $code): ?array
+    {
+        $code = trim($code);
+        if ($code === '' || !Database::tableExists('base_terminals')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(self::selectSql() . ' WHERE CODE = ? LIMIT 1');
+        $st->execute([$code]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::normalizeRow($row, false) : null;
+    }
+
+    /**
+     * Day claim: set ID_ADMIN + DT_ADMIN_VALID on this terminal; clear same admin elsewhere
+     * (unless IS_ADMIN_REG_IGNORE). Valid until min(now+12h, today 23:59:59).
+     *
+     * @return array{ok:bool,dt_admin_valid?:int,error?:string}
+     */
+    public static function claimStaffDay(int $terminalId, int $adminId): array
+    {
+        if ($terminalId < 1 || $adminId < 1 || !Database::tableExists('base_terminals')) {
+            return ['ok' => false, 'error' => 'invalid terminal or admin'];
+        }
+        $term = self::find($terminalId, false);
+        if ($term === null || (int)($term['enabled'] ?? 0) < 1) {
+            return ['ok' => false, 'error' => 'terminal not found'];
+        }
+        $now = time();
+        $endDay = (int)mktime(23, 59, 59);
+        $valid = min($now + 12 * 3600, $endDay);
+        $pdo = Database::pdo();
+        if ((int)($term['is_admin_reg_ignore'] ?? 0) < 1) {
+            $pdo->prepare(
+                'UPDATE base_terminals SET ID_ADMIN = 0, DT_ADMIN_VALID = 0
+                 WHERE ID <> ? AND ID_ADMIN = ? AND IFNULL(IS_ADMIN_REG_IGNORE, 0) < 1'
+            )->execute([$terminalId, $adminId]);
+        }
+        $pdo->prepare(
+            'UPDATE base_terminals SET ID_ADMIN = ?, DT_ADMIN_VALID = ? WHERE ID = ?'
+        )->execute([$adminId, $valid, $terminalId]);
+        return ['ok' => true, 'dt_admin_valid' => $valid];
+    }
+
+    public static function clearStaffClaim(int $terminalId): void
+    {
+        if ($terminalId < 1 || !Database::tableExists('base_terminals')) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_terminals SET ID_ADMIN = 0, DT_ADMIN_VALID = 0 WHERE ID = ?'
+        )->execute([$terminalId]);
+    }
+
+    public static function hasValidStaffClaim(array $terminal): bool
+    {
+        $adminId = (int)($terminal['id_admin'] ?? 0);
+        $valid = (int)($terminal['dt_admin_valid'] ?? 0);
+        if ((int)($terminal['is_admin_reg_ignore'] ?? 0) > 0) {
+            return true;
+        }
+        return $adminId > 0 && $valid >= time();
+    }
+
+    /** Soft lock while choosing/booking on this device (legacy ~50–120s). */
+    public static function touchExecutorLock(int $terminalId, int $executorId, int $ttlSec = 50): void
+    {
+        if ($terminalId < 1 || $executorId < 1 || !Database::tableExists('base_terminals')) {
+            return;
+        }
+        $free = time() + max(10, $ttlSec);
+        Database::pdo()->prepare(
+            'UPDATE base_terminals SET ID_EXECUTOR = ?, DT_EXECUTOR_FREE = ? WHERE ID = ?'
+        )->execute([$executorId, $free, $terminalId]);
+    }
+
+    public static function clearExecutorLock(int $terminalId): void
+    {
+        if ($terminalId < 1 || !Database::tableExists('base_terminals')) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_terminals SET ID_EXECUTOR = 0, DT_EXECUTOR_FREE = 0 WHERE ID = ?'
+        )->execute([$terminalId]);
+    }
+
+    /** @return list<int> admin/executor ids busy on other terminals */
+    public static function busyExecutorIds(int $exceptTerminalId = 0): array
+    {
+        return array_keys(self::busyExecutors($exceptTerminalId));
+    }
+
+    /**
+     * @return array<int,array{free_time:int,terminal_name:string,terminal_id:int}>
+     */
+    public static function busyExecutors(int $exceptTerminalId = 0): array
+    {
+        if (!Database::tableExists('base_terminals')) {
+            return [];
+        }
+        $now = time();
         $st = Database::pdo()->prepare(
-            "SELECT ID AS id, DT_CREATE AS dt_create, ID_OPERATOR_CREATE AS id_operator_create,
+            'SELECT ID AS id, NAME AS name, ID_EXECUTOR AS id_executor, DT_EXECUTOR_FREE AS free_time
+             FROM base_terminals
+             WHERE ID_EXECUTOR > 0 AND DT_EXECUTOR_FREE > ? AND ID <> ?'
+        );
+        $st->execute([$now, $exceptTerminalId]);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $eid = (int)($row['id_executor'] ?? 0);
+            if ($eid < 1) {
+                continue;
+            }
+            $free = (int)($row['free_time'] ?? 0);
+            if (!isset($out[$eid]) || $free > (int)$out[$eid]['free_time']) {
+                $out[$eid] = [
+                    'free_time' => $free,
+                    'terminal_name' => (string)($row['name'] ?? ('#' . (int)$row['id'])),
+                    'terminal_id' => (int)($row['id'] ?? 0),
+                ];
+            }
+        }
+        return $out;
+    }
+
+    private static function selectSql(): string
+    {
+        $mass = self::MASS_COL;
+        return "SELECT ID AS id, DT_CREATE AS dt_create, ID_OPERATOR_CREATE AS id_operator_create,
                     ENABLED AS enabled, NAME AS name, CODE AS code,
                     ID_ADMIN AS id_admin, DT_ADMIN_VALID AS dt_admin_valid,
                     ID_EXECUTOR AS id_executor, DT_EXECUTOR_FREE AS dt_executor_free,
@@ -119,11 +251,7 @@ final class TerminalsRepository
                     IS_TERMINAL_SHOW_DAY AS is_terminal_show_day,
                     IS_TERMINAL_FLYER_DISCOUNT AS is_terminal_flyer_discount,
                     IS_TERMINAL_CLIENT_HISTORY AS is_terminal_client_history
-             FROM base_terminals WHERE ID = ? LIMIT 1"
-        );
-        $st->execute([$id]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        return $row ? self::normalizeRow($row, $maskCode) : null;
+             FROM base_terminals";
     }
 
     /**

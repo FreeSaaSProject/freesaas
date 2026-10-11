@@ -8,10 +8,6 @@ $error = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         TerminalsConfig::saveFromPost($_POST);
-        if ($wantsJson) {
-            AgentHttp::emit(['ok' => true, 'settings' => TerminalsConfig::formValues()]);
-            return;
-        }
         $message = t('core.common.saved');
     } catch (Throwable $e) {
         if ($wantsJson) {
@@ -23,8 +19,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $cfg = TerminalsConfig::formValues();
+$terminalOptions = TerminalsRepository::names();
+$adminId = (int)($cfg['booking_admin_id'] ?? 0);
+$staffOptions = class_exists(UsersRepository::class, false)
+    ? UsersRepository::staffNamesIncluding($adminId > 0 ? [$adminId] : [])
+    : [];
+
 if ($wantsJson) {
-    AgentHttp::emit(['ok' => true, 'settings' => $cfg]);
+    AgentHttp::emit([
+        'ok' => true,
+        'settings' => $cfg,
+        'terminal_options' => $terminalOptions,
+        'staff_options' => $staffOptions,
+    ]);
     return;
 }
 
@@ -37,4 +44,6 @@ View::render('settings', [
     'message' => $message,
     'error' => $error,
     'cfg' => $cfg,
+    'terminalOptions' => $terminalOptions,
+    'staffOptions' => $staffOptions,
 ], 'layout', 'terminals');

@@ -12,6 +12,9 @@ final class LikespaConfig
             'promo_enabled' => '1',
             'dops_enabled' => '1',
             'restores_enabled' => '1',
+            'legacy_api_enabled' => '0',
+            'legacy_api_termy_category' => 16,
+            'legacy_api_key' => '',
             'promo_price_col' => 4,
             'promo_min_work_hours' => 6.8,
             'promo_script_ids' => '4,20',
@@ -37,8 +40,14 @@ final class LikespaConfig
     {
         $out = [];
         foreach (self::defaults() as $key => $default) {
-            if (in_array($key, ['term_scans_enabled', 'promo_enabled', 'dops_enabled', 'restores_enabled', 'promo_term_scan_conversion'], true)) {
+            if (in_array($key, ['term_scans_enabled', 'promo_enabled', 'dops_enabled', 'restores_enabled', 'promo_term_scan_conversion', 'legacy_api_enabled'], true)) {
                 $out[$key] = self::flag($key, (string)$default === '1') ? '1' : '0';
+                continue;
+            }
+            if ($key === 'legacy_api_key') {
+                $raw = (string)Config::get('likespa', $key, '');
+                $out[$key] = '';
+                $out[$key . '_set'] = $raw !== '' ? '1' : '0';
                 continue;
             }
             if (is_float($default)) {
@@ -66,8 +75,13 @@ final class LikespaConfig
      */
     public static function saveFromPost(array $post): void
     {
-        foreach (['term_scans_enabled', 'promo_enabled', 'dops_enabled', 'restores_enabled', 'promo_term_scan_conversion'] as $key) {
+        foreach (['term_scans_enabled', 'promo_enabled', 'dops_enabled', 'restores_enabled', 'promo_term_scan_conversion', 'legacy_api_enabled'] as $key) {
             Config::set('likespa', $key, !empty($post[$key]) ? '1' : '0');
+        }
+        Config::set('likespa', 'legacy_api_termy_category', (string)max(1, (int)($post['legacy_api_termy_category'] ?? 16)));
+        $apiKey = trim((string)($post['legacy_api_key'] ?? ''));
+        if ($apiKey !== '') {
+            Config::set('likespa', 'legacy_api_key', $apiKey);
         }
 
         Config::set('likespa', 'promo_price_col', (string)max(1, (int)($post['promo_price_col'] ?? 4)));
@@ -122,6 +136,11 @@ final class LikespaConfig
     {
         $raw = Config::get('likespa', $key, $default);
         return is_numeric($raw) ? (int)$raw : $default;
+    }
+
+    public static function string(string $key, string $default = ''): string
+    {
+        return (string)Config::get('likespa', $key, $default);
     }
 
     /** @return list<int> */

@@ -9,12 +9,15 @@ require_once __DIR__ . '/lib/ClientOnecBindingsRepository.php';
 require_once __DIR__ . '/lib/StaffBraceletsRepository.php';
 require_once __DIR__ . '/lib/TermloadsRepository.php';
 require_once __DIR__ . '/lib/FullstatsRepository.php';
-require_once __DIR__ . '/lib/TermOrdersRepository.php';
 require_once __DIR__ . '/lib/OnecClient.php';
-require_once __DIR__ . '/lib/TermOrdersImporter.php';
+require_once __DIR__ . '/lib/TerminalBooking.php';
+require_once __DIR__ . '/lib/TerminalFloorHome.php';
+require_once __DIR__ . '/lib/TerminalFloorCatalog.php';
+require_once __DIR__ . '/lib/TerminalFloor.php';
 
 Assets::register('terminals', [
     'css' => ['terminals.css'],
+    'js' => ['phone-ru.js'],
 ]);
 
 ModuleManager::registerMenuGroup('terminals.menu.group', 38, '/terminals');
@@ -29,11 +32,12 @@ $pages = [
     '/terminals/termloads' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 'termloads.php'],
     '/terminals/fullstats' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 'fullstats_list.php'],
     '/terminals/fullstats/{id}/edit' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'fullstats_edit.php'],
-    '/terminals/orders' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 'orders_list.php'],
     '/terminals/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
+    '/terminals/t/status' => ['permission' => 'terminals.view', 'methods' => ['GET'], 'file' => 't_status.php'],
+    '/terminals/floor' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'floor_book.php'],
+    '/t' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 't.php'],
     '/terminals/jobs/load' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_load.php'],
     '/terminals/jobs/tickets' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_tickets.php'],
-    '/terminals/jobs/orders' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_orders.php'],
 ];
 
 foreach ($pages as $path => $def) {
@@ -83,8 +87,12 @@ Cron::register('terminals.load', [
         if (!TerminalsConfig::syncEnabled()) {
             return ['ok' => true, 'skipped' => 1, 'message' => 'sync disabled'];
         }
-        if (!TerminalsConfig::onecReady()) {
-            return ['ok' => true, 'skipped' => 1, 'message' => '1c config incomplete'];
+        if (!TerminalsConfig::onecLive()) {
+            return [
+                'ok' => true,
+                'skipped' => 1,
+                'message' => TerminalsConfig::onecEnabled() ? '1c config incomplete' : '1c disabled',
+            ];
         }
         $res = OnecClient::workload();
         if (empty($res['ok'])) {
@@ -114,8 +122,12 @@ Cron::register('terminals.tickets', [
         if (!TerminalsConfig::syncEnabled()) {
             return ['ok' => true, 'skipped' => 1, 'message' => 'sync disabled'];
         }
-        if (!TerminalsConfig::onecReady()) {
-            return ['ok' => true, 'skipped' => 1, 'message' => '1c config incomplete'];
+        if (!TerminalsConfig::onecLive()) {
+            return [
+                'ok' => true,
+                'skipped' => 1,
+                'message' => TerminalsConfig::onecEnabled() ? '1c config incomplete' : '1c disabled',
+            ];
         }
         $day = date('Y-m-d');
         $res = OnecClient::workloadDetail($day);
@@ -134,26 +146,6 @@ Cron::register('terminals.tickets', [
     },
 ]);
 
-Cron::register('terminals.orders', [
-    'module' => 'terminals',
-    'label' => 'terminals.cron.orders',
-    'every' => 15,
-    'handler' => static function (): array {
-        if (!TerminalsConfig::syncEnabled()) {
-            return ['ok' => true, 'skipped' => 1, 'message' => 'sync disabled'];
-        }
-        $res = TermOrdersImporter::run();
-        if (empty($res['ok'])) {
-            return ['ok' => false, 'message' => (string)($res['error'] ?? 'import failed')];
-        }
-        return [
-            'ok' => true,
-            'processed' => (int)($res['imported'] ?? $res['processed'] ?? 0),
-            'message' => (string)($res['message'] ?? ''),
-        ];
-    },
-]);
-
 Health::register('terminals.worker_token', 'terminals', static function (): array {
     if (TerminalsConfig::workerTokenConfigured()) {
         return ['status' => 'ok', 'message' => 'worker_token configured'];
@@ -167,15 +159,22 @@ Health::register('terminals.worker_token', 'terminals', static function (): arra
 }, 'Terminals job worker token');
 
 Health::register('terminals.onec', 'terminals', static function (): array {
+    if (!TerminalsConfig::onecEnabled()) {
+        return [
+            'status' => 'ok',
+            'message' => '1C disabled — stub/debug mode on /t (no live sale)',
+            'meta' => ['hint' => '/terminals/settings', '1c_enabled' => false],
+        ];
+    }
     if (!TerminalsConfig::syncEnabled()) {
-        return ['status' => 'ok', 'message' => 'sync disabled'];
+        return ['status' => 'ok', 'message' => 'sync disabled; 1C floor still live if credentials set'];
     }
     if (TerminalsConfig::onecReady()) {
-        return ['status' => 'ok', 'message' => '1C config present'];
+        return ['status' => 'ok', 'message' => '1C enabled + config present'];
     }
     return [
         'status' => 'degraded',
-        'message' => '1c_url/auth/apikey/terminal incomplete — load/tickets jobs will fail',
+        'message' => '1c_enabled but 1c_url/auth/apikey/terminal incomplete',
         'meta' => ['hint' => '/terminals/settings'],
     ];
 }, '1C club API config');

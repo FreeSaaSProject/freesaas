@@ -19,7 +19,7 @@ $canEdit = Auth::can('terminals.edit');
 
 $row = [];
 if (!$isNew) {
-    $found = TerminalsRepository::find($id, true);
+    $found = TerminalsRepository::find($id, false);
     if (!$found) {
         if ($wantsJson) {
             AgentHttp::error(t('terminals.err.not_found', ['id' => $id]), 404);
@@ -51,14 +51,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if ($isNew) {
                 $newId = TerminalsRepository::create($data);
                 if ($wantsJson) {
-                    AgentHttp::emit(['ok' => true, 'id' => $newId, 'item' => TerminalsRepository::find($newId, true)]);
+                    AgentHttp::emit(['ok' => true, 'id' => $newId, 'item' => TerminalsRepository::find($newId)]);
                     return;
                 }
                 redirect('/terminals/' . $newId . '/edit?saved=1');
                 return;
             }
             TerminalsRepository::update($id, $data);
-            $row = TerminalsRepository::find($id, true) ?: $row;
+            $row = TerminalsRepository::find($id) ?: $row;
             if ($wantsJson) {
                 AgentHttp::emit(['ok' => true, 'id' => $id, 'item' => $row]);
                 return;

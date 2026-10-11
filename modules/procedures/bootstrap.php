@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/ProcedureTypesRepository.php';
 require_once __DIR__ . '/lib/ProceduresRepository.php';
+require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
 
@@ -139,35 +140,20 @@ EventBus::on('calendar.day.stats', static function ($payload) {
         }
         $stats = ProceduresRepository::dayColumnStats($tsStart, $tsEnd, $staffFilter);
         $pay = [];
-        if (class_exists('ProcentsRepository', false) && ModuleManager::isEnabled('procents')) {
+        // Relative load % is always appended below (no money capability). Absolute salary bits stay gated.
+        $loads = ProceduresDayLoad::forDay($tsStart, $tsEnd, $staffFilter);
+        if (class_exists('ProcentsRepository', false)) {
             $pay = ProcentsRepository::dayStaffPay($tsStart, $tsEnd, $stats['operators']);
         }
         $colors = class_exists('CalendarTimeline', false)
             ? CalendarTimeline::operatorColors(array_keys($stats['operators']))
             : [];
 
-        $avgBase = 0.0;
-        $avgN = 0;
-        foreach ($pay as $oid => $p) {
-            if (!empty($stats['operators'][$oid]['is_hidden'])) {
-                continue;
-            }
-            if ((float)($p['salary_fix'] ?? 0) > 0) {
-                continue;
-            }
-            if ((float)($p['salary'] ?? 0) > 0) {
-                $avgBase += (float)$p['salary'];
-                $avgN++;
-            }
-        }
-        $avgSalary = $avgN > 0 ? ($avgBase / $avgN) : 1.0;
-
         $lines = [];
         $salaryTotal = 0.0;
         foreach ($stats['operators'] as $oid => $op) {
-            if (!empty($op['is_hidden'])) {
-                continue;
-            }
+            // Equipment (IS_HIDDEN): show proc count only — never load % / pay bits.
+            $isEquipment = !empty($op['is_hidden']);
             if ($myOnly && (int)$oid !== Auth::userId()) {
                 continue;
             }
@@ -184,18 +170,21 @@ EventBus::on('calendar.day.stats', static function ($payload) {
             if ($isSuper && (float)$op['summ'] > 0) {
                 $text .= ' [' . number_format((float)$op['summ'], 0, '.', '') . ']';
             }
-            if ($p && ($canMoney || $isSuper)) {
+            $loadPct = null;
+            $loadMin = false;
+            if (!$isEquipment && !$isAdminLine && isset($loads[$oid])) {
+                $loadPct = (int)$loads[$oid]['pct'];
+                $loadMin = !empty($loads[$oid]['is_min']);
+                // Load % is for team balancing — visible without money capability.
+                $text .= ' ' . $loadPct . '%';
+            }
+            if (!$isEquipment && $p && ($canMoney || $isSuper)) {
                 $bits = [];
                 if ((float)$p['salary_fix'] > 0) {
                     $bits[] = 'Ф' . (int)round((float)$p['salary_fix']);
                 }
-                if ((float)$p['salary'] > 0) {
-                    $part = '';
-                    if ($isSuper) {
-                        $part .= (int)round((float)$p['salary']);
-                    }
-                    $part .= ' ' . (int)round(((float)$p['salary'] / $avgSalary) * 100) . '%';
-                    $bits[] = trim($part);
+                if ((float)$p['salary'] > 0 && $isSuper) {
+                    $bits[] = (string)(int)round((float)$p['salary']);
                 }
                 if ((float)$p['salary_terminal'] > 0) {
                     $bits[] = 'Т' . (int)round((float)$p['salary_terminal']);
@@ -213,6 +202,9 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                 'acronym' => (string)$op['acronym'],
                 'text' => $text,
                 'is_admin' => $isAdminLine,
+                'is_equipment' => $isEquipment,
+                'load_pct' => $loadPct,
+                'load_min' => $loadMin,
                 'bg' => $c['bg'] ?? '',
                 'fg' => $c['fg'] ?? '',
             ];

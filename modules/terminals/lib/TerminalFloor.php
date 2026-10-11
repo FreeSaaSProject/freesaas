@@ -1,0 +1,915 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * /t floor shell: parse → claim → catalog/slots → commit/cancel.
+ * Frozen query: terminalid (= device CODE, or numeric ID), braceletid, token
+ * (+ adminId, gids, getTime, doStart, disable1C).
+ */
+final class TerminalFloor
+{
+    /**
+     * @return array<string,mixed>
+     */
+    public static function process(): array
+    {
+        $q = self::parseInput();
+        if (!empty($q['need_redirect']) || ($q['error'] ?? '') !== '') {
+            return $q;
+        }
+
+        $terminal = self::resolveTerminal((string)$q['terminalid']);
+        if ($terminal === null || (int)($terminal['enabled'] ?? 0) < 1) {
+            return self::err($q, t('terminals.t.err.terminal'));
+        }
+        // Keep public query as CODE (legacy phones) when known.
+        if ((string)($terminal['code'] ?? '') !== '') {
+            $q['terminalid'] = (string)$terminal['code'];
+        }
+
+        $bracelet = trim((string)$q['braceletid']);
+        $staff = StaffBraceletsRepository::tableReady()
+            ? StaffBraceletsRepository::findByUid($bracelet)
+            : null;
+
+        if ($staff !== null) {
+            $adminId = (int)($staff['user_id'] ?? 0);
+            $claim = TerminalsRepository::claimStaffDay((int)$terminal['id'], $adminId);
+            if (empty($claim['ok'])) {
+                return self::err($q, (string)($claim['error'] ?? t('terminals.t.err.claim')));
+            }
+            $terminal = TerminalsRepository::find((int)$terminal['id'], false) ?? $terminal;
+            return [
+                'ok' => true,
+                'mode' => 'staff_claim',
+                'terminal' => $terminal,
+                'staff_id' => $adminId,
+                'message' => t('terminals.t.staff_claimed'),
+                'query' => $q,
+                'catalog' => [],
+                'slots' => [],
+            ];
+        }
+
+        if (!TerminalsRepository::hasValidStaffClaim($terminal)) {
+            return self::err($q, t('terminals.t.err.need_staff'));
+        }
+
+        // Stub only when 1c_enabled=0. Public ?disable1C=1 must NOT bypass live billing.
+        $disable1c = !TerminalsConfig::onecEnabled();
+        OnecClient::resetRequestCount();
+        if (!empty($q['resetCache']) && isset($_SESSION['t_guest_cache'][(string)$q['token']])) {
+            unset($_SESSION['t_guest_cache'][(string)$q['token']]);
+        }
+        $cacheTtl = 0;
+        $guest = self::guestCached((string)$q['token'], $bracelet, $disable1c, $cacheTtl);
+        if (empty($guest['ok'])) {
+            return self::err($q, (string)($guest['error'] ?? t('terminals.t.err.bracelet')));
+        }
+
+        $clientId = 0;
+        if (class_exists(ClientOnecBindingsRepository::class, false) && ClientOnecBindingsRepository::tableReady()) {
+            $bind = ClientOnecBindingsRepository::findByOnecId((string)($guest['client_id'] ?? ''));
+            if ($bind !== null) {
+                $clientId = (int)($bind['client_id'] ?? 0);
+            }
+        }
+
+        $message = '';
+        $error = '';
+        $displayName = (string)($guest['name'] ?? '');
+        if ($clientId > 0 && class_exists(ClientsRepository::class, false)) {
+            $clientRow = ClientsRepository::find($clientId);
+            if ($clientRow !== null && trim((string)($clientRow['name'] ?? '')) !== '') {
+                $displayName = (string)$clientRow['name'];
+            }
+        }
+        if (!empty($q['userNameSent']) && $clientId > 0 && Database::tableExists('base_clients')) {
+            $newName = trim((string)$q['userNameSent']);
+            if ($newName !== '') {
+                Database::pdo()->prepare('UPDATE base_clients SET name = ? WHERE id = ?')
+                    ->execute([mb_substr($newName, 0, 200), $clientId]);
+                $displayName = $newName;
+                $message = t('terminals.t.name_saved');
+                $q['rename'] = false;
+            }
+        }
+        $guest['display_name'] = $displayName;
+
+        $balance = (float)($guest['balance'] ?? 0);
+        $forceLimit = !empty($q['forceLimit']);
+        if ($forceLimit) {
+            $balance += 7999.0;
+        }
+        $guest['balance'] = $balance;
+        $guest['force_limit'] = $forceLimit;
+
+        $flyerPct = 0.0;
+        $flyerEnabledSys = false;
+        $flyerDiscountCfg = 0.0;
+        if (class_exists(SystemFlyerPromo::class, false)
+            && class_exists(SystemRepository::class, false)
+            && !empty($terminal['is_terminal_flyer_discount'])) {
+            try {
+                $flyer = SystemFlyerPromo::load();
+                $flyerDiscountCfg = (float)($flyer['flyer_discount'] ?? 0);
+                $flyerEnabledSys = !empty($flyer['flyer_enabled']) && $flyerDiscountCfg > 0;
+                if ($flyerEnabledSys && !empty($q['flyerOn'])) {
+                    $flyerPct = $flyerDiscountCfg;
+                }
+            } catch (Throwable $e) {
+                $flyerEnabledSys = false;
+            }
+        }
+
+        if (!empty($q['unlinkClient']) && $clientId > 0
+            && class_exists(ClientOnecBindingsRepository::class, false)) {
+            ClientOnecBindingsRepository::unbind($clientId);
+            $clientId = 0;
+            $message = t('terminals.t.client_unlinked');
+        }
+
+        $numState = TerminalFloorHome::handleBraceletNum(
+            $terminal,
+            $bracelet,
+            (int)($q['braceletNum'] ?? 0)
+        );
+        if (!empty($numState['need_prompt'])) {
+            return self::withHomeExtras([
+                'ok' => true,
+                'mode' => 'need_bracelet_num',
+                'terminal' => $terminal,
+                'guest' => $guest,
+                'client_id' => $clientId,
+                'admin_id' => (int)($terminal['id_admin'] ?? 0),
+                'bracelet_num' => (int)$numState['num'],
+                'message' => $message,
+                'error' => $error,
+                'query' => $q,
+                'onec_stub' => $disable1c,
+            ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+        }
+
+        // Claimed staff (ID_ADMIN) ≠ performing masseur. Masseur is only query adminId.
+        $claimedAdminId = (int)($terminal['id_admin'] ?? 0);
+        $operatorId = (int)($q['adminId'] ?? 0);
+        $gids = self::parseGids((string)($q['gids'] ?? ''));
+        $categoryId = (int)($q['category'] ?? 0);
+        $getTime = (string)($q['getTime'] ?? '');
+        // Legacy: getTime=1 → pick slot UI; getTime=<unix> → commit. Never treat "1" as a timestamp.
+        $commitTs = 0;
+        $pickSlot = false;
+        if (ctype_digit($getTime)) {
+            $ts = (int)$getTime;
+            if ($ts >= 1000000000) {
+                $commitTs = $ts;
+            } elseif ($ts === 1) {
+                $pickSlot = true;
+            }
+        }
+        $allowExecutors = self::parseGids((string)($terminal['executors'] ?? ''));
+
+        // Soft-lock while specialist is selected; clear when returning to catalog (no adminId).
+        if ($operatorId > 0) {
+            $busyMapProbe = TerminalsRepository::busyExecutors((int)$terminal['id']);
+            if (!isset($busyMapProbe[$operatorId])) {
+                TerminalsRepository::touchExecutorLock((int)$terminal['id'], $operatorId, 50);
+            }
+        } else {
+            TerminalsRepository::clearExecutorLock((int)$terminal['id']);
+        }
+
+        if ((string)($q['doStart'] ?? '') === '2') {
+            $cancelFlow = self::handleCancelFlow(
+                $q,
+                $clientId,
+                $disable1c,
+                (string)$q['token']
+            );
+            if (($cancelFlow['mode'] ?? '') === 'cancel_confirm') {
+                return self::withHomeExtras([
+                    'ok' => true,
+                    'mode' => 'cancel_confirm',
+                    'terminal' => $terminal,
+                    'guest' => $guest,
+                    'client_id' => $clientId,
+                    'admin_id' => $claimedAdminId,
+                    'bracelet_num' => (int)$numState['num'],
+                    'cancel' => $cancelFlow['cancel'] ?? [],
+                    'message' => $message,
+                    'error' => (string)($cancelFlow['error'] ?? ''),
+                    'query' => $q,
+                    'onec_stub' => $disable1c,
+                ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+            }
+            if (!empty($cancelFlow['ok']) || (($cancelFlow['results'] ?? []) !== [])) {
+                return self::withHomeExtras([
+                    'ok' => !empty($cancelFlow['ok']),
+                    'mode' => !empty($cancelFlow['ok']) ? 'cancelled' : 'cancel_failed',
+                    'terminal' => $terminal,
+                    'guest' => $guest,
+                    'client_id' => $clientId,
+                    'admin_id' => $claimedAdminId,
+                    'bracelet_num' => (int)$numState['num'],
+                    'message' => !empty($cancelFlow['ok']) ? t('terminals.t.cancelled') : '',
+                    'error' => (string)($cancelFlow['error'] ?? ''),
+                    'results' => is_array($cancelFlow['results'] ?? null) ? $cancelFlow['results'] : [],
+                    'query' => $q,
+                    'onec_stub' => $disable1c,
+                ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+            }
+            if (($cancelFlow['error'] ?? '') !== '') {
+                $error = (string)$cancelFlow['error'];
+            }
+        }
+
+        // Guest identity (oper): phone → find/create client + bind 1C/stub id → name if empty.
+        $identity = self::ensureGuestIdentity(
+            $clientId,
+            $guest,
+            (string)($q['clientPhoneSent'] ?? ''),
+            (string)($q['userNameSent'] ?? ''),
+            !empty($q['rename'])
+        );
+        $clientId = (int)($identity['client_id'] ?? $clientId);
+        if (($identity['display_name'] ?? '') !== '') {
+            $guest['display_name'] = (string)$identity['display_name'];
+            $displayName = (string)$identity['display_name'];
+        }
+        if (($identity['message'] ?? '') !== '') {
+            $message = (string)$identity['message'];
+        }
+        if (($identity['mode'] ?? '') === 'need_phone' || ($identity['mode'] ?? '') === 'need_name') {
+            // Empty input for stub/placeholder names — admin types without clearing first.
+            if (($identity['mode'] ?? '') === 'need_name') {
+                $dn = (string)($identity['display_name'] ?? '');
+                $guest['display_name'] = $dn;
+                $guest['name'] = $dn;
+            }
+            return self::withHomeExtras([
+                'ok' => true,
+                'mode' => (string)$identity['mode'],
+                'terminal' => $terminal,
+                'guest' => $guest,
+                'client_id' => $clientId,
+                'admin_id' => (int)($terminal['id_admin'] ?? 0),
+                'bracelet_num' => (int)$numState['num'],
+                'phone_hint' => (string)($identity['phone_hint'] ?? ''),
+                'message' => $message,
+                'error' => $error !== '' ? $error : (string)($identity['error'] ?? ''),
+                'query' => $q,
+                'onec_stub' => $disable1c,
+            ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+        }
+
+        if ($commitTs > 0 && $gids !== [] && $operatorId > 0) {
+            $results = [];
+            $cursor = $commitTs;
+            // TOKEN is VARCHAR(32): first item keeps scan token; rest get md5 (32 hex).
+            $baseToken = substr((string)$q['token'], 0, 32);
+            foreach ($gids as $idx => $gid) {
+                $itemToken = $idx === 0
+                    ? $baseToken
+                    : md5($baseToken . '#' . $gid);
+                $book = TerminalBooking::book([
+                    'product_id' => $gid,
+                    'operator_id' => $operatorId,
+                    'admin_id' => $claimedAdminId > 0 ? $claimedAdminId : $operatorId,
+                    'terminal_id' => (int)$terminal['id'],
+                    'dt_start' => $cursor,
+                    'client_id' => $clientId,
+                    'onec_client_id' => (string)($guest['client_id'] ?? ''),
+                    'onec_bracelet' => $bracelet,
+                    'token' => $itemToken,
+                    'disable_1c' => $disable1c,
+                ]);
+                $results[] = $book;
+                if (empty($book['ok'])) {
+                    return self::withHomeExtras([
+                        'ok' => false,
+                        'mode' => 'book',
+                        'terminal' => $terminal,
+                        'guest' => $guest,
+                        'client_id' => $clientId,
+                        'admin_id' => $claimedAdminId,
+                        'error' => (string)($book['error'] ?? t('terminals.t.err.book')),
+                        'query' => $q,
+                        'results' => $results,
+                        'onec_stub' => $disable1c,
+                    ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+                }
+                $product = class_exists(ProductsRepository::class, false)
+                    ? ProductsRepository::find($gid)
+                    : null;
+                $cursor += max(300, (int)($product['time_sec'] ?? 3600));
+            }
+            return self::withHomeExtras([
+                'ok' => true,
+                'mode' => 'booked',
+                'terminal' => $terminal,
+                'guest' => $guest,
+                'client_id' => $clientId,
+                'admin_id' => $claimedAdminId,
+                'message' => t('terminals.t.booked'),
+                'query' => $q,
+                'results' => $results,
+                'onec_stub' => $disable1c,
+            ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+        }
+
+        $catalog = self::buildCatalog($terminal);
+        $catalogGroups = class_exists(BookingCatalog::class, false)
+            ? BookingCatalog::groupByCategory($catalog)
+            : [];
+        $categoryProducts = [];
+        $categoryName = '';
+        if ($categoryId > 0) {
+            $categoryProducts = TerminalFloorCatalog::productsForCategory($catalog, $categoryId, $gids);
+            if (class_exists(CategoriesRepository::class, false)) {
+                $cat = CategoriesRepository::find($categoryId);
+                $categoryName = (string)($cat['name'] ?? ('#' . $categoryId));
+            }
+            if ($categoryName === '') {
+                foreach ($catalogGroups as $group) {
+                    if ((int)($group['id'] ?? 0) === $categoryId) {
+                        $categoryName = (string)($group['name'] ?? '');
+                        break;
+                    }
+                }
+            }
+        }
+        $slots = [];
+        $operators = [];
+        $date = date('Y-m-d');
+        $busyMap = TerminalsRepository::busyExecutors((int)$terminal['id']);
+        $busy = array_keys($busyMap);
+
+        if ($pickSlot && $gids !== [] && $operatorId > 0 && class_exists(BookingAvailability::class, false)) {
+            try {
+                $avail = BookingAvailability::forDay($date, $gids, $operatorId);
+                $operators = self::filterOperators(
+                    is_array($avail['operators'] ?? null) ? $avail['operators'] : [],
+                    $allowExecutors,
+                    $busy
+                );
+                foreach ($operators as $op) {
+                    if ((int)($op['id'] ?? 0) === $operatorId) {
+                        $slots = $op['slots'] ?? [];
+                        break;
+                    }
+                }
+            } catch (Throwable $e) {
+                $slots = [];
+                $operators = [];
+            }
+        }
+
+        $matrix = ['columns' => [], 'rows' => [], 'cart' => ['items' => [], 'sum' => 0.0]];
+        if ($categoryId > 0 && $gids === [] && !empty($q['rename'])) {
+            $mode = 'rename';
+        } elseif ($pickSlot && $gids !== [] && $operatorId > 0) {
+            $mode = 'pick_slot';
+        } elseif ($categoryId > 0) {
+            // Stay on matrix for cart / specialist pick — no separate pick_operator screen.
+            $mode = 'category';
+            $matrix = TerminalFloorCatalog::buildMatrix(
+                $categoryProducts,
+                $categoryId,
+                $operatorId,
+                (int)$terminal['id'],
+                $balance,
+                $flyerPct,
+                $allowExecutors,
+                $busyMap,
+                $gids
+            );
+        } else {
+            $mode = 'home';
+        }
+
+        $cart = is_array($matrix['cart'] ?? null) ? $matrix['cart'] : ['items' => [], 'sum' => 0.0];
+
+        return self::withHomeExtras([
+            'ok' => true,
+            'mode' => $mode,
+            'terminal' => $terminal,
+            'guest' => $guest,
+            'client_id' => $clientId,
+            'admin_id' => $claimedAdminId,
+            'operator_id' => $operatorId,
+            'catalog' => $catalog,
+            'catalog_groups' => $catalogGroups,
+            'category_id' => $categoryId,
+            'category_name' => $categoryName,
+            'category_products' => $categoryProducts,
+            'matrix' => $matrix,
+            'cart' => $cart,
+            'flyer' => [
+                'enabled' => $flyerEnabledSys,
+                'on' => $flyerPct > 0,
+                'pct' => $flyerPct > 0 ? $flyerPct : $flyerDiscountCfg,
+            ],
+            'bracelet_num' => (int)$numState['num'],
+            'gids' => $gids,
+            'operators' => $operators,
+            'slots' => $slots,
+            'busy_executors' => $busy,
+            'message' => $message,
+            'error' => $error,
+            'query' => $q,
+            'onec_live' => TerminalsConfig::onecLive() && empty($q['disable1C']),
+            'onec_stub' => $disable1c,
+        ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+    }
+
+    /**
+     * Cancel flow: reason always; staff login if procedure already started.
+     *
+     * @param array<string,mixed> $q
+     * @return array{ok?:bool,mode?:string,error?:string,cancel?:array<string,mixed>,results?:list<array<string,mixed>>}
+     */
+    private static function handleCancelFlow(
+        array $q,
+        int $clientId,
+        bool $disable1c,
+        string $token
+    ): array {
+        $procId = (int)($q['procedure_id'] ?? 0);
+        if ($procId < 1) {
+            $procId = (int)($q['oldProcedureOff'] ?? 0);
+        }
+        if ($procId < 1 || !class_exists(ProceduresRepository::class, false)) {
+            return ['ok' => false, 'error' => t('terminals.t.err.cancel_proc')];
+        }
+        $row = ProceduresRepository::find($procId);
+        if ($row === null || (int)($row['enabled'] ?? 0) < 1) {
+            return ['ok' => false, 'error' => t('terminals.t.err.cancel_proc')];
+        }
+        $dtStart = (int)($row['dtstart'] ?? 0);
+        $cancelFloor = (int)mktime(8, 0, 0);
+        if ($dtStart < $cancelFloor) {
+            return ['ok' => false, 'error' => t('terminals.t.err.cancel_proc')];
+        }
+        $procClient = (int)($row['id_user'] ?? 0);
+        if ($procClient > 0 && $clientId !== $procClient) {
+            return ['ok' => false, 'error' => t('terminals.t.err.cancel_client')];
+        }
+        $needLogin = $dtStart < time();
+        $reason = trim((string)($q['doConfirm'] ?? ''));
+        if ($reason === '') {
+            return [
+                'mode' => 'cancel_confirm',
+                'cancel' => [
+                    'procedure_id' => $procId,
+                    'need_login' => $needLogin,
+                    'product_name' => (string)($row['product_name'] ?? ('#' . (int)($row['id_good'] ?? 0))),
+                    'dtstart' => $dtStart,
+                ],
+            ];
+        }
+        $cancellerName = '';
+        if ($needLogin) {
+            $login = trim((string)($q['loginUser'] ?? ''));
+            if ($login === '' || !class_exists(UsersRepository::class, false)) {
+                return [
+                    'mode' => 'cancel_confirm',
+                    'error' => t('terminals.t.err.cancel_auth'),
+                    'cancel' => [
+                        'procedure_id' => $procId,
+                        'need_login' => true,
+                        'product_name' => (string)($row['product_name'] ?? ''),
+                        'dtstart' => $dtStart,
+                    ],
+                ];
+            }
+            $user = UsersRepository::findByLogin($login);
+            if ($user === null) {
+                return [
+                    'mode' => 'cancel_confirm',
+                    'error' => t('terminals.t.err.cancel_auth'),
+                    'cancel' => [
+                        'procedure_id' => $procId,
+                        'need_login' => true,
+                        'product_name' => (string)($row['product_name'] ?? ''),
+                        'dtstart' => $dtStart,
+                    ],
+                ];
+            }
+            $cancellerName = trim((string)($user['name'] ?? $user['login'] ?? $login));
+            $reason .= ' ' . t('terminals.t.cancel_by', ['name' => $cancellerName]);
+        }
+        $cancel = TerminalBooking::cancel($procId, true, $disable1c, $reason, $token);
+        if (empty($cancel['ok'])) {
+            return [
+                'ok' => false,
+                'error' => (string)($cancel['error'] ?? t('terminals.t.err.book')),
+                'results' => [$cancel],
+            ];
+        }
+        return ['ok' => true, 'results' => [$cancel]];
+    }
+
+    /**
+     * Staff diagnose snapshot (non-public agent route).
+     *
+     * @return array<string,mixed>
+     */
+    public static function diagnose(?int $terminalId = null): array
+    {
+        $issues = [];
+        $term = null;
+        if ($terminalId !== null && $terminalId > 0) {
+            $term = TerminalsRepository::find($terminalId, true);
+            if ($term === null) {
+                $issues[] = 'terminal_not_found';
+            }
+        }
+        if (!TerminalsConfig::onecEnabled()) {
+            $issues[] = 'onec_disabled';
+        } elseif (!TerminalsConfig::onecReady()) {
+            $issues[] = 'onec_incomplete';
+        }
+        return [
+            'runtime_both' => true,
+            'route_t' => '/t',
+            'onec' => [
+                'enabled' => TerminalsConfig::onecEnabled(),
+                'ready' => TerminalsConfig::onecReady(),
+                'live' => TerminalsConfig::onecLive(),
+                'stub_mode' => TerminalsConfig::onecStubMode(false),
+                'has_url' => TerminalsConfig::string('1c_url') !== '',
+                'has_auth' => TerminalsConfig::string('1c_auth') !== '',
+                'has_apikey' => TerminalsConfig::string('1c_apikey') !== '',
+                'has_terminal' => TerminalsConfig::string('1c_terminal') !== '',
+            ],
+            'booking' => class_exists(BookingAvailability::class, false),
+            'procedures' => class_exists(ProceduresRepository::class, false),
+            'staff_bracelets' => StaffBraceletsRepository::tableReady(),
+            'terminal' => $term,
+            'claim_valid' => $term !== null ? TerminalsRepository::hasValidStaffClaim($term) : null,
+            'issues' => $issues,
+        ];
+    }
+
+    /**
+     * Resolve terminalid query: device CODE (legacy) or numeric ID.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function resolveTerminal(string $terminalid): ?array
+    {
+        $terminalid = trim($terminalid);
+        if ($terminalid === '') {
+            return null;
+        }
+        if (ctype_digit($terminalid)) {
+            $byId = TerminalsRepository::find((int)$terminalid, false);
+            if ($byId !== null) {
+                return $byId;
+            }
+        }
+        return TerminalsRepository::findByCode($terminalid);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function parseInput(): array
+    {
+        $terminalid = trim((string)($_GET['terminalid'] ?? $_REQUEST['terminalid'] ?? ''));
+        $braceletid = trim((string)($_GET['braceletid'] ?? $_REQUEST['braceletid'] ?? ''));
+        $token = trim((string)($_GET['token'] ?? $_REQUEST['token'] ?? ''));
+        $common = [
+            'adminId' => (int)($_GET['adminId'] ?? $_REQUEST['adminId'] ?? 0),
+            'gids' => (string)($_GET['gids'] ?? $_REQUEST['gids'] ?? ''),
+            'getTime' => (string)($_GET['getTime'] ?? $_REQUEST['getTime'] ?? ''),
+            'doStart' => (string)($_GET['doStart'] ?? $_REQUEST['doStart'] ?? ''),
+            'doConfirm' => trim((string)($_GET['doConfirm'] ?? $_REQUEST['doConfirm'] ?? '')),
+            'loginUser' => trim((string)($_GET['loginUser'] ?? $_REQUEST['loginUser'] ?? '')),
+            'disable1C' => !empty($_GET['disable1C']) || !empty($_REQUEST['disable1C']),
+            'procedure_id' => (int)($_GET['procedure_id'] ?? $_REQUEST['procedure_id'] ?? 0),
+            'oldProcedureOff' => (int)($_GET['oldProcedureOff'] ?? $_REQUEST['oldProcedureOff'] ?? 0),
+            'category' => (int)($_GET['category'] ?? $_REQUEST['category'] ?? 0),
+            'braceletNum' => (int)($_GET['braceletNum'] ?? $_REQUEST['braceletNum'] ?? 0),
+            'unlinkClient' => !empty($_GET['unlinkClient']) || !empty($_REQUEST['unlinkClient']),
+            'resetCache' => !empty($_GET['resetCache']) || !empty($_REQUEST['resetCache']),
+            'forceLimit' => !empty($_GET['forceLimit']) || !empty($_REQUEST['forceLimit']),
+            'flyerOn' => !empty($_GET['flyerOn']) || !empty($_REQUEST['flyerOn']),
+            'rename' => !empty($_GET['rename']) || !empty($_REQUEST['rename']),
+            'userNameSent' => trim((string)($_GET['userNameSent'] ?? $_REQUEST['userNameSent'] ?? '')),
+            'clientPhoneSent' => trim((string)($_GET['clientPhoneSent'] ?? $_REQUEST['clientPhoneSent'] ?? '')),
+        ];
+
+        if ($terminalid === '' || $braceletid === '') {
+            return array_merge($common, [
+                'ok' => false,
+                'error' => t('terminals.t.err.params'),
+                'need_redirect' => false,
+                'terminalid' => $terminalid,
+                'braceletid' => $braceletid,
+                'token' => $token,
+            ]);
+        }
+
+        if ($token === '') {
+            $salt = (string)Config::get('salts', 'site', 'freesaas');
+            $token = md5($salt . microtime(true) . random_int(1, 999999));
+            return array_merge($common, [
+                'ok' => false,
+                'error' => '',
+                'need_redirect' => true,
+                'redirect_token' => $token,
+                'terminalid' => $terminalid,
+                'braceletid' => $braceletid,
+                'token' => $token,
+            ]);
+        }
+
+        return array_merge($common, [
+            'ok' => true,
+            'error' => '',
+            'need_redirect' => false,
+            'terminalid' => $terminalid,
+            'braceletid' => $braceletid,
+            'token' => $token,
+        ]);
+    }
+
+    /**
+     * Resolve / create likespa client for guest (phone + name), even when 1C is stubbed.
+     *
+     * @param array<string,mixed> $guest
+     * @return array{mode?:string,client_id:int,display_name?:string,message?:string,error?:string,phone_hint?:string}
+     */
+    private static function ensureGuestIdentity(
+        int $clientId,
+        array $guest,
+        string $phoneRaw,
+        string $nameRaw,
+        bool $forceRename
+    ): array {
+        if (!class_exists(ClientsRepository::class, false) || !Database::tableExists('base_clients')) {
+            return ['client_id' => $clientId];
+        }
+        $onecId = trim((string)($guest['client_id'] ?? ''));
+        $out = ['client_id' => $clientId, 'display_name' => ''];
+
+        if ($clientId < 1) {
+            $phone = self::normalizePhone($phoneRaw);
+            if ($phone === '') {
+                $hint = self::normalizePhone((string)($guest['phone'] ?? $guest['data']['phone'] ?? ''));
+                return [
+                    'mode' => 'need_phone',
+                    'client_id' => 0,
+                    'phone_hint' => $hint,
+                ];
+            }
+            $found = ClientsRepository::findByPhoneDigits($phone);
+            if ($found !== null) {
+                $clientId = (int)$found['id'];
+            } else {
+                try {
+                    $clientId = ClientsRepository::create(ClientsRepository::dataFromPost([
+                        'name' => $phone,
+                        'tel' => $phone,
+                        'mail' => $phone . '@noemail.ru',
+                        'enabled' => '1',
+                        'subscribe' => '1',
+                    ]));
+                } catch (Throwable $e) {
+                    return [
+                        'mode' => 'need_phone',
+                        'client_id' => 0,
+                        'error' => $e->getMessage(),
+                        'phone_hint' => $phone,
+                    ];
+                }
+            }
+            $out['client_id'] = $clientId;
+            $out['message'] = t('terminals.t.client_ready');
+            if ($onecId !== '' && class_exists(ClientOnecBindingsRepository::class, false)
+                && ClientOnecBindingsRepository::tableReady()) {
+                try {
+                    ClientOnecBindingsRepository::bind($clientId, $onecId, time() + 12 * 3600);
+                } catch (Throwable $e) {
+                    // keep going — local client is enough for stub floor
+                }
+            }
+        }
+
+        $row = ClientsRepository::find($clientId);
+        if ($row === null) {
+            return ['mode' => 'need_phone', 'client_id' => 0];
+        }
+        $name = trim((string)($row['name'] ?? ''));
+        $tel = trim((string)($row['tel'] ?? ''));
+        $placeholder = $name === '' || $name === $tel || self::isPlaceholderGuestName($name);
+        $needsName = $forceRename || $placeholder;
+
+        if ($needsName) {
+            $nameIn = trim($nameRaw);
+            if ($nameIn === '' || self::isPlaceholderGuestName($nameIn)) {
+                return [
+                    'mode' => 'need_name',
+                    'client_id' => $clientId,
+                    // Real name on ?rename=1 stays visible; stubs leave the field empty.
+                    'display_name' => (!$placeholder && $name !== '') ? $name : '',
+                ];
+            }
+            $parts = preg_split('/\s+/u', $nameIn) ?: [];
+            Database::pdo()->prepare(
+                'UPDATE base_clients SET name = ?, surname = ?, pname = ? WHERE id = ?'
+            )->execute([
+                mb_substr($nameIn, 0, 200),
+                mb_substr((string)($parts[0] ?? ''), 0, 100),
+                mb_substr((string)($parts[1] ?? ''), 0, 100),
+                $clientId,
+            ]);
+            $out['display_name'] = $nameIn;
+            $out['message'] = t('terminals.t.name_saved');
+            $out['client_id'] = $clientId;
+            return $out;
+        }
+
+        $out['display_name'] = $name;
+        $out['client_id'] = $clientId;
+        return $out;
+    }
+
+    /** 1C/oper stub labels that must not prefill the rename field. */
+    private static function isPlaceholderGuestName(string $name): bool
+    {
+        $name = trim($name);
+        if ($name === '') {
+            return true;
+        }
+        return mb_stripos($name, 'Посетитель') !== false
+            || mb_stripos($name, 'Stub Guest') !== false
+            || mb_stripos($name, 'NO 1C') !== false;
+    }
+
+    /** Same rules as storefront cart (`SitesGuest::normalizePhone`): 7XXXXXXXXXX. */
+    private static function normalizePhone(string $raw): string
+    {
+        if (class_exists(SitesGuest::class, false)) {
+            return SitesGuest::normalizePhone($raw);
+        }
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        if ($digits === '') {
+            return '';
+        }
+        if (strlen($digits) === 11 && $digits[0] === '8') {
+            $digits = '7' . substr($digits, 1);
+        }
+        if (strlen($digits) === 10) {
+            $digits = '7' . $digits;
+        }
+        if (strlen($digits) !== 11 || $digits[0] !== '7') {
+            return '';
+        }
+        return $digits;
+    }
+
+    /**
+     * @param array<string,mixed> $state
+     * @param array<string,mixed> $terminal
+     * @param array<string,mixed> $guest
+     * @return array<string,mixed>
+     */
+    private static function withHomeExtras(
+        array $state,
+        array $terminal,
+        array $guest,
+        int $clientId,
+        string $bracelet,
+        bool $disable1c,
+        int $cacheTtl
+    ): array {
+        $claimedAdminId = (int)($terminal['id_admin'] ?? $state['admin_id'] ?? 0);
+        $restricted = !empty($terminal['masseur_mode']) || !empty($terminal['is_term_admin_mode']);
+        $state['ticket'] = TerminalFloorHome::ticketClock($guest);
+        $state['diag'] = TerminalFloorHome::diag(
+            $terminal,
+            $bracelet,
+            $guest,
+            $claimedAdminId,
+            $disable1c,
+            $cacheTtl
+        );
+        $state['history'] = (!$restricted && !empty($terminal['is_terminal_client_history']) && $clientId > 1)
+            ? TerminalFloorHome::clientHistory($clientId, 10)
+            : [];
+        $state['day_load'] = (!$restricted && !empty($terminal['is_terminal_show_day']))
+            ? TerminalFloorHome::dayLoad()
+            : ['operators' => [], 'blocks' => [], 'hour_marks' => [], 'day_start' => 0, 'day_end' => 0];
+        $state['show_unlink'] = $clientId > 0;
+        $state['bracelet_num'] = (int)($state['bracelet_num'] ?? 0);
+        return $state;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function guestCached(string $token, string $bracelet, bool $disable1c, int &$cacheTtl): array
+    {
+        $cacheTtl = 0;
+        if ($token !== '' && isset($_SESSION['t_guest_cache'][$token]) && is_array($_SESSION['t_guest_cache'][$token])) {
+            $hit = $_SESSION['t_guest_cache'][$token];
+            $valid = (int)($hit['valid'] ?? 0);
+            if ($valid > time() && (string)($hit['bracelet'] ?? '') === $bracelet && is_array($hit['guest'] ?? null)) {
+                $cacheTtl = $valid - time();
+                return $hit['guest'];
+            }
+        }
+        $guest = OnecClient::getBraceletInfo($bracelet, $disable1c);
+        if (!empty($guest['ok']) && $token !== '') {
+            if (!isset($_SESSION['t_guest_cache']) || !is_array($_SESSION['t_guest_cache'])) {
+                $_SESSION['t_guest_cache'] = [];
+            }
+            $_SESSION['t_guest_cache'][$token] = [
+                'valid' => time() + 120,
+                'bracelet' => $bracelet,
+                'guest' => $guest,
+            ];
+            $cacheTtl = 120;
+        }
+        return $guest;
+    }
+
+    /**
+     * @param array<string,mixed> $q
+     * @return array<string,mixed>
+     */
+    private static function err(array $q, string $msg): array
+    {
+        return [
+            'ok' => false,
+            'error' => $msg,
+            'query' => $q,
+            'mode' => 'error',
+        ];
+    }
+
+    /** @return list<int> */
+    private static function parseGids(string $raw): array
+    {
+        $raw = str_replace([',', ';', ' '], '#', $raw);
+        $out = [];
+        foreach (explode('#', $raw) as $p) {
+            $n = (int)$p;
+            if ($n > 0) {
+                $out[$n] = $n;
+            }
+        }
+        return array_values($out);
+    }
+
+    /**
+     * Full terminal catalog (legacy): all bookable services, optional GOODS allow-list.
+     * Claimed admin is not the performer — do not filter by operator rates here.
+     *
+     * @param array<string,mixed> $terminal
+     * @return list<array<string,mixed>>
+     */
+    private static function buildCatalog(array $terminal): array
+    {
+        if (!class_exists(BookingCatalog::class, false)) {
+            return [];
+        }
+        $services = BookingCatalog::listServices();
+        $allowGoods = self::parseGids((string)($terminal['goods'] ?? ''));
+        if ($allowGoods !== []) {
+            $allow = array_fill_keys($allowGoods, true);
+            $services = array_values(array_filter(
+                $services,
+                static fn (array $p): bool => isset($allow[(int)($p['id'] ?? 0)])
+            ));
+        }
+        return $services;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $operators
+     * @param list<int> $allowExecutors
+     * @param list<int> $busy
+     * @return list<array<string,mixed>>
+     */
+    private static function filterOperators(array $operators, array $allowExecutors, array $busy): array
+    {
+        $allow = $allowExecutors !== [] ? array_fill_keys($allowExecutors, true) : null;
+        $busySet = array_fill_keys($busy, true);
+        $out = [];
+        foreach ($operators as $op) {
+            $id = (int)($op['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            if ($allow !== null && !isset($allow[$id])) {
+                continue;
+            }
+            $op['busy'] = isset($busySet[$id]);
+            $out[] = $op;
+        }
+        return $out;
+    }
+}

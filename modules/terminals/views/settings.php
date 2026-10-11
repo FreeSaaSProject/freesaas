@@ -3,9 +3,19 @@ declare(strict_types=1);
 /** @var array<string,string> $cfg */
 /** @var string $message */
 /** @var string $error */
+/** @var array<int,string> $terminalOptions */
+/** @var array<int,string> $staffOptions */
 $on = static function (string $key) use ($cfg): bool {
     return ($cfg[$key] ?? '0') === '1';
 };
+$selTerminal = (int)($cfg['booking_terminal_id'] ?? 0);
+$selAdmin = (int)($cfg['booking_admin_id'] ?? 0);
+if (!isset($terminalOptions) || !is_array($terminalOptions)) {
+    $terminalOptions = [];
+}
+if (!isset($staffOptions) || !is_array($staffOptions)) {
+    $staffOptions = [];
+}
 ?>
 <section class="page-head">
   <h1><?= te('terminals.settings.title') ?></h1>
@@ -24,6 +34,8 @@ $on = static function (string $key) use ($cfg): bool {
 
   <fieldset>
     <legend><?= te('terminals.settings.onec') ?></legend>
+    <label class="check"><input type="checkbox" name="1c_enabled" value="1"<?= $on('1c_enabled') ? ' checked' : '' ?>> <?= te('terminals.settings.1c_enabled') ?></label>
+    <p class="muted"><?= te('terminals.settings.1c_enabled_hint') ?></p>
     <label><?= te('terminals.settings.1c_url') ?>
       <input type="url" name="1c_url" value="<?= e((string)($cfg['1c_url'] ?? '')) ?>">
     </label>
@@ -44,9 +56,6 @@ $on = static function (string $key) use ($cfg): bool {
     <label><?= te('terminals.settings.1c_timeout_sec') ?>
       <input type="number" name="1c_timeout_sec" min="5" max="120" value="<?= e((string)($cfg['1c_timeout_sec'] ?? '30')) ?>">
     </label>
-    <label><?= te('terminals.settings.orders_url') ?>
-      <input type="url" name="orders_url" value="<?= e((string)($cfg['orders_url'] ?? '')) ?>">
-    </label>
     <label><?= te('terminals.settings.worker_token') ?>
       <input type="password" name="worker_token" value="" autocomplete="new-password">
       <span class="muted"><?= te('terminals.settings.secret_keep') ?> — <?= te('terminals.settings.current', ['masked' => (string)($cfg['worker_token_masked'] ?? '')]) ?></span>
@@ -56,10 +65,24 @@ $on = static function (string $key) use ($cfg): bool {
   <fieldset>
     <legend><?= te('terminals.settings.booking') ?></legend>
     <label><?= te('terminals.settings.booking_terminal_id') ?>
-      <input name="booking_terminal_id" value="<?= e((string)($cfg['booking_terminal_id'] ?? '')) ?>">
+      <select name="booking_terminal_id">
+        <option value=""><?= te('terminals.settings.booking_none') ?></option>
+        <?php foreach ($terminalOptions as $tid => $tname): ?>
+          <option value="<?= (int)$tid ?>"<?= $selTerminal === (int)$tid ? ' selected' : '' ?>>
+            <?= e((string)$tname) ?> (#<?= (int)$tid ?>)
+          </option>
+        <?php endforeach; ?>
+      </select>
     </label>
     <label><?= te('terminals.settings.booking_admin_id') ?>
-      <input name="booking_admin_id" value="<?= e((string)($cfg['booking_admin_id'] ?? '')) ?>">
+      <select name="booking_admin_id">
+        <option value=""><?= te('terminals.settings.booking_none') ?></option>
+        <?php foreach ($staffOptions as $uid => $uname): ?>
+          <option value="<?= (int)$uid ?>"<?= $selAdmin === (int)$uid ? ' selected' : '' ?>>
+            <?= e((string)$uname) ?> (#<?= (int)$uid ?>)
+          </option>
+        <?php endforeach; ?>
+      </select>
     </label>
   </fieldset>
 

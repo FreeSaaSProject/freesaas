@@ -49,6 +49,26 @@ curl -sS -b jar.txt -X POST 'https://example/likespa/restores/new?format=json' \
 curl -sS -b jar.txt 'https://example/likespa/restores/1/edit?format=json'
 ```
 
+## Legacy HTTP API drop-in (cutover)
+
+Optional facade for DNS cutover without changing Termy/NFC clients. Off by default (`legacy_api_enabled=0`). New instances without `likespa` do not get these routes.
+
+| Path | Methods | Role |
+|------|---------|------|
+| `/api_termy.php?endpoint=` | GET | Termy order-mode (catalog category from ini, default 16) → `booking` / `orders` |
+| `/api.php?endpoint=` | GET | Broader legacy ops incl. procedure book when `terminalId` set |
+| `/api1c.php` | GET/POST/… | Reverse proxy → `terminals` `OnecClient::proxy` |
+
+Threat model: legacy Termy was open GET — empty `legacy_api_key` keeps that. Optional key via `X-Likespa-Api-Key` or `api_key=`. Secrets never returned. Public routes are allow-listed in `bin/check-routes.php`. Product agent layer is **`likespa.legacy_api.status`** (session SUPERADMIN), not the drop-in paths as chat tools. See [`agent-surfaces.md`](agent-surfaces.md).
+
+```bash
+# Enable in /likespa/settings or cfg/modules/likespa.ini
+curl -sS 'https://site.example/api_termy.php?endpoint=health'
+curl -sS -b jar.txt 'https://admin.example/likespa/legacy-api/status?format=json'
+```
+
+Endpoints (Termy): `health`, `get_categories`, `get_services`, `get_personnel`, `get_client`, `book_service`, `get_my_orders`, `cancel_order`.
+
 ## Settings / FREE_TICKET
 
 LikeSpa **product** feature (not part of sites/booking core). Overlay hooks: `sites.cart.booking`, `sites.diagnose`, `sites.host_edit.sections` / `.save`, `booking.book.before`. Health check: `likespa.free_ticket`.
