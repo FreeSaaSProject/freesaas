@@ -21,6 +21,34 @@ final class PaymentsRepository
         return Auth::capability('CAN_SEE_SUM_OTHERS');
     }
 
+    /**
+     * Restrict bulk ids to the actor's own rows when CAN_SEE_SUM_OTHERS is off.
+     *
+     * @param list<int> $ids
+     * @return list<int>
+     */
+    public static function scopeOwnedIds(array $ids): array
+    {
+        $ids = self::sanitizeIds($ids);
+        if ($ids === [] || self::canSeeOthers() || !Database::tableExists('base_payments')) {
+            return $ids;
+        }
+        $uid = Auth::userId();
+        if ($uid < 1) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID FROM base_payments WHERE ID IN ($ph) AND ID_USER = ?"
+        );
+        $st->execute(array_merge($ids, [$uid]));
+        $allowed = [];
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
+            $allowed[] = (int)$id;
+        }
+        return $allowed;
+    }
+
     public static function ledgerEnabled(): bool
     {
         return ModuleManager::isEnabled('ledger');
@@ -562,7 +590,7 @@ final class PaymentsRepository
     {
         $done = 0;
         $skipped = [];
-        foreach (self::sanitizeIds($ids) as $id) {
+        foreach (self::scopeOwnedIds($ids) as $id) {
             if (self::hasLinkedMoves($id)) {
                 $skipped[] = ['id' => $id, 'reason' => t('payments.err.delete_linked')];
                 continue;
@@ -586,7 +614,7 @@ final class PaymentsRepository
         if ($account !== 0 && !self::ledgerEnabled()) {
             return 0;
         }
-        $ids = self::sanitizeIds($ids);
+        $ids = self::scopeOwnedIds($ids);
         if ($ids === []) {
             return 0;
         }
@@ -603,7 +631,7 @@ final class PaymentsRepository
      */
     public static function acceptByIds(array $ids): int
     {
-        $ids = self::sanitizeIds($ids);
+        $ids = self::scopeOwnedIds($ids);
         if ($ids === []) {
             return 0;
         }
@@ -706,7 +734,7 @@ final class PaymentsRepository
         }
         $done = 0;
         $skipped = [];
-        foreach (self::sanitizeIds($ids) as $id) {
+        foreach (self::scopeOwnedIds($ids) as $id) {
             $row = self::find($id);
             if (!$row) {
                 continue;

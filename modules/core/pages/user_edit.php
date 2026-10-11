@@ -27,11 +27,28 @@ $error = '';
 $isSuper = Auth::isSuperAdmin();
 $permGroups = UsersRepository::availablePermissionKeys();
 
+// Non-super cannot open / edit a SUPERADMIN_ACCESS staff card (IDOR / vertical).
+if (!$isNew && !$isSuper
+    && (UsersRepository::statusIsSuperadmin((int)($user['ID_STATUS'] ?? 0))
+        || UsersRepository::statusIsSuperadmin((int)($user['ID_STATUS2'] ?? 0)))
+) {
+    if ($wantsJson) {
+        AgentHttp::error(t('core.user_edit.err.forbidden_super'), 403);
+    }
+    http_response_code(403);
+    View::render('error', [
+        'title' => t('core.user_edit.err.forbidden_super'),
+        'message' => t('core.user_edit.err.forbidden_super'),
+    ]);
+    return;
+}
+
 $adminStatuses = UsersRepository::statusNamesFiltered(false);
 $partnerStatuses = UsersRepository::statusNamesFiltered(true);
 $allStatuses = UsersRepository::statusNames();
 $curRole = (int)($user['ID_STATUS'] ?? 0);
-if ($curRole > 0 && !isset($adminStatuses[$curRole]) && isset($allStatuses[$curRole])) {
+// Only super may re-inject a role missing from the filtered picker (e.g. SUPERADMIN).
+if ($isSuper && $curRole > 0 && !isset($adminStatuses[$curRole]) && isset($allStatuses[$curRole])) {
     $adminStatuses[$curRole] = $allStatuses[$curRole];
 }
 $copyUsers = UsersRepository::listForCopy();
@@ -56,7 +73,7 @@ if ($copyFrom > 0 && ($isNew || $copyFrom !== $id)) {
             $user['color_text'] = (string)($src['color_text'] ?? '');
             $user['skin'] = (string)($src['skin'] ?? '');
             $curRole = (int)$user['ID_STATUS'];
-            if ($curRole > 0 && !isset($adminStatuses[$curRole]) && isset($allStatuses[$curRole])) {
+            if ($isSuper && $curRole > 0 && !isset($adminStatuses[$curRole]) && isset($allStatuses[$curRole])) {
                 $adminStatuses[$curRole] = $allStatuses[$curRole];
             }
         }
@@ -157,6 +174,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         // Agents / MCP must never set or learn passwords.
         if ($wantsJson) {
             unset($data['password_plain'], $_POST['password']);
+        }
+
+        // Non-super: strip self-escalation fields before EventBus / create|update.
+        if (!$isSuper) {
+            if (!$isNew && UsersRepository::statusIsSuperadmin((int)($user['ID_STATUS'] ?? 0))) {
+                throw new RuntimeException(t('core.user_edit.err.forbidden_super'));
+            }
+            if (!$isNew && UsersRepository::statusIsSuperadmin((int)($user['ID_STATUS2'] ?? 0))) {
+                throw new RuntimeException(t('core.user_edit.err.forbidden_super'));
+            }
+            if (UsersRepository::statusIsSuperadmin((int)($data['ID_STATUS'] ?? 0))
+                || (isset($data['ID_STATUS2']) && UsersRepository::statusIsSuperadmin((int)$data['ID_STATUS2']))
+            ) {
+                throw new InvalidArgumentException(t('core.user_edit.err.forbidden_super'));
+            }
+            if (!$isNew && $id === Auth::userId()) {
+                unset($data['ID_STATUS'], $data['ID_STATUS2'], $data['status_blob'], $data['enabled']);
+            }
+            if (!$isNew && array_key_exists('enabled', $data)
+                && !UsersRepository::canToggleEnabled($id, $user)
+            ) {
+                unset($data['enabled']);
+            }
         }
 
         if ($isNew) {

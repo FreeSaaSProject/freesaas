@@ -26,6 +26,7 @@ final class UsersRepository
 
     /**
      * Admin statuses for staff role (ASSIST_STA &lt; 1) or partner (ASSIST_STA &gt; 0).
+     * Non-super actors never see SUPERADMIN_ACCESS roles in pickers.
      * @return array<int,string>
      */
     public static function statusNamesFiltered(bool $partner = false): array
@@ -41,12 +42,61 @@ final class UsersRepository
         if (Database::columnExists('base_admin_statuses', 'ENABLED') && $partner) {
             $sql .= ' AND ENABLED > 0';
         }
+        if (!Auth::capability('SUPERADMIN_ACCESS')
+            && Database::columnExists('base_admin_statuses', 'SUPERADMIN_ACCESS')
+        ) {
+            $sql .= ' AND (SUPERADMIN_ACCESS IS NULL OR SUPERADMIN_ACCESS = 0)';
+        }
         $sql .= ' ORDER BY ID';
         $out = [];
         foreach (Database::pdo()->query($sql)->fetchAll() ?: [] as $r) {
             $out[(int)$r['ID']] = (string)$r['NAME'];
         }
         return $out;
+    }
+
+    /**
+     * Defense in depth for create/update: block superadmin escalation and
+     * privileged field writes for non-SUPERADMIN_ACCESS actors.
+     *
+     * @param array<string,mixed> $data
+     * @param array<string,mixed>|null $targetUser existing row (null when creating)
+     */
+    public static function assertCanWritePrivileged(array $data, ?array $targetUser = null): void
+    {
+        // CLI / virgin bootstrap / agent break-glass have no staff session.
+        if (!Auth::check() || Auth::capability('SUPERADMIN_ACCESS')) {
+            return;
+        }
+        $creating = $targetUser === null;
+        $targetId = $creating ? 0 : (int)($targetUser['id'] ?? 0);
+
+        if (!$creating) {
+            if (self::statusIsSuperadmin((int)($targetUser['ID_STATUS'] ?? 0))
+                || self::statusIsSuperadmin((int)($targetUser['ID_STATUS2'] ?? 0))
+            ) {
+                throw new RuntimeException(t('core.user_edit.err.forbidden_super'));
+            }
+        }
+
+        foreach (['ID_STATUS', 'ID_STATUS2'] as $k) {
+            if (array_key_exists($k, $data) && self::statusIsSuperadmin((int)$data[$k])) {
+                throw new InvalidArgumentException(t('core.user_edit.err.forbidden_super'));
+            }
+        }
+
+        // Self-escalation: cannot change own role / permission blob / enabled.
+        if (!$creating && $targetId > 0 && $targetId === Auth::userId()) {
+            foreach (['ID_STATUS', 'ID_STATUS2', 'status_blob', 'enabled'] as $k) {
+                if (array_key_exists($k, $data)) {
+                    throw new RuntimeException(t('core.user_edit.err.forbidden_self_priv'));
+                }
+            }
+        }
+
+        if (!$creating && array_key_exists('enabled', $data) && !self::canToggleEnabled($targetId, $targetUser)) {
+            throw new RuntimeException(t('core.user_edit.err.forbidden_enabled'));
+        }
     }
 
     /** Parse legacy "#1#,#2#" / "1,2" / "2" into int ids. */
@@ -665,6 +715,10 @@ final class UsersRepository
     public static function update(int $id, array $data): void
     {
         $before = self::find($id);
+        if ($before === null) {
+            throw new RuntimeException(t('core.user.err.not_found', ['id' => $id]));
+        }
+        self::assertCanWritePrivileged($data, $before);
         $fields = [];
         $params = [];
         $allowed = [
@@ -887,6 +941,7 @@ final class UsersRepository
         if (self::findByLogin($login) !== null) {
             throw new RuntimeException('login already exists: ' . $login);
         }
+        self::assertCanWritePrivileged($data, null);
         self::assertPasswordPolicy(
             $password,
             (int)($data['ID_STATUS'] ?? 0),

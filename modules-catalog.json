@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-11T12:16:13+00:00",
+    "generated_at": "2026-10-11T12:28:29+00:00",
     "modules": [
         {
             "id": "asr",
@@ -405,7 +405,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -907,7 +907,7 @@
         },
         {
             "id": "payments",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1413,7 +1413,7 @@
         },
         {
             "id": "vacations",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Vacations",

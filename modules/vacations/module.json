@@ -2,7 +2,7 @@
     "id": "vacations",
     "name": "vacations.module.name",
     "description": "vacations.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"

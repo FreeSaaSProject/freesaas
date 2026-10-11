@@ -21,6 +21,34 @@ final class VacationsRepository
     }
 
     /**
+     * Restrict bulk ids to the actor's own rows when CAN_SEE_SUM_OTHERS is off.
+     *
+     * @param list<int> $ids
+     * @return list<int>
+     */
+    public static function scopeOwnedIds(array $ids): array
+    {
+        $ids = self::sanitizeIds($ids);
+        if ($ids === [] || self::canSeeOthers() || !Database::tableExists('base_vacations')) {
+            return $ids;
+        }
+        $uid = Auth::userId();
+        if ($uid < 1) {
+            return [];
+        }
+        $ph = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID FROM base_vacations WHERE ID IN ($ph) AND ID_USER = ?"
+        );
+        $st->execute(array_merge($ids, [$uid]));
+        $allowed = [];
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
+            $allowed[] = (int)$id;
+        }
+        return $allowed;
+    }
+
+    /**
      * @param array{
      *   q?:string,user_id?:int,sign?:int,id_type?:int,direction?:int,
      *   year?:int|string,month?:int|string,show_user_only?:bool,
@@ -285,7 +313,7 @@ final class VacationsRepository
      */
     public static function deleteByIds(array $ids): int
     {
-        $ids = self::sanitizeIds($ids);
+        $ids = self::scopeOwnedIds($ids);
         if ($ids === [] || !Database::tableExists('base_vacations')) {
             return 0;
         }
@@ -301,12 +329,16 @@ final class VacationsRepository
      */
     public static function signByIds(array $ids): int
     {
-        $ids = self::sanitizeIds($ids);
+        $ids = self::scopeOwnedIds($ids);
         if ($ids === [] || !Database::tableExists('base_vacations')) {
             return 0;
         }
+        $signer = Auth::userId();
+        if ($signer < 1) {
+            return 0;
+        }
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $params = array_merge([time()], $ids);
+        $params = array_merge([$signer], $ids);
         $st = Database::pdo()->prepare(
             "UPDATE base_vacations SET ID_USER_SIGN = ?
              WHERE ID IN ($placeholders) AND SIGN_REQ = 1 AND ID_USER_SIGN = 0"

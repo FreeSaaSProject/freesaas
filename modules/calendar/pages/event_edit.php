@@ -26,6 +26,19 @@ if (!$isNew) {
         return;
     }
     $row = $found;
+    // GET/JSON: same ownership gate as POST (EVT_MY_ONLY / EVT_MODIFY).
+    if (!EventsRepository::canModify($row)) {
+        if ($wantsJson) {
+            AgentHttp::error(t('calendar.event.err.no_modify'), 403);
+            return;
+        }
+        http_response_code(403);
+        View::render('error', [
+            'title' => t('calendar.event.err.no_modify'),
+            'message' => t('calendar.event.err.no_modify'),
+        ]);
+        return;
+    }
 } else {
     if (!EventsRepository::canCreate()) {
         if ($wantsJson) {
