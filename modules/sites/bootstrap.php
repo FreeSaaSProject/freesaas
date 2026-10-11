@@ -5,8 +5,10 @@ require_once __DIR__ . '/lib/SiteTheme.php';
 require_once __DIR__ . '/lib/SiteHostsRepository.php';
 require_once __DIR__ . '/lib/SitesHostContext.php';
 require_once __DIR__ . '/lib/SitesCart.php';
+require_once __DIR__ . '/lib/SitesGuest.php';
 require_once __DIR__ . '/lib/SitesBooking.php';
 require_once __DIR__ . '/lib/SitesCatalog.php';
+require_once __DIR__ . '/lib/SitesDiagnose.php';
 require_once __DIR__ . '/lib/SitesFront.php';
 require_once __DIR__ . '/lib/PageCategoriesRepository.php';
 require_once __DIR__ . '/lib/PromopageModules.php';
@@ -45,6 +47,12 @@ $adminPages = [
         'capability' => 'SUPERADMIN_ACCESS',
         'methods' => ['GET', 'POST'],
         'file' => 'settings.php',
+    ],
+    '/sites/status' => [
+        'permission' => 'sites.view',
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET'],
+        'file' => 'status.php',
     ],
     '/sites/seo' => [
         'capability' => 'SUPERADMIN_ACCESS',
@@ -249,6 +257,7 @@ Health::register('sites.storefront', 'sites', static function (): array {
     if (SiteHostsRepository::tableReady()) {
         $hostsCount = SiteHostsRepository::list(['limit' => 1])['total'];
     }
+    $bookingActive = class_exists(SitesBooking::class, false) && SitesBooking::active();
     $meta = [
         'role' => AppRuntime::role(),
         'theme' => $theme,
@@ -258,6 +267,8 @@ Health::register('sites.storefront', 'sites', static function (): array {
         'admin_host' => AppRuntime::adminHost(),
         'hosts_count' => $hostsCount,
         'site_php' => is_file(base_path('site.php')),
+        'booking_active' => $bookingActive,
+        'diagnose' => '/sites/status?format=json',
         'tables' => [
             'hosts' => Database::tableExists('base_site_hosts'),
             'pages' => Database::tableExists('base_page_categories'),

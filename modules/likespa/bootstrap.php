@@ -86,12 +86,64 @@ EventBus::on('sites.cart.booking', static function ($payload) {
     return FreeTicket::onCartBooking($payload);
 });
 
+EventBus::on('sites.diagnose', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    return FreeTicket::onDiagnose($payload);
+});
+
+EventBus::on('sites.host_edit.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    return FreeTicket::onHostEditSections($payload);
+});
+
+EventBus::on('sites.host_edit.save', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    return FreeTicket::onHostEditSave($payload);
+});
+
 EventBus::on('booking.book.before', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;
     }
     return FreeTicket::onBookBefore($payload);
 });
+
+Health::register('likespa.free_ticket', 'likespa', static function (): array {
+    $th = FreeTicket::threshold();
+    $hostsWith = 0;
+    if (class_exists(SiteHostsRepository::class, false)
+        && SiteHostsRepository::tableReady()
+        && Database::columnExists('base_site_hosts', 'free_ticket')
+    ) {
+        foreach (SiteHostsRepository::list(['limit' => 200])['items'] as $h) {
+            if (!empty($h['free_ticket'])) {
+                $hostsWith++;
+            }
+        }
+    }
+    $meta = [
+        'threshold' => $th,
+        'hosts_with_flag' => $hostsWith,
+        'diagnose' => '/sites/status?format=json',
+    ];
+    if ($th < 1) {
+        return ['status' => 'ok', 'message' => 'FREE_TICKET off', 'meta' => $meta];
+    }
+    if ($hostsWith < 1) {
+        return [
+            'status' => 'degraded',
+            'message' => 'threshold set but no host free_ticket=1',
+            'meta' => $meta,
+        ];
+    }
+    return ['status' => 'ok', 'message' => 'FREE_TICKET ready', 'meta' => $meta];
+}, 'FREE_TICKET threshold / hosts');
 
 EventBus::on('core.user_edit.sections', static function ($payload) {
     if (!is_array($payload)) {

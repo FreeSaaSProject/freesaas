@@ -33,7 +33,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add'])) {
     if ($ret === '' || ($ret[0] !== '/' && $ret[0] !== '#')) {
         $ret = '/cart';
     }
-    // Allow /#PRICE style return (path + hash).
     if ($ret[0] === '#') {
         $ret = '/' . $ret;
     }
@@ -54,6 +53,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['remove'])) {
     redirect('/cart');
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guest_phone'])) {
+    $result = SitesGuest::setPhone((string)($_POST['phone'] ?? ''));
+    if (!$result['ok']) {
+        flash_set('error', $result['error'] !== '' ? $result['error'] : t('sites.cart.err_phone'));
+    } elseif ($result['blocked']) {
+        flash_set('error', t('sites.cart.err_blocked'));
+    }
+    redirect('/cart');
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['guest_phone_clear'])) {
+    SitesGuest::clear();
+    redirect('/cart');
+}
+
 if ($ajax && $_SERVER['REQUEST_METHOD'] === 'GET') {
     $snap = SitesCart::snapshot();
     SitesCart::emitJson([
@@ -65,12 +79,23 @@ if ($ajax && $_SERVER['REQUEST_METHOD'] === 'GET') {
 }
 
 $bookingOk = SitesBooking::needsBooking();
-$bookingMeta = $bookingOk ? SitesBooking::cartMeta() : [
-    'free_ticket_threshold' => 0,
-    'free_ticket_eligible' => false,
-    'free_ticket_hint' => '',
-    'free_ticket_not_today' => '',
-];
+// FREE_TICKET meta is host + likespa EventBus — not only booking wizard carts.
+$bookingMeta = class_exists(SitesBooking::class, false)
+    ? SitesBooking::cartMeta()
+    : [
+        'free_ticket_threshold' => 0,
+        'free_ticket_eligible' => false,
+        'free_ticket_hint' => '',
+        'free_ticket_not_today' => '',
+    ];
+$bookingConfirm = SitesCart::takeBookingConfirm();
+
+$guestPhone = SitesGuest::phone();
+$guestBlocked = SitesGuest::isBlocked();
+$guestReady = SitesGuest::canProceed();
+// Phone gate for any non-empty cart (booking wizard or simple checkout).
+$needPhone = SitesCart::lines() !== [] && !$guestReady && !$guestBlocked;
+$showCheckout = SitesCart::lines() !== [] && $guestReady;
 
 SiteTheme::render('cart', [
     'site' => $meta,
@@ -79,9 +104,15 @@ SiteTheme::render('cart', [
     'lines' => SitesCart::lines(),
     'total' => SitesCart::total(),
     'flash' => $flash,
+    'booking_confirm' => $bookingConfirm,
     'orders_ok' => class_exists('OrdersRepository', false) && Database::tableExists('base_orders'),
-    'booking_ok' => $bookingOk,
-    'booking_product_ids' => $bookingOk ? SitesBooking::productIdsFlat() : [],
+    'booking_ok' => $bookingOk && $showCheckout,
+    'booking_product_ids' => ($bookingOk && $showCheckout) ? SitesBooking::productIdsFlat() : [],
     'booking_date' => date('Y-m-d', time() + 86400),
     'booking_meta' => $bookingMeta,
+    'guest_phone' => $guestPhone,
+    'guest_blocked' => $guestBlocked,
+    'guest_ready' => $guestReady,
+    'need_phone' => $needPhone,
+    'show_checkout' => $showCheckout,
 ]);

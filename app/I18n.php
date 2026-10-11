@@ -308,6 +308,10 @@ final class I18n
             if (preg_match('#/\.#', $rel)) {
                 continue;
             }
+            // Scaffold generator file embeds dynamic translation key templates (not catalog keys)
+            if (substr($p, -strlen('ModuleScaffold.php')) === 'ModuleScaffold.php') {
+                continue;
+            }
             $c = file_get_contents($p);
             if ($c === false) {
                 continue;

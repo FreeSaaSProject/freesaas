@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $enabled = (string)($_GET['enabled'] ?? '1');
 $hostOptions = ['' => t('sites.hosts.filter.all')] + SiteHostsRepository::options(true);
@@ -40,6 +42,24 @@ if ($siteHostFilter !== '') {
 }
 
 $result = PageCategoriesRepository::listTree($listOpts);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'tree' => !empty($result['tree']),
+        'filters' => [
+            'q' => $q,
+            'enabled' => $enabled,
+            'site_host_id' => $siteHostFilter,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 View::render('pages_list', [
     'title' => t('sites.menu.pages'),

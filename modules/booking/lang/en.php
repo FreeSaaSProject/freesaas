@@ -16,6 +16,7 @@ return [
     'booking.err.not_on_shift' => 'Operator is not on shift that day. Change the date or pick another specialist.',
     'booking.err.cannot_do' => 'Operator does not perform these services (rates / restrictions). Change services or specialist.',
     'booking.err.dt_start' => 'dt_start required (unix)',
+    'booking.err.blocked_online' => 'Online booking is unavailable. Please book at the centre.',
     'booking.menu.new' => 'New booking',
     'booking.new.hint' => 'Client advance order (base_orders): service → date → who can do it and is free → slot. Not a calendar event.',
     'booking.entities.hint' => 'Calendar event — staff appointment (base_events). Booking — client order with a slot (base_orders). Procedure — delivered service (base_procedures), usually from terminal or “create procedures” on an event.',

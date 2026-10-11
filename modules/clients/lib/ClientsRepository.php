@@ -139,6 +139,70 @@ final class ClientsRepository
     }
 
     /**
+     * Lookup by normalized digits (11-digit 7… or last 10).
+     */
+    public static function findByPhoneDigits(string $digits): ?array
+    {
+        $digits = preg_replace('/\D+/', '', $digits) ?? '';
+        if ($digits === '') {
+            return null;
+        }
+        if (strlen($digits) === 11 && $digits[0] === '8') {
+            $digits = '7' . substr($digits, 1);
+        }
+        $row = self::findByTel($digits);
+        if ($row !== null) {
+            return $row;
+        }
+        if (strlen($digits) >= 10) {
+            $tail = substr($digits, -10);
+            $found = self::list([
+                'q' => $tail,
+                'enabled' => null,
+                'limit' => 10,
+                'offset' => 0,
+            ]);
+            foreach ($found['items'] as $item) {
+                $d = preg_replace('/\D+/', '', (string)($item['tel'] ?? '')) ?? '';
+                if ($d === $digits || substr($d, -10) === $tail) {
+                    return self::find((int)$item['id']) ?? $item;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Storefront gate: unknown client or status without block_online → allowed.
+     *
+     * @param array<string,mixed>|null $client
+     */
+    public static function canBookOnline(?array $client): bool
+    {
+        if ($client === null) {
+            return true;
+        }
+        $statusId = (int)($client['status_id'] ?? 0);
+        if ($statusId < 1) {
+            return true;
+        }
+        if (!class_exists(ClientStatusesRepository::class, false)) {
+            return true;
+        }
+        return !ClientStatusesRepository::blocksOnline($statusId);
+    }
+
+    public static function setStatusId(int $clientId, int $statusId): void
+    {
+        if ($clientId < 1 || !Database::tableExists('base_clients')) {
+            throw new InvalidArgumentException('Invalid client id');
+        }
+        $statusId = max(0, $statusId);
+        $st = Database::pdo()->prepare('UPDATE base_clients SET status_id = ? WHERE id = ?');
+        $st->execute([$statusId, $clientId]);
+    }
+
+    /**
      * Strip secrets for AgentHttp / JSON twins.
      *
      * @param array<string,mixed>|null $row

@@ -6,17 +6,17 @@ declare(strict_types=1);
  * Build modules-catalog.json for remote install discovery (UpdateEngine).
  *
  * Usage:
- *   PRIVATE_MODULES=likespa php bin/build-modules-catalog.php
+ *   php bin/build-modules-catalog.php
+ *   PRIVATE_MODULES=secretpack php bin/build-modules-catalog.php
  *   php bin/build-modules-catalog.php --out=dist/freesaas-catalog.json
  *
  * Writes repo-root modules-catalog.json by default (Contents API path).
+ * Default: no private modules (likespa product module is public; themes are separate).
  */
 
 $root = dirname(__DIR__);
 $privateEnv = getenv('PRIVATE_MODULES');
-$privateList = is_string($privateEnv) && $privateEnv !== ''
-    ? $privateEnv
-    : 'likespa';
+$privateList = is_string($privateEnv) ? $privateEnv : '';
 $private = [];
 foreach (explode(',', $privateList) as $p) {
     $p = trim($p);

@@ -76,7 +76,7 @@ curl -sS -X POST -H "Cookie: …" -H "Content-Type: application/json" \
 
 JSON: send `Accept: application/json` (or AgentHttp session). Permissions: `booking.view` / `booking.edit`.
 
-Hooks: `booking.book.before` / `booking.book.after` (likespa FREE_TICKET overlays later).
+Hooks: `booking.book.before` / `booking.book.after` (product modules may overlay order payload).
 
 ## Frozen terminal URL (later phase)
 
@@ -84,19 +84,25 @@ Phones open `/t/?terminalid=…&braceletid=…&token=…` — do not rename. Sta
 
 ## Storefront cart wizard (Phase 2)
 
-When `booking` is enabled and **every** cart line is a bookable service (`BookingCatalog`), `/cart` shows date → specialist → slot → phone, then `POST /cart/checkout` calls `BookingBook::createOrder` (prices from session cart lines).
+When `booking` is enabled and **every** cart line is a bookable service (`BookingCatalog`), `/cart` shows a **stepped** wizard above contact fields. Modes: **date-first** (date → specialist cards → time) or **master-first** (specialist → dates with slots → time). Later steps stay locked until the previous is done; phone/mail unlock after a slot is picked. Public cards show **first name + photo** only (no full FIO). `GET /cart/availability` modes: `day` (default), `masters`, `dates`. `POST /cart/checkout` → `BookingBook::createOrder`.
+
+**Phone gate (before wizard):** guest must enter phone into session (`SitesGuest` / `$_SESSION['sites_guest']`). Lookup `base_clients` by digits; if the client status has `block_online=1` (`base_client_statuses`), wizard and checkout are blocked (“book only at the centre”). Unknown client / no status → allowed. `BookingBook::createOrder` and `/cart/checkout` re-check server-side. Staff set the ban via Clients status flag or **Block online** on `/orders/{id}/edit` (`clients.edit`). No auto no-show analysis.
+
+**Storefront slots:** engine stays on a 5-minute grid for packing; the cart UI shows ~30-minute starts plus the first free slot and the first slot after a gap (uneven prior end). Default master choice is **Any specialist** (union of free times; checkout assigns a free operator). Advance-order occupancy uses real cart duration (not a forced 1h block).
+
+Storefront must boot slot deps (`runtime: both`): `workweeks`, `calendar`, `procedures`, `rates` (plus `catalog` / `orders` / `clients`). If those stay admin-only, the form may appear but slots stay empty (`no_shifts`).
 
 | Path | Who | What |
 |------|-----|------|
 | `GET /cart/availability` | public | JSON slots for `date` + `product_ids` (cart flat ids if omitted) |
-| `POST /cart/checkout` | public | With `operator_id` + `dt_start` (+ optional `free_ticket`) → order book |
+| `POST /cart/checkout` | public | With `operator_id` + `dt_start` → order book |
 
-Goods-only / mixed carts (any non-bookable line) keep the simple checkout (`OrdersRepository::create`, no slot). Slot math stays in `booking` — themes only render fields + `cart-booking.js`.
+Goods-only / mixed carts (any non-bookable line) keep the simple checkout (`OrdersRepository::create`, no slot). Slot math stays in `booking` — themes only render fields + `cart-booking.js`. Cart may carry extra fields from EventBus `sites.cart.booking` / `booking.book.before` (product modules).
 
-LikeSpa `FREE_TICKET`: threshold `base_system.FREE_TICKET`; hooks `sites.cart.booking` + `booking.book.before` (not today; sum ≥ threshold).
+**Agent diagnose:** `GET /sites/status?format=json` (`sites.status`) — booking active, bookable count, soft deps. See [sites.md](sites.md)#agent-api-session-json.
 
 ## Related
 
-- [`sites.md`](sites.md) — storefront cart + booking wizard
+- [`sites.md`](sites.md) — storefront cart + booking wizard + agent diagnose
 - [`terminals.md`](terminals.md) — registry; live `/t` still on legacy site
 - Legacy: `likespa.hm/inc/api.php` `checkTimeEvents`, `shop.inc.php` `getTimesAndDates`

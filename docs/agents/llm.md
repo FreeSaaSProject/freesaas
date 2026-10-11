@@ -34,6 +34,8 @@ For tool-calling (product CRM assistant), use module [`assistant`](assistant.md)
 
 ## OAuth + MCP (external GPT / agents)
 
+**Start here for copy-paste connect:** [connect-mcp.md](connect-mcp.md) (+ [connect-chatgpt.md](connect-chatgpt.md), [connect-codex.md](connect-codex.md), …). Surfaces: [agent-surfaces.md](agent-surfaces.md).
+
 Requires `assistant` enabled for tools. UI: **LLM → OAuth / MCP** (`/llm/oauth`, SUPERADMIN + `llm.manage`).
 
 1. Create a client; copy **client_secret** once; add exact redirect URI(s).

@@ -1,0 +1,36 @@
+title: "[agent-install] "
+labels: ["agent"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share a successful (or almost successful) agent install / case run.
+        Paste `doctor` or `smoke` JSON when useful. Cases: `docs/agents/cases/`.
+  - type: dropdown
+    id: case
+    attributes:
+      label: Case
+      options:
+        - vps-workweeks
+        - salon-stack
+        - bank-connect
+        - other / custom
+  - type: textarea
+    id: host
+    attributes:
+      label: Host type
+      description: Docker / shared hosting / bare VPS / local
+    validations:
+      required: true
+  - type: textarea
+    id: transcript
+    attributes:
+      label: Commands + outcome
+      description: Short sequence the agent ran and result
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: doctor / smoke JSON (optional)
+      render: json

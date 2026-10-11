@@ -167,6 +167,9 @@ function agent_api_dispatch(string $path, string $method, string $id): array
         $mod = isset($_GET['module']) ? (string)$_GET['module'] : null;
         return AgentOps::health($mod);
     }
+    if ($path === '/agent/doctor' && $method === 'GET') {
+        return AgentOps::doctor();
+    }
     if ($path === '/agent/i18n' && $method === 'GET') {
         $loc = isset($_GET['locale']) ? (string)$_GET['locale'] : null;
         return AgentOps::localeValidate($loc);

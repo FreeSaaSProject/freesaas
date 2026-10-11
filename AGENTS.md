@@ -1,6 +1,8 @@
 # AGENTS.md — FreeSaaS (likespa)
 
-Instructions for coding agents working in this repository. Human guide: [`docs/GUIDE.md`](docs/GUIDE.md). Table ownership: [`docs/TABLE_MAP.md`](docs/TABLE_MAP.md). Agent-native audit and platform/module requirements: [`docs/agent-native-audit.md`](docs/agent-native-audit.md). Operation runbooks: [`docs/agents/`](docs/agents/).
+Instructions for coding agents working in this repository. Human guide: [`docs/GUIDE.md`](docs/GUIDE.md). Table ownership: [`docs/TABLE_MAP.md`](docs/TABLE_MAP.md). Agent-native audit and platform/module requirements: [`docs/agent-native-audit.md`](docs/agent-native-audit.md). Operation runbooks: [`docs/agents/`](docs/agents/). Quick path: [`docs/agents/QUICKSTART.md`](docs/agents/QUICKSTART.md). Auth surfaces: [`docs/agents/agent-surfaces.md`](docs/agents/agent-surfaces.md).
+
+**License / contributions:** AGPL-3.0-or-later ([`LICENSE`](LICENSE)); optional commercial terms ([`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md)). External PRs require a CLA — [`CONTRIBUTING.md`](CONTRIBUTING.md) / [`CLA.md`](CLA.md).
 
 ## Stack
 
@@ -175,7 +177,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `norms` | Default consumptions (`base_good_defaults`); embed on catalog product edit |
 | `sheets` | LikeSpa linen accounts/moves (`base_sheet_*`); disableable |
 | `likespa` | Spa instance pack: flyer + promoter discounts (`/likespa/settings`), term scans, promoter bonus + dops on `/audio/calendar`; procedure restores + settlement (ACCOUNT=0); staff public profile; disableable. CMS moved to `sites`. |
-| `sites` | Storefront + CMS: multi-host (`base_site_hosts`), SEO, articles, promo, redirects, themes (`site.php`); shop/cart via catalog + `OrdersRepository::create` — see [`docs/agents/sites.md`](docs/agents/sites.md); theme ports: [`docs/agents/themes.md`](docs/agents/themes.md) |
+| `sites` | Storefront + CMS: multi-host (`base_site_hosts`), SEO, articles, promo, redirects, themes (`site.php`); shop/cart + booking wizard; agent diagnose `GET /sites/status` — [`docs/agents/sites.md`](docs/agents/sites.md); themes: [`docs/agents/themes.md`](docs/agents/themes.md) |
 | `booking` | Slot engine + advance order book (`base_orders`); UI `/booking/new` in Calendar rail (not event slot-click); alpha; agent `/booking/availability` `/booking/book`; storefront `/cart` wizard when enabled — [`docs/agents/booking.md`](docs/agents/booking.md). `/t` later |
 | `terminals` | Device registry + bracelets + therm occupancy/orders; 1C/volgatermy sync jobs (`cfg/modules/terminals.ini`); disableable |
 | `staff_reports` | Staff quality day reports (traffic lights by position); rewards on `/audio/calendar`; generate via Re-® / `/staff-reports/generate` |

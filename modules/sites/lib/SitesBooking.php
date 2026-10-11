@@ -3,13 +3,22 @@ declare(strict_types=1);
 
 /**
  * Thin storefront bridge to the booking slot engine.
- * Slot math stays in booking; this only detects when cart needs a wizard.
+ * Slot math stays in booking; this only detects when cart needs a wizard
+ * and shapes public master cards (first name + photo, no full FIO).
  */
 final class SitesBooking
 {
+    private const MASTERS_LOOKAHEAD_DAYS = 14;
+
     public static function active(): bool
     {
-        if (!class_exists(ModuleManager::class, false) || !ModuleManager::isEnabled('booking')) {
+        if (!class_exists(ModuleManager::class, false)) {
+            return false;
+        }
+        $on = ModuleManager::isEnabled('booking')
+            || (ModuleManager::isConfigEnabled('booking')
+                && class_exists(BookingAvailability::class, false));
+        if (!$on) {
             return false;
         }
         return class_exists(BookingAvailability::class, false)
@@ -76,6 +85,230 @@ final class SitesBooking
     }
 
     /**
+     * Public first name only (legacy eventCreator2: second word of FIO).
+     */
+    public static function publicDisplayName(string $fullName, int $operatorId = 0): string
+    {
+        $fullName = trim(preg_replace('/\s+/u', ' ', $fullName) ?? '');
+        if ($fullName !== '') {
+            $parts = preg_split('/\s+/u', $fullName) ?: [];
+            if (count($parts) >= 2) {
+                return (string)$parts[1];
+            }
+            if (isset($parts[0]) && $parts[0] !== '') {
+                return (string)$parts[0];
+            }
+        }
+        return $operatorId > 0
+            ? t('sites.cart.master_n', ['n' => $operatorId])
+            : t('sites.cart.master_fallback');
+    }
+
+    /**
+     * @return array{id:int,display_name:string,photo:string,initial:string}
+     */
+    public static function operatorPublicCard(int $operatorId, string $fallbackName = ''): array
+    {
+        $name = $fallbackName;
+        $photo = '';
+        $row = self::loadPublicStaff($operatorId);
+        if ($row !== null) {
+            if (trim((string)($row['name'] ?? '')) !== '') {
+                $name = (string)$row['name'];
+            }
+            $photo = trim((string)($row['photo'] ?? ''));
+        }
+        $display = self::publicDisplayName($name, $operatorId);
+        $initial = mb_strtoupper(mb_substr($display, 0, 1));
+        return [
+            'id' => $operatorId,
+            'display_name' => $display,
+            'photo' => $photo,
+            'initial' => $initial !== '' ? $initial : '•',
+        ];
+    }
+
+    /**
+     * Masters with at least one free slot in the next N days (for master-first mode).
+     *
+     * @param list<int> $productIds
+     * @return list<array{id:int,display_name:string,photo:string,initial:string,first_date:string,slots_hint:int}>
+     */
+    public static function listMastersAhead(array $productIds, int $days = self::MASTERS_LOOKAHEAD_DAYS): array
+    {
+        $days = max(1, min(21, $days));
+        $seen = [];
+        $today = (int)mktime(0, 0, 0);
+        for ($i = 0; $i < $days; $i++) {
+            $dayStart = $today + ($i * 86400);
+            $ymd = date('Y-m-d', $dayStart);
+            try {
+                $av = BookingAvailability::forDay($ymd, $productIds, null);
+            } catch (Throwable $e) {
+                continue;
+            }
+            foreach ($av['operators'] ?? [] as $op) {
+                if (empty($op['available']) || empty($op['slots'])) {
+                    continue;
+                }
+                $id = (int)($op['id'] ?? 0);
+                if ($id < 1 || isset($seen[$id])) {
+                    continue;
+                }
+                $card = self::operatorPublicCard($id, (string)($op['name'] ?? ''));
+                $seen[$id] = $card + [
+                    'first_date' => $ymd,
+                    'slots_hint' => count($op['slots'] ?? []),
+                ];
+            }
+        }
+        $out = array_values($seen);
+        usort($out, static function (array $a, array $b): int {
+            return strcmp((string)$a['display_name'], (string)$b['display_name']);
+        });
+        return $out;
+    }
+
+    /**
+     * Dates with slots for one master (master-first step 2).
+     * Pass $operatorId = 0 for any master (union).
+     *
+     * @param list<int> $productIds
+     * @return list<array{date:string,slots:int}>
+     */
+    public static function listDatesForOperator(array $productIds, int $operatorId = 0, int $days = self::MASTERS_LOOKAHEAD_DAYS): array
+    {
+        $days = max(1, min(21, $days));
+        $out = [];
+        $today = (int)mktime(0, 0, 0);
+        for ($i = 0; $i < $days; $i++) {
+            $dayStart = $today + ($i * 86400);
+            $ymd = date('Y-m-d', $dayStart);
+            try {
+                $av = BookingAvailability::forDay(
+                    $ymd,
+                    $productIds,
+                    $operatorId > 0 ? $operatorId : null
+                );
+            } catch (Throwable $e) {
+                continue;
+            }
+            $slots = 0;
+            foreach ($av['operators'] ?? [] as $op) {
+                if (empty($op['available']) || empty($op['slots'])) {
+                    continue;
+                }
+                if ($operatorId > 0 && (int)($op['id'] ?? 0) !== $operatorId) {
+                    continue;
+                }
+                $slots += count($op['slots']);
+            }
+            if ($slots > 0) {
+                $out[] = ['date' => $ymd, 'slots' => $slots];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Client-facing slots: keep ~30-minute grid, but always keep the first
+     * available slot and the first free slot after a gap (uneven prior end).
+     *
+     * @param list<int> $slots unix timestamps (5-min engine grid)
+     * @return list<int>
+     */
+    public static function filterClientSlots(array $slots): array
+    {
+        $slots = array_values(array_unique(array_filter(
+            array_map('intval', $slots),
+            static fn (int $t): bool => $t > 0
+        )));
+        sort($slots, SORT_NUMERIC);
+        if ($slots === []) {
+            return [];
+        }
+        $step = class_exists(BookingSlots::class, false) ? BookingSlots::INTERVAL_SEC : 300;
+        $out = [];
+        $prev = null;
+        foreach ($slots as $i => $ts) {
+            $min = (int)date('i', $ts);
+            $isRound = ($min % 30) === 0;
+            $isFirst = $i === 0;
+            $isGapStart = $prev !== null && ($ts - $prev) > $step;
+            if ($isFirst || $isRound || $isGapStart) {
+                $out[] = $ts;
+            }
+            $prev = $ts;
+        }
+        return $out;
+    }
+
+    /**
+     * Shape day availability for the public cart JSON (no full FIO).
+     * Slots are thinned for client display; engine still validates any 5-min start.
+     *
+     * @param array<string,mixed> $data BookingAvailability::forDay result
+     * @return list<array{id:int,display_name:string,photo:string,initial:string,slots:list<int>,slots_hhmm:list<string>}>
+     */
+    public static function publicOperatorsFromDay(array $data): array
+    {
+        $ops = [];
+        foreach ($data['operators'] ?? [] as $op) {
+            if (empty($op['available']) || empty($op['slots'])) {
+                continue;
+            }
+            $id = (int)($op['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            $card = self::operatorPublicCard($id, (string)($op['name'] ?? ''));
+            $rawSlots = array_values(array_map('intval', $op['slots'] ?? []));
+            $slots = self::filterClientSlots($rawSlots);
+            $hhmm = [];
+            foreach ($slots as $ts) {
+                $hhmm[] = date('H:i', $ts);
+            }
+            $ops[] = $card + [
+                'slots' => $slots,
+                'slots_hhmm' => $hhmm,
+            ];
+        }
+        return $ops;
+    }
+
+    /**
+     * Pick any operator who has a free slot at $dtStart (for «any master»).
+     *
+     * @param list<int> $productIds
+     */
+    public static function resolveOperatorForSlot(string $ymd, array $productIds, int $dtStart): int
+    {
+        if ($dtStart < 1) {
+            return 0;
+        }
+        try {
+            $data = BookingAvailability::forDay($ymd, $productIds, null);
+        } catch (Throwable $e) {
+            return 0;
+        }
+        foreach ($data['operators'] ?? [] as $op) {
+            if (empty($op['available']) || empty($op['slots'])) {
+                continue;
+            }
+            $id = (int)($op['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            foreach ($op['slots'] as $ts) {
+                if ((int)$ts === $dtStart) {
+                    return $id;
+                }
+            }
+        }
+        return 0;
+    }
+
+    /**
      * Overlay meta for cart UI (FREE_TICKET threshold, hints).
      *
      * @return array{
@@ -102,5 +335,22 @@ final class SitesBooking
             'free_ticket_hint' => (string)($payload['free_ticket_hint'] ?? ''),
             'free_ticket_not_today' => (string)($payload['free_ticket_not_today'] ?? ''),
         ];
+    }
+
+    /** @return array{name?:string,photo?:string}|null */
+    private static function loadPublicStaff(int $operatorId): ?array
+    {
+        if ($operatorId < 1 || !Database::tableExists('base_users')) {
+            return null;
+        }
+        $cols = ['id', 'name'];
+        if (Database::columnExists('base_users', 'photo')) {
+            $cols[] = 'photo';
+        }
+        $sqlCols = implode(', ', array_map(static fn (string $c): string => '`' . $c . '`', $cols));
+        $st = Database::pdo()->prepare("SELECT $sqlCols FROM base_users WHERE id = ? LIMIT 1");
+        $st->execute([$operatorId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
     }
 }

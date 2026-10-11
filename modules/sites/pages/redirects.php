@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 $q = trim((string)($_GET['q'] ?? ''));
 $enabled = (string)($_GET['enabled'] ?? '');
 $hostOptions = ['' => t('sites.hosts.filter.all')] + SiteHostsRepository::options(true);
@@ -40,6 +42,23 @@ if ($siteHostFilter !== '') {
 }
 
 $result = RedirectsRepository::list($listOpts);
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'total' => $result['total'],
+        'items' => $result['items'],
+        'filters' => [
+            'q' => $q,
+            'enabled' => $enabled,
+            'site_host_id' => $siteHostFilter,
+        ],
+        'page' => $lq['page'],
+        'per_page' => $lq['per_page'],
+        'show_all' => $lq['show_all'],
+    ]);
+    return;
+}
 
 View::render('redirects_list', [
     'title' => t('sites.menu.redirects'),

@@ -68,6 +68,8 @@ Platform install/ops (`/agent/db*`, token) remain separate — see [remote-api.m
 
 **Module catalog for MCP/assistant:** `core.modules.list` (`GET /modules?format=json`) and `core.modules.get` (`GET /modules/{id}?format=json`) — same `ModuleCatalog` data as platform `module.list` / `module.inspect`, but session/`core.modules` auth so they appear in `/llm/mcp` `tools/list`. `get` includes `agent_ops[]` with `mcp_name` for that module’s tools.
 
+**Storefront diagnose example:** `sites.status` → `GET /sites/status?format=json` (hosts, soft deps, booking, `issues[]`; product overlays via EventBus `sites.diagnose`). Runbook: [sites.md](sites.md).
+
 ## Helper
 
 [`app/AgentHttp.php`](../../app/AgentHttp.php) — `wantsJson()`, `emit()`, `error()`, `opsForModule()`, `normalizeOp()`.

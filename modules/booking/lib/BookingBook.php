@@ -31,6 +31,15 @@ final class BookingBook
         if ($phone === '') {
             throw new InvalidArgumentException(t('booking.err.phone'));
         }
+        if (strlen($phone) === 11 && $phone[0] === '8') {
+            $phone = '7' . substr($phone, 1);
+        }
+        if (class_exists(ClientsRepository::class, false)) {
+            $gateClient = ClientsRepository::findByPhoneDigits($phone);
+            if ($gateClient !== null && !ClientsRepository::canBookOnline($gateClient)) {
+                throw new RuntimeException(t('booking.err.blocked_online'));
+            }
+        }
         $clientName = trim((string)($input['client_name'] ?? ''));
         $operatorId = (int)($input['operator_id'] ?? 0);
         if ($operatorId < 1) {

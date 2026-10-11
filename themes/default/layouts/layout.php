@@ -38,6 +38,7 @@ window.SitesCartI18n = {
   fabAria: <?= json_encode(t('sites.cart.fab_aria'), JSON_UNESCAPED_UNICODE) ?>
 };
 </script>
+<script src="<?= e(SiteTheme::assetUrl('js/phone-ru.js')) ?>"></script>
 <script src="<?= e(SiteTheme::assetUrl('js/cart.js')) ?>"></script>
 </body>
 </html>

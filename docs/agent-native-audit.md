@@ -1,7 +1,7 @@
 # FreeSaaS — Agent-Native Architecture Audit
 
-**Date:** 2026-10-05  
-**Scope:** Current modular refactor of `oper.likespa.hm` → FreeSaaS (repository as of audit).  
+**Date:** 2026-10-05 (appendix refreshed 2026-10-11)  
+**Scope:** Modular FreeSaaS platform (likespa instance lineage).  
 **Audience:** Product owners and coding agents. This document is both a diagnosis and a **working standard** for subsequent platform and module work.
 
 Related docs:
@@ -9,36 +9,43 @@ Related docs:
 - [`AGENTS.md`](../AGENTS.md) — hard rules for agents
 - [`docs/GUIDE.md`](GUIDE.md) — human architecture guide
 - [`docs/TABLE_MAP.md`](TABLE_MAP.md) — `base_*` table ownership by module
+- [`docs/agents/QUICKSTART.md`](agents/QUICKSTART.md) — fast install
+- [`docs/agents/agent-surfaces.md`](agents/agent-surfaces.md) — platform token vs product MCP/OAuth
 
 ---
 
 ## Executive Summary
 
+> **Current readiness (~78/100).** P1 ops are shipped: CLI + `/agent/*`, bootstrap, health, validate, locale discovery, smoke, runbooks, dual-license packaging. Live **product MCP** (`/llm/mcp` + OAuth) exists — see [`docs/agents/llm.md`](agents/llm.md). Remaining drag: no uninstall/drop, soft-dep honesty, scaffold/`doctor` maturity, README/agent distribution packaging, dual agent surfaces (token vs OAuth) not yet unified for lifecycle.
+>
+> The historical diagnosis below (score **56**) describes the pre-P1 baseline and remains useful as the problem statement. Prefer the [Appendix: Current CLI vs target](#appendix-current-cli-vs-target) and [Score rationale](#appendix-score-rationale-was-56--75-after-p1--http--bootstrap) for “what works today”.
+
 FreeSaaS already has a real **agent-friendly kernel**: filesystem module discovery, `module.json` + `bootstrap.php`, hard dependency graph, enable-time schema migrations, EventBus extension points, shared list/bulk/nav primitives, and operational docs (`AGENTS.md` + GUIDE). An unfamiliar agent can clone a simple CRUD module from `units` / `suppliers` and often succeed.
 
-It is **not** yet agent-native for safe autonomous operations. Manifests are an incomplete and often inaccurate index; hooks are frequently prose or phantom; there is no uninstall; CLI cover only migrate-all and a **broken** i18n checker; there is no validate/health harness; soft cross-module coupling lives in PHP outside manifests; adding a new language still requires editing `I18n::$supported`; Telegram notifications exist only as stub user fields, not as a module.
+**Historical baseline (2026-10-05, pre-P1):** manifests incomplete; no uninstall; thin CLI; broken i18n checker; no validate/health; soft coupling outside manifests.
 
-**Agent Readiness: 56/100**
+**Agent Readiness (baseline): 56/100** → **current ~78/100** (see appendix).
 
-| Dimension | Score | Note |
-|-----------|------:|------|
-| Discoverability (docs + manifests) | 60 | Inventory yes; capabilities unreliable |
-| New CRUD module authoring | 70 | Template + checklist work; conventions still guessed |
-| Cross-module extension | 55 | EventBus strong; direct requires remain |
-| Machine-readable contracts | 40 | Many JSON fields unused or wrong |
-| CLI / admin ops without UI | 25 | Thin; no enable/health/validate |
-| Self-verification | 15 | No tests/; check-i18n fatal |
-| Localization automation | 55 | Chrome strong; locale allowlist + plurals weak |
-| Lifecycle (install/uninstall) | 35 | Enable+migrate yes; uninstall no |
-| Platform purity (vs LikeSpa) | 50 | Core still oper-shaped |
+| Dimension | Baseline | Current (approx.) | Note |
+|-----------|---------:|------------------:|------|
+| Discoverability (docs + manifests) | 60 | 80 | Runbooks + QUICKSTART; hooks cleaned |
+| New CRUD module authoring | 70 | 75 | Template + `module create` scaffold |
+| Cross-module extension | 55 | 60 | EventBus strong; soft deps still uneven |
+| Machine-readable contracts | 40 | 70 | `agent.ops`, validate, inspect |
+| CLI / admin ops without UI | 25 | 85 | `freesaas.php` + `/agent/*` |
+| Self-verification | 15 | 80 | health + smoke + doctor |
+| Localization automation | 55 | 70 | locale discovery; plurals still weak |
+| Lifecycle (install/uninstall) | 35 | 55 | bootstrap/enable yes; uninstall no |
+| Platform purity (vs LikeSpa) | 50 | 55 | Core still partially oper-shaped |
+| Licensing / OSS packaging | — | 90 | AGPL dual-license + CLA |
 
-**Architecture verdict:** The current design **does not block** the agent-native concept. Do **not** rewrite Core. Evolve: honest contracts (generate/validate), CLI-first ops, health/validate, locale discovery, keep product out of Core.
+**Architecture verdict:** Do **not** rewrite Core. Evolve: honest contracts, CLI-first ops, health/validate, keep product out of Core. Product MCP is an adapter over `agent.ops`, not a second CRM.
 
-**Control answers:**
+**Control answers (current):**
 
-1. Can an unfamiliar agent turn FreeSaaS into an IS for an arbitrary business **today**? Partially — select and wire existing modules with research; invent new domains with guessing; cannot safely uninstall or auto-prove «nothing broke».
-2. Can an unfamiliar agent create a full new module from the repo alone? **Partially yes** for CRUD; **no** for full agent-operable lifecycle (validate/health/uninstall/tests).
-3. Can an agent add a new language without changing business logic? **Almost** for catalogs; **no** without touching `I18n::$supported`; formatting/plurals incomplete.
+1. Can an unfamiliar agent turn FreeSaaS into an IS for an arbitrary business **today**? **Mostly yes** for selecting/enabling existing modules via CLI/HTTP; inventing new domains needs scaffold + EventBus research; cannot safely uninstall.
+2. Can an unfamiliar agent create a full new module from the repo alone? **Yes** for CRUD via `module create` / units template + validate/health; full uninstall still missing.
+3. Can an agent add a new language without changing business logic? **Yes** for catalogs via discovery; plurals/number formatting remain quality gaps.
 
 ---
 
@@ -154,17 +161,18 @@ Useful after the current refactor tranche; not blockers for continuing product p
 
 ## Future Agent Layer
 
-Leave out of Core internals. Build **after** CLI + validate + health exist.
+Leave marketplace and mandatory PHPUnit-for-all out of Core internals.
 
-| Layer | Role |
-|-------|------|
-| **MCP adapter** | Thin wrapper over CLI JSON; not a second source of truth inside PHP |
-| **Skills (4–5)** | `create-module`, `add-migration-field`, `connect-via-event`, `add-locale`, `diagnose-install` |
-| **Capability registry / marketplace** | Publish/discover modules beyond one repo |
-| **Agent installer** | Greenfield deploy from requirements utterance |
-| **OpenAPI for whole CRM** | Optional; page-first UI remains valid for humans |
+| Layer | Role | Status |
+|-------|------|--------|
+| **Product MCP + OAuth** | In-process `/llm/mcp` over `agent.ops` | **Shipped** — [`agents/llm.md`](agents/llm.md) |
+| **Platform ops MCP** | Lifecycle (enable/migrate) via OAuth | Not shipped — stays `agent_token` / CLI; see [`agents/agent-surfaces.md`](agents/agent-surfaces.md) |
+| **Skills (4–5)** | create-module, diagnose-install, … | In-repo under [`docs/skills/`](skills/) |
+| **Capability registry / marketplace** | Publish/discover modules beyond one repo | Prospective |
+| **Agent installer / Docker** | Greenfield deploy | Docker Compose shipped; utterance installer prospective |
+| **OpenAPI for whole CRM** | Optional islands | OpenAPI for MCP tools only |
 
-Do not embed MCP server, marketplace, or mandatory PHPUnit-for-all into the current refactor.
+Do not treat product MCP as a second source of truth — tools mirror `agent.ops` / page handlers.
 
 ---
 
@@ -327,13 +335,13 @@ Architectural decisions expensive to reverse. Map to requirements A/B below.
 
 ### P3 — prospective
 
-| ID | Action |
-|----|--------|
-| P3.1 | MCP adapter over CLI |
-| P3.2 | Skills set (≤5) |
-| P3.3 | Public capability registry / marketplace |
-| P3.4 | Agent installer |
-| P3.5 | Optional OpenAPI islands where integrations need them |
+| ID | Action | Note |
+|----|--------|------|
+| P3.1 | MCP adapter over CLI | **Superseded in practice** by in-process product MCP (`/llm/mcp`); platform lifecycle still CLI/`agent_token` |
+| P3.2 | Skills set (≤5) | Docs under `docs/skills/` |
+| P3.3 | Public capability registry / marketplace | Still prospective |
+| P3.4 | Agent installer | Docker Compose path; utterance installer later |
+| P3.5 | Optional OpenAPI islands | `/llm/openapi.json` for tools |
 
 ---
 
@@ -576,36 +584,39 @@ Exact binary layout may be one `bin/freesaas.php` with subcommands; the audit re
 
 ### Out of scope for Core now
 
-- In-process MCP server  
-- Full CRM OpenAPI  
+- Full CRM OpenAPI (tools OpenAPI island exists)  
 - Module marketplace  
-- Mandatory PHPUnit for all 28 modules on day one  
+- Mandatory PHPUnit for all modules on day one  
+- Unifying platform lifecycle into staff OAuth without a separate admin threat model  
 
-These stay in [Future Agent Layer](#future-agent-layer); contracts + health + validate prepare the ground.
+Product MCP is **in scope and shipped**; see [Future Agent Layer](#future-agent-layer).
 
 ---
 
 ## Appendix: Current CLI vs target
 
-| Capability | Status (post P1 sprint) |
-|------------|-------------------------|
+| Capability | Status |
+|------------|--------|
 | `php bin/freesaas.php system status` | **Done** |
-| `module list \| inspect \| enable \| disable \| validate` | **Done** |
+| `module list \| inspect \| enable \| disable \| validate \| create \| add-migration \| bump` | **Done** |
 | `migrate status \| run [--module]` | **Done** |
 | `locale list \| validate` + discovery from `app/lang` | **Done** |
-| `health [--module]` + `Health::register` | **Done** (auto tables + platform + audio_pipeline/calendar/ledger) |
+| `health [--module]` + `Health::register` | **Done** |
+| `doctor` (+ `/agent/doctor`) | **Done** |
 | `GET /health` + `/health/detail` | **Done** |
 | HTTP `/agent/*` + `app.agent_token` (CLI twin for shared hosting) | **Done** |
 | Autonomous bootstrap (`POST /agent/bootstrap` + CLI `bootstrap`) | **Done** — [`docs/agents/install.md`](agents/install.md) |
+| Product MCP `/llm/mcp` + OAuth | **Done** — [`docs/agents/llm.md`](agents/llm.md) |
+| Dual-license AGPL + commercial + CLA | **Done** |
 | `bin/smoke.php` | **Done** |
 | `bin/check-i18n.php` | **Fixed** (full bootstrap; exit codes) |
 | Manifest hooks prose cleanup | **Done** (bulkActions field; dotted events only) |
-| `docs/agents/*` runbooks | **Done** (incl. install) |
+| `docs/agents/*` runbooks | **Done** (incl. QUICKSTART, agent-surfaces, cases, repair) |
 | Real uninstall / drop tables | Not yet (disable-only) |
 | `php bin/data-migrate.php` | Unchanged (destructive; document) |
 
 ---
 
-## Appendix: Score rationale (was 56 → ~75 after P1 + HTTP + bootstrap)
+## Appendix: Score rationale (was 56 → ~75 after P1 → ~78 with MCP + packaging)
 
-Weighted judgment, not a formula. After CLI/health/validate/locale discovery/HTTP health/hooks cleanup/runbooks/**autonomous bootstrap**, readiness nearer **~75**. Remaining drag: no uninstall, LikeSpa residue in Core, soft-dep honesty, plurals, incomplete OpenAPI/MCP (intentionally future).
+Weighted judgment, not a formula. After CLI/health/validate/locale discovery/HTTP health/hooks cleanup/runbooks/**autonomous bootstrap**/product MCP/licensing, readiness nearer **~78**. Remaining drag: no uninstall, LikeSpa residue in Core, soft-dep honesty, plurals, platform lifecycle not on OAuth/MCP.

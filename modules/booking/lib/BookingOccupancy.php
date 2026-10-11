@@ -93,7 +93,8 @@ final class BookingOccupancy
                 }
                 $lines = OrdersRepository::decodeCart((string)($ord['cart'] ?? ''));
                 $duration = self::cartDurationSec($lines);
-                $end = $start + max(BookingSlots::DEFAULT_DURATION_SEC, $duration);
+                // Use real cart duration (not min 1h) so short procedures pack tightly.
+                $end = $start + ($duration > 0 ? $duration : BookingSlots::DEFAULT_DURATION_SEC);
                 $gid = $lines !== [] ? (int)($lines[0]['id'] ?? 0) : 0;
                 $key = 'o' . (int)($ord['id'] ?? 0);
                 $used[$op][$key] = ['DTSTART' => $start, 'DTEND' => $end, 'ID_GOOD' => $gid];

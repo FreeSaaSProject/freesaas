@@ -26,17 +26,11 @@ assets.
 The public tree ships [`themes/default/`](themes/default/) as the reference
 first-party storefront theme.
 
-## Needs review
-
-| Component | Location | License (as found) | Notes |
-|---|---|---|---|
-| LinguaStemRu | `modules/audio_pipeline/lib/LinguaStemRu.php` | Unclear — port of oper `libs/stem/LinguaStemRu.php`; no upstream LICENSE in tree | Clarify provenance before relying on AGPL or commercial redistrib of this file. |
-
 ## Compatible / lower risk
 
 | Component | Location | License (as found) | Notes |
 |---|---|---|---|
-| phpMorphy + morphology dicts | `modules/audio_pipeline/vendor/phpmorphy` | **LGPL-2.1+** (`LICENSE.LGPL-2.1.txt`, vendor README) | Compatible with AGPL if notices kept. For commercial dual-license of FreeSaaS, keep as a separate LGPL library (do not strip LGPL rights). |
+| phpMorphy + morphology dicts | `modules/audio_pipeline/vendor/phpmorphy` | **LGPL-2.1+** (`LICENSE.LGPL-2.1.txt`, vendor README) | Sole lemmatizer for audio stem/reparse. Compatible with AGPL if notices kept. For commercial dual-license of FreeSaaS, keep as a separate LGPL library (do not strip LGPL rights). |
 | Chart.js 4.4.1 | CDN in `modules/finance/views/balance.php`, `modules/wellness/views/calendar.php` | MIT | Runtime CDN; not vendored in git. |
 | Google Fonts (DM Sans, Syne) | CDN in `modules/core/views/layout.php`, `layout_auth.php` | Typically OFL (font authors) | Runtime CDN. |
 
@@ -46,6 +40,7 @@ first-party storefront theme.
 |---|---|
 | getID3 | GPL-2+ / commercial — documented in `modules/audio/THIRD_PARTY.md` as not vendored. Prefer not to add under AGPL dual-licensing without a clear decision. |
 | audio.js / SWF | Obsolete; use native HTML5 `<audio>`. |
+| LinguaStemRu | Former Porter/Snowball RU stemmer port (unclear provenance); removed — lemmatization is phpMorphy-only. |
 
 ## First-party (covered by project LICENSE)
 
@@ -59,5 +54,5 @@ first-party storefront theme.
 
 - No GPL-only libraries are currently vendored in the public tree.
 - Private / instance themes are out of scope for this file.
-- Remaining public review item: **LinguaStemRu** (unclear provenance).
+- No outstanding public review items for unclear-provenance code.
 - phpMorphy (LGPL-2.1+) stays manageable if notices are preserved.

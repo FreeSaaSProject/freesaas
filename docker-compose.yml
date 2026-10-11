@@ -1,0 +1,37 @@
+# Greenfield FreeSaaS for agents / local demos.
+#   docker compose up -d
+#   docker compose exec app php bin/freesaas.php bootstrap --login=admin --password='changeme123' --agent-token='dev-agent-token' --format=json
+#   open http://localhost:8080/login
+#   doctor: docker compose exec app php bin/freesaas.php doctor --format=json
+
+services:
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: freesaas
+      MYSQL_USER: freesaas
+      MYSQL_PASSWORD: freesaas
+    volumes:
+      - freesaas_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  app:
+    build: .
+    ports:
+      - "8080:80"
+    volumes:
+      - .:/var/www/html
+    environment:
+      FREESAAS_DOCKER: "1"
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: ["/bin/bash", "/var/www/html/docker/entrypoint.sh"]
+
+volumes:
+  freesaas_db:

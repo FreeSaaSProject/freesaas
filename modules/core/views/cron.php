@@ -4,10 +4,12 @@
 /** @var list<array<string,mixed>> $jobs */
 /** @var list<array<string,mixed>> $runs */
 /** @var string $tick_url */
+/** @var string $crontab_line */
 /** @var bool $agent_token_configured */
 /** @var bool $tables_ready */
 $jobs = is_array($jobs ?? null) ? $jobs : [];
 $runs = is_array($runs ?? null) ? $runs : [];
+$crontab_line = (string)($crontab_line ?? '');
 ?>
 <section class="page-head">
   <p class="lede"><?= te('core.cron.lede') ?></p>
@@ -26,13 +28,43 @@ $runs = is_array($runs ?? null) ? $runs : [];
   <?php if (empty($agent_token_configured)): ?>
     <p class="flash flash-warn"><?= te('core.cron.host.no_token') ?></p>
   <?php endif; ?>
-  <pre class="code-block">*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: YOUR_TOKEN" "<?= e($tick_url) ?>" >/dev/null</pre>
+  <pre class="code-block" id="cron-crontab-line"><?= e($crontab_line) ?></pre>
+  <?php if ($crontab_line !== ''): ?>
+  <p class="actions" style="margin-top:.5rem">
+    <button type="button" class="btn-secondary" data-copy-text="<?= e($crontab_line) ?>"><?= te('core.cron.host.btn_copy') ?></button>
+  </p>
+  <?php endif; ?>
   <p class="muted"><?= te('core.cron.host.cli') ?> <code>php bin/freesaas.php cron tick --format=json</code></p>
   <form method="post" class="inline-form">
     <input type="hidden" name="action" value="run_all">
     <button type="submit" class="btn"><?= te('core.cron.btn.run_all') ?></button>
   </form>
 </section>
+<script>
+(function () {
+  var copied = <?= json_encode(t('core.cron.host.copied'), JSON_UNESCAPED_UNICODE) ?>;
+  var promptLabel = <?= json_encode(t('core.cron.host.copy_prompt'), JSON_UNESCAPED_UNICODE) ?>;
+  document.querySelectorAll('[data-copy-text]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy-text') || '';
+      if (!text) return;
+      var label = btn.textContent;
+      function done() {
+        btn.textContent = copied;
+        setTimeout(function () { btn.textContent = label; }, 1600);
+      }
+      function fallback() {
+        window.prompt(promptLabel, text);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+})();
+</script>
 
 <section class="card-block">
   <h2><?= te('core.cron.jobs.title') ?></h2>

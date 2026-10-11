@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
 $message = '';
 $error = '';
 $row = SystemRepository::get() ?: [];
@@ -13,11 +14,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'keywords' => (string)($_POST['keywords'] ?? ''),
             'tel' => (string)($_POST['tel'] ?? ''),
         ]);
-        $message = t('core.common.saved');
         $row = SystemRepository::get() ?: $row;
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'seo' => $row, 'saved' => true]);
+            return;
+        }
+        $message = t('core.common.saved');
     } catch (Throwable $e) {
         $error = $e->getMessage();
+        if ($wantsJson) {
+            AgentHttp::error($error, 400);
+            return;
+        }
     }
+}
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'seo' => $row,
+        'has_keywords' => Database::columnExists('base_system', 'keywords'),
+    ]);
+    return;
 }
 
 View::render('seo', [

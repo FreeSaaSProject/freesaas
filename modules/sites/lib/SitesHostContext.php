@@ -77,7 +77,26 @@ final class SitesHostContext
 
     public static function catalogRootId(): int
     {
-        return (int)(self::current()['catalog_root_id'] ?? 0);
+        $ids = self::catalogRootIds();
+        return $ids[0] ?? 0;
+    }
+
+    /** @return list<int> empty = entire catalog */
+    public static function catalogRootIds(): array
+    {
+        $row = self::current();
+        if (isset($row['catalog_root_ids']) && is_array($row['catalog_root_ids'])) {
+            $ids = [];
+            foreach ($row['catalog_root_ids'] as $id) {
+                $id = (int)$id;
+                if ($id > 0 && !in_array($id, $ids, true)) {
+                    $ids[] = $id;
+                }
+            }
+            return $ids;
+        }
+        $legacy = (int)($row['catalog_root_id'] ?? 0);
+        return $legacy > 0 ? [$legacy] : [];
     }
 
     public static function tel(): string
@@ -140,6 +159,7 @@ final class SitesHostContext
             'theme' => $theme,
             'promo_id' => 0,
             'catalog_root_id' => 0,
+            'catalog_root_ids' => [],
             'tel' => '',
             'is_default' => 1,
             'num' => 0,

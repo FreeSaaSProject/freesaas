@@ -2,7 +2,8 @@
 
 Same operations as `php bin/freesaas.php`, over HTTPS. Use when the agent **cannot SSH** into the host.
 
-**First install:** see [install.md](install.md) (`POST /agent/bootstrap`).
+**First install:** see [install.md](install.md) (`POST /agent/bootstrap`).  
+**Auth vs product MCP:** [agent-surfaces.md](agent-surfaces.md). Diagnose: `GET /agent/doctor`.
 
 ## Setup
 
@@ -59,6 +60,10 @@ Creates first admin + migrations + persists token. Safe to re-run: skips admin c
 # Status
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/system/status"
+
+# Doctor (error_codes + issue_body for GitHub)
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/doctor"
 
 # Modules catalog (filters: q, category, tag, status, maturity=alpha|beta|release)
 # Response includes maturity_policy + per-module maturity / agent_note / requires_risk_ack

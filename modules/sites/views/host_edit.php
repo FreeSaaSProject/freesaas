@@ -8,6 +8,8 @@ declare(strict_types=1);
 /** @var list<string> $themes */
 /** @var array<int,string> $promoOptions */
 /** @var array<int,string> $catOptions */
+/** @var string $extraHtml */
+$extraHtml = (string)($extraHtml ?? '');
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('sites.hosts.edit.heading_new') : e((string)($row['host'] ?? '')) ?></h1>
@@ -61,14 +63,33 @@ declare(strict_types=1);
       </select>
       <span class="field-hint muted"><?= te('sites.hosts.field.promo_id_hint') ?></span>
     </label>
-    <label><?= te('sites.hosts.field.catalog_root_id') ?>
-      <select name="catalog_root_id" <?= $canEdit ? '' : 'disabled' ?>>
-        <?php foreach ($catOptions as $cid => $label): ?>
-          <option value="<?= (int)$cid ?>"<?= (int)($row['catalog_root_id'] ?? 0) === (int)$cid ? ' selected' : '' ?>><?= e($label) ?></option>
-        <?php endforeach; ?>
-      </select>
+    <fieldset class="host-catalog-roots">
+      <legend><?= te('sites.hosts.field.catalog_root_id') ?></legend>
       <span class="field-hint muted"><?= te('sites.hosts.field.catalog_root_id_hint') ?></span>
-    </label>
+      <?php
+        $selectedRoots = [];
+        if (isset($row['catalog_root_ids']) && is_array($row['catalog_root_ids'])) {
+            foreach ($row['catalog_root_ids'] as $rid) {
+                $rid = (int)$rid;
+                if ($rid > 0) {
+                    $selectedRoots[] = $rid;
+                }
+            }
+        } elseif ((int)($row['catalog_root_id'] ?? 0) > 0) {
+            $selectedRoots[] = (int)$row['catalog_root_id'];
+        }
+      ?>
+      <?php foreach ($catOptions as $cid => $label): ?>
+        <?php if ((int)$cid < 1) { continue; } ?>
+        <label class="check">
+          <input type="checkbox" name="catalog_root_ids[]" value="<?= (int)$cid ?>"
+            <?= in_array((int)$cid, $selectedRoots, true) ? ' checked' : '' ?>
+            <?= $canEdit ? '' : 'disabled' ?>>
+          <?= e($label) ?>
+        </label>
+      <?php endforeach; ?>
+    </fieldset>
+    <?= $extraHtml ?>
   </fieldset>
 
   <?php if ($canEdit): ?>

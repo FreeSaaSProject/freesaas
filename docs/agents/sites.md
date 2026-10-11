@@ -20,7 +20,7 @@ Each row:
 | `host` | Match `HTTP_HOST` (no scheme) |
 | `theme` | `themes/<id>/` |
 | `promo_id` | Home `/` content + META |
-| `catalog_root_id` | Shop folder + descendants (`0` = entire catalog) |
+| `catalog_root_ids` | Shop folders + descendants (JSON list; empty = entire catalog). `catalog_root_id` kept as first id for BC. |
 | `tel` / `name` | Storefront phone / brand (fallback: `base_system`) |
 | `is_default` | Used when Host is unknown |
 
@@ -39,6 +39,8 @@ php bin/freesaas.php module enable orders --format=json
 php bin/freesaas.php module enable clients --format=json
 # Optional: appointment wizard on /cart (same slot engine as staff booking)
 php bin/freesaas.php module enable booking --accept-risk --format=json
+# Slot deps must also be enabled (storefront boots them via runtime=both):
+# workweeks, calendar, procedures, rates
 ```
 
 Admin UI (group **Site**): **Hosts**, SEO fallback, promo pages, articles, redirects, storefront settings (`admin_host`).
@@ -73,8 +75,8 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://www.example.com/agent/heal
 |------|---------|
 | `/` | Home = host promo (or generic home) |
 | `/page/{…}/` | CMS page tree (`/page/vacancies/masseur/`); `link_rw` rewrites like `/contacts/` still work. **Not** `/p/` (reserved for polls/SMS) |
-| `/shop`, `/shop/c/{id}`, `/shop/{id}` | Catalog under host `catalog_root_id` |
-| `/cart`, `GET /cart/availability`, `POST /cart/checkout` | Session cart; with `booking` on + bookable services → slot wizard → `BookingBook::createOrder`; else → `OrdersRepository::create` |
+| `/shop`, `/shop/c/{id}`, `/shop/{id}` | Catalog under host `catalog_root_ids` (union) |
+| `/cart`, `GET /cart/availability`, `POST /cart/checkout` | Session cart; **phone first** (`SitesGuest`) then, with `booking` on + bookable services → slot wizard → `BookingBook::createOrder`; else → `OrdersRepository::create`. Clients with status `block_online` cannot proceed (message: book at the centre). |
 | `/promo/{code}` | Promo LP by code |
 | `/sitemap.xml`, `/robots.txt` | Current host |
 | unknown path | Redirects (scoped) then page-by-link then 404 |
@@ -90,16 +92,9 @@ Promo LPs (`base_promopages`): host `promo_id` → `/`; also `/promo/{code}`. Mo
 
 ## Module runtime
 
-`module.json` → `"runtime": "admin"|"storefront"|"both"`. Missing key = `admin` (not booted on `site.php`). Storefront boots `core`, `sites`, and modules marked `both` (catalog, orders, clients, likespa).
+`module.json` → `"runtime": "admin"|"storefront"|"both"`. Missing key = `admin` (not booted on `site.php`). Storefront boots `core`, `sites`, and modules marked `both` (e.g. catalog, orders, clients).
 
-## Cutover from legacy likespa2 / PHPShop / Balance
-
-1. Enable `sites` (+ catalog/orders/clients) on the shared FreeSaaS DB.
-2. Run migrations `006`/`007` — seeds default host from `public_host` / `mothersite`.
-3. Port the public skin into `themes/<id>/` ([`themes.md`](themes.md)); set `base_site_hosts.theme`.
-4. Add a second host row (e.g. balance) with its promo + catalog folder (legacy Balance used category **16**).
-5. Point public vhosts at `site.php` (or rsync to a storefront-only tree like `likespa2.hm`). Keep old trees until parity.
-6. Retire old PHPShop trees; do not keep writing `phpshop_*` from the new runtime.
+Legacy LikeSpa / PHPShop / Balance cutover: [`likespa-restores.md`](likespa-restores.md)#cutover-from-legacy-likespa2--phpshop--balance.
 
 ## Reviews (Yandex + 2GIS widgets)
 
@@ -116,4 +111,74 @@ php bin/data-migrate.php --module=sites --id=fill_reviews_page_widgets
 
 ## Health
 
-Check id `sites.storefront` (theme present, hosts table / fallback host).
+Check id `sites.storefront` (theme present, hosts table / fallback host). Meta includes `booking_active`, `diagnose` → `/sites/status?format=json`.
+
+```bash
+php bin/freesaas.php health --module=sites --format=json
+```
+
+## Agent API (session JSON)
+
+Convention: [`module-agent-api.md`](module-agent-api.md). Ops live in `modules/sites/module.json` → `agent.ops`. Same routes as the admin UI; respond when `?format=json` or `Accept: application/json`. Hosts / settings / status / SEO require session + `SUPERADMIN_ACCESS` (and the listed `sites.*` permission).
+
+### Diagnose first
+
+```bash
+# Admin host, after login (session cookie):
+curl -sS -b jar.txt 'https://admin.example.com/sites/status?format=json'
+```
+
+`sites.status` payload (high level):
+
+| Field | Meaning |
+|-------|---------|
+| `status` | `ok` \| `degraded` \| `fail` |
+| `modules` | Soft deps: `catalog`, `orders`, `clients`, `booking`, slot stack (`workweeks`/`calendar`/`procedures`/`rates`) |
+| `hosts[]` | Per domain: `theme`/`theme_ok`, `catalog_root_ids[]`, `promo_id`, `enabled` |
+| `booking.active` | Storefront wizard can use the slot engine |
+| `booking.bookable_services` | Count from `BookingCatalog` (`-1` = error) |
+| `issues[]` | `{level,code,message[,module]}` — start here when cart/slots misbehave |
+
+Product modules may append keys / issues via EventBus `sites.diagnose` (do not treat overlay fields as sites core).
+
+UI twin: **Sites → Diagnostics** (`/sites/status`).
+
+### Ops catalog
+
+| Op | Method / path | Purpose |
+|----|---------------|---------|
+| `sites.status` | `GET /sites/status` | Full storefront diagnose |
+| `sites.hosts.list` | `GET /sites/hosts` | List hosts; filters `q`, `enabled` |
+| `sites.hosts.get` | `GET /sites/hosts/{id}/edit` | One host + theme/promo/catalog options (`/sites/hosts/new` for blank) |
+| `sites.hosts.create` | `POST /sites/hosts/new` | Create host |
+| `sites.hosts.update` | `POST /sites/hosts/{id}/edit` | Update host |
+| `sites.settings.get` / `.save` | `/sites/settings` | `admin_host` |
+| `sites.seo.get` / `.save` | `/sites/seo` | Fallback `base_system` name/title/keywords/tel |
+| `sites.promopages.list` | `GET /sites/promopages` | Promo LPs |
+| `sites.pages.list` | `GET /sites/pages` | CMS articles; `site_host_id` |
+| `sites.redirects.list` | `GET /sites/redirects` | Redirects; `site_host_id` |
+| `sites.cart.availability` | `GET /cart/availability` | **Public** slots — call with the **public** `Host` header / vhost |
+
+Host write fields (POST body / form): `host`, `name`, `theme`, `promo_id`, `catalog_root_ids[]` (multi; empty = entire catalog), `tel`, `enabled`, `is_default`, `num`. Extra host fields come from EventBus `sites.host_edit.sections` / `.save`.
+
+Cart booking meta for themes: EventBus `sites.cart.booking` (sites emits; product modules fill optional keys).
+
+### Storefront booking smoke
+
+```bash
+# Open days with slots (public Host):
+curl -sS 'https://www.example.com/cart/availability?mode=dates&product_ids=13'
+# Day grid:
+curl -sS 'https://www.example.com/cart/availability?mode=day&date=2026-10-12&product_ids=13'
+# Masters ahead:
+curl -sS 'https://www.example.com/cart/availability?mode=masters&product_ids=13'
+```
+
+Modes: `day` (default), `masters`, `dates`. Empty past day → `empty_reason=past`. Staff twin (session): [`booking.md`](booking.md) → `/booking/availability`, `POST /booking/book`.
+
+### Related
+
+- [`booking.md`](booking.md) — slot engine + cart wizard
+- [`themes.md`](themes.md) — theme port / bind
+- [`debugging.md`](debugging.md) — health / blocked modules
+- Platform: `php bin/freesaas.php health` → check `sites.storefront`

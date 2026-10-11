@@ -1,0 +1,53 @@
+name: Agent / install bug
+description: Broken install, health/doctor fail, or agent-operable regression
+title: "[agent] "
+labels: ["agent", "bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. Paste machine output (`doctor` / `smoke` / `health`) when possible.
+        Before opening a **PR** with a fix, accept the [CLA](../../CLA.md) — see [CONTRIBUTING.md](../../CONTRIBUTING.md).
+  - type: input
+    id: module
+    attributes:
+      label: Module id (if known)
+      description: e.g. booking, core, sites — or "platform"
+      placeholder: core
+  - type: dropdown
+    id: maturity
+    attributes:
+      label: Module maturity (from module inspect / catalog)
+      options:
+        - unknown
+        - alpha
+        - beta
+        - release
+  - type: textarea
+    id: doctor
+    attributes:
+      label: doctor / smoke / health JSON
+      description: Output of `php bin/freesaas.php doctor --format=json` or `/agent/doctor`
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: What the agent / you tried
+      description: Commands, host type (VPS / shared / Docker), FreeSaaS git revision
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs actual
+    validations:
+      required: true
+  - type: checkboxes
+    id: local_fix
+    attributes:
+      label: Local repair
+      options:
+        - label: I (or my agent) already have a local fix and can attach a patch/PR
+        - label: I will accept the CLA before submitting a PR

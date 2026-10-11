@@ -51,3 +51,19 @@
   flex: 1 1 14rem;
   min-width: 0;
 }
+.orders-client-status {
+  margin: 1.25rem 0 2rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--border, #d8d8d8);
+  border-radius: 4px;
+}
+.orders-client-status .form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 0.75rem;
+}
+.orders-block-online-form {
+  margin: 0;
+}

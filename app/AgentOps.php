@@ -506,6 +506,207 @@ final class AgentOps
     }
 
     /**
+     * Orchestrated diagnose for agents: config → DB → migrate → validate → health → locale.
+     *
+     * @return array{ok:bool,status:string,error_codes:list<string>,sections:array,hints:list<string>,issue_body:string,http:int}
+     */
+    public static function doctor(): array
+    {
+        $sections = [];
+        $codes = [];
+        $hints = [];
+
+        $configPath = Config::path();
+        $configExists = is_file($configPath);
+        $sections['config'] = [
+            'ok' => $configExists,
+            'path' => $configPath,
+        ];
+        if (!$configExists) {
+            $codes[] = 'config_missing';
+            $hints[] = 'Copy cfg/config.example.ini → cfg/config.ini and set DB + salts.';
+        }
+
+        $system = self::systemStatus();
+        $sections['system'] = [
+            'ok' => !empty($system['ok']),
+            'php_version' => $system['php_version'] ?? PHP_VERSION,
+            'database' => $system['database'] ?? 'fail',
+            'modules_enabled' => $system['modules_enabled'] ?? 0,
+            'modules_blocked' => $system['modules_blocked'] ?? 0,
+            'locale' => $system['locale'] ?? '',
+        ];
+        if (($system['database'] ?? '') !== 'ok') {
+            $codes[] = 'db_connect_fail';
+            $hints[] = 'Fix [connect] in cfg/config.ini; ensure MySQL is up.';
+            if (!empty($system['database_error'])) {
+                $sections['system']['database_error'] = $system['database_error'];
+            }
+        }
+        if ((int)($system['modules_blocked'] ?? 0) > 0) {
+            $codes[] = 'module_blocked';
+            $hints[] = 'Inspect blocked modules: php bin/freesaas.php module list --status=blocked --format=json';
+        }
+
+        $token = trim((string)Config::get('app', 'agent_token', ''));
+        $tokenOk = $token !== '' && strtoupper($token) !== 'CHANGE_ME';
+        $sections['agent_token'] = ['ok' => $tokenOk, 'configured' => $tokenOk];
+        if (!$tokenOk && !self::isVirginInstall()) {
+            $codes[] = 'agent_token_missing';
+            $hints[] = 'Set app.agent_token in cfg/config.ini or Settings → Agent token.';
+        }
+
+        $migrate = ['ok' => true, 'pending_total' => 0, 'skipped' => false];
+        if (($system['database'] ?? '') === 'ok') {
+            try {
+                $ms = self::migrateStatus(null);
+                $pendingList = is_array($ms['pending'] ?? null) ? $ms['pending'] : [];
+                $pending = count($pendingList);
+                if ($pending === 0) {
+                    foreach (($ms['modules'] ?? []) as $row) {
+                        if (is_array($row)) {
+                            $pending += (int)($row['pending'] ?? 0);
+                        }
+                    }
+                }
+                $setupNeeded = !empty($ms['setup']['needed']);
+                $migrate = [
+                    'ok' => $pending === 0 && !$setupNeeded,
+                    'pending_total' => $pending,
+                    'setup_needed' => $setupNeeded,
+                ];
+                if ($setupNeeded || $pending > 0) {
+                    $codes[] = 'schema_pending';
+                    $hints[] = 'php bin/freesaas.php migrate run --format=json';
+                }
+            } catch (Throwable $e) {
+                $migrate = ['ok' => false, 'error' => $e->getMessage()];
+                $codes[] = 'schema_status_fail';
+                $hints[] = 'Check DB permissions / base_schema_migrations.';
+            }
+        } else {
+            $migrate['skipped'] = true;
+        }
+        $sections['migrate'] = $migrate;
+
+        $validate = ['ok' => true, 'modules_with_errors' => [], 'skipped' => false];
+        if (($system['database'] ?? '') === 'ok') {
+            try {
+                $val = self::moduleValidate(null);
+                $errMods = [];
+                foreach (($val['results'] ?? []) as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $mid = (string)($row['module'] ?? '');
+                    if ($mid !== '' && (empty($row['ok']) || !empty($row['errors']))) {
+                        $errMods[] = $mid;
+                    }
+                }
+                $validate = [
+                    'ok' => $errMods === [] && !empty($val['ok']),
+                    'modules_with_errors' => $errMods,
+                ];
+                if ($errMods !== []) {
+                    $codes[] = 'module_validate_fail';
+                    $hints[] = 'php bin/freesaas.php module validate --format=json';
+                }
+            } catch (Throwable $e) {
+                $validate = ['ok' => false, 'error' => $e->getMessage()];
+                $codes[] = 'module_validate_fail';
+            }
+        } else {
+            $validate['skipped'] = true;
+        }
+        $sections['validate'] = $validate;
+
+        $healthSec = ['ok' => true, 'status' => 'skipped', 'skipped' => true];
+        if (($system['database'] ?? '') === 'ok') {
+            $h = self::health(null);
+            $healthSec = [
+                'ok' => !empty($h['ok']),
+                'status' => (string)($h['status'] ?? 'unknown'),
+                'summary' => $h['summary'] ?? [],
+            ];
+            if (empty($h['ok'])) {
+                $codes[] = 'health_fail';
+                $hints[] = 'php bin/freesaas.php health --format=json — see docs/agents/repair.md';
+            }
+        }
+        $sections['health'] = $healthSec;
+
+        $localeSec = ['ok' => true, 'skipped' => false];
+        try {
+            $loc = self::localeValidate(null);
+            $localeSec = [
+                'ok' => !empty($loc['ok']),
+                'totals' => $loc['totals'] ?? [],
+            ];
+            if (empty($loc['ok'])) {
+                $codes[] = 'locale_fail';
+                $hints[] = 'php bin/freesaas.php locale validate --format=json';
+            }
+        } catch (Throwable $e) {
+            $localeSec = ['ok' => false, 'error' => $e->getMessage()];
+            $codes[] = 'locale_fail';
+        }
+        $sections['locale'] = $localeSec;
+
+        $codes = array_values(array_unique($codes));
+        $ok = $codes === [];
+        $status = $ok ? 'ok' : 'fail';
+        if ($ok && !empty($sections['health']['status']) && $sections['health']['status'] === 'degraded') {
+            $status = 'degraded';
+        }
+
+        $issueBody = self::doctorIssueBody($status, $codes, $sections);
+
+        return [
+            'ok' => $ok,
+            'status' => $status,
+            'error_codes' => $codes,
+            'sections' => $sections,
+            'hints' => $hints,
+            'issue_body' => $issueBody,
+            'repair_doc' => 'docs/agents/repair.md',
+            'http' => $ok ? 200 : 503,
+        ];
+    }
+
+    /**
+     * @param list<string> $codes
+     * @param array<string,mixed> $sections
+     */
+    private static function doctorIssueBody(string $status, array $codes, array $sections): string
+    {
+        $json = json_encode(
+            ['status' => $status, 'error_codes' => $codes, 'sections' => $sections],
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+        );
+        return "## Agent doctor report\n\n"
+            . "**Status:** `{$status}`\n"
+            . '**Codes:** ' . ($codes === [] ? '_(none)_' : '`' . implode('`, `', $codes) . '`') . "\n\n"
+            . "```json\n" . ($json ?: '{}') . "\n```\n\n"
+            . "Before a PR: accept CLA — see CONTRIBUTING.md\n";
+    }
+
+    /**
+     * @return array{ok:bool,id?:string,path?:string,files?:list<string>,error?:string,error_code?:string,http?:int,next?:list<string>}
+     */
+    public static function moduleCreate(string $id, string $title = ''): array
+    {
+        return ModuleScaffold::create($id, $title);
+    }
+
+    /**
+     * @return array{ok:bool,id?:string,migration?:string,path?:string,error?:string,error_code?:string,http?:int,next?:list<string>}
+     */
+    public static function moduleAddMigration(string $id, string $slug): array
+    {
+        return ModuleScaffold::addMigration($id, $slug);
+    }
+
+    /**
      * Catalog of HTTP ops for agents (shared hosting without SSH).
      *
      * @return array{ok:bool,protocol:string,auth:array,ops:list<array>,cli:string,http:int}
@@ -570,6 +771,12 @@ final class AgentOps
                 ['method' => 'GET', 'path' => '/agent/locale', 'op' => 'locale.list'],
                 ['method' => 'GET', 'path' => '/agent/locale/validate', 'op' => 'locale.validate', 'query' => ['locale']],
                 ['method' => 'GET', 'path' => '/agent/health', 'op' => 'health', 'query' => ['module']],
+                [
+                    'method' => 'GET',
+                    'path' => '/agent/doctor',
+                    'op' => 'doctor',
+                    'description' => 'Orchestrated diagnose: config, DB, migrate pending, validate, health, locale + error_codes + issue_body',
+                ],
                 ['method' => 'GET', 'path' => '/agent/i18n', 'op' => 'i18n.check', 'query' => ['locale']],
                 [
                     'method' => 'GET',

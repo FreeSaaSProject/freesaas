@@ -73,7 +73,7 @@ final class SiteHostsRepository
         }
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
-        $sql = 'SELECT id, host, enabled, name, theme, promo_id, catalog_root_id, tel, is_default, num
+        $sql = 'SELECT ' . self::selectCols() . '
                 FROM base_site_hosts WHERE ' . $sqlWhere . ' ORDER BY ' . $order;
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
@@ -120,8 +120,7 @@ final class SiteHostsRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT id, host, enabled, name, theme, promo_id, catalog_root_id, tel, is_default, num
-             FROM base_site_hosts WHERE id = ? LIMIT 1'
+            'SELECT ' . self::selectCols() . ' FROM base_site_hosts WHERE id = ? LIMIT 1'
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -135,7 +134,7 @@ final class SiteHostsRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT id, host, enabled, name, theme, promo_id, catalog_root_id, tel, is_default, num
+            'SELECT ' . self::selectCols() . '
              FROM base_site_hosts WHERE host = ? AND enabled = 1 LIMIT 1'
         );
         $st->execute([$host]);
@@ -149,7 +148,7 @@ final class SiteHostsRepository
             return null;
         }
         $st = Database::pdo()->query(
-            'SELECT id, host, enabled, name, theme, promo_id, catalog_root_id, tel, is_default, num
+            'SELECT ' . self::selectCols() . '
              FROM base_site_hosts WHERE is_default = 1 AND enabled = 1 ORDER BY id ASC LIMIT 1'
         );
         $row = $st ? $st->fetch(PDO::FETCH_ASSOC) : false;
@@ -157,7 +156,7 @@ final class SiteHostsRepository
             return self::normalizeRow($row);
         }
         $st = Database::pdo()->query(
-            'SELECT id, host, enabled, name, theme, promo_id, catalog_root_id, tel, is_default, num
+            'SELECT ' . self::selectCols() . '
              FROM base_site_hosts WHERE enabled = 1 ORDER BY num ASC, id ASC LIMIT 1'
         );
         $row = $st ? $st->fetch(PDO::FETCH_ASSOC) : false;
@@ -181,13 +180,17 @@ final class SiteHostsRepository
         if ($theme === '' || !preg_match('/^[a-zA-Z0-9_-]+$/', $theme)) {
             $theme = 'default';
         }
+        $roots = self::parseCatalogRootIds($post['catalog_root_ids'] ?? ($post['catalog_root_id'] ?? []));
+        // free_ticket is set by product overlays via EventBus sites.host_edit.save (not here).
         return [
             'host' => $host,
             'enabled' => !empty($post['enabled']) ? 1 : 0,
             'name' => mb_substr(trim((string)($post['name'] ?? '')), 0, 255),
             'theme' => $theme,
             'promo_id' => max(0, (int)($post['promo_id'] ?? 0)),
-            'catalog_root_id' => max(0, (int)($post['catalog_root_id'] ?? 0)),
+            'catalog_root_ids' => $roots,
+            // BC: first selected folder (0 = entire catalog).
+            'catalog_root_id' => $roots[0] ?? 0,
             'tel' => mb_substr(trim((string)($post['tel'] ?? '')), 0, 64),
             'is_default' => !empty($post['is_default']) ? 1 : 0,
             'num' => (int)($post['num'] ?? 0),
@@ -202,22 +205,85 @@ final class SiteHostsRepository
         if (!empty($data['is_default'])) {
             $pdo->exec('UPDATE base_site_hosts SET is_default = 0');
         }
-        $st = $pdo->prepare(
-            'INSERT INTO base_site_hosts
-                (host, enabled, name, theme, promo_id, catalog_root_id, tel, is_default, num)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            $data['host'],
-            (int)$data['enabled'],
-            $data['name'],
-            $data['theme'],
-            (int)$data['promo_id'],
-            (int)$data['catalog_root_id'],
-            $data['tel'],
-            (int)$data['is_default'],
-            (int)$data['num'],
-        ]);
+        $roots = self::normalizeCatalogRootIds($data['catalog_root_ids'] ?? ($data['catalog_root_id'] ?? []));
+        $rootId = $roots[0] ?? 0;
+        $rootsJson = self::encodeCatalogRootIds($roots);
+        $hasFt = Database::columnExists('base_site_hosts', 'free_ticket')
+            && array_key_exists('free_ticket', $data);
+        $hasMulti = Database::columnExists('base_site_hosts', 'catalog_root_ids');
+        if ($hasMulti && $hasFt) {
+            $st = $pdo->prepare(
+                'INSERT INTO base_site_hosts
+                    (host, enabled, name, theme, promo_id, catalog_root_id, catalog_root_ids, free_ticket, tel, is_default, num)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                $rootsJson,
+                (int)$data['free_ticket'],
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+            ]);
+        } elseif ($hasMulti) {
+            $st = $pdo->prepare(
+                'INSERT INTO base_site_hosts
+                    (host, enabled, name, theme, promo_id, catalog_root_id, catalog_root_ids, tel, is_default, num)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                $rootsJson,
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+            ]);
+        } elseif ($hasFt) {
+            $st = $pdo->prepare(
+                'INSERT INTO base_site_hosts
+                    (host, enabled, name, theme, promo_id, catalog_root_id, free_ticket, tel, is_default, num)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                (int)$data['free_ticket'],
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+            ]);
+        } else {
+            $st = $pdo->prepare(
+                'INSERT INTO base_site_hosts
+                    (host, enabled, name, theme, promo_id, catalog_root_id, tel, is_default, num)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+            ]);
+        }
         return (int)$pdo->lastInsertId();
     }
 
@@ -232,24 +298,152 @@ final class SiteHostsRepository
         if (!empty($data['is_default'])) {
             $pdo->prepare('UPDATE base_site_hosts SET is_default = 0 WHERE id <> ?')->execute([$id]);
         }
-        $st = $pdo->prepare(
-            'UPDATE base_site_hosts SET
-                host = ?, enabled = ?, name = ?, theme = ?, promo_id = ?,
-                catalog_root_id = ?, tel = ?, is_default = ?, num = ?
-             WHERE id = ?'
-        );
-        $st->execute([
-            $data['host'],
-            (int)$data['enabled'],
-            $data['name'],
-            $data['theme'],
-            (int)$data['promo_id'],
-            (int)$data['catalog_root_id'],
-            $data['tel'],
-            (int)$data['is_default'],
-            (int)$data['num'],
-            $id,
-        ]);
+        $roots = self::normalizeCatalogRootIds($data['catalog_root_ids'] ?? ($data['catalog_root_id'] ?? []));
+        $rootId = $roots[0] ?? 0;
+        $rootsJson = self::encodeCatalogRootIds($roots);
+        $hasFt = Database::columnExists('base_site_hosts', 'free_ticket')
+            && array_key_exists('free_ticket', $data);
+        $hasMulti = Database::columnExists('base_site_hosts', 'catalog_root_ids');
+        if ($hasMulti && $hasFt) {
+            $st = $pdo->prepare(
+                'UPDATE base_site_hosts SET
+                    host = ?, enabled = ?, name = ?, theme = ?, promo_id = ?,
+                    catalog_root_id = ?, catalog_root_ids = ?, free_ticket = ?, tel = ?, is_default = ?, num = ?
+                 WHERE id = ?'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                $rootsJson,
+                (int)$data['free_ticket'],
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+                $id,
+            ]);
+        } elseif ($hasMulti) {
+            $st = $pdo->prepare(
+                'UPDATE base_site_hosts SET
+                    host = ?, enabled = ?, name = ?, theme = ?, promo_id = ?,
+                    catalog_root_id = ?, catalog_root_ids = ?, tel = ?, is_default = ?, num = ?
+                 WHERE id = ?'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                $rootsJson,
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+                $id,
+            ]);
+        } elseif ($hasFt) {
+            $st = $pdo->prepare(
+                'UPDATE base_site_hosts SET
+                    host = ?, enabled = ?, name = ?, theme = ?, promo_id = ?,
+                    catalog_root_id = ?, free_ticket = ?, tel = ?, is_default = ?, num = ?
+                 WHERE id = ?'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                (int)$data['free_ticket'],
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+                $id,
+            ]);
+        } else {
+            $st = $pdo->prepare(
+                'UPDATE base_site_hosts SET
+                    host = ?, enabled = ?, name = ?, theme = ?, promo_id = ?,
+                    catalog_root_id = ?, tel = ?, is_default = ?, num = ?
+                 WHERE id = ?'
+            );
+            $st->execute([
+                $data['host'],
+                (int)$data['enabled'],
+                $data['name'],
+                $data['theme'],
+                (int)$data['promo_id'],
+                $rootId,
+                $data['tel'],
+                (int)$data['is_default'],
+                (int)$data['num'],
+                $id,
+            ]);
+        }
+    }
+
+    /**
+     * @param mixed $raw
+     * @return list<int>
+     */
+    public static function parseCatalogRootIds($raw): array
+    {
+        if (is_string($raw)) {
+            $raw = trim($raw);
+            if ($raw === '' || $raw === '0') {
+                return [];
+            }
+            if ($raw[0] === '[') {
+                $decoded = json_decode($raw, true);
+                return self::normalizeCatalogRootIds(is_array($decoded) ? $decoded : []);
+            }
+            $parts = preg_split('/[\s,]+/', $raw) ?: [];
+            return self::normalizeCatalogRootIds($parts);
+        }
+        if (is_int($raw) || is_float($raw)) {
+            $id = (int)$raw;
+            return $id > 0 ? [$id] : [];
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+        return self::normalizeCatalogRootIds($raw);
+    }
+
+    /**
+     * @param mixed $raw
+     * @return list<int>
+     */
+    public static function normalizeCatalogRootIds($raw): array
+    {
+        if (!is_array($raw)) {
+            return self::parseCatalogRootIds($raw);
+        }
+        $out = [];
+        foreach ($raw as $v) {
+            $id = (int)$v;
+            if ($id > 0 && !in_array($id, $out, true)) {
+                $out[] = $id;
+            }
+        }
+        sort($out, SORT_NUMERIC);
+        return $out;
+    }
+
+    /** @param list<int> $ids */
+    public static function encodeCatalogRootIds(array $ids): string
+    {
+        $ids = self::normalizeCatalogRootIds($ids);
+        if ($ids === []) {
+            return '';
+        }
+        $json = json_encode($ids, JSON_UNESCAPED_UNICODE);
+        return is_string($json) ? $json : '';
     }
 
     /** @param list<int> $ids */
@@ -280,12 +474,36 @@ final class SiteHostsRepository
      * @param array<string,mixed> $row
      * @return array<string,mixed>
      */
+    private static function selectCols(): string
+    {
+        $cols = ['id', 'host', 'enabled', 'name', 'theme', 'promo_id', 'catalog_root_id'];
+        if (Database::columnExists('base_site_hosts', 'catalog_root_ids')) {
+            $cols[] = 'catalog_root_ids';
+        }
+        if (Database::columnExists('base_site_hosts', 'free_ticket')) {
+            $cols[] = 'free_ticket';
+        }
+        $cols = array_merge($cols, ['tel', 'is_default', 'num']);
+        return implode(', ', $cols);
+    }
+
     private static function normalizeRow(array $row): array
     {
         $row['id'] = (int)$row['id'];
         $row['enabled'] = (int)$row['enabled'];
         $row['promo_id'] = (int)$row['promo_id'];
-        $row['catalog_root_id'] = (int)$row['catalog_root_id'];
+        $legacyRoot = (int)($row['catalog_root_id'] ?? 0);
+        if (array_key_exists('catalog_root_ids', $row)) {
+            $roots = self::parseCatalogRootIds($row['catalog_root_ids']);
+        } else {
+            $roots = $legacyRoot > 0 ? [$legacyRoot] : [];
+        }
+        if ($roots === [] && $legacyRoot > 0) {
+            $roots = [$legacyRoot];
+        }
+        $row['catalog_root_ids'] = $roots;
+        $row['catalog_root_id'] = $roots[0] ?? 0;
+        $row['free_ticket'] = (int)($row['free_ticket'] ?? 0);
         $row['is_default'] = (int)$row['is_default'];
         $row['num'] = (int)$row['num'];
         $row['host'] = (string)$row['host'];

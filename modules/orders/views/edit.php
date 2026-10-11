@@ -6,6 +6,11 @@
 /** @var array<string,string> $statusChoices */
 /** @var list<array{id:int,name:string,price:float,price_original:float}> $cart */
 /** @var list<array{id:int,name:string,price?:float}> $productOptions */
+/** @var array<string,mixed>|null $clientCard */
+/** @var int $clientStatusId */
+/** @var array<int,string> $clientStatusChoices */
+/** @var bool $canEditClientStatus */
+/** @var bool $hasBlockOnlineStatus */
 $oid = (int)($order['id'] ?? 0);
 $status = (string)($order['status'] ?? '0');
 if ($status === '') {
@@ -192,6 +197,47 @@ $canDeleteLine = $cartCount > 1;
     <a class="btn-secondary" href="/orders/<?= $oid ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (!empty($canEditClientStatus)): ?>
+  <?php
+  $clientStatusChoices = $clientStatusChoices ?? [];
+  $clientStatusId = (int)($clientStatusId ?? 0);
+  $curName = $clientStatusChoices[$clientStatusId] ?? '';
+  $blocked = !empty($clientCard) && class_exists(ClientsRepository::class, false)
+      && !ClientsRepository::canBookOnline($clientCard);
+  ?>
+  <section class="orders-client-status panel">
+    <h2 class="form-section-title"><?= te('orders.edit.client_status_title') ?></h2>
+    <p class="muted">
+      <?= te('orders.edit.client_status_current') ?>:
+      <strong><?= $curName !== '' ? e($curName) : te('orders.edit.client_status_none') ?></strong>
+      <?php if ($blocked): ?>
+        <span class="bad-text"><?= te('orders.edit.client_status_blocked_badge') ?></span>
+      <?php endif; ?>
+    </p>
+    <form method="post" class="form-inline orders-client-status-form">
+      <input type="hidden" name="action" value="set_client_status">
+      <label><?= te('orders.edit.client_status') ?>
+        <select name="client_status_id">
+          <option value="0"><?= te('orders.edit.client_status_none') ?></option>
+          <?php foreach ($clientStatusChoices as $sid => $sname): ?>
+            <option value="<?= (int)$sid ?>"<?= $clientStatusId === (int)$sid ? ' selected' : '' ?>>
+              <?= e((string)$sname) ?>
+            </option>
+          <?php endforeach; ?>
+        </select>
+      </label>
+      <button type="submit" class="btn-secondary"><?= te('orders.edit.client_status_apply') ?></button>
+    </form>
+    <?php if (!empty($hasBlockOnlineStatus) && !$blocked): ?>
+      <form method="post" class="orders-block-online-form" onsubmit="return confirm(<?= tj('orders.edit.block_online_confirm') ?>);">
+        <input type="hidden" name="action" value="block_online">
+        <button type="submit" class="btn-danger"><?= te('orders.edit.block_online') ?></button>
+      </form>
+    <?php endif; ?>
+  </section>
+<?php endif; ?>
+
 <script>
 (function () {
   var form = document.getElementById('orders-edit-form');

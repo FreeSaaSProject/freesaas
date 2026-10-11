@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.31",
+    "version": "0.3.33",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -72,6 +72,7 @@
             "/settings",
             "/health",
             "/health/detail",
+            "/doctor",
             "/agent",
             "/agent/bootstrap",
             "/agent/system/status",
@@ -96,6 +97,7 @@
             "/agent/locale",
             "/agent/locale/validate",
             "/agent/health",
+            "/agent/doctor",
             "/agent/i18n",
             "/agent/update",
             "/agent/update/check",
@@ -227,6 +229,35 @@
                             "description": "Module id, e.g. banks"
                         }
                     }
+                }
+            },
+            {
+                "id": "core.health.detail",
+                "method": "GET",
+                "path": "/health/detail",
+                "permission": "core.modules",
+                "side_effect": "read",
+                "description": "Detailed health report (read-only). Optional query: module=id. MCP tool core__health__detail.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "module": {
+                            "type": "string",
+                            "description": "Optional module id filter"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "core.doctor",
+                "method": "GET",
+                "path": "/doctor",
+                "permission": "core.modules",
+                "side_effect": "read",
+                "description": "Orchestrated diagnose (config/DB/migrate/validate/health/locale) with error_codes + issue_body. Read-only; enable/migrate stay on agent_token. MCP: core__doctor.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {}
                 }
             },
             {

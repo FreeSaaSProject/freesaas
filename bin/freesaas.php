@@ -47,6 +47,14 @@ try {
             $module = isset($opts['module']) ? trim((string)$opts['module']) : null;
             freesaas_emit_ops(AgentOps::health($module));
             break;
+        case 'doctor':
+            $doc = AgentOps::doctor();
+            if (!empty($opts['issue-body']) || !empty($opts['issue_body'])) {
+                echo (string)($doc['issue_body'] ?? '');
+                exit(!empty($doc['ok']) ? Cli::EXIT_OK : Cli::EXIT_FAIL);
+            }
+            freesaas_emit_ops($doc);
+            break;
         case 'i18n':
             if ($sub !== 'check') {
                 Cli::usage('Usage: i18n check [--locale=xx] [--format=json]');
@@ -82,12 +90,15 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   system status [--format=json]
   bootstrap --login=… --password=… [--name=…] [--agent-token=…] [--modules=a,b] [--format=json]
   module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
-  module inspect|install|enable [--accept-risk]|disable|validate|bump …
+  module inspect|install|enable [--accept-risk]|disable|validate|bump|create|add-migration …
+  module create <id> [--title=…]
+  module add-migration <id> <slug>
   module bump <id> [--patch|--minor|--major|--set=x.y.z]
   migrate status|run [--module=id] [--format=json]
   db status|dumps|dump|restore|delete-dump|check|repair|optimize [--file=…] [--label=…] [--format=json]
   locale list|validate [--locale=xx] [--format=json]
   health [--module=id] [--format=json]
+  doctor [--format=json] [--issue-body]
   i18n check [--locale=xx] [--format=json]
   update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--format=json]
   core habits-reminders [--simulate] [--format=json]
@@ -247,7 +258,23 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         }
         freesaas_emit_ops(AgentOps::moduleBump($id, $mode, $set));
     }
-    Cli::usage('Usage: module list|inspect|install|enable|disable|validate|bump …');
+    if ($sub === 'create') {
+        $id = $args[2] ?? '';
+        if ($id === '') {
+            Cli::usage('Usage: module create <id> [--title=…]');
+        }
+        $title = isset($opts['title']) ? (string)$opts['title'] : '';
+        freesaas_emit_ops(AgentOps::moduleCreate($id, $title));
+    }
+    if ($sub === 'add-migration') {
+        $id = $args[2] ?? '';
+        $slug = $args[3] ?? '';
+        if ($id === '' || $slug === '') {
+            Cli::usage('Usage: module add-migration <id> <slug>');
+        }
+        freesaas_emit_ops(AgentOps::moduleAddMigration($id, $slug));
+    }
+    Cli::usage('Usage: module list|inspect|install|enable|disable|validate|bump|create|add-migration …');
 }
 
 /** @param array<string, string|bool> $opts */

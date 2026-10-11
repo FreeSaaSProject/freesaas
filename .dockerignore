@@ -1,0 +1,10 @@
+.git
+cfg/config.ini
+cfg/modules/*.ini
+!cfg/modules/.gitkeep
+storage
+*.sql
+*.sql.gz
+node_modules
+.cursor
+agent-transcripts

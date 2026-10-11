@@ -67,9 +67,11 @@ Optional public hint in `module.json` (candidates table only — not enough for 
 
 CI / [`bin/build-release-artifacts.sh`](../../bin/build-release-artifacts.sh) builds:
 
-- `freesaas-<VERSION>.zip` — whole tree minus private modules (`PRIVATE_MODULES=likespa`)
+- `freesaas-<VERSION>.zip` — whole tree minus `PRIVATE_MODULES` (default empty) and `PRIVATE_THEMES` (default `likespa`; `themes/default` always kept)
 - `freesaas-manifest.json` — `{kind:"full", version, sha256, artifact}`
 - `freesaas-catalog.json` — installable modules catalog (same shape as repo-root `modules-catalog.json`)
+
+LikeSpa **module** (`modules/likespa`) ships with the public tree. Instance **theme** `themes/likespa` stays local/private (gitignored; stripped from release zip).
 
 Attach them to the GitHub Release (see `.github/workflows/release-artifacts.yml`). When adding a product module, regenerate and commit `modules-catalog.json` so channel=`main` instances see it via Contents API.
 

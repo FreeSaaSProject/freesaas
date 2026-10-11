@@ -50,10 +50,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $jobs = Cron::catalogWithState();
 $runs = Cron::recentRuns(40);
-$host = (string)($_SERVER['HTTP_HOST'] ?? 'example.com');
-$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-$tickUrl = $scheme . '://' . $host . '/cron/tick';
+$reqScheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$configuredAdmin = class_exists('AppRuntime', false) ? trim((string)AppRuntime::adminHost()) : '';
+if ($configuredAdmin !== '') {
+    // Hosting crontab should hit the configured admin host over HTTPS.
+    $tickUrl = 'https://' . $configuredAdmin . '/cron/tick';
+} else {
+    $tickUrl = $reqScheme . '://' . (string)($_SERVER['HTTP_HOST'] ?? 'example.com') . '/cron/tick';
+}
 $tokenConfigured = AgentAuth::isConfigured();
+$agentToken = $tokenConfigured ? AgentAuth::configuredToken() : '';
+$crontabLine = $tokenConfigured
+    ? '*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: ' . $agentToken . '" "' . $tickUrl . '" >/dev/null 2>&1'
+    : '*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: YOUR_TOKEN" "' . $tickUrl . '" >/dev/null 2>&1';
 
 if (AgentHttp::wantsJson()) {
     AgentHttp::emit([
@@ -63,6 +72,8 @@ if (AgentHttp::wantsJson()) {
         'tick_url' => $tickUrl,
         'agent_token_configured' => $tokenConfigured,
         'tables_ready' => Cron::tablesReady(),
+        // Ready-to-paste host line (director session only — this page is SUPERADMIN).
+        'crontab_line' => $crontabLine,
     ]);
     return;
 }
@@ -74,6 +85,7 @@ View::render('cron', [
     'jobs' => $jobs,
     'runs' => $runs,
     'tick_url' => $tickUrl,
+    'crontab_line' => $crontabLine,
     'agent_token_configured' => $tokenConfigured,
     'tables_ready' => Cron::tablesReady(),
     'breadcrumbs' => Breadcrumbs::withHome([

@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Agent runbooks
+    url: https://github.com/ilyakleshnin/freesaas/blob/main/docs/agents/README.md
+    about: Install, repair, MCP, and module authoring guides
+  - name: Commercial licensing
+    url: https://github.com/ilyakleshnin/freesaas/blob/main/COMMERCIAL-LICENSE.md
+    about: Non-AGPL use / OEM — contact in that file

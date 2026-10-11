@@ -9,8 +9,6 @@ final class StemLemmatizer
     /** @var object|null phpMorphy instance */
     private $morphy;
 
-    private LinguaStemRu $linguaStem;
-
     /** @var array<string, string> */
     private array $badLemWords;
 
@@ -39,8 +37,6 @@ final class StemLemmatizer
             $this->ownNames[mb_strtoupper((string)$k, 'UTF-8')] = (int)$v;
         }
         $this->morphy = $morphy;
-        $this->linguaStem = new LinguaStemRu();
-        $this->linguaStem->Stem_Caching = 1;
     }
 
     /** @return array<string, int> */
@@ -219,18 +215,17 @@ final class StemLemmatizer
                         $enc = $morphyEncoding !== '' ? $morphyEncoding : 'CP1251';
                         $wordStemmed = trim(mb_convert_encoding($base, 'UTF-8', $enc));
                     }
+                    if ($wordStemmed !== '') {
+                        $lemmed = 1;
+                    } else {
+                        $wordStemmed = $word;
+                    }
                 }
-                if ($wordStemmed !== '') {
-                    $lemmed = 1;
-                }
+                // Morph miss: keep surface form ($wordStemmed already = $word).
             }
 
             if (isset($this->ownNames[$word])) {
                 $wordStemmed = $word;
-            }
-
-            if (!$stopLemmStem && !$lemmed) {
-                $wordStemmed = mb_strtoupper($this->linguaStem->stem_word($word), 'UTF-8');
             }
 
             if (!$wordFromCache) {

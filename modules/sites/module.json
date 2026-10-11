@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "0.2.0",
+    "version": "0.2.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -51,6 +51,7 @@
             "/sites/hosts/new",
             "/sites/hosts/{id}/edit",
             "/sites/settings",
+            "/sites/status",
             "/sites/seo",
             "/sites/promopages",
             "/sites/promopages/new",
@@ -76,11 +77,39 @@
     "agent": {
         "ops": [
             {
+                "id": "sites.status",
+                "method": "GET",
+                "path": "/sites/status",
+                "permission": "sites.view",
+                "description": "Diagnose storefront: hosts, soft deps, booking; product overlays via EventBus sites.diagnose"
+            },
+            {
                 "id": "sites.hosts.list",
                 "method": "GET",
                 "path": "/sites/hosts",
                 "permission": "sites.view",
                 "description": "List public hosts; filters: q, enabled"
+            },
+            {
+                "id": "sites.hosts.get",
+                "method": "GET",
+                "path": "/sites/hosts/{id}/edit",
+                "permission": "sites.view",
+                "description": "Get one host + theme/promo/catalog options; new at /sites/hosts/new"
+            },
+            {
+                "id": "sites.hosts.create",
+                "method": "POST",
+                "path": "/sites/hosts/new",
+                "permission": "sites.edit",
+                "description": "Create host: host, theme, promo_id, catalog_root_ids[], tel, enabled, is_default (+ product overlays via EventBus)"
+            },
+            {
+                "id": "sites.hosts.update",
+                "method": "POST",
+                "path": "/sites/hosts/{id}/edit",
+                "permission": "sites.edit",
+                "description": "Update host; catalog_root_ids[] multi-folder; overlays (e.g. free_ticket) via EventBus"
             },
             {
                 "id": "sites.settings.get",
@@ -95,6 +124,20 @@
                 "path": "/sites/settings",
                 "permission": "sites.edit",
                 "description": "Save admin_host"
+            },
+            {
+                "id": "sites.seo.get",
+                "method": "GET",
+                "path": "/sites/seo",
+                "permission": "sites.view",
+                "description": "Fallback SEO/contacts from base_system"
+            },
+            {
+                "id": "sites.seo.save",
+                "method": "POST",
+                "path": "/sites/seo",
+                "permission": "sites.edit",
+                "description": "Save base_system name/title/keywords/tel"
             },
             {
                 "id": "sites.promopages.list",
@@ -116,6 +159,13 @@
                 "path": "/sites/redirects",
                 "permission": "sites.redirects",
                 "description": "List URL redirects; filters: q, enabled, site_host_id"
+            },
+            {
+                "id": "sites.cart.availability",
+                "method": "GET",
+                "path": "/cart/availability",
+                "permission": "public",
+                "description": "Storefront booking JSON: mode=day|masters|dates; date, product_ids, operator_id (call with public Host)"
             }
         ]
     },
@@ -155,6 +205,13 @@
             "path": "/sites/redirects",
             "title": "sites.menu.redirects",
             "kind": "crud"
+        },
+        {
+            "group": "sites.menu.group",
+            "num": 85,
+            "path": "/sites/status",
+            "title": "sites.menu.status",
+            "kind": "settings"
         },
         {
             "group": "sites.menu.group",
@@ -210,7 +267,10 @@
             "sites.home",
             "sites.checkout.before",
             "sites.checkout.after",
-            "sites.cart.booking"
+            "sites.cart.booking",
+            "sites.diagnose",
+            "sites.host_edit.sections",
+            "sites.host_edit.save"
         ]
     },
     "bulkActions": [

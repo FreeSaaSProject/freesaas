@@ -70,7 +70,16 @@ $colSpan = 8 + BulkActions::colSpanExtra($listId);
         <td><?= e((string)($row['name'] ?? '')) ?></td>
         <td><code><?= e((string)($row['theme'] ?? '')) ?></code></td>
         <td class="muted"><?= (int)($row['promo_id'] ?? 0) > 0 ? '#' . (int)$row['promo_id'] : '—' ?></td>
-        <td class="muted"><?= (int)($row['catalog_root_id'] ?? 0) > 0 ? '#' . (int)$row['catalog_root_id'] : te('sites.hosts.catalog_all') ?></td>
+        <td class="muted"><?php
+          $roots = isset($row['catalog_root_ids']) && is_array($row['catalog_root_ids'])
+            ? array_values(array_filter(array_map('intval', $row['catalog_root_ids'])))
+            : (((int)($row['catalog_root_id'] ?? 0) > 0) ? [(int)$row['catalog_root_id']] : []);
+          if ($roots === []) {
+              echo te('sites.hosts.catalog_all');
+          } else {
+              echo e('#' . implode(', #', $roots));
+          }
+        ?></td>
         <td><?= !empty($row['enabled']) ? te('core.common.on') : te('core.common.off') ?></td>
         <td><?= !empty($row['is_default']) ? te('sites.hosts.default_yes') : '' ?></td>
       </tr>

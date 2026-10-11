@@ -4,6 +4,7 @@
     "description": "calendar.module.description",
     "version": "0.1.0",
     "type": "product",
+    "runtime": "both",
     "requires": {
         "core": ">=0.3.0",
         "clients": ">=0.1.0",

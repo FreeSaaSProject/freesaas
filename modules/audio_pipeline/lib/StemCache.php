@@ -56,11 +56,10 @@ final class StemCache
     public static function buildVersion(array $badLemWords, array $ownNames): string
     {
         $parts = [
-            'v4_badge',
+            'v5_morph_only',
             md5(serialize($badLemWords)),
             md5(serialize($ownNames)),
             'phpmorphy_ru',
-            'lingua_stem_ru',
         ];
 
         return md5(implode('|', $parts));

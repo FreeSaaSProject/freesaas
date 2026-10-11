@@ -13,7 +13,23 @@ final class ClientStatusesRepository
             'price_tier' => 'price_tier',
             'bonus' => 'bonus',
             'enabled' => 'enabled',
+            'block_online' => 'block_online',
         ];
+    }
+
+    private static function hasBlockOnline(): bool
+    {
+        return Database::tableExists('base_client_statuses')
+            && Database::columnExists('base_client_statuses', 'block_online');
+    }
+
+    private static function selectCols(): string
+    {
+        $cols = 'id, name, discount, price_tier, bonus, count_abs, enabled';
+        if (self::hasBlockOnline()) {
+            $cols .= ', block_online';
+        }
+        return $cols;
     }
 
     /**
@@ -30,11 +46,18 @@ final class ClientStatusesRepository
             $order = 'enabled DESC, name ASC';
         }
         $st = Database::pdo()->query(
-            'SELECT id, name, discount, price_tier, bonus, count_abs, enabled
+            'SELECT ' . self::selectCols() . '
              FROM base_client_statuses
              ORDER BY ' . $order
         );
-        return $st ? ($st->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+        $rows = $st ? ($st->fetchAll(PDO::FETCH_ASSOC) ?: []) : [];
+        foreach ($rows as &$row) {
+            if (!array_key_exists('block_online', $row)) {
+                $row['block_online'] = 0;
+            }
+        }
+        unset($row);
+        return $rows;
     }
 
     /** @return array<int,string> */
@@ -61,12 +84,45 @@ final class ClientStatusesRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT id, name, discount, price_tier, bonus, count_abs, enabled
-             FROM base_client_statuses WHERE id = ? LIMIT 1'
+            'SELECT ' . self::selectCols() . ' FROM base_client_statuses WHERE id = ? LIMIT 1'
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
-        return $row ?: null;
+        if (!$row) {
+            return null;
+        }
+        if (!array_key_exists('block_online', $row)) {
+            $row['block_online'] = 0;
+        }
+        return $row;
+    }
+
+    public static function blocksOnline(int $statusId): bool
+    {
+        if ($statusId < 1 || !self::hasBlockOnline()) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT block_online FROM base_client_statuses WHERE id = ? LIMIT 1'
+        );
+        $st->execute([$statusId]);
+        $v = $st->fetchColumn();
+        return $v !== false && (int)$v === 1;
+    }
+
+    /** First enabled status that blocks online booking (for quick ban button). */
+    public static function firstBlockOnlineStatusId(): int
+    {
+        if (!self::hasBlockOnline()) {
+            return 0;
+        }
+        $st = Database::pdo()->query(
+            'SELECT id FROM base_client_statuses
+             WHERE block_online = 1 AND enabled = 1
+             ORDER BY id ASC LIMIT 1'
+        );
+        $id = $st ? (int)$st->fetchColumn() : 0;
+        return $id > 0 ? $id : 0;
     }
 
     /**
@@ -93,24 +149,41 @@ final class ClientStatusesRepository
             'bonus' => $bonusRaw === '' ? null : (float)$bonusRaw,
             'count_abs' => $absRaw === '' ? null : max(0, (int)$absRaw),
             'enabled' => !empty($post['enabled']) ? 1 : 0,
+            'block_online' => !empty($post['block_online']) ? 1 : 0,
         ];
     }
 
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_client_statuses (name, discount, price_tier, bonus, count_abs, enabled)
-             VALUES (?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            $data['name'],
-            $data['discount'],
-            $data['price_tier'],
-            $data['bonus'],
-            $data['count_abs'],
-            $data['enabled'],
-        ]);
+        if (self::hasBlockOnline()) {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_client_statuses (name, discount, price_tier, bonus, count_abs, enabled, block_online)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['name'],
+                $data['discount'],
+                $data['price_tier'],
+                $data['bonus'],
+                $data['count_abs'],
+                $data['enabled'],
+                !empty($data['block_online']) ? 1 : 0,
+            ]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_client_statuses (name, discount, price_tier, bonus, count_abs, enabled)
+                 VALUES (?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['name'],
+                $data['discount'],
+                $data['price_tier'],
+                $data['bonus'],
+                $data['count_abs'],
+                $data['enabled'],
+            ]);
+        }
         return (int)Database::pdo()->lastInsertId();
     }
 
@@ -119,6 +192,24 @@ final class ClientStatusesRepository
     {
         if ($id < 1) {
             throw new InvalidArgumentException('Invalid status id');
+        }
+        if (self::hasBlockOnline()) {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_client_statuses
+                 SET name = ?, discount = ?, price_tier = ?, bonus = ?, count_abs = ?, enabled = ?, block_online = ?
+                 WHERE id = ?'
+            );
+            $st->execute([
+                $data['name'],
+                $data['discount'],
+                $data['price_tier'],
+                $data['bonus'],
+                $data['count_abs'],
+                $data['enabled'],
+                !empty($data['block_online']) ? 1 : 0,
+                $id,
+            ]);
+            return;
         }
         $st = Database::pdo()->prepare(
             'UPDATE base_client_statuses

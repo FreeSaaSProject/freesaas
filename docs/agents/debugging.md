@@ -69,3 +69,17 @@ php bin/freesaas.php health --module=audio_pipeline --format=json
 ```
 
 Ensure `cfg/modules/audio.ini` `worker_token` is set (not `CHANGE_ME`). Jobs: `/audio/jobs/{ingest,stem,collect}` with `X-Audio-Token`.
+
+## Storefront / cart / booking
+
+Symptom: empty slots, wrong catalog on a public domain, theme 404.
+
+```bash
+php bin/freesaas.php health --module=sites --format=json
+# Session on admin host:
+curl -sS -b jar.txt 'https://admin.example.com/sites/status?format=json'
+# Public Host — open dates:
+curl -sS 'https://www.example.com/cart/availability?mode=dates&product_ids=<id>'
+```
+
+Read `issues[]` from `sites.status` first (`booking_not_active`, `theme_missing`, `soft_dep_off`, …). Full runbook: [sites.md](sites.md). Slot engine: [booking.md](booking.md).

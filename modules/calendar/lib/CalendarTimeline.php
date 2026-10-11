@@ -8,7 +8,8 @@ declare(strict_types=1);
 final class CalendarTimeline
 {
     public const PX_PER_HOUR = 56;
-    public const MIN_CHIP_PX = 14;
+    /** Floor only for zero-length quirks — must stay ≤ shortest bookable slot in px. */
+    public const MIN_CHIP_PX = 2;
 
     /** @var array{start:?int,end:?int}|null */
     private static $hoursCache = null;
@@ -365,7 +366,13 @@ final class CalendarTimeline
         return $chips;
     }
 
-    /** @param array<string,mixed> $ord */
+    /**
+     * Visual length of an advance order on the timeline.
+     * Must match BookingOccupancy (real cart time_sec) — do not force a 15‑min floor,
+     * or short online bookings overlap on the board while slots stay dense.
+     *
+     * @param array<string,mixed> $ord
+     */
     public static function orderDurationSec(array $ord): int
     {
         $lines = [];
@@ -382,7 +389,7 @@ final class CalendarTimeline
             }
             $total += $sec > 0 ? $sec : 1800;
         }
-        return max(900, $total > 0 ? $total : 1800);
+        return $total > 0 ? $total : 1800;
     }
 
     /**

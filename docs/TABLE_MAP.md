@@ -8,7 +8,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_users` site/tips (`photo`, `site_descr`, `link_ok`) | likespa (columns + UI) | Added by likespa migration; staff edit via `core.user_edit.*` |
 | `base_users` procedure restricts (`RESTRICT_TYPES*`, `RESTRICT_PROCS`) | procedures (columns + UI) | Added by procedures migration; only when procedures enabled |
 | `base_staff_bracelets` | terminals | Staff NFC UID ↔ user (no column on `base_users`) |
-| `base_clients`, `base_client_statuses`, `base_shopusers_tags`, `base_client_tag_links` | clients | CRM clients; login = phone |
+| `base_clients`, `base_client_statuses`, `base_shopusers_tags`, `base_client_tag_links` | clients | CRM clients; login = phone; `base_client_statuses.block_online` gates storefront booking |
 | `base_categories`, `base_products`, `base_product_relations` | catalog | Categories / products / relations. Column `base_products.onec_id` is written via `terminals` (product edit section); catalog create/update leave it untouched so values survive module disable. |
 | `base_units` | units | UoM dictionary |
 | `base_suppliers` | suppliers | Suppliers dictionary |
@@ -17,7 +17,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_good_defaults` | norms | Procedure → material norms |
 | `base_sheet_accounts` / `base_sheet_moves` | sheets | Linen ledger (disableable) |
 | `base_term_scans` | likespa | Terminal scans / promoter conversion (disableable) |
-| `base_site_hosts` | sites | Public domains: theme, home promo, catalog root, phone; resolve by `HTTP_HOST` |
+| `base_site_hosts` | sites | Public domains: theme, home promo, catalog root(s), phone; resolve by `HTTP_HOST` |
 | `base_promopages` | sites | Public promo / LP pages (home content via `base_site_hosts.promo_id`) |
 | `base_page_categories` | sites | Site articles tree; `site_host_id` (0 = all hosts) |
 | `base_redirects` | sites | Site URL redirects; `site_host_id` (0 = all hosts) |

@@ -28,6 +28,7 @@ $filters = $filters ?? [];
         <?= ListQuery::sortTh(t('clients.status.discount'), 'discount', $sort, $dir, $path, $filters) ?>
         <?= ListQuery::sortTh(t('clients.status.col_price'), 'price_tier', $sort, $dir, $path, $filters) ?>
         <?= ListQuery::sortTh(t('clients.status.bonus'), 'bonus', $sort, $dir, $path, $filters) ?>
+        <th><?= te('clients.status.block_online_short') ?></th>
       </tr>
     </thead>
     <tbody>
@@ -39,14 +40,18 @@ $filters = $filters ?? [];
           <?php if (empty($s['enabled'])): ?>
             <span class="pill off"><?= te('core.common.off') ?></span>
           <?php endif; ?>
+          <?php if (!empty($s['block_online'])): ?>
+            <span class="pill off"><?= te('clients.status.block_online_short') ?></span>
+          <?php endif; ?>
         </td>
         <td><?= e((string)$s['discount']) ?></td>
         <td><?= (int)$s['price_tier'] ?></td>
         <td><?= $s['bonus'] === null || $s['bonus'] === '' ? '—' : e((string)$s['bonus']) ?></td>
+        <td><?= !empty($s['block_online']) ? te('core.common.yes') : te('core.common.no') ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>
-      <tr><td colspan="5" class="muted"><?= te('clients.status.empty') ?></td></tr>
+      <tr><td colspan="6" class="muted"><?= te('clients.status.empty') ?></td></tr>
     <?php endif; ?>
     </tbody>
   </table>

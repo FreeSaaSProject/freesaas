@@ -1,21 +1,42 @@
-# FreeSaaS (likespa instance)
+# FreeSaaS
 
-New modular Core next to legacy `oper.likespa.hm`.
+**Open-source business operating system designed to be installed and operated by AI agents.**
+
+Modular PHP platform: enable CRM, shifts, finance, booking, banks, audio analytics, and more as filesystem modules. Agents install, configure, verify, and extend the system via CLI, `/agent/*`, and MCP — without browser automation.
+
+Human architecture guide: [docs/GUIDE.md](docs/GUIDE.md).  
+Agent rules: [AGENTS.md](AGENTS.md). Quick path: [docs/agents/QUICKSTART.md](docs/agents/QUICKSTART.md).
+
+## Agent TL;DR (≈2 minutes after DB + config)
+
+```bash
+cp cfg/config.example.ini cfg/config.ini   # set DB + salts
+php bin/freesaas.php bootstrap --login=admin --password='…' --agent-token='…' --format=json
+php bin/freesaas.php health --format=json
+php bin/smoke.php --format=json
+```
+
+Shared hosting (no SSH): `POST /agent/bootstrap` — [docs/agents/install.md](docs/agents/install.md).  
+Ops twin: CLI or `/agent/*` with `X-FreeSaaS-Agent-Token`.  
+Product tools (CRM ops): session JSON or MCP `/llm/mcp` + OAuth — [docs/agents/agent-surfaces.md](docs/agents/agent-surfaces.md).
 
 ## Docs
 
-- [Руководство для людей](docs/GUIDE.md) — архитектура, структура, как добавлять модули
-- [Инструкции для агентов](AGENTS.md) — жёсткие правила и чеклисты для AI
-- [Agent-native audit](docs/agent-native-audit.md) — готовность к агентам, требования к системе и модулям
-- [Agent runbooks](docs/agents/) — install, create/modify module, migrations, locale, remote API, debug
-- [Table ownership map](docs/TABLE_MAP.md)
+| Doc | Audience |
+|-----|----------|
+| [docs/GUIDE.md](docs/GUIDE.md) | Humans — architecture, modules |
+| [AGENTS.md](AGENTS.md) | Coding agents — hard rules |
+| [docs/agents/QUICKSTART.md](docs/agents/QUICKSTART.md) | Fast install + verify |
+| [docs/agents/](docs/agents/) | Runbooks (install, MCP, create module, debug, cases) |
+| [docs/agent-native-audit.md](docs/agent-native-audit.md) | Agent-readiness standard |
+| [docs/TABLE_MAP.md](docs/TABLE_MAP.md) | `base_*` table ownership |
 
-## Quick start
+## Quick start (detail)
 
-1. Copy `cfg/config.example.ini` → `cfg/config.ini` (already present for local).
-2. For module settings (audio/calendar/ledger/…): copy `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini` (secrets stay out of git).
-3. Point vhost docroot at this folder.
-4. Bootstrap (schema migrate + first admin + agent token), or migrate-only on an existing DB:
+1. Copy `cfg/config.example.ini` → `cfg/config.ini` (DB credentials, salts).
+2. Module secrets: copy `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini` when needed (gitignored).
+3. Point vhost docroot at this folder (or use [Docker Compose](docker-compose.yml)).
+4. Bootstrap or migrate:
 
 ```bash
 # Greenfield
@@ -23,13 +44,11 @@ php bin/freesaas.php bootstrap --login=admin --password='…' --agent-token='…
 
 # Existing DB
 php bin/freesaas.php migrate run
-php bin/data-migrate.php
-# optional: php bin/smoke.php
+# optional: php bin/data-migrate.php
+php bin/smoke.php --format=json
 ```
 
-Shared hosting without SSH: `POST /agent/bootstrap` — see [docs/agents/install.md](docs/agents/install.md).
-
-5. Sign in at `/login`. Ops after that: CLI or `/agent/*` with `X-FreeSaaS-Agent-Token`.
+5. Sign in at `/login`. Diagnose anytime: `php bin/freesaas.php doctor --format=json`.
 
 ## Rules
 
@@ -46,3 +65,5 @@ FreeSaaS is dual-licensed:
 Copyright © 2026 Ilya Kleshnin. “FreeSaaS” is the project name, not a separate legal entity.
 
 External contributions require accepting the [CLA](CLA.md) — see [CONTRIBUTING.md](CONTRIBUTING.md). Third-party components and their licenses: [THIRD_PARTY.md](THIRD_PARTY.md).
+
+Launch / distribution notes for maintainers: [docs/LAUNCH.md](docs/LAUNCH.md). Agent upstream path: [docs/agents/upstream.md](docs/agents/upstream.md).

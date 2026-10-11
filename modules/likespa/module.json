@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.0",
+    "version": "0.3.2",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -88,6 +88,20 @@
                 "path": "/likespa/restores/{id}/edit",
                 "permission": "likespa.restores",
                 "description": "Update restore reason/summ/sign; re-runs settlement side effects"
+            },
+            {
+                "id": "likespa.settings.get",
+                "method": "GET",
+                "path": "/likespa/settings",
+                "permission": "likespa.edit",
+                "description": "LikeSpa settings incl. FREE_TICKET threshold, flyer/promo"
+            },
+            {
+                "id": "likespa.settings.save",
+                "method": "POST",
+                "path": "/likespa/settings",
+                "permission": "likespa.edit",
+                "description": "Save LikeSpa settings; free_ticket_threshold (0=off)"
             }
         ]
     },
@@ -126,6 +140,9 @@
             "core.user_edit.save",
             "core.user_edit.profile",
             "sites.cart.booking",
+            "sites.diagnose",
+            "sites.host_edit.sections",
+            "sites.host_edit.save",
             "booking.book.before"
         ],
         "publish": []

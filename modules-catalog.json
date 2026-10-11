@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-10T20:06:40+00:00",
+    "generated_at": "2026-10-11T08:06:52+00:00",
     "modules": [
         {
             "id": "asr",
@@ -236,7 +236,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -345,7 +345,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.5",
+            "version": "0.2.6",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -661,7 +661,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -728,6 +728,42 @@
                     "journal",
                     "payments"
                 ]
+            }
+        },
+        {
+            "id": "likespa",
+            "version": "0.3.2",
+            "type": "product",
+            "name": {
+                "en": "LikeSpa",
+                "ru": "LikeSpa"
+            },
+            "description": {
+                "en": "LikeSpa ops: terminal scans, promoter bonus, flyer discounts, procedure restores, staff public profile",
+                "ru": "LikeSpa: сканы терминалов, бонус промоутера, скидки флаера, восстановления процедур, публичный профиль сотрудника"
+            },
+            "summary": {
+                "en": "Spa instance pack. CMS (articles/promos/redirects/SEO) lives in the sites module. Soft-deps: audio_reports, procedures, payments.",
+                "ru": "Пакет инстанса спа. CMS (статьи/промо/редиректы/SEO) — в модуле sites. Мягкие зависимости: audio_reports, procedures, payments."
+            },
+            "requires": {
+                "core": ">=0.3.0"
+            },
+            "optionalRequires": {
+                "audio_reports": ">=0.2.0",
+                "audio": ">=0.1.0",
+                "workweeks": ">=0.1.0",
+                "procedures": ">=0.1.0",
+                "payments": ">=0.1.0",
+                "sites": ">=0.2.0",
+                "booking": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "site"
+                ],
+                "maturity": "beta",
+                "tags": []
             }
         },
         {
@@ -1074,7 +1110,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.0",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "Sites",
@@ -1272,7 +1308,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

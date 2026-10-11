@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/LinguaStemRu.php';
 require_once __DIR__ . '/StemCache.php';
 require_once __DIR__ . '/StemLemmatizer.php';
 require_once __DIR__ . '/CollectRunner.php';
@@ -75,7 +74,9 @@ final class StemRunner
 
     public static function libsAvailable(): bool
     {
-        return is_file(__DIR__ . '/LinguaStemRu.php');
+        $note = '';
+
+        return self::resolveMorphy($note) !== null;
     }
 
     public static function invalidateCaches(): void
@@ -193,14 +194,6 @@ final class StemRunner
      */
     public static function run(array $opts = []): array
     {
-        if (!self::libsAvailable()) {
-            return [
-                'ok' => false,
-                'processed' => 0,
-                'skipped' => 0,
-                'message' => 'stem_libs_unavailable',
-            ];
-        }
         if (!Database::tableExists('base_records')) {
             return ['ok' => false, 'processed' => 0, 'skipped' => 0, 'message' => 'tables_missing'];
         }
@@ -210,6 +203,15 @@ final class StemRunner
 
         $morphMessage = '';
         $morphy = self::resolveMorphy($morphMessage);
+        if ($morphy === null) {
+            return [
+                'ok' => false,
+                'processed' => 0,
+                'skipped' => 0,
+                'message' => 'stem_libs_unavailable',
+                'extra' => ['morph' => $morphMessage !== '' ? $morphMessage : 'morph_unavailable'],
+            ];
+        }
 
         /** @var array{bad_lem_words:array<string,string>,own_names:array<string,int>} $dict */
         $dict = require base_path('modules/audio_pipeline/lib/stem_dict_data.php');

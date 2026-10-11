@@ -9,14 +9,18 @@
 #   bin/build-release-artifacts.sh --module=id
 #
 # Usage:
-#   PRIVATE_MODULES=likespa bin/build-release-artifacts.sh
+#   PRIVATE_MODULES= bin/build-release-artifacts.sh
+#   PRIVATE_THEMES=likespa bin/build-release-artifacts.sh
 #   bin/build-release-artifacts.sh --module=likespa [--channel=stable]
+#
+# Defaults: ship product modules (incl. likespa); exclude instance storefront themes.
 
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="${DIST_DIR:-$ROOT/dist}"
-PRIVATE_MODULES="${PRIVATE_MODULES:-likespa}"
+PRIVATE_MODULES="${PRIVATE_MODULES:-}"
+PRIVATE_THEMES="${PRIVATE_THEMES:-likespa}"
 ONLY_MODULE=""
 CHANNEL="${CHANNEL:-stable}"
 
@@ -100,13 +104,25 @@ stage="$(mktemp -d "${TMPDIR:-/tmp}/freesaas-full.XXXXXX")"
   | (cd "$stage" && tar -xf -)
 )
 
-IFS=',' read -r -a priv <<< "$PRIVATE_MODULES"
-for mid in "${priv[@]}"; do
-  mid="$(echo "$mid" | tr -d '[:space:]')"
-  [[ -z "$mid" ]] && continue
-  rm -rf "$stage/modules/$mid"
-  echo "Excluded private module from zip: $mid"
-done
+if [[ -n "${PRIVATE_MODULES//[[:space:],]/}" ]]; then
+  IFS=',' read -r -a priv <<< "$PRIVATE_MODULES"
+  for mid in "${priv[@]}"; do
+    mid="$(echo "$mid" | tr -d '[:space:]')"
+    [[ -z "$mid" ]] && continue
+    rm -rf "$stage/modules/$mid"
+    echo "Excluded private module from zip: $mid"
+  done
+fi
+if [[ -n "${PRIVATE_THEMES//[[:space:],]/}" ]]; then
+  IFS=',' read -r -a priv_themes <<< "$PRIVATE_THEMES"
+  for tid in "${priv_themes[@]}"; do
+    tid="$(echo "$tid" | tr -d '[:space:]')"
+    [[ -z "$tid" ]] && continue
+    [[ "$tid" == "default" ]] && continue
+    rm -rf "$stage/themes/$tid"
+    echo "Excluded private theme from zip: $tid"
+  done
+fi
 find "$stage" -name '.DS_Store' -delete 2>/dev/null || true
 ( cd "$stage" && zip -qr "$zip" . )
 rm -rf "$stage"

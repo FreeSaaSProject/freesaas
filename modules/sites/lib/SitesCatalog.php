@@ -7,14 +7,23 @@ final class SitesCatalog
     /** @return list<int>|null null = no folder restriction */
     public static function allowedCategoryIds(): ?array
     {
-        $root = 0;
+        $roots = [];
         if (class_exists(SitesHostContext::class)) {
-            $root = SitesHostContext::catalogRootId();
+            $roots = SitesHostContext::catalogRootIds();
         }
-        if ($root < 1 || !class_exists(CategoriesRepository::class)) {
+        if ($roots === [] || !class_exists(CategoriesRepository::class)) {
             return null;
         }
-        return CategoriesRepository::descendantIds($root);
+        $allowed = [];
+        foreach ($roots as $root) {
+            foreach (CategoriesRepository::descendantIds($root) as $cid) {
+                $cid = (int)$cid;
+                if ($cid > 0 && !in_array($cid, $allowed, true)) {
+                    $allowed[] = $cid;
+                }
+            }
+        }
+        return $allowed;
     }
 
     /**

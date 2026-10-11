@@ -36,6 +36,11 @@ $sid = (int)($row['id'] ?? 0);
     <input type="checkbox" name="enabled" value="1"<?= !isset($row['enabled']) || !empty($row['enabled']) ? ' checked' : '' ?>>
     <?= te('clients.status.enabled') ?>
   </label>
+  <label class="check">
+    <input type="checkbox" name="block_online" value="1"<?= !empty($row['block_online']) ? ' checked' : '' ?>>
+    <?= te('clients.status.block_online') ?>
+  </label>
+  <p class="muted"><?= te('clients.status.block_online_hint') ?></p>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>

@@ -61,6 +61,18 @@ final class BookingAvailability
             (int)date('Y', $dayStart)
         );
         $todayStart = (int)mktime(0, 0, 0);
+        // Past calendar days have no bookable slots (storefront / new booking).
+        if (!$allowPastLead && $dayStart < $todayStart) {
+            return [
+                'date' => $dateYmd,
+                'day_start' => $dayStart,
+                'day_end' => $dayEnd,
+                'products' => $products,
+                'total_time' => 0,
+                'empty_reason' => 'past',
+                'operators' => [],
+            ];
+        }
         if (!$allowPastLead && $dayStart === $todayStart) {
             $rangeStart = max($rangeStart, time() + BookingSlots::LEAD_SEC);
         }

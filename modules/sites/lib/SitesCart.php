@@ -115,6 +115,35 @@ final class SitesCart
         self::save([]);
     }
 
+    /**
+     * One-shot confirmation card after successful booking checkout.
+     *
+     * @param array{
+     *   id:int,
+     *   when:string,
+     *   date?:string,
+     *   time?:string,
+     *   master?:string,
+     *   comment?:string,
+     *   phone?:string
+     * } $data
+     */
+    public static function setBookingConfirm(array $data): void
+    {
+        $_SESSION['sites_booking_confirm'] = $data;
+    }
+
+    /** @return array<string,mixed>|null */
+    public static function takeBookingConfirm(): ?array
+    {
+        if (empty($_SESSION['sites_booking_confirm']) || !is_array($_SESSION['sites_booking_confirm'])) {
+            return null;
+        }
+        $row = $_SESSION['sites_booking_confirm'];
+        unset($_SESSION['sites_booking_confirm']);
+        return $row;
+    }
+
     /** Storefront AJAX / JSON clients (fetch, XHR, format=json). */
     public static function wantsAjax(): bool
     {

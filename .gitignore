@@ -11,3 +11,6 @@ dist/
 # Uploaded company logos (generated variants)
 assets/uploads/logo/*
 !assets/uploads/logo/.gitkeep
+
+# Instance storefront branding (not part of public FreeSaaS; keep local / private deploy)
+themes/likespa/

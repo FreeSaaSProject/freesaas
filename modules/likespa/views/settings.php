@@ -8,6 +8,8 @@ declare(strict_types=1);
 /** @var array<int,string> $procedureTypeOptions */
 /** @var bool $hasFlyerCols */
 /** @var bool $hasPromoCols */
+/** @var bool $hasFreeTicketCol */
+/** @var int $freeTicketThreshold */
 $c = static function (string $key, string $fallback = '') use ($cfg): string {
     return (string)($cfg[$key] ?? $fallback);
 };
@@ -34,6 +36,17 @@ $promoDiscounts = is_array($flyerPromo['promo_discounts'] ?? null) ? $flyerPromo
     <label class="check"><input type="checkbox" name="dops_enabled" value="1"<?= $on('dops_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.dops_enabled') ?></label>
     <label class="check"><input type="checkbox" name="restores_enabled" value="1"<?= $on('restores_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.restores_enabled') ?></label>
   </fieldset>
+
+  <?php if (!empty($hasFreeTicketCol)): ?>
+  <fieldset>
+    <legend><?= te('likespa.settings.sec.free_ticket') ?></legend>
+    <label><?= te('likespa.settings.free_ticket_threshold') ?>
+      <input type="number" name="free_ticket_threshold" min="0" step="1"
+             value="<?= (int)($freeTicketThreshold ?? 0) ?>">
+      <span class="muted"><?= te('likespa.settings.free_ticket_threshold_hint') ?></span>
+    </label>
+  </fieldset>
+  <?php endif; ?>
 
   <?php if (!empty($hasFlyerCols)): ?>
   <fieldset>

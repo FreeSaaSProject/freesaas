@@ -14,21 +14,45 @@ if ($lines === []) {
     redirect('/cart');
 }
 
-$phone = preg_replace('/\D+/', '', (string)($_POST['phone'] ?? '')) ?? '';
-if (strlen($phone) === 11 && $phone[0] === '8') {
-    $phone = '7' . substr($phone, 1);
+// Prefer session guest phone; fall back to POST (legacy / simple forms).
+$phone = SitesGuest::phone();
+if ($phone === '') {
+    $phone = SitesGuest::normalizePhone((string)($_POST['phone'] ?? ''));
+    if ($phone !== '') {
+        SitesGuest::setPhone($phone);
+    }
 }
-if (strlen($phone) < 10) {
-    flash_set('error', t('sites.cart.err_phone'));
+if ($phone === '' || !SitesGuest::canProceed()) {
+    if (SitesGuest::isBlocked()) {
+        flash_set('error', t('sites.cart.err_blocked'));
+    } else {
+        flash_set('error', t('sites.cart.err_phone'));
+    }
     redirect('/cart');
+}
+
+if (class_exists(ClientsRepository::class, false)) {
+    $client = ClientsRepository::findByPhoneDigits($phone);
+    if ($client !== null && !ClientsRepository::canBookOnline($client)) {
+        flash_set('error', t('sites.cart.err_blocked'));
+        redirect('/cart');
+    }
 }
 
 $mail = trim((string)($_POST['mail'] ?? ''));
 $comment = trim((string)($_POST['comment'] ?? ''));
 $operatorId = (int)($_POST['operator_id'] ?? 0);
 $dtStart = (int)($_POST['dt_start'] ?? 0);
-$freeTicket = !empty($_POST['free_ticket']) ? 1 : 0;
 $needsBooking = SitesBooking::needsBooking();
+// FREE_TICKET is LikeSpa-only (sites.cart.booking EventBus). Core checkout never requires it.
+$bookingMeta = $needsBooking ? SitesBooking::cartMeta() : [
+    'free_ticket_threshold' => 0,
+    'free_ticket_eligible' => false,
+];
+$freeTicket = 0;
+if ((int)($bookingMeta['free_ticket_threshold'] ?? 0) > 0 && !empty($_POST['free_ticket'])) {
+    $freeTicket = 1;
+}
 
 $payload = EventBus::emit('sites.checkout.before', [
     'lines' => $lines,
@@ -47,7 +71,7 @@ if (trim((string)($payload['error'] ?? '')) !== '') {
 }
 
 $orderLines = is_array($payload['lines'] ?? null) ? $payload['lines'] : $lines;
-$phone = (string)($payload['phone'] ?? $phone);
+$phone = SitesGuest::normalizePhone((string)($payload['phone'] ?? $phone)) ?: $phone;
 $mail = (string)($payload['mail'] ?? $mail);
 $comment = (string)($payload['comment'] ?? $comment);
 $operatorId = (int)($payload['operator_id'] ?? $operatorId);
@@ -55,7 +79,25 @@ $dtStart = (int)($payload['dt_start'] ?? $dtStart);
 $freeTicket = !empty($payload['free_ticket']) ? 1 : 0;
 
 if ($needsBooking) {
-    if ($operatorId < 1 || $dtStart < 1) {
+    if ($dtStart < 1) {
+        flash_set('error', t('sites.cart.err_slot'));
+        redirect('/cart');
+    }
+    $dayStart = (int)mktime(0, 0, 0, (int)date('n', $dtStart), (int)date('j', $dtStart), (int)date('Y', $dtStart));
+    if ($dayStart < (int)mktime(0, 0, 0)) {
+        flash_set('error', t('sites.cart.err_date_past'));
+        redirect('/cart');
+    }
+    $productIdsFlat = SitesBooking::productIdsFlat();
+    if ($operatorId < 1) {
+        // «Any master»: assign someone free at this slot.
+        $operatorId = SitesBooking::resolveOperatorForSlot(
+            date('Y-m-d', $dtStart),
+            $productIdsFlat,
+            $dtStart
+        );
+    }
+    if ($operatorId < 1) {
         flash_set('error', t('sites.cart.err_slot'));
         redirect('/cart');
     }
@@ -64,11 +106,12 @@ if ($needsBooking) {
             'phone' => $phone,
             'mail' => $mail,
             'comment' => $comment,
-            'product_ids' => SitesBooking::productIdsFlat(),
+            'product_ids' => $productIdsFlat,
             'cart_lines' => $orderLines,
             'operator_id' => $operatorId,
             'dt_start' => $dtStart,
             'free_ticket' => $freeTicket,
+            'client_id' => SitesGuest::clientId(),
         ]);
         $orderId = (int)$booked['order_id'];
     } catch (Throwable $e) {
@@ -85,7 +128,17 @@ if ($needsBooking) {
         'dt_start' => $dtStart,
     ]);
 
+    $masterCard = SitesBooking::operatorPublicCard($operatorId);
     SitesCart::clear();
+    SitesCart::setBookingConfirm([
+        'id' => $orderId,
+        'when' => date('d.m.Y H:i', $dtStart),
+        'date' => date('d.m.Y', $dtStart),
+        'time' => date('H:i', $dtStart),
+        'master' => (string)($masterCard['display_name'] ?? ''),
+        'comment' => $comment,
+        'phone' => $phone,
+    ]);
     flash_set('ok', t('sites.cart.placed_booking', [
         'id' => $orderId,
         'when' => date('d.m.Y H:i', $dtStart),
@@ -98,9 +151,9 @@ foreach ($orderLines as $line) {
     $sum += (float)($line['price'] ?? 0);
 }
 
-$idUser = 0;
-if (class_exists('ClientsRepository', false) && Database::tableExists('base_clients')) {
-    $client = ClientsRepository::findByTel($phone);
+$idUser = SitesGuest::clientId();
+if ($idUser < 1 && class_exists(ClientsRepository::class, false) && Database::tableExists('base_clients')) {
+    $client = ClientsRepository::findByPhoneDigits($phone);
     if ($client) {
         $idUser = (int)$client['id'];
     }
