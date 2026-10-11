@@ -12,5 +12,8 @@ dist/
 assets/uploads/logo/*
 !assets/uploads/logo/.gitkeep
 
-# Instance storefront branding (not part of public FreeSaaS; keep local / private deploy)
+# Licensed / instance storefront skins — private repos only (themes/default stays public)
+#   https://github.com/ilcommm/freesaas-theme-likespa
+#   https://github.com/ilcommm/freesaas-theme-balance
 themes/likespa/
+themes/balance/

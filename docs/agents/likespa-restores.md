@@ -6,7 +6,9 @@ Product module `likespa`: restores, FREE_TICKET, flyer/promo, term scans, calend
 
 1. Enable `sites` (+ catalog/orders/clients) on the shared FreeSaaS DB; enable `likespa` when you need instance features.
 2. Run sites migrations `006`/`007` — seeds default host from `public_host` / `mothersite`.
-3. Port skins into `themes/<id>/` ([`themes.md`](themes.md)): `likespa` from likespa.hm, `balance` from balance-spa.hm (`balance-dark.css` + logos).
+3. Install licensed skins from private theme repos into `themes/<id>/` ([`themes.md`](themes.md)) — not into public `freesaas`:
+   - `likespa` ← https://github.com/ilcommm/freesaas-theme-likespa
+   - `balance` ← https://github.com/ilcommm/freesaas-theme-balance
 4. Storefront trees (same package, `app.role=storefront`, storefront `.htaccess` → `site.php`):
    - `likespa2.hm` — host theme `likespa`, catalog roots as needed, FREE_TICKET on
    - `balance-spa2.hm` — host theme `balance`, promo `balance` (#10), catalog root **16**, FREE_TICKET off

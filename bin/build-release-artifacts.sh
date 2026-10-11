@@ -10,7 +10,7 @@
 #
 # Usage:
 #   PRIVATE_MODULES= bin/build-release-artifacts.sh
-#   PRIVATE_THEMES=likespa bin/build-release-artifacts.sh
+#   PRIVATE_THEMES=likespa,balance bin/build-release-artifacts.sh
 #   bin/build-release-artifacts.sh --module=likespa [--channel=stable]
 #
 # Defaults: ship product modules (incl. likespa); exclude instance storefront themes.
@@ -20,7 +20,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="${DIST_DIR:-$ROOT/dist}"
 PRIVATE_MODULES="${PRIVATE_MODULES:-}"
-PRIVATE_THEMES="${PRIVATE_THEMES:-likespa}"
+PRIVATE_THEMES="${PRIVATE_THEMES:-likespa,balance}"
 ONLY_MODULE=""
 CHANNEL="${CHANNEL:-stable}"
 

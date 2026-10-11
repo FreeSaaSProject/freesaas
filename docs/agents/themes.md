@@ -59,11 +59,22 @@ Layout receives `$content` plus page vars. Prefer `SiteTheme::partial(...)`. Mis
 
 Admin stores a `MODULES` blob (`base_promopages`). Storefront renders via `PromopageRenderer` → `themes/<id>/promo_modules/<CODE>.php` (vars: `$moduleCode`, `$moduleData`, `$promo`). Missing file → skip that block. See storefront runbook for host `promo_id` / `/promo/{code}`.
 
+## Licensed / instance skins
+
+`themes/default` is the only skin in the public FreeSaaS tree. Branding skins that reuse third-party template code live in **private** repos and stay gitignored locally:
+
+| Theme id | Private repo |
+|----------|----------------|
+| `likespa` | https://github.com/ilcommm/freesaas-theme-likespa |
+| `balance` | https://github.com/ilcommm/freesaas-theme-balance |
+
+Clone or sync into `themes/<id>/` on the instance (or storefront tree). Do not commit them to `ilcommm/freesaas`.
+
 ## Do / don’t
 
 - One theme id = one folder; switch via host row.
 - Presentation only in themes — no product SQL/routes.
-- Don’t commit secrets; don’t expect day-one parity of every legacy widget.
+- Don’t commit secrets or licensed skins to the public package; don’t expect day-one parity of every legacy widget.
 
 ## Related
 
