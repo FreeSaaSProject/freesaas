@@ -530,6 +530,9 @@
     body.classList.toggle('rail-collapsed', !!on);
     if (expand) expand.hidden = !on;
     try { localStorage.setItem(RAIL_KEY, on ? '1' : '0'); } catch (e) {}
+    try {
+      document.dispatchEvent(new CustomEvent('freesaas:rail-toggle', { detail: { collapsed: !!on } }));
+    } catch (e2) {}
   }
 
   function railPeekEnabled() {
@@ -1238,5 +1241,62 @@
     }
 
     document.querySelectorAll('input[type="date"], input[type="datetime-local"]').forEach(enhance);
+  })();
+
+  /** Company title before «by FreeSaaS»: shrink font, then drop whole words (no …). */
+  (function () {
+    var MIN_PX = 11;
+    var DEFAULT_REM = { 'rail-brand': 1.15, 'topbar-brand': 0.95 };
+
+    function remPx(rem) {
+      var root = parseFloat(window.getComputedStyle(document.documentElement).fontSize) || 16;
+      return rem * root;
+    }
+
+    function overflows(el) {
+      return el.scrollWidth > el.clientWidth + 0.5;
+    }
+
+    function fitOne(el) {
+      var full = (el.getAttribute('data-brand-full') || el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (!full) return;
+      el.setAttribute('data-brand-full', full);
+      el.textContent = full;
+      el.style.removeProperty('font-size');
+
+      var brand = el.closest('.rail-brand, .topbar-brand');
+      var baseRem = DEFAULT_REM['rail-brand'];
+      if (brand && brand.classList.contains('topbar-brand')) {
+        baseRem = DEFAULT_REM['topbar-brand'];
+      }
+      var size = remPx(baseRem);
+      el.style.fontSize = size + 'px';
+      el.style.textOverflow = 'clip';
+
+      while (overflows(el) && size > MIN_PX) {
+        size -= 0.5;
+        el.style.fontSize = size + 'px';
+      }
+
+      if (!overflows(el)) return;
+
+      var words = full.split(' ');
+      while (words.length > 1 && overflows(el)) {
+        words.pop();
+        el.textContent = words.join(' ');
+      }
+      // Single overlong word: clip without ellipsis (CSS text-overflow: clip).
+    }
+
+    function fitAll() {
+      document.querySelectorAll('.brand-company[data-brand-full], .brand-company').forEach(fitOne);
+    }
+
+    fitAll();
+    window.addEventListener('resize', function () {
+      window.clearTimeout(fitAll._t);
+      fitAll._t = window.setTimeout(fitAll, 80);
+    });
+    document.addEventListener('freesaas:rail-toggle', fitAll);
   })();
 })();

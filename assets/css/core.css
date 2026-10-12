@@ -227,13 +227,13 @@ html[data-theme="light"] .lang-switch-btn.is-active {
 .topbar-brand .brand-company {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   color: var(--text);
   letter-spacing: -0.03em;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 9rem;
+  text-overflow: clip;
+  max-width: 100%;
 }
 .topbar-brand .brand-by {
   font-size: 0.65rem;
@@ -395,13 +395,13 @@ body.nav-open .nav-backdrop {
 .rail-brand .brand-company {
   font-family: var(--display);
   font-weight: 800;
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   color: var(--text);
   letter-spacing: -0.03em;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 10.5rem;
+  text-overflow: clip;
+  max-width: 100%;
 }
 .rail-brand .brand-by {
   font-size: 0.7rem;

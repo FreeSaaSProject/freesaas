@@ -12,7 +12,7 @@ $showBy = $instance !== '' || $logoUrl;
   <?php if ($logoUrl): ?>
     <img class="brand-logo" src="<?= e($logoUrl) ?>" alt="<?= e($companyLabel) ?>" decoding="async">
   <?php else: ?>
-    <span class="brand-company"><?= e($companyLabel) ?></span>
+    <span class="brand-company" data-brand-full="<?= e($companyLabel) ?>"><?= e($companyLabel) ?></span>
   <?php endif; ?>
   <?php if ($showBy): ?>
     <span class="brand-by"><?= te('core.layout.by') ?> <span class="brand-platform"><?= e($brand) ?></span></span>
