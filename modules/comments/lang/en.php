@@ -7,6 +7,7 @@ return [
     'comments.jump' => 'Comments',
     'comments.to_top' => 'Back to top',
     'comments.empty' => 'No comments yet',
+    'comments.purge_hint' => 'Auto-purge: at most {n} comments are kept (oldest regular ones are deleted).',
     'comments.leave' => 'Leave a comment',
     'comments.text' => 'Text',
     'comments.placeholder' => 'Comment… emoji are welcome 🙂',

@@ -119,7 +119,94 @@ final class CommentsRepository
             );
             $del->execute([$newsId, 'base_news']);
         }
+        self::purgeOverLimit($newsId);
         return $newId;
+    }
+
+    /**
+     * Hard-delete oldest purgeable comments until count ≤ news COMMENT_PURGE_LIMIT.
+     * 0 / missing column = off. Skips status updates, paid offers, habit config markers.
+     *
+     * @return int number of rows deleted
+     */
+    public static function purgeOverLimit(int $newsId): int
+    {
+        if ($newsId < 1 || !Database::tableExists('base_comments')) {
+            return 0;
+        }
+        if (!Database::tableExists('base_news')
+            || !Database::columnExists('base_news', 'COMMENT_PURGE_LIMIT')
+        ) {
+            return 0;
+        }
+        $stLim = Database::pdo()->prepare(
+            'SELECT COMMENT_PURGE_LIMIT, ID_OFFER_COMMENT FROM base_news WHERE ID = ? LIMIT 1'
+        );
+        $stLim->execute([$newsId]);
+        $news = $stLim->fetch(PDO::FETCH_ASSOC);
+        if (!$news) {
+            return 0;
+        }
+        $limit = (int)($news['COMMENT_PURGE_LIMIT'] ?? 0);
+        if ($limit < 1) {
+            return 0;
+        }
+        $limit = min(100000, $limit);
+        $offerId = (int)($news['ID_OFFER_COMMENT'] ?? 0);
+
+        $deleted = 0;
+        $pdo = Database::pdo();
+        $stCount = $pdo->prepare('SELECT COUNT(*) FROM base_comments WHERE ID_OBJECT = ?');
+        $stLeaf = $pdo->prepare(
+            'SELECT c.ID, c.TEXT, c.STATUS_UPDATE, c.PRICE_OFFER
+             FROM base_comments c
+             WHERE c.ID_OBJECT = ?
+               AND NOT EXISTS (SELECT 1 FROM base_comments ch WHERE ch.PID = c.ID)
+             ORDER BY c.DT ASC, c.ID ASC
+             LIMIT 40'
+        );
+        $stDel = $pdo->prepare('DELETE FROM base_comments WHERE ID = ?');
+        $stLike = Database::tableExists('base_likes')
+            ? $pdo->prepare('DELETE FROM base_likes WHERE ID_OBJ = ? AND TYPE_OBJ = ?')
+            : null;
+
+        for ($guard = 0; $guard < 2000; $guard++) {
+            $stCount->execute([$newsId]);
+            $count = (int)$stCount->fetchColumn();
+            if ($count <= $limit) {
+                break;
+            }
+            $stLeaf->execute([$newsId]);
+            $leaves = $stLeaf->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $victim = null;
+            foreach ($leaves as $leaf) {
+                $lid = (int)$leaf['ID'];
+                if ($lid === $offerId) {
+                    continue;
+                }
+                if (!empty($leaf['STATUS_UPDATE'])) {
+                    continue;
+                }
+                if ((int)($leaf['PRICE_OFFER'] ?? 0) > 0) {
+                    continue;
+                }
+                // Habit config marker [HABIT]{…} — keep; [HABIT_SLOT|…] may purge.
+                if (preg_match('/\[HABIT\]\s*\{/', (string)($leaf['TEXT'] ?? ''))) {
+                    continue;
+                }
+                $victim = $lid;
+                break;
+            }
+            if ($victim === null) {
+                break;
+            }
+            $stDel->execute([$victim]);
+            if ($stLike !== null) {
+                $stLike->execute([$victim, 'base_comments']);
+            }
+            $deleted++;
+        }
+        return $deleted;
     }
 
     /**
@@ -229,12 +316,21 @@ final class CommentsRepository
         if ($row === null) {
             return null;
         }
-        $text = (string)($row['TEXT'] ?? '');
+        $raw = (string)($row['TEXT'] ?? '');
+        $display = $raw;
+        if (class_exists('MyTasksHabits', false) && strpos($raw, '[HABIT') !== false) {
+            $display = MyTasksHabits::humanizeCommentText($raw);
+        }
         $excerpt = isset($opts['excerpt']) ? (int)$opts['excerpt'] : 0;
         $truncated = false;
+        $text = $raw;
         if ($excerpt > 0 && mb_strlen($text) > $excerpt) {
             $text = mb_substr($text, 0, $excerpt);
             $truncated = true;
+        }
+        $textDisplay = $display;
+        if ($excerpt > 0 && mb_strlen($textDisplay) > $excerpt) {
+            $textDisplay = mb_substr($textDisplay, 0, $excerpt);
         }
         $out = [
             'id' => (int)($row['ID'] ?? 0),
@@ -243,6 +339,7 @@ final class CommentsRepository
             'id_user' => (int)($row['ID_USER'] ?? 0),
             'dt' => (int)($row['DT'] ?? 0),
             'text' => $text,
+            'text_display' => $textDisplay,
             'text_truncated' => $truncated ? 1 : 0,
             'disabled' => !empty($row['DISABLED']) ? 1 : 0,
             'color' => (int)($row['COLOR'] ?? 0),

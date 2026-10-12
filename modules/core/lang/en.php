@@ -762,6 +762,8 @@ return [
     'core.news_edit.access_user_help' => 'Empty = no personal limit. For DMs, pick recipients.',
     'core.news_edit.sign_req' => 'Require acknowledgment (comment + sign)',
     'core.news_edit.sign_req_help' => 'Staff must leave a comment and confirm they have read it. Editing the body clears views/signs unless “keep signs” is checked.',
+    'core.news_edit.comment_purge_limit' => 'Comment limit (auto-purge)',
+    'core.news_edit.comment_purge_limit_help' => '0 = unlimited. When exceeded, oldest regular comments are hard-deleted (status updates, offers, and habit config are kept).',
     'core.news_edit.keep_signs' => 'Do not clear views and signatures when saving the body',
     'core.news_edit.recipient' => 'Recipient (ACCESS_USER id or #id#)',
     'core.news_edit.err.recipient_required' => 'Choose a recipient for the private message',

@@ -429,7 +429,17 @@ final class NewsRepository
             || in_array($userId, self::parseUserList((string)($row['USERS_RESP'] ?? '')), true);
     }
 
-    /** @param array{NAME:string,BIG?:string,SHORT?:string,TYPE:int,STATUS?:int,ID_CURATOR?:int,DT_DEADLINE?:int,PID?:int,HAS_CHILDREN?:int,USERS_RESP?:string,ACCESS_USER?:string,PID_CONTRACT?:int,COMMENTS_LOCKED?:int} $data */
+    /** Normalize COMMENT_PURGE_LIMIT: 0 = off, otherwise 1…100000. */
+    public static function normalizeCommentPurgeLimit($raw): int
+    {
+        $n = (int)$raw;
+        if ($n < 1) {
+            return 0;
+        }
+        return min(100000, $n);
+    }
+
+    /** @param array{NAME:string,BIG?:string,SHORT?:string,TYPE:int,STATUS?:int,ID_CURATOR?:int,DT_DEADLINE?:int,PID?:int,HAS_CHILDREN?:int,USERS_RESP?:string,ACCESS_USER?:string,PID_CONTRACT?:int,COMMENTS_LOCKED?:int,COMMENT_PURGE_LIMIT?:int} $data */
     public static function create(array $data, int $authorId): int
     {
         $now = time();
@@ -439,6 +449,7 @@ final class NewsRepository
         $ignoreFolder = $hasChildren && !empty($data['IGNORE_FOLDER']) ? 1 : 0;
         $signReq = (!$hasChildren && !empty($data['SIGN_REQ'])) ? 1 : 0;
         $pidContract = max(0, (int)($data['PID_CONTRACT'] ?? 0));
+        $purgeLimit = $hasChildren ? 0 : self::normalizeCommentPurgeLimit($data['COMMENT_PURGE_LIMIT'] ?? 0);
         $accessGroup = (string)($data['ACCESS_GROUP'] ?? '');
         $accessGroup2 = (string)($data['ACCESS_GROUP2'] ?? '');
         $accessUser = (string)($data['ACCESS_USER'] ?? '');
@@ -453,14 +464,13 @@ final class NewsRepository
             $data['USERS_RESP'] = '';
             $data['DT_DEADLINE'] = 0;
         }
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_news SET
+        $hasPurgeCol = Database::columnExists('base_news', 'COMMENT_PURGE_LIMIT');
+        $sql = 'INSERT INTO base_news SET
                 DT=?, ID_USER=?, NAME=?, SHORT=?, BIG=?, ACCESS_GROUP=?, ACCESS_GROUP2=?, ACCESS_USER=?,
                 TYPE=?, DISABLED=0, STATUS=?, USERS_WATCHED=?, SIGN_REQ=?, USERS_SIGNED=?, COMMENTS_LOCKED=?,
                 DT_DEADLINE=?, USERS_RESP=?, DT_STARTLINE=0, ID_CURATOR=?, PID=?, HAS_CHILDREN=?,
-                ID_USER_UPDATE=?, DT_UPDATE=?, PID_CONTRACT=?, ID_OFFER_COMMENT=0, IGNORE_FOLDER=?'
-        );
-        $st->execute([
+                ID_USER_UPDATE=?, DT_UPDATE=?, PID_CONTRACT=?, ID_OFFER_COMMENT=0, IGNORE_FOLDER=?';
+        $params = [
             $now,
             $authorId,
             (string)($data['NAME'] ?? ''),
@@ -484,7 +494,13 @@ final class NewsRepository
             $now,
             $pidContract,
             $ignoreFolder,
-        ]);
+        ];
+        if ($hasPurgeCol) {
+            $sql .= ', COMMENT_PURGE_LIMIT=?';
+            $params[] = $purgeLimit;
+        }
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
         $newId = (int)Database::pdo()->lastInsertId();
         if ($type === 2 && !$hasChildren && class_exists('GcalSyncService')) {
             GcalSyncService::maybeEnqueue($newId, 'create');
@@ -514,6 +530,7 @@ final class NewsRepository
             'USERS_RESP' => 'USERS_RESP',
             'COMMENTS_LOCKED' => 'COMMENTS_LOCKED',
             'PID_CONTRACT' => 'PID_CONTRACT',
+            'COMMENT_PURGE_LIMIT' => 'COMMENT_PURGE_LIMIT',
         ];
         if (array_key_exists('HAS_CHILDREN', $data) && empty($data['HAS_CHILDREN'])) {
             $data['IGNORE_FOLDER'] = 0;
@@ -526,10 +543,18 @@ final class NewsRepository
             $data['ID_CURATOR'] = 0;
             $data['USERS_RESP'] = '';
             $data['DT_DEADLINE'] = 0;
+            $data['COMMENT_PURGE_LIMIT'] = 0;
         }
         if (array_key_exists('TYPE', $data) && (int)$data['TYPE'] === 3) {
             $data['ACCESS_GROUP'] = '';
             $data['ACCESS_GROUP2'] = '';
+        }
+        if (array_key_exists('COMMENT_PURGE_LIMIT', $data)) {
+            if (!Database::columnExists('base_news', 'COMMENT_PURGE_LIMIT')) {
+                unset($data['COMMENT_PURGE_LIMIT']);
+            } else {
+                $data['COMMENT_PURGE_LIMIT'] = self::normalizeCommentPurgeLimit($data['COMMENT_PURGE_LIMIT']);
+            }
         }
         foreach ($map as $key => $col) {
             if (array_key_exists($key, $data)) {
@@ -569,6 +594,12 @@ final class NewsRepository
         }
         if ($type === 2 && $touched && class_exists('GcalSyncService')) {
             GcalSyncService::maybeEnqueue($id, 'update');
+        }
+        if (array_key_exists('COMMENT_PURGE_LIMIT', $data)
+            && (int)$data['COMMENT_PURGE_LIMIT'] > 0
+            && class_exists('CommentsRepository', false)
+        ) {
+            CommentsRepository::purgeOverLimit($id);
         }
     }
 
@@ -892,6 +923,7 @@ final class NewsRepository
             'access_group2' => self::parseUserList((string)($row['ACCESS_GROUP2'] ?? '')),
             'access_user' => self::parseUserList((string)($row['ACCESS_USER'] ?? '')),
             'comments_locked' => !empty($row['COMMENTS_LOCKED']) ? 1 : 0,
+            'comment_purge_limit' => (int)($row['COMMENT_PURGE_LIMIT'] ?? 0),
             'disabled' => !empty($row['DISABLED']) ? 1 : 0,
         ];
         if ($withBody) {

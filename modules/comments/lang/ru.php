@@ -7,6 +7,7 @@ return [
     'comments.jump' => 'Комментарии',
     'comments.to_top' => 'Наверх',
     'comments.empty' => 'Комментариев пока нет',
+    'comments.purge_hint' => 'Авто-очистка: хранится не больше {n} комментариев (старые обычные удаляются).',
     'comments.leave' => 'Оставить комментарий',
     'comments.text' => 'Текст',
     'comments.placeholder' => 'Комментарий… Можно со смайликами 🙂',

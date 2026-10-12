@@ -30,6 +30,9 @@ $needsSign = !empty($needsSign);
     <h2><?= te('comments.title', ['n' => (int)$commentCount]) ?></h2>
     <a class="btn-ghost" href="#top">↑ <?= te('comments.to_top') ?></a>
   </div>
+  <?php if ((int)($row['COMMENT_PURGE_LIMIT'] ?? 0) > 0): ?>
+    <p class="muted"><?= e(t('comments.purge_hint', ['n' => (string)(int)$row['COMMENT_PURGE_LIMIT']])) ?></p>
+  <?php endif; ?>
 
   <div class="comment-list">
     <?php if ($tree): ?>

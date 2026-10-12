@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.55",
+    "version": "0.3.57",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -526,7 +526,7 @@
                 "method": "GET",
                 "path": "/news-statuses",
                 "permission": "core.news_statuses",
-                "description": "List ticket/news workflow statuses (base_news_statuses): name, type, deadline_policy (optional|required|forbidden for GCal), color, usage count"
+                "description": "List ticket/news workflow statuses (base_news_statuses): name, type, deadline_policy (optional|required|forbidden for GCal), color, usage count. Not staff ACL /statuses."
             },
             {
                 "id": "core.news_statuses.get",
@@ -541,7 +541,21 @@
                 "path": "/news-statuses/new",
                 "permission": "core.news_statuses",
                 "side_effect": "write",
-                "description": "Create news status. Fields: NAME, TYPE (default 2), DEADLINE_POLICY, COLOR; optional ID for fixed primary key"
+                "description": "Create news status. Fields: NAME, TYPE (default 2), DEADLINE_POLICY, COLOR; optional ID for fixed primary key",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "NAME": { "type": "string" },
+                        "TYPE": { "type": "integer", "description": "Usually 2 (tickets)" },
+                        "DEADLINE_POLICY": {
+                            "type": "string",
+                            "description": "optional|required|forbidden"
+                        },
+                        "COLOR": { "type": "string", "description": "#hex or named color" },
+                        "ID": { "type": "integer", "description": "Optional fixed primary key" }
+                    },
+                    "required": ["NAME"]
+                }
             },
             {
                 "id": "core.news_statuses.update",
@@ -549,7 +563,20 @@
                 "path": "/news-statuses/{id}/edit",
                 "permission": "core.news_statuses",
                 "side_effect": "write",
-                "description": "Update news status (NAME/TYPE/DEADLINE_POLICY/COLOR) or action=delete when unused"
+                "description": "Update news status (NAME/TYPE/DEADLINE_POLICY/COLOR) or action=delete when unused",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "description": "save (default) | delete"
+                        },
+                        "NAME": { "type": "string" },
+                        "TYPE": { "type": "integer" },
+                        "DEADLINE_POLICY": { "type": "string" },
+                        "COLOR": { "type": "string" }
+                    }
+                }
             },
             {
                 "id": "core.news.list",
@@ -591,7 +618,7 @@
                 "method": "GET",
                 "path": "/news/{id}",
                 "permission": "core.news",
-                "description": "News item JSON: item, checklist[], checklist_progress{done,total,pct}, gcal_linked (TYPE=2), paged comments, versions, needs_sign, users_resp. Folders → is_folder+list_path. Comments default: top-level, limit=20, excerpt=500, order=desc; drill comments_pid; page comments_offset; skip comments=0; one row comments_id; full text comments_excerpt=0; omit body body=0.",
+                "description": "News item JSON: item (incl. comment_purge_limit), checklist[], checklist_progress{done,total,pct}, gcal_linked (TYPE=2), paged comments (text + text_display for habit markers), versions, needs_sign, users_resp. Folders → is_folder+list_path. Comments default: top-level, limit=20, excerpt=500, order=desc; drill comments_pid; page comments_offset; skip comments=0; one row comments_id; full text comments_excerpt=0; omit body body=0.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -634,7 +661,7 @@
                 "method": "GET",
                 "path": "/news/{id}/edit",
                 "permission": "core.news",
-                "description": "Edit payload + folder options, staff/partner groups for ACCESS_*; fields hint for SIGN_REQ/IGNORE_FOLDER"
+                "description": "Edit payload + folder options, staff/partner groups for ACCESS_*; fields hint includes SIGN_REQ, COMMENT_PURGE_LIMIT, IGNORE_FOLDER"
             },
             {
                 "id": "core.news.create",
@@ -642,7 +669,7 @@
                 "path": "/news/new",
                 "permission": "core.news",
                 "side_effect": "write",
-                "description": "Create article/ticket/DM/folder. Fields: NAME, SHORT, BIG, TYPE, PID, HAS_CHILDREN, IGNORE_FOLDER, SIGN_REQ, ACCESS_GROUP[], ACCESS_GROUP2[], ACCESS_USER[], STATUS/ID_CURATOR/users_resp/DT_DEADLINE for tickets",
+                "description": "Create article/ticket/DM/folder. Fields: NAME, SHORT, BIG, TYPE, PID, HAS_CHILDREN, IGNORE_FOLDER, SIGN_REQ, COMMENT_PURGE_LIMIT (0=off; hard-delete oldest over limit), ACCESS_GROUP[], ACCESS_GROUP2[], ACCESS_USER[], STATUS/ID_CURATOR/users_resp/DT_DEADLINE for tickets",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -670,6 +697,10 @@
                             "type": "integer",
                             "description": "1 = require acknowledgment comment"
                         },
+                        "COMMENT_PURGE_LIMIT": {
+                            "type": "integer",
+                            "description": "0=off; max comments kept (auto hard-delete oldest regular)"
+                        },
                         "ACCESS_GROUP": {
                             "description": "status id[] or #id# list"
                         },
@@ -688,7 +719,26 @@
                 "path": "/news/{id}/edit",
                 "permission": "core.news",
                 "side_effect": "write",
-                "description": "Update news/folder; keep_signs=1 preserves views/signs when body changes. Folders cannot unset HAS_CHILDREN while children exist."
+                "description": "Update news/folder; keep_signs=1 preserves views/signs when body changes. COMMENT_PURGE_LIMIT (0=off) triggers immediate purge if already over. Folders cannot unset HAS_CHILDREN while children exist.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "NAME": { "type": "string" },
+                        "SHORT": { "type": "string" },
+                        "BIG": { "type": "string" },
+                        "COMMENT_PURGE_LIMIT": {
+                            "type": "integer",
+                            "description": "0=off; max comments kept"
+                        },
+                        "SIGN_REQ": { "type": "integer" },
+                        "keep_signs": { "type": "integer", "description": "1 = keep views/signs on body change" },
+                        "STATUS": { "type": "integer" },
+                        "ID_CURATOR": { "type": "integer" },
+                        "DT_DEADLINE": { "type": "string", "description": "Y-m-d or empty" },
+                        "HAS_CHILDREN": { "type": "integer" },
+                        "IGNORE_FOLDER": { "type": "integer" }
+                    }
+                }
             },
             {
                 "id": "core.news.act",
@@ -696,7 +746,7 @@
                 "path": "/news/{id}",
                 "permission": "core.news",
                 "side_effect": "write",
-                "description": "News item actions. Comments: comment (optional ticket fields new_status/ticket_deadline/id_curator/users_resp[]/users_resp_present; contract offer price_offer+offer_deadline), edit_comment (SA may pass price_offer/offer_deadline), hide/show/delete_comment (SA hard-delete any without replies). Checklist: checklist_add (title multiline), toggle|rename|delete (item_id), checklist_sort_done (done_position=top|bottom). Also like, favorite, delete, restore_version.",
+                "description": "News item actions. Comments: comment (optional ticket fields; if COMMENT_PURGE_LIMIT set, oldest regular comments may be hard-deleted after add), edit_comment, hide/show/delete_comment. Checklist: checklist_add/toggle/rename/delete/sort_done. Also like, favorite, delete, restore_version.",
                 "parameters": {
                     "type": "object",
                     "properties": {

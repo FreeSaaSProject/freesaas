@@ -190,6 +190,12 @@ $newTitleKeys = [
   </label>
   <p class="muted" data-sign-req-help<?= $isFolderRow ? ' hidden' : '' ?>><?= te('core.news_edit.sign_req_help') ?></p>
 
+  <label data-purge-wrap<?= $isFolderRow ? ' hidden' : '' ?>><?= te('core.news_edit.comment_purge_limit') ?>
+    <input type="number" name="COMMENT_PURGE_LIMIT" min="0" max="100000" step="1"
+           value="<?= (int)($row['COMMENT_PURGE_LIMIT'] ?? 0) ?>">
+    <span class="muted"><?= te('core.news_edit.comment_purge_limit_help') ?></span>
+  </label>
+
   <?php if (!$isNew): ?>
   <label class="check">
     <input type="checkbox" name="keep_signs" value="1">
@@ -228,6 +234,7 @@ $newTitleKeys = [
   var ticket = document.querySelector('[data-ticket-fields]');
   var signWrap = document.querySelector('[data-sign-req-wrap]');
   var signHelp = document.querySelector('[data-sign-req-help]');
+  var purgeWrap = document.querySelector('[data-purge-wrap]');
   var type = <?= (int)$type ?>;
 
   function syncFolder() {
@@ -241,9 +248,14 @@ $newTitleKeys = [
     if (ticket) ticket.hidden = !(type === 2 && !on);
     if (signWrap) signWrap.hidden = on;
     if (signHelp) signHelp.hidden = on;
+    if (purgeWrap) purgeWrap.hidden = on;
     if (on && signWrap) {
       var s = signWrap.querySelector('input[name="SIGN_REQ"]');
       if (s) s.checked = false;
+    }
+    if (on && purgeWrap) {
+      var p = purgeWrap.querySelector('input[name="COMMENT_PURGE_LIMIT"]');
+      if (p) p.value = '0';
     }
   }
   if (flag) flag.addEventListener('change', syncFolder);

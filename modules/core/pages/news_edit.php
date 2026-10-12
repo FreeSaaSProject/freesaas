@@ -44,6 +44,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         'HAS_CHILDREN' => !empty($_POST['HAS_CHILDREN']) ? 1 : 0,
         'IGNORE_FOLDER' => !empty($_POST['IGNORE_FOLDER']) ? 1 : 0,
         'SIGN_REQ' => !empty($_POST['SIGN_REQ']) ? 1 : 0,
+        'COMMENT_PURGE_LIMIT' => NewsRepository::normalizeCommentPurgeLimit($_POST['COMMENT_PURGE_LIMIT'] ?? 0),
         'USERS_RESP' => '',
         'keep_signs' => !empty($_POST['keep_signs']),
     ];
@@ -57,6 +58,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $payload['ID_CURATOR'] = 0;
         $payload['USERS_RESP'] = '';
         $payload['DT_DEADLINE'] = 0;
+        $payload['COMMENT_PURGE_LIMIT'] = 0;
     } else {
         $payload['IGNORE_FOLDER'] = 0;
     }
@@ -213,6 +215,7 @@ if ($wantsJson) {
             'access_group2' => 'partner status ids (ACCESS_GROUP2); empty on TYPE=3',
             'access_user' => 'user ids; required for TYPE=3 DM',
             'sign_req' => '1 = require acknowledgment comment (not for folders)',
+            'comment_purge_limit' => 'COMMENT_PURGE_LIMIT int; 0=off; when exceeded oldest regular comments hard-deleted (status/offers/habit config kept)',
             'ignore_folder' => '1 = archive folder (HAS_CHILDREN only)',
             'has_children' => '1 = folder; locks ticket fields and SIGN_REQ off',
             'keep_signs' => '1 = do not clear views/signs when body changes',
