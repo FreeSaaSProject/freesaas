@@ -143,9 +143,11 @@ jobs:
           set -euo pipefail
           python3 -m pip install --user 'semgrep==1.110.0'
           export PATH="$HOME/.local/bin:$PATH"
+          # Focused ruleset (.semgrep.yml). Full p/php is too noisy on JSON APIs /
+          # ListQuery ORDER BY allow-lists / intentional SSL toggles — covered by
+          # bin/check-unserialize.php, check-safe-http.php, check-csrf.php, etc.
           semgrep scan \
-            --config p/php \
-            --severity=ERROR \
+            --config .semgrep.yml \
             --error \
             --metrics=off \
             --exclude='modules/**/vendor/**' \
@@ -161,8 +163,10 @@ jobs:
         include:
           - db: mariadb:10.11
             php: '8.2'
+            artifact: mariadb-10.11
           - db: mysql:8.0
             php: '8.2'
+            artifact: mysql-8.0
     services:
       db:
         image: ${{ matrix.db }}
@@ -279,7 +283,7 @@ jobs:
       - name: Upload SBOM inventory
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: sbom-inventory-${{ matrix.db }}
+          name: sbom-inventory-${{ matrix.artifact }}
           path: var/sbom-inventory.json
           if-no-files-found: warn
 

@@ -1,0 +1,30 @@
+# High-signal PHP security rules for FreeSaaS CI (Semgrep).
+# Broader p/php packs are noisy on JSON APIs and allow-listed SQL fragments;
+# those surfaces are covered by bin/check-unserialize.php, check-safe-http.php, etc.
+rules:
+  - id: freesaas.unserialize-no-allowed-classes
+    languages: [php]
+    severity: ERROR
+    message: unserialize() must pass allowed_classes => false
+    patterns:
+      - pattern-either:
+          - pattern: unserialize($X)
+          - pattern: @unserialize($X)
+      - pattern-not: unserialize($X, ...)
+      - pattern-not: @unserialize($X, ...)
+
+  - id: freesaas.php-eval
+    languages: [php]
+    severity: ERROR
+    message: PHP language eval() is forbidden in first-party code
+    pattern: eval(...);
+    paths:
+      exclude:
+        - modules/**/vendor/**
+        - modules/**/phpqrcode/**
+
+  - id: freesaas.create-function
+    languages: [php]
+    severity: ERROR
+    message: create_function() is removed/dangerous
+    pattern: create_function(...)
