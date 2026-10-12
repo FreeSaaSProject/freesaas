@@ -122,11 +122,14 @@ final class OAuthServer
         return self::publicBaseUrl() . '/oauth/register';
     }
 
-    /** Hosts allowed for DCR redirect_uris and CIMD client_id URLs. */
+    /**
+     * Public vendor hosts for CIMD *fetch* (never loopback / private — SSRF).
+     * Loopback is allowed only as redirect_uri for native apps (RFC 8252).
+     */
     public static function isTrustedOAuthHost(string $host): bool
     {
-        $host = strtolower(trim($host));
-        if ($host === '') {
+        $host = strtolower(trim($host, '[]'));
+        if ($host === '' || SafeHttp::isLoopbackOrLinkLocalHost($host) || SafeHttp::isBlockedHost($host)) {
             return false;
         }
         $allowed = [
@@ -138,8 +141,6 @@ final class OAuthServer
             'anthropic.com',
             'grok.com',
             'x.ai',
-            'localhost',
-            '127.0.0.1',
         ];
         foreach ($allowed as $suf) {
             if ($host === $suf || substr($host, -strlen('.' . $suf)) === '.' . $suf) {
@@ -155,7 +156,14 @@ final class OAuthServer
             return false;
         }
         $host = parse_url($uri, PHP_URL_HOST);
-        return is_string($host) && self::isTrustedOAuthHost($host);
+        if (!is_string($host) || $host === '') {
+            return false;
+        }
+        // Native Codex/ChatGPT apps: loopback redirect only (not a fetch target).
+        if (self::isLoopbackHost($host)) {
+            return true;
+        }
+        return self::isTrustedOAuthHost($host);
     }
 
     public static function isLoopbackHost(string $host): bool
@@ -319,43 +327,26 @@ final class OAuthServer
      */
     public static function httpGetJson(string $url): ?array
     {
-        if (!preg_match('#^https://#i', $url)) {
+        $host = parse_url($url, PHP_URL_HOST);
+        if (!is_string($host) || !self::isTrustedOAuthHost($host)) {
             return null;
         }
-        $raw = null;
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            if ($ch === false) {
-                return null;
-            }
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 3,
-                CURLOPT_TIMEOUT => 8,
-                CURLOPT_CONNECTTIMEOUT => 5,
-                CURLOPT_HTTPHEADER => ['Accept: application/json'],
-                CURLOPT_USERAGENT => 'FreeSaaS-OAuth/1.0',
-            ]);
-            $raw = curl_exec($ch);
-            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_close($ch);
-            if (!is_string($raw) || $code < 200 || $code >= 300) {
-                return null;
-            }
-        } else {
-            $ctx = stream_context_create([
-                'http' => [
-                    'timeout' => 8,
-                    'header' => "Accept: application/json\r\nUser-Agent: FreeSaaS-OAuth/1.0\r\n",
-                ],
-            ]);
-            $raw = @file_get_contents($url, false, $ctx);
-            if (!is_string($raw) || $raw === '') {
-                return null;
-            }
+        // SafeHttp: https-only, no private DNS, redirects re-checked per hop.
+        $res = SafeHttp::get(
+            $url,
+            512 * 1024,
+            8,
+            3,
+            ['Accept: application/json', 'User-Agent: FreeSaaS-OAuth/1.0']
+        );
+        if (!$res['ok']) {
+            return null;
         }
-        $decoded = json_decode($raw, true);
+        $finalHost = parse_url($res['final_url'], PHP_URL_HOST);
+        if (!is_string($finalHost) || !self::isTrustedOAuthHost($finalHost)) {
+            return null;
+        }
+        $decoded = json_decode($res['body'], true);
         return is_array($decoded) ? $decoded : null;
     }
 

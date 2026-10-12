@@ -29,6 +29,7 @@ require_once __DIR__ . '/ModuleScaffold.php';
 require_once __DIR__ . '/AgentOps.php';
 require_once __DIR__ . '/SetupKey.php';
 require_once __DIR__ . '/Csrf.php';
+require_once __DIR__ . '/SafeHttp.php';
 require_once __DIR__ . '/AgentAuth.php';
 
 

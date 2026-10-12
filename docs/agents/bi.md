@@ -130,7 +130,7 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 
 ## Engine budgets
 
-Runtime caps (also enforced on validate for step counts): query frames ≤ 5 000 rows; derive frames ≤ 25 000; cross-join ≤ 100 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s (`microtime` ticks in derive/join/group/window/sections). Each SQL SELECT gets session `MAX_EXECUTION_TIME` / MariaDB `max_statement_time` = remaining budget ms. Exceeded → `recipe_timeout`.
+Runtime caps (also enforced on validate for step counts): query frames ≤ 5 000 rows; derive frames ≤ 25 000; cross-join ≤ 100 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s (`microtime` ticks in derive/join/group/window/sections). Each SQL SELECT sets session `MAX_EXECUTION_TIME` / MariaDB `max_statement_time` = remaining budget ms and **verifies** the var; if neither backend accepts the limit → `sql_timeout_unavailable` (run aborted, no unbounded query). Query kill / wall exceed → `recipe_timeout`.
 
 ## Agent ops (`module.json`)
 

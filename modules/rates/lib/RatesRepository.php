@@ -317,7 +317,7 @@ final class RatesRepository
                 $row[$key] = $raw;
                 continue;
             }
-            $un = @unserialize((string)$raw);
+            $un = @unserialize((string)$raw, ['allowed_classes' => false]);
             $row[$key] = is_array($un) ? $un : [];
         }
         $row['id'] = (int)($row['id'] ?? 0);

@@ -154,44 +154,87 @@ final class OAuthTokensRepository
     }
 
     /**
+     * Rotate refresh token: lock row, verify client_id before any mutation, claim once (REVOKED_AT).
+     *
      * @return array{access_token:string,refresh_token:string,expires_in:int,scope:string,client_id:string}|null
      */
-    public static function refresh(string $refreshToken): ?array
+    public static function refresh(string $refreshToken, string $clientId): ?array
     {
-        if (!self::tokensReady() || $refreshToken === '') {
+        if (!self::tokensReady() || $refreshToken === '' || $clientId === '') {
             return null;
         }
-        $hash = OAuthServer::hashSecret($refreshToken);
-        $st = Database::pdo()->prepare(
-            'SELECT * FROM base_oauth_tokens WHERE REFRESH_TOKEN_HASH = ? LIMIT 1'
-        );
-        $st->execute([$hash]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        if (!is_array($row)) {
-            return null;
+        $pdo = Database::pdo();
+        $started = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $started = true;
         }
-        if ((int)($row['REVOKED_AT'] ?? 0) > 0) {
-            return null;
-        }
-        if ((int)($row['REFRESH_EXPIRES_AT'] ?? 0) < time()) {
-            return null;
-        }
-        $clientId = (string)$row['CLIENT_ID'];
-        // Rotate: revoke old, issue new
-        Database::pdo()->prepare(
-            'UPDATE base_oauth_tokens SET REVOKED_AT = ? WHERE ID = ?'
-        )->execute([time(), (int)$row['ID']]);
+        try {
+            $hash = OAuthServer::hashSecret($refreshToken);
+            $st = $pdo->prepare(
+                'SELECT * FROM base_oauth_tokens WHERE REFRESH_TOKEN_HASH = ? LIMIT 1 FOR UPDATE'
+            );
+            $st->execute([$hash]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row)) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return null;
+            }
+            // Client must match before revoke/rotate (wrong client must not invalidate the grant).
+            if (!hash_equals((string)$row['CLIENT_ID'], $clientId)) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return null;
+            }
+            if ((int)($row['REVOKED_AT'] ?? 0) > 0) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return null;
+            }
+            if ((int)($row['REFRESH_EXPIRES_AT'] ?? 0) < time()) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return null;
+            }
+            // Atomic one-shot claim — concurrent refresh of the same token loses here.
+            $upd = $pdo->prepare(
+                'UPDATE base_oauth_tokens SET REVOKED_AT = ? WHERE ID = ? AND REVOKED_AT = 0'
+            );
+            $upd->execute([time(), (int)$row['ID']]);
+            if ($upd->rowCount() < 1) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return null;
+            }
 
-        $tokens = self::issueTokens(
-            $clientId,
-            (int)$row['USER_ID'],
-            (string)$row['SCOPE']
-        );
-        if ($tokens === null) {
-            return null;
+            $tokens = self::issueTokens(
+                $clientId,
+                (int)$row['USER_ID'],
+                (string)$row['SCOPE']
+            );
+            if ($tokens === null) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return null;
+            }
+            $tokens['client_id'] = $clientId;
+            if ($started) {
+                $pdo->commit();
+            }
+            return $tokens;
+        } catch (Throwable $e) {
+            if ($started && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
-        $tokens['client_id'] = $clientId;
-        return $tokens;
     }
 
     public static function revokeAccess(string $token): bool

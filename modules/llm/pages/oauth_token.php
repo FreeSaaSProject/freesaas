@@ -108,12 +108,10 @@ if ($grant === 'refresh_token') {
         OAuthServer::tokenError('invalid_client', 'Client authentication failed', 401);
     }
     $refresh = (string)($in['refresh_token'] ?? '');
-    $tokens = OAuthTokensRepository::refresh($refresh);
+    // client_id checked inside refresh() before revoke/rotate (atomic claim).
+    $tokens = OAuthTokensRepository::refresh($refresh, $clientId);
     if ($tokens === null) {
         OAuthServer::tokenError('invalid_grant', 'Invalid refresh token');
-    }
-    if ((string)($tokens['client_id'] ?? '') !== $clientId) {
-        OAuthServer::tokenError('invalid_grant', 'Refresh token client mismatch');
     }
     OAuthServer::tokenSuccess([
         'access_token' => $tokens['access_token'],

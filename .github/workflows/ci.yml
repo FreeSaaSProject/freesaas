@@ -1,6 +1,7 @@
 name: CI
 
 # Static checks on every push/PR; install job catches MariaDB/MySQL blockers (B1/B2).
+# Actions pinned to commit SHAs (mutable tags alone are not enough).
 
 on:
   push:
@@ -8,7 +9,50 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
+  secrets:
+    name: secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  cla:
+    name: CLA gate
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require CLA for external contributors
+        env:
+          ASSOC: ${{ github.event.pull_request.author_association }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          set -euo pipefail
+          echo "author=$AUTHOR association=$ASSOC labels=$LABELS"
+          case "$ASSOC" in
+            OWNER|MEMBER|COLLABORATOR) echo "OK maintainer association — CLA not required"; exit 0 ;;
+          esac
+          # External PRs: maintainer applies label after CLA.md acceptance (email).
+          if echo ",$LABELS," | grep -qi ',cla-signed,'; then
+            echo "OK label cla-signed present"
+            exit 0
+          fi
+          echo "::error::External PR needs an accepted CLA (see CLA.md / CONTRIBUTING.md)."
+          echo "Maintainer: after CLA acceptance, add label \`cla-signed\`."
+          exit 1
+
   static:
     name: static (PHP ${{ matrix.php }})
     runs-on: ubuntu-latest
@@ -17,10 +61,10 @@ jobs:
       matrix:
         php: ['8.1', '8.2', '8.4']
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           coverage: none
@@ -53,7 +97,6 @@ jobs:
           set -euo pipefail
           find app bin modules -name '*.php' -not -path '*/vendor/*' -print0 \
             | xargs -0 -n1 php -l >/tmp/php-l.txt
-          # Fail only on parse errors (php -l prints "No syntax errors" on success)
           if grep -E -i 'parse error|fatal error|errors parsing' /tmp/php-l.txt; then
             exit 1
           fi
@@ -64,7 +107,6 @@ jobs:
           set -euo pipefail
           : > /tmp/no-strict.txt
           while IFS= read -r f; do
-            # Bundled third-party (Composer vendor, LGPL phpqrcode, …) — do not require our style.
             case "$f" in */vendor/*|*/phpqrcode/*) continue ;; esac
             grep -q 'declare(strict_types=1)' "$f" || echo "$f" >> /tmp/no-strict.txt
           done < <(git ls-files '*.php')
@@ -86,9 +128,29 @@ jobs:
           php bin/check-safe-html.php
           php bin/check-csrf.php
           php bin/check-password.php
+          php bin/check-session.php
+          php bin/check-unserialize.php
+          php bin/check-htaccess-denies.php
+          php bin/check-safe-http.php
+          php bin/check-license-inventory.php
 
       - name: Public route allow-list
         run: php bin/check-routes.php
+
+      - name: Semgrep PHP security (SAST)
+        if: matrix.php == '8.2'
+        run: |
+          set -euo pipefail
+          python3 -m pip install --user 'semgrep==1.110.0'
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep scan \
+            --config p/php \
+            --severity=ERROR \
+            --error \
+            --metrics=off \
+            --exclude='modules/**/vendor/**' \
+            --exclude='modules/**/phpqrcode/**' \
+            --exclude='var/**'
 
   install:
     name: install (${{ matrix.db }})
@@ -117,10 +179,10 @@ jobs:
           --health-timeout=5s
           --health-retries=30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
       - name: Setup PHP
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: ${{ matrix.php }}
           extensions: pdo_mysql
@@ -190,6 +252,36 @@ jobs:
 
       - name: Smoke
         run: php bin/smoke.php --format=json
+
+      - name: Auth / CSRF / permission / path-deny gates
+        run: |
+          set -euo pipefail
+          # PHP built-in server ignores .htaccess — sensitive path denies are static-checked.
+          # Public-route allow-list + CSRF/session helpers cover IDOR/CSRF control surfaces.
+          php bin/check-csrf.php
+          php bin/check-session.php
+          php bin/check-routes.php
+          php bin/check-htaccess-denies.php
+          php bin/check-safe-http.php
+          php -r '
+          require "app/bootstrap.php";
+          $tok = (string)Config::get("app", "agent_token", "");
+          if ($tok === "" || $tok === "CHANGE_ME") { fwrite(STDERR, "agent_token unset\n"); exit(1); }
+          echo "OK agent_token configured for install\n";
+          '
+
+      - name: SBOM inventory artifact
+        run: |
+          mkdir -p var
+          php bin/check-license-inventory.php
+          test -f var/sbom-inventory.json || echo '{"bomFormat":"CycloneDX","components":[]}' > var/sbom-inventory.json
+
+      - name: Upload SBOM inventory
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: sbom-inventory-${{ matrix.db }}
+          path: var/sbom-inventory.json
+          if-no-files-found: warn
 
       - name: Round-trip CLI (auth / bots)
         run: |

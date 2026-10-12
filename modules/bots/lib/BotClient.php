@@ -332,7 +332,7 @@ final class BotClient
     }
 
     /**
-     * Download arbitrary URL (Max attachment) to temp file.
+     * Download https URL (Max attachment) to temp file — SSRF-safe (scheme/host/DNS/size).
      *
      * @return array{ok:bool,path:string,ext:string,error:string}
      */
@@ -342,6 +342,10 @@ final class BotClient
         if ($url === '') {
             return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'empty url'];
         }
+        $check = SafeHttp::validateOutboundUrl($url, true);
+        if (!$check['ok']) {
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => $check['error']];
+        }
         $ext = preg_replace('/[^a-z0-9]/', '', strtolower($preferExt)) ?: 'ogg';
         $tmp = tempnam(sys_get_temp_dir(), 'botvoice_');
         if ($tmp === false) {
@@ -349,26 +353,11 @@ final class BotClient
         }
         $dest = $tmp . '.' . $ext;
         @unlink($tmp);
-        $fp = fopen($dest, 'wb');
-        if ($fp === false) {
-            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => 'fopen failed'];
-        }
-        $ch = curl_init();
-        curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_FILE => $fp,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT => 120,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
-        ]);
-        $ok = curl_exec($ch);
-        $err = curl_error($ch);
-        curl_close($ch);
-        fclose($fp);
-        if ($ok === false) {
+        // Voice attachments: 25 MiB cap.
+        $dl = SafeHttp::downloadToFile($url, $dest, 25 * 1024 * 1024, 120, 3);
+        if (!$dl['ok']) {
             @unlink($dest);
-            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => $err !== '' ? $err : 'download failed'];
+            return ['ok' => false, 'path' => '', 'ext' => '', 'error' => $dl['error']];
         }
         return ['ok' => true, 'path' => $dest, 'ext' => $ext, 'error' => ''];
     }

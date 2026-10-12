@@ -160,9 +160,9 @@ final class SystemFlyerPromo
         if ($raw === '') {
             return [];
         }
-        $decoded = @unserialize(base64_decode($raw, true) ?: '');
+        $decoded = @unserialize(base64_decode($raw, true) ?: '', ['allowed_classes' => false]);
         if (!is_array($decoded)) {
-            $decoded = @unserialize(base64_decode($raw) ?: '');
+            $decoded = @unserialize(base64_decode($raw) ?: '', ['allowed_classes' => false]);
         }
         if (!is_array($decoded)) {
             return [];

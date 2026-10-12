@@ -16,8 +16,11 @@ final class BiRecipeEngine
     /** @var float */
     private static $budgetStartedAt = 0.0;
 
-    /** @var string|null cached: mysql|mariadb|none */
+    /** @var string|null cached working dialect: mysql|mariadb */
     private static $sqlTimeoutDialect = null;
+
+    /** @var string|null dialect applied for the in-flight query (for clear) */
+    private static $sqlTimeoutApplied = null;
 
     /**
      * @param array<string,mixed> $recipe
@@ -393,50 +396,96 @@ final class BiRecipeEngine
         }
     }
 
-    private static function detectSqlTimeoutDialect(PDO $pdo): string
+    /**
+     * Prefer cached dialect, else VERSION() hint, then both backends.
+     *
+     * @return list<string>
+     */
+    private static function sqlTimeoutAttemptOrder(PDO $pdo): array
     {
-        if (self::$sqlTimeoutDialect !== null) {
-            return self::$sqlTimeoutDialect;
+        if (self::$sqlTimeoutDialect === 'mariadb' || self::$sqlTimeoutDialect === 'mysql') {
+            $primary = self::$sqlTimeoutDialect;
+            return [$primary, $primary === 'mariadb' ? 'mysql' : 'mariadb'];
         }
         try {
             $ver = (string)$pdo->query('SELECT VERSION()')->fetchColumn();
             if (stripos($ver, 'mariadb') !== false) {
-                self::$sqlTimeoutDialect = 'mariadb';
-            } else {
-                self::$sqlTimeoutDialect = 'mysql';
+                return ['mariadb', 'mysql'];
             }
         } catch (Throwable $e) {
-            self::$sqlTimeoutDialect = 'none';
+            // fall through — try both
         }
-        return self::$sqlTimeoutDialect;
+        return ['mysql', 'mariadb'];
     }
 
-    /** Cap a single SELECT so a long query cannot outrun the recipe wall clock. */
+    /**
+     * Cap a single SELECT to remaining wall clock. Verifies the session var stuck.
+     * If no backend accepts the limit, abort the run — never execute unbounded SQL.
+     */
     private static function applySqlTimeout(PDO $pdo, int $ms): void
     {
         $ms = max(1, $ms);
-        $dialect = self::detectSqlTimeoutDialect($pdo);
+        self::$sqlTimeoutApplied = null;
+        foreach (self::sqlTimeoutAttemptOrder($pdo) as $kind) {
+            if (self::tryApplySqlTimeout($pdo, $kind, $ms)) {
+                self::$sqlTimeoutApplied = $kind;
+                self::$sqlTimeoutDialect = $kind;
+                return;
+            }
+        }
+        throw new RuntimeException('sql_timeout_unavailable');
+    }
+
+    private static function tryApplySqlTimeout(PDO $pdo, string $kind, int $ms): bool
+    {
         try {
-            if ($dialect === 'mariadb') {
+            if ($kind === 'mariadb') {
                 // MariaDB: seconds (float allowed).
                 $sec = max(0.001, round($ms / 1000.0, 3));
                 $pdo->exec('SET SESSION max_statement_time=' . $sec);
-            } elseif ($dialect === 'mysql') {
+                $got = (float)$pdo->query('SELECT @@SESSION.max_statement_time')->fetchColumn();
+                $ok = $got > 0.0 && abs($got - $sec) < 0.05;
+                if (!$ok) {
+                    try {
+                        $pdo->exec('SET SESSION max_statement_time=0');
+                    } catch (Throwable $e) {
+                        // ignore
+                    }
+                }
+                return $ok;
+            }
+            if ($kind === 'mysql') {
                 // MySQL 5.7+/8: milliseconds for SELECT.
                 $pdo->exec('SET SESSION MAX_EXECUTION_TIME=' . $ms);
+                $got = (int)$pdo->query('SELECT @@SESSION.MAX_EXECUTION_TIME')->fetchColumn();
+                // Accept exact or a rounded positive value not exceeding the ask.
+                $ok = $got > 0 && $got <= $ms;
+                if (!$ok) {
+                    try {
+                        $pdo->exec('SET SESSION MAX_EXECUTION_TIME=0');
+                    } catch (Throwable $e) {
+                        // ignore
+                    }
+                }
+                return $ok;
             }
         } catch (Throwable $e) {
-            self::$sqlTimeoutDialect = 'none';
+            return false;
         }
+        return false;
     }
 
     private static function clearSqlTimeout(PDO $pdo): void
     {
-        $dialect = self::$sqlTimeoutDialect ?? 'none';
+        $dialect = self::$sqlTimeoutApplied;
+        self::$sqlTimeoutApplied = null;
+        if ($dialect !== 'mariadb' && $dialect !== 'mysql') {
+            return;
+        }
         try {
             if ($dialect === 'mariadb') {
                 $pdo->exec('SET SESSION max_statement_time=0');
-            } elseif ($dialect === 'mysql') {
+            } else {
                 $pdo->exec('SET SESSION MAX_EXECUTION_TIME=0');
             }
         } catch (Throwable $e) {

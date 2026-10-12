@@ -10,6 +10,9 @@ Thank you for your interest in FreeSaaS.
 Send acceptance to **msms2003@mail.ru** as described in `CLA.md` before (or with)
 your first pull request. Contributions without an accepted CLA will not be merged.
 
+CI enforces this on pull requests from outside OWNER/MEMBER/COLLABORATOR: the
+maintainer applies the GitHub label **`cla-signed`** after CLA acceptance.
+
 The CLA is a copyright and patent **license grant** to the copyright holder
 (Ilya Kleshnin). You keep your copyright; the Maintainer needs the grant in order
 to distribute FreeSaaS under AGPL-3.0-or-later and under optional commercial

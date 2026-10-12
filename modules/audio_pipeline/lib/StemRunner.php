@@ -942,7 +942,7 @@ final class StemRunner
             $wasIntersect = 0;
             $rawInter = (string)($row['INTERSECTIONS'] ?? '');
             if ($rawInter !== '') {
-                $un = @unserialize($rawInter);
+                $un = @unserialize($rawInter, ['allowed_classes' => false]);
                 if (is_array($un) && $un !== []) {
                     $wasIntersect = 1;
                 }
