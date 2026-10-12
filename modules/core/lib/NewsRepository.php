@@ -22,22 +22,36 @@ final class NewsRepository
         ];
     }
 
-    /** @return array<int, array{NAME:string,COLOR:string}> */
+    /** @var array<int, array{NAME:string,COLOR:string,TYPE?:int,DEADLINE_POLICY?:string}>|null */
+    private static $statusesCache = null;
+
+    /** @return array<int, array{NAME:string,COLOR:string,TYPE?:int,DEADLINE_POLICY?:string}> */
     public static function statuses(): array
     {
-        static $cache = null;
-        if ($cache !== null) {
-            return $cache;
+        if (self::$statusesCache !== null) {
+            return self::$statusesCache;
         }
-        $cache = [];
+        self::$statusesCache = [];
         if (!Database::tableExists('base_news_statuses')) {
-            return $cache;
+            return self::$statusesCache;
         }
-        $rows = Database::pdo()->query('SELECT ID, NAME, COLOR FROM base_news_statuses ORDER BY ID')->fetchAll();
+        $rows = Database::pdo()->query(
+            'SELECT ID, NAME, COLOR, TYPE, DEADLINE_POLICY FROM base_news_statuses ORDER BY ID'
+        )->fetchAll();
         foreach ($rows as $r) {
-            $cache[(int)$r['ID']] = ['NAME' => (string)$r['NAME'], 'COLOR' => (string)$r['COLOR']];
+            self::$statusesCache[(int)$r['ID']] = [
+                'NAME' => (string)$r['NAME'],
+                'COLOR' => (string)$r['COLOR'],
+                'TYPE' => (int)($r['TYPE'] ?? 0),
+                'DEADLINE_POLICY' => (string)($r['DEADLINE_POLICY'] ?? 'optional'),
+            ];
         }
-        return $cache;
+        return self::$statusesCache;
+    }
+
+    public static function flushStatusesCache(): void
+    {
+        self::$statusesCache = null;
     }
 
     /** @return array<string,string> request sort key => SQL expression */

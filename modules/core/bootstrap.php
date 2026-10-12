@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/NewsRepository.php';
+require_once __DIR__ . '/lib/NewsStatusesRepository.php';
 require_once __DIR__ . '/lib/NewsChecklistRepository.php';
 require_once __DIR__ . '/lib/NewsLogsRepository.php';
 require_once __DIR__ . '/lib/UsersRepository.php';
@@ -61,6 +62,7 @@ $pages = [
     '/agent/modules/{id}' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/enable' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/install' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/modules/{id}/uninstall' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/disable' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/validate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/validate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
@@ -85,6 +87,9 @@ $pages = [
     '/agent/update/apply' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/news' => ['permission' => 'core.news', 'methods' => ['GET'], 'file' => 'news.php'],
     '/news/new' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_edit.php'],
+    '/news-statuses' => ['permission' => 'core.news', 'methods' => ['GET'], 'file' => 'news_statuses.php'],
+    '/news-statuses/new' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_status_edit.php'],
+    '/news-statuses/{id}/edit' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_status_edit.php'],
     '/news/{id}' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_item.php'],
     '/news/{id}/edit' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_edit.php'],
     '/core/jobs/habits-reminders' => [

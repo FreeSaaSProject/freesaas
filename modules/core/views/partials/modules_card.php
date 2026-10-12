@@ -216,6 +216,17 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
       </form>
     <?php endif; ?>
 
+    <?php if (!empty($card['can_uninstall']) && Auth::capability('SUPERADMIN_ACCESS')): ?>
+      <form method="post" class="inline-form" action="/modules"
+        onsubmit="return confirm(<?= tj('core.modules.confirm_uninstall', ['module' => $name !== '' ? $name : $id]) ?>);">
+        <input type="hidden" name="module" value="<?= e($id) ?>">
+        <input type="hidden" name="action" value="uninstall">
+        <input type="hidden" name="confirm_uninstall" value="1">
+        <input type="hidden" name="ret" value="<?= e($listPath) ?>">
+        <button class="btn-danger btn-sm" type="submit"><?= te('core.modules.btn_uninstall') ?></button>
+      </form>
+    <?php endif; ?>
+
     <a class="btn-secondary btn-sm" href="/modules/<?= e(rawurlencode($id)) ?>"><?= te('core.modules.btn_details') ?></a>
     <?php endif; ?>
   </div>

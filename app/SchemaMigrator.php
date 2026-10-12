@@ -274,6 +274,27 @@ final class SchemaMigrator
         self::$setupStatusCache = null;
     }
 
+    /**
+     * Remove all applied-migration ledger rows for a module (after uninstall DROP).
+     *
+     * @return int rows deleted
+     */
+    public static function clearModuleLedger(string $moduleId): int
+    {
+        $moduleId = trim($moduleId);
+        if ($moduleId === '' || !preg_match('/^[a-z][a-z0-9_]*$/', $moduleId)) {
+            return 0;
+        }
+        if (!Database::tableExists('base_schema_migrations')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare('DELETE FROM base_schema_migrations WHERE module_id = ?');
+        $st->execute([$moduleId]);
+        $n = (int)$st->rowCount();
+        self::clearSetupStatusCache();
+        return $n;
+    }
+
     /** Routes that stay reachable while schema setup is incomplete. */
     public static function isSetupRouteAllowed(string $path): bool
     {

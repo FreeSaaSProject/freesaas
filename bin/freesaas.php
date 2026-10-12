@@ -104,7 +104,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   setup-key [generate|clear|path] [--format=json]
   rescue --login=… --password=… [--name=…] [--clear-setup-key] [--no-migrate] [--format=json]
   module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
-  module inspect|install|enable [--accept-risk]|disable|validate|bump|create|add-migration …
+  module inspect|install|uninstall --confirm|enable [--accept-risk]|disable|validate|bump|create|add-migration …
   module create <id> [--title=…]
   module add-migration <id> <slug>
   module bump <id> [--patch|--minor|--major|--set=x.y.z]
@@ -498,6 +498,14 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         }
         freesaas_emit_ops(AgentOps::moduleInstall($id));
     }
+    if ($sub === 'uninstall') {
+        $id = $args[2] ?? '';
+        if ($id === '') {
+            Cli::usage('Usage: module uninstall <id> --confirm');
+        }
+        $confirm = !empty($opts['confirm']) || !empty($opts['confirm-uninstall']) || !empty($opts['confirm_uninstall']);
+        freesaas_emit_ops(AgentOps::moduleUninstall($id, $confirm));
+    }
     if ($sub === 'enable' || $sub === 'disable') {
         $id = $args[2] ?? '';
         if ($id === '') {
@@ -545,7 +553,7 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         }
         freesaas_emit_ops(AgentOps::moduleAddMigration($id, $slug));
     }
-    Cli::usage('Usage: module list|inspect|install|enable|disable|validate|bump|create|add-migration …');
+    Cli::usage('Usage: module list|inspect|install|uninstall --confirm|enable|disable|validate|bump|create|add-migration …');
 }
 
 /** @param array<string, string|bool> $opts */

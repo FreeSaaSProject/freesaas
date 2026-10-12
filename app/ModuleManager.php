@@ -187,6 +187,158 @@ final class ModuleManager
     }
 
     /**
+     * uninstall.strategy from module.json: drop_owned (default) | leave_tables.
+     */
+    public static function uninstallStrategy(string $id): string
+    {
+        $meta = self::$modules[$id] ?? null;
+        if ($meta === null) {
+            return 'drop_owned';
+        }
+        $raw = $meta['uninstall'] ?? null;
+        $strategy = '';
+        if (is_array($raw)) {
+            $strategy = strtolower(trim((string)($raw['strategy'] ?? '')));
+        }
+        if ($strategy === 'leave_tables') {
+            return 'leave_tables';
+        }
+        return 'drop_owned';
+    }
+
+    /**
+     * Declared owned table names from module.json → tables (valid identifiers only).
+     *
+     * @return list<string>
+     */
+    public static function ownedTableList(string $id): array
+    {
+        $meta = self::$modules[$id] ?? null;
+        if ($meta === null) {
+            return [];
+        }
+        $out = [];
+        foreach ($meta['tables'] ?? [] as $t) {
+            if (!is_string($t) || $t === '' || !preg_match('/^[A-Za-z0-9_]+$/', $t)) {
+                continue;
+            }
+            $out[] = $t;
+        }
+        return array_values(array_unique($out));
+    }
+
+    /**
+     * Real uninstall: mandatory dump of owned tables → DROP → clear migration ledger →
+     * disable + remove base_modules row + cfg/modules/{id}.ini. Code on disk remains.
+     *
+     * @return array{
+     *   ok:bool,
+     *   module:string,
+     *   strategy:string,
+     *   dump:?array,
+     *   dropped:list<string>,
+     *   ledger_cleared:int,
+     *   disabled:bool,
+     *   dump_skipped:bool
+     * }
+     */
+    public static function uninstall(string $id, bool $confirm): array
+    {
+        if (!$confirm) {
+            throw new RuntimeException(t('app.module.err.uninstall_confirm'));
+        }
+        if ($id === 'core') {
+            throw new RuntimeException(t('app.module.err.core_locked'));
+        }
+        if (!isset(self::$modules[$id])) {
+            throw new RuntimeException(t('app.module.err.not_found', ['id' => $id]));
+        }
+
+        $strategy = self::uninstallStrategy($id);
+        if ($strategy === 'leave_tables') {
+            throw new RuntimeException(t('app.module.err.uninstall_leave_tables', ['id' => $id]));
+        }
+
+        $dependents = self::enabledDependents($id);
+        if ($dependents !== []) {
+            throw new RuntimeException(
+                t('app.module.err.uninstall_dependents', [
+                    'id' => $id,
+                    'modules' => implode(', ', $dependents),
+                ])
+            );
+        }
+
+        $dump = null;
+        $dumpSkipped = true;
+        try {
+            $dump = DbTools::dumpModule($id, 'uninstall-' . $id);
+            $dumpSkipped = !empty($dump['skipped']);
+        } catch (Throwable $e) {
+            // Only abort when owned tables exist — dumpModule already skips empty.
+            $existing = [];
+            foreach (self::ownedTableList($id) as $t) {
+                if (Database::tableExists($t)) {
+                    $existing[] = $t;
+                }
+            }
+            if ($existing !== []) {
+                throw new RuntimeException(t('app.module.err.uninstall_dump', [
+                    'id' => $id,
+                    'message' => $e->getMessage(),
+                ]));
+            }
+            $dumpSkipped = true;
+        }
+
+        $disabled = false;
+        if (Config::moduleEnabled($id)) {
+            self::setEnabled($id, false);
+            $disabled = true;
+        } else {
+            self::$modules[$id]['_enabled'] = false;
+            Config::setModuleEnabled($id, false);
+        }
+
+        $toDrop = [];
+        foreach (self::ownedTableList($id) as $t) {
+            if (Database::tableExists($t)) {
+                $toDrop[] = $t;
+            }
+        }
+        $dropped = [];
+        if ($toDrop !== []) {
+            $dropReport = DbTools::dropTables($toDrop);
+            $dropped = is_array($dropReport['dropped'] ?? null) ? $dropReport['dropped'] : $toDrop;
+        }
+
+        $ledgerCleared = SchemaMigrator::clearModuleLedger($id);
+
+        if (Database::tableExists('base_modules')) {
+            $del = Database::pdo()->prepare('DELETE FROM base_modules WHERE id = ?');
+            $del->execute([$id]);
+        }
+
+        $iniPath = base_path('cfg/modules/' . $id . '.ini');
+        if (is_file($iniPath)) {
+            @unlink($iniPath);
+        }
+
+        self::$modules[$id]['_enabled'] = false;
+
+        return [
+            'ok' => true,
+            'module' => $id,
+            'strategy' => $strategy,
+            'dump' => $dumpSkipped ? null : $dump,
+            'dropped' => $dropped,
+            'ledger_cleared' => $ledgerCleared,
+            'disabled' => $disabled,
+            'dump_skipped' => $dumpSkipped,
+        ];
+    }
+
+    /**
      * Full status for UI: deps, version checks, who depends on this module.
      *
      * @return array{
@@ -195,6 +347,8 @@ final class ModuleManager
      *   can_toggle: bool,
      *   can_enable: bool,
      *   can_disable: bool,
+     *   can_uninstall: bool,
+     *   uninstall_strategy: string,
      *   block_reason: ?string,
      *   requires: list<array{id:string,constraint:string,optional:bool,present:bool,enabled:bool,version:?string,ok:bool,detail:string}>,
      *   required_by: list<string>,
@@ -228,6 +382,7 @@ final class ModuleManager
 
         $requiredBy = self::enabledDependents($id);
         $isCore = ($id === 'core');
+        $strategy = self::uninstallStrategy($id);
         $migrations = SchemaMigrator::listModule($id);
         $pending = 0;
         foreach ($migrations as $m) {
@@ -242,6 +397,8 @@ final class ModuleManager
             'can_toggle' => !$isCore,
             'can_enable' => !$isCore && !$configEnabled && $depsOk,
             'can_disable' => !$isCore && $configEnabled && $requiredBy === [],
+            'can_uninstall' => !$isCore && $strategy === 'drop_owned' && $requiredBy === [],
+            'uninstall_strategy' => $strategy,
             'block_reason' => $block,
             'requires' => $requires,
             'required_by' => $requiredBy,

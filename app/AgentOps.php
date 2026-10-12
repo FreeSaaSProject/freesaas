@@ -258,6 +258,8 @@ final class AgentOps
                 'can_enable' => $card['can_enable'],
                 'can_disable' => $card['can_disable'],
                 'can_toggle' => $card['can_toggle'],
+                'can_uninstall' => $card['can_uninstall'] ?? false,
+                'uninstall_strategy' => $card['uninstall_strategy'] ?? 'drop_owned',
                 'can_install' => false,
                 'installable' => false,
                 'required_by' => $card['required_by'],
@@ -288,6 +290,8 @@ final class AgentOps
                 'can_enable' => false,
                 'can_disable' => false,
                 'can_toggle' => false,
+                'can_uninstall' => false,
+                'uninstall_strategy' => 'drop_owned',
                 'can_install' => true,
                 'installable' => true,
                 'required_by' => [],
@@ -449,6 +453,8 @@ final class AgentOps
                 'can_enable' => $detail['can_enable'],
                 'can_disable' => $detail['can_disable'],
                 'can_toggle' => $detail['can_toggle'],
+                'can_uninstall' => $detail['can_uninstall'] ?? false,
+                'uninstall_strategy' => $detail['uninstall_strategy'] ?? ModuleManager::uninstallStrategy($id),
                 'required_by' => $detail['required_by'],
                 'permissions' => $detail['permissions'] ?? [],
                 'tables' => $tables,
@@ -516,6 +522,38 @@ final class AgentOps
             $r['hint'] = 'Module downloaded to modules/' . $id . '; enable via module enable (accept_risk if alpha/beta)';
         }
         return $r;
+    }
+
+    /**
+     * Dump owned tables then DROP them, clear ledger, disable. Code on disk remains.
+     * Requires confirm_uninstall.
+     *
+     * @return array<string,mixed>
+     */
+    public static function moduleUninstall(string $id, bool $confirm): array
+    {
+        try {
+            $r = ModuleManager::uninstall($id, $confirm);
+            $r['http'] = 200;
+            $r['hint'] = 'Tables dropped after dump in var/db_dumps/; module code remains on disk (disabled). Restore dump then module enable to recover.';
+            return $r;
+        } catch (Throwable $e) {
+            $http = 400;
+            $msg = $e->getMessage();
+            if (strpos($msg, 'confirm_uninstall') !== false || strpos($msg, 'confirm_uninstall=1') !== false) {
+                $http = 400;
+            }
+            return [
+                'ok' => false,
+                'error' => $msg,
+                'module' => $id,
+                'confirm_uninstall_required' => !$confirm,
+                'uninstall_strategy' => ModuleManager::get($id) !== null
+                    ? ModuleManager::uninstallStrategy($id)
+                    : null,
+                'http' => $http,
+            ];
+        }
     }
 
     /** @return array{ok:bool,results?:list,module?:string,errors?:list,warnings?:list,http:int} */
@@ -1047,6 +1085,14 @@ final class AgentOps
                     'path' => '/agent/modules/{id}/install',
                     'op' => 'module.install',
                     'description' => 'Download module not yet on disk from update repo (modules-catalog.json). Leaves disabled; then module.enable.',
+                ],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/modules/{id}/uninstall',
+                    'op' => 'module.uninstall',
+                    'query' => ['confirm_uninstall'],
+                    'body' => ['confirm_uninstall'],
+                    'description' => 'Mandatory dump of module.json tables → DROP → clear migrations ledger → disable. leave_tables strategy refused. Code stays on disk. Requires confirm_uninstall=1.',
                 ],
                 ['method' => 'POST', 'path' => '/agent/modules/{id}/disable', 'op' => 'module.disable'],
                 ['method' => 'GET', 'path' => '/agent/modules/{id}/validate', 'op' => 'module.validate'],

@@ -80,5 +80,5 @@ php bin/data-migrate.php   # destructive replace — know what you run
 
 - Runtime SQL: `base_*` only.
 - New tables/columns: `base_*`, listed in the owning module’s `tables`.
-- No down/rollback yet; uninstall = disable-only.
+- No down-migrations. **Uninstall** (`module uninstall --confirm`) dumps owned tables then DROP + clears `base_schema_migrations` for that module; re-enable recreates empty schema via up-migrations. `leave_tables` modules refuse uninstall.
 - After writing a new migration file: `migrate run --module=<id>`, then `health` / `smoke`.

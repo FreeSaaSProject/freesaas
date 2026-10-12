@@ -140,6 +140,19 @@ $modLabel = static function (string $modId): string {
         </button>
       </form>
     <?php endif; ?>
+
+    <?php if (!empty($card['can_uninstall']) && Auth::capability('SUPERADMIN_ACCESS')): ?>
+      <form method="post" class="inline-form"
+        onsubmit="return confirm(<?= tj('core.modules.confirm_uninstall', ['module' => $name]) ?>);">
+        <input type="hidden" name="module" value="<?= e($id) ?>">
+        <input type="hidden" name="action" value="uninstall">
+        <input type="hidden" name="confirm_uninstall" value="1">
+        <input type="hidden" name="ret" value="/modules">
+        <button class="btn-danger btn-sm" type="submit"><?= te('core.modules.btn_uninstall') ?></button>
+      </form>
+    <?php elseif (($card['uninstall_strategy'] ?? '') === 'leave_tables' && $id !== 'core'): ?>
+      <span class="muted" title="<?= te('core.modules.uninstall_leave_hint') ?>"><?= te('core.modules.uninstall_leave_badge') ?></span>
+    <?php endif; ?>
   </div>
   <div class="modules-hint bad-text" data-modules-hint hidden></div>
 

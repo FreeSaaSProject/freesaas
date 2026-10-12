@@ -414,6 +414,7 @@ View::render('index', ['title' => 'My feature', /* ... */], 'layout', 'myfeature
 | `php bin/freesaas.php bootstrap --login=… --password=…` | Первый admin + migrate + `agent_token` (см. [`agents/install.md`](agents/install.md)) |
 | `php bin/freesaas.php module list [--q=] [--category=] [--tag=] [--status=] [--maturity=]` | Каталог модулей (bilocale name/description, filters); `available[]` — ещё не на диске |
 | `php bin/freesaas.php module install <id>` | Скачать модуль с репо обновлений (не на диске); дальше `module enable` |
+| `php bin/freesaas.php module uninstall <id> --confirm` | Бэкап owned-таблиц → DROP → ledger clear → disable (`leave_tables` отказ) |
 | `php bin/freesaas.php module enable <id> [--accept-risk]` | Включить; для alpha/beta нужен `--accept-risk` |
 | `php bin/freesaas.php module inspect <id>` | Манифест + routes + `agent_ops` / hooks / bulk / soft_deps / capabilities |
 | `php bin/freesaas.php module enable\|disable <id>` | Вкл/выкл (при enable — schema migrate) |

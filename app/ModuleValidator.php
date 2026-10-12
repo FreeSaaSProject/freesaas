@@ -124,6 +124,18 @@ final class ModuleValidator
             }
         }
 
+        // uninstall.strategy: drop_owned (default) | leave_tables
+        if (isset($meta['uninstall'])) {
+            if (!is_array($meta['uninstall'])) {
+                $errors[] = 'uninstall must be an object';
+            } else {
+                $us = strtolower(trim((string)($meta['uninstall']['strategy'] ?? '')));
+                if ($us !== '' && $us !== 'drop_owned' && $us !== 'leave_tables') {
+                    $warnings[] = 'uninstall.strategy unknown (expected drop_owned|leave_tables): ' . $us;
+                }
+            }
+        }
+
         // catalog block: categories[] / tags / screenshots
         if (!isset($meta['catalog'])) {
             $warnings[] = 'manifest missing catalog (categories/tags recommended)';

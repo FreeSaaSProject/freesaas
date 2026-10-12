@@ -161,6 +161,8 @@ final class ModuleCatalog
             'can_enable' => false,
             'can_disable' => false,
             'can_toggle' => false,
+            'can_uninstall' => false,
+            'uninstall_strategy' => 'drop_owned',
             'can_install' => true,
             'installable' => true,
             'required_by' => [],
@@ -281,6 +283,8 @@ final class ModuleCatalog
             'can_enable' => !empty($st['can_enable']),
             'can_disable' => !empty($st['can_disable']),
             'can_toggle' => !empty($st['can_toggle']),
+            'can_uninstall' => !empty($st['can_uninstall']),
+            'uninstall_strategy' => (string)($st['uninstall_strategy'] ?? 'drop_owned'),
             'required_by' => $st['required_by'] ?? [],
             'status_requires' => $st['requires'] ?? [],
         ];

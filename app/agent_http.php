@@ -246,6 +246,13 @@ function agent_api_dispatch(string $path, string $method, string $id): array
         if ($path === '/agent/modules/' . $id . '/install' && $method === 'POST') {
             return AgentOps::moduleInstall($id);
         }
+        if ($path === '/agent/modules/' . $id . '/uninstall' && $method === 'POST') {
+            $body = agent_api_json_body();
+            $confirm = !empty($_GET['confirm_uninstall'])
+                || !empty($_POST['confirm_uninstall'])
+                || !empty($body['confirm_uninstall']);
+            return AgentOps::moduleUninstall($id, (bool)$confirm);
+        }
         if ($path === '/agent/modules/' . $id . '/disable' && $method === 'POST') {
             return AgentOps::moduleSetEnabled($id, false);
         }

@@ -2,6 +2,8 @@
 
 Schema migrations, optional data migrators, SQL backups of FreeSaaS-owned tables, and CHECK/REPAIR/OPTIMIZE.
 
+**Module uninstall** always runs a per-module dump (`DbTools::dumpModule` → label `uninstall-<id>`) of that module’s `module.json` → `tables` **before** DROP. Restore that file via `db restore` if you need the data back; then `module enable` recreates empty schema from migrations if tables are gone.
+
 **Auth:** `/db` requires a staff session + permission `core.db` (not public). Greenfield / lost-login: CLI `migrate run` / `bootstrap` / `rescue`, or HTTP `/agent/*` with pre-set `agent_token` or `var/setup.key` (bootstrap/rescue only — no anonymous virgin door). Destructive data migrators: prefer CLI `php bin/data-migrate.php --module=… --id=…` (full run needs `--i-understand-replace`).
 
 ## Human UI

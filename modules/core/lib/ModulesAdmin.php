@@ -55,6 +55,32 @@ final class ModulesAdmin
                 ]))];
             }
 
+            if ($action === 'uninstall') {
+                if (!Auth::capability('SUPERADMIN_ACCESS')) {
+                    throw new RuntimeException(t('core.modules.err.superadmin'));
+                }
+                if ($moduleId === '' || ModuleManager::get($moduleId) === null) {
+                    throw new RuntimeException(t('core.modules.err.no_module'));
+                }
+                $confirm = !empty($_POST['confirm_uninstall']);
+                $report = ModuleManager::uninstall($moduleId, $confirm);
+                $dumpFile = '';
+                if (is_array($report['dump'] ?? null) && !empty($report['dump']['file'])) {
+                    $dumpFile = (string)$report['dump']['file'];
+                }
+                $msg = $dumpFile !== ''
+                    ? t('core.modules.msg.uninstalled_dump', [
+                        'module' => $moduleId,
+                        'file' => $dumpFile,
+                        'n' => count($report['dropped'] ?? []),
+                    ])
+                    : t('core.modules.msg.uninstalled', [
+                        'module' => $moduleId,
+                        'n' => count($report['dropped'] ?? []),
+                    ]);
+                return ['redirect' => self::withQuery($ret, 'msg', $msg)];
+            }
+
             if ($moduleId === '' || ModuleManager::get($moduleId) === null) {
                 throw new RuntimeException(t('core.modules.err.no_module'));
             }

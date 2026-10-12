@@ -50,4 +50,5 @@ Exit codes must be `0` (warnings OK on validate if no errors).
 
 ## Uninstall policy
 
-Disable only (`module disable`). Tables remain until a future `uninstall.strategy=drop_owned` implementation.
+- **Disable** (`module disable`): config off; tables and data remain.
+- **Uninstall** (`module uninstall <id> --confirm` / `POST /agent/modules/{id}/uninstall` with `confirm_uninstall=1`): mandatory SQL dump of `tables[]` → DROP those tables → clear migration ledger → disable. Code under `modules/<id>/` stays. Omit `uninstall` or set `"uninstall":{"strategy":"drop_owned"}` to allow; `"leave_tables"` refuses DROP (disable-only).

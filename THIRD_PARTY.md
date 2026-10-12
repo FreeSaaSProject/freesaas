@@ -31,6 +31,7 @@ first-party storefront theme.
 | Component | Location | License (as found) | Notes |
 |---|---|---|---|
 | phpMorphy + morphology dicts | `modules/audio_pipeline/vendor/phpmorphy` | **LGPL-2.1+** (`LICENSE.LGPL-2.1.txt`, vendor README) | Sole lemmatizer for audio stem/reparse. Compatible with AGPL if notices kept. For commercial dual-license of FreeSaaS, keep as a separate LGPL library (do not strip LGPL rights). |
+| PHP QR Code (phpqrcode) | `modules/stickers/lib/phpqrcode` | **LGPL-3.0-or-later** (`LICENSE.LGPL-3.0.txt` + `LICENSE.GPL-3.0.txt`; vendor README) | Merged build **1.9.9 / 20130526** from http://phpqrcode.sourceforge.net/ (Dominik Dzienia; based on libqrencode LGPL 2.1). Used for sticker label QR. LGPL does not forbid commercial host builds, but library obligations remain (notices, replaceability / corresponding source for the LGPL library). Do not strip license texts. |
 | Chart.js 4.4.1 | CDN in `modules/finance/views/balance.php`, `modules/wellness/views/calendar.php` | MIT | Runtime CDN; not vendored in git. |
 | Google Fonts (DM Sans, Syne) | CDN in `modules/core/views/layout.php`, `layout_auth.php` | Typically OFL (font authors) | Runtime CDN. |
 
@@ -55,4 +56,5 @@ first-party storefront theme.
 - No GPL-only libraries are currently vendored in the public tree.
 - Private / instance themes are out of scope for this file.
 - No outstanding public review items for unclear-provenance code.
-- phpMorphy (LGPL-2.1+) stays manageable if notices are preserved.
+- phpMorphy (LGPL-2.1+) and phpqrcode (LGPL-3.0-or-later) stay manageable if
+  notices and full GNU license texts are preserved.

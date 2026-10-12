@@ -86,6 +86,13 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
 curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/modules/banks/install"
 
+# Uninstall (dump owned tables → DROP → clear ledger → disable). Requires confirm_uninstall.
+# Refused if uninstall.strategy=leave_tables. Code on disk remains.
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"confirm_uninstall":true}' \
+  "https://example.com/agent/modules/equipment/uninstall"
+
 # Enable + migrate (POST). Alpha/beta require accept_risk=1 (query, form, or JSON body)
 curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   -H "Content-Type: application/json" \

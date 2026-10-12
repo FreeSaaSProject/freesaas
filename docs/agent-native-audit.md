@@ -19,7 +19,7 @@ Related docs:
 
 > **Current readiness (~87/100).** Platform **v0.3.34** after Wave A: soft-dep honesty in `module validate`, richer `module inspect` (agent_ops/hooks/bulk/capabilities/soft_deps), optional tokens as health `skipped` + `error_code`, doctor `warning_codes` (no false 503 for missing `agent_token`). Public OSS baseline was v0.3.33.
 >
-> **Remaining drag:** no uninstall/`drop_owned`, residual foreign page/view requires (warned), plurals/number formatting, Core still partly oper-shaped, dual auth surfaces (intentional), no marketplace / PHPUnit, real-world health `degraded` when cron/bank config incomplete (not optional tokens).
+> **Remaining drag:** residual foreign page/view requires (warned), plurals/number formatting, Core still partly oper-shaped, dual auth surfaces (intentional), no marketplace / PHPUnit, real-world health `degraded` when cron/bank config incomplete (not optional tokens). Uninstall/`drop_owned` is implemented (mandatory dump; `leave_tables` refuses).
 
 **Historical baseline (2026-10-05, pre-P1):** score **56/100** — thin CLI, no validate/health, broken i18n checker, unreliable manifests. Kept only as archaeology; do not treat body “Critical Gaps” prose from that era as today’s blockers without checking the [Resolved vs open](#resolved-vs-still-open) table.
 
@@ -34,7 +34,7 @@ Related docs:
 | CLI / admin ops without UI | 25 | 90 | `freesaas.php` + `/agent/*` + doctor |
 | Self-verification | 15 | 90 | doctor warning_codes; optional tokens skipped not degraded |
 | Localization automation | 55 | 78 | discovery + validate; plurals still weak |
-| Lifecycle (install/uninstall) | 35 | 58 | bootstrap/enable/install yes; uninstall no |
+| Lifecycle (install/uninstall) | 35 | 82 | bootstrap/enable/install + uninstall dump→DROP (`leave_tables` opt-out) |
 | Platform purity (vs LikeSpa) | 50 | 70 | theme private; likespa module public & disableable |
 | Licensing / OSS packaging | — | 95 | AGPL + commercial + CLA; public repo `freesaas` |
 
@@ -42,8 +42,8 @@ Related docs:
 
 **Control answers (2026-10-11):**
 
-1. Can an unfamiliar agent turn FreeSaaS into an IS for an arbitrary business **today**? **Yes** for composing existing modules (CLI/HTTP + cases); new domains via scaffold; cannot safely uninstall experiments.
-2. Can an unfamiliar agent create a full new module from the repo alone? **Yes** for CRUD (`module create` → enable → validate → health); acceptance bar is met for units-class modules without uninstall.
+1. Can an unfamiliar agent turn FreeSaaS into an IS for an arbitrary business **today**? **Yes** for composing existing modules (CLI/HTTP + cases); new domains via scaffold; experiments can be uninstalled with dump→DROP (`confirm_uninstall`; `leave_tables` modules stay disable-only).
+2. Can an unfamiliar agent create a full new module from the repo alone? **Yes** for CRUD (`module create` → enable → validate → health); acceptance bar includes uninstall for `drop_owned`.
 3. Can an agent add a new language without changing business logic? **Yes** for catalogs via discovery + `locale validate`; plurals/number/currency formatting remain quality gaps.
 
 ---
@@ -77,7 +77,7 @@ flowchart LR
   bootstrap --> events[EventBus]
   cli --> migrate[SchemaMigrator]
   cli --> doctor[doctor_health_smoke]
-  agent -.->|missing| uninstall[uninstall]
+  agent --> uninstall[uninstall]
   agent -.->|uneven| softDeps[soft_deps]
 ```
 
@@ -96,7 +96,7 @@ flowchart LR
 | Instance theme in public tree | **Resolved** — private theme repo; purged from history |
 | Manifest hooks prose/phantoms | **Mostly resolved** — validate + dotted events; soft drift remains |
 | Soft / cross-module coupling | **Mostly resolved** — validate honesty + declared optionalRequires; legacy foreign requires = warnings |
-| No uninstall / drop_owned | **Open** — disable-only (documented) |
+| No uninstall / drop_owned | **Resolved** — dump→DROP + agent/CLI/UI; `leave_tables` opt-out |
 | Core LikeSpa / oper residue | **Partially open** — theme out; tickets/flags/menu homes still Core-shaped |
 | Plurals / ICU / number format | **Open** — P2 quality |
 | Platform lifecycle on OAuth | **Open by design** — dual surface; see agent-surfaces |
@@ -111,11 +111,10 @@ Problems that remain after the OSS tranche. Prefer small evolutionary fixes.
 - **Status:** Wave A — `ModuleValidator::scanSoftDeps` warns on undeclared `isEnabled`, errors on undeclared foreign `pages/`/`views/` requires; manifests honesty-fixed; inspect exposes `soft_deps`.
 - **Residual:** a few declared foreign page/view requires (calendar→workweeks nazop, audio_reports embeds) — prefer EventBus for new code.
 
-### 2. No uninstall / rollback lifecycle
+### 2. Uninstall / rollback lifecycle
 
-- **Problem:** Only enable/disable. Disable leaves tables and data. No down migrations.
-- **Policy:** disable-only until `uninstall.strategy=drop_owned` (P2.1).
-- **Cost later:** OSS installs accumulate irreversible schema; agents fear experimental modules.
+- **Status:** **Done (P2.1)** — `module uninstall --confirm` / `POST /agent/modules/{id}/uninstall` with `confirm_uninstall=1`: mandatory dump of `tables[]` → DROP → clear ledger → disable. Code on disk remains. `uninstall.strategy=leave_tables` refuses DROP.
+- **Residual:** no down-migrations; shared columns on foreign tables are not reverted; file purge of `modules/<id>/` is out of scope.
 
 ### 3. Core still partly oper-shaped
 
@@ -219,7 +218,7 @@ Agent adds `app/lang/es.php` + `modules/*/lang/es.php`, runs `locale validate`, 
 | Events | Stronger | EventBus + validate soft-dep honesty; legacy foreign requires warned |
 | Verify | Yes | `module validate`, `health`, `doctor`, smoke |
 | Install/enable | Yes | CLI / `/agent/*` / UI |
-| Uninstall | **No** | disable-only |
+| Uninstall | **Yes** | dump owned tables → DROP; `leave_tables` refuses |
 
 ### Remaining guesses
 
@@ -289,7 +288,7 @@ See [Module Authoring Test](#module-authoring-test).
 | ID | Action | Status |
 |----|--------|--------|
 | P0.1 | Validate contracts; stop prose/phantoms in `hooks` | **Mostly done** — keep enforcing |
-| P0.2 | Document lifecycle: **disable-only**; reserve `uninstall.strategy` | **Done** (policy); implement drop = P2.1 |
+| P0.2 | Document lifecycle; reserve `uninstall.strategy` | **Done** (uninstall implemented — see P2.1) |
 | P0.3 | No new LikeSpa/Telegram product rules in `app/` or core chrome | **Ongoing** |
 | P0.4 | Locale list from discovery/config | **Done** |
 | P0.5 | Ban **new** direct `require` of another module’s `pages/` | **Ongoing** |
@@ -306,7 +305,7 @@ Also shipped beyond original P1: bootstrap HTTP twin, product MCP/OAuth, `doctor
 
 | ID | Action | Req |
 |----|--------|-----|
-| P2.1 | Real uninstall for `drop_owned` | A2, B3 |
+| P2.1 | Real uninstall for `drop_owned` | **Done** — dump + DROP + agent/CLI/UI |
 | P2.2 | Notifications module + EventBus integration pattern | B6 |
 | P2.3 | Topological boot order | B2 |
 | P2.4 | Plurals / number / currency helpers | A5 |
@@ -353,14 +352,13 @@ Canonical agent protocol: **stable CLI + machine-readable JSON** (`--format=json
 | Operation | Purpose |
 |-----------|---------|
 | `system status` | PHP/DB/config presence, locale, enabled count |
-| `module list` / `inspect` / `enable` / `disable` | Lifecycle without UI |
+| `module list` / `inspect` / `enable` / `disable` / `uninstall --confirm` | Lifecycle without UI |
 | `migrate status` / `run [--module=id]` | Schema visibility and apply |
 | `locale list` / `validate [--locale=xx]` | Localization completeness |
 | `module validate [--module=id]` | Structural acceptance |
 | `health` / `health --module=id` | Runtime checks |
 
-**must** policy text: uninstall = **disable-only**; tables remain.  
-**should** (P2): implement `uninstall` honoring `uninstall.strategy`.
+**must** policy: disable leaves tables; uninstall dumps owned tables then DROP (refused if `leave_tables`); never drop foreign tables.
 
 ### A3. Health / readiness / liveness
 
@@ -598,7 +596,7 @@ Product MCP is **in scope and shipped**; see [Future Agent Layer](#future-agent-
 | Docker Compose greenfield | **Done** |
 | Public repo `ilcommm/freesaas` + private theme repo | **Done** |
 | MCP tools `core.doctor` / `core.health.detail` | **Done** |
-| Real uninstall / drop tables | Not yet (disable-only) |
+| Real uninstall / drop tables | **Done** (mandatory dump; `leave_tables` opt-out) |
 | `php bin/data-migrate.php` | Unchanged (destructive; document) |
 
 ---
@@ -615,4 +613,4 @@ Weighted judgment, not a formula.
 | Public release 2026-10-11 | ~84 | doctor, scaffold, Docker, QUICKSTART/connect/skills/cases, public `freesaas`, theme split/history purge, ~388 agent.ops, locale ~5518 |
 | **Wave A (soft-deps + inspect)** | **~87** | validate soft-dep honesty, inspect exports, optional tokens skipped, doctor `warning_codes` |
 
-**Still capping the score:** uninstall (`drop_owned`), Core purity leftovers, plurals, no marketplace/PHPUnit, intentional dual auth surfaces, health `degraded` when cron/real config incomplete.
+**Still capping the score:** Core purity leftovers, plurals, no marketplace/PHPUnit, intentional dual auth surfaces, health `degraded` when cron/real config incomplete.

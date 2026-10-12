@@ -238,6 +238,41 @@ final class DbTools
     }
 
     /**
+     * Dump tables owned by one module (module.json → tables that exist in DB).
+     *
+     * @return array{ok:bool,file?:string,path?:string,bytes?:int,tables:list<string>,gzip?:bool,skipped?:bool}
+     */
+    public static function dumpModule(string $moduleId, ?string $label = null): array
+    {
+        $moduleId = trim($moduleId);
+        $meta = ModuleManager::get($moduleId);
+        if ($meta === null) {
+            throw new RuntimeException(t('app.module.err.not_found', ['id' => $moduleId]));
+        }
+        $declared = [];
+        foreach ($meta['tables'] ?? [] as $t) {
+            if (is_string($t) && $t !== '' && self::isValidTableName($t)) {
+                $declared[] = $t;
+            }
+        }
+        $existing = [];
+        foreach ($declared as $t) {
+            if (Database::tableExists($t)) {
+                $existing[] = $t;
+            }
+        }
+        if ($existing === []) {
+            return ['ok' => true, 'tables' => [], 'skipped' => true];
+        }
+        $lab = $label !== null && trim($label) !== ''
+            ? trim($label)
+            : ('uninstall-' . $moduleId);
+        $out = self::dump($existing, $lab);
+        $out['skipped'] = false;
+        return $out;
+    }
+
+    /**
      * @param list<string> $allowedTables
      * @return array{ok:bool,statements:int,tables:list<string>}
      */
