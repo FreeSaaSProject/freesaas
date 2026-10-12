@@ -196,13 +196,14 @@ interface phpMorphy_AncodesResolver_Interface {
 
 class phpMorphy_AncodesResolver_Proxy implements phpMorphy_AncodesResolver_Interface {
     protected 
-        $args, $class;
-        //$__obj;
+        $args, $class,
+        $__obj; // declared for PHP 8.2+; unset in ctor so __get() still runs (FreeSaaS patch)
 
 
     function __construct($class, $ctorArgs) {
         $this->class = $class;
         $this->args = $ctorArgs;
+        unset($this->__obj);
     }
 
     function unresolve($ancode) {
@@ -849,6 +850,7 @@ class phpMorphy_Morphier_Helper {
 class phpMorphy_WordDescriptor_Collection implements Countable, IteratorAggregate, ArrayAccess {
     protected
         $word,
+        $annots,
         $descriptors = array(),
         $helper;
     
@@ -891,27 +893,29 @@ class phpMorphy_WordDescriptor_Collection implements Countable, IteratorAggregat
         return $result;
     }
     
-    function offsetExists($off) {
+    // PHP 8.1+ Countable/ArrayAccess/IteratorAggregate return types (FreeSaaS patch)
+    function offsetExists($off): bool {
         return isset($this->descriptors[$off]);
     }
     
-    function offsetUnset($off) {
+    function offsetUnset($off): void {
         throw new phpMorphy_Exception(__CLASS__ . " is not mutable");
     }
     
-    function offsetSet($off, $value) {
+    function offsetSet($off, $value): void {
         throw new phpMorphy_Exception(__CLASS__ . " is not mutable");
     }
     
+    #[\ReturnTypeWillChange]
     function offsetGet($off) {
         return $this->getDescriptor($off);
     }
     
-    function count() {
+    function count(): int {
         return count($this->descriptors);
     }
     
-    function getIterator() {
+    function getIterator(): \Traversable {
         return new ArrayIterator($this->descriptors);
     }
 }
@@ -1123,29 +1127,31 @@ class phpMorphy_WordDescriptor implements Countable, ArrayAccess, IteratorAggreg
 //        return count($result) ? $result : false;
     }
     
-    function count() {
+    // PHP 8.1+ Countable/ArrayAccess/IteratorAggregate return types (FreeSaaS patch)
+    function count(): int {
         return count($this->readAllForms());
     }
     
-    function offsetExists($off) {
+    function offsetExists($off): bool {
         $this->readAllForms();
         
         return isset($this->all_forms[$off]);
     }
     
-    function offsetSet($off, $value) {
+    function offsetSet($off, $value): void {
         throw new phpMorphy_Exception(__CLASS__ . " is not mutable");
     }
     
-    function offsetUnset($off) {
+    function offsetUnset($off): void {
         throw new phpMorphy_Exception(__CLASS__ . " is not mutable");
     }
     
+    #[\ReturnTypeWillChange]
     function offsetGet($off) {
         return $this->getWordForm($off);
     }
     
-    function getIterator() {
+    function getIterator(): \Traversable {
         $this->readAllForms();
         
         return new ArrayIterator($this->all_forms);

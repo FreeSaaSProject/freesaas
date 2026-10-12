@@ -65,12 +65,14 @@ class phpMorphy_Storage_Proxy extends phpMorphy_Storage {
     protected
         $file_name,
         $type,
-        $factory;
+        $factory,
+        $__obj; // declared for PHP 8.2+; unset in ctor so __get() still runs (FreeSaaS patch)
         
     function __construct($type, $fileName, $factory) {
         $this->file_name = $fileName;
         $this->type = $type;
         $this->factory = $factory;
+        unset($this->__obj);
     }
     
     function getFileName() { return $this->__obj->getFileName(); }

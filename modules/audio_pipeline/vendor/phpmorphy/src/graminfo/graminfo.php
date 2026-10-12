@@ -297,11 +297,12 @@ class phpMorphy_GramInfo_RuntimeCaching extends phpMorphy_GramInfo_Decorator {
     function readFlexiaData($info) {
         $offset = $info['offset'];
         
-        if(!isset($this->flexia_all[$offset])) {
-            $this->flexia_all[$offset] = $this->info->readFlexiaData($info);
+        // Use declared $flexia (was $flexia_all — PHP 8.2 dynamic-property; FreeSaaS patch)
+        if(!isset($this->flexia[$offset])) {
+            $this->flexia[$offset] = $this->info->readFlexiaData($info);
         }
         
-        return $this->flexia_all[$offset];
+        return $this->flexia[$offset];
     }
 }
 

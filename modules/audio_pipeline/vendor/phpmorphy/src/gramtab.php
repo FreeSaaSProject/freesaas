@@ -43,10 +43,13 @@ class phpMorphy_GramTab_Empty implements phpMorphy_GramTab_Interface {
 }
 
 class phpMorphy_GramTab_Proxy implements phpMorphy_GramTab_Interface {
-    protected $storage;
+    protected
+        $storage,
+        $__obj; // declared for PHP 8.2+; unset in ctor so __get() still runs (FreeSaaS patch)
     
     function __construct(phpMorphy_Storage $storage) {
         $this->storage = $storage;
+        unset($this->__obj);
     }
     
     function getGrammems($ancodeId) {
@@ -98,7 +101,7 @@ class phpMorphy_GramTab implements phpMorphy_GramTab_Interface {
         $data,
         $ancodes,
         $grammems,
-        // $__ancodes_map,
+        $__ancodes_map, // declared for PHP 8.2+; unset in ctor so __get() still runs (FreeSaaS patch)
         $poses;
     
     protected function __construct(phpMorphy_Storage $storage) {
@@ -111,6 +114,7 @@ class phpMorphy_GramTab implements phpMorphy_GramTab_Interface {
         $this->grammems = $this->data['grammems'];
         $this->poses = $this->data['poses'];
         $this->ancodes = $this->data['ancodes'];
+        unset($this->__ancodes_map);
     }
     
     // TODO: remove this

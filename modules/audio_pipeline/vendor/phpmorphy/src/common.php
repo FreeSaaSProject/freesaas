@@ -176,11 +176,13 @@ class phpMorphy {
         $options,
 
         // variables with two underscores uses lazy paradigm, i.e. initialized at first time access
-        //$__common_morphier,
-        //$__predict_by_suf_morphier,
-        //$__predict_by_db_morphier,
-        //$__bulk_morphier,
-        //$__word_descriptor_serializer,
+        // Declared for PHP 8.2+; unset() in ctor so __get() still runs (FreeSaaS patch)
+        $__common_morphier,
+        $__predict_by_suf_morphier,
+        $__predict_by_db_morphier,
+        $__bulk_morphier,
+        $__word_descriptor_serializer,
+        $__grammems_provider,
 
         $helper,
         $last_prediction_type
@@ -197,6 +199,16 @@ class phpMorphy {
         }
         
         $this->last_prediction_type = self::PREDICT_BY_NONE;
+
+        // Keep lazy props unset so __get() populates them (PHP 8.2 dynamic-property fix)
+        unset(
+            $this->__common_morphier,
+            $this->__predict_by_suf_morphier,
+            $this->__predict_by_db_morphier,
+            $this->__bulk_morphier,
+            $this->__word_descriptor_serializer,
+            $this->__grammems_provider
+        );
     }
     
     /**
