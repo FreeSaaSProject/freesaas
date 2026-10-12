@@ -1,0 +1,62 @@
+{
+  "v": 1,
+  "id": "staff_kpi",
+  "title": "Метрики сотрудников",
+  "requires": [
+    "procedures"
+  ],
+  "queries": [],
+  "derive": [],
+  "sections": [
+    {
+      "type": "pivot",
+      "title": "Матрица метрик",
+      "grain": "month_to_date",
+      "metrics": [
+        {
+          "id": "procs",
+          "label": "Процедуры",
+          "from": "procedures",
+          "agg": "count",
+          "where": [
+            {
+              "field": "summ",
+              "op": ">",
+              "value": 0
+            },
+            {
+              "field": "enabled",
+              "op": ">",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "revenue",
+          "label": "Выручка",
+          "from": "procedures",
+          "agg": "sum",
+          "field": "summ",
+          "where": [
+            {
+              "field": "summ",
+              "op": ">",
+              "value": 0
+            },
+            {
+              "field": "enabled",
+              "op": ">",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "guests",
+          "label": "Гости",
+          "from": "guests",
+          "agg": "count"
+        }
+      ]
+    }
+  ]
+}

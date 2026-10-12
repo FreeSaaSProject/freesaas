@@ -52,8 +52,9 @@ Need to bootstrap / enable module / run migrations / update code /
 repair webhook secrets / fill LLM api_key / diagnose gcal app?
   → Surface A (CLI or agent_token)
 
-Need to call booking/clients/orders as a staff role?
+Need to call booking/clients/orders / BI reports as a staff role?
   → Surface B (session cookie, or OAuth → /llm/mcp)
+  → BI playbook: [bi.md](bi.md) (`bi.manage`)
 ```
 
 Do **not** send `X-FreeSaaS-Agent-Token` to `/llm/mcp`, and do **not** expect OAuth Bearer to authorize `/agent/modules/*/enable`.

@@ -78,6 +78,9 @@ $allowed = [
     // Floor NFC shell (terminals); frozen query terminalid/braceletid/token
     '/t' => ['methods' => ['GET', 'POST'], 'why' => 'NFC terminal web shell'],
 
+    // KPI live share links (token in path; audience/TTL/revoke enforced in handler)
+    '/bi/s/{token}' => ['methods' => ['GET', 'POST'], 'why' => 'BI report family share link (guest or staff)'],
+
     // Warehouse sticker QR (printed labels → mothersite); guest→/, staff GOOD_USE in handler
     '/qr2.php' => ['methods' => ['GET', 'POST'], 'why' => 'legacy sticker QR scan gate'],
     // Optional anonymous A4 print (handler 404 unless stickers.public_print_enabled)

@@ -1,0 +1,154 @@
+{
+  "v": 1,
+  "id": "admin_conversion",
+  "title": "Рейтинг конверсии админов",
+  "requires": [
+    "procedures",
+    "guests",
+    "workweeks"
+  ],
+  "queries": [
+    {
+      "as": "by_admin",
+      "from": "procedures",
+      "join": [
+        {
+          "dataset": "users_staff",
+          "left": "id_admin",
+          "right": "id"
+        }
+      ],
+      "where": [
+        {
+          "field": "summ",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "field": "enabled",
+          "op": ">",
+          "value": 0
+        }
+      ],
+      "group_by": [
+        "id_admin",
+        "admin_name"
+      ],
+      "select": [
+        {
+          "field": "id_admin"
+        },
+        {
+          "field": "users_staff.name",
+          "as": "admin_name"
+        },
+        {
+          "agg": "count",
+          "as": "procs"
+        },
+        {
+          "agg": "sum",
+          "field": "summ",
+          "as": "revenue"
+        }
+      ],
+      "order_by": [
+        {
+          "field": "revenue",
+          "dir": "desc"
+        }
+      ],
+      "limit": 200
+    },
+    {
+      "as": "guest_stats",
+      "from": "guests",
+      "select": [
+        {
+          "agg": "count",
+          "as": "guests"
+        }
+      ]
+    }
+  ],
+  "derive": [
+    {
+      "as": "rated",
+      "from": "by_admin",
+      "select": [
+        "*"
+      ],
+      "window": [
+        {
+          "fn": "rank",
+          "order_by": [
+            {
+              "field": "revenue",
+              "dir": "desc"
+            }
+          ],
+          "as": "rank_rev"
+        }
+      ],
+      "compute": [
+        {
+          "as": "rev_per_proc",
+          "expr": {
+            "div": [
+              {
+                "field": "revenue"
+              },
+              {
+                "nullif": [
+                  {
+                    "field": "procs"
+                  },
+                  {
+                    "lit": 0
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "type": "metrics",
+      "title": "Сводка",
+      "items": [
+        {
+          "label": "Гости",
+          "from": "guest_stats",
+          "field": "guests"
+        },
+        {
+          "label": "Процедуры",
+          "from": "by_admin",
+          "agg": "sum",
+          "field": "procs"
+        },
+        {
+          "label": "Выручка",
+          "from": "by_admin",
+          "agg": "sum",
+          "field": "revenue"
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Итоговый рейтинг",
+      "from": "rated",
+      "columns": [
+        "rank_rev",
+        "admin_name",
+        "procs",
+        "revenue",
+        "rev_per_proc"
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-12T05:25:07+00:00",
+    "generated_at": "2026-10-12T09:37:29+00:00",
     "modules": [
         {
             "id": "asr",
@@ -270,6 +270,46 @@
                     "oauth",
                     "sync",
                     "llm"
+                ]
+            }
+        },
+        {
+            "id": "bi",
+            "version": "0.2.1",
+            "type": "product",
+            "name": {
+                "en": "BI reports",
+                "ru": "BI-отчёты"
+            },
+            "description": {
+                "en": "JSON-recipe operational BI reports with live share links",
+                "ru": "Операционные BI-отчёты на JSON-рецептах со live-ссылками"
+            },
+            "summary": {
+                "en": "BI packs as JSON recipes with guest/staff shares and TTL. Soft-depends on procedures, workweeks, terminals, polls, audio.",
+                "ru": "BI-пакеты как JSON-рецепты со шарингом guest/staff и TTL. Мягкие зависимости: procedures, workweeks, terminals, polls, audio."
+            },
+            "requires": {
+                "core": ">=0.3.0"
+            },
+            "optionalRequires": {
+                "procedures": ">=0.1.0",
+                "workweeks": ">=0.1.0",
+                "vacations": ">=0.1.0",
+                "terminals": ">=0.1.0",
+                "polls": ">=0.1.0",
+                "poll_invites": ">=0.1.0",
+                "audio": ">=0.1.0",
+                "catalog": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "team",
+                    "finance"
+                ],
+                "maturity": "beta",
+                "tags": [
+                    "report"
                 ]
             }
         },

@@ -1,0 +1,69 @@
+{
+  "v": 1,
+  "id": "demo_counts",
+  "title": "Демо-счётчики",
+  "requires": [],
+  "queries": [
+    {
+      "as": "proc_stats",
+      "from": "procedures",
+      "where": [
+        {
+          "field": "summ",
+          "op": ">",
+          "value": 0
+        },
+        {
+          "field": "enabled",
+          "op": ">",
+          "value": 0
+        }
+      ],
+      "select": [
+        {
+          "agg": "count",
+          "as": "procs"
+        },
+        {
+          "agg": "sum",
+          "field": "summ",
+          "as": "revenue"
+        }
+      ]
+    },
+    {
+      "as": "guest_stats",
+      "from": "guests",
+      "select": [
+        {
+          "agg": "count",
+          "as": "guests"
+        }
+      ]
+    }
+  ],
+  "derive": [],
+  "sections": [
+    {
+      "type": "metrics",
+      "title": "Сводка",
+      "items": [
+        {
+          "label": "Процедуры",
+          "from": "proc_stats",
+          "field": "procs"
+        },
+        {
+          "label": "Гости",
+          "from": "guest_stats",
+          "field": "guests"
+        },
+        {
+          "label": "Выручка (сумма)",
+          "from": "proc_stats",
+          "field": "revenue"
+        }
+      ]
+    }
+  ]
+}

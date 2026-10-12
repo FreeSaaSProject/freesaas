@@ -47,6 +47,7 @@ No token in ini yet? Upload `var/setup.key` and use `X-FreeSaaS-Setup-Key` — f
 | Enable modules | `php bin/freesaas.php module enable <id> --format=json` — [remote-api.md](remote-api.md) |
 | Ledger chart empty after enable | Interview + seed — [ledger-chart.md](ledger-chart.md) |
 | Product CRM tools / MCP | [agent-surfaces.md](agent-surfaces.md), [connect-mcp.md](connect-mcp.md) |
+| BI reports (JSON recipes) | [bi.md](bi.md) — list → legend → validate/save → run |
 | New module | [create-module.md](create-module.md) or `module create` |
 | Broken install | [repair.md](repair.md), [debugging.md](debugging.md) |
 | Scenario benchmarks | [cases/](cases/) |

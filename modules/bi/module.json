@@ -1,0 +1,369 @@
+{
+    "id": "bi",
+    "name": "bi.module.name",
+    "description": "bi.module.description",
+    "version": "0.2.1",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "procedures": ">=0.1.0",
+        "workweeks": ">=0.1.0",
+        "vacations": ">=0.1.0",
+        "terminals": ">=0.1.0",
+        "polls": ">=0.1.0",
+        "poll_invites": ">=0.1.0",
+        "audio": ">=0.1.0",
+        "catalog": ">=0.1.0"
+    },
+    "provides": [
+        "bi.families",
+        "bi.share"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "bi.manage",
+            "label": "bi.perm.manage"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/bi",
+            "/bi/run",
+            "/bi/work",
+            "/bi/shares",
+            "/bi/legend",
+            "/bi/families/new",
+            "/bi/families/{id}",
+            "/bi/s/{token}"
+        ]
+    },
+    "agent": {
+        "ops": [
+            {
+                "id": "bi.families.list",
+                "method": "GET",
+                "path": "/bi",
+                "permission": "bi.manage",
+                "side_effect": "read",
+                "description": "List BI report families (id, title, ready, shipped/custom). Response includes hint URLs for legend/run/save."
+            },
+            {
+                "id": "bi.legend",
+                "method": "GET",
+                "path": "/bi/legend",
+                "permission": "bi.manage",
+                "side_effect": "read",
+                "description": "Constructor catalog: datasets, fields, joins, expr/derive/section types, recipe_shape, agent_howto, examples"
+            },
+            {
+                "id": "bi.family.get",
+                "method": "GET",
+                "path": "/bi/families/{id}",
+                "permission": "bi.manage",
+                "side_effect": "read",
+                "description": "Load one family recipe (shipped file and/or DB override). Path id = family_id.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Family id (path)"
+                        }
+                    },
+                    "required": [
+                        "id"
+                    ]
+                }
+            },
+            {
+                "id": "bi.family.validate",
+                "method": "POST",
+                "path": "/bi/families/new",
+                "permission": "bi.manage",
+                "side_effect": "read",
+                "description": "Validate recipe JSON + dry-run. Body: action=validate, family_id, recipe_json|recipe (object or string), optional name",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "validate"
+                            ]
+                        },
+                        "family_id": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Plain-text report title"
+                        },
+                        "recipe_json": {
+                            "type": "string",
+                            "description": "Recipe JSON string"
+                        },
+                        "recipe": {
+                            "type": "object",
+                            "description": "Recipe object (alternative to recipe_json)"
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "family_id"
+                    ]
+                }
+            },
+            {
+                "id": "bi.family.save",
+                "method": "POST",
+                "path": "/bi/families/new",
+                "permission": "bi.manage",
+                "side_effect": "write",
+                "description": "Validate + save recipe to base_bi_family_defs (custom or shipped override). action=save, family_id, name, recipe_json|recipe, enabled, optional def_id",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "save"
+                            ]
+                        },
+                        "family_id": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "recipe_json": {
+                            "type": "string"
+                        },
+                        "recipe": {
+                            "type": "object"
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "description": "1=enabled"
+                        },
+                        "def_id": {
+                            "type": "integer",
+                            "description": "Existing DB row id when updating"
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "family_id"
+                    ]
+                }
+            },
+            {
+                "id": "bi.family.delete",
+                "method": "POST",
+                "path": "/bi/families/{id}",
+                "permission": "bi.manage",
+                "side_effect": "write",
+                "description": "Delete DB override (or custom family). action=delete&def_id=. For shipped ids restores file recipe.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Family id (path)"
+                        },
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "delete"
+                            ]
+                        },
+                        "def_id": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "id",
+                        "action",
+                        "def_id"
+                    ]
+                }
+            },
+            {
+                "id": "bi.report.run",
+                "method": "POST",
+                "path": "/bi/work",
+                "permission": "bi.manage",
+                "side_effect": "read",
+                "description": "Run family and return report.sections (+ section_summary, html, stages). Prefer reading report JSON, not html.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "run"
+                            ]
+                        },
+                        "family": {
+                            "type": "string"
+                        },
+                        "year": {
+                            "type": "integer"
+                        },
+                        "month": {
+                            "type": "integer",
+                            "description": "1-12"
+                        },
+                        "dayshow": {
+                            "type": "integer"
+                        },
+                        "variant": {
+                            "type": "string",
+                            "enum": [
+                                "full",
+                                "ppa"
+                            ]
+                        },
+                        "id_operator": {
+                            "type": "integer"
+                        },
+                        "id_admin": {
+                            "type": "integer"
+                        },
+                        "id_good": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "family"
+                    ]
+                }
+            },
+            {
+                "id": "bi.share.list",
+                "method": "GET",
+                "path": "/bi/shares",
+                "permission": "bi.manage",
+                "side_effect": "read",
+                "description": "List share links + staff_picker (no ASSIST_TEAM) + ttl/audience notes"
+            },
+            {
+                "id": "bi.share.create",
+                "method": "POST",
+                "path": "/bi/shares",
+                "permission": "bi.manage",
+                "side_effect": "write",
+                "description": "Create live share. audience=guest|staff; ttl=1h|1d|1mo|3mo|1y (1y staff-only); optional staff_user_ids[]; superadmin can open any staff link",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "create"
+                            ]
+                        },
+                        "family": {
+                            "type": "string"
+                        },
+                        "audience": {
+                            "type": "string",
+                            "enum": [
+                                "guest",
+                                "staff"
+                            ]
+                        },
+                        "ttl": {
+                            "type": "string",
+                            "enum": [
+                                "1h",
+                                "1d",
+                                "1mo",
+                                "3mo",
+                                "1y"
+                            ]
+                        },
+                        "label": {
+                            "type": "string"
+                        },
+                        "staff_user_ids": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    },
+                    "required": [
+                        "family",
+                        "audience"
+                    ]
+                }
+            },
+            {
+                "id": "bi.share.revoke",
+                "method": "POST",
+                "path": "/bi/shares",
+                "permission": "bi.manage",
+                "side_effect": "write",
+                "description": "Revoke share link; action=revoke&id=",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "revoke"
+                            ]
+                        },
+                        "id": {
+                            "type": "integer"
+                        }
+                    },
+                    "required": [
+                        "action",
+                        "id"
+                    ]
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "bi.menu.group",
+            "num": 1,
+            "path": "/bi",
+            "title": "bi.menu.list"
+        },
+        {
+            "group": "bi.menu.group",
+            "kind": "settings",
+            "num": 2,
+            "path": "/bi/shares",
+            "title": "bi.menu.shares"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_bi_shares",
+        "base_bi_family_defs"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "team",
+            "finance"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "report"
+        ],
+        "screenshots": []
+    }
+}

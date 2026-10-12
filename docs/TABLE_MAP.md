@@ -55,6 +55,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_tinvest_accounts` / `base_broker_snapshots` / `base_broker_positions` | liquid_assets | T-Invest bindings + broker portfolio snapshots |
 | `base_bank_connections` / `base_bank_account_links` / `base_bank_tx_map` | banks | Bank OAuth connections, account links, statement→move map |
 | — (read models) | finance / procents | Reports over ledger/rates/procedures |
+| `base_bi_shares` | bi | Live share tokens for BI report families |
+| `base_bi_family_defs` | bi | BI recipe overrides/customs (`RECIPE_JSON`); shipped defaults under `modules/bi/recipes/` |
 | `base_orders` | orders | Website/cart orders (admin UI + storefront `sites` checkout via `OrdersRepository::create`) |
 | `base_polls` | polls | Poll definition tree (EL_TYPE poll/question/answer) |
 | `base_poll_invites` | poll_invites | Poll invite instances + answers in DATA_OPTS |

@@ -1,0 +1,987 @@
+{
+  "v": 1,
+  "id": "masseur_shifts",
+  "title": "Смены массажистов",
+  "requires": [
+    "workweeks",
+    "users_staff",
+    "vacations"
+  ],
+  "queries": [
+    {
+      "as": "shifts_raw",
+      "from": "workweeks",
+      "join": [
+        {
+          "dataset": "users_staff",
+          "left": "id_operator",
+          "right": "id"
+        }
+      ],
+      "select": [
+        {
+          "field": "dt",
+          "as": "dt"
+        },
+        {
+          "field": "id_operator",
+          "as": "id_operator"
+        },
+        {
+          "field": "price_col",
+          "as": "price_col"
+        },
+        {
+          "field": "mas_max",
+          "as": "mas_max"
+        },
+        {
+          "field": "users_staff.name",
+          "as": "staff_name"
+        },
+        {
+          "field": "users_staff.login",
+          "as": "staff_login"
+        },
+        {
+          "field": "users_staff.id_status",
+          "as": "id_status"
+        },
+        {
+          "field": "users_staff.assist_team",
+          "as": "assist_team"
+        },
+        {
+          "field": "users_staff.is_hidden",
+          "as": "is_hidden"
+        }
+      ],
+      "order_by": [
+        {
+          "field": "dt",
+          "dir": "asc"
+        }
+      ],
+      "limit": 5000
+    },
+    {
+      "as": "promo_days",
+      "from": "workweeks",
+      "where": [
+        {
+          "field": "price_col",
+          "op": "=",
+          "value": 4
+        }
+      ],
+      "select": [
+        {
+          "agg": "count_distinct",
+          "field": "dt",
+          "as": "days_with_promo"
+        }
+      ],
+      "limit": 1
+    },
+    {
+      "as": "vacations_raw",
+      "from": "vacations",
+      "join": [
+        {
+          "dataset": "users_staff",
+          "left": "id_user",
+          "right": "id"
+        }
+      ],
+      "where": [
+        {
+          "field": "id_type",
+          "op": "=",
+          "value": 1
+        }
+      ],
+      "select": [
+        {
+          "field": "id_user",
+          "as": "id_user"
+        },
+        {
+          "field": "dt_start",
+          "as": "dt_start"
+        },
+        {
+          "field": "dt_end",
+          "as": "dt_end"
+        },
+        {
+          "field": "users_staff.name",
+          "as": "staff_name"
+        },
+        {
+          "field": "users_staff.login",
+          "as": "staff_login"
+        },
+        {
+          "field": "users_staff.id_status",
+          "as": "id_status"
+        },
+        {
+          "field": "users_staff.assist_team",
+          "as": "assist_team"
+        },
+        {
+          "field": "users_staff.is_hidden",
+          "as": "is_hidden"
+        }
+      ],
+      "limit": 5000
+    }
+  ],
+  "derive": [
+    {
+      "as": "shifts",
+      "from": "shifts_raw",
+      "compute": [
+        {
+          "as": "name",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "staff_name"
+              },
+              {
+                "field": "staff_login"
+              },
+              {
+                "concat": [
+                  {
+                    "lit": "#"
+                  },
+                  {
+                    "field": "id_operator"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "as": "bucket",
+          "expr": {
+            "if": [
+              {
+                "neq": [
+                  {
+                    "coalesce": [
+                      {
+                        "field": "assist_team"
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  },
+                  {
+                    "lit": 0
+                  }
+                ]
+              },
+              {
+                "lit": "admins"
+              },
+              {
+                "if": [
+                  {
+                    "neq": [
+                      {
+                        "coalesce": [
+                          {
+                            "field": "is_hidden"
+                          },
+                          {
+                            "lit": 0
+                          }
+                        ]
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  },
+                  {
+                    "lit": "eqips"
+                  },
+                  {
+                    "if": [
+                      {
+                        "eq": [
+                          {
+                            "coalesce": [
+                              {
+                                "field": "id_status"
+                              },
+                              {
+                                "lit": 0
+                              }
+                            ]
+                          },
+                          {
+                            "lit": 2
+                          }
+                        ]
+                      },
+                      {
+                        "lit": "admins"
+                      },
+                      {
+                        "if": [
+                          {
+                            "eq": [
+                              {
+                                "coalesce": [
+                                  {
+                                    "field": "id_status"
+                                  },
+                                  {
+                                    "lit": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "lit": 18
+                              }
+                            ]
+                          },
+                          {
+                            "lit": "fls"
+                          },
+                          {
+                            "lit": "masseurs"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "as": "acr",
+          "expr": {
+            "acronym": [
+              {
+                "field": "name"
+              }
+            ]
+          }
+        }
+      ],
+      "having": {
+        "neq": [
+          {
+            "field": "bucket"
+          },
+          {
+            "lit": "eqips"
+          }
+        ]
+      }
+    },
+    {
+      "as": "by_operator",
+      "from": "shifts",
+      "group_by": [
+        "id_operator",
+        "name",
+        "bucket"
+      ],
+      "aggs": [
+        {
+          "as": "workdays",
+          "op": "count"
+        }
+      ]
+    },
+    {
+      "as": "promo_by_op",
+      "from": "shifts",
+      "filter": {
+        "eq": [
+          {
+            "field": "price_col"
+          },
+          {
+            "lit": 4
+          }
+        ]
+      },
+      "group_by": [
+        "id_operator"
+      ],
+      "aggs": [
+        {
+          "as": "promo_shifts",
+          "op": "count"
+        }
+      ]
+    },
+    {
+      "as": "admins",
+      "from": "by_operator",
+      "filter": {
+        "eq": [
+          {
+            "field": "bucket"
+          },
+          {
+            "lit": "admins"
+          }
+        ]
+      },
+      "join_frame": {
+        "frame": "promo_by_op",
+        "left": "id_operator",
+        "right": "id_operator",
+        "type": "left"
+      },
+      "compute": [
+        {
+          "as": "promo_shifts",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "promo_shifts"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        }
+      ],
+      "sort": [
+        {
+          "field": "name",
+          "dir": "asc"
+        }
+      ]
+    },
+    {
+      "as": "masseurs",
+      "from": "by_operator",
+      "filter": {
+        "eq": [
+          {
+            "field": "bucket"
+          },
+          {
+            "lit": "masseurs"
+          }
+        ]
+      },
+      "sort": [
+        {
+          "field": "name",
+          "dir": "asc"
+        }
+      ]
+    },
+    {
+      "as": "fls",
+      "from": "by_operator",
+      "filter": {
+        "eq": [
+          {
+            "field": "bucket"
+          },
+          {
+            "lit": "fls"
+          }
+        ]
+      },
+      "sort": [
+        {
+          "field": "name",
+          "dir": "asc"
+        }
+      ]
+    },
+    {
+      "as": "day_slots",
+      "from": "shifts",
+      "group_by": [
+        "dt"
+      ],
+      "aggs": [
+        {
+          "as": "mas_max",
+          "op": "first",
+          "field": "mas_max"
+        },
+        {
+          "as": "masseur_count",
+          "op": "count_where",
+          "where": {
+            "in": [
+              {
+                "field": "bucket"
+              },
+              [
+                "masseurs",
+                "fls"
+              ]
+            ]
+          }
+        },
+        {
+          "as": "freelancers",
+          "op": "join_where",
+          "field": "acr",
+          "sep": " ",
+          "where": {
+            "eq": [
+              {
+                "field": "bucket"
+              },
+              {
+                "lit": "fls"
+              }
+            ]
+          }
+        }
+      ],
+      "compute_after": [
+        {
+          "as": "slots_free",
+          "expr": {
+            "max": [
+              {
+                "lit": 0
+              },
+              {
+                "sub": [
+                  {
+                    "field": "mas_max"
+                  },
+                  {
+                    "field": "masseur_count"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "as": "slots",
+          "expr": {
+            "if": [
+              {
+                "gt": [
+                  {
+                    "field": "slots_free"
+                  },
+                  {
+                    "lit": 0
+                  }
+                ]
+              },
+              {
+                "lit": "✅"
+              },
+              {
+                "lit": "❌"
+              }
+            ]
+          }
+        },
+        {
+          "as": "date",
+          "expr": {
+            "date_label": [
+              {
+                "field": "dt"
+              }
+            ]
+          }
+        }
+      ],
+      "sort": [
+        {
+          "field": "dt",
+          "dir": "asc"
+        }
+      ]
+    },
+    {
+      "as": "summary_base",
+      "from": "day_slots",
+      "group_by": [],
+      "aggs": [
+        {
+          "as": "total_days",
+          "op": "count"
+        },
+        {
+          "as": "heavy",
+          "op": "count_where",
+          "where": {
+            "gt": [
+              {
+                "field": "masseur_count"
+              },
+              {
+                "lit": 3
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "summary",
+      "from": "summary_base",
+      "join_frame": {
+        "frame": "promo_days",
+        "type": "cross"
+      },
+      "compute": [
+        {
+          "as": "days_without_promo",
+          "expr": {
+            "max": [
+              {
+                "lit": 0
+              },
+              {
+                "sub": [
+                  {
+                    "field": "total_days"
+                  },
+                  {
+                    "coalesce": [
+                      {
+                        "field": "days_with_promo"
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "as": "heavy_pct",
+          "expr": {
+            "round": [
+              {
+                "mul": [
+                  {
+                    "div": [
+                      {
+                        "field": "heavy"
+                      },
+                      {
+                        "nullif": [
+                          {
+                            "field": "total_days"
+                          },
+                          {
+                            "lit": 0
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "lit": 100
+                  }
+                ]
+              },
+              {
+                "lit": 1
+              }
+            ]
+          }
+        },
+        {
+          "as": "heavy_label",
+          "expr": {
+            "concat": [
+              {
+                "field": "heavy"
+              },
+              {
+                "lit": " ("
+              },
+              {
+                "field": "heavy_pct"
+              },
+              {
+                "lit": "%)"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "vacations_clip",
+      "from": "vacations_raw",
+      "compute": [
+        {
+          "as": "name",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "staff_name"
+              },
+              {
+                "field": "staff_login"
+              },
+              {
+                "concat": [
+                  {
+                    "lit": "#"
+                  },
+                  {
+                    "field": "id_user"
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "as": "bucket",
+          "expr": {
+            "if": [
+              {
+                "neq": [
+                  {
+                    "coalesce": [
+                      {
+                        "field": "assist_team"
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  },
+                  {
+                    "lit": 0
+                  }
+                ]
+              },
+              {
+                "lit": "admins"
+              },
+              {
+                "if": [
+                  {
+                    "neq": [
+                      {
+                        "coalesce": [
+                          {
+                            "field": "is_hidden"
+                          },
+                          {
+                            "lit": 0
+                          }
+                        ]
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  },
+                  {
+                    "lit": "eqips"
+                  },
+                  {
+                    "if": [
+                      {
+                        "eq": [
+                          {
+                            "coalesce": [
+                              {
+                                "field": "id_status"
+                              },
+                              {
+                                "lit": 0
+                              }
+                            ]
+                          },
+                          {
+                            "lit": 2
+                          }
+                        ]
+                      },
+                      {
+                        "lit": "admins"
+                      },
+                      {
+                        "if": [
+                          {
+                            "eq": [
+                              {
+                                "coalesce": [
+                                  {
+                                    "field": "id_status"
+                                  },
+                                  {
+                                    "lit": 0
+                                  }
+                                ]
+                              },
+                              {
+                                "lit": 18
+                              }
+                            ]
+                          },
+                          {
+                            "lit": "fls"
+                          },
+                          {
+                            "lit": "masseurs"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "as": "days",
+          "expr": {
+            "add": [
+              {
+                "floor": [
+                  {
+                    "div": [
+                      {
+                        "sub": [
+                          {
+                            "min": [
+                              {
+                                "field": "dt_end"
+                              },
+                              {
+                                "field": "_period_end"
+                              }
+                            ]
+                          },
+                          {
+                            "max": [
+                              {
+                                "field": "dt_start"
+                              },
+                              {
+                                "field": "_period_start"
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "lit": 86400
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "lit": 1
+              }
+            ]
+          }
+        }
+      ],
+      "having": {
+        "and": [
+          {
+            "eq": [
+              {
+                "field": "bucket"
+              },
+              {
+                "lit": "admins"
+              }
+            ]
+          },
+          {
+            "gt": [
+              {
+                "field": "days"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "as": "vacation_rows",
+      "from": "vacations_clip",
+      "group_by": [
+        "id_user",
+        "name"
+      ],
+      "aggs": [
+        {
+          "as": "days",
+          "op": "sum",
+          "field": "days"
+        }
+      ],
+      "sort": [
+        {
+          "field": "name",
+          "dir": "asc"
+        }
+      ]
+    },
+    {
+      "as": "vacation_total",
+      "from": "vacation_rows",
+      "group_by": [],
+      "aggs": [
+        {
+          "as": "admin_vacation_days",
+          "op": "sum",
+          "field": "days"
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "title": "Администраторы",
+      "type": "table",
+      "from": "admins",
+      "columns": [
+        {
+          "id": "name",
+          "label": "Имя"
+        },
+        {
+          "id": "workdays",
+          "label": "Рабочих дней"
+        },
+        {
+          "id": "promo_shifts",
+          "label": "Промоутерских смен"
+        }
+      ]
+    },
+    {
+      "title": "Массажисты",
+      "type": "table",
+      "from": "masseurs",
+      "columns": [
+        {
+          "id": "name",
+          "label": "Имя"
+        },
+        {
+          "id": "workdays",
+          "label": "Рабочих дней"
+        }
+      ]
+    },
+    {
+      "title": "Фрилансеры",
+      "type": "table",
+      "from": "fls",
+      "columns": [
+        {
+          "id": "name",
+          "label": "Имя"
+        },
+        {
+          "id": "workdays",
+          "label": "Рабочих дней"
+        }
+      ]
+    },
+    {
+      "title": "Сводка",
+      "type": "metrics",
+      "items": [
+        {
+          "label": "Рабочих дней",
+          "from": "summary",
+          "field": "total_days"
+        },
+        {
+          "label": "Дней с >3 массажистами",
+          "from": "summary",
+          "field": "heavy_label"
+        },
+        {
+          "label": "Дней без промоутеров",
+          "from": "summary",
+          "field": "days_without_promo"
+        },
+        {
+          "label": "Отпускные человеко-дни админов",
+          "from": "vacation_total",
+          "field": "admin_vacation_days"
+        }
+      ]
+    },
+    {
+      "title": "Отпуска администраторов",
+      "type": "table",
+      "from": "vacation_rows",
+      "columns": [
+        {
+          "id": "name",
+          "label": "Имя"
+        },
+        {
+          "id": "days",
+          "label": "Дней"
+        }
+      ]
+    },
+    {
+      "title": "Обозначения слотов",
+      "type": "text",
+      "body": "1) ✅ — есть свободные слоты\n2) ❌ — день занят, слотов нет\n3) Акронимы рядом — фрилансеры, занявшие слот"
+    },
+    {
+      "title": "Слоты по дням",
+      "type": "table",
+      "from": "day_slots",
+      "columns": [
+        {
+          "id": "date",
+          "label": "Дата"
+        },
+        {
+          "id": "slots",
+          "label": "Слоты свободны"
+        },
+        {
+          "id": "freelancers",
+          "label": "Фрилансеры"
+        }
+      ]
+    },
+    {
+      "title": "",
+      "type": "text",
+      "body": "*) Заявки Полине только в Telegram: @PPOLINAA77 — обрабатываются до завтрашнего вечера.\n**) При заявке указывайте, есть ли возможность оставаться до 22:00 с остальными — это нужно администраторам для планирования.\n***) При заявке указывайте свой акроним."
+    }
+  ]
+}

@@ -182,6 +182,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `booking` | Slot engine + advance order book (`base_orders`); UI `/booking/new` in Calendar rail (not event slot-click); alpha; agent `/booking/availability` `/booking/book` `/booking/orders` `/booking/cancel`; storefront `/cart` wizard when enabled — [`docs/agents/booking.md`](docs/agents/booking.md) |
 | `terminals` | Device registry + bracelets + therm occupancy; live `/t` floor shell; 1C sale/bracelet + sync jobs (`cfg/modules/terminals.ini`); disableable — [`docs/agents/terminals.md`](docs/agents/terminals.md) |
 | `staff_reports` | Staff quality day reports (traffic lights by position); rewards on `/audio/calendar`; generate via Re-® / `/staff-reports/generate` |
+| `bi` | JSON-recipe BI reports (`modules/bi/recipes/` + constructor `/bi/families`, legend `/bi/legend`); director `bi.manage`; share `/bi/s/{token}` — [`docs/agents/bi.md`](docs/agents/bi.md) |
 | `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`, `base_procedure_restores` schema); restore UI lives in `likespa` |
 | `orders` | Website orders (`base_orders`, shared with site/oper); notice chips; `orders.for_day` for calendar |
 | `polls` | Poll definitions tree (`base_polls`); universal; channels via EventBus |
