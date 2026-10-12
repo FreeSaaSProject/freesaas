@@ -972,7 +972,6 @@ final class QrScanService
         array $ctx,
         int $actId
     ): array {
-        $pdo = Database::pdo();
         $rate = max(0.0001, (float)$row['qty_qtyu_rate']);
         $openOutId = (int)$ctx['open_out_id'];
 
@@ -997,36 +996,15 @@ final class QrScanService
                     ];
                     return $out;
                 }
-                $st = $pdo->prepare(
-                    'SELECT WEIGHT_BEFORE AS weight_before, DESCR AS descr FROM base_good_sticker_outs WHERE ID = ?'
-                );
-                $st->execute([$openOutId]);
-                $open = $st->fetch(PDO::FETCH_ASSOC);
-                if (!$open) {
-                    $out['error'] = t('stickers.qr.err.open_out');
-                    return $out;
-                }
-                $qty = round((float)$open['weight_before'] - $weight2, 1);
-                $strange = '';
-                if ($qty == 0.0) {
-                    $strange = t('stickers.qr.strange.zero');
-                }
-                if ($qty < 0) {
-                    $qty = 0.0;
-                    $strange = t('stickers.qr.strange.increase');
-                }
                 try {
-                    self::commitWeightClose(
+                    $qty = self::commitWeightClose(
                         $row,
                         $userId,
                         $token,
                         $actId,
                         $openOutId,
-                        $open,
                         $weight2,
-                        $qty,
-                        $rate,
-                        $strange
+                        $rate
                     );
                 } catch (RuntimeException $e) {
                     $out['error'] = $e->getMessage();
@@ -1161,6 +1139,16 @@ final class QrScanService
             if (!is_array($locked)) {
                 throw new RuntimeException(t('stickers.qr.err.not_found'));
             }
+            $openChk = $pdo->prepare(
+                'SELECT ID FROM base_good_sticker_outs
+                 WHERE ID_STICKER = ? AND WEIGHT_BEFORE > 0
+                   AND (WEIGHT_AFTER IS NULL OR WEIGHT_AFTER = 0)
+                 LIMIT 1'
+            );
+            $openChk->execute([(int)$locked['ID']]);
+            if ($openChk->fetchColumn()) {
+                throw new RuntimeException(t('stickers.qr.err.open_out_exists'));
+            }
             if (!QrScanToken::claim($token, (int)$locked['ID'])) {
                 throw new RuntimeException(t('stickers.qr.err.token_used'));
             }
@@ -1193,8 +1181,10 @@ final class QrScanService
     }
 
     /**
+     * Close open weight out under sticker lock; re-read out state and qty inside the txn.
+     *
      * @param array<string,mixed> $row
-     * @param array<string,mixed> $open
+     * @return float qty written off
      */
     private static function commitWeightClose(
         array $row,
@@ -1202,18 +1192,16 @@ final class QrScanService
         string $token,
         int $actId,
         int $openOutId,
-        array $open,
         float $weight2,
-        float $qty,
-        float $rate,
-        string $strange
-    ): void {
+        float $rate
+    ): float {
         $pdo = Database::pdo();
         $started = false;
         if (!$pdo->inTransaction()) {
             $pdo->beginTransaction();
             $started = true;
         }
+        $qty = 0.0;
         try {
             $st = $pdo->prepare(
                 'SELECT ID, PRICE, QTYU_OUT, LOG FROM base_good_sticker_ins WHERE ID = ? FOR UPDATE'
@@ -1223,8 +1211,34 @@ final class QrScanService
             if (!is_array($locked)) {
                 throw new RuntimeException(t('stickers.qr.err.not_found'));
             }
+            $outSt = $pdo->prepare(
+                'SELECT ID, WEIGHT_BEFORE, WEIGHT_AFTER, DESCR
+                 FROM base_good_sticker_outs
+                 WHERE ID = ? AND ID_STICKER = ? FOR UPDATE'
+            );
+            $outSt->execute([$openOutId, (int)$locked['ID']]);
+            $open = $outSt->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($open)) {
+                throw new RuntimeException(t('stickers.qr.err.open_out'));
+            }
+            $wAfter = $open['WEIGHT_AFTER'];
+            if ($wAfter !== null && (float)$wAfter > 0) {
+                throw new RuntimeException(t('stickers.qr.err.open_out_closed'));
+            }
+            if ((float)$open['WEIGHT_BEFORE'] <= 0) {
+                throw new RuntimeException(t('stickers.qr.err.open_out'));
+            }
             if (!QrScanToken::claim($token, (int)$locked['ID'])) {
                 throw new RuntimeException(t('stickers.qr.err.token_used'));
+            }
+            $qty = round((float)$open['WEIGHT_BEFORE'] - $weight2, 1);
+            $strange = '';
+            if ($qty == 0.0) {
+                $strange = t('stickers.qr.strange.zero');
+            }
+            if ($qty < 0) {
+                $qty = 0.0;
+                $strange = t('stickers.qr.strange.increase');
             }
             $sum = round(((float)$locked['PRICE'] * $qty) / $rate, 2);
             $msg = t('stickers.qr.log.weight_spent', [
@@ -1239,7 +1253,7 @@ final class QrScanService
             )->execute([
                 $qty,
                 $sum,
-                (string)$open['descr'] . '<BR>' . self::logTag($userId) . $msg,
+                (string)$open['DESCR'] . '<BR>' . self::logTag($userId) . $msg,
                 $weight2,
                 $userId,
                 $token,
@@ -1259,6 +1273,7 @@ final class QrScanService
             throw $e;
         }
         self::recalcActSum($actId);
+        return $qty;
     }
 
     /**

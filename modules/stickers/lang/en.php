@@ -226,6 +226,8 @@ return [
     'stickers.qr.err.token_used' => 'Token already used. Scan the sticker again.',
     'stickers.qr.err.get_mutate' => 'Mutations require POST. Confirm the form below.',
     'stickers.qr.err.open_out' => 'Open write-off line not found',
+    'stickers.qr.err.open_out_exists' => 'An open weight write-off already exists. Finish or cancel it first.',
+    'stickers.qr.err.open_out_closed' => 'This write-off was already closed. Scan the sticker again.',
     'stickers.qr.activate_need_revi' => 'Activation needs STOCK_REVISION.',
     'stickers.qr.activate_pending' => 'Sticker not activated.',
     'stickers.qr.activate_done' => 'Sticker activated.',

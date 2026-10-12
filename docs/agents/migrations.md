@@ -79,6 +79,6 @@ php bin/data-migrate.php   # destructive replace — know what you run
 ## Rules
 
 - Runtime SQL: `base_*` only.
-- New tables/columns: `base_*`, listed in the owning module’s `tables`.
-- No down-migrations. **Uninstall** (`module uninstall --confirm`) dumps owned tables then DROP + clears `base_schema_migrations` for that module; re-enable recreates empty schema via up-migrations. `leave_tables` modules refuse uninstall.
+- New tables: `base_*`, listed only in the **owning** module’s `tables` (exclusive). Columns/indexes on a foreign table: additive migration in the feature module, **do not** add that table to its `tables[]`.
+- No down-migrations. **Uninstall** (`module uninstall --confirm`) dumps exclusively owned tables then DROP + clears `base_schema_migrations` for that module; re-enable recreates empty schema via up-migrations. Shared ownership claims are skipped (never DROP). `leave_tables` modules refuse uninstall.
 - After writing a new migration file: `migrate run --module=<id>`, then `health` / `smoke`.

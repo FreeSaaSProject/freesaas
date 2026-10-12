@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.52",
+    "version": "0.3.53",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -45,6 +45,10 @@
         {
             "id": "core.news",
             "label": "core.perm.news"
+        },
+        {
+            "id": "core.news_statuses",
+            "label": "core.perm.news_statuses"
         },
         {
             "id": "core.settings",
@@ -521,21 +525,21 @@
                 "id": "core.news_statuses.list",
                 "method": "GET",
                 "path": "/news-statuses",
-                "permission": "core.news",
+                "permission": "core.news_statuses",
                 "description": "List ticket/news workflow statuses (base_news_statuses): name, type, deadline_policy (optional|required|forbidden for GCal), color, usage count"
             },
             {
                 "id": "core.news_statuses.get",
                 "method": "GET",
                 "path": "/news-statuses/{id}/edit",
-                "permission": "core.news",
+                "permission": "core.news_statuses",
                 "description": "One news status + usage count + deadline_policies"
             },
             {
                 "id": "core.news_statuses.create",
                 "method": "POST",
                 "path": "/news-statuses/new",
-                "permission": "core.news",
+                "permission": "core.news_statuses",
                 "side_effect": "write",
                 "description": "Create news status. Fields: NAME, TYPE (default 2), DEADLINE_POLICY, COLOR; optional ID for fixed primary key"
             },
@@ -543,7 +547,7 @@
                 "id": "core.news_statuses.update",
                 "method": "POST",
                 "path": "/news-statuses/{id}/edit",
-                "permission": "core.news",
+                "permission": "core.news_statuses",
                 "side_effect": "write",
                 "description": "Update news status (NAME/TYPE/DEADLINE_POLICY/COLOR) or action=delete when unused"
             },

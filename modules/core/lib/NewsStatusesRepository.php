@@ -149,8 +149,9 @@ final class NewsStatusesRepository
         if ($statusId < 1 || !Database::tableExists('base_news')) {
             return 0;
         }
+        // Include archived (DISABLED=1): restore must still resolve STATUS.
         $st = Database::pdo()->prepare(
-            'SELECT COUNT(*) FROM base_news WHERE STATUS = ? AND DISABLED = 0'
+            'SELECT COUNT(*) FROM base_news WHERE STATUS = ?'
         );
         $st->execute([$statusId]);
         return (int)$st->fetchColumn();

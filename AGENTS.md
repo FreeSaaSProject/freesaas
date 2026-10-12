@@ -220,7 +220,7 @@ Prefer extending these via hooks before forking page logic.
 - Before PR (also in `.github/workflows/ci.yml`): `php -l` on changed PHP, `declare(strict_types=1)` on every first-party tracked PHP file (CI skips `*/vendor/*` and bundled libs like `*/phpqrcode/*`), `bin/check-i18n.php`, `bin/check-routes.php` (public-route allow-list; enable all modules in `cfg/config.ini` first), plus the `bin/check-*.php` helpers above.
 - Smoke the affected route in browser if UI changed.
 - Keep StageTiming marks only if already used on that page path.
-- Lifecycle: `module disable` leaves tables; `module uninstall --confirm` dumps owned tables then DROP (refused if `uninstall.strategy=leave_tables`). Code on disk remains; see agent-native-audit.
+- Lifecycle: `module disable` leaves tables; `module uninstall --confirm` dumps **exclusively owned** `tables[]` then DROP (refused if `uninstall.strategy=leave_tables`). `tables[]` is ownership for DROP, not “tables used”; never list foreign tables you only ALTER. Code on disk remains; see agent-native-audit.
 
 ## Out of scope unless asked
 

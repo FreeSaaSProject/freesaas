@@ -238,9 +238,9 @@ final class DbTools
     }
 
     /**
-     * Dump tables owned by one module (module.json → tables that exist in DB).
+     * Dump tables exclusively owned by one module (module.json → tables not claimed elsewhere).
      *
-     * @return array{ok:bool,file?:string,path?:string,bytes?:int,tables:list<string>,gzip?:bool,skipped?:bool}
+     * @return array{ok:bool,file?:string,path?:string,bytes?:int,tables:list<string>,gzip?:bool,skipped?:bool,skipped_shared?:array<string,list<string>>}
      */
     public static function dumpModule(string $moduleId, ?string $label = null): array
     {
@@ -249,26 +249,27 @@ final class DbTools
         if ($meta === null) {
             throw new RuntimeException(t('app.module.err.not_found', ['id' => $moduleId]));
         }
-        $declared = [];
-        foreach ($meta['tables'] ?? [] as $t) {
-            if (is_string($t) && $t !== '' && self::isValidTableName($t)) {
-                $declared[] = $t;
-            }
-        }
+        $ownership = ModuleManager::exclusiveOwnedTables($moduleId);
         $existing = [];
-        foreach ($declared as $t) {
-            if (Database::tableExists($t)) {
+        foreach ($ownership['exclusive'] as $t) {
+            if (self::isValidTableName($t) && Database::tableExists($t)) {
                 $existing[] = $t;
             }
         }
         if ($existing === []) {
-            return ['ok' => true, 'tables' => [], 'skipped' => true];
+            return [
+                'ok' => true,
+                'tables' => [],
+                'skipped' => true,
+                'skipped_shared' => $ownership['shared'],
+            ];
         }
         $lab = $label !== null && trim($label) !== ''
             ? trim($label)
             : ('uninstall-' . $moduleId);
         $out = self::dump($existing, $lab);
         $out['skipped'] = false;
+        $out['skipped_shared'] = $ownership['shared'];
         return $out;
     }
 

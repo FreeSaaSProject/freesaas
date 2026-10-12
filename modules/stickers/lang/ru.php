@@ -226,6 +226,8 @@ return [
     'stickers.qr.err.token_used' => 'Токен уже использован. Отсканируйте стикер снова.',
     'stickers.qr.err.get_mutate' => 'Мутации только через POST. Подтвердите форму ниже.',
     'stickers.qr.err.open_out' => 'Открытый расход не найден',
+    'stickers.qr.err.open_out_exists' => 'Уже есть открытый весовой расход. Сначала закройте или отмените его.',
+    'stickers.qr.err.open_out_closed' => 'Этот расход уже закрыт. Отсканируйте стикер снова.',
     'stickers.qr.activate_need_revi' => 'Для активации нужны права ревизии (STOCK_REVISION).',
     'stickers.qr.activate_pending' => 'Товар не активирован.',
     'stickers.qr.activate_done' => 'Товар активирован.',

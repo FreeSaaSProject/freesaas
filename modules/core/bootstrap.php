@@ -87,9 +87,9 @@ $pages = [
     '/agent/update/apply' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/news' => ['permission' => 'core.news', 'methods' => ['GET'], 'file' => 'news.php'],
     '/news/new' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_edit.php'],
-    '/news-statuses' => ['permission' => 'core.news', 'methods' => ['GET'], 'file' => 'news_statuses.php'],
-    '/news-statuses/new' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_status_edit.php'],
-    '/news-statuses/{id}/edit' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_status_edit.php'],
+    '/news-statuses' => ['permission' => 'core.news_statuses', 'methods' => ['GET'], 'file' => 'news_statuses.php'],
+    '/news-statuses/new' => ['permission' => 'core.news_statuses', 'methods' => ['GET', 'POST'], 'file' => 'news_status_edit.php'],
+    '/news-statuses/{id}/edit' => ['permission' => 'core.news_statuses', 'methods' => ['GET', 'POST'], 'file' => 'news_status_edit.php'],
     '/news/{id}' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_item.php'],
     '/news/{id}/edit' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_edit.php'],
     '/core/jobs/habits-reminders' => [

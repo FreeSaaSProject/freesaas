@@ -274,11 +274,20 @@ final class ModuleValidator
         }
 
 
-        // Tables vs migrations heuristic
+        // Tables: exclusive ownership for uninstall DROP — not “tables this module uses”.
         $tables = [];
         foreach ($meta['tables'] ?? [] as $t) {
             if (is_string($t) && $t !== '') {
                 $tables[] = $t;
+            }
+        }
+        foreach ($tables as $table) {
+            $others = ModuleManager::otherOwnersOfTable($moduleId, $table);
+            if ($others !== []) {
+                $errors[] = "table {$table} is also owned by "
+                    . implode(', ', $others)
+                    . ' — module.json tables[] must list exclusive ownership only'
+                    . ' (ALTER/usage of foreign tables: omit from tables[], document in docs/TABLE_MAP.md)';
             }
         }
         $migDir = $dir . '/migrations';

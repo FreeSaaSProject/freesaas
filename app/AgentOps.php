@@ -1092,7 +1092,7 @@ final class AgentOps
                     'op' => 'module.uninstall',
                     'query' => ['confirm_uninstall'],
                     'body' => ['confirm_uninstall'],
-                    'description' => 'Mandatory dump of module.json tables → DROP → clear migrations ledger → disable. leave_tables strategy refused. Code stays on disk. Requires confirm_uninstall=1.',
+                    'description' => 'Mandatory dump of exclusively owned module.json tables → DROP those → clear migrations ledger → disable. Tables also claimed by another module are never dropped. leave_tables strategy refused. Code stays on disk. Requires confirm_uninstall=1.',
                 ],
                 ['method' => 'POST', 'path' => '/agent/modules/{id}/disable', 'op' => 'module.disable'],
                 ['method' => 'GET', 'path' => '/agent/modules/{id}/validate', 'op' => 'module.validate'],

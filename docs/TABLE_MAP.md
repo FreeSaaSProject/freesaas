@@ -1,10 +1,12 @@
 # FreeSaaS table ownership map
 
-Runtime code uses **`base_*` tables only** (plus platform probes via `information_schema`). Each product module owns the tables listed in its `module.json` → `tables`.
+Runtime code uses **`base_*` tables only** (plus platform probes via `information_schema`). Each product module owns the tables listed in its `module.json` → `tables` — **exclusive ownership** for uninstall dump/DROP. Listing a table another module already owns is a validate error. Using or `ALTER`ing a foreign table is fine; document that here and **omit** it from `tables[]`.
 
 | Table(s) | Owner module | Notes |
 |---|---|---|
 | `base_users`, `base_system`, `base_admin_statuses`, `base_modules`, `base_schema_migrations`, `base_news*`, `base_views`, `base_user_prefs` | core | Auth, registry, news/tickets, prefs |
+| `base_comments` | comments | Comment threads on news items |
+| `base_comments` / `base_users` / `base_news` (usage) | contracts (indexes/columns + UI) | No owned tables; offer workflow over comments/news; `IS_ACCEPTOR` on users; indexes on comments. Uninstall must not DROP news/comments |
 | `base_users` site/tips (`photo`, `site_descr`, `link_ok`) | likespa (columns + UI) | Added by likespa migration; staff edit via `core.user_edit.*` |
 | `base_users` procedure restricts (`RESTRICT_TYPES*`, `RESTRICT_PROCS`) | procedures (columns + UI) | Added by procedures migration; only when procedures enabled |
 | `base_staff_bracelets` | terminals | Staff NFC UID ↔ user (no column on `base_users`) |

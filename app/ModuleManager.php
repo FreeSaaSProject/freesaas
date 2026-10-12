@@ -207,7 +207,9 @@ final class ModuleManager
     }
 
     /**
-     * Declared owned table names from module.json → tables (valid identifiers only).
+     * Declared table names from module.json → tables (valid identifiers only).
+     * Semantics: exclusive ownership for dump/DROP on uninstall — not “tables this module uses”.
+     * ALTER/index columns on another module’s tables must not appear here (document in TABLE_MAP).
      *
      * @return list<string>
      */
@@ -228,8 +230,50 @@ final class ModuleManager
     }
 
     /**
-     * Real uninstall: mandatory dump of owned tables → DROP → clear migration ledger →
+     * Other discovered modules that also list $table in module.json → tables.
+     *
+     * @return list<string>
+     */
+    public static function otherOwnersOfTable(string $id, string $table): array
+    {
+        $others = [];
+        foreach (self::$modules as $otherId => $_) {
+            if ($otherId === $id) {
+                continue;
+            }
+            if (in_array($table, self::ownedTableList($otherId), true)) {
+                $others[] = $otherId;
+            }
+        }
+        sort($others, SORT_STRING);
+        return $others;
+    }
+
+    /**
+     * Tables exclusively owned by this module (listed only in its module.json → tables).
+     * Shared claims are excluded so uninstall never DROPs foreign core/product data.
+     *
+     * @return array{exclusive:list<string>, shared:array<string,list<string>>}
+     */
+    public static function exclusiveOwnedTables(string $id): array
+    {
+        $exclusive = [];
+        $shared = [];
+        foreach (self::ownedTableList($id) as $t) {
+            $others = self::otherOwnersOfTable($id, $t);
+            if ($others !== []) {
+                $shared[$t] = $others;
+            } else {
+                $exclusive[] = $t;
+            }
+        }
+        return ['exclusive' => $exclusive, 'shared' => $shared];
+    }
+
+    /**
+     * Real uninstall: mandatory dump of exclusively owned tables → DROP those → clear migration ledger →
      * disable + remove base_modules row + cfg/modules/{id}.ini. Code on disk remains.
+     * Tables also claimed by another module are never dumped/DROPped (ownership ≠ usage).
      *
      * @return array{
      *   ok:bool,
@@ -237,6 +281,7 @@ final class ModuleManager
      *   strategy:string,
      *   dump:?array,
      *   dropped:list<string>,
+     *   skipped_shared:array<string,list<string>>,
      *   ledger_cleared:int,
      *   disabled:bool,
      *   dump_skipped:bool
@@ -269,15 +314,19 @@ final class ModuleManager
             );
         }
 
+        $ownership = self::exclusiveOwnedTables($id);
+        $exclusive = $ownership['exclusive'];
+        $skippedShared = $ownership['shared'];
+
         $dump = null;
         $dumpSkipped = true;
         try {
             $dump = DbTools::dumpModule($id, 'uninstall-' . $id);
             $dumpSkipped = !empty($dump['skipped']);
         } catch (Throwable $e) {
-            // Only abort when owned tables exist — dumpModule already skips empty.
+            // Only abort when exclusive owned tables exist — dumpModule already skips empty/shared.
             $existing = [];
-            foreach (self::ownedTableList($id) as $t) {
+            foreach ($exclusive as $t) {
                 if (Database::tableExists($t)) {
                     $existing[] = $t;
                 }
@@ -301,7 +350,7 @@ final class ModuleManager
         }
 
         $toDrop = [];
-        foreach (self::ownedTableList($id) as $t) {
+        foreach ($exclusive as $t) {
             if (Database::tableExists($t)) {
                 $toDrop[] = $t;
             }
@@ -332,6 +381,7 @@ final class ModuleManager
             'strategy' => $strategy,
             'dump' => $dumpSkipped ? null : $dump,
             'dropped' => $dropped,
+            'skipped_shared' => $skippedShared,
             'ledger_cleared' => $ledgerCleared,
             'disabled' => $disabled,
             'dump_skipped' => $dumpSkipped,

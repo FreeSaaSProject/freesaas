@@ -176,7 +176,7 @@ modules/<id>/
 | `permissions` | `{ id, label }` — `label` = i18n-ключ (`myid.perm.view`), не готовый текст |
 | `routes.pages` | Список путей (фактическая регистрация — в `bootstrap.php`) |
 | `menu` | Пункты бокового меню: `group`, `num`, `path`, `title` — `group`/`title` тоже i18n-ключи |
-| `tables` | Какие `base_*` модуль считает «своими» |
+| `tables` | Эксклюзивно свои `base_*` (uninstall dump→DROP). Не перечислять чужие таблицы, которые модуль только использует/`ALTER` |
 | `migrators` | Спеки data-миграторов |
 | `hooks.subscribe` / `hooks.publish` | Документация событий EventBus |
 

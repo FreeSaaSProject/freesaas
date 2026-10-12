@@ -114,7 +114,7 @@ Problems that remain after the OSS tranche. Prefer small evolutionary fixes.
 ### 2. Uninstall / rollback lifecycle
 
 - **Status:** **Done (P2.1)** — `module uninstall --confirm` / `POST /agent/modules/{id}/uninstall` with `confirm_uninstall=1`: mandatory dump of `tables[]` → DROP → clear ledger → disable. Code on disk remains. `uninstall.strategy=leave_tables` refuses DROP.
-- **Residual:** no down-migrations; shared columns on foreign tables are not reverted; file purge of `modules/<id>/` is out of scope.
+- **Residual:** no down-migrations; shared columns/indexes on foreign tables are not reverted on uninstall; file purge of `modules/<id>/` is out of scope. `tables[]` = exclusive ownership (validate rejects duplicates; uninstall skips shared claims).
 
 ### 3. Core still partly oper-shaped
 

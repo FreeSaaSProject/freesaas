@@ -51,4 +51,5 @@ Exit codes must be `0` (warnings OK on validate if no errors).
 ## Uninstall policy
 
 - **Disable** (`module disable`): config off; tables and data remain.
-- **Uninstall** (`module uninstall <id> --confirm` / `POST /agent/modules/{id}/uninstall` with `confirm_uninstall=1`): mandatory SQL dump of `tables[]` → DROP those tables → clear migration ledger → disable. Code under `modules/<id>/` stays. Omit `uninstall` or set `"uninstall":{"strategy":"drop_owned"}` to allow; `"leave_tables"` refuses DROP (disable-only).
+- **Uninstall** (`module uninstall <id> --confirm` / `POST /agent/modules/{id}/uninstall` with `confirm_uninstall=1`): mandatory SQL dump of **exclusively owned** `tables[]` → DROP those → clear migration ledger → disable. Code under `modules/<id>/` stays. Omit `uninstall` or set `"uninstall":{"strategy":"drop_owned"}` to allow; `"leave_tables"` refuses DROP (disable-only).
+- **`tables[]` = ownership, not usage.** Only list `base_*` this module creates and alone owns. If you only `ALTER`/query tables of `core`/`comments`/…, leave `tables` empty (or omit those names) and note the columns in [`docs/TABLE_MAP.md`](../TABLE_MAP.md). Duplicate ownership across modules fails `module validate`. Uninstall never DROPs a table also claimed by another discovered module.
