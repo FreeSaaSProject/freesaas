@@ -9,9 +9,9 @@ rules:
     patterns:
       - pattern-either:
           - pattern: unserialize($X)
-          - pattern: @unserialize($X)
+          - pattern: "@unserialize($X)"
       - pattern-not: unserialize($X, ...)
-      - pattern-not: @unserialize($X, ...)
+      - pattern-not: "@unserialize($X, ...)"
 
   - id: freesaas.php-eval
     languages: [php]
