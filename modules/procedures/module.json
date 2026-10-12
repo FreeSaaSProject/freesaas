@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -203,7 +203,8 @@
             "core.user_edit.save"
         ],
         "publish": [
-            "bots.send"
+            "bots.send",
+            "procedures.list.row"
         ]
     },
     "bulkActions": [

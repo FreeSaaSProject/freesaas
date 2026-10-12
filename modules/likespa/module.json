@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.4",
+    "version": "0.3.5",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -157,7 +157,8 @@
             "sites.diagnose",
             "sites.host_edit.sections",
             "sites.host_edit.save",
-            "booking.book.before"
+            "booking.book.before",
+            "procedures.list.row"
         ],
         "publish": []
     },

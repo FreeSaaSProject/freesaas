@@ -35,7 +35,7 @@ if (!in_array($restored, ['', '0', '1'], true)) {
 $lq = ListQuery::resolve([
     'list_id' => 'procedures',
     'allowed' => ProceduresRepository::listSortMap(),
-    'default' => 'dtstart',
+    'default' => 'id',
     'default_dir' => 'desc',
     'per_page' => 50,
 ]);
@@ -120,7 +120,7 @@ $hasListState = $q !== ''
     || $idOperator > 0
     || (int)$lq['page'] > 1
     || !empty($lq['show_all'])
-    || $lq['sort'] !== 'dtstart'
+    || $lq['sort'] !== 'id'
     || $lq['dir'] !== 'desc'
     || (int)$lq['per_page'] !== 50;
 

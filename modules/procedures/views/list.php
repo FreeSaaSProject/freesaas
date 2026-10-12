@@ -141,6 +141,18 @@ $dayLabel = I18n::formatDate($dayTs, 'date');
       <?php
         $pid = (int)$p['id'];
         $editHref = ListQuery::url('/procedures/' . $pid . '/edit', ['ret' => $listUrl]);
+        $dtstart = (int)($p['dtstart'] ?? 0);
+        $dtcreate = (int)($p['dtcreate'] ?? 0);
+        $summ = (string)($p['summ'] ?? '0');
+        $summDefault = (string)($p['summ_default'] ?? '0');
+        $statusName = trim((string)($p['client_status_name'] ?? ''));
+        $rowExtra = EventBus::emit('procedures.list.row', [
+            'row' => $p,
+            'html_after_id' => '',
+            'html_after_client' => '',
+        ]);
+        $htmlAfterId = is_array($rowExtra) ? (string)($rowExtra['html_after_id'] ?? '') : '';
+        $htmlAfterClient = is_array($rowExtra) ? (string)($rowExtra['html_after_client'] ?? '') : '';
       ?>
       <tr>
         <?= BulkActions::td($listId, $pid) ?>
@@ -150,18 +162,38 @@ $dayLabel = I18n::formatDate($dayTs, 'date');
           <?php else: ?>
             <?= $pid ?>
           <?php endif; ?>
+          <?php if ($htmlAfterId !== ''): ?>
+            <?= $htmlAfterId ?>
+          <?php endif; ?>
         </td>
-        <td><?=
-          ((int)($p['dtstart'] ?? 0) > 0)
-            ? e(I18n::formatDate((int)$p['dtstart'], 'datetime'))
-            : '—'
-        ?></td>
+        <td>
+          <?php if ($dtstart > 0): ?>
+            <?= e(I18n::formatDate($dtstart, 'datetime')) ?>
+          <?php else: ?>
+            —
+          <?php endif; ?>
+          <?php if ($dtcreate > 0): ?>
+            <br><span class="muted"><?= te('procedures.list.created') ?>:
+              <?php if ($dtstart > 0 && date('Y-m-d', $dtcreate) !== date('Y-m-d', $dtstart)): ?>
+                <?= e(I18n::formatDate($dtcreate, 'datetime')) ?>
+              <?php else: ?>
+                <?= e(date('H:i', $dtcreate)) ?>
+              <?php endif; ?>
+            </span>
+          <?php endif; ?>
+        </td>
         <td><?= e((string)($p['type_name'] ?: ('#' . (int)$p['type']))) ?></td>
         <td>
           <?php if ((int)$p['id_user'] > 0): ?>
             <a href="/clients/<?= (int)$p['id_user'] ?>"><?= e((string)($p['client_name'] ?: ('#' . (int)$p['id_user']))) ?></a>
+            <?php if ($statusName !== ''): ?>
+              <br><b style="color:red"><?= e($statusName) ?></b>
+            <?php endif; ?>
           <?php else: ?>
             —
+          <?php endif; ?>
+          <?php if ($htmlAfterClient !== ''): ?>
+            <?= $htmlAfterClient ?>
           <?php endif; ?>
         </td>
         <td>
@@ -171,11 +203,20 @@ $dayLabel = I18n::formatDate($dayTs, 'date');
             —
           <?php endif; ?>
         </td>
-        <td><?= e((string)($p['summ'] ?? '0')) ?></td>
         <td>
-          <?= !empty($p['enabled']) ? te('core.common.on') : te('core.common.off') ?>
+          <?= e($summ) ?>
+          <?php if ($summDefault !== $summ): ?>
+            <span class="muted">(<?= e($summDefault) ?>)</span>
+          <?php endif; ?>
+        </td>
+        <td>
+          <?php if (!empty($p['enabled'])): ?>
+            <b style="color:green"><?= te('procedures.list.enabled_on') ?></b>
+          <?php else: ?>
+            <b style="color:red"><?= te('procedures.list.enabled_off') ?></b>
+          <?php endif; ?>
           <?php if (!empty($p['restored'])): ?>
-            <span class="pill"><?= te('procedures.col.restored') ?></span>
+            <br><span class="pill"><?= te('procedures.col.restored') ?></span>
           <?php endif; ?>
         </td>
       </tr>

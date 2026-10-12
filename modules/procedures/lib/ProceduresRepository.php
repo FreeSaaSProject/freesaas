@@ -140,11 +140,11 @@ final class ProceduresRepository
 
         $order = trim((string)($opts['order'] ?? ''));
         if ($order === '') {
-            $order = 'p.DTSTART DESC';
+            $order = 'p.ID DESC';
         }
 
         $joins = '';
-        $extraCols = 'NULL AS type_name, NULL AS client_name, NULL AS product_name, NULL AS admin_name, NULL AS operator_name';
+        $extraCols = 'NULL AS type_name, NULL AS client_name, NULL AS client_status_name, NULL AS product_name, NULL AS admin_name, NULL AS operator_name';
         if (Database::tableExists('base_procedure_types')) {
             $joins .= ' LEFT JOIN base_procedure_types t ON t.ID = p.TYPE';
             $extraCols = 't.TYPE AS type_name';
@@ -154,8 +154,14 @@ final class ProceduresRepository
         if (Database::tableExists('base_clients')) {
             $joins .= ' LEFT JOIN base_clients c ON c.id = p.ID_USER';
             $extraCols .= ', c.name AS client_name';
+            if (Database::tableExists('base_client_statuses')) {
+                $joins .= ' LEFT JOIN base_client_statuses cs ON cs.id = c.status_id';
+                $extraCols .= ', cs.name AS client_status_name';
+            } else {
+                $extraCols .= ', NULL AS client_status_name';
+            }
         } else {
-            $extraCols .= ', NULL AS client_name';
+            $extraCols .= ', NULL AS client_name, NULL AS client_status_name';
         }
         if (Database::tableExists('base_products')) {
             $joins .= ' LEFT JOIN base_products g ON g.id = p.ID_GOOD';

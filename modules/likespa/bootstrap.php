@@ -10,6 +10,7 @@ require_once __DIR__ . '/lib/ProcedureRestoresRepository.php';
 require_once __DIR__ . '/lib/SystemFlyerPromo.php';
 require_once __DIR__ . '/lib/FreeTicket.php';
 require_once __DIR__ . '/lib/LikespaLegacyApi.php';
+require_once __DIR__ . '/lib/ProcedureFloorLinks.php';
 
 Assets::register('likespa', [
     'css' => ['likespa.css'],
@@ -117,6 +118,10 @@ BulkActions::register('likespa_restores', 'delete', [
 
 EventBus::on('audio_reports.calendar.cell', static function ($payload) {
     return CalendarOverlay::onCell($payload);
+});
+
+EventBus::on('procedures.list.row', static function ($payload) {
+    return ProcedureFloorLinks::onListRow($payload);
 });
 
 EventBus::on('sites.cart.booking', static function ($payload) {

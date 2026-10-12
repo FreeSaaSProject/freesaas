@@ -176,4 +176,8 @@ return [
     'likespa.user_edit.sec_site' => 'Данные для сайта',
     'likespa.user_edit.site_descr' => 'Описание для клиентской части',
     'likespa.user_edit.tips_link' => 'Ссылка на чаевые',
+    'likespa.procedures.terminal_label' => 'Терминал',
+    'likespa.procedures.bracelet_label' => 'Браслет',
+    'likespa.procedures.link_terminal' => '[Терминал!]',
+    'likespa.procedures.link_folio' => 'фолио',
 ];

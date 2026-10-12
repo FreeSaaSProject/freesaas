@@ -31,7 +31,23 @@ if (!$isNew) {
         'enabled' => 1,
         'dtstart' => time(),
         'id_admin' => Auth::userId(),
+        'id_operator' => Auth::userId(),
     ];
+}
+
+$acl = ProceduresEditAcl::forRow($row, $isNew);
+if (empty($acl['allowed'])) {
+    if ($wantsJson) {
+        AgentHttp::error((string)($acl['deny_reason'] ?: t('procedures.edit.err.foreign')), 403);
+        return;
+    }
+    http_response_code(403);
+    $deny = (string)($acl['deny_reason'] ?: t('procedures.edit.err.foreign'));
+    View::render('error', [
+        'title' => $deny,
+        'message' => $deny,
+    ], 'layout');
+    return;
 }
 
 $message = '';
@@ -39,7 +55,13 @@ $error = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        $data = ProceduresRepository::dataFromPost($_POST);
+        // Recompute ACL from posted id_good so timing lock follows product change.
+        $probe = $row;
+        if (ProceduresEditAcl::canEditField($acl, 'id_good') && isset($_POST['id_good'])) {
+            $probe['id_good'] = (int)$_POST['id_good'];
+        }
+        $acl = ProceduresEditAcl::forRow($probe, $isNew);
+        $data = ProceduresEditAcl::dataFromPost($_POST, $isNew ? [] : $row, $acl);
         if ($isNew) {
             $newId = ProceduresRepository::create($data);
             if ($wantsJson) {
@@ -58,6 +80,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         ProceduresRepository::update($id, $data);
         $row = ProceduresRepository::find($id) ?: $row;
+        $acl = ProceduresEditAcl::forRow($row, false);
         if ($wantsJson) {
             AgentHttp::emit([
                 'ok' => true,
@@ -74,6 +97,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $error = $e->getMessage();
         $row = array_merge($row, $_POST);
+        $acl = ProceduresEditAcl::forRow($row, $isNew);
     }
 }
 
@@ -104,6 +128,10 @@ if ($wantsJson) {
         'ok' => true,
         'item' => $row,
         'is_new' => $isNew,
+        'acl' => [
+            'editable' => $acl['editable'],
+            'lock_dtend_timing' => !empty($acl['lock_dtend_timing']),
+        ],
         'procedure_types' => ProcedureTypesRepository::names(),
         'staff' => $staffNames,
         'client_label' => $clientLabel,
@@ -117,6 +145,7 @@ View::render('edit', [
         : t('procedures.edit.title', ['id' => $id]),
     'isNew' => $isNew,
     'row' => $row,
+    'acl' => $acl,
     'message' => $message,
     'error' => $error,
     'returnUrl' => $returnUrl,

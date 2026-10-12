@@ -177,4 +177,8 @@ return [
     'likespa.user_edit.sec_site' => 'Website details',
     'likespa.user_edit.site_descr' => 'Description for the client-facing site',
     'likespa.user_edit.tips_link' => 'Tips link',
+    'likespa.procedures.terminal_label' => 'Terminal',
+    'likespa.procedures.bracelet_label' => 'Bracelet',
+    'likespa.procedures.link_terminal' => '[Terminal!]',
+    'likespa.procedures.link_folio' => 'folio',
 ];

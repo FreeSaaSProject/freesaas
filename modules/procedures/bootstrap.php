@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/ProcedureTypesRepository.php';
 require_once __DIR__ . '/lib/ProceduresRepository.php';
+require_once __DIR__ . '/lib/ProceduresEditAcl.php';
 require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
