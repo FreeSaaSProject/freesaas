@@ -104,7 +104,9 @@ BulkActions::register('stickers_receipts', 'recalc_summ', [
     },
 ]);
 
-if (Acts2InDps::ledgerReady()) {
+// Register when ledger module is on — do NOT probe tables here (static CI / no DB).
+// ledgerReady() runs inside options/run when a session actually uses the action.
+if (ModuleManager::isEnabled('ledger')) {
     BulkActions::register('stickers_receipts', 'create_dps', [
         'label' => 'stickers.bulk.create_dps',
         'group' => 'stickers.bulk.group.dps',
@@ -121,6 +123,13 @@ if (Acts2InDps::ledgerReady()) {
             ],
         ],
         'run' => static function (array $ids, array $params): array {
+            if (!Acts2InDps::ledgerReady()) {
+                $skipped = [];
+                foreach ($ids as $id) {
+                    $skipped[] = ['id' => (int)$id, 'reason' => t('stickers.dps.err.ledger_off')];
+                }
+                return ['done' => 0, 'skipped' => $skipped];
+            }
             $typeId = (int)($params['type_id'] ?? 0);
             if ($typeId < 1) {
                 $skipped = [];

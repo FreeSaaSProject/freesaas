@@ -22,7 +22,9 @@ DirectorySlash Off
 
   # Block direct web access to internals (themes PHP/layouts stay private).
   # var/ holds sessions, dumps, job locks — must not be HTTP-readable.
+  # .git/ — clone deploys must not expose the repo over HTTP.
   RewriteRule ^(app|cfg|bin|docs|var|log)/ - [F,L]
+  RewriteRule ^\.git(/|$) - [F,L]
   RewriteRule ^themes/[^/]+/(layouts|views|partials)/ - [F,L]
 
   # Front controller: default index.php (admin).

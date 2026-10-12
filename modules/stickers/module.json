@@ -2,7 +2,7 @@
     "id": "stickers",
     "name": "stickers.module.name",
     "description": "stickers.module.description",
-    "version": "0.1.11",
+    "version": "0.1.13",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -287,7 +287,8 @@
         "base_acts2_in",
         "base_acts2_out",
         "base_good_sticker_ins",
-        "base_good_sticker_outs"
+        "base_good_sticker_outs",
+        "base_qr_token_claims"
     ],
     "migrators": [],
     "hooks": {

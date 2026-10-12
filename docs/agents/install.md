@@ -143,6 +143,7 @@ Apache ships path denials in root `.htaccess` (`app|cfg|bin|docs|var|log`, theme
 
 ```nginx
 location ~ ^/(app|cfg|bin|docs|var|log)/ { deny all; }
+location ~ /\.git(/|$) { deny all; }
 location ~ ^/themes/[^/]+/(layouts|views|partials)/ { deny all; }
 location ~ ^/modules/[^/]+/(?!assets/).*\.(php)$ { deny all; }
 ```

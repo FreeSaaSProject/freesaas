@@ -427,6 +427,8 @@ final class UpdateApply
                 $snap = UpdateRollback::snapshotBeforeOverlay($paths, $sid);
                 $work['snapshot_id'] = (string)$snap['id'];
                 $work['fail_phase'] = 'overlay';
+                // Persist before overlay — catch uses $job['work'], not local $work.
+                $job['work'] = $work;
                 $work['copied'] = UpdateOverlay::overlay(
                     $payloadRoot,
                     (string)$source['kind'],
@@ -442,12 +444,14 @@ final class UpdateApply
             } elseif ($step === 'migrate') {
                 $job['message'] = t('updates.job.step_migrate', ['id' => $sid]);
                 $work['fail_phase'] = 'migrate';
+                $job['work'] = $work;
                 if ($dbBackup && empty($work['dump_file'])) {
                     $dump = AgentOps::dbDump('update-pre-' . $sid);
                     if (empty($dump['ok'])) {
                         throw new RuntimeException((string)($dump['error'] ?? 'DB dump failed before migrate'));
                     }
                     $work['dump_file'] = self::dumpFileFromResult($dump);
+                    $job['work'] = $work;
                 }
                 $mig = $source['kind'] === 'module'
                     ? AgentOps::migrateRun($sid)

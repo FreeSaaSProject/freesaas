@@ -8,11 +8,19 @@ final class Acts2InDps
 {
     public static function ledgerReady(): bool
     {
-        return ModuleManager::isEnabled('ledger')
-            && class_exists('LedgerMovesRepository', false)
-            && class_exists('AccountMoveTypesRepository', false)
-            && Database::tableExists('base_account_moves')
-            && Database::tableExists('base_account_move_types');
+        if (!ModuleManager::isEnabled('ledger')
+            || !class_exists('LedgerMovesRepository', false)
+            || !class_exists('AccountMoveTypesRepository', false)
+        ) {
+            return false;
+        }
+        try {
+            return Database::tableExists('base_account_moves')
+                && Database::tableExists('base_account_move_types');
+        } catch (Throwable $e) {
+            // No DB yet (static CI) — treat as not ready.
+            return false;
+        }
     }
 
     /**

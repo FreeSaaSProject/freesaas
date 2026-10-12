@@ -1015,30 +1015,24 @@ final class QrScanService
                     $qty = 0.0;
                     $strange = t('stickers.qr.strange.increase');
                 }
-                $sum = round(((float)$row['price'] * $qty) / $rate, 2);
-                $msg = t('stickers.qr.log.weight_spent', [
-                    'act' => $actId,
-                    'out' => $openOutId,
-                    'w' => $weight2,
-                    'qty' => $qty,
-                ]) . $strange;
-                $pdo->prepare(
-                    'UPDATE base_good_sticker_outs SET QTYU = ?, SUM = ?, DESCR = ?, WEIGHT_AFTER = ?,
-                     ID_USER_AFTER = ?, TOKEN = ? WHERE ID = ?'
-                )->execute([
-                    $qty,
-                    $sum,
-                    (string)$open['descr'] . '<BR>' . self::logTag($userId) . $msg,
-                    $weight2,
-                    $userId,
-                    $token,
-                    $openOutId,
-                ]);
-                $log = self::appendLog((string)$row['log'], $userId, $msg);
-                $pdo->prepare(
-                    'UPDATE base_good_sticker_ins SET QTYU_OUT = ?, LOG = ?, TOKEN = ? WHERE ID = ?'
-                )->execute([(float)$row['qtyu_out'] + $qty, $log, $token, (int)$row['id']]);
-                self::recalcActSum($actId);
+                try {
+                    self::commitWeightClose(
+                        $row,
+                        $userId,
+                        $token,
+                        $actId,
+                        $openOutId,
+                        $open,
+                        $weight2,
+                        $qty,
+                        $rate,
+                        $strange
+                    );
+                } catch (RuntimeException $e) {
+                    $out['error'] = $e->getMessage();
+                    $out['messages'][] = ['level' => 'err', 'text' => $e->getMessage()];
+                    return $out;
+                }
                 $out['done'] = true;
                 $out['ok'] = true;
                 $out['messages'][] = ['level' => 'ok', 'text' => t('stickers.writeoff.ok', ['qty' => $qty])];
@@ -1076,23 +1070,13 @@ final class QrScanService
                 ];
                 return $out;
             }
-            $msg = t('stickers.qr.log.weight_open', ['w' => $weight, 'prev' => $last]);
-            $pdo->prepare(
-                'INSERT INTO base_good_sticker_outs
-                 (DT_CREATE, ID_USER, ID_USER_AFTER, ID_GOOD, ID_STOCK, ID_ACT, ID_STICKER,
-                  QTYU, SUM, DESCR, WEIGHT_BEFORE, WEIGHT_AFTER, TOKEN)
-                 VALUES (?, ?, 0, ?, ?, ?, ?, 0, 0, ?, ?, 0, ?)'
-            )->execute([
-                time(),
-                $userId,
-                (int)$row['id_good'],
-                (int)$row['id_stock'],
-                $actId,
-                (int)$row['id'],
-                self::logTag($userId) . $msg,
-                $weight,
-                $token,
-            ]);
+            try {
+                self::commitWeightOpen($row, $userId, $token, $actId, $weight, $last);
+            } catch (RuntimeException $e) {
+                $out['error'] = $e->getMessage();
+                $out['messages'][] = ['level' => 'err', 'text' => $e->getMessage()];
+                return $out;
+            }
             $out['done'] = true;
             $out['ok'] = true;
             $out['messages'][] = ['level' => 'ok', 'text' => t('stickers.qr.weight_open_done')];
@@ -1138,34 +1122,216 @@ final class QrScanService
             ];
             return $out;
         }
-        $sum = round(((float)$row['price'] * $amount) / $rate, 2);
-        $msg = t('stickers.qr.log.spent', ['act' => $actId, 'qty' => $amount]);
-        $pdo->prepare(
-            'INSERT INTO base_good_sticker_outs
-             (DT_CREATE, ID_USER, ID_USER_AFTER, ID_GOOD, ID_STOCK, ID_ACT, ID_STICKER,
-              QTYU, SUM, DESCR, WEIGHT_BEFORE, WEIGHT_AFTER, TOKEN)
-             VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)'
-        )->execute([
-            time(),
-            $userId,
-            (int)$row['id_good'],
-            (int)$row['id_stock'],
-            $actId,
-            (int)$row['id'],
-            $amount,
-            $sum,
-            $msg,
-            $token,
-        ]);
-        $log = self::appendLog((string)$row['log'], $userId, $msg);
-        $pdo->prepare(
-            'UPDATE base_good_sticker_ins SET QTYU_OUT = ?, LOG = ?, TOKEN = ? WHERE ID = ?'
-        )->execute([(float)$row['qtyu_out'] + $amount, $log, $token, (int)$row['id']]);
-        self::recalcActSum($actId);
+        try {
+            self::commitAmountWriteoff($row, $userId, $token, $actId, $amount, $rate);
+        } catch (RuntimeException $e) {
+            $out['error'] = $e->getMessage();
+            $out['messages'][] = ['level' => 'err', 'text' => $e->getMessage()];
+            return $out;
+        }
         $out['done'] = true;
         $out['ok'] = true;
         $out['messages'][] = ['level' => 'ok', 'text' => t('stickers.writeoff.ok', ['qty' => $amount])];
         return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     */
+    private static function commitWeightOpen(
+        array $row,
+        int $userId,
+        string $token,
+        int $actId,
+        float $weight,
+        float $last
+    ): void {
+        $pdo = Database::pdo();
+        $started = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $started = true;
+        }
+        try {
+            $st = $pdo->prepare(
+                'SELECT ID, ID_GOOD, ID_STOCK FROM base_good_sticker_ins WHERE ID = ? FOR UPDATE'
+            );
+            $st->execute([(int)$row['id']]);
+            $locked = $st->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($locked)) {
+                throw new RuntimeException(t('stickers.qr.err.not_found'));
+            }
+            if (!QrScanToken::claim($token, (int)$locked['ID'])) {
+                throw new RuntimeException(t('stickers.qr.err.token_used'));
+            }
+            $msg = t('stickers.qr.log.weight_open', ['w' => $weight, 'prev' => $last]);
+            $pdo->prepare(
+                'INSERT INTO base_good_sticker_outs
+                 (DT_CREATE, ID_USER, ID_USER_AFTER, ID_GOOD, ID_STOCK, ID_ACT, ID_STICKER,
+                  QTYU, SUM, DESCR, WEIGHT_BEFORE, WEIGHT_AFTER, TOKEN)
+                 VALUES (?, ?, 0, ?, ?, ?, ?, 0, 0, ?, ?, 0, ?)'
+            )->execute([
+                time(),
+                $userId,
+                (int)$locked['ID_GOOD'],
+                (int)$locked['ID_STOCK'],
+                $actId,
+                (int)$locked['ID'],
+                self::logTag($userId) . $msg,
+                $weight,
+                $token,
+            ]);
+            if ($started) {
+                $pdo->commit();
+            }
+        } catch (Throwable $e) {
+            if ($started && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     * @param array<string,mixed> $open
+     */
+    private static function commitWeightClose(
+        array $row,
+        int $userId,
+        string $token,
+        int $actId,
+        int $openOutId,
+        array $open,
+        float $weight2,
+        float $qty,
+        float $rate,
+        string $strange
+    ): void {
+        $pdo = Database::pdo();
+        $started = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $started = true;
+        }
+        try {
+            $st = $pdo->prepare(
+                'SELECT ID, PRICE, QTYU_OUT, LOG FROM base_good_sticker_ins WHERE ID = ? FOR UPDATE'
+            );
+            $st->execute([(int)$row['id']]);
+            $locked = $st->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($locked)) {
+                throw new RuntimeException(t('stickers.qr.err.not_found'));
+            }
+            if (!QrScanToken::claim($token, (int)$locked['ID'])) {
+                throw new RuntimeException(t('stickers.qr.err.token_used'));
+            }
+            $sum = round(((float)$locked['PRICE'] * $qty) / $rate, 2);
+            $msg = t('stickers.qr.log.weight_spent', [
+                'act' => $actId,
+                'out' => $openOutId,
+                'w' => $weight2,
+                'qty' => $qty,
+            ]) . $strange;
+            $pdo->prepare(
+                'UPDATE base_good_sticker_outs SET QTYU = ?, SUM = ?, DESCR = ?, WEIGHT_AFTER = ?,
+                 ID_USER_AFTER = ?, TOKEN = ? WHERE ID = ?'
+            )->execute([
+                $qty,
+                $sum,
+                (string)$open['descr'] . '<BR>' . self::logTag($userId) . $msg,
+                $weight2,
+                $userId,
+                $token,
+                $openOutId,
+            ]);
+            $log = self::appendLog((string)$locked['LOG'], $userId, $msg);
+            $pdo->prepare(
+                'UPDATE base_good_sticker_ins SET QTYU_OUT = ?, LOG = ?, TOKEN = ? WHERE ID = ?'
+            )->execute([(float)$locked['QTYU_OUT'] + $qty, $log, $token, (int)$locked['ID']]);
+            if ($started) {
+                $pdo->commit();
+            }
+        } catch (Throwable $e) {
+            if ($started && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+        self::recalcActSum($actId);
+    }
+
+    /**
+     * Atomic amount writeoff: lock sticker row, re-check token, insert out + update qty.
+     *
+     * @param array<string,mixed> $row
+     */
+    private static function commitAmountWriteoff(
+        array $row,
+        int $userId,
+        string $token,
+        int $actId,
+        float $amount,
+        float $rate
+    ): void {
+        $pdo = Database::pdo();
+        $started = false;
+        if (!$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+            $started = true;
+        }
+        try {
+            $st = $pdo->prepare(
+                'SELECT ID, ID_GOOD, ID_STOCK, PRICE, QTYU_IN, QTYU_OUT, LOG
+                 FROM base_good_sticker_ins WHERE ID = ? FOR UPDATE'
+            );
+            $st->execute([(int)$row['id']]);
+            $locked = $st->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($locked)) {
+                throw new RuntimeException(t('stickers.qr.err.not_found'));
+            }
+            if (!QrScanToken::claim($token, (int)$locked['ID'])) {
+                throw new RuntimeException(t('stickers.qr.err.token_used'));
+            }
+            $qtyIn = (float)$locked['QTYU_IN'];
+            $qtyOut = (float)$locked['QTYU_OUT'];
+            $left = $qtyIn - $qtyOut;
+            if ($amount > $left + 0.0001) {
+                throw new RuntimeException(t('stickers.writeoff.err.empty'));
+            }
+            $sum = round(((float)$locked['PRICE'] * $amount) / $rate, 2);
+            $msg = t('stickers.qr.log.spent', ['act' => $actId, 'qty' => $amount]);
+            $pdo->prepare(
+                'INSERT INTO base_good_sticker_outs
+                 (DT_CREATE, ID_USER, ID_USER_AFTER, ID_GOOD, ID_STOCK, ID_ACT, ID_STICKER,
+                  QTYU, SUM, DESCR, WEIGHT_BEFORE, WEIGHT_AFTER, TOKEN)
+                 VALUES (?, ?, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?)'
+            )->execute([
+                time(),
+                $userId,
+                (int)$locked['ID_GOOD'],
+                (int)$locked['ID_STOCK'],
+                $actId,
+                (int)$locked['ID'],
+                $amount,
+                $sum,
+                $msg,
+                $token,
+            ]);
+            $log = self::appendLog((string)$locked['LOG'], $userId, $msg);
+            $pdo->prepare(
+                'UPDATE base_good_sticker_ins SET QTYU_OUT = ?, LOG = ?, TOKEN = ? WHERE ID = ?'
+            )->execute([$qtyOut + $amount, $log, $token, (int)$locked['ID']]);
+            if ($started) {
+                $pdo->commit();
+            }
+        } catch (Throwable $e) {
+            if ($started && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+        self::recalcActSum($actId);
     }
 
     /**
