@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.53",
+    "version": "0.3.54",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -704,9 +704,18 @@
                             "type": "string",
                             "description": "comment|edit_comment|hide_comment|show_comment|delete_comment|checklist_add|checklist_toggle|checklist_rename|checklist_delete|checklist_sort_done|like|favorite|delete|restore_version|color_comment"
                         },
-                        "title": { "type": "string", "description": "Checklist item title (add/rename); multiline paste ok for add" },
-                        "item_id": { "type": "integer", "description": "Checklist item id" },
-                        "done_position": { "type": "string", "description": "checklist_sort_done: top|bottom" },
+                        "title": {
+                            "type": "string",
+                            "description": "Checklist item title (add/rename); multiline paste ok for add"
+                        },
+                        "item_id": {
+                            "type": "integer",
+                            "description": "Checklist item id"
+                        },
+                        "done_position": {
+                            "type": "string",
+                            "description": "checklist_sort_done: top|bottom"
+                        },
                         "text": {
                             "type": "string",
                             "description": "Body for comment or edit_comment"
@@ -723,13 +732,33 @@
                             "type": "integer",
                             "description": "Parent comment id when replying"
                         },
-                        "new_status": { "type": "integer", "description": "Ticket status id; -1 = no change" },
-                        "ticket_deadline": { "type": "string", "description": "YYYY-MM-DD ticket deadline" },
-                        "id_curator": { "type": "integer", "description": "Ticket curator user id; 0 = clear" },
-                        "users_resp": { "description": "Assignee user id[] when users_resp_present=1" },
-                        "users_resp_present": { "type": "integer", "description": "1 = apply users_resp (empty clears assignees)" },
-                        "price_offer": { "type": "integer", "description": "Contract offer price (comment add/edit)" },
-                        "offer_deadline": { "type": "string", "description": "YYYY-MM-DD offer deadline" },
+                        "new_status": {
+                            "type": "integer",
+                            "description": "Ticket status id; -1 = no change"
+                        },
+                        "ticket_deadline": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD ticket deadline"
+                        },
+                        "id_curator": {
+                            "type": "integer",
+                            "description": "Ticket curator user id; 0 = clear"
+                        },
+                        "users_resp": {
+                            "description": "Assignee user id[] when users_resp_present=1"
+                        },
+                        "users_resp_present": {
+                            "type": "integer",
+                            "description": "1 = apply users_resp (empty clears assignees)"
+                        },
+                        "price_offer": {
+                            "type": "integer",
+                            "description": "Contract offer price (comment add/edit)"
+                        },
+                        "offer_deadline": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD offer deadline"
+                        },
                         "log_id": {
                             "type": "integer",
                             "description": "Version id for restore_version"

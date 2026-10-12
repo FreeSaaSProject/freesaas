@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 final class Auth
 {
-    private const SESSION_NAME = 'freesaas';
+    private const SESSION_NAME_PREFIX = 'freesaas';
     private const GC_MIN_SECONDS = 86400;
     private const REMEMBER_DAYS_DEFAULT = 7;
     private const IDLE_MINUTES_DEFAULT = 120;
@@ -18,8 +18,13 @@ final class Auth
             }
             return;
         }
-        session_name(self::SESSION_NAME);
-        // Own dir: shared-hosting /tmp GC from other apps (short gc_maxlifetime) deletes our files.
+        $name = self::sessionCookieName();
+        session_name($name);
+        // Drop legacy flat "freesaas" cookie so parent-domain leftovers cannot fight the host cookie.
+        if ($name !== self::SESSION_NAME_PREFIX) {
+            self::expireLegacySessionCookie();
+        }
+        // Own dir per host: shared-hosting /tmp GC and multi-vhost installs.
         // UpdateEngine never overwrites var/.
         self::ensureSessionSavePath();
         // GC must cover the longest cookie; remember flag is known only after start.
@@ -31,18 +36,101 @@ final class Auth
         }
     }
 
-    /** Put PHP session files under var/sessions (isolated from system /tmp). */
+    /**
+     * Cookie name scoped to this install/host (e.g. freesaas_mf_likespa_ru).
+     * Priority: app.session_name → slug(session_cookie_domain) → slug(HTTP_HOST) → freesaas.
+     * Parent Domain cookies still share one name across admin/public of the same install.
+     */
+    public static function sessionCookieName(): string
+    {
+        if (class_exists('Config', false)) {
+            $custom = strtolower(trim((string)Config::get('app', 'session_name', '')));
+            if ($custom !== '' && preg_match('/^[a-z0-9_]{1,48}$/', $custom)) {
+                return $custom;
+            }
+        }
+        $slug = self::sessionScopeSlug();
+        if ($slug === '') {
+            return self::SESSION_NAME_PREFIX;
+        }
+        return self::SESSION_NAME_PREFIX . '_' . $slug;
+    }
+
+    /**
+     * Scope for cookie name + session files: cookie Domain (if set) else HTTP_HOST.
+     * Using Domain keeps admin_host + public_host on one install sharing a session.
+     */
+    private static function sessionScopeSlug(): string
+    {
+        $raw = '';
+        if (class_exists('Config', false)) {
+            $raw = trim((string)Config::get('app', 'session_cookie_domain', ''));
+        }
+        if ($raw === '') {
+            $raw = (string)($_SERVER['HTTP_HOST'] ?? '');
+        }
+        return self::hostSlug($raw);
+    }
+
+    /** Sanitize host/domain to a-z0-9_ (max ~40 chars). */
+    private static function hostSlug(string $host = ''): string
+    {
+        if ($host === '') {
+            $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+        }
+        $host = strtolower(trim($host));
+        if ($host === '') {
+            return '';
+        }
+        if ($host[0] === '.') {
+            $host = substr($host, 1);
+        }
+        if (strpos($host, ':') !== false) {
+            $host = explode(':', $host, 2)[0];
+        }
+        $slug = preg_replace('/[^a-z0-9]+/', '_', $host) ?? '';
+        $slug = trim($slug, '_');
+        if ($slug === '') {
+            return '';
+        }
+        if (strlen($slug) > 40) {
+            $slug = substr($slug, 0, 24) . '_' . substr(hash('sha256', $host), 0, 8);
+        }
+        return $slug;
+    }
+
+    /** Expire pre-host-scoped session cookie (name "freesaas"). */
+    private static function expireLegacySessionCookie(): void
+    {
+        if (!isset($_COOKIE[self::SESSION_NAME_PREFIX])) {
+            return;
+        }
+        $params = self::cookieParams(0);
+        $opts = [
+            'expires' => time() - 42000,
+            'path' => $params['path'],
+            'secure' => $params['secure'],
+            'httponly' => $params['httponly'],
+            'samesite' => $params['samesite'],
+        ];
+        if ($params['domain'] !== '') {
+            $opts['domain'] = $params['domain'];
+        }
+        setcookie(self::SESSION_NAME_PREFIX, '', $opts);
+        unset($_COOKIE[self::SESSION_NAME_PREFIX]);
+    }
+
+    /** Put PHP session files under var/sessions[/host] (isolated from system /tmp). */
     private static function ensureSessionSavePath(): void
     {
         if (!function_exists('base_path')) {
             return;
         }
-        $dir = base_path('var/sessions');
+        $slug = self::sessionScopeSlug();
+        $dir = $slug !== ''
+            ? base_path('var/sessions/' . $slug)
+            : base_path('var/sessions');
         if (!is_dir($dir)) {
-            $parent = base_path('var');
-            if (!is_dir($parent)) {
-                @mkdir($parent, 0775, true);
-            }
             @mkdir($dir, 0700, true);
         }
         if (is_dir($dir) && is_writable($dir)) {
