@@ -272,7 +272,7 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             'title' => t('core.widget.tickets.title'),
             'body' => t('core.widget.tickets.body', ['n' => $newsOpen]),
             'tone' => $newsOpen > 0 ? 'warn' : 'ok',
-            'href' => '/news?type=2',
+            'href' => '/news?type=2&status=1',
             'size' => 'sm',
         ];
     }

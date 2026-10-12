@@ -671,6 +671,8 @@ return [
     'core.news.access.group' => 'Group',
     'core.news.access.group2' => 'Group 2',
     'core.news.access.everyone' => 'everyone',
+    'core.feed.resp' => 'Assignees',
+    'core.feed.access' => 'Access',
     'core.news.folder_aria' => 'Folder',
     'core.news.folder_archive_badge' => 'archive',
     'core.news.search_placeholder' => 'Search…',

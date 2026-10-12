@@ -240,14 +240,34 @@ $sortLabels = [
           ]) ?></span>
         </div>
       <?php endif; ?>
-      <?php if ((int)$n['TYPE'] === 2 && !empty($n['USERS_RESP'])): ?>
-        <div class="feed-resp">
-          <?php foreach (NewsRepository::parseUserList((string)$n['USERS_RESP']) as $rid): ?>
-            <?= UsersRepository::badgeHtml($rid, false) ?>
-          <?php endforeach; ?>
+      <?php
+        $respIds = ((int)$n['TYPE'] === 2)
+            ? NewsRepository::parseUserList((string)($n['USERS_RESP'] ?? ''))
+            : [];
+        $accessHtml = NewsRepository::accessHtml($n);
+        $accessEmpty = trim((string)($n['ACCESS_GROUP'] ?? '')) === ''
+            && trim((string)($n['ACCESS_GROUP2'] ?? '')) === ''
+            && trim((string)($n['ACCESS_USER'] ?? '')) === '';
+        $showAccess = !$accessEmpty;
+      ?>
+      <?php if ($respIds || $showAccess): ?>
+        <div class="feed-foot">
+          <?php if ($respIds): ?>
+            <span class="feed-foot-item">
+              <span class="muted feed-foot-label"><?= te('core.feed.resp') ?></span>
+              <?php foreach ($respIds as $rid): ?>
+                <?= UsersRepository::badgeHtml($rid, false) ?>
+              <?php endforeach; ?>
+            </span>
+          <?php endif; ?>
+          <?php if ($showAccess): ?>
+            <span class="feed-foot-item">
+              <span class="muted feed-foot-label"><?= te('core.feed.access') ?></span>
+              <?= $accessHtml ?>
+            </span>
+          <?php endif; ?>
         </div>
       <?php endif; ?>
-      <div class="feed-access muted"><?= NewsRepository::accessHtml($n) ?></div>
     </article>
   <?php endforeach; ?>
   <?php if (!$items && !$folders): ?>

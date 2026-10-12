@@ -671,6 +671,8 @@ return [
     'core.news.access.group' => 'Группа',
     'core.news.access.group2' => 'Группа 2',
     'core.news.access.everyone' => 'всем',
+    'core.feed.resp' => 'ОЛ',
+    'core.feed.access' => 'Доступ',
     'core.news.folder_aria' => 'Папка',
     'core.news.folder_archive_badge' => 'архив',
     'core.news.search_placeholder' => 'Поиск…',

@@ -2208,6 +2208,24 @@ table.data tr.is-disabled td a {
 }
 
 .feed-resp { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.4rem; }
+.feed-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  align-items: center;
+  margin-top: 0.4rem;
+  font-size: 0.82rem;
+}
+.feed-foot-item {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  align-items: center;
+}
+.feed-foot-label {
+  font-weight: 560;
+  white-space: nowrap;
+}
 .feed-meta-inline { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
 
 .ticket-panel { margin-bottom: 1rem; }
@@ -2831,6 +2849,8 @@ table.data tr.is-disabled td a {
 .access-chip.is-group { color: var(--accent-2); }
 .access-chip.is-group2 { color: var(--accent); }
 .feed-access { margin-top: 0.35rem; font-size: 0.82rem; }
+.feed-foot .access-chip,
+.feed-foot .user-badge { font-size: 0.82rem; }
 .access-line { margin: 0.5rem 0 0.85rem; font-size: 0.9rem; }
 
 .viewers-inline {
