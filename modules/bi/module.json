@@ -2,7 +2,7 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"

@@ -53,9 +53,10 @@ final class BiSharesRepository
             throw new InvalidArgumentException('filters_partial');
         }
 
-        $rawStaffIds = self::normalizeStaffIds($data['staff_user_ids'] ?? []);
-        $hadExplicitStaff = $rawStaffIds !== [];
-        $staffIds = $rawStaffIds;
+        // Detect non-empty input *before* normalize — [0]/[-1]/["invalid"] must not become "all staff".
+        $rawStaffInput = $data['staff_user_ids'] ?? null;
+        $hadExplicitStaff = self::staffInputProvided($rawStaffInput);
+        $staffIds = self::normalizeStaffIds($rawStaffInput ?? []);
         // Drop assist-team / unknown ids even if posted manually.
         $allowed = [];
         foreach (BiFilterOptions::shareStaffPicker() as $u) {
@@ -66,7 +67,7 @@ final class BiSharesRepository
                 return isset($allowed[$id]);
             }));
         }
-        // Explicit allowlist that empties after validation must not become "all staff".
+        // Explicit allowlist that empties after normalize/allowlist must not become "all staff".
         if ($hadExplicitStaff && $staffIds === []) {
             throw new InvalidArgumentException('staff_allowlist_empty');
         }
@@ -410,6 +411,42 @@ final class BiSharesRepository
     }
 
     /**
+     * True when caller supplied a non-blank staff list (even if every token is invalid).
+     * Missing / null / [] / blank string = intentionally open to all staff.
+     *
+     * @param mixed $raw
+     */
+    public static function staffInputProvided($raw): bool
+    {
+        if ($raw === null) {
+            return false;
+        }
+        if (is_string($raw)) {
+            if (trim($raw) === '') {
+                return false;
+            }
+            $raw = preg_split('/[\s,;]+/', $raw) ?: [];
+        }
+        if (!is_array($raw)) {
+            // Scalar attempt: 0, -1, "invalid", false→skip, true→attempt
+            if ($raw === false || $raw === '') {
+                return false;
+            }
+            return true;
+        }
+        foreach ($raw as $v) {
+            if ($v === null || $v === false || $v === '') {
+                continue;
+            }
+            if (is_string($v) && trim($v) === '') {
+                continue;
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * @param mixed $raw
      * @return list<int>
      */
@@ -419,6 +456,10 @@ final class BiSharesRepository
             $raw = preg_split('/[\s,;]+/', $raw) ?: [];
         }
         if (!is_array($raw)) {
+            if (is_int($raw) || is_float($raw) || (is_string($raw) && is_numeric($raw))) {
+                $id = (int)$raw;
+                return $id > 0 ? [$id] : [];
+            }
             return [];
         }
         $ids = [];

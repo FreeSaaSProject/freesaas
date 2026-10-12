@@ -13,8 +13,11 @@ final class BiRecipeEngine
     public const MAX_CROSS_CELLS = 100000;
     public const MAX_RUNTIME_SEC = 20;
 
-    /** @var int */
-    private static $budgetStartedAt = 0;
+    /** @var float */
+    private static $budgetStartedAt = 0.0;
+
+    /** @var string|null cached: mysql|mariadb|none */
+    private static $sqlTimeoutDialect = null;
 
     /**
      * @param array<string,mixed> $recipe
@@ -23,7 +26,10 @@ final class BiRecipeEngine
      */
     public static function run(array $recipe, array $params): array
     {
-        self::$budgetStartedAt = time();
+        self::$budgetStartedAt = microtime(true);
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(self::MAX_RUNTIME_SEC + 5);
+        }
         $frames = [];
         $queries = is_array($recipe['queries'] ?? null) ? $recipe['queries'] : [];
         if (count($queries) > self::MAX_QUERIES) {
@@ -59,6 +65,7 @@ final class BiRecipeEngine
         $sections = [];
         $secList = is_array($recipe['sections'] ?? null) ? $recipe['sections'] : [];
         foreach ($secList as $sec) {
+            self::tickBudget();
             $type = (string)($sec['type'] ?? '');
             if ($type === 'metrics') {
                 $sections[] = self::sectionMetrics($sec, $frames);
@@ -99,6 +106,7 @@ final class BiRecipeEngine
      */
     public static function runQuery(array $query, array $params): array
     {
+        self::tickBudget();
         $fromId = (string)($query['from'] ?? '');
         $ds = BiDatasetCatalog::get($fromId);
         if ($ds === null || !Database::tableExists((string)$ds['requires_table'])) {
@@ -111,11 +119,31 @@ final class BiRecipeEngine
             ReportProgress::note('Query build failed: ' . $e->getMessage());
             return [];
         }
-        $st = Database::pdo()->prepare($built['sql']);
-        $st->execute($built['args']);
-        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $pdo = Database::pdo();
+        $timeoutMs = self::remainingBudgetMs();
+        if ($timeoutMs <= 0) {
+            throw new RuntimeException('recipe_timeout');
+        }
+        self::applySqlTimeout($pdo, $timeoutMs);
+        try {
+            $st = $pdo->prepare($built['sql']);
+            $st->execute($built['args']);
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (PDOException $e) {
+            if (self::isSqlTimeoutError($e)) {
+                throw new RuntimeException('recipe_timeout', 0, $e);
+            }
+            throw $e;
+        } finally {
+            self::clearSqlTimeout($pdo);
+        }
+        self::tickBudget();
         $out = [];
+        $n = 0;
         foreach ($rows as $row) {
+            if ((++$n % 500) === 0) {
+                self::tickBudget();
+            }
             $norm = [];
             foreach ($row as $k => $v) {
                 $norm[(string)$k] = is_numeric($v) && !is_string($v) ? $v + 0 : $v;
@@ -211,7 +239,11 @@ final class BiRecipeEngine
 
         $computeAfter = is_array($derive['compute_after'] ?? null) ? $derive['compute_after'] : [];
         if ($computeAfter !== []) {
+            $n = 0;
             foreach ($rows as $i => $row) {
+                if ((++$n % 500) === 0) {
+                    self::tickBudget();
+                }
                 $ctx = array_merge($periodCtx, $row);
                 foreach ($computeAfter as $c) {
                     $as = (string)($c['as'] ?? '');
@@ -226,7 +258,11 @@ final class BiRecipeEngine
         $having = $derive['having'] ?? null;
         if ($having !== null) {
             $filtered = [];
+            $n = 0;
             foreach ($rows as $row) {
+                if ((++$n % 500) === 0) {
+                    self::tickBudget();
+                }
                 $ctx = array_merge($periodCtx, $row);
                 if (BiExpr::truthy(BiExpr::eval($having, $ctx))) {
                     $filtered[] = $row;
@@ -237,6 +273,7 @@ final class BiRecipeEngine
 
         $windows = is_array($derive['window'] ?? null) ? $derive['window'] : [];
         foreach ($windows as $w) {
+            self::tickBudget();
             $rows = self::applyWindow($rows, $w);
         }
 
@@ -245,6 +282,7 @@ final class BiRecipeEngine
             $sort = $derive['order_by'];
         }
         if ($sort !== []) {
+            self::tickBudget();
             usort($rows, static function (array $a, array $b) use ($sort): int {
                 foreach ($sort as $o) {
                     $f = (string)($o['field'] ?? '');
@@ -258,6 +296,7 @@ final class BiRecipeEngine
                 }
                 return 0;
             });
+            self::tickBudget();
         }
 
         $limit = (int)($derive['limit'] ?? 0);
@@ -293,8 +332,12 @@ final class BiRecipeEngine
                 );
             }
             $out = [];
+            $n = 0;
             foreach ($left as $lrow) {
                 foreach ($right as $rrow) {
+                    if ((++$n % 1000) === 0) {
+                        self::tickBudget();
+                    }
                     $out[] = array_merge($rrow, $lrow);
                 }
             }
@@ -312,12 +355,16 @@ final class BiRecipeEngine
             $index[$key][] = $rrow;
         }
         $out = [];
+        $n = 0;
         foreach ($left as $lrow) {
             $key = (string)($lrow[$lk] ?? '');
             $matches = $index[$key] ?? [null];
             foreach ($matches as $rrow) {
                 if (count($out) >= self::MAX_DERIVE_ROWS) {
                     throw new InvalidArgumentException('join_frame_too_large');
+                }
+                if ((++$n % 1000) === 0) {
+                    self::tickBudget();
                 }
                 if ($rrow === null) {
                     $out[] = $lrow;
@@ -329,11 +376,89 @@ final class BiRecipeEngine
         return $out;
     }
 
+    /** Milliseconds left in the wall-clock budget (0 = already expired). */
+    public static function remainingBudgetMs(): int
+    {
+        if (self::$budgetStartedAt <= 0.0) {
+            return self::MAX_RUNTIME_SEC * 1000;
+        }
+        $left = (self::MAX_RUNTIME_SEC - (microtime(true) - self::$budgetStartedAt)) * 1000.0;
+        return (int)max(0, floor($left));
+    }
+
     private static function tickBudget(): void
     {
-        if (self::$budgetStartedAt > 0 && (time() - self::$budgetStartedAt) > self::MAX_RUNTIME_SEC) {
+        if (self::$budgetStartedAt > 0.0 && self::remainingBudgetMs() <= 0) {
             throw new RuntimeException('recipe_timeout');
         }
+    }
+
+    private static function detectSqlTimeoutDialect(PDO $pdo): string
+    {
+        if (self::$sqlTimeoutDialect !== null) {
+            return self::$sqlTimeoutDialect;
+        }
+        try {
+            $ver = (string)$pdo->query('SELECT VERSION()')->fetchColumn();
+            if (stripos($ver, 'mariadb') !== false) {
+                self::$sqlTimeoutDialect = 'mariadb';
+            } else {
+                self::$sqlTimeoutDialect = 'mysql';
+            }
+        } catch (Throwable $e) {
+            self::$sqlTimeoutDialect = 'none';
+        }
+        return self::$sqlTimeoutDialect;
+    }
+
+    /** Cap a single SELECT so a long query cannot outrun the recipe wall clock. */
+    private static function applySqlTimeout(PDO $pdo, int $ms): void
+    {
+        $ms = max(1, $ms);
+        $dialect = self::detectSqlTimeoutDialect($pdo);
+        try {
+            if ($dialect === 'mariadb') {
+                // MariaDB: seconds (float allowed).
+                $sec = max(0.001, round($ms / 1000.0, 3));
+                $pdo->exec('SET SESSION max_statement_time=' . $sec);
+            } elseif ($dialect === 'mysql') {
+                // MySQL 5.7+/8: milliseconds for SELECT.
+                $pdo->exec('SET SESSION MAX_EXECUTION_TIME=' . $ms);
+            }
+        } catch (Throwable $e) {
+            self::$sqlTimeoutDialect = 'none';
+        }
+    }
+
+    private static function clearSqlTimeout(PDO $pdo): void
+    {
+        $dialect = self::$sqlTimeoutDialect ?? 'none';
+        try {
+            if ($dialect === 'mariadb') {
+                $pdo->exec('SET SESSION max_statement_time=0');
+            } elseif ($dialect === 'mysql') {
+                $pdo->exec('SET SESSION MAX_EXECUTION_TIME=0');
+            }
+        } catch (Throwable $e) {
+            // ignore restore failures
+        }
+    }
+
+    private static function isSqlTimeoutError(PDOException $e): bool
+    {
+        $msg = $e->getMessage();
+        if (stripos($msg, 'max_statement_time') !== false) {
+            return true;
+        }
+        if (stripos($msg, 'maximum statement execution time exceeded') !== false) {
+            return true;
+        }
+        if (stripos($msg, 'Query execution was interrupted') !== false) {
+            return true;
+        }
+        // MySQL ER_QUERY_TIMEOUT = 3024
+        $code = (int)($e->errorInfo[1] ?? 0);
+        return $code === 3024 || $code === 1969;
     }
 
     /**
@@ -359,9 +484,14 @@ final class BiRecipeEngine
      */
     private static function groupReduce(array $rows, array $groupBy, array $aggs, array $periodCtx): array
     {
+        self::tickBudget();
         $groups = [];
         $order = [];
+        $n = 0;
         foreach ($rows as $row) {
+            if ((++$n % 500) === 0) {
+                self::tickBudget();
+            }
             $keyParts = [];
             foreach ($groupBy as $g) {
                 $keyParts[] = (string)($row[(string)$g] ?? '');
@@ -375,7 +505,11 @@ final class BiRecipeEngine
         }
 
         $out = [];
+        $n = 0;
         foreach ($order as $key) {
+            if ((++$n % 200) === 0) {
+                self::tickBudget();
+            }
             $members = $groups[$key];
             $base = [];
             foreach ($groupBy as $g) {
@@ -490,13 +624,18 @@ final class BiRecipeEngine
      */
     private static function applyWindow(array $rows, array $w): array
     {
+        self::tickBudget();
         $fn = strtolower((string)($w['fn'] ?? 'rank'));
         $as = (string)($w['as'] ?? $fn);
         $orderBy = is_array($w['order_by'] ?? null) ? $w['order_by'] : [];
         $partition = is_array($w['partition_by'] ?? null) ? $w['partition_by'] : [];
 
         $groups = [];
+        $n = 0;
         foreach ($rows as $i => $row) {
+            if ((++$n % 500) === 0) {
+                self::tickBudget();
+            }
             $key = '';
             foreach ($partition as $p) {
                 $key .= '|' . (string)($row[(string)$p] ?? '');
@@ -505,6 +644,7 @@ final class BiRecipeEngine
         }
 
         foreach ($groups as $idxs) {
+            self::tickBudget();
             usort($idxs, static function (int $a, int $b) use ($rows, $orderBy): int {
                 foreach ($orderBy as $o) {
                     $f = (string)($o['field'] ?? '');
@@ -652,6 +792,7 @@ final class BiRecipeEngine
      */
     private static function sectionPivot(array $sec, array $params): array
     {
+        self::tickBudget();
         $grain = (string)($sec['grain'] ?? 'month_to_date');
         $slots = self::pivotSlots($params, $grain);
         $metrics = is_array($sec['metrics'] ?? null) ? $sec['metrics'] : [];
@@ -660,6 +801,7 @@ final class BiRecipeEngine
         $metricKeys = [];
 
         foreach ($slots as $slot) {
+            self::tickBudget();
             $label = (string)$slot['label'];
             $columns[] = $label;
             $slotParams = $params;

@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-12T09:52:13+00:00",
+    "generated_at": "2026-10-12T10:01:21+00:00",
     "modules": [
         {
             "id": "asr",
@@ -275,7 +275,7 @@
         },
         {
             "id": "bi",
-            "version": "0.2.2",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "BI reports",

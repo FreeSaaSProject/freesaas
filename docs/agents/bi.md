@@ -122,7 +122,7 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 |------|--------|
 | Paths | `/bi/s/{token}` (public route; guest or staff audience) |
 | TTL | `1h` \| `1d` \| `1mo` \| `3mo` \| `1y` (`1y` **staff only**) |
-| Allowlist | Optional `staff_user_ids`; **intentionally empty** = any logged-in staff. Explicit IDs that all fail validation → `staff_allowlist_empty` (not “open to all”) |
+| Allowlist | Optional `staff_user_ids`; **intentionally empty** (missing/`[]`/blank) = any logged-in staff. Non-blank input that yields no valid picker IDs (`[0]`, `[-1]`, `["invalid"]`, unknown ids) → `staff_allowlist_empty` |
 | Assist team | Omitted from picker; stripped on create |
 | Superadmin | Can open any staff share (and revoke all) |
 | Locked filters | `id_operator` / `id_admin` / `id_good` bind only on datasets that declare them. Create refuses partial coverage unless `accept_partial_filters=1` |
@@ -130,7 +130,7 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 
 ## Engine budgets
 
-Runtime caps (also enforced on validate for step counts): query frames ≤ 5 000 rows; derive frames ≤ 25 000; cross-join ≤ 100 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s. Exceeded → hard error (guest cannot edit recipe but can re-trigger a published heavy report — budgets apply on every run).
+Runtime caps (also enforced on validate for step counts): query frames ≤ 5 000 rows; derive frames ≤ 25 000; cross-join ≤ 100 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s (`microtime` ticks in derive/join/group/window/sections). Each SQL SELECT gets session `MAX_EXECUTION_TIME` / MariaDB `max_statement_time` = remaining budget ms. Exceeded → `recipe_timeout`.
 
 ## Agent ops (`module.json`)
 

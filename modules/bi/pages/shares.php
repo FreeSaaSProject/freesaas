@@ -119,7 +119,7 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             '1y_ttl' => 'staff audience only',
             'superadmin' => 'opens any staff share even if not in allowlist',
             'assist_team' => 'omitted from staff_picker',
-            'staff_allowlist' => 'intentional empty = any staff; invalid explicit ids rejected',
+            'staff_allowlist' => 'missing/[]/blank = any staff; non-blank invalid ([0],[-1],bad) rejected before normalize',
             'filters' => 'locked id_* require full dataset coverage unless accept_partial_filters',
             'rate_limit' => 'atomic beginRun/endRun, 8/min + one in-flight per share',
         ],
