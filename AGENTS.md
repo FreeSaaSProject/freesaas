@@ -39,7 +39,7 @@ Route params: `Router::param('id')`. Redirect: `redirect('/path')`. Escape outpu
 
 | Need | Place |
 |------|--------|
-| Shared platform service | `app/*.php` (only if truly cross-module; prefer module lib otherwise). Examples: `ListQuery` (pager + column sort), `I18n`, `Cron` (hard tick registry). Self-update: facade `UpdateEngine` + `app/Update/*`. |
+| Shared platform service | `app/*.php` (only if truly cross-module; prefer module lib otherwise). Examples: `ListQuery` (pager + column sort), `I18n`, `Cron` (hard tick registry). Self-update: facade `UpdateEngine` + `app/Update/*`. DB hub: facade `DbTools` + `app/Db/*`. |
 | Scheduled background job | `Cron::register` in module `bootstrap.php` (`every` or `daily_at` + handler). Host: one `*/5` → `/cron/tick` (AgentAuth) or `php bin/freesaas.php cron tick`. Journal UI `/cron`. See [`docs/agents/cron.md`](docs/agents/cron.md). Do not add per-task host crontab lines. |
 | UI translation strings | `modules/<id>/lang/{ru,en}.php` or `app/lang/` for shared chrome; keys like `core.layout.logout` |
 | New product feature | New or existing `modules/<id>/` |

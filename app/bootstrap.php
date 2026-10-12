@@ -16,6 +16,7 @@ require_once __DIR__ . '/ListQuery.php';
 require_once __DIR__ . '/NavContext.php';
 require_once __DIR__ . '/BulkActions.php';
 require_once __DIR__ . '/SchemaMigrator.php';
+require_once __DIR__ . '/Db/_load.php';
 require_once __DIR__ . '/DbTools.php';
 require_once __DIR__ . '/DataMigrator.php';
 require_once __DIR__ . '/StageTiming.php';

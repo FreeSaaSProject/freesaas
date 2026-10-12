@@ -1,5 +1,7 @@
 # Database hub (`/db`)
 
+Facade: [`app/DbTools.php`](../../app/DbTools.php). Implementation: [`app/Db/`](../../app/Db/) (`DbDump`, `DbRestore`, `DbJobs`, …).
+
 Schema migrations, optional data migrators, SQL backups of FreeSaaS-owned tables, and CHECK/REPAIR/OPTIMIZE.
 
 **Module uninstall** always runs a per-module dump (`DbTools::dumpModule` → label `uninstall-<id>`) of that module’s **exclusively owned** `module.json` → `tables` **before** DROP (tables also listed by another module are skipped). Restore that file via `db restore` if you need the data back; then `module enable` recreates empty schema from migrations if tables are gone.
