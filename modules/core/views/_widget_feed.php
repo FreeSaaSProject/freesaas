@@ -8,6 +8,7 @@ declare(strict_types=1);
 /** @var array $statuses */
 /** @var array<int,int> $commentCounts */
 /** @var array<int,int> $viewerCounts */
+/** @var array<int,array{done:int,total:int,pct:int}> $checklistProgress */
 /** @var array<int,string> $feedChips */
 $type = (int)($type ?? 0);
 $label = (string)($label ?? '');
@@ -17,6 +18,7 @@ $items = $items ?? [];
 $statuses = $statuses ?? [];
 $commentCounts = $commentCounts ?? [];
 $viewerCounts = $viewerCounts ?? [];
+$checklistProgress = $checklistProgress ?? [];
 $feedChips = $feedChips ?? [];
 ?>
 <div class="widget-feed-head">
@@ -34,6 +36,7 @@ $feedChips = $feedChips ?? [];
       $nid = (int)$n['ID'];
       $cc = (int)($commentCounts[$nid] ?? 0);
       $vc = (int)($viewerCounts[$nid] ?? 0);
+      $cp = $checklistProgress[$nid] ?? null;
     ?>
     <article class="feed-item">
       <div class="feed-meta">
@@ -48,6 +51,24 @@ $feedChips = $feedChips ?? [];
         <?php if (!empty($feedChips[$nid])): ?><?= $feedChips[$nid] ?><?php endif; ?>
       </div>
       <a class="feed-title" href="/news/<?= $nid ?>"><?= e((string)$n['NAME']) ?></a>
+      <?php if (is_array($cp) && (int)($cp['total'] ?? 0) > 0): ?>
+        <div class="feed-checklist">
+          <div class="checklist-progress" role="progressbar"
+               aria-valuenow="<?= (int)$cp['pct'] ?>" aria-valuemin="0" aria-valuemax="100"
+               aria-label="<?= te('core.checklist.progress', [
+                   'done' => (int)$cp['done'],
+                   'total' => (int)$cp['total'],
+                   'pct' => (int)$cp['pct'],
+               ]) ?>">
+            <div class="checklist-progress-bar" style="width:<?= (int)$cp['pct'] ?>%"></div>
+          </div>
+          <span class="muted checklist-progress-label"><?= te('core.checklist.progress', [
+              'done' => (int)$cp['done'],
+              'total' => (int)$cp['total'],
+              'pct' => (int)$cp['pct'],
+          ]) ?></span>
+        </div>
+      <?php endif; ?>
     </article>
   <?php endforeach; ?>
   <?php if (!$items): ?>

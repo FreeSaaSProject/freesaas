@@ -25,19 +25,52 @@ final class NewsChecklistRepository
     /** @return array{done:int,total:int,pct:int} */
     public static function progress(int $newsId): array
     {
-        $items = self::listFor($newsId);
-        $total = count($items);
-        $done = 0;
-        foreach ($items as $it) {
-            if (!empty($it['DONE'])) {
-                $done++;
+        $batch = self::progressBatch([$newsId]);
+        return $batch[$newsId] ?? ['done' => 0, 'total' => 0, 'pct' => 0];
+    }
+
+    /**
+     * Batch checklist progress for feed cards.
+     *
+     * @param list<int> $newsIds
+     * @return array<int, array{done:int,total:int,pct:int}>
+     */
+    public static function progressBatch(array $newsIds): array
+    {
+        $out = [];
+        $ids = [];
+        foreach ($newsIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $ids[$id] = true;
+                $out[$id] = ['done' => 0, 'total' => 0, 'pct' => 0];
             }
         }
-        return [
-            'done' => $done,
-            'total' => $total,
-            'pct' => $total > 0 ? (int)round(100 * $done / $total) : 0,
-        ];
+        if ($ids === [] || !self::tableReady()) {
+            return $out;
+        }
+        $list = array_keys($ids);
+        $in = implode(',', array_fill(0, count($list), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID_NEWS,
+                    COUNT(*) AS total,
+                    SUM(CASE WHEN DONE <> 0 THEN 1 ELSE 0 END) AS done
+             FROM base_news_checklist
+             WHERE ID_NEWS IN ($in)
+             GROUP BY ID_NEWS"
+        );
+        $st->execute($list);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $nid = (int)$row['ID_NEWS'];
+            $total = (int)$row['total'];
+            $done = (int)$row['done'];
+            $out[$nid] = [
+                'done' => $done,
+                'total' => $total,
+                'pct' => $total > 0 ? (int)round(100 * $done / $total) : 0,
+            ];
+        }
+        return $out;
     }
 
     public static function add(int $newsId, string $title, int $userId): int

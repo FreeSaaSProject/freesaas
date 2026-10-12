@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.57",
+    "version": "0.3.59",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -583,7 +583,7 @@
                 "method": "GET",
                 "path": "/news",
                 "permission": "core.news",
-                "description": "List news/tickets/DMs (access-filtered). Items include gcal_linked (1 if synced to Google Calendar). Query: type=1|2|3|4, pid=folder, q, status, unread=1, unsigned=1, sort/dir/page",
+                "description": "List news/tickets/DMs (access-filtered). Items include gcal_linked and checklist_progress{done,total,pct} when a checklist exists. Query: type=1|2|3|4, pid=folder, q, status, unread=1, unsigned=1, sort/dir/page",
                 "parameters": {
                     "type": "object",
                     "properties": {

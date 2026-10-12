@@ -812,6 +812,7 @@ body.rail-collapsed .workspace .main.main-flush {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 0.9rem;
+  align-items: start;
   animation: rise 0.7s ease both;
   position: relative;
   z-index: 1;
@@ -1686,6 +1687,16 @@ a.pager-chip:hover {
 }
 .feed-title:hover { color: var(--accent-2); text-decoration: underline; }
 .feed-short { font-size: 0.9rem; margin-top: 0.2rem; }
+.feed-checklist {
+  margin-top: 0.4rem;
+  display: grid;
+  gap: 0.15rem;
+  max-width: 16rem;
+}
+.feed-checklist .checklist-progress { height: 0.35rem; }
+.feed-list.compact .feed-checklist { max-width: 12rem; margin-top: 0.3rem; }
+.feed-list.compact .feed-checklist .checklist-progress { height: 0.28rem; }
+.feed-list.compact .feed-checklist .checklist-progress-label { font-size: 0.78rem; }
 .pill.tone-type {
   background: color-mix(in srgb, var(--accent-2) 16%, transparent);
   color: var(--accent-2);

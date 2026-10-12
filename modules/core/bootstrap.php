@@ -172,6 +172,14 @@ EventBus::on('core.dashboard.catalog', static function ($catalog) {
         'default_order' => 5,
         'default_on' => true,
     ];
+    // Compact status cards first (same row), then full-width feed lists below.
+    $catalog[] = [
+        'id' => 'core.status',
+        'title' => t('core.widget.platform.title'),
+        'module' => 'core',
+        'default_order' => 25,
+        'default_on' => false,
+    ];
     $catalog[] = [
         'id' => 'core.tickets',
         'title' => t('core.widget.tickets.title'),
@@ -194,13 +202,6 @@ EventBus::on('core.dashboard.catalog', static function ($catalog) {
             $feedOrder += 5;
         }
     }
-    $catalog[] = [
-        'id' => 'core.status',
-        'title' => t('core.widget.platform.title'),
-        'module' => 'core',
-        'default_order' => 90,
-        'default_on' => false,
-    ];
     return $catalog;
 });
 
@@ -317,6 +318,9 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
                 'statuses' => $statuses,
                 'commentCounts' => NewsRepository::commentCounts($ids),
                 'viewerCounts' => NewsRepository::viewerCounts($ids),
+                'checklistProgress' => class_exists('NewsChecklistRepository', false)
+                    ? NewsChecklistRepository::progressBatch($ids)
+                    : [],
                 'feedChips' => $feedChips,
             ], 'core');
             $widgets[] = [
@@ -324,7 +328,8 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
                 'title' => (string)$tab['label'],
                 'html' => $html,
                 'tone' => 'neutral',
-                'size' => 'md',
+                // Full-width so feed lists sit below compact cards (tickets/platform), not beside them.
+                'size' => 'lg',
             ];
         }
     }

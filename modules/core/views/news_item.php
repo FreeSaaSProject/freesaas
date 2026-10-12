@@ -232,18 +232,8 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
     <p class="muted"><?= te('core.checklist.empty') ?></p>
   <?php endif; ?>
   <?php if ($canChecklist): ?>
-    <?php if ($checklistItems): ?>
-      <details class="checklist-add-wrap">
-        <summary class="checklist-add-toggle"><?= te('core.checklist.add_more') ?></summary>
-        <form method="post" class="checklist-add">
-          <input type="hidden" name="action" value="checklist_add">
-          <textarea name="title" required rows="3" maxlength="20000"
-            placeholder="<?= te('core.checklist.add_placeholder') ?>"></textarea>
-          <p class="muted checklist-add-hint"><?= te('core.checklist.add_hint') ?></p>
-          <button class="btn-secondary" type="submit"><?= te('core.checklist.add') ?></button>
-        </form>
-      </details>
-    <?php else: ?>
+    <details class="checklist-add-wrap">
+      <summary class="checklist-add-toggle"><?= te($checklistItems ? 'core.checklist.add_more' : 'core.checklist.add') ?></summary>
       <form method="post" class="checklist-add">
         <input type="hidden" name="action" value="checklist_add">
         <textarea name="title" required rows="3" maxlength="20000"
@@ -251,7 +241,7 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
         <p class="muted checklist-add-hint"><?= te('core.checklist.add_hint') ?></p>
         <button class="btn-secondary" type="submit"><?= te('core.checklist.add') ?></button>
       </form>
-    <?php endif; ?>
+    </details>
   <?php endif; ?>
 </section>
 <?php endif; ?>

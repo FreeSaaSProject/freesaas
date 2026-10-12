@@ -17,6 +17,7 @@ declare(strict_types=1);
 /** @var array $likeCounts */
 /** @var array $commentCounts */
 /** @var array $viewerCounts */
+/** @var array<int,array{done:int,total:int,pct:int}> $checklistProgress */
 /** @var array<int,string> $feedChips */
 /** @var string $sort */
 /** @var string $dir */
@@ -26,6 +27,7 @@ declare(strict_types=1);
 /** @var array $filters */
 $commentCounts = $commentCounts ?? [];
 $viewerCounts = $viewerCounts ?? [];
+$checklistProgress = $checklistProgress ?? [];
 $feedChips = $feedChips ?? [];
 $unread = !empty($unread);
 $unsigned = !empty($unsigned);
@@ -213,6 +215,30 @@ $sortLabels = [
       <a class="feed-title" href="/news/<?= $nid ?>"><?= e((string)$n['NAME']) ?></a>
       <?php if (!empty($n['SHORT'])): ?>
         <div class="feed-short muted"><?= e((string)$n['SHORT']) ?></div>
+      <?php endif; ?>
+      <?php
+        $cp = $checklistProgress[$nid] ?? null;
+        if (is_array($cp) && (int)($cp['total'] ?? 0) > 0):
+          $cpDone = (int)$cp['done'];
+          $cpTotal = (int)$cp['total'];
+          $cpPct = (int)$cp['pct'];
+      ?>
+        <div class="feed-checklist">
+          <div class="checklist-progress" role="progressbar"
+               aria-valuenow="<?= $cpPct ?>" aria-valuemin="0" aria-valuemax="100"
+               aria-label="<?= te('core.checklist.progress', [
+                   'done' => $cpDone,
+                   'total' => $cpTotal,
+                   'pct' => $cpPct,
+               ]) ?>">
+            <div class="checklist-progress-bar" style="width:<?= $cpPct ?>%"></div>
+          </div>
+          <span class="muted checklist-progress-label"><?= te('core.checklist.progress', [
+              'done' => $cpDone,
+              'total' => $cpTotal,
+              'pct' => $cpPct,
+          ]) ?></span>
+        </div>
       <?php endif; ?>
       <?php if ((int)$n['TYPE'] === 2 && !empty($n['USERS_RESP'])): ?>
         <div class="feed-resp">

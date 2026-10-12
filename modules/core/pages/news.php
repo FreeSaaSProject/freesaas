@@ -71,6 +71,9 @@ $itemIds = array_map(static function ($n) {
 $likeCounts = LikesRepository::counts('base_news', $itemIds);
 $commentCounts = NewsRepository::commentCounts($itemIds);
 $viewerCounts = NewsRepository::viewerCounts($itemIds);
+$checklistProgress = class_exists('NewsChecklistRepository', false)
+    ? NewsChecklistRepository::progressBatch($itemIds)
+    : [];
 $feedChipsPayload = EventBus::emit('core.news.feed_chips', [
     'ids' => $itemIds,
     'chips' => [],
@@ -158,6 +161,14 @@ if ($wantsJson) {
         $it['comments'] = (int)($commentCounts[$nid] ?? 0);
         $it['viewers'] = (int)($viewerCounts[$nid] ?? 0);
         $it['gcal_linked'] = !empty($feedChips[$nid]) ? 1 : 0;
+        $cp = $checklistProgress[$nid] ?? null;
+        if (is_array($cp) && (int)($cp['total'] ?? 0) > 0) {
+            $it['checklist_progress'] = [
+                'done' => (int)$cp['done'],
+                'total' => (int)$cp['total'],
+                'pct' => (int)$cp['pct'],
+            ];
+        }
     }
     unset($it);
     AgentHttp::emit([
@@ -205,6 +216,7 @@ View::render('news', [
     'likeCounts' => $likeCounts,
     'commentCounts' => $commentCounts,
     'viewerCounts' => $viewerCounts,
+    'checklistProgress' => $checklistProgress,
     'feedChips' => $feedChips,
     'sort' => $explicitSort ? $lq['sort'] : '',
     'dir' => $lq['dir'],

@@ -743,7 +743,7 @@ return [
     'core.checklist.sort_done_bottom' => 'Done to bottom',
     'core.checklist.sort_done_top' => 'Done to top',
     'core.checklist.delete' => 'Remove item',
-    'core.checklist.empty' => 'No items yet — add a task.',
+    'core.checklist.empty' => 'No items yet.',
     'core.checklist.err.title_required' => 'Enter checklist item text',
     'core.checklist.err.not_found' => 'Checklist item not found',
     'core.checklist.err.denied' => 'You cannot change this checklist',

@@ -743,7 +743,7 @@ return [
     'core.checklist.sort_done_bottom' => 'Сделанные вниз',
     'core.checklist.sort_done_top' => 'Сделанные вверх',
     'core.checklist.delete' => 'Удалить пункт',
-    'core.checklist.empty' => 'Пунктов пока нет — добавьте задачу.',
+    'core.checklist.empty' => 'Пунктов пока нет.',
     'core.checklist.err.title_required' => 'Укажите текст пункта',
     'core.checklist.err.not_found' => 'Пункт чеклиста не найден',
     'core.checklist.err.denied' => 'Нет прав менять чеклист',
