@@ -739,6 +739,7 @@ return [
     'core.checklist.add_placeholder' => "New item…\nor paste a list — one per line",
     'core.checklist.add_hint' => 'Paste multiple lines: each becomes its own checklist item.',
     'core.checklist.add' => 'Add',
+    'core.checklist.add_link' => 'Add checklist',
     'core.checklist.add_more' => 'Add more',
     'core.checklist.sort_done_bottom' => 'Done to bottom',
     'core.checklist.sort_done_top' => 'Done to top',

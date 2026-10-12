@@ -164,7 +164,7 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
   </div>
 </article>
 
-<?php if (!$isFolder): ?>
+<?php if (!$isFolder && $checklistItems): ?>
 <section class="news-checklist widget" id="checklist">
   <div class="section-head">
     <h2><?= te('core.checklist.title') ?></h2>
@@ -187,7 +187,7 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
       <div class="checklist-progress-bar" style="width:<?= (int)$checklistProgress['pct'] ?>%"></div>
     </div>
   <?php endif; ?>
-  <?php if ($canChecklist && $checklistItems): ?>
+  <?php if ($canChecklist): ?>
     <div class="checklist-tools">
       <form method="post" class="inline-form">
         <input type="hidden" name="action" value="checklist_sort_done">
@@ -228,12 +228,9 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
       </li>
     <?php endforeach; ?>
   </ul>
-  <?php if (!$checklistItems): ?>
-    <p class="muted"><?= te('core.checklist.empty') ?></p>
-  <?php endif; ?>
   <?php if ($canChecklist): ?>
     <details class="checklist-add-wrap">
-      <summary class="checklist-add-toggle"><?= te($checklistItems ? 'core.checklist.add_more' : 'core.checklist.add') ?></summary>
+      <summary class="checklist-add-toggle"><?= te('core.checklist.add_more') ?></summary>
       <form method="post" class="checklist-add">
         <input type="hidden" name="action" value="checklist_add">
         <textarea name="title" required rows="3" maxlength="20000"
@@ -244,6 +241,17 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
     </details>
   <?php endif; ?>
 </section>
+<?php elseif (!$isFolder && $canChecklist): ?>
+<details class="checklist-add-wrap checklist-add-empty" id="checklist">
+  <summary class="checklist-add-toggle"><?= te('core.checklist.add_link') ?></summary>
+  <form method="post" class="checklist-add">
+    <input type="hidden" name="action" value="checklist_add">
+    <textarea name="title" required rows="3" maxlength="20000"
+      placeholder="<?= te('core.checklist.add_placeholder') ?>"></textarea>
+    <p class="muted checklist-add-hint"><?= te('core.checklist.add_hint') ?></p>
+    <button class="btn-secondary" type="submit"><?= te('core.checklist.add') ?></button>
+  </form>
+</details>
 <?php endif; ?>
 
 <?php if ($versionLogs || $currentDt > 0): ?>

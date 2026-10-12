@@ -328,8 +328,8 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
                 'title' => (string)$tab['label'],
                 'html' => $html,
                 'tone' => 'neutral',
-                // Full-width so feed lists sit below compact cards (tickets/platform), not beside them.
-                'size' => 'lg',
+                // Rendered in .widgets-feeds band — side-by-side when width allows.
+                'size' => 'md',
             ];
         }
     }

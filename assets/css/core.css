@@ -810,7 +810,7 @@ body.rail-collapsed .workspace .main.main-flush {
 
 .widgets {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.9rem;
   align-items: start;
   animation: rise 0.7s ease both;
@@ -818,7 +818,6 @@ body.rail-collapsed .workspace .main.main-flush {
   z-index: 1;
 }
 .widgets-toolbar {
-  grid-column: 1 / -1;
   display: flex;
   justify-content: flex-end;
   margin-bottom: -0.25rem;
@@ -833,14 +832,28 @@ body.rail-collapsed .workspace .main.main-flush {
   opacity: 0.85;
 }
 .widgets-empty {
-  grid-column: 1 / -1;
   margin: 0;
+}
+/* Compact status cards share a row; never stretched beside tall feeds. */
+.widgets-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 0.9rem;
+  align-items: start;
+}
+/* Feed lists sit side-by-side when width allows, stack when narrow. */
+.widgets-feeds {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr));
+  gap: 0.9rem;
+  align-items: start;
 }
 .widget {
   background: var(--bg-elev);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 1rem 1.1rem;
+  min-width: 0;
 }
 .widget-command {
   padding: 0.85rem 1rem;
@@ -852,10 +865,12 @@ body.rail-collapsed .workspace .main.main-flush {
   z-index: 40;
 }
 .widget-command .widget-body { margin: 0; }
-.widget-md { grid-column: span 2; }
-.widget-lg { grid-column: 1 / -1; }
-@media (max-width: 720px) {
-  .widget-md, .widget-lg { grid-column: 1 / -1; }
+.widgets > .widget-lg { width: 100%; }
+.widgets-cards .widget-md,
+.widgets-feeds .widget-md,
+.widgets-feeds .widget-lg,
+.widgets-feeds .widget-feed {
+  grid-column: auto;
 }
 .widget h2 { margin: 0 0 0.4rem; font-size: 1rem; }
 .widget p { margin: 0; color: var(--muted); font-size: 0.95rem; }
@@ -1691,12 +1706,22 @@ a.pager-chip:hover {
   margin-top: 0.4rem;
   display: grid;
   gap: 0.15rem;
-  max-width: 16rem;
+  width: 100%;
 }
-.feed-checklist .checklist-progress { height: 0.35rem; }
-.feed-list.compact .feed-checklist { max-width: 12rem; margin-top: 0.3rem; }
+.feed-checklist .checklist-progress { height: 0.35rem; width: 100%; }
+.feed-list.compact .feed-checklist { margin-top: 0.3rem; }
 .feed-list.compact .feed-checklist .checklist-progress { height: 0.28rem; }
 .feed-list.compact .feed-checklist .checklist-progress-label { font-size: 0.78rem; }
+.checklist-add-empty {
+  margin: 0.75rem 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.checklist-add-empty > summary.checklist-add-toggle {
+  display: inline;
+  font-size: 0.95rem;
+}
 .pill.tone-type {
   background: color-mix(in srgb, var(--accent-2) 16%, transparent);
   color: var(--accent-2);

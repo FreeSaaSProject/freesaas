@@ -739,6 +739,7 @@ return [
     'core.checklist.add_placeholder' => "Новый пункт…\nили вставьте список — по одному в строке",
     'core.checklist.add_hint' => 'Можно вставить несколько строк: каждый пункт станет отдельной задачей.',
     'core.checklist.add' => 'Добавить',
+    'core.checklist.add_link' => 'Добавить чеклист',
     'core.checklist.add_more' => 'Добавить ещё',
     'core.checklist.sort_done_bottom' => 'Сделанные вниз',
     'core.checklist.sort_done_top' => 'Сделанные вверх',
