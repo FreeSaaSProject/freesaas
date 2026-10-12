@@ -549,6 +549,98 @@ final class MyTasksHabits
         return '[HABIT_SLOT|' . $ymd . '|' . sprintf('%02d:00', $hour) . '|' . $action . '|' . $idx . ']';
     }
 
+    /**
+     * Replace machine [HABIT*] markers with human text for UI (storage stays raw).
+     */
+    public static function humanizeCommentText(string $text): string
+    {
+        if (strpos($text, '[HABIT') === false) {
+            return $text;
+        }
+        $out = $text;
+        $pos = 0;
+        while (($p = strpos($out, self::MARKER, $pos)) !== false) {
+            $len = strlen($out);
+            $jsonStart = $p + strlen(self::MARKER);
+            while ($jsonStart < $len && ctype_space($out[$jsonStart])) {
+                $jsonStart++;
+            }
+            if ($jsonStart >= $len || $out[$jsonStart] !== '{') {
+                $pos = $p + 1;
+                continue;
+            }
+            $depth = 0;
+            $end = -1;
+            for ($i = $jsonStart; $i < $len; $i++) {
+                $c = $out[$i];
+                if ($c === '{') {
+                    $depth++;
+                } elseif ($c === '}') {
+                    $depth--;
+                    if ($depth === 0) {
+                        $end = $i;
+                        break;
+                    }
+                }
+            }
+            if ($end < 0) {
+                break;
+            }
+            $dec = json_decode(substr($out, $jsonStart, $end - $jsonStart + 1), true);
+            $replacement = '';
+            if (is_array($dec)) {
+                if (!(array_key_exists('active', $dec) && !$dec['active'])) {
+                    $cfg = self::normalizeConfig($dec);
+                    if ($cfg !== null) {
+                        $replacement = self::formatSettings($cfg);
+                    }
+                }
+            }
+            if ($replacement !== '' && $p > 0) {
+                $before = rtrim(substr($out, 0, $p));
+                if ($before !== '' && substr($before, -1) !== "\n") {
+                    $replacement = "\n" . $replacement;
+                }
+            }
+            $out = substr($out, 0, $p) . $replacement . substr($out, $end + 1);
+            $pos = $p + strlen($replacement);
+        }
+
+        $out = preg_replace_callback(
+            '/\[HABIT_SLOT\|(\d{4}-\d{2}-\d{2})\|(\d{1,2}:\d{2})\|(ok|skip)\|(\d+)\]/',
+            static function (array $m): string {
+                $ts = MyTasksHabits::ymdToDayStart($m[1]);
+                $date = $ts > 0 ? I18n::formatDate($ts, 'date') : $m[1];
+                return t('core.habit.display.slot', ['date' => $date, 'time' => $m[2]]);
+            },
+            $out
+        ) ?? $out;
+
+        $out = preg_replace_callback(
+            '/\[HABIT_SKIP_DAY\|(\d{4}-\d{2}-\d{2})\]/',
+            static function (array $m): string {
+                $ts = MyTasksHabits::ymdToDayStart($m[1]);
+                $date = $ts > 0 ? I18n::formatDate($ts, 'date') : $m[1];
+                return t('core.habit.display.skip_day', ['date' => $date]);
+            },
+            $out
+        ) ?? $out;
+
+        $out = preg_replace_callback(
+            '/\[HABIT_SNOOZE\|(\d{4}-\d{2}-\d{2})\|(\d+)\|(\d+)\]/',
+            static function (array $m): string {
+                $until = (int)$m[3];
+                $when = $until > 0 ? I18n::formatDate($until, 'datetime') : (string)$until;
+                return t('core.habit.display.snooze', ['when' => $when]);
+            },
+            $out
+        ) ?? $out;
+
+        $out = preg_replace('/[ \t]{2,}/u', ' ', $out) ?? $out;
+        $out = preg_replace("/ *\n */u", "\n", $out) ?? $out;
+        return trim($out);
+    }
+
     /** @param array<string,mixed> $habit */
     public static function deadlineUnix(array $habit): int
     {

@@ -907,4 +907,7 @@ return [
     'core.bot.my_tasks.habit.slot_comment_prompt' => 'Комментарий к слоту {slot} (или пропустите):',
     'core.bot.my_tasks.habit.skip_comment' => 'Без комментария',
     'core.bot.my_tasks.habit.slot_comment_ok' => 'Комментарий сохранён.',
+    'core.habit.display.slot' => '{date}, {time}',
+    'core.habit.display.skip_day' => '{date}',
+    'core.habit.display.snooze' => 'до {when}',
 ];

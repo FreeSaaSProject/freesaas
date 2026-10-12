@@ -907,4 +907,7 @@ return [
     'core.bot.my_tasks.habit.slot_comment_prompt' => 'Comment for slot {slot} (or skip):',
     'core.bot.my_tasks.habit.skip_comment' => 'No comment',
     'core.bot.my_tasks.habit.slot_comment_ok' => 'Comment saved.',
+    'core.habit.display.slot' => '{date}, {time}',
+    'core.habit.display.skip_day' => '{date}',
+    'core.habit.display.snooze' => 'until {when}',
 ];

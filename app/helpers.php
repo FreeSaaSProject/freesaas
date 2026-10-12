@@ -533,8 +533,12 @@ function page_html_iframe_src_allowed(string $src): bool {
 
 /**
  * Comment body: keep simple HTML if present; otherwise escape + newlines + linkify.
+ * Habit machine markers ([HABIT]…, [HABIT_SLOT|…]) are humanized when MyTasksHabits is loaded.
  */
 function comment_html(string $text): string {
+    if (class_exists('MyTasksHabits', false) && strpos($text, '[HABIT') !== false) {
+        $text = MyTasksHabits::humanizeCommentText($text);
+    }
     $plain = trim(strip_tags($text));
     $raw = trim($text);
     if ($raw === '' || $raw === $plain) {
