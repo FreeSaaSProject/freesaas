@@ -6,6 +6,16 @@ declare(strict_types=1);
  */
 final class BiRecipeEngine
 {
+    public const MAX_QUERIES = 40;
+    public const MAX_DERIVE_STEPS = 60;
+    public const MAX_FRAME_ROWS = 5000;
+    public const MAX_DERIVE_ROWS = 25000;
+    public const MAX_CROSS_CELLS = 100000;
+    public const MAX_RUNTIME_SEC = 20;
+
+    /** @var int */
+    private static $budgetStartedAt = 0;
+
     /**
      * @param array<string,mixed> $recipe
      * @param array<string,mixed> $params normalized ReportParams
@@ -13,27 +23,36 @@ final class BiRecipeEngine
      */
     public static function run(array $recipe, array $params): array
     {
+        self::$budgetStartedAt = time();
         $frames = [];
         $queries = is_array($recipe['queries'] ?? null) ? $recipe['queries'] : [];
+        if (count($queries) > self::MAX_QUERIES) {
+            throw new InvalidArgumentException('recipe_too_many_queries');
+        }
         foreach ($queries as $q) {
+            self::tickBudget();
             $as = (string)($q['as'] ?? '');
             if ($as === '') {
                 throw new InvalidArgumentException('query_as_missing');
             }
             ReportProgress::note('Query: ' . $as);
-            $frames[$as] = self::runQuery($q, $params);
+            $frames[$as] = self::capRows(self::runQuery($q, $params), 'query:' . $as);
             ReportProgress::mark($as . ': ' . count($frames[$as]) . ' rows');
         }
 
         $derive = is_array($recipe['derive'] ?? null) ? $recipe['derive'] : [];
+        if (count($derive) > self::MAX_DERIVE_STEPS) {
+            throw new InvalidArgumentException('recipe_too_many_derive');
+        }
         foreach ($derive as $d) {
+            self::tickBudget();
             $as = (string)($d['as'] ?? '');
             $from = (string)($d['from'] ?? '');
             if ($as === '' || $from === '' || !isset($frames[$from])) {
                 throw new InvalidArgumentException('derive_from_missing:' . $from);
             }
             ReportProgress::note('Derive: ' . $as);
-            $frames[$as] = self::runDerive($d, $frames, $params);
+            $frames[$as] = self::capRows(self::runDerive($d, $frames, $params), 'derive:' . $as);
             ReportProgress::mark($as . ': ' . count($frames[$as]) . ' rows');
         }
 
@@ -120,12 +139,14 @@ final class BiRecipeEngine
      */
     private static function runDerive(array $derive, array $frames, array $params): array
     {
+        self::tickBudget();
         $from = (string)($derive['from'] ?? '');
         $rows = $frames[$from] ?? [];
 
         $join = is_array($derive['join_frame'] ?? null) ? $derive['join_frame'] : null;
         if ($join !== null) {
             $rows = self::joinFrame($rows, $join, $frames);
+            self::tickBudget();
         }
 
         $bounds = ReportParams::monthBounds((int)$params['year'], (int)$params['month']);
@@ -138,7 +159,11 @@ final class BiRecipeEngine
         $filter = $derive['filter'] ?? null;
         if ($filter !== null) {
             $filtered = [];
+            $n = 0;
             foreach ($rows as $row) {
+                if ((++$n % 500) === 0) {
+                    self::tickBudget();
+                }
                 $ctx = array_merge($periodCtx, $row);
                 if (BiExpr::truthy(BiExpr::eval($filter, $ctx))) {
                     $filtered[] = $row;
@@ -150,7 +175,11 @@ final class BiRecipeEngine
         $select = $derive['select'] ?? ['*'];
         $compute = is_array($derive['compute'] ?? null) ? $derive['compute'] : [];
         $mapped = [];
+        $n = 0;
         foreach ($rows as $row) {
+            if ((++$n % 500) === 0) {
+                self::tickBudget();
+            }
             $ctx = array_merge($periodCtx, $row);
             if ($select === ['*'] || $select === '*') {
                 $new = $row;
@@ -257,13 +286,19 @@ final class BiRecipeEngine
             if ($right === []) {
                 return $left;
             }
+            $cells = count($left) * count($right);
+            if ($cells > self::MAX_CROSS_CELLS) {
+                throw new InvalidArgumentException(
+                    'cross_join_too_large:' . count($left) . 'x' . count($right)
+                );
+            }
             $out = [];
             foreach ($left as $lrow) {
                 foreach ($right as $rrow) {
                     $out[] = array_merge($rrow, $lrow);
                 }
             }
-            return $out;
+            return self::capRows($out, 'cross_join');
         }
 
         $lk = (string)($join['left'] ?? '');
@@ -281,6 +316,9 @@ final class BiRecipeEngine
             $key = (string)($lrow[$lk] ?? '');
             $matches = $index[$key] ?? [null];
             foreach ($matches as $rrow) {
+                if (count($out) >= self::MAX_DERIVE_ROWS) {
+                    throw new InvalidArgumentException('join_frame_too_large');
+                }
                 if ($rrow === null) {
                     $out[] = $lrow;
                 } else {
@@ -289,6 +327,27 @@ final class BiRecipeEngine
             }
         }
         return $out;
+    }
+
+    private static function tickBudget(): void
+    {
+        if (self::$budgetStartedAt > 0 && (time() - self::$budgetStartedAt) > self::MAX_RUNTIME_SEC) {
+            throw new RuntimeException('recipe_timeout');
+        }
+    }
+
+    /**
+     * @param list<array<string,mixed>> $rows
+     * @return list<array<string,mixed>>
+     */
+    private static function capRows(array $rows, string $where): array
+    {
+        $n = count($rows);
+        $max = strpos($where, 'query:') === 0 ? self::MAX_FRAME_ROWS : self::MAX_DERIVE_ROWS;
+        if ($n > $max) {
+            throw new InvalidArgumentException('frame_too_large:' . $where . ':' . $n);
+        }
+        return $rows;
     }
 
     /**

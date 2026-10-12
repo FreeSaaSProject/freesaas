@@ -75,6 +75,12 @@ declare(strict_types=1);
     <?php endif; ?>
   </div>
 
+  <p class="muted bi-span2"><?= te('bi.shares.hint.filters') ?></p>
+  <label class="bi-span2">
+    <input type="checkbox" name="accept_partial_filters" value="1">
+    <?= te('bi.shares.accept_partial_filters') ?>
+  </label>
+
   <p style="margin-top:1rem">
     <button type="submit" class="btn"><?= te('bi.shares.create') ?></button>
   </p>

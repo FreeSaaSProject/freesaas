@@ -29,7 +29,7 @@ if ($share === null || !BiSharesRepository::isUsable($share)) {
 
 $audience = (string)($share['AUDIENCE'] ?? 'guest');
 if ($audience === 'staff') {
-        if (!Auth::check()) {
+    if (!Auth::check()) {
         if ($wantsJson) {
             AgentHttp::error(t('bi.share.login_body'), 401);
             return;
@@ -56,50 +56,54 @@ $action = trim((string)($req['action'] ?? ''));
 
 // Work iframe / JSON run under share token.
 if ($action === 'run' || ($doRun && ($wantsJson || !empty($req['stream'])))) {
-    if (!BiSharesRepository::checkRateLimit($share)) {
+    $runTicket = BiSharesRepository::beginRun($share);
+    if ($runTicket === null) {
         if ($wantsJson) {
             AgentHttp::error(t('bi.share.rate_limit'), 429);
             return;
         }
-        ReportProgress::start(t($family->titleKey()));
+        ReportProgress::start((string)$family->titleKey());
         ReportProgress::note(t('bi.share.rate_limit'), '#fbbf24');
         ReportProgress::done(['ok' => false, 'error' => 'rate_limit']);
         return;
     }
     $params = ReportParams::mergeWithConstraints($req, is_array($share['params'] ?? null) ? $share['params'] : []);
-    BiSharesRepository::touchRun($share);
 
-    if ($wantsJson) {
-        ReportProgress::beginCollect();
+    try {
+        if ($wantsJson) {
+            ReportProgress::beginCollect();
+            try {
+                $report = ReportRegistry::run($familyId, $params);
+                AgentHttp::emit([
+                    'ok' => true,
+                    'share_id' => (int)$share['ID'],
+                    'family' => $familyId,
+                    'report' => $report,
+                    'html' => ReportRenderer::sectionsHtml($report),
+                    'stages' => ReportProgress::collectStages(),
+                    'expires_at' => (int)$share['DT_EXPIRE'],
+                ]);
+            } catch (Throwable $e) {
+                AgentHttp::error(t('bi.err.run'), 500, ['detail' => $e->getMessage()]);
+            }
+            return;
+        }
+
+        ReportProgress::start((string)$family->titleKey());
         try {
             $report = ReportRegistry::run($familyId, $params);
-            AgentHttp::emit([
+            ReportProgress::done([
                 'ok' => true,
-                'share_id' => (int)$share['ID'],
-                'family' => $familyId,
-                'report' => $report,
+                'title' => (string)($report['title'] ?? ''),
                 'html' => ReportRenderer::sectionsHtml($report),
-                'stages' => ReportProgress::collectStages(),
-                'expires_at' => (int)$share['DT_EXPIRE'],
+                'report' => $report,
             ]);
         } catch (Throwable $e) {
-            AgentHttp::error(t('bi.err.run'), 500, ['detail' => $e->getMessage()]);
+            ReportProgress::note('Error: ' . $e->getMessage(), '#f87171');
+            ReportProgress::done(['ok' => false, 'error' => $e->getMessage()]);
         }
-        return;
-    }
-
-    ReportProgress::start(t($family->titleKey()));
-    try {
-        $report = ReportRegistry::run($familyId, $params);
-        ReportProgress::done([
-            'ok' => true,
-            'title' => (string)($report['title'] ?? ''),
-            'html' => ReportRenderer::sectionsHtml($report),
-            'report' => $report,
-        ]);
-    } catch (Throwable $e) {
-        ReportProgress::note('Error: ' . $e->getMessage(), '#f87171');
-        ReportProgress::done(['ok' => false, 'error' => $e->getMessage()]);
+    } finally {
+        BiSharesRepository::endRun($runTicket);
     }
     return;
 }

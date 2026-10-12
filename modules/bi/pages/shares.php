@@ -53,23 +53,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'label' => (string)($_POST['label'] ?? ''),
             'staff_user_ids' => $staffRaw,
             'params' => $paramsRaw,
+            'accept_partial_filters' => !empty($_POST['accept_partial_filters']),
         ]);
         if ($wantsJson) {
             AgentHttp::emit(['ok' => true, 'action' => 'create', 'share' => $created]);
             return;
         }
         $flash = t('bi.shares.created');
+        if (empty($created['filter_coverage']['ok'])) {
+            $flash .= ' ' . t('bi.shares.warn.partial_filters');
+        }
     } catch (InvalidArgumentException $e) {
         $code = $e->getMessage();
         if ($code === 'ttl_1y_staff_only') {
             $error = t('bi.shares.err.ttl_1y');
+        } elseif ($code === 'staff_allowlist_empty') {
+            $error = t('bi.shares.err.staff_empty');
+        } elseif ($code === 'filters_partial') {
+            $error = t('bi.shares.err.filters_partial');
         } elseif ($code === 'invalid_family') {
             $error = t('bi.shares.err.family');
         } else {
             $error = t('bi.shares.err.family');
         }
         if ($wantsJson) {
-            AgentHttp::error($error, 400);
+            $extra = ['detail' => $code];
+            if ($code === 'filters_partial') {
+                $extra['filter_coverage'] = BiSharesRepository::filterCoverage(
+                    (string)($_POST['family'] ?? ''),
+                    $paramsRaw
+                );
+            }
+            AgentHttp::error($error, 400, $extra);
             return;
         }
     } catch (Throwable $e) {
@@ -104,6 +119,9 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             '1y_ttl' => 'staff audience only',
             'superadmin' => 'opens any staff share even if not in allowlist',
             'assist_team' => 'omitted from staff_picker',
+            'staff_allowlist' => 'intentional empty = any staff; invalid explicit ids rejected',
+            'filters' => 'locked id_* require full dataset coverage unless accept_partial_filters',
+            'rate_limit' => 'atomic beginRun/endRun, 8/min + one in-flight per share',
         ],
     ]);
     return;

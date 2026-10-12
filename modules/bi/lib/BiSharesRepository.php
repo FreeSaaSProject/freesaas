@@ -9,6 +9,9 @@ final class BiSharesRepository
     /** Max runs per token per rolling minute (guest/staff share). */
     public const RATE_LIMIT_PER_MINUTE = 8;
 
+    /** One in-flight recompute per share (GET_LOCK). */
+    public const RUN_LOCK_PREFIX = 'bi_share_run_';
+
     public static function tableReady(): bool
     {
         return Database::tableExists('base_bi_shares');
@@ -44,7 +47,15 @@ final class BiSharesRepository
         $expire = $now + ReportParams::ttlSeconds($ttl);
         // Sparse constraints only — empty defaults must not lock recipient filters.
         $params = self::sparseParams(is_array($data['params'] ?? null) ? $data['params'] : []);
-        $staffIds = self::normalizeStaffIds($data['staff_user_ids'] ?? []);
+        $coverage = self::filterCoverage($family, $params);
+        $acceptPartial = !empty($data['accept_partial_filters']);
+        if (!$coverage['ok'] && !$acceptPartial) {
+            throw new InvalidArgumentException('filters_partial');
+        }
+
+        $rawStaffIds = self::normalizeStaffIds($data['staff_user_ids'] ?? []);
+        $hadExplicitStaff = $rawStaffIds !== [];
+        $staffIds = $rawStaffIds;
         // Drop assist-team / unknown ids even if posted manually.
         $allowed = [];
         foreach (BiFilterOptions::shareStaffPicker() as $u) {
@@ -54,6 +65,10 @@ final class BiSharesRepository
             $staffIds = array_values(array_filter($staffIds, static function (int $id) use ($allowed): bool {
                 return isset($allowed[$id]);
             }));
+        }
+        // Explicit allowlist that empties after validation must not become "all staff".
+        if ($hadExplicitStaff && $staffIds === []) {
+            throw new InvalidArgumentException('staff_allowlist_empty');
         }
         $token = self::generateToken();
         $label = mb_substr(trim((string)($data['label'] ?? '')), 0, 255);
@@ -80,7 +95,93 @@ final class BiSharesRepository
         if ($row === null) {
             throw new RuntimeException('share_create_failed');
         }
+        $row['filter_coverage'] = $coverage;
         return $row;
+    }
+
+    /**
+     * Which locked share params actually bind on each recipe query dataset.
+     *
+     * @param array<string,mixed> $constraints sparse params (id_operator / id_admin / id_good)
+     * @return array{ok:bool,locked:list<string>,uncovered:list<array{query:string,dataset:string,param:string}>}
+     */
+    public static function filterCoverage(string $familyId, array $constraints): array
+    {
+        $map = [
+            'id_operator' => 'operator',
+            'id_admin' => 'admin',
+            'id_good' => 'good',
+        ];
+        $locked = [];
+        foreach ($map as $param => $filterKey) {
+            if ((int)($constraints[$param] ?? 0) > 0) {
+                $locked[$param] = $filterKey;
+            }
+        }
+        if ($locked === []) {
+            return ['ok' => true, 'locked' => [], 'uncovered' => []];
+        }
+
+        $family = ReportRegistry::get($familyId);
+        $recipe = [];
+        if ($family instanceof RecipeFamily) {
+            $recipe = $family->recipe();
+        } elseif (class_exists('BiShippedRecipes', false)) {
+            $recipe = BiShippedRecipes::get($familyId) ?? [];
+        }
+
+        $uncovered = [];
+        $queries = is_array($recipe['queries'] ?? null) ? $recipe['queries'] : [];
+        foreach ($queries as $q) {
+            if (!is_array($q)) {
+                continue;
+            }
+            $as = (string)($q['as'] ?? '');
+            $from = (string)($q['from'] ?? '');
+            $ds = BiDatasetCatalog::get($from);
+            $filters = is_array($ds['filters'] ?? null) ? $ds['filters'] : [];
+            foreach ($locked as $param => $filterKey) {
+                if (!isset($filters[$filterKey])) {
+                    $uncovered[] = [
+                        'query' => $as !== '' ? $as : $from,
+                        'dataset' => $from,
+                        'param' => $param,
+                    ];
+                }
+            }
+        }
+
+        // Pivot metrics also issue per-dataset queries.
+        $sections = is_array($recipe['sections'] ?? null) ? $recipe['sections'] : [];
+        foreach ($sections as $si => $sec) {
+            if (!is_array($sec) || (string)($sec['type'] ?? '') !== 'pivot') {
+                continue;
+            }
+            $metrics = is_array($sec['metrics'] ?? null) ? $sec['metrics'] : [];
+            foreach ($metrics as $mi => $m) {
+                if (!is_array($m)) {
+                    continue;
+                }
+                $from = (string)($m['from'] ?? '');
+                $ds = BiDatasetCatalog::get($from);
+                $filters = is_array($ds['filters'] ?? null) ? $ds['filters'] : [];
+                foreach ($locked as $param => $filterKey) {
+                    if (!isset($filters[$filterKey])) {
+                        $uncovered[] = [
+                            'query' => 'pivot[' . $si . '].metrics[' . $mi . ']',
+                            'dataset' => $from,
+                            'param' => $param,
+                        ];
+                    }
+                }
+            }
+        }
+
+        return [
+            'ok' => $uncovered === [],
+            'locked' => array_keys($locked),
+            'uncovered' => $uncovered,
+        ];
     }
 
     public static function find(int $id): ?array
@@ -199,6 +300,8 @@ final class BiSharesRepository
     }
 
     /**
+     * Soft check (non-atomic). Prefer beginRun() for public recompute.
+     *
      * @param array<string,mixed> $share
      */
     public static function checkRateLimit(array $share): bool
@@ -210,8 +313,6 @@ final class BiSharesRepository
         $last = (int)($share['LAST_RUN_AT'] ?? 0);
         $count = (int)($share['RUN_COUNT'] ?? 0);
         $now = time();
-        // Soft window: if last run within 60s and count high, reject.
-        // Persist a minute-bucket via LAST_RUN_AT + RUN_COUNT reset each minute.
         if ($last > 0 && ($now - $last) < 60 && $count >= self::RATE_LIMIT_PER_MINUTE) {
             return false;
         }
@@ -219,26 +320,86 @@ final class BiSharesRepository
     }
 
     /**
+     * Acquire per-share lock + atomically reserve a rate-limit slot.
+     * Caller must endRun() in finally.
+     *
+     * @param array<string,mixed> $share
+     * @return array{id:int,lock:string}|null null = rate-limited or another run in flight
+     */
+    public static function beginRun(array $share): ?array
+    {
+        $id = (int)($share['ID'] ?? 0);
+        if ($id < 1 || !self::tableReady()) {
+            return null;
+        }
+        $pdo = Database::pdo();
+        $lock = self::RUN_LOCK_PREFIX . $id;
+        $st = $pdo->prepare('SELECT GET_LOCK(?, 0)');
+        $st->execute([$lock]);
+        if ((int)$st->fetchColumn() !== 1) {
+            return null;
+        }
+        if (!self::reserveRateSlot($id)) {
+            $rel = $pdo->prepare('SELECT RELEASE_LOCK(?)');
+            $rel->execute([$lock]);
+            return null;
+        }
+        return ['id' => $id, 'lock' => $lock];
+    }
+
+    /**
+     * @param array{id:int,lock:string}|null $ticket
+     */
+    public static function endRun(?array $ticket): void
+    {
+        if ($ticket === null || !self::tableReady()) {
+            return;
+        }
+        $lock = (string)($ticket['lock'] ?? '');
+        if ($lock === '') {
+            return;
+        }
+        try {
+            $st = Database::pdo()->prepare('SELECT RELEASE_LOCK(?)');
+            $st->execute([$lock]);
+        } catch (Throwable $e) {
+            // ignore unlock errors
+        }
+    }
+
+    /**
+     * Atomic minute-bucket increment. Returns false when limit exceeded / row gone.
+     */
+    public static function reserveRateSlot(int $id): bool
+    {
+        if ($id < 1 || !self::tableReady()) {
+            return false;
+        }
+        $limit = self::RATE_LIMIT_PER_MINUTE;
+        $st = Database::pdo()->prepare(
+            'UPDATE base_bi_shares
+             SET RUN_COUNT = IF(LAST_RUN_AT > 0 AND (UNIX_TIMESTAMP() - LAST_RUN_AT) < 60, RUN_COUNT + 1, 1),
+                 LAST_RUN_AT = UNIX_TIMESTAMP()
+             WHERE ID = ?
+               AND COALESCE(REVOKED_AT, 0) = 0
+               AND (DT_EXPIRE = 0 OR DT_EXPIRE >= UNIX_TIMESTAMP())
+               AND (
+                 LAST_RUN_AT = 0
+                 OR (UNIX_TIMESTAMP() - LAST_RUN_AT) >= 60
+                 OR RUN_COUNT < ?
+               )'
+        );
+        $st->execute([$id, $limit]);
+        return $st->rowCount() > 0;
+    }
+
+    /**
+     * @deprecated use beginRun/endRun
      * @param array<string,mixed> $share
      */
     public static function touchRun(array $share): void
     {
-        $id = (int)($share['ID'] ?? 0);
-        if ($id < 1 || !self::tableReady()) {
-            return;
-        }
-        $now = time();
-        $last = (int)($share['LAST_RUN_AT'] ?? 0);
-        $count = (int)($share['RUN_COUNT'] ?? 0);
-        if ($last > 0 && ($now - $last) < 60) {
-            $count++;
-        } else {
-            $count = 1;
-        }
-        $st = Database::pdo()->prepare(
-            'UPDATE base_bi_shares SET RUN_COUNT = ?, LAST_RUN_AT = ? WHERE ID = ?'
-        );
-        $st->execute([$count, $now, $id]);
+        self::reserveRateSlot((int)($share['ID'] ?? 0));
     }
 
     public static function publicUrl(string $token): string

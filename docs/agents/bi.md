@@ -122,9 +122,15 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 |------|--------|
 | Paths | `/bi/s/{token}` (public route; guest or staff audience) |
 | TTL | `1h` \| `1d` \| `1mo` \| `3mo` \| `1y` (`1y` **staff only**) |
-| Allowlist | Optional `staff_user_ids`; empty = any logged-in staff |
+| Allowlist | Optional `staff_user_ids`; **intentionally empty** = any logged-in staff. Explicit IDs that all fail validation → `staff_allowlist_empty` (not “open to all”) |
 | Assist team | Omitted from picker; stripped on create |
 | Superadmin | Can open any staff share (and revoke all) |
+| Locked filters | `id_operator` / `id_admin` / `id_good` bind only on datasets that declare them. Create refuses partial coverage unless `accept_partial_filters=1` |
+| Rate limit | Atomic `beginRun` / `endRun`: per-share `GET_LOCK` + minute-bucket `RUN_COUNT` (8/min); concurrent recomputes serialize |
+
+## Engine budgets
+
+Runtime caps (also enforced on validate for step counts): query frames ≤ 5 000 rows; derive frames ≤ 25 000; cross-join ≤ 100 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s. Exceeded → hard error (guest cannot edit recipe but can re-trigger a published heavy report — budgets apply on every run).
 
 ## Agent ops (`module.json`)
 

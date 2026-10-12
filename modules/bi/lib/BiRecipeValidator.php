@@ -68,6 +68,9 @@ final class BiRecipeValidator
 
         $frameNames = [];
         $queries = is_array($recipe['queries'] ?? null) ? $recipe['queries'] : [];
+        if (count($queries) > BiRecipeEngine::MAX_QUERIES) {
+            $errors[] = 'queries: too many (max ' . BiRecipeEngine::MAX_QUERIES . ')';
+        }
         foreach ($queries as $i => $q) {
             if (!is_array($q)) {
                 $errors[] = 'queries[' . $i . ']: not object';
@@ -83,6 +86,9 @@ final class BiRecipeValidator
         }
 
         $derive = is_array($recipe['derive'] ?? null) ? $recipe['derive'] : [];
+        if (count($derive) > BiRecipeEngine::MAX_DERIVE_STEPS) {
+            $errors[] = 'derive: too many steps (max ' . BiRecipeEngine::MAX_DERIVE_STEPS . ')';
+        }
         foreach ($derive as $i => $d) {
             if (!is_array($d)) {
                 $errors[] = 'derive[' . $i . ']: not object';
@@ -119,6 +125,10 @@ final class BiRecipeValidator
                 $jt = strtolower((string)($joinFrame['type'] ?? 'left'));
                 if (!in_array($jt, ['left', 'cross'], true)) {
                     $errors[] = 'derive[' . $i . '].join_frame.type: bad';
+                }
+                if ($jt === 'cross') {
+                    $warnings[] = 'derive[' . $i . '].join_frame: cross join bounded to '
+                        . BiRecipeEngine::MAX_CROSS_CELLS . ' cells at runtime';
                 }
             }
             if (isset($d['filter'])) {

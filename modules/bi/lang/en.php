@@ -118,7 +118,12 @@ return [
     'bi.shares.col.status' => 'Status',
     'bi.shares.err.family' => 'Choose a valid family.',
     'bi.shares.err.ttl_1y' => 'The 1-year TTL is only available for staff links.',
+    'bi.shares.err.staff_empty' => 'None of the selected staff are allowed. Pick from the list, or leave empty for any logged-in staff.',
+    'bi.shares.err.filters_partial' => 'Locked filters do not apply to every query in this family. Remove them, or confirm you accept partial coverage.',
     'bi.shares.err.create' => 'Could not create share link.',
+    'bi.shares.accept_partial_filters' => 'Allow create when locked filters cover only some datasets',
+    'bi.shares.warn.partial_filters' => 'Warning: some queries ignore locked filters — not a full access boundary.',
+    'bi.shares.hint.filters' => 'Optional locked filters (id_operator / id_admin / id_good) via agent JSON. Only datasets that support them are constrained.',
 
     'bi.share.expires' => 'Link valid until',
     'bi.share.expired_title' => 'Link expired or revoked',
