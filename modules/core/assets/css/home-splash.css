@@ -172,7 +172,6 @@
   margin: 0.55rem 0 0;
   font-size: clamp(0.75rem, 1.6vw, 0.95rem);
   letter-spacing: 0.42em;
-  text-transform: uppercase;
   color: rgba(248, 250, 252, 0.78);
   opacity: 0;
   transform: translate3d(0, 6px, 0);

@@ -9,7 +9,16 @@ $brand = trim((string)($brand ?? 'FreeSaaS'));
 $company = $instance !== '' ? $instance : $brand;
 $splash_version = (string)($splash_version ?? '1');
 $splash_has_ask = !empty($splash_has_ask);
-$askPlaceholder = $splash_has_ask ? t('assistant.home.greeting') : '';
+$askPlaceholder = '';
+$askLabel = t('core.splash.ask_label');
+if ($splash_has_ask) {
+    if (class_exists('AssistantConfig', false)) {
+        $askPlaceholder = AssistantConfig::t('assistant.home.greeting');
+        $askLabel = AssistantConfig::t('assistant.home.input_label');
+    } else {
+        $askPlaceholder = t('assistant.home.greeting');
+    }
+}
 if ($askPlaceholder === '' || $askPlaceholder === 'assistant.home.greeting') {
     $askPlaceholder = t('core.splash.welcome');
 }
@@ -36,7 +45,7 @@ if ($askPlaceholder === '' || $askPlaceholder === 'assistant.home.greeting') {
     <?php if ($splash_has_ask): ?>
     <form class="home-splash__ask assistant-ask" id="home-splash-ask" method="get" action="/assistant" role="search" data-splash-ask>
       <div class="assistant-ask__row">
-        <label class="sr-only" for="home-splash-ask-q"><?= te('core.splash.ask_label') ?></label>
+        <label class="sr-only" for="home-splash-ask-q"><?= e($askLabel) ?></label>
         <input id="home-splash-ask-q"
                class="assistant-ask__input"
                type="text"
