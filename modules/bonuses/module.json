@@ -2,7 +2,7 @@
     "id": "bonuses",
     "name": "bonuses.module.name",
     "description": "bonuses.module.description",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",

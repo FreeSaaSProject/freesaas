@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-13T08:37:27+00:00",
+    "generated_at": "2026-10-13T08:40:33+00:00",
     "modules": [
         {
             "id": "asr",
@@ -315,7 +315,7 @@
         },
         {
             "id": "bonuses",
-            "version": "0.2.0",
+            "version": "0.2.1",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
