@@ -54,7 +54,8 @@ final class AssistantBotPlugin
                             AssistantDialog::clearSession($uid);
                         });
                     } catch (Throwable $e) {
-                        self::replySplit($ctx, t('assistant.bot.denied'));
+                        error_log('[assistant.bot] clear: ' . $e->getMessage());
+                        self::replySplit($ctx, t('assistant.chat.error'));
                         return true;
                     }
                     self::replySplit($ctx, t('assistant.bot.cleared'));
@@ -91,7 +92,8 @@ final class AssistantBotPlugin
                             );
                         });
                     } catch (Throwable $e) {
-                        self::replySplit($ctx, t('assistant.bot.denied'));
+                        error_log('[assistant.bot] confirm_all: ' . $e->getMessage());
+                        self::replySplit($ctx, t('assistant.chat.error'));
                         return true;
                     }
                     $text = !empty($result['ok']) || (int)($result['done'] ?? 0) > 0
@@ -123,7 +125,8 @@ final class AssistantBotPlugin
                             return AssistantHarness::resolvePending($token, $action, $uid);
                         });
                     } catch (Throwable $e) {
-                        self::replySplit($ctx, t('assistant.bot.denied'));
+                        error_log('[assistant.bot] confirm: ' . $e->getMessage());
+                        self::replySplit($ctx, t('assistant.chat.error'));
                         return true;
                     }
                     if (!empty($result['ok']) && $action === 'confirm') {
@@ -227,7 +230,8 @@ final class AssistantBotPlugin
                         ]);
                     });
                 } catch (Throwable $e) {
-                    self::replySplit($ctx, t('assistant.bot.denied'));
+                    error_log('[assistant.bot] chat: ' . $e->getMessage());
+                    self::replySplit($ctx, t('assistant.chat.error'));
                     self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     return true;
                 }

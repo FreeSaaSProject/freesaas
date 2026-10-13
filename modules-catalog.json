@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-13T08:48:28+00:00",
+    "generated_at": "2026-10-13T08:53:11+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.17",
+            "version": "0.1.18",
             "type": "product",
             "name": {
                 "en": "Max",

@@ -941,6 +941,9 @@ final class Auth
         if (Database::columnExists('base_users', 'locale')) {
             $cols .= ', locale';
         }
+        if (Database::columnExists('base_users', 'auth_epoch')) {
+            $cols .= ', auth_epoch';
+        }
         $st = Database::pdo()->prepare(
             "SELECT $cols FROM base_users WHERE id = ? AND enabled = '1' LIMIT 1"
         );
@@ -963,17 +966,28 @@ final class Auth
             }
         }
 
-        $keys = ['user_id', 'login', 'user_name', 'permissions', 'status_id', 'status_id2', 'status_flags', 'locale'];
+        // Include auth_epoch / activity stamps so Auth::can() → check() → session guard
+        // does not treat a fresh runAs session as stale (auth_epoch 0 vs DB) and logout.
+        $keys = [
+            'user_id', 'login', 'user_name', 'permissions', 'status_id', 'status_id2',
+            'status_flags', 'locale', 'auth_epoch', '_seen_at', '_guard_at',
+        ];
         $backup = [];
         foreach ($keys as $k) {
             $backup[$k] = array_key_exists($k, $_SESSION) ? $_SESSION[$k] : null;
         }
         $hadLocale = array_key_exists('locale', $_SESSION);
 
+        $now = time();
         $_SESSION['user_id'] = (int)$row['id'];
         $_SESSION['login'] = (string)$row['login'];
         $_SESSION['user_name'] = (string)$row['name'];
         $_SESSION['permissions'] = $permissions;
+        $_SESSION['auth_epoch'] = Database::columnExists('base_users', 'auth_epoch')
+            ? (int)($row['auth_epoch'] ?? 0)
+            : 0;
+        $_SESSION['_seen_at'] = $now;
+        $_SESSION['_guard_at'] = $now;
         self::setStatusContext((int)$row['ID_STATUS'], (int)($row['ID_STATUS2'] ?? 0));
         if (isset($row['locale']) && class_exists('I18n', false)) {
             $userLocale = I18n::normalize((string)$row['locale']);
