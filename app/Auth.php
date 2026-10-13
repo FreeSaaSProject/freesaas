@@ -13,6 +13,9 @@ final class Auth
     /** Nesting depth of Auth::runAs — skips idle/guard logout while impersonating. */
     private static int $runAsDepth = 0;
 
+    /** Last Auth::check / runSessionGuard failure reason (empty when ok). */
+    private static string $lastCheckFail = '';
+
     public static function startSession(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -249,12 +252,21 @@ final class Auth
         ]);
     }
 
+    /** Why the last Auth::check() returned false (empty when the last check passed). */
+    public static function lastCheckFail(): string
+    {
+        return self::$lastCheckFail;
+    }
+
     /**
      * @param bool $forceGuard Skip throttle (unsafe methods / capability routes).
      */
     public static function check(bool $forceGuard = false): bool
     {
+        self::$lastCheckFail = '';
         if (empty($_SESSION['user_id'])) {
+            self::$lastCheckFail = 'no_session';
+
             return false;
         }
         // Bot / agent impersonation just loaded the user from DB — do not idle-logout
@@ -267,6 +279,7 @@ final class Auth
         if ($idle > 0) {
             $seen = (int)($_SESSION['_seen_at'] ?? 0);
             if ($seen > 0 && ($now - $seen) > $idle) {
+                self::$lastCheckFail = 'idle';
                 self::logout();
 
                 return false;
@@ -283,18 +296,28 @@ final class Auth
 
         $_SESSION['_seen_at'] = $now;
 
-        $regenAt = (int)($_SESSION['_regen_at'] ?? 0);
-        if ($regenAt > 0 && ($now - $regenAt) >= self::REGEN_SECONDS) {
-            if (session_status() === PHP_SESSION_ACTIVE) {
-                session_regenerate_id(true);
-            }
-            $_SESSION['_regen_at'] = $now;
-            if (class_exists('Csrf', false)) {
-                Csrf::rotate();
+        // Do not regenerate id / rotate CSRF on mutating requests: the browser still
+        // holds the old CSRF meta token and the next verify would fail mid-POST.
+        if (!$forceGuard) {
+            $regenAt = (int)($_SESSION['_regen_at'] ?? 0);
+            if ($regenAt > 0 && ($now - $regenAt) >= self::REGEN_SECONDS) {
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_regenerate_id(true);
+                }
+                $_SESSION['_regen_at'] = $now;
+                if (class_exists('Csrf', false)) {
+                    Csrf::rotate();
+                }
             }
         }
 
-        return !empty($_SESSION['user_id']);
+        if (empty($_SESSION['user_id'])) {
+            self::$lastCheckFail = 'session_cleared';
+
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -304,6 +327,7 @@ final class Auth
     {
         $uid = (int)($_SESSION['user_id'] ?? 0);
         if ($uid < 1) {
+            self::$lastCheckFail = 'no_session';
             self::logout();
 
             return false;
@@ -317,12 +341,14 @@ final class Auth
             return true;
         }
         if ($row === null || (string)($row['enabled'] ?? '') !== '1') {
+            self::$lastCheckFail = $row === null ? 'user_missing' : 'disabled';
             self::logout();
 
             return false;
         }
         $expire = (int)($row['expire'] ?? 0);
         if ($expire > 0 && $expire < time()) {
+            self::$lastCheckFail = 'expired';
             self::logout();
 
             return false;
@@ -331,6 +357,7 @@ final class Auth
             $dbEpoch = (int)($row['auth_epoch'] ?? 0);
             $sessEpoch = (int)($_SESSION['auth_epoch'] ?? 0);
             if ($dbEpoch !== $sessEpoch) {
+                self::$lastCheckFail = 'auth_epoch';
                 self::logout();
 
                 return false;
@@ -543,14 +570,19 @@ final class Auth
     {
         $uid = self::userId();
         $login = self::loginName();
-        $checkOk = $uid > 0 && (self::$runAsDepth > 0 || self::check());
-        $super = self::isSuperAdmin();
-        $personal = self::hasPersonalPermission($permission);
+        $fail = self::$lastCheckFail;
+        $checkOk = $uid > 0 && (self::$runAsDepth > 0 || $fail === '');
+        if ($uid > 0 && self::$runAsDepth === 0 && $fail === '') {
+            // Do not re-enter check() here (would logout again); trust caller state.
+            $checkOk = true;
+        }
+        $super = $uid > 0 && self::isSuperAdmin();
+        $personal = $uid > 0 && self::hasPersonalPermission($permission);
         $why = 'ok';
         if ($uid < 1) {
-            $why = 'no_session';
-        } elseif (!$checkOk) {
-            $why = 'check_fail';
+            $why = $fail !== '' ? 'check_' . $fail : 'no_session';
+        } elseif ($fail !== '') {
+            $why = 'check_' . $fail;
         } elseif (!$super && !$personal) {
             $why = 'no_perm';
         }
@@ -561,6 +593,7 @@ final class Auth
             'superadmin' => $super,
             'personal' => $personal,
             'why' => $why,
+            'check_fail' => $fail,
         ];
     }
 

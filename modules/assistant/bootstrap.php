@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/PendingActionsRepository.php';
 require_once __DIR__ . '/lib/AssistantDialog.php';
+require_once __DIR__ . '/lib/AssistantAccess.php';
 require_once __DIR__ . '/lib/AssistantTools.php';
 require_once __DIR__ . '/lib/AssistantHarness.php';
 require_once __DIR__ . '/lib/AssistantBotPlugin.php';

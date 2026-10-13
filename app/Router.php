@@ -173,12 +173,29 @@ final class Router
         $unsafe = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
         // Force session guard on mutations and capability gates (fresh rights / epoch).
         $forceGuard = $unsafe || (is_string($capability) && $capability !== '');
+        $wantJson = class_exists('AgentHttp', false) && AgentHttp::wantsJson();
         if ($needsAuth && !Auth::check($forceGuard)) {
+            if ($wantJson) {
+                $why = Auth::lastCheckFail();
+                AgentHttp::error(
+                    $why !== '' ? ('auth:' . $why) : 'Unauthorized',
+                    401,
+                    ['error_code' => $why !== '' ? $why : 'unauthorized']
+                );
+            }
             redirect('/login');
         }
         // permission/capability always enforce Auth::can — never skip for anonymous
         // even if a route was mistakenly marked public => true.
         if ($perm && !Auth::can($perm)) {
+            if ($wantJson) {
+                $probe = Auth::accessProbe((string)$perm);
+                AgentHttp::error(
+                    'Missing permission: ' . $perm . ' (' . (string)($probe['why'] ?? '') . ')',
+                    403,
+                    ['error_code' => 'forbidden', 'probe' => $probe]
+                );
+            }
             http_response_code(403);
             View::render('error', [
                 'title' => 'Forbidden',
@@ -187,6 +204,9 @@ final class Router
             return;
         }
         if (is_string($capability) && $capability !== '' && !Auth::capability($capability)) {
+            if ($wantJson) {
+                AgentHttp::error('Missing capability: ' . $capability, 403, ['error_code' => 'forbidden']);
+            }
             http_response_code(403);
             View::render('error', [
                 'title' => 'Forbidden',

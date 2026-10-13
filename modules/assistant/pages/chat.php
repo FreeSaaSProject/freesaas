@@ -18,8 +18,8 @@ if ($bodyIn === []) {
 }
 
 $userId = Auth::userId();
-if ($userId < 1) {
-    AgentHttp::error(t('assistant.bot.denied'), 401);
+if ($userId < 1 || !Auth::can('assistant.use')) {
+    AssistantAccess::denyJson(401);
 }
 
 $message = trim((string)($bodyIn['message'] ?? ''));

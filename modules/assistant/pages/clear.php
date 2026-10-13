@@ -6,8 +6,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
 }
 
 $userId = Auth::userId();
-if ($userId < 1) {
-    AgentHttp::error(t('assistant.bot.denied'), 401);
+if ($userId < 1 || !Auth::can('assistant.use')) {
+    AssistantAccess::denyJson(401);
 }
 
 AssistantDialog::clearSession($userId);
