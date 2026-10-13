@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "0.3.16",
+    "version": "0.3.17",
     "type": "product",
     "catalog": {
         "categories": [
@@ -51,10 +51,11 @@
                 "method": "GET",
                 "path": "/updates",
                 "permission": "updates.view",
-                "description": "Packages (local/remote versions, last_check, available_count) + source. Twin: GET /agent/update",
+                "side_effect": "read",
+                "description": "Cached update board: local/remote versions, last_check, available_count. Prefer updates.check for a fresh remote poll. Needs updates.view.",
                 "parameters": {
                     "type": "object",
-                    "properties": []
+                    "properties": {}
                 }
             },
             {
@@ -62,10 +63,11 @@
                 "method": "GET",
                 "path": "/updates/settings",
                 "permission": "updates.view",
-                "description": "Read update source settings (repo/channel/token_set). Twin: configure cfg/updates.ini",
+                "side_effect": "read",
+                "description": "Read update source settings (repo/channel/ref/asset, token_set flag — never the raw token). Needs updates.view.",
                 "parameters": {
                     "type": "object",
-                    "properties": []
+                    "properties": {}
                 }
             },
             {
@@ -74,7 +76,7 @@
                 "path": "/updates/settings",
                 "permission": "updates.apply",
                 "side_effect": "write",
-                "description": "Save [core] in cfg/updates.ini. SUPERADMIN. Body: repo, channel, token?, clear_token?, ref?, asset?",
+                "description": "Save update source in cfg/updates.ini. SUPERADMIN + updates.apply. Body: repo, channel, token?, clear_token?, ref?, asset?, db_backup_before_migrate?.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -82,7 +84,12 @@
                             "type": "string"
                         },
                         "channel": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": [
+                                "main",
+                                "stable",
+                                "latest"
+                            ]
                         },
                         "token": {
                             "type": "string"
@@ -95,6 +102,10 @@
                         },
                         "asset": {
                             "type": "string"
+                        },
+                        "db_backup_before_migrate": {
+                            "type": "string",
+                            "description": "1 or 0"
                         }
                     }
                 }
@@ -104,13 +115,14 @@
                 "method": "GET",
                 "path": "/updates/check",
                 "permission": "updates.view",
-                "description": "Read VERSION/module.json from git ref (Contents API). Query: optional target. Twin: GET /agent/update/check",
+                "side_effect": "read",
+                "description": "Fresh remote check (Contents API). Use when user asks if updates exist / what is new. Optional target=core|module_id; omit for all. Needs updates.view. Summarize available packages briefly.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "target": {
                             "type": "string",
-                            "description": "core, module id, or omit for all configured sources"
+                            "description": "core, module id, or omit for all"
                         }
                     }
                 }
@@ -121,7 +133,7 @@
                 "path": "/updates/apply",
                 "permission": "updates.apply",
                 "side_effect": "write",
-                "description": "Download one monorepo zip (or external module archive) + overlay + migrate. SUPERADMIN. Body: target, migrate?. Twin: POST /agent/update/apply",
+                "description": "Apply update overlay + migrate. SUPERADMIN + updates.apply only. Prefer updates.check first. Body: target=core|module_id|all, migrate=1|0. Queues Confirm/Cancel — never claim success until confirm.",
                 "parameters": {
                     "type": "object",
                     "properties": {

@@ -42,6 +42,10 @@ With `bots` enabled, plugin `assistant` handles free-text on the staff webhook. 
 
 Staff how-to answers use **`core.help.search`** / **`core.help.get`**, which read `module.json` → `agent.docs` → `docs/agents/*.md` (permission-filtered). Keep the **Human UI** section in that runbook updated — do not duplicate guides in i18n. Same tools appear on MCP `/llm/mcp`.
 
+## Updates (self-update)
+
+When module `updates` is enabled, Max sees `updates.status` / `updates.check` / `updates.apply` (and settings) if the staff user has `updates.view` / `updates.apply`. **Apply** also requires `SUPERADMIN_ACCESS` (same as the Updates UI). Flow: check → summarize → apply only on explicit ask (write tool → Confirm/Cancel). See [update.md](update.md).
+
 ## Adding a tool
 
 1. Add `agent.ops[]` entry (path, permission, description; optional `side_effect`, `parameters` JSON Schema).

@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.16",
+    "version": "0.1.17",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -13,7 +13,8 @@
         "procedures": ">=0.1.0",
         "staff_reports": ">=0.1.0",
         "audio_reports": ">=0.2.0",
-        "terminals": ">=0.1.0"
+        "terminals": ">=0.1.0",
+        "updates": ">=0.3.0"
     },
     "provides": [
         "assistant.harness"

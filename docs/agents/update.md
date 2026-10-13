@@ -9,7 +9,9 @@ Product module `updates`: instances pull code over HTTPS (optional token) withou
 - `/updates/check` — refresh remote versions (Contents API)
 - `/updates/apply` — download overlay + migrate (SUPERADMIN)
 
-Permissions: `updates.view`, `updates.apply`. Platform twin: `/agent/update*` + `agent_token` ([agent-surfaces.md](agent-surfaces.md)).
+Permissions: `updates.view`, `updates.apply`. Apply/settings save also need `SUPERADMIN_ACCESS`. Platform twin: `/agent/update*` + `agent_token` ([agent-surfaces.md](agent-surfaces.md)).
+
+**Max / MCP:** same `agent.ops` (`updates.check`, `updates.apply`, …) appear for staff who pass those gates — no separate update channel.
 
 ## Enable
 
