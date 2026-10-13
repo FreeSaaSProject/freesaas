@@ -5,6 +5,7 @@ return [
     'terminals.cron.load' => 'Загрузка центра (термы)',
     'terminals.cron.tickets' => 'Импорт визитов за сегодня',
     'terminals.module.name' => 'Терминалы и термы',
+    'terminals.migrator.phpshop_shopusers_bracelets_to_base_staff_bracelets' => 'NFC сотрудников: phpshop_shopusers.1C_BRACELET + ID_USER → base_staff_bracelets',
     'terminals.menu.group' => 'Терминалы',
     'terminals.menu.list' => 'Устройства',
     'terminals.menu.bracelets' => 'Браслеты',

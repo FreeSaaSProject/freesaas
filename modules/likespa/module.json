@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.6",
+    "version": "0.3.7",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -17,13 +17,15 @@
         "sites": ">=0.2.0",
         "booking": ">=0.1.0",
         "clients": ">=0.1.0",
-        "terminals": ">=0.1.0"
+        "terminals": ">=0.1.0",
+        "comments": ">=0.1.0"
     },
     "provides": [
         "likespa.term_scans",
         "likespa.promo",
         "likespa.dops",
-        "likespa.restores"
+        "likespa.restores",
+        "likespa.staff_debts"
     ],
     "migrations": "migrations/",
     "permissions": [
@@ -51,6 +53,7 @@
             "/likespa/restores",
             "/likespa/restores/new",
             "/likespa/restores/{id}/edit",
+            "/likespa/staff-debts",
             "/likespa/settings",
             "/likespa/legacy-api/status",
             "/api_termy.php",
@@ -59,6 +62,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/likespa-restores.md",
         "ops": [
             {
                 "id": "likespa.legacy_api.status",
@@ -116,10 +120,27 @@
                 "path": "/likespa/settings",
                 "permission": "likespa.edit",
                 "description": "Save LikeSpa settings; free_ticket_threshold (0=off)"
+            },
+            {
+                "id": "likespa.staff_debts.status",
+                "method": "GET",
+                "path": "/likespa/staff-debts",
+                "permission": "likespa.edit",
+                "side_effect": "read",
+                "description": "Staff debts feature status (news_id, bracelets count, 1C live); 404 if disabled"
+            },
+            {
+                "id": "likespa.staff_debts.run",
+                "method": "POST",
+                "path": "/likespa/staff-debts",
+                "permission": "likespa.edit",
+                "description": "Run staff bracelet 1C debt scan; posts comments on configured news ticket"
             }
         ]
     },
-    "jobs": [],
+    "jobs": [
+        "platform Cron::register likespa.staff_debts → /cron/tick"
+    ],
     "menu": [
         {
             "group": "likespa.menu.group",
@@ -133,6 +154,13 @@
             "path": "/likespa/restores",
             "title": "likespa.menu.restores",
             "kind": "crud"
+        },
+        {
+            "group": "likespa.menu.group",
+            "num": 20,
+            "path": "/likespa/staff-debts",
+            "title": "likespa.menu.staff_debts",
+            "when": "terminals"
         },
         {
             "group": "likespa.menu.group",

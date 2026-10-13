@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.14",
+    "version": "0.1.15",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -34,6 +34,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/assistant.md",
         "ops": [
             {
                 "id": "assistant.chat",

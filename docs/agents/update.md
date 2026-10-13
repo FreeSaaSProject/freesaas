@@ -1,8 +1,24 @@
 # Self-update (core + modules)
 
-Instances pull code over HTTPS (optional token) without git CLI.
+Product module `updates`: instances pull code over HTTPS (optional token) without git CLI. Facade: [`app/UpdateEngine.php`](../../app/UpdateEngine.php). Implementation: [`app/Update/`](../../app/Update/) (`UpdateApply`, `UpdateRollback`, `UpdateOverlay`, …).
 
-UI: **`updates`** (`/updates`). Facade: [`app/UpdateEngine.php`](../../app/UpdateEngine.php). Implementation: [`app/Update/`](../../app/Update/) (`UpdateApply`, `UpdateRollback`, `UpdateOverlay`, …).
+## Human UI
+
+- `/updates` — local/remote package versions, last check, available count
+- `/updates/settings` — repo / channel / token (`cfg/updates.ini`), SUPERADMIN
+- `/updates/check` — refresh remote versions (Contents API)
+- `/updates/apply` — download overlay + migrate (SUPERADMIN)
+
+Permissions: `updates.view`, `updates.apply`. Platform twin: `/agent/update*` + `agent_token` ([agent-surfaces.md](agent-surfaces.md)).
+
+## Enable
+
+```bash
+php bin/freesaas.php module enable updates --format=json
+```
+
+Or `[modules] updates=1` in `cfg/config.ini`.
+
 
 ### Apply safety
 

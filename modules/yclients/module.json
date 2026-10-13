@@ -2,7 +2,7 @@
     "id": "yclients",
     "name": "yclients.module.name",
     "description": "yclients.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -58,6 +58,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/yclients.md",
         "ops": [
             {
                 "id": "yclients.status",

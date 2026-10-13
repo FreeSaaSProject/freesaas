@@ -80,6 +80,10 @@ $ftThreshold = (int)($booking_meta['free_ticket_threshold'] ?? 0);
     </table>
     <p><strong><?= te('sites.cart.total') ?>: <?= e(number_format($total, 0, '.', ' ')) ?></strong></p>
 
+    <?php if (!empty($cart_extra_html)): ?>
+      <?= $cart_extra_html ?>
+    <?php endif; ?>
+
     <?php if ($ftThreshold > 0): ?>
       <div class="cart-ft-invite" id="cart-ft-invite">
         <?php if (!empty($booking_meta['free_ticket_eligible'])): ?>

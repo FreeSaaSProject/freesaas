@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "0.3.15",
+    "version": "0.3.16",
     "type": "product",
     "catalog": {
         "categories": [
@@ -44,6 +44,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/update.md",
         "ops": [
             {
                 "id": "updates.status",
@@ -53,7 +54,7 @@
                 "description": "Packages (local/remote versions, last_check, available_count) + source. Twin: GET /agent/update",
                 "parameters": {
                     "type": "object",
-                    "properties": {}
+                    "properties": []
                 }
             },
             {
@@ -64,7 +65,7 @@
                 "description": "Read update source settings (repo/channel/token_set). Twin: configure cfg/updates.ini",
                 "parameters": {
                     "type": "object",
-                    "properties": {}
+                    "properties": []
                 }
             },
             {

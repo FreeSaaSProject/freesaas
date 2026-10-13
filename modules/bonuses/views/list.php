@@ -1,10 +1,10 @@
 <?php
-declare(strict_types=1);
 /** @var list<array<string,mixed>> $items */
 /** @var int $total */
 /** @var string $q */
-/** @var int $idUser */
+/** @var int $clientId */
 /** @var int|null $direction */
+/** @var string $kind */
 /** @var bool $canEdit */
 /** @var string $sort */
 /** @var string $dir */
@@ -17,7 +17,7 @@ $path = '/bonuses';
 $listId = 'bonuses';
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 7 + BulkActions::colSpanExtra($listId);
+$colSpan = 8 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 ?>
 <section class="page-head">
@@ -39,13 +39,21 @@ $actionUrl = ListQuery::url($path, $filters, []);
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
   <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= te('bonuses.list.search_placeholder') ?>" data-filter-debounce>
   <label><?= te('bonuses.list.filter_client') ?>
-    <input type="number" min="0" name="id_user" value="<?= $idUser > 0 ? (int)$idUser : '' ?>">
+    <input type="number" min="0" name="client_id" value="<?= $clientId > 0 ? (int)$clientId : '' ?>">
   </label>
   <label><?= te('bonuses.list.filter_direction') ?>
     <select name="direction">
       <option value=""><?= te('bonuses.list.dir_all') ?></option>
       <option value="1"<?= $direction === 1 ? ' selected' : '' ?>><?= te('bonuses.list.dir_in') ?></option>
       <option value="-1"<?= $direction === -1 ? ' selected' : '' ?>><?= te('bonuses.list.dir_out') ?></option>
+    </select>
+  </label>
+  <label><?= te('bonuses.col.kind') ?>
+    <select name="kind">
+      <option value=""><?= te('bonuses.list.dir_all') ?></option>
+      <?php foreach (BonusMovesRepository::kinds() as $k): ?>
+        <option value="<?= e($k) ?>"<?= $kind === $k ? ' selected' : '' ?>><?= e(BonusMovesRepository::kindLabel($k)) ?></option>
+      <?php endforeach; ?>
     </select>
   </label>
 </form>
@@ -60,11 +68,12 @@ $actionUrl = ListQuery::url($path, $filters, []);
       <tr>
         <?= BulkActions::th($listId) ?>
         <?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?>
-        <?= ListQuery::sortTh(t('bonuses.col.client'), 'id_user', $sort, $dir, $path, $filters) ?>
-        <?= ListQuery::sortTh(t('bonuses.col.date_in'), 'date_in', $sort, $dir, $path, $filters) ?>
+        <?= ListQuery::sortTh(t('bonuses.col.client'), 'client_id', $sort, $dir, $path, $filters) ?>
+        <?= ListQuery::sortTh(t('bonuses.col.created_at'), 'created_at', $sort, $dir, $path, $filters) ?>
+        <?= ListQuery::sortTh(t('bonuses.col.kind'), 'kind', $sort, $dir, $path, $filters) ?>
         <?= ListQuery::sortTh(t('bonuses.col.direction'), 'direction', $sort, $dir, $path, $filters) ?>
-        <?= ListQuery::sortTh(t('bonuses.col.sum'), 'sum', $sort, $dir, $path, $filters) ?>
-        <th><?= te('bonuses.col.descr') ?></th>
+        <?= ListQuery::sortTh(t('bonuses.col.amount'), 'amount', $sort, $dir, $path, $filters) ?>
+        <th><?= te('bonuses.col.note') ?></th>
       </tr>
     </thead>
     <tbody>
@@ -79,16 +88,17 @@ $actionUrl = ListQuery::url($path, $filters, []);
           <?php endif; ?>
         </td>
         <td>
-          <?php if ((int)$b['id_user'] > 0): ?>
-            <a href="/bonuses/clients/<?= (int)$b['id_user'] ?>"><?= (int)$b['id_user'] ?></a>
+          <?php if ((int)$b['client_id'] > 0): ?>
+            <a href="/bonuses/clients/<?= (int)$b['client_id'] ?>"><?= (int)$b['client_id'] ?></a>
           <?php else: ?>
             —
           <?php endif; ?>
         </td>
-        <td><?= (int)$b['date_in'] > 0 ? e(date('d.m.Y H:i', (int)$b['date_in'])) : '—' ?></td>
-        <td><?= e(BonusPayRepository::directionLabel((int)$b['direction'])) ?></td>
-        <td><?= e(number_format((float)$b['sum'], 0, '.', ' ')) ?></td>
-        <td><?= e((string)($b['description'] ?? '')) ?></td>
+        <td><?= (int)$b['created_at'] > 0 ? e(date('d.m.Y H:i', (int)$b['created_at'])) : '—' ?></td>
+        <td><?= e(BonusMovesRepository::kindLabel((string)$b['kind'])) ?></td>
+        <td><?= e(BonusMovesRepository::directionLabel((int)$b['direction'])) ?></td>
+        <td><?= e(number_format((float)$b['amount'], 0, '.', ' ')) ?></td>
+        <td><?= e((string)($b['note'] ?? '')) ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>

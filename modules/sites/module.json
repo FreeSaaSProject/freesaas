@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -76,6 +76,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/sites.md",
         "ops": [
             {
                 "id": "sites.status",
@@ -268,6 +269,7 @@
             "sites.home",
             "sites.checkout.before",
             "sites.checkout.after",
+            "sites.cart.prepare",
             "sites.cart.booking",
             "sites.diagnose",
             "sites.host_edit.sections",

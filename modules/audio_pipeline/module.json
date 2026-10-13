@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.3.1",
+    "version": "0.3.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -32,6 +32,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/audio_pipeline.md",
         "ops": [
             {
                 "id": "audio_pipeline.asr.claim",

@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.22",
+    "version": "0.1.23",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -58,6 +58,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/terminals.md",
         "ops": [
             {
                 "id": "terminals.t.get",
@@ -323,7 +324,18 @@
         "base_client_onec_bindings",
         "base_staff_bracelets"
     ],
-    "migrators": [],
+    "migrators": [
+        {
+            "id": "phpshop_shopusers_bracelets_to_base_staff_bracelets",
+            "mode": "seed",
+            "source": [
+                "phpshop_shopusers"
+            ],
+            "target": [
+                "base_staff_bracelets"
+            ]
+        }
+    ],
     "hooks": {
         "subscribe": [
             "catalog.product_edit.sections",

@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -35,6 +35,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/poll_invites.md",
         "ops": [
             {
                 "id": "poll_invites.list",

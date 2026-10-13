@@ -5,6 +5,7 @@ return [
     'bots.cron.sends_drain' => 'Слив очереди исходящих в боты',
     'bots.module.name' => 'Боты мессенджеров',
     'bots.module.description' => 'Транспорт Telegram/Max, очередь исходящих, webhooks staff/client и bot links.',
+    'bots.migrator.phpshop_messenger_to_base_bot_links' => 'Telegram/Max chat id сотрудников и клиентов → base_bot_links',
     'bots.perm.manage' => 'Боты (управление)',
     'bots.perm.view' => 'Боты (очередь)',
     'bots.menu.group' => 'Боты',

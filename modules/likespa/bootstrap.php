@@ -11,6 +11,7 @@ require_once __DIR__ . '/lib/SystemFlyerPromo.php';
 require_once __DIR__ . '/lib/FreeTicket.php';
 require_once __DIR__ . '/lib/LikespaLegacyApi.php';
 require_once __DIR__ . '/lib/ProcedureFloorLinks.php';
+require_once __DIR__ . '/lib/StaffDebtsRunner.php';
 
 Assets::register('likespa', [
     'css' => ['likespa.css'],
@@ -43,6 +44,11 @@ $pages = [
         'permission' => 'likespa.restores',
         'methods' => ['GET', 'POST'],
         'file' => 'restore_edit.php',
+    ],
+    '/likespa/staff-debts' => [
+        'permission' => 'likespa.edit',
+        'methods' => ['GET', 'POST'],
+        'file' => 'staff_debts.php',
     ],
     '/likespa/settings' => [
         'capability' => 'SUPERADMIN_ACCESS',
@@ -92,6 +98,24 @@ foreach ($pages as $path => $def) {
     }
     ModuleManager::registerRoute($path, $route);
 }
+
+Cron::register('likespa.staff_debts', [
+    'module' => 'likespa',
+    'label' => 'likespa.cron.staff_debts',
+    'daily_at' => LikespaConfig::staffDebtsDailyAt(),
+    'handler' => static function (): array {
+        $r = StaffDebtsRunner::run();
+        return [
+            'ok' => !empty($r['ok']),
+            'processed' => (int)($r['posted'] ?? 0),
+            'skipped' => (int)($r['skipped'] ?? 0),
+            'message' => (string)($r['message'] ?? ''),
+            'scanned' => (int)($r['scanned'] ?? 0),
+            'with_debt' => (int)($r['with_debt'] ?? 0),
+            'errors' => (int)($r['errors'] ?? 0),
+        ];
+    },
+]);
 
 EventBus::on('sites.diagnose', static function ($payload) {
     if (!is_array($payload)) {

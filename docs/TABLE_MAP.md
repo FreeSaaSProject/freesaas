@@ -19,6 +19,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_good_defaults` | norms | Procedure → material norms |
 | `base_sheet_accounts` / `base_sheet_moves` | sheets | Linen ledger (disableable) |
 | `base_term_scans` | likespa | Terminal scans / promoter conversion (disableable) |
+| `base_staff_bracelets` / `base_comments` / `base_news` (usage) | likespa (staff debts scan) | No owned tables; cron/UI posts 1C folio debts as comments when `staff_debts_enabled` |
 | `base_site_hosts` | sites | Public domains: theme, home promo, catalog root(s), phone; resolve by `HTTP_HOST` |
 | `base_promopages` | sites | Public promo / LP pages (home content via `base_site_hosts.promo_id`) |
 | `base_page_categories` | sites | Site articles tree; `site_host_id` (0 = all hosts) |
@@ -43,7 +44,9 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_procedures*` | procedures | Types + journal + `base_procedure_restores` schema; restore UI/settlement in likespa |
 | `base_payments` / `base_payment_types` | payments | Staff settlements |
 | `base_payment_move_links` | payments | Multi-allocation payments ↔ ledger moves |
-| `base_bonuspay` | bonuses | Client loyalty ledger (credit/debit, event settle) |
+| `base_bonus_moves` | bonuses | Client loyalty ledger (credit/debit, event settle) |
+| `base_certificates` / `base_certificate_ledger` | certificates | Gift certificates + money ledger (issue/spend/expire/undo) |
+| `base_orders.ID_SERT` | orders (column) / certificates (write) | Optional link to certificate used on checkout |
 | `base_telegram_sends` | bots | Outbound TG/Max queue (`BOT_SOURCE` 1=client, 2=staff) |
 | `base_bot_links` | bots | Messenger chat ids for staff/clients (no ALTER `base_users` / `base_clients`) |
 | `base_bot_chat_state` | bots | Per-chat FSM pending mode for bot plugins |

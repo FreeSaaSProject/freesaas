@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -34,14 +34,15 @@
         "pages": [
             "/payments",
             "/payments/new",
-        "/payments/{id}/edit",
-        "/payments/move-links/{moveId}",
-        "/payment-types",
+            "/payments/{id}/edit",
+            "/payments/move-links/{moveId}",
+            "/payment-types",
             "/payment-types/new",
             "/payment-types/{id}/edit"
         ]
     },
     "agent": {
+        "docs": "docs/agents/payments.md",
         "ops": [
             {
                 "id": "payments.list",

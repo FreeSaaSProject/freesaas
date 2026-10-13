@@ -2,7 +2,7 @@
     "id": "finance",
     "name": "finance.module.name",
     "description": "finance.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -36,6 +36,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/finance.md",
         "ops": [
             {
                 "id": "finance.balance",

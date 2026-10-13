@@ -73,6 +73,8 @@ $allowed = [
     '/cart' => ['methods' => ['GET', 'POST'], 'why' => 'storefront cart'],
     '/cart/availability' => ['methods' => ['GET'], 'why' => 'cart slot availability'],
     '/cart/checkout' => ['methods' => ['POST'], 'why' => 'cart checkout'],
+    '/certificates/cart/apply' => ['methods' => ['POST'], 'why' => 'storefront certificate CODE apply'],
+    '/certificates/cart/reset' => ['methods' => ['POST'], 'why' => 'storefront certificate CODE clear'],
     '/promo/{code}' => ['methods' => ['GET'], 'why' => 'promo redirect'],
 
     // Floor NFC shell (terminals); frozen query terminalid/braceletid/token

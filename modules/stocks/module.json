@@ -2,7 +2,7 @@
     "id": "stocks",
     "name": "stocks.module.name",
     "description": "stocks.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -37,6 +37,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/stocks.md",
         "ops": [
             {
                 "id": "stocks.list",

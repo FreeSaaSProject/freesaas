@@ -2,7 +2,7 @@
     "id": "llm",
     "name": "llm.module.name",
     "description": "llm.module.description",
-    "version": "0.2.3",
+    "version": "0.2.4",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -54,6 +54,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/llm.md",
         "ops": [
             {
                 "id": "llm.tokens.list",

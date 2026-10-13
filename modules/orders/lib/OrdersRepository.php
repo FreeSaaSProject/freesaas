@@ -689,7 +689,7 @@ final class OrdersRepository
                 ID_PROMOCODE, TEXT_PROMOCODE, FREE_TICKET
              ) VALUES (
                 ?, ?, ?, ?,
-                ?, 0, 0, 0, ?,
+                ?, ?, 0, 0, ?,
                 ?, ?, ?, ?, ?, \'\',
                 0, \'\', \'\', 0,
                 ?, ?, 0, 0, ?,
@@ -702,6 +702,7 @@ final class OrdersRepository
             $now,
             max(0, (int)($data['dt_event'] ?? $now)),
             max(0, (int)($data['id_user'] ?? 0)),
+            max(0, (int)($data['id_sert'] ?? 0)),
             max(0, (int)($data['id_cosmetolog'] ?? 0)),
             $cart,
             mb_substr($phone, 0, 11),

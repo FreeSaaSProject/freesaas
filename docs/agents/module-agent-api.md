@@ -16,6 +16,7 @@ This is **not** platform [`/agent/*`](remote-api.md) (`AgentOps` + `app.agent_to
 
 ```json
 "agent": {
+  "docs": "docs/agents/certificates.md",
   "ops": [
     {
       "id": "audio_reports.summaries.list",
@@ -30,7 +31,8 @@ This is **not** platform [`/agent/*`](remote-api.md) (`AgentOps` + `app.agent_to
 
 | Field | Required | Notes |
 |-------|----------|--------|
-| `id` | yes | Dotted id, unique within the module (`module.area.action`) |
+| `docs` | optional | Path under `docs/agents/*.md` (allowlisted). Staff help / MCP `core.help.*` serves this file — single source of truth for «how do I…»; keep **Human UI** section updated with the module. |
+| `id` | yes (per op) | Dotted id, unique within the module (`module.area.action`) |
 | `method` | yes | `GET` / `POST` / … |
 | `path` | yes | Must match a registered route (`routes.pages` / bootstrap) |
 | `permission` | recommended | Same permission key as the HTML route |
@@ -39,7 +41,7 @@ This is **not** platform [`/agent/*`](remote-api.md) (`AgentOps` + `app.agent_to
 | `parameters` | optional | JSON Schema object for LLM tool arguments (`type`/`properties`/`required`) |
 | `assistant` | optional | Default `true`. Set `false` to hide the op from the in-system assistant tool catalog (e.g. recursive chat). |
 
-`ModuleValidator` warns if an op path is missing from `routes.pages` / registered routes, or if `agent.ops` entries are malformed.
+`ModuleValidator` warns if an op path is missing from `routes.pages` / registered routes, if `agent.ops` entries are malformed, or if `agent.docs` points outside `docs/agents/` / missing file.
 
 In-system assistant (`modules/assistant`): tools are **auto-built** from enabled modules’ `agent.ops` and invoked in-process via `AgentHttp::capture` + the same route handler (no HTTP loopback, no per-module register). Catalog helper: `AgentHttp::allOps()`.
 

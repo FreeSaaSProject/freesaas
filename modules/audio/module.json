@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -46,6 +46,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/audio.md",
         "ops": [
             {
                 "id": "audio.list",
@@ -189,24 +190,7 @@
         "base_records_reviews",
         "base_audio_settings"
     ],
-    "migrators": [
-        {
-            "id": "export_record_scores",
-            "mode": "export",
-            "source": [
-                "base_records"
-            ],
-            "target": []
-        },
-        {
-            "id": "import_record_scores",
-            "mode": "fill",
-            "source": [],
-            "target": [
-                "base_records"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "core.user_edit.sections",

@@ -20,6 +20,7 @@ require_once __DIR__ . '/lib/MyTasksHabitsBot.php';
 require_once __DIR__ . '/lib/NewsBotPlugin.php';
 require_once __DIR__ . '/lib/PasswordRestoreBotPlugin.php';
 require_once __DIR__ . '/lib/LoginLinksRepository.php';
+require_once __DIR__ . '/lib/HelpDocs.php';
 
 // Shared rail groups (core.menu.group.*) — product modules register their own keys.
 ModuleManager::registerMenuGroup('core.menu.group.desktop', 10, '/');
@@ -53,6 +54,8 @@ $pages = [
     '/health' => ['public' => true, 'methods' => ['GET'], 'file' => 'health.php'],
     '/health/detail' => ['permission' => 'core.modules', 'methods' => ['GET'], 'file' => 'health_detail.php'],
     '/doctor' => ['permission' => 'core.modules', 'methods' => ['GET'], 'file' => 'doctor.php'],
+    '/help' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'help_search.php'],
+    '/help/{id}' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'help_get.php'],
     '/agent' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/bootstrap' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/rescue' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],

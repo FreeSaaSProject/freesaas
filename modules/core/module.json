@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.63",
+    "version": "0.3.64",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -84,6 +84,8 @@
             "/health",
             "/health/detail",
             "/doctor",
+            "/help",
+            "/help/{id}",
             "/agent",
             "/agent/bootstrap",
             "/agent/rescue",
@@ -122,6 +124,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/core.md",
         "ops": [
             {
                 "id": "core.cron.status",
@@ -299,7 +302,60 @@
                 "description": "Orchestrated diagnose (config/DB/migrate/validate/health/locale) with error_codes + issue_body. Read-only; enable/migrate stay on agent_token. MCP: core__doctor.",
                 "parameters": {
                     "type": "object",
-                    "properties": {}
+                    "properties": []
+                }
+            },
+            {
+                "id": "core.help.search",
+                "method": "GET",
+                "path": "/help",
+                "permission": "core.home",
+                "side_effect": "read",
+                "description": "How-to help index from module runbooks (docs/agents via agent.docs). Filters: q, module. Permission-filtered. Then call core.help.get.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "q": {
+                            "type": "string",
+                            "description": "Search query (module id, UI terms, headings)"
+                        },
+                        "module": {
+                            "type": "string",
+                            "description": "Optional exact module id filter"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "core.help.get",
+                "method": "GET",
+                "path": "/help/{id}",
+                "permission": "core.home",
+                "side_effect": "read",
+                "description": "How-to runbook markdown for a module (Human UI + ops notes). Path id=module. Optional section=human|all, max_chars. Prefer for «how do I…» before inventing steps.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "id"
+                    ],
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Module id, e.g. certificates"
+                        },
+                        "section": {
+                            "type": "string",
+                            "enum": [
+                                "all",
+                                "human"
+                            ],
+                            "description": "human = ## Human UI only when present"
+                        },
+                        "max_chars": {
+                            "type": "integer",
+                            "description": "Truncate markdown body (default 16000)"
+                        }
+                    }
                 }
             },
             {
@@ -545,16 +601,29 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "NAME": { "type": "string" },
-                        "TYPE": { "type": "integer", "description": "Usually 2 (tickets)" },
+                        "NAME": {
+                            "type": "string"
+                        },
+                        "TYPE": {
+                            "type": "integer",
+                            "description": "Usually 2 (tickets)"
+                        },
                         "DEADLINE_POLICY": {
                             "type": "string",
                             "description": "optional|required|forbidden"
                         },
-                        "COLOR": { "type": "string", "description": "#hex or named color" },
-                        "ID": { "type": "integer", "description": "Optional fixed primary key" }
+                        "COLOR": {
+                            "type": "string",
+                            "description": "#hex or named color"
+                        },
+                        "ID": {
+                            "type": "integer",
+                            "description": "Optional fixed primary key"
+                        }
                     },
-                    "required": ["NAME"]
+                    "required": [
+                        "NAME"
+                    ]
                 }
             },
             {
@@ -571,10 +640,18 @@
                             "type": "string",
                             "description": "save (default) | delete"
                         },
-                        "NAME": { "type": "string" },
-                        "TYPE": { "type": "integer" },
-                        "DEADLINE_POLICY": { "type": "string" },
-                        "COLOR": { "type": "string" }
+                        "NAME": {
+                            "type": "string"
+                        },
+                        "TYPE": {
+                            "type": "integer"
+                        },
+                        "DEADLINE_POLICY": {
+                            "type": "string"
+                        },
+                        "COLOR": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -723,20 +800,42 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "NAME": { "type": "string" },
-                        "SHORT": { "type": "string" },
-                        "BIG": { "type": "string" },
+                        "NAME": {
+                            "type": "string"
+                        },
+                        "SHORT": {
+                            "type": "string"
+                        },
+                        "BIG": {
+                            "type": "string"
+                        },
                         "COMMENT_PURGE_LIMIT": {
                             "type": "integer",
                             "description": "0=off; max comments kept"
                         },
-                        "SIGN_REQ": { "type": "integer" },
-                        "keep_signs": { "type": "integer", "description": "1 = keep views/signs on body change" },
-                        "STATUS": { "type": "integer" },
-                        "ID_CURATOR": { "type": "integer" },
-                        "DT_DEADLINE": { "type": "string", "description": "Y-m-d or empty" },
-                        "HAS_CHILDREN": { "type": "integer" },
-                        "IGNORE_FOLDER": { "type": "integer" }
+                        "SIGN_REQ": {
+                            "type": "integer"
+                        },
+                        "keep_signs": {
+                            "type": "integer",
+                            "description": "1 = keep views/signs on body change"
+                        },
+                        "STATUS": {
+                            "type": "integer"
+                        },
+                        "ID_CURATOR": {
+                            "type": "integer"
+                        },
+                        "DT_DEADLINE": {
+                            "type": "string",
+                            "description": "Y-m-d or empty"
+                        },
+                        "HAS_CHILDREN": {
+                            "type": "integer"
+                        },
+                        "IGNORE_FOLDER": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -954,6 +1053,16 @@
             "mode": "replace",
             "source": [
                 "phpshop_users"
+            ],
+            "target": [
+                "base_users"
+            ]
+        },
+        {
+            "id": "remap_oper_user_permissions",
+            "mode": "seed",
+            "source": [
+                "base_users"
             ],
             "target": [
                 "base_users"

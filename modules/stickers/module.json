@@ -2,7 +2,7 @@
     "id": "stickers",
     "name": "stickers.module.name",
     "description": "stickers.module.description",
-    "version": "0.1.14",
+    "version": "0.1.15",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -56,6 +56,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/stickers-qr.md",
         "ops": [
             {
                 "id": "stickers.receipts.list",
@@ -186,10 +187,18 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "q": {"type": "string", "description": "32-hex sticker HASH"},
-                        "token": {"type": "string", "description": "Optional unused op token"}
+                        "q": {
+                            "type": "string",
+                            "description": "32-hex sticker HASH"
+                        },
+                        "token": {
+                            "type": "string",
+                            "description": "Optional unused op token"
+                        }
                     },
-                    "required": ["q"]
+                    "required": [
+                        "q"
+                    ]
                 }
             },
             {
@@ -201,18 +210,41 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "q": {"type": "string"},
-                        "token": {"type": "string"},
-                        "action": {"type": "string"},
-                        "weight": {"type": "number"},
-                        "weight2": {"type": "number"},
-                        "amount": {"type": "number"},
-                        "confirm": {"type": "integer"},
-                        "proc_event": {"type": "string"},
-                        "idStockNew": {"type": "integer"},
-                        "csrf": {"type": "string"}
+                        "q": {
+                            "type": "string"
+                        },
+                        "token": {
+                            "type": "string"
+                        },
+                        "action": {
+                            "type": "string"
+                        },
+                        "weight": {
+                            "type": "number"
+                        },
+                        "weight2": {
+                            "type": "number"
+                        },
+                        "amount": {
+                            "type": "number"
+                        },
+                        "confirm": {
+                            "type": "integer"
+                        },
+                        "proc_event": {
+                            "type": "string"
+                        },
+                        "idStockNew": {
+                            "type": "integer"
+                        },
+                        "csrf": {
+                            "type": "string"
+                        }
                     },
-                    "required": ["q", "token"]
+                    "required": [
+                        "q",
+                        "token"
+                    ]
                 }
             },
             {

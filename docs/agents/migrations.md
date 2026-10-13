@@ -72,9 +72,33 @@ Platform twin (token, no session): `GET /agent/db/migrate`, `POST /agent/db/migr
 Optional one-shot scripts under `modules/*/migrators/`, declared in `module.json` → `migrators` (often replace/seed into `base_*`). **Not required** when restoring a populated likespa dump — schema alone is enough to unlock the app.
 
 ```bash
-php bin/data-migrate.php   # destructive replace — know what you run
+php bin/data-migrate.php --list                 # preview: what each migrator does
+php bin/data-migrate.php --module=… --id=…      # one migrator (live progress)
+php bin/data-migrate.php --i-understand-replace # ALL (destructive) — know what you run
 # or POST /db action=data&format=json
 ```
+
+`/db` lists the data catalog before the button. The run uses the **same job overlay** as dump/restore (progress bars + live log); after OK the page reloads with the report. CLI still prints `→ id` / description / `… running` / `[ok|error] …` as each migrator finishes (`--list` to preview).
+
+### Staff identity from phpshop (oper → FreeSaaS)
+
+**TEMP cutover pack** — not runtime. Enable `core`, `bots`, and `terminals` so `/db` data / `runAll` picks them up. After phpshop tables are dropped, delete the files + `module.json` `migrators[]` entries + matching `*.migrator.*` lang keys (see list below). Do **not** revert `Auth::hasNamespacedPermissions()` — that is permanent `module.perm` shape checking.
+
+| Migrator | Module | What |
+|----------|--------|------|
+| `phpshop_users_to_base_users` (+ `_OperPermissionsRemap.php`) | core | Truncate/refill `base_users`; roles; `link_gp`→`num`; oper→`module.perm` remap |
+| `remap_oper_user_permissions` | core | Remap only (no TRUNCATE) |
+| `phpshop_messenger_to_base_bot_links` | bots | TG/Max → `base_bot_links` |
+| `phpshop_shopusers_bracelets_to_base_staff_bracelets` | terminals | `1C_BRACELET`+`ID_USER` → `base_staff_bracelets` |
+
+```bash
+# Fix permissions on an already-migrated DB (no user replace):
+php bin/data-migrate.php --module=core --id=remap_oper_user_permissions
+php bin/data-migrate.php --module=terminals --id=phpshop_shopusers_bracelets_to_base_staff_bracelets
+php bin/data-migrate.php --module=bots --id=phpshop_messenger_to_base_bot_links
+```
+
+**Cutoff delete checklist:** `modules/core/migrators/{phpshop_users_to_base_users,remap_oper_user_permissions,_OperPermissionsRemap}.php` + their `module.json` entries; `modules/terminals/migrators/phpshop_shopusers_bracelets_to_base_staff_bracelets.php` + entry; `modules/bots/migrators/phpshop_messenger_to_base_bot_links.php` + entry; lang `*.migrator.phpshop_*` / `core.migrator.remap_*`.
 
 ## Rules
 

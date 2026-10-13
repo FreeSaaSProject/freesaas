@@ -242,11 +242,27 @@ final class ModuleValidator
             }
         }
 
-        // agent.ops — product JSON surface (see docs/agents/module-agent-api.md)
+        // agent.ops / agent.docs — product JSON + staff help runbooks
         if (isset($meta['agent'])) {
             if (!is_array($meta['agent'])) {
                 $errors[] = 'agent must be an object';
             } else {
+                if (array_key_exists('docs', $meta['agent'])) {
+                    $docs = $meta['agent']['docs'];
+                    if (!is_string($docs) || trim($docs) === '') {
+                        $errors[] = 'agent.docs must be a non-empty string path under docs/agents/';
+                    } else {
+                        $rel = str_replace('\\', '/', trim($docs));
+                        $rel = ltrim($rel, '/');
+                        if (strpos($rel, '..') !== false
+                            || !preg_match('#^docs/agents/[a-z0-9][a-z0-9._-]*\.md$#i', $rel)
+                        ) {
+                            $errors[] = 'agent.docs must be docs/agents/<file>.md (no ..)';
+                        } elseif (!is_file(base_path($rel))) {
+                            $warnings[] = 'agent.docs file missing: ' . $rel;
+                        }
+                    }
+                }
                 $ops = $meta['agent']['ops'] ?? null;
                 if ($ops !== null && !is_array($ops)) {
                     $errors[] = 'agent.ops must be an array';

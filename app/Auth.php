@@ -550,11 +550,14 @@ final class Auth
         return self::isSuperAdmin();
     }
 
-    /** True when personal settings already store any module.perm keys. */
+    /**
+     * True when the session blob already has FreeSaaS screen permissions (`module.perm`).
+     * Shape check only — any key with a bare "." (e.g. `api.php`) must not count.
+     */
     public static function hasNamespacedPermissions(): bool
     {
         foreach (self::permissions() as $k => $_) {
-            if (strpos((string)$k, '.') !== false) {
+            if (preg_match('/^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$/', (string)$k) === 1) {
                 return true;
             }
         }

@@ -2,7 +2,7 @@
     "id": "liquid_assets",
     "name": "liquid_assets.module.name",
     "description": "liquid_assets.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -47,6 +47,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/liquid_assets.md",
         "ops": [
             {
                 "id": "liquid_assets.report",

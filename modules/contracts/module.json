@@ -2,7 +2,7 @@
     "id": "contracts",
     "name": "contracts.module.name",
     "description": "contracts.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -34,6 +34,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/contracts.md",
         "ops": [
             {
                 "id": "contracts.list",

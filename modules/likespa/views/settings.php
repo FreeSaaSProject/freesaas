@@ -35,6 +35,7 @@ $promoDiscounts = is_array($flyerPromo['promo_discounts'] ?? null) ? $flyerPromo
     <label class="check"><input type="checkbox" name="promo_enabled" value="1"<?= $on('promo_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.promo_enabled') ?></label>
     <label class="check"><input type="checkbox" name="dops_enabled" value="1"<?= $on('dops_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.dops_enabled') ?></label>
     <label class="check"><input type="checkbox" name="restores_enabled" value="1"<?= $on('restores_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.restores_enabled') ?></label>
+    <label class="check"><input type="checkbox" name="staff_debts_enabled" value="1"<?= $on('staff_debts_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.staff_debts_enabled') ?></label>
   </fieldset>
 
   <fieldset>
@@ -184,6 +185,26 @@ $promoDiscounts = is_array($flyerPromo['promo_discounts'] ?? null) ? $flyerPromo
       <input type="number" name="restores_payment_type" min="1" value="<?= e($c('restores_payment_type', '1')) ?>">
       <span class="muted"><?= te('likespa.settings.restores_payment_type_hint') ?></span>
     </label>
+  </fieldset>
+
+  <fieldset>
+    <legend><?= te('likespa.settings.sec.staff_debts') ?></legend>
+    <p class="muted"><?= te('likespa.settings.staff_debts_hint') ?></p>
+    <label><?= te('likespa.settings.staff_debts_news_id') ?>
+      <input type="number" name="staff_debts_news_id" min="0" step="1" value="<?= e($c('staff_debts_news_id', '0')) ?>">
+      <span class="muted"><?= te('likespa.settings.staff_debts_news_id_hint') ?></span>
+    </label>
+    <label><?= te('likespa.settings.staff_debts_comment_user_id') ?>
+      <input type="number" name="staff_debts_comment_user_id" min="0" step="1" value="<?= e($c('staff_debts_comment_user_id', '0')) ?>">
+      <span class="muted"><?= te('likespa.settings.staff_debts_comment_user_id_hint') ?></span>
+    </label>
+    <label><?= te('likespa.settings.staff_debts_daily_at') ?>
+      <input type="text" name="staff_debts_daily_at" pattern="\d{1,2}:\d{2}" placeholder="08:00" value="<?= e($c('staff_debts_daily_at', '08:00')) ?>">
+      <span class="muted"><?= te('likespa.settings.staff_debts_daily_at_hint') ?></span>
+    </label>
+    <?php if ($on('staff_debts_enabled')): ?>
+      <p><a href="/likespa/staff-debts"><?= te('likespa.settings.staff_debts_run_link') ?></a></p>
+    <?php endif; ?>
   </fieldset>
 
   <div class="page-actions">

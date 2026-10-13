@@ -12,6 +12,7 @@ final class LikespaConfig
             'promo_enabled' => '1',
             'dops_enabled' => '1',
             'restores_enabled' => '1',
+            'staff_debts_enabled' => '0',
             'legacy_api_enabled' => '0',
             'legacy_api_termy_category' => 16,
             'legacy_api_key' => '',
@@ -28,6 +29,9 @@ final class LikespaConfig
             'dops_position_ids' => '1',
             'restores_lookback_days' => 4,
             'restores_payment_type' => 1,
+            'staff_debts_news_id' => 0,
+            'staff_debts_comment_user_id' => 0,
+            'staff_debts_daily_at' => '08:00',
         ];
     }
 
@@ -40,7 +44,15 @@ final class LikespaConfig
     {
         $out = [];
         foreach (self::defaults() as $key => $default) {
-            if (in_array($key, ['term_scans_enabled', 'promo_enabled', 'dops_enabled', 'restores_enabled', 'promo_term_scan_conversion', 'legacy_api_enabled'], true)) {
+            if (in_array($key, [
+                'term_scans_enabled',
+                'promo_enabled',
+                'dops_enabled',
+                'restores_enabled',
+                'staff_debts_enabled',
+                'promo_term_scan_conversion',
+                'legacy_api_enabled',
+            ], true)) {
                 $out[$key] = self::flag($key, (string)$default === '1') ? '1' : '0';
                 continue;
             }
@@ -48,6 +60,10 @@ final class LikespaConfig
                 $raw = (string)Config::get('likespa', $key, '');
                 $out[$key] = '';
                 $out[$key . '_set'] = $raw !== '' ? '1' : '0';
+                continue;
+            }
+            if ($key === 'staff_debts_daily_at') {
+                $out[$key] = self::staffDebtsDailyAt();
                 continue;
             }
             if (is_float($default)) {
@@ -75,7 +91,15 @@ final class LikespaConfig
      */
     public static function saveFromPost(array $post): void
     {
-        foreach (['term_scans_enabled', 'promo_enabled', 'dops_enabled', 'restores_enabled', 'promo_term_scan_conversion', 'legacy_api_enabled'] as $key) {
+        foreach ([
+            'term_scans_enabled',
+            'promo_enabled',
+            'dops_enabled',
+            'restores_enabled',
+            'staff_debts_enabled',
+            'promo_term_scan_conversion',
+            'legacy_api_enabled',
+        ] as $key) {
             Config::set('likespa', $key, !empty($post[$key]) ? '1' : '0');
         }
         Config::set('likespa', 'legacy_api_termy_category', (string)max(1, (int)($post['legacy_api_termy_category'] ?? 16)));
@@ -111,6 +135,10 @@ final class LikespaConfig
 
         Config::set('likespa', 'restores_lookback_days', (string)max(0, min(30, (int)($post['restores_lookback_days'] ?? 4))));
         Config::set('likespa', 'restores_payment_type', (string)max(1, (int)($post['restores_payment_type'] ?? 1)));
+
+        Config::set('likespa', 'staff_debts_news_id', (string)max(0, (int)($post['staff_debts_news_id'] ?? 0)));
+        Config::set('likespa', 'staff_debts_comment_user_id', (string)max(0, (int)($post['staff_debts_comment_user_id'] ?? 0)));
+        Config::set('likespa', 'staff_debts_daily_at', self::normalizeDailyAt((string)($post['staff_debts_daily_at'] ?? '08:00')));
     }
 
     public static function flag(string $key, bool $default = true): bool
@@ -194,6 +222,31 @@ final class LikespaConfig
         return max(1, self::int('restores_payment_type', 1));
     }
 
+    public static function staffDebtsEnabled(): bool
+    {
+        return self::flag('staff_debts_enabled', false);
+    }
+
+    public static function staffDebtsNewsId(): int
+    {
+        return max(0, self::int('staff_debts_news_id', 0));
+    }
+
+    /** Configured author, or connect.robot_id when unset. */
+    public static function staffDebtsCommentUserId(): int
+    {
+        $id = max(0, self::int('staff_debts_comment_user_id', 0));
+        if ($id > 0) {
+            return $id;
+        }
+        return max(0, (int)Config::get('connect', 'robot_id', 0));
+    }
+
+    public static function staffDebtsDailyAt(): string
+    {
+        return self::normalizeDailyAt(self::string('staff_debts_daily_at', '08:00'));
+    }
+
     /** @return list<int> */
     private static function normalizeIdList(string $raw): array
     {
@@ -205,5 +258,16 @@ final class LikespaConfig
             }
         }
         return array_values($out);
+    }
+
+    private static function normalizeDailyAt(string $raw): string
+    {
+        $raw = trim($raw);
+        if (preg_match('/^(\d{1,2}):(\d{2})$/', $raw, $m) !== 1) {
+            return '08:00';
+        }
+        $h = max(0, min(23, (int)$m[1]));
+        $min = max(0, min(59, (int)$m[2]));
+        return sprintf('%02d:%02d', $h, $min);
     }
 }

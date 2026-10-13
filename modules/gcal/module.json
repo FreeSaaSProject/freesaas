@@ -3,7 +3,7 @@
     "name": "gcal.module.name",
     "description": "gcal.module.description",
     "summary": "gcal.module.summary",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "catalog": {
         "categories": [
@@ -71,6 +71,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/gcal.md",
         "ops": [
             {
                 "id": "gcal.settings.get",
@@ -119,8 +120,13 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "limit": { "type": "integer" },
-                        "reconcile": { "type": "integer", "description": "0 = skip reconcile" }
+                        "limit": {
+                            "type": "integer"
+                        },
+                        "reconcile": {
+                            "type": "integer",
+                            "description": "0 = skip reconcile"
+                        }
                     }
                 }
             }

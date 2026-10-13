@@ -1,0 +1,166 @@
+{
+    "id": "certificates",
+    "name": "certificates.module.name",
+    "description": "certificates.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "runtime": "both",
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0",
+        "catalog": ">=0.1.0",
+        "procedures": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "calendar": ">=0.1.0",
+        "sites": ">=0.1.0",
+        "orders": ">=0.1.0",
+        "bonuses": ">=0.1.0"
+    },
+    "provides": [
+        "certificates.ledger",
+        "certificates.processor"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "certificates.view",
+            "label": "certificates.perm.view"
+        },
+        {
+            "id": "certificates.edit",
+            "label": "certificates.perm.edit"
+        },
+        {
+            "id": "certificates.apply",
+            "label": "certificates.perm.apply"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/certificates",
+            "/certificates/new",
+            "/certificates/{id}/edit",
+            "/certificates/ledger",
+            "/certificates/events/{id}/quote",
+            "/certificates/events/{id}/apply",
+            "/certificates/cart/apply",
+            "/certificates/cart/reset"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/certificates.md",
+        "ops": [
+            {
+                "id": "certificates.list",
+                "method": "GET",
+                "path": "/certificates",
+                "permission": "certificates.view",
+                "description": "List certificates; filters: q, id_buyer, id_holder, kind, expired, money_left"
+            },
+            {
+                "id": "certificates.get",
+                "method": "GET",
+                "path": "/certificates/{id}/edit",
+                "permission": "certificates.view",
+                "description": "One certificate payload"
+            },
+            {
+                "id": "certificates.create",
+                "method": "POST",
+                "path": "/certificates/new",
+                "permission": "certificates.edit",
+                "description": "Create certificate (issues ledger credit)"
+            },
+            {
+                "id": "certificates.update",
+                "method": "POST",
+                "path": "/certificates/{id}/edit",
+                "permission": "certificates.edit",
+                "description": "Update certificate metadata"
+            },
+            {
+                "id": "certificates.ledger",
+                "method": "GET",
+                "path": "/certificates/ledger",
+                "permission": "certificates.view",
+                "description": "List ledger rows; filters: id_cert, id_event, id_order"
+            },
+            {
+                "id": "certificates.quote",
+                "method": "GET",
+                "path": "/certificates/events/{id}/quote",
+                "permission": "certificates.view",
+                "description": "Dry-run certificate spend for a calendar event; query: code or id_cert"
+            },
+            {
+                "id": "certificates.apply",
+                "method": "POST",
+                "path": "/certificates/events/{id}/apply",
+                "permission": "certificates.apply",
+                "description": "Apply certificate spend on a calendar event"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "clients.menu.group",
+            "num": 45,
+            "path": "/certificates",
+            "title": "certificates.menu.list",
+            "kind": "crud"
+        },
+        {
+            "group": "clients.menu.group",
+            "num": 46,
+            "path": "/certificates/ledger",
+            "title": "certificates.menu.ledger",
+            "kind": "crud"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_certificates",
+        "base_certificate_ledger"
+    ],
+    "migrators": [
+        {
+            "id": "drop_legacy_sert",
+            "mode": "drop",
+            "source": [
+                "base_sertificates",
+                "base_sert_movements",
+                "base_client_payments"
+            ],
+            "target": []
+        }
+    ],
+    "hooks": {
+        "subscribe": [
+            "calendar.event.sections",
+            "clients.view.profile",
+            "sites.cart.prepare",
+            "sites.checkout.before",
+            "sites.checkout.after"
+        ],
+        "publish": []
+    },
+    "bulkActions": [
+        {
+            "list_id": "certificates",
+            "action": "delete"
+        }
+    ],
+    "catalog": {
+        "categories": [
+            "crm"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    },
+    "uninstall": {
+        "strategy": "drop_owned"
+    }
+}

@@ -2,7 +2,7 @@
     "id": "suppliers",
     "name": "suppliers.module.name",
     "description": "suppliers.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -30,6 +30,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/suppliers.md",
         "ops": [
             {
                 "id": "suppliers.list",

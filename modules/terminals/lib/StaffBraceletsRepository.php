@@ -91,4 +91,44 @@ final class StaffBraceletsRepository
             'DELETE FROM base_staff_bracelets WHERE user_id = ?'
         )->execute([$userId]);
     }
+
+    /**
+     * All staff NFC bindings (optional name from base_users).
+     *
+     * @return list<array{user_id:int,uid:string,updated_at:int,name:string}>
+     */
+    public static function listAll(): array
+    {
+        if (!self::tableReady()) {
+            return [];
+        }
+        $hasUsers = Database::tableExists('base_users');
+        if ($hasUsers) {
+            $sql = 'SELECT b.user_id, b.uid, b.updated_at, COALESCE(u.name, \'\') AS name
+                    FROM base_staff_bracelets b
+                    LEFT JOIN base_users u ON u.id = b.user_id
+                    WHERE b.uid <> \'\'
+                    ORDER BY b.user_id ASC';
+        } else {
+            $sql = 'SELECT user_id, uid, updated_at, \'\' AS name
+                    FROM base_staff_bracelets
+                    WHERE uid <> \'\'
+                    ORDER BY user_id ASC';
+        }
+        $rows = Database::pdo()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            $uid = trim((string)($row['uid'] ?? ''));
+            if ($uid === '') {
+                continue;
+            }
+            $out[] = [
+                'user_id' => (int)($row['user_id'] ?? 0),
+                'uid' => $uid,
+                'updated_at' => (int)($row['updated_at'] ?? 0),
+                'name' => trim((string)($row['name'] ?? '')),
+            ];
+        }
+        return $out;
+    }
 }

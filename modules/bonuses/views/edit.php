@@ -1,16 +1,19 @@
 <?php
-declare(strict_types=1);
 /** @var bool $isNew */
 /** @var array<string,mixed> $row */
 /** @var string $message */
 /** @var string $error */
 
-$dateIn = BonusPayRepository::tsToLocal((int)($row['date_in'] ?? 0));
-$dateOut = BonusPayRepository::tsToLocal((int)($row['date_out'] ?? 0));
+$createdAt = BonusMovesRepository::tsToLocal((int)($row['created_at'] ?? 0));
+$expiresAt = isset($row['expires_at']) && $row['expires_at'] !== null && (int)$row['expires_at'] > 0
+    ? BonusMovesRepository::tsToLocal((int)$row['expires_at'])
+    : '';
 $dir = (int)($row['direction'] ?? 1);
 if ($dir === 0) {
     $dir = 1;
 }
+$kind = (string)($row['kind'] ?? BonusMovesRepository::KIND_MANUAL);
+$refType = (string)($row['ref_type'] ?? '');
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('bonuses.edit.heading_new') : e('#' . (int)($row['id'] ?? 0)) ?></h1>
@@ -23,7 +26,7 @@ if ($dir === 0) {
   <fieldset>
     <legend><?= te('bonuses.edit.sec_main') ?></legend>
     <label><?= te('bonuses.col.client') ?>
-      <input type="number" min="1" name="id_user" required value="<?= (int)($row['id_user'] ?? 0) > 0 ? (int)$row['id_user'] : '' ?>">
+      <input type="number" min="1" name="client_id" required value="<?= (int)($row['client_id'] ?? 0) > 0 ? (int)$row['client_id'] : '' ?>">
     </label>
     <label><?= te('bonuses.col.direction') ?>
       <select name="direction">
@@ -31,23 +34,34 @@ if ($dir === 0) {
         <option value="-1"<?= $dir < 0 ? ' selected' : '' ?>><?= te('bonuses.dir.debit') ?></option>
       </select>
     </label>
-    <label><?= te('bonuses.col.sum') ?>
-      <input type="number" step="0.01" min="0.01" name="sum" required value="<?= e((string)($row['sum'] ?? '0')) ?>">
+    <label><?= te('bonuses.col.amount') ?>
+      <input type="number" step="0.01" min="0.01" name="amount" required value="<?= e((string)($row['amount'] ?? '0')) ?>">
     </label>
-    <label><?= te('bonuses.col.date_in') ?>
-      <input type="datetime-local" name="date_in" value="<?= e($dateIn) ?>">
+    <label><?= te('bonuses.col.kind') ?>
+      <select name="kind">
+        <?php foreach (BonusMovesRepository::kinds() as $k): ?>
+          <option value="<?= e($k) ?>"<?= $kind === $k ? ' selected' : '' ?>><?= e(BonusMovesRepository::kindLabel($k)) ?></option>
+        <?php endforeach; ?>
+      </select>
     </label>
-    <label><?= te('bonuses.col.date_out') ?>
-      <input type="datetime-local" name="date_out" value="<?= e($dateOut) ?>">
+    <label><?= te('bonuses.col.created_at') ?>
+      <input type="datetime-local" name="created_at" value="<?= e($createdAt) ?>">
     </label>
-    <label><?= te('bonuses.col.descr') ?>
-      <input name="description" maxlength="2000" value="<?= e((string)($row['description'] ?? '')) ?>">
+    <label><?= te('bonuses.col.expires_at') ?>
+      <input type="datetime-local" name="expires_at" value="<?= e($expiresAt) ?>">
     </label>
-    <label><?= te('bonuses.col.event_bonus') ?>
-      <input type="number" min="0" name="id_event_bonus" value="<?= (int)($row['id_event_bonus'] ?? 0) > 0 ? (int)$row['id_event_bonus'] : '' ?>">
+    <label><?= te('bonuses.col.note') ?>
+      <input name="note" maxlength="500" value="<?= e((string)($row['note'] ?? '')) ?>">
     </label>
-    <label><?= te('bonuses.col.event_discount') ?>
-      <input type="number" min="0" name="id_event_discount" value="<?= (int)($row['id_event_discount'] ?? 0) > 0 ? (int)$row['id_event_discount'] : '' ?>">
+    <label><?= te('bonuses.col.ref_type') ?>
+      <select name="ref_type">
+        <option value=""><?= te('bonuses.ref.none') ?></option>
+        <option value="event"<?= $refType === 'event' ? ' selected' : '' ?>><?= te('bonuses.ref.event') ?></option>
+        <option value="order"<?= $refType === 'order' ? ' selected' : '' ?>><?= te('bonuses.ref.order') ?></option>
+      </select>
+    </label>
+    <label><?= te('bonuses.col.ref_id') ?>
+      <input type="number" min="0" name="ref_id" value="<?= (int)($row['ref_id'] ?? 0) > 0 ? (int)$row['ref_id'] : '' ?>">
     </label>
     <label class="check">
       <input type="checkbox" name="dismissed" value="1"<?= !empty($row['dismissed']) ? ' checked' : '' ?>>

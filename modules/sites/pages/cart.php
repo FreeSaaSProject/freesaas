@@ -97,6 +97,17 @@ $guestReady = SitesGuest::canProceed();
 $needPhone = SitesCart::lines() !== [] && !$guestReady && !$guestBlocked;
 $showCheckout = SitesCart::lines() !== [] && $guestReady;
 
+$cartPrepare = EventBus::emit('sites.cart.prepare', [
+    'lines' => SitesCart::lines(),
+    'total' => SitesCart::total(),
+    'guest_phone' => $guestPhone,
+    'guest_ready' => $guestReady,
+    'guest_blocked' => $guestBlocked,
+    'show_checkout' => $showCheckout,
+    'html' => '',
+]);
+$cartExtraHtml = is_array($cartPrepare) ? (string)($cartPrepare['html'] ?? '') : '';
+
 SiteTheme::render('cart', [
     'site' => $meta,
     'nav' => SitesFront::nav('cart'),
@@ -115,4 +126,5 @@ SiteTheme::render('cart', [
     'guest_ready' => $guestReady,
     'need_phone' => $needPhone,
     'show_checkout' => $showCheckout,
+    'cart_extra_html' => $cartExtraHtml,
 ]);

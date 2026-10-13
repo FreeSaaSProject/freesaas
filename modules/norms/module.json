@@ -2,7 +2,7 @@
     "id": "norms",
     "name": "norms.module.name",
     "description": "norms.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -31,6 +31,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/norms.md",
         "ops": [
             {
                 "id": "norms.list",

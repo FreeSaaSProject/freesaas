@@ -2,7 +2,7 @@
     "id": "funds",
     "name": "funds.module.name",
     "description": "funds.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -44,6 +44,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/funds.md",
         "ops": [
             {
                 "id": "funds.list",

@@ -2,7 +2,7 @@
     "id": "polls",
     "name": "polls.module.name",
     "description": "polls.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -33,6 +33,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/polls.md",
         "ops": [
             {
                 "id": "polls.list",

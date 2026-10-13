@@ -2,7 +2,7 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -41,6 +41,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/bi.md",
         "ops": [
             {
                 "id": "bi.families.list",

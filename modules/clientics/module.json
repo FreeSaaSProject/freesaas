@@ -2,7 +2,7 @@
     "id": "clientics",
     "name": "clientics.module.name",
     "description": "clientics.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -59,6 +59,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/clientics.md",
         "ops": [
             {
                 "id": "clientics.status",

@@ -2,7 +2,7 @@
     "id": "audio_reports",
     "name": "audio_reports.module.name",
     "description": "audio_reports.module.description",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -38,6 +38,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/audio-summaries.md",
         "ops": [
             {
                 "id": "audio_reports.calendar.day",

@@ -2,7 +2,7 @@
     "id": "cabinets",
     "name": "cabinets.module.name",
     "description": "cabinets.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -30,6 +30,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/cabinets.md",
         "ops": [
             {
                 "id": "cabinets.list",

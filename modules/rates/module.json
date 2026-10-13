@@ -2,7 +2,7 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -32,6 +32,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/rates.md",
         "ops": [
             {
                 "id": "rates.list",

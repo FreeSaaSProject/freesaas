@@ -1,0 +1,212 @@
+<?php
+declare(strict_types=1);
+
+/** Money movements for certificates — source of truth for balance. */
+final class CertificateLedgerRepository
+{
+    public const DIR_CREDIT = 1;
+    public const DIR_DEBIT = -1;
+
+    public const REASON_ISSUE = 'issue';
+    public const REASON_SPEND = 'spend';
+    public const REASON_EXPIRE = 'expire';
+    public const REASON_ADJUST = 'adjust';
+    public const REASON_UNDO = 'undo';
+
+    public static function tableReady(): bool
+    {
+        return Database::tableExists('base_certificate_ledger');
+    }
+
+    /** @return array<string,string> */
+    public static function listSortMap(): array
+    {
+        return [
+            'id' => 'l.ID',
+            'dt_create' => 'l.DT_CREATE',
+            'amount' => 'l.AMOUNT',
+            'id_cert' => 'l.ID_CERT',
+        ];
+    }
+
+    /**
+     * @param array{
+     *   q?:string,id_cert?:int,id_event?:int,id_order?:int,id_client?:int,
+     *   reason?:string,limit?:int,offset?:int,order?:string
+     * } $opts
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public static function list(array $opts = []): array
+    {
+        if (!self::tableReady()) {
+            return ['items' => [], 'total' => 0];
+        }
+        $pdo = Database::pdo();
+        $where = ['1=1'];
+        $params = [];
+        $q = trim((string)($opts['q'] ?? ''));
+        if ($q !== '') {
+            $where[] = '(l.DESCR LIKE ? OR l.REASON LIKE ? OR CAST(l.ID AS CHAR) = ? OR CAST(l.ID_CERT AS CHAR) = ?)';
+            $like = '%' . $q . '%';
+            $params[] = $like;
+            $params[] = $like;
+            $params[] = $q;
+            $params[] = $q;
+        }
+        foreach (['id_cert' => 'ID_CERT', 'id_event' => 'ID_EVENT', 'id_order' => 'ID_ORDER', 'id_client' => 'ID_CLIENT'] as $opt => $col) {
+            $v = (int)($opts[$opt] ?? 0);
+            if ($v > 0) {
+                $where[] = 'l.' . $col . ' = ?';
+                $params[] = $v;
+            }
+        }
+        $reason = trim((string)($opts['reason'] ?? ''));
+        if ($reason !== '') {
+            $where[] = 'l.REASON = ?';
+            $params[] = $reason;
+        }
+        $sqlWhere = implode(' AND ', $where);
+        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_certificate_ledger l WHERE $sqlWhere");
+        $stc->execute($params);
+        $total = (int)$stc->fetchColumn();
+
+        $order = trim((string)($opts['order'] ?? ''));
+        if ($order === '') {
+            $order = 'l.ID DESC';
+        }
+        $limit = max(0, (int)($opts['limit'] ?? 50));
+        $offset = max(0, (int)($opts['offset'] ?? 0));
+        $sql = 'SELECT l.ID AS id, l.ID_CERT AS id_cert, l.ID_OPERATOR AS id_operator,
+                       l.ID_CLIENT AS id_client, l.ID_EVENT AS id_event, l.ID_ORDER AS id_order,
+                       l.DT_CREATE AS dt_create, l.DIRECTION AS direction, l.AMOUNT AS amount,
+                       l.REASON AS reason, l.DESCR AS descr
+                FROM base_certificate_ledger l
+                WHERE ' . $sqlWhere . ' ORDER BY ' . $order;
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+        }
+        $st = $pdo->prepare($sql);
+        $st->execute($params);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $items[] = self::normalizeRow($row);
+        }
+        return ['items' => $items, 'total' => $total];
+    }
+
+    public static function find(int $id): ?array
+    {
+        if ($id < 1 || !self::tableReady()) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_CERT AS id_cert, ID_OPERATOR AS id_operator,
+                    ID_CLIENT AS id_client, ID_EVENT AS id_event, ID_ORDER AS id_order,
+                    DT_CREATE AS dt_create, DIRECTION AS direction, AMOUNT AS amount,
+                    REASON AS reason, DESCR AS descr
+             FROM base_certificate_ledger WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::normalizeRow($row) : null;
+    }
+
+    public static function balance(int $certId): float
+    {
+        if ($certId < 1 || !self::tableReady()) {
+            return 0.0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT COALESCE(SUM(DIRECTION * AMOUNT), 0) FROM base_certificate_ledger WHERE ID_CERT = ?'
+        );
+        $st->execute([$certId]);
+        return round((float)$st->fetchColumn(), 2);
+    }
+
+    public static function hasIssue(int $certId): bool
+    {
+        if ($certId < 1 || !self::tableReady()) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT 1 FROM base_certificate_ledger WHERE ID_CERT = ? AND REASON = ? LIMIT 1'
+        );
+        $st->execute([$certId, self::REASON_ISSUE]);
+        return (bool)$st->fetchColumn();
+    }
+
+    public static function eventHasSpend(int $eventId, int $certId = 0): bool
+    {
+        if ($eventId < 1 || !self::tableReady()) {
+            return false;
+        }
+        $sql = 'SELECT 1 FROM base_certificate_ledger
+                WHERE ID_EVENT = ? AND REASON = ? AND DIRECTION < 0';
+        $params = [$eventId, self::REASON_SPEND];
+        if ($certId > 0) {
+            $sql .= ' AND ID_CERT = ?';
+            $params[] = $certId;
+        }
+        $sql .= ' LIMIT 1';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        return (bool)$st->fetchColumn();
+    }
+
+    /**
+     * @param array{
+     *   id_cert:int,id_operator?:int,id_client?:int,id_event?:int,id_order?:int,
+     *   direction:int,amount:float,reason:string,descr?:string,dt_create?:int
+     * } $data
+     */
+    public static function insert(array $data): int
+    {
+        if (!self::tableReady()) {
+            throw new RuntimeException(t('certificates.err.ledger_table'));
+        }
+        $amount = abs((float)($data['amount'] ?? 0));
+        if ($amount <= 0) {
+            throw new InvalidArgumentException(t('certificates.err.amount_required'));
+        }
+        $dir = (int)($data['direction'] ?? 0);
+        $dir = $dir < 0 ? self::DIR_DEBIT : self::DIR_CREDIT;
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_certificate_ledger
+             (ID_CERT, ID_OPERATOR, ID_CLIENT, ID_EVENT, ID_ORDER, DT_CREATE, DIRECTION, AMOUNT, REASON, DESCR)
+             VALUES (?,?,?,?,?,?,?,?,?,?)'
+        );
+        $st->execute([
+            (int)$data['id_cert'],
+            max(0, (int)($data['id_operator'] ?? 0)),
+            max(0, (int)($data['id_client'] ?? 0)),
+            max(0, (int)($data['id_event'] ?? 0)),
+            max(0, (int)($data['id_order'] ?? 0)),
+            max(0, (int)($data['dt_create'] ?? time())) ?: time(),
+            $dir,
+            $amount,
+            mb_substr((string)($data['reason'] ?? self::REASON_ADJUST), 0, 32),
+            (string)($data['descr'] ?? ''),
+        ]);
+        return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     * @return array<string,mixed>
+     */
+    private static function normalizeRow(array $row): array
+    {
+        $row['id'] = (int)($row['id'] ?? 0);
+        $row['id_cert'] = (int)($row['id_cert'] ?? 0);
+        $row['id_operator'] = (int)($row['id_operator'] ?? 0);
+        $row['id_client'] = (int)($row['id_client'] ?? 0);
+        $row['id_event'] = (int)($row['id_event'] ?? 0);
+        $row['id_order'] = (int)($row['id_order'] ?? 0);
+        $row['dt_create'] = (int)($row['dt_create'] ?? 0);
+        $row['direction'] = (int)($row['direction'] ?? 0);
+        $row['amount'] = (float)($row['amount'] ?? 0);
+        $row['reason'] = (string)($row['reason'] ?? '');
+        $row['descr'] = (string)($row['descr'] ?? '');
+        return $row;
+    }
+}

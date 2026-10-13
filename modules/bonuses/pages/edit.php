@@ -7,7 +7,7 @@ $isNew = $id < 1;
 
 $row = [];
 if (!$isNew) {
-    $found = BonusPayRepository::find($id);
+    $found = BonusMovesRepository::find($id);
     if (!$found) {
         if ($wantsJson) {
             AgentHttp::error(t('bonuses.err.not_found', ['id' => $id]), 404);
@@ -22,17 +22,17 @@ if (!$isNew) {
     }
     $row = $found;
 } else {
-    $hintUser = (int)($_GET['id_user'] ?? 0);
+    $hintUser = (int)($_GET['client_id'] ?? $_GET['id_user'] ?? 0);
     $row = [
-        'id_user' => $hintUser > 0 ? $hintUser : 0,
+        'client_id' => $hintUser > 0 ? $hintUser : 0,
         'direction' => 1,
-        'sum' => 0,
-        'date_in' => time(),
-        'date_out' => time() + BonusProcessor::ACCRUE_TTL_SEC,
-        'description' => '',
-        'id_event_bonus' => 0,
-        'id_event_discount' => 0,
-        'id_order' => 0,
+        'amount' => 0,
+        'kind' => BonusMovesRepository::KIND_MANUAL,
+        'ref_type' => null,
+        'ref_id' => 0,
+        'created_at' => time(),
+        'expires_at' => time() + BonusProcessor::ACCRUE_TTL_SEC,
+        'note' => '',
         'dismissed' => 0,
     ];
 }
@@ -42,33 +42,33 @@ $error = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        $data = BonusPayRepository::dataFromPost($_POST);
+        $data = BonusMovesRepository::dataFromPost($_POST);
         if ($isNew) {
-            $newId = BonusPayRepository::create($data);
+            $newId = BonusMovesRepository::create($data);
             if ($wantsJson) {
                 AgentHttp::emit([
                     'ok' => true,
                     'action' => 'create',
                     'id' => $newId,
-                    'row' => BonusPayRepository::find($newId),
+                    'row' => BonusMovesRepository::find($newId),
                 ]);
                 return;
             }
             redirect('/bonuses/' . $newId . '/edit?saved=1');
             return;
         }
-        BonusPayRepository::update($id, $data);
+        BonusMovesRepository::update($id, $data);
         if ($wantsJson) {
             AgentHttp::emit([
                 'ok' => true,
                 'action' => 'update',
                 'id' => $id,
-                'row' => BonusPayRepository::find($id),
+                'row' => BonusMovesRepository::find($id),
             ]);
             return;
         }
         $message = t('core.common.saved');
-        $row = BonusPayRepository::find($id) ?: $row;
+        $row = BonusMovesRepository::find($id) ?: $row;
     } catch (Throwable $e) {
         if ($wantsJson) {
             AgentHttp::error($e->getMessage(), 400);

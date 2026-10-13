@@ -1,24 +1,38 @@
 <?php
 declare(strict_types=1);
 
-/** Client loyalty ledger on base_bonuspay (oper parity). */
-final class BonusPayRepository
+/** Client loyalty ledger on base_bonus_moves. */
+final class BonusMovesRepository
 {
+    public const KIND_MANUAL = 'manual';
+    public const KIND_EVENT_ACCRUE = 'event_accrue';
+    public const KIND_EVENT_SPEND = 'event_spend';
+
+    public const REF_EVENT = 'event';
+    public const REF_ORDER = 'order';
+
+    /** @return list<string> */
+    public static function kinds(): array
+    {
+        return [self::KIND_MANUAL, self::KIND_EVENT_ACCRUE, self::KIND_EVENT_SPEND];
+    }
+
     public static function tableReady(): bool
     {
-        return Database::tableExists('base_bonuspay');
+        return Database::tableExists('base_bonus_moves');
     }
 
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
         return [
-            'id' => 'b.ID',
-            'id_user' => 'b.ID_USER',
-            'date_in' => 'b.DATE_IN',
-            'date_out' => 'b.DATE_OUT',
-            'sum' => 'b.SUM',
-            'direction' => 'b.DIRECTION',
+            'id' => 'm.id',
+            'client_id' => 'm.client_id',
+            'created_at' => 'm.created_at',
+            'expires_at' => 'm.expires_at',
+            'amount' => 'm.amount',
+            'direction' => 'm.direction',
+            'kind' => 'm.kind',
         ];
     }
 
@@ -33,11 +47,19 @@ final class BonusPayRepository
         return t('bonuses.dir.none');
     }
 
+    public static function kindLabel(string $kind): string
+    {
+        $key = 'bonuses.kind.' . $kind;
+        $label = t($key);
+        return $label !== $key ? $label : $kind;
+    }
+
     /**
      * @param array{
      *   q?:string,
-     *   id_user?:int,
+     *   client_id?:int,
      *   direction?:int|null,
+     *   kind?:string|null,
      *   limit?:int,
      *   offset?:int,
      *   order?:string
@@ -54,43 +76,46 @@ final class BonusPayRepository
         $params = [];
         $q = trim((string)($opts['q'] ?? ''));
         if ($q !== '') {
-            $where[] = '(b.DESCRIPTION LIKE ? OR CAST(b.ID AS CHAR) = ? OR CAST(b.ID_USER AS CHAR) = ?)';
+            $where[] = '(m.note LIKE ? OR CAST(m.id AS CHAR) = ? OR CAST(m.client_id AS CHAR) = ?)';
             $like = '%' . $q . '%';
             $params[] = $like;
             $params[] = $q;
             $params[] = $q;
         }
-        $idUser = (int)($opts['id_user'] ?? 0);
-        if ($idUser > 0) {
-            $where[] = 'b.ID_USER = ?';
-            $params[] = $idUser;
+        $clientId = (int)($opts['client_id'] ?? 0);
+        if ($clientId > 0) {
+            $where[] = 'm.client_id = ?';
+            $params[] = $clientId;
         }
         if (array_key_exists('direction', $opts) && $opts['direction'] !== null && $opts['direction'] !== '') {
             $dir = (int)$opts['direction'];
             if ($dir > 0) {
-                $where[] = 'b.DIRECTION > 0';
+                $where[] = 'm.direction > 0';
             } elseif ($dir < 0) {
-                $where[] = 'b.DIRECTION < 0';
+                $where[] = 'm.direction < 0';
             } else {
-                $where[] = 'b.DIRECTION = 0';
+                $where[] = 'm.direction = 0';
             }
         }
+        $kind = trim((string)($opts['kind'] ?? ''));
+        if ($kind !== '' && in_array($kind, self::kinds(), true)) {
+            $where[] = 'm.kind = ?';
+            $params[] = $kind;
+        }
         $sqlWhere = implode(' AND ', $where);
-        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_bonuspay b WHERE $sqlWhere");
+        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_bonus_moves m WHERE $sqlWhere");
         $stc->execute($params);
         $total = (int)$stc->fetchColumn();
 
         $order = trim((string)($opts['order'] ?? ''));
         if ($order === '') {
-            $order = 'b.ID DESC';
+            $order = 'm.id DESC';
         }
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
-        $sql = "SELECT b.ID AS id, b.ID_USER AS id_user, b.ID_EVENT_BONUS AS id_event_bonus,
-                       b.ID_EVENT_DISCOUNT AS id_event_discount, b.ID_ORDER AS id_order,
-                       b.DATE_IN AS date_in, b.DATE_OUT AS date_out, b.DESCRIPTION AS description,
-                       b.DIRECTION AS direction, b.SUM AS sum, b.DISMISSED AS dismissed
-                FROM base_bonuspay b
+        $sql = "SELECT m.id, m.client_id, m.direction, m.amount, m.kind,
+                       m.ref_type, m.ref_id, m.created_at, m.expires_at, m.note, m.dismissed
+                FROM base_bonus_moves m
                 WHERE $sqlWhere
                 ORDER BY $order";
         if ($limit > 0) {
@@ -111,25 +136,24 @@ final class BonusPayRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ID AS id, ID_USER AS id_user, ID_EVENT_BONUS AS id_event_bonus,
-                    ID_EVENT_DISCOUNT AS id_event_discount, ID_ORDER AS id_order,
-                    DATE_IN AS date_in, DATE_OUT AS date_out, DESCRIPTION AS description,
-                    DIRECTION AS direction, SUM AS sum, DISMISSED AS dismissed
-             FROM base_bonuspay WHERE ID = ? LIMIT 1'
+            'SELECT id, client_id, direction, amount, kind, ref_type, ref_id,
+                    created_at, expires_at, note, dismissed
+             FROM base_bonus_moves WHERE id = ? LIMIT 1'
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         return $row ? self::normalizeRow($row) : null;
     }
 
-    /** Active balance: SUM(DIRECTION * SUM) ignoring dismissed optional — oper uses all rows. */
     public static function balance(int $clientId): float
     {
         if ($clientId < 1 || !self::tableReady()) {
             return 0.0;
         }
         $st = Database::pdo()->prepare(
-            'SELECT COALESCE(SUM(DIRECTION * SUM), 0) FROM base_bonuspay WHERE ID_USER = ?'
+            'SELECT COALESCE(SUM(direction * amount), 0)
+             FROM base_bonus_moves
+             WHERE client_id = ? AND dismissed = 0'
         );
         $st->execute([$clientId]);
         return round((float)$st->fetchColumn(), 2);
@@ -141,11 +165,17 @@ final class BonusPayRepository
             return false;
         }
         $st = Database::pdo()->prepare(
-            'SELECT 1 FROM base_bonuspay
-             WHERE ID_EVENT_BONUS = ? OR ID_EVENT_DISCOUNT = ?
+            'SELECT 1 FROM base_bonus_moves
+             WHERE ref_type = ? AND ref_id = ?
+               AND kind IN (?, ?)
              LIMIT 1'
         );
-        $st->execute([$eventId, $eventId]);
+        $st->execute([
+            self::REF_EVENT,
+            $eventId,
+            self::KIND_EVENT_SPEND,
+            self::KIND_EVENT_ACCRUE,
+        ]);
         return (bool)$st->fetchColumn();
     }
 
@@ -155,8 +185,8 @@ final class BonusPayRepository
      */
     public static function dataFromPost(array $post): array
     {
-        $idUser = (int)($post['id_user'] ?? 0);
-        if ($idUser < 1) {
+        $clientId = (int)($post['client_id'] ?? $post['id_user'] ?? 0);
+        if ($clientId < 1) {
             throw new InvalidArgumentException(t('bonuses.err.client_required'));
         }
         $dir = (int)($post['direction'] ?? 0);
@@ -164,30 +194,47 @@ final class BonusPayRepository
             throw new InvalidArgumentException(t('bonuses.err.direction'));
         }
         $dir = $dir > 0 ? 1 : -1;
-        $sum = abs((float)($post['sum'] ?? 0));
-        if ($sum <= 0) {
+        $amount = abs((float)($post['amount'] ?? $post['sum'] ?? 0));
+        if ($amount <= 0) {
             throw new InvalidArgumentException(t('bonuses.err.sum_required'));
         }
 
-        $dateIn = self::parseLocalTs((string)($post['date_in'] ?? ''));
-        if ($dateIn < 1) {
-            $dateIn = time();
+        $kind = trim((string)($post['kind'] ?? self::KIND_MANUAL));
+        if (!in_array($kind, self::kinds(), true)) {
+            $kind = self::KIND_MANUAL;
         }
-        $dateOut = self::parseLocalTs((string)($post['date_out'] ?? ''));
-        if ($dateOut < 1) {
-            $dateOut = $dateIn + (int)(60 * 60 * 24 * 30 * 6);
+
+        $refType = trim((string)($post['ref_type'] ?? ''));
+        if ($refType === '') {
+            $refType = null;
+        } elseif (!in_array($refType, [self::REF_EVENT, self::REF_ORDER], true)) {
+            $refType = null;
+        }
+        $refId = max(0, (int)($post['ref_id'] ?? 0)) ?: null;
+        if ($refType === null) {
+            $refId = null;
+        }
+
+        $createdAt = self::parseLocalTs((string)($post['created_at'] ?? $post['date_in'] ?? ''));
+        if ($createdAt < 1) {
+            $createdAt = time();
+        }
+        $expiresRaw = trim((string)($post['expires_at'] ?? $post['date_out'] ?? ''));
+        $expiresAt = $expiresRaw === '' ? null : self::parseLocalTs($expiresRaw);
+        if ($expiresAt !== null && $expiresAt < 1) {
+            $expiresAt = null;
         }
 
         return [
-            'id_user' => $idUser,
-            'id_event_bonus' => max(0, (int)($post['id_event_bonus'] ?? 0)) ?: null,
-            'id_event_discount' => max(0, (int)($post['id_event_discount'] ?? 0)) ?: null,
-            'id_order' => max(0, (int)($post['id_order'] ?? 0)) ?: null,
-            'date_in' => $dateIn,
-            'date_out' => $dateOut,
-            'description' => mb_substr(trim((string)($post['description'] ?? '')), 0, 2000),
+            'client_id' => $clientId,
             'direction' => $dir,
-            'sum' => $sum,
+            'amount' => $amount,
+            'kind' => $kind,
+            'ref_type' => $refType,
+            'ref_id' => $refId,
+            'created_at' => $createdAt,
+            'expires_at' => $expiresAt,
+            'note' => mb_substr(trim((string)($post['note'] ?? $post['description'] ?? '')), 0, 500),
             'dismissed' => !empty($post['dismissed']) ? 1 : 0,
         ];
     }
@@ -201,21 +248,20 @@ final class BonusPayRepository
             throw new RuntimeException(t('bonuses.err.table'));
         }
         $st = Database::pdo()->prepare(
-            'INSERT INTO base_bonuspay
-             (ID_USER, ID_EVENT_BONUS, ID_EVENT_DISCOUNT, ID_ORDER, DATE_IN, DATE_OUT,
-              DESCRIPTION, DIRECTION, SUM, DISMISSED)
+            'INSERT INTO base_bonus_moves
+             (client_id, direction, amount, kind, ref_type, ref_id, created_at, expires_at, note, dismissed)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $st->execute([
-            (int)$data['id_user'],
-            $data['id_event_bonus'] ?? null,
-            $data['id_event_discount'] ?? null,
-            $data['id_order'] ?? null,
-            (int)$data['date_in'],
-            (int)$data['date_out'],
-            (string)($data['description'] ?? ''),
+            (int)$data['client_id'],
             (int)$data['direction'],
-            (float)$data['sum'],
+            (float)$data['amount'],
+            (string)$data['kind'],
+            $data['ref_type'] ?? null,
+            $data['ref_id'] ?? null,
+            (int)$data['created_at'],
+            $data['expires_at'] ?? null,
+            (string)($data['note'] ?? ''),
             (int)($data['dismissed'] ?? 0),
         ]);
         return (int)Database::pdo()->lastInsertId();
@@ -230,21 +276,21 @@ final class BonusPayRepository
             return;
         }
         $st = Database::pdo()->prepare(
-            'UPDATE base_bonuspay
-             SET ID_USER = ?, ID_EVENT_BONUS = ?, ID_EVENT_DISCOUNT = ?, ID_ORDER = ?,
-                 DATE_IN = ?, DATE_OUT = ?, DESCRIPTION = ?, DIRECTION = ?, SUM = ?, DISMISSED = ?
-             WHERE ID = ?'
+            'UPDATE base_bonus_moves
+             SET client_id = ?, direction = ?, amount = ?, kind = ?, ref_type = ?, ref_id = ?,
+                 created_at = ?, expires_at = ?, note = ?, dismissed = ?
+             WHERE id = ?'
         );
         $st->execute([
-            (int)$data['id_user'],
-            $data['id_event_bonus'] ?? null,
-            $data['id_event_discount'] ?? null,
-            $data['id_order'] ?? null,
-            (int)$data['date_in'],
-            (int)$data['date_out'],
-            (string)($data['description'] ?? ''),
+            (int)$data['client_id'],
             (int)$data['direction'],
-            (float)$data['sum'],
+            (float)$data['amount'],
+            (string)$data['kind'],
+            $data['ref_type'] ?? null,
+            $data['ref_id'] ?? null,
+            (int)$data['created_at'],
+            $data['expires_at'] ?? null,
+            (string)($data['note'] ?? ''),
             (int)($data['dismissed'] ?? 0),
             $id,
         ]);
@@ -263,7 +309,7 @@ final class BonusPayRepository
             return 0;
         }
         $ph = implode(',', array_fill(0, count($ids), '?'));
-        $st = Database::pdo()->prepare("DELETE FROM base_bonuspay WHERE ID IN ($ph)");
+        $st = Database::pdo()->prepare("DELETE FROM base_bonus_moves WHERE id IN ($ph)");
         $st->execute($ids);
         return $st->rowCount();
     }
@@ -293,14 +339,18 @@ final class BonusPayRepository
     private static function normalizeRow(array $row): array
     {
         $row['id'] = (int)($row['id'] ?? 0);
-        $row['id_user'] = (int)($row['id_user'] ?? 0);
-        $row['id_event_bonus'] = (int)($row['id_event_bonus'] ?? 0);
-        $row['id_event_discount'] = (int)($row['id_event_discount'] ?? 0);
-        $row['id_order'] = (int)($row['id_order'] ?? 0);
-        $row['date_in'] = (int)($row['date_in'] ?? 0);
-        $row['date_out'] = (int)($row['date_out'] ?? 0);
+        $row['client_id'] = (int)($row['client_id'] ?? 0);
         $row['direction'] = (int)($row['direction'] ?? 0);
-        $row['sum'] = (float)($row['sum'] ?? 0);
+        $row['amount'] = (float)($row['amount'] ?? 0);
+        $row['kind'] = (string)($row['kind'] ?? self::KIND_MANUAL);
+        $row['ref_type'] = isset($row['ref_type']) && $row['ref_type'] !== ''
+            ? (string)$row['ref_type']
+            : null;
+        $row['ref_id'] = (int)($row['ref_id'] ?? 0);
+        $row['created_at'] = (int)($row['created_at'] ?? 0);
+        $expires = $row['expires_at'] ?? null;
+        $row['expires_at'] = $expires === null || $expires === '' ? null : (int)$expires;
+        $row['note'] = (string)($row['note'] ?? '');
         $row['dismissed'] = (int)($row['dismissed'] ?? 0);
         return $row;
     }

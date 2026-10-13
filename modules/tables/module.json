@@ -2,7 +2,7 @@
     "id": "tables",
     "name": "tables.module.name",
     "description": "tables.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -32,6 +32,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/tables.md",
         "ops": [
             {
                 "id": "tables.list",

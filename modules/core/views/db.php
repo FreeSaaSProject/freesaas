@@ -155,11 +155,38 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
 <section class="calendar-section">
   <h2 class="subhead"><?= te('core.db.data_heading') ?></h2>
   <p class="muted"><?= te('core.db.data_help') ?></p>
+  <?php
+    $dataCatalog = $dataCatalog ?? [];
+    $dataCatalogCount = is_array($dataCatalog) ? count($dataCatalog) : 0;
+  ?>
+  <?php if ($dataCatalogCount > 0): ?>
+    <p class="muted"><?= te('core.db.data_will_run', ['n' => (string)$dataCatalogCount]) ?></p>
+    <ul class="report">
+      <?php foreach ($dataCatalog as $m): ?>
+        <?php
+          $src = !empty($m['source']) && is_array($m['source']) ? implode(', ', $m['source']) : '—';
+          $dst = !empty($m['target']) && is_array($m['target']) ? implode(', ', $m['target']) : '—';
+          $mode = (string)($m['mode'] ?? '');
+        ?>
+        <li class="pending">
+          <code><?= e(($m['module'] ?? '') . '/' . ($m['id'] ?? '')) ?></code>
+          <span class="muted">[<?= e($mode) ?>]</span>
+          — <?= e((string)($m['description'] ?? '')) ?>
+          <span class="muted">(<?= e($src) ?> → <?= e($dst) ?>)</span>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+  <?php else: ?>
+    <p class="muted"><?= te('core.db.data_none') ?></p>
+  <?php endif; ?>
   <div class="actions">
-    <form method="post" onsubmit="return confirm(<?= tj('core.db.confirm_data') ?>);">
+    <form method="post" class="db-job-form" data-db-job="data"
+          data-db-confirm="<?= e(t('core.db.confirm_data')) ?>">
       <input type="hidden" name="action" value="data">
-      <button class="btn-secondary" type="submit"<?= $schemaNeeded ? ' disabled' : '' ?>>
+      <input type="hidden" name="op" value="data">
+      <button class="btn-secondary" type="submit"<?= $schemaNeeded || $dataCatalogCount < 1 ? ' disabled' : '' ?>>
         <?= te('core.db.btn_data') ?>
+        <?php if ($dataCatalogCount > 0): ?> (<?= (int)$dataCatalogCount ?>)<?php endif; ?>
       </button>
     </form>
   </div>
@@ -257,7 +284,7 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
                         title="<?= te('core.db.btn_copy_fetch_title') ?>"><?= te('core.db.btn_copy_fetch') ?></button>
               <?php endif; ?>
               <form method="post" style="display:inline" class="db-job-form" data-db-job="restore"
-                    onsubmit="return confirm(<?= tj('core.db.confirm_restore') ?>);">
+                    data-db-confirm="<?= e(t('core.db.confirm_restore')) ?>">
                 <input type="hidden" name="action" value="db_restore">
                 <input type="hidden" name="op" value="restore">
                 <input type="hidden" name="file" value="<?= e($d['file']) ?>">
@@ -434,12 +461,23 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   <h2 class="subhead"><?= te('core.db.data_report') ?></h2>
   <ul class="report">
     <?php foreach ($dataReport as $r): ?>
-      <li class="<?= e($r['status']) ?>">
-        <?= e($r['module'].'/'.$r['id'].': '.$r['status']) ?>
-        <?php if (!empty($r['stats']['copied'])): ?>
-          — <?= te('core.db.copied', ['n' => (int)$r['stats']['copied']]) ?>
+      <?php
+        $summary = class_exists(DataMigrator::class, false)
+          ? DataMigrator::formatSummary($r)
+          : '';
+        if ($summary === '' && !empty($r['stats']['copied'])) {
+            $summary = t('core.db.copied', ['n' => (int)$r['stats']['copied']]);
+        }
+      ?>
+      <li class="<?= e((string)($r['status'] ?? '')) ?>">
+        <code><?= e(($r['module'] ?? '') . '/' . ($r['id'] ?? '')) ?></code>:
+        <?= e((string)($r['status'] ?? '')) ?>
+        <?php if (!empty($r['description'])): ?>
+          <span class="muted">— <?= e((string)$r['description']) ?></span>
         <?php endif; ?>
-        <?php if (!empty($r['message'])): ?> — <?= e($r['message']) ?><?php endif; ?>
+        <?php if ($summary !== ''): ?>
+          <br><span class="muted"><?= e($summary) ?></span>
+        <?php endif; ?>
       </li>
     <?php endforeach; ?>
   </ul>
@@ -543,6 +581,11 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       <span id="db-job-bytes" class="muted">0 MB</span>
     </div>
 
+    <div class="db-job-log-wrap">
+      <div class="db-job-log-label muted"><?= te('core.db.job.log_heading') ?></div>
+      <div id="db-job-log" class="db-job-log" aria-live="polite"></div>
+    </div>
+
     <div class="db-job-actions actions">
       <button type="button" class="btn-secondary" id="db-job-abort"><?= te('core.db.job.abort') ?></button>
       <button type="button" class="btn-primary" id="db-job-ok" hidden disabled><?= te('core.db.job.ok') ?></button>
@@ -582,18 +625,21 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   var abortBtn = document.getElementById('db-job-abort');
   var okBtn = document.getElementById('db-job-ok');
   var titleEl = document.getElementById('db-job-title');
+  var logEl = document.getElementById('db-job-log');
 
   var activeJobId = null;
   var aborting = false;
   var finished = false;
   var timerIv = null;
   var startedAt = 0;
+  var logLen = 0;
 
   var i18n = {
     starting: <?= json_encode(t('core.db.job.starting'), JSON_UNESCAPED_UNICODE) ?>,
     badJson: <?= json_encode(t('core.db.job.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
     eta: <?= json_encode(t('core.db.job.eta'), JSON_UNESCAPED_UNICODE) ?>,
     barTable: <?= json_encode(t('core.db.job.bar_table'), JSON_UNESCAPED_UNICODE) ?>,
+    barMigrator: <?= json_encode(t('core.db.job.bar_migrator'), JSON_UNESCAPED_UNICODE) ?>,
     doneTitle: <?= json_encode(t('core.db.job.done_title'), JSON_UNESCAPED_UNICODE) ?>,
     errorTitle: <?= json_encode(t('core.db.job.error_title'), JSON_UNESCAPED_UNICODE) ?>,
     cancelledTitle: <?= json_encode(t('core.db.job.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
@@ -656,6 +702,30 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       okBtn.setAttribute('aria-hidden', running ? 'true' : 'false');
     }
   }
+  function clearLog() {
+    logLen = 0;
+    if (logEl) logEl.innerHTML = '';
+  }
+  function appendLogLines(lines) {
+    if (!logEl || !lines || !lines.length) return;
+    for (var i = 0; i < lines.length; i++) {
+      var line = document.createElement('div');
+      line.className = 'db-job-log-line';
+      line.textContent = String(lines[i]);
+      logEl.appendChild(line);
+    }
+    logLen += lines.length;
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  function syncLog(j) {
+    if (!j || !j.log || !j.log.length) return;
+    if (j.log.length < logLen) {
+      clearLog();
+    }
+    if (j.log.length > logLen) {
+      appendLogLines(j.log.slice(logLen));
+    }
+  }
   function showJob() {
     if (!overlay) return;
     overlay.hidden = false;
@@ -666,6 +736,7 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     if (titleEl) titleEl.textContent = <?= json_encode(t('core.db.job.title'), JSON_UNESCAPED_UNICODE) ?>;
     setActionButtons(true);
     if (msgEl) msgEl.textContent = i18n.starting;
+    clearLog();
     setBar(fillOverall, barOverall, pctOverall, 0);
     setBar(fillTable, barTable, pctTable, 0);
     if (bytesEl) bytesEl.textContent = '0 MB';
@@ -701,16 +772,24 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   function applyJob(j) {
     if (!j) return;
     if (msgEl) msgEl.textContent = j.message || '';
+    syncLog(j);
     var overall = j.progress_overall != null ? j.progress_overall : (j.progress || 0);
     var table = j.progress_table != null ? j.progress_table : 0;
     setBar(fillOverall, barOverall, pctOverall, overall);
     setBar(fillTable, barTable, pctTable, table);
     if (tableLabel) {
+      var barKind = (j.op === 'data') ? i18n.barMigrator : i18n.barTable;
       tableLabel.textContent = j.table
-        ? (i18n.barTable + ': ' + j.table + (j.tables_total ? (' (' + ((j.table_idx || 0) + 1) + '/' + j.tables_total + ')') : ''))
-        : i18n.barTable;
+        ? (barKind + ': ' + j.table + (j.tables_total ? (' (' + ((j.table_idx || 0) + 1) + '/' + j.tables_total + ')') : ''))
+        : barKind;
     }
-    if (bytesEl) bytesEl.textContent = fmtBytes(j.bytes || 0);
+    if (bytesEl) {
+      if (j.op === 'data') {
+        bytesEl.textContent = ((j.table_idx || 0) + (j.status === 'done' ? 0 : 1)) + ' / ' + (j.tables_total || 0);
+      } else {
+        bytesEl.textContent = fmtBytes(j.bytes || 0);
+      }
+    }
     if (etaEl) {
       if (j.eta_seconds != null && j.status === 'running' && !finished) {
         etaEl.textContent = i18n.eta.replace('{eta}', fmtDur(j.eta_seconds));
@@ -841,9 +920,12 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       if (kind === 'restore') opVal = 'restore';
       if (kind === 'diagnose') opVal = 'diagnose';
       if (kind === 'fetch') opVal = 'fetch';
-      if (['dump', 'restore', 'check', 'repair', 'optimize', 'diagnose', 'fetch'].indexOf(opVal) === -1) return;
+      if (kind === 'data') opVal = 'data';
+      if (['dump', 'restore', 'check', 'repair', 'optimize', 'diagnose', 'fetch', 'data'].indexOf(opVal) === -1) return;
       ev.preventDefault();
       ev.stopPropagation();
+      var conf = form.getAttribute('data-db-confirm');
+      if (conf && !window.confirm(conf)) return;
       runJob(form, opVal);
     }, true);
   });

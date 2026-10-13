@@ -3287,7 +3287,9 @@ table.data tr.is-bulk-selected.is-disabled td {
   display: none !important;
 }
 .db-job-panel {
-  width: min(32rem, calc(100vw - 2rem));
+  width: min(40rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
   padding: 1.25rem 1.5rem;
   background: var(--surface, #fff);
   border: 1px solid var(--border, #ccc);
@@ -3298,6 +3300,29 @@ table.data tr.is-bulk-selected.is-disabled td {
   min-height: 2.5em;
   margin: 0.5rem 0 0.75rem;
   white-space: pre-wrap;
+}
+.db-job-log-wrap {
+  margin: 0 0 1rem;
+}
+.db-job-log-label {
+  font-size: 0.85rem;
+  margin-bottom: 0.35rem;
+}
+.db-job-log {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  max-height: 14rem;
+  overflow: auto;
+  padding: 0.55rem 0.65rem;
+  background: var(--bg-muted, #f6f7f8);
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.db-job-log-line + .db-job-log-line {
+  margin-top: 0.15rem;
 }
 .db-job-metric {
   display: flex;

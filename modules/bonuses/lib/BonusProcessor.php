@@ -2,16 +2,16 @@
 declare(strict_types=1);
 
 /**
- * Client bonus settlement for calendar events (oper bonusAnal + bonusCount).
- * Does not port full miniPrice / dynPrice.
+ * Client bonus settlement for calendar events.
+ * Allocates spend across line items, then accrues on cash remainder.
  */
 final class BonusProcessor
 {
-    /** Accrual expiry window (~6 months), matching oper bonusCount. */
+    /** Accrual expiry window (~6 months). */
     public const ACCRUE_TTL_SEC = 60 * 60 * 24 * 30 * 6;
 
     /**
-     * oper bonusAnal: spend requested discount preferring low accrual % lines first,
+     * Spend requested discount preferring low accrual-% lines first,
      * then accrue status×type % on remaining cash.
      *
      * @param array<int|string,array{price:float,bonus_in_proc:float,bonus_out_proc:float,name?:string}> $goodArray
@@ -20,7 +20,7 @@ final class BonusProcessor
      *   lines:array<int|string,array<string,mixed>>
      * }
      */
-    public static function bonusAnal(array $goodArray, float $bonusDiscount = 0.0, float $bonusAdd = 0.0): array
+    public static function allocate(array $goodArray, float $bonusDiscount = 0.0, float $bonusAdd = 0.0): array
     {
         uasort($goodArray, static function ($a, $b): int {
             return ((float)($a['bonus_in_proc'] ?? 0) <=> (float)($b['bonus_in_proc'] ?? 0));
@@ -77,9 +77,13 @@ final class BonusProcessor
         ];
     }
 
+    /** @deprecated Use allocate() */
+    public static function bonusAnal(array $goodArray, float $bonusDiscount = 0.0, float $bonusAdd = 0.0): array
+    {
+        return self::allocate($goodArray, $bonusDiscount, $bonusAdd);
+    }
+
     /**
-     * Build quote from a saved event row (or id).
-     *
      * @param array<string,mixed>|null $event Preloaded EventsRepository row
      * @return array{
      *   ok:bool,error?:string,event_id:int,client_id:int,balance:float,
@@ -123,7 +127,7 @@ final class BonusProcessor
         }
 
         $clientId = (int)($event['id_user'] ?? 0);
-        $balance = BonusPayRepository::balance($clientId);
+        $balance = BonusMovesRepository::balance($clientId);
         $bonusUse = !empty($event['bonus_use']);
         $requested = max(0.0, (float)($event['bonus_discount'] ?? 0));
         if ($bonusUse && $requested <= 0 && $balance > 0) {
@@ -135,7 +139,7 @@ final class BonusProcessor
 
         $built = self::buildGoods($event);
         $bonusAdd = self::clientBonusAddPercent($clientId);
-        $anal = self::bonusAnal($built['goods'], $requested, $bonusAdd);
+        $anal = self::allocate($built['goods'], $requested, $bonusAdd);
 
         return [
             'ok' => true,
@@ -149,14 +153,12 @@ final class BonusProcessor
             'accrue' => (float)$anal['totalBonusIn'],
             'to_pay' => (float)$anal['totalToPay'],
             'bonus_avg' => (float)$anal['bonusAvg'],
-            'already_applied' => BonusPayRepository::eventHasSettlement($eventId),
+            'already_applied' => BonusMovesRepository::eventHasSettlement($eventId),
             'bonus_add_status' => $bonusAdd,
         ];
     }
 
     /**
-     * Apply settlement for event. Idempotent refuse if already applied.
-     *
      * @return array{ok:bool,error?:string,spend:float,accrue:float,to_pay:float,debit_id:int,credit_id:int}
      */
     public static function applyForEvent(int $eventId): array
@@ -174,7 +176,7 @@ final class BonusProcessor
             ];
         };
 
-        if (!BonusPayRepository::tableReady()) {
+        if (!BonusMovesRepository::tableReady()) {
             return $fail(t('bonuses.err.table'));
         }
         if (!class_exists('EventsRepository', false)) {
@@ -184,7 +186,7 @@ final class BonusProcessor
         if (!$event) {
             return $fail(t('bonuses.err.event_not_found', ['id' => $eventId]));
         }
-        if (BonusPayRepository::eventHasSettlement($eventId)) {
+        if (BonusMovesRepository::eventHasSettlement($eventId)) {
             return $fail(t('bonuses.err.already_applied'));
         }
 
@@ -210,34 +212,38 @@ final class BonusProcessor
         $creditId = 0;
 
         if ($bonusUse && $spend > 0) {
-            $debitId = BonusPayRepository::create([
-                'id_user' => $clientId,
-                'id_event_bonus' => null,
-                'id_event_discount' => $eventId,
-                'id_order' => null,
-                'date_in' => $now,
-                'date_out' => $now,
-                'description' => 'ABUD_E' . $eventId . '_U' . $clientId . 'SUMT' . (int)round($contentSum),
+            $debitId = BonusMovesRepository::create([
+                'client_id' => $clientId,
                 'direction' => -1,
-                'sum' => $spend,
+                'amount' => $spend,
+                'kind' => BonusMovesRepository::KIND_EVENT_SPEND,
+                'ref_type' => BonusMovesRepository::REF_EVENT,
+                'ref_id' => $eventId,
+                'created_at' => $now,
+                'expires_at' => null,
+                'note' => t('bonuses.note.event_spend', [
+                    'event' => $eventId,
+                    'sum' => (string)(int)round($contentSum),
+                ]),
                 'dismissed' => 0,
             ]);
         }
 
         if ($accrue > 0) {
-            $creditId = BonusPayRepository::create([
-                'id_user' => $clientId,
-                'id_event_bonus' => $eventId,
-                'id_event_discount' => null,
-                'id_order' => null,
-                'date_in' => $now,
-                'date_out' => $now + self::ACCRUE_TTL_SEC,
-                'description' => 'ABAB_E' . $eventId . '_U' . $clientId
-                    . '_TS' . (int)round($contentSum)
-                    . '_PS' . (int)round($toPay)
-                    . '_P' . (int)round($bonusAvg) . '%',
+            $creditId = BonusMovesRepository::create([
+                'client_id' => $clientId,
                 'direction' => 1,
-                'sum' => $accrue,
+                'amount' => $accrue,
+                'kind' => BonusMovesRepository::KIND_EVENT_ACCRUE,
+                'ref_type' => BonusMovesRepository::REF_EVENT,
+                'ref_id' => $eventId,
+                'created_at' => $now,
+                'expires_at' => $now + self::ACCRUE_TTL_SEC,
+                'note' => t('bonuses.note.event_accrue', [
+                    'event' => $eventId,
+                    'pay' => (string)(int)round($toPay),
+                    'pct' => (string)(int)round($bonusAvg),
+                ]),
                 'dismissed' => 0,
             ]);
         }

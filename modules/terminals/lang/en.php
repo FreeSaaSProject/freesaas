@@ -5,6 +5,7 @@ return [
     'terminals.cron.load' => 'Therm occupancy (center load)',
     'terminals.cron.tickets' => 'Import ticket visits for today',
     'terminals.module.name' => 'Terminals & therms',
+    'terminals.migrator.phpshop_shopusers_bracelets_to_base_staff_bracelets' => 'Staff NFC: phpshop_shopusers.1C_BRACELET + ID_USER → base_staff_bracelets',
     'terminals.menu.group' => 'Terminals',
     'terminals.menu.list' => 'Devices',
     'terminals.menu.bracelets' => 'Bracelets',

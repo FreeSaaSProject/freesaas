@@ -2,7 +2,7 @@
     "id": "comments",
     "name": "comments.module.name",
     "description": "comments.module.description",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -18,6 +18,7 @@
         "pages": []
     },
     "agent": {
+        "docs": "docs/agents/comments.md",
         "note": "No module HTTP routes. Read via core.news.get (paged: comments_limit/offset/pid/excerpt; child_count to drill). Each comment has text (raw, may include [HABIT*] markers) and text_display (humanized). Write via core.news.act: comment|edit_comment|hide_comment|show_comment|delete_comment. Per-news COMMENT_PURGE_LIMIT (core.news.create/update) auto hard-deletes oldest regular comments over the cap.",
         "ops": []
     },

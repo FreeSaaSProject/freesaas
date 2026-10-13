@@ -2,7 +2,7 @@
     "id": "sheets",
     "name": "sheets.module.name",
     "description": "sheets.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -35,6 +35,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/sheets.md",
         "ops": [
             {
                 "id": "sheets.accounts.list",

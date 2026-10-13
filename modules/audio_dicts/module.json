@@ -2,13 +2,13 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
         "audio": ">=0.1.0"
     },
-    "optionalRequires": {},
+    "optionalRequires": [],
     "migrations": "migrations/",
     "permissions": [
         {
@@ -45,6 +45,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/audio_dicts.md",
         "ops": [
             {
                 "id": "audio_dicts.types.list",

@@ -5,6 +5,7 @@ return [
     'bots.cron.sends_drain' => 'Drain outbound bot queue',
     'bots.module.name' => 'Messenger bots',
     'bots.module.description' => 'Telegram/Max transport, outbound queue, staff/client webhooks and bot links.',
+    'bots.migrator.phpshop_messenger_to_base_bot_links' => 'Staff/client Telegram/Max chat ids → base_bot_links',
     'bots.perm.manage' => 'Bots (manage)',
     'bots.perm.view' => 'Bots (view queue)',
     'bots.menu.group' => 'Bots',

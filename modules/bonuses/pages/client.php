@@ -21,12 +21,12 @@ if (!$client) {
     return;
 }
 
-$balance = BonusPayRepository::balance($id);
-$history = BonusPayRepository::list([
-    'id_user' => $id,
+$balance = BonusMovesRepository::balance($id);
+$history = BonusMovesRepository::list([
+    'client_id' => $id,
     'limit' => 200,
     'offset' => 0,
-    'order' => 'b.ID ASC',
+    'order' => 'm.id ASC',
 ]);
 
 if ($wantsJson) {

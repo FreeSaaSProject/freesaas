@@ -2,7 +2,7 @@
     "id": "booking",
     "name": "booking.module.name",
     "description": "booking.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -44,6 +44,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/booking.md",
         "ops": [
             {
                 "id": "booking.new",
@@ -69,12 +70,28 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "phone": {"type": "string"},
-                        "product_ids": {"type": "array", "items": {"type": "integer"}},
-                        "operator_id": {"type": "integer"},
-                        "dt_start": {"type": "integer"}
+                        "phone": {
+                            "type": "string"
+                        },
+                        "product_ids": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        },
+                        "operator_id": {
+                            "type": "integer"
+                        },
+                        "dt_start": {
+                            "type": "integer"
+                        }
                     },
-                    "required": ["phone", "product_ids", "operator_id", "dt_start"]
+                    "required": [
+                        "phone",
+                        "product_ids",
+                        "operator_id",
+                        "dt_start"
+                    ]
                 }
             },
             {
@@ -94,9 +111,13 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "client_id": {"type": "integer"}
+                        "client_id": {
+                            "type": "integer"
+                        }
                     },
-                    "required": ["client_id"]
+                    "required": [
+                        "client_id"
+                    ]
                 }
             },
             {
@@ -109,10 +130,17 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "order_id": {"type": "integer"},
-                        "client_id": {"type": "integer"}
+                        "order_id": {
+                            "type": "integer"
+                        },
+                        "client_id": {
+                            "type": "integer"
+                        }
                     },
-                    "required": ["order_id", "client_id"]
+                    "required": [
+                        "order_id",
+                        "client_id"
+                    ]
                 }
             }
         ]

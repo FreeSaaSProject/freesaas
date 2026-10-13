@@ -2,7 +2,7 @@
     "id": "units",
     "name": "units.module.name",
     "description": "units.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -30,6 +30,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/units.md",
         "ops": [
             {
                 "id": "units.list",

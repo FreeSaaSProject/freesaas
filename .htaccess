@@ -7,6 +7,14 @@ DirectorySlash Off
   RewriteCond %{HTTP:Authorization} .
   RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+  # Shared-tree storefront hosts (ISPmanager often has no vhost SetEnv).
+  # Applies only when this docroot serves the request — safe to list production
+  # names before cutover; live PHPShop keeps its own tree until symlink/DNS flip.
+  # Admin: freesaas.likespa.ru (and www) stay unset → index.php.
+  RewriteCond %{HTTP_HOST} ^(?:www\.)?(?:fs-like|fs-bal)\.likespa\.ru\.?$ [NC,OR]
+  RewriteCond %{HTTP_HOST} ^(?:www\.)?(?:likespa\.ru|balance-spa\.ru)\.?$ [NC]
+  RewriteRule ^ - [E=FREESAAS_FRONT:site]
+
   # Allow static assets shipped inside modules (css/js/images/fonts only).
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^modules/[^/]+/assets/.+\.(css|js|png|jpe?g|gif|svg|webp|woff2?|ttf|otf|eot)$ - [L]
@@ -17,7 +25,13 @@ DirectorySlash Off
 
   # /modules collides with the on-disk modules/ directory (Apache 403 with -Indexes).
   # Always send it (and anything under it) to the front controller; never serve PHP from there.
+  RewriteCond %{ENV:FREESAAS_FRONT} ^site$ [NC]
+  RewriteRule ^modules/?$ site.php [L,QSA]
+  RewriteCond %{ENV:FREESAAS_FRONT} ^site$ [NC]
+  RewriteRule ^modules/ site.php [L,QSA]
+  RewriteCond %{ENV:FREESAAS_FRONT} !^site$ [NC]
   RewriteRule ^modules/?$ index.php [L,QSA]
+  RewriteCond %{ENV:FREESAAS_FRONT} !^site$ [NC]
   RewriteRule ^modules/ index.php [L,QSA]
 
   # Block direct web access to internals (themes PHP/layouts stay private).
@@ -28,7 +42,7 @@ DirectorySlash Off
   RewriteRule ^themes/[^/]+/(layouts|views|partials)/ - [F,L]
 
   # Front controller: default index.php (admin).
-  # Storefront vhost: set env FREESAAS_FRONT=site (SetEnv in vhost) or use htaccess.storefront.
+  # Storefront: FREESAAS_FRONT=site from Host rule above, or vhost SetEnv / htaccess.storefront.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteCond %{ENV:FREESAAS_FRONT} ^site$ [NC]

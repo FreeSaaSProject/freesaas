@@ -38,6 +38,10 @@ curl -sS -b jar.txt -H 'Content-Type: application/json' -H 'Accept: application/
 
 With `bots` enabled, plugin `assistant` handles free-text on the staff webhook. Confirm/cancel via `assistant:ok:{token}` / `assistant:no:{token}`. Auth: `Auth::runAs(staff_id)`.
 
+## How-to («как сделать»)
+
+Staff how-to answers use **`core.help.search`** / **`core.help.get`**, which read `module.json` → `agent.docs` → `docs/agents/*.md` (permission-filtered). Keep the **Human UI** section in that runbook updated — do not duplicate guides in i18n. Same tools appear on MCP `/llm/mcp`.
+
 ## Adding a tool
 
 1. Add `agent.ops[]` entry (path, permission, description; optional `side_effect`, `parameters` JSON Schema).

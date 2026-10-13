@@ -4,13 +4,14 @@ declare(strict_types=1);
 $wantsJson = AgentHttp::wantsJson();
 
 $q = trim((string)($_GET['q'] ?? ''));
-$idUser = (int)($_GET['id_user'] ?? 0);
+$clientId = (int)($_GET['client_id'] ?? $_GET['id_user'] ?? 0);
 $directionRaw = $_GET['direction'] ?? '';
 $direction = $directionRaw === '' ? null : (int)$directionRaw;
+$kind = trim((string)($_GET['kind'] ?? ''));
 
 $lq = ListQuery::resolve([
     'list_id' => 'bonuses',
-    'allowed' => BonusPayRepository::listSortMap(),
+    'allowed' => BonusMovesRepository::listSortMap(),
     'default' => 'id',
     'default_dir' => 'desc',
     'per_page' => 50,
@@ -18,8 +19,9 @@ $lq = ListQuery::resolve([
 
 $filters = array_merge([
     'q' => $q,
-    'id_user' => $idUser > 0 ? (string)$idUser : '',
+    'client_id' => $clientId > 0 ? (string)$clientId : '',
     'direction' => $directionRaw !== '' ? (string)$direction : '',
+    'kind' => $kind,
 ], $lq['query']);
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
@@ -27,10 +29,11 @@ if (!empty($lq['show_all'])) {
 
 BulkActions::tryHandle('bonuses', '/bonuses', $filters);
 
-$result = BonusPayRepository::list([
+$result = BonusMovesRepository::list([
     'q' => $q,
-    'id_user' => $idUser,
+    'client_id' => $clientId,
     'direction' => $direction,
+    'kind' => $kind !== '' ? $kind : null,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
@@ -43,8 +46,9 @@ if ($wantsJson) {
         'items' => $result['items'],
         'filters' => [
             'q' => $q,
-            'id_user' => $idUser,
+            'client_id' => $clientId,
             'direction' => $direction,
+            'kind' => $kind,
         ],
     ]);
     return;
@@ -60,8 +64,9 @@ View::render('list', [
     'items' => $result['items'],
     'total' => $result['total'],
     'q' => $q,
-    'idUser' => $idUser,
+    'clientId' => $clientId,
     'direction' => $direction,
+    'kind' => $kind,
     'canEdit' => Auth::can('bonuses.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],

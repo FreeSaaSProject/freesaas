@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/lib/BonusPayRepository.php';
+require_once __DIR__ . '/lib/BonusMovesRepository.php';
 require_once __DIR__ . '/lib/BonusProcessor.php';
 
 Assets::register('bonuses', [
@@ -34,7 +34,7 @@ BulkActions::register('bonuses', 'delete', [
     'permission' => 'bonuses.edit',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
-        return ['done' => BonusPayRepository::deleteByIds($ids), 'skipped' => []];
+        return ['done' => BonusMovesRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
 
@@ -48,7 +48,7 @@ EventBus::on('calendar.event.sections', static function ($payload) {
     if (!Auth::capability('EVT_BONUS') && !Auth::capability('SUPERADMIN_ACCESS')) {
         return $payload;
     }
-    if (!BonusPayRepository::tableReady()) {
+    if (!BonusMovesRepository::tableReady()) {
         return $payload;
     }
 
@@ -57,8 +57,8 @@ EventBus::on('calendar.event.sections', static function ($payload) {
     $canModify = !empty($payload['can_modify']);
     $eventId = (int)($payload['id'] ?? 0);
     $clientId = (int)($row['id_user'] ?? 0);
-    $balance = $clientId > 0 ? BonusPayRepository::balance($clientId) : 0.0;
-    $already = $eventId > 0 && BonusPayRepository::eventHasSettlement($eventId);
+    $balance = $clientId > 0 ? BonusMovesRepository::balance($clientId) : 0.0;
+    $already = $eventId > 0 && BonusMovesRepository::eventHasSettlement($eventId);
     $canApply = !$isNew
         && $eventId > 0
         && !$already
@@ -101,7 +101,6 @@ EventBus::on('calendar.event.save', static function ($payload) {
 
     $canBonusFields = Auth::capability('EVT_BONUS') || Auth::capability('SUPERADMIN_ACCESS');
     if (!$canBonusFields || !Auth::can('bonuses.view')) {
-        // Leave repo defaults from POST (usually empty) — strip if somehow present without capability.
         $data['bonus_use'] = 0;
         $data['bonus_discount'] = 0.0;
         $payload['data'] = $data;

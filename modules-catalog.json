@@ -1,10 +1,10 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-12T10:20:15+00:00",
+    "generated_at": "2026-10-13T08:37:27+00:00",
     "modules": [
         {
             "id": "asr",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "ASR / speech recognition",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.14",
+            "version": "0.1.15",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -72,7 +72,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -106,7 +106,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -135,7 +135,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -171,7 +171,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.1",
+            "version": "0.3.2",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -204,7 +204,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -238,7 +238,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -275,7 +275,7 @@
         },
         {
             "id": "bi",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "BI reports",
@@ -315,19 +315,19 @@
         },
         {
             "id": "bonuses",
-            "version": "0.1.0",
+            "version": "0.2.0",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
                 "ru": "Бонусы клиентов"
             },
             "description": {
-                "en": "Client loyalty ledger (base_bonuspay) and event settle (bonusAnal/apply) on calendar.",
-                "ru": "Бонусный ledger клиентов (base_bonuspay) и settle на событиях календаря (bonusAnal/apply)."
+                "en": "Client loyalty ledger (base_bonus_moves) and event settle on calendar.",
+                "ru": "Журнал бонусов клиентов (base_bonus_moves) и расчёт по событию календаря."
             },
             "summary": {
                 "en": "Enable for client bonus points. Requires clients + catalog + procedures. Soft calendar (EventBus on event edit). Soft-used by poll_invites. Use when loyalty points must settle with visits.",
-                "ru": "Включайте для бонусных баллов клиентов. Требует clients + catalog + procedures. Мягко calendar (EventBus на редактировании события). Мягко — poll_invites. Когда баллы закрываются с визитами."
+                "ru": "Включайте для бонусных баллов клиентов. Нужны clients + catalog + procedures. Мягкая связь с calendar (EventBus на форме события). Мягко используется poll_invites. Когда нужно начислять/списывать баллы за визиты."
             },
             "requires": {
                 "core": ">=0.3.0",
@@ -348,7 +348,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -387,7 +387,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.11",
+            "version": "0.2.12",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -417,7 +417,7 @@
         },
         {
             "id": "cabinets",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Rooms",
@@ -445,7 +445,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -483,7 +483,7 @@
         },
         {
             "id": "catalog",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Catalog",
@@ -514,8 +514,44 @@
             }
         },
         {
+            "id": "certificates",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Certificates",
+                "ru": "Сертификаты"
+            },
+            "description": {
+                "en": "Gift certificates and abonements with a money ledger, calendar apply, and storefront redeem.",
+                "ru": "Подарочные сертификаты и абонементы с денежным журналом, списанием в календаре и redeem на витрине."
+            },
+            "summary": {
+                "en": "Enable for prepaid certificates (money or abon). Needs clients, catalog, procedures. Soft: calendar, sites, orders.",
+                "ru": "Включать для предоплаченных сертификатов (деньги / абон). Нужны clients, catalog, procedures. Мягко: calendar, sites, orders."
+            },
+            "requires": {
+                "core": ">=0.3.0",
+                "clients": ">=0.1.0",
+                "catalog": ">=0.1.0",
+                "procedures": ">=0.1.0"
+            },
+            "optionalRequires": {
+                "calendar": ">=0.1.0",
+                "sites": ">=0.1.0",
+                "orders": ">=0.1.0",
+                "bonuses": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "crm"
+                ],
+                "maturity": "beta",
+                "tags": []
+            }
+        },
+        {
             "id": "clientics",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Clientics",
@@ -554,7 +590,7 @@
         },
         {
             "id": "clients",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Clients",
@@ -584,7 +620,7 @@
         },
         {
             "id": "comments",
-            "version": "0.1.2",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Comments",
@@ -612,7 +648,7 @@
         },
         {
             "id": "contracts",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -643,7 +679,7 @@
         },
         {
             "id": "finance",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Financial reports",
@@ -676,7 +712,7 @@
         },
         {
             "id": "funds",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Funds",
@@ -707,7 +743,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.6",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -742,7 +778,7 @@
         },
         {
             "id": "ledger",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -779,19 +815,19 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.4",
+            "version": "0.3.7",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
                 "ru": "LikeSpa"
             },
             "description": {
-                "en": "LikeSpa ops: terminal scans, promoter bonus, flyer discounts, procedure restores, staff public profile",
-                "ru": "LikeSpa: сканы терминалов, бонус промоутера, скидки флаера, восстановления процедур, публичный профиль сотрудника"
+                "en": "LikeSpa ops: terminal scans, promoter bonus, flyer discounts, procedure restores, staff debts, staff public profile",
+                "ru": "LikeSpa: сканы терминалов, бонус промоутера, скидки флаера, восстановления процедур, долги персонала, публичный профиль сотрудника"
             },
             "summary": {
-                "en": "Spa instance pack. CMS (articles/promos/redirects/SEO) lives in the sites module. Soft-deps: audio_reports, procedures, payments.",
-                "ru": "Пакет инстанса спа. CMS (статьи/промо/редиректы/SEO) — в модуле sites. Мягкие зависимости: audio_reports, procedures, payments."
+                "en": "Spa instance pack. CMS (articles/promos/redirects/SEO) lives in the sites module. Soft-deps: audio_reports, procedures, payments, terminals, comments.",
+                "ru": "Пакет инстанса спа. CMS (статьи/промо/редиректы/SEO) — в модуле sites. Мягкие зависимости: audio_reports, procedures, payments, terminals, comments."
             },
             "requires": {
                 "core": ">=0.3.0"
@@ -805,7 +841,8 @@
                 "sites": ">=0.2.0",
                 "booking": ">=0.1.0",
                 "clients": ">=0.1.0",
-                "terminals": ">=0.1.0"
+                "terminals": ">=0.1.0",
+                "comments": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -817,7 +854,7 @@
         },
         {
             "id": "liquid_assets",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Liquid assets",
@@ -853,7 +890,7 @@
         },
         {
             "id": "llm",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "LLM",
@@ -883,7 +920,7 @@
         },
         {
             "id": "norms",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Consumption norms",
@@ -912,7 +949,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -947,7 +984,7 @@
         },
         {
             "id": "payments",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -978,7 +1015,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1010,7 +1047,7 @@
         },
         {
             "id": "polls",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Polls",
@@ -1041,7 +1078,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.5",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1075,7 +1112,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1106,7 +1143,7 @@
         },
         {
             "id": "rates",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Specialist rates",
@@ -1135,7 +1172,7 @@
         },
         {
             "id": "sheets",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Sheets",
@@ -1163,7 +1200,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "Sites",
@@ -1199,7 +1236,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1237,7 +1274,7 @@
         },
         {
             "id": "stickers",
-            "version": "0.1.14",
+            "version": "0.1.15",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1273,7 +1310,7 @@
         },
         {
             "id": "stocks",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Warehouses",
@@ -1307,7 +1344,7 @@
         },
         {
             "id": "suppliers",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Suppliers",
@@ -1335,7 +1372,7 @@
         },
         {
             "id": "tables",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Massage tables",
@@ -1365,7 +1402,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.22",
+            "version": "0.1.23",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1399,7 +1436,7 @@
         },
         {
             "id": "units",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Units of measure",
@@ -1427,7 +1464,7 @@
         },
         {
             "id": "updates",
-            "version": "0.3.15",
+            "version": "0.3.16",
             "type": "product",
             "name": {
                 "en": "Updates",
@@ -1458,7 +1495,7 @@
         },
         {
             "id": "vacations",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Vacations",
@@ -1486,7 +1523,7 @@
         },
         {
             "id": "wellness",
-            "version": "0.2.16",
+            "version": "0.2.18",
             "type": "product",
             "name": {
                 "en": "Health & fitness",
@@ -1517,7 +1554,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "type": "product",
             "name": {
                 "en": "Shifts",
@@ -1550,7 +1587,7 @@
         },
         {
             "id": "yclients",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "YClients",

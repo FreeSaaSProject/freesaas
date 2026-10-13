@@ -1,5 +1,4 @@
 <?php
-declare(strict_types=1);
 /** @var array<string,mixed> $client */
 /** @var int $clientId */
 /** @var string $clientName */
@@ -13,7 +12,7 @@ declare(strict_types=1);
     <div class="page-actions">
       <a class="btn-secondary" href="/clients/<?= (int)$clientId ?>"><?= te('bonuses.client.open_client') ?></a>
       <?php if ($canEdit): ?>
-        <a class="btn-primary" href="/bonuses/new?id_user=<?= (int)$clientId ?>"><?= te('core.common.add') ?></a>
+        <a class="btn-primary" href="/bonuses/new?client_id=<?= (int)$clientId ?>"><?= te('core.common.add') ?></a>
       <?php endif; ?>
     </div>
   </div>
@@ -28,10 +27,11 @@ declare(strict_types=1);
     <thead>
       <tr>
         <th>ID</th>
-        <th><?= te('bonuses.col.date_in') ?></th>
+        <th><?= te('bonuses.col.created_at') ?></th>
+        <th><?= te('bonuses.col.kind') ?></th>
         <th><?= te('bonuses.col.direction') ?></th>
-        <th><?= te('bonuses.col.sum') ?></th>
-        <th><?= te('bonuses.col.descr') ?></th>
+        <th><?= te('bonuses.col.amount') ?></th>
+        <th><?= te('bonuses.col.note') ?></th>
         <th><?= te('bonuses.client.balance') ?></th>
       </tr>
     </thead>
@@ -39,7 +39,9 @@ declare(strict_types=1);
     <?php
     $running = 0.0;
     foreach ($items as $b):
-        $running += (int)$b['direction'] * (float)$b['sum'];
+        if (empty($b['dismissed'])) {
+            $running += (int)$b['direction'] * (float)$b['amount'];
+        }
     ?>
       <tr>
         <td class="muted">
@@ -49,15 +51,16 @@ declare(strict_types=1);
             <?= (int)$b['id'] ?>
           <?php endif; ?>
         </td>
-        <td><?= (int)$b['date_in'] > 0 ? e(date('d.m.Y H:i', (int)$b['date_in'])) : '—' ?></td>
-        <td><?= e(BonusPayRepository::directionLabel((int)$b['direction'])) ?></td>
-        <td><?= e(number_format((float)$b['sum'], 0, '.', ' ')) ?></td>
-        <td><?= e((string)($b['description'] ?? '')) ?></td>
+        <td><?= (int)$b['created_at'] > 0 ? e(date('d.m.Y H:i', (int)$b['created_at'])) : '—' ?></td>
+        <td><?= e(BonusMovesRepository::kindLabel((string)$b['kind'])) ?></td>
+        <td><?= e(BonusMovesRepository::directionLabel((int)$b['direction'])) ?></td>
+        <td><?= e(number_format((float)$b['amount'], 0, '.', ' ')) ?></td>
+        <td><?= e((string)($b['note'] ?? '')) ?></td>
         <td><?= e(number_format($running, 0, '.', ' ')) ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>
-      <tr><td colspan="6" class="muted"><?= te('bonuses.list.empty') ?></td></tr>
+      <tr><td colspan="7" class="muted"><?= te('bonuses.list.empty') ?></td></tr>
     <?php endif; ?>
     </tbody>
   </table>

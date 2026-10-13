@@ -2,7 +2,7 @@
     "id": "bonuses",
     "name": "bonuses.module.name",
     "description": "bonuses.module.description",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -43,13 +43,14 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/bonuses.md",
         "ops": [
             {
                 "id": "bonuses.list",
                 "method": "GET",
                 "path": "/bonuses",
                 "permission": "bonuses.view",
-                "description": "List bonus ledger movements; filters: q, id_user, direction"
+                "description": "List bonus ledger movements; filters: q, client_id, direction, kind"
             },
             {
                 "id": "bonuses.client",
@@ -93,7 +94,7 @@
     ],
     "configSchema": [],
     "tables": [
-        "base_bonuspay"
+        "base_bonus_moves"
     ],
     "migrators": [],
     "hooks": {

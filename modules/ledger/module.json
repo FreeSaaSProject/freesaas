@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -68,6 +68,7 @@
         ]
     },
     "agent": {
+        "docs": "docs/agents/ledger.md",
         "ops": [
             {
                 "id": "ledger.accounts.list",
@@ -141,15 +142,40 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "account_id": {"type": "integer", "description": "base_accounts.ID"},
-                        "type_id": {"type": "integer", "description": "base_account_move_types.ID"},
-                        "summ": {"type": "string", "description": "Amount, e.g. 481"},
-                        "descr": {"type": "string", "description": "Purpose / comment"},
-                        "supplier_id": {"type": "integer", "description": "base_suppliers.ID when type allows suppliers"},
-                        "direction": {"type": "integer", "description": "-1 expense, 1 income; usually from type"},
-                        "dt": {"type": "string", "description": "Optional datetime; default now"}
+                        "account_id": {
+                            "type": "integer",
+                            "description": "base_accounts.ID"
+                        },
+                        "type_id": {
+                            "type": "integer",
+                            "description": "base_account_move_types.ID"
+                        },
+                        "summ": {
+                            "type": "string",
+                            "description": "Amount, e.g. 481"
+                        },
+                        "descr": {
+                            "type": "string",
+                            "description": "Purpose / comment"
+                        },
+                        "supplier_id": {
+                            "type": "integer",
+                            "description": "base_suppliers.ID when type allows suppliers"
+                        },
+                        "direction": {
+                            "type": "integer",
+                            "description": "-1 expense, 1 income; usually from type"
+                        },
+                        "dt": {
+                            "type": "string",
+                            "description": "Optional datetime; default now"
+                        }
                     },
-                    "required": ["account_id", "type_id", "summ"]
+                    "required": [
+                        "account_id",
+                        "type_id",
+                        "summ"
+                    ]
                 }
             },
             {
@@ -168,9 +194,14 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "id": {"type": "integer", "description": "base_account_moves.ID to delete"}
+                        "id": {
+                            "type": "integer",
+                            "description": "base_account_moves.ID to delete"
+                        }
                     },
-                    "required": ["id"]
+                    "required": [
+                        "id"
+                    ]
                 }
             },
             {
@@ -217,7 +248,7 @@
             "title": "ledger.menu.moves"
         }
     ],
-    "configSchema": {},
+    "configSchema": [],
     "tables": [
         "base_accounts",
         "base_account_move_types",

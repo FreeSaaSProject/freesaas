@@ -136,6 +136,12 @@ final class DbRestore
         $job['message'] = t('core.db.job.restore_inflate_prog', [
             'bytes' => DbFs::formatBytesLabel($written),
         ]);
+        // Log inflate every ~8 MiB so the overlay log moves without flooding.
+        $logged = (int)($job['inflate_log_at'] ?? 0);
+        if ($written - $logged >= 8 * 1024 * 1024 || ($eof && $written > $logged)) {
+            DbJobs::appendLog($job, (string)$job['message']);
+            $job['inflate_log_at'] = $written;
+        }
         $job = DbJobs::attachProgressMeta($job, $frac, min(0.95, $written / max(1, $est)));
         if ($eof) {
             return self::restoreInflateFinish($job, $outPath);
@@ -163,6 +169,10 @@ final class DbRestore
         $job['inflate_bytes'] = $size;
         $job['bytes'] = $size;
         $job['message'] = t('core.db.job.restore_start');
+        DbJobs::appendLog($job, t('core.db.job.restore_inflate_done', [
+            'bytes' => DbFs::formatBytesLabel($size),
+        ]));
+        DbJobs::appendLog($job, (string)$job['message']);
         return DbJobs::attachProgressMeta($job, 0.2, 0.0);
     }
 
@@ -396,6 +406,7 @@ final class DbRestore
         } else {
             $job['byte_offset'] = $pos;
         }
+        $prevTable = (string)($job['log_table'] ?? '');
         $job['table'] = $currentTable;
         $job['tables_done'] = $tablesDone;
         $job['keys_disabled'] = $keysTable;
@@ -422,6 +433,13 @@ final class DbRestore
             'pct' => (string)(int)$job['progress_overall'],
             'table' => $currentTable !== '' ? $currentTable : '—',
         ]);
+        if ($currentTable !== '' && $currentTable !== $prevTable) {
+            DbJobs::appendLog($job, t('core.db.job.restore_table', [
+                'table' => $currentTable,
+                'n' => (string)(int)($job['statements'] ?? 0),
+            ]));
+            $job['log_table'] = $currentTable;
+        }
 
         if ($eof && $buffer === '') {
             if ($keysTable !== '') {
@@ -445,6 +463,7 @@ final class DbRestore
             $job['status'] = 'done';
             $job['phase'] = 'done';
             $job['message'] = t('core.db.msg.restore_ok', ['n' => (string)(int)($job['statements'] ?? 0)]);
+            DbJobs::appendLog($job, (string)$job['message']);
             $job['result'] = [
                 'ok' => true,
                 'statements' => (int)($job['statements'] ?? 0),
