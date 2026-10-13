@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 /**
  * Minimal agent/CI smoke: system + module validate + locale validate + health
- * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook.
+ * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook
+ * + check-terminals-floor / check-certificates.
  * PHP lint (`php -l`) and public-route allow-list (`bin/check-routes.php`) run in
  * `.github/workflows/ci.yml` static job — not here (no need for a DB-less lint loop in smoke).
  *
@@ -178,6 +179,23 @@ $sections['terminals_floor'] = [
 if ($floorCode !== 0) {
     $failed = true;
     $sections['terminals_floor']['output'] = implode("\n", $floorLines);
+}
+
+// Certificate concurrency / abon undo (skips if module off)
+$certLines = [];
+$certCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-certificates.php') . ' 2>&1',
+    $certLines,
+    $certCode
+);
+$sections['certificates'] = [
+    'ok' => $certCode === 0,
+    'exit' => $certCode,
+];
+if ($certCode !== 0) {
+    $failed = true;
+    $sections['certificates']['output'] = implode("\n", $certLines);
 }
 
 $out = ['ok' => !$failed, 'sections' => $sections];

@@ -136,11 +136,21 @@ final class CertificatesRepository
 
     public static function find(int $id): ?array
     {
+        return self::findRow($id, false);
+    }
+
+    /** Lock certificate row (current read). Must run inside a transaction. */
+    public static function findForUpdate(int $id): ?array
+    {
+        return self::findRow($id, true);
+    }
+
+    private static function findRow(int $id, bool $forUpdate): ?array
+    {
         if ($id < 1 || !self::tableReady()) {
             return null;
         }
-        $st = Database::pdo()->prepare(
-            'SELECT ID AS id, CODE AS code, ID_OPERATOR AS id_operator,
+        $sql = 'SELECT ID AS id, CODE AS code, ID_OPERATOR AS id_operator,
                     ID_BUYER AS id_buyer, ID_HOLDER AS id_holder,
                     ID_EVENT_CREATE AS id_event_create, KIND AS kind,
                     SALE_AMOUNT AS sale_amount, FACE_VALUE AS face_value,
@@ -151,8 +161,11 @@ final class CertificatesRepository
                     BONUS_FORBIDDEN AS bonus_forbidden, USE_LIMIT_PCT AS use_limit_pct,
                     TYPE_IDS AS type_ids, PRODUCT_IDS AS product_ids,
                     CONTENT AS content, CONTENT_USED AS content_used, DESCR AS descr
-             FROM base_certificates WHERE ID = ? LIMIT 1'
-        );
+             FROM base_certificates WHERE ID = ? LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+        $st = Database::pdo()->prepare($sql);
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         return $row ? self::normalizeRow($row) : null;
@@ -415,7 +428,7 @@ final class CertificatesRepository
     }
 
     /**
-     * @param list<array{ts:int,admin_id:int,goods:array<int,int>}> $contentUsed
+     * @param list<array{ts:int,admin_id:int,goods:array<int,int>,ledger_id?:int}> $contentUsed
      */
     public static function updateUsage(int $id, float $usedAmount, int $expired, array $contentUsed, string $descrAppend = ''): void
     {
@@ -645,11 +658,16 @@ final class CertificatesRepository
                     $goods[$gid] = $qty;
                 }
             }
-            $out[] = [
+            $item = [
                 'ts' => (int)($entry['ts'] ?? 0),
                 'admin_id' => (int)($entry['admin_id'] ?? 0),
                 'goods' => $goods,
             ];
+            $ledgerId = (int)($entry['ledger_id'] ?? 0);
+            if ($ledgerId > 0) {
+                $item['ledger_id'] = $ledgerId;
+            }
+            $out[] = $item;
         }
         return $out;
     }

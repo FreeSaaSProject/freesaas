@@ -14,13 +14,17 @@ final class CertificateProcessor
      *   amount?:float,
      *   check_sum?:float,
      *   bonus_discount?:float,
-     *   allow_unbound_holder?:bool
+     *   allow_unbound_holder?:bool,
+     *   cert?:array<string,mixed>,
+     *   balance?:float
      * } $context
      * @return array{ok:bool,error?:string,cert?:array<string,mixed>,balance?:float}
      */
     public static function validate($codeOrId, int $clientId, array $context = []): array
     {
-        $cert = self::resolveCert($codeOrId);
+        $cert = isset($context['cert']) && is_array($context['cert'])
+            ? $context['cert']
+            : self::resolveCert($codeOrId);
         if ($cert === null) {
             return ['ok' => false, 'error' => t('certificates.err.not_found_code')];
         }
@@ -48,9 +52,13 @@ final class CertificateProcessor
             return ['ok' => false, 'error' => t('certificates.err.need_client'), 'cert' => $cert];
         }
 
-        $balance = CertificateLedgerRepository::tableReady()
-            ? CertificateLedgerRepository::balance((int)$cert['id'])
-            : (float)$cert['balance'];
+        if (array_key_exists('balance', $context) && is_numeric($context['balance'])) {
+            $balance = round((float)$context['balance'], 2);
+        } else {
+            $balance = CertificateLedgerRepository::tableReady()
+                ? CertificateLedgerRepository::balance((int)$cert['id'])
+                : (float)$cert['balance'];
+        }
         if ($balance <= 0) {
             return ['ok' => false, 'error' => t('certificates.err.empty'), 'cert' => $cert, 'balance' => $balance];
         }
@@ -102,7 +110,10 @@ final class CertificateProcessor
      *   abon_goods?:array<int,int>,price_overrides?:array<int,float>
      * }
      */
-    public static function quoteEvent(int $eventId, $codeOrId, ?array $event = null): array
+    /**
+     * @param array{cert?:array<string,mixed>,balance?:float,current_reads?:bool} $opts
+     */
+    public static function quoteEvent(int $eventId, $codeOrId, ?array $event = null, array $opts = []): array
     {
         $empty = [
             'ok' => false,
@@ -135,13 +146,20 @@ final class CertificateProcessor
         $clientId = (int)($event['id_user'] ?? 0);
         $built = self::buildEventGoods($event);
         $bonusDiscount = (float)($event['bonus_discount'] ?? 0);
-        $v = self::validate($codeOrId, $clientId, [
+        $vCtx = [
             'product_ids' => array_keys($built['goods']),
             'type_ids' => $built['type_ids'],
             'check_sum' => $built['sum'],
             'amount' => $built['sum'],
             'bonus_discount' => $bonusDiscount,
-        ]);
+        ];
+        if (isset($opts['cert']) && is_array($opts['cert'])) {
+            $vCtx['cert'] = $opts['cert'];
+        }
+        if (array_key_exists('balance', $opts) && is_numeric($opts['balance'])) {
+            $vCtx['balance'] = (float)$opts['balance'];
+        }
+        $v = self::validate($codeOrId, $clientId, $vCtx);
         if (empty($v['ok'])) {
             $empty['error'] = (string)($v['error'] ?? t('certificates.err.apply_failed'));
             $empty['client_id'] = $clientId;
@@ -159,7 +177,9 @@ final class CertificateProcessor
         $balance = (float)$v['balance'];
         $certId = (int)$cert['id'];
         // One active spend per event (any certificate).
-        $already = CertificateLedgerRepository::eventHasSpend($eventId);
+        $already = !empty($opts['current_reads'])
+            ? CertificateLedgerRepository::eventActiveSpendForUpdate($eventId) !== null
+            : CertificateLedgerRepository::eventHasSpend($eventId);
         $partial = !empty($cert['partial_forbidden']);
         $spend = 0.0;
         $abonGoods = [];
@@ -258,13 +278,14 @@ final class CertificateProcessor
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         try {
-            // Lock event first (shared serialization), then certificate — avoids
-            // double-apply across different certs and deadlocks with a fixed order.
+            // Lock event first, then certificate (fixed order). No plain ledger
+            // SELECTs before locks — under REPEATABLE READ they freeze a snapshot.
             self::lockEvent($eventId);
-            if (!self::lockCert($certId)) {
+            $cert = self::lockCert($certId);
+            if ($cert === null) {
                 throw new RuntimeException(t('certificates.err.not_found_code'));
             }
-            $existing = CertificateLedgerRepository::eventActiveSpend($eventId);
+            $existing = CertificateLedgerRepository::eventActiveSpendForUpdate($eventId);
             if ($existing !== null) {
                 $pdo->commit();
                 if ((int)$existing['id_cert'] !== $certId) {
@@ -279,13 +300,17 @@ final class CertificateProcessor
                     'idempotent' => true,
                 ];
             }
-            // Re-quote after lock so balance cannot race.
-            $quote = self::quoteEvent($eventId, $certId, $event);
+            $balance = CertificateLedgerRepository::balanceForUpdate($certId);
+            $quote = self::quoteEvent($eventId, $certId, $event, [
+                'cert' => $cert,
+                'balance' => $balance,
+                'current_reads' => true,
+            ]);
             if (empty($quote['ok'])) {
                 throw new RuntimeException((string)($quote['error'] ?? t('certificates.err.apply_failed')));
             }
             if (!empty($quote['already_applied'])) {
-                $existing = CertificateLedgerRepository::eventActiveSpend($eventId, $certId);
+                $existing = CertificateLedgerRepository::eventActiveSpendForUpdate($eventId, $certId);
                 $pdo->commit();
                 return [
                     'ok' => true,
@@ -300,15 +325,10 @@ final class CertificateProcessor
             if ($spend <= 0) {
                 throw new RuntimeException(t('certificates.err.nothing_to_spend'));
             }
-            $balance = CertificateLedgerRepository::balance($certId);
             if ($spend > $balance + 0.009) {
                 throw new RuntimeException(t('certificates.err.insufficient_balance'));
             }
 
-            $cert = CertificatesRepository::find($certId);
-            if ($cert === null) {
-                throw new RuntimeException(t('certificates.err.not_found_code'));
-            }
             if ((int)$cert['id_holder'] < 1 && (int)$quote['client_id'] > 0) {
                 $pdo->prepare('UPDATE base_certificates SET ID_HOLDER = ?, DT_UPDATE = ? WHERE ID = ?')
                     ->execute([(int)$quote['client_id'], time(), $certId]);
@@ -334,6 +354,7 @@ final class CertificateProcessor
                         'ts' => (int)mktime(0, 0, 0),
                         'admin_id' => $op,
                         'goods' => $goods,
+                        'ledger_id' => $ledgerId,
                     ];
                 }
                 self::applyPriceOverrides($eventId, (array)($quote['price_overrides'] ?? []));
@@ -424,27 +445,14 @@ final class CertificateProcessor
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         try {
-            // Lock order first, then certificate (fixed lock order).
+            // Lock order, then certificate. Financial SELECTs only after locks,
+            // and only as locking (current) reads — RR snapshots stay stale after wait.
             self::lockOrder($orderId);
-            $existing = CertificateLedgerRepository::orderActiveSpend($orderId);
-            if ($existing !== null) {
-                $pdo->commit();
-                $spent = (float)$existing['amount'];
-                return [
-                    'ok' => true,
-                    'spend' => $spent,
-                    'ledger_id' => (int)$existing['id'],
-                    'cert_id' => (int)$existing['id_cert'],
-                    'summ_real' => max(0.0, round($summ - $spent, 2)),
-                    'idempotent' => true,
-                ];
-            }
-
-            if (!self::lockCert($certId)) {
+            $cert = self::lockCert($certId);
+            if ($cert === null) {
                 throw new RuntimeException(t('certificates.err.not_found_code'));
             }
-            // Re-check under locks (another worker may have spent while we waited).
-            $existing = CertificateLedgerRepository::orderActiveSpend($orderId);
+            $existing = CertificateLedgerRepository::orderActiveSpendForUpdate($orderId);
             if ($existing !== null) {
                 $pdo->commit();
                 $spent = (float)$existing['amount'];
@@ -458,14 +466,15 @@ final class CertificateProcessor
                 ];
             }
 
-            // Re-validate under lock (fresh balance / expiry / holder).
+            $balance = CertificateLedgerRepository::balanceForUpdate($certId);
+            $ctx['cert'] = $cert;
+            $ctx['balance'] = $balance;
             $v = self::validate($certId, $clientId, $ctx);
             if (empty($v['ok'])) {
                 throw new RuntimeException((string)($v['error'] ?? t('certificates.err.apply_failed')));
             }
             /** @var array<string,mixed> $cert */
             $cert = $v['cert'];
-            $balance = CertificateLedgerRepository::balance($certId);
             $partial = !empty($cert['partial_forbidden']);
             $spend = $partial && $summ < $balance ? $balance : min($summ, $balance);
             $limitPct = (int)($cert['use_limit_pct'] ?? 0);
@@ -569,19 +578,17 @@ final class CertificateProcessor
             if ((int)$row['direction'] >= 0 || (string)$row['reason'] !== CertificateLedgerRepository::REASON_SPEND) {
                 throw new RuntimeException(t('certificates.err.undo_not_spend'));
             }
-            $already = CertificateLedgerRepository::findUndoForSpend($ledgerId);
+
+            $certId = (int)$row['id_cert'];
+            // Lock cert before financial re-reads (RR snapshot may predate a wait).
+            $cert = self::lockCert($certId);
+            if ($cert === null) {
+                throw new RuntimeException(t('certificates.err.not_found', ['id' => $certId]));
+            }
+            $already = CertificateLedgerRepository::findUndoForSpendForUpdate($ledgerId);
             if ($already !== null) {
                 $pdo->commit();
                 return ['ok' => true, 'ledger_id' => (int)$already['id'], 'idempotent' => true];
-            }
-
-            $certId = (int)$row['id_cert'];
-            if (!self::lockCert($certId)) {
-                throw new RuntimeException(t('certificates.err.not_found', ['id' => $certId]));
-            }
-            $cert = CertificatesRepository::find($certId);
-            if ($cert === null) {
-                throw new RuntimeException(t('certificates.err.not_found', ['id' => $certId]));
             }
 
             $undoId = CertificateLedgerRepository::insert([
@@ -596,12 +603,12 @@ final class CertificateProcessor
                 'reason' => CertificateLedgerRepository::REASON_UNDO,
                 'descr' => t('certificates.ledger.undo', ['id' => $ledgerId]),
             ]);
-            $bal = CertificateLedgerRepository::balance($certId);
+            $bal = CertificateLedgerRepository::balanceForUpdate($certId);
             $face = (float)$cert['face_value'];
             $used = max(0.0, round($face - $bal, 2));
             $contentUsed = (array)$cert['content_used'];
-            if ((int)$cert['kind'] === CertificatesRepository::KIND_ABON && $contentUsed !== []) {
-                array_pop($contentUsed);
+            if ((int)$cert['kind'] === CertificatesRepository::KIND_ABON) {
+                $contentUsed = self::removeContentUsedForSpend($contentUsed, $ledgerId);
             }
             CertificatesRepository::updateUsage(
                 $certId,
@@ -642,10 +649,7 @@ final class CertificateProcessor
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         try {
-            if (!self::lockCert($certId)) {
-                throw new RuntimeException(t('certificates.err.not_found', ['id' => $certId]));
-            }
-            $cert = CertificatesRepository::find($certId);
+            $cert = self::lockCert($certId);
             if ($cert === null) {
                 throw new RuntimeException(t('certificates.err.not_found', ['id' => $certId]));
             }
@@ -653,7 +657,7 @@ final class CertificateProcessor
                 $pdo->commit();
                 return ['ok' => true, 'ledger_id' => 0, 'idempotent' => true];
             }
-            $balance = CertificateLedgerRepository::balance($certId);
+            $balance = CertificateLedgerRepository::balanceForUpdate($certId);
             $ledgerId = 0;
             if ($balance > 0) {
                 $ledgerId = CertificateLedgerRepository::insert([
@@ -703,15 +707,52 @@ final class CertificateProcessor
         return CertificatesRepository::findByCode($code);
     }
 
-    /** Lock certificate row; must be called inside an open transaction. */
-    private static function lockCert(int $certId): bool
+    /**
+     * Lock certificate row (current read of full row). Must be inside a transaction.
+     *
+     * @return array<string,mixed>|null
+     */
+    private static function lockCert(int $certId): ?array
     {
-        if ($certId < 1) {
-            return false;
+        return CertificatesRepository::findForUpdate($certId);
+    }
+
+    /**
+     * Drop the content_used entry tied to a spend ledger row.
+     *
+     * @param list<array<string,mixed>> $contentUsed
+     * @return list<array<string,mixed>>
+     */
+    private static function removeContentUsedForSpend(array $contentUsed, int $spendLedgerId): array
+    {
+        if ($contentUsed === [] || $spendLedgerId < 1) {
+            return $contentUsed;
         }
-        $st = Database::pdo()->prepare('SELECT ID FROM base_certificates WHERE ID = ? LIMIT 1 FOR UPDATE');
-        $st->execute([$certId]);
-        return (bool)$st->fetchColumn();
+        $out = [];
+        $removed = false;
+        foreach ($contentUsed as $entry) {
+            if (!$removed && (int)($entry['ledger_id'] ?? 0) === $spendLedgerId) {
+                $removed = true;
+                continue;
+            }
+            $out[] = $entry;
+        }
+        if ($removed) {
+            return $out;
+        }
+        // Legacy rows without ledger_id: only pop when undoing the newest linked-or-last entry.
+        $hasLinked = false;
+        foreach ($contentUsed as $entry) {
+            if ((int)($entry['ledger_id'] ?? 0) > 0) {
+                $hasLinked = true;
+                break;
+            }
+        }
+        if (!$hasLinked) {
+            array_pop($contentUsed);
+            return array_values($contentUsed);
+        }
+        return $contentUsed;
     }
 
     /** Lock event row for apply serialization (no-op if table/row missing). */

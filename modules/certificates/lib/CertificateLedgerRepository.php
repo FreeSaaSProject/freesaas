@@ -131,12 +131,28 @@ final class CertificateLedgerRepository
 
     public static function balance(int $certId): float
     {
+        return self::balanceRow($certId, false);
+    }
+
+    /**
+     * Current-read balance under InnoDB REPEATABLE READ (after waiting on locks).
+     * Must run inside a transaction; locks matching ledger rows.
+     */
+    public static function balanceForUpdate(int $certId): float
+    {
+        return self::balanceRow($certId, true);
+    }
+
+    private static function balanceRow(int $certId, bool $forUpdate): float
+    {
         if ($certId < 1 || !self::tableReady()) {
             return 0.0;
         }
-        $st = Database::pdo()->prepare(
-            'SELECT COALESCE(SUM(DIRECTION * AMOUNT), 0) FROM base_certificate_ledger WHERE ID_CERT = ?'
-        );
+        $sql = 'SELECT COALESCE(SUM(DIRECTION * AMOUNT), 0) FROM base_certificate_ledger WHERE ID_CERT = ?';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+        $st = Database::pdo()->prepare($sql);
         $st->execute([$certId]);
         return round((float)$st->fetchColumn(), 2);
     }
@@ -162,6 +178,18 @@ final class CertificateLedgerRepository
     /** @return array<string,mixed>|null */
     public static function eventActiveSpend(int $eventId, int $certId = 0): ?array
     {
+        return self::eventActiveSpendRow($eventId, $certId, false);
+    }
+
+    /** Current-read variant — use after acquiring locks under REPEATABLE READ. */
+    public static function eventActiveSpendForUpdate(int $eventId, int $certId = 0): ?array
+    {
+        return self::eventActiveSpendRow($eventId, $certId, true);
+    }
+
+    /** @return array<string,mixed>|null */
+    private static function eventActiveSpendRow(int $eventId, int $certId, bool $forUpdate): ?array
+    {
         if ($eventId < 1 || !self::tableReady()) {
             return null;
         }
@@ -178,6 +206,9 @@ final class CertificateLedgerRepository
             $params[] = $certId;
         }
         $sql .= ' ORDER BY s.ID ASC LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
         $st = Database::pdo()->prepare($sql);
         $st->execute($params);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -194,19 +225,33 @@ final class CertificateLedgerRepository
     /** Active (not undone) spend on order — idempotency key. */
     public static function orderActiveSpend(int $orderId): ?array
     {
+        return self::orderActiveSpendRow($orderId, false);
+    }
+
+    /** Current-read variant — use after acquiring locks under REPEATABLE READ. */
+    public static function orderActiveSpendForUpdate(int $orderId): ?array
+    {
+        return self::orderActiveSpendRow($orderId, true);
+    }
+
+    /** @return array<string,mixed>|null */
+    private static function orderActiveSpendRow(int $orderId, bool $forUpdate): ?array
+    {
         if ($orderId < 1 || !self::tableReady()) {
             return null;
         }
-        $st = Database::pdo()->prepare(
-            'SELECT s.ID AS id, s.ID_CERT AS id_cert, s.AMOUNT AS amount
+        $sql = 'SELECT s.ID AS id, s.ID_CERT AS id_cert, s.AMOUNT AS amount
              FROM base_certificate_ledger s
              WHERE s.ID_ORDER = ? AND s.REASON = ? AND s.DIRECTION < 0
                AND NOT EXISTS (
                  SELECT 1 FROM base_certificate_ledger u
                  WHERE u.ID_REF = s.ID AND u.REASON = ?
                )
-             ORDER BY s.ID ASC LIMIT 1'
-        );
+             ORDER BY s.ID ASC LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+        $st = Database::pdo()->prepare($sql);
         $st->execute([$orderId, self::REASON_SPEND, self::REASON_UNDO]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
@@ -221,15 +266,29 @@ final class CertificateLedgerRepository
 
     public static function findUndoForSpend(int $spendId): ?array
     {
+        return self::findUndoForSpendRow($spendId, false);
+    }
+
+    /** Current-read variant — use after acquiring locks under REPEATABLE READ. */
+    public static function findUndoForSpendForUpdate(int $spendId): ?array
+    {
+        return self::findUndoForSpendRow($spendId, true);
+    }
+
+    /** @return array<string,mixed>|null */
+    private static function findUndoForSpendRow(int $spendId, bool $forUpdate): ?array
+    {
         if ($spendId < 1 || !self::tableReady()) {
             return null;
         }
-        $st = Database::pdo()->prepare(
-            'SELECT ID AS id, ID_CERT AS id_cert, AMOUNT AS amount
+        $sql = 'SELECT ID AS id, ID_CERT AS id_cert, AMOUNT AS amount
              FROM base_certificate_ledger
              WHERE ID_REF = ? AND REASON = ?
-             ORDER BY ID ASC LIMIT 1'
-        );
+             ORDER BY ID ASC LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+        $st = Database::pdo()->prepare($sql);
         $st->execute([$spendId, self::REASON_UNDO]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         return $row ? [
