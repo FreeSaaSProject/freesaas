@@ -21,6 +21,7 @@ View::render('chat', [
     'title' => t('assistant.chat.title'),
     'tools' => $tools,
     'history' => $history,
+    'admin_base' => class_exists('AssistantLinks', false) ? AssistantLinks::base() : '',
     'i18n' => [
         'send' => t('assistant.chat.send'),
         'thinking' => t('assistant.chat.thinking'),

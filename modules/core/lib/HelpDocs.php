@@ -122,6 +122,10 @@ final class HelpDocs
             if ($qNorm !== '' && $score <= 0) {
                 continue;
             }
+            $menu = self::visibleMenu($meta);
+            $botCab = class_exists('AssistantLinks', false)
+                ? AssistantLinks::botCabinetLabelForModule($moduleId)
+                : '';
             $out[] = [
                 'module' => $moduleId,
                 'docs' => $docsRel,
@@ -129,7 +133,8 @@ final class HelpDocs
                 'summary' => $summary,
                 'has_docs' => $docsRel !== null,
                 'headings' => $headings,
-                'menu' => self::visibleMenu($meta),
+                'menu' => $menu,
+                'bot_cabinet' => $botCab !== '' ? $botCab : null,
                 'score' => $score,
             ];
         }
@@ -161,6 +166,9 @@ final class HelpDocs
         $title = self::moduleTitle($moduleId, $meta);
         $summary = self::moduleSummary($moduleId, $meta);
         $menu = self::visibleMenu($meta);
+        $botCab = class_exists('AssistantLinks', false)
+            ? AssistantLinks::botCabinetLabelForModule($moduleId)
+            : '';
         $section = strtolower(trim($section));
         if ($section === '') {
             $section = 'all';
@@ -187,6 +195,12 @@ final class HelpDocs
             }
         }
 
+        if ($markdown !== null && class_exists('AssistantLinks', false)) {
+            $markdown = AssistantLinks::absolutize($markdown);
+        }
+        if ($markdown !== null && $botCab !== '') {
+            $markdown .= "\n\nStaff bot cabinet alternative: «" . $botCab . "» (Telegram/Max menu).";
+        }
         if ($markdown !== null && $maxChars > 0 && mb_strlen($markdown) > $maxChars) {
             $markdown = mb_substr($markdown, 0, $maxChars) . "\n\n…";
         }
@@ -200,10 +214,11 @@ final class HelpDocs
             'has_docs' => $docsRel !== null,
             'section' => $sectionUsed,
             'menu' => $menu,
+            'bot_cabinet' => $botCab !== '' ? $botCab : null,
             'markdown' => $markdown,
             'fallback' => $docsRel === null || $markdown === null,
             'hint' => ($docsRel === null || $markdown === null)
-                ? 'No runbook on disk; use summary + menu paths only — do not invent steps.'
+                ? 'No runbook on disk; use summary + menu urls only — do not invent steps.'
                 : null,
         ];
     }
@@ -244,7 +259,7 @@ final class HelpDocs
 
     /**
      * @param array<string,mixed> $meta
-     * @return list<array{title:string,path:string}>
+     * @return list<array{title:string,path:string,url:string}>
      */
     private static function visibleMenu(array $meta): array
     {
@@ -263,7 +278,8 @@ final class HelpDocs
             }
             $titleKey = (string)($item['title'] ?? '');
             $title = $titleKey !== '' && function_exists('t') ? t($titleKey) : $path;
-            $out[] = ['title' => $title, 'path' => $path];
+            $url = class_exists('AppRuntime', false) ? AppRuntime::adminUrl($path) : $path;
+            $out[] = ['title' => $title, 'path' => $path, 'url' => $url];
         }
         return $out;
     }

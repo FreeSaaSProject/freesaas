@@ -31,6 +31,14 @@
   margin-bottom: 0.15rem;
 }
 
+.assistant-chat__msg .assistant-chat__body {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.assistant-chat__msg .assistant-chat__body a {
+  color: var(--link, #2563eb);
+  text-decoration: underline;
+}
 .assistant-chat__msg pre {
   white-space: pre-wrap;
   word-break: break-word;

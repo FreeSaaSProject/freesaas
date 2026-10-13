@@ -11,6 +11,7 @@
   var chatUrl = root.getAttribute('data-chat-url') || '/assistant/chat';
   var confirmUrl = root.getAttribute('data-confirm-url') || '/assistant/confirm';
   var clearUrl = root.getAttribute('data-clear-url') || '/assistant/clear';
+  var adminBase = (root.getAttribute('data-admin-base') || '').replace(/\/$/, '');
   var clearBtn = document.getElementById('assistant-chat-clear');
   var i18n = {};
   try {
@@ -35,6 +36,43 @@
 
   function whoLabel(role) {
     return role === 'user' ? t('you', 'You') : t('assistant', 'Assistant');
+  }
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  /** Make https URLs (and optional admin-relative paths) clickable. */
+  function linkifyHtml(text) {
+    var esc = escapeHtml(text);
+    esc = esc.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+    esc = esc.replace(
+      /(https?:\/\/[^\s<&]+[^\s<&.,;:!?)\\]])/g,
+      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+    if (adminBase) {
+      esc = esc.replace(
+        /(^|[\s(«"'])(\/[a-z][a-z0-9_-]*(?:\/[\w./?&=%~-]*)?)/g,
+        function (_, lead, path) {
+          return (
+            lead +
+            '<a href="' +
+            escapeHtml(adminBase + path) +
+            '" target="_blank" rel="noopener noreferrer">' +
+            path +
+            '</a>'
+          );
+        }
+      );
+    }
+    return esc;
   }
 
   function attachPending(wrap, pending) {
@@ -138,8 +176,9 @@
     var whoEl = document.createElement('div');
     whoEl.className = 'assistant-chat__who';
     whoEl.textContent = who;
-    var body = document.createElement('pre');
-    body.textContent = text || '';
+    var body = document.createElement('div');
+    body.className = 'assistant-chat__body';
+    body.innerHTML = linkifyHtml(text || '');
     wrap.appendChild(whoEl);
     wrap.appendChild(body);
     var traceText = formatTrace(trace);

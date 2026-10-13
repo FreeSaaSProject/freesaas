@@ -48,6 +48,19 @@ final class AssistantHarness
         $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
         $system .= "\nToday is {$today}. Yesterday is {$yesterday}.";
         $system .= "\nCall several read tools in one step when useful. After a write is queued for confirmation, stop — do not keep searching.";
+        if (class_exists('AssistantLinks', false)) {
+            $base = AssistantLinks::base();
+            if ($base !== '') {
+                $hints = AssistantLinks::botCabinetHints();
+                $botMenu = $hints !== []
+                    ? t('assistant.system_prompt.bot_menu', ['items' => implode('; ', $hints)])
+                    : t('assistant.system_prompt.bot_menu_none');
+                $system .= "\n" . t('assistant.system_prompt.links', [
+                    'base' => $base,
+                    'bot_menu' => $botMenu,
+                ]);
+            }
+        }
 
         $norm = [];
         $norm[] = ['role' => 'system', 'content' => $system];
@@ -125,15 +138,7 @@ final class AssistantHarness
             }
 
             if ($toolCalls === []) {
-                return [
-                    'ok' => true,
-                    'text' => $text,
-                    'messages' => $norm,
-                    'pending_actions' => $pending,
-                    'tool_trace' => $trace,
-                    'error' => '',
-                    'profile' => $profile,
-                ];
+                return self::okResult($text, $norm, $pending, $trace, $profile);
             }
 
             $assistantMsg = [
@@ -288,28 +293,18 @@ final class AssistantHarness
 
             // Write already queued — show Confirm buttons now; skip extra LLM rounds.
             if ($pending !== []) {
-                return [
-                    'ok' => true,
-                    'text' => $text !== '' ? $text : t('assistant.confirm.press_buttons'),
-                    'messages' => $norm,
-                    'pending_actions' => $pending,
-                    'tool_trace' => $trace,
-                    'error' => '',
-                    'profile' => $profile,
-                ];
+                return self::okResult(
+                    $text !== '' ? $text : t('assistant.confirm.press_buttons'),
+                    $norm,
+                    $pending,
+                    $trace,
+                    $profile
+                );
             }
         }
 
         if ($pending !== []) {
-            return [
-                'ok' => true,
-                'text' => t('assistant.confirm.press_buttons'),
-                'messages' => $norm,
-                'pending_actions' => $pending,
-                'tool_trace' => $trace,
-                'error' => '',
-                'profile' => $profile,
-            ];
+            return self::okResult(t('assistant.confirm.press_buttons'), $norm, $pending, $trace, $profile);
         }
 
         return [
@@ -736,6 +731,33 @@ final class AssistantHarness
         $argsBrief = self::formatArgsBrief($args);
         $joined = $argsBrief !== '' ? $title . ' · ' . $argsBrief : $title;
         return function_exists('mb_substr') ? mb_substr($joined, 0, 500) : substr($joined, 0, 500);
+    }
+
+    /**
+     * @param list<array<string,mixed>> $messages
+     * @param list<array<string,mixed>> $pending
+     * @param list<array<string,mixed>> $trace
+     * @return array{ok:bool,text:string,messages:list,pending_actions:list,tool_trace:list,error:string,profile:?string}
+     */
+    private static function okResult(
+        string $text,
+        array $messages,
+        array $pending,
+        array $trace,
+        ?string $profile
+    ): array {
+        if ($text !== '' && class_exists('AssistantLinks', false)) {
+            $text = AssistantLinks::absolutize($text);
+        }
+        return [
+            'ok' => true,
+            'text' => $text,
+            'messages' => $messages,
+            'pending_actions' => $pending,
+            'tool_trace' => $trace,
+            'error' => '',
+            'profile' => $profile,
+        ];
     }
 
     /**

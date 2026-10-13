@@ -88,10 +88,43 @@ final class AppRuntime
     {
         $host = self::adminHost();
         if ($host === '') {
+            $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+            if (($p = strpos($host, ':')) !== false) {
+                $host = substr($host, 0, $p);
+            }
+        }
+        $host = preg_replace('#^https?://#i', '', $host) ?? $host;
+        $host = rtrim($host, '/');
+        if ($host === '') {
             return '';
         }
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $https = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
+        $local = (bool)preg_match('/^(localhost|127\.|.*\.(local|hm|test))$/i', $host)
+            || strpos($host, 'dev') !== false;
+        $scheme = ($https || !$local) ? 'https' : 'http';
+
         return $scheme . '://' . $host;
+    }
+
+    /** Absolute admin UI URL for a path (e.g. /wellness/food-diary). */
+    public static function adminUrl(string $path = '/'): string
+    {
+        $path = trim($path);
+        if ($path === '') {
+            $path = '/';
+        }
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+        if ($path[0] !== '/') {
+            $path = '/' . $path;
+        }
+        $base = self::adminBaseUrl();
+        if ($base === '') {
+            return $path;
+        }
+
+        return $base . $path;
     }
 
     private static function normalize(string $raw): string

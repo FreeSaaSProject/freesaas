@@ -3,9 +3,11 @@ declare(strict_types=1);
 /** @var list<array{id:string,side_effect:string,description:string}> $tools */
 /** @var array<string,string> $i18n */
 /** @var list<array{role:string,content:string}> $history */
+/** @var string $admin_base */
 $tools = is_array($tools ?? null) ? $tools : [];
 $i18n = is_array($i18n ?? null) ? $i18n : [];
 $history = is_array($history ?? null) ? $history : [];
+$admin_base = isset($admin_base) ? (string)$admin_base : '';
 $historyJson = json_encode($history, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if ($historyJson === false) {
     $historyJson = '[]';
@@ -19,6 +21,7 @@ if ($historyJson === false) {
      data-chat-url="/assistant/chat"
      data-confirm-url="/assistant/confirm"
      data-clear-url="/assistant/clear"
+     data-admin-base="<?= e($admin_base) ?>"
      data-history="<?= e($historyJson) ?>"
      data-i18n="<?= e(json_encode($i18n, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}') ?>">
   <div class="assistant-chat__toolbar">
