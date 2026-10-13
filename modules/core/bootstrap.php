@@ -43,9 +43,9 @@ $pages = [
     '/db' => ['permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
 
     '/users' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'users.php'],
-    '/users/new' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
+    '/users/new' => ['permission' => 'core.users', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
     '/users/{id}' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user.php'],
-    '/users/{id}/edit' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
+    '/users/{id}/edit' => ['permission' => 'core.users', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
     '/statuses' => ['permission' => 'core.statuses', 'methods' => ['GET'], 'file' => 'statuses.php'],
     '/statuses/new' => ['permission' => 'core.statuses', 'methods' => ['GET', 'POST'], 'file' => 'status_edit.php'],
     '/statuses/{id}/edit' => ['permission' => 'core.statuses', 'methods' => ['GET', 'POST'], 'file' => 'status_edit.php'],

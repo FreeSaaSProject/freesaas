@@ -97,6 +97,7 @@ View::render('list', [
     'showBirthdayColumn' => !empty($colData['birthday']),
     'extraColumns' => $extraColumns,
     'canEdit' => Auth::can('clients.edit'),
+    'canViewPii' => ClientsRepository::canViewPii(),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
     'page' => $lq['page'],

@@ -979,6 +979,13 @@ final class UsersRepository
         $add('url', '');
         $add('retries', 0);
         $add('expire', 0);
+        // Strict schemas: bday (unix/int) or birthday date NOT NULL without DEFAULT.
+        if (Database::columnExists('base_users', 'bday') && !array_key_exists('bday', $data)) {
+            $add('bday', 0);
+        }
+        if (Database::columnExists('base_users', 'birthday') && !array_key_exists('birthday', $data)) {
+            $add('birthday', '0000-00-00');
+        }
         if (isset($data['num'])) {
             $add('num', max(0, (int)$data['num']));
         }

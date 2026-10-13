@@ -18,8 +18,9 @@ $q = trim((string)($_GET['q'] ?? ''));
 $pid = (int)($_GET['pid'] ?? 0);
 $unread = isset($_GET['unread']) && (string)$_GET['unread'] === '1' && $type >= 1 && $type <= 3;
 $unsigned = isset($_GET['unsigned']) && (string)$_GET['unsigned'] === '1' && $type >= 1 && $type <= 3;
-if ($unread || $unsigned) {
-    $pid = 0; // flat list across folders (oper ANSTYPE=1 / 2)
+$overdue = isset($_GET['overdue']) && (string)$_GET['overdue'] === '1' && $type === 2;
+if ($unread || $unsigned || $overdue) {
+    $pid = 0; // flat list across folders (oper ANSTYPE=1 / 2 / overdue)
 }
 
 if ($pid > 0) {
@@ -56,6 +57,7 @@ $result = NewsRepository::list([
     'pid' => $pid,
     'unread' => $unread,
     'unsigned' => $unsigned,
+    'overdue' => $overdue,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $order,
@@ -84,11 +86,12 @@ $feedChips = is_array($feedChipsPayload) && is_array($feedChipsPayload['chips'] 
 
 $filters = array_merge([
     'type' => $type,
-    'status' => $status >= 0 ? $status : '',
+    'status' => $overdue ? '' : ($status >= 0 ? $status : ''),
     'q' => $q,
     'pid' => $pid > 0 ? $pid : '',
     'unread' => $unread ? 1 : '',
     'unsigned' => $unsigned ? 1 : '',
+    'overdue' => $overdue ? 1 : '',
     'per_page' => $lq['per_page'],
 ], $explicitSort ? ['sort' => $lq['sort'], 'dir' => $lq['dir']] : []);
 if (!empty($lq['show_all'])) {
@@ -106,14 +109,17 @@ if ($unread) {
     $rootLabel = t('core.news.filter_unread_heading', ['type' => $rootLabel]);
 } elseif ($unsigned) {
     $rootLabel = t('core.news.filter_unsigned_heading', ['type' => $rootLabel]);
+} elseif ($overdue) {
+    $rootLabel = t('core.news.filter_overdue_heading', ['type' => $rootLabel]);
 }
 
 $typeQs = array_filter([
     'type' => $type,
-    'status' => $status >= 0 ? $status : '',
+    'status' => $overdue ? '' : ($status >= 0 ? $status : ''),
     'q' => $q,
     'unread' => $unread ? 1 : '',
     'unsigned' => $unsigned ? 1 : '',
+    'overdue' => $overdue ? 1 : '',
 ], static function ($v) {
     return $v !== '' && $v !== null;
 });
@@ -179,11 +185,12 @@ if ($wantsJson) {
         'folder' => $pid > 0 ? NewsRepository::forAgent($folderRow ?? null) : null,
         'filters' => [
             'type' => $type,
-            'status' => $status >= 0 ? $status : null,
+            'status' => $overdue ? null : ($status >= 0 ? $status : null),
             'q' => $q,
             'pid' => $pid > 0 ? $pid : null,
             'unread' => $unread ? 1 : 0,
             'unsigned' => $unsigned ? 1 : 0,
+            'overdue' => $overdue ? 1 : 0,
         ],
         'counts' => $counts,
         'tabs' => NewsRepository::typeTabs(),
@@ -207,6 +214,7 @@ View::render('news', [
     'pid' => $pid,
     'unread' => $unread,
     'unsigned' => $unsigned,
+    'overdue' => $overdue,
     'rootLabel' => $rootLabel,
     'breadcrumbs' => $breadcrumbs,
     'breadcrumbs_aria' => t('core.news.folder_aria'),

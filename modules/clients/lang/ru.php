@@ -15,6 +15,7 @@ return [
     'clients.widget.title' => 'Клиенты',
     'clients.widget.body' => 'Активных: {n}',
     'clients.err.not_found' => 'Клиент #{id} не найден',
+    'clients.err.forbidden_day' => 'Клиент недоступен: нет визита или заказа на сегодня',
     'clients.err.phone_required' => 'Телефон обязателен (логин клиента)',
     'clients.err.bad_birthday' => 'Некорректная дата рождения',
     'clients.gender.f' => 'жен',

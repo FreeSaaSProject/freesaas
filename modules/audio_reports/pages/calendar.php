@@ -16,11 +16,20 @@ if (AgentHttp::wantsJson() && $dayJson !== '' && preg_match('/^\d{4}-\d{2}-\d{2}
     $adminFilter = max(0, (int)($_GET['admin'] ?? 0));
     $badgeFilter = max(0, (int)($_GET['badge'] ?? 0));
     $positionFilter = max(0, (int)($_GET['position'] ?? 0));
-    $agg = CalendarAggregates::forRange($dayStart, $dayEnd, [
+    $dayFilters = [
         'admin' => $adminFilter,
         'badge' => $badgeFilter,
         'position' => $positionFilter,
-    ]);
+    ];
+    if (!Auth::capability('SUPERADMIN_ACCESS')) {
+        $scope = SummariesRepository::equivalentAudioPositionIds(Auth::statusId());
+        if ($scope === []) {
+            $own = Auth::statusId();
+            $scope = $own > 0 ? [$own] : [];
+        }
+        $dayFilters['positions'] = $scope;
+    }
+    $agg = CalendarAggregates::forRange($dayStart, $dayEnd, $dayFilters);
     $dayRow = $agg['by_day'][$dayJson] ?? [
         'count' => 0,
         'playtime' => 0,
@@ -83,11 +92,35 @@ $adminFilter = max(0, (int)($_GET['admin'] ?? 0));
 $badgeFilter = max(0, (int)($_GET['badge'] ?? 0));
 $positionFilter = max(0, (int)($_GET['position'] ?? 0));
 
+// Non-super: peers of the same audio position only (SHOW_ADMINISTRATOR_DATA ignored).
+$scopePositions = null;
+if (!Auth::capability('SUPERADMIN_ACCESS')) {
+    $scopePositions = SummariesRepository::equivalentAudioPositionIds(Auth::statusId());
+    if ($scopePositions === []) {
+        $own = Auth::statusId();
+        $scopePositions = $own > 0 ? [$own] : [];
+    }
+    if ($positionFilter > 0 && !in_array($positionFilter, $scopePositions, true)) {
+        $positionFilter = 0;
+    }
+    if ($adminFilter > 0 && Database::tableExists('base_users')) {
+        $st = Database::pdo()->prepare('SELECT ID_STATUS FROM base_users WHERE id = ? LIMIT 1');
+        $st->execute([$adminFilter]);
+        $stId = (int)$st->fetchColumn();
+        if (!in_array($stId, $scopePositions, true)) {
+            $adminFilter = 0;
+        }
+    }
+}
+
 $calFilters = [
     'admin' => $adminFilter,
     'badge' => $badgeFilter,
     'position' => $positionFilter,
 ];
+if ($scopePositions !== null) {
+    $calFilters['positions'] = $scopePositions;
+}
 
 // Always show selected month + previous (cross-year). Month 0 = whole selected year.
 // Display order: selected first, then previous (so current work is on top).
@@ -182,12 +215,31 @@ $positionNames = StatusesRepository::optionsForAudio();
 unset($positionNames[0]);
 
 $staffOptions = [];
+$allowedStaffIds = null;
+if ($scopePositions !== null) {
+    $allowedStaffIds = [];
+}
 foreach (UsersRepository::listEnabledStaff() as $u) {
+    $uid = (int)$u['id'];
+    $stId = (int)($u['ID_STATUS'] ?? 0);
+    if ($scopePositions !== null && !in_array($stId, $scopePositions, true)) {
+        continue;
+    }
     $label = trim((string)$u['name']);
     if ($label === '') {
         $label = (string)$u['login'];
     }
-    $staffOptions[(int)$u['id']] = $label;
+    $staffOptions[$uid] = $label;
+    if ($allowedStaffIds !== null) {
+        $allowedStaffIds[$uid] = true;
+    }
+}
+if ($scopePositions !== null) {
+    foreach (array_keys($positionNames) as $pid) {
+        if (!in_array((int)$pid, $scopePositions, true)) {
+            unset($positionNames[(int)$pid]);
+        }
+    }
 }
 
 $badgeOptions = [];
@@ -424,6 +476,12 @@ foreach ($periodMonths as $period) {
             $aid = (int)$miss['admin_id'];
             if ($adminFilter > 0 && $aid !== $adminFilter) {
                 continue;
+            }
+            if ($scopePositions !== null) {
+                $missPos = (int)($adminMeta[$aid]['position_id'] ?? 0);
+                if (!in_array($missPos, $scopePositions, true)) {
+                    continue;
+                }
             }
             $badgeCode = (string)($miss['badge'] ?? '');
             if ($miss['kind'] === 'waiting') {

@@ -14,6 +14,15 @@ if (!$client) {
     View::render('error', ['title' => t('core.common.not_found'), 'message' => t('clients.err.not_found', ['id' => $id])]);
     return;
 }
+if (!ClientsRepository::canAccessClient($id)) {
+    if ($wantsJson) {
+        AgentHttp::error(t('clients.err.forbidden_day'), 403);
+        return;
+    }
+    http_response_code(403);
+    View::render('error', ['title' => t('core.common.forbidden'), 'message' => t('clients.err.forbidden_day')]);
+    return;
+}
 
 $statuses = ClientStatusesRepository::names(false);
 $statusName = $statuses[(int)$client['status_id']] ?? ((int)$client['status_id'] > 0 ? ('#' . $client['status_id']) : '—');

@@ -21,6 +21,14 @@
             "label": "audio_reports.perm.view"
         },
         {
+            "id": "audio_reports.collections",
+            "label": "audio_reports.perm.collections"
+        },
+        {
+            "id": "audio_reports.summaries",
+            "label": "audio_reports.perm.summaries"
+        },
+        {
             "id": "audio_reports.edit",
             "label": "audio_reports.perm.edit"
         }
@@ -73,14 +81,14 @@
                 "id": "audio_reports.summaries.list",
                 "method": "GET",
                 "path": "/audio/summaries",
-                "permission": "audio_reports.view",
+                "permission": "audio_reports.summaries",
                 "description": "List summary profiles; add run=1&profile=&year=&month= for a report"
             },
             {
                 "id": "audio_reports.summaries.get",
                 "method": "GET",
                 "path": "/audio/summaries/{id}",
-                "permission": "audio_reports.view",
+                "permission": "audio_reports.summaries",
                 "description": "Get one summary profile (config + labels)"
             },
             {
@@ -94,7 +102,7 @@
                 "id": "audio_reports.summaries.work",
                 "method": "POST",
                 "path": "/audio/summaries/work",
-                "permission": "audio_reports.view",
+                "permission": "audio_reports.summaries",
                 "description": "Work actions: propose|preview|save|month (edit for propose/preview/save; month is POST-only)"
             }
         ]

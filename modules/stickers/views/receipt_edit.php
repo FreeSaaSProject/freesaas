@@ -40,13 +40,22 @@ $ledgerOn = !empty($ledgerOn);
     <?php endif; ?>
   </p>
 <?php endif; ?>
+<?php
+  $lockFields = !$isNew;
+  $ro = $lockFields ? ' readonly' : '';
+  $dis = $lockFields ? ' disabled' : '';
+?>
+<?php if ($isNew): ?>
 <form method="post" class="form-grid form-wide">
+<?php else: ?>
+<div class="form-grid form-wide">
+<?php endif; ?>
   <fieldset>
     <label><?= te('stickers.col.descr') ?>
-      <input name="descr" maxlength="255" value="<?= e((string)($row['descr'] ?? '')) ?>" required>
+      <input name="descr" maxlength="255" value="<?= e((string)($row['descr'] ?? '')) ?>" required<?= $ro ?>>
     </label>
     <label><?= te('stickers.col.stock') ?>
-      <select name="id_stock" required>
+      <select name="id_stock" required<?= $dis ?>>
         <option value="">—</option>
         <?php foreach ($stocks as $sid => $sname): ?>
           <option value="<?= (int)$sid ?>"<?= (int)($row['id_stock'] ?? 0) === (int)$sid ? ' selected' : '' ?>><?= e($sname) ?></option>
@@ -54,21 +63,27 @@ $ledgerOn = !empty($ledgerOn);
       </select>
     </label>
     <label><?= te('stickers.col.supplier') ?>
-      <select name="id_supplier">
+      <select name="id_supplier"<?= $dis ?>>
         <option value="0">—</option>
         <?php foreach ($suppliers as $sid => $sname): ?>
           <option value="<?= (int)$sid ?>"<?= (int)($row['id_supplier'] ?? 0) === (int)$sid ? ' selected' : '' ?>><?= e($sname) ?></option>
         <?php endforeach; ?>
       </select>
     </label>
-    <label class="check"><input type="checkbox" name="is_signed" value="1"<?= !empty($row['is_signed']) ? ' checked' : '' ?>> <?= te('stickers.col.signed') ?></label>
-    <label class="check"><input type="checkbox" name="is_sticked" value="1"<?= !empty($row['is_sticked']) ? ' checked' : '' ?>> <?= te('stickers.col.sticked') ?></label>
+    <label class="check"><input type="checkbox" name="is_signed" value="1"<?= !empty($row['is_signed']) ? ' checked' : '' ?><?= $dis ?>> <?= te('stickers.col.signed') ?></label>
+    <label class="check"><input type="checkbox" name="is_sticked" value="1"<?= !empty($row['is_sticked']) ? ' checked' : '' ?><?= $dis ?>> <?= te('stickers.col.sticked') ?></label>
   </fieldset>
   <div class="page-actions">
+    <?php if ($isNew): ?>
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+    <?php endif; ?>
     <a class="btn-secondary" href="/stickers/receipts"><?= te('core.common.cancel') ?></a>
   </div>
+<?php if ($isNew): ?>
 </form>
+<?php else: ?>
+</div>
+<?php endif; ?>
 
 <?php if (!$isNew): ?>
   <h2><?= te('stickers.receipt.stickers') ?></h2>

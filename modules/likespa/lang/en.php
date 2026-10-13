@@ -63,6 +63,7 @@ return [
     'likespa.restores.err.reason_required' => 'Restore reason is required',
     'likespa.restores.err.summ_required' => 'Payout amount is required',
     'likespa.restores.err.table' => 'Table base_procedure_restores is unavailable',
+    'likespa.restores.err.super_only_edit' => 'Only a director can edit reason and amount',
     'likespa.restores.field.procedure' => 'Procedure',
     'likespa.restores.field.procedure_pick' => 'Pick a procedure…',
     'likespa.restores.field.reason' => 'Restore reason',

@@ -9,6 +9,7 @@ declare(strict_types=1);
 /** @var int $pid */
 /** @var bool $unread */
 /** @var bool $unsigned */
+/** @var bool $overdue */
 /** @var string $rootLabel */
 /** @var list<array{label:string, href?:?string, current?:bool}> $breadcrumbs */
 /** @var array $counts */
@@ -31,6 +32,7 @@ $checklistProgress = $checklistProgress ?? [];
 $feedChips = $feedChips ?? [];
 $unread = !empty($unread);
 $unsigned = !empty($unsigned);
+$overdue = !empty($overdue);
 $sort = $sort ?? '';
 $dir = $dir ?? 'desc';
 $page = $page ?? 1;
@@ -39,14 +41,15 @@ $showAll = !empty($showAll);
 $filters = $filters ?? [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, '/news', $filters, $showAll);
 
-$qsBase = static function (array $extra = []) use ($type, $status, $q, $pid, $unread, $unsigned, $sort, $dir): string {
+$qsBase = static function (array $extra = []) use ($type, $status, $q, $pid, $unread, $unsigned, $overdue, $sort, $dir): string {
     $p = array_merge([
         'type' => $type,
-        'status' => $status >= 0 ? $status : '',
+        'status' => $overdue ? '' : ($status >= 0 ? $status : ''),
         'q' => $q,
         'pid' => $pid > 0 ? $pid : '',
         'unread' => $unread ? 1 : '',
         'unsigned' => $unsigned ? 1 : '',
+        'overdue' => $overdue ? 1 : '',
     ], $extra);
     if ($sort !== '') {
         $p['sort'] = $sort;
@@ -101,10 +104,18 @@ $sortLabels = [
   <?php foreach ($visibleTabs as $t): ?>
     <?php
       $tid = (int)$t['id'];
-      // Unread / unsigned modes only apply to types 1–3
+      // Unread / unsigned / overdue modes only apply to types 1–3 (overdue: type 2)
       $tabUnread = $unread && $tid >= 1 && $tid <= 3 ? 1 : '';
       $tabUnsigned = $unsigned && $tid >= 1 && $tid <= 3 ? 1 : '';
-      $href = $qsBase(['type' => $tid, 'pid' => '', 'unread' => $tabUnread, 'unsigned' => $tabUnsigned]);
+      $tabOverdue = $overdue && $tid === 2 ? 1 : '';
+      $href = $qsBase([
+          'type' => $tid,
+          'pid' => '',
+          'unread' => $tabUnread,
+          'unsigned' => $tabUnsigned,
+          'overdue' => $tabOverdue,
+          'status' => $tabOverdue ? '' : ($status >= 0 ? $status : ''),
+      ]);
       $cnt = (int)($counts[$tid] ?? 0);
     ?>
     <a class="type-tab<?= $type === $tid ? ' is-active' : '' ?>" href="<?= e($href) ?>">
@@ -168,7 +179,7 @@ $sortLabels = [
         $isArchive = !empty($f['IGNORE_FOLDER']);
       ?>
       <div class="folder-row<?= $isArchive ? ' is-archive' : '' ?>">
-        <a class="folder-item<?= $isArchive ? ' is-archive' : '' ?>" href="<?= e($qsBase(['pid' => $fid, 'type' => (int)$f['TYPE'], 'unread' => '', 'unsigned' => ''])) ?>">
+        <a class="folder-item<?= $isArchive ? ' is-archive' : '' ?>" href="<?= e($qsBase(['pid' => $fid, 'type' => (int)$f['TYPE'], 'unread' => '', 'unsigned' => '', 'overdue' => ''])) ?>">
           <span class="folder-icon" aria-hidden="true">▸</span>
           <span class="folder-name"><?= e((string)$f['NAME']) ?></span>
           <?php if ($isArchive): ?>

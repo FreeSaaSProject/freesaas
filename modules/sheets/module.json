@@ -19,6 +19,14 @@
             "label": "sheets.perm.view"
         },
         {
+            "id": "sheets.transfer",
+            "label": "sheets.perm.transfer"
+        },
+        {
+            "id": "sheets.accounts",
+            "label": "sheets.perm.accounts"
+        },
+        {
             "id": "sheets.edit",
             "label": "sheets.perm.edit"
         }
@@ -41,7 +49,7 @@
                 "id": "sheets.accounts.list",
                 "method": "GET",
                 "path": "/sheets/accounts",
-                "permission": "sheets.view",
+                "permission": "sheets.accounts",
                 "description": "List linen accounts; filters q, enabled"
             },
             {
@@ -97,14 +105,14 @@
                 "id": "sheets.transfers.get",
                 "method": "GET",
                 "path": "/sheets/transfers/new",
-                "permission": "sheets.edit",
+                "permission": "sheets.transfer",
                 "description": "Transfer form defaults and account dictionary"
             },
             {
                 "id": "sheets.transfers.create",
                 "method": "POST",
                 "path": "/sheets/transfers/new",
-                "permission": "sheets.edit",
+                "permission": "sheets.transfer",
                 "description": "Create paired transfer move; fields id_account, id_account_to, summ, descr, weight, dt"
             }
         ]

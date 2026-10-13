@@ -6,7 +6,10 @@ declare(strict_types=1);
  * Lives under migrators/ on purpose — delete with the phpshop_* data migrators
  * after legacy tables are gone (not a runtime platform service).
  *
- * OR semantics: legacy ON and target empty → set 1. Legacy keys kept for re-runs.
+ * Sync semantics for map targets: each FreeSaaS id that appears as a map value
+ * is ON iff at least one legacy source that lists it is ON; otherwise OFF.
+ * Legacy keys are kept for re-runs. Empty target lists (e.g. show_fullstats)
+ * intentionally grant nothing but still participate in reverse sync.
  */
 final class OperPermissionsRemap
 {
@@ -128,12 +131,12 @@ final class OperPermissionsRemap
             'edit_act_out_sm2' => ['stickers.writeoff'],
             'edit_good_out' => ['stickers.writeoff'],
 
-            // Sheets
-            'show_sheet_accounts' => ['sheets.view'],
-            'show_sheet_moves' => ['sheets.view'],
-            'edit_sheet_account' => ['sheets.edit'],
+            // Sheets: moves/transfer vs accounts (director)
+            'show_sheet_accounts' => ['sheets.accounts'],
+            'show_sheet_moves' => ['sheets.view', 'sheets.transfer'],
+            'edit_sheet_account' => ['sheets.accounts', 'sheets.edit'],
             'edit_sheet_move' => ['sheets.edit'],
-            'edit_sheet_movement' => ['sheets.edit'],
+            'edit_sheet_movement' => ['sheets.transfer'],
 
             // Contracts / vacations / polls
             'show_contracts' => ['contracts.list'],
@@ -147,20 +150,21 @@ final class OperPermissionsRemap
             'edit_poll_invite' => ['poll_invites.edit'],
             'edit_poll_invite2' => ['poll_invites.edit'],
 
-            // Certificates / bonuses
+            // Certificates / bonuses (ledger journal is director-only; not from show_sertificates)
             'show_sertificates' => ['certificates.view'],
-            'show_sert_movements' => ['certificates.view'],
+            'show_sert_movements' => ['certificates.ledger'],
             'edit_sertificate' => ['certificates.edit'],
             'show_bonuses' => ['bonuses.view'],
             'edit_bonus' => ['bonuses.edit'],
             'bonus.php' => ['bonuses.apply'],
 
             // Terminals / bracelets / floor
+            // show_fullstats → []: admins must not get terminals.view from occupancy alone.
             'show_terminals' => ['terminals.view'],
             'show_devices' => ['terminals.view'],
             'show_bracelets' => ['terminals.view'],
             'show_uids' => ['terminals.view'],
-            'show_fullstats' => ['terminals.view'],
+            'show_fullstats' => [],
             'show_term_scans' => ['terminals.view', 'likespa.view'],
             'term_scans' => ['terminals.view', 'likespa.view'],
             'show_terminals_activations' => ['terminals.view'],
@@ -203,14 +207,14 @@ final class OperPermissionsRemap
             'edit_records_trashe' => ['audio_dicts.edit'],
             'show_records_calendars' => ['audio_reports.view'],
             'show_records_calendars2' => ['audio_reports.view'],
-            'show_massage_reports' => ['audio_reports.view', 'staff_reports.view'],
-            'show_massage_reports_summarys' => ['audio_reports.view', 'staff_reports.view'],
+            'show_massage_reports' => ['audio_reports.view', 'audio_reports.summaries', 'staff_reports.view'],
+            'show_massage_reports_summarys' => ['audio_reports.summaries', 'staff_reports.view'],
             'massage_reports_engine' => ['audio_reports.edit', 'staff_reports.edit'],
             'show_records_llm_studies' => ['audio_llm.view'],
             'edit_records_llm_study' => ['audio_llm.edit'],
             'show_records_llm_moderations' => ['audio_llm.view'],
             'records_llm_moderation' => ['audio_llm.edit'],
-            'show_records_collections' => ['audio_pipeline.view'],
+            'show_records_collections' => ['audio_reports.collections', 'audio_pipeline.view'],
             'show_records_instances' => ['audio_pipeline.view'],
             'show_records_telemetrys' => ['asr.view'],
 
@@ -253,6 +257,28 @@ final class OperPermissionsRemap
             'show_quality3' => ['staff_reports.view'],
             'show_qualityoperator' => ['staff_reports.view'],
         ];
+    }
+
+    /**
+     * FreeSaaS permission ids that appear as map targets (for sync ON/OFF).
+     *
+     * @return list<string>
+     */
+    public static function syncTargetIds(): array
+    {
+        $ids = [];
+        foreach (self::map() as $targets) {
+            foreach ($targets as $to) {
+                $to = (string)$to;
+                if ($to !== '' && strpos($to, '.') !== false) {
+                    $ids[$to] = true;
+                }
+            }
+        }
+        foreach (['sites.pages', 'sites.promopages', 'sites.redirects'] as $to) {
+            $ids[$to] = true;
+        }
+        return array_keys($ids);
     }
 
     /**
@@ -303,7 +329,7 @@ final class OperPermissionsRemap
     }
 
     /**
-     * Apply map to a serialized status blob. Returns null if unchanged / unreadable.
+     * Apply map to a serialized status blob (sync). Returns null if unchanged / unreadable.
      */
     public static function remapBlob(string $raw): ?string
     {
@@ -318,33 +344,60 @@ final class OperPermissionsRemap
         foreach ($blob['permissions'] as $k => $v) {
             $perms[(string)$k] = (int)$v ? 1 : 0;
         }
-        $changed = false;
+
+        // Reverse: target → list of legacy sources that grant it.
+        /** @var array<string, list<string>> $sources */
+        $sources = [];
         foreach (self::map() as $from => $targets) {
-            if (empty($perms[$from])) {
-                continue;
-            }
             foreach ($targets as $to) {
                 $to = (string)$to;
                 if ($to === '' || strpos($to, '.') === false) {
                     continue;
                 }
-                if (empty($perms[$to])) {
-                    $perms[$to] = 1;
-                    $changed = true;
-                }
+                $sources[$to][] = (string)$from;
             }
         }
-        // Also copy already-namespaced likespa CMS → sites (parity with schema migrator).
+
+        $desired = [];
+        foreach ($sources as $to => $froms) {
+            $on = false;
+            foreach ($froms as $from) {
+                if (!empty($perms[$from])) {
+                    $on = true;
+                    break;
+                }
+            }
+            $desired[$to] = $on ? 1 : 0;
+        }
+
+        // likespa CMS → sites (parity with schema migrator); treat as additional source.
         foreach ([
             'likespa.pages' => 'sites.pages',
             'likespa.promopages' => 'sites.promopages',
             'likespa.redirects' => 'sites.redirects',
         ] as $from => $to) {
-            if (!empty($perms[$from]) && empty($perms[$to])) {
-                $perms[$to] = 1;
-                $changed = true;
+            if (!empty($perms[$from])) {
+                $desired[$to] = 1;
+            } elseif (!isset($desired[$to])) {
+                $desired[$to] = 0;
             }
         }
+
+        $changed = false;
+        foreach ($desired as $to => $want) {
+            $have = !empty($perms[$to]) ? 1 : 0;
+            if ($have === $want) {
+                continue;
+            }
+            $changed = true;
+            if ($want === 1) {
+                $perms[$to] = 1;
+            } else {
+                // Drop explicit OFF for cleanliness; empty = denied.
+                unset($perms[$to]);
+            }
+        }
+
         if (!$changed) {
             return null;
         }

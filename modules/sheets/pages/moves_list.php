@@ -35,6 +35,7 @@ View::render('moves_list', [
     'idAccount' => $idAccount,
     'accounts' => $accounts,
     'canEdit' => Auth::can('sheets.edit'),
+    'canTransfer' => Auth::can('sheets.transfer'),
     'sort' => $lq['sort'], 'dir' => $lq['dir'], 'page' => $lq['page'], 'perPage' => $lq['per_page'],
     'showAll' => $lq['show_all'], 'filters' => $filters,
 ], 'layout', 'sheets');

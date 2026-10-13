@@ -3,6 +3,94 @@ declare(strict_types=1);
 
 final class ClientsRepository
 {
+    /** Tel/mail in list/view: director-only (not SHOW_ADMINISTRATOR_DATA). */
+    public static function canViewPii(): bool
+    {
+        return Auth::capability('SUPERADMIN_ACCESS');
+    }
+
+    /**
+     * Non-super: only clients with an event or order touching today (local day).
+     * Superadmin: unrestricted.
+     */
+    public static function canAccessClient(int $id): bool
+    {
+        if ($id < 1) {
+            return false;
+        }
+        if (Auth::capability('SUPERADMIN_ACCESS')) {
+            return true;
+        }
+        return self::clientIdsActiveOnDay(self::todayBounds(), [$id]) !== [];
+    }
+
+    /**
+     * @return array{0:int,1:int} [dayStart, dayEnd] unix
+     */
+    public static function todayBounds(): array
+    {
+        $start = mktime(0, 0, 0) ?: time();
+        $end = mktime(23, 59, 59) ?: ($start + 86399);
+        return [$start, $end];
+    }
+
+    /**
+     * Client ids with event (DTSTART) or order (DT_CREATE) in [from,to].
+     *
+     * @param array{0:int,1:int} $bounds
+     * @param list<int>|null $limitIds optional IN filter
+     * @return list<int>
+     */
+    public static function clientIdsActiveOnDay(array $bounds, ?array $limitIds = null): array
+    {
+        $from = (int)($bounds[0] ?? 0);
+        $to = (int)($bounds[1] ?? 0);
+        if ($from < 1 || $to < $from) {
+            return [];
+        }
+        $ids = [];
+        $limitSql = '';
+        $limitParams = [];
+        if ($limitIds !== null) {
+            $clean = [];
+            foreach ($limitIds as $id) {
+                $id = (int)$id;
+                if ($id > 0) {
+                    $clean[$id] = true;
+                }
+            }
+            $clean = array_keys($clean);
+            if ($clean === []) {
+                return [];
+            }
+            $limitSql = ' AND ID_USER IN (' . implode(',', array_fill(0, count($clean), '?')) . ')';
+            $limitParams = $clean;
+        }
+        $pdo = Database::pdo();
+        if (Database::tableExists('base_events') && Database::columnExists('base_events', 'ID_USER')) {
+            $st = $pdo->prepare(
+                'SELECT DISTINCT ID_USER FROM base_events
+                 WHERE ID_USER > 0 AND DTSTART >= ? AND DTSTART <= ?' . $limitSql
+            );
+            $st->execute(array_merge([$from, $to], $limitParams));
+            while ($id = $st->fetchColumn()) {
+                $ids[(int)$id] = true;
+            }
+        }
+        if (Database::tableExists('base_orders') && Database::columnExists('base_orders', 'ID_USER')) {
+            $dtCol = Database::columnExists('base_orders', 'DT_CREATE') ? 'DT_CREATE' : 'DT_SAVE';
+            $st = $pdo->prepare(
+                "SELECT DISTINCT ID_USER FROM base_orders
+                 WHERE ID_USER > 0 AND {$dtCol} >= ? AND {$dtCol} <= ?" . $limitSql
+            );
+            $st->execute(array_merge([$from, $to], $limitParams));
+            while ($id = $st->fetchColumn()) {
+                $ids[(int)$id] = true;
+            }
+        }
+        return array_keys($ids);
+    }
+
     /** @return array<string,string> request sort key => SQL expression */
     public static function listSortMap(): array
     {
@@ -70,12 +158,26 @@ final class ClientsRepository
             $params[] = (int)$tagId;
         }
         if ($q !== '') {
-            $where[] = '(c.name LIKE ? OR c.tel LIKE ? OR c.mail LIKE ? OR c.id = ?)';
-            $like = '%' . $q . '%';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = ctype_digit($q) ? (int)$q : 0;
+            if (self::canViewPii()) {
+                $where[] = '(c.name LIKE ? OR c.tel LIKE ? OR c.mail LIKE ? OR c.id = ?)';
+                $like = '%' . $q . '%';
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = $like;
+                $params[] = ctype_digit($q) ? (int)$q : 0;
+            } else {
+                $where[] = '(c.name LIKE ? OR c.id = ?)';
+                $like = '%' . $q . '%';
+                $params[] = $like;
+                $params[] = ctype_digit($q) ? (int)$q : 0;
+            }
+        }
+        if (!Auth::capability('SUPERADMIN_ACCESS')) {
+            $activeIds = self::clientIdsActiveOnDay(self::todayBounds());
+            if ($activeIds === []) {
+                return ['items' => [], 'total' => 0];
+            }
+            $where[] = 'c.id IN (' . implode(',', array_map('intval', $activeIds)) . ')';
         }
         $sqlWhere = implode(' AND ', $where);
         $pdo = Database::pdo();

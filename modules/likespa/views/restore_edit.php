@@ -5,10 +5,13 @@ declare(strict_types=1);
 /** @var list<array<string,mixed>> $candidates */
 /** @var int $lookbackDays */
 /** @var bool $isSuper */
+/** @var bool $canEditFields */
 /** @var bool $canSubmit */
 /** @var string $message */
 /** @var string $error */
 $signed = (int)($row['id_operator_reviewed'] ?? 0) > 0;
+$canEditFields = !empty($canEditFields);
+$fieldDisabled = $canEditFields ? '' : ' disabled';
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('likespa.restores.edit.heading_new') : e('#' . (int)($row['id'] ?? 0)) ?></h1>
@@ -22,7 +25,9 @@ $signed = (int)($row['id_operator_reviewed'] ?? 0) > 0;
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
-<?php if (!$canSubmit): ?>
+<?php if (!$isNew && !$canEditFields): ?>
+  <div class="flash flash-warn"><?= te('likespa.restores.err.super_only_edit') ?></div>
+<?php elseif ($isNew && !$canSubmit): ?>
   <div class="flash flash-warn"><?= te('likespa.restores.err.no_candidates') ?></div>
 <?php endif; ?>
 
@@ -30,10 +35,10 @@ $signed = (int)($row['id_operator_reviewed'] ?? 0) > 0;
   <fieldset>
     <legend><?= te('likespa.restores.edit.sec_why') ?></legend>
     <label><?= te('likespa.restores.field.reason') ?>
-      <input name="reason" required value="<?= e((string)($row['reason'] ?? '')) ?>"<?= $canSubmit ? '' : ' disabled' ?>>
+      <input name="reason" required value="<?= e((string)($row['reason'] ?? '')) ?>"<?= $fieldDisabled ?>>
     </label>
     <label><?= te('likespa.restores.field.summ') ?>
-      <input name="summ" required value="<?= e((string)($row['summ'] ?? '')) ?>"<?= $canSubmit ? '' : ' disabled' ?>>
+      <input name="summ" required value="<?= e((string)($row['summ'] ?? '')) ?>"<?= $fieldDisabled ?>>
     </label>
   </fieldset>
 
@@ -41,7 +46,7 @@ $signed = (int)($row['id_operator_reviewed'] ?? 0) > 0;
     <legend><?= te('likespa.restores.edit.sec_proc') ?></legend>
     <?php if ($isNew): ?>
       <label><?= te('likespa.restores.field.procedure') ?>
-        <select name="id_procedure" required<?= $canSubmit ? '' : ' disabled' ?>>
+        <select name="id_procedure" required<?= $fieldDisabled ?>>
           <option value=""><?= te('likespa.restores.field.procedure_pick') ?></option>
           <?php foreach ($candidates as $c): ?>
             <option value="<?= (int)$c['id'] ?>"<?= (int)($row['id_procedure'] ?? 0) === (int)$c['id'] ? ' selected' : '' ?>><?= e((string)$c['label']) ?></option>

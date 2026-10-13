@@ -10,6 +10,7 @@ return [
     'certificates.perm.view' => 'View certificates',
     'certificates.perm.edit' => 'Edit certificates',
     'certificates.perm.apply' => 'Apply certificates on events',
+    'certificates.perm.ledger' => 'Certificate ledger journal',
     'certificates.migrator.drop_legacy' => 'Drop legacy sert / client_payments tables',
     'certificates.statuses.group' => 'Certificates',
     'certificates.statuses.field.EVT_SERT' => 'Apply certificates on calendar events',

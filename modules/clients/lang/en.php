@@ -15,6 +15,7 @@ return [
     'clients.widget.title' => 'Clients',
     'clients.widget.body' => 'Active: {n}',
     'clients.err.not_found' => 'Client #{id} not found',
+    'clients.err.forbidden_day' => 'Client is out of scope: no visit or order today',
     'clients.err.phone_required' => 'Phone is required (it is the client login)',
     'clients.err.bad_birthday' => 'Invalid birth date',
     'clients.gender.f' => 'female',

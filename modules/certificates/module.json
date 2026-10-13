@@ -34,6 +34,10 @@
         {
             "id": "certificates.apply",
             "label": "certificates.perm.apply"
+        },
+        {
+            "id": "certificates.ledger",
+            "label": "certificates.perm.ledger"
         }
     ],
     "routes": {
@@ -83,7 +87,7 @@
                 "id": "certificates.ledger",
                 "method": "GET",
                 "path": "/certificates/ledger",
-                "permission": "certificates.view",
+                "permission": "certificates.ledger",
                 "description": "List ledger rows; filters: id_cert, id_event, id_order"
             },
             {

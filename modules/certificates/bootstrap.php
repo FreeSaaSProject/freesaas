@@ -27,7 +27,7 @@ $pages = [
     '/certificates' => ['permission' => 'certificates.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/certificates/new' => ['permission' => 'certificates.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/certificates/{id}/edit' => ['permission' => 'certificates.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
-    '/certificates/ledger' => ['permission' => 'certificates.view', 'methods' => ['GET', 'POST'], 'file' => 'ledger.php'],
+    '/certificates/ledger' => ['permission' => 'certificates.ledger', 'methods' => ['GET', 'POST'], 'file' => 'ledger.php'],
     '/certificates/events/{id}/quote' => ['permission' => 'certificates.view', 'methods' => ['GET'], 'file' => 'event_quote.php'],
     '/certificates/events/{id}/apply' => ['permission' => 'certificates.apply', 'methods' => ['POST'], 'file' => 'event_apply.php'],
 ];

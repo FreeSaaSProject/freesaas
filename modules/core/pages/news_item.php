@@ -16,6 +16,21 @@ if (!$row || !NewsRepository::canView($row, Auth::userId())) {
     View::render('error', ['title' => t('core.common.not_found'), 'message' => t('core.news.err.unavailable', ['id' => $id])]);
     return;
 }
+if (
+    !Auth::capability('SUPERADMIN_ACCESS')
+    && NewsRepository::isInArchiveSubtree($row)
+) {
+    if ($wantsJson) {
+        AgentHttp::error(t('core.news.err.archive_hidden'), 403);
+        return;
+    }
+    http_response_code(403);
+    View::render('error', [
+        'title' => t('core.common.forbidden'),
+        'message' => t('core.news.err.archive_hidden'),
+    ]);
+    return;
+}
 
 $uid = Auth::userId();
 $message = '';

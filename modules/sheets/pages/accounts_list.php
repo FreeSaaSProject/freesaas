@@ -38,7 +38,7 @@ View::render('accounts_list', [
     'total' => $result['total'],
     'q' => $q,
     'enabled' => $enabled,
-    'canEdit' => Auth::can('sheets.edit'),
+    'canEdit' => Auth::can('sheets.edit') && Auth::can('sheets.accounts'),
     'sort' => $lq['sort'], 'dir' => $lq['dir'], 'page' => $lq['page'], 'perPage' => $lq['per_page'],
     'showAll' => $lq['show_all'], 'filters' => $filters, 'bulkFlash' => BulkActions::consumeFlash(),
 ], 'layout', 'sheets');

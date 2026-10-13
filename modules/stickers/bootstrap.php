@@ -41,7 +41,7 @@ $pages = [
     '/stickers/writeoffs/{id}/edit' => ['permission' => 'stickers.edit', 'methods' => ['GET', 'POST'], 'file' => 'writeoff_edit.php'],
     '/stickers/outs' => ['permission' => 'stickers.view', 'methods' => ['GET', 'POST'], 'file' => 'outs_list.php'],
     '/stickers/writeoff' => ['permission' => 'stickers.writeoff', 'methods' => ['GET', 'POST'], 'file' => 'writeoff_form.php'],
-    '/stickers/status' => ['permission' => 'stickers.view', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],
+    '/stickers/status' => ['permission' => 'stickers.status', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],
 ];
 
 foreach ($pages as $path => $def) {
@@ -78,7 +78,7 @@ ModuleManager::registerRoute('/stickers/printstickers', [
 
 BulkActions::register('stickers_receipts', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'stickers.edit',
+    'capability' => 'SUPERADMIN_ACCESS',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         $r = Acts2InRepository::deleteByIds($ids);
@@ -86,23 +86,7 @@ BulkActions::register('stickers_receipts', 'delete', [
     },
 ]);
 
-BulkActions::register('stickers_receipts', 'recalc_summ', [
-    'label' => 'stickers.bulk.recalc_summ',
-    'group' => 'stickers.bulk.group.dps',
-    'permission' => 'stickers.edit',
-    'run' => static function (array $ids, array $params): array {
-        $done = 0;
-        foreach ($ids as $id) {
-            $id = (int)$id;
-            if ($id < 1) {
-                continue;
-            }
-            Acts2InRepository::recalcSumm($id);
-            $done++;
-        }
-        return ['done' => $done, 'skipped' => []];
-    },
-]);
+// recalc_summ bulk removed: list/find heal SUMM=0 and update() recalcs automatically.
 
 // Register when ledger module is on — do NOT probe tables here (static CI / no DB).
 // ledgerReady() runs inside options/run when a session actually uses the action.
@@ -195,7 +179,7 @@ BulkActions::register('stickers_ins', 'reprint', [
 BulkActions::register('stickers_ins', 'delete', [
     'label' => 'core.bulk.delete',
     'group' => 'stickers.bulk.group.delete',
-    'permission' => 'stickers.edit',
+    'capability' => 'SUPERADMIN_ACCESS',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         $r = StickerInsRepository::deleteByIds($ids);

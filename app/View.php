@@ -13,19 +13,20 @@ final class View
         if (class_exists('NavContext', false)) {
             $content = NavContext::enrichContent($content);
         }
-        if (class_exists('Csrf', false)) {
-            $content = Csrf::injectForms($content);
-        }
         if (class_exists('StageTiming', false)) {
             StageTiming::mark('Page view');
         }
         if ($layout) {
             extract($data, EXTR_SKIP);
             $layoutFile = base_path('modules/core/views/' . $layout . '.php');
+            ob_start();
             require $layoutFile;
+            $html = (string)ob_get_clean();
+            // Inject after layout so chrome forms (logout) get tokens too.
+            echo class_exists('Csrf', false) ? Csrf::injectForms($html) : $html;
             return;
         }
-        echo $content;
+        echo class_exists('Csrf', false) ? Csrf::injectForms($content) : $content;
     }
 
     /**

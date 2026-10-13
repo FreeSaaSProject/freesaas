@@ -21,7 +21,7 @@ $colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
 ?>
 <section class="page-head">
   <p class="lede"><?= t('core.users.lede', ['total' => (int)$total]) ?></p>
-  <?php if (Auth::can('core.users')): ?>
+  <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
   <p><a class="btn" href="<?= e(NavContext::withReturn('/users/new')) ?>"><?= te('core.users.add') ?></a></p>
   <?php endif; ?>
 </section>
@@ -67,7 +67,7 @@ $colSpan = 5 + ($hasNum ? 1 : 0) + count($extraColumns);
           <?php $ord = (int)($u['num'] ?? 0); ?>
           <td class="muted"><?= $ord > 0 ? $ord : '—' ?></td>
         <?php endif; ?>
-        <td class="muted"><a href="/users/<?= $uid ?>/edit"><?= $uid ?></a></td>
+        <td class="muted"><?php if (Auth::capability('SUPERADMIN_ACCESS')): ?><a href="/users/<?= $uid ?>/edit"><?= $uid ?></a><?php else: ?><?= $uid ?><?php endif; ?></td>
         <td>
           <a href="/users/<?= $uid ?>">
             <?= UsersRepository::badgeHtml($uid, false) ?>

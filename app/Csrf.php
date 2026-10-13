@@ -189,15 +189,20 @@ final class Csrf
             return $html;
         }
         $out = preg_replace_callback(
-            '/<form\b([^>]*)>/i',
+            '/<form\b([^>]*)>(.*?)<\/form>/is',
             static function (array $m) use ($field): string {
                 $attrs = $m[1];
+                $body = $m[2];
                 $methodPost = preg_match('/\bmethod\s*=\s*(["\']?)post\1/i', $attrs)
                     || preg_match('/\bmethod\s*=\s*post\b/i', $attrs);
                 if (!$methodPost) {
                     return $m[0];
                 }
-                return $m[0] . $field;
+                // Already has a csrf field (nested forms are rare; skip re-inject).
+                if (preg_match('/\bname\s*=\s*(["\']?)csrf\1/i', $attrs . $body)) {
+                    return $m[0];
+                }
+                return '<form' . $attrs . '>' . $field . $body . '</form>';
             },
             $html
         );

@@ -21,6 +21,15 @@ if (!$isNew) {
     }
     $client = $found;
     $selectedTagIds = ClientsRepository::tagIdsForClient($id);
+    if (!ClientsRepository::canAccessClient($id)) {
+        if ($wantsJson) {
+            AgentHttp::error(t('clients.err.forbidden_day'), 403);
+            return;
+        }
+        http_response_code(403);
+        View::render('error', ['title' => t('core.common.forbidden'), 'message' => t('clients.err.forbidden_day')]);
+        return;
+    }
 }
 
 $message = '';
@@ -28,6 +37,9 @@ $error = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
+        if (!$isNew && !ClientsRepository::canAccessClient($id)) {
+            throw new RuntimeException(t('clients.err.forbidden_day'));
+        }
         $data = ClientsRepository::dataFromPost($_POST);
         $tagIdsRaw = $_POST['tag_ids'] ?? [];
         if (!is_array($tagIdsRaw)) {

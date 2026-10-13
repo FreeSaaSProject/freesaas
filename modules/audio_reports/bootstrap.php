@@ -21,12 +21,12 @@ Assets::register('audio_reports', [
 $pages = [
     '/audio/calendar' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'calendar.php'],
     '/audio/calendar/reparse' => ['permission' => 'audio_reports.edit', 'methods' => ['GET', 'POST'], 'file' => 'calendar_reparse.php'],
-    '/audio/collections' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'collections.php'],
-    '/audio/collections/{id}' => ['permission' => 'audio_reports.view', 'methods' => ['GET'], 'file' => 'collections.php'],
-    '/audio/summaries' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
+    '/audio/collections' => ['permission' => 'audio_reports.collections', 'methods' => ['GET', 'POST'], 'file' => 'collections.php'],
+    '/audio/collections/{id}' => ['permission' => 'audio_reports.collections', 'methods' => ['GET'], 'file' => 'collections.php'],
+    '/audio/summaries' => ['permission' => 'audio_reports.summaries', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
     '/audio/summaries/new' => ['permission' => 'audio_reports.edit', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
-    '/audio/summaries/work' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'summaries_work.php'],
-    '/audio/summaries/{id}' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
+    '/audio/summaries/work' => ['permission' => 'audio_reports.summaries', 'methods' => ['GET', 'POST'], 'file' => 'summaries_work.php'],
+    '/audio/summaries/{id}' => ['permission' => 'audio_reports.summaries', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
 ];
 
 foreach ($pages as $path => $def) {

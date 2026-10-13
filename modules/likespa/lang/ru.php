@@ -62,6 +62,7 @@ return [
     'likespa.restores.err.reason_required' => 'Укажите причину восстановления',
     'likespa.restores.err.summ_required' => 'Укажите сумму оплаты',
     'likespa.restores.err.table' => 'Таблица base_procedure_restores недоступна',
+    'likespa.restores.err.super_only_edit' => 'Редактировать сумму и причину может только директор',
     'likespa.restores.field.procedure' => 'Процедура',
     'likespa.restores.field.procedure_pick' => 'Выберите процедуру…',
     'likespa.restores.field.reason' => 'Причина восстановления',

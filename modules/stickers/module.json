@@ -34,6 +34,10 @@
         {
             "id": "stickers.writeoff",
             "label": "stickers.perm.writeoff"
+        },
+        {
+            "id": "stickers.status",
+            "label": "stickers.perm.status"
         }
     ],
     "routes": {
@@ -174,7 +178,7 @@
                 "id": "stickers.qr.diagnose",
                 "method": "GET",
                 "path": "/stickers/status",
-                "permission": "stickers.view",
+                "permission": "stickers.status",
                 "side_effect": "read",
                 "description": "Diagnose stickers/QR: hosts, cookie domain, soft deps, tables, issues[]"
             },

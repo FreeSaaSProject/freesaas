@@ -56,9 +56,14 @@ $lookbackDays = LikespaConfig::restoresLookbackDays();
 $message = '';
 $error = '';
 $paymentId = null;
+// Non-super may create; editing reason/sum on existing rows is director-only.
+$canEditFields = $isNew || $isSuper;
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
+        if (!$canEditFields) {
+            throw new RuntimeException(t('likespa.restores.err.super_only_edit'));
+        }
         if ($isNew && $candidates === []) {
             throw new InvalidArgumentException(t('likespa.restores.err.no_candidates'));
         }
@@ -143,7 +148,7 @@ if (isset($_GET['saved']) && $message === '') {
     }
 }
 
-$canSubmit = !$isNew || $candidates !== [];
+$canSubmit = $canEditFields && ($isNew ? $candidates !== [] : true);
 
 View::render('restore_edit', [
     'title' => $isNew
@@ -161,6 +166,7 @@ View::render('restore_edit', [
     'candidates' => $candidates,
     'lookbackDays' => $lookbackDays,
     'isSuper' => $isSuper,
+    'canEditFields' => $canEditFields,
     'canSubmit' => $canSubmit,
     'message' => $message,
     'error' => $error,

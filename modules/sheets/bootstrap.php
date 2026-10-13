@@ -5,13 +5,13 @@ require_once __DIR__ . '/lib/SheetAccountsRepository.php';
 require_once __DIR__ . '/lib/SheetMovesRepository.php';
 
 $pages = [
-    '/sheets/accounts' => ['permission' => 'sheets.view', 'methods' => ['GET', 'POST'], 'file' => 'accounts_list.php'],
+    '/sheets/accounts' => ['permission' => 'sheets.accounts', 'methods' => ['GET', 'POST'], 'file' => 'accounts_list.php'],
     '/sheets/accounts/new' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'account_edit.php'],
     '/sheets/accounts/{id}/edit' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'account_edit.php'],
     '/sheets/moves' => ['permission' => 'sheets.view', 'methods' => ['GET', 'POST'], 'file' => 'moves_list.php'],
     '/sheets/moves/new' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'move_edit.php'],
     '/sheets/moves/{id}/edit' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'move_edit.php'],
-    '/sheets/transfers/new' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'transfer_edit.php'],
+    '/sheets/transfers/new' => ['permission' => 'sheets.transfer', 'methods' => ['GET', 'POST'], 'file' => 'transfer_edit.php'],
 ];
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];

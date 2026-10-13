@@ -18,9 +18,15 @@ final class NoticesRepository
         $out = [];
         $pdo = Database::pdo();
         $excl = NewsRepository::sqlExcludeArchiveChildren('n');
-        $exclBare = NewsRepository::sqlExcludeArchiveChildren();
-        $andExcl = static function (string $cond): string {
-            return $cond !== '' ? ' AND ' . $cond : '';
+        $denied = NewsRepository::sqlExcludeInaccessibleFolders($userId, 'n');
+        $andExcl = static function (string ...$conds): string {
+            $out = '';
+            foreach ($conds as $cond) {
+                if ($cond !== '') {
+                    $out .= ' AND ' . $cond;
+                }
+            }
+            return $out;
         };
 
         // Favorites
@@ -51,7 +57,7 @@ final class NoticesRepository
             $st = $pdo->prepare(
                 'SELECT n.TYPE AS t, COUNT(*) AS c FROM base_news n
                  WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.TYPE IN (1,2,3)'
-                . $andExcl($excl)
+                . $andExcl($excl, $denied)
                 . $accSql . '
                    AND n.ID NOT IN (
                      SELECT v.ID_OBJ FROM base_views v
@@ -75,29 +81,37 @@ final class NoticesRepository
             }
         }
 
-        // Overdue open tickets (not in archive folders)
-        $over = (int)$pdo->query(
-            'SELECT COUNT(*) FROM base_news
-             WHERE DISABLED=0 AND HAS_CHILDREN=0 AND TYPE=2 AND STATUS=1
-               AND DT_DEADLINE > 0 AND DT_DEADLINE < ' . time()
-            . $andExcl($exclBare)
-        )->fetchColumn();
+        // Overdue open tickets (not in archive folders); align count with list + access.
+        $accOver = NewsRepository::accessWhereSql($userId, 'n');
+        $accOverSql = $accOver['sql'] !== '' ? ' AND (' . $accOver['sql'] . ')' : '';
+        $stOver = $pdo->prepare(
+            'SELECT COUNT(*) FROM base_news n
+             WHERE n.DISABLED=0 AND n.HAS_CHILDREN=0 AND n.TYPE=2 AND n.STATUS=1
+               AND n.DT_DEADLINE > 0 AND n.DT_DEADLINE < ' . time()
+            . $andExcl($excl, $denied)
+            . $accOverSql
+        );
+        $stOver->execute($accOver['params']);
+        $over = (int)$stOver->fetchColumn();
         if ($over > 0) {
             $out[] = [
                 'short' => t('core.notice.overdue_short', ['n' => $over]),
-                'href' => '/news?type=2&status=1',
+                'href' => '/news?type=2&overdue=1',
                 'title' => t('core.notice.overdue_title'),
                 'tone' => 'danger',
             ];
         }
 
         // In work without curator or deadline
-        $bad = (int)$pdo->query(
-            'SELECT COUNT(*) FROM base_news
-             WHERE DISABLED=0 AND HAS_CHILDREN=0 AND TYPE=2 AND STATUS=1
-               AND (DT_DEADLINE = 0 OR ID_CURATOR = 0 OR ID_CURATOR IS NULL OR ID_CURATOR = \'\')'
-            . $andExcl($exclBare)
-        )->fetchColumn();
+        $stBad = $pdo->prepare(
+            'SELECT COUNT(*) FROM base_news n
+             WHERE n.DISABLED=0 AND n.HAS_CHILDREN=0 AND n.TYPE=2 AND n.STATUS=1
+               AND (n.DT_DEADLINE = 0 OR n.ID_CURATOR = 0 OR n.ID_CURATOR IS NULL OR n.ID_CURATOR = \'\')'
+            . $andExcl($excl, $denied)
+            . $accOverSql
+        );
+        $stBad->execute($accOver['params']);
+        $bad = (int)$stBad->fetchColumn();
         if ($bad > 0) {
             $out[] = [
                 'short' => t('core.notice.unset_short', ['n' => $bad]),
@@ -124,7 +138,7 @@ final class NoticesRepository
             $st = $pdo->prepare(
                 'SELECT n.TYPE AS t, COUNT(*) AS c FROM base_news n
                  WHERE n.DISABLED = 0 AND n.HAS_CHILDREN = 0 AND n.SIGN_REQ = 1 AND n.TYPE IN (1,2,3)'
-                . $andExcl($excl)
+                . $andExcl($excl, $denied)
                 . $accSql . '
                    AND n.ID NOT IN (
                      SELECT v.ID_OBJ FROM base_views v

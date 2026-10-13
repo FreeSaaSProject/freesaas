@@ -13,6 +13,7 @@ declare(strict_types=1);
 /** @var bool $showBirthdayColumn */
 /** @var list<array{key:string,label:string}> $extraColumns */
 /** @var bool $canEdit */
+/** @var bool $canViewPii */
 /** @var string $sort */
 /** @var string $dir */
 /** @var int $page */
@@ -26,6 +27,7 @@ $showAll = !empty($showAll);
 $showStatusColumn = !empty($showStatusColumn);
 $showTagsColumn = !empty($showTagsColumn);
 $showBirthdayColumn = !empty($showBirthdayColumn);
+$canViewPii = !empty($canViewPii);
 $extraColumns = is_array($extraColumns ?? null) ? $extraColumns : [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $colSpan = 6
@@ -90,8 +92,10 @@ $actionUrl = ListQuery::url($path, $filters, []);
         <?= BulkActions::th($listId) ?>
         <?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?>
         <?= ListQuery::sortTh(t('clients.col.name'), 'name', $sort, $dir, $path, $filters) ?>
-        <?= ListQuery::sortTh(t('clients.col.phone'), 'tel', $sort, $dir, $path, $filters) ?>
-        <?= ListQuery::sortTh(t('clients.col.email'), 'mail', $sort, $dir, $path, $filters) ?>
+        <?php if ($canViewPii): ?>
+          <?= ListQuery::sortTh(t('clients.col.phone'), 'tel', $sort, $dir, $path, $filters) ?>
+          <?= ListQuery::sortTh(t('clients.col.email'), 'mail', $sort, $dir, $path, $filters) ?>
+        <?php endif; ?>
         <?php if ($showStatusColumn): ?>
           <?= ListQuery::sortTh(t('clients.col.status'), 'status', $sort, $dir, $path, $filters) ?>
         <?php endif; ?>
@@ -124,8 +128,10 @@ $actionUrl = ListQuery::url($path, $filters, []);
             <span class="pill off"><?= te('core.common.off') ?></span>
           <?php endif; ?>
         </td>
-        <td><code><?= e((string)($c['tel'] ?: '—')) ?></code></td>
-        <td><?= e((string)($c['mail'] ?: '—')) ?></td>
+        <?php if ($canViewPii): ?>
+          <td><code><?= e((string)($c['tel'] ?: '—')) ?></code></td>
+          <td><?= e((string)($c['mail'] ?: '—')) ?></td>
+        <?php endif; ?>
         <?php if ($showStatusColumn): ?>
           <td><?= e((string)($c['status_name'] ?? '—')) ?></td>
         <?php endif; ?>

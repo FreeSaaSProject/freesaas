@@ -45,19 +45,35 @@ final class PollInvitesRepository
             $params[] = $pollId;
         }
         $op = (int)($opts['id_operator'] ?? 0);
-        if ($op > 0) {
-            $where[] = 'i.ID_OPERATOR_LINKED = ?';
-            $params[] = $op;
-        }
+        $uidScope = (int)($opts['user_id'] ?? Auth::userId());
         $progress = (string)($opts['progress'] ?? '');
         $now = time();
         if ($progress === 'open') {
-            $where[] = 'i.DT_COMPLETED = 0';
-        } elseif ($progress === 'done') {
-            $where[] = 'i.DT_COMPLETED > 0';
-        } elseif ($progress === 'expired') {
-            $where[] = 'i.DT_COMPLETED = 0 AND i.DT_EXPIRE > 0 AND i.DT_EXPIRE < ?';
-            $params[] = $now;
+            // Shared open predicate (STATUS!=2 + linked scope); optional id_operator narrows further for super.
+            $open = self::openWhereSql('i', $uidScope);
+            $where[] = '(' . $open['sql'] . ')';
+            foreach ($open['params'] as $p) {
+                $params[] = $p;
+            }
+            if ($op > 0 && Auth::capability('SUPERADMIN_ACCESS')) {
+                $where[] = 'i.ID_OPERATOR_LINKED = ?';
+                $params[] = $op;
+            }
+        } else {
+            if ($op > 0) {
+                $where[] = 'i.ID_OPERATOR_LINKED = ?';
+                $params[] = $op;
+            } elseif (!Auth::capability('SUPERADMIN_ACCESS')) {
+                // Non-super: only invites linked to self (unassigned = director only).
+                $where[] = 'i.ID_OPERATOR_LINKED = ?';
+                $params[] = $uidScope;
+            }
+            if ($progress === 'done') {
+                $where[] = 'i.DT_COMPLETED > 0';
+            } elseif ($progress === 'expired') {
+                $where[] = 'i.DT_COMPLETED = 0 AND i.STATUS != 2 AND i.DT_EXPIRE > 0 AND i.DT_EXPIRE < ?';
+                $params[] = $now;
+            }
         }
 
         $sqlWhere = implode(' AND ', $where);
@@ -413,6 +429,41 @@ final class PollInvitesRepository
     }
 
     /**
+     * Open invites predicate shared by notices + list (progress=open).
+     * Non-super: only ID_OPERATOR_LINKED = me (unassigned = SUPERADMIN).
+     *
+     * @return array{sql:string,params:list<mixed>}
+     */
+    public static function openWhereSql(string $alias = '', int $uid = 0): array
+    {
+        $p = $alias !== '' ? $alias . '.' : '';
+        $sql = $p . 'DT_COMPLETED = 0 AND ' . $p . 'STATUS != 2';
+        $params = [];
+        if (!Auth::capability('SUPERADMIN_ACCESS')) {
+            $sql .= ' AND ' . $p . 'ID_OPERATOR_LINKED = ?';
+            $params[] = $uid > 0 ? $uid : Auth::userId();
+        }
+        return ['sql' => $sql, 'params' => $params];
+    }
+
+    /**
+     * Linked-to-me scope for non-super notices that are not "open" (e.g. nextcall).
+     *
+     * @return array{sql:string,params:list<mixed>}
+     */
+    public static function linkedWhereSql(string $alias = '', int $uid = 0): array
+    {
+        $p = $alias !== '' ? $alias . '.' : '';
+        if (Auth::capability('SUPERADMIN_ACCESS')) {
+            return ['sql' => '1=1', 'params' => []];
+        }
+        return [
+            'sql' => $p . 'ID_OPERATOR_LINKED = ?',
+            'params' => [$uid > 0 ? $uid : Auth::userId()],
+        ];
+    }
+
+    /**
      * @return list<array{short:string,href:string,title:string,tone:string}>
      */
     public static function noticesForUser(int $uid): array
@@ -422,29 +473,26 @@ final class PollInvitesRepository
         }
         $out = [];
         $pdo = Database::pdo();
-        $now = time();
-        $endOfDay = mktime(23, 59, 59) ?: $now;
+        $endOfDay = mktime(23, 59, 59) ?: time();
 
-        $linked = '(ID_OPERATOR_LINKED = 0 OR ID_OPERATOR_LINKED = ?)';
-
-        $st = $pdo->prepare(
-            "SELECT COUNT(*) FROM base_poll_invites
-             WHERE DT_COMPLETED = 0 AND STATUS != 2 AND $linked"
-        );
+        // Badges always = linked-to-me (oper parity). SUPERADMIN list can still browse all.
+        $mineOpen = 'DT_COMPLETED = 0 AND STATUS != 2 AND ID_OPERATOR_LINKED = ?';
+        $st = $pdo->prepare('SELECT COUNT(*) FROM base_poll_invites WHERE ' . $mineOpen);
         $st->execute([$uid]);
-        $open = (int)$st->fetchColumn();
-        if ($open > 0) {
+        $openN = (int)$st->fetchColumn();
+        if ($openN > 0) {
             $out[] = [
-                'short' => t('poll_invites.notice.open_short', ['n' => $open]),
+                'short' => t('poll_invites.notice.open_short', ['n' => $openN]),
                 'href' => '/poll-invites?progress=open',
-                'title' => t('poll_invites.notice.open_title', ['n' => $open]),
+                'title' => t('poll_invites.notice.open_title', ['n' => $openN]),
                 'tone' => 'warn',
             ];
         }
 
         $st = $pdo->prepare(
-            "SELECT COUNT(*) FROM base_poll_invites
-             WHERE STATUS = 2 AND DT_NEXTCALL > 0 AND DT_NEXTCALL <= ? AND $linked"
+            'SELECT COUNT(*) FROM base_poll_invites
+             WHERE STATUS = 2 AND DT_NEXTCALL > 0 AND DT_NEXTCALL <= ?
+               AND ID_OPERATOR_LINKED = ?'
         );
         $st->execute([$endOfDay, $uid]);
         $next = (int)$st->fetchColumn();
@@ -473,14 +521,14 @@ final class PollInvitesRepository
             }
         }
 
-        // Per-tray poll codes (oper tray)
+        // Per-tray poll codes — linked-to-me only (same as open chip)
         if (class_exists('PollsRepository', false)) {
             foreach (PollsRepository::trayPolls() as $poll) {
                 $st = $pdo->prepare(
-                    "SELECT COUNT(*) FROM base_poll_invites
-                     WHERE ID_POLL = ? AND DT_COMPLETED = 0 AND STATUS != 2 AND $linked"
+                    'SELECT COUNT(*) FROM base_poll_invites
+                     WHERE ID_POLL = ? AND ' . $mineOpen
                 );
-                $st->execute([$poll['id'], $uid]);
+                $st->execute([(int)$poll['id'], $uid]);
                 $n = (int)$st->fetchColumn();
                 if ($n > 0) {
                     $out[] = [

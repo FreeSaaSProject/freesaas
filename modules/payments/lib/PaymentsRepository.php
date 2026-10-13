@@ -495,15 +495,13 @@ final class PaymentsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_payments
-             (ID_USER, DT, DESCR, DIRECTION, SUM, ID_TYPE, ACCOUNT, DT_CREATE, ID_USER_SIGNED,
+        $hasControlNotice = Database::columnExists('base_payments', 'ID_CONTROL_NOTICE');
+        $cols = 'ID_USER, DT, DESCR, DIRECTION, SUM, ID_TYPE, ACCOUNT, DT_CREATE, ID_USER_SIGNED,
               ID_COMMENT, IS_PARTNER_PAYMENT, ID_ADMIN_INWORKED, DT_ADMIN_INWORKED,
               ID_ADMIN_SIGNED, DT_ADMIN_SIGNED, ID_ACCEPT_USER_SIGNED, DT_ACCEPT_USER_SIGNED,
-              ID_MOVEMENT_LINKED)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
+              ID_MOVEMENT_LINKED';
+        $placeholders = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
+        $params = [
             $data['user_id'],
             $data['dt'],
             $data['descr'],
@@ -522,7 +520,16 @@ final class PaymentsRepository
             $data['accept_user'],
             $data['dt_accept'],
             $data['movement_linked'],
-        ]);
+        ];
+        if ($hasControlNotice) {
+            $cols .= ', ID_CONTROL_NOTICE';
+            $placeholders .= ', ?';
+            $params[] = (int)($data['control_notice'] ?? 0);
+        }
+        $st = Database::pdo()->prepare(
+            "INSERT INTO base_payments ($cols) VALUES ($placeholders)"
+        );
+        $st->execute($params);
         $id = (int)Database::pdo()->lastInsertId();
         if ($data['comment_id'] > 0) {
             self::bindCommentPayment((int)$data['comment_id'], $id);

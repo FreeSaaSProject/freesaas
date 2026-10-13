@@ -93,6 +93,7 @@ final class NewsRepository
         $userId = (int)($opts['user_id'] ?? 0);
         $unread = !empty($opts['unread']) && $type !== 4;
         $unsigned = !empty($opts['unsigned']) && $type !== 4;
+        $overdue = !empty($opts['overdue']) && $type === 2;
         $order = trim((string)($opts['order'] ?? ''));
         if ($order === '') {
             $order = ($type === 2)
@@ -103,7 +104,7 @@ final class NewsRepository
         $pdo = Database::pdo();
         $where = ['DISABLED = 0'];
         $params = [];
-        $flatMode = $unread || $unsigned;
+        $flatMode = $unread || $unsigned || $overdue;
 
         // Favorites virtual type
         if ($type === 4) {
@@ -114,8 +115,8 @@ final class NewsRepository
             $where[] = 'ID IN (' . implode(',', array_map('intval', $favIds)) . ')';
             $where[] = 'HAS_CHILDREN = 0';
         } elseif ($flatMode) {
-            // Flat leaves across folders (oper ANSTYPE=1 unread / ANSTYPE=2 needs-sign)
-            if ($userId < 1 || !Database::tableExists('base_views')) {
+            // Flat leaves across folders (unread / unsigned / overdue)
+            if (($unread || $unsigned) && ($userId < 1 || !Database::tableExists('base_views'))) {
                 return ['items' => [], 'total' => 0, 'folders' => []];
             }
             if ($type > 0 && $type < 4) {
@@ -125,6 +126,10 @@ final class NewsRepository
             $archiveSql = self::sqlExcludeArchiveChildren('base_news');
             if ($archiveSql !== '') {
                 $where[] = $archiveSql;
+            }
+            $deniedSql = self::sqlExcludeInaccessibleFolders($userId, 'base_news');
+            if ($deniedSql !== '') {
+                $where[] = $deniedSql;
             }
             if ($unread) {
                 $where[] = 'ID NOT IN (
@@ -141,6 +146,12 @@ final class NewsRepository
                 )';
                 $params[] = $userId;
             }
+            if ($overdue) {
+                $where[] = 'HAS_CHILDREN = 0';
+                $where[] = 'STATUS = 1';
+                $where[] = 'DT_DEADLINE > 0 AND DT_DEADLINE < ?';
+                $params[] = time();
+            }
         } else {
             if ($pid > 0) {
                 $where[] = 'PID = ?';
@@ -154,9 +165,22 @@ final class NewsRepository
             }
         }
 
-        if ($status >= 0) {
+        if ($status >= 0 && !$overdue) {
             $where[] = 'STATUS = ?';
             $params[] = $status;
+        }
+        if ($overdue && !$flatMode) {
+            // Non-flat overdue: still apply deadline predicate when browsing a folder.
+            $where[] = 'HAS_CHILDREN = 0';
+            $where[] = 'STATUS = 1';
+            $where[] = 'DT_DEADLINE > 0 AND DT_DEADLINE < ?';
+            $params[] = time();
+        }
+        if (!$flatMode && $userId > 0) {
+            $deniedSql = self::sqlExcludeInaccessibleFolders($userId, 'base_news');
+            if ($deniedSql !== '') {
+                $where[] = $deniedSql;
+            }
         }
         if ($q !== '') {
             $where[] = '(NAME LIKE ? OR SHORT LIKE ? OR BIG LIKE ?)';
@@ -289,6 +313,31 @@ final class NewsRepository
 
     public static function canView(array $row, int $userId): bool
     {
+        if (!self::canViewRowAcl($row, $userId)) {
+            return false;
+        }
+        if ($userId < 1 || Auth::isSuperAdmin()) {
+            return true;
+        }
+        // Folder ACL inherits: open leaf under a director-only folder must stay hidden.
+        $pid = (int)($row['PID'] ?? 0);
+        $guard = 0;
+        while ($pid > 0 && $guard++ < 64) {
+            $parent = self::find($pid);
+            if ($parent === null) {
+                break;
+            }
+            if (!self::canViewRowAcl($parent, $userId)) {
+                return false;
+            }
+            $pid = (int)($parent['PID'] ?? 0);
+        }
+        return true;
+    }
+
+    /** Row-local ACCESS_* / author rules (no ancestor walk). */
+    public static function canViewRowAcl(array $row, int $userId): bool
+    {
         if ((int)($row['DISABLED'] ?? 0) === 1) {
             return Auth::isSuperAdmin();
         }
@@ -330,6 +379,92 @@ final class NewsRepository
         $okG2 = $emptyG2 || self::idInAccessList($g2, Auth::statusId2());
         $okAu = $emptyAu || self::idInAccessList($au, $userId);
         return $okG1 && $okG2 && $okAu;
+    }
+
+    /**
+     * Folder ids the user cannot open (own ACL or under a denied ancestor), for SQL PID filters.
+     *
+     * @return list<int>
+     */
+    public static function inaccessibleFolderIds(int $userId): array
+    {
+        static $cache = [];
+        if ($userId < 1 || Auth::isSuperAdmin()) {
+            return [];
+        }
+        if (isset($cache[$userId])) {
+            return $cache[$userId];
+        }
+        if (!Database::tableExists('base_news')) {
+            return $cache[$userId] = [];
+        }
+        $st = Database::pdo()->query(
+            'SELECT ID, PID, DISABLED, TYPE, DT, ID_USER, ACCESS_GROUP, ACCESS_GROUP2, ACCESS_USER, HAS_CHILDREN
+             FROM base_news WHERE DISABLED = 0 AND HAS_CHILDREN = 1'
+        );
+        if (!$st) {
+            return $cache[$userId] = [];
+        }
+        /** @var array<int, array<string,mixed>> $byId */
+        $byId = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $id = (int)($row['ID'] ?? 0);
+            if ($id > 0) {
+                $byId[$id] = $row;
+            }
+        }
+        $denied = [];
+        foreach ($byId as $id => $row) {
+            if (!self::canViewRowAcl($row, $userId)) {
+                $denied[$id] = true;
+                continue;
+            }
+            $pid = (int)($row['PID'] ?? 0);
+            $guard = 0;
+            while ($pid > 0 && $guard++ < 64) {
+                if (isset($denied[$pid])) {
+                    $denied[$id] = true;
+                    break;
+                }
+                $parent = $byId[$pid] ?? null;
+                if ($parent === null) {
+                    break;
+                }
+                if (!self::canViewRowAcl($parent, $userId)) {
+                    $denied[$id] = true;
+                    $denied[$pid] = true;
+                    break;
+                }
+                $pid = (int)($parent['PID'] ?? 0);
+            }
+        }
+        // Descendants of denied folders are denied even if their own ACL is open.
+        $changed = true;
+        while ($changed) {
+            $changed = false;
+            foreach ($byId as $id => $row) {
+                if (isset($denied[$id])) {
+                    continue;
+                }
+                $pid = (int)($row['PID'] ?? 0);
+                if ($pid > 0 && isset($denied[$pid])) {
+                    $denied[$id] = true;
+                    $changed = true;
+                }
+            }
+        }
+        return $cache[$userId] = array_map('intval', array_keys($denied));
+    }
+
+    /** SQL: hide rows whose parent folder is inaccessible to $userId. Empty when none. */
+    public static function sqlExcludeInaccessibleFolders(int $userId, string $tableOrAlias = ''): string
+    {
+        $ids = self::inaccessibleFolderIds($userId);
+        if ($ids === []) {
+            return '';
+        }
+        $col = $tableOrAlias !== '' ? $tableOrAlias . '.PID' : 'PID';
+        return 'IFNULL(' . $col . ', 0) NOT IN (' . implode(',', array_map('intval', $ids)) . ')';
     }
 
     private static function userShowNewsAfter(int $userId): int
@@ -640,11 +775,15 @@ final class NewsRepository
             return $out;
         }
         $excl = self::sqlExcludeArchiveChildren('base_news');
+        $denied = $userId > 0 ? self::sqlExcludeInaccessibleFolders($userId, 'base_news') : '';
         $acc = $userId > 0 ? self::accessWhereSql($userId, 'base_news') : ['sql' => '', 'params' => []];
         $extra = '';
         $params = [];
         if ($excl !== '') {
             $extra .= ' AND ' . $excl;
+        }
+        if ($denied !== '') {
+            $extra .= ' AND ' . $denied;
         }
         if ($acc['sql'] !== '') {
             $extra .= ' AND (' . $acc['sql'] . ')';
@@ -702,12 +841,59 @@ final class NewsRepository
     }
 
     /**
-     * SQL condition (no leading AND): hide direct children of archive folders.
+     * Archive roots + every folder under them (so nested leaves are excluded too).
+     *
+     * @return list<int>
+     */
+    public static function archiveSubtreeFolderIds(): array
+    {
+        static $cache = null;
+        if ($cache !== null) {
+            return $cache;
+        }
+        $roots = self::archiveFolderIds();
+        if ($roots === [] || !Database::tableExists('base_news')) {
+            $cache = [];
+            return $cache;
+        }
+        $parentOf = [];
+        $st = Database::pdo()->query(
+            'SELECT ID, IFNULL(PID, 0) AS PID FROM base_news
+             WHERE DISABLED = 0 AND HAS_CHILDREN = 1'
+        );
+        if ($st) {
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                $parentOf[(int)$row['ID']] = (int)$row['PID'];
+            }
+        }
+        $under = [];
+        foreach ($roots as $rid) {
+            $under[$rid] = true;
+        }
+        $changed = true;
+        while ($changed) {
+            $changed = false;
+            foreach ($parentOf as $id => $pid) {
+                if (isset($under[$id])) {
+                    continue;
+                }
+                if ($pid > 0 && isset($under[$pid])) {
+                    $under[$id] = true;
+                    $changed = true;
+                }
+            }
+        }
+        $cache = array_map('intval', array_keys($under));
+        return $cache;
+    }
+
+    /**
+     * SQL condition (no leading AND): hide items whose parent is in an archive subtree.
      * Empty string when there are no archive folders.
      */
     public static function sqlExcludeArchiveChildren(string $tableOrAlias = ''): string
     {
-        $ids = self::archiveFolderIds();
+        $ids = self::archiveSubtreeFolderIds();
         if (!$ids) {
             return '';
         }
@@ -718,6 +904,16 @@ final class NewsRepository
     public static function isArchiveFolderId(int $folderId): bool
     {
         return $folderId > 0 && in_array($folderId, self::archiveFolderIds(), true);
+    }
+
+    /** True if the item sits under an archive folder (any depth). */
+    public static function isInArchiveSubtree(array $row): bool
+    {
+        $pid = (int)($row['PID'] ?? 0);
+        if ($pid < 1) {
+            return false;
+        }
+        return in_array($pid, self::archiveSubtreeFolderIds(), true);
     }
 
     /** Direct children count (any DISABLED), used to lock HAS_CHILDREN. */

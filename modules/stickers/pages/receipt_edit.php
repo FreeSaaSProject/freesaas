@@ -23,9 +23,16 @@ if (!$isNew) {
 $message = '';
 $error = '';
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    try {
-        $data = Acts2InRepository::dataFromPost($_POST);
-        if ($isNew) {
+    // Existing acts are view-only for header fields; stickers are managed via /stickers/ins.
+    if (!$isNew) {
+        if ($wantsJson) {
+            AgentHttp::error(t('stickers.err.act_locked'), 403);
+            return;
+        }
+        $error = t('stickers.err.act_locked');
+    } else {
+        try {
+            $data = Acts2InRepository::dataFromPost($_POST);
             $newId = Acts2InRepository::create($data, Auth::userId());
             if ($wantsJson) {
                 AgentHttp::emit(['ok' => true, 'id' => $newId, 'item' => Acts2InRepository::find($newId)]);
@@ -33,21 +40,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             redirect('/stickers/receipts/' . $newId . '/edit?saved=1');
             return;
+        } catch (Throwable $e) {
+            if ($wantsJson) {
+                AgentHttp::error($e->getMessage(), 400);
+                return;
+            }
+            $error = $e->getMessage();
+            $row = array_merge($row, $_POST);
         }
-        Acts2InRepository::update($id, $data, Auth::userId());
-        $row = Acts2InRepository::find($id) ?: $row;
-        if ($wantsJson) {
-            AgentHttp::emit(['ok' => true, 'id' => $id, 'item' => $row]);
-            return;
-        }
-        $message = t('core.common.saved');
-    } catch (Throwable $e) {
-        if ($wantsJson) {
-            AgentHttp::error($e->getMessage(), 400);
-            return;
-        }
-        $error = $e->getMessage();
-        $row = array_merge($row, $_POST);
     }
 }
 if (isset($_GET['saved']) && $message === '') {

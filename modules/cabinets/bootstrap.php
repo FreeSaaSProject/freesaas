@@ -52,8 +52,12 @@ EventBus::on('core.user_edit.sections', static function ($payload) {
         }
         $cabinets[$id] = $label !== '' ? $label : ('#' . $id);
     }
+    $skinRaw = $user['skin'] ?? '';
+    if (is_array($skinRaw)) {
+        $skinRaw = UsersRepository::encodeHashIds(array_map('intval', $skinRaw));
+    }
     $cabSet = [];
-    foreach (UsersRepository::parseHashIds((string)($user['skin'] ?? '')) as $cid) {
+    foreach (UsersRepository::parseHashIds((string)$skinRaw) as $cid) {
         $cabSet[(int)$cid] = true;
     }
     ob_start();

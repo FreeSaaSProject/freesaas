@@ -10,6 +10,7 @@ return [
     'certificates.perm.view' => 'Просмотр сертификатов',
     'certificates.perm.edit' => 'Редактирование сертификатов',
     'certificates.perm.apply' => 'Списание сертификатов на событиях',
+    'certificates.perm.ledger' => 'Журнал движений сертификатов',
     'certificates.migrator.drop_legacy' => 'Удалить legacy-таблицы sert / client_payments',
     'certificates.statuses.group' => 'Сертификаты',
     'certificates.statuses.field.EVT_SERT' => 'Списание сертификатов на событиях календаря',

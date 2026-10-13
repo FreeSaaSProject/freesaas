@@ -445,10 +445,11 @@ final class SummariesRepository
 
     /**
      * Positions equivalent via base_admin_statuses.ID_AUDIO_POSITION (audio pipeline parity).
+     * Used by calendar/collections ACL: peers of the same audio role see each other.
      *
      * @return list<int>
      */
-    private static function equivalentAudioPositions(int $positionId): array
+    public static function equivalentAudioPositionIds(int $positionId): array
     {
         if ($positionId <= 0) {
             return [];
@@ -467,6 +468,12 @@ final class SummariesRepository
             }
         }
         return self::walkEquivalentPositions($positionId, $statuses);
+    }
+
+    /** @return list<int> */
+    private static function equivalentAudioPositions(int $positionId): array
+    {
+        return self::equivalentAudioPositionIds($positionId);
     }
 
     /**

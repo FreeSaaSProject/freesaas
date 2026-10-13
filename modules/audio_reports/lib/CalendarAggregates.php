@@ -10,7 +10,7 @@ final class CalendarAggregates
     private const BONUS_MARKER = 'BONUS TIME';
 
     /**
-     * @param array{admin?:int,badge?:int,position?:int} $filters
+     * @param array{admin?:int,badge?:int,position?:int,positions?:list<int>} $filters
      * @return array{
      *   by_day: array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>,
      *   by_admin_day: array<int, array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>>,
@@ -28,6 +28,16 @@ final class CalendarAggregates
         $adminFilter = max(0, (int)($filters['admin'] ?? 0));
         $badgeFilter = max(0, (int)($filters['badge'] ?? 0));
         $positionFilter = max(0, (int)($filters['position'] ?? 0));
+        $positionsScope = [];
+        if (isset($filters['positions']) && is_array($filters['positions'])) {
+            foreach ($filters['positions'] as $pid) {
+                $pid = (int)$pid;
+                if ($pid > 0) {
+                    $positionsScope[$pid] = true;
+                }
+            }
+        }
+        $positionsScope = array_keys($positionsScope);
 
         $bounds = AudioDayBounds::read();
         $pdo = Database::pdo();
@@ -38,9 +48,19 @@ final class CalendarAggregates
             . ($hasDesc ? ', r.DESCRIPTION AS description' : '')
             . ' FROM base_records r';
         $params = [];
-        if ($positionFilter > 0 && Database::tableExists('base_users')) {
-            $sql .= ' INNER JOIN base_users u ON u.id = r.ID_ADMIN AND u.ID_STATUS = ?';
-            $params[] = $positionFilter;
+        $needUsersJoin = ($positionFilter > 0 || $positionsScope !== []) && Database::tableExists('base_users');
+        if ($needUsersJoin) {
+            $sql .= ' INNER JOIN base_users u ON u.id = r.ID_ADMIN';
+            if ($positionFilter > 0) {
+                $sql .= ' AND u.ID_STATUS = ?';
+                $params[] = $positionFilter;
+            } elseif ($positionsScope !== []) {
+                $ph = implode(',', array_fill(0, count($positionsScope), '?'));
+                $sql .= " AND u.ID_STATUS IN ($ph)";
+                foreach ($positionsScope as $pid) {
+                    $params[] = $pid;
+                }
+            }
         }
         $sql .= ' WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
                   AND (r.DISABLED IS NULL OR r.DISABLED < 1)';
@@ -413,7 +433,7 @@ final class CalendarAggregates
     /**
      * Shift staff with AUDIO_ANALYTICS_ENABLED and no records that day (oper «нет зап.» / «ожидаем»).
      *
-     * @param array{admin?:int,position?:int} $filters
+     * @param array{admin?:int,position?:int,positions?:list<int>} $filters
      * @param array<int, array<string, mixed>> $byAdminDay from forRange()['by_admin_day']
      * @return array<string, list<array{admin_id:int,badge:string,kind:string}>> date Y-m-d → missing lines
      */
@@ -430,6 +450,15 @@ final class CalendarAggregates
 
         $adminFilter = max(0, (int)($filters['admin'] ?? 0));
         $positionFilter = max(0, (int)($filters['position'] ?? 0));
+        $positionsScope = [];
+        if (isset($filters['positions']) && is_array($filters['positions'])) {
+            foreach ($filters['positions'] as $pid) {
+                $pid = (int)$pid;
+                if ($pid > 0) {
+                    $positionsScope[$pid] = true;
+                }
+            }
+        }
         $pdo = Database::pdo();
 
         $sql = 'SELECT ID_OPERATOR AS id_operator, DT AS dt FROM base_workweeks WHERE DT >= ? AND DT <= ?';
@@ -525,6 +554,9 @@ final class CalendarAggregates
                     continue;
                 }
                 if ($positionFilter > 0 && $meta['position_id'] !== $positionFilter) {
+                    continue;
+                }
+                if ($positionsScope !== [] && !isset($positionsScope[$meta['position_id']])) {
                     continue;
                 }
                 $out[$day][] = [

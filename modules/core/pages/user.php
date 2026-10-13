@@ -117,6 +117,7 @@ View::render('user', [
     'partnerStatusName' => $partnerStatusName,
     'favoritesCount' => count(UsersRepository::favoriteIds($id)),
     'canManageAuth' => Auth::capability('SUPERADMIN_ACCESS'),
+    'canEdit' => Auth::capability('SUPERADMIN_ACCESS'),
     'canBotLinkCode' => Auth::capability('SUPERADMIN_ACCESS') && ModuleManager::isEnabled('bots'),
     'flash' => flash_take(),
     'profileChannelsHtml' => is_array($profile) ? (string)($profile['html_channels'] ?? '') : '',

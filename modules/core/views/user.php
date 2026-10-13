@@ -8,6 +8,7 @@ declare(strict_types=1);
 /** @var string $profileFlagsHtml */
 /** @var string $profileSiteHtml */
 /** @var bool $canManageAuth */
+/** @var bool $canEdit */
 /** @var bool $canBotLinkCode */
 /** @var array{type?:string,message?:string}|null $flash */
 $uid = (int)$user['id'];
@@ -15,6 +16,7 @@ $profileChannelsHtml = (string)($profileChannelsHtml ?? '');
 $profileFlagsHtml = (string)($profileFlagsHtml ?? '');
 $profileSiteHtml = (string)($profileSiteHtml ?? '');
 $canManageAuth = !empty($canManageAuth);
+$canEdit = !empty($canEdit);
 $canBotLinkCode = !empty($canBotLinkCode);
 $flash = is_array($flash ?? null) ? $flash : null;
 ?>
@@ -49,7 +51,9 @@ $flash = is_array($flash ?? null) ? $flash : null;
         <button type="submit" class="btn"><?= te('core.user.bot_link_code') ?></button>
       </form>
       <?php endif; ?>
+      <?php if ($canEdit): ?>
       <a class="btn-primary" href="/users/<?= $uid ?>/edit"><?= te('core.common.edit') ?></a>
+      <?php endif; ?>
     </div>
   </div>
 </section>
