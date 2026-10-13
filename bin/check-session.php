@@ -162,6 +162,27 @@ try {
     $_SESSION['_guard_at'] = time();
     $check('idle_timeout', !Auth::check(false));
 
+    // runAs must keep Auth::can working even with a stale leftover session epoch.
+    $_SESSION = [];
+    $_SESSION['user_id'] = $uid;
+    $_SESSION['auth_epoch'] = $epoch - 1;
+    $_SESSION['_seen_at'] = time() - (8 * 86400);
+    $_SESSION['_guard_at'] = 0;
+    $runAsOk = false;
+    $runAsCan = false;
+    try {
+        Auth::runAs($uid, static function () use (&$runAsOk, &$runAsCan): void {
+            $runAsOk = Auth::check(true);
+            // No personal perms / superadmin on temp user — can() may be false, but check must hold.
+            $runAsCan = Auth::check(false);
+        });
+    } catch (Throwable $e) {
+        echo 'FAIL runAs ' . $e->getMessage() . PHP_EOL;
+        $fail++;
+    }
+    $check('runAs_check_holds', $runAsOk && $runAsCan);
+    $check('runAs_restored_prior', (int)($_SESSION['user_id'] ?? 0) === $uid);
+
     if (Database::columnExists('base_users', 'auth_epoch')) {
         $before = $epoch;
         $after = Auth::bumpAuthEpoch($uid);

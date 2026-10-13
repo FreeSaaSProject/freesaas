@@ -10,6 +10,9 @@ final class Auth
     private const GUARD_SECONDS_DEFAULT = 60;
     private const REGEN_SECONDS = 1800;
 
+    /** Nesting depth of Auth::runAs — skips idle/guard logout while impersonating. */
+    private static int $runAsDepth = 0;
+
     public static function startSession(): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -253,6 +256,11 @@ final class Auth
     {
         if (empty($_SESSION['user_id'])) {
             return false;
+        }
+        // Bot / agent impersonation just loaded the user from DB — do not idle-logout
+        // or re-run session guard (auth_epoch / cookie regen) mid-callback.
+        if (self::$runAsDepth > 0) {
+            return true;
         }
         $now = time();
         $idle = self::idleSeconds();
@@ -523,6 +531,37 @@ final class Auth
         }
         $perms = self::permissions();
         return !empty($perms[$permission]);
+    }
+
+    /**
+     * Why can($permission) would fail — for bot/agent diagnostics (no side effects).
+     * Call while the candidate session is still intact (e.g. inside Auth::runAs).
+     *
+     * @return array{user_id:int,login:string,check:bool,superadmin:bool,personal:bool,why:string}
+     */
+    public static function accessProbe(string $permission): array
+    {
+        $uid = self::userId();
+        $login = self::loginName();
+        $checkOk = $uid > 0 && (self::$runAsDepth > 0 || self::check());
+        $super = self::isSuperAdmin();
+        $personal = self::hasPersonalPermission($permission);
+        $why = 'ok';
+        if ($uid < 1) {
+            $why = 'no_session';
+        } elseif (!$checkOk) {
+            $why = 'check_fail';
+        } elseif (!$super && !$personal) {
+            $why = 'no_perm';
+        }
+        return [
+            'user_id' => $uid,
+            'login' => $login,
+            'check' => $checkOk,
+            'superadmin' => $super,
+            'personal' => $personal,
+            'why' => $why,
+        ];
     }
 
     /**
@@ -997,9 +1036,11 @@ final class Auth
             }
         }
 
+        self::$runAsDepth++;
         try {
             return $fn();
         } finally {
+            self::$runAsDepth = max(0, self::$runAsDepth - 1);
             foreach ($keys as $k) {
                 if ($backup[$k] === null && ($k !== 'locale' || !$hadLocale)) {
                     unset($_SESSION[$k]);

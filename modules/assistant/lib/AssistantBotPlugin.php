@@ -79,7 +79,7 @@ final class AssistantBotPlugin
                                     'ok' => false,
                                     'action' => $action,
                                     'result' => null,
-                                    'error' => t('assistant.bot.denied'),
+                                    'error' => self::deniedMessage(),
                                     'done' => 0,
                                     'failed' => 0,
                                     'results' => [],
@@ -119,7 +119,7 @@ final class AssistantBotPlugin
                                     'ok' => false,
                                     'action' => $action,
                                     'result' => null,
-                                    'error' => t('assistant.bot.denied'),
+                                    'error' => self::deniedMessage(),
                                 ];
                             }
                             return AssistantHarness::resolvePending($token, $action, $uid);
@@ -209,7 +209,7 @@ final class AssistantBotPlugin
                                 'ok' => false,
                                 'text' => '',
                                 'pending_actions' => [],
-                                'error' => t('assistant.bot.denied'),
+                                'error' => self::deniedMessage(),
                             ];
                         }
                         return AssistantHarness::run($history, [
@@ -317,6 +317,23 @@ final class AssistantBotPlugin
                 self::replySplit($ctx, $display, $keyboard);
                 return true;
             },
+        ]);
+    }
+
+    /** Human + loggable deny reason while inside Auth::runAs. */
+    private static function deniedMessage(): string
+    {
+        $probe = Auth::accessProbe('assistant.use');
+        error_log('[assistant.bot] denied ' . json_encode($probe, JSON_UNESCAPED_UNICODE));
+        $whyKey = 'assistant.bot.denied_why.' . (string)($probe['why'] ?? 'no_perm');
+        $why = t($whyKey);
+        if ($why === $whyKey) {
+            $why = (string)($probe['why'] ?? 'no_perm');
+        }
+        return t('assistant.bot.denied_detail', [
+            'id' => (string)(int)($probe['user_id'] ?? 0),
+            'login' => (string)($probe['login'] ?? ''),
+            'why' => $why,
         ]);
     }
 
