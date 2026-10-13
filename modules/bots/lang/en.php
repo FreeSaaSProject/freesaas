@@ -42,7 +42,7 @@ return [
     'bots.catalog.status.missing' => 'No module',
     'bots.catalog.kind.cabinet' => 'Button',
     'bots.catalog.kind.outbound' => 'Queue',
-    'bots.catalog.staff.chat_with_max' => '💬 Chat with Max',
+    'bots.catalog.staff.chat_with_max' => '💬 Ask Max',
     'bots.catalog.staff.account_moves' => '📒 Account moves',
     'bots.catalog.staff.audio_reports' => '📊 Audio analytics / reports',
     'bots.catalog.staff.moderation' => '🧠 Audio moderation',

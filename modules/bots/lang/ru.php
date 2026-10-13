@@ -42,7 +42,7 @@ return [
     'bots.catalog.status.missing' => 'Нет модуля',
     'bots.catalog.kind.cabinet' => 'Кнопка',
     'bots.catalog.kind.outbound' => 'Очередь',
-    'bots.catalog.staff.chat_with_max' => '💬 Чат с Максом',
+    'bots.catalog.staff.chat_with_max' => '💬 Спросить Макса',
     'bots.catalog.staff.account_moves' => '📒 Движения по счетам',
     'bots.catalog.staff.audio_reports' => '📊 Аудиоаналитика / отчёты',
     'bots.catalog.staff.moderation' => '🧠 Модерация аудиозаписей',

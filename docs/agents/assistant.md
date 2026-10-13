@@ -1,6 +1,6 @@
-# In-system assistant (tool harness)
+# Max — in-system assistant (tool harness)
 
-Product module `assistant`: conversational agent that calls product `agent.ops` automatically. Channels: UI `/assistant` and staff Telegram/Max bot. Not platform `/agent/*`.
+Product module `assistant` (UI name **Max** / **Макс**): conversational agent that calls product `agent.ops` automatically. Channels: UI `/assistant` and staff Telegram/Max-messenger bot («Ask Max»). Not platform `/agent/*`.
 
 ## Enable
 

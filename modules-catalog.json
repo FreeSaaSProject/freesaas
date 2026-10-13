@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-13T08:40:33+00:00",
+    "generated_at": "2026-10-13T08:44:45+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,19 +37,19 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.15",
+            "version": "0.1.16",
             "type": "product",
             "name": {
-                "en": "Assistant",
-                "ru": "Ассистент"
+                "en": "Max",
+                "ru": "Макс"
             },
             "description": {
-                "en": "In-cabin AI assistant UI on top of the shared llm module.",
-                "ru": "UI AI-ассистента в кабинете поверх общего модуля llm."
+                "en": "Max — in-cabin AI assistant UI on top of the shared llm module.",
+                "ru": "Макс — AI-ассистент в кабинете поверх общего модуля llm."
             },
             "summary": {
-                "en": "Enable for the staff assistant chat UI. Requires llm. Soft bots/procedures/staff_reports/audio_reports/terminals for tools context. Needs llm profiles configured first.",
-                "ru": "Включайте для чата ассистента сотрудникам. Требует llm. Мягко bots/procedures/staff_reports/audio_reports/terminals для контекста tools. Сначала профили llm."
+                "en": "Enable for Max staff chat UI. Requires llm. Soft bots/procedures/staff_reports/audio_reports/terminals for tools context. Needs llm profiles configured first.",
+                "ru": "Включайте для чата Макса сотрудникам. Требует llm. Мягко bots/procedures/staff_reports/audio_reports/terminals для контекста tools. Сначала профили llm."
             },
             "requires": {
                 "core": ">=0.3.0",
@@ -387,7 +387,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.12",
+            "version": "0.2.13",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
