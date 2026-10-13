@@ -4,6 +4,10 @@ declare(strict_types=1);
 $wantsJson = AgentHttp::wantsJson();
 $q = trim((string)($_GET['q'] ?? ''));
 $date = trim((string)($_GET['date'] ?? ''));
+if ($date !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+    $date = '';
+}
+$quickDate = $date !== '' ? $date : date('Y-m-d');
 $path = '/wellness/health-diary';
 $listId = 'wellness_health_diary';
 
@@ -18,6 +22,23 @@ $lq = ListQuery::resolve([
 $filters = array_merge(['q' => $q, 'date' => $date], $lq['query']);
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['wellness_quick'])) {
+    $quick = WellnessQuickAdd::tryHandle($_POST);
+    if ($quick !== null) {
+        if ($wantsJson) {
+            if (!empty($quick['ok'])) {
+                AgentHttp::emit(['ok' => true, 'message' => $quick['message']]);
+            } else {
+                AgentHttp::error($quick['message'], 400);
+            }
+            return;
+        }
+        WellnessQuickAdd::storeFlash($quick);
+        redirect(ListQuery::url($path, $filters, []));
+        return;
+    }
 }
 
 BulkActions::tryHandle($listId, $path, $filters);
@@ -50,6 +71,7 @@ View::render('health_diary', [
     'total' => $result['total'],
     'q' => $q,
     'date' => $date,
+    'quickDate' => $quickDate,
     'canEdit' => Auth::can('wellness.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
@@ -58,6 +80,7 @@ View::render('health_diary', [
     'showAll' => $lq['show_all'],
     'filters' => $filters,
     'bulkFlash' => BulkActions::consumeFlash(),
+    'quickFlash' => WellnessQuickAdd::consumeFlash(),
     'path' => $path,
     'listId' => $listId,
 ], 'layout', 'wellness');

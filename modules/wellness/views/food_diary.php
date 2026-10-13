@@ -18,10 +18,13 @@ declare(strict_types=1);
 /** @var bool $showAll */
 /** @var array $filters */
 /** @var array|null $bulkFlash */
+/** @var array{ok:bool,message:string}|null $quickFlash */
 /** @var string $path */
 /** @var string $listId */
 $meals = is_array($meals ?? null) ? $meals : [];
 $balance = is_array($balance ?? null) ? $balance : null;
+$health = is_array($health ?? null) ? $health : [];
+$workouts = is_array($workouts ?? null) ? $workouts : [];
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $colSpan = 8 + BulkActions::colSpanExtra($listId);
@@ -55,6 +58,14 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
     <?php endif; ?>
   </div>
 </section>
+
+<?php if (!empty($quickFlash) && ($quickFlash['message'] ?? '') !== ''): ?>
+  <p class="<?= !empty($quickFlash['ok']) ? 'ok' : 'error' ?>"><?= e((string)$quickFlash['message']) ?></p>
+<?php endif; ?>
+
+<?php if ($canEdit): ?>
+  <?= View::capture('_quick_add_food', ['date' => $date, 'action' => $path], 'wellness') ?>
+<?php endif; ?>
 
 <?php if (!empty($bulkFlash)): ?>
   <?= BulkActions::flashHtml($bulkFlash) ?>
@@ -195,23 +206,66 @@ $nextDay = date('Y-m-d', strtotime($date . ' +1 day') ?: time());
   <?php if ($canEdit): ?>
     <a class="btn-secondary" href="/wellness/workouts/new?date=<?= e(urlencode($date)) ?>"><?= te('wellness.workouts.edit_new') ?></a>
   <?php endif; ?>
+</section>
 
+<section class="wellness-day-health">
   <h2><?= te('wellness.food_diary.health') ?></h2>
-  <?php if ($health): ?>
-    <ul>
-      <?php foreach ($health as $h): ?>
-        <li>
-          <a href="/wellness/health-diary/<?= (int)$h['id'] ?>/edit">
-            <?= e((string)($h['symptom_name'] ?: $h['medicine_name'] ?: ('#' . $h['id']))) ?>
-          </a>
-          <?php if ((int)$h['level'] > 0): ?> · <?= te('wellness.col.level') ?> <?= (int)$h['level'] ?><?php endif; ?>
-        </li>
-      <?php endforeach; ?>
-    </ul>
-  <?php else: ?>
-    <p class="muted"><?= te('wellness.health_diary.empty') ?></p>
-  <?php endif; ?>
   <?php if ($canEdit): ?>
-    <a class="btn-secondary" href="/wellness/health-diary/new?date=<?= e(urlencode($date)) ?>"><?= te('wellness.health_diary.edit_new') ?></a>
+    <?= View::capture('_quick_add_health', ['date' => $date, 'action' => $path, 'autofocus' => false], 'wellness') ?>
   <?php endif; ?>
+  <div class="table-wrap">
+    <table class="data">
+      <thead>
+        <tr>
+          <th><?= te('wellness.col.dt') ?></th>
+          <th><?= te('wellness.col.symptom') ?></th>
+          <th><?= te('wellness.col.medicine') ?></th>
+          <th><?= te('wellness.col.level') ?></th>
+          <th><?= te('wellness.col.descr') ?></th>
+        </tr>
+      </thead>
+      <tbody>
+      <?php
+        $symptoms = [];
+        $medicines = [];
+        foreach ($health as $h) {
+            if ((int)($h['symptom_id'] ?? 0) > 0) {
+                $symptoms[] = $h;
+            } elseif ((int)($h['medicine_id'] ?? 0) > 0) {
+                $medicines[] = $h;
+            } else {
+                $symptoms[] = $h;
+            }
+        }
+      ?>
+      <?php if ($symptoms): ?>
+        <tr class="wellness-meal-head"><td colspan="5"><strong><?= te('wellness.health_diary.symptoms_group') ?></strong></td></tr>
+        <?php foreach ($symptoms as $h): ?>
+          <tr>
+            <td><?php if ($canEdit): ?><a href="/wellness/health-diary/<?= (int)$h['id'] ?>/edit"><?= e(WellnessUi::formatDt((int)$h['dt'])) ?></a><?php else: ?><?= e(WellnessUi::formatDt((int)$h['dt'])) ?><?php endif; ?></td>
+            <td><?= e((string)$h['symptom_name']) ?></td>
+            <td><?= e((string)$h['medicine_name']) ?></td>
+            <td><?= (int)$h['level'] ?></td>
+            <td><?= e((string)$h['descr']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      <?php endif; ?>
+      <?php if ($medicines): ?>
+        <tr class="wellness-meal-head"><td colspan="5"><strong><?= te('wellness.health_diary.medicines_group') ?></strong></td></tr>
+        <?php foreach ($medicines as $h): ?>
+          <tr>
+            <td><?php if ($canEdit): ?><a href="/wellness/health-diary/<?= (int)$h['id'] ?>/edit"><?= e(WellnessUi::formatDt((int)$h['dt'])) ?></a><?php else: ?><?= e(WellnessUi::formatDt((int)$h['dt'])) ?><?php endif; ?></td>
+            <td><?= e((string)$h['symptom_name']) ?></td>
+            <td><?= e((string)$h['medicine_name']) ?></td>
+            <td><?= (int)$h['level'] ?></td>
+            <td><?= e((string)$h['descr']) ?></td>
+          </tr>
+        <?php endforeach; ?>
+      <?php endif; ?>
+      <?php if (!$health): ?>
+        <tr><td colspan="5" class="muted"><?= te('wellness.health_diary.empty') ?></td></tr>
+      <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
 </section>

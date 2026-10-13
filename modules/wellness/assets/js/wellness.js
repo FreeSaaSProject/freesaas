@@ -95,9 +95,120 @@
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initCharts);
-  } else {
+  function initSuggest() {
+    document.querySelectorAll('[data-wellness-suggest]').forEach(function (input) {
+      if (input._wellnessSuggestBound) {
+        return;
+      }
+      input._wellnessSuggestBound = true;
+      var wrap = input.closest('.wellness-suggest-wrap');
+      var list = wrap ? wrap.querySelector('.wellness-suggest-list') : null;
+      var form = input.closest('form');
+      var url = input.getAttribute('data-wellness-suggest') || '';
+      var target = input.getAttribute('data-suggest-target') || '';
+      var openOnFocus = input.getAttribute('data-suggest-open') === '1';
+      var timer = null;
+      var hidden = null;
+      if (form) {
+        hidden = target
+          ? form.querySelector('[data-suggest-id="' + target + '"]')
+          : form.querySelector('input[data-suggest-id]');
+      }
+      if (!list || !url) {
+        return;
+      }
+
+      function hide() {
+        list.hidden = true;
+        list.innerHTML = '';
+      }
+
+      function pick(item) {
+        input.value = item.name || '';
+        if (hidden) {
+          hidden.value = String(item.id || '');
+        }
+        hide();
+        input.focus();
+      }
+
+      function render(items) {
+        list.innerHTML = '';
+        if (!items.length) {
+          hide();
+          return;
+        }
+        var ul = document.createElement('ul');
+        items.forEach(function (item) {
+          var li = document.createElement('li');
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          var label = item.name || '';
+          if (item.ccals !== undefined && item.ccals !== null) {
+            label += ' · ' + item.ccals + ' kcal/100g';
+          }
+          btn.textContent = label;
+          btn.addEventListener('mousedown', function (ev) {
+            ev.preventDefault();
+            pick(item);
+          });
+          li.appendChild(btn);
+          ul.appendChild(li);
+        });
+        list.appendChild(ul);
+        list.hidden = false;
+      }
+
+      function search(q) {
+        var sep = url.indexOf('?') >= 0 ? '&' : '?';
+        fetch(url + sep + 'q=' + encodeURIComponent(q) + '&format=json&per_page=20', {
+          headers: { Accept: 'application/json' },
+          credentials: 'same-origin',
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (input.value !== q && !(q === '' && input.value === '')) {
+              return;
+            }
+            render((data && data.items) || []);
+          })
+          .catch(function () {
+            hide();
+          });
+      }
+
+      function schedule() {
+        if (hidden) {
+          hidden.value = '';
+        }
+        clearTimeout(timer);
+        timer = setTimeout(function () {
+          search(String(input.value || '').trim());
+        }, 250);
+      }
+
+      input.addEventListener('input', schedule);
+      input.addEventListener('focus', function () {
+        if (openOnFocus) {
+          search(String(input.value || '').trim());
+        }
+      });
+      input.addEventListener('blur', function () {
+        setTimeout(hide, 180);
+      });
+    });
+  }
+
+  function boot() {
     initCharts();
+    initSuggest();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
   }
 })();

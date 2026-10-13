@@ -25,6 +25,23 @@ if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
 }
 
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && isset($_POST['wellness_quick'])) {
+    $quick = WellnessQuickAdd::tryHandle($_POST);
+    if ($quick !== null) {
+        if ($wantsJson) {
+            if (!empty($quick['ok'])) {
+                AgentHttp::emit(['ok' => true, 'message' => $quick['message']]);
+            } else {
+                AgentHttp::error($quick['message'], 400);
+            }
+            return;
+        }
+        WellnessQuickAdd::storeFlash($quick);
+        redirect(ListQuery::url($path, $filters, []));
+        return;
+    }
+}
+
 BulkActions::tryHandle($listId, $path, $filters);
 
 // Day view: always morning → evening for meal gap grouping (elos63 ORDER BY DT ASC).
@@ -86,6 +103,7 @@ View::render('food_diary', [
     'showAll' => $lq['show_all'],
     'filters' => $filters,
     'bulkFlash' => BulkActions::consumeFlash(),
+    'quickFlash' => WellnessQuickAdd::consumeFlash(),
     'path' => $path,
     'listId' => $listId,
 ], 'layout', 'wellness');

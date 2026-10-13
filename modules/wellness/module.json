@@ -2,7 +2,7 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.2.16",
+    "version": "0.2.17",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"

@@ -87,6 +87,23 @@ final class FitFoodsRepository
         return $row ?: null;
     }
 
+    /** Exact name match for current user (quick-add). */
+    public static function findByName(string $name): ?array
+    {
+        $name = trim($name);
+        if ($name === '' || !Database::tableExists('base_fit_foods')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_USER AS user_id, NAME AS name,
+                    CCALS AS ccals, CARBS AS carbs, PROTEINS AS proteins, FATS AS fats
+             FROM base_fit_foods WHERE ID_USER = ? AND NAME = ? LIMIT 1'
+        );
+        $st->execute([WellnessOwner::userId(), $name]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     /** Unscoped find (bot/recipe sync under Auth::runAs). */
     public static function findRaw(int $id): ?array
     {

@@ -192,6 +192,11 @@ final class FitFoodBotPlugin
             self::reply($ctx, t('wellness.bot.sport_hint'), self::kbCancel());
             return true;
         }
+        if ($data === 'fit_food_entry_add_health') {
+            self::setState($ctx, 'await_health_input', ['user_id' => $uid]);
+            self::reply($ctx, t('wellness.bot.health_hint'), self::kbCancel());
+            return true;
+        }
         if ($data === 'fit_food_entry_edit') {
             self::beginEdit($ctx, $uid);
             return true;
@@ -260,6 +265,10 @@ final class FitFoodBotPlugin
         }
         if ($mode === 'await_sport_input') {
             self::processSportInput($ctx, $uid, $text);
+            return true;
+        }
+        if ($mode === 'await_health_input') {
+            self::processHealthInput($ctx, $uid, $text);
             return true;
         }
         if ($mode === 'recipe_log_weight') {
@@ -574,6 +583,53 @@ final class FitFoodBotPlugin
     }
 
     /** @param array<string,mixed> $ctx */
+    private static function processHealthInput(array $ctx, int $uid, string $text): void
+    {
+        $text = trim($text);
+        $isMed = false;
+        $name = $text;
+        $level = 0;
+        if (preg_match('/^(?:л|lek|med|medicine|лекарство)\s*[:\-]?\s*(.+)$/iu', $text, $m)) {
+            $isMed = true;
+            $name = trim($m[1]);
+        } elseif (preg_match('/^(.+?)\s+(\d)$/u', $text, $m2)) {
+            $name = trim($m2[1]);
+            $level = max(0, min(5, (int)$m2[2]));
+        }
+        if ($name === '') {
+            self::reply($ctx, t('wellness.bot.health_bad'), self::kbCancel());
+            return;
+        }
+        try {
+            $post = [
+                'dt' => time(),
+                'level' => $level,
+                'descr' => '',
+                'symptom_id' => 0,
+                'medicine_id' => 0,
+                'symptom_name' => $isMed ? '' : $name,
+                'medicine_name' => $isMed ? $name : '',
+            ];
+            $data = HealthLogsRepository::dataFromPost($post);
+            if ((int)$data['symptom_id'] < 1 && (int)$data['medicine_id'] < 1) {
+                self::reply($ctx, t('wellness.bot.health_bad'), self::kbCancel());
+                return;
+            }
+            HealthLogsRepository::create($data);
+        } catch (Throwable $e) {
+            error_log('[wellness.bot.logHealth] ' . $e->getMessage());
+            self::reply($ctx, self::saveFailText($e), self::kbHome());
+            return;
+        }
+        self::replyHtml(
+            $ctx,
+            e(t('wellness.bot.health_logged', ['name' => $name])) . "\n\n" . self::statusText($uid),
+            self::kbHome()
+        );
+        self::setState($ctx, 'await_input', ['user_id' => $uid]);
+    }
+
+    /** @param array<string,mixed> $ctx */
     private static function showHome(array $ctx, int $uid): void
     {
         self::setState($ctx, 'await_input', ['user_id' => $uid]);
@@ -816,6 +872,22 @@ final class FitFoodBotPlugin
             foreach ($sports['items'] as $s) {
                 $lines[] = '✅ ' . date('H:i', (int)$s['dt_start']) . ' — ' . e((string)$s['name'])
                     . ' (' . (int)$s['ccals'] . ')';
+            }
+        }
+        $health = HealthLogsRepository::list(['from' => $from, 'to' => $to, 'limit' => 20, 'order' => 'l.DT ASC, l.ID ASC']);
+        $lines[] = '';
+        $lines[] = t('wellness.bot.health_today');
+        if (($health['items'] ?? []) === []) {
+            $lines[] = t('wellness.bot.health_empty');
+        } else {
+            foreach ($health['items'] as $h) {
+                $kind = (int)($h['symptom_id'] ?? 0) > 0
+                    ? t('wellness.bot.health_symptom')
+                    : t('wellness.bot.health_medicine');
+                $name = (string)($h['symptom_name'] ?: $h['medicine_name'] ?: ('#' . $h['id']));
+                $lvl = (int)($h['level'] ?? 0);
+                $extra = $lvl > 0 ? ' · ' . $lvl : '';
+                $lines[] = '🩺 ' . date('H:i', (int)$h['dt']) . ' — ' . e($kind) . ': ' . e($name) . $extra;
             }
         }
         $lines[] = '';
@@ -1306,7 +1378,10 @@ final class FitFoodBotPlugin
                 ['text' => t('wellness.bot.delete_btn'), 'callback_data' => 'fit_food_entry_del'],
             ],
             [['text' => t('wellness.bot.recipe_menu_btn'), 'callback_data' => 'fit_food_entry_rmenu']],
-            [['text' => t('wellness.bot.add_sport'), 'callback_data' => 'fit_food_entry_add_sport']],
+            [
+                ['text' => t('wellness.bot.add_sport'), 'callback_data' => 'fit_food_entry_add_sport'],
+                ['text' => t('wellness.bot.add_health'), 'callback_data' => 'fit_food_entry_add_health'],
+            ],
             [['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet']],
         ]];
     }

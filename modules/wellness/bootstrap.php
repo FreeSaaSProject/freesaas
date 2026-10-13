@@ -14,6 +14,7 @@ require_once __DIR__ . '/lib/HealthLogsRepository.php';
 require_once __DIR__ . '/lib/HealthDoctorRxRepository.php';
 require_once __DIR__ . '/lib/WellnessCalendarRepository.php';
 require_once __DIR__ . '/lib/WellnessUi.php';
+require_once __DIR__ . '/lib/WellnessQuickAdd.php';
 require_once __DIR__ . '/lib/FitRecipesRepository.php';
 require_once __DIR__ . '/lib/FitRecipeSync.php';
 require_once __DIR__ . '/lib/FitFoodBotPlugin.php';

@@ -4,6 +4,7 @@ declare(strict_types=1);
 /** @var int $total */
 /** @var string $q */
 /** @var string $date */
+/** @var string $quickDate */
 /** @var bool $canEdit */
 /** @var string $sort */
 /** @var string $dir */
@@ -12,9 +13,11 @@ declare(strict_types=1);
 /** @var bool $showAll */
 /** @var array $filters */
 /** @var array|null $bulkFlash */
+/** @var array{ok:bool,message:string}|null $quickFlash */
 /** @var string $path */
 /** @var string $listId */
 $showAll = !empty($showAll);
+$quickDate = (string)($quickDate ?? ($date !== '' ? $date : date('Y-m-d')));
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $colSpan = 6 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
@@ -24,11 +27,19 @@ $actionUrl = ListQuery::url($path, $filters, []);
   <div class="page-head-row">
     <div></div>
     <div class="page-actions">
-      <a class="btn-primary" href="<?= e($path) ?>/new"><?= te('core.common.add') ?></a>
+      <a class="btn-secondary" href="<?= e($path) ?>/new"><?= te('core.common.add') ?></a>
     </div>
   </div>
   <?php endif; ?>
 </section>
+
+<?php if (!empty($quickFlash) && ($quickFlash['message'] ?? '') !== ''): ?>
+  <p class="<?= !empty($quickFlash['ok']) ? 'ok' : 'error' ?>"><?= e((string)$quickFlash['message']) ?></p>
+<?php endif; ?>
+
+<?php if ($canEdit): ?>
+  <?= View::capture('_quick_add_health', ['date' => $quickDate, 'action' => $path, 'autofocus' => true], 'wellness') ?>
+<?php endif; ?>
 
 <?php if (!empty($bulkFlash)): ?>
   <?= BulkActions::flashHtml($bulkFlash) ?>

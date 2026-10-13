@@ -196,6 +196,83 @@
   color: var(--muted, #444);
 }
 
+.wellness-quick-add {
+  margin: 0.75rem 0 1rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+  background: rgba(58, 110, 165, 0.04);
+}
+
+.wellness-quick-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.5rem;
+  align-items: center;
+}
+
+.wellness-quick-row input[type="text"],
+.wellness-quick-row input[type="number"],
+.wellness-quick-row select {
+  min-width: 5rem;
+}
+
+.wellness-quick-row .wellness-suggest-wrap {
+  flex: 1 1 12rem;
+  min-width: 10rem;
+  position: relative;
+}
+
+.wellness-quick-row .wellness-suggest-wrap > input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.wellness-suggest-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 40;
+  max-height: 16rem;
+  overflow: auto;
+  margin-top: 2px;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.wellness-suggest-list ul {
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem 0;
+}
+
+.wellness-suggest-list button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+}
+
+.wellness-suggest-list button:hover,
+.wellness-suggest-list button:focus {
+  background: rgba(58, 110, 165, 0.1);
+}
+
+.wellness-quick-macros {
+  margin-top: 0.45rem;
+  font-size: 0.9rem;
+}
+
+.wellness-day-health {
+  margin-top: 1.75rem;
+}
+
 .wellness-day-side {
   margin-top: 1.5rem;
 }
