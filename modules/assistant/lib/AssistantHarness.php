@@ -9,12 +9,19 @@ final class AssistantHarness
     /** LLM rounds; ledger create often needs several list lookups + one write. */
     public const MAX_ITERATIONS = 12;
 
+    /** Extra LLM turns when the final reply invents admin URLs outside the tool catalog. */
+    public const MAX_LINK_REPAIRS = 1;
+
     /**
      * @param list<array{role:string,content?:string,tool_calls?:mixed,tool_call_id?:string,name?:string}> $messages
      * @param array{
      *   profile?:string,timeout?:int,temperature?:float,max_tokens?:int,user_id?:int,
+     *   ops?:list<array<string,mixed>>,
+     *   tool_stubs?:array<string,callable|array>,
      *   on_progress?:callable
-     * } $opts on_progress receives {phase,op_id,description,side_effect,args,status?}
+     * } $opts on_progress receives {phase,op_id,description,side_effect,args,status?};
+     *          ops = prebuilt tool catalog (eval personas); does not touch AssistantDialog.
+     *          tool_stubs = op_id → payload array or (opId, args) => payload (eval fixtures).
      * @return array{
      *   ok:bool,text:string,messages:list,pending_actions:list,
      *   tool_trace:list,error:string,profile:?string
@@ -27,7 +34,9 @@ final class AssistantHarness
             return self::fail('Not authenticated');
         }
 
-        $ops = AssistantTools::availableOps();
+        $ops = isset($opts['ops']) && is_array($opts['ops'])
+            ? array_values($opts['ops'])
+            : AssistantTools::availableOps();
         if ($ops === []) {
             return self::fail(t('assistant.err.tools'));
         }
@@ -36,31 +45,11 @@ final class AssistantHarness
         $onProgress = isset($opts['on_progress']) && is_callable($opts['on_progress'])
             ? $opts['on_progress']
             : null;
+        $toolStubs = isset($opts['tool_stubs']) && is_array($opts['tool_stubs'])
+            ? $opts['tool_stubs']
+            : [];
 
-        $company = class_exists('SystemRepository', false)
-            ? trim(SystemRepository::companyName())
-            : '';
-        $companyPart = $company !== ''
-            ? t('assistant.system_prompt.company_part', ['company' => $company])
-            : '';
-        $system = t('assistant.system_prompt', ['company_part' => $companyPart]);
-        $today = date('Y-m-d');
-        $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
-        $system .= "\nToday is {$today}. Yesterday is {$yesterday}.";
-        $system .= "\nCall several read tools in one step when useful. After a write is queued for confirmation, stop — do not keep searching.";
-        if (class_exists('AssistantLinks', false)) {
-            $base = AssistantLinks::base();
-            if ($base !== '') {
-                $hints = AssistantLinks::botCabinetHints();
-                $botMenu = $hints !== []
-                    ? t('assistant.system_prompt.bot_menu', ['items' => implode('; ', $hints)])
-                    : t('assistant.system_prompt.bot_menu_none');
-                $system .= "\n" . t('assistant.system_prompt.links', [
-                    'base' => $base,
-                    'bot_menu' => $botMenu,
-                ]);
-            }
-        }
+        $system = self::buildSystemPrompt($ops);
 
         $norm = [];
         $norm[] = ['role' => 'system', 'content' => $system];
@@ -104,6 +93,7 @@ final class AssistantHarness
         $pending = [];
         $trace = [];
         $profile = null;
+        $linkRepairs = 0;
         $llmOpts = [
             'timeout' => (int)($opts['timeout'] ?? 90),
             'profile' => isset($opts['profile']) ? (string)$opts['profile'] : null,
@@ -123,7 +113,7 @@ final class AssistantHarness
                     'messages' => $norm,
                     'pending_actions' => $pending,
                     'tool_trace' => $trace,
-                    'error' => $res['error'] !== '' ? $res['error'] : t('assistant.err.config'),
+                    'error' => $res['error'] !== '' ? $res['error'] : AssistantConfig::t('assistant.err.config'),
                     'profile' => $profile,
                 ];
             }
@@ -138,7 +128,42 @@ final class AssistantHarness
             }
 
             if ($toolCalls === []) {
-                return self::okResult($text, $norm, $pending, $trace, $profile);
+                if ($text !== ''
+                    && $linkRepairs < self::MAX_LINK_REPAIRS
+                    && class_exists('AssistantLinks', false)
+                ) {
+                    $bad = AssistantLinks::findUnauthorizedHrefs($text, $ops);
+                    if ($bad !== []) {
+                        $allowed = AssistantLinks::allowedLinkHints($ops, $norm);
+                        $norm[] = ['role' => 'assistant', 'content' => $text];
+                        $norm[] = [
+                            'role' => 'user',
+                            'content' => t('assistant.harness.link_repair', [
+                                'bad' => implode(', ', $bad),
+                                'allowed' => $allowed !== []
+                                    ? implode("\n", $allowed)
+                                    : t('assistant.harness.link_repair_none'),
+                            ]),
+                        ];
+                        $trace[] = [
+                            'op_id' => '_link_repair',
+                            'label' => 'link_repair',
+                            'status' => 'ok',
+                            'args' => ['bad' => $bad],
+                        ];
+                        self::emitProgress($onProgress, [
+                            'phase' => 'link_repair',
+                            'op_id' => '_link_repair',
+                            'description' => 'link_repair',
+                            'side_effect' => 'read',
+                            'args' => ['bad' => $bad],
+                            'status' => 'ok',
+                        ]);
+                        $linkRepairs++;
+                        continue;
+                    }
+                }
+                return self::okResult($text, $norm, $pending, $trace, $profile, $ops);
             }
 
             $assistantMsg = [
@@ -182,7 +207,7 @@ final class AssistantHarness
                     $norm[] = [
                         'role' => 'tool',
                         'tool_call_id' => $tcId,
-                        'content' => (string)json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'content' => self::encodeToolContent($payload),
                     ];
                     continue;
                 }
@@ -198,6 +223,63 @@ final class AssistantHarness
                     'side_effect' => $side,
                     'args' => $args,
                 ]);
+
+                $stubPayload = self::resolveToolStub($toolStubs, $opId, $args);
+                if ($stubPayload !== null) {
+                    if ($side === 'write' && !empty($stubPayload['pending'])) {
+                        $token = (string)($stubPayload['token'] ?? ('eval-stub-' . substr(sha1($opId), 0, 8)));
+                        $summary = (string)($stubPayload['summary'] ?? self::summarizeWrite($opId, $args, $desc));
+                        $pending[] = [
+                            'token' => $token,
+                            'op_id' => $opId,
+                            'summary' => $summary,
+                            'expires_at' => time() + 900,
+                        ];
+                        $stubPayload['token'] = $token;
+                        $stubPayload['summary'] = $summary;
+                        $trace[] = [
+                            'op_id' => $opId,
+                            'label' => self::humanOpTitle($opId),
+                            'status' => 'pending',
+                            'args' => $args,
+                            'token' => $token,
+                            'fixture' => true,
+                        ];
+                        self::emitProgress($onProgress, [
+                            'phase' => 'done',
+                            'op_id' => $opId,
+                            'description' => $desc,
+                            'side_effect' => $side,
+                            'args' => $args,
+                            'status' => 'pending',
+                            'summary' => $summary,
+                        ]);
+                    } else {
+                        $ok = !isset($stubPayload['ok']) || !empty($stubPayload['ok']);
+                        $trace[] = [
+                            'op_id' => $opId,
+                            'label' => self::humanOpTitle($opId),
+                            'status' => $ok ? 'ok' : 'error',
+                            'args' => $args,
+                            'fixture' => true,
+                        ];
+                        self::emitProgress($onProgress, [
+                            'phase' => 'done',
+                            'op_id' => $opId,
+                            'description' => $desc,
+                            'side_effect' => $side,
+                            'args' => $args,
+                            'status' => $ok ? 'ok' : 'error',
+                            'error' => $ok ? '' : (string)($stubPayload['error'] ?? 'stub error'),
+                        ]);
+                    }
+                    $norm[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => $tcId,
+                        'content' => self::encodeToolContent($stubPayload),
+                    ];
+                    continue;
+                }
 
                 if ($side === 'write') {
                     $summary = self::summarizeWrite($opId, $args, $desc);
@@ -252,7 +334,7 @@ final class AssistantHarness
                     $norm[] = [
                         'role' => 'tool',
                         'tool_call_id' => $tcId,
-                        'content' => (string)json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                        'content' => self::encodeToolContent($payload),
                     ];
                     continue;
                 }
@@ -277,17 +359,10 @@ final class AssistantHarness
                     'status' => $status,
                     'error' => $inv['ok'] ? '' : (string)$inv['error'],
                 ]);
-                $encoded = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-                if ($encoded === false) {
-                    $encoded = '{"ok":false,"error":"encode failed"}';
-                }
-                if (strlen($encoded) > 12000) {
-                    $encoded = substr($encoded, 0, 11900) . '…","_truncated":true}';
-                }
                 $norm[] = [
                     'role' => 'tool',
                     'tool_call_id' => $tcId,
-                    'content' => $encoded,
+                    'content' => self::encodeToolContent($payload),
                 ];
             }
 
@@ -298,13 +373,14 @@ final class AssistantHarness
                     $norm,
                     $pending,
                     $trace,
-                    $profile
+                    $profile,
+                    $ops
                 );
             }
         }
 
         if ($pending !== []) {
-            return self::okResult(t('assistant.confirm.press_buttons'), $norm, $pending, $trace, $profile);
+            return self::okResult(t('assistant.confirm.press_buttons'), $norm, $pending, $trace, $profile, $ops);
         }
 
         return [
@@ -313,7 +389,7 @@ final class AssistantHarness
             'messages' => $norm,
             'pending_actions' => $pending,
             'tool_trace' => $trace,
-            'error' => t('assistant.err.loop'),
+            'error' => AssistantConfig::t('assistant.err.loop'),
             'profile' => $profile,
         ];
     }
@@ -534,7 +610,7 @@ final class AssistantHarness
                 'ok' => false,
                 'action' => $intent,
                 'result' => null,
-                'error' => t('assistant.confirm.none'),
+                'error' => AssistantConfig::t('assistant.confirm.none'),
                 'handled' => true,
             ];
         }
@@ -550,7 +626,7 @@ final class AssistantHarness
                 'ok' => false,
                 'action' => $intent,
                 'result' => null,
-                'error' => t('assistant.confirm.none'),
+                'error' => AssistantConfig::t('assistant.confirm.none'),
                 'handled' => true,
             ];
         }
@@ -723,6 +799,26 @@ final class AssistantHarness
     }
 
     /**
+     * Eval fixture stub: op_id → array payload or callable(opId, args): array.
+     *
+     * @param array<string,callable|array<string,mixed>> $stubs
+     * @param array<string,mixed> $args
+     * @return array<string,mixed>|null
+     */
+    private static function resolveToolStub(array $stubs, string $opId, array $args): ?array
+    {
+        if ($opId === '' || !array_key_exists($opId, $stubs)) {
+            return null;
+        }
+        $stub = $stubs[$opId];
+        if (is_callable($stub)) {
+            $out = $stub($opId, $args);
+            return is_array($out) ? $out : null;
+        }
+        return is_array($stub) ? $stub : null;
+    }
+
+    /**
      * @param array<string,mixed> $args
      */
     private static function summarizeWrite(string $opId, array $args, string $description): string
@@ -734,20 +830,202 @@ final class AssistantHarness
     }
 
     /**
+     * Aggregate common money/qty fields across list rows (for truncated tool payloads).
+     *
+     * @param list<mixed> $list
+     * @return array<string,float|array<string,float>>
+     */
+    private static function sumNumericColumns(array $list): array
+    {
+        $moneyKeys = ['sum' => true, 'summ' => true, 'amount' => true, 'total' => true, 'price' => true, 'value' => true];
+        $sums = [];
+        $byDirection = [];
+        foreach ($list as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            foreach ($row as $k => $v) {
+                if (!is_numeric($v)) {
+                    continue;
+                }
+                $key = strtolower((string)$k);
+                if (!isset($moneyKeys[$key])) {
+                    continue;
+                }
+                if (!isset($sums[$key])) {
+                    $sums[$key] = 0.0;
+                }
+                $sums[$key] += (float)$v;
+            }
+            if (isset($row['sum']) && is_numeric($row['sum']) && array_key_exists('direction', $row)) {
+                $dir = (string)$row['direction'];
+                if (!isset($byDirection[$dir])) {
+                    $byDirection[$dir] = 0.0;
+                }
+                $byDirection[$dir] += (float)$row['sum'];
+            }
+        }
+        foreach ($sums as $k => $v) {
+            $sums[$k] = round((float)$v, 2);
+        }
+        if ($byDirection !== []) {
+            foreach ($byDirection as $k => $v) {
+                $byDirection[$k] = round((float)$v, 2);
+            }
+            // payments: direction 1 = accrued (начислено), else issued (выплачено)
+            $sums['by_direction'] = $byDirection;
+            if (isset($byDirection['1'])) {
+                $sums['accrued'] = $byDirection['1'];
+            }
+            $issued = 0.0;
+            foreach ($byDirection as $dir => $v) {
+                if ((string)$dir === '1') {
+                    continue;
+                }
+                $issued += (float)$v;
+            }
+            if ($issued > 0 || isset($byDirection['-1']) || isset($byDirection['0'])) {
+                $sums['issued'] = round($issued, 2);
+            }
+        }
+        return $sums;
+    }
+
+    /**
+     * Encode tool result for the next LLM round. Never byte-chop JSON mid-string:
+     * that breaks UTF-8 (Cyrillic) and the following LlmClient::chat fails with
+     * «JSON encode failed».
+     *
+     * @param mixed $payload
+     */
+    private static function encodeToolContent($payload, int $maxBytes = 12000): string
+    {
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+        if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+            $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+        }
+        $encoded = json_encode($payload, $flags);
+        if ($encoded === false) {
+            return '{"ok":false,"error":"encode failed"}';
+        }
+        if (strlen($encoded) <= $maxBytes) {
+            return $encoded;
+        }
+
+        $compact = [
+            'ok' => true,
+            '_truncated' => true,
+            'bytes' => strlen($encoded),
+            'hint' => 'Large result compacted. Answer from totals/months/sum_* — do not say you cannot sum; ask to narrow only for a per-row breakdown.',
+        ];
+        if (is_array($payload)) {
+            if (array_key_exists('ok', $payload)) {
+                $compact['ok'] = !empty($payload['ok']);
+            }
+            if (isset($payload['error'])) {
+                $compact['ok'] = false;
+                $compact['error'] = is_scalar($payload['error'])
+                    ? (string)$payload['error']
+                    : 'error';
+            }
+            if (isset($payload['total'])) {
+                $compact['total'] = $payload['total'];
+            }
+            if (isset($payload['totals']) && is_array($payload['totals'])) {
+                $compact['totals'] = $payload['totals'];
+            }
+            if (isset($payload['filters']) && is_array($payload['filters'])) {
+                $compact['filters'] = $payload['filters'];
+            }
+            if (isset($payload['months']) && is_array($payload['months'])) {
+                $monthSummaries = [];
+                foreach ($payload['months'] as $month) {
+                    if (!is_array($month)) {
+                        continue;
+                    }
+                    $monthSummaries[] = [
+                        'key' => $month['key'] ?? null,
+                        'total_in' => $month['total_in'] ?? null,
+                        'total_out' => $month['total_out'] ?? null,
+                        'internal_out' => $month['internal_out'] ?? null,
+                        'debt_start' => $month['debt_start'] ?? null,
+                        'debt_end' => $month['debt_end'] ?? null,
+                        'accrued_count' => isset($month['accrued']) && is_array($month['accrued'])
+                            ? count($month['accrued']) : null,
+                        'issued_count' => isset($month['issued']) && is_array($month['issued'])
+                            ? count($month['issued']) : null,
+                    ];
+                }
+                if ($monthSummaries !== []) {
+                    $compact['months'] = $monthSummaries;
+                }
+            }
+            foreach (['items', 'rows', 'list', 'data'] as $key) {
+                if (!isset($payload[$key]) || !is_array($payload[$key])) {
+                    continue;
+                }
+                $list = array_values($payload[$key]);
+                $compact[$key . '_count'] = count($list);
+                $sums = self::sumNumericColumns($list);
+                if ($sums !== []) {
+                    $compact['sum_' . $key] = $sums;
+                }
+                // Tiny sample only — totals above are the source of truth.
+                $compact[$key . '_sample'] = array_slice($list, 0, 3);
+                break;
+            }
+            $meta = [];
+            $n = 0;
+            $skip = [
+                'ok' => true, 'error' => true, 'total' => true, 'totals' => true,
+                'items' => true, 'rows' => true, 'list' => true, 'data' => true,
+                'months' => true, 'filters' => true, 'dps_by_payment' => true,
+            ];
+            foreach ($payload as $k => $v) {
+                if ($n >= 16) {
+                    break;
+                }
+                if (isset($skip[$k])) {
+                    continue;
+                }
+                if (is_scalar($v) || $v === null) {
+                    $meta[$k] = $v;
+                    $n++;
+                }
+            }
+            if ($meta !== []) {
+                $compact['meta'] = $meta;
+            }
+        }
+
+        $out = json_encode($compact, $flags);
+        if ($out === false || strlen($out) > $maxBytes) {
+            return '{"ok":true,"_truncated":true,"bytes":' . strlen($encoded)
+                . ',"hint":"Result too large; narrow filters."}';
+        }
+        return $out;
+    }
+
+    /**
      * @param list<array<string,mixed>> $messages
      * @param list<array<string,mixed>> $pending
      * @param list<array<string,mixed>> $trace
      * @return array{ok:bool,text:string,messages:list,pending_actions:list,tool_trace:list,error:string,profile:?string}
+     */
+    /**
+     * @param list<array<string,mixed>> $ops
      */
     private static function okResult(
         string $text,
         array $messages,
         array $pending,
         array $trace,
-        ?string $profile
+        ?string $profile,
+        array $ops = []
     ): array {
         if ($text !== '' && class_exists('AssistantLinks', false)) {
             $text = AssistantLinks::absolutize($text);
+            $text = AssistantLinks::filterUnauthorized($text, $ops);
         }
         return [
             'ok' => true,
@@ -774,5 +1052,101 @@ final class AssistantHarness
             'error' => $error,
             'profile' => null,
         ];
+    }
+
+    /**
+     * Full system message for a tool catalog (locale via t()). Public for eval UI.
+     *
+     * @param list<array<string,mixed>> $ops
+     */
+    public static function buildSystemPrompt(array $ops): string
+    {
+        $company = class_exists('SystemRepository', false)
+            ? trim(SystemRepository::companyName())
+            : '';
+        $companyPart = $company !== ''
+            ? t('assistant.system_prompt.company_part', ['company' => $company])
+            : '';
+        $name = class_exists('AssistantConfig', false)
+            ? AssistantConfig::displayName()
+            : 'Макс';
+        $system = t('assistant.system_prompt', [
+            'name' => $name,
+            'company_part' => $companyPart,
+        ]);
+        $today = date('Y-m-d');
+        $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
+        $tomorrow = date('Y-m-d', strtotime('+1 day') ?: time());
+        $system .= "\nToday is {$today}. Yesterday is {$yesterday}. Tomorrow is {$tomorrow}.";
+        $system .= "\nCall several read tools in one step when useful. After a write is queued for confirmation, stop — do not keep searching.";
+        $system .= "\n" . t('assistant.system_prompt.totals');
+        $system .= self::scopedHintsForOps($ops);
+        if (class_exists('AssistantLinks', false)) {
+            $base = AssistantLinks::base();
+            if ($base !== '') {
+                $hints = AssistantLinks::botCabinetHints();
+                $botMenu = $hints !== []
+                    ? t('assistant.system_prompt.bot_menu', ['items' => implode('; ', $hints)])
+                    : t('assistant.system_prompt.bot_menu_none');
+                $system .= "\n" . t('assistant.system_prompt.links', [
+                    'base' => $base,
+                    'bot_menu' => $botMenu,
+                ]);
+            }
+        }
+        return $system;
+    }
+
+    /**
+     * Module-specific prompt lines only when the matching tool is in THIS catalog.
+     * Keeps inaccessible products (finance, BI, …) out of the system message.
+     * Public for AssistantEval deterministic checks.
+     *
+     * @param list<array<string,mixed>> $ops
+     */
+    public static function scopedHintsForOps(array $ops): string
+    {
+        $ids = [];
+        foreach ($ops as $op) {
+            $id = (string)($op['id'] ?? '');
+            if ($id !== '') {
+                $ids[$id] = true;
+            }
+        }
+        $hasPrefix = static function (string $prefix) use ($ids): bool {
+            foreach ($ids as $id => $_true) {
+                if ($id === $prefix || strpos($id, $prefix . '.') === 0) {
+                    return true;
+                }
+            }
+            return false;
+        };
+
+        $lines = [];
+        if ($hasPrefix('payments')) {
+            $lines[] = t('assistant.system_prompt.hint.fot');
+        }
+        if (isset($ids['finance.balance'])) {
+            $lines[] = t('assistant.system_prompt.hint.finance');
+        } else {
+            // No path literals here — det checks forbid /finance in hints without the tool.
+            $lines[] = t('assistant.system_prompt.hint.no_finance');
+        }
+        if (isset($ids['bi.families.list']) || isset($ids['bi.report.run'])) {
+            $lines[] = t('assistant.system_prompt.hint.bi');
+            if (!$hasPrefix('bi.share')) {
+                $lines[] = t('assistant.system_prompt.hint.bi_no_shares');
+            }
+        }
+        if ($hasPrefix('wellness')) {
+            $lines[] = t('assistant.system_prompt.hint.wellness');
+        }
+        if (isset($ids['workweeks.day']) || isset($ids['workweeks.list'])) {
+            $lines[] = t('assistant.system_prompt.hint.workweeks');
+        }
+        if ($lines === []) {
+            return '';
+        }
+        return "\n" . implode("\n", $lines);
     }
 }

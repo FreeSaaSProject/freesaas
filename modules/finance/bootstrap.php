@@ -9,6 +9,16 @@ Assets::register('finance', [
     'js' => ['yoy-chart.js'],
 ]);
 
+// LLM / bookmarks sometimes invent /finance; only real screen is /finance/balance.
+ModuleManager::registerRoute('/finance', [
+    'module' => 'finance',
+    'methods' => ['GET'],
+    'permission' => 'finance.view',
+    'handler' => static function (): void {
+        redirect('/finance/balance');
+    },
+]);
+
 ModuleManager::registerRoute('/finance/balance', [
     'module' => 'finance',
     'methods' => ['GET'],

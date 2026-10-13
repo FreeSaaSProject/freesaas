@@ -26,10 +26,11 @@ Assets::register('bi', [
 
 ModuleManager::registerMenuGroup('bi.menu.group', 600);
 
+// /bi /bi/run /bi/work: any logged-in staff (shared reports); manage tools stay bi.manage.
 $pages = [
-    '/bi' => ['permission' => 'bi.manage', 'methods' => ['GET'], 'file' => 'index.php'],
-    '/bi/run' => ['permission' => 'bi.manage', 'methods' => ['GET', 'POST'], 'file' => 'run.php'],
-    '/bi/work' => ['permission' => 'bi.manage', 'methods' => ['GET', 'POST'], 'file' => 'work.php'],
+    '/bi' => ['methods' => ['GET'], 'file' => 'index.php'],
+    '/bi/run' => ['methods' => ['GET', 'POST'], 'file' => 'run.php'],
+    '/bi/work' => ['methods' => ['GET', 'POST'], 'file' => 'work.php'],
     '/bi/shares' => ['permission' => 'bi.manage', 'methods' => ['GET', 'POST'], 'file' => 'shares.php'],
     '/bi/legend' => ['permission' => 'bi.manage', 'methods' => ['GET'], 'file' => 'legend.php'],
     '/bi/families/new' => ['permission' => 'bi.manage', 'methods' => ['GET', 'POST'], 'file' => 'family_edit.php'],
@@ -37,14 +38,17 @@ $pages = [
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'bi',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/bi/pages/' . $file);
         },
-    ]);
+    ];
+    if (isset($def['permission'])) {
+        $route['permission'] = $def['permission'];
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 ModuleManager::registerRoute('/bi/families/{id}', [

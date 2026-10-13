@@ -7,14 +7,39 @@ if ($family === null) {
     redirect('/bi');
 }
 
-$params = ReportParams::normalize(array_merge($_GET, $_POST));
+$canManage = Auth::can('bi.manage');
+$shareToken = trim((string)($_GET['share'] ?? $_POST['share'] ?? ''));
+$share = null;
+if (!$canManage) {
+    $share = BiSharesRepository::resolveStaffShareAccess($familyId, $shareToken);
+    if ($share === null) {
+        http_response_code(403);
+        View::render('error', [
+            'title' => t('bi.share.forbidden'),
+            'message' => t('bi.share.forbidden'),
+        ]);
+        return;
+    }
+    $shareToken = (string)($share['TOKEN'] ?? '');
+    $params = ReportParams::mergeWithConstraints(
+        array_merge($_GET, $_POST),
+        is_array($share['params'] ?? null) ? $share['params'] : []
+    );
+} else {
+    $params = ReportParams::normalize(array_merge($_GET, $_POST));
+}
+
 $report = null;
 $error = '';
 $autoRun = !empty($_GET['autorun']) || ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST';
 
 if ($autoRun && AgentHttp::wantsJson()) {
     // JSON runs go through /bi/work
-    redirect('/bi/run?family=' . rawurlencode($familyId));
+    $q = '/bi/run?family=' . rawurlencode($familyId);
+    if ($shareToken !== '') {
+        $q .= '&share=' . rawurlencode($shareToken);
+    }
+    redirect($q);
 }
 
 $familyTitle = (string)$family->titleKey();
@@ -32,6 +57,9 @@ View::render('run', [
     'readyNote' => $family->readyNoteKey() !== '' ? t($family->readyNoteKey()) : '',
     'report' => $report,
     'error' => $error,
+    'canManage' => $canManage,
+    'shareToken' => $shareToken,
+    'share' => $share,
     'operators' => BiFilterOptions::staffOperators(),
     'admins' => BiFilterOptions::staffAdmins(),
     'products' => BiFilterOptions::products(),

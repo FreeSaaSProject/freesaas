@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.21",
+    "version": "0.1.52",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -20,18 +20,15 @@
         "assistant.harness"
     ],
     "migrations": "migrations/",
-    "permissions": [
-        {
-            "id": "assistant.use",
-            "label": "assistant.perm.use"
-        }
-    ],
+    "permissions": [],
     "routes": {
         "pages": [
             "/assistant",
             "/assistant/chat",
             "/assistant/confirm",
-            "/assistant/clear"
+            "/assistant/clear",
+            "/assistant/feedback",
+            "/assistant/eval"
         ]
     },
     "agent": {
@@ -41,16 +38,14 @@
                 "id": "assistant.chat",
                 "method": "POST",
                 "path": "/assistant/chat",
-                "permission": "assistant.use",
                 "side_effect": "read",
                 "assistant": false,
-                "description": "Run assistant harness; body: message (preferred) or messages[] (role/content); shared per-user history"
+                "description": "Run assistant harness; body: message (preferred) or messages[] (role/content); shared per-user history. Available to every signed-in staff user."
             },
             {
                 "id": "assistant.confirm",
                 "method": "POST",
                 "path": "/assistant/confirm",
-                "permission": "assistant.use",
                 "side_effect": "write",
                 "assistant": false,
                 "description": "Confirm or cancel a pending write tool; body: token, action=confirm|cancel"
@@ -59,10 +54,17 @@
                 "id": "assistant.clear",
                 "method": "POST",
                 "path": "/assistant/clear",
-                "permission": "assistant.use",
                 "side_effect": "write",
                 "assistant": false,
                 "description": "Clear shared dialog history and cancel pending confirms for the current user"
+            },
+            {
+                "id": "assistant.feedback",
+                "method": "POST",
+                "path": "/assistant/feedback",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Rate an assistant reply; body: rating=good|bad, reasons[], comment, messages[] (context). Stored under var/assistant/feedback/"
             }
         ]
     },
@@ -72,19 +74,37 @@
             "group": "llm.menu.group",
             "num": 10,
             "path": "/assistant",
-            "title": "assistant.menu.chat",
-            "permission": "assistant.use"
+            "title": "assistant.menu.chat"
+        },
+        {
+            "group": "llm.menu.group",
+            "kind": "settings",
+            "num": 20,
+            "path": "/assistant/eval",
+            "title": "assistant.menu.eval",
+            "capability": "SUPERADMIN_ACCESS"
         }
     ],
-    "configSchema": [],
     "tables": [
         "base_assistant_pending",
         "base_assistant_dialog"
     ],
     "migrators": [],
+    "configSchema": {
+        "assistant": {
+            "name": {
+                "type": "string",
+                "default": "Макс"
+            }
+        }
+    },
     "hooks": {
         "subscribe": [
-            "bots.ready"
+            "bots.ready",
+            "core.dashboard.command_html",
+            "core.menu.items",
+            "core.settings.sections",
+            "core.settings.save"
         ],
         "publish": [
             "bots.send"

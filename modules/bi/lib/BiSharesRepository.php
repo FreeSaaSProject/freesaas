@@ -57,7 +57,7 @@ final class BiSharesRepository
         $rawStaffInput = $data['staff_user_ids'] ?? null;
         $hadExplicitStaff = self::staffInputProvided($rawStaffInput);
         $staffIds = self::normalizeStaffIds($rawStaffInput ?? []);
-        // Drop assist-team / unknown ids even if posted manually.
+        // Drop hidden / unknown ids even if posted manually.
         $allowed = [];
         foreach (BiFilterOptions::shareStaffPicker() as $u) {
             $allowed[(int)$u['id']] = true;
@@ -225,6 +225,81 @@ final class BiSharesRepository
             $out[] = self::hydrate($row);
         }
         return $out;
+    }
+
+    /**
+     * Active staff-audience shares the current logged-in user may open.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function listUsableForCurrentStaff(int $limit = 200): array
+    {
+        if (!Auth::check() || !self::tableReady()) {
+            return [];
+        }
+        $limit = max(1, min(500, $limit));
+        $now = time();
+        $st = Database::pdo()->prepare(
+            'SELECT * FROM base_bi_shares
+             WHERE AUDIENCE = ?
+               AND COALESCE(REVOKED_AT, 0) = 0
+               AND (DT_EXPIRE = 0 OR DT_EXPIRE >= ?)
+             ORDER BY ID DESC
+             LIMIT ' . $limit
+        );
+        $st->execute(['staff', $now]);
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $share = self::hydrate($row);
+            if (!self::isUsable($share) || !self::audienceAllows($share)) {
+                continue;
+            }
+            $out[] = $share;
+        }
+        return $out;
+    }
+
+    /**
+     * Newest usable staff share for a family that the current user may open.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function findUsableStaffShareForFamily(string $familyId): ?array
+    {
+        $familyId = trim($familyId);
+        if ($familyId === '') {
+            return null;
+        }
+        foreach (self::listUsableForCurrentStaff() as $share) {
+            if ((string)($share['FAMILY'] ?? '') === $familyId) {
+                return $share;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Resolve a staff share for in-app /bi access (token preferred, else family lookup).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function resolveStaffShareAccess(string $familyId, string $token = ''): ?array
+    {
+        $token = trim($token);
+        if ($token !== '') {
+            $share = self::findByToken($token);
+            if (
+                $share !== null
+                && self::isUsable($share)
+                && (string)($share['AUDIENCE'] ?? '') === 'staff'
+                && self::audienceAllows($share)
+                && (string)($share['FAMILY'] ?? '') === trim($familyId)
+            ) {
+                return $share;
+            }
+            return null;
+        }
+        return self::findUsableStaffShareForFamily($familyId);
     }
 
     public static function revoke(int $id): bool

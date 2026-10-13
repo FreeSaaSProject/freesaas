@@ -83,7 +83,8 @@ final class BiFilterOptions
     }
 
     /**
-     * Staff for share allowlist: enabled, not ASSIST_TEAM (вспомогательные).
+     * Staff for share allowlist: enabled, not IS_HIDDEN (equipment / hidden accounts).
+     * ASSIST_TEAM stays visible — admins and assist roles can receive staff shares.
      *
      * @return list<array{id:int,login:string,name:string,status_id:int,status_name:string}>
      */
@@ -96,7 +97,7 @@ final class BiFilterOptions
         if ($staff === []) {
             return [];
         }
-        if (!Database::columnExists('base_users', 'ASSIST_TEAM')) {
+        if (!Database::columnExists('base_users', 'IS_HIDDEN')) {
             return $staff;
         }
         $ids = [];
@@ -111,19 +112,19 @@ final class BiFilterOptions
         }
         $ph = implode(',', array_fill(0, count($ids), '?'));
         $st = Database::pdo()->prepare(
-            'SELECT id, COALESCE(ASSIST_TEAM, 0) AS assist_team FROM base_users WHERE id IN (' . $ph . ')'
+            'SELECT id, COALESCE(IS_HIDDEN, 0) AS is_hidden FROM base_users WHERE id IN (' . $ph . ')'
         );
         $st->execute($ids);
-        $assist = [];
+        $hidden = [];
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            if ((int)($row['assist_team'] ?? 0) !== 0) {
-                $assist[(int)$row['id']] = true;
+            if ((int)($row['is_hidden'] ?? 0) !== 0) {
+                $hidden[(int)$row['id']] = true;
             }
         }
         $out = [];
         foreach ($staff as $u) {
             $id = (int)$u['id'];
-            if (isset($assist[$id])) {
+            if (isset($hidden[$id])) {
                 continue;
             }
             $out[] = $u;

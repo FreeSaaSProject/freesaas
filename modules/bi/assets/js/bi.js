@@ -115,8 +115,10 @@
     params.set('action', cfg.action || 'run');
     params.set('stream', '1');
     if (cfg.family) params.set('family', cfg.family);
+    if (cfg.shareToken) params.set('share', cfg.shareToken);
     fd.forEach(function (v, k) {
       if (k === 'family' && cfg.family) return;
+      if (k === 'share' && cfg.shareToken) return;
       if (v === '' || v === null) return;
       if ((k === 'id_operator' || k === 'id_admin' || k === 'id_good') && String(v) === '0') return;
       params.set(k, String(v));

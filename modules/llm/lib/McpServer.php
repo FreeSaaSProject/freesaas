@@ -316,7 +316,13 @@ final class McpServer
     {
         $today = date('Y-m-d');
         $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
-        $base = t('assistant.system_prompt');
+        $name = class_exists('AssistantConfig', false)
+            ? AssistantConfig::displayName()
+            : 'Макс';
+        $base = t('assistant.system_prompt', [
+            'name' => $name,
+            'company_part' => '',
+        ]);
         if ($base === '' || $base === 'assistant.system_prompt') {
             $base = 'FreeSaaS spa ops tools. Use tools for facts; never invent KPIs.';
         }

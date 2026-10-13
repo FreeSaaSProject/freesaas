@@ -6,7 +6,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
 }
 
 $userId = Auth::userId();
-if ($userId < 1 || !Auth::can('assistant.use')) {
+if ($userId < 1) {
     AssistantAccess::denyJson(401);
 }
 

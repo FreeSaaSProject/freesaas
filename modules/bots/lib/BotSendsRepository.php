@@ -27,10 +27,27 @@ final class BotSendsRepository
     }
 
     /**
+     * Normalize platform for direct/chat_id sends.
+     * Empty = resolve from bot_links (legacy user-targeted rows).
+     */
+    public static function normalizePlatform(string $platform): string
+    {
+        $p = strtolower(trim($platform));
+        if ($p === 'tg') {
+            $p = 'telegram';
+        }
+        if (in_array($p, ['max', 'telegram', 'both'], true)) {
+            return $p;
+        }
+        return '';
+    }
+
+    /**
      * @param array{
      *   audience?:string,user_id?:int,client_id?:int,text:string,name?:string,
      *   dtsend?:int,deadline?:int,id_event?:int,id_data?:int,type?:int,
-     *   chat_id?:string,dedupe_key?:string,buttons?:array|null
+     *   chat_id?:string,platform?:string,dedupe_key?:string,buttons?:array|null,
+     *   id_operator?:int
      * } $opts
      */
     public static function enqueue(array $opts): int
@@ -44,10 +61,21 @@ final class BotSendsRepository
         if ($userId < 1 && isset($opts['client_id'])) {
             $userId = (int)$opts['client_id'];
         }
+        $chatId = trim((string)($opts['chat_id'] ?? ''));
+        $platform = self::normalizePlatform((string)($opts['platform'] ?? ''));
         $text = (string)($opts['text'] ?? '');
-        if ($userId < 1 || trim($text) === '') {
+        if (trim($text) === '') {
             throw new InvalidArgumentException(t('bots.err.enqueue_args'));
         }
+        // Direct bus: fixed chat_id (+ platform). Otherwise need user/client entity.
+        if ($chatId !== '') {
+            if ($platform === '') {
+                throw new InvalidArgumentException(t('bots.err.enqueue_platform'));
+            }
+        } elseif ($userId < 1) {
+            throw new InvalidArgumentException(t('bots.err.enqueue_args'));
+        }
+
         $dedupe = trim((string)($opts['dedupe_key'] ?? ''));
         if ($dedupe !== '' && Database::columnExists('base_telegram_sends', 'DEDUPE_KEY')) {
             $st = Database::pdo()->prepare(
@@ -84,11 +112,15 @@ final class BotSendsRepository
             $dtsend,
             $now,
             self::STATUS_PENDING,
-            isset($opts['chat_id']) ? (string)$opts['chat_id'] : null,
+            $chatId !== '' ? $chatId : null,
             (int)($opts['id_event'] ?? 0) ?: null,
             (int)($opts['id_data'] ?? 0) ?: null,
             (int)($opts['id_operator'] ?? 0),
         ];
+        if (Database::columnExists('base_telegram_sends', 'PLATFORM')) {
+            $cols[] = 'PLATFORM';
+            $vals[] = $platform !== '' ? $platform : null;
+        }
         if (Database::columnExists('base_telegram_sends', 'DT_SEND_DEADLINE')) {
             $cols[] = 'DT_SEND_DEADLINE';
             $deadline = (int)($opts['deadline'] ?? 0);

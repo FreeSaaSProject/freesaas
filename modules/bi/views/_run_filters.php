@@ -8,10 +8,12 @@ declare(strict_types=1);
 /** @var bool $shareMode */
 /** @var string $workUrl */
 /** @var string|null $formAction */
+/** @var string $shareToken */
 $operators = $operators ?? [];
 $admins = $admins ?? [];
 $products = $products ?? [];
 $shareMode = !empty($shareMode);
+$shareToken = trim((string)($shareToken ?? ''));
 $years = range((int)date('Y') + 1, (int)date('Y') - 8);
 $adj = BiFilterOptions::adjacentMonth((int)$params['year'], (int)$params['month']);
 $formAction = (string)($formAction ?? ($shareMode ? $workUrl : '/bi/run'));
@@ -26,6 +28,9 @@ $showEntityFilters = !$shareMode || (class_exists('Auth', false) && Auth::check(
       data-next-month="<?= (int)$adj['next_month'] ?>">
   <?php if (!$shareMode): ?>
     <input type="hidden" name="family" value="<?= e($familyId) ?>">
+  <?php endif; ?>
+  <?php if ($shareToken !== ''): ?>
+    <input type="hidden" name="share" value="<?= e($shareToken) ?>">
   <?php endif; ?>
 
   <div class="bi-month-nav" role="group" aria-label="<?= te('bi.run.nav_aria') ?>">

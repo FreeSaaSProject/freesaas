@@ -4,6 +4,13 @@ declare(strict_types=1);
 /** @var string $instance */
 /** @var string $userName */
 /** @var array $widgets */
+/** @var bool $show_splash */
+/** @var string $splash_version */
+/** @var bool $splash_has_ask */
+
+$show_splash = !empty($show_splash);
+$splash_version = (string)($splash_version ?? '1');
+$splash_has_ask = !empty($splash_has_ask);
 
 /**
  * @param array $w
@@ -63,7 +70,12 @@ foreach ($widgets as $w) {
         $cards[] = $w;
     }
 }
+
+if ($show_splash) {
+    require __DIR__ . '/_splash.php';
+}
 ?>
+<div class="home-desk<?= $show_splash ? ' is-splash-pending' : '' ?>" id="home-desk"<?= $show_splash ? ' aria-hidden="true"' : '' ?>>
 <section class="widgets" aria-label="<?= te('core.home.widgets_aria') ?>">
   <div class="widgets-toolbar">
     <a class="btn-ghost widgets-customize" href="/dashboard" title="<?= te('core.dashboard.customize') ?>">
@@ -95,3 +107,4 @@ foreach ($widgets as $w) {
     </div>
   <?php endif; ?>
 </section>
+</div>

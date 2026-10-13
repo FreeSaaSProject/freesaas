@@ -138,6 +138,26 @@ BotPlugins::register('my_feature', [
 
 Events: `bots.inbound`, `bots.cabinet.collect`, `bots.send` / `notify.send`.
 
+### Outbound enqueue (`BotSend` / `base_telegram_sends`)
+
+Two modes:
+
+1. **Entity link** (default): `user_id` or `client_id` + `text` → drain resolves Telegram/Max from `base_bot_links`.
+2. **Direct chat** (groups / fixed recipient): `chat_id` + `platform` (`max`|`telegram`|`both`) + `text`. `user_id` may be `0`. Drain skips bot_links and sends only to that chat. Max **groups** use negative `chat_id` (API query `chat_id=`); dialogs use `user_id=`.
+
+```php
+BotSend::enqueue([
+    'audience' => 'staff',
+    'chat_id' => '-7168…',
+    'platform' => 'max',
+    'text' => '<b>Hello</b>',
+    'name' => 'order_created_42',
+    'dedupe_key' => 'order_created_42',
+]);
+```
+
+Column `PLATFORM` on `base_telegram_sends` (migration `007_sends_platform`). Cron `bots.sends_drain` / `/bots/sends` drain.
+
 ## MVP adapters already wired
 
 | Plugin / hook | Module |
@@ -146,13 +166,14 @@ Events: `bots.inbound`, `bots.cabinet.collect`, `bots.send` / `notify.send`.
 | `voice_transcribe` | `asr` (queue `var/voice_transcribe/`, worker `/asr/voice-transcribe/worker`; BC alias `/audio/voice-transcribe/*`) |
 | `fit_food_entry` (+ recipes) | `wellness` (`BotChatState`, EventBus `bots.voice.transcription_result`) |
 | Procedure notify on create/update | `procedures` (`ProcedureBotNotify` → `bots.send`) |
+| Order Max-group notify | `orders` (`OrdersMaxNotify` → `bots.send` direct chat) |
 | `client_cabinet` | `clients` (`ClientBotPlugin`) |
 
 Staff/client messenger fields: `bots` via EventBus — `core.user_edit.*`, `core.users.list`, `clients.edit.*`, `clients.view.profile`, `clients.list` (data in `base_bot_links`, not core/clients columns).
 
 ## Tables
 
-- `base_telegram_sends` — outbound queue (`BOT_SOURCE` 1=client, 2=staff; STATUS 1/2/3/100)
+- `base_telegram_sends` — outbound queue (`BOT_SOURCE` 1=client, 2=staff; STATUS 1/2/3/100; optional `PLATFORM` for direct `CHAT_ID`)
 - `base_bot_links` — messenger identities (`BOT_SOURCE`, `ID_ENTITY`, `telegram_chat_id`, `max_user_id`, `BOT_NO_SEND`)
 
 Legacy columns on `base_users` / `base_clients` (if present) are copied then dropped by migration `002_bot_links_extract`. Fresh installs never add them. Import from phpshop: migrator `phpshop_messenger_to_base_bot_links`.

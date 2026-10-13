@@ -55,7 +55,17 @@ $error = '';
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
-        $data = WorkweeksRepository::dataFromPost($_POST);
+        $defaults = null;
+        if (!$isNew && $row !== []) {
+            $defaults = [
+                'date' => (string)($row['date'] ?? date('Y-m-d', (int)($row['dt'] ?? 0))),
+                'id_operator' => (int)($row['id_operator'] ?? 0),
+                'price_col' => (int)($row['price_col'] ?? 1),
+                'mas_max' => (int)($row['mas_max'] ?? 1),
+                'id_table' => (int)($row['id_table'] ?? 0),
+            ];
+        }
+        $data = WorkweeksRepository::dataFromPost($_POST, $defaults);
         if ($isNew) {
             $newId = WorkweeksRepository::createFromForm($data);
             if ($wantsJson) {

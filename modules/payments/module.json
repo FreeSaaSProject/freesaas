@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -49,7 +49,7 @@
                 "method": "GET",
                 "path": "/payments",
                 "permission": "payments.view",
-                "description": "List staff payments; mode=monthly|linear, year, month, q, user_id, type_id, account, direction"
+                "description": "List staff payments; mode=monthly|linear, year, month, q, user_id, type_id, account, direction. JSON includes totals.accrued / totals.issued (payroll FOТ sums) and monthly total_in/total_out"
             },
             {
                 "id": "payments.get_edit",

@@ -23,7 +23,7 @@ final class AssistantBotPlugin
                     return [];
                 }
                 return [[[
-                    'text' => t('assistant.bot.cabinet'),
+                    'text' => AssistantConfig::t('assistant.bot.cabinet'),
                     'callback_data' => 'assistant_hint',
                 ]]];
             },
@@ -48,9 +48,6 @@ final class AssistantBotPlugin
                     self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     try {
                         Auth::runAs($uid, static function () use ($uid): void {
-                            if (!Auth::can('assistant.use')) {
-                                return;
-                            }
                             AssistantDialog::clearSession($uid);
                         });
                     } catch (Throwable $e) {
@@ -74,17 +71,6 @@ final class AssistantBotPlugin
                     self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     try {
                         $result = Auth::runAs($uid, static function () use ($tokens, $action, $uid) {
-                            if (!Auth::can('assistant.use')) {
-                                return [
-                                    'ok' => false,
-                                    'action' => $action,
-                                    'result' => null,
-                                    'error' => self::deniedMessage(),
-                                    'done' => 0,
-                                    'failed' => 0,
-                                    'results' => [],
-                                ];
-                            }
                             return AssistantHarness::resolvePendingBatch(
                                 array_map('strval', $tokens),
                                 $action,
@@ -114,14 +100,6 @@ final class AssistantBotPlugin
                     self::setState($ctx, 'await_input', ['user_id' => $uid]);
                     try {
                         $result = Auth::runAs($uid, static function () use ($token, $action, $uid) {
-                            if (!Auth::can('assistant.use')) {
-                                return [
-                                    'ok' => false,
-                                    'action' => $action,
-                                    'result' => null,
-                                    'error' => self::deniedMessage(),
-                                ];
-                            }
                             return AssistantHarness::resolvePending($token, $action, $uid);
                         });
                     } catch (Throwable $e) {
@@ -170,9 +148,6 @@ final class AssistantBotPlugin
 
                 try {
                     $textConfirm = Auth::runAs($uid, static function () use ($text, $uid) {
-                        if (!Auth::can('assistant.use')) {
-                            return null;
-                        }
                         return AssistantHarness::tryResolveConfirmText($text, $uid);
                     });
                 } catch (Throwable $e) {
@@ -204,14 +179,6 @@ final class AssistantBotPlugin
 
                 try {
                     $out = Auth::runAs($uid, static function () use ($history, $uid, $ctx) {
-                        if (!Auth::can('assistant.use')) {
-                            return [
-                                'ok' => false,
-                                'text' => '',
-                                'pending_actions' => [],
-                                'error' => self::deniedMessage(),
-                            ];
-                        }
                         return AssistantHarness::run($history, [
                             'user_id' => $uid,
                             'timeout' => 90,
@@ -251,7 +218,7 @@ final class AssistantBotPlugin
                 $pending = is_array($out['pending_actions'] ?? null) ? $out['pending_actions'] : [];
                 if ($pending === [] && self::looksLikeFakeConfirmUi($reply)) {
                     // LLM told the user to press Confirm without queueing a write tool.
-                    $reply = t('assistant.confirm.not_queued');
+                    $reply = AssistantConfig::t('assistant.confirm.not_queued');
                 }
                 $keyboard = null;
                 $display = $reply;

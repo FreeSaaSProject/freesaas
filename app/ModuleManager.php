@@ -695,7 +695,19 @@ final class ModuleManager
     {
         $items = self::collectMenuItems();
         if (class_exists('MenuOrder', false)) {
-            return MenuOrder::apply($items);
+            $items = MenuOrder::apply($items);
+        }
+        if (class_exists('EventBus', false)) {
+            $payload = EventBus::emit('core.menu.items', ['items' => $items]);
+            if (is_array($payload) && isset($payload['items']) && is_array($payload['items'])) {
+                $out = [];
+                foreach ($payload['items'] as $row) {
+                    if (is_array($row)) {
+                        $out[] = $row;
+                    }
+                }
+                $items = $out;
+            }
         }
         return $items;
     }

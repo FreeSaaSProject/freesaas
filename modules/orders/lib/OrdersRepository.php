@@ -187,6 +187,7 @@ final class OrdersRepository
                     o.SBER_ID AS sber_id, o.SBER_LINK AS sber_link, o.SBER_STATUS AS sber_status,
                     o.ID_PROMOCODE AS id_promocode, o.TEXT_PROMOCODE AS text_promocode,
                     o.FREE_TICKET AS free_ticket
+                    " . (Database::columnExists('base_orders', 'SOURCE') ? ', o.SOURCE AS source' : ', NULL AS source') . "
                     $clientSelect $staffSelect
              FROM base_orders o
              $joinClient
@@ -200,7 +201,12 @@ final class OrdersRepository
             return null;
         }
         $items = self::reconcileClientLinks([self::normalizeRow($row)]);
-        return $items[0] ?? null;
+        $out = $items[0] ?? null;
+        if ($out !== null) {
+            $out['cart_lines'] = self::decodeCart((string)($row['cart'] ?? ''));
+            $out['source'] = trim((string)($row['source'] ?? ''));
+        }
+        return $out;
     }
 
     /**
@@ -642,7 +648,8 @@ final class OrdersRepository
      *   id_promocode?:int,
      *   text_promocode?:string,
      *   free_ticket?:int,
-     *   uid?:string
+     *   uid?:string,
+     *   source?:string
      * } $data
      */
     public static function create(array $data): int
@@ -679,24 +686,22 @@ final class OrdersRepository
         if ($uid === '') {
             $uid = substr(bin2hex(random_bytes(8)), 0, 15);
         }
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_orders (
+        $source = '';
+        if (class_exists(OrdersConfig::class, false)) {
+            $source = OrdersConfig::normalizeSource((string)($data['source'] ?? ''));
+        } else {
+            $source = strtolower(trim((string)($data['source'] ?? '')));
+        }
+        $hasSource = Database::columnExists('base_orders', 'SOURCE');
+        $cols = '
                 DT_CREATE, DT_UPDATE_BY_USER, DT_SAVE, DT_EVENT_NEW,
                 ID_USER, ID_SERT, ID_EVENT_PAID, ID_EVENT_USE, ID_COSMETOLOG,
                 CART, PHONE, MAIL, STATUS, COMMENT, PPP_LOG,
                 EPAID, SBER_ID, SBER_LINK, SBER_STATUS,
                 SUMM, SUMM_REAL, SUMM_SBER, SUMM_BONUS, UID,
-                ID_PROMOCODE, TEXT_PROMOCODE, FREE_TICKET
-             ) VALUES (
-                ?, ?, ?, ?,
-                ?, ?, 0, 0, ?,
-                ?, ?, ?, ?, ?, \'\',
-                0, \'\', \'\', 0,
-                ?, ?, 0, 0, ?,
-                ?, ?, ?
-             )'
-        );
-        $st->execute([
+                ID_PROMOCODE, TEXT_PROMOCODE, FREE_TICKET';
+        $placeholders = '?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, \'\', 0, \'\', \'\', 0, ?, ?, 0, 0, ?, ?, ?, ?';
+        $vals = [
             $now,
             $now,
             $now,
@@ -715,8 +720,28 @@ final class OrdersRepository
             max(0, (int)($data['id_promocode'] ?? 0)),
             mb_substr((string)($data['text_promocode'] ?? ''), 0, 255),
             !empty($data['free_ticket']) ? 1 : 0,
+        ];
+        if ($hasSource) {
+            $cols .= ', SOURCE';
+            $placeholders .= ', ?';
+            $vals[] = $source !== '' ? mb_substr($source, 0, 32) : null;
+        }
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_orders (' . $cols . ') VALUES (' . $placeholders . ')'
+        );
+        $st->execute($vals);
+        $orderId = (int)Database::pdo()->lastInsertId();
+
+        EventBus::emit('orders.created', [
+            'order_id' => $orderId,
+            'source' => $source,
+            'payload' => $data,
         ]);
-        return (int)Database::pdo()->lastInsertId();
+        if (class_exists(OrdersMaxNotify::class, false)) {
+            OrdersMaxNotify::onCreated($orderId);
+        }
+
+        return $orderId;
     }
 
     /**
@@ -1072,7 +1097,7 @@ final class OrdersRepository
      *
      * @return array{ok:bool,cancelled?:int,error?:string}
      */
-    public static function cancelForClient(int $orderId, int $clientId): array
+    public static function cancelForClient(int $orderId, int $clientId, string $reason = ''): array
     {
         if ($orderId < 1 || $clientId < 1) {
             return ['ok' => false, 'cancelled' => 0, 'error' => 'invalid ids'];
@@ -1088,7 +1113,18 @@ final class OrdersRepository
         if (!in_array($status, self::NEW_STATUSES, true)) {
             return ['ok' => false, 'cancelled' => 0, 'error' => 'not cancellable'];
         }
+        $reason = trim($reason);
         self::update($orderId, ['status' => 'userCancelPay']);
+        EventBus::emit('orders.cancelled', [
+            'order_id' => $orderId,
+            'client_id' => $clientId,
+            'source' => (string)($order['source'] ?? ''),
+            'reason' => $reason,
+            'order' => $order,
+        ]);
+        if (class_exists(OrdersMaxNotify::class, false)) {
+            OrdersMaxNotify::onCancelled($order, $reason);
+        }
         return ['ok' => true, 'cancelled' => 1];
     }
 

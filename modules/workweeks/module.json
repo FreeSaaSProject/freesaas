@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.2",
+    "version": "0.2.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -43,7 +43,7 @@
                 "method": "GET",
                 "path": "/workweeks",
                 "permission": "workweeks.view",
-                "description": "List shift rows; filters: q, user_id, date_from, date_to"
+                "description": "List shift rows; filters: q (name/login), user_id, date_from, date_to. Prefer workweeks.day for one calendar day; use q to resolve staff on a date range"
             },
             {
                 "id": "workweeks.get",
@@ -64,14 +64,14 @@
                 "method": "POST",
                 "path": "/workweeks/{id}/edit",
                 "permission": "workweeks.edit",
-                "description": "Update shift row"
+                "description": "Update shift; required id. Optional patch: date, id_operator, price_col, mas_max, id_table (omitted fields keep current row)"
             },
             {
                 "id": "workweeks.day",
                 "method": "GET",
                 "path": "/workweeks/day/{date}",
                 "permission": "workweeks.view",
-                "description": "Shifts on one calendar day (YYYY-MM-DD)"
+                "description": "Shifts on one calendar day (YYYY-MM-DD). CALL first to resolve who works that day by first name (operator_name); swap/assign from this roster before asking the user"
             },
             {
                 "id": "workweeks.settings.get",

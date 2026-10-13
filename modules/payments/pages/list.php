@@ -162,10 +162,34 @@ if ($ledgerEnabled && class_exists('LedgerMovesRepository')) {
 }
 
 if ($wantsJson) {
+    $sumAccrued = 0.0;
+    $sumIssued = 0.0;
+    foreach ($items as $it) {
+        if (!is_array($it)) {
+            continue;
+        }
+        $s = (float)($it['sum'] ?? 0);
+        if ((int)($it['direction'] ?? 0) === 1) {
+            $sumAccrued += $s;
+        } else {
+            $sumIssued += $s;
+        }
+    }
     $payload = [
         'ok' => true,
         'mode' => $mode,
         'total' => $total,
+        'totals' => [
+            'accrued' => round($sumAccrued, 2),
+            'issued' => round($sumIssued, 2),
+            'count' => count($items),
+            'count_accrued' => count(array_filter($items, static function ($it): bool {
+                return is_array($it) && (int)($it['direction'] ?? 0) === 1;
+            })),
+            'count_issued' => count(array_filter($items, static function ($it): bool {
+                return is_array($it) && (int)($it['direction'] ?? 0) !== 1;
+            })),
+        ],
         'items' => $items,
         'filters' => [
             'q' => $q,

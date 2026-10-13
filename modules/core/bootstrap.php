@@ -13,8 +13,14 @@ require_once __DIR__ . '/lib/LikesRepository.php';
 require_once __DIR__ . '/lib/NoticesRepository.php';
 require_once __DIR__ . '/lib/Breadcrumbs.php';
 require_once __DIR__ . '/lib/UserPrefsRepository.php';
+require_once __DIR__ . '/lib/HomeSplash.php';
 require_once __DIR__ . '/lib/DashboardWidgets.php';
 require_once __DIR__ . '/lib/MenuOrder.php';
+
+Assets::register('core', [
+    'css' => ['home-splash.css'],
+    'js' => ['home-splash.js'],
+]);
 require_once __DIR__ . '/lib/MyTasksHabits.php';
 require_once __DIR__ . '/lib/MyTasksHabitsBot.php';
 require_once __DIR__ . '/lib/NewsBotPlugin.php';
@@ -38,6 +44,7 @@ $pages = [
     '/logout' => ['permission' => 'core.home', 'methods' => ['POST'], 'handler' => 'logout'],
 
     '/' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'home.php'],
+    '/splash/ack' => ['permission' => 'core.home', 'methods' => ['POST'], 'file' => 'splash_ack.php'],
     '/dashboard' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'file' => 'dashboard.php'],
     '/likes/mark-viewed' => ['permission' => 'core.home', 'methods' => ['POST'], 'file' => 'likes_mark_viewed.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
@@ -231,10 +238,21 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
                 'group' => $item['group'],
             ];
         }
+        // Nested emit so modules that boot before core (alpha order) can still replace HTML.
+        $cmdPayload = EventBus::emit('core.dashboard.command_html', [
+            'html' => View::capture('_widget_command', ['commands' => $commands], 'core'),
+            'commands' => $commands,
+        ]);
+        $cmdHtml = is_array($cmdPayload)
+            ? (string)($cmdPayload['html'] ?? '')
+            : '';
+        if ($cmdHtml === '') {
+            $cmdHtml = View::capture('_widget_command', ['commands' => $commands], 'core');
+        }
         $widgets[] = [
             'id' => 'core.command',
             'title' => '',
-            'html' => View::capture('_widget_command', ['commands' => $commands], 'core'),
+            'html' => $cmdHtml,
             'tone' => 'neutral',
             'size' => 'lg',
         ];

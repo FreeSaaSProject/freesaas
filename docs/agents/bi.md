@@ -123,7 +123,8 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 | Paths | `/bi/s/{token}` (public route; guest or staff audience) |
 | TTL | `1h` \| `1d` \| `1mo` \| `3mo` \| `1y` (`1y` **staff only**) |
 | Allowlist | Optional `staff_user_ids`; **intentionally empty** (missing/`[]`/blank) = any logged-in staff. Non-blank input that yields no valid picker IDs (`[0]`, `[-1]`, `["invalid"]`, unknown ids) → `staff_allowlist_empty` |
-| Assist team | Omitted from picker; stripped on create |
+| Picker filter | `IS_HIDDEN` omitted from picker and stripped on create; `ASSIST_TEAM` kept (admins / assist roles can be recipients) |
+| In-app list | Staff with a usable staff share see that family on `/bi` (same chrome as director; no constructor). Run via `/bi/run` + `/bi/work` with share constraints / rate limit |
 | Superadmin | Can open any staff share (and revoke all) |
 | Locked filters | `id_operator` / `id_admin` / `id_good` bind only on datasets that declare them. Create refuses partial coverage unless `accept_partial_filters=1` |
 | Rate limit | Atomic `beginRun` / `endRun`: per-share `GET_LOCK` + minute-bucket `RUN_COUNT` (8/min); concurrent recomputes serialize |
@@ -134,18 +135,20 @@ Runtime caps (also enforced on validate for step counts): query frames ≤ 5 0
 
 ## Agent ops (`module.json`)
 
-| Op | Method | Path |
-|----|--------|------|
-| `bi.families.list` | GET | `/bi` |
-| `bi.legend` | GET | `/bi/legend` |
-| `bi.family.get` | GET | `/bi/families/{id}` |
-| `bi.family.validate` | POST | `/bi/families/new` (`action=validate`) |
-| `bi.family.save` | POST | `/bi/families/new` (`action=save`) |
-| `bi.family.delete` | POST | `/bi/families/{id}` (`action=delete`) |
-| `bi.report.run` | POST | `/bi/work` (`action=run`) |
-| `bi.share.list` | GET | `/bi/shares` |
-| `bi.share.create` | POST | `/bi/shares` |
-| `bi.share.revoke` | POST | `/bi/shares` (`action=revoke`) |
+| Op | Method | Path | Who |
+|----|--------|------|-----|
+| `bi.families.list` | GET | `/bi` | any signed-in staff (`mode=manage` or `shared`; each row has `open_url`) |
+| `bi.legend` | GET | `/bi/legend` | `bi.manage` |
+| `bi.family.get` | GET | `/bi/families/{id}` | `bi.manage` |
+| `bi.family.validate` | POST | `/bi/families/new` (`action=validate`) | `bi.manage` |
+| `bi.family.save` | POST | `/bi/families/new` (`action=save`) | `bi.manage` |
+| `bi.family.delete` | POST | `/bi/families/{id}` (`action=delete`) | `bi.manage` |
+| `bi.report.run` | POST | `/bi/work` (`action=run`) | any staff (`share=` required without `bi.manage`) |
+| `bi.share.list` | GET | `/bi/shares` | `bi.manage` (admin UI, not report links) |
+| `bi.share.create` | POST | `/bi/shares` | `bi.manage` |
+| `bi.share.revoke` | POST | `/bi/shares` (`action=revoke`) | `bi.manage` |
+
+Staff UI links for reports are `/bi/run?family=…` (plus `&share=` when shared) — never `/bi/shares`.
 
 Same routes as the UI; JSON via `AgentHttp::wantsJson()`. See [module-agent-api.md](module-agent-api.md).
 
@@ -155,4 +158,5 @@ Same routes as the UI; JSON via `AgentHttp::wantsJson()`. See [module-agent-api.
 
 ## Rights
 
-Director: **`bi.manage`**.
+Director: **`bi.manage`** (constructor, shares, full catalog).  
+Staff recipient: any logged-in user with a usable **staff** share — `/bi` lists those families only; no `bi.manage` required.

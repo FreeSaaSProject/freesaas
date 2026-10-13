@@ -11,13 +11,26 @@
   var chatUrl = root.getAttribute('data-chat-url') || '/assistant/chat';
   var confirmUrl = root.getAttribute('data-confirm-url') || '/assistant/confirm';
   var clearUrl = root.getAttribute('data-clear-url') || '/assistant/clear';
+  var feedbackUrl = root.getAttribute('data-feedback-url') || '/assistant/feedback';
   var adminBase = (root.getAttribute('data-admin-base') || '').replace(/\/$/, '');
   var clearBtn = document.getElementById('assistant-chat-clear');
+  var fbModal = document.getElementById('assistant-fb-modal');
+  var fbChips = document.getElementById('assistant-fb-chips');
+  var fbComment = document.getElementById('assistant-fb-comment');
+  var fbSubmit = document.getElementById('assistant-fb-submit');
+  var fbPendingIdx = -1;
+  var fbSelected = {};
   var i18n = {};
   try {
     i18n = JSON.parse(root.getAttribute('data-i18n') || '{}') || {};
   } catch (e) {
     i18n = {};
+  }
+  var menuLabels = {};
+  try {
+    menuLabels = JSON.parse(root.getAttribute('data-menu-labels') || '{}') || {};
+  } catch (e) {
+    menuLabels = {};
   }
 
   var history = [];
@@ -38,6 +51,35 @@
     return role === 'user' ? t('you', 'You') : t('assistant', 'Assistant');
   }
 
+  /**
+   * Keep the composer (query line) on screen; scroll the log inside itself
+   * so the newest messages sit just above the form — not scrollIntoView on
+   * the last bubble (that hid the input).
+   */
+  function scrollLogToEnd() {
+    if (!log) {
+      return;
+    }
+    var go = function () {
+      log.scrollTop = log.scrollHeight;
+      var anchor = form || sendBtn || input;
+      if (anchor && typeof anchor.scrollIntoView === 'function') {
+        try {
+          anchor.scrollIntoView({ block: 'end', behavior: 'auto', inline: 'nearest' });
+        } catch (e) {
+          anchor.scrollIntoView(false);
+        }
+      }
+    };
+    go();
+    requestAnimationFrame(function () {
+      go();
+      requestAnimationFrame(go);
+    });
+    setTimeout(go, 60);
+    setTimeout(go, 320);
+  }
+
   function escapeHtml(s) {
     return String(s || '')
       .replace(/&/g, '&amp;')
@@ -46,29 +88,70 @@
       .replace(/"/g, '&quot;');
   }
 
-  /** Make https URLs (and optional admin-relative paths) clickable. */
+  function labelForAdminUrl(url) {
+    if (!adminBase || String(url).indexOf(adminBase) !== 0) {
+      return '';
+    }
+    var path = String(url).slice(adminBase.length).split('#')[0].split('?')[0];
+    path = path.replace(/\/+$/, '') || '/';
+    if (menuLabels[path]) {
+      return menuLabels[path];
+    }
+    // Longest menu prefix match (/payments/123/edit → /payments)
+    var best = '';
+    var bestLen = -1;
+    Object.keys(menuLabels).forEach(function (p) {
+      if (p === '/') {
+        return;
+      }
+      if (path === p || path.indexOf(p + '/') === 0) {
+        if (p.length > bestLen) {
+          best = menuLabels[p];
+          bestLen = p.length;
+        }
+      }
+    });
+    return best;
+  }
+
+  function anchorHtml(href, label) {
+    return (
+      '<a href="' +
+      escapeHtml(href) +
+      '" target="_blank" rel="noopener noreferrer">' +
+      escapeHtml(label) +
+      '</a>'
+    );
+  }
+
+  /** Escape, then **bold**, markdown links, bare admin URLs (with Russian menu titles). */
   function linkifyHtml(text) {
     var esc = escapeHtml(text);
-    esc = esc.replace(
-      /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
-    esc = esc.replace(
-      /(https?:\/\/[^\s<&]+[^\s<&.,;:!?)\\]])/g,
-      '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
+    // **bold** → <b> (UI chrome; after escape so content stays safe)
+    esc = esc.replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+    // __bold__
+    esc = esc.replace(/__([^_]+)__/g, '<b>$1</b>');
+    // [label](https://…)
+    esc = esc.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, function (_, label, href) {
+      return anchorHtml(href, label);
+    });
+    // Bare https URLs (skip ones already inside href=")
+    esc = esc.replace(/(^|[^"'>])(https?:\/\/[^\s<&]+)/g, function (_, lead, url) {
+      var trailing = '';
+      var clean = url.replace(/[.,;:!?)»]+$/g, function (m) {
+        trailing = m;
+        return '';
+      });
+      var label = labelForAdminUrl(clean) || clean;
+      return lead + anchorHtml(clean, label) + trailing;
+    });
     if (adminBase) {
       esc = esc.replace(
         /(^|[\s(«"'])(\/[a-z][a-z0-9_-]*(?:\/[\w./?&=%~-]*)?)/g,
         function (_, lead, path) {
-          return (
-            lead +
-            '<a href="' +
-            escapeHtml(adminBase + path) +
-            '" target="_blank" rel="noopener noreferrer">' +
-            path +
-            '</a>'
-          );
+          var href = adminBase + path;
+          var label = labelForAdminUrl(href) || path;
+          return lead + anchorHtml(href, label);
         }
       );
     }
@@ -100,14 +183,14 @@
     row.className = 'assistant-chat__pending';
     var ok = document.createElement('button');
     ok.type = 'button';
-    ok.className = 'btn';
+    ok.className = 'btn-primary';
     ok.textContent =
       tokens.length > 1
         ? t('confirm_all', 'Confirm all')
         : t('confirm', 'Confirm');
     var no = document.createElement('button');
     no.type = 'button';
-    no.className = 'btn';
+    no.className = 'btn-secondary';
     no.textContent =
       tokens.length > 1
         ? t('cancel_all', 'Cancel all')
@@ -170,9 +253,242 @@
       .join('\n');
   }
 
-  function appendMsg(who, text, pending, trace) {
+  function csrfToken() {
+    if (window.freesaasCsrfToken) {
+      var tok = window.freesaasCsrfToken();
+      if (tok) {
+        return tok;
+      }
+    }
+    var m = document.querySelector('meta[name="csrf-token"]');
+    return m && m.getAttribute('content') ? m.getAttribute('content') : '';
+  }
+
+  function contextAround(histIdx) {
+    var out = [];
+    if (histIdx < 0 || histIdx >= history.length) {
+      return out;
+    }
+    // Previous turn (user + assistant) if present.
+    var prevAsst = -1;
+    for (var i = histIdx - 1; i >= 0; i--) {
+      if (history[i] && history[i].role === 'assistant') {
+        prevAsst = i;
+        break;
+      }
+    }
+    if (prevAsst >= 0) {
+      var prevUser = -1;
+      for (var j = prevAsst - 1; j >= 0; j--) {
+        if (history[j] && history[j].role === 'user') {
+          prevUser = j;
+          break;
+        }
+      }
+      if (prevUser >= 0) {
+        out.push({
+          role: 'user',
+          content: String(history[prevUser].content || ''),
+        });
+      }
+      out.push({
+        role: 'assistant',
+        content: String(history[prevAsst].content || ''),
+      });
+    }
+    var curUser = -1;
+    for (var k = histIdx - 1; k >= 0; k--) {
+      if (history[k] && history[k].role === 'user') {
+        curUser = k;
+        break;
+      }
+    }
+    if (curUser >= 0) {
+      out.push({
+        role: 'user',
+        content: String(history[curUser].content || ''),
+      });
+    }
+    out.push({
+      role: 'assistant',
+      content: String(history[histIdx].content || ''),
+    });
+    return out;
+  }
+
+  function closeFbMenus() {
+    if (!log) {
+      return;
+    }
+    log.querySelectorAll('.assistant-fb__menu').forEach(function (el) {
+      el.hidden = true;
+      el.classList.remove('is-open');
+    });
+  }
+
+  function messagesForFeedback(histIdx, wrap) {
+    var msgs = contextAround(histIdx);
+    if (msgs.length) {
+      return msgs;
+    }
+    var bodyEl = wrap && wrap.querySelector
+      ? wrap.querySelector('.assistant-chat__body')
+      : null;
+    var text = bodyEl ? String(bodyEl.textContent || '').trim() : '';
+    if (text) {
+      return [{ role: 'assistant', content: text }];
+    }
+    return [];
+  }
+
+  function openFbModal(histIdx) {
+    fbPendingIdx = histIdx;
+    fbSelected = {};
+    if (fbComment) {
+      fbComment.value = '';
+    }
+    if (fbChips) {
+      fbChips.querySelectorAll('.assistant-fb-chip').forEach(function (chip) {
+        chip.classList.remove('is-on');
+      });
+    }
+    if (fbModal) {
+      fbModal.hidden = false;
+    }
+  }
+
+  function closeFbModal() {
+    fbPendingIdx = -1;
+    if (fbModal) {
+      fbModal.hidden = true;
+    }
+  }
+
+  function markRated(wrap, rating) {
+    if (!wrap) {
+      return;
+    }
+    wrap.setAttribute('data-fb-rated', rating);
+    var bar = wrap.querySelector('.assistant-fb');
+    if (bar) {
+      bar.innerHTML = '';
+      var done = document.createElement('span');
+      done.className = 'assistant-fb__done muted';
+      done.textContent = t('fb_thanks', 'Thanks');
+      bar.appendChild(done);
+    }
+  }
+
+  function postFeedback(payload, wrap) {
+    var body = payload;
+    var tok = csrfToken();
+    if (tok) {
+      body.csrf = tok;
+    }
+    return fetch(feedbackUrl, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': tok || '',
+        'X-Requested-With': 'XMLHttpRequest',
+      },
+      body: JSON.stringify(body),
+    })
+      .then(function (r) {
+        return r.json().then(function (j) {
+          return { ok: r.ok, json: j };
+        });
+      })
+      .then(function (res) {
+        if (!res.ok || !res.json || !res.json.ok) {
+          throw new Error(
+            (res.json && res.json.error) || t('fb_err', 'Could not save')
+          );
+        }
+        markRated(wrap, payload.rating);
+        closeFbModal();
+        closeFbMenus();
+      });
+  }
+
+  function attachFeedback(wrap, histIdx) {
+    if (!wrap || histIdx < 0) {
+      return;
+    }
+    if (wrap.querySelector('.assistant-fb')) {
+      return;
+    }
+    var bar = document.createElement('div');
+    bar.className = 'assistant-fb';
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.className = 'assistant-fb__toggle';
+    toggle.setAttribute('aria-label', t('fb_rate', 'Rate reply'));
+    toggle.innerHTML =
+      '<svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2 21h4V9H2v12zm20-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32a1 1 0 0 0-.29-.7L13.17 2 7.59 7.59A2 2 0 0 0 7 9v10c0 1.1.9 2 2 2h7c.82 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>';
+    var menu = document.createElement('div');
+    menu.className = 'assistant-fb__menu';
+    menu.hidden = true;
+    var goodBtn = document.createElement('button');
+    goodBtn.type = 'button';
+    goodBtn.className = 'assistant-fb__opt';
+    goodBtn.innerHTML =
+      '<svg class="assistant-fb__ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M2 21h4V9H2v12zm20-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32a1 1 0 0 0-.29-.7L13.17 2 7.59 7.59A2 2 0 0 0 7 9v10c0 1.1.9 2 2 2h7c.82 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg> ' +
+      t('fb_good', 'Good answer');
+    var badBtn = document.createElement('button');
+    badBtn.type = 'button';
+    badBtn.className = 'assistant-fb__opt';
+    badBtn.innerHTML =
+      '<svg class="assistant-fb__ico" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M22 3h-4v12h4V3zM2.17 11.12A2 2 0 0 1 4 10h6.31l-.95-4.57-.03-.32a1 1 0 0 1 .29-.7L10.83 3l5.58 5.59A2 2 0 0 1 17 10v8c0 1.1-.9 2-2 2H8c-.82 0-1.54-.5-1.84-1.22L3.14 11.73c-.09-.23-.14-.47-.14-.73 0-.28.06-.54.17-.88z"/></svg> ' +
+      t('fb_bad', 'Bad answer');
+    menu.appendChild(goodBtn);
+    menu.appendChild(badBtn);
+    bar.appendChild(toggle);
+    bar.appendChild(menu);
+    wrap.appendChild(bar);
+
+    toggle.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var willOpen = menu.hidden || !menu.classList.contains('is-open');
+      closeFbMenus();
+      if (willOpen) {
+        menu.hidden = false;
+        menu.classList.add('is-open');
+      }
+    });
+    goodBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      var msgs = messagesForFeedback(histIdx, wrap);
+      if (!msgs.length) {
+        window.alert(t('fb_err', 'Could not save'));
+        return;
+      }
+      postFeedback(
+        {
+          rating: 'good',
+          reasons: [],
+          comment: '',
+          messages: msgs,
+        },
+        wrap
+      ).catch(function (err) {
+        window.alert(err && err.message ? err.message : t('fb_err', 'Error'));
+      });
+    });
+    badBtn.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      closeFbMenus();
+      openFbModal(histIdx);
+      wrap.setAttribute('data-fb-open', '1');
+    });
+  }
+
+  function appendMsg(who, text, pending, trace, role, histIdx) {
     var wrap = document.createElement('div');
-    wrap.className = 'assistant-chat__msg';
+    var side = role === 'user' ? 'user' : 'assistant';
+    wrap.className = 'assistant-chat__msg assistant-chat__msg--' + side;
     var whoEl = document.createElement('div');
     whoEl.className = 'assistant-chat__who';
     whoEl.textContent = who;
@@ -194,8 +510,17 @@
       wrap.appendChild(toolsEl);
     }
     attachPending(wrap, pending);
+    if (
+      side === 'assistant' &&
+      histIdx != null &&
+      histIdx >= 0 &&
+      String(text || '') !== t('thinking', '…')
+    ) {
+      wrap.setAttribute('data-hist-idx', String(histIdx));
+      attachFeedback(wrap, histIdx);
+    }
     log.appendChild(wrap);
-    log.scrollTop = log.scrollHeight;
+    scrollLogToEnd();
     return wrap;
   }
 
@@ -204,12 +529,28 @@
       return;
     }
     log.innerHTML = '';
-    (list || []).forEach(function (m) {
+    (list || []).forEach(function (m, idx) {
       if (!m || !m.content) {
         return;
       }
-      appendMsg(whoLabel(m.role), m.content);
+      appendMsg(
+        whoLabel(m.role),
+        m.content,
+        null,
+        null,
+        m.role === 'user' ? 'user' : 'assistant',
+        m.role === 'assistant' ? idx : null
+      );
     });
+    scrollLogToEnd();
+  }
+
+  function autosizeInput() {
+    if (!input) {
+      return;
+    }
+    input.style.height = 'auto';
+    input.style.height = Math.min(input.scrollHeight, 144) + 'px';
   }
 
   function applyServerHistory(list, pending, trace) {
@@ -287,66 +628,35 @@
             : res.json && res.json.error
               ? res.json.error
               : t('error', 'Error');
-        appendMsg(t('assistant', 'Assistant'), msg);
         history.push({ role: 'assistant', content: msg });
+        appendMsg(
+          t('assistant', 'Assistant'),
+          msg,
+          null,
+          null,
+          'assistant',
+          history.length - 1
+        );
       })
       .catch(function () {
         setBusy(false);
-        appendMsg(t('assistant', 'Assistant'), t('error', 'Error'));
+        appendMsg(t('assistant', 'Assistant'), t('error', 'Error'), null, null, 'assistant');
       });
   }
 
-  if (!form || !input || !log) {
-    return;
-  }
-
-  renderHistory(history);
-
-  if (clearBtn) {
-    clearBtn.addEventListener('click', function () {
-      setBusy(true);
-      fetch(clearUrl, {
-        method: 'POST',
-        headers: {
-          Accept: 'application/json',
-          'Content-Type': 'application/json',
-        },
-        credentials: 'same-origin',
-        body: '{}',
-      })
-        .then(function (r) {
-          return r.json().then(function (j) {
-            return { ok: r.ok, json: j };
-          });
-        })
-        .then(function (res) {
-          setBusy(false);
-          if (!res.ok || !res.json || !res.json.ok) {
-            appendMsg(t('assistant', 'Assistant'), (res.json && res.json.error) || t('error', 'Error'));
-            return;
-          }
-          history = [];
-          renderHistory(history);
-          appendMsg(t('assistant', 'Assistant'), res.json.text || t('cleared', 'Dialog cleared.'));
-        })
-        .catch(function () {
-          setBusy(false);
-          appendMsg(t('assistant', 'Assistant'), t('error', 'Error'));
-        });
-    });
-  }
-
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var text = (input.value || '').trim();
+  function sendMessage(text) {
+    text = String(text || '').trim();
     if (!text) {
       return;
     }
-    appendMsg(t('you', 'You'), text);
+    appendMsg(t('you', 'You'), text, null, null, 'user');
     history.push({ role: 'user', content: text });
-    input.value = '';
+    if (input) {
+      input.value = '';
+      autosizeInput();
+    }
     setBusy(true);
-    var thinking = appendMsg(t('assistant', 'Assistant'), t('thinking', '…'));
+    var thinking = appendMsg(t('assistant', 'Assistant'), t('thinking', '…'), null, null, 'assistant');
 
     fetch(chatUrl, {
       method: 'POST',
@@ -378,8 +688,15 @@
         }
         if (!res.ok || !res.json || !res.json.ok) {
           var err = (res.json && res.json.error) || t('error', 'Error');
-          appendMsg(t('assistant', 'Assistant'), err, null, trace);
           history.push({ role: 'assistant', content: err });
+          appendMsg(
+            t('assistant', 'Assistant'),
+            err,
+            null,
+            trace,
+            'assistant',
+            history.length - 1
+          );
           return;
         }
         var reply = res.json.text || '';
@@ -388,7 +705,9 @@
           t('assistant', 'Assistant'),
           reply,
           res.json.pending_actions || [],
-          trace
+          trace,
+          'assistant',
+          history.length - 1
         );
       })
       .catch(function () {
@@ -396,7 +715,142 @@
         if (thinking && thinking.parentNode) {
           thinking.parentNode.removeChild(thinking);
         }
-        appendMsg(t('assistant', 'Assistant'), t('error', 'Error'));
+        appendMsg(t('assistant', 'Assistant'), t('error', 'Error'), null, null, 'assistant');
       });
+  }
+
+  if (!form || !input || !log) {
+    return;
+  }
+
+  if (fbChips) {
+    var reasons = i18n.fb_reasons || {};
+    Object.keys(reasons).forEach(function (id) {
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'assistant-fb-chip';
+      chip.setAttribute('data-reason', id);
+      chip.textContent = '+ ' + reasons[id];
+      chip.addEventListener('click', function () {
+        if (fbSelected[id]) {
+          delete fbSelected[id];
+          chip.classList.remove('is-on');
+        } else {
+          fbSelected[id] = true;
+          chip.classList.add('is-on');
+        }
+      });
+      fbChips.appendChild(chip);
+    });
+  }
+  if (fbModal) {
+    fbModal.querySelectorAll('[data-fb-close]').forEach(function (el) {
+      el.addEventListener('click', closeFbModal);
+    });
+  }
+  if (fbSubmit) {
+    fbSubmit.addEventListener('click', function () {
+      var reasons = Object.keys(fbSelected);
+      var comment = fbComment ? String(fbComment.value || '').trim() : '';
+      if (!reasons.length && !comment) {
+        window.alert(t('fb_need_reason', 'Pick a reason'));
+        return;
+      }
+      var wrap =
+        fbPendingIdx >= 0
+          ? log.querySelector(
+              '.assistant-chat__msg[data-hist-idx="' + fbPendingIdx + '"]'
+            )
+          : null;
+      var msgs = messagesForFeedback(fbPendingIdx, wrap);
+      if (!msgs.length) {
+        window.alert(t('fb_err', 'Could not save'));
+        return;
+      }
+      fbSubmit.disabled = true;
+      postFeedback(
+        {
+          rating: 'bad',
+          reasons: reasons,
+          comment: comment,
+          messages: msgs,
+        },
+        wrap
+      )
+        .catch(function (err) {
+          window.alert(err && err.message ? err.message : t('fb_err', 'Error'));
+        })
+        .then(function () {
+          fbSubmit.disabled = false;
+        });
+    });
+  }
+  document.addEventListener('click', function () {
+    closeFbMenus();
   });
+
+  renderHistory(history);
+
+  input.addEventListener('input', autosizeInput);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!sendBtn || sendBtn.disabled) {
+        return;
+      }
+      form.requestSubmit ? form.requestSubmit() : form.dispatchEvent(new Event('submit', { cancelable: true }));
+    }
+  });
+  autosizeInput();
+
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function () {
+      setBusy(true);
+      fetch(clearUrl, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin',
+        body: '{}',
+      })
+        .then(function (r) {
+          return r.json().then(function (j) {
+            return { ok: r.ok, json: j };
+          });
+        })
+        .then(function (res) {
+          setBusy(false);
+          if (!res.ok || !res.json || !res.json.ok) {
+            appendMsg(t('assistant', 'Assistant'), (res.json && res.json.error) || t('error', 'Error'), null, null, 'assistant');
+            return;
+          }
+          history = [];
+          renderHistory(history);
+          appendMsg(t('assistant', 'Assistant'), res.json.text || t('cleared', 'Dialog cleared.'), null, null, 'assistant');
+        })
+        .catch(function () {
+          setBusy(false);
+          appendMsg(t('assistant', 'Assistant'), t('error', 'Error'), null, null, 'assistant');
+        });
+    });
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    sendMessage(input.value || '');
+  });
+
+  // Home invite → /assistant?q=… auto-sends once, then cleans the URL.
+  var seedQ = (root.getAttribute('data-seed-q') || '').trim();
+  if (seedQ) {
+    if (window.history && window.history.replaceState) {
+      try {
+        var clean = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', clean);
+      } catch (e) {}
+    }
+    sendMessage(seedQ);
+  }
 })();

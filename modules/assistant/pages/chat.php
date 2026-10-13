@@ -18,7 +18,7 @@ if ($bodyIn === []) {
 }
 
 $userId = Auth::userId();
-if ($userId < 1 || !Auth::can('assistant.use')) {
+if ($userId < 1) {
     AssistantAccess::denyJson(401);
 }
 
@@ -96,7 +96,7 @@ if ($pendingOut === [] && preg_match(
     '/нажм\w*.{0,48}(confirm|подтверд)|(press|click).{0,40}confirm|кнопк\w*.{0,24}(confirm|подтверд)|ожида\w*.{0,24}подтверд/iu',
     $reply
 )) {
-    $reply = t('assistant.confirm.not_queued');
+    $reply = AssistantConfig::t('assistant.confirm.not_queued');
 }
 $history[] = ['role' => 'assistant', 'content' => $reply];
 AssistantDialog::saveHistory($userId, $history);

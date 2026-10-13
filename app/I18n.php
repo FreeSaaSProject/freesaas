@@ -125,8 +125,8 @@ final class I18n
     }
 
     /**
-     * Autonym for a locale code (shown as-is in the language picker).
-     * Unknown codes fall back to uppercase ISO code.
+     * Compact label for the language picker (Ру / En / …).
+     * Unknown codes fall back to title-case ISO (De, Fr).
      */
     public static function localeLabel(string $code): string
     {
@@ -134,29 +134,25 @@ final class I18n
         if ($code === '') {
             return '';
         }
-        // Native names — not UI chrome; keep expanding as locales are added.
-        static $names = [
-            'ru' => 'Русский',
-            'en' => 'English',
-            'de' => 'Deutsch',
-            'fr' => 'Français',
-            'es' => 'Español',
-            'it' => 'Italiano',
-            'pt' => 'Português',
-            'pl' => 'Polski',
-            'uk' => 'Українська',
-            'tr' => 'Türkçe',
+        // Keep short; expand only when a new locale needs a non-Latin short form.
+        static $short = [
+            'ru' => 'Ру',
+            'en' => 'En',
+            'uk' => 'Ук',
+            'kk' => 'Қа',
+            'uz' => 'Uz',
             'zh' => '中文',
             'ja' => '日本語',
             'ko' => '한국어',
-            'ar' => 'العربية',
-            'he' => 'עברית',
-            'ka' => 'ქართული',
-            'hy' => 'Հայերեն',
-            'kk' => 'Қазақша',
-            'uz' => 'Oʻzbekcha',
+            'ar' => 'ع',
+            'he' => 'עב',
+            'ka' => 'ქა',
+            'hy' => 'Հա',
         ];
-        return $names[$code] ?? strtoupper($code);
+        if (isset($short[$code])) {
+            return $short[$code];
+        }
+        return strlen($code) <= 3 ? ucfirst($code) : strtoupper($code);
     }
 
     public static function setLocale(string $locale): void

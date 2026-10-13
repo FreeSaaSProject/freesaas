@@ -2,14 +2,15 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.69",
+    "version": "0.3.77",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
         "bots": ">=0.1.0",
         "contracts": ">=0.1.0",
         "gcal": ">=0.1.0",
-        "stocks": ">=0.1.0"
+        "stocks": ">=0.1.0",
+        "assistant": ">=0.1.0"
     },
     "provides": [
         "core.auth",
@@ -58,6 +59,7 @@
     "routes": {
         "pages": [
             "/",
+            "/splash/ack",
             "/dashboard",
             "/likes/mark-viewed",
             "/login",
@@ -1090,6 +1092,7 @@
             "core.auth.before_logout",
             "core.dashboard.catalog",
             "core.dashboard.widgets",
+            "core.dashboard.command_html",
             "core.notices.collect",
             "core.layout.gate",
             "core.news_item.handle_post",
@@ -1102,6 +1105,7 @@
             "core.users.list",
             "core.settings.sections",
             "core.settings.save",
+            "core.menu.items",
             "core.bulk.check_item",
             "comments.counts"
         ]

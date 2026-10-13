@@ -20,9 +20,14 @@ final class LlmClient
             $body['model'] = $cfg['model_chat'];
         }
         $timeout = max(1, (int)($opts['timeout'] ?? 60));
-        $json = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $json = self::encodeBody($body);
         if ($json === false) {
-            return ['ok' => false, 'data' => null, 'error' => 'JSON encode failed', 'profile' => $cfg['id']];
+            return [
+                'ok' => false,
+                'data' => null,
+                'error' => 'JSON encode failed: ' . json_last_error_msg(),
+                'profile' => $cfg['id'],
+            ];
         }
 
         $ch = curl_init();
@@ -86,9 +91,14 @@ final class LlmClient
         }
         $body['stream'] = true;
         $timeout = max(1, (int)($opts['timeout'] ?? 300));
-        $postData = json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $postData = self::encodeBody($body);
         if ($postData === false) {
-            return ['ok' => false, 'text' => '', 'error' => 'JSON encode failed', 'profile' => $cfg['id']];
+            return [
+                'ok' => false,
+                'text' => '',
+                'error' => 'JSON encode failed: ' . json_last_error_msg(),
+                'profile' => $cfg['id'],
+            ];
         }
 
         $fullContent = '';
@@ -257,6 +267,19 @@ final class LlmClient
             'error' => '',
             'profile' => $res['profile'],
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $body
+     * @return string|false
+     */
+    private static function encodeBody(array $body)
+    {
+        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
+        if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
+            $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
+        }
+        return json_encode($body, $flags);
     }
 
     /**

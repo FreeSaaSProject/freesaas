@@ -260,6 +260,7 @@ modules/<id>/
 | `core.bulk.check_item` | BulkActions | Перед id в групповой операции: `blocked` / `reason` |
 | `core.settings.sections` | settings | HTML-блоки модулей на `/settings` (платформенные; product-настройки — на `/<module>/settings`) |
 | `core.settings.save` | settings | Сохранение полей, добавленных модулями на `/settings` |
+| `core.menu.items` | layout | Мутация списка пунктов rail после сборки (`items[]`); например persona-имя ассистента |
 | `audio.settings.sections` | audio settings | HTML-блоки на `/audio/settings` (напр. `audio_reports`) |
 | `audio.settings.save` | audio settings | Сохранение секций на `/audio/settings` |
 

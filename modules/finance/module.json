@@ -2,7 +2,7 @@
     "id": "finance",
     "name": "finance.module.name",
     "description": "finance.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -32,6 +32,7 @@
     ],
     "routes": {
         "pages": [
+            "/finance",
             "/finance/balance"
         ]
     },

@@ -1,6 +1,8 @@
-# Max — in-system assistant (tool harness)
+# Assistant — in-system AI (tool harness)
 
-Product module `assistant` (UI name **Max** / **Макс**): conversational agent that calls product `agent.ops` automatically. Channels: UI `/assistant` and staff Telegram/Max-messenger bot («Ask Max»). Not platform `/agent/*`.
+Product module `assistant`: conversational agent that calls product `agent.ops` automatically. Channels: UI `/assistant` and staff Telegram/Max-messenger bot («Ask {name}»). Not platform `/agent/*`.
+
+**Persona name:** configurable under **System settings** (`/settings`, field «Assistant name»). Default **Макс**. Stored in `cfg/modules/assistant.ini` (`[assistant] name=`). The system prompt, chat UI, rail chat item, and bot cabinet button use this name.
 
 ## Enable
 
@@ -11,7 +13,7 @@ php bin/freesaas.php module enable assistant --format=json
 php bin/freesaas.php module enable bots --format=json
 ```
 
-Requires a ready LLM profile (`/llm/tokens`). Grant staff `assistant.use` plus underlying tool permissions (`procedures.view`, `staff_reports.view`, …).
+Requires a ready LLM profile (`/llm/tokens`, `llm.manage` + SUPERADMIN). Assistant chat (`/assistant`) is available to every signed-in staff user — no `assistant.use` permission. Tool calls still respect each op’s own permissions (`procedures.view`, `staff_reports.view`, …).
 
 ## Behaviour
 
@@ -27,6 +29,24 @@ Opt out of the assistant tool list with `"assistant": false` on an op (used for 
 - `GET /assistant` — chat page
 - `POST /assistant/chat` — JSON body `{ "messages":[{"role":"user","content":"…"}] }`
 - `POST /assistant/confirm` — `{ "token":"…", "action":"confirm"|"cancel" }`
+- `POST /assistant/feedback` — rate a reply `{ rating:"good"|"bad", reasons:[], comment, messages:[{role,content}] }`; stored as JSONL under `var/assistant/feedback/YYYY-MM.jsonl` (context = rated turn + previous turn)
+- `GET`/`POST` `/assistant/eval` — **SUPERADMIN** hybrid eval (deterministic + live LLM); JSON on `Accept: application/json`
+- Persona name: **Settings** (`/settings`) → Assistant name (SUPERADMIN / `core.settings`)
+
+Outgoing assistant text runs through `AssistantLinks::absolutize`: relative `/paths` become absolute admin URLs, and bare module roots with a single menu/route screen (e.g. `/finance` → `/finance/balance`) are rewritten so messengers and the chat UI do not get 404s.
+
+Link discipline: the system prompt is **tool-scoped** — no hardcoded product modules. Module hints (ФОТ, finance, BI `open_url`, wellness food chain) are appended only when the matching tool is in **this** user's catalog. If the final reply still invents denied admin URLs, the harness sends one **link_repair** turn (lists bad hrefs + allowed tool paths/`open_url`) and asks the model to rewrite. Then `AssistantLinks::filterUnauthorized` strips any leftovers so hallucinated links never reach the user.
+
+## Eval (regression suite)
+
+Universal cases (no tenant-specific staff ids): tool-allowlist personas + graders for link/prompt bugs (`/finance` vs `/finance/balance`, `/bi/shares` vs `/bi/run`, no finance links without the tool) and shift-name resolution (`live.workweeks_resolve_names`: must CALL `workweeks.day`/`list` before asking surname/ID). Live shift cases use **fixture packs** under `modules/assistant/eval/fixtures/`: `workweeks_resolve_names.json` (one Dasha / one Tanya) and `workweeks_resolve_names_two_tanyas.json` (full day roster, two Tanyas). Writes are stubbed pending and do not touch the DB. Add `fixture` on a case + JSON under `eval/fixtures/` for more packs. When `link_repair` actually fired, the UI marks the card yellow (**repaired**) vs green clean pass.
+
+```bash
+php bin/freesaas.php assistant eval --live=0 --format=json   # deterministic only
+php bin/freesaas.php assistant eval --format=json            # + live LLM
+```
+
+UI: **Assistant → Assistant eval** (`/assistant/eval`, SUPERADMIN). Stepped progress (one case per `POST action=run_one`); panel shows progress bar, question/answer cards, running stats. Last run is saved per LLM profile under `var/assistant/eval/{profile}.json` (not DB) and restored on entry — **Run all** or **Retry fails** / per-card **Retry**. Missing modules or LLM config → `skip`, not `fail`.
 
 ```bash
 curl -sS -b jar.txt -H 'Content-Type: application/json' -H 'Accept: application/json' \
@@ -44,7 +64,7 @@ Staff how-to answers use **`core.help.search`** / **`core.help.get`**, which rea
 
 ## Updates (self-update)
 
-When module `updates` is enabled, Max sees `updates.status` / `updates.check` / `updates.apply` (and settings) if the staff user has `updates.view` / `updates.apply`. **Apply** also requires `SUPERADMIN_ACCESS` (same as the Updates UI). Flow: check → summarize → apply only on explicit ask (write tool → Confirm/Cancel). See [update.md](update.md).
+When module `updates` is enabled, the assistant sees `updates.status` / `updates.check` / `updates.apply` (and settings) if the staff user has `updates.view` / `updates.apply`. **Apply** also requires `SUPERADMIN_ACCESS` (same as the Updates UI). Flow: check → summarize → apply only on explicit ask (write tool → Confirm/Cancel). See [update.md](update.md).
 
 ## Adding a tool
 
@@ -60,5 +80,6 @@ See [module-agent-api.md](module-agent-api.md).
 php bin/freesaas.php module validate assistant
 php bin/freesaas.php locale validate
 php bin/freesaas.php health --module=assistant
+php bin/freesaas.php assistant eval --live=0 --format=json
 php bin/smoke.php
 ```

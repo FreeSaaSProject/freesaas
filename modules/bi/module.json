@@ -2,7 +2,7 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "0.2.5",
+    "version": "0.2.7",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -47,9 +47,9 @@
                 "id": "bi.families.list",
                 "method": "GET",
                 "path": "/bi",
-                "permission": "bi.manage",
+                "permission": "",
                 "side_effect": "read",
-                "description": "List BI report families (id, title, ready, shipped/custom). Response includes hint URLs for legend/run/save."
+                "description": "List BI families for THIS user. mode=manage (bi.manage): full catalog; mode=shared: only reports shared with them. Each family has open_url (/bi/run?family=…[&share=…]) — use that for links. NEVER link /bi/shares (director share-admin only)."
             },
             {
                 "id": "bi.legend",
@@ -195,9 +195,9 @@
                 "id": "bi.report.run",
                 "method": "POST",
                 "path": "/bi/work",
-                "permission": "bi.manage",
+                "permission": "",
                 "side_effect": "read",
-                "description": "Run family and return report.sections (+ section_summary, html, stages). Prefer reading report JSON, not html.",
+                "description": "Run family and return report.sections (+ section_summary, html, stages). bi.manage: any family; staff: only with share=token from bi.families.list. Prefer report JSON, not html. Staff UI link = open_url from list, not /bi/shares.",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -209,6 +209,10 @@
                         },
                         "family": {
                             "type": "string"
+                        },
+                        "share": {
+                            "type": "string",
+                            "description": "Staff share token from bi.families.list (required without bi.manage)"
                         },
                         "year": {
                             "type": "integer"
@@ -248,7 +252,7 @@
                 "path": "/bi/shares",
                 "permission": "bi.manage",
                 "side_effect": "read",
-                "description": "List share links + staff_picker (no ASSIST_TEAM) + ttl/audience notes"
+                "description": "Director-only: list/create admin for share links at /bi/shares. NOT a report viewer — report open_url comes from bi.families.list."
             },
             {
                 "id": "bi.share.create",

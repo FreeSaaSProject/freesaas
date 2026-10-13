@@ -56,7 +56,7 @@ final class LikespaLegacyApi
                 self::json(self::getClient());
                 break;
             case 'book_service':
-                self::json(self::termyBook($cat));
+                self::json(self::termyBook($cat, 'api_termy'));
                 break;
             case 'get_my_orders':
                 self::json(self::myOrders());
@@ -405,8 +405,11 @@ final class LikespaLegacyApi
         ];
     }
 
-    /** @return array<string,mixed> */
-    private static function termyBook(int $cat): array
+    /**
+     * @param 'api_termy'|'api' $source
+     * @return array<string,mixed>
+     */
+    private static function termyBook(int $cat, string $source = 'api_termy'): array
     {
         $serviceId = (int)($_GET['service_id'] ?? 0);
         $clientId = (int)($_GET['client_id'] ?? 0);
@@ -444,6 +447,7 @@ final class LikespaLegacyApi
             'product_ids' => [$serviceId],
             'operator_id' => $specialistId,
             'dt_start' => $dtStart,
+            'source' => $source === 'api' ? 'api' : 'api_termy',
         ];
         if (isset($_GET['price']) && $_GET['price'] !== '') {
             $price = (float)$_GET['price'];
@@ -543,7 +547,7 @@ final class LikespaLegacyApi
                 'updateInfo' => [],
             ];
         }
-        return self::termyBook(0);
+        return self::termyBook(0, 'api');
     }
 
     /** @return array<string,mixed> */
@@ -582,7 +586,8 @@ final class LikespaLegacyApi
         if (!class_exists(OrdersRepository::class, false)) {
             return ['error' => 'orders unavailable', 'cancelled' => 0];
         }
-        $res = OrdersRepository::cancelForClient($orderId, $clientId);
+        $reason = trim((string)($_GET['reason'] ?? ''));
+        $res = OrdersRepository::cancelForClient($orderId, $clientId, $reason);
         return [
             'cancelled' => !empty($res['ok']) ? 1 : 0,
             'error' => empty($res['ok']) ? (string)($res['error'] ?? '') : '',

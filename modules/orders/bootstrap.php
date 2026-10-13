@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/OrdersRepository.php';
+require_once __DIR__ . '/lib/OrdersConfig.php';
+require_once __DIR__ . '/lib/OrdersMaxNotify.php';
 
 Assets::register('orders', [
     'css' => ['assets/css/orders.css'],
@@ -9,20 +11,31 @@ Assets::register('orders', [
 
 $pages = [
     '/orders' => ['permission' => 'orders.view', 'methods' => ['GET'], 'file' => 'list.php'],
+    '/orders/settings' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'settings.php',
+    ],
     '/orders/{id}' => ['permission' => 'orders.view', 'methods' => ['GET'], 'file' => 'view.php'],
     '/orders/{id}/edit' => ['permission' => 'orders.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
 ];
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'orders',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/orders/pages/' . $file);
         },
-    ]);
+    ];
+    if (!empty($def['capability'])) {
+        $route['capability'] = $def['capability'];
+    }
+    if (!empty($def['permission'])) {
+        $route['permission'] = $def['permission'];
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 EventBus::on('core.notices.collect', static function ($notices) {

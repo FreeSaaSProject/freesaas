@@ -1,0 +1,68 @@
+{
+  "comment": "Synthetic tomorrow roster: one Dasha (shift I) + one Tanya (shift II). Dates rewritten to eval-time tomorrow. Used by live.workweeks_resolve_names.",
+  "tomorrow_date_key": "date",
+  "day": {
+    "ok": true,
+    "date": "{{tomorrow}}",
+    "shifts": [
+      {
+        "id": 900001,
+        "id_operator": 901,
+        "id_operator_create": 1,
+        "dt_create": 0,
+        "dt": 0,
+        "price_col": 1,
+        "id_table": 1,
+        "mas_max": 3,
+        "operator_name": "Курмазова Дарья Андреевна",
+        "ID_STATUS": 2,
+        "assist_team": 1,
+        "is_hidden": 0,
+        "can_be_assigned_asany": 1,
+        "color": "#273ECC",
+        "color_text": "#E7DFED",
+        "group": 3,
+        "date": "{{tomorrow}}",
+        "shift_label": "I",
+        "shift_start_hm": "00:00",
+        "shift_end_hm": "15:30"
+      },
+      {
+        "id": 900002,
+        "id_operator": 902,
+        "id_operator_create": 1,
+        "dt_create": 0,
+        "dt": 0,
+        "price_col": 2,
+        "id_table": 1,
+        "mas_max": 3,
+        "operator_name": "Вохмянина Татьяна Сергеевна",
+        "ID_STATUS": 2,
+        "assist_team": 1,
+        "is_hidden": 0,
+        "can_be_assigned_asany": 1,
+        "color": "#FFFFFF",
+        "color_text": "#FF9EB5",
+        "group": 3,
+        "date": "{{tomorrow}}",
+        "shift_label": "II",
+        "shift_start_hm": "15:30",
+        "shift_end_hm": "23:59"
+      }
+    ]
+  },
+  "ops": {
+    "workweeks.day": {"from": "day"},
+    "workweeks.list": {"from": "day_as_list"},
+    "workweeks.get": {"from": "day_get"},
+    "core.users.list": {
+      "ok": true,
+      "items": [
+        {"id": 901, "name": "Курмазова Дарья Андреевна", "login": "dasha", "enabled": "1"},
+        {"id": 902, "name": "Вохмянина Татьяна Сергеевна", "login": "tanya", "enabled": "1"}
+      ]
+    },
+    "workweeks.update": {"stub_pending": true},
+    "workweeks.create": {"stub_pending": true}
+  }
+}

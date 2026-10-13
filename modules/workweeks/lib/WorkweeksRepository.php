@@ -142,9 +142,19 @@ final class WorkweeksRepository
     }
 
     /** @param array<string,mixed> $post */
-    public static function dataFromPost(array $post): array
+    /**
+     * Parse create/update body. When $defaults is set (update), omitted fields keep the row.
+     *
+     * @param array<string,mixed> $post
+     * @param array{date?:string,id_operator?:int,price_col?:int,mas_max?:int,id_table?:int}|null $defaults
+     * @return array{dt:int,date:string,id_operator:int,price_col:int,mas_max:int,id_table:int}
+     */
+    public static function dataFromPost(array $post, ?array $defaults = null): array
     {
         $date = trim((string)($post['date'] ?? ''));
+        if ($date === '' && $defaults !== null) {
+            $date = trim((string)($defaults['date'] ?? ''));
+        }
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             throw new InvalidArgumentException(t('workweeks.err.invalid'));
         }
@@ -152,17 +162,29 @@ final class WorkweeksRepository
         if ($ts === false) {
             throw new InvalidArgumentException(t('workweeks.err.invalid'));
         }
-        $op = (int)($post['id_operator'] ?? 0);
+        $opRaw = $post['id_operator'] ?? null;
+        $op = ($opRaw === null || $opRaw === '') && $defaults !== null
+            ? (int)($defaults['id_operator'] ?? 0)
+            : (int)$opRaw;
         if ($op < 1) {
             throw new InvalidArgumentException(t('workweeks.err.invalid'));
         }
+        $priceCol = array_key_exists('price_col', $post)
+            ? (int)$post['price_col']
+            : (int)($defaults['price_col'] ?? 1);
+        $masMax = array_key_exists('mas_max', $post)
+            ? (int)$post['mas_max']
+            : (int)($defaults['mas_max'] ?? 1);
+        $tableRaw = array_key_exists('id_table', $post)
+            ? (int)$post['id_table']
+            : (int)($defaults['id_table'] ?? 0);
         return [
             'dt' => (int)$ts,
             'date' => $date,
             'id_operator' => $op,
-            'price_col' => max(1, min(5, (int)($post['price_col'] ?? 1))),
-            'mas_max' => max(1, min(9, (int)($post['mas_max'] ?? 1))),
-            'id_table' => self::normalizeTableId((int)($post['id_table'] ?? 0)),
+            'price_col' => max(1, min(5, $priceCol)),
+            'mas_max' => max(1, min(9, $masMax)),
+            'id_table' => self::normalizeTableId($tableRaw),
         ];
     }
 

@@ -87,6 +87,9 @@ try {
         case 'bot':
             freesaas_cmd_bot($sub, $args, $opts);
             break;
+        case 'assistant':
+            freesaas_cmd_assistant($sub, $opts);
+            break;
         default:
             Cli::usage("Unknown command: {$cmd}\n\n" . freesaas_cli_help());
     }
@@ -124,7 +127,68 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   bot unlink <login|client:<id>> [--platform=telegram|max] [--format=json]
   bot link-code <login|client:<id>> [--ttl=600] [--format=json]
   bot subscribe --audience=staff|client --platform=telegram|max [--url=https://…] [--format=json]
+  assistant eval [--live=0|1] [--format=json]
 TXT;
+}
+
+/**
+ * @param array<string, string|bool> $opts
+ */
+function freesaas_cmd_assistant(string $sub, array $opts): void
+{
+    if ($sub !== 'eval') {
+        Cli::usage('Usage: assistant eval [--live=0|1] [--format=json]');
+    }
+    if (!ModuleManager::isEnabled('assistant')) {
+        Cli::fail('assistant module disabled', Cli::EXIT_FAIL);
+    }
+    require_once base_path('modules/assistant/lib/AssistantLinks.php');
+    require_once base_path('modules/assistant/lib/AssistantTools.php');
+    require_once base_path('modules/assistant/lib/AssistantHarness.php');
+    require_once base_path('modules/assistant/lib/AssistantEval.php');
+    require_once base_path('modules/assistant/lib/AssistantEvalCases.php');
+
+    $live = true;
+    if (isset($opts['live'])) {
+        $v = $opts['live'];
+        if ($v === false || $v === '0' || $v === 'false' || $v === 'no') {
+            $live = false;
+        }
+    }
+    $result = AssistantEval::run(['live' => $live]);
+    if (!Cli::isJson()) {
+        $sum = is_array($result['summary'] ?? null) ? $result['summary'] : [];
+        echo 'pass=' . (int)($sum['pass'] ?? 0)
+            . ' fail=' . (int)($sum['fail'] ?? 0)
+            . ' skip=' . (int)($sum['skip'] ?? 0)
+            . ' ms=' . (int)($sum['ms'] ?? 0)
+            . "\n";
+        foreach (($result['rows'] ?? []) as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            echo sprintf(
+                "[%s] %s %s — %s (%dms)\n",
+                (string)($row['status'] ?? ''),
+                (string)($row['layer'] ?? ''),
+                (string)($row['id'] ?? ''),
+                (string)($row['detail'] ?? ''),
+                (int)($row['ms'] ?? 0)
+            );
+        }
+        if (($result['error'] ?? '') !== '') {
+            echo 'error: ' . (string)$result['error'] . "\n";
+        }
+    } else {
+        freesaas_emit_ops([
+            'ok' => !empty($result['ok']),
+            'summary' => $result['summary'] ?? [],
+            'rows' => $result['rows'] ?? [],
+            'profile' => $result['profile'] ?? null,
+            'error' => (string)($result['error'] ?? ''),
+        ]);
+    }
+    exit(!empty($result['ok']) ? Cli::EXIT_OK : Cli::EXIT_FAIL);
 }
 
 /**

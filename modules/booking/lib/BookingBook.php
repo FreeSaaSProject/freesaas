@@ -17,7 +17,8 @@ final class BookingBook
      *   dt_start:int,
      *   comment?:string,
      *   mail?:string,
-     *   free_ticket?:int
+     *   free_ticket?:int,
+     *   source?:string
      * } $input
      * @return array{order_id:int,uid:string,dt_start:int,operator_id:int,summ:float,client_id:int,client_created:bool}
      */
@@ -166,6 +167,7 @@ final class BookingBook
             'id_user' => $clientId,
             'id_cosmetolog' => $operatorId,
             'free_ticket' => !empty($input['free_ticket']) ? 1 : 0,
+            'source' => (string)($input['source'] ?? ''),
         ];
 
         $before = EventBus::emit('booking.book.before', [

@@ -31,6 +31,7 @@ final class BotSend
                 'id_data' => (int)($payload['id_data'] ?? 0),
                 'type' => (int)($payload['type'] ?? 11),
                 'chat_id' => (string)($payload['chat_id'] ?? ''),
+                'platform' => (string)($payload['platform'] ?? ''),
                 'dedupe_key' => (string)($payload['dedupe_key'] ?? ''),
                 'buttons' => is_array($payload['buttons'] ?? null) ? $payload['buttons'] : null,
                 'id_operator' => (int)($payload['id_operator'] ?? Auth::userId()),

@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -13,7 +13,8 @@
         "catalog": ">=0.1.0",
         "procedures": ">=0.1.0",
         "sites": ">=0.1.0",
-        "booking": ">=0.1.0"
+        "booking": ">=0.1.0",
+        "bots": ">=0.2.0"
     },
     "provides": [
         "orders.list",
@@ -35,7 +36,8 @@
         "pages": [
             "/orders",
             "/orders/{id}",
-            "/orders/{id}/edit"
+            "/orders/{id}/edit",
+            "/orders/settings"
         ]
     },
     "agent": {
@@ -80,6 +82,14 @@
             "path": "/orders",
             "title": "orders.menu.list",
             "permission": "orders.view"
+        },
+        {
+            "group": "calendar.menu.group",
+            "num": 90,
+            "kind": "settings",
+            "path": "/orders/settings",
+            "title": "orders.menu.settings",
+            "capability": "SUPERADMIN_ACCESS"
         }
     ],
     "configSchema": [],
@@ -95,7 +105,10 @@
             "core.dashboard.widgets",
             "calendar.day.stats"
         ],
-        "publish": []
+        "publish": [
+            "orders.created",
+            "orders.cancelled"
+        ]
     },
     "catalog": {
         "categories": [

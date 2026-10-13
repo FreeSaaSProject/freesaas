@@ -97,9 +97,22 @@ final class BotClient
             return ['ok' => false, 'data' => null, 'error' => 'missing token or chat id'];
         }
         if ($platform === 'max') {
-            return self::maxSendMessage($token, $chatId, $text, $replyMarkup);
+            return self::maxSendMessage($token, $chatId, $text, $replyMarkup, self::maxUsesChatId($chatId));
         }
         return self::tgSendMessage($token, $chatId, $text, $replyMarkup, $parseMode);
+    }
+
+    /**
+     * Max groups use query chat_id; dialogs use user_id.
+     * Negative ids are groups (legacy Termy / Max platform-api).
+     */
+    public static function maxUsesChatId(string $recipientId): bool
+    {
+        $id = trim($recipientId);
+        if ($id === '') {
+            return false;
+        }
+        return isset($id[0]) && $id[0] === '-';
     }
 
     /**
@@ -446,7 +459,7 @@ final class BotClient
         }
         $toDelete = array_values(array_unique($toDelete));
 
-        $res = self::maxSendMessage($token, $chatId, $text, $replyMarkup);
+        $res = self::maxSendMessage($token, $chatId, $text, $replyMarkup, self::maxUsesChatId($chatId));
         $mid = self::extractMessageId('max', $res['data'] ?? null);
 
         foreach ($toDelete as $delMid) {
@@ -767,8 +780,13 @@ final class BotClient
      * @param array<string,mixed>|null $replyMarkup
      * @return array{ok:bool,data:?array,error:string}
      */
-    private static function maxSendMessage(string $token, string $userId, string $text, ?array $replyMarkup): array
-    {
+    private static function maxSendMessage(
+        string $token,
+        string $recipientId,
+        string $text,
+        ?array $replyMarkup,
+        bool $asGroup = false
+    ): array {
         $body = [
             'text' => $text,
             'format' => 'html',
@@ -777,7 +795,8 @@ final class BotClient
         if ($attachments !== []) {
             $body['attachments'] = $attachments;
         }
-        return self::maxRequest($token, 'POST', '/messages', ['user_id' => $userId], $body);
+        $queryKey = $asGroup ? 'chat_id' : 'user_id';
+        return self::maxRequest($token, 'POST', '/messages', [$queryKey => $recipientId], $body);
     }
 
     /**

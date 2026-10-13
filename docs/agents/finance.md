@@ -19,11 +19,13 @@ Permissions: `finance.view`.
 
 ## Human UI
 
-- `/finance/balance` — balance / ODDS report (no inflation schedule).
+- `/finance/balance` — balance / ODDS / OPIU report (no inflation schedule).
+- `/finance` — redirect to `/finance/balance` (alias for invented module-root links).
 
 | Path | Permission |
 |------|------------|
-| `/finance/balance` | `—` |
+| `/finance/balance` | `finance.view` |
+| `/finance` | `finance.view` (redirect) |
 
 ## Agent JSON
 

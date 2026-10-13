@@ -51,6 +51,18 @@ final class BotDrain
             return ['id' => $id, 'name' => $name, 'status' => 'skipped', 'reason' => 'deadline'];
         }
 
+        [$text, $markup] = BotSendsRepository::extractButtons((string)($row['TEXT'] ?? ''));
+        if (trim($text) === '') {
+            $text = t('bots.send.default_text');
+        }
+
+        $fixedChat = trim((string)($row['CHAT_ID'] ?? ''));
+        $platform = BotSendsRepository::normalizePlatform((string)($row['PLATFORM'] ?? ''));
+        // Direct mode: CHAT_ID + PLATFORM set (group / fixed recipient). Skip bot_links.
+        if ($fixedChat !== '' && $platform !== '') {
+            return self::sendDirect($id, $name, $audience, $platform, $fixedChat, $text, $markup);
+        }
+
         $targets = $audience === 'client'
             ? BotIdentity::clientTargets($userId)
             : BotIdentity::staffTargets($userId);
@@ -66,13 +78,8 @@ final class BotDrain
             BotSendsRepository::mark($id, BotSendsRepository::STATUS_ERROR, t('bots.send.err_no_chat'), 'no CHAT_ID');
             return ['id' => $id, 'name' => $name, 'status' => 'error', 'reason' => 'no_chat'];
         }
-        if ((string)($row['CHAT_ID'] ?? '') === '') {
+        if ($fixedChat === '') {
             BotSendsRepository::setChatId($id, $tgChat !== '' ? $tgChat : $maxChat);
-        }
-
-        [$text, $markup] = BotSendsRepository::extractButtons((string)($row['TEXT'] ?? ''));
-        if (trim($text) === '') {
-            $text = t('bots.send.default_text');
         }
 
         $okTg = false;
@@ -112,5 +119,63 @@ final class BotDrain
         }
         BotSendsRepository::mark($id, BotSendsRepository::STATUS_ERROR, t('bots.send.err_send'), $err);
         return ['id' => $id, 'name' => $name, 'status' => 'error', 'reason' => $err];
+    }
+
+    /**
+     * @param array<string,mixed>|null $markup
+     * @return array<string,mixed>
+     */
+    private static function sendDirect(
+        int $id,
+        string $name,
+        string $audience,
+        string $platform,
+        string $chatId,
+        string $text,
+        ?array $markup
+    ): array {
+        $wantTg = $platform === 'telegram' || $platform === 'both';
+        $wantMax = $platform === 'max' || $platform === 'both';
+        $okTg = false;
+        $okMax = false;
+        $errTg = '';
+        $errMax = '';
+
+        if ($wantTg) {
+            $ch = BotsConfig::channel($audience, 'telegram');
+            if ($ch && $ch['token'] !== '') {
+                $res = BotClient::sendMessage('telegram', $ch['token'], $chatId, $text, $markup);
+                $okTg = !empty($res['ok']);
+                if (!$okTg) {
+                    $errTg = (string)($res['error'] ?? 'tg error');
+                }
+            } else {
+                $errTg = t('bots.send.err_no_token');
+            }
+        }
+        if ($wantMax) {
+            $ch = BotsConfig::channel($audience, 'max');
+            if ($ch && $ch['token'] !== '') {
+                $res = BotClient::sendMessage('max', $ch['token'], $chatId, $text, $markup);
+                $okMax = !empty($res['ok']);
+                if (!$okMax) {
+                    $errMax = (string)($res['error'] ?? 'max error');
+                }
+            } else {
+                $errMax = t('bots.send.err_no_token');
+            }
+        }
+
+        if ($okTg || $okMax) {
+            $where = ($okTg && $okMax) ? 'Telegram+Max' : ($okTg ? 'Telegram' : 'Max');
+            BotSendsRepository::mark($id, BotSendsRepository::STATUS_SENT, t('bots.send.sent', ['where' => $where]));
+            return ['id' => $id, 'name' => $name, 'status' => 'sent', 'via' => $where, 'direct' => true];
+        }
+        $err = $errTg !== '' ? $errTg : $errMax;
+        if ($err === '') {
+            $err = t('bots.send.err_no_token');
+        }
+        BotSendsRepository::mark($id, BotSendsRepository::STATUS_ERROR, t('bots.send.err_send'), $err);
+        return ['id' => $id, 'name' => $name, 'status' => 'error', 'reason' => $err, 'direct' => true];
     }
 }

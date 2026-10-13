@@ -45,6 +45,7 @@ try {
         'comment' => (string)($body['comment'] ?? ''),
         'mail' => (string)($body['mail'] ?? ''),
         'free_ticket' => !empty($body['free_ticket']) ? 1 : 0,
+        'source' => 'staff',
     ]);
 } catch (InvalidArgumentException $e) {
     if ($wantsJson) {

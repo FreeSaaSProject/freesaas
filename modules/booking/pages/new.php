@@ -70,6 +70,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string)($_POST['action'
             'operator_id' => $operatorId,
             'dt_start' => $dtStart,
             'comment' => $comment,
+            'source' => 'staff',
         ]);
         if ($wantsJson) {
             AgentHttp::emit(['ok' => true, 'booking' => $result]);

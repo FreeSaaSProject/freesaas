@@ -2,7 +2,7 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "0.2.13",
+    "version": "0.2.14",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"

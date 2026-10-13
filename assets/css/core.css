@@ -138,9 +138,9 @@ html[data-theme="light"] .theme-switch button.is-active {
   appearance: none;
   -webkit-appearance: none;
   height: 2.05rem;
-  min-width: 6.5rem;
-  max-width: 10rem;
-  padding: 0 1.55rem 0 0.55rem;
+  min-width: 3.4rem;
+  max-width: 5.5rem;
+  padding: 0 1.35rem 0 0.45rem;
   border: 1px solid var(--line);
   border-radius: 10px;
   background-color: var(--bg-input);

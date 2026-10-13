@@ -112,6 +112,7 @@ if ($needsBooking) {
             'dt_start' => $dtStart,
             'free_ticket' => $freeTicket,
             'client_id' => SitesGuest::clientId(),
+            'source' => 'site',
         ]);
         $orderId = (int)$booked['order_id'];
     } catch (Throwable $e) {
@@ -169,6 +170,7 @@ $orderId = OrdersRepository::create([
     'status' => 'cashComplete',
     'id_user' => $idUser,
     'dt_event' => time(),
+    'source' => 'site',
 ]);
 
 EventBus::emit('sites.checkout.after', [
