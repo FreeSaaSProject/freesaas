@@ -38,6 +38,7 @@ $pages = [
 
     '/' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'home.php'],
     '/dashboard' => ['permission' => 'core.home', 'methods' => ['GET', 'POST'], 'file' => 'dashboard.php'],
+    '/likes/mark-viewed' => ['permission' => 'core.home', 'methods' => ['POST'], 'file' => 'likes_mark_viewed.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
     '/modules/{id}' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules_detail.php'],
     '/db' => ['permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
@@ -175,6 +176,13 @@ EventBus::on('core.dashboard.catalog', static function ($catalog) {
         'default_order' => 5,
         'default_on' => true,
     ];
+    $catalog[] = [
+        'id' => 'core.likes',
+        'title' => t('core.widget.likes.title'),
+        'module' => 'core',
+        'default_order' => 15,
+        'default_on' => true,
+    ];
     // Compact status cards first (same row), then full-width feed lists below.
     $catalog[] = [
         'id' => 'core.status',
@@ -229,6 +237,23 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
             'tone' => 'neutral',
             'size' => 'lg',
         ];
+    }
+
+    if (DashboardWidgets::isEnabled('core.likes') && Database::tableExists('base_likes')) {
+        $likeUid = Auth::userId();
+        $likeGroups = $likeUid > 0 ? LikesRepository::groupedUnviewedForAuthor($likeUid, 30) : [];
+        if ($likeGroups !== []) {
+            $widgets[] = [
+                'id' => 'core.likes',
+                'title' => t('core.widget.likes.title'),
+                'html' => View::capture('_widget_likes', [
+                    'groups' => $likeGroups,
+                    'beforeTs' => time() + 1,
+                ], 'core'),
+                'tone' => 'neutral',
+                'size' => 'lg',
+            ];
+        }
     }
 
     $users = 0;

@@ -140,6 +140,8 @@ return [
     'certificates.err.nothing_to_spend' => 'Нечего списывать',
     'certificates.err.apply_failed' => 'Не удалось списать сертификат',
     'certificates.err.undo_not_spend' => 'Отменять можно только списания',
+    'certificates.err.undo_already' => 'Это списание уже отменено',
     'certificates.err.forbidden' => 'Запрещено',
     'certificates.err.delete_superadmin' => 'Удалять сертификаты может только директор',
+    'certificates.err.insufficient_balance' => 'Недостаточно остатка на сертификате',
 ];

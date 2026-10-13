@@ -1299,4 +1299,58 @@
     });
     document.addEventListener('freesaas:rail-toggle', fitAll);
   })();
+
+  // Home: mark unviewed likes as viewed (oper-style dismiss).
+  document.addEventListener('click', function (ev) {
+    var btn = ev.target && ev.target.closest ? ev.target.closest('.likes-mark-viewed') : null;
+    if (!btn) return;
+    var root = btn.closest('[data-likes-root]');
+    if (!root || root.getAttribute('data-busy') === '1') return;
+    ev.preventDefault();
+    root.setAttribute('data-busy', '1');
+    btn.disabled = true;
+    var before = parseInt(root.getAttribute('data-before') || '0', 10) || (Math.floor(Date.now() / 1000) + 1);
+    var status = root.querySelector('.widget-likes-status');
+    fetch('/likes/mark-viewed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({ before: before }),
+      credentials: 'same-origin'
+    }).then(function (r) {
+      return r.json().catch(function () { return { ok: false }; });
+    }).then(function (data) {
+      var msg = (data && data.message) || (window.t ? window.t('core.widget.likes.marked') : '');
+      if (status) {
+        status.hidden = false;
+        status.textContent = msg;
+        status.classList.add('flash', 'flash-ok');
+      }
+      root.classList.add('is-done');
+      window.setTimeout(function () {
+        var article = root.closest('article.widget');
+        if (article) {
+          article.style.transition = 'opacity 0.45s ease, max-height 0.45s ease, margin 0.45s ease, padding 0.45s ease';
+          article.style.opacity = '0';
+          article.style.maxHeight = '0';
+          article.style.overflow = 'hidden';
+          article.style.marginTop = '0';
+          article.style.marginBottom = '0';
+          article.style.paddingTop = '0';
+          article.style.paddingBottom = '0';
+          window.setTimeout(function () {
+            if (article.parentNode) article.parentNode.removeChild(article);
+          }, 500);
+        } else {
+          root.style.display = 'none';
+        }
+      }, 2000);
+    }).catch(function () {
+      root.removeAttribute('data-busy');
+      btn.disabled = false;
+      if (status) {
+        status.hidden = false;
+        status.textContent = window.t ? window.t('core.widget.likes.mark_error') : 'Error';
+      }
+    });
+  });
 })();

@@ -140,6 +140,8 @@ return [
     'certificates.err.nothing_to_spend' => 'Nothing to spend',
     'certificates.err.apply_failed' => 'Could not apply certificate',
     'certificates.err.undo_not_spend' => 'Only spend rows can be undone',
+    'certificates.err.undo_already' => 'This spend was already undone',
     'certificates.err.forbidden' => 'Forbidden',
     'certificates.err.delete_superadmin' => 'Only a director can delete certificates',
+    'certificates.err.insufficient_balance' => 'Insufficient certificate balance',
 ];

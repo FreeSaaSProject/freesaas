@@ -56,6 +56,8 @@ $jsI18n = I18n::jsDict([
     'core.date.day_next',
     'core.date.set_today',
     'core.date.set_now',
+    'core.widget.likes.marked',
+    'core.widget.likes.mark_error',
 ]);
 
 $layoutGate = ['blocked' => false, 'html' => '', 'chrome' => '', 'js_i18n' => []];

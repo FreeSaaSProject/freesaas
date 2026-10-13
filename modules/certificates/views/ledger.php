@@ -65,13 +65,19 @@ $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filter
         <td><?= (int)$row['id_event'] > 0 ? (int)$row['id_event'] : '—' ?></td>
         <td><?= (int)$row['id_order'] > 0 ? (int)$row['id_order'] : '—' ?></td>
         <td>
-          <?php if ($canUndo && (int)$row['direction'] < 0 && (string)$row['reason'] === 'spend'): ?>
-            <form method="post" class="inline">
-              <input type="hidden" name="undo_id" value="<?= (int)$row['id'] ?>">
-              <?php if ($idCert > 0): ?><input type="hidden" name="id_cert" value="<?= (int)$idCert ?>"><?php endif; ?>
-              <button type="submit" class="btn-secondary"><?= te('certificates.ledger.undo_btn') ?></button>
-            </form>
-          <?php endif; ?>
+            <?php
+            $canUndoRow = $canUndo
+                && (int)$row['direction'] < 0
+                && (string)$row['reason'] === 'spend'
+                && CertificateLedgerRepository::findUndoForSpend((int)$row['id']) === null;
+            ?>
+            <?php if ($canUndoRow): ?>
+              <form method="post" class="inline">
+                <input type="hidden" name="undo_id" value="<?= (int)$row['id'] ?>">
+                <?php if ($idCert > 0): ?><input type="hidden" name="id_cert" value="<?= (int)$idCert ?>"><?php endif; ?>
+                <button type="submit" class="btn-secondary"><?= te('certificates.ledger.undo_btn') ?></button>
+              </form>
+            <?php endif; ?>
         </td>
       </tr>
     <?php endforeach; ?>

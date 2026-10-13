@@ -78,8 +78,8 @@ final class CertificateLedgerRepository
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $sql = 'SELECT l.ID AS id, l.ID_CERT AS id_cert, l.ID_OPERATOR AS id_operator,
                        l.ID_CLIENT AS id_client, l.ID_EVENT AS id_event, l.ID_ORDER AS id_order,
-                       l.DT_CREATE AS dt_create, l.DIRECTION AS direction, l.AMOUNT AS amount,
-                       l.REASON AS reason, l.DESCR AS descr
+                       l.ID_REF AS id_ref, l.DT_CREATE AS dt_create, l.DIRECTION AS direction,
+                       l.AMOUNT AS amount, l.REASON AS reason, l.DESCR AS descr
                 FROM base_certificate_ledger l
                 WHERE ' . $sqlWhere . ' ORDER BY ' . $order;
         if ($limit > 0) {
@@ -102,9 +102,27 @@ final class CertificateLedgerRepository
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, ID_CERT AS id_cert, ID_OPERATOR AS id_operator,
                     ID_CLIENT AS id_client, ID_EVENT AS id_event, ID_ORDER AS id_order,
-                    DT_CREATE AS dt_create, DIRECTION AS direction, AMOUNT AS amount,
-                    REASON AS reason, DESCR AS descr
+                    ID_REF AS id_ref, DT_CREATE AS dt_create, DIRECTION AS direction,
+                    AMOUNT AS amount, REASON AS reason, DESCR AS descr
              FROM base_certificate_ledger WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$id]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ? self::normalizeRow($row) : null;
+    }
+
+    /** Lock ledger row for update (must be inside a transaction). */
+    public static function findForUpdate(int $id): ?array
+    {
+        if ($id < 1 || !self::tableReady()) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_CERT AS id_cert, ID_OPERATOR AS id_operator,
+                    ID_CLIENT AS id_client, ID_EVENT AS id_event, ID_ORDER AS id_order,
+                    ID_REF AS id_ref, DT_CREATE AS dt_create, DIRECTION AS direction,
+                    AMOUNT AS amount, REASON AS reason, DESCR AS descr
+             FROM base_certificate_ledger WHERE ID = ? LIMIT 1 FOR UPDATE'
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -135,28 +153,96 @@ final class CertificateLedgerRepository
         return (bool)$st->fetchColumn();
     }
 
+    /** Active (not undone) spend on event. */
     public static function eventHasSpend(int $eventId, int $certId = 0): bool
     {
+        return self::eventActiveSpend($eventId, $certId) !== null;
+    }
+
+    /** @return array<string,mixed>|null */
+    public static function eventActiveSpend(int $eventId, int $certId = 0): ?array
+    {
         if ($eventId < 1 || !self::tableReady()) {
-            return false;
+            return null;
         }
-        $sql = 'SELECT 1 FROM base_certificate_ledger
-                WHERE ID_EVENT = ? AND REASON = ? AND DIRECTION < 0';
-        $params = [$eventId, self::REASON_SPEND];
+        $sql = 'SELECT s.ID AS id, s.ID_CERT AS id_cert, s.AMOUNT AS amount
+                FROM base_certificate_ledger s
+                WHERE s.ID_EVENT = ? AND s.REASON = ? AND s.DIRECTION < 0
+                  AND NOT EXISTS (
+                    SELECT 1 FROM base_certificate_ledger u
+                    WHERE u.ID_REF = s.ID AND u.REASON = ?
+                  )';
+        $params = [$eventId, self::REASON_SPEND, self::REASON_UNDO];
         if ($certId > 0) {
-            $sql .= ' AND ID_CERT = ?';
+            $sql .= ' AND s.ID_CERT = ?';
             $params[] = $certId;
         }
-        $sql .= ' LIMIT 1';
+        $sql .= ' ORDER BY s.ID ASC LIMIT 1';
         $st = Database::pdo()->prepare($sql);
         $st->execute($params);
-        return (bool)$st->fetchColumn();
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        return [
+            'id' => (int)$row['id'],
+            'id_cert' => (int)$row['id_cert'],
+            'amount' => (float)$row['amount'],
+        ];
+    }
+
+    /** Active (not undone) spend on order — idempotency key. */
+    public static function orderActiveSpend(int $orderId): ?array
+    {
+        if ($orderId < 1 || !self::tableReady()) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT s.ID AS id, s.ID_CERT AS id_cert, s.AMOUNT AS amount
+             FROM base_certificate_ledger s
+             WHERE s.ID_ORDER = ? AND s.REASON = ? AND s.DIRECTION < 0
+               AND NOT EXISTS (
+                 SELECT 1 FROM base_certificate_ledger u
+                 WHERE u.ID_REF = s.ID AND u.REASON = ?
+               )
+             ORDER BY s.ID ASC LIMIT 1'
+        );
+        $st->execute([$orderId, self::REASON_SPEND, self::REASON_UNDO]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        return [
+            'id' => (int)$row['id'],
+            'id_cert' => (int)$row['id_cert'],
+            'amount' => (float)$row['amount'],
+        ];
+    }
+
+    public static function findUndoForSpend(int $spendId): ?array
+    {
+        if ($spendId < 1 || !self::tableReady()) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_CERT AS id_cert, AMOUNT AS amount
+             FROM base_certificate_ledger
+             WHERE ID_REF = ? AND REASON = ?
+             ORDER BY ID ASC LIMIT 1'
+        );
+        $st->execute([$spendId, self::REASON_UNDO]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ? [
+            'id' => (int)$row['id'],
+            'id_cert' => (int)$row['id_cert'],
+            'amount' => (float)$row['amount'],
+        ] : null;
     }
 
     /**
      * @param array{
      *   id_cert:int,id_operator?:int,id_client?:int,id_event?:int,id_order?:int,
-     *   direction:int,amount:float,reason:string,descr?:string,dt_create?:int
+     *   id_ref?:int,direction:int,amount:float,reason:string,descr?:string,dt_create?:int
      * } $data
      */
     public static function insert(array $data): int
@@ -172,8 +258,8 @@ final class CertificateLedgerRepository
         $dir = $dir < 0 ? self::DIR_DEBIT : self::DIR_CREDIT;
         $st = Database::pdo()->prepare(
             'INSERT INTO base_certificate_ledger
-             (ID_CERT, ID_OPERATOR, ID_CLIENT, ID_EVENT, ID_ORDER, DT_CREATE, DIRECTION, AMOUNT, REASON, DESCR)
-             VALUES (?,?,?,?,?,?,?,?,?,?)'
+             (ID_CERT, ID_OPERATOR, ID_CLIENT, ID_EVENT, ID_ORDER, ID_REF, DT_CREATE, DIRECTION, AMOUNT, REASON, DESCR)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)'
         );
         $st->execute([
             (int)$data['id_cert'],
@@ -181,6 +267,7 @@ final class CertificateLedgerRepository
             max(0, (int)($data['id_client'] ?? 0)),
             max(0, (int)($data['id_event'] ?? 0)),
             max(0, (int)($data['id_order'] ?? 0)),
+            max(0, (int)($data['id_ref'] ?? 0)),
             max(0, (int)($data['dt_create'] ?? time())) ?: time(),
             $dir,
             $amount,
@@ -202,6 +289,7 @@ final class CertificateLedgerRepository
         $row['id_client'] = (int)($row['id_client'] ?? 0);
         $row['id_event'] = (int)($row['id_event'] ?? 0);
         $row['id_order'] = (int)($row['id_order'] ?? 0);
+        $row['id_ref'] = (int)($row['id_ref'] ?? 0);
         $row['dt_create'] = (int)($row['dt_create'] ?? 0);
         $row['direction'] = (int)($row['direction'] ?? 0);
         $row['amount'] = (float)($row['amount'] ?? 0);

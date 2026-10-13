@@ -1029,6 +1029,40 @@ body.rail-collapsed .workspace .main.main-flush {
   padding: 0.3rem 0.45rem;
 }
 
+.widget-likes-head {
+  display: flex;
+  justify-content: flex-end;
+  margin: -0.15rem 0 0.65rem;
+}
+.widget-likes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.widget-likes-item {
+  font-size: 0.95rem;
+  line-height: 1.45;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--line);
+}
+.widget-likes-item:last-child { border-bottom: 0; }
+.widget-likes-item .user-badge {
+  display: inline-block;
+  margin: 0 0.15rem 0.1rem 0;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  vertical-align: baseline;
+}
+.widget-likes-status { margin: 0.65rem 0 0; }
+.widget-likes.is-done .widget-likes-list,
+.widget-likes.is-done .widget-likes-head { display: none; }
+
 .widget-feed-head {
   display: flex;
   justify-content: flex-end;
