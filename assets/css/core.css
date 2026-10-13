@@ -1696,6 +1696,15 @@ a.pager-chip:hover {
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+.kv dd img.user-site-photo {
+  display: block;
+  max-width: 120px;
+  max-height: 120px;
+  width: auto;
+  height: auto;
+  object-fit: cover;
+  border-radius: 6px;
+}
 
 .form-grid {
   display: grid;

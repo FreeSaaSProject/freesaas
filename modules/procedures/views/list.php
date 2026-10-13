@@ -104,6 +104,7 @@ $dayLabel = I18n::formatDate($dayTs, 'date');
   </select>
   <input type="number" min="0" name="id_user" value="<?= $idUser > 0 ? (int)$idUser : '' ?>" placeholder="<?= te('procedures.list.client_id') ?>" data-filter-debounce>
   <input type="number" min="0" name="id_good" value="<?= $idGood > 0 ? (int)$idGood : '' ?>" placeholder="<?= te('procedures.list.product_id') ?>" data-filter-debounce>
+  <?php if (!empty($canViewAll)): ?>
   <select name="id_admin" data-auto-submit>
     <option value=""><?= te('procedures.col.admin') ?></option>
     <?php foreach ($staffNames as $sid => $slabel): ?>
@@ -116,6 +117,7 @@ $dayLabel = I18n::formatDate($dayTs, 'date');
       <option value="<?= (int)$sid ?>"<?= $idOperator === (int)$sid ? ' selected' : '' ?>><?= e($slabel) ?></option>
     <?php endforeach; ?>
   </select>
+  <?php endif; ?>
 </form>
 
 <?= $pager ?>
@@ -191,6 +193,20 @@ $dayLabel = I18n::formatDate($dayTs, 'date');
             <?php endif; ?>
           <?php else: ?>
             —
+          <?php endif; ?>
+          <?php
+            $opId = (int)($p['id_operator'] ?? 0);
+            $admId = (int)($p['id_admin'] ?? 0);
+            if ($opId > 0 || $admId > 0):
+          ?>
+            <div class="badge-row" style="margin-top:0.25rem">
+              <?php if ($opId > 0): ?>
+                <?= UsersRepository::badgeHtml($opId, true, true) ?>
+              <?php endif; ?>
+              <?php if ($admId > 0 && $admId !== $opId): ?>
+                <?= UsersRepository::badgeHtml($admId, true, true) ?>
+              <?php endif; ?>
+            </div>
           <?php endif; ?>
           <?php if ($htmlAfterClient !== ''): ?>
             <?= $htmlAfterClient ?>

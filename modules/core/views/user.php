@@ -9,6 +9,7 @@ declare(strict_types=1);
 /** @var string $profileSiteHtml */
 /** @var bool $canManageAuth */
 /** @var bool $canEdit */
+/** @var bool $canSeeSensitive */
 /** @var bool $canBotLinkCode */
 /** @var array{type?:string,message?:string}|null $flash */
 $uid = (int)$user['id'];
@@ -17,6 +18,7 @@ $profileFlagsHtml = (string)($profileFlagsHtml ?? '');
 $profileSiteHtml = (string)($profileSiteHtml ?? '');
 $canManageAuth = !empty($canManageAuth);
 $canEdit = !empty($canEdit);
+$canSeeSensitive = !empty($canSeeSensitive);
 $canBotLinkCode = !empty($canBotLinkCode);
 $flash = is_array($flash ?? null) ? $flash : null;
 ?>
@@ -77,7 +79,9 @@ $flash = is_array($flash ?? null) ? $flash : null;
       <dt><?= te('core.user.partner') ?></dt><dd><?= e($partnerStatusName) ?></dd>
       <?php endif; ?>
       <dt><?= te('core.user.password_expire') ?></dt><dd><?= ((int)($user['expire'] ?? 0) > 0) ? e(I18n::formatDate((int)$user['expire'], 'datetime')) : '—' ?></dd>
+      <?php if ($canSeeSensitive): ?>
       <dt><?= te('core.user.retries') ?></dt><dd><?= (int)($user['retries'] ?? 0) ?></dd>
+      <?php endif; ?>
     </dl>
   </div>
   <?php if ($profileChannelsHtml !== ''): ?>
@@ -88,6 +92,7 @@ $flash = is_array($flash ?? null) ? $flash : null;
     </dl>
   </div>
   <?php endif; ?>
+  <?php if ($canSeeSensitive): ?>
   <div class="widget">
     <h2><?= te('core.user.flags') ?></h2>
     <dl class="kv">
@@ -99,6 +104,7 @@ $flash = is_array($flash ?? null) ? $flash : null;
       <dt><?= te('core.user.news_after') ?></dt><dd><?= ((int)($user['showNewsAfter'] ?? 0) > 0) ? e(I18n::formatDate((int)$user['showNewsAfter'], 'datetime')) : '—' ?></dd>
     </dl>
   </div>
+  <?php endif; ?>
   <?php if ($profileSiteHtml !== ''): ?>
   <div class="widget">
     <h2><?= te('core.user.site') ?></h2>

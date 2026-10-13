@@ -102,12 +102,14 @@ if ($wantsJson) {
     ]);
 }
 
+$canSeeSensitive = Auth::capability('SUPERADMIN_ACCESS');
 $profile = EventBus::emit('core.user_edit.profile', [
     'html_channels' => '',
     'html_flags' => '',
     'html_site' => '',
     'user' => $user,
     'id' => $id,
+    'can_see_sensitive' => $canSeeSensitive,
 ]);
 
 View::render('user', [
@@ -116,9 +118,10 @@ View::render('user', [
     'statusName' => $statusName,
     'partnerStatusName' => $partnerStatusName,
     'favoritesCount' => count(UsersRepository::favoriteIds($id)),
-    'canManageAuth' => Auth::capability('SUPERADMIN_ACCESS'),
-    'canEdit' => Auth::capability('SUPERADMIN_ACCESS'),
-    'canBotLinkCode' => Auth::capability('SUPERADMIN_ACCESS') && ModuleManager::isEnabled('bots'),
+    'canManageAuth' => $canSeeSensitive,
+    'canEdit' => $canSeeSensitive,
+    'canSeeSensitive' => $canSeeSensitive,
+    'canBotLinkCode' => $canSeeSensitive && ModuleManager::isEnabled('bots'),
     'flash' => flash_take(),
     'profileChannelsHtml' => is_array($profile) ? (string)($profile['html_channels'] ?? '') : '',
     'profileFlagsHtml' => is_array($profile) ? (string)($profile['html_flags'] ?? '') : '',

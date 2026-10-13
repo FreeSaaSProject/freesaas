@@ -45,6 +45,43 @@ final class ProceduresRepository
         return $ts !== false ? (int)$ts : 0;
     }
 
+    /** Directors/admins see all; masseurs and other staff — only own operator/admin rows. */
+    public static function canViewAll(): bool
+    {
+        return Auth::capability('SUPERADMIN_ACCESS')
+            || Auth::capability('SHOW_ADMINISTRATOR_DATA');
+    }
+
+    /** @param array<string,mixed> $row */
+    public static function canViewRow(array $row): bool
+    {
+        if (self::canViewAll()) {
+            return true;
+        }
+        $uid = Auth::userId();
+        if ($uid < 1) {
+            return false;
+        }
+        return (int)($row['id_operator'] ?? 0) === $uid
+            || (int)($row['id_admin'] ?? 0) === $uid;
+    }
+
+    /**
+     * @param list<string> $where
+     * @param list<mixed> $params
+     */
+    public static function applyViewerScope(array &$where, array &$params, string $alias = 'p'): void
+    {
+        if (self::canViewAll()) {
+            return;
+        }
+        $uid = Auth::userId();
+        $a = $alias !== '' ? $alias . '.' : '';
+        $where[] = '(' . $a . 'ID_OPERATOR = ? OR ' . $a . 'ID_ADMIN = ?)';
+        $params[] = $uid;
+        $params[] = $uid;
+    }
+
     /**
      * @param array{
      *   q?:string,
@@ -129,6 +166,7 @@ final class ProceduresRepository
             $where[] = 'p.ID_OPERATOR = ?';
             $params[] = $idOperator;
         }
+        self::applyViewerScope($where, $params, 'p');
 
         $sqlWhere = implode(' AND ', $where);
         $total = 0;

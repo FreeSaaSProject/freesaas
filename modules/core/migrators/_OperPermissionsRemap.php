@@ -101,7 +101,9 @@ final class OperPermissionsRemap
             'show_suppliers' => ['suppliers.view'],
             'edit_supplier' => ['suppliers.edit'],
 
-            // Catalog / stocks / norms / stickers
+            // Catalog / stocks / norms / stickers (warehouse).
+            // Masseurs often have legacy *outs* keys from oper; those must NOT grant stickers.*
+            // (QR scan stays on GOOD_USE). Warehouse UI comes from *ins* / stocks / catalog only.
             'show_categories' => ['catalog.view'],
             'edit_category' => ['catalog.edit'],
             'show_prices' => ['catalog.view'],
@@ -114,18 +116,18 @@ final class OperPermissionsRemap
             'show_good_defaults' => ['norms.view'],
             'edit_good_default' => ['norms.edit'],
             'show_good_sticker_ins' => ['stickers.view'],
-            'show_good_sticker_outs' => ['stickers.view'],
+            'show_good_sticker_outs' => [],
             'show_acts_in' => ['stickers.view'],
-            'show_acts_out' => ['stickers.view'],
+            'show_acts_out' => [],
             'show_acts2_in' => ['stickers.view'],
-            'show_acts2_out' => ['stickers.view'],
+            'show_acts2_out' => [],
             'show_acts_movements' => ['stickers.view'],
             'edit_good_sticker_in' => ['stickers.edit'],
-            'edit_good_sticker_out' => ['stickers.edit'],
+            'edit_good_sticker_out' => [],
             'edit_act_in' => ['stickers.edit'],
-            'edit_act_out' => ['stickers.edit'],
+            'edit_act_out' => [],
             'edit_act2_in' => ['stickers.edit'],
-            'edit_act2_out' => ['stickers.edit'],
+            'edit_act2_out' => [],
             'edit_act_movement' => ['stickers.edit'],
             'edit_act_out_sm' => ['stickers.writeoff'],
             'edit_act_out_sm2' => ['stickers.writeoff'],

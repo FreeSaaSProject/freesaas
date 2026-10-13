@@ -27,6 +27,12 @@ $idUser = (int)($_GET['id_user'] ?? 0);
 $idGood = (int)($_GET['id_good'] ?? 0);
 $idAdmin = (int)($_GET['id_admin'] ?? 0);
 $idOperator = (int)($_GET['id_operator'] ?? 0);
+$canViewAll = ProceduresRepository::canViewAll();
+if (!$canViewAll) {
+    // Masseurs cannot filter/browse other staff's procedures.
+    $idAdmin = 0;
+    $idOperator = 0;
+}
 $restored = (string)($_GET['restored'] ?? '');
 if (!in_array($restored, ['', '0', '1'], true)) {
     $restored = '';
@@ -152,6 +158,7 @@ View::render('list', [
     'restored' => $restored,
     'typeNames' => ProcedureTypesRepository::names(),
     'staffNames' => $staffNames,
+    'canViewAll' => $canViewAll,
     'canEdit' => Auth::can('procedures.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],

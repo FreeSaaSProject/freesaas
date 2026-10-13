@@ -282,6 +282,9 @@ EventBus::on('core.user_edit.profile', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;
     }
+    if (empty($payload['can_see_sensitive'])) {
+        return $payload;
+    }
     $user = $payload['user'] ?? null;
     if (!is_array($user)) {
         return $payload;

@@ -49,28 +49,58 @@ final class AppRuntime
         return self::role() === self::ROLE_ADMIN;
     }
 
-    /** Public site host without scheme (for links / login redirect). */
+    /** Public site host without scheme (for links / login redirect / media). */
     public static function publicHost(): string
     {
+        $candidates = [];
         if (class_exists('SitesHostContext', false) || class_exists('SitesHostContext')) {
-            $ctx = SitesHostContext::host();
-            if ($ctx !== '') {
-                return $ctx;
+            $candidates[] = SitesHostContext::host();
+        }
+        $candidates[] = (string)Config::get('app', 'public_host', '');
+        $candidates[] = (string)Config::get('sites', 'public_host', '');
+        $candidates[] = (string)Config::get('likespa', 'mothersite', '');
+
+        $fallback = '';
+        foreach ($candidates as $raw) {
+            $host = self::normalizePublicHost($raw);
+            if ($host === '') {
+                continue;
+            }
+            if ($fallback === '') {
+                $fallback = $host;
+            }
+            // Prefer a real public host over DB default localhost when admin is not on storefront.
+            if (!self::isLoopbackHost($host)) {
+                return $host;
             }
         }
-        $host = trim((string)Config::get('app', 'public_host', ''));
+        return $fallback;
+    }
+
+    private static function normalizePublicHost(string $host): string
+    {
+        $host = trim($host);
         if ($host === '') {
-            $host = trim((string)Config::get('sites', 'public_host', ''));
-        }
-        if ($host === '') {
-            $host = trim((string)Config::get('likespa', 'mothersite', ''));
+            return '';
         }
         $host = preg_replace('#^https?://#i', '', $host) ?? $host;
         $host = rtrim($host, '/');
         if (($p = strpos($host, '/')) !== false) {
             $host = substr($host, 0, $p);
         }
+        // Strip port for comparison/use in media URLs.
+        if (($c = strpos($host, ':')) !== false) {
+            $host = substr($host, 0, $c);
+        }
         return strtolower($host);
+    }
+
+    private static function isLoopbackHost(string $host): bool
+    {
+        return $host === 'localhost'
+            || $host === '127.0.0.1'
+            || $host === '::1'
+            || $host === '0.0.0.0';
     }
 
     /** Admin host without scheme (storefront → staff login redirect). */
