@@ -10,7 +10,7 @@ require_once __DIR__ . '/lib/ClienticsApiClient.php';
 require_once __DIR__ . '/lib/ClienticsClientsImporter.php';
 require_once __DIR__ . '/lib/ClienticsWebhookIngest.php';
 
-ModuleManager::registerMenuGroup('clientics.menu.group', 75, '/clientics');
+ModuleManager::registerMenuGroup('clientics.menu.group', 1250, '/clientics');
 
 $pages = [
     '/clientics' => ['permission' => 'clientics.view', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],

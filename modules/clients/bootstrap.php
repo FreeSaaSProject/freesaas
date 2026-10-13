@@ -6,7 +6,7 @@ require_once __DIR__ . '/lib/ClientStatusesRepository.php';
 require_once __DIR__ . '/lib/ClientTagsRepository.php';
 require_once __DIR__ . '/lib/ClientBotPlugin.php';
 
-ModuleManager::registerMenuGroup('clients.menu.group', 40, '/clients');
+ModuleManager::registerMenuGroup('clients.menu.group', 400, '/clients');
 
 StatusesRepository::registerFieldGroup([
     'title' => 'clients.statuses.group',

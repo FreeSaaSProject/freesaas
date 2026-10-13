@@ -15,7 +15,7 @@ Assets::register('audio', [
     'css' => ['audio.css'],
     'js' => ['audio.js'],
 ]);
-ModuleManager::registerMenuGroup('audio.menu.group', 35, '/audio/calendar');
+ModuleManager::registerMenuGroup('audio.menu.group', 500, '/audio/calendar');
 
 StatusesRepository::registerFieldGroup([
     'title' => 'audio.statuses.group',

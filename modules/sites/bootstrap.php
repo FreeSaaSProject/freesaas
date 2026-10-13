@@ -21,7 +21,7 @@ Assets::register('sites', [
     'css' => ['sites.css'],
 ]);
 
-ModuleManager::registerMenuGroup('sites.menu.group', 34, '/sites/hosts');
+ModuleManager::registerMenuGroup('sites.menu.group', 1450, '/sites/hosts');
 
 $adminPages = [
     '/sites/hosts' => [

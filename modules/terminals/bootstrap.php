@@ -21,7 +21,7 @@ Assets::register('terminals', [
     'js' => ['phone-ru.js'],
 ]);
 
-ModuleManager::registerMenuGroup('terminals.menu.group', 38, '/terminals');
+ModuleManager::registerMenuGroup('terminals.menu.group', 1300, '/terminals');
 
 $pages = [
     '/terminals' => ['permission' => 'terminals.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],

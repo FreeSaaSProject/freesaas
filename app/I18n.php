@@ -124,6 +124,41 @@ final class I18n
         return self::$locale;
     }
 
+    /**
+     * Autonym for a locale code (shown as-is in the language picker).
+     * Unknown codes fall back to uppercase ISO code.
+     */
+    public static function localeLabel(string $code): string
+    {
+        $code = strtolower(trim($code));
+        if ($code === '') {
+            return '';
+        }
+        // Native names — not UI chrome; keep expanding as locales are added.
+        static $names = [
+            'ru' => 'Русский',
+            'en' => 'English',
+            'de' => 'Deutsch',
+            'fr' => 'Français',
+            'es' => 'Español',
+            'it' => 'Italiano',
+            'pt' => 'Português',
+            'pl' => 'Polski',
+            'uk' => 'Українська',
+            'tr' => 'Türkçe',
+            'zh' => '中文',
+            'ja' => '日本語',
+            'ko' => '한국어',
+            'ar' => 'العربية',
+            'he' => 'עברית',
+            'ka' => 'ქართული',
+            'hy' => 'Հայերեն',
+            'kk' => 'Қазақша',
+            'uz' => 'Oʻzbekcha',
+        ];
+        return $names[$code] ?? strtoupper($code);
+    }
+
     public static function setLocale(string $locale): void
     {
         $n = self::normalize($locale);

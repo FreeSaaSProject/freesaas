@@ -17,7 +17,7 @@ Assets::register('likespa', [
     'css' => ['likespa.css'],
 ]);
 
-ModuleManager::registerMenuGroup('likespa.menu.group', 36, '/likespa/term-scans');
+ModuleManager::registerMenuGroup('likespa.menu.group', 1200, '/likespa/term-scans');
 
 $pages = [
     '/likespa/term-scans' => [

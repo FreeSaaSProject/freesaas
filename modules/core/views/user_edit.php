@@ -82,7 +82,7 @@ if ($newsAfterTs > 0) {
   <label><?= te('core.user_edit.locale') ?>
     <select name="locale">
       <?php foreach (I18n::supported() as $loc): ?>
-        <option value="<?= e($loc) ?>" <?= ((string)($user['locale'] ?? I18n::locale()) === $loc) ? 'selected' : '' ?>><?= e(strtoupper($loc)) ?></option>
+        <option value="<?= e($loc) ?>" <?= ((string)($user['locale'] ?? I18n::locale()) === $loc) ? 'selected' : '' ?>><?= e(I18n::localeLabel($loc)) ?></option>
       <?php endforeach; ?>
     </select>
   </label>

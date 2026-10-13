@@ -8,7 +8,7 @@ require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
 
-ModuleManager::registerMenuGroup('procedures.menu.group', 30, '/procedures');
+ModuleManager::registerMenuGroup('procedures.menu.group', 300, '/procedures');
 
 $pages = [
     '/procedures' => ['permission' => 'procedures.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],

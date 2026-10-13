@@ -11,7 +11,7 @@ Assets::register('calendar', [
     'css' => ['calendar.css'],
     'js' => ['calendar.js'],
 ]);
-ModuleManager::registerMenuGroup('calendar.menu.group', 20, '/calendar');
+ModuleManager::registerMenuGroup('calendar.menu.group', 200, '/calendar');
 
 StatusesRepository::registerFieldGroup([
     'title' => 'calendar.statuses.group',

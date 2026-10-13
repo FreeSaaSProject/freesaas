@@ -9,7 +9,7 @@ require_once __DIR__ . '/lib/YclientsSyncStateRepository.php';
 require_once __DIR__ . '/lib/YclientsApiClient.php';
 require_once __DIR__ . '/lib/YclientsClientsImporter.php';
 
-ModuleManager::registerMenuGroup('yclients.menu.group', 74, '/yclients');
+ModuleManager::registerMenuGroup('yclients.menu.group', 1225, '/yclients');
 
 $pages = [
     '/yclients' => ['permission' => 'yclients.view', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],

@@ -24,7 +24,7 @@ Assets::register('wellness', [
     'js' => ['wellness.js'],
 ]);
 
-ModuleManager::registerMenuGroup('wellness.menu.group', 45, '/wellness');
+ModuleManager::registerMenuGroup('wellness.menu.group', 650, '/wellness');
 
 $pages = [
     '/wellness' => ['permission' => 'wellness.view', 'methods' => ['GET', 'POST'], 'file' => 'food_diary.php'],

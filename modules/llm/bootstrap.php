@@ -14,7 +14,7 @@ require_once __DIR__ . '/lib/LlmAgentOps.php';
 LlmAgentOps::register();
 
 $llmHome = ModuleManager::isEnabled('assistant') ? '/assistant' : '/llm/tokens';
-ModuleManager::registerMenuGroup('llm.menu.group', 65, $llmHome);
+ModuleManager::registerMenuGroup('llm.menu.group', 1000, $llmHome);
 
 $pages = [
     '/llm/tokens' => [

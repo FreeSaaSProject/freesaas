@@ -23,13 +23,14 @@ require_once __DIR__ . '/lib/LoginLinksRepository.php';
 require_once __DIR__ . '/lib/HelpDocs.php';
 
 // Shared rail groups (core.menu.group.*) — product modules register their own keys.
-ModuleManager::registerMenuGroup('core.menu.group.desktop', 10, '/');
-ModuleManager::registerMenuGroup('core.menu.group.dictionaries', 50, '/catalog');
-ModuleManager::registerMenuGroup('core.menu.group.warehouse', 52);
-ModuleManager::registerMenuGroup('core.menu.group.accounting', 55, '/payments');
-ModuleManager::registerMenuGroup('core.menu.group.finance', 58, '/ledger/moves');
-ModuleManager::registerMenuGroup('core.menu.group.team', 60, '/users');
-ModuleManager::registerMenuGroup('core.menu.group.system', 70, '/updates');
+// Default order (×100): desktop → … → warehouse → dictionaries → site → team → settings last.
+ModuleManager::registerMenuGroup('core.menu.group.desktop', 100, '/');
+ModuleManager::registerMenuGroup('core.menu.group.accounting', 700, '/payments');
+ModuleManager::registerMenuGroup('core.menu.group.finance', 800, '/ledger/moves');
+ModuleManager::registerMenuGroup('core.menu.group.warehouse', 1350);
+ModuleManager::registerMenuGroup('core.menu.group.dictionaries', 1400, '/catalog');
+ModuleManager::registerMenuGroup('core.menu.group.team', 1475, '/users');
+ModuleManager::registerMenuGroup('core.menu.group.system', 1500, '/updates');
 
 $pages = [
     '/login' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'login.php'],

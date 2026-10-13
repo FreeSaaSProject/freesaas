@@ -24,7 +24,7 @@ Assets::register('bi', [
     'js' => ['bi.js'],
 ]);
 
-ModuleManager::registerMenuGroup('bi.menu.group', 42);
+ModuleManager::registerMenuGroup('bi.menu.group', 600);
 
 $pages = [
     '/bi' => ['permission' => 'bi.manage', 'methods' => ['GET'], 'file' => 'index.php'],

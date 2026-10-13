@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/PollsRepository.php';
 
-ModuleManager::registerMenuGroup('polls.menu.group', 42, '/polls');
+ModuleManager::registerMenuGroup('polls.menu.group', 900, '/polls');
 
 $pages = [
     '/polls' => ['permission' => 'polls.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
