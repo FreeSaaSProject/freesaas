@@ -495,43 +495,54 @@ final class PaymentsRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $hasControlNotice = Database::columnExists('base_payments', 'ID_CONTROL_NOTICE');
-        $cols = 'ID_USER, DT, DESCR, DIRECTION, SUM, ID_TYPE, ACCOUNT, DT_CREATE, ID_USER_SIGNED,
-              ID_COMMENT, IS_PARTNER_PAYMENT, ID_ADMIN_INWORKED, DT_ADMIN_INWORKED,
-              ID_ADMIN_SIGNED, DT_ADMIN_SIGNED, ID_ACCEPT_USER_SIGNED, DT_ACCEPT_USER_SIGNED,
-              ID_MOVEMENT_LINKED';
-        $placeholders = '?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
+        // Live oper schemas often have NOT NULL columns without DEFAULT — always send zeros.
+        $cols = [
+            'ID_USER', 'DT', 'DESCR', 'DIRECTION', 'SUM', 'ID_TYPE', 'ACCOUNT', 'DT_CREATE',
+            'ID_USER_SIGNED', 'ID_COMMENT', 'IS_PARTNER_PAYMENT',
+            'ID_ADMIN_INWORKED', 'DT_ADMIN_INWORKED',
+            'ID_ADMIN_SIGNED', 'DT_ADMIN_SIGNED',
+            'ID_ACCEPT_USER_SIGNED', 'DT_ACCEPT_USER_SIGNED',
+            'ID_MOVEMENT_LINKED',
+        ];
         $params = [
-            $data['user_id'],
-            $data['dt'],
-            $data['descr'],
+            (int)$data['user_id'],
+            (int)$data['dt'],
+            (string)$data['descr'],
             (string)$data['direction'],
             $data['sum'],
-            $data['type_id'],
-            $data['account'],
-            $data['dt_create'],
-            $data['user_signed'],
-            $data['comment_id'],
-            $data['is_partner'],
-            $data['admin_inworked'],
-            $data['dt_admin_inworked'],
-            $data['admin_signed'],
-            $data['dt_admin_signed'],
-            $data['accept_user'],
-            $data['dt_accept'],
-            $data['movement_linked'],
+            (int)$data['type_id'],
+            (int)$data['account'],
+            (int)$data['dt_create'],
+            (int)$data['user_signed'],
+            (int)$data['comment_id'],
+            (int)$data['is_partner'],
+            (int)$data['admin_inworked'],
+            (int)$data['dt_admin_inworked'],
+            (int)$data['admin_signed'],
+            (int)$data['dt_admin_signed'],
+            (int)$data['accept_user'],
+            (int)$data['dt_accept'],
+            (int)$data['movement_linked'],
         ];
-        if ($hasControlNotice) {
-            $cols .= ', ID_CONTROL_NOTICE';
-            $placeholders .= ', ?';
-            $params[] = (int)($data['control_notice'] ?? 0);
+        $optional = [
+            'ID_CONTROL_NOTICE' => (int)($data['control_notice'] ?? 0),
+            'ID_USER_TO' => (int)($data['user_to'] ?? 0),
+            'ID_TYPE_TO' => (int)($data['type_to'] ?? 0),
+            'ID_RATE' => (int)($data['rate_id'] ?? 0),
+        ];
+        foreach ($optional as $col => $val) {
+            if (Database::columnExists('base_payments', $col)) {
+                $cols[] = $col;
+                $params[] = $val;
+            }
         }
+        $placeholders = implode(', ', array_fill(0, count($cols), '?'));
         $st = Database::pdo()->prepare(
-            "INSERT INTO base_payments ($cols) VALUES ($placeholders)"
+            'INSERT INTO base_payments (' . implode(', ', $cols) . ') VALUES (' . $placeholders . ')'
         );
         $st->execute($params);
         $id = (int)Database::pdo()->lastInsertId();
-        if ($data['comment_id'] > 0) {
+        if ((int)$data['comment_id'] > 0) {
             self::bindCommentPayment((int)$data['comment_id'], $id);
         }
         return $id;
