@@ -27,6 +27,7 @@ if ($text === '') {
     return;
 }
 $text = mb_substr($text, 0, 255);
+$force = !empty($_POST['force']) || !empty($_POST['confirm']);
 
 $dictsOn = ModuleManager::isEnabled('audio_dicts');
 if (!$dictsOn) {
@@ -38,7 +39,25 @@ if (!$dictsOn) {
 require_once base_path('modules/audio_dicts/lib/RecordsKeysRepository.php');
 require_once base_path('modules/audio_dicts/lib/RecordsTrashesRepository.php');
 require_once base_path('modules/audio_dicts/lib/RecordsDictsRepository.php');
-require_once base_path('modules/audio_dicts/lib/RecordsTypesRepository.php');
+
+/**
+ * @param list<array{id:int,name:string,id_dictonary:int,dict_name:string,relation:string}> $hits
+ * @return list<array<string,mixed>>
+ */
+$labelOverlaps = static function (array $hits): array {
+    $labels = [
+        'exact' => t('audio.api.overlap_exact'),
+        'contains' => t('audio.api.overlap_contains'),
+        'contained' => t('audio.api.overlap_contained'),
+    ];
+    $out = [];
+    foreach ($hits as $h) {
+        $rel = (string)($h['relation'] ?? '');
+        $h['relation_label'] = $labels[$rel] ?? $rel;
+        $out[] = $h;
+    }
+    return $out;
+};
 
 try {
     if ($action === 'add_key') {
@@ -52,28 +71,42 @@ try {
             ]);
             return;
         }
-        $typeId = max(0, (int)($_POST['type_id'] ?? 0));
-        $dictId = max(0, (int)($_POST['dict_id'] ?? 0));
-        if ($typeId < 1) {
-            $types = RecordsTypesRepository::options();
-            $typeId = $types ? (int)array_key_first($types) : 0;
+
+        $overlaps = RecordsKeysRepository::findOverlaps($text);
+        if ($overlaps !== [] && !$force) {
+            echo json_encode([
+                'success' => false,
+                'needs_confirm' => true,
+                'overlaps' => $labelOverlaps($overlaps),
+                'error' => t('audio.api.key_overlaps'),
+                'message' => t('audio.api.key_overlaps'),
+            ]);
+            return;
         }
+
+        $dictId = max(0, (int)($_POST['dict_id'] ?? 0));
         if ($dictId < 1) {
             $dicts = RecordsDictsRepository::options(false);
             $dictId = $dicts ? (int)array_key_first($dicts) : 0;
         }
+        $looklike = 0;
+        if ($overlaps !== []) {
+            $looklike = (int)$overlaps[0]['id'];
+        }
         $id = RecordsKeysRepository::create([
             'name' => $text,
             'disabled' => 0,
-            'id_type' => $typeId,
+            'id_type' => 0,
             'id_dictonary' => $dictId,
-            'id_looklike' => 0,
+            'id_looklike' => $looklike,
         ]);
         echo json_encode([
             'success' => true,
             'keyId' => $id,
             'created' => true,
             'message' => t('audio.api.key_added'),
+            'overlaps' => $labelOverlaps($overlaps),
+            'id_looklike' => $looklike,
         ]);
         return;
     }

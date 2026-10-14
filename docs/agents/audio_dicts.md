@@ -20,7 +20,6 @@ Permissions: `audio_dicts.view`, `audio_dicts.edit`.
 
 | Table | Role |
 |-------|------|
-| `base_records_types` | Owned by `audio_dicts` |
 | `base_records_dictonarys` | Owned by `audio_dicts` |
 | `base_records_keys` | Owned by `audio_dicts` |
 | `base_records_keys_tags` | Owned by `audio_dicts` |
@@ -30,9 +29,11 @@ Permissions: `audio_dicts.view`, `audio_dicts.edit`.
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
+Legacy (not owned): `base_records_types` may exist from oper / older installs. Soft-read only; migrator `types_to_scripts` converts scoring types into `RATING_ENABLED` scripts. Product rating uses scripts, not types.
+
 ## Human UI
 
-- Dictionaries under Audio analytics: types, dicts, keys, tags, scripts, trash phrases.
+- Dictionaries under Audio analytics: dicts, keys, tags, scripts, trash phrases.
 - Scripts tree: `/audio/scripts/{id}` + parts / copy.
 
 | Path | Permission |
@@ -40,20 +41,15 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 | `/audio/dicts` | `—` |
 | `/audio/keys` | `—` |
 | `/audio/scripts` | `—` |
-| `/audio/types` | `—` |
 | `/audio/trashes` | `—` |
 | `/audio/tags` | `—` |
 
 ## Agent JSON
 
-Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (25 ops).
+Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops`.
 
 | Op | Method | Path |
 |----|--------|------|
-| `audio_dicts.types.list` | GET | `/audio/types` |
-| `audio_dicts.types.get` | GET | `/audio/types/{id}/edit` |
-| `audio_dicts.types.create` | POST | `/audio/types/new` |
-| `audio_dicts.types.update` | POST | `/audio/types/{id}/edit` |
 | `audio_dicts.dicts.list` | GET | `/audio/dicts` |
 | `audio_dicts.dicts.get` | GET | `/audio/dicts/{id}/edit` |
 | `audio_dicts.dicts.create` | POST | `/audio/dicts/new` |
@@ -77,11 +73,12 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `audio_dicts.scripts.parts` | POST | `/audio/scripts/{id}/parts` |
 
 ```bash
-curl -sS -b jar.txt 'https://example/audio/types?format=json'
 curl -sS -b jar.txt 'https://example/audio/dicts?format=json'
+curl -sS -b jar.txt 'https://example/audio/scripts?format=json'
 ```
 
 ## Notes
 
 - Required by recognition pipeline and staff reports.
 - Requires `audio`.
+- Key `ID_TYPE` column remains in schema for legacy compatibility but is not edited in product UI.

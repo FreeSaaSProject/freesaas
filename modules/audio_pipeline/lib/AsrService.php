@@ -99,6 +99,14 @@ final class AsrService
         $params = [];
         $diagChunk = '';
 
+        // Worker sometimes posts error text as if it were a transcript.
+        $asrNoise = class_exists('TranscriptGarbage', false)
+            && TranscriptGarbage::isAsrErrorTranscription($result);
+        if ($asrNoise) {
+            $result = '';
+            $diagChunk .= ' ASR_ERROR_CLEARED=1';
+        }
+
         if ($dtTrans === 1) {
             // Chunk mode: do not overwrite TRANSCRIPTION
             if ($playtime !== null && $playtime !== '') {
@@ -109,7 +117,7 @@ final class AsrService
                 $sets[] = 'VOLUME = ?';
                 $params[] = (float)$volume;
             }
-            $diagChunk = ' SKIP_TRANSCRIPTION=chunk_mode';
+            $diagChunk .= ' SKIP_TRANSCRIPTION=chunk_mode';
             if ($sets === []) {
                 return [
                     'ok' => true,
@@ -120,6 +128,7 @@ final class AsrService
             $sets[] = 'TRANSCRIPTION = ?';
             $params[] = $result;
             $sets[] = 'DT_TRANSCRIBED = ?';
+            // Stamp even when clearing ASR error text — otherwise claim loops forever.
             $params[] = time();
             if ($playtime !== null && $playtime !== '') {
                 $sets[] = 'PLAYTIME = ?';

@@ -192,7 +192,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
 | `asr` | Voice queue + shared Whisper worker token (`/asr/voice-transcribe/*`); requires `core` only; soft `bots` |
 | `audio` | Cabin records + badges + FileStorage; soft `workweeks` |
-| `audio_dicts` | Types/dicts/keys/scripts/trash for recognition; requires `audio` |
+| `audio_dicts` | Dicts/keys/scripts/trash for recognition; requires `audio` |
 | `audio_pipeline` | Cabin ingest/ASR/stem/collect workers; requires `asr` + `audio` + `audio_dicts` |
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |

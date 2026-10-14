@@ -151,90 +151,73 @@ final class StaffReportRunner
     public static function generateForEmployee(int $employeeId, array $bounds): array
     {
         $name = TicketWriter::employeeName($employeeId);
-        $profile = StaffReportProfiles::forEmployee($employeeId);
-        if ($profile === null) {
-            self::log("$name: " . t('staff_reports.err.no_profile'));
-            return ['status' => 'skipped', 'reason' => 'no_profile'];
+        if (!self::employeeHasDayBonusScripts($employeeId)) {
+            self::log("$name: skip no_day_bonus_script");
+            return ['status' => 'skipped', 'reason' => 'no_day_bonus_script'];
         }
-        $config = $profile['config'];
-        $mode = (string)($config['analysis']['mode'] ?? StaffReportConfig::MODE_PROCEDURE_SLOT);
 
-        $audioEnabled = self::isAudioEnabled($employeeId);
+        $config = StaffReportPublisherConfig::asTicketConfig();
         $parse = self::parseStatus($employeeId, $bounds['day_start'], $bounds['day_end']);
         $hasRecords = ((int)$parse['total'] > 0);
         self::log("$name: records={$parse['total']} parsed={$parse['parsed']} pending={$parse['pending']}");
 
-        if ($audioEnabled && !empty($config['require_full_parse']) && !$parse['is_ready'] && $hasRecords) {
+        if (!empty($config['require_full_parse']) && !$parse['is_ready'] && $hasRecords) {
             self::log("$name: skip not_parsed");
             return ['status' => 'skipped', 'reason' => 'not_parsed', 'has_records' => $hasRecords];
         }
 
-        $dayData = DayCollector::collect($employeeId, $bounds['day_start'], $bounds['day_end'], $config);
-        $windows = $dayData['windows'];
-        $uniqueClients = (int)$dayData['unique_clients'];
-
-        $audioEvaluated = false;
-        $audioMessage = '';
-        $coverage = null;
-        $criteriaResults = [
-            'criteria' => [],
-            'has_red' => false,
-            'has_scoring_groups' => false,
-            'scoring_group_count' => 0,
-        ];
-
-        if ($audioEnabled && $hasRecords) {
-            $types = CriteriaAnalyzer::loadCriteriaTypes($employeeId, $config);
-            $criteriaResults = CriteriaAnalyzer::analyze(
-                $employeeId,
-                $windows,
-                $types,
-                $uniqueClients,
-                $config,
-                $mode,
-                $bounds['day_start'],
-                $bounds['day_end']
-            );
-            if ($mode !== StaffReportConfig::MODE_SCORE_TIME && $windows !== []) {
-                $coverage = CoverageCalculator::compute(
-                    $employeeId,
-                    $windows,
-                    $bounds['day_start'],
-                    $bounds['day_end'],
-                    $config
-                );
+        if (!class_exists('DayQualityReport', false)) {
+            $path = base_path('modules/audio_reports/lib/DayQualityReport.php');
+            if (is_file($path)) {
+                require_once $path;
             }
-            $audioEvaluated = true;
-        } elseif ($audioEnabled && !$hasRecords) {
-            $audioMessage = t('staff_reports.report.audio_skip_empty');
-        } else {
-            $audioMessage = t('staff_reports.report.audio_skip_off');
         }
+        if (!class_exists('DayQualityReport', false)) {
+            self::log("$name: DayQualityReport missing");
+            return ['status' => 'error', 'reason' => 'quality_missing', 'has_records' => $hasRecords];
+        }
+
+        $quality = DayQualityReport::build($employeeId, $bounds['date']);
+        if (empty($quality['publish'])) {
+            self::log("$name: skip no_publish");
+            return ['status' => 'skipped', 'reason' => 'no_publish', 'has_records' => $hasRecords];
+        }
+
+        $criteriaResults = [
+            'criteria' => self::qualityPartsAsCriteria($quality),
+            'has_red' => !empty($quality['has_red']),
+            'has_scoring_groups' => !empty($quality['parts']),
+            'scoring_group_count' => count($quality['scripts'] ?? []),
+            'quality' => $quality,
+        ];
 
         $ctx = [
             'employee_id' => $employeeId,
             'bounds' => $bounds,
             'config' => $config,
-            'day_data' => $dayData,
+            'day_data' => [
+                'unique_clients' => (int)($quality['procedure_count'] ?? 0),
+                'windows' => [],
+            ],
             'criteria' => $criteriaResults,
-            'coverage' => $coverage,
-            'audio_evaluated' => $audioEvaluated,
-            'audio_message' => $audioMessage,
+            'coverage' => null,
+            'quality' => $quality,
+            'audio_evaluated' => true,
+            'audio_message' => '',
             'has_records' => $hasRecords,
         ];
         $ctx = EventBus::emit('staff_reports.day.after_analyze', $ctx);
         if (is_array($ctx)) {
             $criteriaResults = is_array($ctx['criteria'] ?? null) ? $ctx['criteria'] : $criteriaResults;
-            $coverage = $ctx['coverage'] ?? $coverage;
-            $audioEvaluated = !empty($ctx['audio_evaluated']);
-            $audioMessage = (string)($ctx['audio_message'] ?? $audioMessage);
+            $quality = is_array($ctx['quality'] ?? null) ? $ctx['quality'] : $quality;
         }
 
-        $audioPassed = $audioEvaluated
-            && !empty($criteriaResults['has_scoring_groups'])
-            && empty($criteriaResults['has_red']);
-        $rewardSum = (int)($config['contract_reward_sum'] ?? 500);
-        $rewardGranted = $audioPassed;
+        $rewardSum = max(0, (int)($quality['bonus_sum'] ?? 0));
+        $rewardPotential = max($rewardSum, (int)($quality['bonus_sum_potential'] ?? $rewardSum));
+        $rewardMissed = max(0, (int)($quality['bonus_sum_missed'] ?? ($rewardPotential - $rewardSum)));
+        $rewardGranted = !empty($quality['bonus_eligible']) && $rewardSum > 0;
+        // Contract + footer «НАЧИСЛЯЕТСЯ» use eligible sum; full-fail day uses potential for missed totals.
+        $rewardDisplaySum = $rewardGranted ? $rewardSum : $rewardPotential;
 
         $ticketId = TicketWriter::findOrCreateTicket($employeeId, $config);
         if ($ticketId < 1) {
@@ -246,22 +229,18 @@ final class StaffReportRunner
             $ticketId,
             $bounds['day_start'],
             $rewardGranted,
-            $rewardSum
+            $rewardGranted ? $rewardSum : $rewardPotential,
+            $rewardGranted ? $rewardMissed : 0
         );
 
         $markerRu = 'Отчёт за ' . $bounds['day_text'];
 
-        $text = self::formatReport(
+        $text = self::formatQualityReport(
             $markerRu,
-            $dayData,
-            $criteriaResults,
+            $quality,
             [
-                'audio_evaluated' => $audioEvaluated,
-                'audio_message' => $audioMessage,
-                'audio_passed' => $audioPassed,
-                'coverage' => $coverage,
                 'reward_granted' => $rewardGranted,
-                'reward_sum' => $rewardSum,
+                'reward_sum' => $rewardDisplaySum,
                 'reward_month_totals' => $monthTotals,
                 'day_text' => $bounds['day_text'],
             ]
@@ -274,6 +253,7 @@ final class StaffReportRunner
             'marker' => $markerRu,
             'reward_granted' => $rewardGranted,
             'config' => $config,
+            'quality' => $quality,
         ];
         $pub = EventBus::emit('staff_reports.day.before_publish', $pub);
         if (is_array($pub)) {
@@ -288,15 +268,40 @@ final class StaffReportRunner
         $up = TicketWriter::upsertReportComment($ticketId, $authorId, $markerRu, $text);
         self::log("$name: " . ($rewardGranted ? 'reward' : 'no-reward') . ' comment=' . $up['comment_id']);
 
+        $workingDays = max(0, (int)($config['contract_working_days'] ?? 5));
+        $contract = DayRewardContract::sync(
+            $ticketId,
+            $employeeId,
+            (int)$up['comment_id'],
+            $bounds['day_text'],
+            $rewardGranted,
+            $rewardSum, // eligible only
+            $workingDays
+        );
+        if (($contract['action'] ?? '') === 'created') {
+            self::log("$name: reward contract created #" . (int)$contract['comment_id'] . " sum=$rewardSum");
+        } elseif (($contract['action'] ?? '') === 'updated') {
+            self::log("$name: reward contract updated #" . (int)$contract['comment_id'] . " sum=$rewardSum");
+        } elseif (($contract['action'] ?? '') === 'disabled') {
+            self::log("$name: reward contract disabled #" . (int)$contract['comment_id']);
+        }
+
+        GratitudeBoard::refreshMonth(
+            (int)($config['gratitude_news_id'] ?? 0),
+            $bounds['day_start'],
+            $authorId
+        );
+
         $after = [
             'employee_id' => $employeeId,
             'ticket_id' => $ticketId,
             'comment_id' => (int)$up['comment_id'],
-            'day_data' => $dayData,
+            'day_data' => $ctx['day_data'] ?? [],
             'bounds' => $bounds,
             'config' => $config,
             'name' => $name,
             'reward_granted' => $rewardGranted,
+            'quality' => $quality,
         ];
         $after = EventBus::emit('staff_reports.day.after_publish', $after);
         $cyclic = is_array($after['cyclic_llm'] ?? null) ? $after['cyclic_llm'] : null;
@@ -315,72 +320,114 @@ final class StaffReportRunner
             'changed' => $up['changed'],
             'reward_granted' => $rewardGranted,
             'has_records' => $hasRecords,
-            'has_red' => !empty($criteriaResults['has_red']),
+            'has_red' => !empty($quality['has_red']),
             'criteria' => $criteriaResults,
+            'quality' => $quality,
+            'contract' => $contract,
             'cyclic_llm' => $cyclic,
         ];
     }
 
     /**
-     * @param array{unique_clients:int} $dayData
-     * @param array{criteria:list} $criteriaResults
+     * @param array<string,mixed> $quality
+     * @return list<array<string,mixed>>
+     */
+    private static function qualityPartsAsCriteria(array $quality): array
+    {
+        $out = [];
+        foreach (is_array($quality['scripts'] ?? null) ? $quality['scripts'] : [] as $script) {
+            foreach (is_array($script['parts'] ?? null) ? $script['parts'] : [] as $part) {
+                $color = (string)($part['color'] ?? 'none');
+                $emoji = $color === 'red' ? '🔴' : ($color === 'yellow' ? '🟡' : ($color === 'green' ? '🟢' : ''));
+                $out[] = [
+                    'group_key' => (string)($part['name'] ?? ''),
+                    'members' => [[
+                        'type_id' => (int)($part['part_id'] ?? 0),
+                        'name' => (string)($part['name'] ?? ''),
+                        'numerator' => (int)($part['numerator'] ?? 0),
+                        'denominator' => (int)($part['denominator'] ?? 0),
+                        'is_scoring' => !empty($part['is_scoring']),
+                    ]],
+                    'numerator' => (int)($part['numerator'] ?? 0),
+                    'denominator' => (int)($part['denominator'] ?? 0),
+                    'percent' => (float)($part['percent'] ?? 0),
+                    'color' => $color,
+                    'emoji' => $emoji,
+                    'is_scoring' => !empty($part['is_scoring']),
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $quality
      * @param array<string,mixed> $context
      */
-    public static function formatReport(string $markerLine, array $dayData, array $criteriaResults, array $context): string
+    public static function formatQualityReport(string $markerLine, array $quality, array $context): string
     {
         $lines = [];
         $lines[] = $markerLine;
         $lines[] = '';
-        $lines[] = t('staff_reports.report.clients', ['n' => (string)(int)($dayData['unique_clients'] ?? 0)]);
+        $lines[] = t('staff_reports.report.sessions_procs', [
+            'sessions' => (string)(int)($quality['session_count'] ?? 0),
+            'procs' => (string)(int)($quality['procedure_count'] ?? 0),
+        ]);
         $lines[] = '';
         $lines[] = '<b>' . t('staff_reports.report.standards') . '</b>';
 
-        $audioEvaluated = !empty($context['audio_evaluated']);
-        if (!$audioEvaluated) {
-            $lines[] = (string)($context['audio_message'] ?? t('staff_reports.report.audio_skip_off'));
-        } else {
-            $coverage = is_array($context['coverage'] ?? null) ? $context['coverage'] : null;
-            if ($coverage && (int)($coverage['procedures_total'] ?? 0) > 0) {
-                $lines[] = t('staff_reports.report.coverage', [
-                    'covered' => (string)(int)$coverage['procedures_covered'],
-                    'total' => (string)(int)$coverage['procedures_total'],
-                    'pct' => (string)$coverage['overall_percent'],
-                ]);
-            }
-            $groups = is_array($criteriaResults['criteria'] ?? null) ? $criteriaResults['criteria'] : [];
-            if ($groups === []) {
-                $lines[] = t('staff_reports.report.no_criteria');
-            }
-            foreach ($groups as $group) {
-                $parts = [];
-                foreach ($group['members'] as $member) {
-                    $part = $member['name'] . ' ' . $member['numerator'] . '/' . $member['denominator'];
-                    if (empty($member['is_scoring'])) {
-                        $part .= ' ' . t('staff_reports.report.ref');
-                        $part = '<i>' . $part . '</i>';
-                    }
-                    $parts[] = $part;
-                }
-                $lines[] = implode(' или ', $parts) . ' ' . ($group['emoji'] ?? '');
-            }
+        $scripts = is_array($quality['scripts'] ?? null) ? $quality['scripts'] : [];
+        if ($scripts === []) {
+            $lines[] = t('staff_reports.report.no_criteria');
         }
-
-        if (!$audioEvaluated) {
-            $lines[] = t('staff_reports.report.bonus_no');
-        } elseif (!empty($context['audio_passed'])) {
-            $lines[] = t('staff_reports.report.bonus_ok');
-        } else {
-            $lines[] = t('staff_reports.report.bonus_no');
+        foreach ($scripts as $script) {
+            $lines[] = '<b>' . e((string)($script['name'] ?? '')) . '</b>';
+            if ((int)($script['proc_ratio_min'] ?? 0) > 0 && $script['proc_ratio_pct'] !== null) {
+                $emoji = ((string)($script['proc_ratio_color'] ?? '') === 'red') ? ' 🔴' : '';
+                $lines[] = t('staff_reports.report.proc_ratio', [
+                    'pct' => (string)$script['proc_ratio_pct'],
+                    'min' => (string)(int)$script['proc_ratio_min'],
+                ]) . $emoji;
+            }
+            foreach (is_array($script['parts'] ?? null) ? $script['parts'] : [] as $part) {
+                $color = (string)($part['color'] ?? 'none');
+                $emoji = $color === 'red' ? '🔴' : ($color === 'yellow' ? '🟡' : ($color === 'green' ? '🟢' : ''));
+                $line = (string)$part['name'] . ' ' . (int)$part['numerator'] . '/' . (int)$part['denominator'];
+                if (empty($part['is_scoring'])) {
+                    $line = '<i>' . $line . ' ' . t('staff_reports.report.ref') . '</i>';
+                } else {
+                    $line .= ' ' . $emoji;
+                }
+                $lines[] = $line;
+            }
+            $scriptSum = (int)($script['day_bonus_sum'] ?? 0);
+            if ($scriptSum > 0 || array_key_exists('bonus_eligible', $script)) {
+                if (!empty($script['bonus_eligible'])) {
+                    $lines[] = t('staff_reports.report.script_bonus_ok', [
+                        'name' => (string)($script['name'] ?? ''),
+                        'sum' => (string)$scriptSum,
+                    ]);
+                } else {
+                    $lines[] = t('staff_reports.report.script_bonus_no', [
+                        'name' => (string)($script['name'] ?? ''),
+                        'sum' => (string)$scriptSum,
+                    ]);
+                }
+            }
         }
 
         $lines[] = '';
         $dayText = (string)($context['day_text'] ?? '');
         $sum = (int)($context['reward_sum'] ?? 0);
         $totals = is_array($context['reward_month_totals'] ?? null) ? $context['reward_month_totals'] : [];
-        // Machine-stable reward lines (RU keywords) for MonthRewards / totals parsers.
         if (!empty($context['reward_granted'])) {
             $lines[] = '<b>Вознаграждение за ' . $dayText . ' в ' . $sum . 'р - НАЧИСЛЯЕТСЯ! ✅</b>';
             $lines[] = t('staff_reports.report.earned_month', ['n' => (string)(int)($totals['earned'] ?? 0)]);
+            $missedN = (int)($totals['missed'] ?? 0);
+            if ($missedN > 0) {
+                $lines[] = t('staff_reports.report.missed_month', ['n' => (string)$missedN]);
+            }
         } else {
             $lines[] = '<b>Вознаграждение за ' . $dayText . ' в ' . $sum . 'р - НЕ начисляется! ❌</b>';
             $lines[] = t('staff_reports.report.missed_month', ['n' => (string)(int)($totals['missed'] ?? 0)]);
@@ -389,66 +436,53 @@ final class StaffReportRunner
         return implode("\n", $lines);
     }
 
+    public static function employeeHasDayBonusScripts(int $employeeId): bool
+    {
+        if (!class_exists('DayQualityReport', false)) {
+            $path = base_path('modules/audio_reports/lib/DayQualityReport.php');
+            if (is_file($path)) {
+                require_once $path;
+            }
+        }
+        if (!class_exists('DayQualityReport', false)) {
+            return false;
+        }
+        foreach (DayQualityReport::loadScriptsForAdmin($employeeId) as $script) {
+            if (!empty($script['day_bonus'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /** @return list<int> */
     public static function employeesForDay(int $dayStart, int $dayEnd, int $onlyEmp = 0): array
     {
-        $posSet = StaffReportProfiles::enabledPositionSet();
-        if ($posSet === []) {
-            return [];
-        }
         if ($onlyEmp > 0) {
-            $p = StaffReportProfiles::forEmployee($onlyEmp);
-            return $p !== null ? [$onlyEmp] : [];
+            return self::employeeHasDayBonusScripts($onlyEmp) ? [$onlyEmp] : [];
         }
         if (!Database::tableExists('base_records') || !Database::tableExists('base_users')) {
             return [];
         }
-        $posIn = implode(',', array_map('intval', array_keys($posSet)));
-        $sql = "SELECT DISTINCT r.ID_ADMIN AS id
-                FROM base_records r
-                INNER JOIN base_users u ON u.id = r.ID_ADMIN
-                WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
-                  AND (r.DISABLED IS NULL OR r.DISABLED < 1)
-                  AND u.ID_STATUS IN ($posIn)
-                  AND u.enabled = 1";
-        $st = Database::pdo()->prepare($sql);
+        // enabled is CHAR in legacy DBs — must compare as string ('1'), not int 1.
+        $st = Database::pdo()->prepare(
+            "SELECT DISTINCT r.ID_ADMIN AS id
+             FROM base_records r
+             INNER JOIN base_users u ON u.id = r.ID_ADMIN
+             WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
+               AND (r.DISABLED IS NULL OR r.DISABLED < 1)
+               AND u.enabled = '1'"
+        );
         $st->execute([$dayStart, $dayEnd]);
         $ids = [];
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
             $id = (int)($row['id'] ?? 0);
-            if ($id > 0) {
+            if ($id > 0 && self::employeeHasDayBonusScripts($id)) {
                 $ids[$id] = $id;
             }
         }
-        // Also include employees with procedures that day for booking_create profiles without audio yet.
-        if (Database::tableExists('base_procedures')) {
-            $sql2 = "SELECT DISTINCT p.ID_OPERATOR AS id FROM base_procedures p
-                     INNER JOIN base_users u ON u.id = p.ID_OPERATOR
-                     WHERE p.DTSTART >= ? AND p.DTSTART <= ? AND p.ENABLED = 1 AND p.SUMM > 0
-                       AND u.ID_STATUS IN ($posIn) AND u.enabled = 1";
-            $st2 = Database::pdo()->prepare($sql2);
-            $st2->execute([$dayStart, $dayEnd]);
-            while ($row = $st2->fetch(PDO::FETCH_ASSOC)) {
-                $id = (int)($row['id'] ?? 0);
-                if ($id > 0) {
-                    $ids[$id] = $id;
-                }
-            }
-            if (Database::columnExists('base_procedures', 'ID_ADMIN')) {
-                $sql3 = "SELECT DISTINCT p.ID_ADMIN AS id FROM base_procedures p
-                         INNER JOIN base_users u ON u.id = p.ID_ADMIN
-                         WHERE p.DTSTART >= ? AND p.DTSTART <= ? AND p.ENABLED = 1 AND p.SUMM > 0
-                           AND u.ID_STATUS IN ($posIn) AND u.enabled = 1 AND p.ID_ADMIN > 0";
-                $st3 = Database::pdo()->prepare($sql3);
-                $st3->execute([$dayStart, $dayEnd]);
-                while ($row = $st3->fetch(PDO::FETCH_ASSOC)) {
-                    $id = (int)($row['id'] ?? 0);
-                    if ($id > 0) {
-                        $ids[$id] = $id;
-                    }
-                }
-            }
-        }
+
         return array_values($ids);
     }
 

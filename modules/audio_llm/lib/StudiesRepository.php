@@ -38,12 +38,29 @@ final class StudiesRepository
         }
         $pdo = Database::pdo();
         $total = (int)$pdo->query("SELECT COUNT(*) FROM base_records_llm_studies WHERE {$wh}")->fetchColumn();
-        $limit = max(1, min(200, $limit));
+        if ($limit < 0) {
+            $limit = 0;
+        } elseif ($limit > 0) {
+            $limit = min(3000, max(1, $limit));
+        }
         $offset = max(0, $offset);
-        $st = $pdo->query(
-            "SELECT * FROM base_records_llm_studies WHERE {$wh} ORDER BY DT_CREATE DESC LIMIT {$limit} OFFSET {$offset}"
-        );
+        $sql = "SELECT * FROM base_records_llm_studies WHERE {$wh} ORDER BY DT_CREATE DESC";
+        if ($limit > 0) {
+            $sql .= " LIMIT {$limit} OFFSET {$offset}";
+        }
+        $st = $pdo->query($sql);
         return ['items' => $st ? ($st->fetchAll(PDO::FETCH_ASSOC) ?: []) : [], 'total' => $total];
+    }
+
+    /** @return array<string,string> */
+    public static function listSortMap(): array
+    {
+        return [
+            'id' => 'ID',
+            'created' => 'DT_CREATE',
+            'title' => 'TITLE',
+            'status' => 'STATUS',
+        ];
     }
 
     /** @return list<array> */

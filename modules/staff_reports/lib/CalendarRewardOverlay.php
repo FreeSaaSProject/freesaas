@@ -88,7 +88,20 @@ final class CalendarRewardOverlay
         if ($year < 1 || $month < 1) {
             return $payload;
         }
-        $agg = MonthRewards::aggregates($year, $month);
+        // Reuse monthData cache warmed by onCell — avoid a second MonthRewards::forMonth.
+        $raw = self::monthData($year, $month);
+        $rewardByAdmin = [];
+        foreach ($raw as $emps) {
+            foreach ($emps as $adminId => $meta) {
+                $adminId = (int)$adminId;
+                if (!isset($rewardByAdmin[$adminId])) {
+                    $rewardByAdmin[$adminId] = 0;
+                }
+                if (!empty($meta['reward'])) {
+                    $rewardByAdmin[$adminId]++;
+                }
+            }
+        }
         $columns = is_array($payload['columns'] ?? null) ? $payload['columns'] : [];
         $columns[] = [
             'id' => 'staff_reports.rewards',
@@ -99,7 +112,7 @@ final class CalendarRewardOverlay
         $payload['columns'] = $columns;
 
         $byAdmin = is_array($payload['by_admin'] ?? null) ? $payload['by_admin'] : [];
-        foreach ($agg['by_admin'] as $adminId => $stats) {
+        foreach ($rewardByAdmin as $adminId => $n) {
             $adminId = (int)$adminId;
             if (!isset($byAdmin[$adminId])) {
                 $byAdmin[$adminId] = ['cells' => []];
@@ -107,7 +120,6 @@ final class CalendarRewardOverlay
             if (!isset($byAdmin[$adminId]['cells']) || !is_array($byAdmin[$adminId]['cells'])) {
                 $byAdmin[$adminId]['cells'] = [];
             }
-            $n = (int)($stats['reward_days'] ?? 0);
             $byAdmin[$adminId]['cells']['staff_reports.rewards'] = $n > 0
                 ? ('🏆' . $n)
                 : '';
@@ -119,8 +131,8 @@ final class CalendarRewardOverlay
             $totals['cells'] = [];
         }
         $sumRewards = 0;
-        foreach ($agg['by_admin'] as $stats) {
-            $sumRewards += (int)($stats['reward_days'] ?? 0);
+        foreach ($rewardByAdmin as $n) {
+            $sumRewards += (int)$n;
         }
         $totals['cells']['staff_reports.rewards'] = $sumRewards > 0 ? ('🏆' . $sumRewards) : '';
         $payload['totals'] = $totals;
@@ -189,9 +201,6 @@ final class CalendarRewardOverlay
             return $payload;
         }
         if (!ModuleManager::isEnabled('staff_reports')) {
-            return $payload;
-        }
-        if (StaffReportProfiles::listEnabled() === []) {
             return $payload;
         }
         $date = (string)($payload['date'] ?? '');

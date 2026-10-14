@@ -56,7 +56,7 @@ final class StemCache
     public static function buildVersion(array $badLemWords, array $ownNames): string
     {
         $parts = [
-            'v5_morph_only',
+            'v6_punct_split_offsets',
             md5(serialize($badLemWords)),
             md5(serialize($ownNames)),
             'phpmorphy_ru',
@@ -384,9 +384,41 @@ final class StemCache
         }
     }
 
+    /** Schema limit of base_records_stem_word_cache.LEMMA — do not silently truncate. */
+    private const LEMMA_MAX = 255;
+
+    /**
+     * Preview for logs (head…tail) so PHP error_log stays readable.
+     */
+    public static function previewToken(string $s, int $keep = 80): string
+    {
+        $s = str_replace(["\0", "\r", "\n", "\t"], ['', ' ', ' ', ' '], $s);
+        $len = mb_strlen($s, 'UTF-8');
+        if ($len <= $keep * 2 + 3) {
+            return $s;
+        }
+        return mb_substr($s, 0, $keep, 'UTF-8') . '…' . mb_substr($s, -$keep, null, 'UTF-8')
+            . ' [len=' . $len . ']';
+    }
+
     public static function rememberWord(string $word, string $lemma, int $noStem = 0): void
     {
         $wordHash = self::wordHash($word);
+        $wordLen = mb_strlen($word, 'UTF-8');
+        $lemmaLen = mb_strlen($lemma, 'UTF-8');
+        if ($lemmaLen > self::LEMMA_MAX || $wordLen > self::LEMMA_MAX) {
+            // Do not write / cache — surface the bad token for diagnosis.
+            error_log(sprintf(
+                '[StemCache] overlong token (LEMMA VARCHAR(%d)): word_len=%d lemma_len=%d hash=%s word=%s lemma=%s',
+                self::LEMMA_MAX,
+                $wordLen,
+                $lemmaLen,
+                $wordHash,
+                self::previewToken($word),
+                self::previewToken($lemma)
+            ));
+            return;
+        }
         $row = [
             'lemma' => $lemma,
             'no_stem' => $noStem > 0 ? 1 : 0,
@@ -423,11 +455,26 @@ final class StemCache
         );
         foreach ($chunks as $chunk) {
             foreach ($chunk as $wordHash => $row) {
-                if ($row['lemma'] === '') {
+                $lemma = (string)($row['lemma'] ?? '');
+                if ($lemma === '') {
                     continue;
                 }
-                $st->execute([$wordHash, $version, $row['lemma'], (int)$row['no_stem'], $dt]);
-                $flushed++;
+                try {
+                    $st->execute([$wordHash, $version, $lemma, (int)$row['no_stem'], $dt]);
+                    $flushed++;
+                } catch (Throwable $e) {
+                    $msg = sprintf(
+                        '[StemCache] flushWords failed: %s | hash=%s lemma_len=%d no_stem=%d lemma=%s',
+                        $e->getMessage(),
+                        $wordHash,
+                        mb_strlen($lemma, 'UTF-8'),
+                        (int)$row['no_stem'],
+                        self::previewToken($lemma)
+                    );
+                    error_log($msg);
+                    self::$wordPending = [];
+                    throw new RuntimeException($msg, (int)$e->getCode(), $e);
+                }
             }
         }
         self::$wordPending = [];

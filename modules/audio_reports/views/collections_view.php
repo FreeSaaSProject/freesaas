@@ -36,6 +36,14 @@ $fmtDur = static function (int $sec): string {
     </p>
     <p>
       <strong><?= te('audio_reports.collections.col.score') ?>: <?= (int)($item['score'] ?? 0) ?></strong>
+      <?php if (isset($item['score_rate'])): ?>
+        · <strong><?= te('audio_reports.collections.col.score_rate') ?>: <?= (int)$item['score_rate'] ?></strong>
+      <?php endif; ?>
+      <?php if (!empty($item['rated'])): ?>
+        <span class="ar-col-finish"><?= te('audio_reports.collections.rated_yes') ?></span>
+      <?php elseif (!empty($item['gate_reason'])): ?>
+        <span class="ar-col-warn"><?= te('audio_reports.collections.rated_no') ?>: <?= e((string)$item['gate_reason']) ?></span>
+      <?php endif; ?>
       <?php if (!empty($item['finished'])): ?>
         <span class="ar-col-finish"><?= te('audio_reports.collections.finish') ?></span>
       <?php endif; ?>
@@ -47,9 +55,9 @@ $fmtDur = static function (int $sec): string {
 
   <section class="ar-col-detail-sec">
     <h3><?= te('audio_reports.collections.col.transcript') ?></h3>
-    <p class="muted small"><?= te('audio_reports.collections.transcript_hint') ?></p>
+    <p class="muted small"><?= te('audio_reports.collections.transcript_hint_abs') ?></p>
     <?php if ($transcriptHtml !== ''): ?>
-      <div class="ar-col-transcript-full"><?= $transcriptHtml ?></div>
+      <div class="ar-col-transcript-full" id="ar-col-transcript"><?= $transcriptHtml ?></div>
     <?php else: ?>
       <p class="muted"><?= te('audio_reports.collections.transcript_unavailable') ?></p>
     <?php endif; ?>

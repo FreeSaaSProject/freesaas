@@ -17,7 +17,7 @@ declare(strict_types=1);
 /** @var array<int,string> $dictOptions */
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 6 + BulkActions::colSpanExtra($listId);
+$colSpan = 5 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 $dict = (int)($dict ?? 0);
 $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
@@ -49,7 +49,6 @@ $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
   <?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?>
   <?= ListQuery::sortTh(t('audio_dicts.col.name'), 'name', $sort, $dir, $path, $filters) ?>
   <th><?= te('audio_dicts.col.dict') ?></th>
-  <th><?= te('audio_dicts.col.type') ?></th>
   <?= ListQuery::sortTh(t('audio_dicts.col.disabled'), 'disabled', $sort, $dir, $path, $filters) ?>
 </tr></thead>
 <tbody>
@@ -59,7 +58,6 @@ $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
   <td class="muted"><?php if ($canEdit): ?><a href="<?= e($path) ?>/<?= (int)$c['id'] ?>/edit"><?= (int)$c['id'] ?></a><?php else: ?><?= (int)$c['id'] ?><?php endif; ?></td>
   <td><?= e((string)$c['name']) ?></td>
   <td><?= e((string)($c['dict_name'] ?: '—')) ?></td>
-  <td><?= e((string)($c['type_name'] ?: '—')) ?></td>
   <td><?= !empty($c['disabled']) ? te('core.common.on') : te('core.common.off') ?></td>
 </tr>
 <?php endforeach; ?>

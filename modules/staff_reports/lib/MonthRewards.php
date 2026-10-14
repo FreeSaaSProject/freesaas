@@ -4,8 +4,11 @@ declare(strict_types=1);
 /** Collect published staff-report reward markers from tickets/comments. */
 final class MonthRewards
 {
+    /** @var array<string, array<int, array<int, array{reward:bool,ticket:int,no_records:bool,comment_id?:int}>>> */
+    private static $forMonthCache = [];
+
     /**
-     * @return array<int, array<string, array{reward:bool,ticket:int,no_records:bool,comment_id?:int}>>
+     * @return array<int, array<int, array{reward:bool,ticket:int,no_records:bool,comment_id?:int}>>
      *         dayNum => adminId => meta
      */
     public static function forMonth(int $year, int $month): array
@@ -13,15 +16,18 @@ final class MonthRewards
         if ($year < 2000 || $month < 1 || $month > 12) {
             return [];
         }
+        $cacheKey = $year . '-' . $month;
+        if (isset(self::$forMonthCache[$cacheKey])) {
+            return self::$forMonthCache[$cacheKey];
+        }
         if (!Database::tableExists('base_news') || !Database::tableExists('base_comments')) {
-            return [];
+            return self::$forMonthCache[$cacheKey] = [];
         }
         $prefix = '[Отчеты:';
-        foreach (StaffReportProfiles::listEnabled() as $p) {
-            $pfx = (string)($p['config']['ticket_title_prefix'] ?? '');
+        if (class_exists('StaffReportPublisherConfig', false)) {
+            $pfx = (string)(StaffReportPublisherConfig::read()['ticket_title_prefix'] ?? '');
             if ($pfx !== '') {
                 $prefix = $pfx;
-                break;
             }
         }
 
@@ -40,7 +46,7 @@ final class MonthRewards
             }
         }
         if ($tickets === []) {
-            return [];
+            return self::$forMonthCache[$cacheKey] = [];
         }
 
         $ids = implode(',', array_map('intval', array_keys($tickets)));
@@ -49,7 +55,7 @@ final class MonthRewards
                 WHERE ID_OBJECT IN ($ids) AND TEXT LIKE '%Отчёт за %'";
         $res = Database::pdo()->query($sql);
         if (!$res) {
-            return [];
+            return self::$forMonthCache[$cacheKey] = [];
         }
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $text = (string)$row['TEXT'];
@@ -89,7 +95,7 @@ final class MonthRewards
                 $data[$d][$empId]['comment_id'] = (int)$row['ID'];
             }
         }
-        return $data;
+        return self::$forMonthCache[$cacheKey] = $data;
     }
 
     /**

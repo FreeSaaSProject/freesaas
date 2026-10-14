@@ -21,7 +21,7 @@ final class TicketWriter
         $st = Database::pdo()->query(
             "SELECT u.id FROM base_users u
              INNER JOIN base_admin_statuses s ON s.ID = u.ID_STATUS
-             WHERE u.enabled = 1 AND s.SUPERADMIN_ACCESS > 0
+             WHERE u.enabled = '1' AND s.SUPERADMIN_ACCESS > 0
              ORDER BY u.id ASC LIMIT 1"
         );
         return $st ? (int)$st->fetchColumn() : 0;
@@ -167,8 +167,16 @@ final class TicketWriter
      * Month reward totals from published report comments (exclude current day marker).
      * @return array{earned:int,missed:int,positive_count:int,negative_count:int}
      */
-    public static function monthRewardTotals(int $ticketId, int $dayStart, bool $currentGranted, int $currentSum): array
-    {
+    /**
+     * @param int $currentMissed Amount failed today when partially granted (other scripts red).
+     */
+    public static function monthRewardTotals(
+        int $ticketId,
+        int $dayStart,
+        bool $currentGranted,
+        int $currentSum,
+        int $currentMissed = 0
+    ): array {
         $totals = [
             'earned' => 0,
             'missed' => 0,
@@ -179,6 +187,7 @@ final class TicketWriter
             if ($currentGranted) {
                 $totals['earned'] += $currentSum;
                 $totals['positive_count']++;
+                $totals['missed'] += max(0, $currentMissed);
             } else {
                 $totals['missed'] += $currentSum;
                 $totals['negative_count']++;
@@ -230,6 +239,7 @@ final class TicketWriter
         if ($currentGranted) {
             $totals['earned'] += $currentSum;
             $totals['positive_count']++;
+            $totals['missed'] += max(0, $currentMissed);
         } else {
             $totals['missed'] += $currentSum;
             $totals['negative_count']++;

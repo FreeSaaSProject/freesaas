@@ -70,8 +70,8 @@ final class TranscriptHighlighter
                 'pos' => (int)($inst['string_position'] ?? 0),
                 'len' => (int)($inst['length'] ?? 0),
                 'name' => (string)($inst['key_name'] ?? ''),
-                'color' => (string)($inst['type_color'] ?? '#000'),
-                'bg' => (string)($inst['type_bg'] ?? '#ff0'),
+                'color' => (string)($inst['type_color'] ?? '#111'),
+                'bg' => (string)($inst['type_bg'] ?? '#fde68a'),
             ];
         }
 
@@ -111,15 +111,11 @@ final class TranscriptHighlighter
                 continue;
             }
 
-            $matchedPhrase = self::matchesTrashPhrase($text, $trashPhrases);
-            $isLong = self::isLongTrashLine($text);
-            if ($matchedPhrase || $isLong) {
+            $g = TranscriptGarbage::analyzeLine($text, $trashPhrases);
+            if ($g['trash']) {
                 $out['trash']++;
-                if ($isLong && !$matchedPhrase) {
-                    $cand = self::trashCandidatePhrase($text);
-                    if ($cand !== '') {
-                        $out['trash_candidates'][$cand] = $cand;
-                    }
+                if ($g['reason'] !== 'phrase' && $g['candidate'] !== '') {
+                    $out['trash_candidates'][$g['candidate']] = $g['candidate'];
                 }
                 continue;
             }
@@ -154,10 +150,18 @@ final class TranscriptHighlighter
             if ($timeEnd > 0) {
                 $attrs = ' data-time-start="' . $timeStart . '" data-time-end="' . $timeEnd . '"';
             }
+            $timeLabel = $timeRaw;
+            $absMode = !empty($opts['absolute_time']) && $dtRecorded > 0;
+            if ($absMode) {
+                $absEnd = $dtRecorded + max($timeStart, $timeEnd > 0 ? $timeEnd : $timeStart);
+                $timeLabel = date('H:i:s', $dtRecorded + $timeStart)
+                    . '→'
+                    . date('H:i:s', $absEnd);
+            }
             $numHtml = $compact ? '' : '<span class="transcript-num">' . $num . '</span> ';
             $html .= '<div class="' . $lineCls . '"' . $attrs . '>'
                 . $numHtml
-                . '<span class="transcript-time">[' . e($timeRaw) . ']</span> '
+                . '<span class="transcript-time">[' . e($timeLabel) . ']</span> '
                 . '<span class="transcript-text">' . $highlighted . '</span>'
                 . $ixMark
                 . '</div>';
@@ -214,20 +218,10 @@ final class TranscriptHighlighter
         return $out;
     }
 
-    /**
-     * Distinctive phrase for auto-adding to base_records_trashes.
-     * Prefer a mid-length token run so short common words are not stored alone.
-     */
+    /** @see TranscriptGarbage::candidatePhrase */
     public static function trashCandidatePhrase(string $text): string
     {
-        $text = trim(preg_replace('/\s+/u', ' ', $text) ?? $text);
-        if ($text === '') {
-            return '';
-        }
-        if (mb_strlen($text, 'UTF-8') <= 80) {
-            return $text;
-        }
-        return mb_substr($text, 0, 80, 'UTF-8');
+        return TranscriptGarbage::candidatePhrase($text);
     }
 
     /**
@@ -239,35 +233,7 @@ final class TranscriptHighlighter
      */
     public static function collectTrashCandidates(array $transcriptions, array $trashPhrases = []): array
     {
-        $found = [];
-        foreach ($transcriptions as $src) {
-            $src = (string)$src;
-            if ($src === '' || strpos($src, '[') === false) {
-                continue;
-            }
-            $parts = explode('[', $src);
-            array_shift($parts);
-            foreach ($parts as $chunk) {
-                if (strpos($chunk, ']') === false) {
-                    continue;
-                }
-                $pieces = explode(']', $chunk, 2);
-                $text = rtrim((string)($pieces[1] ?? ''), "\r\n");
-                if ($text === '') {
-                    continue;
-                }
-                $isLong = self::isLongTrashLine($text);
-                if (!$isLong || self::matchesTrashPhrase($text, $trashPhrases)) {
-                    continue;
-                }
-                $cand = self::trashCandidatePhrase($text);
-                if ($cand === '' || self::matchesTrashPhrase($cand, $trashPhrases)) {
-                    continue;
-                }
-                $found[$cand] = $cand;
-            }
-        }
-        return array_values($found);
+        return TranscriptGarbage::collectCandidates($transcriptions, $trashPhrases);
     }
 
     /**
@@ -328,35 +294,18 @@ final class TranscriptHighlighter
     /** @param list<string> $trashPhrases */
     public static function matchesTrashPhrase(string $text, array $trashPhrases): bool
     {
-        // strpos is UTF-8-safe for complete multi-byte needles and far cheaper than mb_strpos.
-        foreach ($trashPhrases as $sample) {
-            if ($sample !== '' && strpos($text, $sample) !== false) {
-                return true;
-            }
-        }
-        return false;
+        return TranscriptGarbage::matchesTrashPhrase($text, $trashPhrases);
     }
 
-    /** Fast “>500 chars” check avoiding mb_strlen on short strings. */
     public static function isLongTrashLine(string $text): bool
     {
-        $bytes = strlen($text);
-        if ($bytes <= 500) {
-            return false; // cannot exceed 500 chars
-        }
-        if ($bytes > 2000) {
-            return true; // must exceed 500 UTF-8 chars
-        }
-        return mb_strlen($text, 'UTF-8') > 500;
+        return TranscriptGarbage::isLongTrashLine($text);
     }
 
     /** @param list<string> $trashPhrases */
     public static function isTrash(string $text, array $trashPhrases): bool
     {
-        if (self::isLongTrashLine($text)) {
-            return true;
-        }
-        return self::matchesTrashPhrase($text, $trashPhrases);
+        return TranscriptGarbage::isTrashLine($text, $trashPhrases);
     }
 
     /**

@@ -35,7 +35,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_staff_report_profiles` | staff_reports | Per-position quality report config (traffic lights) |
 | `base_tables` | tables | Massage tables; optional `ID_TABLE` |
 | `base_records*` (split by domain) | audio / audio_dicts / audio_pipeline / audio_reports / audio_llm | Shared naming; ownership by domain |
-| `base_records_badges`, `base_audio_settings`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances` | audio | Badges, settings, assignments |
+| `base_records_badges`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances` | audio | Badges, assignments; storage settings in `cfg/modules/audio.ini` |
+| `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
 | `base_records_llm_studies`, `base_records_llm_study_results` | audio_llm | LLM studies over transcripts + cyclic templates |
 | `base_events` / `base_events_changes` | calendar | Appointments + audit |
 | `base_cabinets` | cabinets | Rooms; staff `skin`; stocks `ID_CABINET` |

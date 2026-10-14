@@ -96,6 +96,7 @@ View::render('scripts_canvas', [
     'error' => $error,
     'flash' => $flash,
     'dictOptions' => RecordsDictsRepository::options(true),
+    'dictPositionMap' => RecordsDictsRepository::positionMap(true),
     'positionOptions' => RecordsScriptsRepository::positionOptions(),
     'roleOptions' => [
         'ordinary' => t('audio_dicts.scripts.role.ordinary'),

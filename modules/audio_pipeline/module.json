@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.3.2",
+    "version": "0.3.17",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -104,12 +104,15 @@
         "base_records_collections",
         "base_records_collections_datas",
         "base_records_stem_word_cache",
-        "base_records_stem_key_cache"
+        "base_records_stem_key_cache",
+        "base_records_coverage_profiles"
     ],
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "audio_dicts.changed"
+            "audio_dicts.changed",
+            "audio.settings.sections",
+            "audio.settings.save"
         ],
         "publish": []
     },

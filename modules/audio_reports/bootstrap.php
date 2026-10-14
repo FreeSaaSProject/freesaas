@@ -12,6 +12,9 @@ require_once __DIR__ . '/lib/SummariesRepository.php';
 require_once __DIR__ . '/lib/SummaryCatalog.php';
 require_once __DIR__ . '/lib/SummaryRunner.php';
 require_once __DIR__ . '/lib/SummaryRenderer.php';
+require_once __DIR__ . '/lib/DayRatingReport.php';
+require_once __DIR__ . '/lib/DayQualityReport.php';
+require_once __DIR__ . '/lib/ReparseCost.php';
 
 Assets::register('audio_reports', [
     'css' => ['audio_reports.css'],
@@ -20,9 +23,16 @@ Assets::register('audio_reports', [
 
 $pages = [
     '/audio/calendar' => ['permission' => 'audio_reports.view', 'methods' => ['GET', 'POST'], 'file' => 'calendar.php'],
+    '/audio/calendar/day-report' => ['permission' => 'audio_reports.view', 'methods' => ['GET'], 'file' => 'day_report.php'],
     '/audio/calendar/reparse' => ['permission' => 'audio_reports.edit', 'methods' => ['GET', 'POST'], 'file' => 'calendar_reparse.php'],
     '/audio/collections' => ['permission' => 'audio_reports.collections', 'methods' => ['GET', 'POST'], 'file' => 'collections.php'],
-    '/audio/collections/{id}' => ['permission' => 'audio_reports.collections', 'methods' => ['GET'], 'file' => 'collections.php'],
+    // Detail: directors/admins only — masseurs keep calendar/day-report aggregates.
+    '/audio/collections/{id}' => [
+        'permission' => 'audio_reports.collections',
+        'capability' => 'SHOW_ADMINISTRATOR_DATA',
+        'methods' => ['GET'],
+        'file' => 'collections.php',
+    ],
     '/audio/summaries' => ['permission' => 'audio_reports.summaries', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
     '/audio/summaries/new' => ['permission' => 'audio_reports.edit', 'methods' => ['GET', 'POST'], 'file' => 'summaries.php'],
     '/audio/summaries/work' => ['permission' => 'audio_reports.summaries', 'methods' => ['GET', 'POST'], 'file' => 'summaries_work.php'],
@@ -31,14 +41,18 @@ $pages = [
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'audio_reports',
         'methods' => $def['methods'],
         'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/audio_reports/pages/' . $file);
         },
-    ]);
+    ];
+    if (!empty($def['capability'])) {
+        $route['capability'] = (string)$def['capability'];
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 BulkActions::register('audio_collections', 'delete', [

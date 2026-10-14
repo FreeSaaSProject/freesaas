@@ -85,6 +85,171 @@ final class RecordsDictsRepository
         return $out;
     }
 
+    /**
+     * Dict id => position ids from ID_POSITION (empty list = global / all positions).
+     *
+     * @return array<int,list<int>>
+     */
+    public static function positionMap(bool $includeDisabled = false): array
+    {
+        $out = [];
+        if (!Database::tableExists('base_records_dictonarys')) {
+            return $out;
+        }
+        $sql = 'SELECT ID, ID_POSITION FROM base_records_dictonarys';
+        if (!$includeDisabled) {
+            $sql .= ' WHERE DISABLED < 1';
+        }
+        foreach (Database::pdo()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $ids = class_exists('RecordsScriptsRepository', false)
+                ? RecordsScriptsRepository::parseIds((string)($r['ID_POSITION'] ?? ''))
+                : [];
+            $out[(int)$r['ID']] = $ids;
+        }
+        return $out;
+    }
+
+    /**
+     * Dictionaries allowed for a staff member (status + ID_AUDIO_POSITION peers).
+     * Empty ID_POSITION / "0" on a dict = global (all positions).
+     *
+     * @return array<int,string> id => name
+     */
+    public static function optionsForAdmin(int $adminId, bool $includeDisabled = false): array
+    {
+        if ($adminId < 1) {
+            return self::options($includeDisabled);
+        }
+        $allowed = self::adminAllowedPositionIds($adminId);
+        if ($allowed === []) {
+            return self::options($includeDisabled);
+        }
+        return self::optionsForPositions($allowed, $includeDisabled);
+    }
+
+    /**
+     * @param list<int> $positionIds
+     * @return array<int,string>
+     */
+    public static function optionsForPositions(array $positionIds, bool $includeDisabled = false): array
+    {
+        $out = [];
+        if (!Database::tableExists('base_records_dictonarys')) {
+            return $out;
+        }
+        $allowed = [];
+        foreach ($positionIds as $pid) {
+            $pid = (int)$pid;
+            if ($pid > 0) {
+                $allowed[$pid] = true;
+            }
+        }
+        $sql = 'SELECT ID, NAME, ID_POSITION FROM base_records_dictonarys';
+        if (!$includeDisabled) {
+            $sql .= ' WHERE DISABLED < 1';
+        }
+        $sql .= ' ORDER BY NAME ASC';
+        foreach (Database::pdo()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            if (!self::isPositionAllowed((string)($r['ID_POSITION'] ?? ''), $allowed)) {
+                continue;
+            }
+            $out[(int)$r['ID']] = (string)$r['NAME'];
+        }
+        return $out;
+    }
+
+    /**
+     * Status ids that count as the same audio role for this staffer.
+     *
+     * @return list<int>
+     */
+    public static function adminAllowedPositionIds(int $adminId): array
+    {
+        if ($adminId < 1 || !class_exists('UsersRepository', false)) {
+            return [];
+        }
+        $user = UsersRepository::find($adminId);
+        if ($user === null) {
+            return [];
+        }
+        $statusId = (int)($user['ID_STATUS'] ?? 0);
+        if ($statusId < 1) {
+            return [];
+        }
+        if (class_exists('SummariesRepository', false)) {
+            $eq = SummariesRepository::equivalentAudioPositionIds($statusId);
+            if ($eq !== []) {
+                return $eq;
+            }
+        }
+        return [$statusId];
+    }
+
+    /**
+     * @param array<int,true>|list<int> $allowedPositions
+     */
+    public static function isPositionAllowed(string $idPositionRaw, array $allowedPositions): bool
+    {
+        $raw = trim($idPositionRaw);
+        if ($raw === '' || $raw === '0') {
+            return true; // global
+        }
+        $index = [];
+        foreach ($allowedPositions as $k => $v) {
+            if (is_bool($v) || $v === 1 || $v === '1') {
+                $pid = (int)$k;
+            } else {
+                $pid = (int)$v;
+            }
+            if ($pid > 0) {
+                $index[$pid] = true;
+            }
+        }
+        if ($index === []) {
+            return true;
+        }
+        $ids = class_exists('RecordsScriptsRepository', false)
+            ? RecordsScriptsRepository::parseIds($raw)
+            : [];
+        if ($ids === []) {
+            // Fallback parse (#2#,#20# or plain 2)
+            foreach (preg_split('/[#,\s]+/', $raw) ?: [] as $p) {
+                $n = (int)$p;
+                if ($n > 0) {
+                    $ids[] = $n;
+                }
+            }
+        }
+        if ($ids === []) {
+            return true;
+        }
+        foreach ($ids as $pid) {
+            if (isset($index[(int)$pid])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public static function isDictAllowedForAdmin(int $dictId, int $adminId): bool
+    {
+        if ($dictId < 1) {
+            return false;
+        }
+        if ($adminId < 1) {
+            return true;
+        }
+        $row = self::find($dictId);
+        if ($row === null) {
+            return false;
+        }
+        $allowed = self::adminAllowedPositionIds($adminId);
+        if ($allowed === []) {
+            return true;
+        }
+        return self::isPositionAllowed((string)($row['id_position'] ?? ''), $allowed);
+    }
+
     /** @param array<string,mixed> $post @return array<string,mixed> */
     public static function dataFromPost(array $post): array
     {

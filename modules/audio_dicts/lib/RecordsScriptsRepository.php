@@ -13,7 +13,7 @@ final class RecordsScriptsRepository
     }
 
     /**
-     * @param array{q?:string,order?:string,limit?:int,offset?:int} $opts
+     * @param array{q?:string,position?:int,order?:string,limit?:int,offset?:int} $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function listRoots(array $opts = []): array
@@ -31,15 +31,34 @@ final class RecordsScriptsRepository
             $params[] = $like;
             $params[] = $q;
         }
+        $positionId = (int)($opts['position'] ?? 0);
+        if ($positionId > 0) {
+            // Empty / 0 = all positions; else exact id or #id# token (joinIds / legacy)
+            $where[] = '(s.ID_POSITION IS NULL OR TRIM(s.ID_POSITION) = \'\' OR s.ID_POSITION = \'0\'
+                        OR s.ID_POSITION = ? OR s.ID_POSITION LIKE ?)';
+            $params[] = (string)$positionId;
+            $params[] = '%#' . $positionId . '#%';
+        }
         $sqlWhere = implode(' AND ', $where);
         $stc = $pdo->prepare("SELECT COUNT(*) FROM base_records_scripts s WHERE $sqlWhere");
         $stc->execute($params);
         $total = (int)$stc->fetchColumn();
         $order = trim((string)($opts['order'] ?? '')) ?: 's.ID DESC';
+        // Disabled scripts always last (unless the user sorts by disabled explicitly)
+        if (!preg_match('/\bDISABLED\b/i', $order)) {
+            $order = 's.DISABLED ASC, ' . $order;
+        }
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
+        $ratingCols = Database::columnExists('base_records_scripts', 'RATING_ENABLED')
+            ? ', s.RATING_ENABLED AS rating_enabled, s.IS_HIDDEN AS is_hidden, s.LEGACY_TYPE_ID AS legacy_type_id'
+            : ', 0 AS rating_enabled, 0 AS is_hidden, 0 AS legacy_type_id';
+        $dayCols = Database::columnExists('base_records_scripts', 'DAY_BONUS')
+            ? ', s.DAY_BONUS AS day_bonus, s.DAY_BONUS_SUM AS day_bonus_sum'
+            : ', 0 AS day_bonus, 0 AS day_bonus_sum';
         $sql = "SELECT s.ID AS id, s.DT_CREATE AS dt_create, s.NAME AS name, s.DISABLED AS disabled,
-                       s.NUM AS num, s.ID_POSITION AS id_position,
+                       s.NUM AS num, s.ID_POSITION AS id_position
+                       {$ratingCols}{$dayCols},
                        (SELECT COUNT(*) FROM base_records_scripts p WHERE p.PID = s.ID) AS parts_count
                 FROM base_records_scripts s
                 WHERE $sqlWhere ORDER BY $order";
@@ -53,6 +72,11 @@ final class RecordsScriptsRepository
             $row['position_ids'] = self::parseIds((string)($row['id_position'] ?? ''));
             $row['parts_count'] = (int)($row['parts_count'] ?? 0);
             $row['disabled'] = (int)($row['disabled'] ?? 0);
+            $row['rating_enabled'] = (int)($row['rating_enabled'] ?? 0);
+            $row['day_bonus'] = (int)($row['day_bonus'] ?? 0);
+            $row['day_bonus_sum'] = (int)($row['day_bonus_sum'] ?? 0);
+            $row['is_hidden'] = (int)($row['is_hidden'] ?? 0);
+            $row['legacy_type_id'] = (int)($row['legacy_type_id'] ?? 0);
             $row['parts'] = [];
         }
         unset($row);
@@ -85,10 +109,13 @@ final class RecordsScriptsRepository
             return $out;
         }
         $in = implode(',', array_fill(0, count($rootIds), '?'));
+        $rateCol = Database::columnExists('base_records_scripts', 'SCORE_RATE')
+            ? ', SCORE_RATE AS score_rate' : ', 0 AS score_rate';
         $st = Database::pdo()->prepare(
             "SELECT ID AS id, PID AS pid, NAME AS name, NUM AS num,
                     IS_REQ AS is_req, FINISH AS finish, `BREAK` AS break_flag,
                     COLLECTION_KILLER AS collection_killer, SCORE AS score
+                    {$rateCol}
              FROM base_records_scripts
              WHERE PID IN ($in)
              ORDER BY PID ASC, NUM ASC, ID ASC"
@@ -109,6 +136,7 @@ final class RecordsScriptsRepository
                     (int)$row['collection_killer']
                 ),
                 'score' => (int)$row['score'],
+                'score_rate' => (int)($row['score_rate'] ?? 0),
             ];
         }
         return $out;
@@ -139,12 +167,7 @@ final class RecordsScriptsRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ID AS id, PID AS pid, NEXT_QID AS next_qid, EL_TYPE AS el_type, NUM AS num,
-                    NAME AS name, DT_CREATE AS dt_create, DISABLED AS disabled,
-                    IS_REQ AS is_req, FINISH AS finish, IDS_DICTONARYS AS ids_dictonarys,
-                    SCORE AS score, `BREAK` AS break_flag, TIMEOUT AS timeout,
-                    DIVERSITY AS diversity, INSTANCES_MIN AS instances_min,
-                    COLLECTION_KILLER AS collection_killer, ID_POSITION AS id_position
+            'SELECT ' . self::selectColumnsSql() . '
              FROM base_records_scripts
              WHERE PID = ?
              ORDER BY NUM ASC, ID ASC'
@@ -176,20 +199,52 @@ final class RecordsScriptsRepository
         $pdo->beginTransaction();
         $rootId = 0;
         try {
-            $st = $pdo->prepare(
-                'INSERT INTO base_records_scripts
-                 (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
-                  IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
-                  COLLECTION_KILLER, ID_POSITION)
-                 VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, NULL, 0, 0, 0, 0, 0, 0, ?)'
-            );
-            $st->execute([
-                (int)($meta['num'] ?? 0),
-                $meta['name'],
-                time(),
-                (int)($meta['disabled'] ?? 0),
-                $meta['id_position'] ?? '',
-            ]);
+            if (Database::columnExists('base_records_scripts', 'RATING_ENABLED')) {
+                $hasDayBonus = Database::columnExists('base_records_scripts', 'DAY_BONUS');
+                $st = $pdo->prepare(
+                    'INSERT INTO base_records_scripts
+                     (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
+                      IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
+                      COLLECTION_KILLER, ID_POSITION, RATING_ENABLED, IS_HIDDEN, LEGACY_TYPE_ID,
+                      SCORE_RATE, KPI, COND_TYPE, COND_VALUE'
+                    . ($hasDayBonus ? ', DAY_BONUS, DAY_BONUS_SUM, PROC_RATIO_MIN' : '')
+                    . ')
+                     VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, NULL, 0, 0, 0, 0, 0, 0, ?, ?, ?, ?, 0, 0, \'\', 0'
+                    . ($hasDayBonus ? ', ?, ?, ?' : '')
+                    . ')'
+                );
+                $params = [
+                    (int)($meta['num'] ?? 0),
+                    $meta['name'],
+                    time(),
+                    (int)($meta['disabled'] ?? 0),
+                    $meta['id_position'] ?? '',
+                    (int)($meta['rating_enabled'] ?? 0),
+                    (int)($meta['is_hidden'] ?? 0),
+                    (int)($meta['legacy_type_id'] ?? 0),
+                ];
+                if ($hasDayBonus) {
+                    $params[] = (int)($meta['day_bonus'] ?? 0);
+                    $params[] = max(0, (int)($meta['day_bonus_sum'] ?? 0));
+                    $params[] = max(0, (int)($meta['proc_ratio_min'] ?? 0));
+                }
+                $st->execute($params);
+            } else {
+                $st = $pdo->prepare(
+                    'INSERT INTO base_records_scripts
+                     (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
+                      IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
+                      COLLECTION_KILLER, ID_POSITION)
+                     VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, NULL, 0, 0, 0, 0, 0, 0, ?)'
+                );
+                $st->execute([
+                    (int)($meta['num'] ?? 0),
+                    $meta['name'],
+                    time(),
+                    (int)($meta['disabled'] ?? 0),
+                    $meta['id_position'] ?? '',
+                ]);
+            }
             $rootId = (int)$pdo->lastInsertId();
             if ($rootId < 1) {
                 throw new RuntimeException(t('audio_dicts.scripts.err.create_failed'));
@@ -219,16 +274,42 @@ final class RecordsScriptsRepository
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         try {
-            $st = $pdo->prepare(
-                'UPDATE base_records_scripts SET NAME=?, DISABLED=?, NUM=?, ID_POSITION=? WHERE ID=? AND PID=0'
-            );
-            $st->execute([
-                $meta['name'],
-                (int)($meta['disabled'] ?? 0),
-                (int)($meta['num'] ?? 0),
-                $meta['id_position'] ?? '',
-                $id,
-            ]);
+            if (Database::columnExists('base_records_scripts', 'RATING_ENABLED')) {
+                $hasDayBonus = Database::columnExists('base_records_scripts', 'DAY_BONUS');
+                $st = $pdo->prepare(
+                    'UPDATE base_records_scripts SET NAME=?, DISABLED=?, NUM=?, ID_POSITION=?,
+                     RATING_ENABLED=?, IS_HIDDEN=?, LEGACY_TYPE_ID=?'
+                    . ($hasDayBonus ? ', DAY_BONUS=?, DAY_BONUS_SUM=?, PROC_RATIO_MIN=?' : '')
+                    . ' WHERE ID=? AND PID=0'
+                );
+                $params = [
+                    $meta['name'],
+                    (int)($meta['disabled'] ?? 0),
+                    (int)($meta['num'] ?? 0),
+                    $meta['id_position'] ?? '',
+                    (int)($meta['rating_enabled'] ?? 0),
+                    (int)($meta['is_hidden'] ?? 0),
+                    (int)($meta['legacy_type_id'] ?? 0),
+                ];
+                if ($hasDayBonus) {
+                    $params[] = (int)($meta['day_bonus'] ?? 0);
+                    $params[] = max(0, (int)($meta['day_bonus_sum'] ?? 0));
+                    $params[] = max(0, (int)($meta['proc_ratio_min'] ?? 0));
+                }
+                $params[] = $id;
+                $st->execute($params);
+            } else {
+                $st = $pdo->prepare(
+                    'UPDATE base_records_scripts SET NAME=?, DISABLED=?, NUM=?, ID_POSITION=? WHERE ID=? AND PID=0'
+                );
+                $st->execute([
+                    $meta['name'],
+                    (int)($meta['disabled'] ?? 0),
+                    (int)($meta['num'] ?? 0),
+                    $meta['id_position'] ?? '',
+                    $id,
+                ]);
+            }
 
             $keep = [];
             $ordered = [];
@@ -243,58 +324,11 @@ final class RecordsScriptsRepository
                 $dicts = self::joinIds(is_array($part['dict_ids'] ?? null) ? $part['dict_ids'] : self::parseIds((string)($part['ids_dictonarys'] ?? '')));
                 $useExisting = $partId > 0 && isset($existingIds[$partId]);
                 if ($useExisting) {
-                    $upd = $pdo->prepare(
-                        'UPDATE base_records_scripts SET
-                         NEXT_QID=0, EL_TYPE=1, NUM=?, NAME=?, DISABLED=?,
-                         IS_REQ=?, FINISH=?, IDS_DICTONARYS=?, SCORE=?, `BREAK`=?, TIMEOUT=?,
-                         DIVERSITY=?, INSTANCES_MIN=?, COLLECTION_KILLER=?, ID_POSITION=?
-                         WHERE ID=? AND PID=?'
-                    );
-                    $upd->execute([
-                        $num,
-                        $part['name'],
-                        (int)($part['disabled'] ?? 0),
-                        $flags['is_req'],
-                        $flags['finish'],
-                        $dicts,
-                        (int)($part['score'] ?? 0),
-                        $flags['break'],
-                        (int)($part['timeout'] ?? 0),
-                        (int)($part['diversity'] ?? 0),
-                        (int)($part['instances_min'] ?? 0),
-                        $flags['killer'],
-                        (string)($part['id_position'] ?? ''),
-                        $partId,
-                        $id,
-                    ]);
+                    self::updatePartRow($pdo, $partId, $id, $num, $part, $flags, $dicts);
                     $keep[] = $partId;
                     $ordered[] = $partId;
                 } else {
-                    $ins = $pdo->prepare(
-                        'INSERT INTO base_records_scripts
-                         (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
-                          IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
-                          COLLECTION_KILLER, ID_POSITION)
-                         VALUES (?, 0, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-                    );
-                    $ins->execute([
-                        $id,
-                        $num,
-                        $part['name'],
-                        time(),
-                        (int)($part['disabled'] ?? 0),
-                        $flags['is_req'],
-                        $flags['finish'],
-                        $dicts,
-                        (int)($part['score'] ?? 0),
-                        $flags['break'],
-                        (int)($part['timeout'] ?? 0),
-                        (int)($part['diversity'] ?? 0),
-                        (int)($part['instances_min'] ?? 0),
-                        $flags['killer'],
-                        (string)($part['id_position'] ?? ''),
-                    ]);
-                    $newId = (int)$pdo->lastInsertId();
+                    $newId = self::insertPartRow($pdo, $id, $num, $part, $flags, $dicts);
                     $keep[] = $newId;
                     $ordered[] = $newId;
                 }
@@ -351,12 +385,8 @@ final class RecordsScriptsRepository
         }
         $root = $tree['root'];
         $name = mb_substr((string)$root['name'] . ' ' . t('audio_dicts.scripts.copy_suffix'), 0, 40);
-        $meta = [
-            'name' => $name,
-            'disabled' => (int)$root['disabled'],
-            'num' => (int)$root['num'],
-            'id_position' => (string)$root['id_position'],
-        ];
+        $meta = self::metaFromRoot($root);
+        $meta['name'] = $name;
         $parts = [];
         foreach ($tree['parts'] as $p) {
             $parts[] = [
@@ -364,6 +394,14 @@ final class RecordsScriptsRepository
                 'disabled' => (int)$p['disabled'],
                 'dict_ids' => $p['dict_ids'],
                 'score' => (int)$p['score'],
+                'score_rate' => (int)($p['score_rate'] ?? 0),
+                'kpi' => (int)($p['kpi'] ?? 0),
+                'cond_type' => (string)($p['cond_type'] ?? ''),
+                'cond_value' => (int)($p['cond_value'] ?? 0),
+                'start_gate' => max(0, min(2, (int)($p['start_gate'] ?? 0))),
+                'extend_timeout' => array_key_exists('extend_timeout', $p)
+                    ? (!empty($p['extend_timeout']) ? 1 : 0)
+                    : 1,
                 'timeout' => (int)$p['timeout'],
                 'diversity' => (int)$p['diversity'],
                 'instances_min' => (int)$p['instances_min'],
@@ -410,12 +448,7 @@ final class RecordsScriptsRepository
         } else {
             $parts[] = $data;
         }
-        self::update($scriptId, [
-            'name' => (string)$tree['root']['name'],
-            'disabled' => (int)$tree['root']['disabled'],
-            'num' => (int)$tree['root']['num'],
-            'id_position' => (string)$tree['root']['id_position'],
-        ], $parts);
+        self::update($scriptId, self::metaFromRoot($tree['root']), $parts);
         $fresh = self::findWithParts($scriptId);
         if ($partId > 0) {
             foreach ($fresh['parts'] as $p) {
@@ -454,12 +487,7 @@ final class RecordsScriptsRepository
         foreach ($byId as $p) {
             $ordered[] = $p;
         }
-        self::update($scriptId, [
-            'name' => (string)$tree['root']['name'],
-            'disabled' => (int)$tree['root']['disabled'],
-            'num' => (int)$tree['root']['num'],
-            'id_position' => (string)$tree['root']['id_position'],
-        ], $ordered);
+        self::update($scriptId, self::metaFromRoot($tree['root']), $ordered);
     }
 
     public static function deletePart(int $scriptId, int $partId): void
@@ -472,12 +500,7 @@ final class RecordsScriptsRepository
             $tree['parts'],
             static fn (array $p): bool => (int)$p['id'] !== $partId
         ));
-        self::update($scriptId, [
-            'name' => (string)$tree['root']['name'],
-            'disabled' => (int)$tree['root']['disabled'],
-            'num' => (int)$tree['root']['num'],
-            'id_position' => (string)$tree['root']['id_position'],
-        ], $parts);
+        self::update($scriptId, self::metaFromRoot($tree['root']), $parts);
     }
 
     /**
@@ -499,6 +522,12 @@ final class RecordsScriptsRepository
             'disabled' => !empty($post['disabled']) ? 1 : 0,
             'num' => max(0, (int)($post['num'] ?? 0)),
             'id_position' => self::joinIds($posRaw),
+            'rating_enabled' => !empty($post['rating_enabled']) ? 1 : 0,
+            'is_hidden' => !empty($post['is_hidden']) ? 1 : 0,
+            'legacy_type_id' => max(0, (int)($post['legacy_type_id'] ?? 0)),
+            'day_bonus' => !empty($post['day_bonus']) ? 1 : 0,
+            'day_bonus_sum' => max(0, (int)($post['day_bonus_sum'] ?? 0)),
+            'proc_ratio_min' => max(0, (int)($post['proc_ratio_min'] ?? 0)),
         ];
     }
 
@@ -544,15 +573,51 @@ final class RecordsScriptsRepository
                 $roles = ['ordinary'];
             }
             $roles = self::normalizeRoles($roles);
+            $condType = strtolower(trim((string)($row['cond_type'] ?? '')));
+            $allowedCond = ['intersect', 'no_intersect', 'volume_gt', 'volume_lt', 'strings_gt', 'strings_lt'];
+            if (!in_array($condType, $allowedCond, true)) {
+                $condType = '';
+            }
+            $cleanDicts = array_values(array_filter(array_map('intval', $dictIds), static fn ($i) => $i > 0));
+            // Activator is exclusive: metric COND_* OR dictionaries (CollectRunner).
+            $condValue = (int)($row['cond_value'] ?? 0);
+            $diversity = max(0, (int)($row['diversity'] ?? 0));
+            $instancesMin = max(0, (int)($row['instances_min'] ?? 0));
+            if ($condType !== '') {
+                $cleanDicts = [];
+                $diversity = 0;
+                $instancesMin = 0;
+                // intersect / no_intersect are boolean — no threshold
+                if ($condType === 'intersect' || $condType === 'no_intersect') {
+                    $condValue = 0;
+                }
+            } else {
+                $condValue = 0;
+            }
+            $startGate = max(0, min(2, (int)($row['start_gate'] ?? 0)));
+            // START_GATE applies only to trigger parts
+            if (!in_array('trigger', $roles, true)) {
+                $startGate = 0;
+            }
             $out[] = [
                 'id' => (int)($row['id'] ?? 0),
                 'name' => mb_substr($name, 0, 40),
                 'disabled' => !empty($row['disabled']) ? 1 : 0,
-                'dict_ids' => array_values(array_filter(array_map('intval', $dictIds), static fn ($i) => $i > 0)),
+                'dict_ids' => $cleanDicts,
                 'score' => (int)($row['score'] ?? 0),
+                'score_rate' => (int)($row['score_rate'] ?? 0),
+                'kpi' => max(0, (int)($row['kpi'] ?? 0)),
+                'cond_type' => $condType,
+                'cond_value' => $condValue,
+                'start_gate' => $startGate,
+                'extend_timeout' => array_key_exists('extend_timeout', $row)
+                    ? (!empty($row['extend_timeout']) ? 1 : 0)
+                    : 1,
                 'timeout' => max(0, (int)($row['timeout'] ?? 0)),
-                'diversity' => max(0, (int)($row['diversity'] ?? 0)),
-                'instances_min' => max(0, (int)($row['instances_min'] ?? 0)),
+                'diversity' => $diversity,
+                'instances_min' => $instancesMin,
+                'gate_red_max' => max(0.0, (float)($row['gate_red_max'] ?? 0)),
+                'gate_yellow_max' => max(0.0, (float)($row['gate_yellow_max'] ?? 0)),
                 'roles' => $roles,
                 'role' => $roles[0] ?? 'ordinary',
                 'collection_killer' => in_array('killer', $roles, true) ? 1 : 0,
@@ -696,6 +761,112 @@ final class RecordsScriptsRepository
         return $opts;
     }
 
+    /**
+     * Positions that appear on at least one root script (for list filter).
+     * Empty ID_POSITION (applies to all) does not add every status — only explicit ids.
+     *
+     * @return array<int,string> status id => name
+     */
+    public static function positionOptionsUsedInScripts(): array
+    {
+        $all = self::positionOptions();
+        if ($all === [] || !Database::tableExists('base_records_scripts')) {
+            return [];
+        }
+        $used = [];
+        $st = Database::pdo()->query(
+            "SELECT ID_POSITION FROM base_records_scripts
+             WHERE PID = 0 AND ID_POSITION IS NOT NULL AND TRIM(ID_POSITION) <> '' AND ID_POSITION <> '0'"
+        );
+        foreach ($st ? ($st->fetchAll(PDO::FETCH_COLUMN) ?: []) : [] as $raw) {
+            foreach (self::parseIds((string)$raw) as $pid) {
+                $used[$pid] = true;
+            }
+        }
+        $out = [];
+        foreach (array_keys($used) as $pid) {
+            $pid = (int)$pid;
+            if ($pid < 1) {
+                continue;
+            }
+            $out[$pid] = $all[$pid] ?? ('#' . $pid);
+        }
+        asort($out, SORT_NATURAL | SORT_FLAG_CASE);
+        return $out;
+    }
+
+    /** Shared SELECT column list (aliases) for script rows. */
+    private static function selectColumnsSql(): string
+    {
+        $cols = 'ID AS id, PID AS pid, NEXT_QID AS next_qid, EL_TYPE AS el_type, NUM AS num,
+                    NAME AS name, DT_CREATE AS dt_create, DISABLED AS disabled,
+                    IS_REQ AS is_req, FINISH AS finish, IDS_DICTONARYS AS ids_dictonarys,
+                    SCORE AS score, `BREAK` AS break_flag, TIMEOUT AS timeout,
+                    DIVERSITY AS diversity, INSTANCES_MIN AS instances_min,
+                    COLLECTION_KILLER AS collection_killer, ID_POSITION AS id_position';
+        if (Database::columnExists('base_records_scripts', 'RATING_ENABLED')) {
+            $cols .= ', RATING_ENABLED AS rating_enabled, IS_HIDDEN AS is_hidden, LEGACY_TYPE_ID AS legacy_type_id';
+        } else {
+            $cols .= ', 0 AS rating_enabled, 0 AS is_hidden, 0 AS legacy_type_id';
+        }
+        if (Database::columnExists('base_records_scripts', 'SCORE_RATE')) {
+            $cols .= ', SCORE_RATE AS score_rate';
+        } else {
+            $cols .= ', 0 AS score_rate';
+        }
+        if (Database::columnExists('base_records_scripts', 'KPI')) {
+            $cols .= ', KPI AS kpi';
+        } else {
+            $cols .= ', 0 AS kpi';
+        }
+        if (Database::columnExists('base_records_scripts', 'COND_TYPE')) {
+            $cols .= ', COND_TYPE AS cond_type, COND_VALUE AS cond_value';
+        } else {
+            $cols .= ", '' AS cond_type, 0 AS cond_value";
+        }
+        if (Database::columnExists('base_records_scripts', 'START_GATE')) {
+            $cols .= ', START_GATE AS start_gate';
+        } else {
+            $cols .= ', 0 AS start_gate';
+        }
+        if (Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT')) {
+            $cols .= ', EXTEND_TIMEOUT AS extend_timeout';
+        } else {
+            $cols .= ', 1 AS extend_timeout';
+        }
+        if (Database::columnExists('base_records_scripts', 'DAY_BONUS')) {
+            $cols .= ', DAY_BONUS AS day_bonus, DAY_BONUS_SUM AS day_bonus_sum, PROC_RATIO_MIN AS proc_ratio_min';
+        } else {
+            $cols .= ', 0 AS day_bonus, 0 AS day_bonus_sum, 0 AS proc_ratio_min';
+        }
+        if (Database::columnExists('base_records_scripts', 'GATE_RED_MAX')) {
+            $cols .= ', GATE_RED_MAX AS gate_red_max, GATE_YELLOW_MAX AS gate_yellow_max';
+        } else {
+            $cols .= ', 0 AS gate_red_max, 0 AS gate_yellow_max';
+        }
+        return $cols;
+    }
+
+    /**
+     * @param array<string,mixed> $root
+     * @return array<string,mixed>
+     */
+    private static function metaFromRoot(array $root): array
+    {
+        return [
+            'name' => (string)$root['name'],
+            'disabled' => (int)$root['disabled'],
+            'num' => (int)$root['num'],
+            'id_position' => (string)$root['id_position'],
+            'rating_enabled' => (int)($root['rating_enabled'] ?? 0),
+            'is_hidden' => (int)($root['is_hidden'] ?? 0),
+            'legacy_type_id' => (int)($root['legacy_type_id'] ?? 0),
+            'day_bonus' => (int)($root['day_bonus'] ?? 0),
+            'day_bonus_sum' => (int)($root['day_bonus_sum'] ?? 0),
+            'proc_ratio_min' => (int)($root['proc_ratio_min'] ?? 0),
+        ];
+    }
+
     /** @return array<string,mixed>|null */
     private static function findRow(int $id): ?array
     {
@@ -703,13 +874,7 @@ final class RecordsScriptsRepository
             return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ID AS id, PID AS pid, NEXT_QID AS next_qid, EL_TYPE AS el_type, NUM AS num,
-                    NAME AS name, DT_CREATE AS dt_create, DISABLED AS disabled,
-                    IS_REQ AS is_req, FINISH AS finish, IDS_DICTONARYS AS ids_dictonarys,
-                    SCORE AS score, `BREAK` AS break_flag, TIMEOUT AS timeout,
-                    DIVERSITY AS diversity, INSTANCES_MIN AS instances_min,
-                    COLLECTION_KILLER AS collection_killer, ID_POSITION AS id_position
-             FROM base_records_scripts WHERE ID = ? LIMIT 1'
+            'SELECT ' . self::selectColumnsSql() . ' FROM base_records_scripts WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -733,6 +898,12 @@ final class RecordsScriptsRepository
             'disabled' => (int)($row['disabled'] ?? 0),
             'id_position' => (string)($row['id_position'] ?? ''),
             'position_ids' => self::parseIds((string)($row['id_position'] ?? '')),
+            'rating_enabled' => (int)($row['rating_enabled'] ?? 0),
+            'is_hidden' => (int)($row['is_hidden'] ?? 0),
+            'legacy_type_id' => (int)($row['legacy_type_id'] ?? 0),
+            'day_bonus' => (int)($row['day_bonus'] ?? 0),
+            'day_bonus_sum' => (int)($row['day_bonus_sum'] ?? 0),
+            'proc_ratio_min' => (int)($row['proc_ratio_min'] ?? 0),
         ];
     }
 
@@ -763,9 +934,19 @@ final class RecordsScriptsRepository
             'ids_dictonarys' => (string)($row['ids_dictonarys'] ?? ''),
             'dict_ids' => $dictIds,
             'score' => (int)($row['score'] ?? 0),
+            'score_rate' => (int)($row['score_rate'] ?? 0),
+            'kpi' => (int)($row['kpi'] ?? 0),
+            'cond_type' => (string)($row['cond_type'] ?? ''),
+            'cond_value' => (int)($row['cond_value'] ?? 0),
+            'start_gate' => max(0, min(2, (int)($row['start_gate'] ?? 0))),
+            'extend_timeout' => array_key_exists('extend_timeout', $row)
+                ? ((int)$row['extend_timeout'] > 0 ? 1 : 0)
+                : 1,
             'timeout' => (int)($row['timeout'] ?? 0),
             'diversity' => (int)($row['diversity'] ?? 0),
             'instances_min' => (int)($row['instances_min'] ?? 0),
+            'gate_red_max' => max(0.0, (float)($row['gate_red_max'] ?? 0)),
+            'gate_yellow_max' => max(0.0, (float)($row['gate_yellow_max'] ?? 0)),
             'collection_killer' => $killer,
             'id_position' => (string)($row['id_position'] ?? ''),
             'roles' => $roles,
@@ -774,15 +955,161 @@ final class RecordsScriptsRepository
     }
 
     /**
-     * @param list<array<string,mixed>> $parts
+     * @param array<string,mixed> $part
+     * @param array{is_req:int,finish:int,break:int,killer:int} $flags
      */
-    private static function insertParts(PDO $pdo, int $rootId, array $parts): void
-    {
-        $ordered = [];
-        foreach (array_values($parts) as $i => $part) {
-            $num = $i + 1;
-            $flags = self::flagsFromPart($part);
-            $dicts = self::joinIds(is_array($part['dict_ids'] ?? null) ? $part['dict_ids'] : []);
+    private static function updatePartRow(
+        PDO $pdo,
+        int $partId,
+        int $rootId,
+        int $num,
+        array $part,
+        array $flags,
+        string $dicts
+    ): void {
+        if (Database::columnExists('base_records_scripts', 'SCORE_RATE')) {
+            $hasGate = Database::columnExists('base_records_scripts', 'START_GATE');
+            $hasExtend = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
+            $hasQuality = Database::columnExists('base_records_scripts', 'GATE_RED_MAX');
+            $upd = $pdo->prepare(
+                'UPDATE base_records_scripts SET
+                 NEXT_QID=0, EL_TYPE=1, NUM=?, NAME=?, DISABLED=?,
+                 IS_REQ=?, FINISH=?, IDS_DICTONARYS=?, SCORE=?, `BREAK`=?, TIMEOUT=?,
+                 DIVERSITY=?, INSTANCES_MIN=?, COLLECTION_KILLER=?, ID_POSITION=?,
+                 SCORE_RATE=?, KPI=?, COND_TYPE=?, COND_VALUE=?'
+                . ($hasGate ? ', START_GATE=?' : '')
+                . ($hasExtend ? ', EXTEND_TIMEOUT=?' : '')
+                . ($hasQuality ? ', GATE_RED_MAX=?, GATE_YELLOW_MAX=?' : '')
+                . ' WHERE ID=? AND PID=?'
+            );
+            $params = [
+                $num,
+                $part['name'],
+                (int)($part['disabled'] ?? 0),
+                $flags['is_req'],
+                $flags['finish'],
+                $dicts,
+                (int)($part['score'] ?? 0),
+                $flags['break'],
+                (int)($part['timeout'] ?? 0),
+                (int)($part['diversity'] ?? 0),
+                (int)($part['instances_min'] ?? 0),
+                $flags['killer'],
+                (string)($part['id_position'] ?? ''),
+                (int)($part['score_rate'] ?? 0),
+                (int)($part['kpi'] ?? 0),
+                (string)($part['cond_type'] ?? ''),
+                (int)($part['cond_value'] ?? 0),
+            ];
+            if ($hasGate) {
+                $params[] = max(0, min(2, (int)($part['start_gate'] ?? 0)));
+            }
+            if ($hasExtend) {
+                $params[] = array_key_exists('extend_timeout', $part)
+                    ? (!empty($part['extend_timeout']) ? 1 : 0)
+                    : 1;
+            }
+            if ($hasQuality) {
+                $params[] = max(0.0, (float)($part['gate_red_max'] ?? 0));
+                $params[] = max(0.0, (float)($part['gate_yellow_max'] ?? 0));
+            }
+            $params[] = $partId;
+            $params[] = $rootId;
+            $upd->execute($params);
+            return;
+        }
+        $upd = $pdo->prepare(
+            'UPDATE base_records_scripts SET
+             NEXT_QID=0, EL_TYPE=1, NUM=?, NAME=?, DISABLED=?,
+             IS_REQ=?, FINISH=?, IDS_DICTONARYS=?, SCORE=?, `BREAK`=?, TIMEOUT=?,
+             DIVERSITY=?, INSTANCES_MIN=?, COLLECTION_KILLER=?, ID_POSITION=?
+             WHERE ID=? AND PID=?'
+        );
+        $upd->execute([
+            $num,
+            $part['name'],
+            (int)($part['disabled'] ?? 0),
+            $flags['is_req'],
+            $flags['finish'],
+            $dicts,
+            (int)($part['score'] ?? 0),
+            $flags['break'],
+            (int)($part['timeout'] ?? 0),
+            (int)($part['diversity'] ?? 0),
+            (int)($part['instances_min'] ?? 0),
+            $flags['killer'],
+            (string)($part['id_position'] ?? ''),
+            $partId,
+            $rootId,
+        ]);
+    }
+
+    /**
+     * @param array<string,mixed> $part
+     * @param array{is_req:int,finish:int,break:int,killer:int} $flags
+     */
+    private static function insertPartRow(
+        PDO $pdo,
+        int $rootId,
+        int $num,
+        array $part,
+        array $flags,
+        string $dicts
+    ): int {
+        if (Database::columnExists('base_records_scripts', 'SCORE_RATE')) {
+            $hasGate = Database::columnExists('base_records_scripts', 'START_GATE');
+            $hasExtend = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
+            $hasQuality = Database::columnExists('base_records_scripts', 'GATE_RED_MAX');
+            $ins = $pdo->prepare(
+                'INSERT INTO base_records_scripts
+                 (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
+                  IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
+                  COLLECTION_KILLER, ID_POSITION, SCORE_RATE, KPI, COND_TYPE, COND_VALUE'
+                . ($hasGate ? ', START_GATE' : '')
+                . ($hasExtend ? ', EXTEND_TIMEOUT' : '')
+                . ($hasQuality ? ', GATE_RED_MAX, GATE_YELLOW_MAX' : '')
+                . ')
+                 VALUES (?, 0, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?'
+                . ($hasGate ? ', ?' : '')
+                . ($hasExtend ? ', ?' : '')
+                . ($hasQuality ? ', ?, ?' : '')
+                . ')'
+            );
+            $params = [
+                $rootId,
+                $num,
+                $part['name'],
+                time(),
+                (int)($part['disabled'] ?? 0),
+                $flags['is_req'],
+                $flags['finish'],
+                $dicts,
+                (int)($part['score'] ?? 0),
+                $flags['break'],
+                (int)($part['timeout'] ?? 0),
+                (int)($part['diversity'] ?? 0),
+                (int)($part['instances_min'] ?? 0),
+                $flags['killer'],
+                (string)($part['id_position'] ?? ''),
+                (int)($part['score_rate'] ?? 0),
+                (int)($part['kpi'] ?? 0),
+                (string)($part['cond_type'] ?? ''),
+                (int)($part['cond_value'] ?? 0),
+            ];
+            if ($hasGate) {
+                $params[] = max(0, min(2, (int)($part['start_gate'] ?? 0)));
+            }
+            if ($hasExtend) {
+                $params[] = array_key_exists('extend_timeout', $part)
+                    ? (!empty($part['extend_timeout']) ? 1 : 0)
+                    : 1;
+            }
+            if ($hasQuality) {
+                $params[] = max(0.0, (float)($part['gate_red_max'] ?? 0));
+                $params[] = max(0.0, (float)($part['gate_yellow_max'] ?? 0));
+            }
+            $ins->execute($params);
+        } else {
             $ins = $pdo->prepare(
                 'INSERT INTO base_records_scripts
                  (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
@@ -807,7 +1134,21 @@ final class RecordsScriptsRepository
                 $flags['killer'],
                 (string)($part['id_position'] ?? ''),
             ]);
-            $ordered[] = (int)$pdo->lastInsertId();
+        }
+        return (int)$pdo->lastInsertId();
+    }
+
+    /**
+     * @param list<array<string,mixed>> $parts
+     */
+    private static function insertParts(PDO $pdo, int $rootId, array $parts): void
+    {
+        $ordered = [];
+        foreach (array_values($parts) as $i => $part) {
+            $num = $i + 1;
+            $flags = self::flagsFromPart($part);
+            $dicts = self::joinIds(is_array($part['dict_ids'] ?? null) ? $part['dict_ids'] : []);
+            $ordered[] = self::insertPartRow($pdo, $rootId, $num, $part, $flags, $dicts);
         }
         self::linkNextQids($pdo, $ordered);
     }

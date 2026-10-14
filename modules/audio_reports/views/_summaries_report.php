@@ -16,8 +16,9 @@ $year = (int)($vm['year'] ?? date('Y'));
 $month = (int)($vm['month'] ?? date('n'));
 $dateFrom = (string)($vm['date_from'] ?? '');
 $dateTo = (string)($vm['date_to'] ?? '');
-$canEdit = !empty($vm['can_edit']);
-$profiles = isset($vm['profiles']) && is_array($vm['profiles']) ? $vm['profiles'] : [];
+$sumCanEdit = !empty($vm['can_edit']);
+// Local names: this partial is also `require`d from summaries_list (shared scope).
+$sumProfiles = isset($vm['profiles']) && is_array($vm['profiles']) ? $vm['profiles'] : [];
 ?>
 <div id="ar-sum-report" class="ar-sum-report" data-period-mode="<?= e($periodMode) ?>">
 <?php if ($preview): ?>
@@ -58,7 +59,7 @@ $profiles = isset($vm['profiles']) && is_array($vm['profiles']) ? $vm['profiles'
           <a href="/audio/summaries?profile=<?= $profileId ?>&amp;year=<?= $year ?>&amp;month=<?= $month ?>"><?= te('audio_reports.summaries.back_month') ?></a>
         <?php endif; ?>
       </form>
-      <?php if (count($profiles) > 1 || $canEdit): ?>
+      <?php if (count($sumProfiles) > 1 || $sumCanEdit): ?>
         <form method="get" action="/audio/summaries" class="ar-sum-profile-form">
           <?php if ($isRange): ?>
             <input type="hidden" name="date_from" value="<?= e($dateFrom) ?>">
@@ -68,16 +69,16 @@ $profiles = isset($vm['profiles']) && is_array($vm['profiles']) ? $vm['profiles'
             <input type="hidden" name="month" value="<?= $month ?>">
           <?php endif; ?>
           <select name="profile" onchange="if(this.value==='__new__'){location.href='/audio/summaries/new';return false;}this.form.submit();">
-            <?php foreach ($profiles as $p): ?>
+            <?php foreach ($sumProfiles as $p): ?>
               <option value="<?= (int)$p['ID'] ?>"<?= ((int)$p['ID'] === $profileId) ? ' selected' : '' ?>><?= e((string)$p['NAME']) ?><?= !empty($p['IS_DEFAULT']) ? ' ★' : '' ?></option>
             <?php endforeach; ?>
-            <?php if ($canEdit): ?>
+            <?php if ($sumCanEdit): ?>
               <option value="__new__"><?= te('audio_reports.summaries.construct_new') ?></option>
             <?php endif; ?>
           </select>
         </form>
       <?php endif; ?>
-      <?php if ($canEdit && $profileId > 0): ?>
+      <?php if ($sumCanEdit && $profileId > 0): ?>
         <a class="btn" href="/audio/summaries/<?= $profileId ?>"><?= te('audio_reports.summaries.edit') ?></a>
       <?php endif; ?>
     </div>

@@ -26,6 +26,7 @@ Permissions: `audio_pipeline.view`.
 | `base_records_collections_datas` | Owned by `audio_pipeline` |
 | `base_records_stem_word_cache` | Owned by `audio_pipeline` |
 | `base_records_stem_key_cache` | Owned by `audio_pipeline` |
+| `base_records_coverage_profiles` | Owned by `audio_pipeline` |
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 

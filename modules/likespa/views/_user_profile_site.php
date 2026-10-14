@@ -10,8 +10,8 @@ if ($photo !== '') {
     } else {
         $host = class_exists('AppRuntime', false) ? AppRuntime::publicHost() : '';
         if ($host !== '') {
-            $path = $photo[0] === '/' ? $photo : '/' . $photo;
-            $photoUrl = 'https://' . $host . $path;
+            $photoPath = $photo[0] === '/' ? $photo : '/' . $photo;
+            $photoUrl = 'https://' . $host . $photoPath;
         }
     }
 }

@@ -9,6 +9,9 @@ require_once __DIR__ . '/lib/JobRunner.php';
 require_once __DIR__ . '/lib/IngestRunner.php';
 require_once __DIR__ . '/lib/StemRunner.php';
 require_once __DIR__ . '/lib/CollectRunner.php';
+require_once __DIR__ . '/lib/RatingAggregates.php';
+require_once __DIR__ . '/lib/AudioCoverageConfig.php';
+require_once __DIR__ . '/lib/AudioCoverageProfiles.php';
 
 /**
  * Cabin audio analytics workers (ingest / base_records ASR / stem / collect).
@@ -59,6 +62,82 @@ EventBus::on('audio_dicts.changed', static function ($payload) {
     // explicit via calendar Re-® or /audio/jobs/stem?reset=1&day=…|record=….
     StemRunner::invalidateCaches();
     return is_array($payload) ? $payload : [];
+});
+
+EventBus::on('audio.settings.sections', static function ($payload) {
+    if (!is_array($payload)) {
+        $payload = ['html' => ''];
+    }
+    if (!Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $statuses = [];
+    if (Database::tableExists('base_admin_statuses')) {
+        foreach (Database::pdo()->query(
+            'SELECT ID AS id, NAME AS name FROM base_admin_statuses ORDER BY NAME ASC'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $statuses[] = ['id' => (int)$row['id'], 'name' => (string)$row['name']];
+        }
+    }
+    $staff = [];
+    if (class_exists('UsersRepository', false)) {
+        foreach (UsersRepository::listEnabledStaff() as $u) {
+            $staff[] = [
+                'id' => (int)($u['id'] ?? 0),
+                'name' => trim((string)($u['name'] ?? $u['login'] ?? '')),
+            ];
+        }
+    }
+    $editPositionId = max(0, (int)($_GET['cov_position_id'] ?? $_POST['cov_position_id'] ?? 0));
+    $editAdminId = max(0, (int)($_GET['cov_admin_id'] ?? $_POST['cov_admin_id'] ?? 0));
+    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_coverage', [
+        'coverage' => AudioCoverageConfig::read(),
+        'statuses' => $statuses,
+        'staff' => $staff,
+        'editPositionId' => $editPositionId,
+        'editAdminId' => $editAdminId,
+        'editPosition' => $editPositionId > 0 ? AudioCoverageProfiles::findByPosition($editPositionId) : null,
+        'editAdmin' => $editAdminId > 0 ? AudioCoverageProfiles::findByAdmin($editAdminId) : null,
+    ], 'audio_pipeline');
+    return $payload;
+});
+
+EventBus::on('audio.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (!empty($post['audio_coverage_save'])) {
+        AudioCoverageConfig::save([
+            'disable_outside_coverage' => !empty($post['disable_outside_coverage']),
+            'match_procedures' => !empty($post['match_procedures']),
+            'procedure_buffer_sec' => (int)($post['procedure_buffer_sec'] ?? 1600),
+            'min_procedure_sec' => (int)($post['min_procedure_sec'] ?? 360),
+        ]);
+    }
+    if (!empty($post['audio_coverage_position_save'])) {
+        $pid = max(0, (int)($post['cov_position_id'] ?? 0));
+        if ($pid > 0) {
+            AudioCoverageProfiles::savePosition($pid, !empty($post['cov_pos_enabled']), [
+                'match_procedures' => !empty($post['cov_pos_match_procedures']),
+                'disable_outside_coverage' => !empty($post['cov_pos_disable_outside']),
+                'procedure_buffer_sec' => (int)($post['cov_pos_buffer'] ?? 1600),
+                'min_procedure_sec' => (int)($post['cov_pos_min'] ?? 360),
+            ]);
+        }
+    }
+    if (!empty($post['audio_coverage_admin_save'])) {
+        $aid = max(0, (int)($post['cov_admin_id'] ?? 0));
+        if ($aid > 0) {
+            AudioCoverageProfiles::saveAdmin($aid, !empty($post['cov_adm_enabled']), [
+                'match_procedures' => !empty($post['cov_adm_match_procedures']),
+                'disable_outside_coverage' => !empty($post['cov_adm_disable_outside']),
+                'procedure_buffer_sec' => (int)($post['cov_adm_buffer'] ?? 1600),
+                'min_procedure_sec' => (int)($post['cov_adm_min'] ?? 360),
+            ]);
+        }
+    }
+    return $payload;
 });
 
 Health::register('audio_pipeline.stem_cache', 'audio_pipeline', static function (): array {

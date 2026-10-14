@@ -5,7 +5,6 @@ $wantsJson = AgentHttp::wantsJson();
 
 $entity = (string)($GLOBALS['audio_dicts_entity'] ?? '');
 $map = [
-    'types' => ['repo' => RecordsTypesRepository::class, 'path' => '/audio/types', 'title' => 'audio_dicts.menu.types', 'list_id' => 'audio_types', 'view' => 'types_list'],
     'dicts' => ['repo' => RecordsDictsRepository::class, 'path' => '/audio/dicts', 'title' => 'audio_dicts.menu.dicts', 'list_id' => 'audio_dicts', 'view' => 'dicts_list'],
     'keys' => ['repo' => RecordsKeysRepository::class, 'path' => '/audio/keys', 'title' => 'audio_dicts.menu.keys', 'list_id' => 'audio_keys', 'view' => 'keys_list'],
     'tags' => ['repo' => RecordsTagsRepository::class, 'path' => '/audio/tags', 'title' => 'audio_dicts.menu.tags', 'list_id' => 'audio_tags', 'view' => 'tags_list'],

@@ -1,0 +1,96 @@
+{
+    "id": "audio_phrases",
+    "name": "audio_phrases.module.name",
+    "description": "audio_phrases.module.description",
+    "version": "0.1.17",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "audio": ">=0.1.0",
+        "audio_dicts": ">=0.1.0",
+        "audio_pipeline": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "audio_reports": ">=0.1.0"
+    },
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "audio_phrases.view",
+            "label": "audio_phrases.perm.view"
+        },
+        {
+            "id": "audio_phrases.edit",
+            "label": "audio_phrases.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/audio/phrases",
+            "/audio/phrases/day",
+            "/audio/phrases/{id}/status"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/audio_phrases.md",
+        "ops": [
+            {
+                "id": "audio_phrases.list",
+                "method": "GET",
+                "path": "/audio/phrases",
+                "permission": "audio_phrases.view",
+                "description": "List stable phrases; filters status/dict/admin/period"
+            },
+            {
+                "id": "audio_phrases.day",
+                "method": "GET",
+                "path": "/audio/phrases/day",
+                "permission": "audio_phrases.view",
+                "description": "Day phrase report; date=YYYY-MM-DD, optional admin"
+            },
+            {
+                "id": "audio_phrases.status",
+                "method": "POST",
+                "path": "/audio/phrases/{id}/status",
+                "permission": "audio_phrases.edit",
+                "description": "Set phrase status (junk|skip|key|new) and optional dict/key"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "audio.menu.group",
+            "kind": "crud",
+            "num": 16,
+            "path": "/audio/phrases",
+            "title": "audio_phrases.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_records_phrases",
+        "base_records_phrase_days"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "audio_reports.calendar.reparse.after",
+            "audio_reports.day_report.sections",
+            "audio.settings.sections",
+            "audio.settings.save",
+            "core.bulk.check_item"
+        ],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "audio"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "jobs"
+        ],
+        "screenshots": []
+    }
+}

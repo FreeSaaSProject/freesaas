@@ -15,9 +15,28 @@ final class StemRunner
     private const MAX_BATCH = 700;
 
     /**
-     * Recalculate SCORE for already-parsed records (no stem). Uses KEY_TYPES already on rows.
+     * Reuse morph/refs/key encoding within one PHP request (multi-batch reparse).
+     * Lemmatizer must stay the same instance so stem-word IDs match key encodings.
      *
-     * @param array{day?:string,admin?:int,record?:int,limit?:int} $opts
+     * @var array{
+     *   version:string,
+     *   morph_message:string,
+     *   morphy:object,
+     *   refs:array,
+     *   lemmatizer:StemLemmatizer,
+     *   key_build:array{encoded:array,max_length:int,min_length:int}
+     * }|null
+     */
+    private static $prepared = null;
+
+    /** @var array<string,string> ASR-loop candidates pending flush into base_records_trashes */
+    private static $pendingTrashCandidates = [];
+
+    /**
+     * Recalculate SCORE via script collections (collect + RatingAggregates).
+     * Legacy type-based KEY_TYPES scoring is disabled.
+     *
+     * @param array{day?:string,admin?:int,record?:int,limit?:int,time_budget_sec?:int} $opts
      * @return array{ok:bool,processed:int,skipped:int,message:string,extra?:array}
      */
     public static function scoreOnly(array $opts = []): array
@@ -26,50 +45,93 @@ final class StemRunner
             return ['ok' => false, 'processed' => 0, 'skipped' => 0, 'message' => 'tables_missing'];
         }
         JobRunner::applyTimeLimit(isset($opts['time_budget_sec']) ? (int)$opts['time_budget_sec'] : 120);
-        $deadline = JobRunner::deadline(isset($opts['time_budget_sec']) ? (int)$opts['time_budget_sec'] : 120);
 
-        $refs = self::loadReferenceData();
         $adminFilter = max(0, (int)($opts['admin'] ?? 0));
         $recordFilter = max(0, (int)($opts['record'] ?? 0));
         $dayRange = self::parseDayRange(isset($opts['day']) ? (string)$opts['day'] : '');
-        $limit = max(1, min(5000, (int)($opts['limit'] ?? 2000)));
 
-        $where = ['DT_TRANSCRIBED > 1', 'DT_PARSED > 0'];
-        $params = [];
         if ($recordFilter > 0) {
-            $where = ['ID = ?'];
-            $params = [$recordFilter];
+            $st = Database::pdo()->prepare('SELECT ID_ADMIN, DT_RECORDED FROM base_records WHERE ID = ? LIMIT 1');
+            $st->execute([$recordFilter]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!$row) {
+                return ['ok' => true, 'processed' => 0, 'skipped' => 0, 'message' => 'nothing_to_score'];
+            }
+            $adminFilter = (int)$row['ID_ADMIN'];
+            $day = date('Y-m-d', (int)$row['DT_RECORDED']);
+            $dayRange = self::parseDayRange($day);
+        }
+
+        $enabledRecords = 0;
+        if ($dayRange !== null) {
+            $enabledRecords = self::enableDisabledCoverageRecords($dayRange['start'], $dayRange['end'], $adminFilter);
+        }
+
+        $onlyAdmins = null;
+        $window = null;
+        if ($dayRange !== null) {
+            $onlyAdmins = $adminFilter > 0
+                ? [$adminFilter]
+                : self::adminIdsForDay(date('Y-m-d', $dayRange['start']));
+            $window = [
+                'start' => $dayRange['start'],
+                'end' => $dayRange['end'],
+                'time_budget_sec' => (int)($opts['time_budget_sec'] ?? 90),
+            ];
+        } elseif ($adminFilter > 0) {
+            $onlyAdmins = [$adminFilter];
         } else {
-            if ($dayRange !== null) {
-                $where[] = 'DT_RECORDED > ? AND DT_RECORDED < ?';
-                $params[] = $dayRange['start'];
-                $params[] = $dayRange['end'];
-            }
-            if ($adminFilter > 0) {
-                $where[] = 'ID_ADMIN = ?';
-                $params[] = $adminFilter;
-            }
+            return ['ok' => false, 'processed' => 0, 'skipped' => 0, 'message' => 'need_day_or_admin'];
         }
-        $sql = 'SELECT ID FROM base_records WHERE ' . implode(' AND ', $where)
-            . ' ORDER BY DT_RECORDED ASC LIMIT ' . (int)$limit;
-        $st = Database::pdo()->prepare($sql);
-        $st->execute($params);
-        $ids = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN) ?: []);
-        if ($ids === []) {
-            return ['ok' => true, 'processed' => 0, 'skipped' => 0, 'message' => 'nothing_to_score'];
+
+        $coll = CollectRunner::run(false, $onlyAdmins, $window);
+
+        $disabledRecords = 0;
+        if ($dayRange !== null) {
+            $disabledRecords = self::disableOutsideCoverageAfterCollect(
+                $dayRange['start'],
+                $dayRange['end'],
+                $adminFilter
+            );
         }
-        if (JobRunner::timedOut($deadline)) {
-            return ['ok' => true, 'processed' => 0, 'skipped' => 0, 'message' => 'timed_out'];
+
+        $extra = [
+            'collections' => (int)(($coll['extra']['collections'] ?? 0)),
+            'admins' => count($onlyAdmins ?? []),
+        ];
+        if ($enabledRecords > 0) {
+            $extra['enabled_records'] = $enabledRecords;
         }
-        self::applyScores($ids, $refs);
+        if ($disabledRecords > 0) {
+            $extra['disabled_records'] = $disabledRecords;
+        }
 
         return [
-            'ok' => true,
-            'processed' => count($ids),
+            'ok' => !empty($coll['ok']),
+            'processed' => (int)($coll['processed'] ?? 0),
             'skipped' => 0,
-            'message' => 'score_done',
-            'extra' => ['ids' => count($ids)],
+            'message' => 'score_via_collect',
+            'extra' => $extra,
         ];
+    }
+
+    /**
+     * Shared lemmatizer for phrase mining / other workers.
+     */
+    public static function makeLemmatizer(): ?StemLemmatizer
+    {
+        $note = '';
+        $morphy = self::resolveMorphy($note);
+        if ($morphy === null) {
+            return null;
+        }
+        $dict = require base_path('modules/audio_pipeline/lib/stem_dict_data.php');
+        $badLem = is_array($dict['badLemWords'] ?? null) ? $dict['badLemWords'] : [];
+        $ownNames = is_array($dict['ownNames'] ?? null) ? $dict['ownNames'] : [];
+        StemCache::setVersion(StemCache::buildVersion($badLem, $ownNames));
+        StemCache::initRun();
+
+        return new StemLemmatizer($badLem, $ownNames, $morphy);
     }
 
     public static function libsAvailable(): bool
@@ -109,6 +171,8 @@ final class StemRunner
     }
 
     /**
+     * Does not touch base_records_reviews (inspected / favorites survive reparse).
+     *
      * @return array{records:int,instances:int,collections:int,collections_datas:int,reviews:int,balances:int}
      */
     public static function resetDay(int $dayStart, int $dayEnd, int $adminId = 0, int $recordId = 0): array
@@ -178,9 +242,9 @@ final class StemRunner
         foreach ($rangeByAdmin as $aid => $range) {
             $stats = self::deleteCollectionsForAdminRange($pdo, (int)$aid, (int)$range['min'], (int)$range['max'], $stats);
         }
-        if (Database::tableExists('base_records_reviews')) {
-            $stats['reviews'] = (int)$pdo->exec("DELETE FROM base_records_reviews WHERE ID_RECORD IN ($ids)");
-        }
+        // Keep base_records_reviews: already-inspected rows (DT_REVIEW>0) and favorites
+        // must survive reparse. finalizeBatch only INSERT IGNORE / upserts DT_CREATE for
+        // newly triggered review-required keys.
         if (Database::tableExists('base_records_balances')) {
             $stats['balances'] = (int)$pdo->exec("DELETE FROM base_records_balances WHERE ID_RECORD IN ($ids)");
         }
@@ -201,36 +265,27 @@ final class StemRunner
         JobRunner::applyTimeLimit(isset($opts['time_budget_sec']) ? (int)$opts['time_budget_sec'] : null);
         $deadline = JobRunner::deadline(isset($opts['time_budget_sec']) ? (int)$opts['time_budget_sec'] : null);
 
-        $morphMessage = '';
-        $morphy = self::resolveMorphy($morphMessage);
-        if ($morphy === null) {
+        $prepared = self::prepareRunContext();
+        if ($prepared === null) {
             return [
                 'ok' => false,
                 'processed' => 0,
                 'skipped' => 0,
                 'message' => 'stem_libs_unavailable',
-                'extra' => ['morph' => $morphMessage !== '' ? $morphMessage : 'morph_unavailable'],
+                'extra' => ['morph' => 'morph_unavailable'],
             ];
         }
-
-        /** @var array{bad_lem_words:array<string,string>,own_names:array<string,int>} $dict */
-        $dict = require base_path('modules/audio_pipeline/lib/stem_dict_data.php');
-        $badLem = is_array($dict['bad_lem_words'] ?? null) ? $dict['bad_lem_words'] : [];
-        $ownNames = is_array($dict['own_names'] ?? null) ? $dict['own_names'] : [];
-
-        StemCache::setVersion(StemCache::buildVersion($badLem, $ownNames));
-        StemCache::initRun();
-
-        $refs = self::loadReferenceData();
+        $morphMessage = $prepared['morph_message'];
+        $refs = $prepared['refs'];
         if ($refs['keys'] === []) {
             return ['ok' => true, 'processed' => 0, 'skipped' => 0, 'message' => 'no_keys'];
         }
-
-        $lemmatizer = new StemLemmatizer($badLem, $ownNames, $morphy);
-        $keyBuild = self::buildKeyArrayEncoded($refs['keys'], $lemmatizer);
+        $lemmatizer = $prepared['lemmatizer'];
+        $keyBuild = $prepared['key_build'];
         if ($keyBuild['encoded'] === []) {
             return ['ok' => true, 'processed' => 0, 'skipped' => 0, 'message' => 'no_keys_encoded'];
         }
+        StemCache::initRun();
 
         $adminFilter = max(0, (int)($opts['admin'] ?? 0));
         $recordFilter = max(0, (int)($opts['record'] ?? 0));
@@ -239,13 +294,27 @@ final class StemRunner
         $limit = (int)($opts['limit'] ?? JobRunner::batchSize());
         $limit = max(1, min(self::MAX_BATCH, $limit > 0 ? $limit : JobRunner::batchSize()));
 
+        // Re-enable DISABLED coverage-role records for the day so stem/collect sees full audio.
+        // Optional re-disable after collect: AudioCoverageConfig::disable_outside_coverage.
+        $enabledRecords = 0;
+        if ($dayRange !== null) {
+            $enabledRecords = self::enableDisabledCoverageRecords($dayRange['start'], $dayRange['end'], $adminFilter);
+        }
+
         $rows = self::fetchRecords($dayRange, $adminFilter, $recordFilter, $limit, $unparsedOnly);
         if ($rows === []) {
             $msg = $morphMessage !== '' ? 'nothing_to_parse:' . $morphMessage : 'nothing_to_parse';
             $out = ['ok' => true, 'processed' => 0, 'skipped' => 0, 'message' => $msg];
+            $extraEmpty = [];
+            if ($enabledRecords > 0) {
+                $extraEmpty['enabled_records'] = $enabledRecords;
+            }
             $collExtra = self::runCollectAfterStem($opts, $dayRange, $adminFilter, 0);
             if ($collExtra !== null) {
-                $out['extra'] = ['collect' => $collExtra];
+                $extraEmpty['collect'] = $collExtra;
+            }
+            if ($extraEmpty !== []) {
+                $out['extra'] = $extraEmpty;
             }
             return $out;
         }
@@ -312,12 +381,20 @@ final class StemRunner
             'max_phrase_len' => $keyBuild['max_length'],
             'stem_cache' => StemCache::statsText(),
         ];
+        if ($enabledRecords > 0) {
+            $extra['enabled_records'] = $enabledRecords;
+        }
         if ($morphMessage !== '') {
             $extra['morph'] = $morphMessage;
         }
 
         if ($batchIds !== []) {
             self::finalizeBatch($batchIds, $keyBuild, $refs, $records, $lemmatizer);
+        }
+
+        $trashAdded = self::flushPendingTrashCandidates();
+        if ($trashAdded > 0) {
+            $extra['trash_added'] = $trashAdded;
         }
 
         StemCache::flushWords();
@@ -380,12 +457,24 @@ final class StemRunner
         }
 
         $coll = CollectRunner::run($fullCollect && $onlyAdmins === null, $onlyAdmins, $window);
-        return [
+        $out = [
             'ok' => !empty($coll['ok']),
             'message' => (string)($coll['message'] ?? ''),
             'processed' => (int)($coll['processed'] ?? 0),
             'collections' => (int)(($coll['extra']['collections'] ?? 0)),
         ];
+        if ($dayRange !== null) {
+            $disabled = self::disableOutsideCoverageAfterCollect(
+                $dayRange['start'],
+                $dayRange['end'],
+                $adminFilter > 0 ? $adminFilter : 0
+            );
+            if ($disabled > 0) {
+                $out['disabled_records'] = $disabled;
+            }
+        }
+
+        return $out;
     }
 
     /**
@@ -477,6 +566,240 @@ final class StemRunner
         $out = [];
         foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $aid) {
             $out[] = (int)$aid;
+        }
+
+        return $out;
+    }
+
+    /**
+     * Re-enable DISABLED records for staff with DISABLE_NON_PROCEDURE_TIME
+     * so stem/collect can rate the full day. Optional re-disable: disableOutsideCoverageAfterCollect.
+     *
+     * @deprecated Use enableDisabledCoverageRecords
+     */
+    public static function enableDisabledMassageRecords(int $dayStart, int $dayEnd, int $adminFilter = 0): int
+    {
+        return self::enableDisabledCoverageRecords($dayStart, $dayEnd, $adminFilter);
+    }
+
+    public static function enableDisabledCoverageRecords(int $dayStart, int $dayEnd, int $adminFilter = 0): int
+    {
+        if ($dayStart < 1 || $dayEnd < $dayStart || !Database::tableExists('base_records')) {
+            return 0;
+        }
+        $adminIds = self::coverageAdminIds();
+        if ($adminIds === []) {
+            return 0;
+        }
+        if ($adminFilter > 0) {
+            if (!in_array($adminFilter, $adminIds, true)) {
+                return 0;
+            }
+            $adminIds = [$adminFilter];
+        }
+        $in = implode(',', array_map('intval', $adminIds));
+        $st = Database::pdo()->prepare(
+            "UPDATE base_records SET DISABLED = 0
+             WHERE DISABLED = 1
+               AND ID_ADMIN IN ($in)
+               AND DT_RECORDED > ?
+               AND DT_RECORDED < ?"
+        );
+        $st->execute([$dayStart, $dayEnd]);
+
+        return (int)$st->rowCount();
+    }
+
+    /**
+     * After collect: disable day records that do not overlap rated collections,
+     * paid procedure windows (± buffer), or pending review. Setting-gated.
+     */
+    public static function disableOutsideCoverageAfterCollect(int $dayStart, int $dayEnd, int $adminFilter = 0): int
+    {
+        if ($dayStart < 1 || $dayEnd < $dayStart || !Database::tableExists('base_records')) {
+            return 0;
+        }
+        if (!class_exists('AudioCoverageConfig', false)) {
+            require_once __DIR__ . '/AudioCoverageConfig.php';
+        }
+        if (!class_exists('AudioCoverageProfiles', false)) {
+            require_once __DIR__ . '/AudioCoverageProfiles.php';
+        }
+        $adminIds = self::coverageAdminIds();
+        if ($adminIds === []) {
+            return 0;
+        }
+        if ($adminFilter > 0) {
+            if (!in_array($adminFilter, $adminIds, true)) {
+                return 0;
+            }
+            $adminIds = [$adminFilter];
+        }
+
+        $disabled = 0;
+        foreach ($adminIds as $aid) {
+            $cfg = AudioCoverageConfig::forAdmin($aid);
+            if (empty($cfg['disable_outside_coverage'])) {
+                continue;
+            }
+            $disabled += self::disableOutsideCoverageForAdmin(
+                $aid,
+                $dayStart,
+                $dayEnd,
+                $cfg
+            );
+        }
+
+        return $disabled;
+    }
+
+    /**
+     * @param array{match_procedures?:bool,procedure_buffer_sec?:int,min_procedure_sec?:int} $cfg
+     */
+    private static function disableOutsideCoverageForAdmin(
+        int $adminId,
+        int $dayStart,
+        int $dayEnd,
+        array $cfg
+    ): int {
+        $procBuffer = max(0, (int)($cfg['procedure_buffer_sec'] ?? 1600));
+        $minProcSec = max(0, (int)($cfg['min_procedure_sec'] ?? 360));
+        $matchProc = !empty($cfg['match_procedures']);
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            'SELECT ID, DT_RECORDED, PLAYTIME FROM base_records
+             WHERE ID_ADMIN = ? AND DISABLED < 1
+               AND DT_RECORDED > ? AND DT_RECORDED < ?
+               AND DT_TRANSCRIBED > 1'
+        );
+        $st->execute([$adminId, $dayStart, $dayEnd]);
+        $records = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($records === []) {
+            return 0;
+        }
+
+        $keep = [];
+
+        // Pending review («Тр.Осм»)
+        if (Database::tableExists('base_records_reviews')) {
+            $ids = array_map(static fn ($r) => (int)$r['ID'], $records);
+            $in = implode(',', array_map('intval', $ids));
+            if ($in !== '') {
+                $revSql = "SELECT ID_RECORD FROM base_records_reviews
+                           WHERE ID_RECORD IN ($in)
+                             AND (DT_REVIEW IS NULL OR DT_REVIEW < 1)";
+                foreach ($pdo->query($revSql)->fetchAll(PDO::FETCH_COLUMN) ?: [] as $rid) {
+                    $keep[(int)$rid] = true;
+                }
+            }
+        }
+
+        // Rated collections
+        $windows = [];
+        if (Database::tableExists('base_records_collections')) {
+            $ratedCond = Database::columnExists('base_records_collections', 'RATED')
+                ? 'AND RATED = 1' : '';
+            $cst = $pdo->prepare(
+                "SELECT DT_START, DT_END FROM base_records_collections
+                 WHERE ID_ADMIN = ? {$ratedCond}
+                   AND DT_START <= ? AND (DT_END = 0 OR DT_END >= ?)"
+            );
+            $cst->execute([$adminId, $dayEnd, $dayStart]);
+            foreach ($cst->fetchAll(PDO::FETCH_ASSOC) ?: [] as $c) {
+                $ws = (int)$c['DT_START'];
+                $we = (int)$c['DT_END'];
+                if ($we < 1) {
+                    $we = $ws;
+                }
+                $windows[] = [$ws, $we];
+            }
+        }
+
+        // Paid procedure windows (soft procedures module; only when match_procedures on)
+        if ($matchProc
+            && ModuleManager::isEnabled('procedures')
+            && Database::tableExists('base_procedures')
+        ) {
+            $opCol = Database::columnExists('base_procedures', 'ID_OPERATOR')
+                ? 'ID_OPERATOR' : 'ID_ADMIN';
+            $pst = $pdo->prepare(
+                "SELECT DTSTART, DTEND, SUMM FROM base_procedures
+                 WHERE {$opCol} = ? AND ENABLED = 1 AND SUMM > 0
+                   AND DTSTART <= ? AND (DTEND = 0 OR DTEND >= ?)"
+            );
+            $pst->execute([$adminId, $dayEnd + $procBuffer, $dayStart - $procBuffer]);
+            foreach ($pst->fetchAll(PDO::FETCH_ASSOC) ?: [] as $p) {
+                $ps = (int)$p['DTSTART'];
+                $pe = (int)$p['DTEND'];
+                if ($pe < 1) {
+                    $pe = $ps;
+                }
+                $dur = max(0, $pe - $ps);
+                if ($minProcSec > 0 && $dur < $minProcSec) {
+                    continue;
+                }
+                $windows[] = [$ps - $procBuffer, $pe + $procBuffer];
+            }
+        }
+
+        $toDisable = [];
+        foreach ($records as $row) {
+            $rid = (int)$row['ID'];
+            if (isset($keep[$rid])) {
+                continue;
+            }
+            $rs = (int)$row['DT_RECORDED'];
+            $re = $rs + max(0, (int)$row['PLAYTIME']);
+            $overlap = false;
+            foreach ($windows as [$ws, $we]) {
+                if ($rs < $we && $re > $ws) {
+                    $overlap = true;
+                    break;
+                }
+            }
+            if (!$overlap) {
+                $toDisable[] = $rid;
+            }
+        }
+        if ($toDisable === []) {
+            return 0;
+        }
+        $in = implode(',', array_map('intval', $toDisable));
+        $pdo->exec("UPDATE base_records SET DISABLED = 1 WHERE ID IN ($in) AND DISABLED < 1");
+
+        return count($toDisable);
+    }
+
+    /** @return list<int> staff with DISABLE_NON_PROCEDURE_TIME on their status */
+    private static function coverageAdminIds(): array
+    {
+        $pdo = Database::pdo();
+        if (!Database::tableExists('base_users')
+            || !Database::tableExists('base_admin_statuses')
+            || !Database::columnExists('base_admin_statuses', 'DISABLE_NON_PROCEDURE_TIME')
+        ) {
+            return [];
+        }
+        $statusIds = $pdo->query(
+            'SELECT ID FROM base_admin_statuses WHERE DISABLE_NON_PROCEDURE_TIME = 1'
+        )->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $statusIds = array_values(array_unique(array_filter(
+            array_map('intval', $statusIds),
+            static fn ($i) => $i > 0
+        )));
+        if ($statusIds === []) {
+            return [];
+        }
+        $in = implode(',', array_map('intval', $statusIds));
+        $rows = $pdo->query(
+            "SELECT id FROM base_users WHERE enabled = '1' AND ID_STATUS IN ($in)"
+        )->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $out = [];
+        foreach ($rows as $id) {
+            $n = (int)$id;
+            if ($n > 0) {
+                $out[] = $n;
+            }
         }
 
         return $out;
@@ -626,6 +949,52 @@ final class StemRunner
     }
 
     /**
+     * Load morph + dictionaries + key encodings once per request.
+     *
+     * @return array{
+     *   version:string,
+     *   morph_message:string,
+     *   morphy:object,
+     *   refs:array,
+     *   lemmatizer:StemLemmatizer,
+     *   key_build:array{encoded:array,max_length:int,min_length:int}
+     * }|null
+     */
+    private static function prepareRunContext(): ?array
+    {
+        /** @var array{bad_lem_words:array<string,string>,own_names:array<string,int>} $dict */
+        $dict = require base_path('modules/audio_pipeline/lib/stem_dict_data.php');
+        $badLem = is_array($dict['bad_lem_words'] ?? null) ? $dict['bad_lem_words'] : [];
+        $ownNames = is_array($dict['own_names'] ?? null) ? $dict['own_names'] : [];
+        $version = StemCache::buildVersion($badLem, $ownNames);
+        StemCache::setVersion($version);
+
+        if (self::$prepared !== null && self::$prepared['version'] === $version) {
+            return self::$prepared;
+        }
+
+        $morphMessage = '';
+        $morphy = self::resolveMorphy($morphMessage);
+        if ($morphy === null) {
+            self::$prepared = null;
+            return null;
+        }
+
+        $refs = self::loadReferenceData();
+        $lemmatizer = new StemLemmatizer($badLem, $ownNames, $morphy);
+        $keyBuild = self::buildKeyArrayEncoded($refs['keys'], $lemmatizer);
+        self::$prepared = [
+            'version' => $version,
+            'morph_message' => $morphMessage,
+            'morphy' => $morphy,
+            'refs' => $refs,
+            'lemmatizer' => $lemmatizer,
+            'key_build' => $keyBuild,
+        ];
+        return self::$prepared;
+    }
+
+    /**
      * @param array<int, array<string, mixed>> $keys
      * @return array{encoded:array<int,list<int>>,max_length:int,min_length:int}
      */
@@ -705,6 +1074,19 @@ final class StemRunner
      * @param list<string> $trashes
      * @param array<string, mixed> $records
      */
+    private static function flushPendingTrashCandidates(): int
+    {
+        if (self::$pendingTrashCandidates === []) {
+            return 0;
+        }
+        $cands = array_values(self::$pendingTrashCandidates);
+        self::$pendingTrashCandidates = [];
+        if (!class_exists('RecordsTrashesRepository', false)) {
+            return 0;
+        }
+        return RecordsTrashesRepository::ensureMany($cands);
+    }
+
     private static function parseTranscriptionLines(
         string $srcTranscription,
         int $recordId,
@@ -715,7 +1097,9 @@ final class StemRunner
         array &$records
     ): bool {
         $transArray = explode('[', $srcTranscription);
-        array_shift($transArray);
+        // Oper parity + TranscriptHighlighter: STRING_NUM is 1-based explode index
+        // (unset keeps keys 1..N; array_shift would reindex to 0 and shift all highlights).
+        unset($transArray[0]);
         $oldString = '';
         $oldString2 = '';
         $oldString3 = '';
@@ -743,18 +1127,28 @@ final class StemRunner
                 continue;
             }
 
-            $trashFound = false;
-            foreach ($trashes as $trashSample) {
-                if ($trashSample !== '' && strpos($stringPureText, $trashSample) !== false) {
-                    $trashFound = true;
-                    break;
+            if (class_exists('TranscriptGarbage', false)) {
+                $g = TranscriptGarbage::analyzeLine($stringPureText, $trashes);
+                if ($g['trash']) {
+                    if ($g['candidate'] !== '' && $g['reason'] !== 'phrase') {
+                        self::$pendingTrashCandidates[$g['candidate']] = $g['candidate'];
+                    }
+                    continue;
                 }
-            }
-            if (mb_strlen($stringPureText, 'UTF-8') > 500) {
-                $trashFound = true;
-            }
-            if ($trashFound) {
-                continue;
+            } else {
+                $trashFound = false;
+                foreach ($trashes as $trashSample) {
+                    if ($trashSample !== '' && strpos($stringPureText, $trashSample) !== false) {
+                        $trashFound = true;
+                        break;
+                    }
+                }
+                if (!$trashFound && mb_strlen($stringPureText, 'UTF-8') > 500) {
+                    $trashFound = true;
+                }
+                if ($trashFound) {
+                    continue;
+                }
             }
 
             $spt = $lemmatizer->stringProcessRecordLine($stringPureText, 0, $recordDayTs, $badgeId);
@@ -842,8 +1236,13 @@ final class StemRunner
                 if (self::recordNeedsReview($keysByTypeArray, $refs)
                     && Database::tableExists('base_records_reviews')
                 ) {
+                    // New queue row only; never clear DT_REVIEW / DT_SELECT on existing rows.
+                    // Favorite-only rows (DT_CREATE=0) get queued without wiping inspection.
                     $pdo->prepare(
-                        'INSERT IGNORE INTO base_records_reviews (ID_RECORD, DT_CREATE) VALUES (?, ?)'
+                        'INSERT INTO base_records_reviews (ID_RECORD, ID_REVIEWER, DT_CREATE, DT_REVIEW, DT_SELECT)
+                         VALUES (?, 0, ?, 0, 0)
+                         ON DUPLICATE KEY UPDATE
+                           DT_CREATE = IF(DT_CREATE < 1, VALUES(DT_CREATE), DT_CREATE)'
                     )->execute([$recordId, $now]);
                 }
 
@@ -903,84 +1302,21 @@ final class StemRunner
             ]);
         }
 
-        self::applyScores($batchIds, $refs);
+        // SCORE is derived from rated script collections after CollectRunner (see runCollectAfterStem).
+        // Type-based applyScores retired — KEY_TYPES still written for legacy highlight/debug.
+        unset($refs);
     }
 
     /**
-     * Oper recordParser3 rating block: SCORE from enabled types with SCORE_VALUE.
+     * @deprecated Type-based scoring retired; SCORE comes from CollectRunner + RatingAggregates.
      *
      * @param list<int> $batchIds
      * @param array<string, mixed> $refs
      */
     private static function applyScores(array $batchIds, array $refs): void
     {
-        $batchIds = array_values(array_filter(array_map('intval', $batchIds)));
-        if ($batchIds === [] || !Database::tableExists('base_records')) {
-            return;
-        }
-
-        $scoringTypes = [];
-        foreach ($refs['types'] as $rtId => $rtData) {
-            if ((int)($rtData['ENABLED'] ?? 0) > 0 && (int)($rtData['SCORE_VALUE'] ?? 0) !== 0) {
-                $scoringTypes[(int)$rtId] = $rtData;
-            }
-        }
-        if ($scoringTypes === []) {
-            return;
-        }
-
-        $in = implode(',', $batchIds);
-        $rows = Database::pdo()->query(
-            "SELECT ID, ID_ADMIN, KEY_TYPES, OFFERS, VOLUME, STRINGS, STRINGS_NOK, INTERSECTIONS, SCORE
-             FROM base_records WHERE ID IN ($in)"
-        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
-
-        $upd = Database::pdo()->prepare('UPDATE base_records SET SCORE = ? WHERE ID = ?');
-        foreach ($rows as $row) {
-            $recordId = (int)$row['ID'];
-            $keysAnalytics = self::parseKeyTypesAnalytics((string)($row['KEY_TYPES'] ?? ''));
-            $wasIntersect = 0;
-            $rawInter = (string)($row['INTERSECTIONS'] ?? '');
-            if ($rawInter !== '') {
-                $un = @unserialize($rawInter, ['allowed_classes' => false]);
-                if (is_array($un) && $un !== []) {
-                    $wasIntersect = 1;
-                }
-            }
-            $volume = (int)($row['VOLUME'] ?? 0);
-            $strings = (int)($row['STRINGS'] ?? 0);
-            if ($strings < 1) {
-                $strings = (int)($row['STRINGS_NOK'] ?? 0);
-            }
-            $offers = (int)($row['OFFERS'] ?? 0);
-
-            $recordAdminId = (int)($row['ID_ADMIN'] ?? 0);
-            $recordEquivPositions = [0];
-            if ($recordAdminId > 0) {
-                $recordPositionId = (int)($refs['operators'][$recordAdminId]['ID_STATUS'] ?? 0);
-                $recordEquivPositions = self::getEquivalentAudioPositions($recordPositionId, $refs['statuses']);
-                if ($recordEquivPositions === []) {
-                    $recordEquivPositions = [0];
-                }
-            }
-
-            $score2 = 0;
-            foreach ($scoringTypes as $rtId => $rtData) {
-                $typePositionValue = (string)($rtData['ID_POSITION'] ?? '0');
-                if (!self::isRecordPositionAllowed($typePositionValue, $recordEquivPositions)) {
-                    continue;
-                }
-                if (self::checkKeyType($rtId, $keysAnalytics, $volume, $strings, $wasIntersect, $offers, $refs['types'])) {
-                    $score2 += (int)($rtData['SCORE_VALUE'] ?? 0);
-                }
-            }
-            if ($score2 < 0) {
-                $score2 = 0;
-            }
-            if ($score2 !== (int)($row['SCORE'] ?? 0)) {
-                $upd->execute([(string)$score2, $recordId]);
-            }
-        }
+        // No-op: keep signature for any external callers; rating is collection-based now.
+        unset($batchIds, $refs);
     }
 
     /**
@@ -1213,11 +1549,10 @@ final class StemRunner
                             continue;
                         }
                         $keyType = (int)($keyMeta['ID_TYPE'] ?? 0);
-                        $typeRow = $refs['types'][$keyType] ?? null;
-                        if ($typeRow === null) {
-                            continue;
-                        }
-                        $isKpi = (int)($typeRow['KPI_ENABLED'] ?? 0) > 0;
+                        $typeRow = $keyType > 0 ? ($refs['types'][$keyType] ?? null) : null;
+                        // Product path: keys without a type still match (rating uses scripts).
+                        // Legacy: when type row exists, apply KPI gap + position filters.
+                        $isKpi = $typeRow !== null && (int)($typeRow['KPI_ENABLED'] ?? 0) > 0;
                         $canBeAddedByTime = true;
                         if ($isKpi && $stringTimeSeconds && self::KPI_GAP_SEC && $keysLastTime) {
                             if ($stringTimeSeconds - $keysLastTime < self::KPI_GAP_SEC) {
@@ -1225,7 +1560,9 @@ final class StemRunner
                             }
                         }
 
-                        $typePositionValue = (string)($typeRow['ID_POSITION'] ?? '0');
+                        $typePositionValue = $typeRow !== null
+                            ? (string)($typeRow['ID_POSITION'] ?? '0')
+                            : '0';
                         $dictId = (int)($keyMeta['ID_DICTONARY'] ?? 0);
                         $dictRow = $refs['dicts'][$dictId] ?? null;
                         $dictonaryPositionValue = (string)($dictRow['ID_POSITION'] ?? '0');

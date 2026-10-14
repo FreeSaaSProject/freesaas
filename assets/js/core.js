@@ -970,7 +970,25 @@
       var msg = opt && opt.getAttribute ? opt.getAttribute('data-confirm') : '';
       if (msg && !window.confirm(msg)) {
         e.preventDefault();
+        return;
       }
+      // Pack checked ids into one field so large selections (300–1000+) do not
+      // hit PHP max_input_vars and drop csrf / trailing ids → Forbidden (csrf).
+      var packed = form.querySelector('[data-bulk-ids-json]');
+      if (!packed) {
+        packed = document.createElement('input');
+        packed.type = 'hidden';
+        packed.name = 'ids_json';
+        packed.setAttribute('data-bulk-ids-json', '1');
+        form.appendChild(packed);
+      }
+      var idList = rowChecks().filter(function (c) { return c.checked; }).map(function (c) {
+        return parseInt(c.value, 10) || 0;
+      }).filter(function (id) { return id > 0; });
+      packed.value = JSON.stringify(idList);
+      rowChecks().forEach(function (c) {
+        c.disabled = true; // exclude ids[] from POST
+      });
     });
     syncFields();
     syncAll();

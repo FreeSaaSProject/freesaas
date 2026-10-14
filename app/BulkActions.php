@@ -180,9 +180,17 @@ final class BulkActions
             ];
         }
         $def = $actions[$actionId];
-        $rawIds = $post['ids'] ?? [];
-        if (!is_array($rawIds)) {
-            $rawIds = [];
+        // Prefer packed ids_json (avoids PHP max_input_vars dropping csrf / ids on large selects).
+        $rawIds = [];
+        $idsJson = trim((string)($post['ids_json'] ?? ''));
+        if ($idsJson !== '') {
+            $decoded = json_decode($idsJson, true);
+            if (is_array($decoded)) {
+                $rawIds = $decoded;
+            }
+        }
+        if ($rawIds === [] && isset($post['ids'])) {
+            $rawIds = is_array($post['ids']) ? $post['ids'] : [];
         }
         $ids = [];
         foreach ($rawIds as $raw) {
@@ -333,8 +341,11 @@ final class BulkActions
             return '';
         }
         $actionPath = self::sanitizeReturn($actionPath);
+        // CSRF first so it survives even if max_input_vars truncates later fields.
         return '<form method="post" action="' . e($actionPath) . '" class="bulk-form" data-bulk-form>'
-            . '<input type="hidden" name="bulk_return" value="' . e($actionPath) . '">';
+            . Csrf::field()
+            . '<input type="hidden" name="bulk_return" value="' . e($actionPath) . '">'
+            . '<input type="hidden" name="ids_json" value="" data-bulk-ids-json>';
     }
 
     public static function endForm(string $listId): string

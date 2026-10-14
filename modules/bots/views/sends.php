@@ -6,14 +6,23 @@ declare(strict_types=1);
 /** @var string $audience */
 /** @var string $q */
 /** @var int $page */
-/** @var int $limit */
+/** @var int $perPage */
+/** @var bool $showAll */
+/** @var array $filters */
+/** @var string $path */
 /** @var int $pending */
+$path = (string)($path ?? '/bots/sends');
+$showAll = !empty($showAll);
+$filters = is_array($filters ?? null) ? $filters : [];
+$perPage = (int)($perPage ?? 50);
+$pager = ListQuery::pager((int)$total, (int)$page, $perPage, $path, $filters, $showAll);
 ?>
 <section class="page-head">
   <p class="lede"><?= te('bots.sends.title') ?> · <?= te('bots.health.queue', ['n' => $pending]) ?></p>
-  <form method="get" class="filters-row" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:end">
+  <form method="get" class="filters-row" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:end" data-auto-filter>
+    <?= ListQuery::sortHiddenInputs((string)($filters['sort'] ?? 'id'), (string)($filters['dir'] ?? 'desc'), $perPage) ?>
     <label><?= te('bots.sends.filter_status') ?>
-      <select name="status">
+      <select name="status" data-auto-submit>
         <option value=""<?= $status < 0 ? ' selected' : '' ?>><?= te('bots.sends.status_all') ?></option>
         <?php foreach ([1, 2, 3, 100] as $st): ?>
           <option value="<?= $st ?>"<?= $status === $st ? ' selected' : '' ?>><?= te('bots.sends.status.' . $st) ?></option>
@@ -21,16 +30,15 @@ declare(strict_types=1);
       </select>
     </label>
     <label><?= te('bots.sends.filter_audience') ?>
-      <select name="audience">
+      <select name="audience" data-auto-submit>
         <option value=""<?= $audience === '' ? ' selected' : '' ?>><?= te('bots.sends.audience_all') ?></option>
         <option value="staff"<?= $audience === 'staff' ? ' selected' : '' ?>><?= te('bots.settings.audience.staff') ?></option>
         <option value="client"<?= $audience === 'client' ? ' selected' : '' ?>><?= te('bots.settings.audience.client') ?></option>
       </select>
     </label>
     <label><?= te('bots.sends.col.name') ?>
-      <input name="q" value="<?= e($q) ?>" placeholder="q">
+      <input name="q" value="<?= e($q) ?>" placeholder="q" data-filter-debounce>
     </label>
-    <button type="submit" class="btn"><?= te('core.common.all') ?></button>
   </form>
   <form method="post" action="/bots/sends/work" style="margin-top:.5rem">
     <input type="hidden" name="limit" value="20">
@@ -38,6 +46,8 @@ declare(strict_types=1);
     <button type="submit" class="btn-primary"><?= te('bots.sends.drain') ?></button>
   </form>
 </section>
+
+<?= $pager ?>
 
 <?php if ($items === []): ?>
   <p class="muted"><?= te('bots.sends.empty') ?></p>
@@ -80,5 +90,5 @@ declare(strict_types=1);
   <?php endforeach; ?>
   </tbody>
 </table>
-<p class="muted"><?= e((string)$total) ?></p>
+<?= $pager ?>
 <?php endif; ?>

@@ -167,15 +167,33 @@ final class BotSendsRepository
         $st = Database::pdo()->prepare('SELECT COUNT(*) FROM base_telegram_sends WHERE ' . $sqlWhere);
         $st->execute($params);
         $total = (int)$st->fetchColumn();
-        $limit = min(200, max(1, (int)($opts['limit'] ?? 50)));
+        $limit = (int)($opts['limit'] ?? 50);
+        if ($limit < 0) {
+            $limit = 0;
+        } elseif ($limit > 0) {
+            $limit = min(3000, max(1, $limit));
+        }
         $offset = max(0, (int)($opts['offset'] ?? 0));
-        $st = Database::pdo()->prepare(
-            'SELECT * FROM base_telegram_sends WHERE ' . $sqlWhere
-            . ' ORDER BY ID DESC LIMIT ' . $limit . ' OFFSET ' . $offset
-        );
+        $order = trim((string)($opts['order'] ?? '')) ?: 'ID DESC';
+        $sql = 'SELECT * FROM base_telegram_sends WHERE ' . $sqlWhere . ' ORDER BY ' . $order;
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
+        }
+        $st = Database::pdo()->prepare($sql);
         $st->execute($params);
         $items = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
         return ['items' => $items, 'total' => $total];
+    }
+
+    /** @return array<string,string> */
+    public static function listSortMap(): array
+    {
+        return [
+            'id' => 'ID',
+            'status' => 'STATUS',
+            'dtsend' => 'DTSEND',
+            'user' => 'ID_USER',
+        ];
     }
 
     public static function countPending(?string $audience = null): int

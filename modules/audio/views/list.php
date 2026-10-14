@@ -23,7 +23,6 @@ declare(strict_types=1);
 /** @var array<int,string> $downloadUrlById */
 /** @var array<string,string> $badgeOptions */
 /** @var array<int,string> $keyDictOptions */
-/** @var array<int,string> $keyTypeOptions */
 /** @var bool $dictsOn */
 /** @var int $trashAdded */
 /** @var array<string,mixed>|null $dayNav */
@@ -53,7 +52,6 @@ $downloadUrlById = is_array($downloadUrlById ?? null) ? $downloadUrlById : [];
 $preload = !empty($preload);
 $badgeOptions = is_array($badgeOptions ?? null) ? $badgeOptions : [];
 $keyDictOptions = is_array($keyDictOptions ?? null) ? $keyDictOptions : [];
-$keyTypeOptions = is_array($keyTypeOptions ?? null) ? $keyTypeOptions : [];
 $dayNav = is_array($dayNav ?? null) ? $dayNav : null;
 $canEdit = !empty($canEdit);
 $dictsOn = !empty($dictsOn);
@@ -450,7 +448,6 @@ $playHms = RecordsRepository::formatHms((int)$pageStats['playtime']);
 window.AudioListI18n = <?= json_encode([
     'key' => t('audio.popover.key'),
     'dict' => t('audio.popover.dict'),
-    'type' => t('audio.popover.type'),
     'addKey' => t('audio.popover.add_key'),
     'addTrash' => t('audio.popover.add_trash'),
     'cancel' => t('core.common.cancel'),
@@ -458,13 +455,15 @@ window.AudioListI18n = <?= json_encode([
     'error' => t('audio.api.error'),
     'network' => t('audio.api.network'),
     'done' => t('audio.api.done'),
+    'confirmOverlaps' => t('audio.api.confirm_overlaps'),
+    'createAnyway' => t('audio.api.create_anyway'),
+    'reload' => t('audio.api.reload'),
     'lazyLoading' => t('audio.lazy.loading'),
     'lazyError' => t('audio.lazy.error'),
     'trashTitle' => t('audio.transcript.trash_count', ['n' => '{n}']),
 ], JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script type="application/json" id="audio-key-dicts"><?= json_encode($keyDictOptions, JSON_UNESCAPED_UNICODE) ?></script>
-<script type="application/json" id="audio-key-types"><?= json_encode($keyTypeOptions, JSON_UNESCAPED_UNICODE) ?></script>
 <?php else: ?>
 <script>
 window.AudioListI18n = <?= json_encode([

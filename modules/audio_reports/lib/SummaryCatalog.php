@@ -29,24 +29,34 @@ final class SummaryCatalog
         $pdo = Database::pdo();
         $posCond = self::positionSqlCondition('ID_POSITION', $positionId);
 
-        SummaryProgress::note('Loading criteria (base_records_types)…');
+        SummaryProgress::note('Loading criteria (rating scripts)…');
         $types = [];
-        if (Database::tableExists('base_records_types')) {
-            $sql = "SELECT ID, NAME, DESCR, SCORE_VALUE, IS_HIDDEN, ENABLED, ID_POSITION
-                    FROM base_records_types WHERE ENABLED='1' AND {$posCond}
-                    ORDER BY SCORE_TYPE_ID ASC, ID ASC";
+        if (Database::tableExists('base_records_scripts')
+            && Database::columnExists('base_records_scripts', 'RATING_ENABLED')
+        ) {
+            $rateCol = Database::columnExists('base_records_scripts', 'SCORE_RATE')
+                ? '(SELECT COALESCE(SUM(p.SCORE_RATE),0) FROM base_records_scripts p WHERE p.PID = s.ID)'
+                : '0';
+            $hiddenCol = Database::columnExists('base_records_scripts', 'IS_HIDDEN')
+                ? 's.IS_HIDDEN' : '0';
+            $posCondS = '(s.ID_POSITION="0" OR s.ID_POSITION="" OR s.ID_POSITION="' . (int)$positionId
+                . '" OR s.ID_POSITION LIKE "%#' . (int)$positionId . '#%")';
+            $sql = "SELECT s.ID, s.NAME, {$rateCol} AS SCORE_VALUE, {$hiddenCol} AS IS_HIDDEN
+                    FROM base_records_scripts s
+                    WHERE s.PID = 0 AND s.RATING_ENABLED = 1 AND s.DISABLED < 1 AND {$posCondS}
+                    ORDER BY s.NUM ASC, s.ID ASC";
             try {
                 $st = $pdo->query($sql);
                 if ($st) {
                     while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
                         $sv = (float)$row['SCORE_VALUE'];
-                        if ((int)$row['IS_HIDDEN'] > 0 || $sv == 0.0) {
+                        if ((int)$row['IS_HIDDEN'] > 0) {
                             continue;
                         }
                         $types[] = [
                             'ID' => (int)$row['ID'],
                             'NAME' => (string)$row['NAME'],
-                            'DESCR' => (string)($row['DESCR'] ?? ''),
+                            'DESCR' => '',
                             'SCORE_VALUE' => $sv,
                             'is_scoring' => ($sv > 1),
                         ];

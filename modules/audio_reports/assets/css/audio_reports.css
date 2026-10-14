@@ -167,6 +167,78 @@
   text-decoration: underline;
 }
 
+.ar-cal-bulk-reparse {
+  margin: 1.25rem 0 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid #f59e0b;
+  border-radius: 8px;
+  background: #fffbeb;
+}
+.ar-cal-bulk-reparse h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+.ar-cal-bulk-reparse-warn {
+  margin: 0 0 0.75rem;
+  color: #92400e;
+  font-size: 0.9rem;
+}
+.ar-cal-bulk-reparse-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: end;
+}
+.ar-cal-bulk-reparse-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.85rem;
+}
+.ar-cal-bulk-reparse-progress {
+  margin-top: 0.9rem;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+}
+.ar-cal-bulk-reparse-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.6rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+.ar-cal-bulk-reparse-bar-wrap {
+  height: 22px;
+  background: #e5e7eb;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.ar-cal-bulk-reparse-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #84cc16);
+  transition: width 0.25s ease;
+}
+.ar-cal-bulk-reparse-log {
+  margin-top: 0.6rem;
+  max-height: 220px;
+  overflow: auto;
+  font: 12px/1.4 ui-monospace, Menlo, Consolas, monospace;
+  background: #f8fafc;
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+}
+.ar-cal-bulk-reparse-log .ar-bulk-log-ok { color: #15803d; }
+.ar-cal-bulk-reparse-log .ar-bulk-log-err { color: #b91c1c; }
+.ar-cal-bulk-reparse-log .ar-bulk-log-info { color: #1d4ed8; }
+.ar-cal-bulk-reparse-status {
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+.ar-cal-bulk-reparse-status.is-run { color: #1d4ed8; }
+.ar-cal-bulk-reparse-status.is-ok { color: #15803d; }
+
 .records-calendar-wrap .cal-day-dw {
   font-weight: 600;
   margin-left: 2px;
@@ -1081,8 +1153,20 @@ textarea.mono {
   vertical-align: top;
 }
 
+.ar-col-transcript-cell .ar-col-record-block {
+  margin-bottom: 0.65rem;
+  padding-bottom: 0.35rem;
+}
+
+.ar-col-transcript-cell .ar-col-record-block:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
 .ar-col-transcript-cell .transcript {
-  max-height: 16rem;
+  max-height: none;
+  overflow: visible;
   font-size: 0.78rem;
 }
 
@@ -1115,4 +1199,363 @@ textarea.mono {
   font-size: 0.75em;
   font-weight: 600;
   margin-left: 0.25rem;
+}
+
+/* Day rating report */
+.ar-day-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.65rem;
+  margin: 0 0 1.25rem;
+}
+
+.ar-day-stat {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface-2, #f8fafc);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+}
+
+.ar-day-stat--score {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #f8fafc;
+}
+
+.ar-day-stat--score .ar-day-stat-label {
+  color: #94a3b8;
+}
+
+.ar-day-stat-icon {
+  font-size: 1.1rem;
+  line-height: 1.2;
+  opacity: 0.85;
+  min-width: 1.1rem;
+  text-align: center;
+}
+
+.ar-day-stat-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted, #64748b);
+}
+
+.ar-day-stat-value {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar-day-summary,
+.ar-day-scripts,
+.ar-day-sessions,
+.ar-day-quality,
+.ar-day-procedures,
+.ar-day-gated {
+  margin: 0 0 1.5rem;
+}
+
+.ar-day-summary h2,
+.ar-day-scripts h2,
+.ar-day-sessions h2,
+.ar-day-quality h2,
+.ar-day-procedures h2,
+.ar-day-gated h2 {
+  font-size: 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.ar-day-quality-meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.ar-day-quality-bonus--ok {
+  color: #166534;
+  font-weight: 600;
+}
+
+.ar-day-quality-bonus--no {
+  color: #9a3412;
+  font-weight: 600;
+}
+
+.ar-day-quality-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ar-day-quality-script {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface, #fff);
+}
+
+.ar-day-quality-script--red {
+  border-color: #fca5a5;
+  background: #fef2f2;
+}
+
+.ar-day-quality-script-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.4rem;
+}
+
+.ar-day-quality-parts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.ar-day-quality-part {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  font-size: 0.88rem;
+}
+
+.ar-day-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ar-day-level--above {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ar-day-level--below {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.ar-day-level--ok {
+  background: #e2e8f0;
+  color: #334155;
+}
+
+.ar-day-level--unknown {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
+.ar-day-sessions-meta,
+.ar-day-procedures-meta {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+}
+
+.ar-day-session-list,
+.ar-day-proc-list,
+.ar-day-gated-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.ar-day-session {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 6px;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface, #fff);
+}
+
+.ar-day-session--interrupted {
+  border-color: #f59e0b;
+  background: #fffbeb;
+}
+
+.ar-day-session-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.75rem;
+  margin-bottom: 0.45rem;
+}
+
+.ar-day-session-time {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar-day-session-name {
+  font-weight: 500;
+}
+
+.ar-day-session-rate {
+  font-weight: 700;
+  color: #0f766e;
+}
+
+.ar-day-session-badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+}
+
+.ar-day-session-badge--ok {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.ar-day-session-badge--warn {
+  background: #ffedd5;
+  color: #9a3412;
+}
+
+.ar-day-chain {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.ar-day-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  border: 1px dashed #cbd5e1;
+  color: #94a3b8;
+  background: #f8fafc;
+}
+
+.ar-day-chip--hit {
+  border-style: solid;
+  border-color: #99f6e4;
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.ar-day-chip--miss .ar-day-chip-pts {
+  opacity: 0.7;
+}
+
+.ar-day-chip--finish.ar-day-chip--hit {
+  border-color: #86efac;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.ar-day-chip--finish.ar-day-chip--miss {
+  border-color: #fdba74;
+  color: #9a3412;
+}
+
+.ar-day-chip-pts {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ar-day-session-proc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px dashed var(--border, #e2e8f0);
+  font-size: 0.85rem;
+}
+
+.ar-day-session-proc-label {
+  font-weight: 600;
+  color: #475569;
+}
+
+.ar-day-session-proc-id {
+  font-variant-numeric: tabular-nums;
+  color: #64748b;
+}
+
+.ar-day-session-proc-name {
+  font-weight: 500;
+}
+
+.ar-day-session-proc-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.ar-day-session-proc-summ {
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.ar-day-session-proc--none {
+  font-size: 0.8rem;
+}
+
+.ar-day-proc-table .ar-day-proc-time,
+.ar-day-proc-table .ar-day-proc-summ {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ar-day-proc-row--orphan td {
+  background: #fef2f2;
+}
+
+.ar-day-gated-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.ar-day-gated-reason {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 640px) {
+  .ar-day-session-badge {
+    margin-left: 0;
+  }
+
+  .ar-day-session-proc-summ {
+    margin-left: 0;
+  }
+}
+
+.ar-col-record-block {
+  margin: 0 0 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+}
+
+.ar-col-player {
+  margin: 0.35rem 0 0.65rem;
+}
+
+.ar-col-audio {
+  width: 100%;
+  max-width: 40rem;
 }

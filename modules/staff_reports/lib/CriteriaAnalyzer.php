@@ -10,7 +10,7 @@ final class CriteriaAnalyzer
      */
     public static function loadCriteriaTypes(int $employeeId, array $config): array
     {
-        if ($employeeId < 1 || !Database::tableExists('base_records_types') || !Database::tableExists('base_users')) {
+        if ($employeeId < 1 || !Database::tableExists('base_users')) {
             return [];
         }
         $st = Database::pdo()->prepare('SELECT ID_STATUS FROM base_users WHERE id = ? LIMIT 1');
@@ -31,30 +31,40 @@ final class CriteriaAnalyzer
             ? '(ID_POSITION="0" OR ID_POSITION="" OR ' . implode(' OR ', $posParts) . ')'
             : '(ID_POSITION="0" OR ID_POSITION="")';
 
-        $sql = "SELECT ID, NAME, SCORE_VALUE, IS_HIDDEN, ENABLED
-                FROM base_records_types
-                WHERE ENABLED='1' AND {$posSql}
-                ORDER BY SCORE_TYPE_ID ASC, ID ASC";
         $types = [];
-        try {
-            $q = Database::pdo()->query($sql);
-            if ($q) {
-                while ($row = $q->fetch(PDO::FETCH_ASSOC)) {
-                    $sv = (float)($row['SCORE_VALUE'] ?? 0);
-                    if ((int)($row['IS_HIDDEN'] ?? 0) > 0 || $sv == 0.0) {
-                        continue;
+        // Prefer rating scripts (criteria_type_ids remapped to script ids by types_to_scripts).
+        if (Database::tableExists('base_records_scripts')
+            && Database::columnExists('base_records_scripts', 'RATING_ENABLED')
+        ) {
+            $rateCol = Database::columnExists('base_records_scripts', 'SCORE_RATE')
+                ? '(SELECT COALESCE(SUM(p.SCORE_RATE),0) FROM base_records_scripts p WHERE p.PID = s.ID)'
+                : '0';
+            $hiddenCol = Database::columnExists('base_records_scripts', 'IS_HIDDEN')
+                ? 's.IS_HIDDEN' : '0';
+            $sql = "SELECT s.ID, s.NAME, {$rateCol} AS SCORE_VALUE, {$hiddenCol} AS IS_HIDDEN
+                    FROM base_records_scripts s
+                    WHERE s.PID = 0 AND s.RATING_ENABLED = 1 AND s.DISABLED < 1 AND {$posSql}
+                    ORDER BY s.NUM ASC, s.ID ASC";
+            try {
+                $q = Database::pdo()->query($sql);
+                if ($q) {
+                    while ($row = $q->fetch(PDO::FETCH_ASSOC)) {
+                        $sv = (float)($row['SCORE_VALUE'] ?? 0);
+                        if ((int)($row['IS_HIDDEN'] ?? 0) > 0) {
+                            continue;
+                        }
+                        $tid = (int)$row['ID'];
+                        $types[$tid] = [
+                            'ID' => $tid,
+                            'NAME' => (string)($row['NAME'] ?? ''),
+                            'SCORE_VALUE' => $sv,
+                            'is_scoring' => $sv > 1,
+                        ];
                     }
-                    $tid = (int)$row['ID'];
-                    $types[$tid] = [
-                        'ID' => $tid,
-                        'NAME' => (string)($row['NAME'] ?? ''),
-                        'SCORE_VALUE' => $sv,
-                        'is_scoring' => $sv > 1,
-                    ];
                 }
+            } catch (Throwable $e) {
+                $types = [];
             }
-        } catch (Throwable $e) {
-            return [];
         }
 
         $filter = StaffReportConfig::intList($config['criteria_type_ids'] ?? []);
@@ -311,32 +321,36 @@ final class CriteriaAnalyzer
         ];
     }
 
-    /** @return array<int,true> */
+    /**
+     * Script (or legacy type) ids present in the window.
+     * Prefers rated collections when SCORE_RATE schema is available.
+     *
+     * @return array<int,true>
+     */
     public static function typesInWindow(int $employeeId, int $winStart, int $winEnd): array
     {
         $found = [];
         if ($employeeId < 1 || $winEnd <= $winStart) {
             return $found;
         }
-        if (!Database::tableExists('base_records_instances')
-            || !Database::tableExists('base_records_keys')
-            || !Database::tableExists('base_records')) {
-            return $found;
-        }
-        $sql = 'SELECT DISTINCT k.ID_TYPE AS type_id
-                FROM base_records_instances i
-                INNER JOIN base_records_keys k ON k.ID = i.ID_KEY
-                INNER JOIN base_records r ON r.ID = i.ID_RECORD
-                WHERE i.ID_ADMIN = ?
-                  AND (r.DISABLED IS NULL OR r.DISABLED < 1)
-                  AND i.DT_START < ?
-                  AND i.DT_END > ?';
-        $st = Database::pdo()->prepare($sql);
-        $st->execute([$employeeId, $winEnd, $winStart]);
-        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            $tid = (int)($row['type_id'] ?? 0);
-            if ($tid > 0) {
-                $found[$tid] = true;
+        if (Database::tableExists('base_records_collections')
+            && Database::columnExists('base_records_collections', 'RATED')
+        ) {
+            $sql = 'SELECT DISTINCT ID_SCRIPT AS script_id
+                    FROM base_records_collections
+                    WHERE ID_ADMIN = ? AND RATED = 1
+                      AND DT_START < ?
+                      AND (DT_END = 0 OR DT_END > ?)';
+            $st = Database::pdo()->prepare($sql);
+            $st->execute([$employeeId, $winEnd, $winStart]);
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                $sid = (int)($row['script_id'] ?? 0);
+                if ($sid > 0) {
+                    $found[$sid] = true;
+                }
+            }
+            if ($found !== []) {
+                return $found;
             }
         }
         return $found;

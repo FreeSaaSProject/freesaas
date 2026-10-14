@@ -146,6 +146,14 @@ $fmtDur = static function (int $sec): string {
     <div class="ar-col-score">
       <a href="<?= $href ?>">#<?= $cid ?></a>
       · <strong><?= te('audio_reports.collections.col.score') ?>: <?= (int)$c['score'] ?></strong>
+      <?php if (!empty($c['score_rate']) || (isset($c['rated']) && (int)$c['rated'] === 0)): ?>
+        · <?= te('audio_reports.collections.col.score_rate') ?>: <?= (int)($c['score_rate'] ?? 0) ?>
+      <?php endif; ?>
+      <?php if (!empty($c['rated'])): ?>
+        · <span class="ar-col-finish"><?= te('audio_reports.collections.rated_yes') ?></span>
+      <?php elseif (!empty($c['gate_reason'])): ?>
+        · <span class="ar-col-warn"><?= e((string)$c['gate_reason']) ?></span>
+      <?php endif; ?>
     </div>
     <?php if (!empty($c['has_intersect'])): ?>
       <div class="ar-col-warn"><?= te('audio_reports.collections.intersect_warn') ?></div>

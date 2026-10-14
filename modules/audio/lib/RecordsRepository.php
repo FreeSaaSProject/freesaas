@@ -257,6 +257,7 @@ final class RecordsRepository
         }
         $in = implode(',', array_fill(0, count($recordIds), '?'));
         $hasKeys = Database::tableExists('base_records_keys');
+        // Optional legacy type colors when table still exists (not owned by product).
         $hasTypes = Database::tableExists('base_records_types');
 
         if ($hasKeys && $hasTypes) {
@@ -264,10 +265,22 @@ final class RecordsRepository
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
                            i.DT_START AS dt_start, i.DT_END AS dt_end,
                            k.NAME AS key_name, k.ID_TYPE AS id_type, k.ID_DICTONARY AS id_dictonary,
-                           t.NAME AS type_name, t.COLOR AS type_color, t.COLOR_BACKGROUND AS type_bg
+                           COALESCE(NULLIF(t.NAME, ''), '') AS type_name,
+                           COALESCE(NULLIF(t.COLOR, ''), '#111') AS type_color,
+                           COALESCE(NULLIF(t.COLOR_BACKGROUND, ''), '#fde68a') AS type_bg
                     FROM base_records_instances i
                     LEFT JOIN base_records_keys k ON k.ID = i.ID_KEY
                     LEFT JOIN base_records_types t ON t.ID = k.ID_TYPE
+                    WHERE i.ID_RECORD IN ($in)
+                    ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";
+        } elseif ($hasKeys) {
+            $sql = "SELECT i.ID AS id, i.ID_RECORD AS id_record, i.STRING_NUM AS string_num,
+                           i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
+                           i.DT_START AS dt_start, i.DT_END AS dt_end,
+                           k.NAME AS key_name, k.ID_TYPE AS id_type, k.ID_DICTONARY AS id_dictonary,
+                           '' AS type_name, '#111' AS type_color, '#fde68a' AS type_bg
+                    FROM base_records_instances i
+                    LEFT JOIN base_records_keys k ON k.ID = i.ID_KEY
                     WHERE i.ID_RECORD IN ($in)
                     ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";
         } else {
@@ -275,7 +288,7 @@ final class RecordsRepository
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
                            i.DT_START AS dt_start, i.DT_END AS dt_end,
                            '' AS key_name, 0 AS id_type, 0 AS id_dictonary,
-                           '' AS type_name, '#000' AS type_color, '#ff0' AS type_bg
+                           '' AS type_name, '#111' AS type_color, '#fde68a' AS type_bg
                     FROM base_records_instances i
                     WHERE i.ID_RECORD IN ($in)
                     ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";

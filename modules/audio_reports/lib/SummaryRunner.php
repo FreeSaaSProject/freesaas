@@ -419,9 +419,15 @@ final class SummaryRunner
         $typeMeta = [];
         $detailTypeMeta = [];
         $typesForMeta = array_values(array_unique(array_merge($criteriaIds, $detailCriteriaIds)));
-        if ($typesForMeta !== [] && Database::tableExists('base_records_types')) {
+        if ($typesForMeta !== [] && Database::tableExists('base_records_scripts')) {
             $tList = implode(',', array_map('intval', $typesForMeta));
-            $st = $pdo->query("SELECT ID, NAME, SCORE_VALUE FROM base_records_types WHERE ID IN ({$tList})");
+            $rateCol = Database::columnExists('base_records_scripts', 'SCORE_RATE')
+                ? '(SELECT COALESCE(SUM(p.SCORE_RATE),0) FROM base_records_scripts p WHERE p.PID = s.ID)'
+                : '0';
+            $st = $pdo->query(
+                "SELECT s.ID, s.NAME, {$rateCol} AS SCORE_VALUE
+                 FROM base_records_scripts s WHERE s.ID IN ({$tList})"
+            );
             if ($st) {
                 while ($t = $st->fetch(PDO::FETCH_ASSOC)) {
                     $tid = (int)$t['ID'];

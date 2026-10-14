@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "0.2.5",
+    "version": "0.2.16",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -187,8 +187,7 @@
         "base_records_badges",
         "base_badge_assignments",
         "base_records_balances",
-        "base_records_reviews",
-        "base_audio_settings"
+        "base_records_reviews"
     ],
     "migrators": [],
     "hooks": {

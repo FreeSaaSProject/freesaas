@@ -10,6 +10,13 @@ final class CalendarAggregates
     private const BONUS_MARKER = 'BONUS TIME';
 
     /**
+     * Request-scoped OffRecord/OffRate windows: "Y-m-d:OffRecord" → [start, end].
+     *
+     * @var array<string, array{0:int,1:int}|null>
+     */
+    private static $dayWindowCache = [];
+
+    /**
      * @param array{admin?:int,badge?:int,position?:int,positions?:list<int>} $filters
      * @return array{
      *   by_day: array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>,
@@ -40,6 +47,11 @@ final class CalendarAggregates
         $positionsScope = array_keys($positionsScope);
 
         $bounds = AudioDayBounds::read();
+        self::prewarmDayWindows($fromTs, $toTs, $bounds);
+        if (class_exists('StageTiming', false)) {
+            StageTiming::mark('CalendarAgg: windows');
+        }
+
         $pdo = Database::pdo();
         $hasDesc = Database::columnExists('base_records', 'DESCRIPTION');
         $sql = 'SELECT r.ID_ADMIN AS id_admin, r.DT_RECORDED AS dt, r.PLAYTIME AS playtime,
@@ -81,6 +93,8 @@ final class CalendarAggregates
         $byAdminDay = [];
         $byAdmin = [];
         $admins = [];
+        /** @var array<int, array<string, int>> $recordSec OffRecord non-bonus playtime for ® overlay */
+        $recordSec = [];
 
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
             $dt = (int)($row['dt'] ?? 0);
@@ -98,7 +112,7 @@ final class CalendarAggregates
             $outside = $inRecord ? 0 : $play;
             $isBonus = $hasDesc && (string)($row['description'] ?? '') === self::BONUS_MARKER;
 
-            // ® like oper: whole record in OffRecord, not bonus, and (in OffRate OR SCORE>2).
+            // Legacy ® from base_records.SCORE (kept until rated collections exist for the day).
             $scoreW = 0.0;
             $scoreSec = 0;
             if ($inRecord && !$isBonus) {
@@ -106,6 +120,10 @@ final class CalendarAggregates
                 if ($inRate || $score > 2) {
                     $scoreW = $score * $play;
                     $scoreSec = $play;
+                }
+                // Same denominator rules as batchRatedScores (OffRecord, non-bonus).
+                if ($adminId > 0 && $play > 0) {
+                    $recordSec[$adminId][$dayKey] = ($recordSec[$adminId][$dayKey] ?? 0) + $play;
                 }
             }
 
@@ -119,6 +137,15 @@ final class CalendarAggregates
                 self::bumpAdmin($byAdmin, $adminId, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
             }
         }
+        if (class_exists('StageTiming', false)) {
+            StageTiming::mark('CalendarAgg: records loop');
+        }
+
+        // Prefer collection-based ® when rated collections exist; otherwise keep legacy SCORE above.
+        self::overlayCollectionRating($byDay, $byAdminDay, $byAdmin, $bounds, $recordSec);
+        if (class_exists('StageTiming', false)) {
+            StageTiming::mark('CalendarAgg: rating overlay');
+        }
 
         ksort($admins);
         return [
@@ -127,6 +154,254 @@ final class CalendarAggregates
             'by_admin' => $byAdmin,
             'admins' => array_map('intval', array_keys($admins)),
         ];
+    }
+
+    /**
+     * Replace score_w/score_sec from RatingAggregates (SCORE_RATE × duration / accounted secs).
+     * Falls back to legacy record SCORE when pipeline rating is unavailable.
+     *
+     * @param array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}> $byDay
+     * @param array<int, array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>> $byAdminDay
+     * @param array<int, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}> $byAdmin
+     * @param array<string,int> $bounds
+     * @param array<int, array<string, int>> $recordSec OffRecord non-bonus playtime from the first records pass
+     */
+    private static function overlayCollectionRating(
+        array &$byDay,
+        array &$byAdminDay,
+        array &$byAdmin,
+        array $bounds,
+        array $recordSec = []
+    ): void {
+        if (!class_exists('RatingAggregates', false)
+            || !Database::tableExists('base_records_collections')
+            || !Database::columnExists('base_records_collections', 'SCORE_RATE')
+        ) {
+            return;
+        }
+
+        /** @var array<int, array<string, array{0:float,1:int}>> $legacyScores */
+        $legacyScores = [];
+        $adminIds = [];
+        $minDay = '';
+        $maxDay = '';
+        foreach ($byAdminDay as $adminId => $days) {
+            $adminId = (int)$adminId;
+            if ($adminId > 0) {
+                $adminIds[$adminId] = true;
+            }
+            foreach ($days as $dayKey => $cell) {
+                $dayKey = (string)$dayKey;
+                $legacyScores[$adminId][$dayKey] = [
+                    (float)($cell['score_w'] ?? 0),
+                    (int)($cell['score_sec'] ?? 0),
+                ];
+                if ($minDay === '' || $dayKey < $minDay) {
+                    $minDay = $dayKey;
+                }
+                if ($maxDay === '' || $dayKey > $maxDay) {
+                    $maxDay = $dayKey;
+                }
+            }
+        }
+        if ($adminIds === [] || $minDay === '' || $maxDay === '') {
+            return;
+        }
+        $rangeStart = strtotime($minDay . ' 00:00:00');
+        $rangeEnd = strtotime($maxDay . ' 23:59:59');
+        if ($rangeStart === false || $rangeEnd === false) {
+            return;
+        }
+
+        // Collections pass only — recordSec comes from forRange (avoids second base_records scan).
+        $ratedDays = self::batchRatedScores(
+            array_keys($adminIds),
+            (int)$rangeStart,
+            (int)$rangeEnd,
+            $bounds,
+            $recordSec
+        );
+
+        foreach ($byDay as $dk => $_) {
+            $byDay[$dk]['score_w'] = 0.0;
+            $byDay[$dk]['score_sec'] = 0;
+        }
+        foreach ($byAdmin as $aid => $_) {
+            $byAdmin[$aid]['score_w'] = 0.0;
+            $byAdmin[$aid]['score_sec'] = 0;
+        }
+        foreach ($byAdminDay as $adminId => $days) {
+            foreach ($days as $dayKey => $_) {
+                $byAdminDay[$adminId][$dayKey]['score_w'] = 0.0;
+                $byAdminDay[$adminId][$dayKey]['score_sec'] = 0;
+            }
+        }
+
+        foreach ($legacyScores as $adminId => $days) {
+            $adminId = (int)$adminId;
+            if ($adminId < 1) {
+                continue;
+            }
+            foreach ($days as $dayKey => $legacyPair) {
+                $dayKey = (string)$dayKey;
+                $hasRated = isset($ratedDays[$adminId][$dayKey]);
+                if (!$hasRated) {
+                    $sw = (float)$legacyPair[0];
+                    $ss = (int)$legacyPair[1];
+                } else {
+                    $sw = (float)$ratedDays[$adminId][$dayKey]['score_w'];
+                    $ss = (int)$ratedDays[$adminId][$dayKey]['score_sec'];
+                }
+                $byAdminDay[$adminId][$dayKey]['score_w'] = $sw;
+                $byAdminDay[$adminId][$dayKey]['score_sec'] = $ss;
+                if (!isset($byDay[$dayKey])) {
+                    $byDay[$dayKey] = [
+                        'count' => 0, 'playtime' => 0, 'score_w' => 0.0, 'score_sec' => 0,
+                        'errors' => 0, 'outside' => 0, 'strings' => 0, 'strings_nok' => 0,
+                    ];
+                }
+                $byDay[$dayKey]['score_w'] += $sw;
+                $byDay[$dayKey]['score_sec'] += $ss;
+                if (!isset($byAdmin[$adminId])) {
+                    $byAdmin[$adminId] = [
+                        'count' => 0, 'playtime' => 0, 'score_w' => 0.0, 'score_sec' => 0,
+                        'errors' => 0, 'outside' => 0, 'strings' => 0, 'strings_nok' => 0,
+                    ];
+                }
+                $byAdmin[$adminId]['score_w'] += $sw;
+                $byAdmin[$adminId]['score_sec'] += $ss;
+            }
+        }
+    }
+
+    /**
+     * Batch ® per admin-day from rated collections + OffRecord playtime.
+     *
+     * @param list<int> $adminIds
+     * @param array<string,int> $bounds
+     * @param array<int, array<string, int>>|null $precomputedRecordSec From forRange; null = scan base_records
+     * @return array<int, array<string, array{score_w:float,score_sec:int}>>
+     */
+    private static function batchRatedScores(
+        array $adminIds,
+        int $rangeStart,
+        int $rangeEnd,
+        array $bounds,
+        ?array $precomputedRecordSec = null
+    ): array {
+        $out = [];
+        $adminIds = array_values(array_filter(array_map('intval', $adminIds), static fn ($i) => $i > 0));
+        if ($adminIds === [] || $rangeEnd < $rangeStart) {
+            return $out;
+        }
+        $pdo = Database::pdo();
+        $ph = implode(',', array_fill(0, count($adminIds), '?'));
+        $hasRated = Database::columnExists('base_records_collections', 'RATED');
+        $ratedWhere = $hasRated ? ' AND c.RATED = 1' : '';
+
+        $params = $adminIds;
+        $params[] = $rangeEnd + 86400;
+        $params[] = max(0, $rangeStart - 86400);
+        $st = $pdo->prepare(
+            "SELECT c.ID_ADMIN AS id_admin, c.DT_START AS dt_start, c.DT_END AS dt_end, c.SCORE_RATE AS score_rate
+             FROM base_records_collections c
+             WHERE c.ID_ADMIN IN ($ph)
+               AND c.DT_START <= ?
+               AND (c.DT_END = 0 OR c.DT_END >= ?)
+               {$ratedWhere}
+             ORDER BY c.ID_ADMIN ASC, c.DT_START ASC"
+        );
+        $st->execute($params);
+
+        /** @var array<int, array<string, float>> $scoreW */
+        $scoreW = [];
+        /** @var array<int, array<string, true>> $hasCol */
+        $hasCol = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $aid = (int)$row['id_admin'];
+            $dtStart = (int)$row['dt_start'];
+            $dtEnd = (int)$row['dt_end'];
+            if ($dtEnd < $dtStart) {
+                $dtEnd = $dtStart;
+            }
+            if ($dtEnd < 1) {
+                $dtEnd = $dtStart + 1;
+            }
+            $rate = (int)$row['score_rate'];
+            $dayFrom = max($dtStart, $rangeStart);
+            $dayTo = min($dtEnd, $rangeEnd);
+            if ($dayTo < $dayFrom) {
+                continue;
+            }
+            // Split contribution across calendar days overlapping the collection.
+            $cursor = (int)mktime(0, 0, 0, (int)date('n', $dayFrom), (int)date('j', $dayFrom), (int)date('Y', $dayFrom));
+            while ($cursor <= $dayTo) {
+                $dayKey = date('Y-m-d', $cursor);
+                $dayEndTs = $cursor + 86400 - 1;
+                $clipStart = max($dtStart, $cursor, $rangeStart);
+                $clipEnd = min($dtEnd, $dayEndTs, $rangeEnd);
+                if ($clipEnd >= $clipStart) {
+                    $useDur = max(1, $clipEnd - $clipStart);
+                    if (!isset($scoreW[$aid][$dayKey])) {
+                        $scoreW[$aid][$dayKey] = 0.0;
+                    }
+                    $scoreW[$aid][$dayKey] += $rate * $useDur;
+                    $hasCol[$aid][$dayKey] = true;
+                }
+                $cursor += 86400;
+            }
+        }
+
+        if ($hasCol === []) {
+            return $out;
+        }
+
+        /** @var array<int, array<string, int>> $recordSec */
+        $recordSec = [];
+        if ($precomputedRecordSec !== null) {
+            $recordSec = $precomputedRecordSec;
+        } else {
+            $hasDesc = Database::columnExists('base_records', 'DESCRIPTION');
+            $rParams = $adminIds;
+            $rParams[] = $rangeStart;
+            $rParams[] = $rangeEnd;
+            $rsql = 'SELECT ID_ADMIN AS id_admin, DT_RECORDED AS dt, PLAYTIME AS playtime'
+                . ($hasDesc ? ', DESCRIPTION AS description' : '')
+                . " FROM base_records
+                   WHERE ID_ADMIN IN ($ph) AND DT_RECORDED >= ? AND DT_RECORDED <= ?
+                     AND (DISABLED IS NULL OR DISABLED < 1)";
+            $rst = $pdo->prepare($rsql);
+            $rst->execute($rParams);
+            while ($row = $rst->fetch(PDO::FETCH_ASSOC)) {
+                if ($hasDesc && (string)($row['description'] ?? '') === self::BONUS_MARKER) {
+                    continue;
+                }
+                $dt = (int)$row['dt'];
+                $play = max(0, (int)$row['playtime']);
+                if ($play < 1 || $dt < 1) {
+                    continue;
+                }
+                if (!self::isFullyInWindow($dt, $play, $bounds, 'OffRecord')) {
+                    continue;
+                }
+                $aid = (int)$row['id_admin'];
+                $dayKey = date('Y-m-d', $dt);
+                if (!isset($hasCol[$aid][$dayKey])) {
+                    continue;
+                }
+                $recordSec[$aid][$dayKey] = ($recordSec[$aid][$dayKey] ?? 0) + $play;
+            }
+        }
+
+        foreach ($hasCol as $aid => $days) {
+            foreach ($days as $dayKey => $_) {
+                $out[$aid][$dayKey] = [
+                    'score_w' => (float)($scoreW[$aid][$dayKey] ?? 0),
+                    'score_sec' => (int)($recordSec[$aid][$dayKey] ?? 0),
+                ];
+            }
+        }
+        return $out;
     }
 
     /**
@@ -647,16 +922,47 @@ final class CalendarAggregates
     }
 
     /**
-     * Record fully inside a day window (oper: start AND end within bounds).
+     * Precompute OffRecord/OffRate [start,end] for each calendar day in range.
      *
      * @param array<string,int> $bounds
-     * @param 'OffRate'|'OffRecord' $kind
      */
-    public static function isFullyInWindow(int $dt, int $playtime, array $bounds, string $kind): bool
+    public static function prewarmDayWindows(int $fromTs, int $toTs, array $bounds): void
     {
-        $y = (int)date('Y', $dt);
-        $m = (int)date('n', $dt);
-        $d = (int)date('j', $dt);
+        if ($fromTs < 1 || $toTs < $fromTs) {
+            return;
+        }
+        $cursor = (int)mktime(0, 0, 0, (int)date('n', $fromTs), (int)date('j', $fromTs), (int)date('Y', $fromTs));
+        $last = (int)mktime(0, 0, 0, (int)date('n', $toTs), (int)date('j', $toTs), (int)date('Y', $toTs));
+        if ($cursor < 1 || $last < 1) {
+            return;
+        }
+        while ($cursor <= $last) {
+            $dayKey = date('Y-m-d', $cursor);
+            self::dayWindow($dayKey, $bounds, 'OffRecord');
+            self::dayWindow($dayKey, $bounds, 'OffRate');
+            $cursor += 86400;
+        }
+    }
+
+    /**
+     * @param array<string,int> $bounds
+     * @param 'OffRate'|'OffRecord' $kind
+     * @return array{0:int,1:int}|null null = invalid mktime (treat as always-in)
+     */
+    private static function dayWindow(string $dayKey, array $bounds, string $kind): ?array
+    {
+        $ck = $dayKey . ':' . $kind;
+        if (array_key_exists($ck, self::$dayWindowCache)) {
+            return self::$dayWindowCache[$ck];
+        }
+        $parts = explode('-', $dayKey);
+        $y = (int)($parts[0] ?? 0);
+        $m = (int)($parts[1] ?? 0);
+        $d = (int)($parts[2] ?? 0);
+        if ($y < 1 || $m < 1 || $d < 1) {
+            self::$dayWindowCache[$ck] = null;
+            return null;
+        }
         $start = mktime(
             (int)$bounds['hourStart' . $kind],
             (int)$bounds['minStart' . $kind],
@@ -674,10 +980,29 @@ final class CalendarAggregates
             $y
         );
         if ($start === false || $end === false) {
+            self::$dayWindowCache[$ck] = null;
+            return null;
+        }
+        $win = [(int)$start, (int)$end];
+        self::$dayWindowCache[$ck] = $win;
+        return $win;
+    }
+
+    /**
+     * Record fully inside a day window (oper: start AND end within bounds).
+     *
+     * @param array<string,int> $bounds
+     * @param 'OffRate'|'OffRecord' $kind
+     */
+    public static function isFullyInWindow(int $dt, int $playtime, array $bounds, string $kind): bool
+    {
+        $dayKey = date('Y-m-d', $dt);
+        $win = self::dayWindow($dayKey, $bounds, $kind);
+        if ($win === null) {
             return true;
         }
         $dtEnd = $dt + max(0, $playtime);
-        return $dt >= $start && $dtEnd <= $end;
+        return $dt >= $win[0] && $dtEnd <= $win[1];
     }
 
     /** @param array<string,int> $bounds */

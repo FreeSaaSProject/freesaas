@@ -86,13 +86,10 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
       <ul class="audio-instances">
         <?php foreach ($instances as $inst): ?>
           <li>
-            <span class="key-hit" style="background:<?= e((string)($inst['type_bg'] ?: '#ff0')) ?>;color:<?= e((string)($inst['type_color'] ?: '#000')) ?>">
+            <span class="key-hit" style="background:<?= e((string)($inst['type_bg'] ?: '#fde68a')) ?>;color:<?= e((string)($inst['type_color'] ?: '#111')) ?>">
               <?= e((string)($inst['key_name'] ?: ('#' . $inst['id_key']))) ?>
             </span>
             <span class="muted">L<?= (int)$inst['string_num'] ?> @<?= (int)$inst['string_position'] ?> +<?= (int)$inst['length'] ?></span>
-            <?php if (!empty($inst['type_name'])): ?>
-              <span class="muted">· <?= e((string)$inst['type_name']) ?></span>
-            <?php endif; ?>
           </li>
         <?php endforeach; ?>
       </ul>

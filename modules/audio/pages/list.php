@@ -161,13 +161,10 @@ $trashAdded = 0;
 
 $dictsOn = ModuleManager::isEnabled('audio_dicts');
 $keyDictOptions = [];
-$keyTypeOptions = [];
 if ($dictsOn) {
     require_once base_path('modules/audio_dicts/lib/RecordsDictsRepository.php');
-    require_once base_path('modules/audio_dicts/lib/RecordsTypesRepository.php');
     require_once base_path('modules/audio_dicts/lib/RecordsTrashesRepository.php');
     $keyDictOptions = RecordsDictsRepository::options(false);
-    $keyTypeOptions = RecordsTypesRepository::options();
 }
 
 // Always prepare play/download URLs; transcripts: eager (preload) or lazy slots.
@@ -305,7 +302,6 @@ View::render('list', [
     'downloadUrlById' => $downloadUrlById,
     'badgeOptions' => $badgeOptions,
     'keyDictOptions' => $keyDictOptions,
-    'keyTypeOptions' => $keyTypeOptions,
     'dictsOn' => $dictsOn,
     'trashAdded' => $trashAdded,
     'dayNav' => $dayNav,

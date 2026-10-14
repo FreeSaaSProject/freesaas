@@ -139,7 +139,7 @@ final class CalendarHooks
     /**
      * After Re-® collect finishes — sibling modules may regenerate day artifacts.
      *
-     * @param array{date:string,day_start?:int,day_end?:int,admin_ids?:list<int>,log?:callable|null} $ctx
+     * @param array{date:string,day_start?:int,day_end?:int,admin_ids?:list<int>,log?:callable|null,run_phrases?:bool} $ctx
      * @return array<string,mixed>
      */
     public static function emitReparseAfter(array $ctx): array
@@ -150,6 +150,8 @@ final class CalendarHooks
             'day_end' => (int)($ctx['day_end'] ?? 0),
             'admin_ids' => is_array($ctx['admin_ids'] ?? null) ? $ctx['admin_ids'] : [],
             'log' => $ctx['log'] ?? null,
+            // Opt-in: phrase harvest is ~2–3s/day and is not part of oper recordParser3.
+            'run_phrases' => !empty($ctx['run_phrases']),
         ]);
         return is_array($payload) ? $payload : $ctx;
     }

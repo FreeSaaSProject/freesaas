@@ -229,8 +229,10 @@ if ($inboxCount > 0) {
                                      target="_blank" rel="noopener"
                                      title="<?= te('audio_reports.calendar.review_pending_hint') ?>"><?= te('audio_reports.calendar.review_pending_link') ?></a>
                                 <?php endif; ?>
-                                <?php if ($score !== null): ?>
-                                  <a class="<?= e($scoreCls) ?>" href="<?= e((string)$line['href']) ?>"
+                                <?php if ($score !== null):
+                                    $scoreHref = (string)($line['report_href'] ?? $line['href'] ?? '');
+                                    ?>
+                                  <a class="<?= e($scoreCls) ?>" href="<?= e($scoreHref) ?>"
                                      title="<?= te('audio_reports.calendar.score_hint') ?>"><?= '®' . e((string)$score) ?></a>
                                 <?php endif; ?>
                                 <?php if ($line['keys_pct'] !== null): ?>
@@ -412,6 +414,56 @@ if ($inboxCount > 0) {
         <button type="submit" class="btn-secondary"><?= te('audio_reports.calendar.review_clean_orphans') ?></button>
       </form>
     </p>
+  </section>
+<?php endif; ?>
+
+<?php if ($canReparse):
+    $bulkFrom = sprintf('%04d-%02d-01', (int)$year, max(1, (int)$month ?: (int)date('n')));
+    $bulkTo = date('Y-m-d', mktime(0, 0, 0, max(1, (int)$month ?: (int)date('n')), (int)date('t', mktime(0, 0, 0, max(1, (int)$month ?: (int)date('n')), 1, (int)$year)), (int)$year) ?: time());
+    if ((int)$month < 1) {
+        $bulkFrom = sprintf('%04d-01-01', (int)$year);
+        $bulkTo = sprintf('%04d-12-31', (int)$year);
+    }
+?>
+  <section class="ar-cal-bulk-reparse"
+           id="ar-bulk-reparse"
+           data-endpoint="/audio/calendar/reparse"
+           data-i18n="<?= e(json_encode([
+               'warn' => t('audio_reports.calendar.bulk_reparse_warn'),
+               'confirm' => t('audio_reports.calendar.bulk_reparse_confirm'),
+               'busy' => t('audio_reports.calendar.bulk_reparse_busy'),
+               'badRange' => t('audio_reports.calendar.bulk_reparse_bad_range'),
+               'empty' => t('audio_reports.calendar.bulk_reparse_empty'),
+               'running' => t('audio_reports.calendar.bulk_reparse_running'),
+               'done' => t('audio_reports.calendar.bulk_reparse_done'),
+               'dayOk' => t('audio_reports.calendar.bulk_reparse_day_ok'),
+               'dayErr' => t('audio_reports.calendar.bulk_reparse_day_err'),
+               'dayStem' => t('audio_reports.calendar.bulk_reparse_day_stem'),
+               'dayStart' => t('audio_reports.calendar.bulk_reparse_day_start'),
+           ], JSON_UNESCAPED_UNICODE) ?: '{}') ?>">
+    <h3><?= te('audio_reports.calendar.bulk_reparse_title') ?></h3>
+    <p class="ar-cal-bulk-reparse-warn"><?= te('audio_reports.calendar.bulk_reparse_warn') ?></p>
+    <div class="ar-cal-bulk-reparse-row">
+      <label><?= te('audio_reports.calendar.bulk_reparse_from') ?>
+        <input type="date" id="ar-bulk-from" value="<?= e($bulkFrom) ?>">
+      </label>
+      <label><?= te('audio_reports.calendar.bulk_reparse_to') ?>
+        <input type="date" id="ar-bulk-to" value="<?= e($bulkTo) ?>">
+      </label>
+      <button type="button" class="btn-primary" id="ar-bulk-start"><?= te('audio_reports.calendar.bulk_reparse_start') ?></button>
+    </div>
+    <div class="ar-cal-bulk-reparse-progress" id="ar-bulk-progress" hidden>
+      <div class="ar-cal-bulk-reparse-meta">
+        <b><?= te('audio_reports.calendar.bulk_reparse_progress') ?></b>
+        <span id="ar-bulk-current">—</span>
+        (<span>(<span id="ar-bulk-done">0</span> / <span id="ar-bulk-total">0</span>)</span>
+      </div>
+      <div class="ar-cal-bulk-reparse-bar-wrap">
+        <div class="ar-cal-bulk-reparse-bar" id="ar-bulk-bar" style="width:0%"></div>
+      </div>
+      <div class="ar-cal-bulk-reparse-log" id="ar-bulk-log"></div>
+      <div class="ar-cal-bulk-reparse-status" id="ar-bulk-status"></div>
+    </div>
   </section>
 <?php endif; ?>
 

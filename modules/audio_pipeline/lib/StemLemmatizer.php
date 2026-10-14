@@ -139,7 +139,6 @@ final class StemLemmatizer
         foreach ($textDataUArray as $wordOriginal) {
             $wordOriginalForSearch = $wordOriginal;
             $word = $wordOriginal;
-            $lemmed = 0;
             $stopLemmStem = 0;
 
             $isStop = mb_substr($word, 0, 1, 'UTF-8');
@@ -147,8 +146,8 @@ final class StemLemmatizer
                 $stopLemmStem = 1;
             }
             $word = str_replace('#', '', $word);
-            $origWordLen = mb_strlen($word, 'UTF-8');
 
+            // Punctuation → spaces must re-split (otherwise "a.b.c" stays one lemma with spaces).
             $word = str_replace('...', '', $word);
             $word = str_replace(',', '', $word);
             $word = str_replace('.', ' ', $word);
@@ -163,90 +162,134 @@ final class StemLemmatizer
             $word = str_replace('"', '', $word);
 
             $word = trim($word);
+            // Locate the original space-token even when punctuation left nothing to lemmatize.
+            $wordPos = mb_stripos($textData, $wordOriginalForSearch, $lastPos, 'UTF-8');
+            $tokenLen = mb_strlen($wordOriginalForSearch, 'UTF-8');
+            if ($wordPos !== false) {
+                $tokenEnd = $wordPos + $tokenLen;
+            } else {
+                $wordPos = $symNumber;
+                $tokenEnd = $symNumber + max(1, $tokenLen);
+                $symNumber = $tokenEnd + 1;
+            }
+
             if ($word === '') {
+                $lastPos = $tokenEnd;
                 continue;
             }
 
-            if ($stopLemmStem) {
-                if (!isset($this->noStemWords[$word])) {
-                    $this->noStemWords[$word] = 1;
+            $parts = preg_split('/\s+/u', $word) ?: [];
+            $partCount = 0;
+            foreach ($parts as $pCheck) {
+                if (trim((string)$pCheck) !== '') {
+                    $partCount++;
                 }
             }
-            if (isset($this->noStemWords[$word])) {
-                $stopLemmStem = 1;
-            }
-
-            if (isset($this->badLemWords[$word])) {
-                $word = $this->badLemWords[$word];
-            }
-            if (!isset($this->fullWords[$word])) {
-                $this->fullWords[$word] = count($this->fullWords) + 1;
-            }
-
-            $wordStemmed = $word;
-            $wordFromCache = 0;
-            $cachedWord = StemCache::getWord($word);
-            if (is_array($cachedWord)) {
-                $wordFromCache = 1;
-                $wordStemmed = $cachedWord['lemma'];
-                if ($cachedWord['no_stem']) {
-                    $stopLemmStem = 1;
-                } else {
-                    $lemmed = 1;
+            $searchFrom = $wordPos;
+            foreach ($parts as $part) {
+                $part = trim((string)$part);
+                if ($part === '') {
+                    continue;
                 }
-            }
-
-            if (!$stopLemmStem && !$lemmed && $this->morphy !== null && $tryToLemm) {
-                $morphyEncoding = (string)$this->morphy->getEncoding();
-                $isUtf8 = (strcasecmp($morphyEncoding, 'UTF-8') === 0 || strcasecmp($morphyEncoding, 'utf8') === 0);
-                // Bundled oper dicts report utf-8 — pass words as UTF-8 (do not convert to CP1251).
-                if ($isUtf8) {
-                    $wordForMorphy = $word;
-                } else {
-                    $enc = $morphyEncoding !== '' ? $morphyEncoding : 'CP1251';
-                    $wordForMorphy = mb_convert_encoding($word, $enc, 'UTF-8');
+                // ASR glue / missing spaces: not a real word — log and skip (do not cache).
+                if (mb_strlen($part, 'UTF-8') > 255) {
+                    error_log(sprintf(
+                        '[StemLemmatizer] skip overlong token: len=%d preview=%s line_preview=%s',
+                        mb_strlen($part, 'UTF-8'),
+                        StemCache::previewToken($part),
+                        StemCache::previewToken($textData, 120)
+                    ));
+                    continue;
                 }
-                $wordStemmedArray = @$this->morphy->getBaseForm($wordForMorphy);
-                if (is_array($wordStemmedArray) && $wordStemmedArray !== []) {
-                    $base = (string)$wordStemmedArray[0];
+
+                $partStop = $stopLemmStem;
+                $lemmed = 0;
+                if ($partStop) {
+                    if (!isset($this->noStemWords[$part])) {
+                        $this->noStemWords[$part] = 1;
+                    }
+                }
+                if (isset($this->noStemWords[$part])) {
+                    $partStop = 1;
+                }
+
+                if (isset($this->badLemWords[$part])) {
+                    $part = $this->badLemWords[$part];
+                }
+                if (!isset($this->fullWords[$part])) {
+                    $this->fullWords[$part] = count($this->fullWords) + 1;
+                }
+
+                $wordStemmed = $part;
+                $wordFromCache = 0;
+                $cachedWord = StemCache::getWord($part);
+                if (is_array($cachedWord)) {
+                    $wordFromCache = 1;
+                    $wordStemmed = $cachedWord['lemma'];
+                    if ($cachedWord['no_stem']) {
+                        $partStop = 1;
+                    } else {
+                        $lemmed = 1;
+                    }
+                }
+
+                if (!$partStop && !$lemmed && $this->morphy !== null && $tryToLemm) {
+                    $morphyEncoding = (string)$this->morphy->getEncoding();
+                    $isUtf8 = (strcasecmp($morphyEncoding, 'UTF-8') === 0 || strcasecmp($morphyEncoding, 'utf8') === 0);
                     if ($isUtf8) {
-                        $wordStemmed = trim($base);
+                        $wordForMorphy = $part;
                     } else {
                         $enc = $morphyEncoding !== '' ? $morphyEncoding : 'CP1251';
-                        $wordStemmed = trim(mb_convert_encoding($base, 'UTF-8', $enc));
+                        $wordForMorphy = mb_convert_encoding($part, $enc, 'UTF-8');
                     }
-                    if ($wordStemmed !== '') {
-                        $lemmed = 1;
-                    } else {
-                        $wordStemmed = $word;
+                    $wordStemmedArray = @$this->morphy->getBaseForm($wordForMorphy);
+                    if (is_array($wordStemmedArray) && $wordStemmedArray !== []) {
+                        $base = (string)$wordStemmedArray[0];
+                        if ($isUtf8) {
+                            $wordStemmed = trim($base);
+                        } else {
+                            $enc = $morphyEncoding !== '' ? $morphyEncoding : 'CP1251';
+                            $wordStemmed = trim(mb_convert_encoding($base, 'UTF-8', $enc));
+                        }
+                        if ($wordStemmed !== '') {
+                            $lemmed = 1;
+                        } else {
+                            $wordStemmed = $part;
+                        }
                     }
                 }
-                // Morph miss: keep surface form ($wordStemmed already = $word).
-            }
 
-            if (isset($this->ownNames[$word])) {
-                $wordStemmed = $word;
-            }
+                if (isset($this->ownNames[$part])) {
+                    $wordStemmed = $part;
+                }
 
-            if (!$wordFromCache) {
-                StemCache::rememberWord($word, $wordStemmed, $stopLemmStem ? 1 : 0);
-            }
+                if (!$wordFromCache) {
+                    StemCache::rememberWord($part, $wordStemmed, $partStop ? 1 : 0);
+                }
 
-            $lemmasArray[$i] = $wordStemmed;
+                $lemmasArray[$i] = $wordStemmed;
 
-            $wordPos = mb_stripos($textData, $wordOriginalForSearch, $lastPos, 'UTF-8');
-            if ($wordPos !== false) {
-                $contentStartArray[$i] = $wordPos;
-                $wordLenInText = mb_strlen($wordOriginalForSearch, 'UTF-8');
-                $lastPos = $wordPos + $wordLenInText;
-                $contentLengthArray[$i] = $wordLenInText;
-            } else {
-                $contentStartArray[$i] = $symNumber;
-                $contentLengthArray[$i] = $origWordLen;
-                $symNumber += $origWordLen + 1;
-                $lastPos = $symNumber;
+                $partLen = mb_strlen($part, 'UTF-8');
+                if ($partCount === 1) {
+                    // Single surface token: span the whole original space-token (incl. punctuation).
+                    $contentStartArray[$i] = $wordPos;
+                    $contentLengthArray[$i] = $tokenLen;
+                } else {
+                    // Map each sub-token to its real char span inside the original token.
+                    $partPos = mb_stripos($textData, $part, $searchFrom, 'UTF-8');
+                    if ($partPos !== false && $partPos < $tokenEnd) {
+                        $contentStartArray[$i] = $partPos;
+                        $contentLengthArray[$i] = $partLen;
+                        $searchFrom = $partPos + $partLen;
+                    } else {
+                        $contentStartArray[$i] = min($searchFrom, $tokenEnd);
+                        $contentLengthArray[$i] = $partLen;
+                        $searchFrom = min($tokenEnd, $searchFrom + $partLen);
+                    }
+                }
+                $i++;
             }
-            $i++;
+            $lastPos = $tokenEnd;
         }
 
         StemCache::flushWords();

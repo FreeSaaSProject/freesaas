@@ -73,12 +73,8 @@ if ($canReviewAdmin && RecordsReviewsRepository::tableExists()) {
             $orphans = RecordsReviewsRepository::cleanOrphans();
             $reviewOrphansFlash = t('audio_reports.calendar.review_orphans_cleaned', ['n' => $orphans]);
         }
-    } else {
-        $orphans = RecordsReviewsRepository::cleanOrphans();
-        if ($orphans > 0) {
-            $reviewOrphansFlash = t('audio_reports.calendar.review_orphans_cleaned', ['n' => $orphans]);
-        }
     }
+    // Orphan DELETE only on explicit POST — not on every calendar GET.
 }
 
 $year = (int)($_GET['year'] ?? date('Y'));
@@ -161,12 +157,27 @@ if ($rangeFrom === false || $rangeTo === false) {
 }
 
 $agg = CalendarAggregates::forRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
+if (class_exists('StageTiming', false)) {
+    StageTiming::mark('Calendar: forRange + ®');
+}
 $reviewsAgg = RecordsReviewsRepository::reviewsForRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
 $pendingReviewTotal = $canReviewAdmin ? RecordsReviewsRepository::countPendingUnreviewed() : 0;
+if (class_exists('StageTiming', false)) {
+    StageTiming::mark('Calendar: reviews');
+}
 $tracking = CalendarAggregates::trackingForRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
 $trackingDicts = $tracking['dicts'];
+if (class_exists('StageTiming', false)) {
+    StageTiming::mark('Calendar: tracking');
+}
 $scriptsAgg = CalendarAggregates::scriptsForRange((int)$rangeFrom, (int)$rangeTo, $calFilters);
 $calendarScripts = $scriptsAgg['scripts'];
+if (class_exists('PromoterBonus', false)) {
+    PromoterBonus::warmScriptsCache($scriptsAgg, (int)$rangeFrom, (int)$rangeTo);
+}
+if (class_exists('StageTiming', false)) {
+    StageTiming::mark('Calendar: scripts');
+}
 
 // Skip missing-audio hints when badge filter is on (records subset would false-positive).
 $missingAudio = [];
@@ -177,6 +188,9 @@ if ($badgeFilter < 1) {
         $agg['by_admin_day'],
         $calFilters
     );
+}
+if (class_exists('StageTiming', false)) {
+    StageTiming::mark('Calendar: missingAudio');
 }
 
 $adminIdsNeeded = [];
@@ -453,11 +467,19 @@ foreach ($periodMonths as $period) {
                 ]))
                 : '';
 
+            $reportHref = $avg !== null
+                ? NavContext::withReturn('/audio/calendar/day-report?' . http_build_query([
+                    'admin' => $aid,
+                    'date' => $date,
+                ]))
+                : '';
+
             $staffLines[] = [
                 'admin_id' => $aid,
                 'position_id' => (int)($adminMeta[$aid]['position_id'] ?? 0),
                 'agg' => $cellAgg,
                 'href' => $cellHref,
+                'report_href' => $reportHref,
                 'avg_score' => $avg,
                 'extra_html' => $hook['html'],
                 'badge_html' => UsersRepository::badgeHtml($aid, false, true),
@@ -764,6 +786,10 @@ if ($shiftDayParam === 'all' || preg_match('/^\d{4}-\d{2}-\d{2}$/', $shiftDayPar
 }
 
 $calRet = $qs($year, $month, $adminFilter, $badgeFilter, $positionFilter);
+
+if (class_exists('StageTiming', false)) {
+    StageTiming::mark('Calendar: months UI + hooks');
+}
 
 View::render('calendar', [
     'title' => t('audio_reports.menu.calendar'),

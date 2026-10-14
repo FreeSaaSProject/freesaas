@@ -2,7 +2,7 @@
     "id": "staff_reports",
     "name": "staff_reports.module.name",
     "description": "staff_reports.module.description",
-    "version": "0.1.1",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -123,14 +123,7 @@
         ]
     },
     "jobs": [],
-    "menu": [
-        {
-            "group": "audio.menu.group",
-            "num": 25,
-            "path": "/staff-reports/generate",
-            "title": "staff_reports.menu.generate"
-        }
-    ],
+    "menu": [],
     "configSchema": [],
     "tables": [
         "base_staff_report_profiles"

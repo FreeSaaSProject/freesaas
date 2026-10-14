@@ -324,7 +324,14 @@
 }
 
 .transcript--compact {
-  max-height: 12rem;
+  max-height: none;
+  overflow: visible;
+}
+
+/* Collections / embedded list: grow with content, no inner scroll */
+.transcript.transcript--list.transcript--compact {
+  max-height: none;
+  overflow: visible;
 }
 
 .transcript-line {
@@ -433,6 +440,35 @@
 .add-key-warnings {
   color: #b71c1c;
   font-size: 0.75rem;
+}
+
+.add-key-overlap-title {
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.add-key-overlap-list {
+  margin: 0 0 0.4rem;
+  padding: 0 0 0 1.1rem;
+  list-style: disc;
+  line-height: 1.35;
+}
+
+.add-key-overlap-list a {
+  color: #1565c0;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.add-key-overlap-list a:hover { text-decoration: underline; }
+
+.add-key-overlap-rel { color: #666; font-weight: 400; }
+
+.add-key-overlap-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
 }
 
 .add-key-error {

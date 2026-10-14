@@ -12,7 +12,7 @@ final class PromoterBonus
     /** @var array{range:string,by_admin_day:array,days_with_data:array<string,true>}|null */
     private static $termScanCache = null;
 
-    /** @var array{range:string,scripts:array}|null */
+    /** @var array{range:string,scripts:array,cover_from?:int,cover_to?:int}|null */
     private static $scriptsCache = null;
 
     /** @var array{range:string,bonus:array<string,true>}|null */
@@ -24,6 +24,25 @@ final class PromoterBonus
         self::$termScanCache = null;
         self::$scriptsCache = null;
         self::$bonusCache = null;
+    }
+
+    /**
+     * Seed scripts cache from an already-loaded CalendarAggregates::scriptsForRange result
+     * so promoter cells do not re-query collections for the same period.
+     *
+     * @param array{by_admin_day?:array} $scriptsAgg
+     */
+    public static function warmScriptsCache(array $scriptsAgg, int $fromTs, int $toTs): void
+    {
+        if ($fromTs < 1 || $toTs < $fromTs) {
+            return;
+        }
+        self::$scriptsCache = [
+            'range' => 'warm',
+            'cover_from' => $fromTs,
+            'cover_to' => $toTs,
+            'scripts' => $scriptsAgg,
+        ];
     }
 
     public static function priceCol(): int
@@ -159,7 +178,12 @@ final class PromoterBonus
         }
         [$from, $to] = self::monthRange($date);
         $key = $from . '-' . $to;
-        if (self::$scriptsCache === null || (self::$scriptsCache['range'] ?? '') !== $key) {
+        $cached = self::$scriptsCache;
+        $covers = is_array($cached)
+            && ($cached['range'] ?? '') === 'warm'
+            && (int)($cached['cover_from'] ?? 0) <= $from
+            && (int)($cached['cover_to'] ?? 0) >= ($to - 1);
+        if (!$covers && ($cached === null || (string)($cached['range'] ?? '') !== $key)) {
             self::$scriptsCache = [
                 'range' => $key,
                 'scripts' => CalendarAggregates::scriptsForRange($from, $to - 1),

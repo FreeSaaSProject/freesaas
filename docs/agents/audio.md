@@ -26,7 +26,8 @@ Permissions: `audio.view`, `audio.edit`, `audio.badges`.
 | `base_badge_assignments` | Owned by `audio` |
 | `base_records_balances` | Owned by `audio` |
 | `base_records_reviews` | Owned by `audio` |
-| `base_audio_settings` | Owned by `audio` |
+
+Storage/FTP settings: `cfg/modules/audio.ini` (`[storage]` / `[audio]`), not a DB table.
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 

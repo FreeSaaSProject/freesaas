@@ -2,7 +2,7 @@
     "id": "audio_reports",
     "name": "audio_reports.module.name",
     "description": "audio_reports.module.description",
-    "version": "0.2.2",
+    "version": "0.2.19",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -36,6 +36,7 @@
     "routes": {
         "pages": [
             "/audio/calendar",
+            "/audio/calendar/day-report",
             "/audio/calendar/reparse",
             "/audio/collections",
             "/audio/collections/{id}",
@@ -74,6 +75,30 @@
                     },
                     "required": [
                         "day"
+                    ]
+                }
+            },
+            {
+                "id": "audio_reports.day_report",
+                "method": "GET",
+                "path": "/audio/calendar/day-report",
+                "permission": "audio_reports.view",
+                "side_effect": "read",
+                "description": "Staff day rating report (script rows + ®); admin + date=YYYY-MM-DD",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "admin": {
+                            "type": "integer"
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        }
+                    },
+                    "required": [
+                        "admin",
+                        "date"
                     ]
                 }
             },

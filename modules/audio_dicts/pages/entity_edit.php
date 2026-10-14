@@ -5,7 +5,6 @@ $wantsJson = AgentHttp::wantsJson();
 
 $entity = (string)($GLOBALS['audio_dicts_entity'] ?? '');
 $map = [
-    'types' => ['repo' => RecordsTypesRepository::class, 'path' => '/audio/types', 'title' => 'audio_dicts.menu.types', 'view' => 'types_edit'],
     'dicts' => ['repo' => RecordsDictsRepository::class, 'path' => '/audio/dicts', 'title' => 'audio_dicts.menu.dicts', 'view' => 'dicts_edit'],
     'keys' => ['repo' => RecordsKeysRepository::class, 'path' => '/audio/keys', 'title' => 'audio_dicts.menu.keys', 'view' => 'keys_edit'],
     'tags' => ['repo' => RecordsTagsRepository::class, 'path' => '/audio/tags', 'title' => 'audio_dicts.menu.tags', 'view' => 'tags_edit'],
@@ -84,7 +83,6 @@ $viewData = [
     'id' => $id,
 ];
 if ($entity === 'keys') {
-    $viewData['typeOptions'] = RecordsTypesRepository::options();
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
 }
 
@@ -96,7 +94,6 @@ if ($wantsJson) {
         'item' => $row,
     ];
     if ($entity === 'keys') {
-        $payload['type_options'] = RecordsTypesRepository::options();
         $payload['dict_options'] = RecordsDictsRepository::options(true);
     }
     AgentHttp::emit($payload);

@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class RecordsKeysRepository
 {
+    /** @var list<array{id:int,name:string,id_dictonary:int,dict_name:string,norm:string}>|null */
+    private static $overlapCatalog = null;
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -41,10 +44,9 @@ final class RecordsKeysRepository
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $sql = "SELECT k.ID AS id, k.DT_CREATE AS dt_create, k.NAME AS name, k.DISABLED AS disabled,
                        k.ID_TYPE AS id_type, k.ID_DICTONARY AS id_dictonary, k.ID_LOOKLIKE AS id_looklike,
-                       d.NAME AS dict_name, t.NAME AS type_name
+                       d.NAME AS dict_name
                 FROM base_records_keys k
                 LEFT JOIN base_records_dictonarys d ON d.ID = k.ID_DICTONARY
-                LEFT JOIN base_records_types t ON t.ID = k.ID_TYPE
                 WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
@@ -79,7 +81,8 @@ final class RecordsKeysRepository
         return [
             'name' => mb_substr($name, 0, 255),
             'disabled' => !empty($post['disabled']) ? 1 : 0,
-            'id_type' => max(0, (int)($post['id_type'] ?? 0)),
+            // ID_TYPE kept in schema for legacy/oper; product UI no longer sets it.
+            'id_type' => 0,
             'id_dictonary' => max(0, (int)($post['id_dictonary'] ?? 0)),
             'id_looklike' => max(0, (int)($post['id_looklike'] ?? 0)),
         ];
@@ -93,9 +96,10 @@ final class RecordsKeysRepository
              VALUES (?,?,?,?,?,?)'
         );
         $st->execute([
-            $data['id_type'], time(), $data['name'], $data['disabled'],
+            (int)($data['id_type'] ?? 0), time(), $data['name'], $data['disabled'],
             $data['id_dictonary'], $data['id_looklike'],
         ]);
+        self::clearOverlapCatalogCache();
         EventBus::emit('audio_dicts.changed', ['entity' => 'keys']);
         return (int)Database::pdo()->lastInsertId();
     }
@@ -103,13 +107,15 @@ final class RecordsKeysRepository
     /** @param array<string,mixed> $data */
     public static function update(int $id, array $data): void
     {
+        // Preserve legacy ID_TYPE; product form no longer edits it.
         $st = Database::pdo()->prepare(
-            'UPDATE base_records_keys SET ID_TYPE=?, NAME=?, DISABLED=?, ID_DICTONARY=?, ID_LOOKLIKE=? WHERE ID=?'
+            'UPDATE base_records_keys SET NAME=?, DISABLED=?, ID_DICTONARY=?, ID_LOOKLIKE=? WHERE ID=?'
         );
         $st->execute([
-            $data['id_type'], $data['name'], $data['disabled'],
+            $data['name'], $data['disabled'],
             $data['id_dictonary'], $data['id_looklike'], $id,
         ]);
+        self::clearOverlapCatalogCache();
         EventBus::emit('audio_dicts.changed', ['entity' => 'keys', 'id' => $id]);
     }
 
@@ -127,6 +133,119 @@ final class RecordsKeysRepository
         $st->execute([mb_substr($name, 0, 255)]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    /**
+     * Normalize for overlap compare: lower case, ё→е, strip punctuation, collapse spaces.
+     */
+    public static function normalizeName(string $name): string
+    {
+        $name = mb_strtolower(trim($name), 'UTF-8');
+        if ($name === '') {
+            return '';
+        }
+        $name = str_replace(['ё', 'Ё'], ['е', 'е'], $name);
+        $name = preg_replace('/[^\p{L}\p{N}\s]+/u', ' ', $name) ?? $name;
+        $name = preg_replace('/\s+/u', ' ', $name) ?? $name;
+        return trim($name);
+    }
+
+    /**
+     * Find keys that equal / contain / are contained in $name (broader than exact NAME=).
+     * Oper-style nesting guard: new key must not sit inside another key and vice versa.
+     *
+     * @return list<array{
+     *   id:int,name:string,id_dictonary:int,dict_name:string,
+     *   relation:string,relation_label:string
+     * }>
+     */
+    public static function findOverlaps(string $name, int $excludeId = 0, int $limit = 40): array
+    {
+        $needle = self::normalizeName($name);
+        if ($needle === '' || !Database::tableExists('base_records_keys')) {
+            return [];
+        }
+        $needleLen = mb_strlen($needle, 'UTF-8');
+        if ($needleLen < 2) {
+            return [];
+        }
+
+        if (self::$overlapCatalog === null) {
+            self::$overlapCatalog = [];
+            $sql = 'SELECT k.ID AS id, k.NAME AS name, k.ID_DICTONARY AS id_dictonary,
+                           d.NAME AS dict_name
+                    FROM base_records_keys k
+                    LEFT JOIN base_records_dictonarys d ON d.ID = k.ID_DICTONARY
+                    WHERE k.DISABLED < 1
+                    LIMIT 12000';
+            $st = Database::pdo()->query($sql);
+            if ($st) {
+                while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                    $norm = self::normalizeName((string)$row['name']);
+                    if ($norm === '') {
+                        continue;
+                    }
+                    self::$overlapCatalog[] = [
+                        'id' => (int)$row['id'],
+                        'name' => (string)$row['name'],
+                        'id_dictonary' => (int)$row['id_dictonary'],
+                        'dict_name' => (string)($row['dict_name'] ?? ''),
+                        'norm' => $norm,
+                    ];
+                }
+            }
+        }
+
+        $exact = [];
+        $contains = []; // existing contains candidate
+        $contained = []; // candidate contains existing
+        foreach (self::$overlapCatalog as $row) {
+            $id = (int)$row['id'];
+            if ($excludeId > 0 && $id === $excludeId) {
+                continue;
+            }
+            $other = (string)$row['norm'];
+            $relation = '';
+            if ($other === $needle) {
+                $relation = 'exact';
+            } elseif (mb_strpos($other, $needle, 0, 'UTF-8') !== false) {
+                $relation = 'contains'; // other key is wider
+            } elseif (mb_strpos($needle, $other, 0, 'UTF-8') !== false) {
+                // Avoid trivial short fragments inside long phrases (1–2 chars already blocked).
+                if (mb_strlen($other, 'UTF-8') >= 3) {
+                    $relation = 'contained'; // new key is wider
+                }
+            }
+            if ($relation === '') {
+                continue;
+            }
+            $hit = [
+                'id' => $id,
+                'name' => (string)$row['name'],
+                'id_dictonary' => (int)$row['id_dictonary'],
+                'dict_name' => (string)$row['dict_name'],
+                'relation' => $relation,
+            ];
+            if ($relation === 'exact') {
+                $exact[] = $hit;
+            } elseif ($relation === 'contains') {
+                $contains[] = $hit;
+            } else {
+                $contained[] = $hit;
+            }
+            if (count($exact) + count($contains) + count($contained) >= $limit) {
+                break;
+            }
+        }
+
+        // Prefer exact, then "existing is wider", then "new is wider".
+        return array_slice(array_merge($exact, $contains, $contained), 0, $limit);
+    }
+
+    /** Clear request-local overlap catalog (after create/update). */
+    public static function clearOverlapCatalogCache(): void
+    {
+        self::$overlapCatalog = null;
     }
 
     /** @param list<int> $ids */

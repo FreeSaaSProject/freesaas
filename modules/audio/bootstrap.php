@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/BadgeAssignmentsRepository.php';
 require_once __DIR__ . '/lib/BadgeBotPlugin.php';
 require_once __DIR__ . '/lib/RecordsRepository.php';
 require_once __DIR__ . '/lib/RecordsReviewsRepository.php';
+require_once __DIR__ . '/lib/TranscriptGarbage.php';
 require_once __DIR__ . '/lib/TranscriptHighlighter.php';
 
 Assets::register('audio', [

@@ -6,6 +6,9 @@ $wantsJson = AgentHttp::wantsJson();
 $path = '/audio/scripts';
 $listId = 'audio_scripts';
 
+$q = trim((string)($_GET['q'] ?? ''));
+$position = (int)($_GET['position'] ?? 0);
+
 $lq = ListQuery::resolve([
     'list_id' => $listId,
     'allowed' => RecordsScriptsRepository::listSortMap(),
@@ -14,7 +17,10 @@ $lq = ListQuery::resolve([
     'per_page' => 50,
 ]);
 
-$filters = $lq['query'];
+$filters = array_merge(['q' => $q], $lq['query']);
+if ($position > 0) {
+    $filters['position'] = (string)$position;
+}
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
 }
@@ -39,12 +45,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('audio_dicts.edit')) {
 BulkActions::tryHandle($listId, $path, $filters);
 
 $result = RecordsScriptsRepository::listRoots([
+    'q' => $q,
+    'position' => $position,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
 ]);
 $bulkFlash = BulkActions::consumeFlash();
 $error = trim((string)($_GET['err'] ?? ''));
+$positionOptions = RecordsScriptsRepository::positionOptions();
+$positionFilterOptions = RecordsScriptsRepository::positionOptionsUsedInScripts();
+// Keep selected filter visible even if somehow orphaned
+if ($position > 0 && !isset($positionFilterOptions[$position])) {
+    $positionFilterOptions[$position] = $positionOptions[$position] ?? ('#' . $position);
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -54,6 +68,8 @@ if ($wantsJson) {
         'page' => $lq['page'],
         'per_page' => $lq['per_page'],
         'show_all' => $lq['show_all'],
+        'q' => $q,
+        'position' => $position,
         'can_edit' => Auth::can('audio_dicts.edit'),
     ]);
     return;
@@ -67,6 +83,10 @@ View::render('scripts_list', [
     ]),
     'items' => $result['items'],
     'total' => $result['total'],
+    'q' => $q,
+    'position' => $position,
+    'positionOptions' => $positionOptions,
+    'positionFilterOptions' => $positionFilterOptions,
     'canEdit' => Auth::can('audio_dicts.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],

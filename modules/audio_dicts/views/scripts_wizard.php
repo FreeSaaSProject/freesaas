@@ -5,11 +5,13 @@ declare(strict_types=1);
 /** @var array $meta */
 /** @var list<array<string,mixed>> $parts */
 /** @var array<int,string> $dictOptions */
+/** @var array<int,list<int>> $dictPositionMap */
 /** @var array<int,string> $positionOptions */
 /** @var array<string,string> $roleOptions */
 /** @var array<string,string> $roleHints */
 $partsJson = json_encode(array_values($parts), JSON_UNESCAPED_UNICODE);
 $dictJson = json_encode($dictOptions, JSON_UNESCAPED_UNICODE);
+$dictPosJson = json_encode($dictPositionMap ?? [], JSON_UNESCAPED_UNICODE);
 $roleJson = json_encode($roleOptions, JSON_UNESCAPED_UNICODE);
 $hintJson = json_encode($roleHints, JSON_UNESCAPED_UNICODE);
 $i18n = [
@@ -51,6 +53,7 @@ $i18n = [
 <div class="scripts-wizard" id="scripts-wizard"
      data-parts="<?= e($partsJson ?: '[]') ?>"
      data-dicts="<?= e($dictJson ?: '{}') ?>"
+     data-dict-positions="<?= e($dictPosJson ?: '{}') ?>"
      data-roles="<?= e($roleJson ?: '{}') ?>"
      data-hints="<?= e($hintJson ?: '{}') ?>"
      data-i18n="<?= e(json_encode($i18n, JSON_UNESCAPED_UNICODE) ?: '{}') ?>">

@@ -147,8 +147,7 @@
     text = String(text || '').trim();
     if (!text) return;
     var dicts = parseJsonEl('audio-key-dicts');
-    var types = parseJsonEl('audio-key-types');
-    if (!dicts || !types) return;
+    if (!dicts) return;
 
     var existing = kolonkaEl.querySelector('.add-key-popover');
     if (existing) existing.remove();
@@ -158,7 +157,6 @@
     pop.innerHTML =
       '<div class="add-key-row"><span class="add-key-lbl"></span><input type="text" class="add-key-input" /></div>' +
       '<div class="add-key-row"><span class="add-key-lbl" data-lbl="dict"></span><select class="add-key-dict"></select></div>' +
-      '<div class="add-key-row"><span class="add-key-lbl" data-lbl="type"></span><select class="add-key-type"></select></div>' +
       '<div class="add-key-row add-key-actions">' +
       '<button type="button" class="add-key-btn" data-act="key"></button>' +
       '<button type="button" class="add-key-btn-trash" data-act="trash"></button>' +
@@ -169,30 +167,67 @@
     var L = labels();
     pop.querySelector('.add-key-lbl').textContent = L.key || 'Key';
     var dictLbl = pop.querySelector('[data-lbl="dict"]');
-    var typeLbl = pop.querySelector('[data-lbl="type"]');
     if (dictLbl) dictLbl.textContent = L.dict || 'Dict';
-    if (typeLbl) typeLbl.textContent = L.type || 'Type';
     pop.querySelector('[data-act="key"]').textContent = L.addKey || 'Add key';
     pop.querySelector('[data-act="trash"]').textContent = L.addTrash || 'Add trash';
     pop.querySelector('.add-key-cancel').textContent = L.cancel || 'Cancel';
     pop.querySelector('.add-key-input').value = text;
 
     var dictSel = pop.querySelector('.add-key-dict');
-    var typeSel = pop.querySelector('.add-key-type');
     Object.keys(dicts).forEach(function (id) {
       var o = document.createElement('option');
       o.value = id;
       o.textContent = dicts[id];
       dictSel.appendChild(o);
     });
-    Object.keys(types).forEach(function (id) {
-      var o = document.createElement('option');
-      o.value = id;
-      o.textContent = types[id];
-      typeSel.appendChild(o);
-    });
 
-    function postAction(action) {
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function showOverlapPanel(warn, overlaps, onForce) {
+      warn.hidden = false;
+      warn.innerHTML = '';
+      var title = document.createElement('div');
+      title.className = 'add-key-overlap-title';
+      title.textContent = L.confirmOverlaps || 'Similar keys';
+      warn.appendChild(title);
+      var ul = document.createElement('ul');
+      ul.className = 'add-key-overlap-list';
+      (overlaps || []).slice(0, 12).forEach(function (o) {
+        var id = parseInt(o.id, 10) || 0;
+        var li = document.createElement('li');
+        var rel = o.relation_label ? ' — ' + escapeHtml(o.relation_label) : '';
+        var dict = o.dict_name ? ' <span class="muted">[' + escapeHtml(o.dict_name) + ']</span>' : '';
+        li.innerHTML =
+          '<a href="/audio/keys/' + id + '/edit" target="_blank" rel="noopener">#' + id +
+          ' «' + escapeHtml(o.name || '') + '»</a>' + dict +
+          '<span class="add-key-overlap-rel">' + rel + '</span>';
+        ul.appendChild(li);
+      });
+      warn.appendChild(ul);
+      var actions = document.createElement('div');
+      actions.className = 'add-key-overlap-actions';
+      var forceBtn = document.createElement('button');
+      forceBtn.type = 'button';
+      forceBtn.className = 'add-key-btn';
+      forceBtn.textContent = L.createAnyway || 'Create anyway';
+      forceBtn.addEventListener('click', function () { onForce(); });
+      var reloadBtn = document.createElement('button');
+      reloadBtn.type = 'button';
+      reloadBtn.className = 'add-key-cancel';
+      reloadBtn.textContent = L.reload || 'Reload page';
+      reloadBtn.addEventListener('click', function () { location.reload(); });
+      actions.appendChild(forceBtn);
+      actions.appendChild(reloadBtn);
+      warn.appendChild(actions);
+    }
+
+    function postAction(action, force) {
       var status = pop.querySelector('.add-key-status');
       var warn = pop.querySelector('.add-key-warnings');
       var keyText = String(pop.querySelector('.add-key-input').value || '').trim();
@@ -203,13 +238,14 @@
       }
       status.textContent = '…';
       warn.hidden = true;
+      warn.innerHTML = '';
       var body = new URLSearchParams();
       body.set('action', action);
       body.set('text', keyText);
       if (action === 'add_key') {
         body.set('dict_id', dictSel.value || '0');
-        body.set('type_id', typeSel.value || '0');
       }
+      if (force) body.set('force', '1');
       fetch('/audio/api/dict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
@@ -219,6 +255,13 @@
       })
         .then(function (r) { return r.json(); })
         .then(function (data) {
+          if (data && data.needs_confirm && !force) {
+            status.textContent = '';
+            showOverlapPanel(warn, data.overlaps || [], function () {
+              postAction(action, true);
+            });
+            return;
+          }
           if (!data || !data.success) {
             pop.classList.add('add-key-error');
             warn.hidden = false;

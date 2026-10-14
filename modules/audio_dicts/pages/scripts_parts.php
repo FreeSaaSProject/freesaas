@@ -60,14 +60,29 @@ try {
     }
 
     if ($action === 'save' || $action === 'add') {
+        $condType = strtolower(trim((string)($_POST['cond_type'] ?? '')));
+        $allowedCond = ['intersect', 'no_intersect', 'volume_gt', 'volume_lt', 'strings_gt', 'strings_lt'];
+        if (!in_array($condType, $allowedCond, true)) {
+            $condType = '';
+        }
         $partData = [
             'id' => (int)($_POST['part_id'] ?? $_POST['id'] ?? 0),
             'name' => trim((string)($_POST['name'] ?? '')),
             'roles' => [],
             'score' => (int)($_POST['score'] ?? 0),
+            'score_rate' => (int)($_POST['score_rate'] ?? 0),
+            'kpi' => max(0, (int)($_POST['kpi'] ?? 0)),
+            'cond_type' => $condType,
+            'cond_value' => (int)($_POST['cond_value'] ?? 0),
+            'start_gate' => max(0, min(2, (int)($_POST['start_gate'] ?? 0))),
+            'extend_timeout' => array_key_exists('extend_timeout', $_POST)
+                ? (!empty($_POST['extend_timeout']) ? 1 : 0)
+                : 1,
             'timeout' => (int)($_POST['timeout'] ?? 0),
             'diversity' => (int)($_POST['diversity'] ?? 0),
             'instances_min' => (int)($_POST['instances_min'] ?? 0),
+            'gate_red_max' => max(0.0, (float)($_POST['gate_red_max'] ?? 0)),
+            'gate_yellow_max' => max(0.0, (float)($_POST['gate_yellow_max'] ?? 0)),
             'disabled' => !empty($_POST['disabled']) ? 1 : 0,
             'dict_ids' => [],
         ];

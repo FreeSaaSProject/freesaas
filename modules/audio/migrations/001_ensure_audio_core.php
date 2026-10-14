@@ -16,15 +16,7 @@ return static function (PDO $pdo): void {
         }
     };
 
-    // New FreeSaaS tables
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS base_audio_settings (
-            setting_key VARCHAR(64) NOT NULL,
-            setting_value TEXT NOT NULL,
-            updated_at INT UNSIGNED NOT NULL DEFAULT 0,
-            PRIMARY KEY (setting_key)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
+    // Storage/FTP settings live in cfg/modules/audio.ini ([storage] / [audio]), not a KV table.
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_records_badges (

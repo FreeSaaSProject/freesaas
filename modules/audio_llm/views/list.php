@@ -3,7 +3,16 @@ declare(strict_types=1);
 /** @var string $kind */
 /** @var list<array> $items */
 /** @var int $total */
+/** @var int $page */
+/** @var int $perPage */
+/** @var bool $showAll */
+/** @var array $filters */
+/** @var string $path */
 /** @var string $message */
+$path = (string)($path ?? '/audio/llm-studies');
+$showAll = !empty($showAll);
+$filters = is_array($filters ?? null) ? $filters : [];
+$pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $kinds = ['regular' => t('audio_llm.kind.regular'), 'cyclic' => t('audio_llm.kind.cyclic'), 'spawned' => t('audio_llm.kind.spawned')];
 ?>
 <section class="page-head">
@@ -22,6 +31,8 @@ $kinds = ['regular' => t('audio_llm.kind.regular'), 'cyclic' => t('audio_llm.kin
     <?= $k !== 'spawned' ? ' · ' : '' ?>
   <?php endforeach; ?>
 </p>
+
+<?= $pager ?>
 
 <?php if ($items === []): ?>
   <p class="muted"><?= te('audio_llm.list.empty') ?></p>
@@ -79,5 +90,5 @@ $kinds = ['regular' => t('audio_llm.kind.regular'), 'cyclic' => t('audio_llm.kin
   <?php endforeach; ?>
   </tbody>
 </table>
-<p class="muted"><?= (int)$total ?> · page <?= (int)$page ?></p>
+<?= $pager ?>
 <?php endif; ?>

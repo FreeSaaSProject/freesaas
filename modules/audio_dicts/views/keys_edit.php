@@ -4,9 +4,7 @@ declare(strict_types=1);
 /** @var bool $isNew */
 /** @var string $error */
 /** @var string $path */
-/** @var array<int,string> $typeOptions */
 /** @var array<int,string> $dictOptions */
-$typeOptions = is_array($typeOptions ?? null) ? $typeOptions : [];
 $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
 ?>
 <?php if ($error !== ''): ?><p class="flash error"><?= e($error) ?></p><?php endif; ?>
@@ -17,14 +15,6 @@ $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
       <option value="0">—</option>
       <?php foreach ($dictOptions as $did => $dname): ?>
         <option value="<?= (int)$did ?>"<?= (int)($row['id_dictonary'] ?? 0) === (int)$did ? ' selected' : '' ?>><?= e($dname) ?></option>
-      <?php endforeach; ?>
-    </select>
-  </label>
-  <label><?= te('audio_dicts.col.type') ?>
-    <select name="id_type">
-      <option value="0">—</option>
-      <?php foreach ($typeOptions as $tid => $tname): ?>
-        <option value="<?= (int)$tid ?>"<?= (int)($row['id_type'] ?? 0) === (int)$tid ? ' selected' : '' ?>><?= e($tname) ?></option>
       <?php endforeach; ?>
     </select>
   </label>

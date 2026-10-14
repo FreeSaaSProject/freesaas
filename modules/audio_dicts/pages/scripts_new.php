@@ -75,6 +75,7 @@ View::render('scripts_wizard', [
     'meta' => $meta,
     'parts' => $parts,
     'dictOptions' => RecordsDictsRepository::options(false),
+    'dictPositionMap' => RecordsDictsRepository::positionMap(false),
     'positionOptions' => RecordsScriptsRepository::positionOptions(),
     'roleOptions' => [
         'ordinary' => t('audio_dicts.scripts.role.ordinary'),

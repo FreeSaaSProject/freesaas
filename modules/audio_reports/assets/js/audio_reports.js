@@ -453,9 +453,237 @@
     });
   }
 
+  /* ——— Calendar bulk reparse (oper period panel) ——— */
+  function bindBulkReparse(root) {
+    root = root || document;
+    var panel = qs('#ar-bulk-reparse', root);
+    if (!panel || panel.getAttribute('data-bound') === '1') return;
+    panel.setAttribute('data-bound', '1');
+
+    var i18n = {};
+    try { i18n = JSON.parse(panel.getAttribute('data-i18n') || '{}') || {}; } catch (e) { i18n = {}; }
+    var endpoint = panel.getAttribute('data-endpoint') || '/audio/calendar/reparse';
+    var btn = qs('#ar-bulk-start', panel);
+    var fromEl = qs('#ar-bulk-from', panel);
+    var toEl = qs('#ar-bulk-to', panel);
+    var progress = qs('#ar-bulk-progress', panel);
+    var logEl = qs('#ar-bulk-log', panel);
+    var statusEl = qs('#ar-bulk-status', panel);
+    var barEl = qs('#ar-bulk-bar', panel);
+    var curEl = qs('#ar-bulk-current', panel);
+    var doneEl = qs('#ar-bulk-done', panel);
+    var totalEl = qs('#ar-bulk-total', panel);
+    var busy = false;
+
+    function addLog(msg, cls) {
+      if (!logEl) return;
+      var row = document.createElement('div');
+      if (cls) row.className = cls;
+      var t = new Date().toLocaleTimeString();
+      row.textContent = '[' + t + '] ' + msg;
+      logEl.appendChild(row);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function buildDates(fromStr, toStr) {
+      var out = [];
+      var a = fromStr.split('-').map(Number);
+      var b = toStr.split('-').map(Number);
+      if (a.length !== 3 || b.length !== 3) return out;
+      var cur = new Date(a[0], a[1] - 1, a[2]);
+      var end = new Date(b[0], b[1] - 1, b[2]);
+      if (isNaN(cur.getTime()) || isNaN(end.getTime()) || cur > end) return out;
+      var guard = 0;
+      while (cur <= end && guard < 400) {
+        var y = cur.getFullYear();
+        var m = String(cur.getMonth() + 1).padStart(2, '0');
+        var d = String(cur.getDate()).padStart(2, '0');
+        out.push(y + '-' + m + '-' + d);
+        cur.setDate(cur.getDate() + 1);
+        guard++;
+      }
+      return out;
+    }
+
+    function qsCost(params) {
+      var parts = [];
+      Object.keys(params || {}).forEach(function (k) {
+        if (params[k] === undefined || params[k] === null || params[k] === '') return;
+        parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(params[k])));
+      });
+      return parts.join('&');
+    }
+
+    function fetchJson(url) {
+      return fetch(url, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+      }).then(function (res) {
+        return res.text().then(function (txt) {
+          var data = null;
+          try { data = JSON.parse(txt); } catch (e) { data = null; }
+          if (!res.ok) {
+            var err = (data && data.message) ? data.message : ('HTTP ' + res.status);
+            throw new Error(err);
+          }
+          if (!data) throw new Error('bad_json');
+          return data;
+        });
+      });
+    }
+
+    function sleep(ms) {
+      return new Promise(function (resolve) { setTimeout(resolve, ms); });
+    }
+
+    function reparseDay(date) {
+      var step = 'auto';
+      var costQ = {};
+      var guard = 0;
+      function tick() {
+        if (guard++ > 80) {
+          return Promise.reject(new Error('too_many_steps'));
+        }
+        var url = endpoint + '?json=1&date=' + encodeURIComponent(date)
+          + '&step=' + encodeURIComponent(step)
+          + (Object.keys(costQ).length ? '&' + qsCost(costQ) : '');
+        return fetchJson(url).then(function (data) {
+          if (data.cost_query && typeof data.cost_query === 'object') {
+            costQ = data.cost_query;
+          }
+          if (data.next === 'stuck' || data.ok === false) {
+            throw new Error(data.message || 'stuck');
+          }
+          if (data.message === 'reparse_done' || data.next === 'done') {
+            return data;
+          }
+          if (data.next === 'stem') {
+            step = 'stem';
+            var pend = data.pending != null ? data.pending : '?';
+            addLog((i18n.dayStem || '{date}: stem, pending {pending}')
+              .replace('{date}', date).replace('{pending}', String(pend)), 'ar-bulk-log-info');
+            return sleep(300).then(tick);
+          }
+          if (data.next === 'collect') {
+            step = 'collect';
+            return sleep(200).then(tick);
+          }
+          // Unexpected — treat as done if ok
+          if (data.ok) return data;
+          throw new Error(data.message || 'unknown');
+        });
+      }
+      return tick();
+    }
+
+    function setProgress(done, total, current) {
+      if (doneEl) doneEl.textContent = String(done);
+      if (totalEl) totalEl.textContent = String(total);
+      if (curEl) curEl.textContent = current || '—';
+      if (barEl) {
+        var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        barEl.style.width = pct + '%';
+      }
+    }
+
+    if (!btn || !fromEl || !toEl) return;
+    btn.addEventListener('click', function () {
+      if (busy) {
+        alert(i18n.busy || 'Busy');
+        return;
+      }
+      var dates = buildDates(fromEl.value, toEl.value);
+      if (!dates.length) {
+        alert(i18n.badRange || i18n.empty || 'Bad range');
+        return;
+      }
+      var conf = (i18n.confirm || 'Reparse {n} days ({from} — {to})?')
+        .replace('{n}', String(dates.length))
+        .replace('{from}', fromEl.value)
+        .replace('{to}', toEl.value);
+      if (!window.confirm(conf)) return;
+
+      busy = true;
+      btn.disabled = true;
+      if (progress) progress.hidden = false;
+      if (logEl) logEl.innerHTML = '';
+      if (statusEl) {
+        statusEl.textContent = i18n.running || 'Running…';
+        statusEl.className = 'ar-cal-bulk-reparse-status is-run';
+      }
+      setProgress(0, dates.length, dates[0]);
+
+      var idx = 0;
+      function next() {
+        if (idx >= dates.length) {
+          busy = false;
+          btn.disabled = false;
+          setProgress(dates.length, dates.length, '—');
+          if (statusEl) {
+            statusEl.textContent = i18n.done || 'Done';
+            statusEl.className = 'ar-cal-bulk-reparse-status is-ok';
+          }
+          addLog(i18n.done || 'Done', 'ar-bulk-log-ok');
+          return;
+        }
+        var date = dates[idx];
+        setProgress(idx, dates.length, date);
+        addLog((i18n.dayStart || '{date}…').replace('{date}', date), 'ar-bulk-log-info');
+        reparseDay(date).then(function (data) {
+          var cols = (data && data.collections != null) ? data.collections : 0;
+          var proc = (data && data.processed != null) ? data.processed : 0;
+          var sec = (data && data.time != null) ? Number(data.time) : 0;
+          addLog((i18n.dayOk || '{date}: ok (admins {processed}, collections {collections}, {time}s)')
+            .replace('{date}', date)
+            .replace('{processed}', String(proc))
+            .replace('{collections}', String(cols))
+            .replace('{time}', sec ? sec.toFixed(2) : '?'), 'ar-bulk-log-ok');
+          idx++;
+          setProgress(idx, dates.length, dates[idx] || '—');
+          return sleep(150).then(next);
+        }).catch(function (err) {
+          addLog((i18n.dayErr || '{date}: error ({message})')
+            .replace('{date}', date)
+            .replace('{message}', (err && err.message) ? err.message : String(err)), 'ar-bulk-log-err');
+          idx++;
+          setProgress(idx, dates.length, dates[idx] || '—');
+          return sleep(800).then(next);
+        });
+      }
+      next();
+    });
+  }
+
+  function bindCollectionSeek(root) {
+    root = root || document;
+    var wrap = qs('#ar-col-transcript', root) || qs('.ar-col-transcript-full', root);
+    if (!wrap) return;
+    wrap.addEventListener('click', function (ev) {
+      var line = ev.target.closest('.transcript-line');
+      if (!line) return;
+      var block = line.closest('.ar-col-record-block');
+      if (!block) return;
+      var audio = qs('audio', block);
+      if (!audio) return;
+      var t = parseFloat(line.getAttribute('data-time-start') || '0');
+      if (!(t >= 0)) return;
+      wrap.querySelectorAll('.transcript-line.is-active').forEach(function (el) {
+        el.classList.remove('is-active');
+      });
+      line.classList.add('is-active');
+      try {
+        audio.currentTime = t;
+        var p = audio.play();
+        if (p && typeof p.catch === 'function') p.catch(function () {});
+      } catch (e) { /* ignore */ }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     bindLeaders(document);
     bindMonthNav(document);
     bindConstructor();
+    bindBulkReparse(document);
+    bindCollectionSeek(document);
   });
 })();

@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/RecordsTrashesRepository.php';
-require_once __DIR__ . '/lib/RecordsTypesRepository.php';
 require_once __DIR__ . '/lib/RecordsDictsRepository.php';
 require_once __DIR__ . '/lib/RecordsKeysRepository.php';
 require_once __DIR__ . '/lib/RecordsTagsRepository.php';
@@ -14,12 +13,6 @@ Assets::register('audio_dicts', [
 ]);
 
 $entities = [
-    'types' => [
-        'list' => '/audio/types',
-        'repo' => RecordsTypesRepository::class,
-        'title' => 'audio_dicts.menu.types',
-        'list_id' => 'audio_types',
-    ],
     'dicts' => [
         'list' => '/audio/dicts',
         'repo' => RecordsDictsRepository::class,

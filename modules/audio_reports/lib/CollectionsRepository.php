@@ -54,8 +54,25 @@ final class CollectionsRepository
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
 
+        $rateCols = '';
+        if (Database::columnExists('base_records_collections', 'SCORE_RATE')) {
+            $rateCols .= ', c.SCORE_RATE AS score_rate';
+        } else {
+            $rateCols .= ', 0 AS score_rate';
+        }
+        if (Database::columnExists('base_records_collections', 'RATED')) {
+            $rateCols .= ', c.RATED AS rated';
+        } else {
+            $rateCols .= ', 0 AS rated';
+        }
+        if (Database::columnExists('base_records_collections', 'GATE_REASON')) {
+            $rateCols .= ', c.GATE_REASON AS gate_reason';
+        } else {
+            $rateCols .= ", '' AS gate_reason";
+        }
         $sql = "SELECT c.ID AS id, c.DT_START AS dt_start, c.DT_END AS dt_end,
                        c.ID_ADMIN AS id_admin, c.ID_SCRIPT AS id_script, c.SCORE AS score
+                       {$rateCols}
                 FROM base_records_collections c
                 WHERE $sqlWhere
                 ORDER BY $order";
@@ -92,10 +109,27 @@ final class CollectionsRepository
         if ($id < 1 || !self::tablesReady()) {
             return null;
         }
+        $rateCols = '';
+        if (Database::columnExists('base_records_collections', 'SCORE_RATE')) {
+            $rateCols .= ', SCORE_RATE AS score_rate';
+        } else {
+            $rateCols .= ', 0 AS score_rate';
+        }
+        if (Database::columnExists('base_records_collections', 'RATED')) {
+            $rateCols .= ', RATED AS rated';
+        } else {
+            $rateCols .= ', 0 AS rated';
+        }
+        if (Database::columnExists('base_records_collections', 'GATE_REASON')) {
+            $rateCols .= ', GATE_REASON AS gate_reason';
+        } else {
+            $rateCols .= ", '' AS gate_reason";
+        }
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, DT_START AS dt_start, DT_END AS dt_end,
-                    ID_ADMIN AS id_admin, ID_SCRIPT AS id_script, SCORE AS score
-             FROM base_records_collections WHERE ID = ? LIMIT 1'
+                    ID_ADMIN AS id_admin, ID_SCRIPT AS id_script, SCORE AS score'
+            . $rateCols .
+            ' FROM base_records_collections WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -196,14 +230,32 @@ final class CollectionsRepository
                         'dt_recorded' => $dtRec,
                         'intersections' => $ix,
                         'compact' => $compact,
+                        'absolute_time' => !$compact,
                     ]
                 );
                 if (!empty($rendered['was_intersect'])) {
                     $wasIntersect = true;
                 }
+                $playUrl = '';
+                if (!$compact && method_exists('RecordsRepository', 'playbackRelativePath')) {
+                    $rel = RecordsRepository::playbackRelativePath($rows[$rid]);
+                    if ($rel !== '') {
+                        $playUrl = '/audio/play?' . http_build_query(['file' => $rel]);
+                    }
+                }
                 $head = '<div class="ar-col-record-head"><a href="/audio/' . $rid . '">[' . $rid . ']</a></div>';
-                $blocks[] = $head . '<div class="transcript transcript--list' . ($compact ? ' transcript--compact' : '') . '">'
-                    . (string)$rendered['html'] . '</div>';
+                $player = '';
+                if ($playUrl !== '' && Auth::can('audio.view')) {
+                    $player = '<div class="ar-col-player audio-player-shell" data-play-src="'
+                        . htmlspecialchars($playUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                        . '"><audio id="audio-player-' . $rid . '" class="ar-col-audio" controls preload="none" src="'
+                        . htmlspecialchars($playUrl, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')
+                        . '"></audio></div>';
+                }
+                $blocks[] = '<div class="ar-col-record-block" data-record-id="' . $rid . '">'
+                    . $head . $player
+                    . '<div class="transcript transcript--list' . ($compact ? ' transcript--compact' : '') . '">'
+                    . (string)$rendered['html'] . '</div></div>';
             }
             $out[$cid] = [
                 'html' => $blocks !== [] ? implode('', $blocks) : '',
@@ -576,6 +628,9 @@ final class CollectionsRepository
                 'id_script' => $sid,
                 'script_name' => $scriptName,
                 'score' => (int)$row['score'],
+                'score_rate' => (int)($row['score_rate'] ?? 0),
+                'rated' => (int)($row['rated'] ?? 0),
+                'gate_reason' => (string)($row['gate_reason'] ?? ''),
                 'finished' => $finished,
                 'parts' => array_values($parts),
                 'keys' => array_values($keyHits),

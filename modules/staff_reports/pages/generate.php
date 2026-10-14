@@ -1,6 +1,10 @@
 <?php
 declare(strict_types=1);
 
+/**
+ * Legacy entry: agent JSON still generates; humans redirected to audio calendar / day-report.
+ * Quality gates live on scripts; publisher runs after Re-® (calendar.reparse.after).
+ */
 $canGenerate = Auth::capability('SUPERADMIN_ACCESS') && Auth::can('staff_reports.edit');
 $day = trim((string)($_GET['day'] ?? $_POST['day'] ?? ''));
 $emp = max(0, (int)($_GET['emp'] ?? $_POST['emp'] ?? 0));
@@ -71,15 +75,5 @@ if ($run) {
     return;
 }
 
-View::render('generate', [
-    'title' => t('staff_reports.generate.title'),
-    'day' => $day !== '' ? $day : date('Y-m-d', StaffReportRunner::lastAllowedDayStart()),
-    'emp' => $emp,
-    'year' => $year,
-    'month' => $monthNum,
-    'canGenerate' => $canGenerate,
-    'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('audio.menu.group'), 'href' => '/audio'],
-        ['label' => t('staff_reports.menu.generate'), 'current' => true],
-    ]),
-], 'layout', 'staff_reports');
+flash_set('ok', t('staff_reports.generate.moved_hint'));
+redirect('/audio/calendar');

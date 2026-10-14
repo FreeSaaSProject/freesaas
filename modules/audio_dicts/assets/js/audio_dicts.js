@@ -142,8 +142,32 @@
 
   function normalizePart(part) {
     if (!part.dict_ids) part.dict_ids = [];
+    part.score = parseInt(part.score, 10) || 0;
+    part.score_rate = parseInt(part.score_rate, 10) || 0;
+    part.kpi = Math.max(0, parseInt(part.kpi, 10) || 0);
+    part.cond_type = part.cond_type || '';
+    part.cond_value = parseInt(part.cond_value, 10) || 0;
+    part.start_gate = Math.max(0, Math.min(2, parseInt(part.start_gate, 10) || 0));
+    part.extend_timeout = part.extend_timeout === 0 || part.extend_timeout === '0' ? 0 : 1;
+    part.timeout = parseInt(part.timeout, 10) || 0;
+    part.diversity = parseInt(part.diversity, 10) || 0;
+    part.instances_min = parseInt(part.instances_min, 10) || 0;
+    part.gate_red_max = parseFloat(part.gate_red_max) || 0;
+    part.gate_yellow_max = parseFloat(part.gate_yellow_max) || 0;
     setPartRoles(part, partRoles(part));
     return part;
+  }
+
+  function condLabel(type, i18n) {
+    var map = {
+      intersect: i18n.condIntersect,
+      no_intersect: i18n.condNoIntersect,
+      volume_gt: i18n.condVolumeGt,
+      volume_lt: i18n.condVolumeLt,
+      strings_gt: i18n.condStringsGt,
+      strings_lt: i18n.condStringsLt
+    };
+    return map[type] || type || '';
   }
 
   function dictNames(part, dicts) {
@@ -157,13 +181,160 @@
     return names.join(', ');
   }
 
+  /** Dict ids used by more than one part (conflict highlight). */
+  function sharedDictSet(parts) {
+    var counts = {};
+    (parts || []).forEach(function (p) {
+      (p.dict_ids || []).forEach(function (id) {
+        var n = parseInt(id, 10);
+        if (n > 0) counts[n] = (counts[n] || 0) + 1;
+      });
+    });
+    var shared = {};
+    Object.keys(counts).forEach(function (id) {
+      if (counts[id] > 1) shared[parseInt(id, 10)] = true;
+    });
+    return shared;
+  }
+
+  /** Dict ids selected in any block of this script. */
+  function usedDictSet(parts) {
+    var used = {};
+    (parts || []).forEach(function (p) {
+      (p.dict_ids || []).forEach(function (id) {
+        var n = parseInt(id, 10);
+        if (n > 0) used[n] = true;
+      });
+    });
+    return used;
+  }
+
+  /** Refresh unused/shared classes on dict labels without rebuilding the panel. */
+  function syncDictLabelStyles(rootEl, parts, sharedTitle) {
+    if (!rootEl) return;
+    var used = usedDictSet(parts);
+    var shared = sharedDictSet(parts);
+    rootEl.querySelectorAll('.scripts-dict-grid [data-dict]').forEach(function (inp) {
+      var lab = inp.closest('label');
+      if (!lab) return;
+      var id = parseInt(inp.getAttribute('data-dict'), 10);
+      var isShared = !!shared[id];
+      lab.classList.toggle('is-shared-dict', isShared);
+      lab.classList.toggle('is-unused-dict', !used[id] && !isShared);
+      if (isShared && sharedTitle) {
+        lab.setAttribute('title', sharedTitle);
+      } else {
+        lab.removeAttribute('title');
+      }
+    });
+  }
+
+  function dictNamesHtml(part, dicts, shared) {
+    var ids = part.dict_ids || [];
+    var bits = [];
+    for (var i = 0; i < ids.length; i++) {
+      var id = parseInt(ids[i], 10);
+      var name = dicts[id] || dicts[String(id)] || ('#' + id);
+      if (shared && shared[id]) {
+        bits.push('<span class="is-shared-dict" title="' + esc(i18nSharedTitle()) + '">' + esc(name) + '</span>');
+      } else {
+        bits.push(esc(name));
+      }
+    }
+    return bits.join(', ');
+  }
+
+  var _sharedTitle = '';
+  function i18nSharedTitle() {
+    return _sharedTitle || '';
+  }
+
+  function timeoutBadgesHtml(part, i18n, opts) {
+    opts = opts || {};
+    var html = '';
+    var t = parseInt(part.timeout, 10) || 0;
+    if (t > 0) {
+      var label = (i18n.timeoutFlow || '{n}s').replace('{n}', String(t));
+      var extendsTo = !(part.extend_timeout === 0 || part.extend_timeout === '0');
+      var mark = extendsTo ? '↗' : '●';
+      var markClass = extendsTo ? 'scripts-timeout-mark scripts-timeout-mark--extend' : 'scripts-timeout-mark scripts-timeout-mark--dot';
+      var title = extendsTo
+        ? (i18n.extendTimeout || '')
+        : (i18n.timeoutNoExtend || i18n.extendTimeoutHint || '');
+      html += '<span class="scripts-badge scripts-badge--timeout" title="' + esc(title) + '">' +
+        esc(label) + ' <span class="' + markClass + '" aria-hidden="true">' + mark + '</span></span>';
+    }
+    var kpi = parseInt(part.kpi, 10) || 0;
+    if (kpi > 0) {
+      var kpiLabel = (i18n.kpiFlow || 'gap {n}s').replace('{n}', String(kpi));
+      html += '<span class="scripts-badge scripts-badge--kpi">' + esc(kpiLabel) + '</span>';
+    }
+    if (opts.dayBonus) {
+      var red = parseFloat(part.gate_red_max) || 0;
+      var yel = parseFloat(part.gate_yellow_max) || 0;
+      if (red > 0 || yel > 0) {
+        var pct = (i18n.gateRedFlow || '{n}%').replace('{n}', String(red));
+        html += '<span class="scripts-badge scripts-badge--gate-red" title="' + esc(i18n.gateRedMaxHint || '') + '">' +
+          '<span class="scripts-gate-dot" aria-hidden="true">●</span> ' + esc(pct) + '</span>';
+      }
+    }
+    return html;
+  }
+
+  /** Checked positions on the script form (empty = applies to all). */
+  function scriptPositionIds(form) {
+    if (!form) return [];
+    var ids = [];
+    form.querySelectorAll('input[name="positions[]"]:checked').forEach(function (cb) {
+      var n = parseInt(cb.value, 10);
+      if (n > 0) ids.push(n);
+    });
+    return ids;
+  }
+
+  function dictPositionIds(dictPositions, did) {
+    var raw = dictPositions[did];
+    if (raw == null) raw = dictPositions[String(did)];
+    if (!Array.isArray(raw)) return [];
+    return raw.map(function (n) { return parseInt(n, 10); }).filter(function (n) { return n > 0; });
+  }
+
+  /**
+   * When script has positions: show dicts that match any of them (or are global),
+   * plus any already selected on the block. No script positions → show all.
+   */
+  function visibleDictKeys(dicts, dictPositions, scriptPosIds, selectedDictIds) {
+    var keys = Object.keys(dicts);
+    if (!scriptPosIds || !scriptPosIds.length) {
+      return keys;
+    }
+    var selected = {};
+    (selectedDictIds || []).forEach(function (id) {
+      selected[parseInt(id, 10)] = true;
+    });
+    var scriptSet = {};
+    scriptPosIds.forEach(function (id) { scriptSet[id] = true; });
+    return keys.filter(function (did) {
+      var idNum = parseInt(did, 10);
+      if (selected[idNum]) return true;
+      var dpos = dictPositionIds(dictPositions, did);
+      if (!dpos.length) return true; // global dict
+      for (var i = 0; i < dpos.length; i++) {
+        if (scriptSet[dpos[i]]) return true;
+      }
+      return false;
+    });
+  }
+
   function renderFlow(container, parts, dicts, roles, i18n, opts) {
     opts = opts || {};
+    _sharedTitle = i18n.dictShared || '';
     container.innerHTML = '';
     if (!parts.length) {
       container.innerHTML = '<p class="muted">' + esc(i18n.previewEmpty || i18n.empty || '—') + '</p>';
       return;
     }
+    var shared = sharedDictSet(parts);
     parts.forEach(function (part, idx) {
       if (idx > 0) {
         var arrow = document.createElement('div');
@@ -183,14 +354,25 @@
       node.appendChild(title);
       var badges = document.createElement('div');
       badges.className = 'scripts-flow-badges';
-      badges.innerHTML = roleBadgeHtml(part, roles);
+      badges.innerHTML = roleBadgeHtml(part, roles) + timeoutBadgesHtml(part, i18n, opts);
       node.appendChild(badges);
-      var dn = dictNames(part, dicts);
-      if (dn) {
+      var dnHtml = dictNamesHtml(part, dicts, shared);
+      if (dnHtml) {
         var d = document.createElement('div');
         d.className = 'scripts-flow-dicts';
-        d.textContent = dn;
+        d.innerHTML = dnHtml;
         node.appendChild(d);
+      } else if (part.cond_type) {
+        var c = document.createElement('div');
+        c.className = 'scripts-flow-dicts muted';
+        c.textContent = condLabel(part.cond_type, i18n) + (part.cond_value ? ' ' + part.cond_value : '');
+        node.appendChild(c);
+      }
+      if (part.score_rate) {
+        var sr = document.createElement('div');
+        sr.className = 'scripts-flow-score-rate';
+        sr.textContent = (part.score_rate > 0 ? '+' : '') + part.score_rate + ' ®';
+        node.appendChild(sr);
       }
       if (opts.onSelect) {
         node.addEventListener('click', function (ev) {
@@ -201,9 +383,15 @@
       if (opts.canEdit && opts.onMove) {
         var actions = document.createElement('div');
         actions.className = 'scripts-flow-actions';
+        var prevLabel = opts.horizontal
+          ? (i18n.moveLeft || i18n.moveUp || '←')
+          : (i18n.moveUp || '↑');
+        var nextLabel = opts.horizontal
+          ? (i18n.moveRight || i18n.moveDown || '→')
+          : (i18n.moveDown || '↓');
         actions.innerHTML =
-          '<button type="button" class="btn-secondary btn-sm" data-move="-1">' + esc(i18n.moveUp || '↑') + '</button>' +
-          '<button type="button" class="btn-secondary btn-sm" data-move="1">' + esc(i18n.moveDown || '↓') + '</button>';
+          '<button type="button" class="btn-secondary btn-sm" data-move="-1">' + esc(prevLabel) + '</button>' +
+          '<button type="button" class="btn-secondary btn-sm" data-move="1">' + esc(nextLabel) + '</button>';
         actions.addEventListener('click', function (ev) {
           var btn = ev.target.closest('[data-move]');
           if (!btn) return;
@@ -239,6 +427,7 @@
   function initWizard(root) {
     var parts = parseJson(root, 'data-parts', []);
     var dicts = parseJson(root, 'data-dicts', {});
+    var dictPositions = parseJson(root, 'data-dict-positions', {});
     var roles = parseJson(root, 'data-roles', {});
     var hints = parseJson(root, 'data-hints', {});
     var i18n = parseJson(root, 'data-i18n', {});
@@ -283,13 +472,17 @@
       ensureParts();
       var list = document.getElementById('wizard-blocks-list');
       list.innerHTML = '';
+      var scriptPos = scriptPositionIds(form);
       parts.forEach(function (part, idx) {
         var card = document.createElement('div');
         card.className = 'scripts-block-card';
         var dictChecks = '';
-        Object.keys(dicts).forEach(function (did) {
+        var used = usedDictSet(parts);
+        visibleDictKeys(dicts, dictPositions, scriptPos, part.dict_ids || []).forEach(function (did) {
           var checked = (part.dict_ids || []).indexOf(parseInt(did, 10)) >= 0 || (part.dict_ids || []).indexOf(did) >= 0;
-          dictChecks += '<label class="logo-remove"><input type="checkbox" data-dict="' + esc(did) + '"' + (checked ? ' checked' : '') + '> ' + esc(dicts[did]) + '</label>';
+          var idNum = parseInt(did, 10);
+          var unusedCls = !used[idNum] ? ' is-unused-dict' : '';
+          dictChecks += '<label class="logo-remove' + unusedCls + '"><input type="checkbox" data-dict="' + esc(did) + '"' + (checked ? ' checked' : '') + '> ' + esc(dicts[did]) + '</label>';
         });
         card.innerHTML =
           '<h3>#' + (idx + 1) + '</h3>' +
@@ -306,6 +499,7 @@
               ids.push(parseInt(c.getAttribute('data-dict'), 10));
             });
             parts[idx].dict_ids = ids;
+            syncDictLabelStyles(list, parts, i18n.dictShared || '');
           });
         });
         var rm = card.querySelector('[data-remove]');
@@ -379,7 +573,7 @@
             alert(i18n.needName);
             return false;
           }
-          if (!(parts[i].dict_ids || []).length) {
+          if (!(parts[i].dict_ids || []).length && !(parts[i].cond_type || '')) {
             alert(i18n.needDict);
             return false;
           }
@@ -423,6 +617,7 @@
   function initCanvas(root) {
     var parts = parseJson(root, 'data-parts', []);
     var dicts = parseJson(root, 'data-dicts', {});
+    var dictPositions = parseJson(root, 'data-dict-positions', {});
     var roles = parseJson(root, 'data-roles', {});
     var hints = parseJson(root, 'data-hints', {});
     var i18n = parseJson(root, 'data-i18n', {});
@@ -434,17 +629,39 @@
     var panelEmpty = document.getElementById('canvas-panel-empty');
     var panelBody = document.getElementById('canvas-panel-body');
     var flow = document.getElementById('canvas-flow');
+    var dayBonusCb = document.getElementById('script-day-bonus');
+    var dayBonusFields = document.getElementById('script-day-bonus-fields');
+    var ratingEnabledCb = form
+      ? form.querySelector('input[name="rating_enabled"]')
+      : document.querySelector('#scripts-canvas-form input[name="rating_enabled"]');
+
+    function dayBonusEnabled() {
+      return !!(dayBonusCb && dayBonusCb.checked);
+    }
+
+    function ratingEnabled() {
+      return !!(ratingEnabledCb && ratingEnabledCb.checked);
+    }
+
+    function syncDayBonusUi() {
+      var on = dayBonusEnabled();
+      if (dayBonusFields) dayBonusFields.hidden = !on;
+    }
 
     function syncHidden() {
       partsInput.value = JSON.stringify(parts);
     }
 
-    function refresh() {
+    /** Update flow tiles without rebuilding the editor panel (keeps focus / Save click). */
+    function refreshFlow() {
       renderFlow(flow, parts, dicts, roles, i18n, {
         selectedIndex: selected,
         canEdit: canEdit,
         draggable: canEdit,
+        horizontal: true,
+        dayBonus: dayBonusEnabled(),
         onSelect: function (idx) {
+          if (idx === selected) return;
           selected = idx;
           refresh();
         },
@@ -466,8 +683,12 @@
           persistReorder();
         }
       });
-      renderPanel();
       syncHidden();
+    }
+
+    function refresh() {
+      refreshFlow();
+      renderPanel();
     }
 
     function renderPanel() {
@@ -481,48 +702,158 @@
       panelBody.hidden = false;
       var part = normalizePart(parts[selected]);
       var dictChecks = '';
-      Object.keys(dicts).forEach(function (did) {
+      var scriptPos = scriptPositionIds(form);
+      var shared = sharedDictSet(parts);
+      var used = usedDictSet(parts);
+      visibleDictKeys(dicts, dictPositions, scriptPos, part.dict_ids || []).forEach(function (did) {
         var checked = (part.dict_ids || []).map(Number).indexOf(parseInt(did, 10)) >= 0;
-        dictChecks += '<label class="logo-remove"><input type="checkbox" data-dict="' + esc(did) + '"' + (checked ? ' checked' : '') + (canEdit ? '' : ' disabled') + '> ' + esc(dicts[did]) + '</label>';
+        var idNum = parseInt(did, 10);
+        var cls = shared[idNum] ? ' is-shared-dict' : (!used[idNum] ? ' is-unused-dict' : '');
+        var sharedTitle = shared[idNum] ? ' title="' + esc(i18n.dictShared || '') + '"' : '';
+        dictChecks += '<label class="logo-remove' + cls + '"' + sharedTitle + '><input type="checkbox" data-dict="' + esc(did) + '"' + (checked ? ' checked' : '') + (canEdit ? '' : ' disabled') + '> ' + esc(dicts[did]) + '</label>';
       });
+      var condOpts = [
+        ['', i18n.condNone || i18n.dicts || 'Dictionaries'],
+        ['intersect', i18n.condIntersect || 'intersect'],
+        ['no_intersect', i18n.condNoIntersect || 'no_intersect'],
+        ['volume_gt', i18n.condVolumeGt || 'volume_gt'],
+        ['volume_lt', i18n.condVolumeLt || 'volume_lt'],
+        ['strings_gt', i18n.condStringsGt || 'strings_gt'],
+        ['strings_lt', i18n.condStringsLt || 'strings_lt']
+      ];
+      var isMetric = !!(part.cond_type && part.cond_type !== '');
+      var needsCondValue = part.cond_type === 'volume_gt' || part.cond_type === 'volume_lt'
+        || part.cond_type === 'strings_gt' || part.cond_type === 'strings_lt';
+      var isTrigger = hasRole(part, 'trigger');
+      var condSelect = '<select data-field="cond_type"' + (canEdit ? '' : ' disabled') + '>';
+      condOpts.forEach(function (o) {
+        condSelect += '<option value="' + esc(o[0]) + '"' + (part.cond_type === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
+      });
+      condSelect += '</select>';
+
       panelBody.innerHTML =
-        '<div class="scripts-panel-section"><h3>' + esc(i18n.main) + '</h3>' +
+        '<div class="scripts-panel-section scripts-panel-name">' +
         '<label>' + esc(i18n.name) + '<input type="text" maxlength="40" data-field="name" value="' + esc(part.name || '') + '"' + (canEdit ? '' : ' readonly') + '></label></div>' +
         '<div class="scripts-panel-section"><h3>' + esc(i18n.role) + '</h3>' +
         roleTableHtml(part, roles, hints, i18n, canEdit) + '</div>' +
-        '<div class="scripts-panel-section"><h3>' + esc(i18n.dicts) + '</h3>' +
-        '<div class="scripts-dict-grid">' + dictChecks + '</div></div>' +
-        '<div class="scripts-panel-section"><h3>' + esc(i18n.thresholds) + '</h3>' +
-        '<label>' + esc(i18n.score) + '<input type="number" data-field="score" value="' + esc(part.score || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-        '<p class="scripts-field-hint">' + esc(i18n.scoreHint || '') + '</p>' +
-        '<label>' + esc(i18n.timeout) + '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-        '<p class="scripts-field-hint">' + esc(i18n.timeoutHint || '') + '</p>' +
+        '<div class="scripts-panel-section"><h3>' + esc(i18n.activator || i18n.dicts || 'Activator') + '</h3>' +
+        '<label>' + esc(i18n.activatorField || i18n.condType || 'Type') + condSelect + '</label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.activatorHint || i18n.condTypeHint || '') + '</p>' +
+        '<div data-dicts-wrap' + (isMetric ? ' hidden' : '') + '>' +
+        '<div class="scripts-dict-grid">' + dictChecks + '</div>' +
+        '<div data-dict-thresholds-wrap>' +
         '<label>' + esc(i18n.diversity) + '<input type="number" min="0" data-field="diversity" value="' + esc(part.diversity || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
         '<p class="scripts-field-hint">' + esc(i18n.diversityHint || '') + '</p>' +
         '<label>' + esc(i18n.instMin) + '<input type="number" min="0" data-field="instances_min" value="' + esc(part.instances_min || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-        '<p class="scripts-field-hint">' + esc(i18n.instMinHint || '') + '</p></div>' +
+        '<p class="scripts-field-hint">' + esc(i18n.instMinHint || '') + '</p></div></div>' +
+        '<div data-cond-value-wrap' + (needsCondValue ? '' : ' hidden') + '>' +
+        '<label>' + esc(i18n.condValue || 'value') + '<input type="number" data-field="cond_value" value="' + esc(part.cond_value || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '</div>' +
+        (isTrigger
+          ? '<div data-start-gate-wrap>' +
+            '<label>' + esc(i18n.startGate || 'START_GATE') +
+            '<select data-field="start_gate"' + (canEdit ? '' : ' disabled') + '>' +
+            '<option value="0"' + ((part.start_gate || 0) === 0 ? ' selected' : '') + '>' + esc(i18n.startGate0 || '0') + '</option>' +
+            '<option value="1"' + (part.start_gate === 1 ? ' selected' : '') + '>' + esc(i18n.startGate1 || '1') + '</option>' +
+            '<option value="2"' + (part.start_gate === 2 ? ' selected' : '') + '>' + esc(i18n.startGate2 || '2') + '</option>' +
+            '</select></label>' +
+            '<p class="scripts-field-hint">' + esc(i18n.startGateHint || '') + '</p></div>'
+          : '') +
+        '</div>' +
+        '<div class="scripts-panel-section"><h3>' + esc(i18n.timeoutsSec || 'Timeouts') + '</h3>' +
+        '<label>' + esc(i18n.timeout) + '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.timeoutHint || '') + '</p>' +
+        '<label>' + esc(i18n.kpi || 'KPI') + '<input type="number" min="0" data-field="kpi" value="' + esc(part.kpi || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.kpiHint || '') + '</p>' +
+        '<label class="checkbox"><input type="checkbox" data-field="extend_timeout" value="1"' + ((part.extend_timeout === 0) ? '' : ' checked') + (canEdit ? '' : ' disabled') + '> ' + esc(i18n.extendTimeout || 'EXTEND_TIMEOUT') + '</label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.extendTimeoutHint || '') + '</p></div>' +
+        '<div class="scripts-panel-section"><h3>' + esc(i18n.resultsSec || 'Results') + '</h3>' +
+        '<label>' + esc(i18n.score) + '<input type="number" data-field="score" value="' + esc(part.score || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.scoreHint || '') + '</p>' +
+        (ratingEnabled()
+          ? '<label>' + esc(i18n.scoreRate || 'SCORE_RATE') + '<input type="number" data-field="score_rate" value="' + esc(part.score_rate || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(i18n.scoreRateHint || '') + '</p>'
+          : '') +
+        (dayBonusEnabled()
+          ? '<h3 class="scripts-panel-subhead">' + esc(i18n.qualitySec || 'Quality') + '</h3>' +
+            '<label>' + esc(i18n.gateRedMax || 'red %') + '<input type="number" min="0" step="0.1" data-field="gate_red_max" value="' + esc(part.gate_red_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(i18n.gateRedMaxHint || '') + '</p>' +
+            '<label>' + esc(i18n.gateYellowMax || 'yellow %') + '<input type="number" min="0" step="0.1" data-field="gate_yellow_max" value="' + esc(part.gate_yellow_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(i18n.gateYellowMaxHint || '') + '</p>'
+          : '') +
+        '</div>' +
         (canEdit
-          ? '<div class="scripts-panel-section form-actions">' +
-            '<button type="button" class="btn-secondary" data-save-part>' + esc(i18n.savePart) + '</button> ' +
+          ? '<div class="scripts-panel-section scripts-panel-actions form-actions">' +
             '<button type="button" class="btn-secondary" data-delete-part>' + esc(i18n.removeBlock) + '</button></div>'
           : '');
 
       panelBody.querySelectorAll('[data-field]').forEach(function (inp) {
         var field = inp.getAttribute('data-field');
-        inp.addEventListener('change', function () {
-          if (inp.type === 'number') parts[selected][field] = parseInt(inp.value, 10) || 0;
-          else parts[selected][field] = inp.value;
+        function apply() {
+          if (inp.type === 'checkbox') {
+            parts[selected][field] = inp.checked ? 1 : 0;
+          } else if (inp.type === 'number') {
+            if (field === 'gate_red_max' || field === 'gate_yellow_max') {
+              parts[selected][field] = parseFloat(inp.value) || 0;
+            } else {
+              parts[selected][field] = parseInt(inp.value, 10) || 0;
+            }
+          } else {
+            parts[selected][field] = inp.value;
+          }
           syncHidden();
-          if (field === 'name' || field === 'score') refresh();
-        });
+          if (field === 'cond_type') {
+            var ct = parts[selected].cond_type || '';
+            var metricOn = !!ct;
+            var showValue = ct === 'volume_gt' || ct === 'volume_lt' || ct === 'strings_gt' || ct === 'strings_lt';
+            var dictsWrap = panelBody.querySelector('[data-dicts-wrap]');
+            var valueWrap = panelBody.querySelector('[data-cond-value-wrap]');
+            var dictThrWrap = panelBody.querySelector('[data-dict-thresholds-wrap]');
+            if (dictsWrap) dictsWrap.hidden = metricOn;
+            if (valueWrap) valueWrap.hidden = !showValue;
+            if (dictThrWrap) dictThrWrap.hidden = metricOn;
+            if (metricOn) {
+              // Metric activator excludes dictionaries (CollectRunner requires empty dicts).
+              parts[selected].dict_ids = [];
+              parts[selected].diversity = 0;
+              parts[selected].instances_min = 0;
+              panelBody.querySelectorAll('[data-dict]').forEach(function (cb) {
+                cb.checked = false;
+              });
+              var divInp = panelBody.querySelector('[data-field="diversity"]');
+              var instInp = panelBody.querySelector('[data-field="instances_min"]');
+              if (divInp) divInp.value = '0';
+              if (instInp) instInp.value = '0';
+            }
+            if (!showValue) {
+              parts[selected].cond_value = 0;
+              var cv = panelBody.querySelector('[data-field="cond_value"]');
+              if (cv) cv.value = '0';
+            }
+            refreshFlow();
+            return;
+          }
+          if (field === 'name' || field === 'score' || field === 'score_rate' || field === 'cond_value' || field === 'start_gate') {
+            refreshFlow();
+          }
+        }
+        inp.addEventListener('change', apply);
         if (inp.type === 'text') {
           inp.addEventListener('input', function () {
             parts[selected][field] = inp.value;
             syncHidden();
+            refreshFlow();
           });
         }
       });
-      bindRoleTable(panelBody, parts[selected], function () { refresh(); }, canEdit);
+      bindRoleTable(panelBody, parts[selected], function () {
+        // START_GATE only for triggers; clear when role drops it.
+        if (!hasRole(parts[selected], 'trigger')) {
+          parts[selected].start_gate = 0;
+        }
+        // Role table HTML depends on killer exclusivity — rebuild panel.
+        refresh();
+      }, canEdit);
       panelBody.querySelectorAll('[data-dict]').forEach(function (cb) {
         cb.addEventListener('change', function () {
           var ids = [];
@@ -531,15 +862,10 @@
           });
           parts[selected].dict_ids = ids;
           syncHidden();
-          refresh();
+          syncDictLabelStyles(panelBody, parts, i18n.dictShared || '');
+          refreshFlow();
         });
       });
-      var saveBtn = panelBody.querySelector('[data-save-part]');
-      if (saveBtn) {
-        saveBtn.addEventListener('click', function () {
-          persistPart(parts[selected]);
-        });
-      }
       var delBtn = panelBody.querySelector('[data-delete-part]');
       if (delBtn) {
         delBtn.addEventListener('click', function () {
@@ -600,37 +926,6 @@
       postParts({ action: 'reorder', order: order });
     }
 
-    function persistPart(part) {
-      if (!canEdit) return;
-      normalizePart(part);
-      if (!(part.name || '').trim()) {
-        alert(i18n.needName);
-        return;
-      }
-      postParts({
-        action: part.id ? 'save' : 'add',
-        part_id: part.id || 0,
-        name: part.name,
-        roles: partRoles(part),
-        score: part.score || 0,
-        timeout: part.timeout || 0,
-        diversity: part.diversity || 0,
-        instances_min: part.instances_min || 0,
-        dict_ids: part.dict_ids || []
-      }).then(function (res) {
-        if (res && res.parts) {
-          parts = res.parts;
-          parts.forEach(normalizePart);
-          if (res.part && res.part.id) {
-            for (var i = 0; i < parts.length; i++) {
-              if (parts[i].id === res.part.id) selected = i;
-            }
-          }
-          refresh();
-        }
-      });
-    }
-
     var addBtn = document.getElementById('canvas-add-block');
     if (addBtn) {
       addBtn.addEventListener('click', function () {
@@ -640,9 +935,17 @@
           dict_ids: [],
           roles: ['ordinary'],
           score: 0,
+          score_rate: 0,
+          kpi: 0,
+          cond_type: '',
+          cond_value: 0,
+          start_gate: 0,
+          extend_timeout: 1,
           timeout: 0,
           diversity: 0,
-          instances_min: 0
+          instances_min: 0,
+          gate_red_max: 0,
+          gate_yellow_max: 0
         });
         selected = parts.length - 1;
         refresh();
@@ -650,9 +953,43 @@
     }
 
     if (form) {
-      form.addEventListener('submit', function () {
+      form.addEventListener('submit', function (ev) {
         parts.forEach(normalizePart);
         syncHidden();
+        var action = '';
+        if (ev.submitter && ev.submitter.getAttribute) {
+          action = ev.submitter.getAttribute('value') || '';
+        }
+        if (action === 'copy') {
+          return;
+        }
+        for (var i = 0; i < parts.length; i++) {
+          if (!(parts[i].name || '').trim()) {
+            ev.preventDefault();
+            selected = i;
+            refresh();
+            alert(i18n.needName);
+            return;
+          }
+        }
+      });
+      form.querySelectorAll('input[name="positions[]"]').forEach(function (cb) {
+        cb.addEventListener('change', function () {
+          if (selected >= 0) renderPanel();
+        });
+      });
+    }
+
+    if (dayBonusCb) {
+      dayBonusCb.addEventListener('change', function () {
+        syncDayBonusUi();
+        refresh();
+      });
+      syncDayBonusUi();
+    }
+    if (ratingEnabledCb) {
+      ratingEnabledCb.addEventListener('change', function () {
+        if (selected >= 0) renderPanel();
       });
     }
 
