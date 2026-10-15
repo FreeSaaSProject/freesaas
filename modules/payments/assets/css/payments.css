@@ -1,4 +1,34 @@
 /* Multi-allocation block on ledger move edit */
+.payments-day-pay {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border, #cfd8d0);
+  background: #eef6ef;
+}
+.payments-day-pay-issuer {
+  background: #fff8e1;
+}
+.payments-day-pay h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+.payments-day-pay-pin {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.payments-day-pay-pin-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0;
+}
+.payments-day-pay-pending {
+  margin: 0.5rem 0;
+}
+.payments-day-pay-form {
+  max-width: 32rem;
+}
 .payments-alloc {
   margin: 1.25rem 0;
   padding: 0.85rem 1rem;

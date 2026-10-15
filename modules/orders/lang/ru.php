@@ -147,4 +147,7 @@ return [
     'orders.stats.day_chip' => 'LS:{n}',
     'orders.module.description' => 'Заказы сайта (base_orders); нотисы; orders.for_day для календаря.',
     'orders.module.summary' => 'Включайте для заказов сайта и дневной ленты в календарь. Требует clients. Мягко catalog/procedures/bots (Max-группа). Нужен calendar. Когда сайт пишет заказы в FreeSaaS.',
+    'orders.perm.delete' => 'Удаление заказов',
+    'orders.err.delete_has_event' => 'Заказ привязан к событию календаря — сначала отвяжите',
+    'orders.err.delete_has_payment' => 'У заказа есть оплата — удалить нельзя',
 ];

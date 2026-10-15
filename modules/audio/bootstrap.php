@@ -206,9 +206,9 @@ BulkActions::register('audio_records', 'reset_strings', [
 ]);
 BulkActions::register('audio_records', 'delete', [
     'label' => 'audio.bulk.delete',
+    'permission' => 'audio.delete',
     'group' => 'audio.bulk.group.deleter',
-    'capability' => 'SUPERADMIN_ACCESS',
-    'confirm' => 'audio.bulk.confirm_delete',
+        'confirm' => 'audio.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => RecordsRepository::deleteByIds($ids, false), 'skipped' => []];
     },

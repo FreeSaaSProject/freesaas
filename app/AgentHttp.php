@@ -22,6 +22,16 @@ final class AgentHttp
     /** @var int */
     private static $capturedHttp = 200;
 
+    /**
+     * Platform kill-switch for product delete ops over JSON (AgentHttp / MCP / assistant).
+     * Staff HTML UI with *.delete is unaffected. Default: off.
+     */
+    public static function allowsDelete(): bool
+    {
+        $raw = strtolower(trim((string)Config::get('app', 'agent_allow_delete', '0')));
+        return $raw === '1' || $raw === 'true' || $raw === 'yes' || $raw === 'on';
+    }
+
     public static function wantsJson(): bool
     {
         if (self::$capturing) {

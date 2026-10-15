@@ -54,3 +54,8 @@ declare(strict_types=1);
     <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('liquid_assets_accounts', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

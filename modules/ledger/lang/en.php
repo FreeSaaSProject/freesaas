@@ -91,6 +91,9 @@ return [
     'ledger.moves.edit_new' => 'New move',
     'ledger.moves.edit' => 'Move #{id}',
     'ledger.moves.transfer_new' => 'Transfer between accounts',
+    'ledger.moves.transfer_edit' => 'Transfer #{id}',
+    'ledger.moves.transfer_pair' => 'Paired moves #{from} ↔ #{to}',
+    'ledger.moves.err.use_transfer_form' => 'This is a paired transfer — use the transfer form',
     'ledger.moves.field.account_to' => 'Destination account',
     'ledger.moves.field.payment' => 'Payment ID',
     'ledger.moves.field.user_payment' => 'Staff',
@@ -158,4 +161,6 @@ return [
     'ledger.dir.1' => '+',
     'ledger.dir.-1' => '−',
     'ledger.dir.0' => '0',
+    'ledger.perm.delete' => 'Delete accounts / moves',
+    'ledger.perm.types_delete' => 'Delete move types',
 ];

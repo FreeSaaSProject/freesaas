@@ -310,4 +310,5 @@ return [
     'stickers.qr.strange.zero' => ' Strange zero write-off!',
     'stickers.qr.strange.increase' => ' Strange weight increase!',
     'stickers.ins.qr_preview' => 'Sticker QR',
+    'stickers.perm.delete' => 'Delete sticker acts / ins',
 ];

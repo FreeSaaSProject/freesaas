@@ -53,6 +53,12 @@ if (empty($acl['allowed'])) {
 $message = '';
 $error = '';
 
+if (!$isNew && EntityDelete::tryHandle('procedures', $id, '/procedures', [
+    'stay_path' => '/procedures/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         // Recompute ACL from posted id_good so timing lock follows product change.

@@ -543,4 +543,60 @@ final class ProductsRepository
         $st->execute([$typeId]);
         return (int)$st->fetchColumn();
     }
+
+    /** @return list<string> */
+    public static function deleteBlockReasons(int $id): array
+    {
+        $reasons = [];
+        if ($id < 1) {
+            return [t('core.entity.err.not_found')];
+        }
+        $pdo = Database::pdo();
+        $probes = [
+            ['base_procedures', 'ID_GOOD', 'catalog.product.err.in_use_procedures'],
+            ['base_good_defaults', 'ID_GOOD', 'catalog.product.err.in_use_norms'],
+            ['base_sticker_ins', 'ID_GOOD', 'catalog.product.err.in_use_stickers'],
+            ['base_stocks_qtys', 'ID_GOOD', 'catalog.product.err.in_use_stocks'],
+        ];
+        foreach ($probes as [$table, $col, $key]) {
+            if (!Database::tableExists($table) || !Database::columnExists($table, $col)) {
+                continue;
+            }
+            $st = $pdo->prepare('SELECT COUNT(*) FROM `' . $table . '` WHERE `' . $col . '` = ?');
+            $st->execute([$id]);
+            $n = (int)$st->fetchColumn();
+            if ($n > 0) {
+                $reasons[] = t($key, ['n' => $n]);
+            }
+        }
+        return $reasons;
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function deleteByIds(array $ids): array
+    {
+        $done = 0;
+        $skipped = [];
+        $pdo = Database::pdo();
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $reasons = self::deleteBlockReasons($id);
+            if ($reasons !== []) {
+                $skipped[] = ['id' => $id, 'reason' => implode('; ', $reasons)];
+                continue;
+            }
+            if (!Database::tableExists('base_products')) {
+                continue;
+            }
+            $pdo->prepare('DELETE FROM base_products WHERE id = ?')->execute([$id]);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
 }

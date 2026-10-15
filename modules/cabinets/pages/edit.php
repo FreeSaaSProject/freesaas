@@ -27,6 +27,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('cabinets', $id, '/cabinets', [
+    'stay_path' => '/cabinets/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = CabinetsRepository::dataFromPost($_POST);

@@ -26,6 +26,13 @@ if (!$isNew) {
     $row = $found;
 }
 
+
+if (!$isNew && EntityDelete::tryHandle('sites_hosts', $id, '/sites/hosts', [
+    'stay_path' => '/sites/hosts/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && $canEdit) {
     try {
         $data = SiteHostsRepository::dataFromPost($_POST);

@@ -24,6 +24,12 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+if (!$isNew && EntityDelete::tryHandle('client_statuses', $id, '/client-statuses', [
+    'stay_path' => '/client-statuses/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = ClientStatusesRepository::dataFromPost($_POST);

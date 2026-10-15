@@ -293,6 +293,7 @@ final class DayRatingReport
                     'name' => (string)$part['name'],
                     'score_rate' => (int)$part['score_rate'],
                     'finish' => !empty($part['finish']),
+                    'killer' => !empty($part['killer']),
                     'hit' => $hit,
                 ];
             }
@@ -318,7 +319,7 @@ final class DayRatingReport
 
     /**
      * @param list<int> $scriptIds
-     * @return array<int, list<array{id:int,name:string,score_rate:int,finish:int}>>
+     * @return array<int, list<array{id:int,name:string,score_rate:int,finish:int,killer:int}>>
      */
     private static function scriptPartsTemplates(array $scriptIds): array
     {
@@ -328,8 +329,11 @@ final class DayRatingReport
         $in = implode(',', array_map('intval', $scriptIds));
         $rateCol = Database::columnExists('base_records_scripts', 'SCORE_RATE')
             ? 'SCORE_RATE' : '0';
+        $killerCol = Database::columnExists('base_records_scripts', 'COLLECTION_KILLER')
+            ? 'COLLECTION_KILLER' : '0';
         $rows = Database::pdo()->query(
-            "SELECT ID AS id, PID AS pid, NAME AS name, FINISH AS finish, {$rateCol} AS score_rate
+            "SELECT ID AS id, PID AS pid, NAME AS name, FINISH AS finish,
+                    {$rateCol} AS score_rate, {$killerCol} AS killer
              FROM base_records_scripts
              WHERE PID IN ($in) AND DISABLED < 1
              ORDER BY PID ASC, NUM ASC, ID ASC"
@@ -345,6 +349,7 @@ final class DayRatingReport
                 'name' => trim((string)$row['name']) !== '' ? trim((string)$row['name']) : ('#' . (int)$row['id']),
                 'score_rate' => (int)$row['score_rate'],
                 'finish' => (int)$row['finish'],
+                'killer' => (int)$row['killer'],
             ];
         }
 
@@ -852,8 +857,13 @@ final class DayRatingReport
             if ((float)($r['contrib'] ?? 0) == 0.0) {
                 continue;
             }
-            $out[] = (string)$r['name'] . ': +' . $r['contrib']
-                . ' (' . $r['value_pct'] . '%, ' . t('audio_reports.day_report.level.' . $r['level']) . ')';
+            $line = (string)$r['name'] . ': +' . $r['contrib'] . ' (' . $r['value_pct'] . '%';
+            $lvl = (string)($r['level'] ?? 'ok');
+            if ($lvl !== '' && $lvl !== 'unknown') {
+                $line .= ', ' . t('audio_reports.day_report.level.' . $lvl);
+            }
+            $line .= ')';
+            $out[] = $line;
         }
         return $out;
     }

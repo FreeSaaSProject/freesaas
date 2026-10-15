@@ -57,7 +57,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('audio_collections', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'audio_reports.edit',
+    'permission' => 'audio_reports.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => CollectionsRepository::deleteByIds($ids), 'skipped' => []];

@@ -42,6 +42,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('poll_invites', $id, '/poll-invites', [
+    'stay_path' => '/poll-invites/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = PollInvitesRepository::dataFromPost($_POST, $isNew ? null : $row);

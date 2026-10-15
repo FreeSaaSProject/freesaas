@@ -196,7 +196,8 @@ modules/<id>/
 | **comments** | Дерево комментариев на карточке новости; likes; prepare_add / form hooks |
 | **contracts** | Список контрактов, офферы в форме комментария, actions на комментариях, виджеты/нотисы |
 | **clients** | Клиентская база (`base_clients`) и статусы клиентов (`base_client_statuses`) |
-| **rates** / **procents** / **payments** / **vacations** | Бухгалтерия: ставки, начисления, взаиморасчёты, отпуска |
+| **rates** / **procents** / **payments** | Зарплата: ставки, начисления, взаиморасчёты |
+| **vacations** | Отпуска (меню Команда, рядом со сменами) |
 | **ledger** | Счета, типы движений, ДПС, переводы, сверки |
 | **funds** | Фонды и фондовые движения (CAPUSE/REFUND); требует ledger |
 | **finance** | Финансовая отчётность (ОДДС/ОПиУ/баланс без инфляции и амортизации) |
@@ -277,7 +278,7 @@ modules/<id>/
 ```php
 BulkActions::register('units', 'delete', [
     'label' => 'core.bulk.delete',          // i18n-ключ
-    'permission' => 'units.edit',           // или 'capability' => 'SUPERADMIN_ACCESS'
+    'permission' => 'units.delete',         // отдельное право удаления (не .edit)
     'confirm' => 'core.bulk.confirm_delete',
     'fields' => [ /* опционально: select/input при выборе действия */ ],
     'run' => static function (array $ids, array $params): array {
@@ -287,6 +288,23 @@ BulkActions::register('units', 'delete', [
 ```
 
 `list_id` совпадает с `ListQuery` (`units`, `procedures`, `procedure_types`, …). Действие видно только при прохождении `permission` / `capability`.
+
+### Удаление на экране редактирования (`EntityDelete`)
+
+[`app/EntityDelete.php`](../app/EntityDelete.php) — красная кнопка danger-zone на edit, тот же `list_id`/`delete` runner и `core.bulk.check_item`, что у списка.
+
+```php
+// page (до save):
+if (!$isNew && EntityDelete::tryHandle('units', $id, '/units', [
+    'stay_path' => '/units/' . $id . '/edit',
+])) {
+    return;
+}
+// view (после save-form):
+<?= EntityDelete::form('units', $id) ?>
+```
+
+JSON/agent delete дополнительно блокируется флагом `app.agent_allow_delete` (UI: **/settings → Agent**; default off). Staff UI с правом `*.delete` не зависит от флага.
 
 ### UI в list-view
 

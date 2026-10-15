@@ -43,6 +43,13 @@ $message = '';
 $error = '';
 $children = !$isNew ? PollsRepository::children($id) : [];
 
+
+if (!$isNew && EntityDelete::tryHandle('polls', $id, '/polls', [
+    'stay_path' => '/polls/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = PollsRepository::dataFromPost($_POST, $isNew ? null : $row);

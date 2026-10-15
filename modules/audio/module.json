@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "0.2.16",
+    "version": "0.2.17",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -27,6 +27,10 @@
         {
             "id": "audio.badges",
             "label": "audio.perm.badges"
+        },
+        {
+            "id": "audio.delete",
+            "label": "audio.perm.delete"
         }
     ],
     "routes": {

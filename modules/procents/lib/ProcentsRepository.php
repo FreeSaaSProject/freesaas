@@ -73,9 +73,12 @@ final class ProcentsRepository
                 'end' => $scanEnd,
                 'rates_descr' => $rates ? (string)$rates['descr'] : '',
                 'offers' => $rates ? (int)$rates['offers'] : 0,
+                'rows_shifts' => [],
                 'rows_proc' => [],
                 'rows_terminal' => [],
                 'rows_sales' => [],
+                'rows_audio' => [],
+                'rows_scripts' => [],
                 'total' => 0.0,
             ];
             if (!$rates) {
@@ -86,6 +89,12 @@ final class ProcentsRepository
             $content = is_array($rates['content'] ?? null) ? $rates['content'] : [];
             $contentTerminal = is_array($rates['content_terminal'] ?? null) ? $rates['content_terminal'] : [];
             $contentSales = is_array($rates['content_sales'] ?? null) ? $rates['content_sales'] : [];
+
+            $shiftPay = self::shiftFixAccrual($operatorId, $scanStart, $scanEnd, $rates);
+            foreach ($shiftPay['rows'] as $row) {
+                $block['rows_shifts'][] = $row;
+                $block['total'] += (float)$row['accrued'];
+            }
 
             $sumsOp = self::sumsByType($operatorId, $scanStart, $scanEnd, 'ID_OPERATOR');
             foreach ($typeMap as $tid => $type) {
@@ -101,6 +110,7 @@ final class ProcentsRepository
                     'sum' => $sum,
                     'rate' => $rate,
                     'accrued' => $accrued,
+                    'rate_kind' => 'fraction',
                 ];
                 $block['total'] += $accrued;
             }
@@ -124,6 +134,7 @@ final class ProcentsRepository
                     'sum' => $sum,
                     'rate' => $rate,
                     'accrued' => $accrued,
+                    'rate_kind' => 'fraction',
                 ];
                 $block['total'] += $accrued;
             }
@@ -143,9 +154,20 @@ final class ProcentsRepository
                         'sum' => (float)$sum,
                         'rate' => $rate,
                         'accrued' => $accrued,
+                        'rate_kind' => 'fraction',
                     ];
                     $block['total'] += $accrued;
                 }
+            }
+
+            $audioPay = self::audioAccrualForPeriod($operatorId, $scanStart, $scanEnd, $rates);
+            foreach ($audioPay['rows_audio'] as $row) {
+                $block['rows_audio'][] = $row;
+                $block['total'] += (float)$row['accrued'];
+            }
+            foreach ($audioPay['rows_scripts'] as $row) {
+                $block['rows_scripts'][] = $row;
+                $block['total'] += (float)$row['accrued'];
             }
 
             $grand += $block['total'];
@@ -303,11 +325,10 @@ final class ProcentsRepository
     }
 
     /**
-     * Day footer salary bits for operators (procedures commission + fix + terminal).
-     * Soft-skips sales/audio when tables missing.
+     * Day footer salary bits for operators (procedures commission + fix + terminal + soft audio).
      *
      * @param array<int,array{sums_by_type?:array<int,float>}> $operatorStats from ProceduresRepository::dayColumnStats
-     * @return array<int,array{salary:float,salary_fix:float,salary_terminal:float,salary_sales:float,total:float}>
+     * @return array<int,array{salary:float,salary_fix:float,salary_terminal:float,salary_sales:float,salary_audio:float,salary_scripts:float,total:float}>
      */
     public static function dayStaffPay(int $dayStart, int $dayEnd, array $operatorStats): array
     {
@@ -334,7 +355,8 @@ final class ProcentsRepository
                 $rate = (float)str_replace(',', '.', (string)($content[$tid] ?? $content[(string)$tid] ?? 0));
                 $salary += round((float)$sum * $rate);
             }
-            $salaryFix = (float)($rates['loss_fix'] ?? 0);
+            $shiftPay = self::shiftFixAccrual($oid, $dayStart, $dayEnd, $rates);
+            $salaryFix = (float)$shiftPay['salary_fix'];
             $salaryTerminal = 0.0;
             $sumsAdmin = self::sumsByType($oid, $dayStart, $dayEnd, 'ID_ADMIN');
             foreach ($sumsAdmin as $tid => $sum) {
@@ -351,7 +373,10 @@ final class ProcentsRepository
                     $salarySales += round((float)$sum * $rate);
                 }
             }
-            $total = $salary + $salaryFix + $salaryTerminal + $salarySales;
+            $audioPay = self::audioAccrualForPeriod($oid, $dayStart, $dayEnd, $rates);
+            $salaryAudio = (float)$audioPay['salary_audio'];
+            $salaryScripts = (float)$audioPay['salary_scripts'];
+            $total = $salary + $salaryFix + $salaryTerminal + $salarySales + $salaryAudio + $salaryScripts;
             if ($total <= 0 && $salaryFix <= 0) {
                 continue;
             }
@@ -360,9 +385,260 @@ final class ProcentsRepository
                 'salary_fix' => $salaryFix,
                 'salary_terminal' => $salaryTerminal,
                 'salary_sales' => $salarySales,
+                'salary_audio' => $salaryAudio,
+                'salary_scripts' => $salaryScripts,
                 'total' => $total,
             ];
         }
         return $out;
+    }
+
+    /**
+     * Fixed pay per shift: LOSS_FIX × shift units (PRICE_COL=3 / I+II counts as 2).
+     *
+     * @param array<string,mixed> $rates
+     * @return array{rows:list<array<string,mixed>>,salary_fix:float,units:float}
+     */
+    private static function shiftFixAccrual(int $operatorId, int $start, int $end, array $rates): array
+    {
+        $out = ['rows' => [], 'salary_fix' => 0.0, 'units' => 0.0];
+        $rate = (float)($rates['loss_fix'] ?? 0);
+        if ($operatorId < 1 || $rate == 0.0) {
+            return $out;
+        }
+        $units = self::shiftUnits($operatorId, $start, $end);
+        $out['units'] = $units;
+        if ($units <= 0.0) {
+            return $out;
+        }
+        $accrued = round($units * $rate);
+        $out['salary_fix'] = $accrued;
+        if ($accrued != 0.0) {
+            $out['rows'][] = [
+                'type' => t('procents.shifts.type'),
+                'descr' => t('procents.shifts.worked'),
+                'sum' => $units,
+                'rate' => $rate,
+                'accrued' => $accrued,
+                'rate_kind' => 'absolute',
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Oper: PRICE_COL=3 (I+II) → 2 units; any other PRICE_COL>0 → 1 unit.
+     */
+    private static function shiftUnits(int $operatorId, int $start, int $end): float
+    {
+        if ($operatorId < 1 || $end < $start || !Database::tableExists('base_workweeks')) {
+            return 0.0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT PRICE_COL AS price_col FROM base_workweeks
+             WHERE ID_OPERATOR = ? AND DT >= ? AND DT <= ?'
+        );
+        $st->execute([$operatorId, $start, $end]);
+        $units = 0.0;
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $pc = (int)($row['price_col'] ?? 0);
+            if ($pc === 3) {
+                $units += 2.0;
+            } elseif ($pc > 0) {
+                $units += 1.0;
+            }
+        }
+        return $units;
+    }
+
+    /**
+     * Audio hours × AUDIO_HOUR_RATE + collections SCORE × SCRIPT_SCORE_RATE.
+     *
+     * @param array<string,mixed> $rates
+     * @return array{
+     *   rows_audio:list<array<string,mixed>>,
+     *   rows_scripts:list<array<string,mixed>>,
+     *   salary_audio:float,
+     *   salary_scripts:float
+     * }
+     */
+    private static function audioAccrualForPeriod(int $adminId, int $start, int $end, array $rates): array
+    {
+        $empty = [
+            'rows_audio' => [],
+            'rows_scripts' => [],
+            'salary_audio' => 0.0,
+            'salary_scripts' => 0.0,
+        ];
+        if ($adminId < 1 || $end <= $start || !Database::tableExists('base_records')) {
+            return $empty;
+        }
+
+        $hourRate = (float)($rates['audio_hour_rate'] ?? 0);
+        $scriptRate = (float)($rates['script_score_rate'] ?? 0);
+        $stats = self::audioHoursStats($adminId, $start, $end);
+        $hours = (float)$stats['hours'];
+        $salaryAudio = 0.0;
+        if ($hours > 0.0 && $hourRate != 0.0) {
+            $salaryAudio = round($hours * $hourRate);
+            $descr = t('procents.audio.hours');
+            if ($stats['avg_score'] !== null) {
+                $descr .= ' ®' . rtrim(rtrim(number_format((float)$stats['avg_score'], 1, '.', ''), '0'), '.');
+            }
+            $empty['rows_audio'][] = [
+                'type' => t('procents.audio.hours_type'),
+                'descr' => $descr,
+                'sum' => $hours,
+                'rate' => $hourRate,
+                'accrued' => $salaryAudio,
+                'rate_kind' => 'absolute',
+            ];
+        }
+        $empty['salary_audio'] = $salaryAudio;
+
+        $scoreSum = self::scriptScoreSum($adminId, $start, $end);
+        $salaryScripts = 0.0;
+        if ($scoreSum > 0.0 && $scriptRate != 0.0) {
+            $salaryScripts = round($scoreSum * $scriptRate);
+            $empty['rows_scripts'][] = [
+                'type' => t('procents.audio.scripts_type'),
+                'descr' => t('procents.audio.scripts'),
+                'sum' => $scoreSum,
+                'rate' => $scriptRate,
+                'accrued' => $salaryScripts,
+                'rate_kind' => 'absolute',
+            ];
+        }
+        $empty['salary_scripts'] = $salaryScripts;
+
+        return $empty;
+    }
+
+    /**
+     * Accounted audio hours (OffRecord) + optional ®avg for display (OffRate / SCORE>2).
+     *
+     * @return array{hours:float,avg_score:float|null}
+     */
+    private static function audioHoursStats(int $adminId, int $start, int $end): array
+    {
+        $out = ['hours' => 0.0, 'avg_score' => null];
+        if ($adminId < 1 || !Database::tableExists('base_records')) {
+            return $out;
+        }
+        $bounds = self::audioDayBounds();
+        $st = Database::pdo()->prepare(
+            'SELECT PLAYTIME AS playtime, SCORE AS score, DT_RECORDED AS dt, DISABLED AS disabled
+             FROM base_records
+             WHERE ID_ADMIN = ? AND DT_RECORDED >= ? AND DT_RECORDED <= ?
+               AND (DISABLED IS NULL OR DISABLED = 0 OR DISABLED = \'0\')'
+        );
+        $st->execute([$adminId, $start, $end]);
+        $playSum = 0;
+        $scoreW = 0.0;
+        $scoreSec = 0;
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $dt = (int)($row['dt'] ?? 0);
+            $play = max(0, (int)($row['playtime'] ?? 0));
+            if ($dt < 1 || $play < 1) {
+                continue;
+            }
+            if (!self::recordFullyInWindow($dt, $play, $bounds, 'OffRecord')) {
+                continue;
+            }
+            $playSum += $play;
+            $score = (float)($row['score'] ?? 0);
+            if ($score < 0) {
+                $score = 0.0;
+            }
+            $inRate = self::recordFullyInWindow($dt, $play, $bounds, 'OffRate');
+            if ($inRate || $score > 2) {
+                $scoreW += $score * $play;
+                $scoreSec += $play;
+            }
+        }
+        if ($playSum < 1) {
+            return $out;
+        }
+        $out['hours'] = round($playSum / 3600, 1);
+        if ($scoreSec > 0) {
+            $out['avg_score'] = round($scoreW / $scoreSec, 1);
+        }
+        return $out;
+    }
+
+    private static function scriptScoreSum(int $adminId, int $start, int $end): float
+    {
+        if ($adminId < 1 || !Database::tableExists('base_records_collections')) {
+            return 0.0;
+        }
+        if (!Database::columnExists('base_records_collections', 'SCORE')
+            || !Database::columnExists('base_records_collections', 'ID_ADMIN')
+            || !Database::columnExists('base_records_collections', 'DT_START')) {
+            return 0.0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT COALESCE(SUM(SCORE), 0) FROM base_records_collections
+             WHERE ID_ADMIN = ? AND DT_START >= ? AND DT_START <= ? AND SCORE > 0'
+        );
+        $st->execute([$adminId, $start, $end]);
+        return (float)$st->fetchColumn();
+    }
+
+    /** @return array<string,int> */
+    private static function audioDayBounds(): array
+    {
+        if (class_exists('AudioDayBounds', false)) {
+            return AudioDayBounds::read();
+        }
+        return [
+            'hourStartOffRate' => 9,
+            'minStartOffRate' => 0,
+            'hourEndOffRate' => 22,
+            'minEndOffRate' => 0,
+            'hourStartOffRecord' => 9,
+            'minStartOffRecord' => 0,
+            'hourEndOffRecord' => 22,
+            'minEndOffRecord' => 0,
+        ];
+    }
+
+    /**
+     * @param array<string,int> $bounds
+     * @param 'OffRate'|'OffRecord' $kind
+     */
+    private static function recordFullyInWindow(int $dt, int $playtime, array $bounds, string $kind): bool
+    {
+        if (class_exists('CalendarAggregates', false)) {
+            return CalendarAggregates::isFullyInWindow($dt, $playtime, $bounds, $kind);
+        }
+        $dayKey = date('Y-m-d', $dt);
+        $parts = explode('-', $dayKey);
+        $y = (int)($parts[0] ?? 0);
+        $m = (int)($parts[1] ?? 0);
+        $d = (int)($parts[2] ?? 0);
+        if ($y < 1 || $m < 1 || $d < 1) {
+            return true;
+        }
+        $start = mktime(
+            (int)$bounds['hourStart' . $kind],
+            (int)$bounds['minStart' . $kind],
+            0,
+            $m,
+            $d,
+            $y
+        );
+        $end = mktime(
+            (int)$bounds['hourEnd' . $kind],
+            (int)$bounds['minEnd' . $kind],
+            0,
+            $m,
+            $d,
+            $y
+        );
+        if ($start === false || $end === false) {
+            return true;
+        }
+        $dtEnd = $dt + max(0, $playtime);
+        return $dt >= (int)$start && $dtEnd <= (int)$end;
     }
 }

@@ -61,14 +61,9 @@ foreach ($storefrontPages as $path => $file) {
 
 BulkActions::register('certificates', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'certificates.edit',
+    'permission' => 'certificates.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
-        if (!Auth::capability('SUPERADMIN_ACCESS')) {
-            return ['done' => 0, 'skipped' => array_map(static function (int $id): array {
-                return ['id' => $id, 'reason' => t('certificates.err.delete_superadmin')];
-            }, array_map('intval', $ids))];
-        }
         return ['done' => CertificatesRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);

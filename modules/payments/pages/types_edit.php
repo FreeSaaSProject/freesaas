@@ -27,6 +27,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('payment_types', $id, '/payment-types', [
+    'stay_path' => '/payment-types/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = PaymentTypesRepository::dataFromPost($_POST);

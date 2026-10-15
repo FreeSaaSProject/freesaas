@@ -2,7 +2,7 @@
     "id": "vacations",
     "name": "vacations.module.name",
     "description": "vacations.module.description",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -20,6 +20,10 @@
         {
             "id": "vacations.edit",
             "label": "vacations.perm.edit"
+        },
+        {
+            "id": "vacations.delete",
+            "label": "vacations.perm.delete"
         }
     ],
     "routes": {
@@ -65,8 +69,8 @@
     "jobs": [],
     "menu": [
         {
-            "group": "core.menu.group.accounting",
-            "num": 40,
+            "group": "core.menu.group.team",
+            "num": 4,
             "path": "/vacations",
             "title": "vacations.menu.list"
         }
@@ -94,7 +98,7 @@
     ],
     "catalog": {
         "categories": [
-            "accounting"
+            "team"
         ],
         "maturity": "beta",
         "tags": [],

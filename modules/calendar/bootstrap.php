@@ -159,6 +159,37 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
     return $widgets;
 });
 
+BulkActions::register('calendar_events', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'calendar.delete',
+    'confirm' => 'calendar.event.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        $id = (int)($ids[0] ?? 0);
+        $redirect = '/calendar';
+        if ($id > 0) {
+            $row = EventsRepository::find($id);
+            if ($row !== null) {
+                $redirect = EventsRepository::weekUrl((int)($row['dtstart'] ?? 0));
+            }
+        }
+        $done = EventsRepository::deleteByIds($ids);
+        return ['done' => $done, 'skipped' => [], 'redirect' => $redirect];
+    },
+]);
+
+EventBus::on('core.bulk.check_item', static function (array $payload): array {
+    if (($payload['list_id'] ?? '') !== 'calendar_events' || ($payload['action'] ?? '') !== 'delete') {
+        return $payload;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    $row = $id > 0 ? EventsRepository::find($id) : null;
+    if ($row === null || !EventsRepository::canDelete($row)) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('calendar.event.err.no_delete');
+    }
+    return $payload;
+});
+
 Health::register('calendar.hours', 'calendar', static function (): array {
     $start = (int)Config::get('calendar', 'hour_start', 9);
     $end = (int)Config::get('calendar', 'hour_end', 21);

@@ -28,6 +28,23 @@ foreach ($pages as $path => $def) {
     ]);
 }
 
+BulkActions::register('catalog_products', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'catalog.delete',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return ProductsRepository::deleteByIds($ids);
+    },
+]);
+BulkActions::register('catalog_categories', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'catalog.delete',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return CategoriesRepository::deleteByIds($ids);
+    },
+]);
+
 EventBus::on('core.bulk.check_item', static function (array $payload): array {
     if (!empty($payload['blocked'])) {
         return $payload;
@@ -59,6 +76,28 @@ EventBus::on('core.bulk.check_item', static function (array $payload): array {
         if ($n > 0) {
             $payload['blocked'] = true;
             $payload['reason'] = t('catalog.bulk.type_in_use', ['n' => $n]);
+        }
+        return $payload;
+    }
+    if ($listId === 'catalog_products') {
+        $reasons = ProductsRepository::deleteBlockReasons($id);
+        if ($reasons !== []) {
+            $payload['blocked'] = true;
+            $payload['reason'] = implode('; ', $reasons);
+        }
+        return $payload;
+    }
+    if ($listId === 'catalog_categories') {
+        $children = CategoriesRepository::childCount($id);
+        if ($children > 0) {
+            $payload['blocked'] = true;
+            $payload['reason'] = t('catalog.category.err.has_children', ['n' => $children]);
+            return $payload;
+        }
+        $products = CategoriesRepository::productCount($id);
+        if ($products > 0) {
+            $payload['blocked'] = true;
+            $payload['reason'] = t('catalog.category.err.has_products', ['n' => $products]);
         }
     }
     return $payload;

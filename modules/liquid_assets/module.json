@@ -2,7 +2,7 @@
     "id": "liquid_assets",
     "name": "liquid_assets.module.name",
     "description": "liquid_assets.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -36,6 +36,10 @@
         {
             "id": "liquid_assets.edit",
             "label": "liquid_assets.perm.edit"
+        },
+        {
+            "id": "liquid_assets.delete",
+            "label": "liquid_assets.perm.delete"
         }
     ],
     "routes": {

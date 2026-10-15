@@ -21,6 +21,13 @@ if (!$isNew) {
 }
 $message = '';
 $error = '';
+
+if (!$isNew && EntityDelete::tryHandle('tables', $id, '/tables', [
+    'stay_path' => '/tables/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = TablesRepository::dataFromPost($_POST);

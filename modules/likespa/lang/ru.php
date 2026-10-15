@@ -217,4 +217,5 @@ return [
     'likespa.procedures.bracelet_label' => 'Браслет',
     'likespa.procedures.link_terminal' => '[Терминал!]',
     'likespa.procedures.link_folio' => 'фолио',
+    'likespa.perm.restores_delete' => 'Удаление восстановлений процедур',
 ];

@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -23,6 +23,10 @@
         {
             "id": "workweeks.edit",
             "label": "workweeks.perm.edit"
+        },
+        {
+            "id": "workweeks.delete",
+            "label": "workweeks.perm.delete"
         }
     ],
     "routes": {

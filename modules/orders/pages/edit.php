@@ -21,6 +21,13 @@ if (!$order) {
 $message = '';
 $error = '';
 
+
+if (EntityDelete::tryHandle('orders', $id, '/orders', [
+    'stay_path' => '/orders/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = trim((string)($_POST['action'] ?? ''));
     try {

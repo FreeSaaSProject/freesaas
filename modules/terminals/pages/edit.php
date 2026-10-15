@@ -38,6 +38,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('terminals', $id, '/terminals', [
+    'stay_path' => '/terminals/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if (!$canEdit) {
         if ($wantsJson) {

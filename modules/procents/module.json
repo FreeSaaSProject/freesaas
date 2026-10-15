@@ -2,16 +2,18 @@
     "id": "procents",
     "name": "procents.module.name",
     "description": "procents.module.description",
-    "version": "0.1.2",
+    "version": "0.1.6",
     "type": "product",
     "runtime": "both",
     "requires": {
         "core": ">=0.3.0",
-        "rates": ">=0.1.0",
+        "rates": ">=0.1.2",
         "procedures": ">=0.1.0",
         "workweeks": ">=0.1.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "payments": ">=0.1.0"
+    },
     "provides": [
         "procents.report"
     ],

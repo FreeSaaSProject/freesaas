@@ -54,7 +54,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('workweeks', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'workweeks.edit',
+    'permission' => 'workweeks.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => WorkweeksRepository::deleteByIds($ids), 'skipped' => []];

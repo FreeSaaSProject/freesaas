@@ -142,4 +142,5 @@ return [
     'bi.err.run' => 'Ошибка отчёта.',
 
     'bi.cron.expire' => 'Просрочка BI-ссылок',
+    'bi.perm.delete' => 'Удаление семейств BI',
 ];

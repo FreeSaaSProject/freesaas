@@ -27,7 +27,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('sheet_accounts', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'sheets.edit',
+    'permission' => 'sheets.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => SheetAccountsRepository::deleteByIds($ids), 'skipped' => []];

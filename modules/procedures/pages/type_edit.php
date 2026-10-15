@@ -27,6 +27,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('procedure_types', $id, '/procedure-types', [
+    'stay_path' => '/procedure-types/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = ProcedureTypesRepository::dataFromPost($_POST);

@@ -41,6 +41,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('catalog_categories', $id, '/categories', [
+    'stay_path' => '/categories/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = CategoriesRepository::dataFromPost($_POST);

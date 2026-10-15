@@ -27,6 +27,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('suppliers', $id, '/suppliers', [
+    'stay_path' => '/suppliers/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = SuppliersRepository::dataFromPost($_POST);

@@ -239,6 +239,8 @@ $canDeleteLine = $cartCount > 1;
   </section>
 <?php endif; ?>
 
+<?= EntityDelete::form('orders', $oid) ?>
+
 <script>
 (function () {
   var form = document.getElementById('orders-edit-form');

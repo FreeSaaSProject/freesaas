@@ -15,6 +15,7 @@ require_once __DIR__ . '/Assets.php';
 require_once __DIR__ . '/ListQuery.php';
 require_once __DIR__ . '/NavContext.php';
 require_once __DIR__ . '/BulkActions.php';
+require_once __DIR__ . '/EntityDelete.php';
 require_once __DIR__ . '/SchemaMigrator.php';
 require_once __DIR__ . '/Db/_load.php';
 require_once __DIR__ . '/DbTools.php';

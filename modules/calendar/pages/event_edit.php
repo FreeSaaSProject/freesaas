@@ -97,22 +97,16 @@ $canMakeProcedures = !$isNew
     && Auth::can('calendar.edit')
     && empty($row['is_block']);
 
+if (!$isNew && EntityDelete::tryHandle('calendar_events', $id, $returnUrl !== '' ? $returnUrl : '/calendar', [
+    'stay_path' => '/calendar/events/' . $id . '/edit',
+    'confirm' => 'calendar.event.confirm_delete',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)($_POST['action'] ?? 'save');
     try {
-        if ($action === 'delete') {
-            if (!$canDelete) {
-                throw new RuntimeException(t('calendar.event.err.no_delete'));
-            }
-            $backUrl = EventsRepository::weekUrl((int)($row['dtstart'] ?? 0));
-            EventsRepository::delete($id);
-            if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'id' => $id, 'deleted' => true]);
-                return;
-            }
-            redirect($returnUrl !== '/calendar' ? $returnUrl : $backUrl);
-            return;
-        }
         if ($action === 'create_procedures') {
             if (!$canMakeProcedures) {
                 throw new RuntimeException(t('calendar.event.err.no_procedures'));

@@ -21,6 +21,13 @@ if (!$isNew) {
 }
 $message = '';
 $error = '';
+
+if (!$isNew && EntityDelete::tryHandle('norms', $id, '/norms', [
+    'stay_path' => '/norms/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = NormsRepository::dataFromPost($_POST);

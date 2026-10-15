@@ -112,4 +112,11 @@ return [
     'catalog.bulk.type_in_use' => 'Тип указан в товарах каталога ({n})',
     'catalog.module.description' => 'Категории, товары и связи товаров; остатки через stocks/stickers.',
     'catalog.module.summary' => 'Включайте для дерева товаров, нужных procedures, stickers, norms, bonuses. Мягко units/suppliers/procedures. Базовый товарный справочник — рано, вместе со складом.',
+    'catalog.perm.delete' => 'Удаление товаров / категорий',
+    'catalog.product.err.in_use_procedures' => 'Используется в процедурах ({n})',
+    'catalog.product.err.in_use_norms' => 'Используется в нормах ({n})',
+    'catalog.product.err.in_use_stickers' => 'Есть в актах стикеров ({n})',
+    'catalog.product.err.in_use_stocks' => 'Есть остатки на складе ({n})',
+    'catalog.category.err.has_children' => 'Есть дочерние категории ({n}) — сначала удалите их',
+    'catalog.category.err.has_products' => 'Есть товары ({n}) — сначала перенесите или удалите',
 ];

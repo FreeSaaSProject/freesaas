@@ -370,11 +370,6 @@ final class StaffReportRunner
         $lines = [];
         $lines[] = $markerLine;
         $lines[] = '';
-        $lines[] = t('staff_reports.report.sessions_procs', [
-            'sessions' => (string)(int)($quality['session_count'] ?? 0),
-            'procs' => (string)(int)($quality['procedure_count'] ?? 0),
-        ]);
-        $lines[] = '';
         $lines[] = '<b>' . t('staff_reports.report.standards') . '</b>';
 
         $scripts = is_array($quality['scripts'] ?? null) ? $quality['scripts'] : [];
@@ -384,22 +379,21 @@ final class StaffReportRunner
         foreach ($scripts as $script) {
             $lines[] = '<b>' . e((string)($script['name'] ?? '')) . '</b>';
             if ((int)($script['proc_ratio_min'] ?? 0) > 0 && $script['proc_ratio_pct'] !== null) {
-                $emoji = ((string)($script['proc_ratio_color'] ?? '') === 'red') ? ' 🔴' : '';
-                $lines[] = t('staff_reports.report.proc_ratio', [
+                $emoji = ((string)($script['proc_ratio_color'] ?? '') === 'red') ? '🔴 ' : '';
+                $lines[] = $emoji . t('staff_reports.report.proc_ratio', [
                     'pct' => (string)$script['proc_ratio_pct'],
                     'min' => (string)(int)$script['proc_ratio_min'],
-                ]) . $emoji;
+                ]);
             }
             foreach (is_array($script['parts'] ?? null) ? $script['parts'] : [] as $part) {
                 $color = (string)($part['color'] ?? 'none');
                 $emoji = $color === 'red' ? '🔴' : ($color === 'yellow' ? '🟡' : ($color === 'green' ? '🟢' : ''));
-                $line = (string)$part['name'] . ' ' . (int)$part['numerator'] . '/' . (int)$part['denominator'];
+                $body = (string)$part['name'] . ' ' . (int)$part['numerator'] . '/' . (int)$part['denominator'];
                 if (empty($part['is_scoring'])) {
-                    $line = '<i>' . $line . ' ' . t('staff_reports.report.ref') . '</i>';
+                    $lines[] = '<i>' . $body . ' ' . t('staff_reports.report.ref') . '</i>';
                 } else {
-                    $line .= ' ' . $emoji;
+                    $lines[] = ($emoji !== '' ? $emoji . ' ' : '') . $body;
                 }
-                $lines[] = $line;
             }
             $scriptSum = (int)($script['day_bonus_sum'] ?? 0);
             if ($scriptSum > 0 || array_key_exists('bonus_eligible', $script)) {

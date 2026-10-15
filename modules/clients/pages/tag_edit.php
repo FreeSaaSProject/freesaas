@@ -27,6 +27,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('client_tags', $id, '/client-tags', [
+    'stay_path' => '/client-tags/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = ClientTagsRepository::dataFromPost($_POST);

@@ -68,6 +68,8 @@ $i18n = [
     'gateRedMaxHint' => t('audio_dicts.scripts.field.gate_red_max_hint'),
     'gateYellowMax' => t('audio_dicts.scripts.field.gate_yellow_max'),
     'gateYellowMaxHint' => t('audio_dicts.scripts.field.gate_yellow_max_hint'),
+    'hideFromReports' => t('audio_dicts.scripts.field.hide_from_reports'),
+    'hideFromReportsHint' => t('audio_dicts.scripts.field.hide_from_reports_hint'),
     'qualitySec' => t('audio_dicts.scripts.sec.quality_part'),
     'killer' => t('audio_dicts.scripts.field.killer'),
     'killerHint' => t('audio_dicts.scripts.field.killer_hint'),
@@ -93,6 +95,15 @@ $i18n = [
 $selectedPos = is_array($root['position_ids'] ?? null) ? $root['position_ids'] : [];
 ?>
 <?php if ($flash !== ''): ?><p class="flash success"><?= e($flash) ?></p><?php endif; ?>
+<?php
+$importWarnings = is_array($importWarnings ?? null) ? $importWarnings : [];
+if ($importWarnings !== []): ?>
+  <ul class="flash warn">
+    <?php foreach ($importWarnings as $w): ?>
+      <li><?= e((string)$w) ?></li>
+    <?php endforeach; ?>
+  </ul>
+<?php endif; ?>
 <?php if ($error !== ''): ?><p class="flash error"><?= e($error) ?></p><?php endif; ?>
 
 <div class="scripts-canvas<?= $canEdit ? '' : ' is-readonly' ?>"
@@ -172,10 +183,18 @@ $selectedPos = is_array($root['position_ids'] ?? null) ? $root['position_ids'] :
       <div class="scripts-canvas-footer form-actions">
         <?php if ($canEdit): ?>
         <button type="submit" class="btn-primary" name="action" value="save"><?= te('core.common.save') ?></button>
-        <button type="submit" class="btn-secondary" name="action" value="copy"><?= te('audio_dicts.scripts.btn_copy') ?></button>
         <?php endif; ?>
+        <span class="scripts-download-wrap">
+          <a class="btn-secondary" href="<?= e($path) ?>/<?= (int)$id ?>/download"
+             data-scripts-download="0"
+             data-confirm="<?= e(t('audio_dicts.scripts.pack.confirm_download')) ?>"><?= te('audio_dicts.scripts.btn_download') ?></a>
+          <a class="btn-secondary" href="<?= e($path) ?>/<?= (int)$id ?>/download?keys=1"
+             data-scripts-download="1"
+             data-confirm="<?= e(t('audio_dicts.scripts.pack.confirm_download_keys')) ?>"><?= te('audio_dicts.scripts.btn_download_keys') ?></a>
+        </span>
         <a href="<?= e($path) ?>"><?= te('core.common.cancel') ?></a>
       </div>
     </div>
   </form>
+  <?= EntityDelete::form('audio_scripts', (int)$id) ?>
 </div>

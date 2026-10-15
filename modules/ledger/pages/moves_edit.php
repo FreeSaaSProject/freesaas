@@ -11,7 +11,7 @@ $row = [
     'summ' => (string)($_GET['summ'] ?? '0'),
     'descr' => (string)($_GET['descr'] ?? ''),
     'dt' => time(),
-    'unconfirmed' => 1,
+    'unconfirmed' => 0,
     'payment_id' => (int)($_GET['payment_id'] ?? 0),
     'supplier_id' => (int)($_GET['supplier_id'] ?? 0),
     'user_payment' => 0,
@@ -49,28 +49,31 @@ if (!$isNew) {
         View::render('error', ['title' => t('core.common.not_found'), 'message' => t('ledger.moves.err.not_found', ['id' => $id])]);
         return;
     }
+    // Paired transfers always use the transfer form — never the single-move editor.
+    if (LedgerMovesRepository::isTransferMove($found)) {
+        if ($wantsJson) {
+            AgentHttp::error(t('ledger.moves.err.use_transfer_form'), 400, [
+                'redirect' => '/ledger/transfers/' . $id . '/edit',
+                'transfer' => true,
+            ]);
+            return;
+        }
+        redirect('/ledger/transfers/' . $id . '/edit');
+        return;
+    }
     $row = $found;
 }
 $message = '';
 $error = '';
+if (!$isNew && EntityDelete::tryHandle('ledger_moves', $id, '/ledger/moves?deleted=1', [
+    'stay_path' => '/ledger/moves/' . $id . '/edit',
+    'confirm' => 'ledger.moves.confirm_delete',
+])) {
+    return;
+}
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)($_POST['action'] ?? 'save');
     try {
-        if ($action === 'delete') {
-            if ($isNew) {
-                throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));
-            }
-            $res = LedgerMovesRepository::softDeleteByIds([$id]);
-            if ((int)($res['done'] ?? 0) < 1) {
-                throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));
-            }
-            if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'action' => 'delete', 'id' => $id]);
-                return;
-            }
-            redirect('/ledger/moves?deleted=1');
-            return;
-        }
         if ($action === 'copy') {
             if ($isNew) {
                 throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));

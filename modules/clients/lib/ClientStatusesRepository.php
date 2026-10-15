@@ -226,4 +226,42 @@ final class ClientStatusesRepository
             $id,
         ]);
     }
+
+    public static function clientCount(int $statusId): int
+    {
+        if ($statusId < 1 || !Database::tableExists('base_clients')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare('SELECT COUNT(*) FROM base_clients WHERE status_id = ?');
+        $st->execute([$statusId]);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function deleteByIds(array $ids): array
+    {
+        $done = 0;
+        $skipped = [];
+        $pdo = Database::pdo();
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $n = self::clientCount($id);
+            if ($n > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('clients.status.err.in_use', ['n' => $n])];
+                continue;
+            }
+            if (!Database::tableExists('base_client_statuses')) {
+                continue;
+            }
+            $pdo->prepare('DELETE FROM base_client_statuses WHERE id = ?')->execute([$id]);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
 }

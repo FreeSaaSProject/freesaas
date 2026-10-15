@@ -40,4 +40,5 @@ return [
     'sheets.list.search_placeholder' => 'Поиск',
     'sheets.module.description' => 'Учёт простынок LikeSpa (base_sheet_*); отключаемый.',
     'sheets.module.summary' => 'Включайте для учёта простынок LikeSpa. Отдельный складской контур. Только если простынки ведутся отдельно от stickers.',
+    'sheets.perm.delete' => 'Удаление счетов белья',
 ];

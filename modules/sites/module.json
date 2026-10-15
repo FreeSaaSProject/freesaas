@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "0.2.5",
+    "version": "0.2.6",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -44,6 +44,22 @@
         {
             "id": "sites.redirects",
             "label": "sites.perm.redirects"
+        },
+        {
+            "id": "sites.delete",
+            "label": "sites.perm.delete"
+        },
+        {
+            "id": "sites.promopages.delete",
+            "label": "sites.perm.promopages_delete"
+        },
+        {
+            "id": "sites.pages.delete",
+            "label": "sites.perm.pages_delete"
+        },
+        {
+            "id": "sites.redirects.delete",
+            "label": "sites.perm.redirects_delete"
         }
     ],
     "routes": {

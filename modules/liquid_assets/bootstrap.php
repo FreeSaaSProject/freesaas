@@ -32,7 +32,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('liquid_assets_accounts', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'liquid_assets.edit',
+    'permission' => 'liquid_assets.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => TinvestAccountsRepository::deleteByIds($ids), 'skipped' => []];

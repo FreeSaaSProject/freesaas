@@ -20,6 +20,13 @@ if (!$isNew) {
 }
 $message = '';
 $error = '';
+
+if (!$isNew && EntityDelete::tryHandle('ledger_accounts', $id, '/ledger/accounts', [
+    'stay_path' => '/ledger/accounts/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     if ($wantsJson && !Auth::can('ledger.edit')) {
         AgentHttp::error(t('ledger.err.forbidden'), 403);

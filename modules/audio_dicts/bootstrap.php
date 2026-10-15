@@ -6,6 +6,7 @@ require_once __DIR__ . '/lib/RecordsDictsRepository.php';
 require_once __DIR__ . '/lib/RecordsKeysRepository.php';
 require_once __DIR__ . '/lib/RecordsTagsRepository.php';
 require_once __DIR__ . '/lib/RecordsScriptsRepository.php';
+require_once __DIR__ . '/lib/ScriptPack.php';
 
 Assets::register('audio_dicts', [
     'css' => ['audio_dicts.css'],
@@ -73,7 +74,7 @@ foreach ($entities as $entity => $meta) {
     $listId = $meta['list_id'];
     BulkActions::register($listId, 'delete', [
         'label' => 'core.bulk.delete',
-        'permission' => 'audio_dicts.edit',
+        'permission' => 'audio_dicts.delete',
         'confirm' => 'core.bulk.confirm_delete',
         'run' => static function (array $ids, array $params) use ($repo): array {
             return ['done' => $repo::deleteByIds($ids), 'skipped' => []];
@@ -97,12 +98,28 @@ ModuleManager::registerRoute('/audio/scripts/new', [
         require base_path('modules/audio_dicts/pages/scripts_new.php');
     },
 ]);
+ModuleManager::registerRoute('/audio/scripts/import', [
+    'module' => 'audio_dicts',
+    'methods' => ['POST'],
+    'permission' => 'audio_dicts.edit',
+    'handler' => static function (): void {
+        require base_path('modules/audio_dicts/pages/scripts_import.php');
+    },
+]);
 ModuleManager::registerRoute('/audio/scripts/{id}/parts', [
     'module' => 'audio_dicts',
     'methods' => ['POST'],
     'permission' => 'audio_dicts.edit',
     'handler' => static function (): void {
         require base_path('modules/audio_dicts/pages/scripts_parts.php');
+    },
+]);
+ModuleManager::registerRoute('/audio/scripts/{id}/download', [
+    'module' => 'audio_dicts',
+    'methods' => ['GET'],
+    'permission' => 'audio_dicts.view',
+    'handler' => static function (): void {
+        require base_path('modules/audio_dicts/pages/scripts_download.php');
     },
 ]);
 ModuleManager::registerRoute('/audio/scripts/{id}/copy', [
@@ -124,7 +141,7 @@ ModuleManager::registerRoute('/audio/scripts/{id}', [
 
 BulkActions::register('audio_scripts', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'audio_dicts.edit',
+    'permission' => 'audio_dicts.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => RecordsScriptsRepository::deleteByIds($ids), 'skipped' => []];

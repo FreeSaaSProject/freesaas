@@ -39,3 +39,6 @@ curl -sS -b jar.txt 'https://example/procents?format=json'
 ## Notes
 
 - Requires `rates` + `procedures` + `workweeks`.
+- Soft audio (when `base_records` exists): accrues accounted OffRecord hours × `AUDIO_HOUR_RATE` and `SUM(collections.SCORE)` × `SCRIPT_SCORE_RATE`. Day calendar chips: `А` / `С`.
+- Shift fix: `LOSS_FIX` × shift units from `base_workweeks` (`PRICE_COL=3` counts as 2). Day chip `Ф`.
+- Soft `payments`: when `payments.auto_procent_accrual=1`, opening `/procents` or `/payments` for one staff upserts current-month total into `base_payments` as `% {MONTH_RU} {YYYY}` (ФОТ). Past months not rewritten. Toggle on `/payments/settings`. Director must pick staff first.

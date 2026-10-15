@@ -1072,4 +1072,100 @@ final class UsersRepository
         }
         return $out;
     }
+
+    /**
+     * Count references that block hard-delete. Empty string = safe to delete.
+     *
+     * @return list<string>
+     */
+    public static function deleteBlockReasons(int $id): array
+    {
+        $reasons = [];
+        if ($id < 1) {
+            return [t('core.entity.err.not_found')];
+        }
+        if ($id === Auth::userId()) {
+            $reasons[] = t('core.users.err.delete_self');
+        }
+        if (self::isLastSuperadmin($id)) {
+            $reasons[] = t('core.users.err.delete_last_super');
+        }
+        $probes = [
+            ['base_procedures', 'ID_ADMIN', 'core.users.err.in_use_procedures'],
+            ['base_procedures', 'ID_OPERATOR', 'core.users.err.in_use_procedures'],
+            ['base_events', 'ID_OPERATOR', 'core.users.err.in_use_events'],
+            ['base_workweeks', 'ID_USER', 'core.users.err.in_use_workweeks'],
+            ['base_payments', 'ID_USER', 'core.users.err.in_use_payments'],
+            ['base_news', 'ID_AUTHOR', 'core.users.err.in_use_news'],
+            ['base_records', 'ID_USER', 'core.users.err.in_use_audio'],
+        ];
+        $pdo = Database::pdo();
+        foreach ($probes as [$table, $col, $key]) {
+            if (!Database::tableExists($table) || !Database::columnExists($table, $col)) {
+                continue;
+            }
+            $st = $pdo->prepare('SELECT COUNT(*) FROM `' . $table . '` WHERE `' . $col . '` = ?');
+            $st->execute([$id]);
+            $n = (int)$st->fetchColumn();
+            if ($n > 0) {
+                $reasons[] = t($key, ['n' => $n]);
+            }
+        }
+        return array_values(array_unique($reasons));
+    }
+
+    public static function isLastSuperadmin(int $userId): bool
+    {
+        if ($userId < 1) {
+            return false;
+        }
+        $row = self::find($userId);
+        if ($row === null) {
+            return false;
+        }
+        $isSuper = self::statusIsSuperadmin((int)($row['ID_STATUS'] ?? 0))
+            || self::statusIsSuperadmin((int)($row['ID_STATUS2'] ?? 0));
+        if (!$isSuper) {
+            return false;
+        }
+        if (!Database::tableExists('base_users') || !Database::tableExists('base_admin_statuses')) {
+            return false;
+        }
+        $sql = 'SELECT COUNT(*) FROM base_users u
+            LEFT JOIN base_admin_statuses s1 ON s1.ID = u.ID_STATUS
+            LEFT JOIN base_admin_statuses s2 ON s2.ID = u.ID_STATUS2
+            WHERE u.ID <> ? AND u.ENABLED > 0
+              AND (IFNULL(s1.SUPERADMIN_ACCESS,0) > 0 OR IFNULL(s2.SUPERADMIN_ACCESS,0) > 0)';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute([$userId]);
+        return (int)$st->fetchColumn() < 1;
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function deleteByIds(array $ids): array
+    {
+        $done = 0;
+        $skipped = [];
+        $pdo = Database::pdo();
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $reasons = self::deleteBlockReasons($id);
+            if ($reasons !== []) {
+                $skipped[] = ['id' => $id, 'reason' => implode('; ', $reasons)];
+                continue;
+            }
+            if (!Database::tableExists('base_users')) {
+                continue;
+            }
+            $pdo->prepare('DELETE FROM base_users WHERE ID = ?')->execute([$id]);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
 }

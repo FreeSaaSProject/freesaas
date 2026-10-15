@@ -27,6 +27,13 @@ $error = '';
 $groups = StatusesRepository::visibleFieldGroups();
 $audioOptions = StatusesRepository::optionsForAudio($id);
 
+
+if (!$isNew && EntityDelete::tryHandle('core_statuses', $id, '/statuses', [
+    'stay_path' => '/statuses/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = StatusesRepository::dataFromPost($_POST);

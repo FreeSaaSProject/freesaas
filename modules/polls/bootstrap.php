@@ -25,7 +25,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('polls', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'polls.edit',
+    'permission' => 'polls.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => PollsRepository::deleteByIds($ids), 'skipped' => []];

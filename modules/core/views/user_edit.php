@@ -233,6 +233,10 @@ if ($newsAfterTs > 0) {
     <a class="btn-secondary" href="<?= $isNew ? '/users' : ('/users/' . $uid) ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('core_users', (int)($id ?? $user['ID'] ?? 0)) ?>
+<?php endif; ?>
+
 
 <script>
 (function () {

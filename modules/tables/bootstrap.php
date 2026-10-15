@@ -22,7 +22,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('tables', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'tables.edit',
+    'permission' => 'tables.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => TablesRepository::deleteByIds($ids), 'skipped' => []];

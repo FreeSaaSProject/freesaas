@@ -23,3 +23,7 @@ declare(strict_types=1);
   <label><?= te('ledger.moves.col.descr') ?><input name="descr" value="<?= e((string)($row['descr'] ?? '')) ?>"></label>
   <div class="page-actions"><button class="btn-primary" type="submit"><?= te('core.common.save') ?></button><a class="btn-secondary" href="/fund-movements"><?= te('core.common.cancel') ?></a></div>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('fund_movements', (int)($row['id'] ?? $item['id'] ?? 0)) ?>
+<?php endif; ?>
+

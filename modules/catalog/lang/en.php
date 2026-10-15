@@ -112,4 +112,11 @@ return [
     'catalog.bulk.type_in_use' => 'Type is used by catalog products ({n})',
     'catalog.module.description' => 'Product categories, products, and product relations; stock qty via stocks/stickers.',
     'catalog.module.summary' => 'Enable for the product tree and goods used by procedures, stickers, norms, bonuses. Soft units/suppliers/procedures. Core merchandising dictionary — enable early with warehouse modules.',
+    'catalog.perm.delete' => 'Delete products / categories',
+    'catalog.product.err.in_use_procedures' => 'Used in procedures ({n})',
+    'catalog.product.err.in_use_norms' => 'Used in norms ({n})',
+    'catalog.product.err.in_use_stickers' => 'Used in sticker docs ({n})',
+    'catalog.product.err.in_use_stocks' => 'Has stock qty rows ({n})',
+    'catalog.category.err.has_children' => 'Has child categories ({n}) — delete them first',
+    'catalog.category.err.has_products' => 'Has products ({n}) — move or delete them first',
 ];

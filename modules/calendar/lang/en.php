@@ -139,4 +139,5 @@ return [
     'calendar.statuses.field.EVT_PHOTOS' => 'Photos',
     'calendar.module.description' => 'Day view and event CRUD (base_events*); can create procedures from events.',
     'calendar.module.summary' => 'Enable for the operational day board. Requires clients, catalog, procedures, orders, workweeks. Soft cabinets/tables. Soft-used by bonuses/clientics. Central ops screen — enable after workweeks + procedures.',
+    'calendar.perm.delete' => 'Delete events',
 ];

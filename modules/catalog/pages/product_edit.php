@@ -42,6 +42,13 @@ $message = '';
 $error = '';
 $relations = [];
 
+
+if (!$isNew && EntityDelete::tryHandle('catalog_products', $id, '/products', [
+    'stay_path' => '/products/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $action = (string)($_POST['action'] ?? 'save');
     try {

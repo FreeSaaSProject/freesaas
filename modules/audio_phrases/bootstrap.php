@@ -38,7 +38,7 @@ BulkActions::register($listId, 'new', [
 ]);
 BulkActions::register($listId, 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'audio_phrases.edit',
+    'permission' => 'audio_phrases.delete',
     'confirm' => 'audio_phrases.bulk.confirm_delete',
     'run' => static function (array $ids): array {
         return ['done' => PhrasesRepository::deleteByIds($ids), 'skipped' => []];
@@ -179,6 +179,9 @@ EventBus::on('audio_reports.calendar.reparse.after', static function ($payload) 
 
 EventBus::on('audio_reports.day_report.sections', static function ($payload) {
     if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Auth::can('audio_phrases.view')) {
         return $payload;
     }
     $adminId = (int)($payload['admin_id'] ?? 0);

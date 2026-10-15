@@ -42,7 +42,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('clients', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'clients.edit',
+    'permission' => 'clients.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => ClientsRepository::deleteByIds($ids), 'skipped' => []];
@@ -115,12 +115,31 @@ BulkActions::register('clients', 'unassign_tag', [
 
 BulkActions::register('client_tags', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'clients.tags',
+    'permission' => 'clients.tags.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => ClientTagsRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+BulkActions::register('client_statuses', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'clients.statuses.delete',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return ClientStatusesRepository::deleteByIds($ids);
+    },
+]);
+EventBus::on('core.bulk.check_item', static function (array $payload): array {
+    if (($payload['list_id'] ?? '') !== 'client_statuses' || ($payload['action'] ?? '') !== 'delete') {
+        return $payload;
+    }
+    $n = ClientStatusesRepository::clientCount((int)($payload['id'] ?? 0));
+    if ($n > 0) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('clients.status.err.in_use', ['n' => $n]);
+    }
+    return $payload;
+});
 
 EventBus::on('core.dashboard.catalog', static function ($catalog) {
     if (!is_array($catalog)) {

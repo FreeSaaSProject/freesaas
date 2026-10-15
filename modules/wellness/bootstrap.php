@@ -85,7 +85,7 @@ $bulkDeletes = [
 foreach ($bulkDeletes as $listId => $callable) {
     BulkActions::register($listId, 'delete', [
         'label' => 'core.bulk.delete',
-        'permission' => 'wellness.edit',
+        'permission' => 'wellness.delete',
         'confirm' => 'core.bulk.confirm_delete',
         'run' => static function (array $ids, array $params) use ($callable): array {
             /** @var callable $fn */

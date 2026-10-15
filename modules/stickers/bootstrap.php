@@ -78,8 +78,8 @@ ModuleManager::registerRoute('/stickers/printstickers', [
 
 BulkActions::register('stickers_receipts', 'delete', [
     'label' => 'core.bulk.delete',
-    'capability' => 'SUPERADMIN_ACCESS',
-    'confirm' => 'core.bulk.confirm_delete',
+    'permission' => 'stickers.delete',
+        'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         $r = Acts2InRepository::deleteByIds($ids);
         return ['done' => $r['done'], 'skipped' => $r['skipped']];
@@ -178,9 +178,9 @@ BulkActions::register('stickers_ins', 'reprint', [
 
 BulkActions::register('stickers_ins', 'delete', [
     'label' => 'core.bulk.delete',
+    'permission' => 'stickers.delete',
     'group' => 'stickers.bulk.group.delete',
-    'capability' => 'SUPERADMIN_ACCESS',
-    'confirm' => 'core.bulk.confirm_delete',
+        'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         $r = StickerInsRepository::deleteByIds($ids);
         $skipped = [];

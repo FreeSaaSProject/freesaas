@@ -426,4 +426,8 @@ return [
     'sites.shop.nav_aria' => 'Catalog categories',
     'sites.shop.price' => 'Price',
     'sites.shop.title' => 'Catalog',
+    'sites.perm.delete' => 'Delete hosts',
+    'sites.perm.promopages_delete' => 'Delete promo pages',
+    'sites.perm.pages_delete' => 'Delete CMS pages',
+    'sites.perm.redirects_delete' => 'Delete redirects',
 ];

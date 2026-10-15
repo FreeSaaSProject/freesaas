@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "0.1.23",
+    "version": "0.1.29",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -18,6 +18,10 @@
         {
             "id": "audio_dicts.edit",
             "label": "audio_dicts.perm.edit"
+        },
+        {
+            "id": "audio_dicts.delete",
+            "label": "audio_dicts.perm.delete"
         }
     ],
     "routes": {
@@ -36,8 +40,10 @@
             "/audio/trashes/{id}/edit",
             "/audio/scripts",
             "/audio/scripts/new",
+            "/audio/scripts/import",
             "/audio/scripts/{id}",
             "/audio/scripts/{id}/parts",
+            "/audio/scripts/{id}/download",
             "/audio/scripts/{id}/copy"
         ]
     },
@@ -168,7 +174,7 @@
                 "method": "GET",
                 "path": "/audio/scripts/{id}",
                 "permission": "audio_dicts.view",
-                "description": "Script tree with parts; POST to save or copy"
+                "description": "Script tree with parts; POST to save"
             },
             {
                 "id": "audio_dicts.scripts.create",
@@ -178,11 +184,25 @@
                 "description": "Create script with parts"
             },
             {
+                "id": "audio_dicts.scripts.download",
+                "method": "GET",
+                "path": "/audio/scripts/{id}/download",
+                "permission": "audio_dicts.view",
+                "description": "Download JSON script pack (dict names by default; ?keys=1 embeds dictionaries/keys)"
+            },
+            {
+                "id": "audio_dicts.scripts.import",
+                "method": "POST",
+                "path": "/audio/scripts/import",
+                "permission": "audio_dicts.edit",
+                "description": "Import JSON script pack; missing dicts created empty; keys merged when present"
+            },
+            {
                 "id": "audio_dicts.scripts.copy",
                 "method": "GET",
                 "path": "/audio/scripts/{id}/copy",
                 "permission": "audio_dicts.edit",
-                "description": "Duplicate script (GET or POST)"
+                "description": "Duplicate script in same DB (GET or POST)"
             },
             {
                 "id": "audio_dicts.scripts.parts",
@@ -191,6 +211,14 @@
                 "permission": "audio_dicts.edit",
                 "assistant": false,
                 "description": "Canvas part API: reorder|save|add|delete"
+            },
+            {
+                "id": "audio_dicts.scripts.delete",
+                "method": "POST",
+                "path": "/audio/scripts/{id}",
+                "permission": "audio_dicts.delete",
+                "side_effect": "write",
+                "description": "Delete script and parts; POST action=delete"
             }
         ]
     },

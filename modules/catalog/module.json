@@ -2,7 +2,7 @@
     "id": "catalog",
     "name": "catalog.module.name",
     "description": "catalog.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -26,6 +26,10 @@
         {
             "id": "catalog.edit",
             "label": "catalog.perm.edit"
+        },
+        {
+            "id": "catalog.delete",
+            "label": "catalog.perm.delete"
         }
     ],
     "routes": {
@@ -112,6 +116,14 @@
                 "path": "/products/{id}/edit",
                 "permission": "catalog.edit",
                 "description": "Update product or relations: action save|add_relation|delete_relation|toggle_relation|recalc_components"
+            },
+            {
+                "id": "catalog.products.delete",
+                "method": "POST",
+                "path": "/products/{id}/edit",
+                "permission": "catalog.delete",
+                "side_effect": "write",
+                "description": "Delete product; POST action=delete if no FK refs"
             }
         ]
     },

@@ -35,6 +35,12 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+if (!$isNew && EntityDelete::tryHandle('clients', $id, '/clients', [
+    'stay_path' => '/clients/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         if (!$isNew && !ClientsRepository::canAccessClient($id)) {

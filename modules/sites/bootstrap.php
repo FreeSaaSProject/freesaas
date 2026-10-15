@@ -125,7 +125,7 @@ foreach ($adminPages as $path => $def) {
 
 BulkActions::register('sites_hosts', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'sites.edit',
+    'permission' => 'sites.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => SiteHostsRepository::deleteByIds($ids), 'skipped' => []];
@@ -134,7 +134,7 @@ BulkActions::register('sites_hosts', 'delete', [
 
 BulkActions::register('sites_promopages', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'sites.promopages',
+    'permission' => 'sites.promopages.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         $skipped = [];
@@ -156,7 +156,7 @@ BulkActions::register('sites_promopages', 'delete', [
 
 BulkActions::register('sites_pages', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'sites.pages',
+    'permission' => 'sites.pages.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         $skipped = [];
@@ -178,12 +178,28 @@ BulkActions::register('sites_pages', 'delete', [
 
 BulkActions::register('sites_redirects', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'sites.redirects',
+    'permission' => 'sites.redirects.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => RedirectsRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+
+EventBus::on('core.bulk.check_item', static function (array $payload): array {
+    if (($payload['action'] ?? '') !== 'delete') {
+        return $payload;
+    }
+    $listId = (string)($payload['list_id'] ?? '');
+    $id = (int)($payload['id'] ?? 0);
+    if ($listId === 'sites_pages' && PageCategoriesRepository::childCount($id) > 0) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('sites.pages.has_children_hint');
+    } elseif ($listId === 'sites_promopages' && PromopagesRepository::cloneCount($id) > 0) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('sites.promopages.has_clones_hint');
+    }
+    return $payload;
+});
 
 // Public storefront routes (available on admin too for preview, except `/` and `/login`).
 $publicPages = [

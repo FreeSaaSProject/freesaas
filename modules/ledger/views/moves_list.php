@@ -185,7 +185,12 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
 ?>
 <tr>
   <?= BulkActions::td($listId, $mid) ?>
-  <td class="muted"><?php if ($canEdit): ?><a href="/ledger/moves/<?= $mid ?>/edit"><?= $mid ?></a><?php else: ?><?= $mid ?><?php endif; ?></td>
+  <?php
+    $editHref = !empty($r['linked_id'])
+        ? '/ledger/transfers/' . $mid . '/edit'
+        : '/ledger/moves/' . $mid . '/edit';
+  ?>
+  <td class="muted"><?php if ($canEdit): ?><a href="<?= e($editHref) ?>"><?= $mid ?></a><?php else: ?><?= $mid ?><?php endif; ?></td>
   <td class="ledger-dates-cell">
     <div class="ledger-date-line ledger-date-acc"><strong><?= te('ledger.moves.date_acc') ?>:</strong>
       <?= $dtAcc > 0 ? e(date('d.m.Y H:i', $dtAcc)) : '—' ?>

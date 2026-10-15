@@ -310,4 +310,5 @@ return [
     'stickers.qr.strange.zero' => ' Странный нулевой расход!',
     'stickers.qr.strange.increase' => ' Странное увеличение веса!',
     'stickers.ins.qr_preview' => 'QR стикера',
+    'stickers.perm.delete' => 'Удаление актов / приходов',
 ];

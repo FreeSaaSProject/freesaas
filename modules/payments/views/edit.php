@@ -80,9 +80,17 @@ $canViewLedger = !empty($canViewLedger);
     <input name="sum" value="<?= e((string)($row['sum'] ?? '0')) ?>" required>
   </label>
 
+  <?php
+    $rawDescr = (string)($row['descr'] ?? '');
+    $isDayPayout = class_exists('DayPayroll', false) && DayPayroll::isPayoutDescr($rawDescr);
+    $showDescr = $isDayPayout ? DayPayroll::maskDescr($rawDescr) : $rawDescr;
+  ?>
   <label><?= te('payments.col.descr') ?>
-    <input name="descr" value="<?= e((string)($row['descr'] ?? '')) ?>">
+    <input name="descr" value="<?= e($showDescr) ?>"<?= $isDayPayout ? ' readonly' : '' ?>>
   </label>
+  <?php if ($isDayPayout): ?>
+    <p class="muted"><?= te('payments.edit.day_pay_descr_locked') ?></p>
+  <?php endif; ?>
 
   <label><?= te('payments.field.comment_id') ?>
     <input type="number" name="comment_id" min="0" value="<?= e((string)((int)($row['comment_id'] ?? 0))) ?>">
@@ -120,3 +128,8 @@ $canViewLedger = !empty($canViewLedger);
     <?php endif; ?>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('payments', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

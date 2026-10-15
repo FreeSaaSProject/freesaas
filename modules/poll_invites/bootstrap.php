@@ -46,8 +46,8 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('poll_invites', 'delete', [
     'label' => 'core.bulk.delete',
-    'capability' => 'SUPERADMIN_ACCESS',
-    'confirm' => 'core.bulk.confirm_delete',
+    'permission' => 'poll_invites.delete',
+        'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => PollInvitesRepository::deleteByIds($ids), 'skipped' => []];
     },

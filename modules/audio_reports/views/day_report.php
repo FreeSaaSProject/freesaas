@@ -13,7 +13,6 @@ $sessSummary = is_array($report['sessions_summary'] ?? null) ? $report['sessions
 $procedures = is_array($report['procedures'] ?? null) ? $report['procedures'] : null;
 $quality = is_array($report['quality'] ?? null) ? $report['quality'] : null;
 $gated = is_array($report['gated'] ?? null) ? $report['gated'] : [];
-$summary = is_array($report['summary'] ?? null) ? $report['summary'] : [];
 $qualityEmoji = static function (string $color): string {
     if ($color === 'red') {
         return '🔴';
@@ -57,13 +56,23 @@ $levelIcon = static function (string $level): string {
     }
     return '●';
 };
+$showTeamLevel = false;
+foreach ($rows as $rCheck) {
+    if (($rCheck['team_avg'] ?? null) !== null || (string)($rCheck['level'] ?? 'unknown') !== 'unknown') {
+        $showTeamLevel = true;
+        break;
+    }
+}
+$scriptsColSpan = $showTeamLevel ? 7 : 5;
 ?>
 <section class="page-head">
   <div class="page-head-row">
     <div></div>
     <div class="page-actions">
       <a class="btn-secondary" href="<?= e($calHref) ?>"><?= te('audio_reports.menu.calendar') ?></a>
+      <?php if (Auth::can('audio_reports.collections')): ?>
       <a class="btn-secondary" href="<?= e($collectionsHref) ?>"><?= te('audio_reports.day_report.link_collections') ?></a>
+      <?php endif; ?>
     </div>
   </div>
 </section>
@@ -72,53 +81,63 @@ $levelIcon = static function (string $level): string {
   <p class="muted"><?= te('audio_reports.day_report.empty') ?></p>
 <?php else: ?>
 
+<?php
+$statHint = static function (string $hintKey): void {
+    ?>
+    <span class="ar-day-stat-help">
+      <button type="button" class="ar-day-stat-help-btn" aria-expanded="false" aria-label="<?= te('audio_reports.day_report.hint_toggle') ?>">?</button>
+      <span class="ar-day-stat-hint" hidden><?= te($hintKey) ?></span>
+    </span>
+    <?php
+};
+?>
 <section class="ar-day-stats" aria-label="<?= te('audio_reports.day_report.header.score') ?>">
   <div class="ar-day-stat ar-day-stat--score">
     <span class="ar-day-stat-icon" aria-hidden="true">®</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.score') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.score') ?><?php $statHint('audio_reports.day_report.header.score_hint'); ?></div>
       <div class="ar-day-stat-value"><?= $header['score'] !== null ? e((string)$header['score']) : '—' ?></div>
     </div>
   </div>
   <div class="ar-day-stat">
     <span class="ar-day-stat-icon" aria-hidden="true">▤</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.records') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.records') ?><?php $statHint('audio_reports.day_report.header.records_hint'); ?></div>
       <div class="ar-day-stat-value"><?= (int)($header['records'] ?? 0) ?></div>
     </div>
   </div>
   <div class="ar-day-stat">
     <span class="ar-day-stat-icon" aria-hidden="true">◷</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.playtime') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.playtime') ?><?php $statHint('audio_reports.day_report.header.playtime_hint'); ?></div>
       <div class="ar-day-stat-value"><?= e($fmt((int)($header['playtime'] ?? 0))) ?></div>
     </div>
   </div>
   <div class="ar-day-stat">
     <span class="ar-day-stat-icon" aria-hidden="true">▶</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.work') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.work') ?><?php $statHint('audio_reports.day_report.header.work_hint'); ?></div>
       <div class="ar-day-stat-value"><?= e($fmt((int)($header['work_sec'] ?? 0))) ?></div>
     </div>
   </div>
   <div class="ar-day-stat">
     <span class="ar-day-stat-icon" aria-hidden="true">○</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.idle') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.idle') ?><?php $statHint('audio_reports.day_report.header.idle_hint'); ?></div>
       <div class="ar-day-stat-value"><?= e($fmt((int)($header['idle_sec'] ?? 0))) ?></div>
     </div>
   </div>
   <div class="ar-day-stat">
     <span class="ar-day-stat-icon" aria-hidden="true">⏸</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.breaks') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.breaks') ?><?php $statHint('audio_reports.day_report.header.breaks_hint'); ?></div>
       <div class="ar-day-stat-value"><?= e($fmt((int)($header['breaks_sec'] ?? 0))) ?></div>
     </div>
   </div>
   <div class="ar-day-stat">
     <span class="ar-day-stat-icon" aria-hidden="true">⊘</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.disabled') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.disabled') ?><?php $statHint('audio_reports.day_report.header.disabled_hint'); ?></div>
       <div class="ar-day-stat-value"><?= e($fmt((int)($header['disabled_sec'] ?? 0))) ?></div>
     </div>
   </div>
@@ -126,23 +145,12 @@ $levelIcon = static function (string $level): string {
   <div class="ar-day-stat">
     <span class="ar-day-stat-icon" aria-hidden="true">⇔</span>
     <div>
-      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.active') ?></div>
+      <div class="ar-day-stat-label"><?= te('audio_reports.day_report.header.active') ?><?php $statHint('audio_reports.day_report.header.active_hint'); ?></div>
       <div class="ar-day-stat-value"><?= e(date('H:i', (int)$header['active_from'])) ?>–<?= e(date('H:i', (int)$header['active_to'])) ?></div>
     </div>
   </div>
   <?php endif; ?>
 </section>
-
-<?php if ($summary !== []): ?>
-<section class="ar-day-summary">
-  <h2><?= te('audio_reports.day_report.summary') ?></h2>
-  <ul>
-    <?php foreach ($summary as $line): ?>
-      <li><?= e((string)$line) ?></li>
-    <?php endforeach; ?>
-  </ul>
-</section>
-<?php endif; ?>
 
 <section class="ar-day-scripts">
   <h2><?= te('audio_reports.day_report.scripts_title') ?></h2>
@@ -154,12 +162,14 @@ $levelIcon = static function (string $level): string {
     <th><?= te('audio_reports.day_report.col.duration') ?></th>
     <th><?= te('audio_reports.day_report.col.contrib') ?></th>
     <th><?= te('audio_reports.day_report.col.value') ?></th>
+    <?php if ($showTeamLevel): ?>
     <th><?= te('audio_reports.day_report.col.team') ?></th>
     <th><?= te('audio_reports.day_report.col.level') ?></th>
+    <?php endif; ?>
   </tr></thead>
   <tbody>
   <?php if ($rows === []): ?>
-    <tr><td colspan="7" class="muted"><?= te('audio_reports.day_report.empty') ?></td></tr>
+    <tr><td colspan="<?= (int)$scriptsColSpan ?>" class="muted"><?= te('audio_reports.day_report.empty') ?></td></tr>
   <?php else: ?>
     <?php foreach ($rows as $r): ?>
       <?php $lvl = (string)($r['level'] ?? 'ok'); ?>
@@ -174,6 +184,7 @@ $levelIcon = static function (string $level): string {
         <td><?= e($fmt((int)($r['duration'] ?? 0))) ?></td>
         <td><?= e((string)$r['contrib']) ?></td>
         <td><?= e((string)$r['value_pct']) ?>%</td>
+        <?php if ($showTeamLevel): ?>
         <td><?= $r['team_avg'] !== null ? e((string)$r['team_avg']) : '—' ?></td>
         <td>
           <span class="ar-day-level ar-day-level--<?= e($lvl) ?>">
@@ -181,6 +192,7 @@ $levelIcon = static function (string $level): string {
             <?= te('audio_reports.day_report.level.' . $lvl) ?>
           </span>
         </td>
+        <?php endif; ?>
       </tr>
     <?php endforeach; ?>
   <?php endif; ?>
@@ -190,80 +202,105 @@ $levelIcon = static function (string $level): string {
 
 <section class="ar-day-sessions">
   <h2><?= te('audio_reports.day_report.sessions_title') ?></h2>
-  <p class="ar-day-sessions-meta muted">
-    <?= te('audio_reports.day_report.sessions_meta', [
-        'finished' => (string)(int)($sessSummary['finished'] ?? 0),
-        'interrupted' => (string)(int)($sessSummary['interrupted'] ?? 0),
-    ]) ?>
-  </p>
   <?php if ($sessions === []): ?>
     <p class="muted"><?= te('audio_reports.day_report.sessions_empty') ?></p>
   <?php else: ?>
-    <ul class="ar-day-session-list">
-      <?php foreach ($sessions as $sess): ?>
-        <?php
-          $finished = !empty($sess['finished']);
-          $dur = max(0, (int)$sess['dt_end'] - (int)$sess['dt_start']);
-        ?>
-        <li class="ar-day-session<?= $finished ? '' : ' ar-day-session--interrupted' ?>">
-          <div class="ar-day-session-head">
-            <?php if ($canOpenCollection): ?>
-            <a class="ar-day-session-time" href="<?= e((string)$sess['href']) ?>">
-              <?= e(date('H:i', (int)$sess['dt_start'])) ?>–<?= e(date('H:i', (int)$sess['dt_end'])) ?>
-            </a>
-            <?php else: ?>
-            <span class="ar-day-session-time">
-              <?= e(date('H:i', (int)$sess['dt_start'])) ?>–<?= e(date('H:i', (int)$sess['dt_end'])) ?>
-            </span>
-            <?php endif; ?>
-            <span class="ar-day-session-name"><?= e((string)$sess['name']) ?></span>
-            <span class="ar-day-session-rate">+<?= (int)$sess['score_rate'] ?></span>
-            <span class="ar-day-session-dur muted"><?= e($fmtShort($dur)) ?></span>
-            <span class="ar-day-session-badge ar-day-session-badge--<?= $finished ? 'ok' : 'warn' ?>">
-              <?= $finished
-                  ? te('audio_reports.day_report.session_finished')
-                  : te('audio_reports.day_report.session_interrupted') ?>
-            </span>
-          </div>
-          <div class="ar-day-chain" role="list">
-            <?php foreach (($sess['chain'] ?? []) as $chip): ?>
-              <?php $hit = !empty($chip['hit']); ?>
-              <span class="ar-day-chip<?= $hit ? ' ar-day-chip--hit' : ' ar-day-chip--miss' ?><?= !empty($chip['finish']) ? ' ar-day-chip--finish' : '' ?>"
-                    role="listitem"
-                    title="<?= e((string)$chip['name']) ?>">
-                <?php if ($hit): ?>
-                  <span class="ar-day-chip-name"><?= e((string)$chip['name']) ?></span>
-                  <span class="ar-day-chip-pts">+<?= (int)$chip['score_rate'] ?></span>
-                <?php else: ?>
-                  <span class="ar-day-chip-name"><?= e((string)$chip['name']) ?></span>
-                  <span class="ar-day-chip-pts">—</span>
-                <?php endif; ?>
-              </span>
-            <?php endforeach; ?>
-          </div>
+    <button type="button"
+            class="btn-secondary btn-sm ar-day-sessions-toggle"
+            id="ar-day-sessions-toggle"
+            aria-expanded="false"
+            aria-controls="ar-day-sessions-panel"
+            data-label-show="<?= e(t('audio_reports.day_report.sessions_toggle') . ' (' . count($sessions) . ')') ?>"
+            data-label-hide="<?= e(t('audio_reports.day_report.sessions_toggle_hide')) ?>">
+      <?= te('audio_reports.day_report.sessions_toggle') ?> (<?= count($sessions) ?>)
+    </button>
+    <div class="ar-day-sessions-panel" id="ar-day-sessions-panel" hidden>
+      <p class="ar-day-sessions-meta muted">
+        <?= te('audio_reports.day_report.sessions_meta', [
+            'finished' => (string)(int)($sessSummary['finished'] ?? 0),
+            'interrupted' => (string)(int)($sessSummary['interrupted'] ?? 0),
+        ]) ?>
+      </p>
+      <ul class="ar-day-session-list">
+        <?php foreach ($sessions as $sess): ?>
           <?php
-            $proc = is_array($sess['procedure'] ?? null) ? $sess['procedure'] : null;
+            $finished = !empty($sess['finished']);
+            $dur = max(0, (int)$sess['dt_end'] - (int)$sess['dt_start']);
           ?>
-          <?php if ($proc !== null): ?>
-            <div class="ar-day-session-proc">
-              <span class="ar-day-session-proc-label"><?= te('audio_reports.day_report.session_procedure') ?></span>
-              <span class="ar-day-session-proc-id">#<?= (int)$proc['id'] ?></span>
-              <span class="ar-day-session-proc-name"><?= e((string)$proc['name']) ?></span>
-              <span class="ar-day-session-proc-time">
-                <?= e(date('H:i', (int)$proc['dt_start'])) ?>–<?= e(date('H:i', (int)$proc['dt_end'])) ?>
+          <li class="ar-day-session<?= $finished ? '' : ' ar-day-session--interrupted' ?>">
+            <div class="ar-day-session-head">
+              <?php if ($canOpenCollection): ?>
+              <a class="ar-day-session-time" href="<?= e((string)$sess['href']) ?>">
+                <?= e(date('H:i', (int)$sess['dt_start'])) ?>–<?= e(date('H:i', (int)$sess['dt_end'])) ?>
+              </a>
+              <?php else: ?>
+              <span class="ar-day-session-time">
+                <?= e(date('H:i', (int)$sess['dt_start'])) ?>–<?= e(date('H:i', (int)$sess['dt_end'])) ?>
               </span>
-              <span class="ar-day-session-proc-summ">
-                <?= e(number_format((float)$proc['summ'], 0, '.', ' ')) ?>
+              <?php endif; ?>
+              <span class="ar-day-session-name"><?= e((string)$sess['name']) ?></span>
+              <span class="ar-day-session-rate"><?= ((int)$sess['score_rate'] > 0 ? '+' : '') . (int)$sess['score_rate'] ?></span>
+              <span class="ar-day-session-dur muted"><?= e($fmtShort($dur)) ?></span>
+              <span class="ar-day-session-badge ar-day-session-badge--<?= $finished ? 'ok' : 'warn' ?>">
+                <?= $finished
+                    ? te('audio_reports.day_report.session_finished')
+                    : te('audio_reports.day_report.session_interrupted') ?>
               </span>
             </div>
-          <?php elseif ($procedures !== null): ?>
-            <div class="ar-day-session-proc ar-day-session-proc--none muted">
-              <?= te('audio_reports.day_report.session_procedure_none') ?>
+            <div class="ar-day-chain" role="list">
+              <?php foreach (($sess['chain'] ?? []) as $chip): ?>
+                <?php
+                  $hit = !empty($chip['hit']);
+                  $rate = (int)($chip['score_rate'] ?? 0);
+                  // Missed penalty (negative rate) or missed killer counts as OK (green).
+                  $avoidOk = !$hit && ($rate < 0 || !empty($chip['killer']));
+                  $chipOk = $hit || $avoidOk;
+                  $chipCls = $chipOk ? 'ar-day-chip--hit' : 'ar-day-chip--miss';
+                  if ($avoidOk) {
+                      $chipCls .= ' ar-day-chip--penalty-ok';
+                  }
+                  if (!empty($chip['finish'])) {
+                      $chipCls .= ' ar-day-chip--finish';
+                  }
+                  $pts = $hit
+                      ? (($rate > 0 ? '+' : '') . $rate)
+                      : ($avoidOk ? '0' : '—');
+                ?>
+                <span class="ar-day-chip <?= e($chipCls) ?>"
+                      role="listitem"
+                      title="<?= e((string)$chip['name']) ?>">
+                  <?php if ($chipOk): ?>
+                    <span class="ar-day-chip-check" aria-hidden="true">✓</span>
+                  <?php endif; ?>
+                  <span class="ar-day-chip-name"><?= e((string)$chip['name']) ?></span>
+                  <span class="ar-day-chip-pts"><?= e($pts) ?></span>
+                </span>
+              <?php endforeach; ?>
             </div>
-          <?php endif; ?>
-        </li>
-      <?php endforeach; ?>
-    </ul>
+            <?php
+              $proc = is_array($sess['procedure'] ?? null) ? $sess['procedure'] : null;
+            ?>
+            <?php if ($proc !== null): ?>
+              <div class="ar-day-session-proc">
+                <span class="ar-day-session-proc-label"><?= te('audio_reports.day_report.session_procedure') ?></span>
+                <span class="ar-day-session-proc-id">#<?= (int)$proc['id'] ?></span>
+                <span class="ar-day-session-proc-name"><?= e((string)$proc['name']) ?></span>
+                <span class="ar-day-session-proc-time">
+                  <?= e(date('H:i', (int)$proc['dt_start'])) ?>–<?= e(date('H:i', (int)$proc['dt_end'])) ?>
+                </span>
+                <span class="ar-day-session-proc-summ">
+                  <?= e(number_format((float)$proc['summ'], 0, '.', ' ')) ?>
+                </span>
+              </div>
+            <?php elseif ($procedures !== null): ?>
+              <div class="ar-day-session-proc ar-day-session-proc--none muted">
+                <?= te('audio_reports.day_report.session_procedure_none') ?>
+              </div>
+            <?php endif; ?>
+          </li>
+        <?php endforeach; ?>
+      </ul>
+    </div>
   <?php endif; ?>
 </section>
 
@@ -271,11 +308,6 @@ $levelIcon = static function (string $level): string {
 <section class="ar-day-quality">
   <h2><?= te('audio_reports.day_report.quality_title') ?></h2>
   <p class="ar-day-quality-meta muted">
-    <?= te('audio_reports.day_report.quality_meta', [
-        'sessions' => (string)(int)($quality['session_count'] ?? 0),
-        'procs' => (string)(int)($quality['procedure_count'] ?? 0),
-    ]) ?>
-    ·
     <?php if (!empty($quality['bonus_eligible'])): ?>
       <span class="ar-day-quality-bonus ar-day-quality-bonus--ok">
         <?= te('audio_reports.day_report.quality_bonus_ok', ['sum' => (string)(int)($quality['bonus_sum'] ?? 0)]) ?>
@@ -313,22 +345,25 @@ $levelIcon = static function (string $level): string {
             <span class="muted"><?= (int)($qs['session_count'] ?? 0) ?> <?= te('audio_reports.day_report.quality_sessions') ?></span>
             <?php if ((int)($qs['proc_ratio_min'] ?? 0) > 0 && $qs['proc_ratio_pct'] !== null): ?>
               <span class="ar-day-quality-ratio ar-day-quality-ratio--<?= e((string)$qs['proc_ratio_color']) ?>">
+                <?= e($qualityEmoji((string)$qs['proc_ratio_color'])) ?>
                 <?= te('audio_reports.day_report.quality_proc_ratio', [
                     'pct' => (string)$qs['proc_ratio_pct'],
                     'min' => (string)(int)$qs['proc_ratio_min'],
                 ]) ?>
-                <?= e($qualityEmoji((string)$qs['proc_ratio_color'])) ?>
               </span>
             <?php endif; ?>
           </div>
           <ul class="ar-day-quality-parts">
             <?php foreach (($qs['parts'] ?? []) as $qp): ?>
               <li class="ar-day-quality-part ar-day-quality-part--<?= e((string)$qp['color']) ?>">
-                <span><?= e((string)$qp['name']) ?></span>
-                <span class="muted"><?= (int)$qp['numerator'] ?>/<?= (int)$qp['denominator'] ?> (<?= e((string)$qp['percent']) ?>%)</span>
                 <?php if (!empty($qp['is_scoring'])): ?>
-                  <span><?= e($qualityEmoji((string)$qp['color'])) ?></span>
+                  <span class="ar-day-quality-dot" aria-hidden="true"><?= e($qualityEmoji((string)$qp['color'])) ?></span>
                 <?php else: ?>
+                  <span class="ar-day-quality-dot muted" aria-hidden="true">○</span>
+                <?php endif; ?>
+                <span class="ar-day-quality-part-name"><?= e((string)$qp['name']) ?></span>
+                <span class="muted"><?= (int)$qp['numerator'] ?>/<?= (int)$qp['denominator'] ?> (<?= e((string)$qp['percent']) ?>%)</span>
+                <?php if (empty($qp['is_scoring'])): ?>
                   <span class="muted"><?= te('audio_reports.day_report.quality_ref') ?></span>
                 <?php endif; ?>
               </li>

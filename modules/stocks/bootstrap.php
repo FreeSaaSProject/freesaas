@@ -25,7 +25,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('stocks', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'stocks.edit',
+    'permission' => 'stocks.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => StocksRepository::deleteByIds($ids), 'skipped' => []];

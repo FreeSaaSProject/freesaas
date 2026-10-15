@@ -21,12 +21,16 @@ ModuleManager::registerRoute('/contracts/action', [
     },
 ]);
 
+// Settings UI lives under payroll: /payments/settings (deadline_penalty + settlements).
 ModuleManager::registerRoute('/contracts/settings', [
     'module' => 'contracts',
     'methods' => ['GET', 'POST'],
     'capability' => 'SUPERADMIN_ACCESS',
     'handler' => static function (): void {
-        require base_path('modules/contracts/pages/settings.php');
+        if (ModuleManager::isEnabled('payments')) {
+            redirect('/payments/settings');
+        }
+        redirect('/contracts');
     },
 ]);
 

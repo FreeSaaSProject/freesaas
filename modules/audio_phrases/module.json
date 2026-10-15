@@ -2,7 +2,7 @@
     "id": "audio_phrases",
     "name": "audio_phrases.module.name",
     "description": "audio_phrases.module.description",
-    "version": "0.1.17",
+    "version": "0.1.19",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -22,6 +22,10 @@
         {
             "id": "audio_phrases.edit",
             "label": "audio_phrases.perm.edit"
+        },
+        {
+            "id": "audio_phrases.delete",
+            "label": "audio_phrases.perm.delete"
         }
     ],
     "routes": {

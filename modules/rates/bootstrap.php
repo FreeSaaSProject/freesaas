@@ -23,7 +23,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('rates', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'rates.edit',
+    'permission' => 'rates.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => RatesRepository::deleteByIds($ids), 'skipped' => []];

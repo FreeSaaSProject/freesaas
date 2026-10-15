@@ -78,3 +78,8 @@ $flag = static function (string $key) use ($row): bool {
     <a class="btn-secondary" href="/terminals"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('terminals', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

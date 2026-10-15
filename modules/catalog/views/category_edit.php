@@ -53,3 +53,7 @@ $backHref = $backHref ?? '/catalog';
     <a class="btn-secondary" href="<?= e($backHref ?? '/catalog') ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('catalog_categories', (int)($id ?? $row['id'] ?? 0)) ?>
+<?php endif; ?>
+

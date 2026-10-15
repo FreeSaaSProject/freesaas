@@ -23,17 +23,14 @@ if ($tree === null) {
 $error = '';
 $flash = '';
 
+if (EntityDelete::tryHandle('audio_scripts', $id, $path, [
+    'stay_path' => $path . '/' . $id,
+])) {
+    return;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
-    $action = trim((string)($_POST['action'] ?? 'save'));
     try {
-        if ($action === 'copy') {
-            $newId = RecordsScriptsRepository::copy($id);
-            if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'action' => 'copy', 'id' => $newId, 'tree' => RecordsScriptsRepository::findWithParts($newId)]);
-                return;
-            }
-            redirect($path . '/' . $newId);
-        }
         $meta = RecordsScriptsRepository::metaFromPost($_POST);
         $parts = RecordsScriptsRepository::partsFromPost($_POST);
         if ($parts === []) {
@@ -69,6 +66,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $canEdit) {
 if (!empty($_GET['saved'])) {
     $flash = t('audio_dicts.scripts.saved');
 }
+$importWarnings = [];
+if (!empty($_SESSION['audio_dicts_script_import_warnings']) && is_array($_SESSION['audio_dicts_script_import_warnings'])) {
+    $importWarnings = array_values(array_map('strval', $_SESSION['audio_dicts_script_import_warnings']));
+    unset($_SESSION['audio_dicts_script_import_warnings']);
+    if ($flash === '' && $importWarnings !== []) {
+        $flash = t('audio_dicts.scripts.pack.imported');
+    }
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -95,6 +100,7 @@ View::render('scripts_canvas', [
     'canEdit' => $canEdit,
     'error' => $error,
     'flash' => $flash,
+    'importWarnings' => $importWarnings,
     'dictOptions' => RecordsDictsRepository::options(true),
     'dictPositionMap' => RecordsDictsRepository::positionMap(true),
     'positionOptions' => RecordsScriptsRepository::positionOptions(),

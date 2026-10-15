@@ -48,3 +48,6 @@ $sid = (int)($row['id'] ?? 0);
     <a class="btn-secondary" href="/client-statuses"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (!$isNew): ?>
+<?= EntityDelete::form('client_statuses', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>

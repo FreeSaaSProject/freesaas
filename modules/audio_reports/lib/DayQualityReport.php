@@ -179,9 +179,12 @@ final class DayQualityReport
                     'is_scoring' => $scoring,
                     'gate_red_max' => $redMax,
                     'gate_yellow_max' => $yellowMax,
+                    'hide_from_reports' => !empty($part['hide_from_reports']) ? 1 : 0,
                 ];
                 $partsOut[] = $row;
-                $partRows[] = $row;
+                if (empty($row['hide_from_reports'])) {
+                    $partRows[] = $row;
+                }
             }
 
             // Per-script payout: red or no sessions → this script's amount is missed, not the whole day.
@@ -190,6 +193,10 @@ final class DayQualityReport
                 $bonusSum += $sum;
             }
 
+            $visibleParts = array_values(array_filter(
+                $partsOut,
+                static fn (array $r): bool => empty($r['hide_from_reports'])
+            ));
             $scriptRows[] = [
                 'script_id' => $sid,
                 'name' => (string)$script['name'],
@@ -202,7 +209,7 @@ final class DayQualityReport
                 'proc_ratio_ok' => $procRatioOk,
                 'proc_ratio_color' => $procRatioColor,
                 'has_red' => $scriptHasRed,
-                'parts' => $partsOut,
+                'parts' => $visibleParts,
             ];
         }
 
@@ -321,8 +328,11 @@ final class DayQualityReport
         $gateCols = Database::columnExists('base_records_scripts', 'GATE_RED_MAX')
             ? ', GATE_RED_MAX AS gate_red_max, GATE_YELLOW_MAX AS gate_yellow_max'
             : ', 0 AS gate_red_max, 0 AS gate_yellow_max';
+        $hideCol = Database::columnExists('base_records_scripts', 'HIDE_FROM_REPORTS')
+            ? ', HIDE_FROM_REPORTS AS hide_from_reports'
+            : ', 0 AS hide_from_reports';
         $rows = Database::pdo()->query(
-            "SELECT ID AS id, PID AS pid, NAME AS name {$gateCols}
+            "SELECT ID AS id, PID AS pid, NAME AS name {$gateCols}{$hideCol}
              FROM base_records_scripts
              WHERE PID IN ($in) AND DISABLED < 1
              ORDER BY PID ASC, NUM ASC, ID ASC"
@@ -337,6 +347,7 @@ final class DayQualityReport
                 'name' => trim((string)$row['name']) !== '' ? trim((string)$row['name']) : ('#' . (int)$row['id']),
                 'gate_red_max' => (float)($row['gate_red_max'] ?? 0),
                 'gate_yellow_max' => (float)($row['gate_yellow_max'] ?? 0),
+                'hide_from_reports' => !empty($row['hide_from_reports']) ? 1 : 0,
             ];
         }
 

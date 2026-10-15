@@ -147,4 +147,7 @@ return [
     'orders.stats.day_chip' => 'LS:{n}',
     'orders.module.description' => 'Website orders (base_orders); notice chips; orders.for_day for calendar.',
     'orders.module.summary' => 'Enable for site order list and day feed into calendar. Requires clients. Soft catalog/procedures/bots (Max-group notify). Required by calendar. Use when the public site posts orders into FreeSaaS.',
+    'orders.perm.delete' => 'Delete orders',
+    'orders.err.delete_has_event' => 'Order is linked to a calendar event — unlink first',
+    'orders.err.delete_has_payment' => 'Order has payment data — cannot delete',
 ];

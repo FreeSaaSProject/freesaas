@@ -2,7 +2,7 @@
     "id": "stocks",
     "name": "stocks.module.name",
     "description": "stocks.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -26,6 +26,10 @@
         {
             "id": "stocks.edit",
             "label": "stocks.perm.edit"
+        },
+        {
+            "id": "stocks.delete",
+            "label": "stocks.perm.delete"
         }
     ],
     "routes": {

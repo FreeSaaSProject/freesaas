@@ -24,6 +24,13 @@ if (!$isNew) {
 
 $message = '';
 $error = '';
+
+if (!$isNew && EntityDelete::tryHandle('liquid_assets_accounts', $id, '/liquid-assets/accounts', [
+    'stay_path' => '/liquid-assets/accounts/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = [

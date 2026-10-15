@@ -87,12 +87,12 @@ EventBus::on('core.menu.items', static function ($payload) {
     return $payload;
 });
 
-// Persona name on system Settings (/settings) — next to company branding.
+// Persona name on system Settings (/settings) — Agent section slot.
 EventBus::on('core.settings.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;
     }
-    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_name', [
+    $payload['agent_html'] = (string)($payload['agent_html'] ?? '') . View::capture('_settings_name', [
         'assistant_name' => AssistantConfig::displayName(),
     ], 'assistant');
     return $payload;

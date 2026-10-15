@@ -56,3 +56,8 @@ declare(strict_types=1);
     <a class="btn-secondary" href="/procedure-types"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('procedure_types', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

@@ -94,4 +94,5 @@ return [
     'workweeks.bot.shifts.line' => '{date} ({day}){extra}',
     'workweeks.bot.shifts.line_assist' => '{date} ({day}) — {shift}',
     'workweeks.bot.shifts.blocks' => ' — Block {times}',
+    'workweeks.perm.delete' => 'Delete workweeks',
 ];

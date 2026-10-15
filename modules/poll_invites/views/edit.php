@@ -117,3 +117,8 @@ $chk = static function (string $key) use ($row): string {
     <a class="btn-secondary" href="/poll-invites"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('poll_invites', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

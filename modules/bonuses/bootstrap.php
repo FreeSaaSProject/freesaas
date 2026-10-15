@@ -31,7 +31,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('bonuses', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'bonuses.edit',
+    'permission' => 'bonuses.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => BonusMovesRepository::deleteByIds($ids), 'skipped' => []];

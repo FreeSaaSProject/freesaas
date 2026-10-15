@@ -39,7 +39,21 @@ if (!$isNew) {
     }
 }
 
+$listIdMap = [
+    'dicts' => 'audio_dicts',
+    'keys' => 'audio_keys',
+    'tags' => 'audio_tags',
+    'trashes' => 'audio_trashes',
+];
+$listId = $listIdMap[$entity] ?? 'audio_dicts';
+
 $error = '';
+if (!$isNew && EntityDelete::tryHandle($listId, $id, $path, [
+    'stay_path' => $path . '/' . $id . '/edit',
+])) {
+    return;
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $data = $repo::dataFromPost($_POST);
@@ -81,6 +95,7 @@ $viewData = [
     'error' => $error,
     'path' => $path,
     'id' => $id,
+    'listId' => $listId,
 ];
 if ($entity === 'keys') {
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);

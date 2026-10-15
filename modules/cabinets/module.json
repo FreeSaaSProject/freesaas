@@ -2,7 +2,7 @@
     "id": "cabinets",
     "name": "cabinets.module.name",
     "description": "cabinets.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -20,6 +20,10 @@
         {
             "id": "cabinets.edit",
             "label": "cabinets.perm.edit"
+        },
+        {
+            "id": "cabinets.delete",
+            "label": "cabinets.perm.delete"
         }
     ],
     "routes": {

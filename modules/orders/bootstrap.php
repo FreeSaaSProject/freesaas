@@ -38,6 +38,39 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $route);
 }
 
+BulkActions::register('orders', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'orders.delete',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return OrdersRepository::deleteByIds($ids);
+    },
+]);
+
+EventBus::on('core.bulk.check_item', static function (array $payload): array {
+    if (($payload['list_id'] ?? '') !== 'orders' || ($payload['action'] ?? '') !== 'delete') {
+        return $payload;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    $row = $id > 0 ? OrdersRepository::find($id) : null;
+    if ($row === null) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('core.entity.err.not_found');
+        return $payload;
+    }
+    $eventId = (int)($row['id_event_use'] ?? 0) + (int)($row['id_event_paid'] ?? 0);
+    if ($eventId > 0) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('orders.err.delete_has_event');
+        return $payload;
+    }
+    if (!empty($row['epaid']) || (float)($row['summ_real'] ?? 0) > 0) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('orders.err.delete_has_payment');
+    }
+    return $payload;
+});
+
 EventBus::on('core.notices.collect', static function ($notices) {
     if (!is_array($notices)) {
         $notices = [];

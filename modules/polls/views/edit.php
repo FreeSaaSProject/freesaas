@@ -184,6 +184,11 @@ $chk = static function (string $key) use ($row): string {
   </div>
 </form>
 
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('polls', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+
+
 <?php if (!$isNew && $elType !== PollsRepository::EL_ANSWER): ?>
 <section class="panel" style="margin-top:1.5rem">
   <div class="page-head-row">

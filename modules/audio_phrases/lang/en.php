@@ -79,4 +79,5 @@ return [
     'audio_phrases.settings.delta_surround' => 'Example context',
     'audio_phrases.settings.daily_at' => 'Cron time',
     'audio_phrases.settings.backfill_days' => 'Backfill days',
+    'audio_phrases.perm.delete' => 'Delete phrases',
 ];

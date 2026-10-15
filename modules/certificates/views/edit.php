@@ -146,3 +146,8 @@ $productIds = is_array($row['product_ids'] ?? null) ? $row['product_ids'] : [];
     <a class="btn" href="/certificates"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('certificates', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

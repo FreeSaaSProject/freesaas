@@ -167,6 +167,13 @@ $buildData = static function (array $post, array $current, bool $super, bool $cr
     return $data;
 };
 
+
+if (!$isNew && EntityDelete::tryHandle('core_users', $id, '/users', [
+    'stay_path' => '/users/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = $buildData($_POST, $user, $isSuper, $isNew);

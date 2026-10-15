@@ -98,6 +98,7 @@ View::render('scripts_list', [
     'path' => $path,
     'listId' => $listId,
     'error' => $error,
+    'existingScriptNames' => RecordsScriptsRepository::listRootNames(),
     'roleLabels' => [
         'ordinary' => t('audio_dicts.scripts.role.ordinary'),
         'trigger' => t('audio_dicts.scripts.role.trigger'),

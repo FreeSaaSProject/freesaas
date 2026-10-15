@@ -679,11 +679,65 @@
     });
   }
 
+  function bindDaySessionsToggle(root) {
+    var btn = qs('#ar-day-sessions-toggle', root);
+    var panel = qs('#ar-day-sessions-panel', root);
+    if (!btn || !panel) return;
+    btn.addEventListener('click', function () {
+      var open = btn.getAttribute('aria-expanded') === 'true';
+      open = !open;
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      panel.hidden = !open;
+      var show = btn.getAttribute('data-label-show') || btn.textContent;
+      var hide = btn.getAttribute('data-label-hide') || show;
+      btn.textContent = open ? hide : show;
+    });
+  }
+
+  function bindDayStatHints(root) {
+    var helps = qsa('.ar-day-stat-help', root);
+    if (!helps.length) return;
+
+    function closeAll(except) {
+      helps.forEach(function (wrap) {
+        if (except && wrap === except) return;
+        var b = qs('.ar-day-stat-help-btn', wrap);
+        var hint = qs('.ar-day-stat-hint', wrap);
+        if (b) b.setAttribute('aria-expanded', 'false');
+        if (hint) hint.hidden = true;
+      });
+    }
+
+    helps.forEach(function (wrap) {
+      var btn = qs('.ar-day-stat-help-btn', wrap);
+      var hint = qs('.ar-day-stat-hint', wrap);
+      if (!btn || !hint) return;
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+        var open = btn.getAttribute('aria-expanded') === 'true';
+        closeAll(wrap);
+        open = !open;
+        btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+        hint.hidden = !open;
+      });
+    });
+
+    document.addEventListener('click', function () {
+      closeAll(null);
+    });
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Escape') closeAll(null);
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     bindLeaders(document);
     bindMonthNav(document);
     bindConstructor();
     bindBulkReparse(document);
     bindCollectionSeek(document);
+    bindDaySessionsToggle(document);
+    bindDayStatHints(document);
   });
 })();

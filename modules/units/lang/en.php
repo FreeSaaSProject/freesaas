@@ -20,4 +20,5 @@ return [
     'units.err.name_too_long' => 'Name must be at most 10 characters',
     'units.module.description' => 'Units of measure dictionary (base_units), shared with legacy oper.',
     'units.module.summary' => 'Enable for UoM on products and warehouse docs. Soft-used by catalog and stickers. Lightweight dictionary — safe to enable whenever catalog/stocks are used.',
+    'units.perm.delete' => 'Delete units',
 ];

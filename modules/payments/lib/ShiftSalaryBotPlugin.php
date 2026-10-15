@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-/** Staff bot: freelance shift pay / cash request (oper shift_salary). */
+/** Staff bot: daily payroll cash request (oper shift_salary). */
 final class ShiftSalaryBotPlugin
 {
     public static function register(): void
@@ -51,7 +51,7 @@ final class ShiftSalaryBotPlugin
 
     private static function canShow(int $uid): bool
     {
-        if (FreelancePayout::isFreelancer($uid)) {
+        if (DayPayroll::isDailyPayStaff($uid)) {
             return true;
         }
         $u = UsersRepository::find($uid);
@@ -71,13 +71,13 @@ final class ShiftSalaryBotPlugin
             self::showHome($ctx, $uid);
             return true;
         }
-        if (preg_match('/^shift_salary_req_(\d+)$/', $data, $m)) {
-            $res = FreelancePayout::createRequest($uid, (int)$m[1], $uid);
+        if (preg_match('/^shift_salary_req_(\d+)_(\d+)$/', $data, $m)) {
+            $res = DayPayroll::createRequest($uid, (int)$m[1], $uid, (int)$m[2]);
             BotClient::replyUi($ctx, (string)$res['msg'], self::kbHome());
             return true;
         }
         if (preg_match('/^shift_salary_cancel_(\d+)$/', $data, $m)) {
-            $res = FreelancePayout::cancelRequest((int)$m[1], $uid);
+            $res = DayPayroll::cancelRequest((int)$m[1], $uid);
             BotClient::replyUi($ctx, (string)$res['msg'], self::kbHome());
             return true;
         }
@@ -92,13 +92,15 @@ final class ShiftSalaryBotPlugin
             return;
         }
 
-        if (!FreelancePayout::isFreelancer($uid)) {
+        if (!DayPayroll::isDailyPayStaff($uid)) {
             BotClient::replyUi($ctx, t('payments.bot.salary.assist_only'), self::kbMenu());
             return;
         }
 
-        $bal = FreelancePayout::balance($uid);
-        $max = FreelancePayout::maxRequestSum($uid);
+        DayPayroll::syncOperator($uid, $uid);
+
+        $bal = DayPayroll::balance($uid);
+        $max = DayPayroll::maxRequestSum($uid);
         $lines = [
             t('payments.bot.salary.title'),
             t('payments.bot.salary.balance', ['sum' => $bal]),
@@ -106,12 +108,12 @@ final class ShiftSalaryBotPlugin
         ];
 
         $rows = [];
-        $pending = FreelancePayout::pendingRequests($uid);
+        $pending = DayPayroll::pendingRequests($uid);
         if ($pending !== []) {
             $p = $pending[0];
-            $pin = FreelancePayout::extractPin((string)$p['descr']);
-            $issuerId = FreelancePayout::extractAdminId((string)$p['descr']);
-            $issuer = $issuerId > 0 ? FreelancePayout::contactLine($issuerId) : '—';
+            $pin = DayPayroll::extractPin((string)$p['descr']);
+            $issuerId = DayPayroll::extractAdminId((string)$p['descr']);
+            $issuer = $issuerId > 0 ? DayPayroll::contactLine($issuerId) : '—';
             $lines[] = t('payments.bot.salary.pending', [
                 'sum' => (float)$p['sum'],
                 'date' => date('d.m.Y', (int)$p['dt']),
@@ -123,20 +125,26 @@ final class ShiftSalaryBotPlugin
                 'callback_data' => 'shift_salary_cancel_' . (int)$p['id'],
             ]];
         } else {
-            $gate = FreelancePayout::requestAvailable();
+            $gate = DayPayroll::requestAvailable();
             if (!$gate['ok']) {
                 $lines[] = $gate['reason'];
-            } elseif (FreelancePayout::blockedUntilAfterShift($uid)) {
-                $lines[] = t('payments.bot.fl.after_shift');
+            } elseif (DayPayroll::blockedUntilAfterShift($uid)) {
+                $lines[] = t('payments.bot.day_pay.after_shift');
             } elseif ($max < 100) {
-                $lines[] = t('payments.bot.fl.low_balance');
+                $lines[] = t('payments.bot.day_pay.low_balance');
             } else {
                 $lines[] = t('payments.bot.salary.pick_date');
-                foreach (FreelancePayout::availableDates(5) as $d) {
-                    $rows[] = [[
-                        'text' => (string)$d['label'] . ' — ' . $max . ' ₽',
-                        'callback_data' => 'shift_salary_req_' . (int)$d['ts'],
-                    ]];
+                foreach (DayPayroll::availableDates(5) as $d) {
+                    $ts = (int)$d['ts'];
+                    $admins = $d['admin_ids'];
+                    foreach ($admins as $aid) {
+                        $aid = (int)$aid;
+                        $name = DayPayroll::userName($aid);
+                        $rows[] = [[
+                            'text' => (string)$d['label'] . ' / ' . $name . ' — ' . $max . ' ₽',
+                            'callback_data' => 'shift_salary_req_' . $ts . '_' . $aid,
+                        ]];
+                    }
                 }
             }
         }

@@ -131,4 +131,5 @@ return [
     'liquid_assets.accounts.err.token' => 'Укажите Bearer token',
     'liquid_assets.accounts.err.not_found' => 'T-Invest счёт #{id} не найден',
     'liquid_assets.err.forbidden' => 'Нет доступа',
+    'liquid_assets.perm.delete' => 'Удаление брокерских счетов',
 ];

@@ -26,6 +26,10 @@
         {
             "id": "bi.manage",
             "label": "bi.perm.manage"
+        },
+        {
+            "id": "bi.delete",
+            "label": "bi.perm.delete"
         }
     ],
     "routes": {

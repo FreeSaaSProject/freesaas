@@ -26,7 +26,7 @@ foreach ($pages as $path => $def) {
 }
 BulkActions::register('funds', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'funds.edit',
+    'permission' => 'funds.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => FundsRepository::deleteByIds($ids), 'skipped' => []];
@@ -34,7 +34,7 @@ BulkActions::register('funds', 'delete', [
 ]);
 BulkActions::register('fund_movements', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'funds.edit',
+    'permission' => 'funds.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => FundMovementsRepository::deleteByIds($ids), 'skipped' => []];

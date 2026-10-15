@@ -61,6 +61,11 @@ $type = (int)($row['type'] ?? StocksRepository::TYPE_REAL);
     <a class="btn-secondary" href="/stocks"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('stocks', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+
 <script>
 (function () {
   var sel = document.getElementById('stock-type');

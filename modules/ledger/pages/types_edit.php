@@ -24,6 +24,13 @@ if (!$isNew) {
 }
 $message = '';
 $error = '';
+
+if (!$isNew && EntityDelete::tryHandle('ledger_types', $id, '/ledger/types', [
+    'stay_path' => '/ledger/types/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = AccountMoveTypesRepository::dataFromPost($_POST);

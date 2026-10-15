@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "0.1.5",
+    "version": "0.1.7",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -50,6 +50,14 @@
         {
             "id": "ledger.reconcile",
             "label": "ledger.perm.reconcile"
+        },
+        {
+            "id": "ledger.delete",
+            "label": "ledger.perm.delete"
+        },
+        {
+            "id": "ledger.types.delete",
+            "label": "ledger.perm.types_delete"
         }
     ],
     "routes": {
@@ -64,7 +72,8 @@
             "/ledger/moves/new",
             "/ledger/moves/attach-act",
             "/ledger/moves/{id}/edit",
-            "/ledger/transfers/new"
+            "/ledger/transfers/new",
+            "/ledger/transfers/{id}/edit"
         ]
     },
     "agent": {
@@ -189,8 +198,8 @@
                 "id": "ledger.moves.delete",
                 "method": "POST",
                 "path": "/ledger/moves/{id}/edit",
-                "permission": "ledger.edit",
-                "description": "Soft-delete one move by id. Find id via ledger.moves.list first (q=keyword). UI will ask user to Confirm. action=delete is filled automatically.",
+                "permission": "ledger.delete",
+                "description": "Soft-delete move; POST action=delete",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -202,14 +211,22 @@
                     "required": [
                         "id"
                     ]
-                }
+                },
+                "side_effect": "write"
             },
             {
                 "id": "ledger.moves.transfer",
                 "method": "POST",
                 "path": "/ledger/transfers/new",
                 "permission": "ledger.edit",
-                "description": "Create paired transfer between accounts (linked type)"
+                "description": "Create paired transfer; also POST /ledger/transfers/{id}/edit to update both legs"
+            },
+            {
+                "id": "ledger.moves.transfer.get",
+                "method": "GET",
+                "path": "/ledger/transfers/{id}/edit",
+                "permission": "ledger.edit",
+                "description": "Get paired transfer by either leg id; linked moves must use this form, not /ledger/moves/{id}/edit"
             },
             {
                 "id": "ledger.moves.attach_act.options",

@@ -44,6 +44,76 @@ if (!$canSeeOthers) {
     $userId = Auth::userId();
 }
 
+$dayPayMessage = '';
+$dayPayError = '';
+$me = Auth::userId();
+$isCashIssuer = class_exists('DayPayroll', false) && $me > 0 && DayPayroll::isCashIssuer($me);
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && class_exists('DayPayroll', false)) {
+    $action = (string)($_POST['day_pay_action'] ?? '');
+    if ($action !== '') {
+        try {
+            if ($action === 'request') {
+                if (!DayPayroll::isDailyPayStaff($me) || ($canSeeOthers && $userId !== $me)) {
+                    throw new RuntimeException(t('payments.bot.day_pay.only_daily'));
+                }
+                $slot = (string)($_POST['payout_slot'] ?? '');
+                $dayTs = 0;
+                $issuerId = 0;
+                if (preg_match('/^(\d+)_(\d+)$/', $slot, $m)) {
+                    $dayTs = (int)$m[1];
+                    $issuerId = (int)$m[2];
+                } else {
+                    $dayTs = (int)($_POST['payout_day'] ?? 0);
+                    $issuerId = (int)($_POST['issuer_id'] ?? 0);
+                }
+                $res = DayPayroll::createRequest($me, $dayTs, $me, $issuerId);
+                if (empty($res['ok'])) {
+                    throw new RuntimeException((string)($res['msg'] ?? t('payments.bot.day_pay.unavailable')));
+                }
+                $dayPayMessage = (string)$res['msg'];
+                if ($wantsJson) {
+                    AgentHttp::emit(['ok' => true, 'action' => 'day_pay_request', 'result' => $res]);
+                    return;
+                }
+            } elseif ($action === 'cancel') {
+                $payId = (int)($_POST['payment_id'] ?? 0);
+                $res = DayPayroll::cancelRequest($payId, $me);
+                if (empty($res['ok'])) {
+                    throw new RuntimeException((string)($res['msg'] ?? t('payments.bot.day_pay.not_found')));
+                }
+                $dayPayMessage = (string)$res['msg'];
+                if ($wantsJson) {
+                    AgentHttp::emit(['ok' => true, 'action' => 'day_pay_cancel', 'result' => $res]);
+                    return;
+                }
+            } elseif ($action === 'verify_pin') {
+                if (!$isCashIssuer) {
+                    throw new RuntimeException(t('payments.bot.day_pay.unavailable'));
+                }
+                $payId = (int)($_POST['payment_id'] ?? 0);
+                $pin = (string)($_POST['pin'] ?? '');
+                $res = DayPayroll::verifyPin($payId, $pin, $me);
+                if (empty($res['ok'])) {
+                    throw new RuntimeException((string)($res['msg'] ?? t('payments.bot.day_pay.bad_pin')));
+                }
+                $dayPayMessage = (string)$res['msg'];
+                if ($wantsJson) {
+                    AgentHttp::emit(['ok' => true, 'action' => 'day_pay_verify_pin', 'result' => $res]);
+                    return;
+                }
+            }
+        } catch (Throwable $e) {
+            AgentHttp::rethrowIfCapture($e);
+            if ($wantsJson) {
+                AgentHttp::error($e->getMessage(), 400);
+                return;
+            }
+            $dayPayError = $e->getMessage();
+        }
+    }
+}
+
 $lq = ListQuery::resolve([
     'list_id' => 'payments',
     'allowed' => PaymentsRepository::listSortMap(),
@@ -72,6 +142,26 @@ if ($mode === 'monthly' || !empty($lq['show_all'])) {
 }
 
 BulkActions::tryHandle('payments', '/payments', $filters);
+
+// Eager procents → current-month accrual row when one staff is in scope and view covers this month.
+$syncUserId = $canSeeOthers ? $userId : Auth::userId();
+$cy = (int)date('Y');
+$cm = (int)date('n');
+$coversCurrentMonth = ($mode === 'monthly' && $year === $cy && ($month === 0 || $month === $cm))
+    || ($mode !== 'monthly' && ($year < 1 || ($year === $cy && ($month < 1 || $month === $cm))));
+if ($syncUserId > 0 && $coversCurrentMonth) {
+    if (class_exists('DayPayroll', false) && DayPayroll::isDailyPayStaff($syncUserId)) {
+        DayPayroll::syncOperator($syncUserId, Auth::userId());
+    } elseif (ModuleManager::isEnabled('procents')) {
+        $repoLib = base_path('modules/procents/lib/ProcentsRepository.php');
+        $syncLib = base_path('modules/procents/lib/ProcentsPaymentSync.php');
+        if (is_file($repoLib) && is_file($syncLib)) {
+            require_once $repoLib;
+            require_once $syncLib;
+            ProcentsPaymentSync::syncStaffCurrentMonth($syncUserId);
+        }
+    }
+}
 
 $listOpts = [
     'q' => $q,
@@ -213,9 +303,21 @@ if ($wantsJson) {
     if ($ledgerEnabled) {
         $payload['dps_by_payment'] = $dpsByPayment;
     }
+
+    $dayPayPanel = class_exists('DayPayroll', false)
+        ? DayPayroll::panelForList($me, $userId, $canSeeOthers, $dayPayMessage, $dayPayError)
+        : null;
+    if ($dayPayPanel !== null) {
+        $payload['day_pay'] = $dayPayPanel;
+    }
     AgentHttp::emit($payload);
     return;
 }
+
+$dayPayPanel = class_exists('DayPayroll', false)
+    ? DayPayroll::panelForList($me, $userId, $canSeeOthers, $dayPayMessage, $dayPayError)
+    : null;
+$actionUrl = ListQuery::url('/payments', $filters, []);
 
 View::render('list', [
     'title' => t('payments.menu.list'),
@@ -249,4 +351,6 @@ View::render('list', [
     'showAll' => $mode === 'monthly' || !empty($lq['show_all']),
     'filters' => $filters,
     'bulkFlash' => $bulkFlash,
+    'dayPayPanel' => $dayPayPanel,
+    'actionUrl' => $actionUrl,
 ], 'layout', 'payments');

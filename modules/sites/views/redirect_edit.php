@@ -42,3 +42,7 @@ $hostOptions = $hostOptions ?? [];
     <a class="btn-secondary" href="/sites/redirects"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('sites_redirects', (int)($row['id'] ?? $item['id'] ?? 0)) ?>
+<?php endif; ?>
+

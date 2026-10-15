@@ -50,9 +50,11 @@ final class RatesRepository
         }
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
+        $audioCols = self::audioRateSelectSql('h');
         $sql = "SELECT h.ID AS id, h.ID_OPERATOR AS operator_id, h.DT AS dt, h.DESCR AS descr,
                        h.content, h.content_sales, h.content_income, h.content_terminal,
                        h.LOSS AS loss, h.LOSS_FIX AS loss_fix, h.OFFERS AS offers
+                       $audioCols
                 FROM base_procent_history h
                 WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
@@ -72,11 +74,13 @@ final class RatesRepository
         if ($id < 1 || !Database::tableExists('base_procent_history')) {
             return null;
         }
+        $audioCols = self::audioRateSelectSql('');
         $st = Database::pdo()->prepare(
-            'SELECT ID AS id, ID_OPERATOR AS operator_id, DT AS dt, DESCR AS descr,
+            "SELECT ID AS id, ID_OPERATOR AS operator_id, DT AS dt, DESCR AS descr,
                     content, content_sales, content_income, content_terminal,
                     LOSS AS loss, LOSS_FIX AS loss_fix, OFFERS AS offers
-             FROM base_procent_history WHERE ID = ? LIMIT 1'
+                    $audioCols
+             FROM base_procent_history WHERE ID = ? LIMIT 1"
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -92,13 +96,15 @@ final class RatesRepository
         if ($operatorId < 1 || !Database::tableExists('base_procent_history')) {
             return null;
         }
+        $audioCols = self::audioRateSelectSql('');
         $st = Database::pdo()->prepare(
-            'SELECT ID AS id, ID_OPERATOR AS operator_id, DT AS dt, DESCR AS descr,
+            "SELECT ID AS id, ID_OPERATOR AS operator_id, DT AS dt, DESCR AS descr,
                     content, content_sales, content_income, content_terminal,
                     LOSS AS loss, LOSS_FIX AS loss_fix, OFFERS AS offers
+                    $audioCols
              FROM base_procent_history
              WHERE ID_OPERATOR = ? AND DT <= ?
-             ORDER BY DT DESC, ID DESC LIMIT 1'
+             ORDER BY DT DESC, ID DESC LIMIT 1"
         );
         $st->execute([$operatorId, $ts]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -150,29 +156,55 @@ final class RatesRepository
             'loss' => (float)str_replace(',', '.', (string)($post['loss'] ?? '0')),
             'loss_fix' => (float)str_replace(',', '.', (string)($post['loss_fix'] ?? '0')),
             'offers' => (int)($post['offers'] ?? 0),
+            'audio_hour_rate' => (float)str_replace(',', '.', (string)($post['audio_hour_rate'] ?? '0')),
+            'script_score_rate' => (float)str_replace(',', '.', (string)($post['script_score_rate'] ?? '0')),
         ];
     }
 
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_procent_history
-             (ID_OPERATOR, DT, DESCR, content, content_sales, content_income, content_terminal, LOSS, LOSS_FIX, OFFERS)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $st->execute([
-            $data['operator_id'],
-            $data['dt'],
-            $data['descr'],
-            serialize($data['content']),
-            serialize($data['content_sales']),
-            serialize($data['content_income']),
-            serialize($data['content_terminal']),
-            $data['loss'],
-            $data['loss_fix'],
-            $data['offers'],
-        ]);
+        $hasAudio = self::hasAudioRateColumns();
+        if ($hasAudio) {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_procent_history
+                 (ID_OPERATOR, DT, DESCR, content, content_sales, content_income, content_terminal,
+                  LOSS, LOSS_FIX, OFFERS, AUDIO_HOUR_RATE, SCRIPT_SCORE_RATE)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['operator_id'],
+                $data['dt'],
+                $data['descr'],
+                serialize($data['content']),
+                serialize($data['content_sales']),
+                serialize($data['content_income']),
+                serialize($data['content_terminal']),
+                $data['loss'],
+                $data['loss_fix'],
+                $data['offers'],
+                (float)($data['audio_hour_rate'] ?? 0),
+                (float)($data['script_score_rate'] ?? 0),
+            ]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_procent_history
+                 (ID_OPERATOR, DT, DESCR, content, content_sales, content_income, content_terminal, LOSS, LOSS_FIX, OFFERS)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $data['operator_id'],
+                $data['dt'],
+                $data['descr'],
+                serialize($data['content']),
+                serialize($data['content_sales']),
+                serialize($data['content_income']),
+                serialize($data['content_terminal']),
+                $data['loss'],
+                $data['loss_fix'],
+                $data['offers'],
+            ]);
+        }
         return (int)Database::pdo()->lastInsertId();
     }
 
@@ -182,26 +214,53 @@ final class RatesRepository
         if ($id < 1) {
             throw new InvalidArgumentException('Invalid rate id');
         }
-        $st = Database::pdo()->prepare(
-            'UPDATE base_procent_history SET
-             ID_OPERATOR = ?, DT = ?, DESCR = ?,
-             content = ?, content_sales = ?, content_income = ?, content_terminal = ?,
-             LOSS = ?, LOSS_FIX = ?, OFFERS = ?
-             WHERE ID = ?'
-        );
-        $st->execute([
-            $data['operator_id'],
-            $data['dt'],
-            $data['descr'],
-            serialize($data['content']),
-            serialize($data['content_sales']),
-            serialize($data['content_income']),
-            serialize($data['content_terminal']),
-            $data['loss'],
-            $data['loss_fix'],
-            $data['offers'],
-            $id,
-        ]);
+        $hasAudio = self::hasAudioRateColumns();
+        if ($hasAudio) {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_procent_history SET
+                 ID_OPERATOR = ?, DT = ?, DESCR = ?,
+                 content = ?, content_sales = ?, content_income = ?, content_terminal = ?,
+                 LOSS = ?, LOSS_FIX = ?, OFFERS = ?,
+                 AUDIO_HOUR_RATE = ?, SCRIPT_SCORE_RATE = ?
+                 WHERE ID = ?'
+            );
+            $st->execute([
+                $data['operator_id'],
+                $data['dt'],
+                $data['descr'],
+                serialize($data['content']),
+                serialize($data['content_sales']),
+                serialize($data['content_income']),
+                serialize($data['content_terminal']),
+                $data['loss'],
+                $data['loss_fix'],
+                $data['offers'],
+                (float)($data['audio_hour_rate'] ?? 0),
+                (float)($data['script_score_rate'] ?? 0),
+                $id,
+            ]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_procent_history SET
+                 ID_OPERATOR = ?, DT = ?, DESCR = ?,
+                 content = ?, content_sales = ?, content_income = ?, content_terminal = ?,
+                 LOSS = ?, LOSS_FIX = ?, OFFERS = ?
+                 WHERE ID = ?'
+            );
+            $st->execute([
+                $data['operator_id'],
+                $data['dt'],
+                $data['descr'],
+                serialize($data['content']),
+                serialize($data['content_sales']),
+                serialize($data['content_income']),
+                serialize($data['content_terminal']),
+                $data['loss'],
+                $data['loss_fix'],
+                $data['offers'],
+                $id,
+            ]);
+        }
     }
 
     /**
@@ -243,6 +302,8 @@ final class RatesRepository
                 'loss' => (float)$row['loss'],
                 'loss_fix' => (float)$row['loss_fix'],
                 'offers' => (int)$row['offers'],
+                'audio_hour_rate' => (float)($row['audio_hour_rate'] ?? 0),
+                'script_score_rate' => (float)($row['script_score_rate'] ?? 0),
             ]);
             $done++;
         }
@@ -283,6 +344,8 @@ final class RatesRepository
                 'loss' => (float)$row['loss'],
                 'loss_fix' => (float)$row['loss_fix'],
                 'offers' => (int)$row['offers'],
+                'audio_hour_rate' => (float)($row['audio_hour_rate'] ?? 0),
+                'script_score_rate' => (float)($row['script_score_rate'] ?? 0),
             ]);
             $done++;
         }
@@ -326,7 +389,28 @@ final class RatesRepository
         $row['loss'] = (float)($row['loss'] ?? 0);
         $row['loss_fix'] = (float)($row['loss_fix'] ?? 0);
         $row['offers'] = (int)($row['offers'] ?? 0);
+        $row['audio_hour_rate'] = (float)($row['audio_hour_rate'] ?? 0);
+        $row['script_score_rate'] = (float)($row['script_score_rate'] ?? 0);
         return $row;
+    }
+
+    public static function hasAudioRateColumns(): bool
+    {
+        return Database::tableExists('base_procent_history')
+            && Database::columnExists('base_procent_history', 'AUDIO_HOUR_RATE')
+            && Database::columnExists('base_procent_history', 'SCRIPT_SCORE_RATE');
+    }
+
+    /**
+     * Leading comma fragment for SELECT lists, or empty when columns absent.
+     */
+    private static function audioRateSelectSql(string $alias): string
+    {
+        if (!self::hasAudioRateColumns()) {
+            return '';
+        }
+        $p = $alias !== '' ? $alias . '.' : '';
+        return ", {$p}AUDIO_HOUR_RATE AS audio_hour_rate, {$p}SCRIPT_SCORE_RATE AS script_score_rate";
     }
 
     private static function parseDt(string $raw): int

@@ -83,6 +83,7 @@ try {
             'instances_min' => (int)($_POST['instances_min'] ?? 0),
             'gate_red_max' => max(0.0, (float)($_POST['gate_red_max'] ?? 0)),
             'gate_yellow_max' => max(0.0, (float)($_POST['gate_yellow_max'] ?? 0)),
+            'hide_from_reports' => !empty($_POST['hide_from_reports']) ? 1 : 0,
             'disabled' => !empty($_POST['disabled']) ? 1 : 0,
             'dict_ids' => [],
         ];

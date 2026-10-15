@@ -27,3 +27,7 @@ declare(strict_types=1);
     <a class="btn-secondary" href="/payment-types"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('payment_types', (int)($row['id'] ?? $item['id'] ?? 0)) ?>
+<?php endif; ?>
+

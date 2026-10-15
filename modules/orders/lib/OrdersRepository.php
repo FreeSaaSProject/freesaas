@@ -1128,6 +1128,44 @@ final class OrdersRepository
         return ['ok' => true, 'cancelled' => 1];
     }
 
+    /**
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function deleteByIds(array $ids): array
+    {
+        $done = 0;
+        $skipped = [];
+        $pdo = Database::pdo();
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $row = self::find($id);
+            if ($row === null) {
+                $skipped[] = ['id' => $id, 'reason' => t('core.entity.err.not_found')];
+                continue;
+            }
+            // Block when linked to a calendar event or payment settlement.
+            $eventId = (int)($row['id_event_use'] ?? 0) + (int)($row['id_event_paid'] ?? 0);
+            if ($eventId > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('orders.err.delete_has_event')];
+                continue;
+            }
+            if (!empty($row['epaid']) || (float)($row['summ_real'] ?? 0) > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('orders.err.delete_has_payment')];
+                continue;
+            }
+            if (!Database::tableExists('base_orders')) {
+                continue;
+            }
+            $pdo->prepare('DELETE FROM base_orders WHERE ID = ?')->execute([$id]);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
     private static function newStatusInSql(): string
     {
         return "'" . implode("','", self::NEW_STATUSES) . "'";

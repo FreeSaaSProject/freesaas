@@ -72,6 +72,16 @@ Platform install/ops (`/agent/db*`, token) remain separate — see [remote-api.m
 
 **Storefront diagnose example:** `sites.status` → `GET /sites/status?format=json` (hosts, soft deps, booking, `issues[]`; product overlays via EventBus `sites.diagnose`). Runbook: [sites.md](sites.md).
 
+## Delete ops
+
+Product delete (edit `action=delete` or BulkActions `delete`) requires:
+
+1. Staff permission `*.delete` (superadmin bypasses via `Auth::can`).
+2. No blocking related rows (`core.bulk.check_item`).
+3. When the client asks for JSON (`AgentHttp::wantsJson()`), platform flag **`app.agent_allow_delete=1`** (Settings → Agent). Default is off — agents get `403` with `core.entity.agent_delete_denied`.
+
+Declare delete ops with `permission: module.delete`, `side_effect: write`, and `POST` to the same edit path as humans (`action=delete`).
+
 ## Helper
 
-[`app/AgentHttp.php`](../../app/AgentHttp.php) — `wantsJson()`, `emit()`, `error()`, `opsForModule()`, `normalizeOp()`.
+[`app/AgentHttp.php`](../../app/AgentHttp.php) — `wantsJson()`, `allowsDelete()`, `emit()`, `error()`, `opsForModule()`, `normalizeOp()`.

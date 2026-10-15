@@ -84,4 +84,5 @@ return [
     'bonuses.err.forbidden' => 'Нет доступа',
     'bonuses.err.apply_failed' => 'Не удалось применить бонусы',
     'bonuses.err.table' => 'Таблица бонусного журнала отсутствует',
+    'bonuses.perm.delete' => 'Удаление бонусных движений',
 ];

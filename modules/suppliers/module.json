@@ -2,7 +2,7 @@
     "id": "suppliers",
     "name": "suppliers.module.name",
     "description": "suppliers.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -20,6 +20,10 @@
         {
             "id": "suppliers.edit",
             "label": "suppliers.perm.edit"
+        },
+        {
+            "id": "suppliers.delete",
+            "label": "suppliers.perm.delete"
         }
     ],
     "routes": {

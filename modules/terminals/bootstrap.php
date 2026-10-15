@@ -66,7 +66,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('terminals', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'terminals.edit',
+    'permission' => 'terminals.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => TerminalsRepository::deleteByIds($ids), 'skipped' => []];
@@ -75,7 +75,7 @@ BulkActions::register('terminals', 'delete', [
 
 BulkActions::register('terminals_bracelets', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'terminals.edit',
+    'permission' => 'terminals.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => BraceletsRepository::deleteByIds($ids), 'skipped' => []];

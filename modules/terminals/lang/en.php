@@ -313,4 +313,5 @@ return [
     'terminals.t.err.book' => 'Could not register service',
     'terminals.floor.title' => 'Floor book (agent)',
     'terminals.floor.hint' => 'POST JSON to this path for procedure-mode book/cancel. Public NFC shell is /t.',
+    'terminals.perm.delete' => 'Delete terminals / bracelets',
 ];

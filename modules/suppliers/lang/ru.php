@@ -36,4 +36,5 @@ return [
     'suppliers.err.name_too_long' => 'Название не длиннее 40 символов',
     'suppliers.module.description' => 'Справочник поставщиков (base_suppliers), общий с legacy oper.',
     'suppliers.module.summary' => 'Включайте для карточек поставщиков в catalog и приходных стикерах. Мягко — ledger и stickers. Справочник — включайте вместе со складом/каталогом.',
+    'suppliers.perm.delete' => 'Удаление поставщиков',
 ];

@@ -1,6 +1,6 @@
 # Vacations
 
-Product module `vacations`: Enable for staff vacation register and approvals. Depends only on core. Accounting/HR module — independent of calendar shifts. Catalog maturity: `beta`.
+Product module `vacations`: Enable for staff vacation register and approvals. Depends only on core. Team rail (next to shifts); independent of calendar booking. Catalog maturity: `beta`.
 
 ## Enable
 
@@ -26,7 +26,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 ## Human UI
 
-- `/vacations` — leave register and sign workflow.
+- `/vacations` — leave register and sign workflow (menu: Team, after Shifts).
 
 | Path | Permission |
 |------|------------|

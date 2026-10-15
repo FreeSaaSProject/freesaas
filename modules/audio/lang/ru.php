@@ -265,4 +265,5 @@ return [
     'audio.bot.badge.no_analytics' => 'Аудиоаналитика для вас отключена.',
     'audio.bot.badge.not_on_shift_day' => 'Бейдж доступен только в день смены.',
     'audio.bot.badge.again' => 'Выбрать снова',
+    'audio.perm.delete' => 'Удаление записей кабин',
 ];

@@ -131,4 +131,5 @@ return [
     'liquid_assets.accounts.err.token' => 'Bearer token is required',
     'liquid_assets.accounts.err.not_found' => 'T-Invest account #{id} not found',
     'liquid_assets.err.forbidden' => 'Forbidden',
+    'liquid_assets.perm.delete' => 'Delete broker accounts',
 ];

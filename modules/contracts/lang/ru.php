@@ -4,7 +4,6 @@ declare(strict_types=1);
 return [
     'contracts.module.name' => 'Контракты',
     'contracts.menu.list' => 'Контракты',
-    'contracts.menu.settings' => 'Настройки',
     'contracts.perm.list' => 'Контракты (список)',
     'contracts.perm.manage' => 'Контракты (управление)',
     'contracts.eyebrow' => 'Модуль · Контракты',
@@ -83,7 +82,6 @@ return [
     'contracts.sort.acceptor' => 'Приёмщик',
     'contracts.sort.ticket' => 'Заявка',
     'contracts.user_edit.acceptor' => 'Может принимать задачи (контракты)',
-    'contracts.settings.lede' => 'Правила оплаты контрактов. Только для суперадминистратора.',
     'contracts.settings.deadline_penalty' => 'Сокращение при просрочке',
     'contracts.settings.deadline_penalty_hint' => 'Если работа принята после дедлайна, сумма взаиморасчёта уменьшается пропорционально превышению срока (как в oper). Выключите, чтобы всегда платить полную PRICE_OFFER. Пишется в cfg/modules/contracts.ini → [contracts] deadline_penalty.',
     'contracts.settings.deadline_penalty_label' => 'Сокращать вознаграждение при просрочке дедлайна',

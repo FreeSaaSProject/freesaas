@@ -426,4 +426,8 @@ return [
     'sites.shop.nav_aria' => 'Категории каталога',
     'sites.shop.price' => 'Цена',
     'sites.shop.title' => 'Каталог',
+    'sites.perm.delete' => 'Удаление хостов',
+    'sites.perm.promopages_delete' => 'Удаление промо-страниц',
+    'sites.perm.pages_delete' => 'Удаление страниц CMS',
+    'sites.perm.redirects_delete' => 'Удаление редиректов',
 ];

@@ -520,26 +520,187 @@ final class LedgerMovesRepository
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
+        // Legacy oper schemas often have NOT NULL columns without DEFAULT (strict SQL mode).
+        // Send explicit zeros / empty strings for columns that exist.
+        $cols = [
+            'ID_ACCOUNT', 'ID_TYPE', 'ID_ACT_IN', 'DIRECTION', 'SUMM', 'DESCR',
+            'DT', 'DT_CREATE', 'ID_USER_CREATE', 'UNCONFIRMED',
+            'ID_PAYMENT', 'ID_SUPPLIER', 'ID_USER_PAYMENT', 'ID_FUND_MOVEMENT',
+            'ID_ACT2_IN', 'ACT2_NOT_REQ', 'DT_PROMISED', 'PROMISE_EXECUTED',
+            'ID_MOVEMENT_LINKED', 'ID_ACCOUNT_TO', 'DELETED',
+        ];
+        $params = [
+            (int)$data['account_id'],
+            (int)$data['type_id'],
+            0, // ID_ACT_IN
+            (int)$data['direction'],
+            $data['summ'],
+            (string)$data['descr'],
+            (int)$data['dt'],
+            (int)$data['dt_create'],
+            (int)$data['user_create'],
+            (int)$data['unconfirmed'],
+            (int)$data['payment_id'],
+            (int)$data['supplier_id'],
+            (int)$data['user_payment'],
+            (int)$data['fund_movement_id'],
+            (int)($data['act2_in'] ?? 0),
+            (int)($data['act2_not_req'] ?? 0),
+            (int)($data['dt_promised'] ?? 0),
+            (int)($data['promise_executed'] ?? 0),
+            (int)$data['linked_id'],
+            (int)$data['account_to'],
+            0, // DELETED
+        ];
+        $optionalZero = [
+            'ID_INCASS' => (int)($data['incass_id'] ?? 0),
+            'UNTAKEN' => (int)($data['untaken'] ?? 0),
+            'DT_TAKE' => (int)($data['dt_take'] ?? 0),
+            'ID_USER_TAKE' => (int)($data['user_take'] ?? 0),
+            'ID_USER_UPDATE' => (int)($data['user_update'] ?? 0),
+            'DT_UPDATE' => (int)($data['dt_update'] ?? 0),
+            'COUNT_AS_INDIRECT' => (int)($data['count_as_indirect'] ?? 0),
+            'AMORT_REQ' => (int)($data['amort_req'] ?? 0),
+            'AMORT_MONTHS' => (int)($data['amort_months'] ?? 0),
+            'AMORT_DATE_START' => (int)($data['amort_date_start'] ?? 0),
+            'AMORT_DATE_END' => (int)($data['amort_date_end'] ?? 0),
+            'ID_ACTIVE' => (int)($data['active_id'] ?? 0),
+            'IS_VARIABLE' => (int)($data['is_variable'] ?? 0),
+            'ID_COMMENT' => (int)($data['comment_id'] ?? 0),
+        ];
+        foreach ($optionalZero as $col => $val) {
+            if (Database::columnExists('base_account_moves', $col)) {
+                $cols[] = $col;
+                $params[] = $val;
+            }
+        }
+        $optionalEmpty = [
+            'TAKE_DESCR' => (string)($data['take_descr'] ?? ''),
+            'TYPES_PROC' => (string)($data['types_proc'] ?? ''),
+        ];
+        foreach ($optionalEmpty as $col => $val) {
+            if (Database::columnExists('base_account_moves', $col)) {
+                $cols[] = $col;
+                $params[] = $val;
+            }
+        }
+        $placeholders = implode(', ', array_fill(0, count($cols), '?'));
         $st = Database::pdo()->prepare(
-            'INSERT INTO base_account_moves
-             (ID_ACCOUNT, ID_TYPE, DIRECTION, SUMM, DESCR, DT, DT_CREATE, ID_USER_CREATE,
-              UNCONFIRMED, ID_PAYMENT, ID_SUPPLIER, ID_USER_PAYMENT, ID_FUND_MOVEMENT,
-              ID_ACT2_IN, ACT2_NOT_REQ, DT_PROMISED, PROMISE_EXECUTED,
-              ID_MOVEMENT_LINKED, ID_ACCOUNT_TO, DELETED)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)'
+            'INSERT INTO base_account_moves (' . implode(', ', $cols) . ') VALUES (' . $placeholders . ')'
         );
-        $st->execute([
-            $data['account_id'], $data['type_id'], $data['direction'], $data['summ'],
-            $data['descr'], $data['dt'], $data['dt_create'], $data['user_create'],
-            $data['unconfirmed'], $data['payment_id'], $data['supplier_id'],
-            $data['user_payment'], $data['fund_movement_id'],
-            (int)($data['act2_in'] ?? 0), (int)($data['act2_not_req'] ?? 0),
-            (int)($data['dt_promised'] ?? 0), (int)($data['promise_executed'] ?? 0),
-            $data['linked_id'], $data['account_to'],
-        ]);
+        $st->execute($params);
         $id = (int)Database::pdo()->lastInsertId();
         LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$data['account_id']);
         return $id;
+    }
+
+    /** True when move is one side of a paired transfer. */
+    public static function isTransferMove(array $row): bool
+    {
+        return (int)($row['linked_id'] ?? 0) > 0;
+    }
+
+    /**
+     * Resolve transfer pair for either side id.
+     * @return array{from:array<string,mixed>,to:array<string,mixed>}|null
+     */
+    public static function findTransferPair(int $id): ?array
+    {
+        $row = self::find($id);
+        if (!$row || (int)($row['deleted'] ?? 0) > 0) {
+            return null;
+        }
+        $linked = (int)($row['linked_id'] ?? 0);
+        if ($linked < 1) {
+            return null;
+        }
+        $twin = self::find($linked);
+        if (!$twin || (int)($twin['deleted'] ?? 0) > 0) {
+            return null;
+        }
+        // Prefer outbound (direction < 0) as "from"; else lower id (created first).
+        if ((int)$row['direction'] < 0 && (int)$twin['direction'] >= 0) {
+            return ['from' => $row, 'to' => $twin];
+        }
+        if ((int)$twin['direction'] < 0 && (int)$row['direction'] >= 0) {
+            return ['from' => $twin, 'to' => $row];
+        }
+        if ((int)$row['id'] <= (int)$twin['id']) {
+            return ['from' => $row, 'to' => $twin];
+        }
+        return ['from' => $twin, 'to' => $row];
+    }
+
+    /**
+     * Update both sides of a transfer (keeps pairing).
+     * @return array{from_id:int,to_id:int}
+     */
+    public static function updateTransfer(
+        int $eitherId,
+        int $typeId,
+        int $accountFrom,
+        int $accountTo,
+        float $summ,
+        int $dt,
+        string $descr
+    ): array {
+        $pair = self::findTransferPair($eitherId);
+        if ($pair === null) {
+            throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $eitherId]));
+        }
+        if ($accountFrom < 1 || $accountTo < 1) {
+            throw new InvalidArgumentException(t('ledger.moves.err.account_to'));
+        }
+        if ($accountFrom === $accountTo) {
+            throw new InvalidArgumentException(t('ledger.moves.err.same_account'));
+        }
+        if ($summ <= 0) {
+            throw new InvalidArgumentException(t('ledger.moves.err.sum'));
+        }
+        $type = AccountMoveTypesRepository::find($typeId);
+        if (!$type || empty($type['linked_enabled'])) {
+            throw new InvalidArgumentException(t('ledger.moves.err.type'));
+        }
+        if ($dt < 1) {
+            $dt = time();
+        }
+        $dirFrom = (int)($type['direction'] ?? -1);
+        if ($dirFrom === 0) {
+            $dirFrom = -1;
+        }
+        $dirTo = -$dirFrom;
+        $fromId = (int)$pair['from']['id'];
+        $toId = (int)$pair['to']['id'];
+        $uid = Auth::userId();
+        $now = time();
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $st = $pdo->prepare(
+                'UPDATE base_account_moves SET
+                 ID_ACCOUNT = ?, ID_TYPE = ?, DIRECTION = ?, SUMM = ?, DESCR = ?, DT = ?,
+                 ID_ACCOUNT_TO = ?, UNCONFIRMED = 0,
+                 ID_USER_UPDATE = ?, DT_UPDATE = ?
+                 WHERE ID = ? AND DELETED = 0'
+            );
+            $st->execute([$accountFrom, $typeId, $dirFrom, $summ, $descr, $dt, $accountTo, $uid, $now, $fromId]);
+            $st->execute([$accountTo, $typeId, $dirTo, $summ, $descr, $dt, $accountFrom, $uid, $now, $toId]);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+        LedgerReconciliationsRepository::refreshTodaySystemBalance($accountFrom);
+        LedgerReconciliationsRepository::refreshTodaySystemBalance($accountTo);
+        $oldFrom = (int)$pair['from']['account_id'];
+        $oldTo = (int)$pair['to']['account_id'];
+        if ($oldFrom !== $accountFrom && $oldFrom > 0) {
+            LedgerReconciliationsRepository::refreshTodaySystemBalance($oldFrom);
+        }
+        if ($oldTo !== $accountTo && $oldTo > 0) {
+            LedgerReconciliationsRepository::refreshTodaySystemBalance($oldTo);
+        }
+        return ['from_id' => $fromId, 'to_id' => $toId];
     }
 
     /** Append a note to the end of DESCR (keeps existing purpose). */
@@ -697,7 +858,10 @@ final class LedgerMovesRepository
         if (!$type) {
             throw new RuntimeException(t('ledger.err.fot_type_missing', ['account' => $account]));
         }
-        $accountId = (int)($type['account_id'] ?? 0);
+        $accountId = (int)($payment['ledger_account_override'] ?? 0);
+        if ($accountId < 1) {
+            $accountId = (int)($type['account_id'] ?? 0);
+        }
         if ($accountId < 1) {
             throw new RuntimeException('Type has no default account: #' . (int)$type['id']);
         }
@@ -706,9 +870,20 @@ final class LedgerMovesRepository
             $dir = -1;
         }
         $dt = (int)($payment['dt'] ?? time());
+        $payDescr = (string)($payment['descr'] ?? '');
+        if (class_exists('DayPayroll', false) && DayPayroll::isPayoutDescr($payDescr)) {
+            $payDescr = DayPayroll::maskDescr($payDescr);
+        } elseif (method_exists(self::class, 'descrForList')) {
+            $payDescr = self::descrForList($payDescr);
+        }
         $descr = 'Авто-ДПС из платежа #' . $paymentId;
-        if ((string)($payment['descr'] ?? '') !== '') {
-            $descr .= ': ' . mb_strimwidth((string)$payment['descr'], 0, 120, '…');
+        if ($payDescr !== '') {
+            $descr .= ': ' . mb_strimwidth($payDescr, 0, 120, '…');
+        }
+
+        $userCreate = Auth::userId();
+        if ($userCreate < 1) {
+            $userCreate = (int)($payment['user_id'] ?? 0);
         }
 
         return self::create([
@@ -719,7 +894,7 @@ final class LedgerMovesRepository
             'descr' => $descr,
             'dt' => $dt,
             'dt_create' => time(),
-            'user_create' => Auth::userId(),
+            'user_create' => $userCreate,
             'unconfirmed' => 0,
             'payment_id' => $paymentId,
             'supplier_id' => 0,
@@ -728,6 +903,7 @@ final class LedgerMovesRepository
             'linked_id' => 0,
             'account_to' => 0,
             'deleted' => 0,
+            'incass_id' => 0,
         ]);
     }
 
@@ -938,7 +1114,7 @@ final class LedgerMovesRepository
     }
 
     /**
-     * List/display description without machine tags (oper freelance_payout_mask_descr).
+     * List/display description without machine tags (oper day-payroll PIN/ADMIN tags).
      * Full DESCR stays intact on edit.
      */
     public static function descrForList(string $descr): string

@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.7",
+    "version": "0.3.8",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -44,6 +44,10 @@
         {
             "id": "likespa.restores",
             "label": "likespa.perm.restores"
+        },
+        {
+            "id": "likespa.restores.delete",
+            "label": "likespa.perm.restores_delete"
         }
     ],
     "routes": {

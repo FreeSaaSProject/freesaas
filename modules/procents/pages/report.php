@@ -25,8 +25,16 @@ $report = [
     'soft_notes' => [],
     'range_label' => '',
 ];
+$paymentSync = [
+    'synced' => false,
+    'sum' => 0.0,
+    'payment_id' => null,
+    'label' => '',
+];
 if ($operatorId > 0) {
     $report = ProcentsRepository::report($operatorId, $year, $month);
+    // Eager sync current calendar month only (past journal months untouched).
+    $paymentSync = ProcentsPaymentSync::syncFromReport($operatorId, $report);
 }
 
 $years = range((int)date('Y'), (int)date('Y') - 5);
@@ -43,6 +51,7 @@ if ($wantsJson) {
         'month' => $month > 0 ? $month : null,
         'can_see_others' => $canSeeOthers,
         'report' => $report,
+        'payment_sync' => $paymentSync,
         'staff' => $canSeeOthers ? $staff : [],
     ]);
     return;
@@ -60,4 +69,5 @@ View::render('report', [
     'staff' => $staff,
     'canSeeOthers' => $canSeeOthers,
     'report' => $report,
+    'paymentSync' => $paymentSync,
 ], 'layout', 'procents');

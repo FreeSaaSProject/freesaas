@@ -22,7 +22,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('norms', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'norms.edit',
+    'permission' => 'norms.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => NormsRepository::deleteByIds($ids), 'skipped' => []];

@@ -70,6 +70,13 @@ if (!PaymentsRepository::ledgerEnabled()) {
     $warn = t('payments.flash.dps_stub');
 }
 
+
+if (!$isNew && EntityDelete::tryHandle('payments', $id, '/payments', [
+    'stay_path' => '/payments/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         if (!$isNew && !empty($_POST['create_dps']) && PaymentsRepository::ledgerEnabled()) {

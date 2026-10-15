@@ -313,4 +313,5 @@ return [
     'terminals.t.err.book' => 'Не удалось зарегистрировать услугу',
     'terminals.floor.title' => 'Запись с пола (agent)',
     'terminals.floor.hint' => 'POST JSON на этот путь для procedure-mode book/cancel. Публичная NFC-оболочка — /t.',
+    'terminals.perm.delete' => 'Удаление терминалов / браслетов',
 ];

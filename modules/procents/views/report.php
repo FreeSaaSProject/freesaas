@@ -7,13 +7,22 @@ declare(strict_types=1);
 /** @var array<int,string> $staff */
 /** @var bool $canSeeOthers */
 /** @var array{periods:list<array<string,mixed>>,grand_total:float,soft_notes:list<string>,range_label:string} $report */
+/** @var array{synced:bool,sum:float,payment_id:int|null,label:string} $paymentSync */
 $path = '/procents';
+$paymentSync = is_array($paymentSync ?? null) ? $paymentSync : ['synced' => false, 'sum' => 0.0, 'payment_id' => null, 'label' => ''];
+$currentMonthLabel = date('Y-m');
 
 $fmt = static function (float $n): string {
     return number_format($n, 0, '.', ' ');
 };
 $fmtRate = static function (float $n): string {
     return rtrim(rtrim(number_format($n * 100, 2, '.', ''), '0'), '.') . '%';
+};
+$fmtAbsRate = static function (float $n): string {
+    return rtrim(rtrim(number_format($n, 4, '.', ''), '0'), '.');
+};
+$fmtQty = static function (float $n): string {
+    return rtrim(rtrim(number_format($n, 2, '.', ' '), '0'), '.');
 };
 ?>
 <section class="page-head">
@@ -79,10 +88,14 @@ $fmtRate = static function (float $n): string {
 
       <?php
         $sections = [
+          'rows_shifts' => t('procents.section.shifts'),
           'rows_proc' => t('procents.section.procedures'),
           'rows_terminal' => t('procents.section.terminal'),
           'rows_sales' => t('procents.section.sales'),
+          'rows_audio' => t('procents.section.audio'),
+          'rows_scripts' => t('procents.section.scripts'),
         ];
+        $absoluteKeys = ['rows_shifts' => true, 'rows_audio' => true, 'rows_scripts' => true];
       ?>
       <?php foreach ($sections as $key => $title): ?>
         <?php $rows = is_array($period[$key] ?? null) ? $period[$key] : []; ?>
@@ -94,18 +107,21 @@ $fmtRate = static function (float $n): string {
               <tr>
                 <th><?= te('procents.col.type') ?></th>
                 <th><?= te('procents.col.descr') ?></th>
-                <th><?= te('procents.col.sum') ?></th>
+                <th><?= !empty($absoluteKeys[$key]) ? te('procents.col.qty') : te('procents.col.sum') ?></th>
                 <th><?= te('procents.col.rate') ?></th>
                 <th><?= te('procents.col.accrued') ?></th>
               </tr>
             </thead>
             <tbody>
             <?php foreach ($rows as $r): ?>
+              <?php
+                $abs = (($r['rate_kind'] ?? '') === 'absolute') || !empty($absoluteKeys[$key]);
+              ?>
               <tr>
                 <td><?= e((string)$r['type']) ?></td>
                 <td><?= e((string)$r['descr']) ?></td>
-                <td><?= e($fmt((float)$r['sum'])) ?></td>
-                <td><?= e($fmtRate((float)$r['rate'])) ?></td>
+                <td><?= e($abs ? $fmtQty((float)$r['sum']) : $fmt((float)$r['sum'])) ?></td>
+                <td><?= e($abs ? $fmtAbsRate((float)$r['rate']) : $fmtRate((float)$r['rate'])) ?></td>
                 <td><?= e($fmt((float)$r['accrued'])) ?></td>
               </tr>
             <?php endforeach; ?>
@@ -115,6 +131,9 @@ $fmtRate = static function (float $n): string {
       <?php endforeach; ?>
 
       <p><strong><?= te('procents.month_total') ?>:</strong> <?= e($fmt((float)$period['total'])) ?></p>
+      <?php if (!empty($paymentSync['synced']) && (string)($period['label'] ?? '') === $currentMonthLabel): ?>
+        <p class="muted"><?= te('procents.payment_sync.hint', ['sum' => $fmt((float)$paymentSync['sum'])]) ?></p>
+      <?php endif; ?>
     </section>
   <?php endforeach; ?>
 

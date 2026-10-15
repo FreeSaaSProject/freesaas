@@ -5,9 +5,17 @@ require_once __DIR__ . '/lib/PaymentTypesRepository.php';
 require_once __DIR__ . '/lib/PaymentsRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveLinksRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveAllocUi.php';
-require_once __DIR__ . '/lib/FreelancePayout.php';
+require_once __DIR__ . '/lib/DayPayroll.php';
 require_once __DIR__ . '/lib/ShiftSalaryBotPlugin.php';
-require_once __DIR__ . '/lib/FreelancePayoutBotPlugin.php';
+require_once __DIR__ . '/lib/DayPayrollBotPlugin.php';
+
+StatusesRepository::registerFieldGroup([
+    'title' => 'payments.statuses.group',
+    'when' => 'payments',
+    'fields' => [
+        ['key' => 'PAY_DAILY', 'label' => 'payments.statuses.field.PAY_DAILY', 'type' => 'checkbox'],
+    ],
+]);
 
 Assets::register('payments', [
     'css' => ['payments.css'],
@@ -16,6 +24,11 @@ Assets::register('payments', [
 
 $pages = [
     '/payments' => ['permission' => 'payments.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
+    '/payments/settings' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'settings.php',
+    ],
     '/payments/new' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/payments/{id}/edit' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/payments/move-links/{moveId}' => ['permission' => 'payments.edit', 'methods' => ['POST'], 'file' => 'move_links.php'],
@@ -26,19 +39,25 @@ $pages = [
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'payments',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/payments/pages/' . $file);
         },
-    ]);
+    ];
+    if (!empty($def['capability'])) {
+        $route['capability'] = $def['capability'];
+    }
+    if (!empty($def['permission'])) {
+        $route['permission'] = $def['permission'];
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 BulkActions::register('payments', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'payments.edit',
+    'permission' => 'payments.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         $res = PaymentsRepository::deleteByIds($ids);
@@ -102,7 +121,7 @@ BulkActions::register('payments', 'create_dps', [
 
 BulkActions::register('payment_types', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'payments.types',
+    'permission' => 'payments.types.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => PaymentTypesRepository::deleteByIds($ids), 'skipped' => []];
@@ -163,7 +182,7 @@ EventBus::on('ledger.moves.badges', static function ($payload) {
 
 $registerPaymentsBots = static function (): void {
     ShiftSalaryBotPlugin::register();
-    FreelancePayoutBotPlugin::register();
+    DayPayrollBotPlugin::register();
 };
 if (ModuleManager::isEnabled('bots')) {
     $registerPaymentsBots();

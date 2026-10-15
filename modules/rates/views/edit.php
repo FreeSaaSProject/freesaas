@@ -5,8 +5,10 @@ declare(strict_types=1);
 /** @var array<int,string> $staff */
 /** @var array<int,string> $typeNames */
 /** @var string $dtValue */
+/** @var bool $showAudioRates */
 /** @var string $message */
 /** @var string $error */
+$showAudioRates = !empty($showAudioRates);
 
 $sections = [
     'content' => t('rates.section.content'),
@@ -46,6 +48,14 @@ $sections = [
   <label><?= te('rates.col.offers') ?>
     <input name="offers" type="number" min="0" value="<?= e((string)($row['offers'] ?? '0')) ?>">
   </label>
+  <?php if ($showAudioRates): ?>
+  <label><?= te('rates.col.audio_hour_rate') ?>
+    <input name="audio_hour_rate" value="<?= e((string)($row['audio_hour_rate'] ?? '0')) ?>">
+  </label>
+  <label><?= te('rates.col.script_score_rate') ?>
+    <input name="script_score_rate" value="<?= e((string)($row['script_score_rate'] ?? '0')) ?>">
+  </label>
+  <?php endif; ?>
 
   <?php foreach ($sections as $key => $label): ?>
     <fieldset class="form-fieldset">
@@ -70,3 +80,8 @@ $sections = [
     <a class="btn-secondary" href="/rates"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('rates', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

@@ -28,6 +28,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('sites_redirects', $id, '/sites/redirects', [
+    'stay_path' => '/sites/redirects/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = RedirectsRepository::dataFromPost($_POST);

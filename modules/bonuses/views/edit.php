@@ -75,3 +75,8 @@ $refType = (string)($row['ref_type'] ?? '');
     <a class="btn-secondary" href="/bonuses"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('bonuses', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

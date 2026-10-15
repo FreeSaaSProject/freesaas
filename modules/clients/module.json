@@ -2,7 +2,7 @@
     "id": "clients",
     "name": "clients.module.name",
     "description": "clients.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -33,6 +33,18 @@
         {
             "id": "clients.tags",
             "label": "clients.perm.tags"
+        },
+        {
+            "id": "clients.delete",
+            "label": "clients.perm.delete"
+        },
+        {
+            "id": "clients.tags.delete",
+            "label": "clients.perm.tags_delete"
+        },
+        {
+            "id": "clients.statuses.delete",
+            "label": "clients.perm.statuses_delete"
         }
     ],
     "routes": {
@@ -173,6 +185,14 @@
                 "path": "/client-tags/{id}/edit",
                 "permission": "clients.tags",
                 "description": "Update client tag"
+            },
+            {
+                "id": "clients.delete",
+                "method": "POST",
+                "path": "/clients/{id}/edit",
+                "permission": "clients.delete",
+                "side_effect": "write",
+                "description": "Delete client; POST action=delete"
             }
         ]
     },

@@ -23,7 +23,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('cabinets', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'cabinets.edit',
+    'permission' => 'cabinets.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => CabinetsRepository::deleteByIds($ids), 'skipped' => []];

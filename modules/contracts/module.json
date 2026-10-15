@@ -2,14 +2,14 @@
     "id": "contracts",
     "name": "contracts.module.name",
     "description": "contracts.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
         "comments": ">=0.1.0"
     },
     "optionalRequires": {
-        "payments": ">=0.1.0"
+        "payments": ">=0.1.10"
     },
     "provides": [
         "contracts.offer",
@@ -67,29 +67,6 @@
                         "comment_id"
                     ]
                 }
-            },
-            {
-                "id": "contracts.settings.get",
-                "method": "GET",
-                "path": "/contracts/settings",
-                "permission": "contracts.list",
-                "description": "Contracts settings (route capability SUPERADMIN_ACCESS): deadline_penalty bool"
-            },
-            {
-                "id": "contracts.settings.update",
-                "method": "POST",
-                "path": "/contracts/settings",
-                "permission": "contracts.list",
-                "description": "Save contracts settings (SUPERADMIN_ACCESS). Pass deadline_penalty bool; omit to leave unchanged",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "deadline_penalty": {
-                            "type": "boolean",
-                            "description": "Reduce settlement payout when deadline is overrun"
-                        }
-                    }
-                }
             }
         ]
     },
@@ -100,13 +77,6 @@
             "num": 10,
             "path": "/contracts",
             "title": "contracts.menu.list"
-        },
-        {
-            "group": "core.menu.group.accounting",
-            "num": 11,
-            "path": "/contracts/settings",
-            "title": "contracts.menu.settings",
-            "capability": "SUPERADMIN_ACCESS"
         }
     ],
     "configSchema": {

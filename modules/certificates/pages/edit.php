@@ -52,6 +52,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('certificates', $id, '/certificates', [
+    'stay_path' => '/certificates/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = CertificatesRepository::dataFromPost($_POST, $isNew);

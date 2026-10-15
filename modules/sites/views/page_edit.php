@@ -70,3 +70,7 @@ $hostOptions = $hostOptions ?? [];
     <a class="btn-secondary" href="/sites/pages"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('sites_pages', (int)($row['id'] ?? $item['id'] ?? 0)) ?>
+<?php endif; ?>
+

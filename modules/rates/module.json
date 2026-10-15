@@ -2,14 +2,16 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "0.1.1",
+    "version": "0.1.4",
     "type": "product",
     "runtime": "both",
     "requires": {
         "core": ">=0.3.0",
         "procedures": ">=0.1.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "audio": ">=0.1.0"
+    },
     "provides": [
         "rates.list"
     ],
@@ -22,6 +24,10 @@
         {
             "id": "rates.edit",
             "label": "rates.perm.edit"
+        },
+        {
+            "id": "rates.delete",
+            "label": "rates.perm.delete"
         }
     ],
     "routes": {

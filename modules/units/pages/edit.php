@@ -27,6 +27,12 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+if (!$isNew && EntityDelete::tryHandle('units', $id, '/units', [
+    'stay_path' => '/units/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = UnitsRepository::dataFromPost($_POST);

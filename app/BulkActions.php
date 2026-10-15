@@ -111,6 +111,28 @@ final class BulkActions
         return $out;
     }
 
+    /**
+     * Registered action definition, or null.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function actionDef(string $listId, string $actionId): ?array
+    {
+        $listId = trim($listId);
+        $actionId = trim($actionId);
+        if ($listId === '' || $actionId === '') {
+            return null;
+        }
+        $def = self::$actions[$listId][$actionId] ?? null;
+        return is_array($def) ? $def : null;
+    }
+
+    /** @param array<string,mixed> $def */
+    public static function isAllowed(array $def): bool
+    {
+        return self::allowed($def);
+    }
+
     /** @param array<string,mixed> $def */
     private static function allowed(array $def): bool
     {
@@ -180,6 +202,14 @@ final class BulkActions
             ];
         }
         $def = $actions[$actionId];
+        if ($actionId === 'delete' && AgentHttp::wantsJson() && !AgentHttp::allowsDelete()) {
+            return [
+                'done' => 0,
+                'skipped' => [],
+                'action' => $actionId,
+                'error' => t('core.entity.agent_delete_denied'),
+            ];
+        }
         // Prefer packed ids_json (avoids PHP max_input_vars dropping csrf / ids on large selects).
         $rawIds = [];
         $idsJson = trim((string)($post['ids_json'] ?? ''));

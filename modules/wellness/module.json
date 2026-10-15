@@ -2,7 +2,7 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.2.18",
+    "version": "0.2.19",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -23,6 +23,10 @@
         {
             "id": "wellness.edit",
             "label": "wellness.perm.edit"
+        },
+        {
+            "id": "wellness.delete",
+            "label": "wellness.perm.delete"
         }
     ],
     "routes": {

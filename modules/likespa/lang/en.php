@@ -218,4 +218,5 @@ return [
     'likespa.procedures.bracelet_label' => 'Bracelet',
     'likespa.procedures.link_terminal' => '[Terminal!]',
     'likespa.procedures.link_folio' => 'folio',
+    'likespa.perm.restores_delete' => 'Delete procedure restores',
 ];

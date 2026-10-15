@@ -20,4 +20,5 @@ return [
     'tables.err.not_found' => 'Стол #{id} не найден',
     'tables.module.description' => 'Справочник массажных столов (base_tables); без модуля ID_TABLE = 1.',
     'tables.module.summary' => 'Включайте для выбора стола в процедурах/календаре. Мягко — procedures, calendar, workweeks. Опционально — можно жить с дефолтным столом 1.',
+    'tables.perm.delete' => 'Удаление кушеток',
 ];

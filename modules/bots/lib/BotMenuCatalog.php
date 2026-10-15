@@ -119,10 +119,10 @@ final class BotMenuCatalog
                 'kind' => 'cabinet',
             ],
             [
-                'id' => 'freelance_payout_admin',
-                'label_key' => 'bots.catalog.staff.freelance_payout_admin',
+                'id' => 'day_payroll_issuer',
+                'label_key' => 'bots.catalog.staff.day_payroll_issuer',
                 'module' => 'payments',
-                'aliases' => ['freelance_payout_admin'],
+                'aliases' => ['day_payroll_issuer'],
                 'kind' => 'cabinet',
             ],
             [

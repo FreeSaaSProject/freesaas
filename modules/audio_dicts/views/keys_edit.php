@@ -25,3 +25,7 @@ $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
     <a href="<?= e($path) ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (empty($isNew)): ?>
+<?= EntityDelete::form((string)($listId ?? 'audio_dicts'), (int)($id ?? $row['id'] ?? 0)) ?>
+<?php endif; ?>
+

@@ -210,4 +210,5 @@ return [
     'wellness.bot.voice_fail' => 'Не удалось принять голосовое. Попробуйте ещё раз.',
     'wellness.bot.voice_queued' => 'Голосовое принято. Расшифровываю и добавляю еду… Job: {id}',
     'wellness.bot.voice_asr_err' => 'Ошибка распознавания голосового: {error}',
+    'wellness.perm.delete' => 'Удаление записей wellness',
 ];

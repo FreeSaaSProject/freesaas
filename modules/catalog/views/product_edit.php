@@ -272,6 +272,10 @@ $backHref = $backHref ?? '/catalog';
   <input type="hidden" name="action" value="recalc_components">
   <button class="btn-secondary" type="submit"><?= te('catalog.rel.recalc_btn') ?></button>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('catalog_products', (int)($id ?? $row['id'] ?? 0)) ?>
+<?php endif; ?>
+
 <?php endif; ?>
 
 <?php

@@ -23,6 +23,7 @@ $pages = [
     '/ledger/moves/attach-act' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'attach_act.php'],
     '/ledger/moves/{id}/edit' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'moves_edit.php'],
     '/ledger/transfers/new' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'transfers_edit.php'],
+    '/ledger/transfers/{id}/edit' => ['permission' => 'ledger.edit', 'methods' => ['GET', 'POST'], 'file' => 'transfers_edit.php'],
 ];
 
 foreach ($pages as $path => $def) {
@@ -39,7 +40,7 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('ledger_accounts', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'ledger.edit',
+    'permission' => 'ledger.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => LedgerAccountsRepository::deleteByIds($ids), 'skipped' => []];
@@ -48,7 +49,7 @@ BulkActions::register('ledger_accounts', 'delete', [
 
 BulkActions::register('ledger_types', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'ledger.types',
+    'permission' => 'ledger.types.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => AccountMoveTypesRepository::deleteByIds($ids), 'skipped' => []];
@@ -73,8 +74,16 @@ BulkActions::register('ledger_moves', 'unconfirm', [
 
 BulkActions::register('ledger_moves', 'soft_delete', [
     'label' => 'ledger.moves.bulk.soft_delete',
-    'permission' => 'ledger.edit',
+    'permission' => 'ledger.delete',
     'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return LedgerMovesRepository::softDeleteByIds($ids);
+    },
+]);
+BulkActions::register('ledger_moves', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'ledger.delete',
+    'confirm' => 'ledger.moves.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return LedgerMovesRepository::softDeleteByIds($ids);
     },

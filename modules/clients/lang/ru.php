@@ -126,4 +126,8 @@ return [
 {tel}',
     'clients.module.description' => 'CRM клиентов: base_clients, статусы; логин — телефон.',
     'clients.module.summary' => 'Включайте для базы клиентов и статусов. Мягко — bots для messenger-связок. Нужен clientics, yclients, bonuses, calendar, orders, procedures и др. Базовый CRM-блок — включайте рано.',
+    'clients.perm.delete' => 'Удаление клиентов',
+    'clients.perm.tags_delete' => 'Удаление тегов клиентов',
+    'clients.perm.statuses_delete' => 'Удаление статусов клиентов',
+    'clients.status.err.in_use' => 'Статус используется у {n} клиент(ов) — сначала переназначьте',
 ];

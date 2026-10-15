@@ -2,7 +2,7 @@
     "id": "norms",
     "name": "norms.module.name",
     "description": "norms.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -21,6 +21,10 @@
         {
             "id": "norms.edit",
             "label": "norms.perm.edit"
+        },
+        {
+            "id": "norms.delete",
+            "label": "norms.perm.delete"
         }
     ],
     "routes": {

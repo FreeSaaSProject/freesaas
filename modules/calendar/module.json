@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -32,6 +32,10 @@
         {
             "id": "calendar.edit",
             "label": "calendar.perm.edit"
+        },
+        {
+            "id": "calendar.delete",
+            "label": "calendar.perm.delete"
         }
     ],
     "routes": {
@@ -103,6 +107,14 @@
                 "path": "/calendar/settings",
                 "permission": "calendar.view",
                 "description": "Save manual_create and work hours (superadmin capability on route)"
+            },
+            {
+                "id": "calendar.events.delete",
+                "method": "POST",
+                "path": "/calendar/events/{id}/edit",
+                "permission": "calendar.delete",
+                "side_effect": "write",
+                "description": "Delete event; needs calendar.delete + EVT_DELETE"
             }
         ]
     },

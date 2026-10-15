@@ -53,4 +53,8 @@ return [
     'core.bulk.err.forbidden' => 'Not allowed to run this action',
     'core.bulk.flash.done' => 'Processed: {n}.',
     'core.bulk.flash.skipped' => 'Skipped: {n}.',
+    'core.entity.confirm_delete' => 'Delete this record? This cannot be undone.',
+    'core.entity.agent_delete_denied' => 'Agent delete is disabled in Settings. Turn on «Allow agents to delete» or use the staff UI.',
+    'core.entity.err.not_found' => 'Record not found.',
+    'core.entity.err.delete_failed' => 'Could not delete this record.',
 ];

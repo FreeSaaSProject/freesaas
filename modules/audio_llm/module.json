@@ -28,6 +28,10 @@
         {
             "id": "audio_llm.edit",
             "label": "audio_llm.perm.edit"
+        },
+        {
+            "id": "audio_llm.delete",
+            "label": "audio_llm.perm.delete"
         }
     ],
     "routes": {

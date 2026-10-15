@@ -40,6 +40,13 @@ if (!$isNew) {
 $message = '';
 $error = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('bonuses', $id, '/bonuses', [
+    'stay_path' => '/bonuses/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = BonusMovesRepository::dataFromPost($_POST);

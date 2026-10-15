@@ -42,6 +42,13 @@ $error = '';
 $isClone = !empty($row['is_clone']);
 $modulesFlash = '';
 
+
+if (!$isNew && EntityDelete::tryHandle('sites_promopages', $id, '/sites/promopages', [
+    'stay_path' => '/sites/promopages/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $parentId = (int)($_POST['id_parent'] ?? 0);

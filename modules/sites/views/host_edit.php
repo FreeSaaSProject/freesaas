@@ -101,3 +101,7 @@ $extraHtml = (string)($extraHtml ?? '');
   <p><a class="btn-secondary" href="/sites/hosts"><?= te('core.common.cancel') ?></a></p>
   <?php endif; ?>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('sites_hosts', (int)($row['id'] ?? $item['id'] ?? 0)) ?>
+<?php endif; ?>
+

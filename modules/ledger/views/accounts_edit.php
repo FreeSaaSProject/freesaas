@@ -24,3 +24,8 @@ declare(strict_types=1);
     <a class="btn-secondary" href="/accounts"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('ledger_accounts', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

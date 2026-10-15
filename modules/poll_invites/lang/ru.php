@@ -72,4 +72,5 @@ return [
     'poll_invites.err.linked_locked' => 'Открыть может только назначенный оператор',
     'poll_invites.module.description' => 'Инстансы приглашений на опросы и заполнение сотрудниками; хуки для bots/site.',
     'poll_invites.module.summary' => 'Включайте для рассылки/заполнения опросов. Требует polls. Мягко clients/bonuses. Публикует poll_invites.* для bots и сайта.',
+    'poll_invites.perm.delete' => 'Удаление приглашений',
 ];

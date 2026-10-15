@@ -144,4 +144,5 @@ return [
     'certificates.err.forbidden' => 'Запрещено',
     'certificates.err.delete_superadmin' => 'Удалять сертификаты может только директор',
     'certificates.err.insufficient_balance' => 'Недостаточно остатка на сертификате',
+    'certificates.perm.delete' => 'Удаление сертификатов',
 ];

@@ -154,6 +154,7 @@
     part.instances_min = parseInt(part.instances_min, 10) || 0;
     part.gate_red_max = parseFloat(part.gate_red_max) || 0;
     part.gate_yellow_max = parseFloat(part.gate_yellow_max) || 0;
+    part.hide_from_reports = part.hide_from_reports === 1 || part.hide_from_reports === '1' ? 1 : 0;
     setPartRoles(part, partRoles(part));
     return part;
   }
@@ -781,6 +782,8 @@
             '<label>' + esc(i18n.gateYellowMax || 'yellow %') + '<input type="number" min="0" step="0.1" data-field="gate_yellow_max" value="' + esc(part.gate_yellow_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
             '<p class="scripts-field-hint">' + esc(i18n.gateYellowMaxHint || '') + '</p>'
           : '') +
+        '<label class="checkbox"><input type="checkbox" data-field="hide_from_reports" value="1"' + (part.hide_from_reports ? ' checked' : '') + (canEdit ? '' : ' disabled') + '> ' + esc(i18n.hideFromReports || 'Hide from reports') + '</label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.hideFromReportsHint || '') + '</p>' +
         '</div>' +
         (canEdit
           ? '<div class="scripts-panel-section scripts-panel-actions form-actions">' +
@@ -945,7 +948,8 @@
           diversity: 0,
           instances_min: 0,
           gate_red_max: 0,
-          gate_yellow_max: 0
+          gate_yellow_max: 0,
+          hide_from_reports: 0
         });
         selected = parts.length - 1;
         refresh();
@@ -956,13 +960,6 @@
       form.addEventListener('submit', function (ev) {
         parts.forEach(normalizePart);
         syncHidden();
-        var action = '';
-        if (ev.submitter && ev.submitter.getAttribute) {
-          action = ev.submitter.getAttribute('value') || '';
-        }
-        if (action === 'copy') {
-          return;
-        }
         for (var i = 0; i < parts.length; i++) {
           if (!(parts[i].name || '').trim()) {
             ev.preventDefault();
@@ -993,8 +990,193 @@
       });
     }
 
+    Array.prototype.forEach.call(root.querySelectorAll('[data-scripts-download]'), function (a) {
+      a.addEventListener('click', function (ev) {
+        var msg = a.getAttribute('data-confirm') || '';
+        if (msg && !window.confirm(msg)) {
+          ev.preventDefault();
+        }
+      });
+    });
+
     parts.forEach(normalizePart);
     refresh();
+  }
+
+  function initScriptImport() {
+    var form = document.getElementById('scripts-upload-form');
+    var fileInput = document.getElementById('scripts-upload-file');
+    var nameHidden = document.getElementById('scripts-upload-name');
+    var dialog = document.getElementById('scripts-import-dialog');
+    var nameInput = document.getElementById('scripts-import-name');
+    var preview = document.getElementById('scripts-import-preview');
+    var nameErr = document.getElementById('scripts-import-name-err');
+    var btnOk = document.getElementById('scripts-import-ok');
+    var btnCancel = document.getElementById('scripts-import-cancel');
+    if (!form || !fileInput || !dialog || !nameInput) return;
+
+    var existing = [];
+    try {
+      existing = JSON.parse(dialog.getAttribute('data-existing-names') || '[]') || [];
+    } catch (e) {
+      existing = [];
+    }
+    if (!Array.isArray(existing)) existing = [];
+
+    function clearFile() {
+      fileInput.value = '';
+      if (nameHidden) nameHidden.value = '';
+    }
+
+    function showNameError(msg) {
+      if (!nameErr) return;
+      if (!msg) {
+        nameErr.hidden = true;
+        nameErr.textContent = '';
+        return;
+      }
+      nameErr.hidden = false;
+      nameErr.textContent = msg;
+    }
+
+    function nameTaken(name) {
+      var n = String(name || '').trim();
+      if (!n) return false;
+      for (var i = 0; i < existing.length; i++) {
+        if (String(existing[i]).trim() === n) return true;
+      }
+      return false;
+    }
+
+    function takenMessage(name) {
+      var tpl = dialog.getAttribute('data-i18n-name-taken') || '';
+      return tpl.replace('{name}', name);
+    }
+
+    function buildPreview(pack) {
+      var script = pack && pack.script ? pack.script : {};
+      var parts = Array.isArray(script.parts) ? script.parts : [];
+      var partNames = parts.map(function (p) { return (p && p.name) ? String(p.name) : ''; }).filter(Boolean);
+      var dictSet = {};
+      parts.forEach(function (p) {
+        var dicts = (p && Array.isArray(p.dicts)) ? p.dicts : [];
+        dicts.forEach(function (d) {
+          var dn = String(d || '').trim();
+          if (dn) dictSet[dn] = true;
+        });
+      });
+      var dictNames = Object.keys(dictSet);
+      var positions = Array.isArray(script.positions) ? script.positions : [];
+      var withKeys = !!(pack.include_keys || (Array.isArray(pack.dictionaries) && pack.dictionaries.length));
+      var lines = [];
+      lines.push((dialog.getAttribute('data-i18n-parts') || 'Parts') + ': ' + parts.length
+        + (partNames.length ? ' — ' + partNames.slice(0, 12).join(', ') + (partNames.length > 12 ? '…' : '') : ''));
+      lines.push((dialog.getAttribute('data-i18n-dicts') || 'Dicts') + ': '
+        + (dictNames.length ? dictNames.join(', ') : '—'));
+      if (positions.length) {
+        lines.push((dialog.getAttribute('data-i18n-positions') || 'Positions') + ': ' + positions.join(', '));
+      }
+      lines.push(withKeys
+        ? (dialog.getAttribute('data-i18n-keys-yes') || 'With keywords')
+        : (dialog.getAttribute('data-i18n-keys-no') || 'Without keywords'));
+      return lines.join('\n');
+    }
+
+    function openDialog(pack) {
+      var script = pack.script || {};
+      nameInput.value = String(script.name || '').slice(0, 40);
+      if (preview) preview.textContent = buildPreview(pack);
+      showNameError('');
+      if (typeof dialog.showModal === 'function') {
+        dialog.showModal();
+      } else {
+        dialog.setAttribute('open', 'open');
+      }
+      nameInput.focus();
+      nameInput.select();
+    }
+
+    function closeDialog() {
+      if (typeof dialog.close === 'function') {
+        dialog.close();
+      } else {
+        dialog.removeAttribute('open');
+      }
+    }
+
+    fileInput.addEventListener('change', function () {
+      var file = fileInput.files && fileInput.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var raw = String(reader.result || '');
+        var pack;
+        try {
+          pack = JSON.parse(raw);
+        } catch (e) {
+          alert(dialog.getAttribute('data-i18n-invalid') || 'Invalid JSON');
+          clearFile();
+          return;
+        }
+        if (!pack || typeof pack !== 'object' || !pack.script) {
+          alert(dialog.getAttribute('data-i18n-invalid') || 'Invalid JSON');
+          clearFile();
+          return;
+        }
+        openDialog(pack);
+      };
+      reader.onerror = function () {
+        alert(dialog.getAttribute('data-i18n-invalid') || 'Invalid JSON');
+        clearFile();
+      };
+      reader.readAsText(file);
+    });
+
+    if (btnCancel) {
+      btnCancel.addEventListener('click', function () {
+        closeDialog();
+        clearFile();
+      });
+    }
+    dialog.addEventListener('cancel', function () {
+      clearFile();
+    });
+
+    function trySubmit() {
+      var name = String(nameInput.value || '').trim();
+      if (!name) {
+        showNameError(dialog.getAttribute('data-i18n-name-required') || '');
+        nameInput.focus();
+        return;
+      }
+      if (nameTaken(name)) {
+        showNameError(takenMessage(name));
+        nameInput.focus();
+        return;
+      }
+      if (nameHidden) nameHidden.value = name;
+      showNameError('');
+      closeDialog();
+      form.submit();
+    }
+
+    if (btnOk) {
+      btnOk.addEventListener('click', trySubmit);
+    }
+    nameInput.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') {
+        ev.preventDefault();
+        trySubmit();
+      }
+    });
+    nameInput.addEventListener('input', function () {
+      var name = String(nameInput.value || '').trim();
+      if (name && nameTaken(name)) {
+        showNameError(takenMessage(name));
+      } else {
+        showNameError('');
+      }
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
@@ -1002,5 +1184,6 @@
     if (wizard) initWizard(wizard);
     var canvas = document.getElementById('scripts-canvas');
     if (canvas) initCanvas(canvas);
+    initScriptImport();
   });
 })();

@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.79",
+    "version": "0.3.81",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -54,6 +54,22 @@
         {
             "id": "core.settings",
             "label": "core.perm.settings"
+        },
+        {
+            "id": "core.users.delete",
+            "label": "core.perm.users_delete"
+        },
+        {
+            "id": "core.statuses.delete",
+            "label": "core.perm.statuses_delete"
+        },
+        {
+            "id": "core.news.delete",
+            "label": "core.perm.news_delete"
+        },
+        {
+            "id": "core.news_statuses.delete",
+            "label": "core.perm.news_statuses_delete"
         }
     ],
     "routes": {

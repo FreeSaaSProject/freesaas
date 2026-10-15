@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -30,6 +30,10 @@
         {
             "id": "orders.edit",
             "label": "orders.perm.edit"
+        },
+        {
+            "id": "orders.delete",
+            "label": "orders.perm.delete"
         }
     ],
     "routes": {
@@ -70,6 +74,14 @@
                 "path": "/orders/{id}/edit",
                 "permission": "orders.edit",
                 "description": "Update order: status, staff, dt_event, client, cart lines, sums, promo, free_ticket, comment"
+            },
+            {
+                "id": "orders.delete",
+                "method": "POST",
+                "path": "/orders/{id}/edit",
+                "permission": "orders.delete",
+                "side_effect": "write",
+                "description": "Delete order; POST action=delete if unpaid/unlinked"
             }
         ]
     },

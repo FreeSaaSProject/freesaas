@@ -25,4 +25,5 @@ return [
     'cabinets.user_edit.no_cabinets' => 'Список кабинетов пуст.',
     'cabinets.module.description' => 'Справочник кабинетов/комнат (base_cabinets) для складов и skin сотрудников.',
     'cabinets.module.summary' => 'Включайте, когда складам или календарю нужны кабинеты. Мягко — stocks, calendar, workweeks. Без модуля часть ID_CABINET уходит в дефолты.',
+    'cabinets.perm.delete' => 'Удаление кабинетов',
 ];

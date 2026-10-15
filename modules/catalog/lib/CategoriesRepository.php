@@ -332,4 +332,61 @@ final class CategoriesRepository
         );
         $st->execute([$hidden ? 1 : 0, $id]);
     }
+
+    public static function childCount(int $id): int
+    {
+        if ($id < 1 || !Database::tableExists('base_categories')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare('SELECT COUNT(*) FROM base_categories WHERE parent_id = ?');
+        $st->execute([$id]);
+        return (int)$st->fetchColumn();
+    }
+
+    public static function productCount(int $id): int
+    {
+        if ($id < 1 || !Database::tableExists('base_products')) {
+            return 0;
+        }
+        $col = Database::columnExists('base_products', 'category_id') ? 'category_id' : 'ID_CATEGORY';
+        if (!Database::columnExists('base_products', $col)) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare('SELECT COUNT(*) FROM base_products WHERE `' . $col . '` = ?');
+        $st->execute([$id]);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function deleteByIds(array $ids): array
+    {
+        $done = 0;
+        $skipped = [];
+        $pdo = Database::pdo();
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $children = self::childCount($id);
+            if ($children > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('catalog.category.err.has_children', ['n' => $children])];
+                continue;
+            }
+            $products = self::productCount($id);
+            if ($products > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('catalog.category.err.has_products', ['n' => $products])];
+                continue;
+            }
+            if (!Database::tableExists('base_categories')) {
+                continue;
+            }
+            $pdo->prepare('DELETE FROM base_categories WHERE id = ?')->execute([$id]);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
 }

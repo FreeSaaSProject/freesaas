@@ -279,4 +279,44 @@ final class StatusesRepository
         $sql = 'UPDATE base_admin_statuses SET ' . implode(', ', $fields) . ' WHERE ID = ?';
         Database::pdo()->prepare($sql)->execute($params);
     }
+
+    public static function userCount(int $statusId): int
+    {
+        if ($statusId < 1 || !Database::tableExists('base_users')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT COUNT(*) FROM base_users WHERE ID_STATUS = ? OR ID_STATUS2 = ?'
+        );
+        $st->execute([$statusId, $statusId]);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function deleteByIds(array $ids): array
+    {
+        $done = 0;
+        $skipped = [];
+        $pdo = Database::pdo();
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $n = self::userCount($id);
+            if ($n > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('core.statuses.err.in_use_users', ['n' => $n])];
+                continue;
+            }
+            if (!Database::tableExists('base_admin_statuses')) {
+                continue;
+            }
+            $pdo->prepare('DELETE FROM base_admin_statuses WHERE ID = ?')->execute([$id]);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
 }

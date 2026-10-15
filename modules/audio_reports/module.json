@@ -2,7 +2,7 @@
     "id": "audio_reports",
     "name": "audio_reports.module.name",
     "description": "audio_reports.module.description",
-    "version": "0.2.19",
+    "version": "0.2.24",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -31,6 +31,14 @@
         {
             "id": "audio_reports.edit",
             "label": "audio_reports.perm.edit"
+        },
+        {
+            "id": "audio_reports.delete",
+            "label": "audio_reports.perm.delete"
+        },
+        {
+            "id": "audio_reports.summaries.delete",
+            "label": "audio_reports.perm.summaries_delete"
         }
     ],
     "routes": {

@@ -69,3 +69,8 @@ $shiftWindows = WorkweeksRepository::shiftWindows();
     <a class="btn-secondary" href="<?= e(NavContext::up('/workweeks')) ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('workweeks', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

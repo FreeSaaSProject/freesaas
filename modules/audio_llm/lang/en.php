@@ -78,4 +78,5 @@ return [
     'audio_llm.spawned.proc' => 'proc #{id}',
     'audio_llm.module.description' => 'LLM studies on audio records: cyclic templates and staff day-report spawn.',
     'audio_llm.module.summary' => 'Enable for AI analysis of recordings. Requires llm + audio + audio_dicts. Soft staff_reports/comments/procedures/contracts. Turn on after llm keys and audio dicts are ready.',
+    'audio_llm.perm.delete' => 'Delete LLM studies',
 ];

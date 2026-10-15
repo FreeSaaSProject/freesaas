@@ -17,6 +17,8 @@ $row = [
     'loss' => 0,
     'loss_fix' => 0,
     'offers' => 0,
+    'audio_hour_rate' => 0,
+    'script_score_rate' => 0,
 ];
 
 if (!$isNew) {
@@ -38,6 +40,13 @@ if (!$isNew) {
 
 $message = '';
 $error = '';
+
+
+if (!$isNew && EntityDelete::tryHandle('rates', $id, '/rates', [
+    'stay_path' => '/rates/' . $id . '/edit',
+])) {
+    return;
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
@@ -71,6 +80,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'loss' => $_POST['loss'] ?? $row['loss'],
             'loss_fix' => $_POST['loss_fix'] ?? $row['loss_fix'],
             'offers' => $_POST['offers'] ?? $row['offers'],
+            'audio_hour_rate' => $_POST['audio_hour_rate'] ?? $row['audio_hour_rate'],
+            'script_score_rate' => $_POST['script_score_rate'] ?? $row['script_score_rate'],
             'content' => is_array($_POST['content'] ?? null) ? $_POST['content'] : $row['content'],
             'content_sales' => is_array($_POST['content_sales'] ?? null) ? $_POST['content_sales'] : $row['content_sales'],
             'content_income' => is_array($_POST['content_income'] ?? null) ? $_POST['content_income'] : $row['content_income'],
@@ -103,6 +114,9 @@ if ($wantsJson) {
     return;
 }
 
+$showAudioRates = RatesRepository::hasAudioRateColumns()
+    && (ModuleManager::isEnabled('audio') || Database::tableExists('base_records'));
+
 View::render('edit', [
     'title' => $isNew
         ? t('rates.edit.title_new')
@@ -121,6 +135,7 @@ View::render('edit', [
     'staff' => $staff,
     'typeNames' => $typeNames,
     'dtValue' => $dtValue,
+    'showAudioRates' => $showAudioRates,
     'message' => $message,
     'error' => $error,
 ], 'layout', 'rates');

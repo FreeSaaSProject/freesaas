@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/ProcentsRepository.php';
+require_once __DIR__ . '/lib/ProcentsPaymentSync.php';
 
 ModuleManager::registerRoute('/procents', [
     'module' => 'procents',

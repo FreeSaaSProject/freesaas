@@ -133,8 +133,8 @@ EventBus::on('sites.diagnose', static function ($payload) {
 
 BulkActions::register('likespa_restores', 'delete', [
     'label' => 'core.bulk.delete',
-    'capability' => 'SUPERADMIN_ACCESS',
-    'confirm' => 'core.bulk.confirm_delete',
+    'permission' => 'likespa.restores.delete',
+        'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => ProcedureRestoresRepository::deleteByIds($ids), 'skipped' => []];
     },

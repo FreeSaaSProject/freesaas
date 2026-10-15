@@ -27,7 +27,13 @@ declare(strict_types=1);
 /** @var bool $showAll */
 /** @var array $filters */
 /** @var array|null $bulkFlash */
+/** @var array<string,mixed>|null $dayPayPanel */
+/** @var string $actionUrl */
 $path = '/payments';
+$maskDescr = static function (string $descr): string {
+    return class_exists('DayPayroll', false) ? DayPayroll::maskDescr($descr) : $descr;
+};
+
 $listId = 'payments';
 $showAll = !empty($showAll);
 $isMonthly = ($mode ?? 'monthly') === 'monthly';
@@ -123,6 +129,8 @@ $actionUrl = ListQuery::url($path, $filters, []);
 <?php if (!empty($bulkFlash)): ?>
   <?= BulkActions::flashHtml($bulkFlash) ?>
 <?php endif; ?>
+
+<?php require __DIR__ . '/_day_pay_panel.php'; ?>
 
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
@@ -271,7 +279,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
               <tr>
                 <?= BulkActions::td($listId, (int)$r['id']) ?>
                 <td><?= $dtStaffHtml($r, $canEdit) ?></td>
-                <td><?= e((string)$r['descr']) ?></td>
+                <td><?= e($maskDescr((string)$r['descr'])) ?></td>
                 <td><?= money_signed_html((float)$r['sum'], 1) ?></td>
               </tr>
             <?php endforeach; ?>
@@ -300,7 +308,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
               <tr>
                 <?= BulkActions::td($listId, (int)$r['id']) ?>
                 <td><?= $dtStaffHtml($r, $canEdit) ?></td>
-                <td><?= e((string)$r['descr']) ?>
+                <td><?= e($maskDescr((string)$r['descr'])) ?>
                   <?php $ad = $accountDpsHtml($r); if ($ad !== ''): ?>
                     <br><?= $ad ?>
                   <?php endif; ?>
@@ -350,7 +358,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
           <?php endif; ?>
         </td>
         <td><?= $dtStaffHtml($r, $canEdit) ?></td>
-        <td><?= e((string)$r['descr']) ?></td>
+        <td><?= e($maskDescr((string)$r['descr'])) ?></td>
         <td><?= money_signed_html((float)$r['sum'], (int)$r['direction']) ?></td>
         <td><?php $ad = $accountDpsHtml($r); echo $ad !== '' ? $ad : '<span class="muted">—</span>'; ?></td>
       </tr>

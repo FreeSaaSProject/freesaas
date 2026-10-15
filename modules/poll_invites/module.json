@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -24,6 +24,10 @@
         {
             "id": "poll_invites.edit",
             "label": "poll_invites.perm.edit"
+        },
+        {
+            "id": "poll_invites.delete",
+            "label": "poll_invites.perm.delete"
         }
     ],
     "routes": {

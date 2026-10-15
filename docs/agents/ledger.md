@@ -25,7 +25,7 @@ Stickers receipt list: bulk **Create DPS…** picks a move type with `ID_ACT_IN_
 | `/ledger/moves` | Moves list, filters, recon when account selected |
 | `/ledger/moves/new` · `/{id}/edit` | Create/edit (type-gated fields, promised dates) |
 | `/ledger/moves/attach-act` | Attach stickers receipt act |
-| `/ledger/transfers/new` | Paired transfer |
+| `/ledger/transfers/new` · `/{id}/edit` | Paired transfer (both legs); linked moves redirect here from `/ledger/moves/{id}/edit` |
 
 ## Agent JSON
 
@@ -46,6 +46,10 @@ curl -sS -b jar.txt 'https://example/ledger/moves/attach-act?format=json&id=123'
 curl -sS -b jar.txt -X POST 'https://example/ledger/moves/attach-act?format=json' \
   -d 'ids=123&act2_in=456'
 ```
+
+### Transfers
+
+Paired moves (`ID_MOVEMENT_LINKED`) open only via `/ledger/transfers/{id}/edit` (either leg). Opening `/ledger/moves/{id}/edit` redirects there.
 
 ### Copy / delete
 

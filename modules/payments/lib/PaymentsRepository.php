@@ -439,6 +439,13 @@ final class PaymentsRepository
             $dt = time();
         }
         $descr = trim((string)($post['descr'] ?? ''));
+        if ($existing !== null
+            && class_exists('DayPayroll', false)
+            && DayPayroll::isPayoutDescr((string)($existing['descr'] ?? ''))
+        ) {
+            // Keep PIN/ADMIN machine tags; UI shows a masked value.
+            $descr = (string)$existing['descr'];
+        }
         $commentId = (int)($post['comment_id'] ?? ($existing['comment_id'] ?? 0));
         // Partner payout UI removed; keep column at 0 on save.
         $isPartner = 0;
@@ -741,7 +748,7 @@ final class PaymentsRepository
      * @param list<int> $ids
      * @return array{done:int,skipped:list<array{id:int,reason:string}>}
      */
-    public static function createDpsByIds(array $ids): array
+    public static function createDpsByIds(array $ids, int $accountOverride = 0): array
     {
         if (!self::ledgerEnabled() || !class_exists('LedgerMovesRepository')) {
             $skipped = [];
@@ -762,6 +769,9 @@ final class PaymentsRepository
                     && PaymentMoveLinksRepository::isPaymentLinked($id)) {
                     $skipped[] = ['id' => $id, 'reason' => t('payments.flash.dps_none')];
                     continue;
+                }
+                if ($accountOverride > 0) {
+                    $row['ledger_account_override'] = $accountOverride;
                 }
                 $moveId = LedgerMovesRepository::createFromPayment($row);
                 if ($moveId > 0) {

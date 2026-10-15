@@ -130,3 +130,6 @@ $extraHtml = (string)($extraHtml ?? '');
     <a class="btn-secondary" href="<?= $isNew ? '/clients' : '/clients/' . $cid ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (!$isNew): ?>
+<?= EntityDelete::form('clients', $cid) ?>
+<?php endif; ?>

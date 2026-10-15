@@ -74,4 +74,5 @@ return [
     'funds.accrual.col.pay' => 'Payment',
     'funds.accrual.col.status' => 'Status',
     'funds.moves.err.not_found' => 'Movement #{id} not found',
+    'funds.perm.delete' => 'Delete funds / movements',
 ];

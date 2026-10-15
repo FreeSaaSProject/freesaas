@@ -19,3 +19,7 @@ declare(strict_types=1);
   <label class="check"><input type="checkbox" name="inventory_req" value="1"<?= !empty($row['inventory_req']) ? ' checked' : '' ?>> inventory</label>
   <div class="page-actions"><button class="btn-primary" type="submit"><?= te('core.common.save') ?></button><a class="btn-secondary" href="/funds"><?= te('core.common.cancel') ?></a></div>
 </form>
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('funds', (int)($row['id'] ?? $item['id'] ?? 0)) ?>
+<?php endif; ?>
+

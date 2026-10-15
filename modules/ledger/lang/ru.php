@@ -91,6 +91,9 @@ return [
     'ledger.moves.edit_new' => 'Новое движение',
     'ledger.moves.edit' => 'Движение #{id}',
     'ledger.moves.transfer_new' => 'Перевод между счетами',
+    'ledger.moves.transfer_edit' => 'Перевод #{id}',
+    'ledger.moves.transfer_pair' => 'Связанные движения #{from} ↔ #{to}',
+    'ledger.moves.err.use_transfer_form' => 'Это перевод между счетами — откройте форму перевода',
     'ledger.moves.field.account_to' => 'Счёт назначения',
     'ledger.moves.field.payment' => 'ID платежа',
     'ledger.moves.field.user_payment' => 'Сотрудник',
@@ -158,4 +161,6 @@ return [
     'ledger.dir.1' => '+',
     'ledger.dir.-1' => '−',
     'ledger.dir.0' => '0',
+    'ledger.perm.delete' => 'Удаление счетов / операций',
+    'ledger.perm.types_delete' => 'Удаление типов операций',
 ];

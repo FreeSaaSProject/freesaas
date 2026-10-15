@@ -1,10 +1,10 @@
 <?php
 declare(strict_types=1);
 
-/** Staff bot: senior admin PIN confirm for FL payouts (oper freelance_payout_admin). */
-final class FreelancePayoutBotPlugin
+/** Staff bot: cash issuer PIN confirm for daily payroll payouts. */
+final class DayPayrollBotPlugin
 {
-    private const MODULE = 'freelance_payout_admin';
+    private const MODULE = 'day_payroll_issuer';
     private const TTL = 600;
 
     public static function register(): void
@@ -13,10 +13,10 @@ final class FreelancePayoutBotPlugin
             return;
         }
 
-        BotPlugins::register('freelance_payout_admin', [
+        BotPlugins::register('day_payroll_issuer', [
             'priority' => 29,
             'audiences' => ['staff'],
-            'label' => 'bots.catalog.staff.freelance_payout_admin',
+            'label' => 'bots.catalog.staff.day_payroll_issuer',
             'module' => 'payments',
             'cabinet_buttons' => static function (array $ctx): array {
                 if (($ctx['audience'] ?? '') !== 'staff') {
@@ -24,17 +24,17 @@ final class FreelancePayoutBotPlugin
                 }
                 $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
                 $uid = (int)($user['id'] ?? 0);
-                if ($uid < 1 || !FreelancePayout::isSeniorAdmin($uid)) {
+                if ($uid < 1 || !DayPayroll::isCashIssuer($uid)) {
                     return [];
                 }
-                $n = count(FreelancePayout::pendingRequests(0));
-                $label = t('bots.catalog.staff.freelance_payout_admin');
+                $n = count(DayPayroll::pendingRequests(0));
+                $label = t('bots.catalog.staff.day_payroll_issuer');
                 if ($n > 0) {
                     $label .= ' (' . $n . ')';
                 }
                 return [[[
                     'text' => $label,
-                    'callback_data' => 'fl_payout_admin',
+                    'callback_data' => 'day_pay_issuer',
                 ]]];
             },
             'handle_callback' => static function (array $ctx) {
@@ -42,7 +42,7 @@ final class FreelancePayoutBotPlugin
                     return null;
                 }
                 $data = (string)($ctx['callback_data'] ?? '');
-                if ($data === '' || strpos($data, 'fl_payout_admin') !== 0) {
+                if ($data === '' || strpos($data, 'day_pay_issuer') !== 0) {
                     return null;
                 }
                 $user = is_array($ctx['user'] ?? null) ? $ctx['user'] : null;
@@ -77,7 +77,7 @@ final class FreelancePayoutBotPlugin
                 return Auth::runAs($uid, static function () use ($ctx, $state, $uid, $text) {
                     $payId = (int)(($state['data']['payment_id'] ?? 0));
                     self::clearState($ctx);
-                    $res = FreelancePayout::verifyPin($payId, $text, $uid);
+                    $res = DayPayroll::verifyPin($payId, $text, $uid);
                     BotClient::replyUi($ctx, (string)$res['msg'], self::kbList());
                     return true;
                 });
@@ -88,21 +88,21 @@ final class FreelancePayoutBotPlugin
     /** @param array<string,mixed> $ctx */
     private static function onCallback(array $ctx, string $data, int $uid): bool
     {
-        if (!FreelancePayout::isSeniorAdmin($uid)) {
-            BotClient::replyUi($ctx, t('payments.bot.fl.unavailable'), self::kbMenu());
+        if (!DayPayroll::isCashIssuer($uid)) {
+            BotClient::replyUi($ctx, t('payments.bot.day_pay.unavailable'), self::kbMenu());
             return true;
         }
-        if ($data === 'fl_payout_admin' || $data === 'fl_payout_admin_cancel') {
+        if ($data === 'day_pay_issuer' || $data === 'day_pay_issuer_cancel') {
             self::clearState($ctx);
             self::showList($ctx);
             return true;
         }
-        if (preg_match('/^fl_payout_admin_pin_(\d+)$/', $data, $m)) {
+        if (preg_match('/^day_pay_issuer_pin_(\d+)$/', $data, $m)) {
             $payId = (int)$m[1];
             self::setState($ctx, 'await_pin', ['payment_id' => $payId]);
-            BotClient::replyUi($ctx, t('payments.bot.fl.admin_pin_prompt', ['id' => $payId]), [
+            BotClient::replyUi($ctx, t('payments.bot.day_pay.admin_pin_prompt', ['id' => $payId]), [
                 'inline_keyboard' => [[
-                    ['text' => t('payments.bot.fl.admin_cancel'), 'callback_data' => 'fl_payout_admin_cancel'],
+                    ['text' => t('payments.bot.day_pay.admin_cancel'), 'callback_data' => 'day_pay_issuer_cancel'],
                 ]],
             ]);
             return true;
@@ -113,26 +113,26 @@ final class FreelancePayoutBotPlugin
     /** @param array<string,mixed> $ctx */
     private static function showList(array $ctx): void
     {
-        $pending = FreelancePayout::pendingRequests(0);
+        $pending = DayPayroll::pendingRequests(0);
         if ($pending === []) {
-            BotClient::replyUi($ctx, t('payments.bot.fl.admin_empty'), self::kbMenu());
+            BotClient::replyUi($ctx, t('payments.bot.day_pay.admin_empty'), self::kbMenu());
             return;
         }
-        $lines = [t('payments.bot.fl.admin_title')];
+        $lines = [t('payments.bot.day_pay.admin_title')];
         $rows = [];
         foreach ($pending as $p) {
             $uid = (int)$p['user_id'];
-            $issuerId = FreelancePayout::extractAdminId((string)$p['descr']);
-            $issuer = $issuerId > 0 ? FreelancePayout::userName($issuerId) : '—';
-            $lines[] = t('payments.bot.fl.admin_line', [
-                'name' => FreelancePayout::contactLine($uid),
+            $issuerId = DayPayroll::extractAdminId((string)$p['descr']);
+            $issuer = $issuerId > 0 ? DayPayroll::userName($issuerId) : '—';
+            $lines[] = t('payments.bot.day_pay.admin_line', [
+                'name' => DayPayroll::contactLine($uid),
                 'sum' => (float)$p['sum'],
                 'date' => date('d.m.Y', (int)$p['dt']),
                 'issuer' => $issuer,
             ]);
             $rows[] = [[
                 'text' => '#' . (int)$p['id'] . ' ' . (float)$p['sum'] . ' ₽',
-                'callback_data' => 'fl_payout_admin_pin_' . (int)$p['id'],
+                'callback_data' => 'day_pay_issuer_pin_' . (int)$p['id'],
             ]];
         }
         $rows[] = [['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet']];
@@ -176,7 +176,7 @@ final class FreelancePayoutBotPlugin
     private static function kbList(): array
     {
         return ['inline_keyboard' => [
-            [['text' => t('payments.bot.fl.admin_again'), 'callback_data' => 'fl_payout_admin']],
+            [['text' => t('payments.bot.day_pay.admin_again'), 'callback_data' => 'day_pay_issuer']],
             [['text' => t('bots.cabinet.refresh'), 'callback_data' => 'cabinet']],
         ]];
     }

@@ -265,4 +265,5 @@ return [
     'audio.bot.badge.no_analytics' => 'Audio analytics is disabled for you.',
     'audio.bot.badge.not_on_shift_day' => 'Badge selection is only available on a shift day.',
     'audio.bot.badge.again' => 'Choose again',
+    'audio.perm.delete' => 'Delete cabin records',
 ];

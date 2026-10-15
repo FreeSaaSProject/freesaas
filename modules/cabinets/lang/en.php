@@ -25,4 +25,5 @@ return [
     'cabinets.user_edit.no_cabinets' => 'The rooms list is empty.',
     'cabinets.module.description' => 'Rooms/cabinets dictionary (base_cabinets) for stocks and staff skin.',
     'cabinets.module.summary' => 'Enable when warehouses or calendar need room assignment. Soft-used by stocks, calendar, workweeks. Without it, some ID_CABINET fields fall back to defaults.',
+    'cabinets.perm.delete' => 'Delete cabinets',
 ];

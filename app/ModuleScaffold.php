@@ -66,6 +66,7 @@ final class ModuleScaffold
             'permissions' => [
                 ['id' => $id . '.view', 'label' => $id . '.perm.view'],
                 ['id' => $id . '.edit', 'label' => $id . '.perm.edit'],
+                ['id' => $id . '.delete', 'label' => $id . '.perm.delete'],
             ],
             'routes' => [
                 'pages' => ['/' . $id, '/' . $id . '/new', '/' . $id . '/{id}/edit'],
@@ -99,6 +100,14 @@ final class ModuleScaffold
                         'path' => '/' . $id . '/{id}/edit',
                         'permission' => $id . '.edit',
                         'description' => 'Update',
+                    ],
+                    [
+                        'id' => $id . '.delete',
+                        'method' => 'POST',
+                        'path' => '/' . $id . '/{id}/edit',
+                        'permission' => $id . '.delete',
+                        'side_effect' => 'write',
+                        'description' => 'Delete; POST action=delete',
                     ],
                 ],
             ],
@@ -290,6 +299,7 @@ PHP;
             "{$id}.menu.list" => $list,
             "{$id}.perm.view" => $view,
             "{$id}.perm.edit" => $edit,
+            "{$id}.perm.delete" => $locale === 'ru' ? 'Удаление: ' . $title : 'Delete ' . $title,
             "{$id}.list.empty" => $empty,
             "{$id}.list.search_placeholder" => $locale === 'ru' ? 'Поиск…' : 'Search…',
             "{$id}.field.name" => $nameLabel,
@@ -339,7 +349,7 @@ foreach (\$pages as \$path => \$def) {
 
 BulkActions::register('{$id}', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => '{$id}.edit',
+    'permission' => '{$id}.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array \$ids, array \$params): array {
         return ['done' => {$repo}::deleteByIds(\$ids), 'skipped' => []];
@@ -548,6 +558,12 @@ if (!\$isNew && \$row === null) {
     return;
 }
 
+if (!\$isNew && EntityDelete::tryHandle('{$id}', \$idParam, '/{$id}', [
+    'stay_path' => '/{$id}/' . \$idParam . '/edit',
+])) {
+    return;
+}
+
 if ((\$_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         \$newId = {$repo}::save(\$isNew ? null : \$idParam, [
@@ -672,6 +688,9 @@ PHP;
   </label>
   <button type="submit" class="btn-primary"><?= e(t('{$id}.edit.save')) ?></button>
 </form>
+<?php if (empty(\$is_new) && !empty(\$item['id'])): ?>
+<?= EntityDelete::form('{$id}', (int)\$item['id']) ?>
+<?php endif; ?>
 
 PHP;
     }

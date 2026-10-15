@@ -40,4 +40,5 @@ return [
     'sheets.list.search_placeholder' => 'Search',
     'sheets.module.description' => 'LikeSpa linen accounts and moves (base_sheet_*); disableable.',
     'sheets.module.summary' => 'Enable for linen/sheet inventory specific to LikeSpa. Standalone warehouse-adjacent module. Turn on only if the site tracks sheets separately from stickers.',
+    'sheets.perm.delete' => 'Delete sheet accounts',
 ];

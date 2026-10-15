@@ -70,5 +70,6 @@ return [
     'vacations.err.sign_show' => 'Signature required but record is hidden from staff',
     'vacations.err.forbidden' => 'Not allowed to view other staff vacations',
     'vacations.module.description' => 'Leave register (base_vacations) with sign workflow.',
-    'vacations.module.summary' => 'Enable for staff vacation register and approvals. Depends only on core. Accounting/HR module — independent of calendar shifts.',
+    'vacations.module.summary' => 'Enable for staff vacation register and approvals. Depends only on core. Team/HR module — lives next to shifts in the rail, independent of calendar booking.',
+    'vacations.perm.delete' => 'Delete vacations',
 ];

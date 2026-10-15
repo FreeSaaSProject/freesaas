@@ -715,12 +715,31 @@ final class EventsRepository
 
     public static function canDelete(?array $event = null): bool
     {
-        if (!Auth::can('calendar.edit') || !Auth::capability('EVT_DELETE')) {
+        if (!Auth::can('calendar.delete') || !Auth::capability('EVT_DELETE')) {
             return false;
         }
         if ($event && !empty(Auth::statusFlags()['EVT_MY_ONLY'])) {
             return (int)($event['id_operator'] ?? 0) === Auth::userId();
         }
         return true;
+    }
+
+    /** @param list<int> $ids */
+    public static function deleteByIds(array $ids): int
+    {
+        $done = 0;
+        foreach ($ids as $id) {
+            $id = (int)$id;
+            if ($id < 1) {
+                continue;
+            }
+            $row = self::find($id);
+            if ($row === null || !self::canDelete($row)) {
+                continue;
+            }
+            self::delete($id);
+            $done++;
+        }
+        return $done;
     }
 }

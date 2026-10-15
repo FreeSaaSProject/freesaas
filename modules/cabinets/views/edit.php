@@ -34,3 +34,8 @@ declare(strict_types=1);
     <a class="btn-secondary" href="/cabinets"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('cabinets', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

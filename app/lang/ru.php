@@ -53,4 +53,8 @@ return [
     'core.bulk.err.forbidden' => 'Недостаточно прав для этого действия',
     'core.bulk.flash.done' => 'Обработано: {n}.',
     'core.bulk.flash.skipped' => 'Пропущено: {n}.',
+    'core.entity.confirm_delete' => 'Удалить эту запись? Это действие нельзя отменить.',
+    'core.entity.agent_delete_denied' => 'Удаление через агента выключено в Настройках. Включите «Разрешить агентам удалять» или удалите в интерфейсе.',
+    'core.entity.err.not_found' => 'Запись не найдена.',
+    'core.entity.err.delete_failed' => 'Не удалось удалить запись.',
 ];

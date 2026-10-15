@@ -33,6 +33,13 @@ $message = '';
 $error = '';
 $hasChildren = !$isNew && PageCategoriesRepository::childCount($id) > 0;
 
+
+if (!$isNew && EntityDelete::tryHandle('sites_pages', $id, '/sites/pages', [
+    'stay_path' => '/sites/pages/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = PageCategoriesRepository::dataFromPost($_POST);

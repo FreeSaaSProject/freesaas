@@ -136,12 +136,13 @@ $readonly = !$canModify;
     <?php if (!empty($canMakeProcedures)): ?>
       <button class="btn-secondary" type="submit" name="action" value="create_procedures"><?= te('calendar.event.btn_procedures') ?></button>
     <?php endif; ?>
-    <?php if ($canDelete): ?>
-      <button class="btn-danger" type="submit" name="action" value="delete"
-              onclick="return confirm(<?= tj('calendar.event.confirm_delete') ?>)"><?= te('core.common.delete') ?></button>
-    <?php endif; ?>
   </div>
 </form>
+<?php if (!$isNew): ?>
+<?= EntityDelete::form('calendar_events', (int)($row['id'] ?? 0), [
+    'confirm' => 'calendar.event.confirm_delete',
+]) ?>
+<?php endif; ?>
 
 <?php if (!$isNew): ?>
 <section class="calendar-section">

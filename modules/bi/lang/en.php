@@ -142,4 +142,5 @@ return [
     'bi.err.run' => 'Report error.',
 
     'bi.cron.expire' => 'Expire BI share links',
+    'bi.perm.delete' => 'Delete BI families',
 ];

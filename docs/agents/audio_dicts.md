@@ -34,7 +34,7 @@ Legacy (not owned): `base_records_types` may exist from oper / older installs. S
 ## Human UI
 
 - Dictionaries under Audio analytics: dicts, keys, tags, scripts, trash phrases.
-- Scripts tree: `/audio/scripts/{id}` + parts / copy.
+- Scripts tree: `/audio/scripts/{id}` + parts / download pack / list upload import. Same-DB copy remains via bulk and `/audio/scripts/{id}/copy`.
 
 | Path | Permission |
 |------|------------|
@@ -69,6 +69,8 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` â†
 | `audio_dicts.scripts.list` | GET | `/audio/scripts` |
 | `audio_dicts.scripts.get` | GET | `/audio/scripts/{id}` |
 | `audio_dicts.scripts.create` | POST | `/audio/scripts/new` |
+| `audio_dicts.scripts.download` | GET | `/audio/scripts/{id}/download` (`?keys=1` embeds dict keys) |
+| `audio_dicts.scripts.import` | POST | `/audio/scripts/import` (missing dicts â†’ empty) |
 | `audio_dicts.scripts.copy` | GET | `/audio/scripts/{id}/copy` |
 | `audio_dicts.scripts.parts` | POST | `/audio/scripts/{id}/parts` |
 

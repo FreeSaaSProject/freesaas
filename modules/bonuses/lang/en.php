@@ -84,4 +84,5 @@ return [
     'bonuses.err.forbidden' => 'Forbidden',
     'bonuses.err.apply_failed' => 'Could not apply bonuses',
     'bonuses.err.table' => 'Bonus ledger table is missing',
+    'bonuses.perm.delete' => 'Delete bonus moves',
 ];

@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-14T13:58:52+00:00",
+    "generated_at": "2026-10-15T11:41:05+00:00",
     "modules": [
         {
             "id": "asr",
@@ -73,7 +73,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.14",
+            "version": "0.2.17",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -107,7 +107,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "0.1.8",
+            "version": "0.1.29",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -172,7 +172,7 @@
         },
         {
             "id": "audio_phrases",
-            "version": "0.1.17",
+            "version": "0.1.19",
             "type": "product",
             "name": {
                 "en": "Top phrases",
@@ -207,7 +207,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.15",
+            "version": "0.3.17",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -240,7 +240,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "0.2.13",
+            "version": "0.2.24",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -351,7 +351,7 @@
         },
         {
             "id": "bonuses",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
@@ -423,7 +423,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.14",
+            "version": "0.2.15",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -453,7 +453,7 @@
         },
         {
             "id": "cabinets",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Rooms",
@@ -481,7 +481,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -519,7 +519,7 @@
         },
         {
             "id": "catalog",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Catalog",
@@ -551,7 +551,7 @@
         },
         {
             "id": "certificates",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Certificates",
@@ -626,7 +626,7 @@
         },
         {
             "id": "clients",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Clients",
@@ -684,7 +684,7 @@
         },
         {
             "id": "contracts",
-            "version": "0.1.6",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -703,7 +703,7 @@
                 "comments": ">=0.1.0"
             },
             "optionalRequires": {
-                "payments": ">=0.1.0"
+                "payments": ">=0.1.10"
             },
             "catalog": {
                 "categories": [
@@ -748,7 +748,7 @@
         },
         {
             "id": "funds",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Funds",
@@ -814,7 +814,7 @@
         },
         {
             "id": "ledger",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -851,7 +851,7 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.7",
+            "version": "0.3.8",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -890,7 +890,7 @@
         },
         {
             "id": "liquid_assets",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Liquid assets",
@@ -956,7 +956,7 @@
         },
         {
             "id": "norms",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Consumption norms",
@@ -985,7 +985,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1021,7 +1021,7 @@
         },
         {
             "id": "payments",
-            "version": "0.1.7",
+            "version": "0.1.12",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1032,15 +1032,18 @@
                 "ru": "Взаиморасчёты сотрудников (base_payments, base_payment_types); CTA оплаты контрактов; авто-ДПС с ledger."
             },
             "summary": {
-                "en": "Enable for paying specialists and settlement docs. Soft-used by ledger (auto-DPS) and likespa. Use with contracts for pay CTAs. Accounting side of payroll to staff.",
-                "ru": "Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС) и likespa. С contracts — CTA оплаты. Бухгалтерская сторона выплат персоналу."
+                "en": "Enable for paying specialists and settlement docs. Soft ledger (auto-DPS), likespa, procents (auto % MONTH or daily accruals). Use with contracts for pay CTAs.",
+                "ru": "Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС), likespa, procents (авто % МЕСЯЦ или поденные начисления). С contracts — CTA оплаты."
             },
             "requires": {
                 "core": ">=0.3.0"
             },
             "optionalRequires": {
                 "ledger": ">=0.1.0",
-                "bots": ">=0.1.0"
+                "bots": ">=0.1.0",
+                "procents": ">=0.1.5",
+                "procedures": ">=0.1.0",
+                "contracts": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1052,7 +1055,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1084,7 +1087,7 @@
         },
         {
             "id": "polls",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Polls",
@@ -1115,7 +1118,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.7",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1149,7 +1152,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.2",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1160,16 +1163,18 @@
                 "ru": "Только чтение: отчёт начисления комиссий по ставкам, процедурам и сменам."
             },
             "summary": {
-                "en": "Enable for commission accrual reporting. Requires rates + procedures + workweeks. No edit UI — reporting only. Use after rates are filled for the period.",
-                "ru": "Включайте для отчёта начислений. Требует rates + procedures + workweeks. Без редактирования — только отчёт. После заполнения ставок за период."
+                "en": "Enable for commission accrual reporting. Requires rates + procedures + workweeks. Soft payments: opening one staff upserts current-month total into the settlement sheet (% MONTH YYYY). Shift fix; soft audio. No edit UI — reporting only.",
+                "ru": "Включайте для отчёта начислений. Требует rates + procedures + workweeks. Soft payments: при открытии одного сотрудника пишет итог текущего месяца в расчётный лист (% МЕСЯЦ YYYY). Фикс за смену; soft audio. Без редактирования — только отчёт."
             },
             "requires": {
                 "core": ">=0.3.0",
-                "rates": ">=0.1.0",
+                "rates": ">=0.1.2",
                 "procedures": ">=0.1.0",
                 "workweeks": ">=0.1.0"
             },
-            "optionalRequires": [],
+            "optionalRequires": {
+                "payments": ">=0.1.0"
+            },
             "catalog": {
                 "categories": [
                     "accounting"
@@ -1180,7 +1185,7 @@
         },
         {
             "id": "rates",
-            "version": "0.1.1",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Specialist rates",
@@ -1191,14 +1196,16 @@
                 "ru": "История процентных ставок специалистов (base_procent_history)."
             },
             "summary": {
-                "en": "Enable to maintain commission % by specialist/procedure. Requires procedures. Required by procents. Set rates before expecting accrual reports.",
-                "ru": "Включайте для ставок % по специалистам/процедурам. Требует procedures. Нужен procents. Ставки — до отчёта начислений."
+                "en": "Enable to maintain commission % by specialist/procedure. Requires procedures. Required by procents. With audio — rates for audio hours and script score points. Set rates before expecting accrual reports.",
+                "ru": "Включайте для ставок % по специалистам/процедурам. Требует procedures. Нужен procents. При audio — ставки за час аудио и балл скрипта. Ставки — до отчёта начислений."
             },
             "requires": {
                 "core": ">=0.3.0",
                 "procedures": ">=0.1.0"
             },
-            "optionalRequires": [],
+            "optionalRequires": {
+                "audio": ">=0.1.0"
+            },
             "catalog": {
                 "categories": [
                     "accounting"
@@ -1209,7 +1216,7 @@
         },
         {
             "id": "sheets",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Sheets",
@@ -1237,7 +1244,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.5",
+            "version": "0.2.6",
             "type": "product",
             "name": {
                 "en": "Sites",
@@ -1273,7 +1280,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "0.1.6",
+            "version": "0.1.9",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1311,7 +1318,7 @@
         },
         {
             "id": "stickers",
-            "version": "0.1.15",
+            "version": "0.1.16",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1347,7 +1354,7 @@
         },
         {
             "id": "stocks",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Warehouses",
@@ -1381,7 +1388,7 @@
         },
         {
             "id": "suppliers",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Suppliers",
@@ -1409,7 +1416,7 @@
         },
         {
             "id": "tables",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Massage tables",
@@ -1439,7 +1446,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.23",
+            "version": "0.1.24",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1473,7 +1480,7 @@
         },
         {
             "id": "units",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Units of measure",
@@ -1532,7 +1539,7 @@
         },
         {
             "id": "vacations",
-            "version": "0.1.2",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Vacations",
@@ -1543,8 +1550,8 @@
                 "ru": "Реестр отпусков (base_vacations) с workflow подписания."
             },
             "summary": {
-                "en": "Enable for staff vacation register and approvals. Depends only on core. Accounting/HR module — independent of calendar shifts.",
-                "ru": "Включайте для реестра отпусков и согласований. Только core. HR/бухгалтерия — независимо от смен календаря."
+                "en": "Enable for staff vacation register and approvals. Depends only on core. Team/HR module — lives next to shifts in the rail, independent of calendar booking.",
+                "ru": "Включайте для реестра отпусков и согласований. Только core. В меню Команда рядом со сменами; независимо от бронирований календаря."
             },
             "requires": {
                 "core": ">=0.3.0"
@@ -1552,7 +1559,7 @@
             "optionalRequires": [],
             "catalog": {
                 "categories": [
-                    "accounting"
+                    "team"
                 ],
                 "maturity": "beta",
                 "tags": []
@@ -1560,7 +1567,7 @@
         },
         {
             "id": "wellness",
-            "version": "0.2.18",
+            "version": "0.2.19",
             "type": "product",
             "name": {
                 "en": "Health & fitness",
@@ -1591,7 +1598,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "Shifts",

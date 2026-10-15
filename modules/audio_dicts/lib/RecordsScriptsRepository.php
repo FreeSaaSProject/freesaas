@@ -195,6 +195,10 @@ final class RecordsScriptsRepository
      */
     public static function create(array $meta, array $parts): int
     {
+        $name = trim((string)($meta['name'] ?? ''));
+        if ($name !== '' && self::rootExistsByName($name)) {
+            throw new InvalidArgumentException(t('audio_dicts.scripts.err.name_taken', ['name' => $name]));
+        }
         $pdo = Database::pdo();
         $pdo->beginTransaction();
         $rootId = 0;
@@ -209,7 +213,7 @@ final class RecordsScriptsRepository
                       SCORE_RATE, KPI, COND_TYPE, COND_VALUE'
                     . ($hasDayBonus ? ', DAY_BONUS, DAY_BONUS_SUM, PROC_RATIO_MIN' : '')
                     . ')
-                     VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, NULL, 0, 0, 0, 0, 0, 0, ?, ?, ?, ?, 0, 0, \'\', 0'
+                     VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, \'\', 0, 0, 0, 0, 0, 0, ?, ?, ?, ?, 0, 0, \'\', 0'
                     . ($hasDayBonus ? ', ?, ?, ?' : '')
                     . ')'
                 );
@@ -235,7 +239,7 @@ final class RecordsScriptsRepository
                      (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
                       IDS_DICTONARYS, SCORE, `BREAK`, TIMEOUT, DIVERSITY, INSTANCES_MIN,
                       COLLECTION_KILLER, ID_POSITION)
-                     VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, NULL, 0, 0, 0, 0, 0, 0, ?)'
+                     VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, \'\', 0, 0, 0, 0, 0, 0, ?)'
                 );
                 $st->execute([
                     (int)($meta['num'] ?? 0),
@@ -270,6 +274,10 @@ final class RecordsScriptsRepository
         $tree = self::findWithParts($id);
         if ($tree === null) {
             throw new InvalidArgumentException(t('audio_dicts.scripts.err.not_found', ['id' => $id]));
+        }
+        $name = trim((string)($meta['name'] ?? ''));
+        if ($name !== '' && self::rootExistsByName($name, $id)) {
+            throw new InvalidArgumentException(t('audio_dicts.scripts.err.name_taken', ['name' => $name]));
         }
         $pdo = Database::pdo();
         $pdo->beginTransaction();
@@ -618,6 +626,7 @@ final class RecordsScriptsRepository
                 'instances_min' => $instancesMin,
                 'gate_red_max' => max(0.0, (float)($row['gate_red_max'] ?? 0)),
                 'gate_yellow_max' => max(0.0, (float)($row['gate_yellow_max'] ?? 0)),
+                'hide_from_reports' => !empty($row['hide_from_reports']) ? 1 : 0,
                 'roles' => $roles,
                 'role' => $roles[0] ?? 'ordinary',
                 'collection_killer' => in_array('killer', $roles, true) ? 1 : 0,
@@ -753,6 +762,48 @@ final class RecordsScriptsRepository
         return '#' . implode('#,#', $clean) . '#';
     }
 
+    /** True if a root script with this exact name already exists. */
+    public static function rootExistsByName(string $name, int $excludeId = 0): bool
+    {
+        $name = trim($name);
+        if ($name === '' || !Database::tableExists('base_records_scripts')) {
+            return false;
+        }
+        $sql = 'SELECT ID FROM base_records_scripts WHERE PID = 0 AND NAME = ?';
+        $params = [mb_substr($name, 0, 40)];
+        if ($excludeId > 0) {
+            $sql .= ' AND ID <> ?';
+            $params[] = $excludeId;
+        }
+        $sql .= ' LIMIT 1';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        return (int)$st->fetchColumn() > 0;
+    }
+
+    /**
+     * All root script names (for import UI uniqueness check).
+     *
+     * @return list<string>
+     */
+    public static function listRootNames(): array
+    {
+        if (!Database::tableExists('base_records_scripts')) {
+            return [];
+        }
+        $rows = Database::pdo()->query(
+            'SELECT NAME AS name FROM base_records_scripts WHERE PID = 0 ORDER BY NAME ASC'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            $n = trim((string)($row['name'] ?? ''));
+            if ($n !== '') {
+                $out[] = $n;
+            }
+        }
+        return $out;
+    }
+
     /** @return array<int,string> status id => name */
     public static function positionOptions(): array
     {
@@ -843,6 +894,11 @@ final class RecordsScriptsRepository
             $cols .= ', GATE_RED_MAX AS gate_red_max, GATE_YELLOW_MAX AS gate_yellow_max';
         } else {
             $cols .= ', 0 AS gate_red_max, 0 AS gate_yellow_max';
+        }
+        if (Database::columnExists('base_records_scripts', 'HIDE_FROM_REPORTS')) {
+            $cols .= ', HIDE_FROM_REPORTS AS hide_from_reports';
+        } else {
+            $cols .= ', 0 AS hide_from_reports';
         }
         return $cols;
     }
@@ -947,6 +1003,7 @@ final class RecordsScriptsRepository
             'instances_min' => (int)($row['instances_min'] ?? 0),
             'gate_red_max' => max(0.0, (float)($row['gate_red_max'] ?? 0)),
             'gate_yellow_max' => max(0.0, (float)($row['gate_yellow_max'] ?? 0)),
+            'hide_from_reports' => !empty($row['hide_from_reports']) ? 1 : 0,
             'collection_killer' => $killer,
             'id_position' => (string)($row['id_position'] ?? ''),
             'roles' => $roles,
@@ -971,6 +1028,7 @@ final class RecordsScriptsRepository
             $hasGate = Database::columnExists('base_records_scripts', 'START_GATE');
             $hasExtend = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
             $hasQuality = Database::columnExists('base_records_scripts', 'GATE_RED_MAX');
+            $hasHide = Database::columnExists('base_records_scripts', 'HIDE_FROM_REPORTS');
             $upd = $pdo->prepare(
                 'UPDATE base_records_scripts SET
                  NEXT_QID=0, EL_TYPE=1, NUM=?, NAME=?, DISABLED=?,
@@ -980,6 +1038,7 @@ final class RecordsScriptsRepository
                 . ($hasGate ? ', START_GATE=?' : '')
                 . ($hasExtend ? ', EXTEND_TIMEOUT=?' : '')
                 . ($hasQuality ? ', GATE_RED_MAX=?, GATE_YELLOW_MAX=?' : '')
+                . ($hasHide ? ', HIDE_FROM_REPORTS=?' : '')
                 . ' WHERE ID=? AND PID=?'
             );
             $params = [
@@ -1012,6 +1071,9 @@ final class RecordsScriptsRepository
             if ($hasQuality) {
                 $params[] = max(0.0, (float)($part['gate_red_max'] ?? 0));
                 $params[] = max(0.0, (float)($part['gate_yellow_max'] ?? 0));
+            }
+            if ($hasHide) {
+                $params[] = !empty($part['hide_from_reports']) ? 1 : 0;
             }
             $params[] = $partId;
             $params[] = $rootId;
@@ -1060,6 +1122,7 @@ final class RecordsScriptsRepository
             $hasGate = Database::columnExists('base_records_scripts', 'START_GATE');
             $hasExtend = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
             $hasQuality = Database::columnExists('base_records_scripts', 'GATE_RED_MAX');
+            $hasHide = Database::columnExists('base_records_scripts', 'HIDE_FROM_REPORTS');
             $ins = $pdo->prepare(
                 'INSERT INTO base_records_scripts
                  (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
@@ -1068,11 +1131,13 @@ final class RecordsScriptsRepository
                 . ($hasGate ? ', START_GATE' : '')
                 . ($hasExtend ? ', EXTEND_TIMEOUT' : '')
                 . ($hasQuality ? ', GATE_RED_MAX, GATE_YELLOW_MAX' : '')
+                . ($hasHide ? ', HIDE_FROM_REPORTS' : '')
                 . ')
                  VALUES (?, 0, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?'
                 . ($hasGate ? ', ?' : '')
                 . ($hasExtend ? ', ?' : '')
                 . ($hasQuality ? ', ?, ?' : '')
+                . ($hasHide ? ', ?' : '')
                 . ')'
             );
             $params = [
@@ -1107,6 +1172,9 @@ final class RecordsScriptsRepository
             if ($hasQuality) {
                 $params[] = max(0.0, (float)($part['gate_red_max'] ?? 0));
                 $params[] = max(0.0, (float)($part['gate_yellow_max'] ?? 0));
+            }
+            if ($hasHide) {
+                $params[] = !empty($part['hide_from_reports']) ? 1 : 0;
             }
             $ins->execute($params);
         } else {

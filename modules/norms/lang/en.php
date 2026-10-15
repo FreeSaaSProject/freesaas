@@ -20,4 +20,5 @@ return [
     'norms.err.good_required' => 'Select a material',
     'norms.module.description' => 'Default consumptions (base_good_defaults); embeds on catalog product edit.',
     'norms.module.summary' => 'Enable for default material norms on products. Requires catalog. Soft-used by stocks leftovers logic. Useful when procedures/writeoffs should know default consumptions.',
+    'norms.perm.delete' => 'Delete norms',
 ];

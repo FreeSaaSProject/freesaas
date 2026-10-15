@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -32,6 +32,14 @@
         {
             "id": "procedures.types",
             "label": "procedures.perm.types"
+        },
+        {
+            "id": "procedures.delete",
+            "label": "procedures.perm.delete"
+        },
+        {
+            "id": "procedures.types.delete",
+            "label": "procedures.perm.types_delete"
         }
     ],
     "routes": {
@@ -170,6 +178,14 @@
                         "day"
                     ]
                 }
+            },
+            {
+                "id": "procedures.delete",
+                "method": "POST",
+                "path": "/procedures/{id}/edit",
+                "permission": "procedures.delete",
+                "side_effect": "write",
+                "description": "Delete procedure journal row; POST action=delete"
             }
         ]
     },

@@ -79,4 +79,5 @@ return [
     'audio_phrases.settings.delta_surround' => 'Контекст примера',
     'audio_phrases.settings.daily_at' => 'Cron (время)',
     'audio_phrases.settings.backfill_days' => 'Дней backfill',
+    'audio_phrases.perm.delete' => 'Удаление фраз',
 ];

@@ -26,3 +26,6 @@ declare(strict_types=1);
     <a class="btn-secondary" href="/units"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (!$isNew): ?>
+<?= EntityDelete::form('units', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>

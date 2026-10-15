@@ -1,13 +1,24 @@
 <?php
 declare(strict_types=1);
+/** @var bool $isNew */
 /** @var array<string,mixed> $row */
 /** @var array<int,string> $accounts */
 /** @var array<int,string> $transferTypes */
 /** @var string $dtValue */
 /** @var string $message */
 /** @var string $error */
+/** @var int $fromId */
+/** @var int $toId */
+$isNew = !empty($isNew);
+$fromId = (int)($fromId ?? 0);
+$toId = (int)($toId ?? 0);
 ?>
-<section class="page-head"><h1><?= te('ledger.moves.transfer_new') ?></h1></section>
+<section class="page-head">
+  <h1><?= $isNew ? te('ledger.moves.transfer_new') : te('ledger.moves.transfer_edit', ['id' => $fromId]) ?></h1>
+  <?php if (!$isNew): ?>
+    <p class="muted"><?= te('ledger.moves.transfer_pair', ['from' => $fromId, 'to' => $toId]) ?></p>
+  <?php endif; ?>
+</section>
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form-grid form-wide ledger-move-form">

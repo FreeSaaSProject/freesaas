@@ -144,4 +144,5 @@ return [
     'certificates.err.forbidden' => 'Forbidden',
     'certificates.err.delete_superadmin' => 'Only a director can delete certificates',
     'certificates.err.insufficient_balance' => 'Insufficient certificate balance',
+    'certificates.perm.delete' => 'Delete certificates',
 ];

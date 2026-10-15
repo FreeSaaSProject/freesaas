@@ -20,6 +20,13 @@ if (!$isNew) {
     $row = $found;
 }
 $message = ''; $error = '';
+
+if (!$isNew && EntityDelete::tryHandle('fund_movements', $id, '/fund-movements', [
+    'stay_path' => '/fund-movements/' . $id . '/edit',
+])) {
+    return;
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $data = FundMovementsRepository::dataFromPost($_POST);

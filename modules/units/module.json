@@ -2,7 +2,7 @@
     "id": "units",
     "name": "units.module.name",
     "description": "units.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -20,6 +20,10 @@
         {
             "id": "units.edit",
             "label": "units.perm.edit"
+        },
+        {
+            "id": "units.delete",
+            "label": "units.perm.delete"
         }
     ],
     "routes": {
@@ -59,6 +63,14 @@
                 "path": "/units/{id}/edit",
                 "permission": "units.edit",
                 "description": "Update unit"
+            },
+            {
+                "id": "units.delete",
+                "method": "POST",
+                "path": "/units/{id}/edit",
+                "permission": "units.delete",
+                "side_effect": "write",
+                "description": "Delete unit; POST action=delete (blocked if products reference it)"
             }
         ]
     },

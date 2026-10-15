@@ -2,7 +2,7 @@
     "id": "tables",
     "name": "tables.module.name",
     "description": "tables.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -22,6 +22,10 @@
         {
             "id": "tables.edit",
             "label": "tables.perm.edit"
+        },
+        {
+            "id": "tables.delete",
+            "label": "tables.perm.delete"
         }
     ],
     "routes": {

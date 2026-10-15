@@ -35,3 +35,8 @@ $genderIds = $row['gender_ids'] ?? TablesRepository::parseIds((string)($row['gen
     <a class="btn-secondary" href="/tables"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<?php if (empty($isNew) && empty($is_new)): ?>
+<?= EntityDelete::form('tables', (int)($row['id'] ?? 0)) ?>
+<?php endif; ?>
+

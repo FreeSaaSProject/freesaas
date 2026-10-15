@@ -136,6 +136,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 SystemLogo::saveFromUpload($upload);
             }
 
+            // HTML checkbox: absent when unchecked. JSON may omit to keep current.
+            if (!$wantsJson || array_key_exists('agent_allow_delete', $_POST)) {
+                $allowDel = !empty($_POST['agent_allow_delete']) ? '1' : '0';
+                Config::set('app', 'agent_allow_delete', $allowDel);
+            }
+
             EventBus::emit('core.settings.save', [
                 'post' => $_POST,
                 'files' => $_FILES,
@@ -151,6 +157,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'message' => $message,
                     'company' => (string)($row['company'] ?? ''),
                     'timezone' => $timezone,
+                    'agent_allow_delete' => AgentHttp::allowsDelete(),
                 ]);
             }
         }
@@ -174,14 +181,17 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'timezones' => $coreTimezoneIds(),
         'has_logo' => SystemLogo::has(),
         'agent_token_configured' => AgentAuth::isConfigured(),
+        'agent_allow_delete' => AgentHttp::allowsDelete(),
     ]);
 }
 
 $sections = EventBus::emit('core.settings.sections', [
     'html' => '',
+    'agent_html' => '',
     'row' => $row,
 ]);
 $extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+$agentHtml = is_array($sections) ? (string)($sections['agent_html'] ?? '') : '';
 
 $agentConfigured = AgentAuth::isConfigured();
 if ($agentTokenPlain === '' && $agentConfigured) {
@@ -203,10 +213,12 @@ View::render('settings', [
     'logoUrl' => SystemLogo::url(SystemLogo::VARIANT_AUTH),
     'hasLogo' => SystemLogo::has(),
     'extraHtml' => $extraHtml,
+    'agentHtml' => $agentHtml,
     'timezone' => $timezone,
     'timezoneOptions' => $coreTimezoneOptions($timezone),
     'agentTokenConfigured' => $agentConfigured,
     'agentTokenMasked' => $agentTokenMasked,
     'agentTokenPlain' => $agentTokenPlain,
     'agentTokenJustGenerated' => $agentTokenJustGenerated,
+    'agentAllowDelete' => AgentHttp::allowsDelete(),
 ]);

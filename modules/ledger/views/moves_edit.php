@@ -168,9 +168,7 @@ $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
   <?= $extraSectionsHtml ?>
 <?php endif; ?>
 <?php if (!$isNew): ?>
-<form method="post" class="danger-zone" onsubmit="return confirm(<?= tj('ledger.moves.confirm_delete') ?>);">
-  <?= NavContext::hiddenField() ?>
-  <input type="hidden" name="action" value="delete">
-  <button class="btn-danger" type="submit"><?= te('core.common.delete') ?></button>
-</form>
+<?= EntityDelete::form('ledger_moves', (int)($row['id'] ?? 0), [
+    'confirm' => 'ledger.moves.confirm_delete',
+]) ?>
 <?php endif; ?>

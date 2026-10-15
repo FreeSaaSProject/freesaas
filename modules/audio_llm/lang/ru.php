@@ -78,4 +78,5 @@ return [
     'audio_llm.spawned.proc' => 'проц №{id}',
     'audio_llm.module.description' => 'LLM-исследования по аудио: циклические шаблоны и spawn дневных отчётов.',
     'audio_llm.module.summary' => 'Включайте для AI-разбора записей. Требует llm + audio + audio_dicts. Мягко staff_reports/comments/procedures/contracts. После ключей llm и словарей audio.',
+    'audio_llm.perm.delete' => 'Удаление LLM-исследований',
 ];

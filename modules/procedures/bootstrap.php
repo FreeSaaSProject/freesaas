@@ -35,8 +35,8 @@ foreach ($pages as $path => $def) {
 
 BulkActions::register('procedures', 'delete', [
     'label' => 'core.bulk.delete',
-    'capability' => 'SUPERADMIN_ACCESS',
-    'confirm' => 'core.bulk.confirm_delete',
+    'permission' => 'procedures.delete',
+        'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => ProceduresRepository::deleteByIds($ids), 'skipped' => []];
     },
@@ -78,7 +78,7 @@ BulkActions::register('procedures', 'set_admin', [
 
 BulkActions::register('procedure_types', 'delete', [
     'label' => 'core.bulk.delete',
-    'permission' => 'procedures.types',
+    'permission' => 'procedures.types.delete',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => ProcedureTypesRepository::deleteByIds($ids), 'skipped' => []];
@@ -192,6 +192,12 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                 }
                 if ((float)$p['salary_sales'] > 0) {
                     $bits[] = 'П' . (int)round((float)$p['salary_sales']);
+                }
+                if ((float)($p['salary_audio'] ?? 0) > 0) {
+                    $bits[] = 'А' . (int)round((float)$p['salary_audio']);
+                }
+                if ((float)($p['salary_scripts'] ?? 0) > 0) {
+                    $bits[] = 'С' . (int)round((float)$p['salary_scripts']);
                 }
                 if ($bits) {
                     $text .= ' ' . t('procedures.stats.salary_abbr') . ' ' . implode('+', $bits);

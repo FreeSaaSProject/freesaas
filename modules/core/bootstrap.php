@@ -173,6 +173,47 @@ Cron::register('habits.reminders', [
     },
 ]);
 
+BulkActions::register('core_users', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'core.users.delete',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return UsersRepository::deleteByIds($ids);
+    },
+]);
+BulkActions::register('core_statuses', 'delete', [
+    'label' => 'core.bulk.delete',
+    'permission' => 'core.statuses.delete',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return StatusesRepository::deleteByIds($ids);
+    },
+]);
+EventBus::on('core.bulk.check_item', static function (array $payload): array {
+    $listId = (string)($payload['list_id'] ?? '');
+    $action = (string)($payload['action'] ?? '');
+    if ($action !== 'delete') {
+        return $payload;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    if ($listId === 'core_users') {
+        $reasons = UsersRepository::deleteBlockReasons($id);
+        if ($reasons !== []) {
+            $payload['blocked'] = true;
+            $payload['reason'] = implode('; ', $reasons);
+        }
+        return $payload;
+    }
+    if ($listId === 'core_statuses') {
+        $n = StatusesRepository::userCount($id);
+        if ($n > 0) {
+            $payload['blocked'] = true;
+            $payload['reason'] = t('core.statuses.err.in_use_users', ['n' => $n]);
+        }
+    }
+    return $payload;
+});
+
 EventBus::on('core.dashboard.catalog', static function ($catalog) {
     if (!is_array($catalog)) {
         $catalog = [];

@@ -126,4 +126,8 @@ return [
 {tel}',
     'clients.module.description' => 'Client CRM: base_clients, client statuses; login identity is phone.',
     'clients.module.summary' => 'Enable for the client directory and statuses. Soft-depends on bots for messenger links. Required by clientics, yclients, bonuses, calendar, orders, procedures, and more. Core CRM building block — enable early.',
+    'clients.perm.delete' => 'Delete clients',
+    'clients.perm.tags_delete' => 'Delete client tags',
+    'clients.perm.statuses_delete' => 'Delete client statuses',
+    'clients.status.err.in_use' => 'Status is used by {n} client(s) — reassign them first',
 ];

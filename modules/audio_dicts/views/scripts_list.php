@@ -18,7 +18,10 @@ declare(strict_types=1);
 /** @var string $listId */
 /** @var string $error */
 /** @var array<string,string> $roleLabels */
+/** @var list<string> $existingScriptNames */
 $showAll = !empty($showAll);
+$existingScriptNames = is_array($existingScriptNames ?? null) ? $existingScriptNames : [];
+$existingNamesJson = json_encode(array_values($existingScriptNames), JSON_UNESCAPED_UNICODE) ?: '[]';
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $colSpan = 6 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
@@ -30,7 +33,38 @@ $q = (string)($q ?? '');
 ?>
 <section class="page-head">
   <?php if ($canEdit): ?>
-  <div class="page-head-row"><div></div><div class="page-actions"><a class="btn-primary" href="<?= e($path) ?>/new"><?= te('audio_dicts.scripts.btn_new') ?></a></div></div>
+  <div class="page-head-row"><div></div><div class="page-actions">
+    <a class="btn-primary" href="<?= e($path) ?>/new"><?= te('audio_dicts.scripts.btn_new') ?></a>
+    <form class="scripts-upload-form" id="scripts-upload-form" method="post" action="<?= e($path) ?>/import" enctype="multipart/form-data">
+      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+      <input type="hidden" name="name" id="scripts-upload-name" value="">
+      <label class="btn-secondary scripts-upload-label">
+        <?= te('audio_dicts.scripts.btn_upload') ?>
+        <input type="file" name="pack" id="scripts-upload-file" accept="application/json,.json" required hidden>
+      </label>
+    </form>
+  </div></div>
+  <dialog class="scripts-import-dialog" id="scripts-import-dialog"
+          data-existing-names="<?= e($existingNamesJson) ?>"
+          data-i18n-parts="<?= e(t('audio_dicts.scripts.pack.preview_parts')) ?>"
+          data-i18n-dicts="<?= e(t('audio_dicts.scripts.pack.preview_dicts')) ?>"
+          data-i18n-positions="<?= e(t('audio_dicts.scripts.pack.preview_positions')) ?>"
+          data-i18n-keys-yes="<?= e(t('audio_dicts.scripts.pack.preview_keys_yes')) ?>"
+          data-i18n-keys-no="<?= e(t('audio_dicts.scripts.pack.preview_keys_no')) ?>"
+          data-i18n-invalid="<?= e(t('audio_dicts.scripts.pack.err_invalid_json')) ?>"
+          data-i18n-name-required="<?= e(t('audio_dicts.err.name_required')) ?>"
+          data-i18n-name-taken="<?= e(t('audio_dicts.scripts.err.name_taken', ['name' => '{name}'])) ?>">
+    <h2><?= te('audio_dicts.scripts.pack.import_title') ?></h2>
+    <label class="scripts-import-name-label"><?= te('audio_dicts.col.name') ?>
+      <input type="text" id="scripts-import-name" maxlength="40" required>
+    </label>
+    <p class="flash error scripts-import-name-err" id="scripts-import-name-err" hidden></p>
+    <div class="scripts-import-preview muted" id="scripts-import-preview"></div>
+    <div class="form-actions">
+      <button type="button" class="btn-secondary" id="scripts-import-cancel"><?= te('core.common.cancel') ?></button>
+      <button type="button" class="btn-primary" id="scripts-import-ok"><?= te('audio_dicts.scripts.btn_upload') ?></button>
+    </div>
+  </dialog>
   <?php endif; ?>
 </section>
 <?php if ($error !== ''): ?><p class="flash error"><?= e($error) ?></p><?php endif; ?>

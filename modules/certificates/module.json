@@ -2,7 +2,7 @@
     "id": "certificates",
     "name": "certificates.module.name",
     "description": "certificates.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -38,6 +38,10 @@
         {
             "id": "certificates.ledger",
             "label": "certificates.perm.ledger"
+        },
+        {
+            "id": "certificates.delete",
+            "label": "certificates.perm.delete"
         }
     ],
     "routes": {

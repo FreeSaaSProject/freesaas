@@ -74,4 +74,5 @@ return [
     'funds.accrual.col.pay' => 'Платёж',
     'funds.accrual.col.status' => 'Статус',
     'funds.moves.err.not_found' => 'Движение #{id} не найдено',
+    'funds.perm.delete' => 'Удаление фондов / движений',
 ];
