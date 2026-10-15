@@ -44,6 +44,13 @@ if (!$isNew) {
     ];
 }
 
+if (!$isNew && EntityDelete::tryHandle('ledger_moves', $id, '/ledger/moves?deleted=1', [
+    'stay_path' => '/ledger/transfers/' . $id . '/edit',
+    'confirm' => 'ledger.moves.transfer_confirm_delete',
+])) {
+    return;
+}
+
 $transferTypes = [];
 foreach (AccountMoveTypesRepository::list(['limit' => 500])['items'] as $t) {
     if (!empty($t['linked_enabled']) && !empty($t['enabled'])) {

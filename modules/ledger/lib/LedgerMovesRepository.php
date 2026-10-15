@@ -618,13 +618,14 @@ final class LedgerMovesRepository
         if (!$twin || (int)($twin['deleted'] ?? 0) > 0) {
             return null;
         }
-        // Prefer outbound (direction < 0) as "from"; else lower id (created first).
-        if ((int)$row['direction'] < 0 && (int)$twin['direction'] >= 0) {
+        // Debit (direction < 0) = списание / from; credit = назначение / to.
+        if ((int)$row['direction'] < 0) {
             return ['from' => $row, 'to' => $twin];
         }
-        if ((int)$twin['direction'] < 0 && (int)$row['direction'] >= 0) {
+        if ((int)$twin['direction'] < 0) {
             return ['from' => $twin, 'to' => $row];
         }
+        // Ambiguous legacy pair: smaller id was created as "from" in createTransfer.
         if ((int)$row['id'] <= (int)$twin['id']) {
             return ['from' => $row, 'to' => $twin];
         }
@@ -633,6 +634,7 @@ final class LedgerMovesRepository
 
     /**
      * Update both sides of a transfer (keeps pairing).
+     * accountFrom = debit (списание), accountTo = credit (назначение). Directions always −1 / +1.
      * @return array{from_id:int,to_id:int}
      */
     public static function updateTransfer(
@@ -664,11 +666,9 @@ final class LedgerMovesRepository
         if ($dt < 1) {
             $dt = time();
         }
-        $dirFrom = (int)($type['direction'] ?? -1);
-        if ($dirFrom === 0) {
-            $dirFrom = -1;
-        }
-        $dirTo = -$dirFrom;
+        // Ignore type.direction for legs — transfer UI is always debit → credit.
+        $dirFrom = -1;
+        $dirTo = 1;
         $fromId = (int)$pair['from']['id'];
         $toId = (int)$pair['to']['id'];
         $uid = Auth::userId();
@@ -776,11 +776,9 @@ final class LedgerMovesRepository
         try {
             $uid = Auth::userId();
             $now = time();
-            $dirFrom = (int)($type['direction'] ?? -1);
-            if ($dirFrom === 0) {
-                $dirFrom = -1;
-            }
-            $dirTo = -$dirFrom;
+            // Always debit source / credit destination (ignore type.direction — it swapped UI).
+            $dirFrom = -1;
+            $dirTo = 1;
 
             $fromId = self::create([
                 'account_id' => $accountFrom,

@@ -29,7 +29,7 @@ $toId = (int)($toId ?? 0);
       <?php endforeach; ?>
     </select>
   </label>
-  <label><?= te('ledger.moves.col.account') ?>
+  <label><?= te('ledger.moves.field.account_from') ?>
     <select name="account_id" required>
       <?php foreach ($accounts as $aid => $aname): ?>
         <option value="<?= (int)$aid ?>"<?= (int)($row['account_id'] ?? 0) === (int)$aid ? ' selected' : '' ?>><?= e($aname) ?></option>
@@ -53,3 +53,8 @@ $toId = (int)($toId ?? 0);
     <a class="btn-secondary" href="/ledger/moves"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (!$isNew): ?>
+<?= EntityDelete::form('ledger_moves', $fromId > 0 ? $fromId : $toId, [
+    'confirm' => 'ledger.moves.transfer_confirm_delete',
+]) ?>
+<?php endif; ?>
