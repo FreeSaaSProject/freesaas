@@ -1,3 +1,15 @@
+/* Chill/rest procedure chips on /calendar (class set via calendar.timeline.enrich). */
+.calendar-tl-chip.is-chill {
+  border-style: dashed;
+  border-color: rgba(71, 85, 105, 0.65);
+  box-shadow: none;
+  opacity: 0.95;
+  font-style: italic;
+}
+.calendar-tl-chip.is-chill:hover {
+  outline-color: #64748b;
+}
+
 .termloads-bars { list-style: none; margin: 0; padding: 0; max-width: 40rem; }
 .termloads-bars li { display: flex; align-items: center; gap: .5rem; margin: .15rem 0; font-size: .9rem; }
 .termloads-bars .tl-time { width: 3rem; color: var(--muted, #666); flex-shrink: 0; }

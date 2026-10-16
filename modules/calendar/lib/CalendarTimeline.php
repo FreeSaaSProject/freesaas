@@ -143,21 +143,23 @@ final class CalendarTimeline
 
     /**
      * Staff column layout inside a day cell (oper steks_left).
+     * Preserves caller order (shift panel: masseurs → FL → admin → assist → hidden).
      *
-     * @param list<int> $operatorIds unique, order preserved after sort
+     * @param list<int> $operatorIds unique preferred order
      * @return array{width:float,lefts:array<int,float>}
      */
     public static function staffStacks(array $operatorIds): array
     {
-        $ids = [];
+        $list = [];
+        $seen = [];
         foreach ($operatorIds as $id) {
             $id = (int)$id;
-            if ($id > 0) {
-                $ids[$id] = true;
+            if ($id < 1 || isset($seen[$id])) {
+                continue;
             }
+            $seen[$id] = true;
+            $list[] = $id;
         }
-        $list = array_keys($ids);
-        sort($list, SORT_NUMERIC);
         $n = count($list);
         if ($n < 1) {
             return ['width' => 95.0, 'lefts' => [0 => 0.0]];
@@ -173,6 +175,35 @@ final class CalendarTimeline
             $i++;
         }
         return ['width' => $width, 'lefts' => $lefts];
+    }
+
+    /**
+     * Chip-lane operator ids in the same order as the top shift badges.
+     * Only staff who have events/procedures/orders get a lane; off-shift chip ops append last.
+     *
+     * @param list<array<string,mixed>> $shifts WorkweeksRepository::listForDay rows (already group-sorted)
+     * @param list<array<string,mixed>> ...$itemLists events, procedures, orders
+     * @return list<int>
+     */
+    public static function stackOperatorIds(array $shifts, array ...$itemLists): array
+    {
+        $withChips = [];
+        foreach (self::collectOperatorIds(...$itemLists) as $id) {
+            $withChips[$id] = true;
+        }
+        $out = [];
+        foreach ($shifts as $sh) {
+            $oid = (int)($sh['id_operator'] ?? 0);
+            if ($oid < 1 || !isset($withChips[$oid])) {
+                continue;
+            }
+            $out[$oid] = true;
+            unset($withChips[$oid]);
+        }
+        foreach ($withChips as $oid => $_) {
+            $out[$oid] = true;
+        }
+        return array_keys($out);
     }
 
     /**
@@ -248,6 +279,9 @@ final class CalendarTimeline
             $chips[] = [
                 'kind' => 'proc',
                 'id' => (int)$pr['id'],
+                // Metadata for product modules (e.g. terminals chill paint via calendar.timeline.enrich).
+                'id_good' => (int)($pr['id_good'] ?? 0),
+                'notice' => (string)($pr['notice'] ?? ''),
                 'href' => '/procedures/' . (int)$pr['id'] . '/edit',
                 'top' => $pos['top'],
                 'height' => $pos['height'],

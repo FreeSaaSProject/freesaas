@@ -130,6 +130,57 @@ final class CalendarLoadOverlay
     }
 
     /**
+     * Paint chill/rest procedure chips (owned by terminals.chill_product_id + notice chill#).
+     * Calendar stays product-agnostic; identification never hardcodes ID 16.
+     *
+     * @param list<array<string,mixed>> $chips
+     * @return list<array<string,mixed>>
+     */
+    public static function paintChillChips(array $chips): array
+    {
+        $chillGood = class_exists(TerminalsConfig::class, false)
+            ? TerminalsConfig::chillProductId()
+            : 0;
+        if ($chillGood < 1 && $chips === []) {
+            return $chips;
+        }
+        $painted = false;
+        foreach ($chips as &$chip) {
+            if (!is_array($chip) || (string)($chip['kind'] ?? '') !== 'proc') {
+                continue;
+            }
+            $idGood = (int)($chip['id_good'] ?? 0);
+            $notice = (string)($chip['notice'] ?? '');
+            $isChill = ($chillGood > 0 && $idGood === $chillGood)
+                || strncmp($notice, 'chill#', 6) === 0;
+            if (!$isChill) {
+                continue;
+            }
+            $painted = true;
+            // Distinct from staff-colored service chips (slate hatch, dark text).
+            $chip['bg'] = 'repeating-linear-gradient(135deg,'
+                . 'rgba(100,116,139,0.72) 0 5px,'
+                . 'rgba(203,213,225,0.85) 5px 10px)';
+            $chip['fg'] = '#0f172a';
+            $extra = trim((string)($chip['class'] ?? ''));
+            if (!preg_match('/(?:^|\s)is-chill(?:\s|$)/', $extra)) {
+                $chip['class'] = trim($extra . ' is-chill');
+            }
+            $info = (string)($chip['info'] ?? '');
+            if (strpos($info, 'calendar-chill-mark') === false) {
+                $chip['info'] = '<div class="muted calendar-chill-mark">'
+                    . e(t('terminals.calendar.chill_chip'))
+                    . '</div>' . $info;
+            }
+        }
+        unset($chip);
+        if ($painted && class_exists(Assets::class, false)) {
+            Assets::need('terminals');
+        }
+        return $chips;
+    }
+
+    /**
      * Prefix procedure chips with [N] from termloads at DTSTART ±5 min.
      *
      * @param list<array<string,mixed>> $chips

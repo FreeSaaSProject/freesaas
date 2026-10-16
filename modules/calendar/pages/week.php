@@ -133,7 +133,7 @@ foreach ($days as $day) {
         ));
     }
 
-    $opIds = CalendarTimeline::collectOperatorIds($dayEvents, $dayProcs, $dayOrders);
+    $opIds = CalendarTimeline::stackOperatorIds($shifts, $dayEvents, $dayProcs, $dayOrders);
     if ($staffId > 0 && $opIds === []) {
         $opIds = [$staffId];
     }

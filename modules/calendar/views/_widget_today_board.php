@@ -36,9 +36,14 @@ $myOnly = !empty($myOnly);
         <div class="calendar-board-slot" style="top:<?= (int)($i * $pxPerHour) ?>px;height:<?= (int)$pxPerHour ?>px;"></div>
       <?php endforeach; ?>
       <?php foreach ($chips as $chip): ?>
+        <?php
+        $chipExtra = preg_replace('/[^a-zA-Z0-9_\-\s]/', '', (string)($chip['class'] ?? '')) ?? '';
+        $chipExtra = trim(preg_replace('/\s+/', ' ', $chipExtra) ?? '');
+        ?>
         <button type="button"
-                class="calendar-tl-chip calendar-tl-chip-<?= e((string)$chip['kind']) ?> calendar-board-chip"
+                class="calendar-tl-chip calendar-tl-chip-<?= e((string)$chip['kind']) ?> calendar-board-chip<?= $chipExtra !== '' ? ' ' . e($chipExtra) : '' ?>"
                 data-info="<?= e((string)($chip['info'] ?? '')) ?>"
+                <?php if (!empty($chip['id_good'])): ?>data-id-good="<?= (int)$chip['id_good'] ?>"<?php endif; ?>
                 style="top:<?= (int)$chip['top'] ?>px;height:<?= (int)$chip['height'] ?>px;left:<?= e((string)$chip['left']) ?>%;width:<?= e((string)$chip['width']) ?>%;background:<?= e((string)$chip['bg']) ?>;color:<?= e((string)$chip['fg']) ?>;">
           <?= e((string)$chip['label']) ?>
         </button>

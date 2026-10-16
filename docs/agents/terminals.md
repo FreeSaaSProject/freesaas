@@ -2,6 +2,8 @@
 
 Product module `terminals`: device registry (`base_terminals`, `base_bracelets`), therm occupancy analytics (`base_termloads`, `base_fullstats`), and HTTP sync jobs. Secrets/URLs live in `cfg/modules/terminals.ini` (not platform `config.ini`). Legacy table `base_term_orders` may still exist from older installs; UI/import removed (Volga Termy feed no longer used).
 
+Calendar day/week: chill/rest procedure chips are painted by `calendar.timeline.enrich` in this module (`TerminalsConfig::chillProductId()` + `notice` `chill#…`) — calendar only passes `id_good`/`notice`/`class`, no hardcoded product id.
+
 Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`, `flyerOn`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home (oper-parity): bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`, optional **`likespa`** (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in likespa (`/api_termy.php`).
 
 ### Discounts on `/t` (soft `likespa`)

@@ -148,6 +148,7 @@ return [
     'terminals.bracelets.edit.title' => 'Браслет #{id}',
     'terminals.bracelets.edit.heading_new' => 'Новый браслет',
     'terminals.calendar.load_title' => 'Загрузка терм: {n}',
+    'terminals.calendar.chill_chip' => 'Перерыв / отдых',
     'terminals.calendar.b2b_title' => 'B2B-билеты за час: {n}',
     'terminals.termloads.title' => 'Загрузка терм',
     'terminals.termloads.empty' => 'Нет замеров за день',

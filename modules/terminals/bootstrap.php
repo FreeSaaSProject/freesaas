@@ -271,6 +271,27 @@ EventBus::on('core.user_edit.profile', static function ($payload) {
     return $payload;
 });
 
+// Calendar day/week: chill/rest chips (own product id from terminals.ini — no hardcode in calendar).
+EventBus::on('calendar.timeline.enrich', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Auth::can('calendar.view')) {
+        return $payload;
+    }
+    $days = is_array($payload['days'] ?? null) ? $payload['days'] : [];
+    foreach ($days as $date => $day) {
+        if (!is_array($day)) {
+            continue;
+        }
+        $chips = is_array($day['chips'] ?? null) ? $day['chips'] : [];
+        $day['chips'] = CalendarLoadOverlay::paintChillChips($chips);
+        $days[$date] = $day;
+    }
+    $payload['days'] = $days;
+    return $payload;
+});
+
 // Calendar day/week: therm [N] on procedure chips + hour slots; B2B ГN when >5.
 EventBus::on('calendar.timeline.enrich', static function ($payload) {
     if (!is_array($payload)) {

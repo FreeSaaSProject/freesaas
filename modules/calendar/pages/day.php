@@ -52,7 +52,7 @@ foreach ($shifts as $sh) {
 if ($staffId > 0 && $opIds === []) {
     $opIds = [$staffId];
 }
-$stackOpIds = CalendarTimeline::collectOperatorIds($events, $procedures, $orders);
+$stackOpIds = CalendarTimeline::stackOperatorIds($shifts, $events, $procedures, $orders);
 if ($staffId > 0 && $stackOpIds === []) {
     $stackOpIds = [$staffId];
 }

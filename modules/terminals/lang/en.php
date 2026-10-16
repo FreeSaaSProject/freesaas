@@ -148,6 +148,7 @@ return [
     'terminals.bracelets.edit.title' => 'Bracelet #{id}',
     'terminals.bracelets.edit.heading_new' => 'New bracelet',
     'terminals.calendar.load_title' => 'Therm occupancy: {n}',
+    'terminals.calendar.chill_chip' => 'Rest / break',
     'terminals.calendar.b2b_title' => 'B2B tickets this hour: {n}',
     'terminals.termloads.title' => 'Therm occupancy',
     'terminals.termloads.empty' => 'No samples for this day',
