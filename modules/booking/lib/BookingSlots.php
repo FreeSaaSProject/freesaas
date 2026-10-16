@@ -11,7 +11,81 @@ final class BookingSlots
 {
     public const INTERVAL_SEC = 300; // 5 minutes
     public const DEFAULT_DURATION_SEC = 3600;
-    public const LEAD_SEC = 1200; // 20 min ahead of "now" for today
+    /** @deprecated Use defaultLeadSec() / caller-owned lead override */
+    public const LEAD_SEC = 180;
+
+    /**
+     * Staff/booking default lead (seconds). Product channels pass their own override.
+     */
+    public static function defaultLeadSec(): int
+    {
+        $raw = Config::get('booking', 'lead_sec', 180);
+        $n = is_numeric($raw) ? (int)$raw : 180;
+        return max(0, min(7200, $n));
+    }
+
+    /**
+     * Thin dense free timestamps for UI/API listing:
+     * first free slot + :00/:15/:30/:45 + first after a gap.
+     *
+     * @param list<int>|array<int,int> $slots
+     * @return list<int>
+     */
+    public static function filterListSlots(array $slots): array
+    {
+        $slots = array_values(array_unique(array_filter(
+            array_map('intval', $slots),
+            static fn (int $t): bool => $t > 0
+        )));
+        sort($slots, SORT_NUMERIC);
+        if ($slots === []) {
+            return [];
+        }
+        $step = self::INTERVAL_SEC;
+        $out = [];
+        $prev = null;
+        foreach ($slots as $i => $ts) {
+            $min = (int)date('i', $ts);
+            $isQuarter = ($min % 15) === 0;
+            $isFirst = $i === 0;
+            $isGapStart = $prev !== null && ($ts - $prev) > $step;
+            if ($isFirst || $isQuarter || $isGapStart) {
+                $out[] = $ts;
+            }
+            $prev = $ts;
+        }
+        return $out;
+    }
+
+    /**
+     * Cap chill the same way as check() (legacy oper caps).
+     *
+     * @return array{total_time:int,total_net:int,time_chill:int}
+     */
+    public static function durationWithChill(int $totalTime, int $totalNetTime): array
+    {
+        $totalTime = max(0, $totalTime);
+        $totalNetTime = max(0, $totalNetTime);
+        if ($totalNetTime > $totalTime) {
+            $totalNetTime = $totalTime;
+        }
+        $timeChill = $totalTime - $totalNetTime;
+        $timeChillNew = $timeChill;
+        if ($timeChill > 1200) {
+            $timeChillNew = 1200;
+        } elseif ($totalNetTime < 3600 && $timeChill > 600) {
+            $timeChillNew = 600;
+        }
+        if ($timeChillNew !== $timeChill) {
+            $timeChill = $timeChillNew;
+            $totalTime = $timeChill + $totalNetTime;
+        }
+        return [
+            'total_time' => $totalTime,
+            'total_net' => $totalNetTime,
+            'time_chill' => $timeChill,
+        ];
+    }
 
     /**
      * @param list<array{id:int,time_sec:int,time_net:int,type_id:int}> $products
@@ -76,17 +150,10 @@ final class BookingSlots
             }
         }
 
-        $timeChill = $totalTime - $totalNetTime;
-        $timeChillNew = $timeChill;
-        if ($timeChill > 1200) {
-            $timeChillNew = 1200;
-        } elseif ($totalNetTime < 3600 && $timeChill > 600) {
-            $timeChillNew = 600;
-        }
-        if ($timeChillNew !== $timeChill) {
-            $timeChill = $timeChillNew;
-            $totalTime = $timeChill + $totalNetTime;
-        }
+        $capped = self::durationWithChill($totalTime, $totalNetTime);
+        $totalTime = $capped['total_time'];
+        $totalNetTime = $capped['total_net'];
+        $timeChill = $capped['time_chill'];
 
         $dayMonth = (int)date('n', $rangeStart);
         $dayDay = (int)date('j', $rangeStart);

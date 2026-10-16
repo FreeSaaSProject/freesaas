@@ -113,6 +113,7 @@ if ($needsBooking) {
             'free_ticket' => $freeTicket,
             'client_id' => SitesGuest::clientId(),
             'source' => 'site',
+            'lead_sec' => SitesBooking::leadSec(),
         ]);
         $orderId = (int)$booked['order_id'];
     } catch (Throwable $e) {

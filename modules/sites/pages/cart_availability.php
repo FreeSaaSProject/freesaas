@@ -70,7 +70,10 @@ try {
     $data = BookingAvailability::forDay(
         $date,
         $productIds,
-        $operatorId > 0 ? $operatorId : null
+        $operatorId > 0 ? $operatorId : null,
+        null,
+        false,
+        SitesBooking::leadSec()
     );
 } catch (InvalidArgumentException $e) {
     SitesCart::emitJson(['ok' => false, 'error' => $e->getMessage()], 400);

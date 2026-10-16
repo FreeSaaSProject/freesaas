@@ -2,7 +2,7 @@
 
 Product module `terminals`: device registry (`base_terminals`, `base_bracelets`), therm occupancy analytics (`base_termloads`, `base_fullstats`), and HTTP sync jobs. Secrets/URLs live in `cfg/modules/terminals.ini` (not platform `config.ini`). Legacy table `base_term_orders` may still exist from older installs; UI/import removed (Volga Termy feed no longer used).
 
-Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home (oper-parity): bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick; executor soft-lock (`ID_EXECUTOR` / `DT_EXECUTOR_FREE`) while specialist selected, cleared on catalog return; cancel asks reason (+ staff login if procedure already started); ticket/time clock; last-10 history; 1C/diag line; staff-load board (`IS_TERMINAL_SHOW_DAY`). Soft-deps: `booking`, `procedures`, `workweeks`. Termy/legacy HTTP drop-in lives in optional **`likespa`** (`/api_termy.php`). Scan analytics stay in `likespa` (`base_term_scans`).
+Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home (oper-parity): bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`. Termy/legacy HTTP drop-in lives in optional **`likespa`** (`/api_termy.php`). Scan analytics stay in `likespa` (`base_term_scans`).
 
 ## Enable
 
@@ -28,7 +28,7 @@ Permissions: `terminals.view`, `terminals.edit`, `terminals.sync` (jobs use `wor
 | `/terminals/bracelets` | Bracelet UID ↔ NUM |
 | `/terminals/termloads` | Day occupancy series |
 | `/terminals/fullstats` | Ticket visits + classify |
-| `/terminals/settings` | Superadmin: flags + secrets |
+| `/terminals/settings` | Superadmin: flags + secrets + floor/API lead + chill product |
 | `/t` | Public NFC floor shell (no admin chrome) |
 | `/terminals/t/status` | Staff diagnose for /t (claim / 1C / soft-deps) |
 | `/terminals/1c` | **1C diagnostics** console (legacy `/1c`): bracelet/client lookup, price, sale/unsale, raw dump. Permission `terminals.edit`. Live API only (`onecLive`); no cheese-password — session auth. Modes: `/terminals/1c/{mode}` |

@@ -34,6 +34,18 @@ try {
     return;
 }
 
+// Listing: thin to 15-min + first + after gap. Assert stays dense via BookingValidate.
+foreach ($data['operators'] as $i => $op) {
+    $slots = BookingSlots::filterListSlots(array_map('intval', $op['slots'] ?? []));
+    $hhmm = [];
+    foreach ($slots as $ts) {
+        $hhmm[] = date('H:i', $ts);
+    }
+    $data['operators'][$i]['slots'] = $slots;
+    $data['operators'][$i]['slots_hhmm'] = $hhmm;
+    $data['operators'][$i]['available'] = $slots !== [];
+}
+
 if ($wantsJson) {
     AgentHttp::emit(['ok' => true, 'availability' => $data]);
 }

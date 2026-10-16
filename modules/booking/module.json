@@ -2,7 +2,7 @@
     "id": "booking",
     "name": "booking.module.name",
     "description": "booking.module.description",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -40,7 +40,8 @@
             "/booking/book",
             "/booking/clients",
             "/booking/orders",
-            "/booking/cancel"
+            "/booking/cancel",
+            "/booking/settings"
         ]
     },
     "agent": {
@@ -154,6 +155,13 @@
             "path": "/booking/new",
             "title": "booking.menu.new",
             "permission": "booking.edit"
+        },
+        {
+            "group": "calendar.menu.group",
+            "num": 90,
+            "kind": "settings",
+            "path": "/booking/settings",
+            "title": "booking.menu.settings"
         }
     ],
     "configSchema": [],

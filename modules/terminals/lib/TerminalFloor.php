@@ -267,11 +267,25 @@ final class TerminalFloor
             $cursor = $commitTs;
             // TOKEN is VARCHAR(32): first item keeps scan token; rest get md5 (32 hex).
             $baseToken = substr((string)$q['token'], 0, 32);
+            $cartProducts = class_exists(BookingAvailability::class, false)
+                ? BookingAvailability::loadProducts($gids)
+                : [];
+            $cartProbe = ($cartProducts !== [] && class_exists(BookingSlots::class, false))
+                ? BookingSlots::check(
+                    $cartProducts,
+                    $operatorId,
+                    [],
+                    $commitTs,
+                    $commitTs + 86400
+                )
+                : ['timeChill' => 0, 'timeText' => 0.0, 'timeChillText' => 0.0];
+            $timeChill = (int)($cartProbe['timeChill'] ?? 0);
+            $lastIdx = count($gids) - 1;
             foreach ($gids as $idx => $gid) {
                 $itemToken = $idx === 0
                     ? $baseToken
                     : md5($baseToken . '#' . $gid);
-                $book = TerminalBooking::book([
+                $bookIn = [
                     'product_id' => $gid,
                     'operator_id' => $operatorId,
                     'admin_id' => $claimedAdminId > 0 ? $claimedAdminId : $operatorId,
@@ -282,7 +296,15 @@ final class TerminalFloor
                     'onec_bracelet' => $bracelet,
                     'token' => $itemToken,
                     'disable_1c' => $disable1c,
-                ]);
+                    'lead_sec' => TerminalsConfig::leadSec(),
+                    'skip_chill' => true,
+                ];
+                // One chill after the whole cart (legacy parity).
+                if ($idx === $lastIdx && $timeChill > 0) {
+                    $bookIn['skip_chill'] = false;
+                    $bookIn['time_chill'] = $timeChill;
+                }
+                $book = TerminalBooking::book($bookIn);
                 $results[] = $book;
                 if (empty($book['ok'])) {
                     return self::withHomeExtras([
@@ -301,7 +323,12 @@ final class TerminalFloor
                 $product = class_exists(ProductsRepository::class, false)
                     ? ProductsRepository::find($gid)
                     : null;
-                $cursor += max(300, (int)($product['time_sec'] ?? 3600));
+                $timeNet = max(0, (int)($product['time_net'] ?? 0));
+                $timeSec = max(0, (int)($product['time_sec'] ?? 0));
+                if ($timeNet < 1) {
+                    $timeNet = $timeSec > 0 ? $timeSec : 3600;
+                }
+                $cursor += max(300, $timeNet);
             }
             return self::withHomeExtras([
                 'ok' => true,
@@ -313,6 +340,8 @@ final class TerminalFloor
                 'message' => t('terminals.t.booked'),
                 'query' => $q,
                 'results' => $results,
+                'cart_time_text' => (float)($cartProbe['timeText'] ?? 0),
+                'cart_chill_text' => (float)($cartProbe['timeChillText'] ?? 0),
                 'onec_stub' => $disable1c,
             ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
         }
@@ -340,13 +369,22 @@ final class TerminalFloor
         }
         $slots = [];
         $operators = [];
+        $slotTimeText = 0.0;
+        $slotChillText = 0.0;
         $date = date('Y-m-d');
         $busyMap = TerminalsRepository::busyExecutors((int)$terminal['id']);
         $busy = array_keys($busyMap);
 
         if ($pickSlot && $gids !== [] && $operatorId > 0 && class_exists(BookingAvailability::class, false)) {
             try {
-                $avail = BookingAvailability::forDay($date, $gids, $operatorId);
+                $avail = BookingAvailability::forDay(
+                    $date,
+                    $gids,
+                    $operatorId,
+                    null,
+                    false,
+                    TerminalsConfig::leadSec()
+                );
                 $operators = self::filterOperators(
                     is_array($avail['operators'] ?? null) ? $avail['operators'] : [],
                     $allowExecutors,
@@ -354,7 +392,12 @@ final class TerminalFloor
                 );
                 foreach ($operators as $op) {
                     if ((int)($op['id'] ?? 0) === $operatorId) {
-                        $slots = $op['slots'] ?? [];
+                        $rawSlots = array_map('intval', $op['slots'] ?? []);
+                        $slots = class_exists(BookingSlots::class, false)
+                            ? BookingSlots::filterListSlots($rawSlots)
+                            : $rawSlots;
+                        $slotTimeText = (float)($op['time_text'] ?? 0);
+                        $slotChillText = (float)($op['time_chill_text'] ?? 0);
                         break;
                     }
                 }
@@ -413,6 +456,8 @@ final class TerminalFloor
             'gids' => $gids,
             'operators' => $operators,
             'slots' => $slots,
+            'slot_time_text' => $slotTimeText,
+            'slot_chill_text' => $slotChillText,
             'busy_executors' => $busy,
             'message' => $message,
             'error' => $error,

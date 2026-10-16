@@ -31,6 +31,7 @@ Grant staff `booking.view` / `booking.edit` (or use SUPERADMIN).
 | Path | Who | What |
 |------|-----|------|
 | `/booking/new` | `booking.edit` | Wizard: date → products → slots → phone → `BookingBook::createOrder` → redirect to `/orders/{id}/edit` |
+| `/booking/settings` | SUPERADMIN | Staff `lead_sec` (default 180) |
 | Query | optional | `date`, `product_ids[]`, `operator_id` or `staff`, `hour` (prefer nearest slot), `ret` |
 | Day/week | same perm + module on | Secondary button «Новая запись» → `/booking/new?date=…` |
 | Rail | Calendar group | Menu item `booking.menu.new` |
@@ -46,7 +47,11 @@ Grant staff `booking.view` / `booking.edit` (or use SUPERADMIN).
 
 **Who can do the service:** on shift, enabled, status `SHOW_IN_LOADS`, not `ASSIST_TEAM`, not in `RESTRICT_TYPES` / `RESTRICT_PROCS`, and rates matrix `base_procent_history.content[type_id] > 0` (not `"2"`). Soft-dep `rates`. **`IS_HIDDEN` does not block booking** (hidden only for payroll / other filters). Empty reasons: `no_shifts` / `none_can_do` / `no_slots`.
 
-**Slot engine (single):** `BookingSlots` + `BookingOccupancy` + `BookingAvailability` / `BookingOperatorGate` / `BookingValidate`. Used by `/booking/new`, agent book, and **order edit** (`OrdersRepository::update` → `BookingValidate::assertOrderUpdate`). Edit excludes the current order from occupancy and ignores “now+lead” so today’s existing slot can be kept.
+**Slot engine (single):** `BookingSlots` + `BookingOccupancy` + `BookingAvailability` / `BookingOperatorGate` / `BookingValidate`. Used by `/booking/new`, agent book, **order edit** (`OrdersRepository::update` → `BookingValidate::assertOrderUpdate`), and **procedure edit** when `booking` is enabled (`excludeProcedureId` + staff lead). Order edit excludes the current order from occupancy and ignores “now+lead” so today’s existing slot can be kept.
+
+**Lead (seconds):** engine accepts `$leadSec` override only — no product channel keys in `booking.ini`. Staff default: `booking.lead_sec` (UI `/booking/settings`, default **180**). Callers pass their own: `terminals.lead_sec` (/t), `terminals.lead_sec_api` (/terminals/floor), `likespa.lead_sec_api` / `lead_sec_termy`, `sites.booking_lead_sec` (storefront).
+
+**List vs pack grid:** packing stays **5 min**. Listing thins via `BookingSlots::filterListSlots` (first free + `:00/:15/:30/:45` + first after a gap). `BookingValidate::assertSlot` always uses the dense grid so a non-round 5-min `dt_start` still books.
 
 **Date-only change policy:** if staff is not on shift / cannot do services / slot busy on the new datetime → **reject** with a clear error. Staff is **not** cleared automatically; pick another specialist or another time.
 

@@ -8,6 +8,10 @@ final class BookingAvailability
 {
     /**
      * @param list<int> $productIds
+     * @param int|null $excludeOrderId omit order from occupancy (edit re-check)
+     * @param bool $allowPastLead when true, do not push rangeStart past "now+lead" (order edit)
+     * @param int|null $leadSec override lead seconds (null → booking.lead_sec / 180)
+     * @param int|null $excludeProcedureId omit procedure from occupancy (procedure edit)
      * @return array{
      *   date:string,
      *   day_start:int,
@@ -23,17 +27,14 @@ final class BookingAvailability
      *   }>
      * }
      */
-    /**
-     * @param list<int> $productIds
-     * @param int|null $excludeOrderId omit order from occupancy (edit re-check)
-     * @param bool $allowPastLead when true, do not push rangeStart past "now+lead" (order edit)
-     */
     public static function forDay(
         string $dateYmd,
         array $productIds,
         ?int $onlyOperatorId = null,
         ?int $excludeOrderId = null,
-        bool $allowPastLead = false
+        bool $allowPastLead = false,
+        ?int $leadSec = null,
+        ?int $excludeProcedureId = null
     ): array {
         $dayStart = self::parseDayStart($dateYmd);
         if ($dayStart === null) {
@@ -48,6 +49,8 @@ final class BookingAvailability
         if ($products === []) {
             throw new InvalidArgumentException(t('booking.err.products'));
         }
+
+        $lead = $leadSec !== null ? max(0, min(7200, $leadSec)) : BookingSlots::defaultLeadSec();
 
         $dayEnd = (int)mktime(23, 59, 59, (int)date('n', $dayStart), (int)date('j', $dayStart), (int)date('Y', $dayStart));
         [$workHourStart, $workMinuteStart] = self::workDayStart();
@@ -74,10 +77,10 @@ final class BookingAvailability
             ];
         }
         if (!$allowPastLead && $dayStart === $todayStart) {
-            $rangeStart = max($rangeStart, time() + BookingSlots::LEAD_SEC);
+            $rangeStart = max($rangeStart, time() + $lead);
         }
 
-        $used = BookingOccupancy::build($dayStart, $dayEnd + 1, $excludeOrderId);
+        $used = BookingOccupancy::build($dayStart, $dayEnd + 1, $excludeOrderId, $excludeProcedureId);
         $shifts = class_exists(WorkweeksRepository::class, false)
             ? WorkweeksRepository::listForDay($dayStart)
             : [];
@@ -126,6 +129,9 @@ final class BookingAvailability
                 'slots_hhmm' => $hhmm,
                 'available' => $check['result'],
                 'total_time' => $check['totalTime'],
+                'time_chill' => $check['timeChill'],
+                'time_text' => $check['timeText'],
+                'time_chill_text' => $check['timeChillText'],
             ];
         }
 

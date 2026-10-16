@@ -59,7 +59,8 @@ final class BookingBook
             throw new InvalidArgumentException(t('booking.err.products'));
         }
 
-        BookingValidate::assertSlot($productIds, $operatorId, $dtStart, null, false);
+        $leadSec = isset($input['lead_sec']) ? max(0, (int)$input['lead_sec']) : null;
+        BookingValidate::assertSlot($productIds, $operatorId, $dtStart, null, false, $leadSec);
 
         $lines = [];
         $summ = 0.0;

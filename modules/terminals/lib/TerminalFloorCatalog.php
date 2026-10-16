@@ -160,7 +160,10 @@ final class TerminalFloorCatalog
                 (int)date('Y', $dayStart)
             );
             if ($dayStart === (int)mktime(0, 0, 0)) {
-                $rangeStart = max($rangeStart, time() + BookingSlots::LEAD_SEC);
+                $lead = class_exists(TerminalsConfig::class, false)
+                    ? TerminalsConfig::leadSec()
+                    : (class_exists(BookingSlots::class, false) ? BookingSlots::defaultLeadSec() : 180);
+                $rangeStart = max($rangeStart, time() + $lead);
             }
         }
         /** @var array<int,array{id:int,name:string,time_sec:int,time_net:int,type_id:int}> $slotProducts */

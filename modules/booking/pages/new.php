@@ -55,6 +55,16 @@ if ($productIds !== []) {
             $productIds,
             $operatorId > 0 ? $operatorId : null
         );
+        foreach ($availability['operators'] as $i => $op) {
+            $slots = BookingSlots::filterListSlots(array_map('intval', $op['slots'] ?? []));
+            $hhmm = [];
+            foreach ($slots as $ts) {
+                $hhmm[] = date('H:i', $ts);
+            }
+            $availability['operators'][$i]['slots'] = $slots;
+            $availability['operators'][$i]['slots_hhmm'] = $hhmm;
+            $availability['operators'][$i]['available'] = $slots !== [];
+        }
     } catch (InvalidArgumentException $e) {
         $error = $e->getMessage();
     }

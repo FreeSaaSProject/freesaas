@@ -22,6 +22,9 @@ final class TerminalsConfig
             'worker_token' => 'CHANGE_ME',
             'booking_terminal_id' => '',
             'booking_admin_id' => '',
+            'lead_sec' => 180,
+            'lead_sec_api' => 600,
+            'chill_product_id' => 16,
         ];
     }
 
@@ -34,7 +37,7 @@ final class TerminalsConfig
                 $out[$key] = self::flag($key, (string)$default === '1') ? '1' : '0';
                 continue;
             }
-            if ($key === '1c_timeout_sec') {
+            if (in_array($key, ['1c_timeout_sec', 'lead_sec', 'lead_sec_api', 'chill_product_id'], true)) {
                 $out[$key] = (string)self::int($key, (int)$default);
                 continue;
             }
@@ -66,6 +69,9 @@ final class TerminalsConfig
 
         Config::set('terminals', 'booking_terminal_id', trim((string)($post['booking_terminal_id'] ?? '')));
         Config::set('terminals', 'booking_admin_id', trim((string)($post['booking_admin_id'] ?? '')));
+        Config::set('terminals', 'lead_sec', (string)max(0, min(7200, (int)($post['lead_sec'] ?? 180))));
+        Config::set('terminals', 'lead_sec_api', (string)max(0, min(7200, (int)($post['lead_sec_api'] ?? 600))));
+        Config::set('terminals', 'chill_product_id', (string)max(0, (int)($post['chill_product_id'] ?? 16)));
 
         foreach (['1c_auth', '1c_apikey', 'worker_token'] as $secretKey) {
             $incoming = (string)($post[$secretKey] ?? '');
@@ -162,6 +168,23 @@ final class TerminalsConfig
             'uid' => trim(self::string('1c_uid')),
             'timeout' => max(5, self::int('1c_timeout_sec', 30)),
         ];
+    }
+
+    /** Floor /t lead (seconds). */
+    public static function leadSec(): int
+    {
+        return max(0, min(7200, self::int('lead_sec', 180)));
+    }
+
+    /** Agent /terminals/floor API lead (seconds). */
+    public static function leadSecApi(): int
+    {
+        return max(0, min(7200, self::int('lead_sec_api', 600)));
+    }
+
+    public static function chillProductId(): int
+    {
+        return max(0, self::int('chill_product_id', 16));
     }
 
     public static function maskSecret(string $raw): string

@@ -68,6 +68,27 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $acl = ProceduresEditAcl::forRow($probe, $isNew);
         $data = ProceduresEditAcl::dataFromPost($_POST, $isNew ? [] : $row, $acl);
+        if (
+            Config::moduleEnabled('booking')
+            && class_exists(BookingValidate::class, false)
+        ) {
+            $opId = (int)($data['id_operator'] ?? 0);
+            $goodId = (int)($data['id_good'] ?? 0);
+            $dtStart = (int)($data['dtstart'] ?? 0);
+            if ($opId > 0 && $goodId > 0 && $dtStart > 0) {
+                BookingValidate::assertSlot(
+                    [$goodId],
+                    $opId,
+                    $dtStart,
+                    null,
+                    true,
+                    class_exists(BookingConfig::class, false)
+                        ? BookingConfig::leadSec()
+                        : null,
+                    $isNew ? null : $id
+                );
+            }
+        }
         if ($isNew) {
             $newId = ProceduresRepository::create($data);
             if ($wantsJson) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 /**
  * Procedure-mode book/cancel for floor /t and legacy api.php.
  * Slots from booking; writes base_procedures; optional 1C sale/unsale.
+ * Chill (rest) procedure after TIME_NET chain — legacy ID_GOOD chill product.
  */
 final class TerminalBooking
 {
@@ -21,11 +22,15 @@ final class TerminalBooking
      *   token?:string,
      *   order_id?:int,
      *   disable_1c?:bool,
-     *   notice?:string
+     *   notice?:string,
+     *   lead_sec?:int,
+     *   skip_chill?:bool,
+     *   time_chill?:int
      * } $input
      * @return array{
      *   ok:bool,
      *   procedure_id?:int,
+     *   chill_procedure_id?:int,
      *   sale_id?:string,
      *   product_name?:string,
      *   price?:float,
@@ -52,11 +57,15 @@ final class TerminalBooking
             $adminId = $operatorId;
         }
 
+        $leadSec = isset($input['lead_sec'])
+            ? max(0, (int)$input['lead_sec'])
+            : (class_exists(TerminalsConfig::class, false) ? TerminalsConfig::leadSec() : 180);
+
         $disable1c = !empty($input['disable_1c']) || TerminalsConfig::onecStubMode(false);
         // Live 1C: full slot/shift gate. Stub/force-majeure: still refuse past starts, skip shift matrix.
         if (!$disable1c && class_exists(BookingValidate::class, false)) {
             try {
-                BookingValidate::assertSlot([$productId], $operatorId, $dtStart, null, false);
+                BookingValidate::assertSlot([$productId], $operatorId, $dtStart, null, false, $leadSec);
             } catch (Throwable $e) {
                 return ['ok' => false, 'error' => $e->getMessage(), 'stack' => $stack];
             }
@@ -71,11 +80,18 @@ final class TerminalBooking
             return ['ok' => false, 'error' => 'product not found', 'stack' => $stack];
         }
         $productName = trim((string)($product['name'] ?? ('#' . $productId)));
-        $duration = (int)($product['time_sec'] ?? 0);
-        if ($duration < 1) {
-            $duration = 3600;
+        $timeSec = max(0, (int)($product['time_sec'] ?? 0));
+        $timeNet = max(0, (int)($product['time_net'] ?? 0));
+        if ($timeSec < 1) {
+            $timeSec = 3600;
         }
-        $dtEnd = $dtStart + $duration;
+        if ($timeNet < 1) {
+            $timeNet = $timeSec;
+        }
+        if ($timeNet > $timeSec) {
+            $timeNet = $timeSec;
+        }
+        $dtEnd = $dtStart + $timeNet;
         $price = isset($input['price']) ? (float)$input['price'] : (float)($product['price'] ?? 0);
         if ($price <= 0) {
             $price = (float)($product['price3'] ?? 0);
@@ -203,6 +219,61 @@ final class TerminalBooking
             'product_name' => $productName,
         ];
 
+        $chillId = 0;
+        $skipChill = !empty($input['skip_chill']);
+        $timeChill = isset($input['time_chill']) ? max(0, (int)$input['time_chill']) : -1;
+        if (!$skipChill) {
+            if ($timeChill < 0) {
+                $loaded = class_exists(BookingAvailability::class, false)
+                    ? BookingAvailability::loadProducts([$productId])
+                    : [[
+                        'id' => $productId,
+                        'time_sec' => $timeSec,
+                        'time_net' => $timeNet,
+                        'type_id' => $typeId,
+                        'name' => $productName,
+                    ]];
+                if (class_exists(BookingSlots::class, false) && $loaded !== []) {
+                    $probe = BookingSlots::check($loaded, $operatorId, [], $dtStart, $dtStart + 86400);
+                    $timeChill = (int)$probe['timeChill'];
+                } elseif (class_exists(BookingSlots::class, false)) {
+                    $capped = BookingSlots::durationWithChill($timeSec, $timeNet);
+                    $timeChill = $capped['time_chill'];
+                } else {
+                    $timeChill = max(0, $timeSec - $timeNet);
+                }
+            }
+            if ($timeChill > 0) {
+                $chillId = self::insertChill([
+                    'dt_start' => $dtEnd,
+                    'time_chill' => $timeChill,
+                    'operator_id' => $operatorId,
+                    'admin_id' => $adminId,
+                    'terminal_id' => $terminalId,
+                    'client_id' => max(0, (int)($input['client_id'] ?? 0)),
+                    'onec_bracelet' => (string)($input['onec_bracelet'] ?? ''),
+                    'token' => md5($token . '#chill'),
+                    'parent_procedure_id' => $procId,
+                ]);
+                if ($chillId > 0) {
+                    $stack[] = [
+                        'key' => 'chill',
+                        'ok' => true,
+                        'procedure_id' => $chillId,
+                        'dt_end' => $dtEnd + $timeChill,
+                        'minutes' => round($timeChill / 60, 1),
+                    ];
+                } else {
+                    $stack[] = [
+                        'key' => 'chill',
+                        'ok' => false,
+                        'skipped' => $chillId === 0 && TerminalsConfig::chillProductId() < 1,
+                        'detail' => $chillId < 0 ? 'chill insert failed' : 'chill disabled',
+                    ];
+                }
+            }
+        }
+
         $orderId = (int)($input['order_id'] ?? 0);
         if ($orderId > 0 && class_exists(OrdersRepository::class, false)) {
             self::consumeOrder($orderId, $procId, $adminId);
@@ -233,6 +304,9 @@ final class TerminalBooking
             'dt_end' => $dtEnd,
             'stack' => $stack,
         ];
+        if ($chillId > 0) {
+            $out['chill_procedure_id'] = $chillId;
+        }
         if (!$adminOk) {
             $out['error'] = 'procedure not visible in admin';
         }
@@ -241,6 +315,7 @@ final class TerminalBooking
 
     /**
      * Cancel (disable) a procedure and optionally unsale in 1C.
+     * Also disables linked chill when main procedure ends at chill DTSTART.
      *
      * @return array{ok:bool,error?:string,stack?:list<array<string,mixed>>}
      */
@@ -309,6 +384,16 @@ final class TerminalBooking
             'cancel' => true,
         ];
 
+        $chillCancelled = self::cancelLinkedChill($row, $notice);
+        if ($chillCancelled > 0) {
+            $stack[] = [
+                'key' => 'chill',
+                'ok' => true,
+                'procedure_id' => $chillCancelled,
+                'cancel' => true,
+            ];
+        }
+
         $stored = ProceduresRepository::find($procedureId);
         $adminOk = is_array($stored) && (int)($stored['enabled'] ?? 1) === 0;
         $stack[] = [
@@ -326,6 +411,92 @@ final class TerminalBooking
             $out['error'] = 'procedure still enabled after cancel';
         }
         return $out;
+    }
+
+    /**
+     * @param array{
+     *   dt_start:int,
+     *   time_chill:int,
+     *   operator_id:int,
+     *   admin_id:int,
+     *   terminal_id:int,
+     *   client_id:int,
+     *   onec_bracelet:string,
+     *   token:string,
+     *   parent_procedure_id:int
+     * } $in
+     * @return int chill procedure id, 0 if disabled/skipped, -1 on failure
+     */
+    private static function insertChill(array $in): int
+    {
+        $chillGood = TerminalsConfig::chillProductId();
+        if ($chillGood < 1 || $in['time_chill'] < 1) {
+            return 0;
+        }
+        $chillProduct = class_exists(ProductsRepository::class, false)
+            ? ProductsRepository::find($chillGood)
+            : null;
+        $typeId = $chillProduct
+            ? (int)($chillProduct['type'] ?? $chillProduct['type_id'] ?? 0)
+            : 0;
+        $dtStart = (int)$in['dt_start'];
+        $dtEnd = $dtStart + (int)$in['time_chill'];
+        try {
+            $id = ProceduresRepository::create([
+                'dtstart' => $dtStart,
+                'dtend' => $dtEnd,
+                'dtend_plan' => $dtEnd,
+                'id_operator' => (int)$in['operator_id'],
+                'id_admin' => (int)$in['admin_id'],
+                'id_good' => $chillGood,
+                'id_table' => 1,
+                'id_user' => max(0, (int)$in['client_id']),
+                'id_terminal' => max(0, (int)$in['terminal_id']),
+                'type' => $typeId,
+                'summ' => 0,
+                'summ_default' => 0,
+                'notice' => 'chill#' . (int)$in['parent_procedure_id'],
+                'enabled' => 1,
+                'token' => substr((string)$in['token'], 0, 32),
+                'id_event_parent' => 0,
+                'onec_id' => '',
+                'onec_bracelet' => (string)$in['onec_bracelet'],
+                'restored' => 0,
+            ]);
+            return $id > 0 ? $id : -1;
+        } catch (Throwable $e) {
+            return -1;
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $main
+     */
+    private static function cancelLinkedChill(array $main, string $notice): int
+    {
+        $chillGood = TerminalsConfig::chillProductId();
+        if ($chillGood < 1) {
+            return 0;
+        }
+        $dtEnd = (int)($main['dtend'] ?? 0);
+        $op = (int)($main['id_operator'] ?? 0);
+        if ($dtEnd < 1 || $op < 1 || !Database::tableExists('base_procedures')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_procedures
+             WHERE ENABLED = 1 AND ID_GOOD = ? AND ID_OPERATOR = ? AND DTSTART = ?
+             ORDER BY ID ASC LIMIT 1'
+        );
+        $st->execute([$chillGood, $op, $dtEnd]);
+        $chillId = (int)$st->fetchColumn();
+        if ($chillId < 1) {
+            return 0;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_procedures SET ENABLED = 0, SUMM = 0, NOTICE = ? WHERE ID = ?'
+        )->execute([mb_substr('chill-cancel ' . $notice, 0, 255), $chillId]);
+        return $chillId;
     }
 
     private static function tokenUsed(string $token): bool

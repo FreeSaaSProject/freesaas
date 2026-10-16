@@ -84,6 +84,21 @@ if (!isset($staffOptions) || !is_array($staffOptions)) {
         <?php endforeach; ?>
       </select>
     </label>
+    <label><?= te('terminals.settings.lead_sec') ?>
+      <input type="number" name="lead_sec" min="0" max="7200" step="60"
+             value="<?= e((string)($cfg['lead_sec'] ?? '180')) ?>">
+      <span class="muted"><?= te('terminals.settings.lead_sec_hint') ?></span>
+    </label>
+    <label><?= te('terminals.settings.lead_sec_api') ?>
+      <input type="number" name="lead_sec_api" min="0" max="7200" step="60"
+             value="<?= e((string)($cfg['lead_sec_api'] ?? '600')) ?>">
+      <span class="muted"><?= te('terminals.settings.lead_sec_api_hint') ?></span>
+    </label>
+    <label><?= te('terminals.settings.chill_product_id') ?>
+      <input type="number" name="chill_product_id" min="0" step="1"
+             value="<?= e((string)($cfg['chill_product_id'] ?? '16')) ?>">
+      <span class="muted"><?= te('terminals.settings.chill_product_id_hint') ?></span>
+    </label>
   </fieldset>
 
   <div class="page-actions">

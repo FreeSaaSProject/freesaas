@@ -10,16 +10,24 @@ final class BookingOccupancy
 {
     /**
      * @param int|null $excludeOrderId omit this advance order from occupancy (re-validate on edit)
+     * @param int|null $excludeProcedureId omit this procedure from occupancy (procedure edit)
      * @return UsedMap
      */
-    public static function build(int $dayStart, int $dayEnd, ?int $excludeOrderId = null): array
-    {
+    public static function build(
+        int $dayStart,
+        int $dayEnd,
+        ?int $excludeOrderId = null,
+        ?int $excludeProcedureId = null
+    ): array {
         if ($dayEnd <= $dayStart) {
             return [];
         }
         /** @var UsedMap $used */
         $used = [];
         $excludeOrderId = $excludeOrderId !== null && $excludeOrderId > 0 ? $excludeOrderId : null;
+        $excludeProcedureId = $excludeProcedureId !== null && $excludeProcedureId > 0
+            ? $excludeProcedureId
+            : null;
 
         if (class_exists(EventsRepository::class, false) && Database::tableExists('base_events')) {
             foreach (EventsRepository::listForDayRange($dayStart, $dayEnd) as $ev) {
@@ -53,8 +61,26 @@ final class BookingOccupancy
         }
 
         if (class_exists(ProceduresRepository::class, false) && Database::tableExists('base_procedures')) {
+            $excludeChillStart = null;
+            $excludeChillOp = null;
+            if ($excludeProcedureId !== null) {
+                // Chill companion (TerminalBooking notice chill#{id}) must leave with the parent
+                // so procedure edit re-assert does not collide with its own rest block.
+                $exRow = ProceduresRepository::find($excludeProcedureId);
+                if (is_array($exRow)) {
+                    $excludeChillStart = (int)($exRow['dtend'] ?? 0);
+                    $excludeChillOp = (int)($exRow['id_operator'] ?? 0);
+                    if ($excludeChillOp < 1) {
+                        $excludeChillOp = (int)($exRow['id_admin'] ?? 0);
+                    }
+                }
+            }
             foreach (ProceduresRepository::listForDayRange($dayStart, $dayEnd) as $pr) {
                 if (isset($pr['enabled']) && (int)$pr['enabled'] === 0) {
+                    continue;
+                }
+                $pid = (int)($pr['id'] ?? 0);
+                if ($excludeProcedureId !== null && $pid === $excludeProcedureId) {
                     continue;
                 }
                 $op = (int)($pr['id_operator'] ?? 0);
@@ -66,7 +92,28 @@ final class BookingOccupancy
                 if ($op < 1 || $start < 1 || $end <= $start) {
                     continue;
                 }
-                $key = 'p' . (int)($pr['id'] ?? 0);
+                if (
+                    $excludeProcedureId !== null
+                    && $excludeChillStart !== null
+                    && $excludeChillStart > 0
+                    && $start === $excludeChillStart
+                    && $op === $excludeChillOp
+                ) {
+                    $notice = (string)($pr['notice'] ?? '');
+                    if ($notice === 'chill#' . $excludeProcedureId
+                        || strncmp($notice, 'chill#' . $excludeProcedureId, strlen('chill#' . $excludeProcedureId)) === 0
+                    ) {
+                        continue;
+                    }
+                    // Same operator + starts at parent DTEND: treat as linked chill even without notice.
+                    if (class_exists(TerminalsConfig::class, false)) {
+                        $chillGood = TerminalsConfig::chillProductId();
+                        if ($chillGood > 0 && (int)($pr['id_good'] ?? 0) === $chillGood) {
+                            continue;
+                        }
+                    }
+                }
+                $key = 'p' . $pid;
                 $used[$op][$key] = [
                     'DTSTART' => $start,
                     'DTEND' => $end,
@@ -105,21 +152,53 @@ final class BookingOccupancy
     }
 
     /**
+     * Cart span including capped chill (matches BookingSlots::check totalTime).
+     *
      * @param list<array{id?:int}> $lines
      */
     private static function cartDurationSec(array $lines): int
     {
-        $total = 0;
+        $products = [];
         foreach ($lines as $line) {
             $id = (int)($line['id'] ?? 0);
-            if ($id < 1 || !class_exists(ProductsRepository::class, false)) {
-                $total += BookingSlots::DEFAULT_DURATION_SEC;
+            if ($id < 1) {
+                continue;
+            }
+            if (!class_exists(ProductsRepository::class, false)) {
+                $products[] = [
+                    'id' => $id,
+                    'time_sec' => BookingSlots::DEFAULT_DURATION_SEC,
+                    'time_net' => BookingSlots::DEFAULT_DURATION_SEC,
+                    'type_id' => 0,
+                ];
                 continue;
             }
             $p = ProductsRepository::find($id);
-            $sec = $p ? max(0, (int)($p['time_sec'] ?? 0)) : 0;
-            $total += $sec > 0 ? $sec : BookingSlots::DEFAULT_DURATION_SEC;
+            $timeSec = $p ? max(0, (int)($p['time_sec'] ?? 0)) : 0;
+            $timeNet = $p ? max(0, (int)($p['time_net'] ?? 0)) : 0;
+            if ($timeSec < 1) {
+                $timeSec = BookingSlots::DEFAULT_DURATION_SEC;
+            }
+            if ($timeNet < 1) {
+                $timeNet = $timeSec;
+            }
+            $products[] = [
+                'id' => $id,
+                'time_sec' => $timeSec,
+                'time_net' => $timeNet,
+                'type_id' => $p ? max(0, (int)($p['type_id'] ?? 0)) : 0,
+            ];
         }
-        return $total;
+        if ($products === []) {
+            return BookingSlots::DEFAULT_DURATION_SEC;
+        }
+        $probe = BookingSlots::check(
+            $products,
+            1,
+            [],
+            (int)mktime(10, 0, 0),
+            (int)mktime(23, 59, 59)
+        );
+        return max(BookingSlots::INTERVAL_SEC, (int)$probe['totalTime']);
     }
 }

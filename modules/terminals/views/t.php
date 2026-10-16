@@ -375,6 +375,27 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                                         'detail' => (string)($step['detail'] ?? ''),
                                     ]);
                                 }
+                            } elseif ($key === 'chill') {
+                                if (!empty($step['cancel'])) {
+                                    $label = $stepOk
+                                        ? t('terminals.t.stack.chill_cancel_ok', [
+                                            'id' => (string)(int)($step['procedure_id'] ?? 0),
+                                        ])
+                                        : t('terminals.t.stack.chill_cancel_fail', [
+                                            'detail' => (string)($step['detail'] ?? ''),
+                                        ]);
+                                } elseif (!empty($step['skipped'])) {
+                                    $label = t('terminals.t.stack.chill_skip');
+                                } elseif ($stepOk) {
+                                    $label = t('terminals.t.stack.chill_ok', [
+                                        'min' => (string)($step['minutes'] ?? ''),
+                                        'id' => (string)(int)($step['procedure_id'] ?? 0),
+                                    ]);
+                                } else {
+                                    $label = t('terminals.t.stack.chill_fail', [
+                                        'detail' => (string)($step['detail'] ?? ''),
+                                    ]);
+                                }
                             } elseif ($key === 'admin') {
                                 if (!empty($step['cancel'])) {
                                     $label = $stepOk
@@ -423,6 +444,16 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                 ?>
                 <a class="back" href="/t/?<?= e(http_build_query($backCat)) ?>"><?= e(t('terminals.t.back_catalog')) ?></a>
                 <h2><?= e(t('terminals.t.pick_slot')) ?></h2>
+                <?php
+                $slotTimeText = (float)($state['slot_time_text'] ?? 0);
+                $slotChillText = (float)($state['slot_chill_text'] ?? 0);
+                if ($slotTimeText > 0 || $slotChillText > 0):
+                ?>
+                    <p class="meta-line"><?= e(t('terminals.t.slot_duration', [
+                        'net' => rtrim(rtrim(number_format($slotTimeText, 1, '.', ''), '0'), '.'),
+                        'chill' => rtrim(rtrim(number_format($slotChillText, 1, '.', ''), '0'), '.'),
+                    ])) ?></p>
+                <?php endif; ?>
                 <ul class="slots">
                     <?php foreach ($slots as $ts): ?>
                         <?php

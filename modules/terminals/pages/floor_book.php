@@ -45,6 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'order_id' => (int)($body['order_id'] ?? 0),
         'disable_1c' => !empty($body['disable_1c']),
         'notice' => (string)($body['notice'] ?? ''),
+        'lead_sec' => TerminalsConfig::leadSecApi(),
     ];
     if (isset($body['price']) && $body['price'] !== '') {
         $bookIn['price'] = (float)$body['price'];

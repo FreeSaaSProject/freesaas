@@ -52,6 +52,16 @@ $promoDiscounts = is_array($flyerPromo['promo_discounts'] ?? null) ? $flyerPromo
         <?= $c('legacy_api_key_set', '0') === '1' ? te('likespa.settings.legacy_api_key_set') : te('likespa.settings.legacy_api_key_empty') ?>
       </span>
     </label>
+    <label><?= te('likespa.settings.lead_sec_api') ?>
+      <input type="number" name="lead_sec_api" min="0" max="7200" step="60"
+             value="<?= (int)$c('lead_sec_api', '600') ?>">
+      <span class="muted"><?= te('likespa.settings.lead_sec_api_hint') ?></span>
+    </label>
+    <label><?= te('likespa.settings.lead_sec_termy') ?>
+      <input type="number" name="lead_sec_termy" min="0" max="7200" step="60"
+             value="<?= (int)$c('lead_sec_termy', '1200') ?>">
+      <span class="muted"><?= te('likespa.settings.lead_sec_termy_hint') ?></span>
+    </label>
     <p><a href="/likespa/legacy-api/status"><?= te('likespa.legacy_api.status_title') ?></a></p>
   </fieldset>
 

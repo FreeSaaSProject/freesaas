@@ -143,7 +143,7 @@ final class SitesBooking
             $dayStart = $today + ($i * 86400);
             $ymd = date('Y-m-d', $dayStart);
             try {
-                $av = BookingAvailability::forDay($ymd, $productIds, null);
+                $av = BookingAvailability::forDay($ymd, $productIds, null, null, false, self::leadSec());
             } catch (Throwable $e) {
                 continue;
             }
@@ -156,9 +156,10 @@ final class SitesBooking
                     continue;
                 }
                 $card = self::operatorPublicCard($id, (string)($op['name'] ?? ''));
+                $thinned = self::filterClientSlots(array_map('intval', $op['slots'] ?? []));
                 $seen[$id] = $card + [
                     'first_date' => $ymd,
-                    'slots_hint' => count($op['slots'] ?? []),
+                    'slots_hint' => count($thinned),
                 ];
             }
         }
@@ -188,7 +189,10 @@ final class SitesBooking
                 $av = BookingAvailability::forDay(
                     $ymd,
                     $productIds,
-                    $operatorId > 0 ? $operatorId : null
+                    $operatorId > 0 ? $operatorId : null,
+                    null,
+                    false,
+                    self::leadSec()
                 );
             } catch (Throwable $e) {
                 continue;
@@ -201,7 +205,7 @@ final class SitesBooking
                 if ($operatorId > 0 && (int)($op['id'] ?? 0) !== $operatorId) {
                     continue;
                 }
-                $slots += count($op['slots']);
+                $slots += count(self::filterClientSlots(array_map('intval', $op['slots'] ?? [])));
             }
             if ($slots > 0) {
                 $out[] = ['date' => $ymd, 'slots' => $slots];
@@ -210,37 +214,31 @@ final class SitesBooking
         return $out;
     }
 
+    /** Storefront lead seconds (own ini; default 10 min — not likespa/terminals). */
+    public static function leadSec(): int
+    {
+        $raw = Config::get('sites', 'booking_lead_sec', 600);
+        $n = is_numeric($raw) ? (int)$raw : 600;
+        return max(0, min(7200, $n));
+    }
+
     /**
-     * Client-facing slots: keep ~30-minute grid, but always keep the first
-     * available slot and the first free slot after a gap (uneven prior end).
+     * Client-facing slots: first free + 15-min grid + first after a gap.
      *
      * @param list<int> $slots unix timestamps (5-min engine grid)
      * @return list<int>
      */
     public static function filterClientSlots(array $slots): array
     {
+        if (class_exists(BookingSlots::class, false)) {
+            return BookingSlots::filterListSlots($slots);
+        }
         $slots = array_values(array_unique(array_filter(
             array_map('intval', $slots),
             static fn (int $t): bool => $t > 0
         )));
         sort($slots, SORT_NUMERIC);
-        if ($slots === []) {
-            return [];
-        }
-        $step = class_exists(BookingSlots::class, false) ? BookingSlots::INTERVAL_SEC : 300;
-        $out = [];
-        $prev = null;
-        foreach ($slots as $i => $ts) {
-            $min = (int)date('i', $ts);
-            $isRound = ($min % 30) === 0;
-            $isFirst = $i === 0;
-            $isGapStart = $prev !== null && ($ts - $prev) > $step;
-            if ($isFirst || $isRound || $isGapStart) {
-                $out[] = $ts;
-            }
-            $prev = $ts;
-        }
-        return $out;
+        return $slots;
     }
 
     /**
@@ -287,7 +285,7 @@ final class SitesBooking
             return 0;
         }
         try {
-            $data = BookingAvailability::forDay($ymd, $productIds, null);
+            $data = BookingAvailability::forDay($ymd, $productIds, null, null, false, self::leadSec());
         } catch (Throwable $e) {
             return 0;
         }

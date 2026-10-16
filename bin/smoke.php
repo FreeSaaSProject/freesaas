@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Minimal agent/CI smoke: system + module validate + locale validate + health
  * + check-safe-html / check-csrf / check-password / check-session / check-bots-webhook
- * + check-terminals-floor / check-certificates.
+ * + check-terminals-floor / check-booking-procedures / check-certificates.
  * PHP lint (`php -l`) and public-route allow-list (`bin/check-routes.php`) run in
  * `.github/workflows/ci.yml` static job — not here (no need for a DB-less lint loop in smoke).
  *
@@ -179,6 +179,23 @@ $sections['terminals_floor'] = [
 if ($floorCode !== 0) {
     $failed = true;
     $sections['terminals_floor']['output'] = implode("\n", $floorLines);
+}
+
+// Booking procedures: /t chill+time_net, edit exclude, api/api_termy orders
+$bookProcLines = [];
+$bookProcCode = 0;
+exec(
+    escapeshellarg(PHP_BINARY) . ' ' . escapeshellarg(dirname(__DIR__) . '/bin/check-booking-procedures.php') . ' 2>&1',
+    $bookProcLines,
+    $bookProcCode
+);
+$sections['booking_procedures'] = [
+    'ok' => $bookProcCode === 0,
+    'exit' => $bookProcCode,
+];
+if ($bookProcCode !== 0) {
+    $failed = true;
+    $sections['booking_procedures']['output'] = implode("\n", $bookProcLines);
 }
 
 // Certificate concurrency / abon undo (skips if module off)

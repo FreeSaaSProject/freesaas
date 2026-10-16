@@ -11,6 +11,8 @@ declare(strict_types=1);
 final class BookingValidate
 {
     /**
+     * Dense slot gate (5-min grid). Listing may thin slots; assert always uses dense forDay.
+     *
      * @param list<int> $productIds
      * @throws InvalidArgumentException
      */
@@ -19,7 +21,9 @@ final class BookingValidate
         int $operatorId,
         int $dtStart,
         ?int $excludeOrderId = null,
-        bool $allowPastLead = false
+        bool $allowPastLead = false,
+        ?int $leadSec = null,
+        ?int $excludeProcedureId = null
     ): void {
         if (!class_exists(BookingAvailability::class, false)) {
             return;
@@ -52,7 +56,9 @@ final class BookingValidate
             $productIds,
             $operatorId,
             $excludeOrderId,
-            $allowPastLead
+            $allowPastLead,
+            $leadSec,
+            $excludeProcedureId
         );
 
         foreach ($avail['operators'] as $op) {

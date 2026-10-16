@@ -300,8 +300,9 @@ final class LikespaLegacyApi
         if (!class_exists(BookingAvailability::class, false)) {
             return ['massage_therapists' => [], 'equipment' => [], 'administrators' => []];
         }
+        $leadSec = $cat > 0 ? LikespaConfig::leadSecTermy() : LikespaConfig::leadSecApi();
         try {
-            $avail = BookingAvailability::forDay($date, [$serviceId], null);
+            $avail = BookingAvailability::forDay($date, [$serviceId], null, null, false, $leadSec);
         } catch (Throwable $e) {
             return ['error' => $e->getMessage(), 'massage_therapists' => []];
         }
@@ -310,14 +311,13 @@ final class LikespaLegacyApi
             if (empty($op['available']) && ($op['slots'] ?? []) === []) {
                 continue;
             }
+            $rawSlots = array_map('intval', $op['slots'] ?? []);
+            $slots = class_exists(BookingSlots::class, false)
+                ? BookingSlots::filterListSlots($rawSlots)
+                : $rawSlots;
             $slotsHhmm = [];
-            foreach ($op['slots_hhmm'] ?? [] as $hh) {
-                $slotsHhmm[] = (string)$hh;
-            }
-            if ($slotsHhmm === [] && !empty($op['slots'])) {
-                foreach ($op['slots'] as $ts) {
-                    $slotsHhmm[] = date('H:i', (int)$ts);
-                }
+            foreach ($slots as $ts) {
+                $slotsHhmm[] = date('H:i', (int)$ts);
             }
             $nameParts = preg_split('/\s+/', trim((string)($op['name'] ?? '')), 3) ?: [];
             $therapists[] = [
@@ -448,6 +448,9 @@ final class LikespaLegacyApi
             'operator_id' => $specialistId,
             'dt_start' => $dtStart,
             'source' => $source === 'api' ? 'api' : 'api_termy',
+            'lead_sec' => $source === 'api'
+                ? LikespaConfig::leadSecApi()
+                : LikespaConfig::leadSecTermy(),
         ];
         if (isset($_GET['price']) && $_GET['price'] !== '') {
             $price = (float)$_GET['price'];

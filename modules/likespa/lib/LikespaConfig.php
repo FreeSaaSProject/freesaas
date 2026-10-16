@@ -16,6 +16,8 @@ final class LikespaConfig
             'legacy_api_enabled' => '0',
             'legacy_api_termy_category' => 16,
             'legacy_api_key' => '',
+            'lead_sec_api' => 600,
+            'lead_sec_termy' => 1200,
             'promo_price_col' => 4,
             'promo_min_work_hours' => 6.8,
             'promo_script_ids' => '4,20',
@@ -107,6 +109,8 @@ final class LikespaConfig
         if ($apiKey !== '') {
             Config::set('likespa', 'legacy_api_key', $apiKey);
         }
+        Config::set('likespa', 'lead_sec_api', (string)max(0, min(7200, (int)($post['lead_sec_api'] ?? 600))));
+        Config::set('likespa', 'lead_sec_termy', (string)max(0, min(7200, (int)($post['lead_sec_termy'] ?? 1200))));
 
         Config::set('likespa', 'promo_price_col', (string)max(1, (int)($post['promo_price_col'] ?? 4)));
         $hours = (float)($post['promo_min_work_hours'] ?? 6.8);
@@ -189,6 +193,18 @@ final class LikespaConfig
             return array_values($out);
         }
         return self::normalizeIdList((string)$raw);
+    }
+
+    /** Ordinary legacy API / phones lead (seconds). */
+    public static function leadSecApi(): int
+    {
+        return max(0, min(7200, self::int('lead_sec_api', 600)));
+    }
+
+    /** api_termy lead (seconds). */
+    public static function leadSecTermy(): int
+    {
+        return max(0, min(7200, self::int('lead_sec_termy', 1200)));
     }
 
     public static function termScansEnabled(): bool
