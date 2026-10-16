@@ -79,7 +79,7 @@ final class LikespaLegacyApi
         switch ($endpoint) {
             case 'health':
                 self::json([
-                    'status' => 'ok',
+                    'status' => 'OK',
                     'timestamp' => time(),
                     'php_version' => PHP_VERSION,
                     'server_time' => date('c'),
@@ -114,6 +114,9 @@ final class LikespaLegacyApi
                 break;
             case 'get_employee_status':
                 self::json(self::employeeStatus());
+                break;
+            case 'log_event':
+                self::json(['ok' => 1]);
                 break;
             default:
                 // Termy-compatible subset also works on api.php
@@ -223,7 +226,7 @@ final class LikespaLegacyApi
     private static function allCategories(): array
     {
         if (!class_exists(CategoriesRepository::class, false)) {
-            return ['categories' => []];
+            return ['categories' => new stdClass()];
         }
         $res = CategoriesRepository::list(['limit' => 500, 'offset' => 0]);
         $out = [];
@@ -231,12 +234,21 @@ final class LikespaLegacyApi
             if ((int)($c['hidden'] ?? 0) > 0) {
                 continue;
             }
-            $out[] = [
-                'id' => (string)(int)($c['id'] ?? 0),
+            $id = (int)($c['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            $key = (string)$id;
+            $out[$key] = [
+                'id' => $id,
                 'name' => (string)($c['name'] ?? ''),
+                'num' => (string)($c['num'] ?? ''),
+                'parent_to' => (string)(int)($c['parent_id'] ?? 0),
+                'contentstart' => '',
+                'NO_CART' => !empty($c['no_cart']) ? '1' : '0',
             ];
         }
-        return ['categories' => $out];
+        return ['categories' => $out === [] ? new stdClass() : $out];
     }
 
     /** @return array<string,mixed> */
@@ -267,21 +279,168 @@ final class LikespaLegacyApi
         return ['services' => $services, 'date' => $date];
     }
 
-    /** @return array<string,mixed> */
+    /**
+     * Android /api.php catalog: id-keyed map with id1c, descriptions, relations, optional eligibility.
+     * Termy keeps termyServices() list shape — do not reuse this for api_termy.
+     *
+     * @return array<string,mixed>
+     */
     private static function allServices(): array
     {
-        return self::termyServices(0);
+        $date = trim((string)($_GET['date'] ?? date('Y-m-d')));
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $date = date('Y-m-d');
+        }
+        $wantEligibility = !empty($_GET['include_booking_eligibility'])
+            && (string)$_GET['include_booking_eligibility'] !== '0'
+            && strtolower((string)$_GET['include_booking_eligibility']) !== 'false';
+        $out = [];
+        if (!class_exists(ProductsRepository::class, false)) {
+            return self::fullServicesPayload($out, $date);
+        }
+        $res = ProductsRepository::list([
+            'enabled' => '1',
+            'is_material' => '0',
+            'limit' => 2000,
+            'offset' => 0,
+        ]);
+        $leadSec = LikespaConfig::leadSecApi();
+        foreach ($res['items'] ?? [] as $row) {
+            $id = (int)($row['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            $onecId = trim((string)($row['onec_id'] ?? ''));
+            if ($onecId === '') {
+                continue;
+            }
+            $full = ProductsRepository::find($id);
+            if ($full === null || empty($full['enabled']) || !empty($full['is_material'])) {
+                continue;
+            }
+            $onecId = trim((string)($full['onec_id'] ?? ''));
+            if ($onecId === '') {
+                continue;
+            }
+            $price = (float)($full['price3'] ?? 0);
+            if ($price <= 0) {
+                $price = (float)($full['price'] ?? 0);
+            }
+            $listPrice = (float)($full['price'] ?? $price);
+            $addons = [];
+            $upgrades = [];
+            if (class_exists(ProductRelationsRepository::class, false)) {
+                foreach (ProductRelationsRepository::forProduct($id, true) as $rel) {
+                    if (empty($rel['enabled'])) {
+                        continue;
+                    }
+                    $toId = (int)($rel['product_to_id'] ?? 0);
+                    if ($toId < 1) {
+                        continue;
+                    }
+                    $relPrice = (float)($rel['price3'] ?? 0);
+                    if ($relPrice <= 0) {
+                        $relPrice = (float)($rel['price'] ?? 0);
+                    }
+                    $relRow = [
+                        'id' => (string)$toId,
+                        'name' => (string)($rel['related_name'] ?? ''),
+                        'price' => $relPrice,
+                        'duration' => (int)($rel['time_sec'] ?? 0),
+                    ];
+                    $type = (string)($rel['type'] ?? '');
+                    if ($type === 'addon') {
+                        $addons[(string)$toId] = $relRow;
+                    } elseif ($type === 'upgrade') {
+                        $upgrades[(string)$toId] = $relRow;
+                    }
+                }
+            }
+            $svc = [
+                'id' => (string)$id,
+                'category' => (string)(int)($full['category'] ?? 0),
+                'id1c' => $onecId,
+                'name' => (string)($full['name'] ?? ''),
+                'price' => $price,
+                'price_without_discount' => $listPrice > 0 ? $listPrice : $price,
+                'invite' => '0',
+                'description' => (string)($full['descr_proc'] ?? ''),
+                'description_after' => '',
+                'description_price' => (string)($full['description'] ?? ''),
+                'duration' => (int)($full['time_sec'] ?? 0),
+                'is_addon' => '0',
+                'addons' => $addons === [] ? new stdClass() : $addons,
+                'upgrades' => $upgrades === [] ? new stdClass() : $upgrades,
+            ];
+            if ($wantEligibility) {
+                $svc['booking_eligibility'] = self::serviceEligibility($id, $date, $leadSec);
+            }
+            $out[(string)$id] = $svc;
+        }
+        return self::fullServicesPayload($out, $date);
+    }
+
+    /**
+     * @param array<string,array<string,mixed>> $services
+     * @return array<string,mixed>
+     */
+    private static function fullServicesPayload(array $services, string $date): array
+    {
+        $payload = [
+            'services' => $services === [] ? new stdClass() : $services,
+            'date' => $date,
+        ];
+        if (isset($_GET['promo_code']) || isset($_GET['client_id'])) {
+            $payload['promo'] = [
+                'valid' => false,
+                'error' => 'promo not available',
+            ];
+        }
+        return $payload;
+    }
+
+    private static function serviceEligibility(int $productId, string $date, int $leadSec): string
+    {
+        if ($productId < 1 || !class_exists(BookingAvailability::class, false)) {
+            return 'no_masters';
+        }
+        try {
+            $avail = BookingAvailability::forDay($date, [$productId], null, null, false, $leadSec);
+        } catch (Throwable $e) {
+            return 'no_masters';
+        }
+        $hasSlots = false;
+        foreach ($avail['operators'] ?? [] as $op) {
+            $rawSlots = array_map('intval', $op['slots'] ?? []);
+            $slots = class_exists(BookingSlots::class, false)
+                ? BookingSlots::filterListSlots($rawSlots)
+                : $rawSlots;
+            if ($slots !== []) {
+                $hasSlots = true;
+                break;
+            }
+        }
+        if ($hasSlots) {
+            return 'bookable';
+        }
+        $reason = (string)($avail['empty_reason'] ?? '');
+        if ($reason === 'no_shifts' || $reason === 'none_can_do') {
+            return 'no_masters';
+        }
+        return 'no_time_slots';
     }
 
     /** @return array<string,mixed> */
     private static function termyPersonnel(int $cat): array
     {
+        $empty = [
+            'massage_therapists' => [],
+            'equipment' => [],
+            'administrators' => [],
+        ];
         $date = trim((string)($_GET['date'] ?? ''));
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return [
-                'error' => 'date required (Y-m-d)',
-                'example' => '?endpoint=get_personnel&date=' . date('Y-m-d') . '&service_id=1',
-            ];
+            $date = date('Y-m-d');
         }
         $serviceId = (int)($_GET['service_id'] ?? 0);
         if ($serviceId < 1) {
@@ -289,22 +448,22 @@ final class LikespaLegacyApi
             $serviceId = (int)(($services[0]['id'] ?? 0));
         }
         if ($serviceId < 1) {
-            return ['massage_therapists' => [], 'equipment' => [], 'administrators' => []];
+            return $empty;
         }
         if ($cat > 0 && class_exists(ProductsRepository::class, false)) {
             $p = ProductsRepository::find($serviceId);
             if ($p === null || (int)($p['category'] ?? 0) !== $cat) {
-                return ['error' => 'service_id not in catalog ' . $cat];
+                return $empty + ['error' => 'service_id not in catalog ' . $cat];
             }
         }
         if (!class_exists(BookingAvailability::class, false)) {
-            return ['massage_therapists' => [], 'equipment' => [], 'administrators' => []];
+            return $empty;
         }
         $leadSec = $cat > 0 ? LikespaConfig::leadSecTermy() : LikespaConfig::leadSecApi();
         try {
             $avail = BookingAvailability::forDay($date, [$serviceId], null, null, false, $leadSec);
         } catch (Throwable $e) {
-            return ['error' => $e->getMessage(), 'massage_therapists' => []];
+            return $empty + ['error' => $e->getMessage()];
         }
         $therapists = [];
         foreach ($avail['operators'] ?? [] as $op) {
@@ -325,7 +484,7 @@ final class LikespaLegacyApi
                 'surname' => (string)($nameParts[0] ?? ''),
                 'name' => (string)($nameParts[1] ?? ($nameParts[0] ?? '')),
                 'patronimic' => (string)($nameParts[2] ?? ''),
-                'gender' => '',
+                'gender' => 0,
                 'bday' => '',
                 'image_url' => '',
                 'description' => '',
@@ -511,7 +670,7 @@ final class LikespaLegacyApi
     private static function fullBook(): array
     {
         $bookByOrder = !empty($_GET['bookByOrder']) || (string)($_GET['strict'] ?? '') === '1';
-        $terminalId = (int)($_GET['terminalId'] ?? $_GET['terminalid'] ?? 0);
+        $terminalId = (int)($_GET['terminalID'] ?? $_GET['terminalId'] ?? $_GET['terminalid'] ?? 0);
         $documentId = trim((string)($_GET['document_id'] ?? ''));
         $braceletId = trim((string)($_GET['bracelet_id'] ?? $_GET['braceletid'] ?? ''));
         if (!$bookByOrder && $terminalId > 0 && class_exists(TerminalBooking::class, false)) {
@@ -519,12 +678,42 @@ final class LikespaLegacyApi
             $adminId = (int)($_GET['adminId'] ?? $_GET['specialist_id'] ?? 0);
             $clientId = (int)($_GET['client_id'] ?? 0);
             $date = trim((string)($_GET['date'] ?? date('Y-m-d')));
+            if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+                $date = date('Y-m-d');
+            }
             $hour = (int)($_GET['hour'] ?? date('G'));
             $minute = (int)($_GET['minute'] ?? 0);
+            $nowHm = date('H:i:s');
             $dayStart = strtotime($date . ' 00:00:00');
             $dtStart = $dayStart !== false
                 ? (int)mktime($hour, $minute, 0, (int)date('n', $dayStart), (int)date('j', $dayStart), (int)date('Y', $dayStart))
                 : time();
+            $duration = 3600;
+            if (class_exists(ProductsRepository::class, false)) {
+                $p = ProductsRepository::find($serviceId);
+                if ($p !== null) {
+                    $duration = max(300, (int)($p['time_sec'] ?? 3600));
+                }
+            }
+            // Incomplete identity: return structured executable envelope (no raw TerminalBooking).
+            if ($serviceId < 1 || $adminId < 1) {
+                return [
+                    'currentTime' => $nowHm,
+                    'error' => 'Missing required parameters: service_id, adminId/specialist_id',
+                    'booked' => 0,
+                    'reserved' => 0,
+                    'result' => [
+                        'executable' => 0,
+                        'selected_specialistId' => 0,
+                        'selected_hour' => 0,
+                        'selected_minute' => 0,
+                        'changes' => new stdClass(),
+                        'rus' => 'Missing required parameters',
+                    ],
+                    'totalTime' => 0,
+                    'updateInfo' => [],
+                ];
+            }
             $bookIn = [
                 'product_id' => $serviceId,
                 'operator_id' => $adminId,
@@ -535,18 +724,32 @@ final class LikespaLegacyApi
                 'onec_client_id' => $documentId !== '' ? $documentId : '',
                 'onec_bracelet' => $braceletId,
                 'disable_1c' => !empty($_GET['disable1C']),
+                'lead_sec' => LikespaConfig::leadSecApi(),
             ];
             if (isset($_GET['price']) && $_GET['price'] !== '') {
                 $bookIn['price'] = (float)$_GET['price'];
             }
             $res = TerminalBooking::book($bookIn);
+            $ok = !empty($res['ok']);
+            $err = $ok ? '' : (string)($res['error'] ?? 'book failed');
+            $result = [
+                'executable' => $ok ? 1 : 0,
+                'selected_specialistId' => (string)$adminId,
+                'selected_hour' => $hour,
+                'selected_minute' => $minute,
+                'changes' => new stdClass(),
+                'rus' => $ok ? 'OK' : $err,
+            ];
+            if ($ok && isset($res['procedure_id'])) {
+                $result['procedure_id'] = (int)$res['procedure_id'];
+            }
             return [
-                'currentTime' => date('H:i:s'),
-                'error' => empty($res['ok']) ? (string)($res['error'] ?? 'book failed') : '',
-                'booked' => !empty($res['ok']) ? 1 : 0,
+                'currentTime' => $nowHm,
+                'error' => $err,
+                'booked' => $ok ? 1 : 0,
                 'reserved' => 0,
-                'result' => $res,
-                'totalTime' => 0,
+                'result' => $result,
+                'totalTime' => $ok ? $duration : 0,
                 'updateInfo' => [],
             ];
         }
@@ -614,12 +817,12 @@ final class LikespaLegacyApi
     /** @return array<string,mixed> */
     private static function freeTerminal(): array
     {
-        $terminalId = (int)($_GET['terminalId'] ?? $_GET['terminalid'] ?? 0);
+        $terminalId = (int)($_GET['terminalID'] ?? $_GET['terminalId'] ?? $_GET['terminalid'] ?? 0);
         if ($terminalId < 1 || !class_exists(TerminalsRepository::class, false)) {
-            return ['error' => 'terminalId required', 'freed' => 0];
+            return ['error' => 'terminalId required', 'result' => 0, 'freed' => 0];
         }
         TerminalsRepository::clearExecutorLock($terminalId);
-        return ['freed' => 1];
+        return ['result' => 1, 'freed' => 1];
     }
 
     /** @return array<string,mixed> */

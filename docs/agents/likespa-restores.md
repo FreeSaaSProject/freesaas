@@ -67,7 +67,26 @@ curl -sS 'https://site.example/api_termy.php?endpoint=health'
 curl -sS -b jar.txt 'https://admin.example/likespa/legacy-api/status?format=json'
 ```
 
-Endpoints (Termy): `health`, `get_categories`, `get_services`, `get_personnel`, `get_client`, `book_service`, `get_my_orders`, `cancel_order`.
+### `/api_termy.php` (Volga Termy — thin list contract)
+
+Endpoints: `health` (`status: ok`), `get_categories`, `get_services`, `get_personnel`, `get_client`, `book_service`, `get_my_orders`, `cancel_order`.
+
+Shapes stay **arrays**: `{categories:[{id,name}]}`, `{services:[{id,name,price,duration,category_id}], date}`. Category scoped by `legacy_api_termy_category` (default 16). Do not change these to Android map shapes.
+
+### `/api.php` (Android kiosk — old phpshop contract)
+
+Endpoints: Termy subset plus `cancel_booking`, `free_terminal`, `get_employee_status`, `log_event` (stub `{ok:1}`).
+
+| Endpoint | Notes |
+|----------|--------|
+| `health` | `status: "OK"` (uppercase; Termy keeps `"ok"`) |
+| `get_categories` | **Map** keyed by id: `id`, `name`, `num`, `parent_to`, `contentstart`, `NO_CART` |
+| `get_services` | **Map** keyed by id: `id`, `category`, `id1c`, descriptions, `addons`/`upgrades`, filter enabled + non-material + non-empty `onec_id`. Optional `include_booking_eligibility=true` → `booking_eligibility` = `bookable` \| `no_masters` \| `no_time_slots`. Promo query → `promo.valid=false` |
+| `get_personnel` | Empty `date` → today; always `massage_therapists` / `equipment` / `administrators`; `gender` int `0` |
+| `book_service` | With `terminalId`/`terminalID`: procedure via `TerminalBooking`, response envelope `booked` + `result.executable` / `selected_*` / `rus` (not raw `{ok}`) |
+| `free_terminal` | Accepts `terminalID` / `terminalId`; `{result:1}` |
+
+Implementation: `modules/likespa/lib/LikespaLegacyApi.php` (`dispatchFull` vs `dispatchTermy`).
 
 ## Settings / FREE_TICKET
 
