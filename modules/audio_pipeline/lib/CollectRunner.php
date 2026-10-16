@@ -173,6 +173,7 @@ final class CollectRunner
         $hasStartGate = Database::columnExists('base_records_scripts', 'START_GATE');
         $hasExtendTimeout = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
 
+        $hasPosition = Database::columnExists('base_records_scripts', 'ID_POSITION');
         $extra = '';
         if ($hasRating) {
             $extra .= ', RATING_ENABLED, IS_HIDDEN, LEGACY_TYPE_ID';
@@ -191,6 +192,9 @@ final class CollectRunner
         }
         if ($hasExtendTimeout) {
             $extra .= ', EXTEND_TIMEOUT';
+        }
+        if ($hasPosition) {
+            $extra .= ', ID_POSITION';
         }
 
         $rows = Database::pdo()->query(
@@ -223,6 +227,7 @@ final class CollectRunner
                 // Missing column → legacy: every hit extends timeout.
                 'extend_timeout' => $hasExtendTimeout ? ((int)($row['EXTEND_TIMEOUT'] ?? 1) > 0 ? 1 : 0) : 1,
                 'ids_dictonarys' => (string)($row['IDS_DICTONARYS'] ?? ''),
+                'id_position' => $hasPosition ? (string)($row['ID_POSITION'] ?? '') : '',
                 'rating_enabled' => $hasRating ? (int)($row['RATING_ENABLED'] ?? 0) : 0,
                 'is_hidden' => $hasRating ? (int)($row['IS_HIDDEN'] ?? 0) : 0,
             ];
@@ -306,6 +311,72 @@ final class CollectRunner
     }
 
     /**
+     * Script roots allowed for this staff member by root ID_POSITION.
+     * Empty / "0" on the root = all positions (legacy).
+     *
+     * @param array<int,array<string,mixed>> $roots
+     * @return array<int,true> scriptId => true
+     */
+    private static function scriptIdsAllowedForAdmin(int $adminId, array $roots): array
+    {
+        $adminPos = self::adminPositionId($adminId);
+        $posIds = [$adminPos];
+        if ($adminPos > 0 && class_exists('SummariesRepository', false)) {
+            $eq = SummariesRepository::equivalentAudioPositionIds($adminPos);
+            if ($eq !== []) {
+                $posIds = $eq;
+            }
+        }
+        $posSet = [];
+        foreach ($posIds as $pid) {
+            $pid = (int)$pid;
+            if ($pid > 0) {
+                $posSet[$pid] = true;
+            }
+        }
+
+        $allowed = [];
+        foreach ($roots as $sid => $root) {
+            $sid = (int)$sid;
+            if ($sid < 1) {
+                continue;
+            }
+            $posRaw = trim((string)($root['id_position'] ?? ''));
+            if ($posRaw === '' || $posRaw === '0') {
+                $allowed[$sid] = true;
+                continue;
+            }
+            if ($posSet === []) {
+                // Staff has no status — only global scripts apply.
+                continue;
+            }
+            $scriptPos = self::parseIds($posRaw);
+            // Also accept plain "12" without # delimiters (parseIds handles it).
+            if ($scriptPos === [] && ctype_digit($posRaw)) {
+                $scriptPos = [(int)$posRaw];
+            }
+            foreach ($scriptPos as $spid) {
+                if (isset($posSet[$spid])) {
+                    $allowed[$sid] = true;
+                    break;
+                }
+            }
+        }
+
+        return $allowed;
+    }
+
+    private static function adminPositionId(int $adminId): int
+    {
+        if ($adminId < 1 || !Database::tableExists('base_users')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare('SELECT ID_STATUS FROM base_users WHERE id = ? LIMIT 1');
+        $st->execute([$adminId]);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
      * @param array{by_id:array,roots:array,key_to_parts:array,metric_parts:array} $scripts
      * @return array{collections:int,offers:int}
      */
@@ -333,6 +404,9 @@ final class CollectRunner
             return ['collections' => 0, 'offers' => 0];
         }
 
+        // Root ID_POSITION: empty/0 = all roles; else only matching staff (incl. ID_AUDIO_POSITION peers).
+        $allowedScripts = self::scriptIdsAllowedForAdmin($adminId, $scripts['roots'] ?? []);
+
         /** @var array<int, array{save:int,finish:int,timeout:int,last:int,kpi_last:int,parts:array<int,list<array>>,offers:int}> $open */
         $open = [];
         $saved = 0;
@@ -349,6 +423,9 @@ final class CollectRunner
 
             foreach ($matches as $m) {
                 $scriptId = (int)$m['script'];
+                if (!isset($allowedScripts[$scriptId])) {
+                    continue;
+                }
                 $partId = (int)$m['part'];
                 $partMeta = $scripts['by_id'][$partId] ?? null;
                 if ($partMeta === null) {
