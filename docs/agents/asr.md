@@ -22,6 +22,7 @@ Permissions: `asr.view`.
 - No own rail menu — Whisper voice-queue worker endpoints for bots / external workers.
 - Soft `bots`: voice-transcribe BotPlugin when bots enabled.
 - Worker auth: `X-Audio-Token` (shared with audio pipeline), not staff session.
+- Token UI: `/audio/settings` — auto-generate if missing, regenerate with confirm; plaintext shown once. Persists to `cfg/modules/asr.ini` `[asr] worker_token`.
 
 ## Agent JSON
 

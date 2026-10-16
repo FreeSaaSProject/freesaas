@@ -68,7 +68,7 @@ Common: prose in `hooks`, missing `lang/*.php`, route drift `routes.pages` vs bo
 php bin/freesaas.php health --module=audio_pipeline --format=json
 ```
 
-Ensure `cfg/modules/audio.ini` `worker_token` is set (not `CHANGE_ME`). Jobs: `/audio/jobs/{ingest,stem,collect}` with `X-Audio-Token`.
+Prefer `cfg/modules/asr.ini` `worker_token` (UI: `/audio/settings` generates if missing). Legacy fallback: `cfg/modules/audio.ini` `worker_token`. Not `CHANGE_ME`. Jobs: `/audio/jobs/{ingest,stem,collect}` and claim `/audio/asr/claim` with `X-Audio-Token`.
 
 ## Storefront / cart / booking
 

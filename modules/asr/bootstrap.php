@@ -35,7 +35,7 @@ Health::register('asr.worker_token', 'asr', static function (): array {
             'status' => 'skipped',
             'error_code' => 'asr_worker_token_unconfigured',
             'message' => 'asr.worker_token (or legacy audio.worker_token) missing / CHANGE_ME — voice workers optional',
-            'meta' => ['hint' => 'cfg/modules/asr.ini'],
+            'meta' => ['hint' => 'Open /audio/settings to generate, or set cfg/modules/asr.ini [asr] worker_token'],
         ];
     }
     return ['status' => 'ok', 'message' => 'worker_token configured'];

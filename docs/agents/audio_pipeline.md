@@ -57,4 +57,21 @@ curl -sS -b jar.txt 'https://example/audio/asr/chunk-claim?format=json'
 ## Notes
 
 - Requires `asr` + `audio` + `audio_dicts`.
-- Worker endpoints use `X-Audio-Token`.
+- Worker endpoints use `X-Audio-Token` (generate on `/audio/settings` → cfg/modules/asr.ini).
+
+## Whisper cabin worker (replaces oper `gens/getFileName.php`)
+
+Handoff for updating an external Mac/Whisper pull worker:
+
+| Oper (old) | FreeSaaS (new) |
+|------------|----------------|
+| `GET https://oper…/gens/getFileName.php` | `GET https://<host>/audio/asr/claim` |
+| save transcript (`saveFileDescription`) | `POST https://<host>/audio/asr/result` |
+| (chunk mode if used) | `GET /audio/asr/chunk-claim`, `POST /audio/asr/chunk-result` |
+
+- Auth: header `X-Audio-Token: <token>` (or `?token=` / POST `token`). Token from `/audio/settings` (auto-created if missing; copy once).
+- Claim response: **plain text** filename or `None` (same as oper). Optional `?format=json` → `{"ok":true,"claim":"…"}`.
+- Result POST fields: `file_name`, `result`; optional `PLAYTIME`, `VOLUME`.
+- Not part of `/cron/tick` — worker polls FreeSaaS itself.
+- Smoke: `curl -sS -H "X-Audio-Token: …" 'https://<host>/audio/asr/claim'`
+- Messenger voice queue is separate: `/asr/voice-transcribe/worker` (same token).
