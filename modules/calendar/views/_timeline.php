@@ -14,6 +14,7 @@ declare(strict_types=1);
  * @var string $ariaLabel
  * @var bool $showShiftsRow
  * @var array<string,string> $dayStatsHtml date => html
+ * Hour marks live on each $dayColumns[]['hour_marks'][hour] => {html,title}
  */
 $staffLocked = !empty($staffLocked);
 $canCreate = !empty($canCreate);
@@ -171,7 +172,13 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
                    style="height:<?= (int)$col['passed']['height'] ?>px;"></div>
             <?php endif; ?>
 
-            <?php foreach ($hours as $i => $h): ?>
+            <?php
+            $hourMarks = is_array($col['hour_marks'] ?? null) ? $col['hour_marks'] : [];
+            foreach ($hours as $i => $h):
+              $mark = $hourMarks[(int)$h] ?? $hourMarks[(string)$h] ?? null;
+              $markHtml = is_array($mark) ? trim((string)($mark['html'] ?? '')) : '';
+              $markTitle = is_array($mark) ? trim((string)($mark['title'] ?? '')) : '';
+              ?>
               <?php if ($canCreate): ?>
                 <a class="calendar-tl-slot"
                    style="top:<?= (int)($i * $pxPerHour) ?>px;height:<?= (int)$pxPerHour ?>px;"
@@ -180,6 +187,12 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
               <?php else: ?>
                 <div class="calendar-tl-slot is-static"
                      style="top:<?= (int)($i * $pxPerHour) ?>px;height:<?= (int)$pxPerHour ?>px;"></div>
+              <?php endif; ?>
+              <?php if ($markHtml !== ''): ?>
+                <div class="calendar-tl-hour-mark"
+                     style="top:<?= (int)($i * $pxPerHour) ?>px;height:<?= (int)$pxPerHour ?>px;"
+                     <?php if ($markTitle !== ''): ?>title="<?= e($markTitle) ?>"<?php endif; ?>
+                     aria-label="<?= e($markTitle !== '' ? $markTitle : t('calendar.timeline.load_title')) ?>"><?= $markHtml ?></div>
               <?php endif; ?>
             <?php endforeach; ?>
 

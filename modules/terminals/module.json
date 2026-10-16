@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.25",
+    "version": "0.1.26",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -346,7 +346,8 @@
             "catalog.product_edit.save",
             "core.user_edit.sections",
             "core.user_edit.save",
-            "core.user_edit.profile"
+            "core.user_edit.profile",
+            "calendar.timeline.enrich"
         ],
         "publish": []
     },

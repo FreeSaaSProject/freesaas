@@ -106,6 +106,7 @@ if (class_exists('ProceduresDayLoad', false)) {
 }
 
 $n = (int)date('N', $dayStart);
+$hours = CalendarTimeline::hours();
 $dayColumns = [[
     'day' => [
         'ts' => $dayStart,
@@ -117,6 +118,7 @@ $dayColumns = [[
     ],
     'shifts' => $shiftLabels,
     'chips' => $chips,
+    'hour_marks' => [],
     'passed' => CalendarTimeline::passedOverlay($dayStart),
     'manage' => $canAssign,
 ]];
@@ -146,6 +148,8 @@ if ($wantsJson) {
     return;
 }
 
+$dayColumns = CalendarTimelineEnrich::enrichColumns($dayColumns, $hours, 'day');
+
 View::render('day', [
     'title' => t('calendar.day.title', ['date' => $dateLabel]),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -165,7 +169,7 @@ View::render('day', [
     'shiftError' => $shiftError,
     'canCreate' => $canCreate,
     'dayColumns' => $dayColumns,
-    'hours' => CalendarTimeline::hours(),
+    'hours' => $hours,
     'gridHeight' => CalendarTimeline::gridHeight(),
     'pxPerHour' => CalendarTimeline::PX_PER_HOUR,
     'retUrl' => $retDay,

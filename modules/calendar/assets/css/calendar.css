@@ -334,6 +334,29 @@ tr.is-block td { opacity: 0.75; }
 .calendar-tl-slot:not(.is-static):hover {
   background: var(--accent-soft);
 }
+/* Per-day hour occupancy (terminals overlay); does not capture clicks. */
+.calendar-tl-hour-mark {
+  position: absolute;
+  right: 0.2rem;
+  left: auto;
+  width: auto;
+  max-width: 45%;
+  box-sizing: border-box;
+  padding: 0.05rem 0.15rem 0 0;
+  font-size: 0.65rem;
+  line-height: 1.2;
+  color: var(--muted);
+  text-align: right;
+  pointer-events: none;
+  z-index: 2;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.calendar-tl-b2b {
+  color: #c44;
+  font-weight: 600;
+  margin-left: 0.12rem;
+}
 .calendar-tl-passed {
   position: absolute;
   top: 0;

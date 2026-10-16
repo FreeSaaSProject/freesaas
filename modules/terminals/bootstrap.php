@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/ClientOnecBindingsRepository.php';
 require_once __DIR__ . '/lib/StaffBraceletsRepository.php';
 require_once __DIR__ . '/lib/TermloadsRepository.php';
 require_once __DIR__ . '/lib/FullstatsRepository.php';
+require_once __DIR__ . '/lib/CalendarLoadOverlay.php';
 require_once __DIR__ . '/lib/OnecClient.php';
 require_once __DIR__ . '/lib/OnecConsole.php';
 require_once __DIR__ . '/lib/TerminalBooking.php';
@@ -267,5 +268,51 @@ EventBus::on('core.user_edit.profile', static function ($payload) {
     ob_start();
     require __DIR__ . '/views/_user_profile_bracelet.php';
     $payload['html_channels'] = ($payload['html_channels'] ?? '') . (string)ob_get_clean();
+    return $payload;
+});
+
+// Calendar day/week: therm [N] on procedure chips + hour slots; B2B ГN when >5.
+EventBus::on('calendar.timeline.enrich', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!Auth::can('calendar.view')) {
+        return $payload;
+    }
+    if (!Database::tableExists('base_termloads')) {
+        return $payload;
+    }
+    $days = is_array($payload['days'] ?? null) ? $payload['days'] : [];
+    if ($days === []) {
+        return $payload;
+    }
+    $hours = is_array($payload['hours'] ?? null) ? $payload['hours'] : [];
+    $ctx = is_array($payload['context'] ?? null) ? $payload['context'] : [];
+    $now = (int)($ctx['now'] ?? time());
+    $hasFullstats = Database::tableExists('base_fullstats');
+
+    foreach ($days as $date => $day) {
+        if (!is_array($day)) {
+            continue;
+        }
+        $dateStr = (string)($day['date'] ?? $date);
+        $tsStart = (int)($day['ts_start'] ?? 0);
+        if ($dateStr === '' || $tsStart <= 0) {
+            continue;
+        }
+        $byMinute = CalendarLoadOverlay::indexTermloads(TermloadsRepository::forDay($dateStr));
+        $tickets = $hasFullstats ? FullstatsRepository::forDay($dateStr) : [];
+        $chips = is_array($day['chips'] ?? null) ? $day['chips'] : [];
+        $day['chips'] = CalendarLoadOverlay::decorateProcChips($chips, $byMinute);
+        $day['hour_marks'] = CalendarLoadOverlay::hourMarks(
+            $byMinute,
+            $tickets,
+            $hours,
+            $tsStart,
+            $now
+        );
+        $days[$date] = $day;
+    }
+    $payload['days'] = $days;
     return $payload;
 });

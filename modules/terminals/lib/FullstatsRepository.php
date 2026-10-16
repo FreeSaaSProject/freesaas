@@ -60,6 +60,25 @@ final class FullstatsRepository
         return ['items' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'total' => $total];
     }
 
+    /**
+     * All ticket visits for a calendar day (no LIMIT).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function forDay(string $day): array
+    {
+        $day = trim($day);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) || !Database::tableExists('base_fullstats')) {
+            return [];
+        }
+        $res = self::list([
+            'day' => $day,
+            'limit' => 0,
+            'order' => 'DTSTART ASC',
+        ]);
+        return $res['items'];
+    }
+
     public static function find(int $id): ?array
     {
         if ($id < 1 || !Database::tableExists('base_fullstats')) {

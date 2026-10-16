@@ -256,6 +256,8 @@ final class CalendarTimeline
                 'bg' => $color['bg'],
                 'fg' => $color['fg'],
                 'is_block' => false,
+                'dtstart' => (int)($pr['dtstart'] ?? 0),
+                'dtend' => (int)($pr['dtend'] ?? 0),
                 'label' => $label,
                 'title' => $label,
                 'info' => $info,

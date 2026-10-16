@@ -183,6 +183,7 @@ foreach ($days as $day) {
         'day' => $day,
         'shifts' => $shiftLabels,
         'chips' => $chips,
+        'hour_marks' => [],
         'passed' => CalendarTimeline::passedOverlay($day['ts']),
         'manage' => $canAssign,
     ];
@@ -242,6 +243,8 @@ if ($wantsJson) {
     ]);
     return;
 }
+
+$dayColumns = CalendarTimelineEnrich::enrichColumns($dayColumns, $hours, 'week');
 
 View::render('week', [
     'title' => t('calendar.week.title', ['range' => $rangeLabel]),

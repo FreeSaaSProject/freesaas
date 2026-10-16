@@ -71,6 +71,7 @@ return [
     'calendar.day.col_parent' => 'Event',
     'calendar.day.no_parent' => '—',
     'calendar.day.add_event' => 'New event',
+    'calendar.timeline.load_title' => 'Hall occupancy',
     'calendar.event.title_new' => 'New event',
     'calendar.event.title' => 'Event #{id}',
     'calendar.event.heading_new' => 'New event',
