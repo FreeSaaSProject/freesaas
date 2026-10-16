@@ -752,7 +752,12 @@ final class LikespaLegacyApi
         $braceletId = trim((string)($_GET['bracelet_id'] ?? $_GET['braceletid'] ?? ''));
         if (!$bookByOrder && $terminalId > 0 && class_exists(TerminalBooking::class, false)) {
             $serviceId = (int)($_GET['service_id'] ?? 0);
-            $adminId = (int)($_GET['adminId'] ?? $_GET['specialist_id'] ?? 0);
+            // Old api.php: ID_OPERATOR = specialist_id, ID_ADMIN = terminal adminId (settings).
+            // Do not collapse adminId ?? specialist_id — that books the settings admin as the masseur.
+            $specialistId = (int)($_GET['specialist_id'] ?? 0);
+            $adminId = (int)($_GET['adminId'] ?? 0);
+            $operatorId = $specialistId > 0 ? $specialistId : $adminId;
+            $adminForProc = $adminId > 0 ? $adminId : $operatorId;
             $clientId = (int)($_GET['client_id'] ?? 0);
             $date = trim((string)($_GET['date'] ?? date('Y-m-d')));
             if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
@@ -773,10 +778,10 @@ final class LikespaLegacyApi
                 }
             }
             // Incomplete identity: return structured executable envelope (no raw TerminalBooking).
-            if ($serviceId < 1 || $adminId < 1) {
+            if ($serviceId < 1 || $operatorId < 1) {
                 return [
                     'currentTime' => $nowHm,
-                    'error' => 'Missing required parameters: service_id, adminId/specialist_id',
+                    'error' => 'Missing required parameters: service_id, specialist_id/adminId',
                     'booked' => 0,
                     'reserved' => 0,
                     'result' => [
@@ -793,8 +798,8 @@ final class LikespaLegacyApi
             }
             $bookIn = [
                 'product_id' => $serviceId,
-                'operator_id' => $adminId,
-                'admin_id' => $adminId,
+                'operator_id' => $operatorId,
+                'admin_id' => $adminForProc,
                 'terminal_id' => $terminalId,
                 'dt_start' => $dtStart,
                 'client_id' => $clientId,
@@ -811,7 +816,7 @@ final class LikespaLegacyApi
             $err = $ok ? '' : (string)($res['error'] ?? 'book failed');
             $result = [
                 'executable' => $ok ? 1 : 0,
-                'selected_specialistId' => (string)$adminId,
+                'selected_specialistId' => (string)$operatorId,
                 'selected_hour' => $hour,
                 'selected_minute' => $minute,
                 'changes' => new stdClass(),
