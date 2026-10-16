@@ -81,8 +81,8 @@ Endpoints: Termy subset plus `cancel_booking`, `free_terminal`, `get_employee_st
 |----------|--------|
 | `health` | `status: "OK"` (uppercase; Termy keeps `"ok"`) |
 | `get_categories` | **Map** keyed by id: `id`, `name`, `num`, `parent_to`, `contentstart`, `NO_CART` |
-| `get_services` | **Map** keyed by id: `id`, `category`, `id1c`, descriptions, `addons`/`upgrades`, filter enabled + non-material + non-empty `onec_id`. Optional `include_booking_eligibility=true` → `booking_eligibility` = `bookable` \| `no_masters` \| `no_time_slots`. Promo query → `promo.valid=false` |
-| `get_personnel` | Empty `date` → today; always `massage_therapists` / `equipment` / `administrators`; `gender` int `0` |
+| `get_services` | **Map** keyed by id: `id`, `category`, `id1c`, descriptions, `addons`/`upgrades`, filter enabled + non-material + non-empty `onec_id`. `duration` = chill-capped booking span (same as `BookingSlots`). Top-level `work_hours` = salon `base_system.work_hour_*` (slot engine); **not** workweeks shift I `15:30`. Optional `include_booking_eligibility=true` → `booking_eligibility` = `bookable` \| `no_masters` \| `no_time_slots`. Promo query → `promo.valid=false` |
+| `get_personnel` | Empty `date` → today; always `massage_therapists` / `equipment` / `administrators`; `gender` int `0`. Therapists may include `price_col` / `shift_end` (informational); **slots stay salon-window**, not clipped to shift I |
 | `book_service` | With `terminalId`/`terminalID`: procedure via `TerminalBooking`, response envelope `booked` + `result.executable` / `selected_*` / `rus` (not raw `{ok}`) |
 | `free_terminal` | Accepts `terminalID` / `terminalId`; `{result:1}` |
 

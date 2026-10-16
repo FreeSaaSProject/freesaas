@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.11",
+    "version": "0.3.12",
     "type": "product",
     "runtime": "both",
     "requires": {

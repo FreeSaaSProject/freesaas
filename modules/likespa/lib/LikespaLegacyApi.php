@@ -83,6 +83,7 @@ final class LikespaLegacyApi
                     'timestamp' => time(),
                     'php_version' => PHP_VERSION,
                     'server_time' => date('c'),
+                    'work_hours' => self::salonWorkHours(),
                 ]);
                 break;
             case 'get_categories':
@@ -327,6 +328,20 @@ final class LikespaLegacyApi
                 $price = (float)($full['price'] ?? 0);
             }
             $listPrice = (float)($full['price'] ?? $price);
+            $timeSec = max(0, (int)($full['time_sec'] ?? 0));
+            $timeNet = max(0, (int)($full['time_net'] ?? 0));
+            if ($timeSec < 1) {
+                $timeSec = class_exists(BookingSlots::class, false) ? BookingSlots::DEFAULT_DURATION_SEC : 3600;
+            }
+            if ($timeNet < 1) {
+                $timeNet = $timeSec;
+            }
+            // Same chill cap as BookingSlots::check — client "fits before close" must match engine.
+            $duration = $timeSec;
+            if (class_exists(BookingSlots::class, false)) {
+                $capped = BookingSlots::durationWithChill($timeSec, $timeNet);
+                $duration = (int)$capped['total_time'];
+            }
             $addons = [];
             $upgrades = [];
             if (class_exists(ProductRelationsRepository::class, false)) {
@@ -342,11 +357,19 @@ final class LikespaLegacyApi
                     if ($relPrice <= 0) {
                         $relPrice = (float)($rel['price'] ?? 0);
                     }
+                    $relDur = max(0, (int)($rel['time_sec'] ?? 0));
+                    $relNet = max(0, (int)($rel['time_net'] ?? 0));
+                    if ($relDur > 0 && class_exists(BookingSlots::class, false)) {
+                        if ($relNet < 1) {
+                            $relNet = $relDur;
+                        }
+                        $relDur = (int)BookingSlots::durationWithChill($relDur, $relNet)['total_time'];
+                    }
                     $relRow = [
                         'id' => (string)$toId,
                         'name' => (string)($rel['related_name'] ?? ''),
                         'price' => $relPrice,
-                        'duration' => (int)($rel['time_sec'] ?? 0),
+                        'duration' => $relDur,
                     ];
                     $type = (string)($rel['type'] ?? '');
                     if ($type === 'addon') {
@@ -367,7 +390,8 @@ final class LikespaLegacyApi
                 'description' => (string)($full['descr_proc'] ?? ''),
                 'description_after' => '',
                 'description_price' => (string)($full['description'] ?? ''),
-                'duration' => (int)($full['time_sec'] ?? 0),
+                'duration' => $duration,
+                'duration_net' => $timeNet,
                 'is_addon' => '0',
                 'addons' => $addons === [] ? new stdClass() : $addons,
                 'upgrades' => $upgrades === [] ? new stdClass() : $upgrades,
@@ -389,6 +413,8 @@ final class LikespaLegacyApi
         $payload = [
             'services' => $services === [] ? new stdClass() : $services,
             'date' => $date,
+            // Salon calendar window (base_system). Slot engine uses this — NOT workweeks PRICE_COL / shift I 15:30.
+            'work_hours' => self::salonWorkHours(),
         ];
         if (isset($_GET['promo_code']) || isset($_GET['client_id'])) {
             $payload['promo'] = [
@@ -397,6 +423,27 @@ final class LikespaLegacyApi
             ];
         }
         return $payload;
+    }
+
+    /** @return array{start:string,end:string,start_hour:int,start_minute:int,end_hour:int,end_minute:int} */
+    private static function salonWorkHours(): array
+    {
+        $hs = 10;
+        $ms = 0;
+        $he = 22;
+        $me = 0;
+        if (class_exists(BookingAvailability::class, false)) {
+            [$hs, $ms] = BookingAvailability::workDayStart();
+            [$he, $me] = BookingAvailability::workDayEnd();
+        }
+        return [
+            'start' => sprintf('%02d:%02d', $hs, $ms),
+            'end' => sprintf('%02d:%02d', $he, $me),
+            'start_hour' => $hs,
+            'start_minute' => $ms,
+            'end_hour' => $he,
+            'end_minute' => $me,
+        ];
     }
 
     private static function serviceEligibility(int $productId, string $date, int $leadSec): string
@@ -465,6 +512,29 @@ final class LikespaLegacyApi
         } catch (Throwable $e) {
             return $empty + ['error' => $e->getMessage()];
         }
+        $shiftMetaByOp = [];
+        if (class_exists(WorkweeksRepository::class, false)) {
+            $dayStart = class_exists(BookingAvailability::class, false)
+                ? BookingAvailability::parseDayStart($date)
+                : strtotime($date . ' 00:00:00');
+            if ($dayStart) {
+                foreach (WorkweeksRepository::listForDay((int)$dayStart) as $shift) {
+                    $oid = (int)($shift['id_operator'] ?? 0);
+                    if ($oid < 1) {
+                        continue;
+                    }
+                    $pc = max(1, min(5, (int)($shift['price_col'] ?? 1)));
+                    $range = WorkweeksRepository::shiftRangeForDay((int)$dayStart, $pc);
+                    $shiftMetaByOp[$oid] = [
+                        'price_col' => $pc,
+                        'shift_label' => (string)($range['label'] ?? ''),
+                        'shift_start' => $range !== null ? date('H:i', (int)$range['start']) : '',
+                        'shift_end' => $range !== null ? date('H:i', (int)$range['end']) : '',
+                    ];
+                }
+            }
+        }
+
         $therapists = [];
         foreach ($avail['operators'] ?? [] as $op) {
             if (empty($op['available']) && ($op['slots'] ?? []) === []) {
@@ -479,8 +549,15 @@ final class LikespaLegacyApi
                 $slotsHhmm[] = date('H:i', (int)$ts);
             }
             $nameParts = preg_split('/\s+/', trim((string)($op['name'] ?? '')), 3) ?: [];
+            $opId = (int)$op['id'];
+            $meta = $shiftMetaByOp[$opId] ?? [
+                'price_col' => 0,
+                'shift_label' => '',
+                'shift_start' => '',
+                'shift_end' => '',
+            ];
             $therapists[] = [
-                'id' => (string)(int)$op['id'],
+                'id' => (string)$opId,
                 'surname' => (string)($nameParts[0] ?? ''),
                 'name' => (string)($nameParts[1] ?? ($nameParts[0] ?? '')),
                 'patronimic' => (string)($nameParts[2] ?? ''),
@@ -492,12 +569,18 @@ final class LikespaLegacyApi
                 'products' => $slotsHhmm !== [] ? [(string)$serviceId => $slotsHhmm[0]] : [],
                 'startTime' => $slotsHhmm[0] ?? '',
                 'endTime' => $slotsHhmm !== [] ? $slotsHhmm[count($slotsHhmm) - 1] : '',
+                // Informational: workweeks lane. Slots above are salon-window, not clipped to shift_end.
+                'price_col' => (int)$meta['price_col'],
+                'shift_label' => (string)$meta['shift_label'],
+                'shift_start' => (string)$meta['shift_start'],
+                'shift_end' => (string)$meta['shift_end'],
             ];
         }
         return [
             'massage_therapists' => $therapists,
             'equipment' => [],
             'administrators' => [],
+            'work_hours' => self::salonWorkHours(),
         ];
     }
 
