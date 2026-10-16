@@ -246,7 +246,8 @@ final class ProceduresRepository
     }
 
     /**
-     * Calendar helper: procedures whose DTSTART falls in [scanStart, scanEnd).
+     * Calendar helper: enabled procedures whose DTSTART falls in [scanStart, scanEnd).
+     * Cancelled (ENABLED=0, not restored) are omitted — same as dayColumnStats.
      *
      * @return list<array<string,mixed>>
      */
@@ -256,7 +257,7 @@ final class ProceduresRepository
             return [];
         }
         $pdo = Database::pdo();
-        $where = 'p.DTSTART >= ? AND p.DTSTART < ?';
+        $where = 'p.DTSTART >= ? AND p.DTSTART < ? AND p.ENABLED = 1';
         $params = [$scanStart, $scanEnd];
         if ($staffId !== null && $staffId > 0) {
             $where .= ' AND (p.ID_OPERATOR = ? OR p.ID_ADMIN = ?)';

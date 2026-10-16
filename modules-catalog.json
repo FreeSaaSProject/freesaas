@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-16T07:38:43+00:00",
+    "generated_at": "2026-10-16T11:44:48+00:00",
     "modules": [
         {
             "id": "asr",
@@ -73,7 +73,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.17",
+            "version": "0.2.18",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -384,7 +384,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.2",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -481,7 +481,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.8",
+            "version": "0.1.19",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -506,6 +506,7 @@
             "optionalRequires": {
                 "cabinets": ">=0.1.0",
                 "tables": ">=0.1.0",
+                "audio": ">=0.1.0",
                 "booking": ">=0.1.0",
                 "bonuses": ">=0.1.0"
             },
@@ -626,7 +627,7 @@
         },
         {
             "id": "clients",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Clients",
@@ -851,7 +852,7 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.8",
+            "version": "0.3.10",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -1118,7 +1119,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.12",
+            "version": "0.1.16",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1153,7 +1154,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.9",
+            "version": "0.1.10",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1245,7 +1246,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.6",
+            "version": "0.2.7",
             "type": "product",
             "name": {
                 "en": "Sites",
@@ -1417,7 +1418,7 @@
         },
         {
             "id": "tables",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Massage tables",
@@ -1447,7 +1448,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.27",
+            "version": "0.1.32",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1599,7 +1600,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.8",
+            "version": "0.2.15",
             "type": "product",
             "name": {
                 "en": "Shifts",
@@ -1620,6 +1621,7 @@
                 "comments": ">=0.1.0",
                 "cabinets": ">=0.1.0",
                 "tables": ">=0.1.0",
+                "audio": ">=0.1.0",
                 "bots": ">=0.1.0"
             },
             "catalog": {
