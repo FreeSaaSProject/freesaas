@@ -296,8 +296,9 @@ final class LikespaLegacyApi
             && (string)$_GET['include_booking_eligibility'] !== '0'
             && strtolower((string)$_GET['include_booking_eligibility']) !== 'false';
         $out = [];
+        $eligibility = [];
         if (!class_exists(ProductsRepository::class, false)) {
-            return self::fullServicesPayload($out, $date);
+            return self::fullServicesPayload($out, $date, $wantEligibility ? $eligibility : null);
         }
         $res = ProductsRepository::list([
             'enabled' => '1',
@@ -342,6 +343,7 @@ final class LikespaLegacyApi
                 $capped = BookingSlots::durationWithChill($timeSec, $timeNet);
                 $duration = (int)$capped['total_time'];
             }
+            // Gson List<ServiceRelation>: JSON arrays of {id, benefit}, never object-maps / {}.
             $addons = [];
             $upgrades = [];
             if (class_exists(ProductRelationsRepository::class, false)) {
@@ -353,34 +355,21 @@ final class LikespaLegacyApi
                     if ($toId < 1) {
                         continue;
                     }
-                    $relPrice = (float)($rel['price3'] ?? 0);
-                    if ($relPrice <= 0) {
-                        $relPrice = (float)($rel['price'] ?? 0);
-                    }
-                    $relDur = max(0, (int)($rel['time_sec'] ?? 0));
-                    $relNet = max(0, (int)($rel['time_net'] ?? 0));
-                    if ($relDur > 0 && class_exists(BookingSlots::class, false)) {
-                        if ($relNet < 1) {
-                            $relNet = $relDur;
-                        }
-                        $relDur = (int)BookingSlots::durationWithChill($relDur, $relNet)['total_time'];
-                    }
                     $relRow = [
                         'id' => (string)$toId,
-                        'name' => (string)($rel['related_name'] ?? ''),
-                        'price' => $relPrice,
-                        'duration' => $relDur,
+                        'benefit' => (string)($rel['benefit'] ?? ''),
                     ];
                     $type = (string)($rel['type'] ?? '');
                     if ($type === 'addon') {
-                        $addons[(string)$toId] = $relRow;
+                        $addons[] = $relRow;
                     } elseif ($type === 'upgrade') {
-                        $upgrades[(string)$toId] = $relRow;
+                        $upgrades[] = $relRow;
                     }
                 }
             }
+            $key = (string)$id;
             $svc = [
-                'id' => (string)$id,
+                'id' => $key,
                 'category' => (string)(int)($full['category'] ?? 0),
                 'id1c' => $onecId,
                 'name' => (string)($full['name'] ?? ''),
@@ -392,23 +381,24 @@ final class LikespaLegacyApi
                 'description_price' => (string)($full['description'] ?? ''),
                 'duration' => $duration,
                 'duration_net' => $timeNet,
-                'is_addon' => '0',
-                'addons' => $addons === [] ? new stdClass() : $addons,
-                'upgrades' => $upgrades === [] ? new stdClass() : $upgrades,
+                'is_addon' => 0,
+                'addons' => $addons,
+                'upgrades' => $upgrades,
             ];
             if ($wantEligibility) {
-                $svc['booking_eligibility'] = self::serviceEligibility($id, $date, $leadSec);
+                $eligibility[$key] = self::serviceEligibility($id, $date, $leadSec);
             }
-            $out[(string)$id] = $svc;
+            $out[$key] = $svc;
         }
-        return self::fullServicesPayload($out, $date);
+        return self::fullServicesPayload($out, $date, $wantEligibility ? $eligibility : null);
     }
 
     /**
      * @param array<string,array<string,mixed>> $services
+     * @param array<string,string>|null $eligibility top-level map when include_booking_eligibility
      * @return array<string,mixed>
      */
-    private static function fullServicesPayload(array $services, string $date): array
+    private static function fullServicesPayload(array $services, string $date, ?array $eligibility = null): array
     {
         $payload = [
             'services' => $services === [] ? new stdClass() : $services,
@@ -416,6 +406,10 @@ final class LikespaLegacyApi
             // Salon calendar window (base_system). Slot engine uses this — NOT workweeks PRICE_COL / shift I 15:30.
             'work_hours' => self::salonWorkHours(),
         ];
+        if ($eligibility !== null) {
+            // Android reads only top-level booking_eligibility (not per-service field).
+            $payload['booking_eligibility'] = $eligibility === [] ? new stdClass() : $eligibility;
+        }
         if (isset($_GET['promo_code']) || isset($_GET['client_id'])) {
             $payload['promo'] = [
                 'valid' => false,
