@@ -151,12 +151,22 @@ tr.is-block td { opacity: 0.75; }
   background: var(--bg-elev);
 }
 .calendar-tl-day-h {
-  width: 14%;
   padding: 0.35rem 0.25rem;
   text-align: center;
   font-weight: 600;
   background: var(--bg-elev);
   white-space: nowrap;
+}
+.calendar-tl-col-axis {
+  width: 2.5rem;
+}
+/* Week: ~7 equal day columns (was hard-coded 14% on th — Chrome day-view bug). */
+.calendar-tl--week .calendar-tl-col-day {
+  width: 14%;
+}
+/* Day: fill remaining width after axis (Chrome otherwise keeps a 14%-class strip). */
+.calendar-tl--day .calendar-tl-col-day {
+  width: calc(100% - 2.5rem);
 }
 .calendar-tl-day-h a {
   color: inherit;
@@ -304,11 +314,22 @@ tr.is-block td { opacity: 0.75; }
 }
 .calendar-tl-axis,
 .calendar-tl-cell {
-  position: relative;
   background: var(--bg-panel);
+}
+/* Positioning context for absolute chips/slots — not on <td> (Chrome/Android). */
+.calendar-tl-axis-inner,
+.calendar-tl-cell-inner {
+  position: relative;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .calendar-tl-cell.is-today {
   background: rgba(45, 212, 191, 0.04);
+}
+.calendar-tl-cell.is-today .calendar-tl-cell-inner {
+  background: transparent;
 }
 .calendar-tl-hour {
   position: absolute;
@@ -414,8 +435,12 @@ tr.is-block td { opacity: 0.75; }
     min-width: 0;
     font-size: 0.72rem;
   }
-  .calendar-tl-axis-h {
+  .calendar-tl-axis-h,
+  .calendar-tl-col-axis {
     width: 1.6rem;
+  }
+  .calendar-tl--day .calendar-tl-col-day {
+    width: calc(100% - 1.6rem);
   }
   .calendar-tl-day-h {
     padding: 0.25rem 0.1rem;

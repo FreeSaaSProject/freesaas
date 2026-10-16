@@ -30,9 +30,17 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
     $q = $parts ? ('?' . implode('&', $parts)) : '';
     return '/calendar/day/' . rawurlencode($d) . $q;
 };
+$isDayView = count($dayColumns) === 1;
+$tlClass = 'calendar-tl' . ($isDayView ? ' calendar-tl--day' : ' calendar-tl--week');
 ?>
 <div class="calendar-tl-wrap">
-  <table class="calendar-tl" id="event_container" aria-label="<?= e($ariaLabel) ?>">
+  <table class="<?= e($tlClass) ?>" id="event_container" aria-label="<?= e($ariaLabel) ?>">
+    <colgroup>
+      <col class="calendar-tl-col-axis">
+      <?php foreach ($dayColumns as $_col): ?>
+        <col class="calendar-tl-col-day">
+      <?php endforeach; ?>
+    </colgroup>
     <thead>
       <tr>
         <th class="calendar-tl-axis-h" scope="col"></th>
@@ -150,9 +158,11 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
     <tbody>
       <tr>
         <td class="calendar-tl-axis" style="height:<?= (int)$gridHeight ?>px;">
-          <?php foreach ($hours as $i => $h): ?>
-            <div class="calendar-tl-hour" style="top:<?= (int)($i * $pxPerHour) ?>px;height:<?= (int)$pxPerHour ?>px;"><?= (int)$h ?></div>
-          <?php endforeach; ?>
+          <div class="calendar-tl-axis-inner" style="height:<?= (int)$gridHeight ?>px;">
+            <?php foreach ($hours as $i => $h): ?>
+              <div class="calendar-tl-hour" style="top:<?= (int)($i * $pxPerHour) ?>px;height:<?= (int)$pxPerHour ?>px;"><?= (int)$h ?></div>
+            <?php endforeach; ?>
+          </div>
         </td>
         <?php foreach ($dayColumns as $col): ?>
           <?php
@@ -167,6 +177,8 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
           }
           ?>
           <td class="<?= e($cellClass) ?>" style="height:<?= (int)$gridHeight ?>px;">
+            <?php /* Inner wrapper: Chrome/Android % left/width on chips is unreliable on <td>. */ ?>
+            <div class="calendar-tl-cell-inner" style="height:<?= (int)$gridHeight ?>px;">
             <?php if (!empty($col['passed'])): ?>
               <div class="calendar-tl-passed<?= !empty($col['passed']['is_now']) ? ' is-now' : '' ?>"
                    style="height:<?= (int)$col['passed']['height'] ?>px;"></div>
@@ -204,6 +216,7 @@ $dayQs = static function (string $d, int $staff) use ($staffLocked): string {
                 <?= e((string)$chip['label']) ?>
               </a>
             <?php endforeach; ?>
+            </div>
           </td>
         <?php endforeach; ?>
       </tr>
