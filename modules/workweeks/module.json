@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.14",
+    "version": "0.2.15",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -125,6 +125,10 @@
             "schedule_news_id": {
                 "type": "integer",
                 "default": 0
+            },
+            "log_table_changes": {
+                "type": "string",
+                "default": "1"
             },
             "shift_1_start": {
                 "type": "string",

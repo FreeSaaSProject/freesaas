@@ -614,7 +614,68 @@ final class WorkweeksRepository
     }
 
     /**
-     * @param array{id_operator?:int,dt?:int,price_col?:int,from?:int,to?:int,mas_max?:int,id_table?:int} $meta
+     * Whether nazcab table (section) changes go to the schedule news log.
+     * Config workweeks.log_table_changes: 1|all (default), assign (EVT_ASSIGN only), 0|off.
+     */
+    public static function logTableChangesMode(): string
+    {
+        $raw = strtolower(trim((string)Config::get('workweeks', 'log_table_changes', '1')));
+        if ($raw === '0' || $raw === 'off' || $raw === 'never' || $raw === 'no') {
+            return 'off';
+        }
+        if ($raw === 'assign' || $raw === 'evt_assign' || $raw === 'senior') {
+            return 'assign';
+        }
+        return 'all';
+    }
+
+    public static function setLogTableChangesMode(string $mode): void
+    {
+        $mode = strtolower(trim($mode));
+        if ($mode === '0' || $mode === 'off' || $mode === 'never' || $mode === 'no') {
+            Config::set('workweeks', 'log_table_changes', 'off');
+            return;
+        }
+        if ($mode === 'assign' || $mode === 'evt_assign' || $mode === 'senior') {
+            Config::set('workweeks', 'log_table_changes', 'assign');
+            return;
+        }
+        Config::set('workweeks', 'log_table_changes', '1');
+    }
+
+    /** Should the current actor's table change be written to the schedule log? */
+    public static function shouldLogTableChange(): bool
+    {
+        if (self::scheduleNewsId() < 1) {
+            return false;
+        }
+        $mode = self::logTableChangesMode();
+        if ($mode === 'off') {
+            return false;
+        }
+        if ($mode === 'assign') {
+            return Auth::capability('EVT_ASSIGN');
+        }
+        return true;
+    }
+
+    private static function tableLogLabel(int $tableId): string
+    {
+        $tableId = max(0, $tableId);
+        if ($tableId < 1) {
+            return t('workweeks.nazcab.table_none');
+        }
+        if (self::tablesActive() && class_exists('TablesRepository', false)) {
+            $names = TablesRepository::names(true);
+            if (isset($names[$tableId]) && trim((string)$names[$tableId]) !== '') {
+                return (string)$names[$tableId];
+            }
+        }
+        return '#' . $tableId;
+    }
+
+    /**
+     * @param array{id_operator?:int,dt?:int,price_col?:int,from?:int,to?:int,mas_max?:int,id_table?:int,from_table?:int,to_table?:int} $meta
      */
     private static function buildLogLine(string $kind, array $meta): string
     {
@@ -637,6 +698,14 @@ final class WorkweeksRepository
                 'to' => self::shiftLabel((int)($meta['to'] ?? 0)),
             ]);
         }
+        if ($kind === 'table') {
+            return t('workweeks.log.table', [
+                'who' => $badge,
+                'date' => $date,
+                'from' => e(self::tableLogLabel((int)($meta['from_table'] ?? 0))),
+                'to' => e(self::tableLogLabel((int)($meta['to_table'] ?? $meta['id_table'] ?? 0))),
+            ]);
+        }
         return t('workweeks.log.updated', [
             'who' => $badge,
             'date' => $date,
@@ -655,7 +724,7 @@ final class WorkweeksRepository
         return '<b style="background:' . $bg . ';color:' . $fg . '">' . e($name) . '</b>';
     }
 
-    private static function logChangeHtml(string $bodyHtml): void
+    private static function logChangeHtml(string $bodyHtml, string $headerKey = 'workweeks.log.header'): void
     {
         $bodyHtml = trim($bodyHtml);
         if ($bodyHtml === '') {
@@ -668,7 +737,10 @@ final class WorkweeksRepository
         $actor = Auth::userId();
         $actorCard = $actor > 0 ? self::staffCard($actor) : null;
         $actorName = $actorCard['label'] ?? (Auth::loginName() ?: ('#' . $actor));
-        $header = t('workweeks.log.header', ['who' => e($actorName)]);
+        if ($headerKey === '' || !preg_match('/^workweeks\.log\.header(_[a-z0-9]+)?$/', $headerKey)) {
+            $headerKey = 'workweeks.log.header';
+        }
+        $header = t($headerKey, ['who' => e($actorName)]);
         $text = $header . '<br>' . $bodyHtml;
         try {
             CommentsRepository::add($newsId, $actor > 0 ? $actor : 1, $text);
@@ -1716,6 +1788,7 @@ final class WorkweeksRepository
 
         $updatedTables = 0;
         $logBits = [];
+        $logTables = self::shouldLogTableChange();
         if ($tablesOn) {
             $validTableIds = [];
             foreach (array_keys(TablesRepository::names(true)) as $tid) {
@@ -1738,18 +1811,20 @@ final class WorkweeksRepository
                 if ($tid > 0 && !isset($validTableIds[$tid])) {
                     continue;
                 }
-                if ((int)$existing['id_table'] === $tid) {
+                $prevTid = (int)$existing['id_table'];
+                if ($prevTid === $tid) {
                     continue;
                 }
                 self::updateTableId((int)$existing['id'], $tid);
                 $updatedTables++;
-                $logBits[] = self::buildLogLine('update', [
-                    'id_operator' => $oid,
-                    'dt' => $todayStart,
-                    'price_col' => (int)$existing['price_col'],
-                    'mas_max' => (int)$existing['mas_max'],
-                    'id_table' => $tid,
-                ]);
+                if ($logTables) {
+                    $logBits[] = self::buildLogLine('table', [
+                        'id_operator' => $oid,
+                        'dt' => $todayStart,
+                        'from_table' => $prevTid,
+                        'to_table' => $tid,
+                    ]);
+                }
             }
         }
 
@@ -1813,7 +1888,7 @@ final class WorkweeksRepository
         }
 
         if ($logBits !== []) {
-            self::logChangeHtml(implode('<br>', $logBits));
+            self::logChangeHtml(implode('<br>', $logBits), 'workweeks.log.header_table');
         }
         if ($updatedTables < 1 && $updatedBadges < 1) {
             return t('workweeks.msg.saved');

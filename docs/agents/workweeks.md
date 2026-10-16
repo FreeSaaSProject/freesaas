@@ -30,7 +30,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 - `/workweeks` — day shifts; `/workweeks/day/{date}` day embed.
 - `/workweeks/nazop` — who works / shift / M-MAX matrix (`EVT_ASSIGN`).
 - `/workweeks/nazcab` — multi-day matrix (~30 days): **tables/sections only on today’s row** (needs `tables`); **badges for the whole period** (soft `audio`). Hidden staff omitted. Calendar embeds via fragment dialog (`data-table-open`). Gate for ordinary admins: `tables.view` and/or `audio.view`|`audio.badges` — **not** `EVT_ASSIGN` (shift nazop stays senior). Route still needs `workweeks.view`.
-- `/workweeks/settings` — shift windows PRICE_COL 1–5 (superadmin).
+- `/workweeks/settings` — shift windows PRICE_COL 1–5 + schedule log target + `log_table_changes` (superadmin).
 - Embedded in calendar day when calendar on.
 
 | Path | Permission |
@@ -64,3 +64,4 @@ curl -sS -b jar.txt 'https://example/workweeks/settings?format=json'
 
 - Soft comments / cabinets / tables / audio (nazcab badges) / bots.
 - `ID_TABLE` on shifts = massage section; bulk edit via nazcab (not nazop).
+- Nazcab table changes log as «Tables change» (not shift update). Ini `log_table_changes`: `1`/`all` (default), `assign` (EVT_ASSIGN only), `off`.

@@ -7,6 +7,7 @@ $message = '';
 $error = '';
 $loggingOn = WorkweeksRepository::commentsLoggingAvailable();
 $newsId = $loggingOn ? WorkweeksRepository::scheduleNewsId() : 0;
+$logTableMode = WorkweeksRepository::logTableChangesMode();
 $shiftWindows = WorkweeksRepository::shiftWindows();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
@@ -24,6 +25,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             WorkweeksRepository::setScheduleNewsId($newId);
             $newsId = WorkweeksRepository::scheduleNewsId();
+            // Soft tables: only persist when module is on (hidden field must not reset to default).
+            if (WorkweeksRepository::tablesActive() && array_key_exists('log_table_changes', $_POST)) {
+                WorkweeksRepository::setLogTableChangesMode((string)$_POST['log_table_changes']);
+                $logTableMode = WorkweeksRepository::logTableChangesMode();
+            }
         }
 
         $posted = [];
@@ -44,6 +50,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'saved' => true,
                 'logging_on' => $loggingOn,
                 'news_id' => $newsId,
+                'log_table_changes' => $logTableMode,
                 'shift_windows' => $shiftWindows,
             ]);
             return;
@@ -82,6 +89,7 @@ if ($wantsJson) {
         'news_id' => $newsId,
         'news_label' => $newsLabel,
         'news_options' => $newsOptions,
+        'log_table_changes' => $logTableMode,
         'shift_windows' => $shiftWindows,
         'defaults' => WorkweeksRepository::defaultShiftWindows(),
     ]);
@@ -96,6 +104,8 @@ View::render('settings', [
     'newsId' => $newsId,
     'newsLabel' => $newsLabel,
     'newsOptions' => $newsOptions,
+    'logTableMode' => $logTableMode,
+    'tablesOn' => WorkweeksRepository::tablesActive(),
     'shiftWindows' => $shiftWindows,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('workweeks.menu.list'), 'href' => '/workweeks'],

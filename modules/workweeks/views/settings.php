@@ -7,10 +7,14 @@ declare(strict_types=1);
  * @var int $newsId
  * @var string $newsLabel
  * @var array<int,string> $newsOptions
+ * @var string $logTableMode
+ * @var bool $tablesOn
  * @var array<int,array{start:string,end:string,label:string}> $shiftWindows
  */
 $shiftWindows = $shiftWindows ?? WorkweeksRepository::shiftWindows();
 $newsOptions = $newsOptions ?? [];
+$logTableMode = (string)($logTableMode ?? WorkweeksRepository::logTableChangesMode());
+$tablesOn = !empty($tablesOn) || WorkweeksRepository::tablesActive();
 ?>
 <section class="page-head">
   <p class="lede"><?= te('workweeks.settings.lede') ?></p>
@@ -69,6 +73,16 @@ $newsOptions = $newsOptions ?? [];
         </select>
       </label>
       <p class="muted"><?= te('workweeks.settings.news_hint') ?></p>
+      <?php if ($tablesOn): ?>
+      <label><?= te('workweeks.settings.log_tables') ?>
+        <select name="log_table_changes">
+          <option value="1"<?= $logTableMode === 'all' ? ' selected' : '' ?>><?= te('workweeks.settings.log_tables_all') ?></option>
+          <option value="assign"<?= $logTableMode === 'assign' ? ' selected' : '' ?>><?= te('workweeks.settings.log_tables_assign') ?></option>
+          <option value="off"<?= $logTableMode === 'off' ? ' selected' : '' ?>><?= te('workweeks.settings.log_tables_off') ?></option>
+        </select>
+      </label>
+      <p class="muted"><?= te('workweeks.settings.log_tables_hint') ?></p>
+      <?php endif; ?>
       <?php if ($newsId > 0): ?>
         <p class="muted">
           <?= te('workweeks.settings.current') ?>:
