@@ -145,6 +145,12 @@ $q = (string)($q ?? '');
       <div class="scripts-parts-tiles">
         <?php foreach ($parts as $i => $part):
             $roles = is_array($part['roles'] ?? null) ? $part['roles'] : ['ordinary'];
+            $timeout = (int)($part['timeout'] ?? 0);
+            $extendTimeout = !array_key_exists('extend_timeout', $part) || !empty($part['extend_timeout']);
+            $kpi = (int)($part['kpi'] ?? 0);
+            $gateRed = (float)($part['gate_red_max'] ?? 0);
+            $gateYellow = (float)($part['gate_yellow_max'] ?? 0);
+            $showGate = $dayOn && ($gateRed > 0 || $gateYellow > 0);
         ?>
           <?php if ($i > 0): ?><span class="scripts-parts-arrow" aria-hidden="true"></span><?php endif; ?>
           <a class="scripts-part-tile" href="<?= e($path) ?>/<?= (int)$c['id'] ?>">
@@ -159,6 +165,25 @@ $q = (string)($q ?? '');
                 ?>
                   <span class="scripts-badge scripts-badge--<?= e((string)$role) ?>"><?= e((string)($roleLabels[$role] ?? $role)) ?></span>
                 <?php endforeach; ?>
+                <?php if ($timeout > 0):
+                    $toTitle = $extendTimeout
+                        ? t('audio_dicts.scripts.field.extend_timeout')
+                        : t('audio_dicts.scripts.flow.timeout_no_extend');
+                ?>
+                  <span class="scripts-badge scripts-badge--timeout" title="<?= e($toTitle) ?>">
+                    <?= e(t('audio_dicts.scripts.flow.timeout', ['n' => (string)$timeout])) ?>
+                    <span class="scripts-timeout-mark <?= $extendTimeout ? 'scripts-timeout-mark--extend' : 'scripts-timeout-mark--dot' ?>" aria-hidden="true"><?= $extendTimeout ? '↗' : '●' ?></span>
+                  </span>
+                <?php endif; ?>
+                <?php if ($kpi > 0): ?>
+                  <span class="scripts-badge scripts-badge--kpi"><?= e(t('audio_dicts.scripts.flow.kpi', ['n' => (string)$kpi])) ?></span>
+                <?php endif; ?>
+                <?php if ($showGate): ?>
+                  <span class="scripts-badge scripts-badge--gate-red" title="<?= e(t('audio_dicts.scripts.field.gate_red_max')) ?>">
+                    <span class="scripts-gate-dot" aria-hidden="true">●</span>
+                    <?= e(t('audio_dicts.scripts.flow.gate_red', ['n' => rtrim(rtrim(number_format($gateRed, 1, '.', ''), '0'), '.')])) ?>
+                  </span>
+                <?php endif; ?>
                 <?php if (!empty($part['score'])): ?>
                   <span class="scripts-badge">+<?= (int)$part['score'] ?></span>
                 <?php endif; ?>

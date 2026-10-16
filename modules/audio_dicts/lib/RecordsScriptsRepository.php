@@ -93,10 +93,10 @@ final class RecordsScriptsRepository
     }
 
     /**
-     * Compact parts for list UI: name + roles, ordered by NUM.
+     * Compact parts for list UI: name + roles + timeouts/gates, ordered by NUM.
      *
      * @param list<int> $rootIds
-     * @return array<int,list<array{id:int,name:string,roles:list<string>,score:int}>>
+     * @return array<int,list<array<string,mixed>>>
      */
     public static function partsSummaryForRoots(array $rootIds): array
     {
@@ -111,11 +111,20 @@ final class RecordsScriptsRepository
         $in = implode(',', array_fill(0, count($rootIds), '?'));
         $rateCol = Database::columnExists('base_records_scripts', 'SCORE_RATE')
             ? ', SCORE_RATE AS score_rate' : ', 0 AS score_rate';
+        $kpiCol = Database::columnExists('base_records_scripts', 'KPI')
+            ? ', KPI AS kpi' : ', 0 AS kpi';
+        $timeoutCol = Database::columnExists('base_records_scripts', 'TIMEOUT')
+            ? ', TIMEOUT AS timeout' : ', 0 AS timeout';
+        $extendCol = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT')
+            ? ', EXTEND_TIMEOUT AS extend_timeout' : ', 1 AS extend_timeout';
+        $gateCol = Database::columnExists('base_records_scripts', 'GATE_RED_MAX')
+            ? ', GATE_RED_MAX AS gate_red_max, GATE_YELLOW_MAX AS gate_yellow_max'
+            : ', 0 AS gate_red_max, 0 AS gate_yellow_max';
         $st = Database::pdo()->prepare(
             "SELECT ID AS id, PID AS pid, NAME AS name, NUM AS num,
                     IS_REQ AS is_req, FINISH AS finish, `BREAK` AS break_flag,
                     COLLECTION_KILLER AS collection_killer, SCORE AS score
-                    {$rateCol}
+                    {$rateCol}{$kpiCol}{$timeoutCol}{$extendCol}{$gateCol}
              FROM base_records_scripts
              WHERE PID IN ($in)
              ORDER BY PID ASC, NUM ASC, ID ASC"
@@ -137,6 +146,13 @@ final class RecordsScriptsRepository
                 ),
                 'score' => (int)$row['score'],
                 'score_rate' => (int)($row['score_rate'] ?? 0),
+                'timeout' => (int)($row['timeout'] ?? 0),
+                'extend_timeout' => array_key_exists('extend_timeout', $row)
+                    ? (!empty($row['extend_timeout']) ? 1 : 0)
+                    : 1,
+                'kpi' => (int)($row['kpi'] ?? 0),
+                'gate_red_max' => (float)($row['gate_red_max'] ?? 0),
+                'gate_yellow_max' => (float)($row['gate_yellow_max'] ?? 0),
             ];
         }
         return $out;
