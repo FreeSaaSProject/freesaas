@@ -131,13 +131,21 @@ if ($term !== null && $adminId > 0) {
 $dtStart = time() + 3600;
 $dtStart -= $dtStart % 300;
 
+$smokeClientId = 0;
+if (class_exists(ClientsRepository::class, false) && Database::tableExists('base_clients')) {
+    $crow = Database::pdo()->query('SELECT id FROM base_clients WHERE enabled = 1 ORDER BY id ASC LIMIT 1')
+        ->fetch(PDO::FETCH_ASSOC);
+    $smokeClientId = (int)($crow['id'] ?? 0);
+}
+$assert($smokeClientId > 0, 'smoke client_id for procedure book');
+
 $book = TerminalBooking::book([
     'product_id' => $productId,
     'operator_id' => $adminId,
     'admin_id' => $adminId,
     'terminal_id' => $terminalId,
     'dt_start' => $dtStart,
-    'client_id' => 0,
+    'client_id' => $smokeClientId,
     'onec_client_id' => 'stub-check-floor',
     'onec_bracelet' => 'DEADBEEF',
     'disable_1c' => true,
@@ -178,7 +186,7 @@ if (class_exists(TerminalDiscount::class, false)) {
         'admin_id' => $adminId,
         'terminal_id' => $terminalId,
         'dt_start' => time() + 7200,
-        'client_id' => 0,
+        'client_id' => $smokeClientId,
         'onec_client_id' => 'stub-check-floor-disc',
         'onec_bracelet' => 'DEADBEEF',
         'disable_1c' => true,

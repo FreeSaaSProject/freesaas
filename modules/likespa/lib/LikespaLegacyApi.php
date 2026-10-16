@@ -796,6 +796,42 @@ final class LikespaLegacyApi
                     'updateInfo' => [],
                 ];
             }
+            $priceRaw = isset($_GET['price']) ? trim((string)$_GET['price']) : '';
+            $price = $priceRaw !== '' ? (float)$priceRaw : 0.0;
+            // Legacy api.php: procedure INSERT only when client+document+bracelet+price.
+            // Otherwise soft-reserve terminal (ID_EXECUTOR) — no base_procedures row.
+            // Order-only without identity remains /api_termy.php → BookingBook.
+            $canWriteProcedure = $clientId > 0 && $documentId !== '' && $braceletId !== '' && $price > 0;
+            if (!$canWriteProcedure) {
+                $reserved = 0;
+                if (class_exists(TerminalsRepository::class, false)) {
+                    $reserved = TerminalsRepository::reserveExecutorSlot(
+                        $terminalId,
+                        $operatorId,
+                        $dtStart,
+                        $dtStart + $duration,
+                        120
+                    ) ? 1 : 0;
+                }
+                return [
+                    'currentTime' => $nowHm,
+                    'error' => '',
+                    'booked' => 0,
+                    'reserved' => $reserved,
+                    'result' => [
+                        'executable' => 1,
+                        'selected_specialistId' => (string)$operatorId,
+                        'selected_hour' => $hour,
+                        'selected_minute' => $minute,
+                        'changes' => new stdClass(),
+                        'rus' => $reserved
+                            ? 'OK'
+                            : 'reserve failed',
+                    ],
+                    'totalTime' => $duration,
+                    'updateInfo' => [],
+                ];
+            }
             $bookIn = [
                 'product_id' => $serviceId,
                 'operator_id' => $operatorId,
@@ -803,14 +839,12 @@ final class LikespaLegacyApi
                 'terminal_id' => $terminalId,
                 'dt_start' => $dtStart,
                 'client_id' => $clientId,
-                'onec_client_id' => $documentId !== '' ? $documentId : '',
+                'onec_client_id' => $documentId,
                 'onec_bracelet' => $braceletId,
                 'disable_1c' => !empty($_GET['disable1C']),
                 'lead_sec' => LikespaConfig::leadSecApi(),
+                'price' => $price,
             ];
-            if (isset($_GET['price']) && $_GET['price'] !== '') {
-                $bookIn['price'] = (float)$_GET['price'];
-            }
             $res = TerminalBooking::book($bookIn);
             $ok = !empty($res['ok']);
             $err = $ok ? '' : (string)($res['error'] ?? 'book failed');

@@ -185,13 +185,38 @@ final class TerminalsRepository
         )->execute([$executorId, $free, $terminalId]);
     }
 
+    /**
+     * Soft-reserve slot on terminal without writing a procedure (legacy api.php bookService).
+     * Holds ID_EXECUTOR + planned DT_EXECUTOR_START/END for ~ttlSec.
+     */
+    public static function reserveExecutorSlot(
+        int $terminalId,
+        int $executorId,
+        int $dtStart,
+        int $dtEnd,
+        int $ttlSec = 120
+    ): bool {
+        if ($terminalId < 1 || $executorId < 1 || !Database::tableExists('base_terminals')) {
+            return false;
+        }
+        $free = time() + max(10, $ttlSec);
+        $dtStart = max(0, $dtStart);
+        $dtEnd = max($dtStart, $dtEnd);
+        Database::pdo()->prepare(
+            'UPDATE base_terminals SET ID_EXECUTOR = ?, DT_EXECUTOR_FREE = ?,
+             DT_EXECUTOR_START = ?, DT_EXECUTOR_END = ? WHERE ID = ?'
+        )->execute([$executorId, $free, $dtStart, $dtEnd, $terminalId]);
+        return true;
+    }
+
     public static function clearExecutorLock(int $terminalId): void
     {
         if ($terminalId < 1 || !Database::tableExists('base_terminals')) {
             return;
         }
         Database::pdo()->prepare(
-            'UPDATE base_terminals SET ID_EXECUTOR = 0, DT_EXECUTOR_FREE = 0 WHERE ID = ?'
+            'UPDATE base_terminals SET ID_EXECUTOR = 0, DT_EXECUTOR_FREE = 0,
+             DT_EXECUTOR_START = 0, DT_EXECUTOR_END = 0 WHERE ID = ?'
         )->execute([$terminalId]);
     }
 

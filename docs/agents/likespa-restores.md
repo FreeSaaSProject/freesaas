@@ -83,7 +83,7 @@ Endpoints: Termy subset plus `cancel_booking`, `free_terminal`, `get_employee_st
 | `get_categories` | **Map** keyed by id: `id`, `name`, `num`, `parent_to`, `contentstart`, `NO_CART` |
 | `get_services` | **Map** keyed by id: `id`, `category`, `id1c`, descriptions; `addons`/`upgrades` = **arrays** `[{id,benefit}]` (not object-maps); `is_addon` int `0`/`1`. Filter enabled + non-material + non-empty `onec_id`. `duration` = chill-capped booking span. Top-level `work_hours` = salon hours. Optional `include_booking_eligibility=true` → top-level `booking_eligibility` map `{serviceId: bookable\|no_masters\|no_time_slots}`. Promo query → `promo.valid=false` |
 | `get_personnel` | Empty `date` → today; always `massage_therapists` / `equipment` / `administrators`; `gender` int `0`. Therapists may include `price_col` / `shift_end` (informational); **slots stay salon-window**, not clipped to shift I |
-| `book_service` | With `terminalId`/`terminalID`: procedure via `TerminalBooking`. `specialist_id` → `ID_OPERATOR`, `adminId` → `ID_ADMIN` (terminal settings); do not collapse. Response: `booked` + `result.executable` / `selected_specialistId` (= operator) / `rus` |
+| `book_service` | With `terminalId`/`terminalID`: procedure via `TerminalBooking` only when **all** of `client_id`, `document_id`, `bracelet_id`, `price` (legacy gate). Else soft-reserve terminal (`reserved=1`, no `base_procedures` row). `specialist_id` → operator, `adminId` → admin. Without identity, order-only booking stays on `/api_termy.php`. |
 | `free_terminal` | Accepts `terminalID` / `terminalId`; `{result:1}` |
 
 Implementation: `modules/likespa/lib/LikespaLegacyApi.php` (`dispatchFull` vs `dispatchTermy`).

@@ -181,6 +181,9 @@ try {
 $createdProcIds = [];
 $chillId = 0;
 if (ModuleManager::isEnabled('terminals') && class_exists(TerminalBooking::class, false)) {
+    if ($clientId < 1) {
+        $assert(true, 'skip /t TerminalBooking (no client for procedure identity)');
+    } else {
     $dtStart = time() + max(600, $leadFloor + 120);
     $dtStart -= $dtStart % 300;
     // Prefer a free dense slot if any
@@ -200,6 +203,8 @@ if (ModuleManager::isEnabled('terminals') && class_exists(TerminalBooking::class
         'terminal_id' => $terminalId,
         'dt_start' => $dtStart,
         'client_id' => $clientId,
+        'onec_bracelet' => 'DEADBEEF',
+        'onec_client_id' => 'stub-check-booking-procedures',
         'disable_1c' => true,
         'lead_sec' => $leadFloor,
         'notice' => 'check-booking-procedures /t',
@@ -295,6 +300,7 @@ if (ModuleManager::isEnabled('terminals') && class_exists(TerminalBooking::class
             );
         }
     }
+    } // client_id present
 } else {
     $assert(true, 'SKIP /t TerminalBooking (terminals off)');
 }

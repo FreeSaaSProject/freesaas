@@ -53,6 +53,17 @@ final class TerminalBooking
         if ($productId < 1 || $operatorId < 1 || $dtStart < 1) {
             return ['ok' => false, 'error' => 'product_id, operator_id, dt_start required', 'stack' => $stack];
         }
+        // Procedures always need local client + bracelet (legacy api.php bookService gate).
+        // Order-only booking without identity stays on /api_termy.php → BookingBook, not here.
+        $clientId = max(0, (int)($input['client_id'] ?? 0));
+        $bracelet = trim((string)($input['onec_bracelet'] ?? ''));
+        if ($clientId < 1 || $bracelet === '') {
+            return [
+                'ok' => false,
+                'error' => 'client_id and bracelet required for procedure',
+                'stack' => $stack,
+            ];
+        }
         if ($adminId < 1) {
             $adminId = $operatorId;
         }
@@ -177,7 +188,7 @@ final class TerminalBooking
                 'id_admin' => $adminId,
                 'id_good' => $productId,
                 'id_table' => 1,
-                'id_user' => max(0, (int)($input['client_id'] ?? 0)),
+                'id_user' => $clientId,
                 'id_terminal' => max(0, $terminalId),
                 'type' => $typeId,
                 'summ' => $price,
@@ -187,7 +198,7 @@ final class TerminalBooking
                 'token' => $token,
                 'id_event_parent' => 0,
                 'onec_id' => $saleId,
-                'onec_bracelet' => (string)($input['onec_bracelet'] ?? ''),
+                'onec_bracelet' => $bracelet,
                 'restored' => 0,
             ]);
         } catch (Throwable $e) {
@@ -257,8 +268,8 @@ final class TerminalBooking
                     'operator_id' => $operatorId,
                     'admin_id' => $adminId,
                     'terminal_id' => $terminalId,
-                    'client_id' => max(0, (int)($input['client_id'] ?? 0)),
-                    'onec_bracelet' => (string)($input['onec_bracelet'] ?? ''),
+                    'client_id' => $clientId,
+                    'onec_bracelet' => $bracelet,
                     'token' => md5($token . '#chill'),
                     'parent_procedure_id' => $procId,
                 ]);
