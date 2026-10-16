@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/CalendarTimeline.php';
 require_once __DIR__ . '/lib/CalendarWidgets.php';
 require_once __DIR__ . '/lib/CalendarDayStats.php';
 require_once __DIR__ . '/lib/CalendarTimelineEnrich.php';
+require_once __DIR__ . '/lib/CalendarViewPref.php';
 
 Assets::register('calendar', [
     'css' => ['calendar.css'],

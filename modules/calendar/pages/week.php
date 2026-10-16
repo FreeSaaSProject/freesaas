@@ -3,6 +3,16 @@ declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
 
+// Menu / bare /calendar — restore last day|week mode (oper dayShowEnabled cookie).
+if (!$wantsJson && request_path() === '/calendar') {
+    $q = [];
+    if (isset($_GET['staff']) && (string)$_GET['staff'] !== '') {
+        $q[] = 'staff=' . rawurlencode((string)$_GET['staff']);
+    }
+    redirect(CalendarViewPref::homeUrl() . ($q !== [] ? ('?' . implode('&', $q)) : ''));
+    return;
+}
+
 $dateParam = (string)(Router::param('date') ?? ($_GET['date'] ?? ''));
 $dateParam = trim($dateParam);
 if ($dateParam === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateParam)) {
@@ -21,6 +31,10 @@ $nextWeek = date('Y-m-d', $monday + 7 * 86400);
 $today = date('Y-m-d');
 $days = CalendarWeek::days($monday);
 $mondayDate = date('Y-m-d', $monday);
+
+if (!$wantsJson) {
+    CalendarViewPref::remember('week', $dateParam);
+}
 
 $staffId = (int)($_GET['staff'] ?? $_POST['staff'] ?? 0);
 $myOnly = !empty(Auth::statusFlags()['EVT_MY_ONLY']);

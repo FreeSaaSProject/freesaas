@@ -18,6 +18,10 @@ $prevDate = date('Y-m-d', $dayStart - 86400);
 $nextDate = date('Y-m-d', $dayEnd);
 $today = date('Y-m-d');
 
+if (!$wantsJson) {
+    CalendarViewPref::remember('day', $dateParam);
+}
+
 $staffId = (int)($_GET['staff'] ?? 0);
 $myOnly = !empty(Auth::statusFlags()['EVT_MY_ONLY']);
 if ($myOnly) {
