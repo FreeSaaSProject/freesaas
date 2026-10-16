@@ -1,0 +1,116 @@
+/* Compact commission report — dense tables for phone month view */
+.procents-report .page-head {
+  margin-bottom: 0.6rem;
+}
+
+.procents-report .page-head h1 {
+  font-size: clamp(1.25rem, 4vw, 1.75rem);
+}
+
+.procents-report .filters {
+  gap: 0.45rem 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.procents-report .filters label {
+  font-size: 0.82rem;
+}
+
+.procents-report .filters select {
+  padding: 0.3rem 0.45rem;
+  font-size: 0.85rem;
+}
+
+.procents-report .procents-period {
+  margin: 0 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.procents-report .procents-month {
+  margin-bottom: 0.75rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.procents-report .procents-month > h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.procents-report .procents-month > .muted {
+  margin: 0 0 0.4rem;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.procents-report .procents-month > h3 {
+  margin: 0.55rem 0 0.2rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.procents-report .table-wrap {
+  margin-bottom: 0.15rem;
+  border-radius: 4px;
+}
+
+.procents-report .data th,
+.procents-report .data td {
+  padding: 0.18rem 0.32rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  vertical-align: middle;
+}
+
+.procents-report .data th {
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.procents-report .data td:nth-child(3),
+.procents-report .data td:nth-child(4),
+.procents-report .data td:nth-child(5),
+.procents-report .data th:nth-child(3),
+.procents-report .data th:nth-child(4),
+.procents-report .data th:nth-child(5) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.procents-report .procents-month-total {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+}
+
+.procents-report .procents-grand-total {
+  margin: 0.5rem 0 0;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 640px) {
+  .procents-report .procents-month {
+    padding: 0.4rem 0.45rem;
+    margin-bottom: 0.55rem;
+  }
+
+  .procents-report .data th,
+  .procents-report .data td {
+    padding: 0.12rem 0.22rem;
+    font-size: 0.72rem;
+  }
+
+  .procents-report .data th {
+    font-size: 0.68rem;
+  }
+
+  .procents-report .procents-month > h2 {
+    font-size: 0.95rem;
+  }
+
+  .procents-report .procents-month > h3 {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+  }
+}

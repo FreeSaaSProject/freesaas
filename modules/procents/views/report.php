@@ -25,6 +25,7 @@ $fmtQty = static function (float $n): string {
     return rtrim(rtrim(number_format($n, 2, '.', ' '), '0'), '.');
 };
 ?>
+<div class="procents-report">
 <section class="page-head">
   <h1><?= te('procents.menu.list') ?></h1>
 </section>
@@ -70,11 +71,11 @@ $fmtQty = static function (float $n): string {
   <p class="muted"><?= te('procents.empty') ?></p>
 <?php else: ?>
   <?php if ($report['range_label'] !== ''): ?>
-    <p class="muted"><?= te('procents.period') ?>: <?= e($report['range_label']) ?></p>
+    <p class="muted procents-period"><?= te('procents.period') ?>: <?= e($report['range_label']) ?></p>
   <?php endif; ?>
 
   <?php foreach ($report['periods'] as $period): ?>
-    <section class="panel" style="margin-bottom:1.5rem">
+    <section class="panel procents-month">
       <h2><?= e((string)$period['label']) ?></h2>
       <?php if ((string)($period['rates_descr'] ?? '') !== ''): ?>
         <p class="muted"><?= te('procents.rates_set') ?>: <?= e((string)$period['rates_descr']) ?>
@@ -130,12 +131,13 @@ $fmtQty = static function (float $n): string {
         </div>
       <?php endforeach; ?>
 
-      <p><strong><?= te('procents.month_total') ?>:</strong> <?= e($fmt((float)$period['total'])) ?></p>
+      <p class="procents-month-total"><strong><?= te('procents.month_total') ?>:</strong> <?= e($fmt((float)$period['total'])) ?></p>
       <?php if (!empty($paymentSync['synced']) && (string)($period['label'] ?? '') === $currentMonthLabel): ?>
         <p class="muted"><?= te('procents.payment_sync.hint', ['sum' => $fmt((float)$paymentSync['sum'])]) ?></p>
       <?php endif; ?>
     </section>
   <?php endforeach; ?>
 
-  <p><strong><?= te('procents.grand_total') ?>:</strong> <?= e($fmt((float)$report['grand_total'])) ?></p>
+  <p class="procents-grand-total"><strong><?= te('procents.grand_total') ?>:</strong> <?= e($fmt((float)$report['grand_total'])) ?></p>
 <?php endif; ?>
+</div>
