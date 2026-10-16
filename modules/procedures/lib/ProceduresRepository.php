@@ -99,7 +99,8 @@ final class ProceduresRepository
      *   restored?:string|null,
      *   order?:string,
      *   limit?:int,
-     *   offset?:int
+     *   offset?:int,
+     *   skip_viewer_scope?:bool
      * } $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
@@ -169,7 +170,10 @@ final class ProceduresRepository
             $where[] = 'p.ID_OPERATOR = ?';
             $params[] = $idOperator;
         }
-        self::applyViewerScope($where, $params, 'p');
+        // Public floor /t must see client history without admin session ACL.
+        if (empty($opts['skip_viewer_scope'])) {
+            self::applyViewerScope($where, $params, 'p');
+        }
 
         $sqlWhere = implode(' AND ', $where);
         $total = 0;

@@ -227,6 +227,27 @@ final class ClientsRepository
         return $row ?: null;
     }
 
+    /**
+     * Client card linked to a staff user (Volga Thermy employee / oper ID_USER).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function findByStaffUserId(int $staffUserId): ?array
+    {
+        if ($staffUserId < 1 || !Database::tableExists('base_clients')) {
+            return null;
+        }
+        if (!Database::columnExists('base_clients', 'staff_user_id')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT * FROM base_clients WHERE staff_user_id = ? ORDER BY id ASC LIMIT 1'
+        );
+        $st->execute([$staffUserId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     /** Match by exact tel (caller should normalize phone first). */
     public static function findByTel(string $tel): ?array
     {

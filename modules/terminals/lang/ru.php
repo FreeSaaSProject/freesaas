@@ -237,6 +237,8 @@ return [
     'terminals.t.num_required' => 'Внимание! Укажите № браслета',
     'terminals.t.num_label' => 'Номер браслета',
     'terminals.t.staff_claimed' => 'Сотрудник привязан к этому терминалу на сегодня',
+    'terminals.t.employee_guest' => 'Сотрудник',
+    'terminals.t.employee_ticket' => 'Билет сотрудника',
     'terminals.t.booked' => 'Услуга зарегистрирована',
     'terminals.t.back_home' => '← На главную',
     'terminals.t.scan_again' => 'Отсканируйте браслет ещё раз. Токен сканирования использован.',

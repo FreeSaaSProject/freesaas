@@ -32,6 +32,9 @@ final class TerminalFloor
             ? StaffBraceletsRepository::findByUid($bracelet)
             : null;
 
+        // Oper: shopusers with 1C_BRACELET+ID_USER = employee client (claim + guest floor + history).
+        // Pure LikeSpa staff NFC (no linked client) → short staff_claim ack only.
+        $employeeClient = null;
         if ($staff !== null) {
             $adminId = (int)($staff['user_id'] ?? 0);
             $claim = TerminalsRepository::claimStaffDay((int)$terminal['id'], $adminId);
@@ -39,39 +42,63 @@ final class TerminalFloor
                 return self::err($q, (string)($claim['error'] ?? t('terminals.t.err.claim')));
             }
             $terminal = TerminalsRepository::find((int)$terminal['id'], false) ?? $terminal;
-            return [
-                'ok' => true,
-                'mode' => 'staff_claim',
-                'terminal' => $terminal,
-                'staff_id' => $adminId,
-                'message' => t('terminals.t.staff_claimed'),
-                'query' => $q,
-                'catalog' => [],
-                'slots' => [],
-            ];
+            if ($adminId > 0 && class_exists(ClientsRepository::class, false)) {
+                $employeeClient = ClientsRepository::findByStaffUserId($adminId);
+            }
+            if ($employeeClient === null) {
+                return [
+                    'ok' => true,
+                    'mode' => 'staff_claim',
+                    'terminal' => $terminal,
+                    'staff_id' => $adminId,
+                    'message' => t('terminals.t.staff_claimed'),
+                    'query' => $q,
+                    'catalog' => [],
+                    'slots' => [],
+                ];
+            }
         }
 
-        if (!TerminalsRepository::hasValidStaffClaim($terminal)) {
+        if ($employeeClient === null && !TerminalsRepository::hasValidStaffClaim($terminal)) {
             return self::err($q, t('terminals.t.err.need_staff'));
         }
 
-        // Stub only when 1c_enabled=0. Public ?disable1C=1 must NOT bypass live billing.
-        $disable1c = !TerminalsConfig::onecEnabled();
+        // Employee floor: oper id1c=999 / balance 9999 — no live 1C. Else stub only when 1c_enabled=0.
+        $disable1c = $employeeClient !== null ? true : !TerminalsConfig::onecEnabled();
         OnecClient::resetRequestCount();
         if (!empty($q['resetCache']) && isset($_SESSION['t_guest_cache'][(string)$q['token']])) {
             unset($_SESSION['t_guest_cache'][(string)$q['token']]);
         }
         $cacheTtl = 0;
-        $guest = self::guestCached((string)$q['token'], $bracelet, $disable1c, $cacheTtl);
-        if (empty($guest['ok'])) {
-            return self::err($q, (string)($guest['error'] ?? t('terminals.t.err.bracelet')));
-        }
-
         $clientId = 0;
-        if (class_exists(ClientOnecBindingsRepository::class, false) && ClientOnecBindingsRepository::tableReady()) {
-            $bind = ClientOnecBindingsRepository::findByOnecId((string)($guest['client_id'] ?? ''));
-            if ($bind !== null) {
-                $clientId = (int)($bind['client_id'] ?? 0);
+        if ($employeeClient !== null) {
+            $clientId = (int)($employeeClient['id'] ?? 0);
+            $empName = trim((string)($employeeClient['name'] ?? ''));
+            if ($empName === '') {
+                $empName = trim((string)($employeeClient['tel'] ?? ''));
+            }
+            $guest = [
+                'ok' => true,
+                'stub' => true,
+                'employee' => true,
+                'client_id' => '999',
+                'name' => $empName !== '' ? $empName : t('terminals.t.employee_guest'),
+                'ticket_name' => t('terminals.t.employee_ticket'),
+                'time' => 12 * 3600,
+                'balance' => 9999.0,
+                'phone' => trim((string)($employeeClient['tel'] ?? '')),
+                'data' => [],
+            ];
+        } else {
+            $guest = self::guestCached((string)$q['token'], $bracelet, $disable1c, $cacheTtl);
+            if (empty($guest['ok'])) {
+                return self::err($q, (string)($guest['error'] ?? t('terminals.t.err.bracelet')));
+            }
+            if (class_exists(ClientOnecBindingsRepository::class, false) && ClientOnecBindingsRepository::tableReady()) {
+                $bind = ClientOnecBindingsRepository::findByOnecId((string)($guest['client_id'] ?? ''));
+                if ($bind !== null) {
+                    $clientId = (int)($bind['client_id'] ?? 0);
+                }
             }
         }
 

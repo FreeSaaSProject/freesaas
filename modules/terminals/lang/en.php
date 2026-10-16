@@ -237,6 +237,8 @@ return [
     'terminals.t.num_required' => 'Enter bracelet locker number',
     'terminals.t.num_label' => 'Bracelet number',
     'terminals.t.staff_claimed' => 'Staff linked to this terminal for today',
+    'terminals.t.employee_guest' => 'Employee',
+    'terminals.t.employee_ticket' => 'Employee ticket',
     'terminals.t.booked' => 'Service registered',
     'terminals.t.back_home' => '← Home',
     'terminals.t.scan_again' => 'Scan the bracelet again. This scan token has been used.',

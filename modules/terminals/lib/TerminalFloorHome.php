@@ -60,6 +60,8 @@ final class TerminalFloorHome
             'limit' => max(1, min(20, $limit)),
             'offset' => 0,
             'skip_total' => true,
+            // Floor is public; cancel is gated by bracelet→clientId in handleCancelFlow.
+            'skip_viewer_scope' => true,
         ]);
         $out = [];
         $dayStart = (int)mktime(0, 0, 0);
