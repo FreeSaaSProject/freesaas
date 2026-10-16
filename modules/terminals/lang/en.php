@@ -298,6 +298,7 @@ return [
     'terminals.t.category' => 'Category',
     'terminals.t.category_change' => 'change?',
     'terminals.t.flyer_off' => 'off?',
+    'terminals.t.promo_active' => 'Promoter discount active',
     'terminals.t.col_service' => 'Service',
     'terminals.t.op_change' => '[Change?]',
     'terminals.t.until' => 'until',

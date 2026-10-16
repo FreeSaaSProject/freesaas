@@ -104,24 +104,6 @@ final class TerminalFloor
         $guest['balance'] = $balance;
         $guest['force_limit'] = $forceLimit;
 
-        $flyerPct = 0.0;
-        $flyerEnabledSys = false;
-        $flyerDiscountCfg = 0.0;
-        if (class_exists(SystemFlyerPromo::class, false)
-            && class_exists(SystemRepository::class, false)
-            && !empty($terminal['is_terminal_flyer_discount'])) {
-            try {
-                $flyer = SystemFlyerPromo::load();
-                $flyerDiscountCfg = (float)($flyer['flyer_discount'] ?? 0);
-                $flyerEnabledSys = !empty($flyer['flyer_enabled']) && $flyerDiscountCfg > 0;
-                if ($flyerEnabledSys && !empty($q['flyerOn'])) {
-                    $flyerPct = $flyerDiscountCfg;
-                }
-            } catch (Throwable $e) {
-                $flyerEnabledSys = false;
-            }
-        }
-
         if (!empty($q['unlinkClient']) && $clientId > 0
             && class_exists(ClientOnecBindingsRepository::class, false)) {
             ClientOnecBindingsRepository::unbind($clientId);
@@ -262,6 +244,26 @@ final class TerminalFloor
             ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
         }
 
+        $discount = self::resolveDiscountContext(
+            $terminal,
+            $guest,
+            $clientId,
+            $bracelet,
+            $claimedAdminId,
+            !empty($q['flyerOn']),
+            $categoryId,
+            $gids
+        );
+        $flyerPct = (float)($discount['flyer_pct'] ?? 0);
+        $flyerEnabledSys = !empty($discount['flyer_enabled']);
+        $flyerDiscountCfg = (float)($discount['flyer_cfg'] ?? 0);
+        $promoActive = !empty($discount['promo_active']);
+        $discountCtx = [
+            'base_pct' => (float)($discount['base_pct'] ?? 0),
+            'promo_active' => $promoActive,
+            'type_limits' => is_array($discount['type_limits'] ?? null) ? $discount['type_limits'] : [],
+        ];
+
         if ($commitTs > 0 && $gids !== [] && $operatorId > 0) {
             $results = [];
             $cursor = $commitTs;
@@ -285,6 +287,25 @@ final class TerminalFloor
                 $itemToken = $idx === 0
                     ? $baseToken
                     : md5($baseToken . '#' . $gid);
+                $product = class_exists(ProductsRepository::class, false)
+                    ? ProductsRepository::find($gid)
+                    : null;
+                $listPrice = 0.0;
+                $typeId = 0;
+                if ($product !== null) {
+                    $listPrice = (float)($product['price'] ?? 0);
+                    if ($listPrice <= 0) {
+                        $listPrice = (float)($product['price3'] ?? 0);
+                    }
+                    $typeId = max(0, (int)($product['type_id'] ?? $product['type'] ?? 0));
+                }
+                $priced = TerminalFloorCatalog::priceForProduct(
+                    $listPrice,
+                    $typeId,
+                    (float)$discountCtx['base_pct'],
+                    !empty($discountCtx['promo_active']),
+                    is_array($discountCtx['type_limits']) ? $discountCtx['type_limits'] : []
+                );
                 $bookIn = [
                     'product_id' => $gid,
                     'operator_id' => $operatorId,
@@ -298,6 +319,8 @@ final class TerminalFloor
                     'disable_1c' => $disable1c,
                     'lead_sec' => TerminalsConfig::leadSec(),
                     'skip_chill' => true,
+                    'price' => (float)$priced['price'],
+                    'price_list' => $listPrice,
                 ];
                 // One chill after the whole cart (legacy parity).
                 if ($idx === $lastIdx && $timeChill > 0) {
@@ -320,9 +343,9 @@ final class TerminalFloor
                         'onec_stub' => $disable1c,
                     ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
                 }
-                $product = class_exists(ProductsRepository::class, false)
-                    ? ProductsRepository::find($gid)
-                    : null;
+                if ($product === null && class_exists(ProductsRepository::class, false)) {
+                    $product = ProductsRepository::find($gid);
+                }
                 $timeNet = max(0, (int)($product['time_net'] ?? 0));
                 $timeSec = max(0, (int)($product['time_sec'] ?? 0));
                 if ($timeNet < 1) {
@@ -421,10 +444,11 @@ final class TerminalFloor
                 $operatorId,
                 (int)$terminal['id'],
                 $balance,
-                $flyerPct,
+                (float)$discountCtx['base_pct'],
                 $allowExecutors,
                 $busyMap,
-                $gids
+                $gids,
+                $discountCtx
             );
         } else {
             $mode = 'home';
@@ -452,6 +476,10 @@ final class TerminalFloor
                 'on' => $flyerPct > 0,
                 'pct' => $flyerPct > 0 ? $flyerPct : $flyerDiscountCfg,
             ],
+            'promo' => [
+                'active' => $promoActive,
+                'positions_configured' => !empty($discount['promo_positions']),
+            ],
             'bracelet_num' => (int)$numState['num'],
             'gids' => $gids,
             'operators' => $operators,
@@ -465,6 +493,149 @@ final class TerminalFloor
             'onec_live' => TerminalsConfig::onecLive() && empty($q['disable1C']),
             'onec_stub' => $disable1c,
         ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
+    }
+
+    /**
+     * Soft-dep likespa: scan register + client/flyer/promo discount context for /t.
+     *
+     * @param array<string,mixed> $terminal
+     * @param array<string,mixed> $guest
+     * @param list<int> $gids
+     * @return array{
+     *   base_pct:float,flyer_pct:float,flyer_enabled:bool,flyer_cfg:float,
+     *   promo_active:bool,promo_positions:bool,type_limits:array<int,int|string>
+     * }
+     */
+    private static function resolveDiscountContext(
+        array $terminal,
+        array $guest,
+        int $clientId,
+        string $bracelet,
+        int $claimedAdminId,
+        bool $flyerOn,
+        int $categoryId,
+        array $gids
+    ): array {
+        $out = [
+            'base_pct' => 0.0,
+            'flyer_pct' => 0.0,
+            'flyer_enabled' => false,
+            'flyer_cfg' => 0.0,
+            'promo_active' => false,
+            'promo_positions' => false,
+            'type_limits' => [],
+        ];
+
+        $id1c = trim((string)($guest['client_id'] ?? ''));
+        $phone = trim((string)($guest['phone'] ?? $guest['data']['phone'] ?? ''));
+        if ($phone === '' && $clientId > 0 && class_exists(ClientsRepository::class, false)) {
+            $cl = ClientsRepository::find($clientId);
+            if ($cl !== null) {
+                $phone = trim((string)($cl['tel'] ?? ''));
+            }
+        }
+
+        if ($claimedAdminId > 0
+            && class_exists(TermScansRepository::class, false)
+            && class_exists(LikespaConfig::class, false)
+            && LikespaConfig::termScansEnabled()
+        ) {
+            try {
+                TermScansRepository::register([
+                    'id_admin' => $claimedAdminId,
+                    'id_terminal' => (int)($terminal['id'] ?? 0),
+                    'bracelet_uid' => $bracelet,
+                    'id_1c' => $id1c,
+                    'id_user' => $clientId,
+                    'phone' => $phone,
+                    'phone_1c' => $phone,
+                    'dt' => time(),
+                ]);
+            } catch (Throwable $e) {
+                // Soft: floor must not die on scan analytics.
+            }
+        }
+
+        $clientPct = 0.0;
+        if ($clientId > 0
+            && class_exists(ClientsRepository::class, false)
+            && class_exists(ClientStatusesRepository::class, false)
+        ) {
+            $cl = ClientsRepository::find($clientId);
+            $statusId = $cl !== null ? (int)($cl['status_id'] ?? 0) : 0;
+            if ($statusId > 0) {
+                $st = ClientStatusesRepository::find($statusId);
+                if ($st !== null) {
+                    $clientPct = max(0.0, min(100.0, (float)($st['discount'] ?? 0)));
+                }
+            }
+        }
+
+        $typeLimits = [];
+        $flyerCfg = 0.0;
+        $flyerEnabled = false;
+        $flyerPct = 0.0;
+        if (class_exists(SystemFlyerPromo::class, false)) {
+            try {
+                $flyer = SystemFlyerPromo::load();
+                $out['promo_positions'] = ($flyer['promo_position_ids'] ?? []) !== [];
+                $typeLimits = is_array($flyer['discount_types'] ?? null) ? $flyer['discount_types'] : [];
+                $flyerCfg = (float)($flyer['flyer_discount'] ?? 0);
+                $flyerEnabled = !empty($terminal['is_terminal_flyer_discount'])
+                    && !empty($flyer['flyer_enabled'])
+                    && $flyerCfg > 0;
+                if ($flyerEnabled && $flyerOn) {
+                    $flyerPct = $flyerCfg;
+                    if (class_exists(TerminalDiscount::class, false) && $typeLimits !== []) {
+                        $typeIds = [];
+                        if ($categoryId > 0 && class_exists(ProductsRepository::class, false)) {
+                            // Cap flyer by limits of types present in cart or skip (catalog caps later).
+                        }
+                        foreach ($gids as $gid) {
+                            if (!class_exists(ProductsRepository::class, false)) {
+                                break;
+                            }
+                            $p = ProductsRepository::find((int)$gid);
+                            if ($p !== null) {
+                                $typeIds[] = (int)($p['type_id'] ?? $p['type'] ?? 0);
+                            }
+                        }
+                        if ($typeIds !== []) {
+                            $flyerPct = TerminalDiscount::capFlyerByTypes($flyerPct, $typeIds, $typeLimits);
+                        }
+                    }
+                }
+            } catch (Throwable $e) {
+                $flyerEnabled = false;
+            }
+        }
+
+        $promoActive = false;
+        if (class_exists(TermScansRepository::class, false)
+            && TermScansRepository::isDiscountMechanismEnabled()
+        ) {
+            try {
+                $promoActive = TermScansRepository::hasPromoDiscount(
+                    TermScansRepository::dayStart(time()),
+                    $id1c,
+                    $clientId,
+                    $phone
+                );
+            } catch (Throwable $e) {
+                $promoActive = false;
+            }
+        }
+
+        // Oper: flyerOn replaces client % as the non-promo base.
+        $basePct = $flyerPct > 0 ? $flyerPct : $clientPct;
+
+        $out['base_pct'] = $basePct;
+        $out['flyer_pct'] = $flyerPct;
+        $out['flyer_enabled'] = $flyerEnabled;
+        $out['flyer_cfg'] = $flyerCfg;
+        $out['promo_active'] = $promoActive;
+        $out['type_limits'] = $typeLimits;
+        return $out;
     }
 
     /**
@@ -574,6 +745,28 @@ final class TerminalFloor
         } elseif (!TerminalsConfig::onecReady()) {
             $issues[] = 'onec_incomplete';
         }
+        $likespaOn = class_exists(SystemFlyerPromo::class, false);
+        $flyerPromo = null;
+        $promoPositions = false;
+        $discountsTypesLoaded = false;
+        $termScansReady = class_exists(TermScansRepository::class, false)
+            && TermScansRepository::tableReady();
+        if ($likespaOn) {
+            try {
+                $flyerPromo = SystemFlyerPromo::load();
+                $promoPositions = ($flyerPromo['promo_position_ids'] ?? []) !== [];
+                $discountsTypesLoaded = Database::columnExists('base_system', 'DISCOUNTS_TYPES')
+                    && is_array($flyerPromo['discount_types'] ?? null);
+            } catch (Throwable $e) {
+                $flyerPromo = null;
+            }
+        }
+        if (!$likespaOn) {
+            $issues[] = 'likespa_offline';
+        } elseif (!$termScansReady) {
+            $issues[] = 'term_scans_table_missing';
+        }
+
         return [
             'runtime_both' => true,
             'route_t' => '/t',
@@ -592,6 +785,23 @@ final class TerminalFloor
             'staff_bracelets' => StaffBraceletsRepository::tableReady(),
             'terminal' => $term,
             'claim_valid' => $term !== null ? TerminalsRepository::hasValidStaffClaim($term) : null,
+            'discounts' => [
+                'likespa' => $likespaOn,
+                'term_scans_ready' => $termScansReady,
+                'term_scans_enabled' => class_exists(LikespaConfig::class, false)
+                    ? LikespaConfig::termScansEnabled()
+                    : false,
+                'flyer_enabled' => !empty($flyerPromo['flyer_enabled']),
+                'flyer_discount' => (int)($flyerPromo['flyer_discount'] ?? 0),
+                'terminal_flyer_button' => $term !== null
+                    ? !empty($term['is_terminal_flyer_discount'])
+                    : null,
+                'promo_positions_configured' => $promoPositions,
+                'promo_mechanism_enabled' => $termScansReady
+                    && class_exists(TermScansRepository::class, false)
+                    && TermScansRepository::isDiscountMechanismEnabled(),
+                'discounts_types_loaded' => $discountsTypesLoaded,
+            ],
             'issues' => $issues,
         ];
     }

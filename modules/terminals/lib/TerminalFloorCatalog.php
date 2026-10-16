@@ -60,10 +60,15 @@ final class TerminalFloorCatalog
      * @param list<int> $selectedGids
      * @param list<int> $allowExecutors terminal EXECUTORS allow-list (empty = all)
      * @param array<int,array{free_time:int,terminal_name:string}> $busyMap
+     * @param array{
+     *   base_pct?:float,
+     *   promo_active?:bool,
+     *   type_limits?:array<int,int|string>
+     * } $discountCtx oper-parity: max(base, promo capped by type_limits)
      * @return array{
      *   columns:list<array<string,mixed>>,
      *   rows:list<array<string,mixed>>,
-     *   cart:array{items:list<array{id:int,name:string,price:float}>,sum:float}
+     *   cart:array{items:list<array{id:int,name:string,price:float,price_list?:float,pct?:int}>,sum:float}
      * }
      */
     public static function buildMatrix(
@@ -75,8 +80,16 @@ final class TerminalFloorCatalog
         float $discountPct,
         array $allowExecutors,
         array $busyMap,
-        array $selectedGids = []
+        array $selectedGids = [],
+        array $discountCtx = []
     ): array {
+        $basePct = array_key_exists('base_pct', $discountCtx)
+            ? (float)$discountCtx['base_pct']
+            : $discountPct;
+        $promoActive = !empty($discountCtx['promo_active']);
+        $typeLimits = is_array($discountCtx['type_limits'] ?? null)
+            ? $discountCtx['type_limits']
+            : [];
         $dayStart = (int)mktime(0, 0, 0);
         $dayEnd = (int)mktime(23, 59, 59);
         $catExecutors = self::categoryExecutorSet($categoryId);
@@ -205,13 +218,17 @@ final class TerminalFloorCatalog
             if ($basePrice <= 0) {
                 $basePrice = (float)($p['price3'] ?? 0);
             }
-            $price = self::applyDiscount($basePrice, $discountPct);
+            $priced = self::priceForProduct($basePrice, $typeId, $basePct, $promoActive, $typeLimits);
+            $price = $priced['price'];
+            $pct = $priced['pct'];
             $isSelected = isset($selectedSet[$pid]);
             if ($isSelected) {
                 $cartItems[] = [
                     'id' => $pid,
                     'name' => (string)($p['name'] ?? ('#' . $pid)),
                     'price' => $price,
+                    'price_list' => $basePrice,
+                    'pct' => $pct,
                 ];
                 $cartSum += $price;
             }
@@ -351,13 +368,33 @@ final class TerminalFloorCatalog
         return implode('#', array_values($out));
     }
 
+    /**
+     * @param array<int,int|string> $typeLimits
+     * @return array{price:float,pct:int}
+     */
+    public static function priceForProduct(
+        float $listPrice,
+        int $typeId,
+        float $basePct,
+        bool $promoActive,
+        array $typeLimits = []
+    ): array {
+        if (class_exists(TerminalDiscount::class, false)) {
+            return TerminalDiscount::bestPrice($listPrice, $basePct, $typeId, $promoActive, $typeLimits);
+        }
+        if ($listPrice <= 0 || $basePct <= 0) {
+            return ['price' => round(max(0.0, $listPrice), 2), 'pct' => max(0, (int)$basePct)];
+        }
+        $pct = max(0, min(100, (int)$basePct));
+        return [
+            'price' => round($listPrice * (1.0 - $pct / 100.0), 2),
+            'pct' => $pct,
+        ];
+    }
+
     private static function applyDiscount(float $price, float $pct): float
     {
-        if ($price <= 0 || $pct <= 0) {
-            return round($price, 2);
-        }
-        $pct = min(100.0, max(0.0, $pct));
-        return round($price * (1.0 - $pct / 100.0), 2);
+        return self::priceForProduct($price, 0, $pct, false, [])['price'];
     }
 
     /** @return array<int,true>|null null = no category restriction */

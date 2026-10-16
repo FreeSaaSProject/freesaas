@@ -647,6 +647,229 @@ final class TermScansRepository
         return $result;
     }
 
+    /** @var array{positions:list<int>,discounts:array<int,int>}|null */
+    private static $promoConfigCache = null;
+
+    /** @var array<string,true> request debounce keys already registered */
+    private static $registerMemo = [];
+
+    /**
+     * @return array{positions:list<int>,discounts:array<int,int>}
+     */
+    public static function promoConfig(): array
+    {
+        if (self::$promoConfigCache !== null) {
+            return self::$promoConfigCache;
+        }
+        $positions = [];
+        $discounts = [];
+        if (class_exists(SystemFlyerPromo::class, false)) {
+            try {
+                $cfg = SystemFlyerPromo::load();
+                $positions = is_array($cfg['promo_position_ids'] ?? null)
+                    ? array_values(array_map('intval', $cfg['promo_position_ids']))
+                    : [];
+                foreach (($cfg['promo_discounts'] ?? []) as $typeId => $pct) {
+                    $typeId = (int)$typeId;
+                    $pctInt = (int)$pct;
+                    if ($typeId > 0 && $pctInt > 0) {
+                        $discounts[$typeId] = max(0, min(100, $pctInt));
+                    }
+                }
+            } catch (Throwable $e) {
+                $positions = [];
+                $discounts = [];
+            }
+        }
+        self::$promoConfigCache = ['positions' => $positions, 'discounts' => $discounts];
+        return self::$promoConfigCache;
+    }
+
+    public static function resetPromoConfigCache(): void
+    {
+        self::$promoConfigCache = null;
+        self::$registerMemo = [];
+    }
+
+    /** Mechanism on when at least one promoter position is configured. */
+    public static function isDiscountMechanismEnabled(): bool
+    {
+        return self::promoConfig()['positions'] !== [];
+    }
+
+    public static function isPromoter(int $adminId): bool
+    {
+        $adminId = (int)$adminId;
+        if ($adminId < 1 || !self::isDiscountMechanismEnabled()) {
+            return false;
+        }
+        if (!class_exists(UsersRepository::class, false)) {
+            return false;
+        }
+        $u = UsersRepository::find($adminId);
+        if ($u === null) {
+            return false;
+        }
+        $statusId = (int)($u['status_id'] ?? $u['ID_STATUS'] ?? 0);
+        return $statusId > 0 && in_array($statusId, self::promoConfig()['positions'], true);
+    }
+
+    public static function discountForType(int $typeId): int
+    {
+        $typeId = (int)$typeId;
+        if ($typeId < 1) {
+            return 0;
+        }
+        return (int)(self::promoConfig()['discounts'][$typeId] ?? 0);
+    }
+
+    /**
+     * Client has DISCOUNT_ACTIVATED=1 today (match ID_1C OR ID_USER OR PHONE).
+     */
+    public static function hasPromoDiscount(int $scanDay, string $id1c, int $idUser, string $phone): bool
+    {
+        if (!self::tableReady() || !self::isDiscountMechanismEnabled() || $scanDay < 1) {
+            return false;
+        }
+        $match = self::clientMatchParts($id1c, $idUser, $phone);
+        if ($match === null) {
+            return false;
+        }
+        $sql = 'SELECT ID FROM base_term_scans
+                WHERE SCAN_DAY = ? AND DISCOUNT_ACTIVATED = 1 AND (' . $match['sql'] . ')
+                LIMIT 1';
+        $params = array_merge([$scanDay], $match['params']);
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        return (int)$st->fetchColumn() > 0;
+    }
+
+    /**
+     * Register bracelet scan. Debounced per bracelet+admin+day (~2 min) unless
+     * promoter still needs first-day activation.
+     *
+     * @param array{
+     *   id_admin:int,id_terminal?:int,bracelet_uid?:string,id_1c?:string,
+     *   id_user?:int,phone?:string,phone_1c?:string,dt?:int
+     * } $ctx
+     */
+    public static function register(array $ctx): ?int
+    {
+        if (!self::tableReady()) {
+            return null;
+        }
+        if (class_exists(LikespaConfig::class, false) && !LikespaConfig::termScansEnabled()) {
+            return null;
+        }
+        $idAdmin = (int)($ctx['id_admin'] ?? 0);
+        if ($idAdmin < 1) {
+            return null;
+        }
+        $dt = (int)($ctx['dt'] ?? time());
+        if ($dt < 1) {
+            $dt = time();
+        }
+        $scanDay = self::dayStart($dt);
+        $braceletUid = substr(trim((string)($ctx['bracelet_uid'] ?? '')), 0, 32);
+        $id1c = trim((string)($ctx['id_1c'] ?? ''));
+        $idUser = (int)($ctx['id_user'] ?? 0);
+        $phone = substr(trim((string)($ctx['phone'] ?? '')), 0, 16);
+        $phone1c = substr(trim((string)($ctx['phone_1c'] ?? '')), 0, 16);
+        $idTerminal = (int)($ctx['id_terminal'] ?? 0);
+
+        $isPromoter = self::isPromoter($idAdmin) ? 1 : 0;
+        $discountActivated = 0;
+        $idPromoter = 0;
+        $needsActivation = false;
+        if ($isPromoter === 1 && self::isDiscountMechanismEnabled()) {
+            if (!self::hasPromoDiscount($scanDay, $id1c, $idUser, $phone)) {
+                $needsActivation = true;
+                $discountActivated = 1;
+                $idPromoter = $idAdmin;
+            }
+        }
+
+        $memoKey = $braceletUid . '|' . $idAdmin . '|' . $scanDay;
+        if (isset(self::$registerMemo[$memoKey]) && !$needsActivation) {
+            return null;
+        }
+
+        if (!$needsActivation && self::recentDuplicate($scanDay, $idAdmin, $braceletUid, $dt, 120)) {
+            self::$registerMemo[$memoKey] = true;
+            return null;
+        }
+
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_term_scans
+                (DT_SCAN, SCAN_DAY, ID_ADMIN, ID_TERMINAL, BRACELET_UID, ID_1C, ID_USER,
+                 PHONE, PHONE_1C, IS_PROMOTER, DISCOUNT_ACTIVATED, ID_PROMOTER)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?)'
+        );
+        $st->execute([
+            $dt,
+            $scanDay,
+            $idAdmin,
+            max(0, $idTerminal),
+            $braceletUid,
+            $id1c,
+            max(0, $idUser),
+            $phone,
+            $phone1c,
+            $isPromoter,
+            $discountActivated,
+            $idPromoter,
+        ]);
+        $id = (int)Database::pdo()->lastInsertId();
+        self::$registerMemo[$memoKey] = true;
+        return $id > 0 ? $id : null;
+    }
+
+    /**
+     * @return array{sql:string,params:list<string|int>}|null
+     */
+    private static function clientMatchParts(string $id1c, int $idUser, string $phone): ?array
+    {
+        $parts = [];
+        $params = [];
+        $id1c = trim($id1c);
+        $phone = trim($phone);
+        if ($id1c !== '') {
+            $parts[] = 'ID_1C = ?';
+            $params[] = $id1c;
+        }
+        if ($idUser > 0) {
+            $parts[] = 'ID_USER = ?';
+            $params[] = $idUser;
+        }
+        if ($phone !== '' && $phone !== '0') {
+            $parts[] = 'PHONE = ?';
+            $params[] = $phone;
+        }
+        if ($parts === []) {
+            return null;
+        }
+        return ['sql' => implode(' OR ', $parts), 'params' => $params];
+    }
+
+    private static function recentDuplicate(
+        int $scanDay,
+        int $idAdmin,
+        string $braceletUid,
+        int $dt,
+        int $windowSec
+    ): bool {
+        if ($braceletUid === '') {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_term_scans
+             WHERE SCAN_DAY = ? AND ID_ADMIN = ? AND BRACELET_UID = ? AND DT_SCAN >= ?
+             LIMIT 1'
+        );
+        $st->execute([$scanDay, $idAdmin, $braceletUid, max(0, $dt - $windowSec)]);
+        return (int)$st->fetchColumn() > 0;
+    }
+
     /**
      * @param list<string> $bracelets
      * @return array<string, list<int>>

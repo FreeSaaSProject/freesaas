@@ -2,7 +2,20 @@
 
 Product module `terminals`: device registry (`base_terminals`, `base_bracelets`), therm occupancy analytics (`base_termloads`, `base_fullstats`), and HTTP sync jobs. Secrets/URLs live in `cfg/modules/terminals.ini` (not platform `config.ini`). Legacy table `base_term_orders` may still exist from older installs; UI/import removed (Volga Termy feed no longer used).
 
-Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home (oper-parity): bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`. Termy/legacy HTTP drop-in lives in optional **`likespa`** (`/api_termy.php`). Scan analytics stay in `likespa` (`base_term_scans`).
+Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`, `flyerOn`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home (oper-parity): bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`, optional **`likespa`** (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in likespa (`/api_termy.php`).
+
+### Discounts on `/t` (soft `likespa`)
+
+Settings: `/likespa/settings` → `base_system` (`flyerEnabled` / `flyerDiscount`, `PROMO_POSITION_ID`, `PROMO_DISCOUNTS`, `DISCOUNTS_TYPES`). Per-terminal flyer button: `IS_TERMINAL_FLYER_DISCOUNT`.
+
+| Mechanism | Behavior |
+|-----------|----------|
+| Client status % | From `base_client_statuses.discount` when client known |
+| Flyer | Query `flyerOn=1` when terminal + system flyer enabled; replaces client % as base |
+| Promoter | First scan that day by staff whose `status_id` ∈ `PROMO_POSITION_ID` writes `base_term_scans` with `DISCOUNT_ACTIVATED=1`; any later admin sees promo for that client (match `ID_1C` / `ID_USER` / `PHONE`) |
+| Price | **max**(base, promo%) — not summed; promo capped by `DISCOUNTS_TYPES[type]`; sale uses paid `summ` + list `summ_default` |
+
+Diagnose: `GET /terminals/t/status?format=json` → `terminals_t.discounts` (`promo_positions_configured`, `promo_mechanism_enabled`, `discounts_types_loaded`, flyer flags).
 
 ## Enable
 

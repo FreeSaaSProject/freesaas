@@ -3,11 +3,12 @@ declare(strict_types=1);
 /** @var string $message */
 /** @var string $error */
 /** @var array<string,string> $cfg */
-/** @var array{flyer_enabled:int,flyer_discount:int,promo_position_ids:list<int>,promo_discounts:array<int,int|string>} $flyerPromo */
+/** @var array{flyer_enabled:int,flyer_discount:int,promo_position_ids:list<int>,promo_discounts:array<int,int|string>,discount_types?:array<int,int|string>} $flyerPromo */
 /** @var array<int,string> $statusOptions */
 /** @var array<int,string> $procedureTypeOptions */
 /** @var bool $hasFlyerCols */
 /** @var bool $hasPromoCols */
+/** @var bool $hasDiscountsTypesCol */
 /** @var bool $hasFreeTicketCol */
 /** @var int $freeTicketThreshold */
 $c = static function (string $key, string $fallback = '') use ($cfg): string {
@@ -18,6 +19,7 @@ $on = static function (string $key) use ($c): bool {
 };
 $selectedPositions = array_fill_keys($flyerPromo['promo_position_ids'] ?? [], true);
 $promoDiscounts = is_array($flyerPromo['promo_discounts'] ?? null) ? $flyerPromo['promo_discounts'] : [];
+$discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['discount_types'] : [];
 ?>
 <section class="page-head">
   <p class="lede"><?= te('likespa.settings.lede') ?></p>
@@ -126,6 +128,46 @@ $promoDiscounts = is_array($flyerPromo['promo_discounts'] ?? null) ? $flyerPromo
               <td><?= e($tlabel) ?> <span class="muted">#<?= (int)$tid ?></span></td>
               <td>
                 <input type="number" name="promo_discounts[<?= (int)$tid ?>]" min="0" max="100" step="1"
+                       value="<?= $onType ? e((string)(int)$val) : '' ?>"
+                       placeholder="%" class="likespa-promo-discount-input">
+              </td>
+              <td class="<?= $onType ? 'likespa-promo-on' : 'muted' ?>">
+                <?= $onType ? te('likespa.settings.promo_discounts.on') : te('likespa.settings.promo_discounts.off') ?>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+  </fieldset>
+  <?php endif; ?>
+
+  <?php if (!empty($hasDiscountsTypesCol)): ?>
+  <fieldset>
+    <legend><?= te('likespa.settings.sec.discount_types') ?></legend>
+    <p class="muted"><?= te('likespa.settings.discount_types_hint') ?></p>
+    <?php if ($procedureTypeOptions === []): ?>
+      <p class="muted"><?= te('likespa.settings.promo_discounts_empty') ?></p>
+    <?php else: ?>
+      <div class="table-wrap likespa-promo-discounts">
+        <table class="data">
+          <thead>
+            <tr>
+              <th><?= te('likespa.settings.promo_discounts.col.type') ?></th>
+              <th><?= te('likespa.settings.discount_types.col.pct') ?></th>
+              <th><?= te('likespa.settings.promo_discounts.col.state') ?></th>
+            </tr>
+          </thead>
+          <tbody>
+          <?php foreach ($procedureTypeOptions as $tid => $tlabel):
+              $val = $discountTypes[(int)$tid] ?? '';
+              $onType = $val !== '' && (int)$val > 0;
+              ?>
+            <tr>
+              <td><?= e($tlabel) ?> <span class="muted">#<?= (int)$tid ?></span></td>
+              <td>
+                <input type="number" name="discount_types[<?= (int)$tid ?>]" min="0" max="100" step="1"
                        value="<?= $onType ? e((string)(int)$val) : '' ?>"
                        placeholder="%" class="likespa-promo-discount-input">
               </td>

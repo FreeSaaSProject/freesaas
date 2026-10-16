@@ -7,23 +7,48 @@ declare(strict_types=1);
  */
 final class SystemFlyerPromo
 {
+    /** @var array{
+     *   flyer_enabled:int,
+     *   flyer_discount:int,
+     *   promo_position_ids:list<int>,
+     *   promo_discounts:array<int,int|string>,
+     *   discount_types:array<int,int|string>
+     * }|null */
+    private static $loadCache = null;
+
     /**
      * @return array{
      *   flyer_enabled:int,
      *   flyer_discount:int,
      *   promo_position_ids:list<int>,
-     *   promo_discounts:array<int,int>
+     *   promo_discounts:array<int,int|string>,
+     *   discount_types:array<int,int|string>
      * }
      */
     public static function load(): array
     {
+        if (self::$loadCache !== null) {
+            return self::$loadCache;
+        }
         $row = SystemRepository::get() ?: [];
-        return [
+        self::$loadCache = [
             'flyer_enabled' => (int)($row['flyerEnabled'] ?? 0),
             'flyer_discount' => (int)($row['flyerDiscount'] ?? 0),
             'promo_position_ids' => self::decodePositionIds((string)($row['PROMO_POSITION_ID'] ?? '')),
             'promo_discounts' => self::decodeDiscounts((string)($row['PROMO_DISCOUNTS'] ?? '')),
+            'discount_types' => Database::columnExists('base_system', 'DISCOUNTS_TYPES')
+                ? self::decodeDiscounts((string)($row['DISCOUNTS_TYPES'] ?? ''))
+                : [],
         ];
+        return self::$loadCache;
+    }
+
+    public static function resetLoadCache(): void
+    {
+        self::$loadCache = null;
+        if (class_exists(TermScansRepository::class, false)) {
+            TermScansRepository::resetPromoConfigCache();
+        }
     }
 
     /**
@@ -55,24 +80,37 @@ final class SystemFlyerPromo
 
         // Only rewrite PROMO_DISCOUNTS when the type grid was submitted (avoid wipe if procedures offline).
         if (isset($post['promo_discounts']) && is_array($post['promo_discounts'])) {
-            $discounts = [];
-            foreach ($post['promo_discounts'] as $typeId => $pct) {
-                $typeId = (int)$typeId;
-                if ($typeId < 1) {
-                    continue;
-                }
-                $pctStr = trim((string)$pct);
-                if ($pctStr === '') {
-                    $discounts[$typeId] = '';
-                    continue;
-                }
-                $pctInt = max(0, min(100, (int)$pctStr));
-                $discounts[$typeId] = $pctInt > 0 ? (string)$pctInt : '';
-            }
-            $payload['PROMO_DISCOUNTS'] = self::encodeDiscounts($discounts);
+            $payload['PROMO_DISCOUNTS'] = self::encodeDiscounts(self::parseTypePctGrid($post['promo_discounts']));
+        }
+        if (isset($post['discount_types']) && is_array($post['discount_types'])) {
+            $payload['DISCOUNTS_TYPES'] = self::encodeDiscounts(self::parseTypePctGrid($post['discount_types']));
         }
 
         self::persist($payload);
+        self::resetLoadCache();
+    }
+
+    /**
+     * @param array<int|string,mixed> $raw
+     * @return array<int,string>
+     */
+    private static function parseTypePctGrid(array $raw): array
+    {
+        $discounts = [];
+        foreach ($raw as $typeId => $pct) {
+            $typeId = (int)$typeId;
+            if ($typeId < 1) {
+                continue;
+            }
+            $pctStr = trim((string)$pct);
+            if ($pctStr === '') {
+                $discounts[$typeId] = '';
+                continue;
+            }
+            $pctInt = max(0, min(100, (int)$pctStr));
+            $discounts[$typeId] = $pctInt > 0 ? (string)$pctInt : '';
+        }
+        return $discounts;
     }
 
     /**
@@ -80,7 +118,8 @@ final class SystemFlyerPromo
      *   flyerEnabled?:int,
      *   flyerDiscount?:int,
      *   PROMO_POSITION_ID?:string,
-     *   PROMO_DISCOUNTS?:string
+     *   PROMO_DISCOUNTS?:string,
+     *   DISCOUNTS_TYPES?:string
      * } $data
      */
     private static function persist(array $data): void
@@ -96,6 +135,7 @@ final class SystemFlyerPromo
             'flyerDiscount' => 'flyerDiscount',
             'PROMO_POSITION_ID' => 'PROMO_POSITION_ID',
             'PROMO_DISCOUNTS' => 'PROMO_DISCOUNTS',
+            'DISCOUNTS_TYPES' => 'DISCOUNTS_TYPES',
         ];
         foreach ($map as $key => $col) {
             if (!array_key_exists($key, $data) || !Database::columnExists('base_system', $col)) {

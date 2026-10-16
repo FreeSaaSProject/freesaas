@@ -298,6 +298,7 @@ return [
     'terminals.t.category' => 'Категория',
     'terminals.t.category_change' => 'сменить?',
     'terminals.t.flyer_off' => 'выкл?',
+    'terminals.t.promo_active' => 'Скидка промоутера активна',
     'terminals.t.col_service' => 'Услуга',
     'terminals.t.op_change' => '[Сменить?]',
     'terminals.t.until' => 'до',

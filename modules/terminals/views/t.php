@@ -18,6 +18,7 @@ $diag = is_array($state['diag'] ?? null) ? $state['diag'] : [];
 $dayLoad = is_array($state['day_load'] ?? null) ? $state['day_load'] : [];
 $matrix = is_array($state['matrix'] ?? null) ? $state['matrix'] : ['columns' => [], 'rows' => []];
 $flyer = is_array($state['flyer'] ?? null) ? $state['flyer'] : [];
+$promo = is_array($state['promo'] ?? null) ? $state['promo'] : [];
 $braceletNum = (int)($state['bracelet_num'] ?? 0);
 $categoryId = (int)($state['category_id'] ?? 0);
 $categoryName = (string)($state['category_name'] ?? '');
@@ -488,6 +489,9 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                             -<?= (int)$flyer['pct'] ?>%?
                         </a>
                     <?php endif; ?>
+                <?php endif; ?>
+                <?php if (!empty($promo['active'])): ?>
+                    <b class="terminals-t-promo-active"><?= e(t('terminals.t.promo_active')) ?></b>
                 <?php endif; ?>
             </div>
             <div class="card matrix-wrap">

@@ -8,6 +8,7 @@ require_once __DIR__ . '/lib/DopsStats.php';
 require_once __DIR__ . '/lib/CalendarOverlay.php';
 require_once __DIR__ . '/lib/ProcedureRestoresRepository.php';
 require_once __DIR__ . '/lib/SystemFlyerPromo.php';
+require_once __DIR__ . '/lib/TerminalDiscount.php';
 require_once __DIR__ . '/lib/FreeTicket.php';
 require_once __DIR__ . '/lib/LikespaLegacyApi.php';
 require_once __DIR__ . '/lib/ProcedureFloorLinks.php';

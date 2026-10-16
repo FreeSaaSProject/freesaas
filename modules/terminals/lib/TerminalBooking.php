@@ -92,9 +92,16 @@ final class TerminalBooking
             $timeNet = $timeSec;
         }
         $dtEnd = $dtStart + $timeNet;
-        $price = isset($input['price']) ? (float)$input['price'] : (float)($product['price'] ?? 0);
+        $listPrice = isset($input['price_list']) ? (float)$input['price_list'] : 0.0;
+        if ($listPrice <= 0) {
+            $listPrice = (float)($product['price'] ?? 0);
+            if ($listPrice <= 0) {
+                $listPrice = (float)($product['price3'] ?? 0);
+            }
+        }
+        $price = isset($input['price']) ? (float)$input['price'] : $listPrice;
         if ($price <= 0) {
-            $price = (float)($product['price3'] ?? 0);
+            $price = $listPrice;
         }
         $typeId = (int)($product['type'] ?? $product['type_id'] ?? 0);
         $onecProduct = trim((string)($product['onec_id'] ?? ''));
@@ -174,7 +181,7 @@ final class TerminalBooking
                 'id_terminal' => max(0, $terminalId),
                 'type' => $typeId,
                 'summ' => $price,
-                'summ_default' => $price,
+                'summ_default' => $listPrice > 0 ? $listPrice : $price,
                 'notice' => $notice,
                 'enabled' => 1,
                 'token' => $token,

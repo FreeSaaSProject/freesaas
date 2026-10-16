@@ -158,6 +158,48 @@ if ($procId > 0) {
 
 $diag = TerminalFloor::diagnose($terminalId > 0 ? $terminalId : null);
 $assert(isset($diag['onec']['enabled']), 'TerminalFloor::diagnose has onec.enabled');
+$assert(isset($diag['discounts']) && is_array($diag['discounts']), 'TerminalFloor::diagnose has discounts');
+
+if (class_exists(TerminalDiscount::class, false)) {
+    $p1 = TerminalDiscount::bestPrice(1000.0, 10.0, 1, false, []);
+    $assert((int)$p1['pct'] === 10 && abs($p1['price'] - 900.0) < 0.01, 'TerminalDiscount client 10%');
+    $p2 = TerminalDiscount::bestPrice(1000.0, 10.0, 5, true, [5 => 50]);
+    // promo not configured for type 5 unless SystemFlyerPromo has it — force via mock path:
+    // when promoActive but discountForType returns 0, stays at client 10%
+    $assert((int)$p2['pct'] === 10, 'TerminalDiscount promo inactive map stays client%');
+    $p3 = TerminalDiscount::bestPrice(1000.0, 5.0, 9, true, [9 => 20]);
+    // Without TermScansRepository promo map, promo pct is 0 → client wins
+    $assert((int)$p3['pct'] === 5 && abs($p3['price'] - 950.0) < 0.01, 'TerminalDiscount flyer/client base');
+    $cap = TerminalDiscount::capFlyerByTypes(40.0, [1, 2], [1 => 25, 2 => 30]);
+    $assert(abs($cap - 25.0) < 0.01, 'TerminalDiscount::capFlyerByTypes min limit');
+    $bookDisc = TerminalBooking::book([
+        'product_id' => $productId,
+        'operator_id' => $adminId,
+        'admin_id' => $adminId,
+        'terminal_id' => $terminalId,
+        'dt_start' => time() + 7200,
+        'client_id' => 0,
+        'onec_client_id' => 'stub-check-floor-disc',
+        'onec_bracelet' => 'DEADBEEF',
+        'disable_1c' => true,
+        'notice' => 'check-terminals-floor-disc',
+        'price' => 800.0,
+        'price_list' => 1000.0,
+        'skip_chill' => true,
+    ]);
+    $assert(!empty($bookDisc['ok']), 'TerminalBooking::book with price+price_list');
+    $discProc = (int)($bookDisc['procedure_id'] ?? 0);
+    if ($discProc > 0) {
+        $drow = ProceduresRepository::find($discProc);
+        $assert(
+            $drow !== null
+            && abs((float)($drow['summ'] ?? 0) - 800.0) < 0.01
+            && abs((float)($drow['summ_default'] ?? 0) - 1000.0) < 0.01,
+            'procedure summ/summ_default discounted'
+        );
+        TerminalBooking::cancel($discProc, true, true);
+    }
+}
 
 echo 'steps: ' . (6 + ($failed === 0 ? 0 : 0)) . "\n";
 if ($failed > 0) {

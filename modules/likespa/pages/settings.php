@@ -46,6 +46,7 @@ if ($wantsJson) {
             && Database::columnExists('base_system', 'flyerDiscount'),
         'has_promo_cols' => Database::columnExists('base_system', 'PROMO_POSITION_ID')
             && Database::columnExists('base_system', 'PROMO_DISCOUNTS'),
+        'has_discounts_types_col' => Database::columnExists('base_system', 'DISCOUNTS_TYPES'),
     ]);
     return;
 }
@@ -64,6 +65,7 @@ View::render('settings', [
         && Database::columnExists('base_system', 'flyerDiscount'),
     'hasPromoCols' => Database::columnExists('base_system', 'PROMO_POSITION_ID')
         && Database::columnExists('base_system', 'PROMO_DISCOUNTS'),
+    'hasDiscountsTypesCol' => Database::columnExists('base_system', 'DISCOUNTS_TYPES'),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('likespa.menu.settings'), 'current' => true],
     ]),
