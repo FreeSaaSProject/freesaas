@@ -87,16 +87,25 @@ Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 
 ### After ASR (instead of `recordParser3.php`)
 
-Call stem — picks up records with `DT_TRANSCRIBED > 1`, builds instances/keys, then collect/score:
-
 ```bash
-curl -sS -H "X-Audio-Token: …" 'https://<host>/audio/jobs/stem'
+# Preferred (whisper idle / evening close): day-scoped drain + collect + staff_reports publish
+curl -sS -X POST -H "X-Audio-Token: …" \
+  'https://<host>/audio/jobs/stem?day=2026-10-16'
+
+# Lookback batch only (no day publish) — not equivalent to calendar Re-®
+curl -sS -X POST -H "X-Audio-Token: …" 'https://<host>/audio/jobs/stem'
 ```
 
-- Not required after every file: stem is a **batch** job. Periodic poll (host cron, worker loop, or platform `/cron/tick` if registered) is enough.
-- Optional filters: `day=YYYY-MM-DD`, `admin=` / `idAdmin=`, `record=` / `idRecord=`, `limit=`, `reset=1` (day or record required).
-- `collect=0` skips script collections; default `collect=1` runs CollectRunner (oper recordCollector parity).
-- Day Re-® in UI = stem with reset for that day.
+| | `stem?day=YYYY-MM-DD` | Calendar **Re-®** |
+|--|----------------------|-------------------|
+| `resetDay` | no | yes |
+| Stem unparsed for day | yes (multi-batch) | yes |
+| Day collect + SCORE | yes | yes |
+| Publish staff tickets / DAY_BONUS (`reparse.after`) | yes (`publish=1`) | yes |
+
+- Not required after every file — periodic idle poll is enough.
+- Filters: `day=`, `admin=` / `idAdmin=`, `record=` / `idRecord=`, `limit=`, `reset=1`, `collect=0`, `publish=0`.
+- Day-report UI reads collections live; **messages/tickets** appear only after `reparse.after` (Re-® or `stem?day=`).
 
 ### Smoke
 

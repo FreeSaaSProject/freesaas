@@ -980,18 +980,34 @@ def transcribe_upload_srt(
 
 # ---------- Аналитика ----------
 
-def run_analytics():
-	log(f"📊 Запускаем stem (аналитика): {ANALYTICS_URL}")
+def run_analytics() -> bool:
+	"""
+	POST stem. Returns True if this idle slot should count as a completed analytics attempt.
+	HTTP 409 blocked_run = another stem still holds the lock (often after a gateway timeout
+	while PHP keeps working) — retry later, do not burn max_runs_per_idle.
+	"""
+	# Day-scoped stem keeps collect in today's window (avoids full-table orphan DELETE / 1317).
+	day = datetime.now().strftime("%Y-%m-%d")
+	url = ANALYTICS_URL
+	sep = "&" if ("?" in url) else "?"
+	url = f"{url}{sep}day={day}"
+	log(f"📊 Запускаем stem (аналитика): {url}")
 	try:
 		r = requests.post(
-			ANALYTICS_URL,
+			url,
 			headers=backend_headers(),
 			verify=False,
 			timeout=600,
 		)
-		log(f"📊 Stem завершился HTTP {r.status_code}: {r.text[:200]}")
+		body = (r.text or "")[:240]
+		log(f"📊 Stem завершился HTTP {r.status_code}: {body}")
+		if r.status_code == 409:
+			log("ℹ️ Stem занят (blocked_run) — предыдущий прогон ещё держит lock, слот не тратим.")
+			return False
+		return True
 	except Exception as e:
 		log("⚠️ Ошибка запуска stem:", e)
+		return True
 
 # ---------- Основной цикл ----------
 
@@ -1071,9 +1087,12 @@ def main():
 						)
 						session_processed = 0
 						session_started_at = None
-					run_analytics()
-					analytics_runs_in_window += 1
-					last_analytics_ts = now_ts
+					if run_analytics():
+						analytics_runs_in_window += 1
+						last_analytics_ts = now_ts
+					else:
+						# 409 busy: backoff with min_interval, keep remaining run quota
+						last_analytics_ts = now_ts
 				else:
 					if not may_run:
 						log("ℹ️ Лимит запусков аналитики в этом idle-окне исчерпан.")

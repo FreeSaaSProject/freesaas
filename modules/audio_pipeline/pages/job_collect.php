@@ -9,7 +9,7 @@ require_once base_path('modules/audio_pipeline/lib/CollectRunner.php');
 AsrWorkerAuth::assertToken();
 $lock = JobLock::tryAcquire('collect');
 if ($lock === null) {
-    JobRunner::blocked();
+    JobRunner::blocked('collect');
     return;
 }
 try {

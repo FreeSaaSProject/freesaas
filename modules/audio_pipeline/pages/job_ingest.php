@@ -9,7 +9,7 @@ require_once base_path('modules/audio_pipeline/lib/IngestRunner.php');
 AsrWorkerAuth::assertToken();
 $lock = JobLock::tryAcquire('ingest');
 if ($lock === null) {
-    JobRunner::blocked();
+    JobRunner::blocked('ingest');
     return;
 }
 try {

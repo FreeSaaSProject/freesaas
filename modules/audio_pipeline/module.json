@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.3.19",
+    "version": "0.3.22",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",

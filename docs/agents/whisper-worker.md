@@ -107,16 +107,29 @@ Default config path is `configs/local.json` if you omit `-c`.
 |------------|--------------|------|
 | `endpoints.get_file` | `/audio/asr/claim` | GET → filename or `None` |
 | `endpoints.save_result` | `/audio/asr/result` | POST `file_name`, `result`, optional `PLAYTIME`/`VOLUME` |
-| `endpoints.analytics` | `/audio/jobs/stem` | POST after idle (batch keys/score; includes collect by default) |
+| `endpoints.analytics` | `/audio/jobs/stem` | POST after idle with `?day=YYYY-MM-DD` (see below) |
 
 All three send header **`X-Audio-Token`**. Audio bytes are downloaded from `{ftp_server}{FILENAME}` (no worker token).
+
+### Idle stem vs calendar Re-®
+
+| | Whisper idle `stem?day=…` | Calendar **Re-®** |
+|--|---------------------------|-------------------|
+| Reset day keys/instances | no | yes (`resetDay`) |
+| Stem unparsed for the day | yes (batched until pending=0 or budget) | yes |
+| Day-scoped collect + SCORE | yes | yes |
+| `audio_reports.calendar.reparse.after` → **staff_reports** tickets / DAY_BONUS | yes (`publish=1` default) | yes |
+
+Without `day=`, stem only processes a lookback batch of unparsed records and does **not** publish staff tickets. Day-report UI can still show numbers after a manual Re-® because it reads collections live — tickets are a separate publish step.
+
+Client always appends `day=today`. HTTP 409 `blocked_run` = another stem still holds the lock (do not burn idle quota).
 
 ## Loop behaviour
 
 1. Poll claim until a filename appears.
 2. Download from `ftp_server`, probe metadata, transcribe via local `/inference` (SRT → custom `[MM:SS->MM:SS]` lines).
 3. POST result (or a short error marker so the file leaves the queue).
-4. On idle (`None`): up to `analytics.max_runs_per_idle` stem runs, spaced by `min_interval_sec`.
+4. On idle (`None`): up to `analytics.max_runs_per_idle` stem runs with `day=today`, spaced by `min_interval_sec`.
 5. Optional Max notify on whisper-down / session summary / novad fallback.
 6. If whisper-server crashes (often VAD): optional auto-restart without VAD for that file, then restore VAD.
 

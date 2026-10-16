@@ -56,11 +56,19 @@ final class JobRunner
         echo json_encode($out, JSON_UNESCAPED_UNICODE);
     }
 
-    public static function blocked(): void
+    public static function blocked(string $jobName = ''): void
     {
+        $extra = ['hint' => 'another_worker_holds_lock'];
+        if ($jobName !== '' && class_exists('JobLock', false)) {
+            $holder = JobLock::holderInfo($jobName);
+            if ($holder !== []) {
+                $extra['holder'] = $holder;
+            }
+        }
         self::jsonResponse([
             'ok' => false,
             'message' => 'blocked_run',
+            'extra' => $extra,
         ], 409);
     }
 }
