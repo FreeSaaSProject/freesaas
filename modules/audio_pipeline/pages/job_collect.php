@@ -15,6 +15,17 @@ if ($lock === null) {
 try {
     $full = !empty($_GET['full']) || !empty($_POST['full']);
     JobRunner::jsonResponse(CollectRunner::run($full));
+} catch (Throwable $e) {
+    error_log('[audio/jobs/collect] ' . $e->getMessage());
+    $msg = $e->getMessage();
+    $timedOut = (strpos($msg, '1317') !== false || stripos($msg, 'interrupted') !== false);
+    JobRunner::jsonResponse([
+        'ok' => false,
+        'processed' => 0,
+        'skipped' => 0,
+        'message' => $timedOut ? 'query_interrupted' : 'collect_error',
+        'extra' => ['error' => $msg],
+    ], $timedOut ? 504 : 500);
 } finally {
     $lock->release();
 }

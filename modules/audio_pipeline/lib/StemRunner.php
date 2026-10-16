@@ -388,27 +388,51 @@ final class StemRunner
             $extra['morph'] = $morphMessage;
         }
 
-        if ($batchIds !== []) {
-            self::finalizeBatch($batchIds, $keyBuild, $refs, $records, $lemmatizer);
-        }
-
-        $trashAdded = self::flushPendingTrashCandidates();
-        if ($trashAdded > 0) {
-            $extra['trash_added'] = $trashAdded;
-        }
-
-        StemCache::flushWords();
-        StemCache::flushAllBadgeBundles();
-
-        $collect = !isset($opts['collect']) || $opts['collect'] !== false;
-        if ($collect) {
-            $collExtra = self::runCollectAfterStem($opts, $dayRange, $adminFilter, $processed);
-            if ($collExtra !== null) {
-                $extra['collect'] = $collExtra;
+        $timedOut = JobRunner::timedOut($deadline);
+        try {
+            if ($batchIds !== []) {
+                self::finalizeBatch($batchIds, $keyBuild, $refs, $records, $lemmatizer);
             }
+
+            $trashAdded = self::flushPendingTrashCandidates();
+            if ($trashAdded > 0) {
+                $extra['trash_added'] = $trashAdded;
+            }
+
+            StemCache::flushWords();
+            StemCache::flushAllBadgeBundles();
+
+            $collect = !isset($opts['collect']) || $opts['collect'] !== false;
+            // Skip collect when the stem budget is already spent — next idle poll will continue.
+            if ($collect && !JobRunner::timedOut($deadline)) {
+                $remain = max(15, (int)ceil($deadline - microtime(true)));
+                $opts['collect_time_budget_sec'] = min(
+                    (int)($opts['collect_time_budget_sec'] ?? 90),
+                    $remain
+                );
+                $collExtra = self::runCollectAfterStem($opts, $dayRange, $adminFilter, $processed);
+                if ($collExtra !== null) {
+                    $extra['collect'] = $collExtra;
+                }
+            } elseif ($collect && $timedOut) {
+                $extra['collect_skipped'] = 'stem_budget_exhausted';
+            }
+        } catch (PDOException $e) {
+            $msg = $e->getMessage();
+            if (strpos($msg, '1317') !== false || stripos($msg, 'interrupted') !== false) {
+                $extra['error'] = 'query_interrupted';
+                return [
+                    'ok' => true,
+                    'processed' => $processed,
+                    'skipped' => $skipped,
+                    'message' => 'stem_partial_timeout',
+                    'extra' => $extra,
+                ];
+            }
+            throw $e;
         }
 
-        $message = 'stem_done';
+        $message = $timedOut ? 'stem_partial_timeout' : 'stem_done';
         if ($morphMessage === 'morph_unavailable') {
             $message = 'stem_done_morph_unavailable';
         }
@@ -443,17 +467,26 @@ final class StemRunner
         }
 
         $onlyAdmins = null;
-        $window = null;
+        $budget = (int)($opts['collect_time_budget_sec'] ?? 90);
+        $budget = max(10, min(300, $budget > 0 ? $budget : 90));
+        $window = ['time_budget_sec' => $budget];
         if ($dayRange !== null) {
             $dayKey = date('Y-m-d', $dayRange['start']);
             $onlyAdmins = self::adminIdsForDay($dayKey);
-            $window = [
-                'start' => $dayRange['start'],
-                'end' => $dayRange['end'],
-                'time_budget_sec' => (int)($opts['collect_time_budget_sec'] ?? 90),
-            ];
+            $window['start'] = $dayRange['start'];
+            $window['end'] = $dayRange['end'];
         } elseif ($adminFilter > 0) {
             $onlyAdmins = [$adminFilter];
+        } elseif (!$fullCollect && $processed > 0) {
+            // Idle stem after ASR: limit collect to admins touched in the recent lookback
+            // so we never open a full-table orphan sweep / all-admins rebuild.
+            $onlyAdmins = self::adminIdsForDay(date('Y-m-d'));
+            if ($onlyAdmins === []) {
+                $onlyAdmins = self::adminIdsForDay(date('Y-m-d', time() - 86400));
+            }
+            $dayStart = strtotime(date('Y-m-d 00:00:00'));
+            $window['start'] = (int)$dayStart;
+            $window['end'] = (int)$dayStart + 86400 - 1;
         }
 
         $coll = CollectRunner::run($fullCollect && $onlyAdmins === null, $onlyAdmins, $window);

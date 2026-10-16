@@ -37,8 +37,9 @@ final class CollectRunner
         $hasWindow = ($winStart > 0 && $winEnd >= $winStart);
 
         // Full-table orphan sweep is expensive on large instances (~1M+ rows).
-        // Skip on day-windowed reparse; cron/full rebuild still cleans.
-        if (!$hasWindow) {
+        // Only on explicit full rebuild — never on incremental stem/cron collect
+        // (shared hosting often kills long DELETE with MySQL 1317 → HTTP 500 HTML).
+        if ($fullRebuild && !$hasWindow) {
             $pdo->exec(
                 'DELETE FROM base_records_instances
                  WHERE ID_RECORD > 0 AND ID_RECORD NOT IN (SELECT ID FROM base_records)'

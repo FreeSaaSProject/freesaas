@@ -92,6 +92,17 @@ try {
     $result = StemRunner::run($opts);
     $http = ($result['message'] === 'stem_libs_unavailable') ? 503 : 200;
     JobRunner::jsonResponse($result, $http);
+} catch (Throwable $e) {
+    error_log('[audio/jobs/stem] ' . $e->getMessage());
+    $msg = $e->getMessage();
+    $timedOut = (strpos($msg, '1317') !== false || stripos($msg, 'interrupted') !== false);
+    JobRunner::jsonResponse([
+        'ok' => false,
+        'processed' => 0,
+        'skipped' => 0,
+        'message' => $timedOut ? 'query_interrupted' : 'stem_error',
+        'extra' => ['error' => $msg],
+    ], $timedOut ? 504 : 500);
 } finally {
     $lock->release();
 }
