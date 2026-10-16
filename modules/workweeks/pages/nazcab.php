@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
 
-if (!WorkweeksRepository::canAssign()) {
+if (!WorkweeksRepository::canNazcab()) {
     if ($wantsJson) {
         AgentHttp::error(t('workweeks.err.no_assign'), 403);
         return;
@@ -14,9 +14,7 @@ if (!WorkweeksRepository::canAssign()) {
 }
 
 $tablesOn = WorkweeksRepository::tablesActive();
-$badgesOn = class_exists('BadgeAssignmentsRepository', false)
-    && ModuleManager::isEnabled('audio')
-    && Database::tableExists('base_badge_assignments');
+$badgesOn = WorkweeksRepository::nazcabBadgesAvailable();
 if (!$tablesOn && !$badgesOn) {
     if ($wantsJson) {
         AgentHttp::error(t('workweeks.nazcab.err.tables_off'), 400);
@@ -99,24 +97,29 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['nazcab_action']
     }
 }
 
-// Multi-day matrix for badges; tables (sections) only on today's row in the view.
-$mode = trim((string)($_GET['day'] ?? $_GET['mode'] ?? 'all'));
+// Seniors (EVT_ASSIGN): multi-day matrix for badges; tables only on today's row.
+// Ordinary admins: today only — no period UI.
+$today = date('Y-m-d');
+$startTs = strtotime($today . ' 00:00:00') ?: time();
 $dayCount = 1;
-$startTs = strtotime(date('Y-m-d 00:00:00')) ?: time();
+$mode = $today;
 
-if ($mode === 'all') {
-    $dayCount = 30;
-} elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $mode)) {
-    // Anchor on requested day, but always include a forward window for badges.
-    $req = strtotime($mode . ' 00:00:00');
-    if ($req !== false) {
-        $startTs = min($startTs, (int)$req);
+if (WorkweeksRepository::canNazcabPeriod()) {
+    $mode = trim((string)($_GET['day'] ?? $_GET['mode'] ?? 'all'));
+    if ($mode === 'all') {
+        $dayCount = 30;
+    } elseif (preg_match('/^\d{4}-\d{2}-\d{2}$/', $mode)) {
+        // Anchor on requested day, but always include a forward window for badges.
+        $req = strtotime($mode . ' 00:00:00');
+        if ($req !== false) {
+            $startTs = min($startTs, (int)$req);
+        }
+        $dayCount = 30;
+        $mode = 'all';
+    } else {
+        $mode = 'all';
+        $dayCount = 30;
     }
-    $dayCount = 30;
-    $mode = 'all';
-} else {
-    $mode = 'all';
-    $dayCount = 30;
 }
 
 $matrix = WorkweeksRepository::nazcabMatrix((int)$startTs, $dayCount);

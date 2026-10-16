@@ -56,6 +56,7 @@ return [
     'workweeks.nazcab.title_all' => 'Столы и бейджи',
     'workweeks.nazcab.title_day' => 'Столы и бейджи',
     'workweeks.nazcab.lede' => 'Столы (секции) — только в строке «сегодня», если модуль tables включён. Бейджи можно задавать на весь период. Hidden-персонал не показывается.',
+    'workweeks.nazcab.lede_today' => 'Назначение столов и бейджей только на сегодня. Hidden-персонал не показывается.',
     'workweeks.nazcab.save' => 'Сохранить',
     'workweeks.nazcab.no_shifts' => 'В выбранном периоде нет назначений в графике',
     'workweeks.nazcab.table_none' => 'К+С',

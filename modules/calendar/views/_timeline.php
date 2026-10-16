@@ -34,18 +34,18 @@ $isDayView = count($dayColumns) === 1;
 $tlClass = 'calendar-tl' . ($isDayView ? ' calendar-tl--day' : ' calendar-tl--week');
 $canTables = !empty($canTables)
     || (
-        !empty($canAssign)
+        class_exists('WorkweeksRepository', false)
+        && WorkweeksRepository::canNazcab()
         && (
-            (class_exists('TablesRepository', false) && TablesRepository::isActive())
-            || (
-                class_exists('BadgeAssignmentsRepository', false)
-                && ModuleManager::isEnabled('audio')
-                && Database::tableExists('base_badge_assignments')
-            )
+            WorkweeksRepository::tablesActive()
+            || WorkweeksRepository::nazcabBadgesAvailable()
         )
     );
+$canTablesPeriod = $canTables
+    && class_exists('WorkweeksRepository', false)
+    && WorkweeksRepository::canNazcabPeriod();
 $tablesToday = date('Y-m-d');
-// Per-day «С» only on today (tables live there; badges use axis «all»).
+// Per-day «С» only on today. Axis «all» only for EVT_ASSIGN (multi-day badges).
 $renderShiftChip = static function (array $sh): string {
     $g = (int)($sh['group'] ?? 0);
     $gClass = 'calendar-tl-shift';
@@ -117,17 +117,23 @@ $renderShiftChip = static function (array $sh): string {
               }
           }
           ?>
-          <?php if ($anyManage): ?>
+          <?php if ($anyManage || $canTables): ?>
             <div class="calendar-tl-axis-marks">
-              <button type="button"
-                      class="calendar-tl-nazop-all"
-                      data-shift-open="all"
-                      title="<?= te('workweeks.nazop.title_all') ?>"><?= te('calendar.week.shifts_mark') ?></button>
+              <?php if ($anyManage): ?>
+                <button type="button"
+                        class="calendar-tl-nazop-all"
+                        data-shift-open="all"
+                        title="<?= te('workweeks.nazop.title_all') ?>"><?= te('calendar.week.shifts_mark') ?></button>
+              <?php else: ?>
+                <span class="calendar-tl-shifts-label"><?= te('calendar.week.shifts_mark') ?></span>
+              <?php endif; ?>
               <?php if ($canTables): ?>
                 <button type="button"
                         class="calendar-tl-nazop-all"
-                        data-table-open="all"
-                        title="<?= te('workweeks.nazcab.title_all') ?>"><?= te('workweeks.nazcab.mark') ?></button>
+                        data-table-open="<?= e($canTablesPeriod ? 'all' : $tablesToday) ?>"
+                        title="<?= $canTablesPeriod
+                            ? te('workweeks.nazcab.title_all')
+                            : te('workweeks.nazcab.open') ?>"><?= te('workweeks.nazcab.mark') ?></button>
               <?php endif; ?>
             </div>
           <?php else: ?>
@@ -139,6 +145,7 @@ $renderShiftChip = static function (array $sh): string {
           $day = $col['day'];
           $canManage = !empty($col['manage']);
           $dayIsToday = (string)($day['date'] ?? '') === $tablesToday;
+          $showTableBtn = $canTables && $dayIsToday;
           ?>
           <td>
             <?php if ($canManage): ?>
@@ -155,7 +162,7 @@ $renderShiftChip = static function (array $sh): string {
                     <span class="muted"><?= te('calendar.week.assign_hint') ?></span>
                   <?php endif; ?>
                 </button>
-                <?php if ($canTables && $dayIsToday): ?>
+                <?php if ($showTableBtn): ?>
                   <button type="button"
                           class="calendar-tl-table-open"
                           data-table-open="<?= e($tablesToday) ?>"
@@ -163,13 +170,21 @@ $renderShiftChip = static function (array $sh): string {
                 <?php endif; ?>
               </div>
             <?php else: ?>
-              <div class="calendar-tl-shifts">
-                <?php if (!empty($col['shifts'])): ?>
-                  <?php foreach ($col['shifts'] as $sh): ?>
-                    <?= $renderShiftChip($sh) ?>
-                  <?php endforeach; ?>
-                <?php else: ?>
-                  <span class="muted">—</span>
+              <div class="calendar-tl-shifts-cell">
+                <div class="calendar-tl-shifts">
+                  <?php if (!empty($col['shifts'])): ?>
+                    <?php foreach ($col['shifts'] as $sh): ?>
+                      <?= $renderShiftChip($sh) ?>
+                    <?php endforeach; ?>
+                  <?php else: ?>
+                    <span class="muted">—</span>
+                  <?php endif; ?>
+                </div>
+                <?php if ($showTableBtn): ?>
+                  <button type="button"
+                          class="calendar-tl-table-open"
+                          data-table-open="<?= e($tablesToday) ?>"
+                          title="<?= te('workweeks.nazcab.open') ?>"><?= te('workweeks.nazcab.mark') ?></button>
                 <?php endif; ?>
               </div>
             <?php endif; ?>

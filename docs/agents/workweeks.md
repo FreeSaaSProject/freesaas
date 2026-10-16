@@ -29,7 +29,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 - `/workweeks` — day shifts; `/workweeks/day/{date}` day embed.
 - `/workweeks/nazop` — who works / shift / M-MAX matrix (`EVT_ASSIGN`).
-- `/workweeks/nazcab` — multi-day matrix (~30 days): **tables/sections only on today’s row** (needs `tables`); **badges for the whole period** (soft `audio`). Hidden staff omitted. Calendar embeds via fragment dialog (`data-table-open`).
+- `/workweeks/nazcab` — multi-day matrix (~30 days): **tables/sections only on today’s row** (needs `tables`); **badges for the whole period** (soft `audio`). Hidden staff omitted. Calendar embeds via fragment dialog (`data-table-open`). Gate for ordinary admins: `tables.view` and/or `audio.view`|`audio.badges` — **not** `EVT_ASSIGN` (shift nazop stays senior). Route still needs `workweeks.view`.
 - `/workweeks/settings` — shift windows PRICE_COL 1–5 (superadmin).
 - Embedded in calendar day when calendar on.
 

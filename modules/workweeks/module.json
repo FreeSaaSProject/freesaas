@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.11",
+    "version": "0.2.14",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -49,7 +49,7 @@
                 "method": "GET",
                 "path": "/workweeks/nazcab",
                 "permission": "workweeks.view",
-                "description": "Nazcab: tables only for today; badges for multi-day range. POST table[today][opId] and badge[date][opId]. Requires EVT_ASSIGN; tables and/or audio"
+                "description": "Nazcab: tables only for today; badges multi-day. POST table[today][opId], badge[date][opId]. Gate: tables.view and/or audio.view|badges (not EVT_ASSIGN); route workweeks.view"
             },
             {
                 "id": "workweeks.list",

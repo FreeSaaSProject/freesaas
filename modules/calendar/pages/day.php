@@ -186,13 +186,9 @@ View::render('day', [
     'staffId' => $staffId,
     'staffLocked' => $myOnly,
     'canAssign' => $canAssign,
-    'canTables' => $canAssign && (
-        (class_exists('TablesRepository', false) && TablesRepository::isActive())
-        || (
-            class_exists('BadgeAssignmentsRepository', false)
-            && ModuleManager::isEnabled('audio')
-            && Database::tableExists('base_badge_assignments')
-        )
+    'canTables' => class_exists('WorkweeksRepository', false) && WorkweeksRepository::canNazcab() && (
+        WorkweeksRepository::tablesActive()
+        || WorkweeksRepository::nazcabBadgesAvailable()
     ),
     'shiftFlash' => $shiftFlash,
     'shiftError' => $shiftError,

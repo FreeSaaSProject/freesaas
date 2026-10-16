@@ -1120,10 +1120,7 @@ final class WorkweeksRepository
         if (!Auth::can('workweeks.edit')) {
             return false;
         }
-        if (Auth::capability('EVT_ASSIGN')) {
-            return true;
-        }
-        return !empty(Auth::statusFlags()['EVT_ASSIGN_MY']);
+        return self::hasAssignCapability();
     }
 
     public static function canAssignOperator(int $operatorId): bool
@@ -1135,6 +1132,54 @@ final class WorkweeksRepository
             return $operatorId > 0;
         }
         return $operatorId === Auth::userId();
+    }
+
+    /** EVT_ASSIGN (colleagues) or EVT_ASSIGN_MY (self only). */
+    public static function hasAssignCapability(): bool
+    {
+        if (Auth::capability('EVT_ASSIGN')) {
+            return true;
+        }
+        return !empty(Auth::statusFlags()['EVT_ASSIGN_MY']);
+    }
+
+    public static function nazcabBadgesAvailable(): bool
+    {
+        return class_exists('BadgeAssignmentsRepository', false)
+            && ModuleManager::isEnabled('audio')
+            && Database::tableExists('base_badge_assignments');
+    }
+
+    /**
+     * Nazcab (tables/badges) gate — independent of EVT_ASSIGN (shift schedule stays senior-only).
+     * Ordinary admins: tables.view and/or audio.view|audio.badges; seniors may use workweeks.edit.
+     */
+    public static function canNazcab(): bool
+    {
+        if (self::tablesActive() && Auth::can('tables.view')) {
+            return true;
+        }
+        if (self::nazcabBadgesAvailable()
+            && (Auth::can('audio.badges') || Auth::can('audio.view'))
+        ) {
+            return true;
+        }
+        // Fallback for staff who manage shifts but may lack tables.view.
+        return Auth::can('workweeks.edit') && self::hasAssignCapability();
+    }
+
+    /**
+     * Multi-day nazcab (badges ahead / «all» axis). Ordinary admins without EVT_ASSIGN: today only.
+     */
+    public static function canNazcabPeriod(): bool
+    {
+        return self::canNazcab() && Auth::capability('EVT_ASSIGN');
+    }
+
+    /** Who may appear / be saved in nazcab — any on-shift operator (not EVT_ASSIGN-scoped). */
+    public static function canNazcabOperator(int $operatorId): bool
+    {
+        return self::canNazcab() && $operatorId > 0;
     }
 
     /** Shared day URL helper for embeds and standalone UI. */
@@ -1523,7 +1568,7 @@ final class WorkweeksRepository
             $d = date('Y-m-d', (int)$dt);
             foreach ($rows as $row) {
                 $oid = (int)$row['id_operator'];
-                if ($oid < 1 || !self::canAssignOperator($oid)) {
+                if ($oid < 1 || !self::canNazcabOperator($oid)) {
                     continue;
                 }
                 // Hidden equipment staff: no table assignment, omit from nazcab columns.
@@ -1622,19 +1667,24 @@ final class WorkweeksRepository
      */
     public static function saveNazcabMatrix(array $tables, array $badges = []): string
     {
-        if (!self::canAssign()) {
+        if (!self::canNazcab()) {
             throw new RuntimeException(t('workweeks.err.no_assign'));
         }
         $tablesOn = self::tablesActive();
-        $canBadges = class_exists('BadgeAssignmentsRepository', false)
-            && ModuleManager::isEnabled('audio')
-            && Database::tableExists('base_badge_assignments');
+        $canBadges = self::nazcabBadgesAvailable();
         if (!$tablesOn && !$canBadges) {
             throw new RuntimeException(t('workweeks.nazcab.err.tables_off'));
         }
 
         $today = date('Y-m-d');
         $todayStart = (int)(strtotime($today . ' 00:00:00') ?: time());
+        $periodOk = self::canNazcabPeriod();
+        if (!$periodOk && $badges !== []) {
+            // Ordinary admins: badges for today only (ignore crafted multi-day POST).
+            $badges = isset($badges[$today]) && is_array($badges[$today])
+                ? [$today => $badges[$today]]
+                : [];
+        }
 
         $dateSet = [$today => true];
         foreach (array_keys($badges) as $d) {
@@ -1676,7 +1726,7 @@ final class WorkweeksRepository
             $todayMap = $existingByDate[$today] ?? [];
             foreach ($todayTables as $oid => $tidRaw) {
                 $oid = (int)$oid;
-                if ($oid < 1 || !self::canAssignOperator($oid) || !isset($todayMap[$oid])) {
+                if ($oid < 1 || !self::canNazcabOperator($oid) || !isset($todayMap[$oid])) {
                     continue;
                 }
                 $existing = $todayMap[$oid];
@@ -1741,7 +1791,7 @@ final class WorkweeksRepository
                 $dayStart = (int)strtotime($date . ' 00:00:00');
                 foreach ($byOp as $oid => $badge) {
                     $oid = (int)$oid;
-                    if ($oid < 1 || !self::canAssignOperator($oid) || !isset($existingByDate[$date][$oid])) {
+                    if ($oid < 1 || !self::canNazcabOperator($oid) || !isset($existingByDate[$date][$oid])) {
                         continue;
                     }
                     if (empty($audioOps[$oid])) {

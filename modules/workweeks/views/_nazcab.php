@@ -55,7 +55,9 @@ $tableOptionsHtml = static function (int $selected) use ($tableNames): string {
       <button type="submit" class="btn-primary btn-sm"><?= te('workweeks.nazcab.save') ?></button>
       <a class="btn-secondary btn-sm" href="<?= e($retUrl) ?>" data-nazcab-close><?= te('core.common.cancel') ?></a>
     </div>
-    <p class="muted nazop-lede"><?= te('workweeks.nazcab.lede') ?></p>
+    <p class="muted nazop-lede"><?= WorkweeksRepository::canNazcabPeriod()
+        ? te('workweeks.nazcab.lede')
+        : te('workweeks.nazcab.lede_today') ?></p>
   </div>
 
   <?php if ($operators === []): ?>

@@ -74,14 +74,14 @@ require __DIR__ . '/_timeline.php';
 
 <div id="calendar-info" class="calendar-info" hidden></div>
 
-<?php if ($canAssign): ?>
+<?php if ($canAssign || $canTables): ?>
 <dialog id="calendar-shift-dialog" class="calendar-shift-dialog">
   <div class="calendar-shift-dialog-bar">
-    <strong id="calendar-shift-dialog-title"><?= te('workweeks.nazop.title') ?></strong>
+    <strong id="calendar-shift-dialog-title"><?= $canAssign ? te('workweeks.nazop.title') : te('workweeks.nazcab.title') ?></strong>
     <button type="button" class="btn-secondary btn-sm" id="calendar-shift-dialog-close"><?= te('core.common.cancel') ?></button>
   </div>
   <div id="calendar-shift-dialog-body" class="calendar-shift-panel">
-    <p class="muted"><?= te('calendar.week.nazop_loading') ?></p>
+    <p class="muted"><?= $canAssign ? te('calendar.week.nazop_loading') : te('workweeks.nazcab.loading') ?></p>
   </div>
 </dialog>
 <?php endif; ?>
@@ -147,7 +147,7 @@ require __DIR__ . '/_timeline.php';
     hideInfo();
   });
 
-  <?php if ($canAssign): ?>
+  <?php if ($canAssign || $canTables): ?>
   var dlg = document.getElementById('calendar-shift-dialog');
   var body = document.getElementById('calendar-shift-dialog-body');
   var titleEl = document.getElementById('calendar-shift-dialog-title');
@@ -161,6 +161,20 @@ require __DIR__ . '/_timeline.php';
     else dlg.removeAttribute('open');
   }
 
+  if (closeBtn) closeBtn.addEventListener('click', closeDlg);
+  if (dlg) {
+    dlg.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest('[data-nazop-close]') || t.closest('[data-nazcab-close]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeDlg();
+      }
+    });
+  }
+
+  <?php if ($canAssign): ?>
   function syncUncheckedFromDefault(tr) {
     if (!tr) return;
     var def = tr.querySelector('select[name^="price["]');
@@ -263,18 +277,6 @@ require __DIR__ . '/_timeline.php';
       });
   }
 
-  if (closeBtn) closeBtn.addEventListener('click', closeDlg);
-  if (dlg) {
-    dlg.addEventListener('click', function (e) {
-      var t = e.target;
-      if (!t || !t.closest) return;
-      if (t.closest('[data-nazop-close]')) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeDlg();
-      }
-    });
-  }
   document.querySelectorAll('[data-shift-open]').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.preventDefault();
@@ -282,6 +284,11 @@ require __DIR__ . '/_timeline.php';
     });
   });
 
+  var auto = <?= json_encode($openShiftDay) ?>;
+  if (auto) loadNazop(auto, '');
+  <?php endif; ?>
+
+  <?php if ($canTables): ?>
   function bindNazcab(root) {
     if (!root) return;
     root.querySelectorAll('form.nazcab-form').forEach(function (form) {
@@ -344,26 +351,13 @@ require __DIR__ . '/_timeline.php';
       });
   }
 
-  if (dlg) {
-    dlg.addEventListener('click', function (e) {
-      var t = e.target;
-      if (!t || !t.closest) return;
-      if (t.closest('[data-nazcab-close]')) {
-        e.preventDefault();
-        e.stopPropagation();
-        closeDlg();
-      }
-    });
-  }
   document.querySelectorAll('[data-table-open]').forEach(function (btn) {
     btn.addEventListener('click', function (e) {
       e.preventDefault();
       loadNazcab(btn.getAttribute('data-table-open') || 'all');
     });
   });
-
-  var auto = <?= json_encode($openShiftDay) ?>;
-  if (auto) loadNazop(auto, '');
+  <?php endif; ?>
   <?php endif; ?>
 })();
 </script>

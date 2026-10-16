@@ -56,6 +56,7 @@ return [
     'workweeks.nazcab.title_all' => 'Tables and badges',
     'workweeks.nazcab.title_day' => 'Tables and badges',
     'workweeks.nazcab.lede' => 'Massage tables (sections) only on today’s row when the tables module is on. Badges can be set for the whole period. Hidden staff are omitted.',
+    'workweeks.nazcab.lede_today' => 'Tables and badges for today only. Hidden staff are omitted.',
     'workweeks.nazcab.save' => 'Save',
     'workweeks.nazcab.no_shifts' => 'No shifts in the selected period',
     'workweeks.nazcab.table_none' => 'K+S',
