@@ -8,12 +8,16 @@ DirectorySlash Off
   RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
   # Shared-tree storefront hosts (ISPmanager often has no vhost SetEnv).
-  # Applies only when this docroot serves the request — safe to list production
-  # names before cutover; live PHPShop keeps its own tree until symlink/DNS flip.
   # Admin: freesaas.likespa.ru (and www) stay unset → index.php.
-  RewriteCond %{HTTP_HOST} ^(?:www\.)?(?:fs-like|fs-bal)\.likespa\.ru\.?$ [NC,OR]
   RewriteCond %{HTTP_HOST} ^(?:www\.)?(?:likespa\.ru|balance-spa\.ru)\.?$ [NC]
   RewriteRule ^ - [E=FREESAAS_FRONT:site]
+
+  # `/` is a real directory — rewrite !-d does not run; DirectoryIndex may be wrong
+  # (ISPmanager often puts site.php first on every WWW). Force front controller by role.
+  RewriteCond %{ENV:FREESAAS_FRONT} ^site$ [NC]
+  RewriteRule ^$ site.php [L,QSA]
+  RewriteCond %{ENV:FREESAAS_FRONT} !^site$ [NC]
+  RewriteRule ^$ index.php [L,QSA]
 
   # Allow static assets shipped inside modules (css/js/images/fonts only).
   RewriteCond %{REQUEST_FILENAME} -f
