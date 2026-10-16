@@ -165,9 +165,21 @@ EventBus::on('calendar.day.stats', static function ($payload) {
             if ($myOnly && $isAdminLine) {
                 continue;
             }
-            $text = (int)$op['proc_count'] . t('procedures.stats.proc_unit');
-            if ($isSuper && (float)$op['summ'] > 0) {
-                $text .= ' [' . number_format((float)$op['summ'], 0, '.', '') . ']';
+            // Performer count (ID_OPERATOR); if none, desk/terminal count (ID_ADMIN).
+            // Omit "0п" — show only pay bits / load when there are no procedures yet.
+            $procShown = (int)($op['proc_count'] ?? 0);
+            $summShown = (float)($op['summ'] ?? 0);
+            if ($procShown < 1 && (int)($op['admin_proc_count'] ?? 0) > 0) {
+                $procShown = (int)$op['admin_proc_count'];
+                $summShown = (float)($op['admin_summ'] ?? 0);
+            }
+            $parts = [];
+            if ($procShown > 0) {
+                $part = $procShown . t('procedures.stats.proc_unit');
+                if ($isSuper && $summShown > 0) {
+                    $part .= ' [' . number_format($summShown, 0, '.', '') . ']';
+                }
+                $parts[] = $part;
             }
             $loadPct = null;
             $loadMin = false;
@@ -175,33 +187,48 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                 $loadPct = (int)$loads[$oid]['pct'];
                 $loadMin = !empty($loads[$oid]['is_min']);
                 // Load % is for team balancing — visible without money capability.
-                $text .= ' ' . $loadPct . '%';
+                $parts[] = $loadPct . '%';
             }
             if (!$isEquipment && $p && ($canMoney || $isSuper)) {
+                // Oper: Ф30+Т140+А1316=1486 (sum when more than one element).
                 $bits = [];
+                $bitAmounts = [];
+                $pushBit = static function (string $label, float $amount) use (&$bits, &$bitAmounts): void {
+                    $n = (int)round($amount);
+                    if ($n === 0 && $amount == 0.0) {
+                        return;
+                    }
+                    $bits[] = $label . $n;
+                    $bitAmounts[] = $n;
+                };
                 if ((float)$p['salary_fix'] > 0) {
-                    $bits[] = 'Ф' . (int)round((float)$p['salary_fix']);
+                    $pushBit('Ф', (float)$p['salary_fix']);
                 }
                 if ((float)$p['salary'] > 0 && $isSuper) {
-                    $bits[] = (string)(int)round((float)$p['salary']);
+                    $pushBit('', (float)$p['salary']);
                 }
                 if ((float)$p['salary_terminal'] > 0) {
-                    $bits[] = 'Т' . (int)round((float)$p['salary_terminal']);
+                    $pushBit('Т', (float)$p['salary_terminal']);
                 }
                 if ((float)$p['salary_sales'] > 0) {
-                    $bits[] = 'П' . (int)round((float)$p['salary_sales']);
+                    $pushBit('П', (float)$p['salary_sales']);
                 }
                 if ((float)($p['salary_audio'] ?? 0) > 0) {
-                    $bits[] = 'А' . (int)round((float)$p['salary_audio']);
+                    $pushBit('А', (float)($p['salary_audio'] ?? 0));
                 }
                 if ((float)($p['salary_scripts'] ?? 0) > 0) {
-                    $bits[] = 'С' . (int)round((float)$p['salary_scripts']);
+                    $pushBit('С', (float)($p['salary_scripts'] ?? 0));
                 }
                 if ($bits) {
-                    $text .= ' ' . t('procedures.stats.salary_abbr') . ' ' . implode('+', $bits);
+                    $bitsText = implode('+', $bits);
+                    if (count($bits) > 1) {
+                        $bitsText .= '=' . (int)array_sum($bitAmounts);
+                    }
+                    $parts[] = t('procedures.stats.salary_abbr') . ' ' . $bitsText;
                 }
                 $salaryTotal += (float)$p['total'];
             }
+            $text = implode(' ', $parts);
             $c = $colors[$oid] ?? null;
             $lines[] = [
                 'acronym' => (string)$op['acronym'],

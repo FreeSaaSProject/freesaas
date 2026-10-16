@@ -51,4 +51,4 @@ curl -sS -b jar.txt 'https://example/rates?format=json'
 
 - Requires `procedures`.
 - Soft audio (when `audio` enabled / `base_records` present): `AUDIO_HOUR_RATE` (rub/hour) and `SCRIPT_SCORE_RATE` (rub per collection `SCORE` point) on `base_procent_history`. Consumed by `procents`.
-- `LOSS_FIX` UI label = fixed pay per shift; accrued in `procents` as shifts × rate (`PRICE_COL=3` / I+II = 2).
+- `LOSS_FIX` UI label = fixed pay per shift; accrued in `procents` as shifts × rate (composite window e.g. I+II = 2 via `WorkweeksRepository::shiftPayUnits`; optional `shift_N_units` in workweeks.ini).

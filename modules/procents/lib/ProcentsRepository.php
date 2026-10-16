@@ -466,14 +466,15 @@ final class ProcentsRepository
     private static function shiftUnitsMulti(array $operatorIds, int $start, int $end): array
     {
         $out = [];
-        if ($operatorIds === [] || $end < $start || !Database::tableExists('base_workweeks')) {
+        // Half-open [start, end) — same as calendar day / dayColumnStats (end = next midnight).
+        if ($operatorIds === [] || $end <= $start || !Database::tableExists('base_workweeks')) {
             return $out;
         }
         $placeholders = implode(',', array_fill(0, count($operatorIds), '?'));
         $params = array_merge($operatorIds, [$start, $end]);
         $st = Database::pdo()->prepare(
             "SELECT ID_OPERATOR AS oid, PRICE_COL AS price_col FROM base_workweeks
-             WHERE ID_OPERATOR IN ($placeholders) AND DT >= ? AND DT <= ?"
+             WHERE ID_OPERATOR IN ($placeholders) AND DT >= ? AND DT < ?"
         );
         $st->execute($params);
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
@@ -482,10 +483,14 @@ final class ProcentsRepository
                 continue;
             }
             $pc = (int)($row['price_col'] ?? 0);
-            if ($pc === 3) {
-                $out[$oid] = ($out[$oid] ?? 0.0) + 2.0;
-            } elseif ($pc > 0) {
-                $out[$oid] = ($out[$oid] ?? 0.0) + 1.0;
+            if ($pc < 1) {
+                continue;
+            }
+            $units = class_exists(WorkweeksRepository::class, false)
+                ? WorkweeksRepository::shiftPayUnits($pc)
+                : 1.0;
+            if ($units > 0.0) {
+                $out[$oid] = ($out[$oid] ?? 0.0) + $units;
             }
         }
         return $out;
@@ -539,7 +544,7 @@ final class ProcentsRepository
     }
 
     /**
-     * Fixed pay per shift: LOSS_FIX × shift units (PRICE_COL=3 / I+II counts as 2).
+     * Fixed pay per shift: LOSS_FIX × shift units (I+II / composite window = 2 via workweeks).
      *
      * @param array<string,mixed> $rates
      * @return array{rows:list<array<string,mixed>>,salary_fix:float,units:float}
@@ -572,26 +577,27 @@ final class ProcentsRepository
     }
 
     /**
-     * Oper: PRICE_COL=3 (I+II) → 2 units; any other PRICE_COL>0 → 1 unit.
+     * Shift pay units for [start, end): workweeks.shiftPayUnits (composite I+II → 2).
      */
     private static function shiftUnits(int $operatorId, int $start, int $end): float
     {
-        if ($operatorId < 1 || $end < $start || !Database::tableExists('base_workweeks')) {
+        if ($operatorId < 1 || $end <= $start || !Database::tableExists('base_workweeks')) {
             return 0.0;
         }
         $st = Database::pdo()->prepare(
             'SELECT PRICE_COL AS price_col FROM base_workweeks
-             WHERE ID_OPERATOR = ? AND DT >= ? AND DT <= ?'
+             WHERE ID_OPERATOR = ? AND DT >= ? AND DT < ?'
         );
         $st->execute([$operatorId, $start, $end]);
         $units = 0.0;
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
             $pc = (int)($row['price_col'] ?? 0);
-            if ($pc === 3) {
-                $units += 2.0;
-            } elseif ($pc > 0) {
-                $units += 1.0;
+            if ($pc < 1) {
+                continue;
             }
+            $units += class_exists(WorkweeksRepository::class, false)
+                ? WorkweeksRepository::shiftPayUnits($pc)
+                : 1.0;
         }
         return $units;
     }

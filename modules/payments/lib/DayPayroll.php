@@ -176,9 +176,9 @@ final class DayPayroll
         $dayEnd = $dayStart + 86400;
         $stats = ProceduresRepository::dayColumnStats($dayStart, $dayEnd, $userId);
         $operators = is_array($stats['operators'] ?? null) ? $stats['operators'] : [];
-        if ($operators === [] && !isset($operators[$userId])) {
-            // Still compute shift-fix / audio for staff with no procedures that day.
-            $operators = [$userId => ['sums_by_type' => []]];
+        // Still compute shift-fix / audio for staff with no procedures that day.
+        if (!isset($operators[$userId]) && class_exists(ProceduresDayLoad::class, false)) {
+            $operators[$userId] = ProceduresDayLoad::operatorStub($userId);
         } elseif (!isset($operators[$userId])) {
             $operators[$userId] = ['sums_by_type' => []];
         }

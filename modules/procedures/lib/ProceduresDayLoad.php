@@ -45,6 +45,10 @@ final class ProceduresDayLoad
 
         $stats = ProceduresRepository::dayColumnStats($tsStart, $tsEnd, $staffKey > 0 ? $staffKey : null);
         $operators = is_array($stats['operators'] ?? null) ? $stats['operators'] : [];
+        // Desk admins on shift with LOSS_FIX but no ID_OPERATOR procs still need a pay row.
+        $operators = self::seedShiftStaff($operators, $tsStart, $staffKey > 0 ? $staffKey : null);
+        $stats['operators'] = $operators;
+
         $pay = [];
         $loads = [];
         if ($operators !== []
@@ -52,6 +56,18 @@ final class ProceduresDayLoad
             && ModuleManager::isEnabled('procents')
         ) {
             $pay = ProcentsRepository::dayStaffPay($tsStart, $tsEnd, $operators);
+            // Drop shift-only stubs with no accrual (avoid bare "0пр" footer lines).
+            foreach ($operators as $oid => $op) {
+                if ((int)($op['proc_count'] ?? 0) > 0
+                    || (int)($op['admin_proc_count'] ?? 0) > 0
+                ) {
+                    continue;
+                }
+                if (!isset($pay[$oid])) {
+                    unset($operators[$oid]);
+                }
+            }
+            $stats['operators'] = $operators;
             $loads = self::loadsFromPay($operators, $pay);
         }
 
@@ -60,6 +76,93 @@ final class ProceduresDayLoad
             'pay' => $pay,
             'loads' => $loads,
         ];
+    }
+
+    /**
+     * Empty day-stats operator row (no procedures) for fix/audio/terminal pay accrual.
+     *
+     * @return array{
+     *   id:int,label:string,acronym:string,is_hidden:bool,ID_STATUS:int,
+     *   summ:float,proc_count:int,promo_count:int,sums_by_type:array<int,float>
+     * }
+     */
+    public static function operatorStub(
+        int $oid,
+        string $label = '',
+        bool $isHidden = false,
+        int $idStatus = 0
+    ): array {
+        if ($oid < 1) {
+            return [
+                'id' => 0,
+                'label' => '',
+                'acronym' => '',
+                'is_hidden' => false,
+                'ID_STATUS' => 0,
+                'summ' => 0.0,
+                'proc_count' => 0,
+                'promo_count' => 0,
+                'sums_by_type' => [],
+                'admin_proc_count' => 0,
+                'admin_summ' => 0.0,
+            ];
+        }
+        if ($label === '') {
+            $label = '#' . $oid;
+        }
+        return [
+            'id' => $oid,
+            'label' => $label,
+            'acronym' => class_exists('CalendarTimeline', false)
+                ? CalendarTimeline::acronym($label)
+                : mb_strtoupper(mb_substr($label, 0, 1, 'UTF-8'), 'UTF-8'),
+            'is_hidden' => $isHidden,
+            'ID_STATUS' => $idStatus,
+            'summ' => 0.0,
+            'proc_count' => 0,
+            'promo_count' => 0,
+            'sums_by_type' => [],
+            'admin_proc_count' => 0,
+            'admin_summ' => 0.0,
+        ];
+    }
+
+    /**
+     * Union workweeks day-shift staff into operators (empty stubs when no procedures).
+     *
+     * @param array<int,array<string,mixed>> $operators
+     * @return array<int,array<string,mixed>>
+     */
+    public static function seedShiftStaff(array $operators, int $dayStart, ?int $staffFilter = null): array
+    {
+        if ($dayStart <= 0
+            || !class_exists(WorkweeksRepository::class, false)
+            || !ModuleManager::isEnabled('workweeks')
+            || !Database::tableExists('base_workweeks')
+        ) {
+            return $operators;
+        }
+        $filter = ($staffFilter !== null && $staffFilter > 0) ? (int)$staffFilter : 0;
+        foreach (WorkweeksRepository::listForDay($dayStart) as $sh) {
+            $oid = (int)($sh['id_operator'] ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            if ($filter > 0 && $oid !== $filter) {
+                continue;
+            }
+            if (isset($operators[$oid])) {
+                continue;
+            }
+            $name = trim((string)($sh['operator_name'] ?? ''));
+            $operators[$oid] = self::operatorStub(
+                $oid,
+                $name,
+                (int)($sh['is_hidden'] ?? 0) > 0,
+                (int)($sh['ID_STATUS'] ?? 0)
+            );
+        }
+        return $operators;
     }
 
     /**

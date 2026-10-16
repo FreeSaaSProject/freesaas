@@ -720,12 +720,17 @@ final class ProceduresRepository
         }
 
         $joins = '';
-        $nameCols = 'NULL AS operator_name, NULL AS is_hidden, 0 AS ID_STATUS';
+        $nameCols = 'NULL AS operator_name, NULL AS is_hidden, 0 AS ID_STATUS,
+                     NULL AS admin_name, 0 AS admin_is_hidden, 0 AS admin_id_status';
         if (Database::tableExists('base_users')) {
-            $joins = ' LEFT JOIN base_users u ON u.id = p.ID_OPERATOR';
+            $joins = ' LEFT JOIN base_users u ON u.id = p.ID_OPERATOR
+                       LEFT JOIN base_users ua ON ua.id = p.ID_ADMIN';
             $nameCols = "COALESCE(NULLIF(u.name, ''), u.login) AS operator_name,
                          COALESCE(u.IS_HIDDEN, 0) AS is_hidden,
-                         COALESCE(u.ID_STATUS, 0) AS ID_STATUS";
+                         COALESCE(u.ID_STATUS, 0) AS ID_STATUS,
+                         COALESCE(NULLIF(ua.name, ''), ua.login) AS admin_name,
+                         COALESCE(ua.IS_HIDDEN, 0) AS admin_is_hidden,
+                         COALESCE(ua.ID_STATUS, 0) AS admin_id_status";
         }
 
         $st = Database::pdo()->prepare(
@@ -746,30 +751,35 @@ final class ProceduresRepository
         $procCount = 0;
         $promoCount = 0;
 
+        $ensureOp = static function (array &$ops, int $uid, string $name, bool $isHidden, int $idStatus): void {
+            if ($uid < 1 || isset($ops[$uid])) {
+                return;
+            }
+            $name = trim($name);
+            if ($name === '') {
+                $name = '#' . $uid;
+            }
+            $ops[$uid] = [
+                'id' => $uid,
+                'label' => $name,
+                'acronym' => class_exists('CalendarTimeline', false)
+                    ? CalendarTimeline::acronym($name)
+                    : mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8'),
+                'is_hidden' => $isHidden,
+                'ID_STATUS' => $idStatus,
+                'summ' => 0.0,
+                'proc_count' => 0,
+                'promo_count' => 0,
+                'sums_by_type' => [],
+                // Procedures where this user is ID_ADMIN (desk/terminal) — display + seed.
+                'admin_proc_count' => 0,
+                'admin_summ' => 0.0,
+            ];
+        };
+
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
             $oid = (int)($row['id_operator'] ?? 0);
-            if ($oid < 1) {
-                continue;
-            }
-            if (!isset($ops[$oid])) {
-                $name = trim((string)($row['operator_name'] ?? ''));
-                if ($name === '') {
-                    $name = '#' . $oid;
-                }
-                $ops[$oid] = [
-                    'id' => $oid,
-                    'label' => $name,
-                    'acronym' => class_exists('CalendarTimeline', false)
-                        ? CalendarTimeline::acronym($name)
-                        : mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8'),
-                    'is_hidden' => (int)($row['is_hidden'] ?? 0) > 0,
-                    'ID_STATUS' => (int)($row['ID_STATUS'] ?? 0),
-                    'summ' => 0.0,
-                    'proc_count' => 0,
-                    'promo_count' => 0,
-                    'sums_by_type' => [],
-                ];
-            }
+            $aid = (int)($row['id_admin'] ?? 0);
             $sum = (float)($row['summ'] ?? 0);
             $rest = (int)($row['restored'] ?? 0);
             $onec = trim((string)($row['onec_id'] ?? ''));
@@ -783,15 +793,42 @@ final class ProceduresRepository
                 continue;
             }
 
-            $ops[$oid]['summ'] += $sum;
-            $ops[$oid]['proc_count']++;
-            $ops[$oid]['sums_by_type'][$tid] = ($ops[$oid]['sums_by_type'][$tid] ?? 0.0) + $sum;
-            $revenue += $sum;
-            $procCount++;
-            $def = (float)($row['summ_default'] ?? 0);
-            if ($def > 0 && abs($sum - $def) > 0.01) {
-                $ops[$oid]['promo_count']++;
-                $promoCount++;
+            // Performer column (ID_OPERATOR): revenue + commission base.
+            if ($oid > 0) {
+                $ensureOp(
+                    $ops,
+                    $oid,
+                    (string)($row['operator_name'] ?? ''),
+                    (int)($row['is_hidden'] ?? 0) > 0,
+                    (int)($row['ID_STATUS'] ?? 0)
+                );
+                $ops[$oid]['summ'] += $sum;
+                $ops[$oid]['proc_count']++;
+                $ops[$oid]['sums_by_type'][$tid] = ($ops[$oid]['sums_by_type'][$tid] ?? 0.0) + $sum;
+                $revenue += $sum;
+                $procCount++;
+                $def = (float)($row['summ_default'] ?? 0);
+                if ($def > 0 && abs($sum - $def) > 0.01) {
+                    $ops[$oid]['promo_count']++;
+                    $promoCount++;
+                }
+            }
+
+            // Desk/terminal column (ID_ADMIN): count only — pay uses separate ID_ADMIN sums.
+            if ($aid > 0) {
+                $ensureOp(
+                    $ops,
+                    $aid,
+                    (string)($row['admin_name'] ?? ''),
+                    (int)($row['admin_is_hidden'] ?? 0) > 0,
+                    (int)($row['admin_id_status'] ?? 0)
+                );
+                if (!isset($ops[$aid]['admin_proc_count'])) {
+                    $ops[$aid]['admin_proc_count'] = 0;
+                    $ops[$aid]['admin_summ'] = 0.0;
+                }
+                $ops[$aid]['admin_proc_count']++;
+                $ops[$aid]['admin_summ'] += $sum;
             }
         }
 

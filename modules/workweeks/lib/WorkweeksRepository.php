@@ -473,6 +473,52 @@ final class WorkweeksRepository
     }
 
     /**
+     * Payroll units for LOSS_FIX (and similar): single lane = 1, composite covering ≥2 shorter lanes = 2.
+     * Override per slot via cfg workweeks.shift_N_units (no PRICE_COL hardcode).
+     */
+    public static function shiftPayUnits(int $priceCol): float
+    {
+        $priceCol = max(1, min(5, $priceCol));
+        $cfg = trim((string)Config::get('workweeks', 'shift_' . $priceCol . '_units', ''));
+        if ($cfg !== '') {
+            $u = (float)str_replace(',', '.', $cfg);
+            return $u > 0.0 ? $u : 0.0;
+        }
+        $windows = self::shiftWindows();
+        $self = $windows[$priceCol] ?? null;
+        if ($self === null) {
+            return 1.0;
+        }
+        $selfStart = self::hmToMinutes((string)$self['start']);
+        $selfEnd = self::hmToMinutes((string)$self['end']);
+        $selfDur = $selfEnd - $selfStart;
+        if ($selfDur <= 0) {
+            return 1.0;
+        }
+        // Composite (e.g. I+II): window fully contains ≥2 shorter sibling windows.
+        $covered = 0;
+        for ($n = 1; $n <= 5; $n++) {
+            if ($n === $priceCol) {
+                continue;
+            }
+            $other = $windows[$n] ?? null;
+            if ($other === null) {
+                continue;
+            }
+            $os = self::hmToMinutes((string)$other['start']);
+            $oe = self::hmToMinutes((string)$other['end']);
+            $otherDur = $oe - $os;
+            if ($otherDur <= 0 || $otherDur >= $selfDur) {
+                continue;
+            }
+            if ($selfStart <= $os && $selfEnd >= $oe) {
+                $covered++;
+            }
+        }
+        return $covered >= 2 ? 2.0 : 1.0;
+    }
+
+    /**
      * Absolute start/end timestamps for a PRICE_COL on a calendar day (00:00 of day).
      *
      * @return array{start:int,end:int,label:string}|null
@@ -529,6 +575,15 @@ final class WorkweeksRepository
             return sprintf('%02d:%02d', $h, $min);
         }
         return $fallback;
+    }
+
+    /** Minutes from midnight for HH:MM (invalid → 0). */
+    private static function hmToMinutes(string $hm): int
+    {
+        if (!preg_match('/^(\d{1,2}):(\d{2})$/', trim($hm), $m)) {
+            return 0;
+        }
+        return max(0, min(23, (int)$m[1])) * 60 + max(0, min(59, (int)$m[2]));
     }
 
     /** Chip label suffix like oper (assist always shows lane; others when PRICE_COL>1). */

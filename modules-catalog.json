@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-16T07:10:57+00:00",
+    "generated_at": "2026-10-16T07:33:37+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1021,7 +1021,7 @@
         },
         {
             "id": "payments",
-            "version": "0.1.13",
+            "version": "0.1.14",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1118,7 +1118,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.9",
+            "version": "0.1.12",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1140,7 +1140,8 @@
             "optionalRequires": {
                 "tables": ">=0.1.0",
                 "bots": ">=0.1.0",
-                "procents": ">=0.1.0"
+                "procents": ">=0.1.0",
+                "workweeks": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1152,7 +1153,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.7",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1598,7 +1599,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.6",
+            "version": "0.2.7",
             "type": "product",
             "name": {
                 "en": "Shifts",
