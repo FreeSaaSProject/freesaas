@@ -299,7 +299,8 @@ final class OnecClient
         }
         $timeSec = (int)($timeRes['time'] ?? 0);
 
-        // Spending ceiling for /t cart: debt_detail.Limit (Volga Termy). client_by_id has no Balance.
+        // Oper parity: debt_detail Limit − TotalCost (procedures already on the ticket).
+        // client_by_id has no Balance on Volga Termy.
         $debt = self::request('GET', $base . '/debt_detail/?client_id=' . rawurlencode($clientId), $cfg);
         $limit = 0.0;
         $totalCost = 0.0;
@@ -318,15 +319,15 @@ final class OnecClient
                 }
             }
         }
-        $balance = $limit;
-        if ($balance <= 0.0) {
-            if (isset($detailData['Balance'])) {
-                $balance = (float)$detailData['Balance'];
-            } elseif (isset($detailData['balance'])) {
-                $balance = (float)$detailData['balance'];
-            } elseif (isset($detailData[4]) && is_numeric($detailData[4])) {
-                $balance = (float)$detailData[4];
-            }
+        $balance = 0.0;
+        if ($limit > 0.0) {
+            $balance = max(0.0, $limit - $totalCost);
+        } elseif (isset($detailData['Balance'])) {
+            $balance = (float)$detailData['Balance'];
+        } elseif (isset($detailData['balance'])) {
+            $balance = (float)$detailData['balance'];
+        } elseif (isset($detailData[4]) && is_numeric($detailData[4])) {
+            $balance = (float)$detailData[4];
         }
 
         return [
@@ -336,6 +337,7 @@ final class OnecClient
             'ticket_name' => $ticketName,
             'time' => $timeSec,
             'balance' => $balance,
+            'debt_limit' => $limit,
             'debt_total' => $totalCost,
             'phone' => (string)($detailData['phone'] ?? $detailData['Phone'] ?? $cardRow['phone'] ?? ''),
             'data' => $detailData !== [] ? $detailData : $cardRow,
