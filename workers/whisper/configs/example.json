@@ -1,0 +1,50 @@
+{
+  "server": "https://freesaas.example.tld",
+  "ftp_server": "https://files.example.tld",
+  "worker_token": "CHANGE_ME",
+  "endpoints": {
+    "get_file": "/audio/asr/claim",
+    "save_result": "/audio/asr/result",
+    "analytics": "/audio/jobs/stem"
+  },
+  "analytics": {
+    "max_runs_per_idle": 2,
+    "min_interval_sec": 300
+  },
+  "whisper": {
+    "host": "127.0.0.1",
+    "port": 17871,
+    "down_recheck_sec": 2.0,
+    "auto_novad_fallback": true,
+    "start_script": "start_whisper_server.sh",
+    "health_wait_sec": 180,
+    "restart_settle_sec": 2.0,
+    "form_params": {
+      "language": "ru",
+      "task": "transcribe",
+      "response_format": "srt",
+      "temperature": "0.0",
+      "temperature_inc": "0.0"
+    }
+  },
+  "garbage_detection": {
+    "min_letters": 15,
+    "cjk_ratio": 0.12,
+    "min_cjk_chars": 22,
+    "retry_temperatures": [0.1, 0.28]
+  },
+  "loop": {
+    "sleep_seconds_idle": 180,
+    "sleep_seconds_run": 1,
+    "sleep_hour": 24
+  },
+  "max": {
+    "token": "",
+    "chat_id": "",
+    "notify": {
+      "whisper_down": true,
+      "recognition_summary": true,
+      "novad_fallback": true
+    }
+  }
+}

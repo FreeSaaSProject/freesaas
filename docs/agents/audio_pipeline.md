@@ -59,19 +59,52 @@ curl -sS -b jar.txt 'https://example/audio/asr/chunk-claim?format=json'
 - Requires `asr` + `audio` + `audio_dicts`.
 - Worker endpoints use `X-Audio-Token` (generate on `/audio/settings` → cfg/modules/asr.ini).
 
-## Whisper cabin worker (replaces oper `gens/getFileName.php`)
+## Whisper cabin worker (oper → FreeSaaS)
 
-Handoff for updating an external Mac/Whisper pull worker:
+**Deploy the in-repo client:** [whisper-worker.md](whisper-worker.md) (`workers/whisper/`).
+
+Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 
 | Oper (old) | FreeSaaS (new) |
 |------------|----------------|
-| `GET https://oper…/gens/getFileName.php` | `GET https://<host>/audio/asr/claim` |
-| save transcript (`saveFileDescription`) | `POST https://<host>/audio/asr/result` |
-| (chunk mode if used) | `GET /audio/asr/chunk-claim`, `POST /audio/asr/chunk-result` |
+| `GET …/gens/getFileName.php` | `GET /audio/asr/claim` |
+| save transcript (`saveFileDescription`) | `POST /audio/asr/result` |
+| chunk claim / result (if used) | `GET /audio/asr/chunk-claim`, `POST /audio/asr/chunk-result` |
+| `recordParser.php` (inbox → records) | `POST /audio/jobs/ingest` |
+| **`recordParser3.php` (keys / morph / score)** | **`POST /audio/jobs/stem`** |
+| `recordCollector` (script collections) | included by stem (`collect=1` default); alone: `POST /audio/jobs/collect` |
 
-- Auth: header `X-Audio-Token: <token>` (or `?token=` / POST `token`). Token from `/audio/settings` (auto-created if missing; copy once).
+### Auth
+
+- Header `X-Audio-Token: <token>` (or `?token=` / POST `token`).
+- Token from `/audio/settings` (auto-created if missing; copy once) → `cfg/modules/asr.ini` `[asr] worker_token`.
+
+### Claim / result
+
 - Claim response: **plain text** filename or `None` (same as oper). Optional `?format=json` → `{"ok":true,"claim":"…"}`.
 - Result POST fields: `file_name`, `result`; optional `PLAYTIME`, `VOLUME`.
-- Not part of `/cron/tick` — worker polls FreeSaaS itself.
-- Smoke: `curl -sS -H "X-Audio-Token: …" 'https://<host>/audio/asr/claim'`
-- Messenger voice queue is separate: `/asr/voice-transcribe/worker` (same token).
+- ASR claim/result are **not** part of `/cron/tick` — the Whisper worker polls FreeSaaS itself.
+
+### After ASR (instead of `recordParser3.php`)
+
+Call stem — picks up records with `DT_TRANSCRIBED > 1`, builds instances/keys, then collect/score:
+
+```bash
+curl -sS -H "X-Audio-Token: …" 'https://<host>/audio/jobs/stem'
+```
+
+- Not required after every file: stem is a **batch** job. Periodic poll (host cron, worker loop, or platform `/cron/tick` if registered) is enough.
+- Optional filters: `day=YYYY-MM-DD`, `admin=` / `idAdmin=`, `record=` / `idRecord=`, `limit=`, `reset=1` (day or record required).
+- `collect=0` skips script collections; default `collect=1` runs CollectRunner (oper recordCollector parity).
+- Day Re-® in UI = stem with reset for that day.
+
+### Smoke
+
+```bash
+curl -sS -H "X-Audio-Token: …" 'https://<host>/audio/asr/claim'
+curl -sS -H "X-Audio-Token: …" 'https://<host>/audio/jobs/stem'
+```
+
+Messenger voice queue is separate: `/asr/voice-transcribe/worker` (same token).
+
+Full Mac/GPU install (venv, config, whisper.cpp, smoke): [whisper-worker.md](whisper-worker.md).

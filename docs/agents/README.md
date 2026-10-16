@@ -40,6 +40,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [clientics.md](clientics.md) | Clientics pull: settings tokens, session ping, day import, webhook |
 | [cron.md](cron.md) | Platform hard cron: `/cron/tick`, `Cron::register`, journal |
 | [debugging.md](debugging.md) | Health, blocked modules, workers |
+| [whisper-worker.md](whisper-worker.md) | Mac/GPU Whisper cabin pull client (`workers/whisper/`) |
 | [core.md](core.md) | Platform core: users, news, modules, help (`core.help.*`) |
 | [cases/](cases/) | Reproducible agent scenario benchmarks |
 | [../skills/](../skills/) | Short agent skills (create-module, diagnose, …) |

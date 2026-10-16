@@ -101,6 +101,7 @@ final class AsrService
 
         // Worker sometimes posts error text as if it were a transcript.
         $asrNoise = class_exists('TranscriptGarbage', false)
+            && is_callable(['TranscriptGarbage', 'isAsrErrorTranscription'])
             && TranscriptGarbage::isAsrErrorTranscription($result);
         if ($asrNoise) {
             $result = '';

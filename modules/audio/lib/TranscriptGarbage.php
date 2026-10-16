@@ -66,6 +66,56 @@ final class TranscriptGarbage
     }
 
     /**
+     * True when a worker posted an error marker as if it were a transcript
+     * (e.g. " failed to read audio data"). Real cabin output uses [MM:SS->MM:SS] lines.
+     * Callers clear TRANSCRIPTION but still stamp DT_TRANSCRIBED so claim does not loop.
+     */
+    public static function isAsrErrorTranscription(string $result): bool
+    {
+        $raw = (string)$result;
+        $t = trim($raw);
+        if ($t === '') {
+            return false;
+        }
+        // Normal Whisper client format — never treat as error noise.
+        if (preg_match('/\[\d{1,2}:\d{2}->\d{1,2}:\d{2}\]/', $t) === 1) {
+            return false;
+        }
+        $lower = mb_strtolower($t, 'UTF-8');
+        $needles = [
+            'failed to read',
+            'whisper-server',
+            'whisper server',
+            'пустой ответ',
+            'ffmpeg',
+            'ffprobe',
+            'runtimeerror',
+            'connection refused',
+            'connection reset',
+            'http 4',
+            'http 5',
+            'timeout',
+            'traceback',
+            'exception:',
+            'error:',
+        ];
+        foreach ($needles as $n) {
+            if (strpos($lower, $n) !== false) {
+                return true;
+            }
+        }
+        // upload_error_marker: leading space + single short line, no timestamps.
+        if ($raw !== '' && $raw[0] === ' '
+            && strpos($t, "\n") === false
+            && mb_strlen($t, 'UTF-8') <= 300
+        ) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
      * Distinctive needle for base_records_trashes (substring match).
      */
     public static function candidatePhrase(string $text): string

@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "0.2.19",
+    "version": "0.2.20",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
