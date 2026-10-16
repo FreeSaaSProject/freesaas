@@ -12,6 +12,8 @@ final class StaffReportPublisherConfig
     {
         return [
             'require_full_parse' => true,
+            // When off: only past days (legacy massage-safe). When on: today upserts on Re-®.
+            'allow_same_day_publish' => false,
             'managing_contract_id' => 0,
             'ticket_status_id' => 4,
             'ticket_title_prefix' => '[Отчеты:',
@@ -30,6 +32,11 @@ final class StaffReportPublisherConfig
             'staff_reports',
             'require_full_parse',
             $d['require_full_parse'] ? '1' : '0'
+        ));
+        $d['allow_same_day_publish'] = self::truthy(Config::get(
+            'staff_reports',
+            'allow_same_day_publish',
+            $d['allow_same_day_publish'] ? '1' : '0'
         ));
         $d['managing_contract_id'] = max(0, (int)Config::get('staff_reports', 'managing_contract_id', $d['managing_contract_id']));
         $d['ticket_status_id'] = max(0, (int)Config::get('staff_reports', 'ticket_status_id', $d['ticket_status_id']));
@@ -57,6 +64,7 @@ final class StaffReportPublisherConfig
     {
         $d = self::defaults();
         Config::set('staff_reports', 'require_full_parse', !empty($data['require_full_parse']) ? '1' : '0');
+        Config::set('staff_reports', 'allow_same_day_publish', !empty($data['allow_same_day_publish']) ? '1' : '0');
         Config::set('staff_reports', 'managing_contract_id', (string)max(0, (int)($data['managing_contract_id'] ?? 0)));
         Config::set('staff_reports', 'ticket_status_id', (string)max(0, (int)($data['ticket_status_id'] ?? $d['ticket_status_id'])));
         $prefix = trim((string)($data['ticket_title_prefix'] ?? $d['ticket_title_prefix']));
@@ -90,6 +98,7 @@ final class StaffReportPublisherConfig
             'contract_working_days' => max(0, (int)($c['contract_working_days'] ?? 5)),
             'llm' => is_array($c['llm'] ?? null) ? $c['llm'] : ['enabled' => false],
             'require_full_parse' => !empty($c['require_full_parse']),
+            'allow_same_day_publish' => !empty($c['allow_same_day_publish']),
             'gratitude_news_id' => (int)($c['gratitude_news_id'] ?? 0),
         ];
     }

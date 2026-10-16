@@ -371,7 +371,7 @@
       }
       if (part.score_rate) {
         var sr = document.createElement('div');
-        sr.className = 'scripts-flow-score-rate';
+        sr.className = 'scripts-flow-score-rate' + (part.score_rate < 0 ? ' is-penalty' : '');
         sr.textContent = (part.score_rate > 0 ? '+' : '') + part.score_rate + ' ®';
         node.appendChild(sr);
       }

@@ -310,6 +310,7 @@
 .scripts-badge--breaker { background: #fee2e2; color: #991b1b; }
 .scripts-badge--killer { background: #1e293b; color: #f8fafc; }
 .scripts-badge--rating { background: #e0f2fe; color: #075985; font-weight: 600; }
+.scripts-badge--penalty { background: #fee2e2; color: #991b1b; font-weight: 700; }
 .scripts-badge--day-bonus { background: #fef3c7; color: #92400e; font-weight: 600; }
 .scripts-badge--off {
   background: transparent;
@@ -358,6 +359,7 @@
 .scripts-rating-flags { margin: 0.75rem 0; padding: 0.5rem 0.75rem; border: 1px solid var(--border, #e2e8f0); }
 .scripts-rating-flags legend { padding: 0 0.25rem; font-size: 0.85rem; }
 .scripts-flow-score-rate { font-size: 0.8rem; color: #075985; margin-top: 0.15rem; }
+.scripts-flow-score-rate.is-penalty { color: #991b1b; font-weight: 700; }
 
 .scripts-flow-dicts {
   font-size: 0.8rem;

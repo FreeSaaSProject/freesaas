@@ -184,11 +184,15 @@ $q = (string)($q ?? '');
                     <?= e(t('audio_dicts.scripts.flow.gate_red', ['n' => rtrim(rtrim(number_format($gateRed, 1, '.', ''), '0'), '.')])) ?>
                   </span>
                 <?php endif; ?>
-                <?php if (!empty($part['score'])): ?>
-                  <span class="scripts-badge">+<?= (int)$part['score'] ?></span>
+                <?php
+                  $scorePts = (int)($part['score'] ?? 0);
+                  $ratePts = (int)($part['score_rate'] ?? 0);
+                ?>
+                <?php if ($scorePts !== 0): ?>
+                  <span class="scripts-badge<?= $scorePts < 0 ? ' scripts-badge--penalty' : '' ?>"><?= ($scorePts > 0 ? '+' : '') . $scorePts ?></span>
                 <?php endif; ?>
-                <?php if (!empty($part['score_rate'])): ?>
-                  <span class="scripts-badge scripts-badge--rating"><?= ((int)$part['score_rate'] > 0 ? '+' : '') . (int)$part['score_rate'] ?> ®</span>
+                <?php if ($ratePts !== 0): ?>
+                  <span class="scripts-badge <?= $ratePts < 0 ? 'scripts-badge--penalty' : 'scripts-badge--rating' ?>"><?= ($ratePts > 0 ? '+' : '') . $ratePts ?> ®</span>
                 <?php endif; ?>
               </span>
             </span>

@@ -34,8 +34,18 @@ final class StaffReportRunner
         }
     }
 
+    /**
+     * Latest day that may be published.
+     * Default: yesterday. With publisher allow_same_day_publish: today (future still blocked).
+     */
     public static function lastAllowedDayStart(): int
     {
+        $today = (int)mktime(0, 0, 0, (int)date('n'), (int)date('j'), (int)date('Y'));
+        $cfg = StaffReportPublisherConfig::read();
+        if (!empty($cfg['allow_same_day_publish'])) {
+            return $today;
+        }
+
         return (int)mktime(0, 0, 0, (int)date('n'), (int)date('j') - 1, (int)date('Y'));
     }
 
@@ -78,10 +88,15 @@ final class StaffReportRunner
             return ['error' => t('staff_reports.err.bad_day')];
         }
         if ($bounds['day_start'] > self::lastAllowedDayStart()) {
+            $today = (int)mktime(0, 0, 0, (int)date('n'), (int)date('j'), (int)date('Y'));
+            $err = $bounds['day_start'] === $today
+                ? t('staff_reports.err.same_day')
+                : t('staff_reports.err.future');
+
             return [
                 'day_text' => $bounds['day_text'],
                 'date' => $bounds['date'],
-                'error' => t('staff_reports.err.future'),
+                'error' => $err,
             ];
         }
 

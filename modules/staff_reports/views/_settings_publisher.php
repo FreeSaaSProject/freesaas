@@ -14,6 +14,11 @@ $llm = is_array($publisher['llm'] ?? null) ? $publisher['llm'] : [];
     <input type="checkbox" name="sr_require_full_parse" value="1"<?= !empty($publisher['require_full_parse']) ? ' checked' : '' ?>>
     <?= te('staff_reports.settings.require_full_parse') ?>
   </label>
+  <label class="checkbox">
+    <input type="checkbox" name="sr_allow_same_day_publish" value="1"<?= !empty($publisher['allow_same_day_publish']) ? ' checked' : '' ?>>
+    <?= te('staff_reports.settings.allow_same_day_publish') ?>
+  </label>
+  <p class="muted small"><?= te('staff_reports.settings.allow_same_day_publish_hint') ?></p>
   <label><?= te('staff_reports.settings.gratitude_news_id') ?>
     <input type="number" min="0" name="sr_gratitude_news_id" value="<?= (int)($publisher['gratitude_news_id'] ?? 0) ?>">
   </label>

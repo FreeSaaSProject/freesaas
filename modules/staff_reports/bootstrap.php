@@ -75,6 +75,7 @@ EventBus::on('audio.settings.save', static function ($payload) {
     }
     StaffReportPublisherConfig::save([
         'require_full_parse' => !empty($post['sr_require_full_parse']),
+        'allow_same_day_publish' => !empty($post['sr_allow_same_day_publish']),
         'managing_contract_id' => (int)($post['sr_managing_contract'] ?? 0),
         'ticket_status_id' => (int)($post['sr_ticket_status'] ?? 4),
         'ticket_title_prefix' => (string)($post['sr_ticket_prefix'] ?? '[Отчеты:'),
