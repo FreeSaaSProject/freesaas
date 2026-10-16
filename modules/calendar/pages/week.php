@@ -80,9 +80,10 @@ $procsByDate = CalendarWeek::groupByDate($procedures, 'dtstart');
 $ordersByDate = CalendarWeek::groupByDate($orders, 'dt_event');
 
 $allOpIds = CalendarTimeline::collectOperatorIds($events, $procedures, $orders);
+$shiftsByTs = WorkweeksRepository::listForDayRange($monday, $weekEnd);
 $shiftsByDate = [];
 foreach ($days as $day) {
-    $shiftsByDate[$day['date']] = WorkweeksRepository::listForDay((int)$day['ts']);
+    $shiftsByDate[$day['date']] = $shiftsByTs[(int)$day['ts']] ?? [];
     foreach ($shiftsByDate[$day['date']] as $sh) {
         $allOpIds[] = (int)$sh['id_operator'];
     }

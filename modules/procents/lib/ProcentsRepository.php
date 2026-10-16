@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class ProcentsRepository
 {
+    /** @var array<string,array<int,array<string,float>>> */
+    private static $dayStaffPayCache = [];
+
     public static function canSeeOthers(): bool
     {
         return Auth::capability('CAN_SEE_SUM_OTHERS');
@@ -336,13 +339,43 @@ final class ProcentsRepository
         if ($dayEnd <= $dayStart || !Database::tableExists('base_procent_history')) {
             return $out;
         }
-        $mid = $dayStart + 12 * 3600;
+        $oids = [];
+        $fpParts = [];
         foreach ($operatorStats as $oid => $op) {
             $oid = (int)$oid;
             if ($oid < 1) {
                 continue;
             }
-            $rates = RatesRepository::latestForOperator($oid, $mid);
+            $oids[] = $oid;
+            $sums = is_array($op['sums_by_type'] ?? null) ? $op['sums_by_type'] : [];
+            ksort($sums);
+            $fpParts[] = $oid . ':' . json_encode($sums);
+        }
+        if ($oids === []) {
+            return $out;
+        }
+        sort($oids);
+        $cacheKey = $dayStart . '|' . $dayEnd . '|' . md5(implode(';', $fpParts));
+        if (isset(self::$dayStaffPayCache[$cacheKey])) {
+            return self::$dayStaffPayCache[$cacheKey];
+        }
+
+        $mid = $dayStart + 12 * 3600;
+        $ratesMap = class_exists('RatesRepository', false)
+            ? RatesRepository::latestForOperators($oids, $mid)
+            : [];
+        $adminSums = self::sumsByTypeMulti($oids, $dayStart, $dayEnd, 'ID_ADMIN');
+        $shiftUnits = self::shiftUnitsMulti($oids, $dayStart, $dayEnd);
+        $salesMap = Database::tableExists('base_sales')
+            ? self::salesByTypeMulti($oids, $dayStart, $dayEnd)
+            : [];
+
+        foreach ($oids as $oid) {
+            $op = $operatorStats[$oid] ?? $operatorStats[(string)$oid] ?? null;
+            if (!is_array($op)) {
+                continue;
+            }
+            $rates = $ratesMap[$oid] ?? null;
             if (!$rates) {
                 continue;
             }
@@ -355,11 +388,14 @@ final class ProcentsRepository
                 $rate = (float)str_replace(',', '.', (string)($content[$tid] ?? $content[(string)$tid] ?? 0));
                 $salary += round((float)$sum * $rate);
             }
-            $shiftPay = self::shiftFixAccrual($oid, $dayStart, $dayEnd, $rates);
-            $salaryFix = (float)$shiftPay['salary_fix'];
+            $salaryFix = 0.0;
+            $lossFix = (float)($rates['loss_fix'] ?? 0);
+            $units = (float)($shiftUnits[$oid] ?? 0.0);
+            if ($lossFix != 0.0 && $units > 0.0) {
+                $salaryFix = round($units * $lossFix);
+            }
             $salaryTerminal = 0.0;
-            $sumsAdmin = self::sumsByType($oid, $dayStart, $dayEnd, 'ID_ADMIN');
-            foreach ($sumsAdmin as $tid => $sum) {
+            foreach (($adminSums[$oid] ?? []) as $tid => $sum) {
                 $rate = (float)str_replace(',', '.', (string)($contentTerminal[$tid] ?? $contentTerminal[(string)$tid] ?? 0));
                 if ($rate == 2.0) {
                     continue;
@@ -367,11 +403,9 @@ final class ProcentsRepository
                 $salaryTerminal += round((float)$sum * $rate);
             }
             $salarySales = 0.0;
-            if (Database::tableExists('base_sales')) {
-                foreach (self::salesByType($oid, $dayStart, $dayEnd) as $tid => $sum) {
-                    $rate = (float)str_replace(',', '.', (string)($contentSales[$tid] ?? $contentSales[(string)$tid] ?? 0));
-                    $salarySales += round((float)$sum * $rate);
-                }
+            foreach (($salesMap[$oid] ?? []) as $tid => $sum) {
+                $rate = (float)str_replace(',', '.', (string)($contentSales[$tid] ?? $contentSales[(string)$tid] ?? 0));
+                $salarySales += round((float)$sum * $rate);
             }
             $audioPay = self::audioAccrualForPeriod($oid, $dayStart, $dayEnd, $rates);
             $salaryAudio = (float)$audioPay['salary_audio'];
@@ -389,6 +423,117 @@ final class ProcentsRepository
                 'salary_scripts' => $salaryScripts,
                 'total' => $total,
             ];
+        }
+        self::$dayStaffPayCache[$cacheKey] = $out;
+        return $out;
+    }
+
+    /**
+     * @param list<int> $operatorIds
+     * @return array<int,array<int,float>>
+     */
+    private static function sumsByTypeMulti(array $operatorIds, int $start, int $end, string $userCol): array
+    {
+        $out = [];
+        if ($operatorIds === [] || !in_array($userCol, ['ID_OPERATOR', 'ID_ADMIN'], true)
+            || !Database::tableExists('base_procedures')
+        ) {
+            return $out;
+        }
+        $placeholders = implode(',', array_fill(0, count($operatorIds), '?'));
+        $params = array_merge($operatorIds, [$start, $end]);
+        $st = Database::pdo()->prepare(
+            "SELECT `$userCol` AS oid, TYPE AS type_id, SUM(SUMM) AS summ
+             FROM base_procedures
+             WHERE `$userCol` IN ($placeholders) AND DTSTART > ? AND DTSTART < ?
+             GROUP BY `$userCol`, TYPE"
+        );
+        $st->execute($params);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $oid = (int)($r['oid'] ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            $out[$oid][(int)$r['type_id']] = (float)$r['summ'];
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<int> $operatorIds
+     * @return array<int,float>
+     */
+    private static function shiftUnitsMulti(array $operatorIds, int $start, int $end): array
+    {
+        $out = [];
+        if ($operatorIds === [] || $end < $start || !Database::tableExists('base_workweeks')) {
+            return $out;
+        }
+        $placeholders = implode(',', array_fill(0, count($operatorIds), '?'));
+        $params = array_merge($operatorIds, [$start, $end]);
+        $st = Database::pdo()->prepare(
+            "SELECT ID_OPERATOR AS oid, PRICE_COL AS price_col FROM base_workweeks
+             WHERE ID_OPERATOR IN ($placeholders) AND DT >= ? AND DT <= ?"
+        );
+        $st->execute($params);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $oid = (int)($row['oid'] ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            $pc = (int)($row['price_col'] ?? 0);
+            if ($pc === 3) {
+                $out[$oid] = ($out[$oid] ?? 0.0) + 2.0;
+            } elseif ($pc > 0) {
+                $out[$oid] = ($out[$oid] ?? 0.0) + 1.0;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<int> $operatorIds
+     * @return array<int,array<int,float>>
+     */
+    private static function salesByTypeMulti(array $operatorIds, int $start, int $end): array
+    {
+        $out = [];
+        if ($operatorIds === [] || !Database::tableExists('base_sales')) {
+            return $out;
+        }
+        $pdo = Database::pdo();
+        $hasOp = Database::columnExists('base_sales', 'ID_OPERATOR');
+        $hasDt = Database::columnExists('base_sales', 'DT');
+        $hasStatus = Database::columnExists('base_sales', 'STATUS');
+        $hasSum = Database::columnExists('base_sales', 'SUMM') || Database::columnExists('base_sales', 'SUM');
+        $sumCol = Database::columnExists('base_sales', 'SUMM') ? 'SUMM' : 'SUM';
+        $typeCol = Database::columnExists('base_sales', 'TYPE')
+            ? 'TYPE'
+            : (Database::columnExists('base_sales', 'ID_TYPE') ? 'ID_TYPE' : null);
+        if (!$hasOp || !$hasDt || !$hasSum || $typeCol === null) {
+            return $out;
+        }
+        $placeholders = implode(',', array_fill(0, count($operatorIds), '?'));
+        $sql = "SELECT ID_OPERATOR AS oid, `$typeCol` AS type_id, SUM(`$sumCol`) AS summ FROM base_sales
+                WHERE ID_OPERATOR IN ($placeholders) AND DT > ? AND DT < ?";
+        $params = array_merge($operatorIds, [$start, $end]);
+        if ($hasStatus) {
+            $sql .= ' AND STATUS = ?';
+            $params[] = '2';
+        }
+        $sql .= " GROUP BY ID_OPERATOR, `$typeCol`";
+        try {
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
+        } catch (Throwable $e) {
+            return $out;
+        }
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $oid = (int)($r['oid'] ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            $out[$oid][(int)$r['type_id']] = (float)$r['summ'];
         }
         return $out;
     }

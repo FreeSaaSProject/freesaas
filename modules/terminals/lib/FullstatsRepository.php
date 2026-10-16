@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class FullstatsRepository
 {
+    /** @var array<string,list<array<string,mixed>>> */
+    private static $forDayCache = [];
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -71,12 +74,70 @@ final class FullstatsRepository
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $day) || !Database::tableExists('base_fullstats')) {
             return [];
         }
+        if (isset(self::$forDayCache[$day])) {
+            return self::$forDayCache[$day];
+        }
         $res = self::list([
             'day' => $day,
             'limit' => 0,
             'order' => 'DTSTART ASC',
         ]);
-        return $res['items'];
+        return self::$forDayCache[$day] = $res['items'];
+    }
+
+    /**
+     * Prefetch ticket visits for many days in one query (week enrich).
+     *
+     * @param list<string> $days Y-m-d
+     * @return array<string,list<array<string,mixed>>>
+     */
+    public static function forDays(array $days): array
+    {
+        $normalized = [];
+        foreach ($days as $d) {
+            $d = trim((string)$d);
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $d)) {
+                $normalized[$d] = $d;
+            }
+        }
+        $normalized = array_values($normalized);
+        if ($normalized === [] || !Database::tableExists('base_fullstats')) {
+            return [];
+        }
+        sort($normalized);
+        $missing = [];
+        foreach ($normalized as $d) {
+            if (!isset(self::$forDayCache[$d])) {
+                $missing[] = $d;
+            }
+        }
+        if ($missing !== []) {
+            $from = $missing[0];
+            $to = $missing[count($missing) - 1];
+            $res = self::list([
+                'from' => $from,
+                'to' => $to,
+                'limit' => 0,
+                'order' => 'DTSTART ASC',
+            ]);
+            $byDay = [];
+            foreach ($res['items'] as $row) {
+                $ts = (int)($row['dtstart'] ?? 0);
+                if ($ts < 1) {
+                    continue;
+                }
+                $d = date('Y-m-d', $ts);
+                $byDay[$d][] = $row;
+            }
+            foreach ($missing as $d) {
+                self::$forDayCache[$d] = $byDay[$d] ?? [];
+            }
+        }
+        $out = [];
+        foreach ($normalized as $d) {
+            $out[$d] = self::$forDayCache[$d] ?? [];
+        }
+        return $out;
     }
 
     public static function find(int $id): ?array

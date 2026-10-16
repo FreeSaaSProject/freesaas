@@ -139,13 +139,11 @@ EventBus::on('calendar.day.stats', static function ($payload) {
         if ($staffFilter !== null && $staffFilter < 1) {
             $staffFilter = null;
         }
-        $stats = ProceduresRepository::dayColumnStats($tsStart, $tsEnd, $staffFilter);
-        $pay = [];
-        // Relative load % is always appended below (no money capability). Absolute salary bits stay gated.
-        $loads = ProceduresDayLoad::forDay($tsStart, $tsEnd, $staffFilter);
-        if (class_exists('ProcentsRepository', false)) {
-            $pay = ProcentsRepository::dayStaffPay($tsStart, $tsEnd, $stats['operators']);
-        }
+        // One bundle: dayColumnStats + dayStaffPay + load % (request-memoized; week reuse).
+        $bundle = ProceduresDayLoad::bundleForDay($tsStart, $tsEnd, $staffFilter);
+        $stats = $bundle['stats'];
+        $pay = $bundle['pay'];
+        $loads = $bundle['loads'];
         $colors = class_exists('CalendarTimeline', false)
             ? CalendarTimeline::operatorColors(array_keys($stats['operators']))
             : [];

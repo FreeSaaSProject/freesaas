@@ -619,13 +619,28 @@ final class WorkweeksRepository
      */
     public static function listForDay(int $dayStart): array
     {
-        if ($dayStart <= 0 || !Database::tableExists('base_workweeks')) {
+        if ($dayStart <= 0) {
             return [];
+        }
+        $byDay = self::listForDayRange($dayStart, $dayStart + 86400);
+        return $byDay[$dayStart] ?? [];
+    }
+
+    /**
+     * Shifts for [rangeStart, rangeEnd) grouped by day DT (unix midnight).
+     *
+     * @return array<int,list<array<string,mixed>>>
+     */
+    public static function listForDayRange(int $rangeStart, int $rangeEnd): array
+    {
+        $out = [];
+        if ($rangeStart <= 0 || $rangeEnd <= $rangeStart || !Database::tableExists('base_workweeks')) {
+            return $out;
         }
         $pdo = Database::pdo();
         $joins = '';
         $extra = 'NULL AS operator_name, 0 AS ID_STATUS, 0 AS assist_team, 0 AS is_hidden, NULL AS color, NULL AS color_text, 0 AS can_be_assigned_asany';
-        $order = 'w.PRICE_COL ASC, w.ID ASC';
+        $order = 'w.DT ASC, w.PRICE_COL ASC, w.ID ASC';
         if (Database::tableExists('base_users')) {
             $joins = ' LEFT JOIN base_users u ON u.id = w.ID_OPERATOR';
             $extra = "COALESCE(NULLIF(u.name, ''), u.login) AS operator_name,
@@ -651,7 +666,8 @@ final class WorkweeksRepository
                 Database::tableExists('base_admin_statuses')
                 && Database::columnExists('base_admin_statuses', 'CAN_BE_ASSIGNED_ASANY')
             ) ? 'st.CAN_BE_ASSIGNED_ASANY' : '0';
-            $order = "CASE
+            $order = "w.DT ASC,
+                      CASE
                         WHEN COALESCE(u.IS_HIDDEN, 0) > 0 THEN 4
                         WHEN COALESCE(u.ASSIST_TEAM, 0) > 0 THEN 3
                         WHEN COALESCE($asanyExpr, 0) > 0 OR COALESCE(u.ID_STATUS, 0) = 2 THEN 2
@@ -669,15 +685,21 @@ final class WorkweeksRepository
                     $extra
              FROM base_workweeks w
              $joins
-             WHERE w.DT = ?
+             WHERE w.DT >= ? AND w.DT < ?
              ORDER BY $order"
         );
-        $st->execute([$dayStart]);
-        $items = [];
+        $st->execute([$rangeStart, $rangeEnd]);
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-            $items[] = self::normalizeShiftRow($row);
+            $dt = (int)($row['dt'] ?? 0);
+            if ($dt < 1) {
+                continue;
+            }
+            if (!isset($out[$dt])) {
+                $out[$dt] = [];
+            }
+            $out[$dt][] = self::normalizeShiftRow($row);
         }
-        return $items;
+        return $out;
     }
 
     /**

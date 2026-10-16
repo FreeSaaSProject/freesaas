@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class ProceduresRepository
 {
+    /** @var array<string,array<string,mixed>> */
+    private static $dayColumnStatsCache = [];
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -702,13 +705,18 @@ final class ProceduresRepository
         if (!Database::tableExists('base_procedures') || $dayEnd <= $dayStart) {
             return $empty;
         }
+        $staffKey = ($staffId !== null && $staffId > 0) ? (int)$staffId : 0;
+        $cacheKey = $dayStart . '|' . $dayEnd . '|' . $staffKey;
+        if (isset(self::$dayColumnStatsCache[$cacheKey])) {
+            return self::$dayColumnStatsCache[$cacheKey];
+        }
 
         $where = 'p.DTSTART >= ? AND p.DTSTART < ? AND p.ENABLED = 1';
         $params = [$dayStart, $dayEnd];
-        if ($staffId !== null && $staffId > 0) {
+        if ($staffKey > 0) {
             $where .= ' AND (p.ID_OPERATOR = ? OR p.ID_ADMIN = ?)';
-            $params[] = $staffId;
-            $params[] = $staffId;
+            $params[] = $staffKey;
+            $params[] = $staffKey;
         }
 
         $joins = '';
@@ -787,13 +795,15 @@ final class ProceduresRepository
             }
         }
 
-        return [
+        $result = [
             'operators' => $ops,
             'revenue' => $revenue,
             'restored' => $restored,
             'proc_count' => $procCount,
             'promo_count' => $promoCount,
         ];
+        self::$dayColumnStatsCache[$cacheKey] = $result;
+        return $result;
     }
 
     /**

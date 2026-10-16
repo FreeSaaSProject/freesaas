@@ -291,6 +291,23 @@ EventBus::on('calendar.timeline.enrich', static function ($payload) {
     $now = (int)($ctx['now'] ?? time());
     $hasFullstats = Database::tableExists('base_fullstats');
 
+    $dateList = [];
+    foreach ($days as $date => $day) {
+        if (!is_array($day)) {
+            continue;
+        }
+        $dateStr = (string)($day['date'] ?? $date);
+        if ($dateStr !== '' && (int)($day['ts_start'] ?? 0) > 0) {
+            $dateList[] = $dateStr;
+        }
+    }
+    if ($dateList !== []) {
+        TermloadsRepository::forDays($dateList);
+        if ($hasFullstats) {
+            FullstatsRepository::forDays($dateList);
+        }
+    }
+
     foreach ($days as $date => $day) {
         if (!is_array($day)) {
             continue;

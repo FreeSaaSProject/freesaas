@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-16T06:22:53+00:00",
+    "generated_at": "2026-10-16T06:39:30+00:00",
     "modules": [
         {
             "id": "asr",
@@ -481,7 +481,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1118,7 +1118,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.8",
+            "version": "0.1.9",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1152,7 +1152,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.6",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1185,7 +1185,7 @@
         },
         {
             "id": "rates",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Specialist rates",
@@ -1446,7 +1446,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.26",
+            "version": "0.1.27",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1598,7 +1598,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.5",
+            "version": "0.2.6",
             "type": "product",
             "name": {
                 "en": "Shifts",

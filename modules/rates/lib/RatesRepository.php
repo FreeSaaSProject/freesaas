@@ -5,6 +5,9 @@ final class RatesRepository
 {
     private const CONTENT_KEYS = ['content', 'content_sales', 'content_income', 'content_terminal'];
 
+    /** @var array<string,array<string,mixed>|false> request memo for latestForOperator */
+    private static $latestCache = [];
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -96,6 +99,11 @@ final class RatesRepository
         if ($operatorId < 1 || !Database::tableExists('base_procent_history')) {
             return null;
         }
+        $key = $operatorId . '|' . $ts;
+        if (array_key_exists($key, self::$latestCache)) {
+            $hit = self::$latestCache[$key];
+            return $hit === false ? null : $hit;
+        }
         $audioCols = self::audioRateSelectSql('');
         $st = Database::pdo()->prepare(
             "SELECT ID AS id, ID_OPERATOR AS operator_id, DT AS dt, DESCR AS descr,
@@ -108,7 +116,88 @@ final class RatesRepository
         );
         $st->execute([$operatorId, $ts]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
-        return $row ? self::normalizeRow($row) : null;
+        if (!$row) {
+            self::$latestCache[$key] = false;
+            return null;
+        }
+        $norm = self::normalizeRow($row);
+        self::$latestCache[$key] = $norm;
+        return $norm;
+    }
+
+    /**
+     * Prefetch latest rates for many operators at one effective timestamp (week/day pay).
+     *
+     * @param list<int> $operatorIds
+     * @return array<int,array<string,mixed>> operator_id => rates
+     */
+    public static function latestForOperators(array $operatorIds, int $ts): array
+    {
+        $out = [];
+        if ($ts < 1 || !Database::tableExists('base_procent_history')) {
+            return $out;
+        }
+        $ids = [];
+        foreach ($operatorIds as $oid) {
+            $oid = (int)$oid;
+            if ($oid < 1) {
+                continue;
+            }
+            $key = $oid . '|' . $ts;
+            if (array_key_exists($key, self::$latestCache)) {
+                $hit = self::$latestCache[$key];
+                if ($hit !== false) {
+                    $out[$oid] = $hit;
+                }
+                continue;
+            }
+            $ids[$oid] = $oid;
+        }
+        if ($ids === []) {
+            return $out;
+        }
+        $ids = array_values($ids);
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $audioCols = self::audioRateSelectSql('h');
+        $params = array_merge($ids, [$ts], $ids);
+        $st = Database::pdo()->prepare(
+            "SELECT h.ID AS id, h.ID_OPERATOR AS operator_id, h.DT AS dt, h.DESCR AS descr,
+                    h.content, h.content_sales, h.content_income, h.content_terminal,
+                    h.LOSS AS loss, h.LOSS_FIX AS loss_fix, h.OFFERS AS offers
+                    $audioCols
+             FROM base_procent_history h
+             INNER JOIN (
+                 SELECT ID_OPERATOR, MAX(DT) AS max_dt
+                 FROM base_procent_history
+                 WHERE ID_OPERATOR IN ($placeholders) AND DT <= ?
+                 GROUP BY ID_OPERATOR
+             ) latest ON latest.ID_OPERATOR = h.ID_OPERATOR AND latest.max_dt = h.DT
+             WHERE h.ID_OPERATOR IN ($placeholders)"
+        );
+        $st->execute($params);
+        /** @var array<int,array<string,mixed>> $best */
+        $best = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $oid = (int)($row['operator_id'] ?? 0);
+            if ($oid < 1) {
+                continue;
+            }
+            $id = (int)($row['id'] ?? 0);
+            if (!isset($best[$oid]) || $id > (int)($best[$oid]['id'] ?? 0)) {
+                $best[$oid] = $row;
+            }
+        }
+        foreach ($ids as $oid) {
+            $key = $oid . '|' . $ts;
+            if (!isset($best[$oid])) {
+                self::$latestCache[$key] = false;
+                continue;
+            }
+            $norm = self::normalizeRow($best[$oid]);
+            self::$latestCache[$key] = $norm;
+            $out[$oid] = $norm;
+        }
+        return $out;
     }
 
     /**

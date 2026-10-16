@@ -7,27 +7,76 @@ declare(strict_types=1);
  */
 final class ProceduresDayLoad
 {
+    /** @var array<string,array{stats:array<string,mixed>,pay:array<int,array<string,float>>,loads:array<int,array{pct:int,is_min:bool,salary:float}>}> */
+    private static $bundleCache = [];
+
+    /**
+     * Stats + pay + load % for one day (request-memoized).
+     *
+     * @return array{
+     *   stats:array{operators:array<int,array<string,mixed>>,revenue:float,restored:float,proc_count:int,promo_count:int},
+     *   pay:array<int,array{salary:float,salary_fix:float,salary_terminal:float,salary_sales:float,salary_audio:float,salary_scripts:float,total:float}>,
+     *   loads:array<int,array{pct:int,is_min:bool,salary:float}>
+     * }
+     */
+    public static function bundleForDay(int $tsStart, int $tsEnd, ?int $staffFilter = null): array
+    {
+        $emptyStats = [
+            'operators' => [],
+            'revenue' => 0.0,
+            'restored' => 0.0,
+            'proc_count' => 0,
+            'promo_count' => 0,
+        ];
+        $empty = ['stats' => $emptyStats, 'pay' => [], 'loads' => []];
+        if ($tsStart <= 0 || $tsEnd <= $tsStart) {
+            return $empty;
+        }
+        $staffKey = ($staffFilter !== null && $staffFilter > 0) ? (int)$staffFilter : 0;
+        $cacheKey = $tsStart . '|' . $tsEnd . '|' . $staffKey;
+        if (isset(self::$bundleCache[$cacheKey])) {
+            return self::$bundleCache[$cacheKey];
+        }
+        if (!class_exists(ProceduresRepository::class, false)
+            || !Database::tableExists('base_procedures')
+        ) {
+            return self::$bundleCache[$cacheKey] = $empty;
+        }
+
+        $stats = ProceduresRepository::dayColumnStats($tsStart, $tsEnd, $staffKey > 0 ? $staffKey : null);
+        $operators = is_array($stats['operators'] ?? null) ? $stats['operators'] : [];
+        $pay = [];
+        $loads = [];
+        if ($operators !== []
+            && class_exists(ProcentsRepository::class, false)
+            && ModuleManager::isEnabled('procents')
+        ) {
+            $pay = ProcentsRepository::dayStaffPay($tsStart, $tsEnd, $operators);
+            $loads = self::loadsFromPay($operators, $pay);
+        }
+
+        return self::$bundleCache[$cacheKey] = [
+            'stats' => $stats,
+            'pay' => $pay,
+            'loads' => $loads,
+        ];
+    }
+
     /**
      * @return array<int,array{pct:int,is_min:bool,salary:float}>
      */
     public static function forDay(int $tsStart, int $tsEnd, ?int $staffFilter = null): array
     {
-        if ($tsStart <= 0 || $tsEnd <= $tsStart) {
-            return [];
-        }
-        if (!class_exists(ProceduresRepository::class, false)
-            || !class_exists(ProcentsRepository::class, false)
-            || !ModuleManager::isEnabled('procents')
-            || !Database::tableExists('base_procedures')) {
-            return [];
-        }
-        $stats = ProceduresRepository::dayColumnStats($tsStart, $tsEnd, $staffFilter);
-        $operators = is_array($stats['operators'] ?? null) ? $stats['operators'] : [];
-        if ($operators === []) {
-            return [];
-        }
-        $pay = ProcentsRepository::dayStaffPay($tsStart, $tsEnd, $operators);
+        return self::bundleForDay($tsStart, $tsEnd, $staffFilter)['loads'];
+    }
 
+    /**
+     * @param array<int,array<string,mixed>> $operators
+     * @param array<int,array{salary?:float,salary_fix?:float}> $pay
+     * @return array<int,array{pct:int,is_min:bool,salary:float}>
+     */
+    private static function loadsFromPay(array $operators, array $pay): array
+    {
         $avgBase = 0.0;
         $avgN = 0;
         $minSalary = null;
