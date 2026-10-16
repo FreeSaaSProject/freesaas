@@ -298,14 +298,37 @@ final class OnecClient
             $ticketName = $name;
         }
         $timeSec = (int)($timeRes['time'] ?? 0);
-        $balance = 0.0;
-        if (isset($detailData['Balance'])) {
-            $balance = (float)$detailData['Balance'];
-        } elseif (isset($detailData['balance'])) {
-            $balance = (float)$detailData['balance'];
-        } elseif (isset($detailData[4]) && is_numeric($detailData[4])) {
-            $balance = (float)$detailData[4];
+
+        // Spending ceiling for /t cart: debt_detail.Limit (Volga Termy). client_by_id has no Balance.
+        $debt = self::request('GET', $base . '/debt_detail/?client_id=' . rawurlencode($clientId), $cfg);
+        $limit = 0.0;
+        $totalCost = 0.0;
+        if (!empty($debt['ok'])) {
+            $decoded = json_decode((string)$debt['raw'], true);
+            if (is_array($decoded)) {
+                if (isset($decoded['Limit']) && is_numeric($decoded['Limit'])) {
+                    $limit = (float)$decoded['Limit'];
+                } elseif (isset($decoded['limit']) && is_numeric($decoded['limit'])) {
+                    $limit = (float)$decoded['limit'];
+                }
+                if (isset($decoded['TotalCost']) && is_numeric($decoded['TotalCost'])) {
+                    $totalCost = (float)$decoded['TotalCost'];
+                } elseif (isset($decoded['total_cost']) && is_numeric($decoded['total_cost'])) {
+                    $totalCost = (float)$decoded['total_cost'];
+                }
+            }
         }
+        $balance = $limit;
+        if ($balance <= 0.0) {
+            if (isset($detailData['Balance'])) {
+                $balance = (float)$detailData['Balance'];
+            } elseif (isset($detailData['balance'])) {
+                $balance = (float)$detailData['balance'];
+            } elseif (isset($detailData[4]) && is_numeric($detailData[4])) {
+                $balance = (float)$detailData[4];
+            }
+        }
+
         return [
             'ok' => true,
             'client_id' => $clientId,
@@ -313,6 +336,7 @@ final class OnecClient
             'ticket_name' => $ticketName,
             'time' => $timeSec,
             'balance' => $balance,
+            'debt_total' => $totalCost,
             'phone' => (string)($detailData['phone'] ?? $detailData['Phone'] ?? $cardRow['phone'] ?? ''),
             'data' => $detailData !== [] ? $detailData : $cardRow,
         ];
