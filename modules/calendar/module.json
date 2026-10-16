@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.1.8",
+    "version": "0.1.12",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -16,6 +16,7 @@
     "optionalRequires": {
         "cabinets": ">=0.1.0",
         "tables": ">=0.1.0",
+        "audio": ">=0.1.0",
         "booking": ">=0.1.0",
         "bonuses": ">=0.1.0"
     },

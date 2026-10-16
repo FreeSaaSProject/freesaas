@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class TablesRepository
 {
+    /** @var array<string,array{plain:array<int,string>,html:array<int,string>}> request memo */
+    private static $labelMapsCache = [];
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -90,23 +93,43 @@ final class TablesRepository
         return strip_tags($name, '<sub><sup><b><strong><i><em>');
     }
 
-    /** @return array<int,string> plain labels (safe for &lt;option&gt;) */
-    public static function names(bool $enabledOnly = true): array
+    /**
+     * One query per request: plain labels (options) + safe HTML (sub/sup for chips).
+     *
+     * @return array{plain:array<int,string>,html:array<int,string>}
+     */
+    public static function labelMaps(bool $enabledOnly = true): array
     {
+        $key = $enabledOnly ? '1' : '0';
+        if (isset(self::$labelMapsCache[$key])) {
+            return self::$labelMapsCache[$key];
+        }
+        $empty = ['plain' => [], 'html' => []];
         if (!Database::tableExists('base_tables')) {
-            return [];
+            return self::$labelMapsCache[$key] = $empty;
         }
         $sql = 'SELECT ID, NAME FROM base_tables';
         if ($enabledOnly) {
             $sql .= ' WHERE ENABLED > 0';
         }
         $sql .= ' ORDER BY NAME ASC';
-        $out = [];
+        $plain = [];
+        $html = [];
         foreach (Database::pdo()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
-            $plain = self::plainLabel((string)$r['NAME']);
-            $out[(int)$r['ID']] = $plain !== '' ? $plain : ('#' . (int)$r['ID']);
+            $id = (int)$r['ID'];
+            $raw = (string)$r['NAME'];
+            $p = self::plainLabel($raw);
+            $plain[$id] = $p !== '' ? $p : ('#' . $id);
+            $h = self::htmlLabel($raw);
+            $html[$id] = $h !== '' ? $h : e($plain[$id]);
         }
-        return $out;
+        return self::$labelMapsCache[$key] = ['plain' => $plain, 'html' => $html];
+    }
+
+    /** @return array<int,string> plain labels (safe for &lt;option&gt;) */
+    public static function names(bool $enabledOnly = true): array
+    {
+        return self::labelMaps($enabledOnly)['plain'];
     }
 
     public static function find(int $id): ?array

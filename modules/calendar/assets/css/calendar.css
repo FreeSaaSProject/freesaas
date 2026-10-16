@@ -69,6 +69,44 @@ tr.is-block td { opacity: 0.75; }
   border-radius: var(--radius);
   background: var(--bg-panel);
 }
+.calendar-tl-axis-marks {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: stretch;
+}
+.calendar-tl-shifts-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: stretch;
+}
+.calendar-tl-table-open {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0.05rem 0.25rem;
+  border: 1px dashed var(--line);
+  border-radius: 3px;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--muted);
+  line-height: 1.2;
+}
+.calendar-tl-table-open:hover {
+  border-color: var(--accent);
+  color: var(--text);
+  background: var(--accent-soft);
+}
+.calendar-tl-shift-table {
+  margin-left: 0.15rem;
+  font-weight: 600;
+  opacity: 0.92;
+}
 .calendar-tl-nazop-all {
   display: inline-flex;
   align-items: center;

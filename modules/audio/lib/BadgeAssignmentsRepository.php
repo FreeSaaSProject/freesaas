@@ -252,6 +252,126 @@ final class BadgeAssignmentsRepository
         return ['success' => true, 'message' => t('audio.badge.msg.saved'), 'badge_id' => $badgeId];
     }
 
+    /**
+     * Badge covering each calendar day in [rangeStart, rangeEnd) — one SELECT.
+     * Keyed by Y-m-d then operator id → badge code (may be "0" for not-on-shift).
+     *
+     * @return array<string,array<int,string>>
+     */
+    public static function mapForDayRange(int $rangeStart, int $rangeEnd): array
+    {
+        $out = [];
+        if ($rangeStart <= 0 || $rangeEnd <= $rangeStart || !Database::tableExists('base_badge_assignments')) {
+            return $out;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID_OPERATOR AS id_operator, ID_BADGE AS id_badge,
+                    DT_START AS dt_start, DT_END AS dt_end
+             FROM base_badge_assignments
+             WHERE DT_END > ? AND DT_START < ?
+             ORDER BY DT_START ASC, ID ASC'
+        );
+        $st->execute([$rangeStart, $rangeEnd]);
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $oid = (int)$row['id_operator'];
+            $badge = trim((string)$row['id_badge']);
+            if ($oid < 1 || $badge === '') {
+                continue;
+            }
+            $aStart = (int)$row['dt_start'];
+            $aEnd = (int)$row['dt_end'];
+            for ($ts = $rangeStart; $ts < $rangeEnd; $ts += 86400) {
+                $dayEnd = $ts + 86400;
+                if ($aStart < $dayEnd && $aEnd > $ts) {
+                    $d = date('Y-m-d', $ts);
+                    $out[$d][$oid] = $badge;
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Admin/nazcab: assign or clear badge for a specific calendar day (oper nazcabsave).
+     *
+     * @return bool true when a row was written or cleared
+     */
+    public static function saveForDay(int $operatorId, int $dayStart, string $badgeId, ?int $actorId = null): bool
+    {
+        $operatorId = (int)$operatorId;
+        if ($operatorId < 1 || $dayStart < 1 || !Database::tableExists('base_badge_assignments')) {
+            return false;
+        }
+        $badgeId = trim($badgeId);
+        $dayEnd = $dayStart + 86400 - 1;
+        $now = time();
+        $actorId = $actorId ?? Auth::userId();
+        if ($actorId < 1) {
+            $actorId = $operatorId;
+        }
+        $pdo = Database::pdo();
+        $todayStart = (int)mktime(0, 0, 0, (int)date('n', $now), (int)date('j', $now), (int)date('Y', $now));
+
+        if ($badgeId === '' || $badgeId === '0' || $badgeId === 'not_on_shift') {
+            $pdo->prepare(
+                'UPDATE base_badge_assignments SET DT_END = ?
+                 WHERE ID_OPERATOR = ? AND DT_START < ? AND DT_END > ?'
+            )->execute([$dayStart, $operatorId, $dayStart, $dayStart]);
+            $st = $pdo->prepare(
+                'UPDATE base_badge_assignments SET DT_END = DT_START
+                 WHERE ID_OPERATOR = ? AND DT_START >= ? AND DT_START <= ? AND DT_END > DT_START'
+            );
+            $st->execute([$operatorId, $dayStart, $dayEnd]);
+            return $st->rowCount() > 0;
+        }
+
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $badgeId) || in_array($badgeId, self::EXCLUDE_CODES, true)) {
+            return false;
+        }
+
+        $isToday = $dayStart === $todayStart;
+        $assignStart = $dayStart;
+        if ($isToday) {
+            $stHas = $pdo->prepare(
+                'SELECT 1 FROM base_badge_assignments
+                 WHERE ID_OPERATOR = ? AND ID_BADGE != \'0\' AND DT_END >= ? AND DT_START <= ?
+                 LIMIT 1'
+            );
+            $stHas->execute([$operatorId, $dayStart, $dayEnd]);
+            if ($stHas->fetchColumn()) {
+                $assignStart = $now;
+            }
+        }
+
+        $pdo->prepare(
+            'UPDATE base_badge_assignments SET DT_END = ?
+             WHERE ID_OPERATOR = ? AND DT_START < ? AND DT_END > ?'
+        )->execute([$assignStart, $operatorId, $assignStart, $assignStart]);
+        $pdo->prepare(
+            'UPDATE base_badge_assignments SET DT_END = DT_START
+             WHERE ID_OPERATOR = ? AND DT_START >= ? AND DT_START <= ? AND DT_END > DT_START'
+        )->execute([$operatorId, $assignStart, $dayEnd]);
+
+        $pdo->prepare(
+            'UPDATE base_badge_assignments SET DT_END = ?
+             WHERE ID_BADGE = ? AND DT_START < ? AND DT_END > ?'
+        )->execute([$assignStart, $badgeId, $assignStart, $assignStart]);
+        $pdo->prepare(
+            'UPDATE base_badge_assignments SET DT_END = DT_START
+             WHERE ID_BADGE = ? AND DT_START >= ? AND DT_START <= ? AND DT_END > DT_START'
+        )->execute([$badgeId, $assignStart, $dayEnd]);
+
+        $pdo->prepare(
+            'INSERT INTO base_badge_assignments
+             (ID_OPERATOR, ID_BADGE, DT_START, DT_END, DT_CREATE, ID_CREATOR)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        )->execute([$operatorId, $badgeId, $assignStart, $dayEnd, $now, $actorId]);
+        if (class_exists('BadgesRepository', false)) {
+            BadgesRepository::upsertFromCode($badgeId, $now);
+        }
+        return true;
+    }
+
     /** Close all currently open assignments for operator (logout / reset). */
     public static function closeOpenAssignments(int $userId, ?int $now = null): void
     {

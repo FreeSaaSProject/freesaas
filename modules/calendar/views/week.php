@@ -13,6 +13,7 @@ declare(strict_types=1);
 /** @var bool $staffLocked */
 /** @var bool $canCreate */
 /** @var bool $canAssign */
+/** @var bool $canTables */
 /** @var list<array{value:string,label:string}> $weekOptions */
 /** @var string $shiftFlash */
 /** @var string $shiftError */
@@ -25,6 +26,7 @@ Assets::need('workweeks');
 $dayStatsHtml = $dayStatsHtml ?? [];
 
 $canAssign = !empty($canAssign);
+$canTables = !empty($canTables);
 $weekOptions = $weekOptions ?? [];
 $shiftFlash = $shiftFlash ?? '';
 $shiftError = $shiftError ?? '';
@@ -299,6 +301,87 @@ require __DIR__ . '/_timeline.php';
       loadNazop(btn.getAttribute('data-shift-open') || 'all', '');
     });
   });
+
+  function bindNazcab(root) {
+    if (!root) return;
+    root.querySelectorAll('form.nazcab-form').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var fd = new FormData(form);
+        var btn = form.querySelector('button[type="submit"]');
+        if (btn) btn.disabled = true;
+        fetch(form.getAttribute('action') || '/workweeks/nazcab', {
+          method: 'POST',
+          body: fd,
+          headers: { 'X-Requested-With': 'XMLHttpRequest' },
+          credentials: 'same-origin'
+        }).then(function (r) {
+          var ct = (r.headers.get('content-type') || '');
+          if (ct.indexOf('application/json') !== -1) {
+            return r.json().then(function (data) {
+              if (data && data.redirect) {
+                location.href = data.redirect;
+                return;
+              }
+              throw new Error(<?= json_encode(t('workweeks.nazcab.error'), JSON_UNESCAPED_UNICODE) ?>);
+            });
+          }
+          return r.text().then(function (html) {
+            body.innerHTML = html;
+            bindNazcab(body);
+          });
+        }).catch(function () {
+          body.innerHTML = '<div class="flash flash-warn"><?= te('workweeks.nazcab.error') ?></div>';
+        }).finally(function () {
+          if (btn) btn.disabled = false;
+        });
+      });
+    });
+  }
+
+  function loadNazcab(day) {
+    if (!dlg || !body) return;
+    day = day || 'all';
+    currentDay = day;
+    if (titleEl) {
+      titleEl.textContent = day === 'all'
+        ? <?= json_encode(t('workweeks.nazcab.title_all'), JSON_UNESCAPED_UNICODE) ?>
+        : (<?= json_encode(t('workweeks.nazcab.title_day'), JSON_UNESCAPED_UNICODE) ?> + ': ' + day);
+    }
+    body.innerHTML = '<p class="muted"><?= te('workweeks.nazcab.loading') ?></p>';
+    if (typeof dlg.showModal === 'function') dlg.showModal();
+    else dlg.setAttribute('open', 'open');
+    var url = '/workweeks/nazcab?fragment=1&day=' + encodeURIComponent(day)
+      + '&ret=' + encodeURIComponent(ret);
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+      .then(function (r) { return r.text(); })
+      .then(function (html) {
+        body.innerHTML = html;
+        bindNazcab(body);
+      })
+      .catch(function () {
+        body.innerHTML = '<div class="flash flash-warn"><?= te('workweeks.nazcab.error') ?></div>';
+      });
+  }
+
+  if (dlg) {
+    dlg.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      if (t.closest('[data-nazcab-close]')) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeDlg();
+      }
+    });
+  }
+  document.querySelectorAll('[data-table-open]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      loadNazcab(btn.getAttribute('data-table-open') || 'all');
+    });
+  });
+
   var auto = <?= json_encode($openShiftDay) ?>;
   if (auto) loadNazop(auto, '');
   <?php endif; ?>

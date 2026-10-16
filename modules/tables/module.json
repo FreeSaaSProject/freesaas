@@ -2,7 +2,7 @@
     "id": "tables",
     "name": "tables.module.name",
     "description": "tables.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"

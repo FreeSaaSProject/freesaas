@@ -115,6 +115,10 @@ foreach ($assignableFull as $sid => $info) {
     $assignableStaff[$sid] = $info['label'];
 }
 
+$tableMaps = (class_exists('TablesRepository', false) && TablesRepository::isActive())
+    ? TablesRepository::labelMaps(false)
+    : ['plain' => [], 'html' => []];
+
 $dayColumns = [];
 foreach ($days as $day) {
     $d = $day['date'];
@@ -176,14 +180,28 @@ foreach ($days as $day) {
         } elseif ((int)($sh['price_col'] ?? 1) > 1) {
             $label .= (int)$sh['price_col'];
         }
+        $idTable = (int)($sh['id_table'] ?? 0);
+        $tablePlain = ($idTable > 0 && isset($tableMaps['plain'][$idTable]))
+            ? (string)$tableMaps['plain'][$idTable]
+            : '';
+        $tableHtml = ($idTable > 0 && isset($tableMaps['html'][$idTable]))
+            ? (string)$tableMaps['html'][$idTable]
+            : '';
+        $full = $name;
+        if ($tablePlain !== '') {
+            $full .= ' · ' . $tablePlain;
+        }
         $shiftLabels[] = [
             'id' => $oid,
             'label' => $label,
-            'full' => $name,
+            'full' => $full,
             'bg' => $c['bg'],
             'fg' => $c['fg'],
             'group' => $group,
             'price_col' => (int)($sh['price_col'] ?? 1),
+            'id_table' => $idTable,
+            'table_label' => $tablePlain,
+            'table_html' => $tableHtml,
         ];
     }
     if (class_exists('ProceduresDayLoad', false)) {
@@ -282,6 +300,14 @@ View::render('week', [
     'staffLocked' => $myOnly,
     'canCreate' => $canCreate,
     'canAssign' => $canAssign,
+    'canTables' => $canAssign && (
+        (class_exists('TablesRepository', false) && TablesRepository::isActive())
+        || (
+            class_exists('BadgeAssignmentsRepository', false)
+            && ModuleManager::isEnabled('audio')
+            && Database::tableExists('base_badge_assignments')
+        )
+    ),
     'weekOptions' => $weekOptions,
     'shiftFlash' => $shiftFlash,
     'shiftError' => $shiftError,

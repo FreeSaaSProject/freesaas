@@ -1480,6 +1480,334 @@ final class WorkweeksRepository
     }
 
     /**
+     * Oper nazcab matrix: days × already-scheduled staff with ID_TABLE (+ soft badges).
+     *
+     * @return array{
+     *   days:list<array{ts:int,date:string,label:string,weekday:string,is_weekend:bool}>,
+     *   operators:array<int,array{id:int,label:string,acronym:string,bg:string,fg:string,group:int,assist:bool,audio:bool}>,
+     *   assigned:array<string,array<int,int>>,
+     *   badges:array<string,array<int,string>>,
+     *   table_names:array<int,string>,
+     *   badge_options:array<string,string>,
+     *   show_badges:bool,
+     *   show_tables:bool
+     * }
+     */
+    public static function nazcabMatrix(int $startTs, int $dayCount): array
+    {
+        $dayCount = max(1, min(120, $dayCount));
+        $startTs = (int)strtotime(date('Y-m-d 00:00:00', $startTs));
+        $endTs = $startTs + ($dayCount * 86400);
+
+        $showTables = self::tablesActive();
+        $tableNames = $showTables ? TablesRepository::names(true) : [];
+
+        $showBadges = class_exists('BadgeAssignmentsRepository', false)
+            && ModuleManager::isEnabled('audio')
+            && Database::tableExists('base_badge_assignments');
+        $badgeOptions = [];
+        $badges = [];
+        if ($showBadges) {
+            $badgeOptions = ['0' => t('workweeks.nazcab.badge_none')];
+            foreach (BadgeAssignmentsRepository::selectableCodes($startTs) as $code) {
+                $badgeOptions[$code] = $code;
+            }
+            $badges = BadgeAssignmentsRepository::mapForDayRange($startTs, $endTs);
+        }
+
+        $assigned = [];
+        /** @var array<int,array<string,mixed>> $opSeed first shift row per operator (has name/colors/group) */
+        $opSeed = [];
+        $byDay = self::listForDayRange($startTs, $endTs);
+        foreach ($byDay as $dt => $rows) {
+            $d = date('Y-m-d', (int)$dt);
+            foreach ($rows as $row) {
+                $oid = (int)$row['id_operator'];
+                if ($oid < 1 || !self::canAssignOperator($oid)) {
+                    continue;
+                }
+                // Hidden equipment staff: no table assignment, omit from nazcab columns.
+                if ((int)($row['is_hidden'] ?? 0) > 0 || (int)($row['group'] ?? 0) === 4) {
+                    continue;
+                }
+                $assigned[$d][$oid] = (int)($row['id_table'] ?? 0);
+                if (!isset($opSeed[$oid])) {
+                    $opSeed[$oid] = $row;
+                }
+            }
+        }
+
+        $audioOn = [];
+        if ($showBadges && $opSeed !== []
+            && Database::tableExists('base_users')
+            && Database::columnExists('base_users', 'AUDIO_ANALYTICS_ENABLED')
+        ) {
+            $ids = array_keys($opSeed);
+            $ph = implode(',', array_fill(0, count($ids), '?'));
+            $st = Database::pdo()->prepare(
+                "SELECT id, AUDIO_ANALYTICS_ENABLED AS audio FROM base_users WHERE id IN ($ph)"
+            );
+            $st->execute($ids);
+            foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $u) {
+                $audioOn[(int)$u['id']] = !empty($u['audio']);
+            }
+        }
+
+        $operators = [];
+        foreach ($opSeed as $oid => $row) {
+            $name = trim((string)($row['operator_name'] ?? ''));
+            if ($name === '') {
+                $name = '#' . $oid;
+            }
+            $bg = trim((string)($row['color'] ?? ''));
+            $fg = trim((string)($row['color_text'] ?? ''));
+            $group = (int)($row['group'] ?? 0);
+            $operators[$oid] = [
+                'id' => $oid,
+                'label' => $name,
+                'acronym' => class_exists('CalendarTimeline', false)
+                    ? CalendarTimeline::acronym($name)
+                    : mb_strtoupper(mb_substr($name, 0, 1, 'UTF-8'), 'UTF-8'),
+                'bg' => $bg !== '' ? $bg : 'var(--bg-input)',
+                'fg' => $fg !== '' ? $fg : 'var(--text)',
+                'group' => $group,
+                'assist' => $group === 3,
+                'audio' => !empty($audioOn[$oid]),
+            ];
+        }
+        uasort(
+            $operators,
+            static function (array $a, array $b): int {
+                $ga = (int)($a['group'] ?? 0);
+                $gb = (int)($b['group'] ?? 0);
+                if ($ga !== $gb) {
+                    return $ga <=> $gb;
+                }
+                return strcasecmp((string)$a['label'], (string)$b['label']);
+            }
+        );
+
+        $days = [];
+        for ($i = 0; $i < $dayCount; $i++) {
+            $ts = $startTs + ($i * 86400);
+            $n = (int)date('N', $ts);
+            $days[] = [
+                'ts' => $ts,
+                'date' => date('Y-m-d', $ts),
+                'label' => date('d.m.Y', $ts),
+                'weekday' => class_exists('CalendarWeek', false)
+                    ? CalendarWeek::weekdayShort($n)
+                    : date('D', $ts),
+                'is_weekend' => $n >= 6,
+            ];
+        }
+
+        return [
+            'days' => $days,
+            'operators' => $operators,
+            'assigned' => $assigned,
+            'badges' => $badges,
+            'table_names' => $tableNames,
+            'badge_options' => $badgeOptions,
+            'show_badges' => $showBadges,
+            'show_tables' => $showTables,
+        ];
+    }
+
+    /**
+     * Save nazcab: UPDATE ID_TABLE on existing shifts; soft badge day assigns.
+     *
+     * @param array<string,array<int|string,int|string>> $tables date => opId => id_table
+     * @param array<string,array<int|string,string>> $badges date => opId => badge code
+     */
+    public static function saveNazcabMatrix(array $tables, array $badges = []): string
+    {
+        if (!self::canAssign()) {
+            throw new RuntimeException(t('workweeks.err.no_assign'));
+        }
+        $tablesOn = self::tablesActive();
+        $canBadges = class_exists('BadgeAssignmentsRepository', false)
+            && ModuleManager::isEnabled('audio')
+            && Database::tableExists('base_badge_assignments');
+        if (!$tablesOn && !$canBadges) {
+            throw new RuntimeException(t('workweeks.nazcab.err.tables_off'));
+        }
+
+        $today = date('Y-m-d');
+        $todayStart = (int)(strtotime($today . ' 00:00:00') ?: time());
+
+        $dateSet = [$today => true];
+        foreach (array_keys($badges) as $d) {
+            if (preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) {
+                $dateSet[(string)$d] = true;
+            }
+        }
+        $sorted = array_keys($dateSet);
+        sort($sorted);
+        $rangeStart = strtotime($sorted[0] . ' 00:00:00');
+        $rangeEnd = strtotime($sorted[count($sorted) - 1] . ' 00:00:00');
+        if ($rangeStart === false || $rangeEnd === false) {
+            return t('workweeks.msg.saved');
+        }
+        $rangeStart = (int)$rangeStart;
+        $rangeEnd = (int)$rangeEnd + 86400;
+        $byDay = self::listForDayRange($rangeStart, $rangeEnd);
+        /** @var array<string,array<int,array<string,mixed>>> $existingByDate */
+        $existingByDate = [];
+        foreach ($byDay as $dt => $rows) {
+            $d = date('Y-m-d', (int)$dt);
+            foreach ($rows as $row) {
+                if ((int)($row['is_hidden'] ?? 0) > 0 || (int)($row['group'] ?? 0) === 4) {
+                    continue;
+                }
+                $existingByDate[$d][(int)$row['id_operator']] = $row;
+            }
+        }
+
+        $updatedTables = 0;
+        $logBits = [];
+        if ($tablesOn) {
+            $validTableIds = [];
+            foreach (array_keys(TablesRepository::names(true)) as $tid) {
+                $validTableIds[(int)$tid] = true;
+            }
+            // Sections: today only — ignore any other dates from a crafted POST.
+            $todayTables = is_array($tables[$today] ?? null) ? $tables[$today] : [];
+            $todayMap = $existingByDate[$today] ?? [];
+            foreach ($todayTables as $oid => $tidRaw) {
+                $oid = (int)$oid;
+                if ($oid < 1 || !self::canAssignOperator($oid) || !isset($todayMap[$oid])) {
+                    continue;
+                }
+                $existing = $todayMap[$oid];
+                if ((int)($existing['assist_team'] ?? 0) > 0 || (int)($existing['group'] ?? 0) === 3) {
+                    continue;
+                }
+                // 0 = unassigned (К+С). Do NOT normalizeTableId(0)→1.
+                $tid = max(0, (int)$tidRaw);
+                if ($tid > 0 && !isset($validTableIds[$tid])) {
+                    continue;
+                }
+                if ((int)$existing['id_table'] === $tid) {
+                    continue;
+                }
+                self::updateTableId((int)$existing['id'], $tid);
+                $updatedTables++;
+                $logBits[] = self::buildLogLine('update', [
+                    'id_operator' => $oid,
+                    'dt' => $todayStart,
+                    'price_col' => (int)$existing['price_col'],
+                    'mas_max' => (int)$existing['mas_max'],
+                    'id_table' => $tid,
+                ]);
+            }
+        }
+
+        $updatedBadges = 0;
+        if ($canBadges && $badges !== []) {
+            $audioOps = [];
+            $needAudio = [];
+            foreach ($badges as $byOp) {
+                if (!is_array($byOp)) {
+                    continue;
+                }
+                foreach (array_keys($byOp) as $oid) {
+                    $oid = (int)$oid;
+                    if ($oid > 0) {
+                        $needAudio[$oid] = true;
+                    }
+                }
+            }
+            if ($needAudio !== []
+                && Database::tableExists('base_users')
+                && Database::columnExists('base_users', 'AUDIO_ANALYTICS_ENABLED')
+            ) {
+                $ids = array_keys($needAudio);
+                $ph = implode(',', array_fill(0, count($ids), '?'));
+                $st = Database::pdo()->prepare(
+                    "SELECT id FROM base_users WHERE id IN ($ph) AND AUDIO_ANALYTICS_ENABLED > 0"
+                );
+                $st->execute($ids);
+                foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
+                    $audioOps[(int)$id] = true;
+                }
+            }
+            $currentBadges = BadgeAssignmentsRepository::mapForDayRange($rangeStart, $rangeEnd);
+            foreach ($badges as $date => $byOp) {
+                $date = (string)$date;
+                if (!isset($existingByDate[$date]) || !is_array($byOp)) {
+                    continue;
+                }
+                $dayStart = (int)strtotime($date . ' 00:00:00');
+                foreach ($byOp as $oid => $badge) {
+                    $oid = (int)$oid;
+                    if ($oid < 1 || !self::canAssignOperator($oid) || !isset($existingByDate[$date][$oid])) {
+                        continue;
+                    }
+                    if (empty($audioOps[$oid])) {
+                        continue;
+                    }
+                    $badge = trim((string)$badge);
+                    if ($badge === 'not_on_shift') {
+                        $badge = '0';
+                    }
+                    $prev = trim((string)($currentBadges[$date][$oid] ?? '0'));
+                    if ($prev === $badge || ($prev === '' && ($badge === '' || $badge === '0'))) {
+                        continue;
+                    }
+                    if (BadgeAssignmentsRepository::saveForDay($oid, $dayStart, $badge)) {
+                        $updatedBadges++;
+                    }
+                }
+            }
+        }
+
+        if ($logBits !== []) {
+            self::logChangeHtml(implode('<br>', $logBits));
+        }
+        if ($updatedTables < 1 && $updatedBadges < 1) {
+            return t('workweeks.msg.saved');
+        }
+        return t('workweeks.nazcab.msg.saved', [
+            'tables' => (string)$updatedTables,
+            'badges' => (string)$updatedBadges,
+        ]);
+    }
+
+    /**
+     * Set ID_TABLE without normalizeTableId(0)→1 (nazcab allows unassigned = 0).
+     */
+    public static function updateTableId(int $id, int $idTable): void
+    {
+        if ($id < 1 || !Database::tableExists('base_workweeks')) {
+            return;
+        }
+        $idTable = max(0, $idTable);
+        Database::pdo()->prepare(
+            'UPDATE base_workweeks SET ID_TABLE = ? WHERE ID = ?'
+        )->execute([$idTable, $id]);
+        self::clearShiftsCache();
+    }
+
+    /**
+     * Clear massage-table assignments from $fromDayStart inclusive (local ops cleanup).
+     *
+     * @return int rows updated
+     */
+    public static function clearTableAssignmentsFrom(int $fromDayStart): int
+    {
+        if ($fromDayStart < 1 || !Database::tableExists('base_workweeks')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_workweeks SET ID_TABLE = 0 WHERE DT >= ? AND ID_TABLE <> 0'
+        );
+        $st->execute([$fromDayStart]);
+        self::clearShiftsCache();
+        return $st->rowCount();
+    }
+
+    /**
      * Future days with open masseur slots (oper needed_people_future_dates).
      * slots = first MAS_MAX of the day − count of masseurs/part-timers (status 1|18, not assist/hidden/admin).
      *

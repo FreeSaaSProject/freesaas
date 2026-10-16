@@ -28,17 +28,21 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 ## Human UI
 
 - `/workweeks` — day shifts; `/workweeks/day/{date}` day embed.
+- `/workweeks/nazop` — who works / shift / M-MAX matrix (`EVT_ASSIGN`).
+- `/workweeks/nazcab` — multi-day matrix (~30 days): **tables/sections only on today’s row** (needs `tables`); **badges for the whole period** (soft `audio`). Hidden staff omitted. Calendar embeds via fragment dialog (`data-table-open`).
 - `/workweeks/settings` — shift windows PRICE_COL 1–5 (superadmin).
 - Embedded in calendar day when calendar on.
 
 | Path | Permission |
 |------|------------|
 | `/workweeks` | `—` |
+| `/workweeks/nazop` | `workweeks.view` (+ assign gate) |
+| `/workweeks/nazcab` | `workweeks.view` (+ assign gate; tables on) |
 | `/workweeks/settings` | `workweeks.view` |
 
 ## Agent JSON
 
-Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (7 ops).
+Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (8 ops).
 
 | Op | Method | Path |
 |----|--------|------|
@@ -47,6 +51,7 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `workweeks.create` | POST | `/workweeks/new` |
 | `workweeks.update` | POST | `/workweeks/{id}/edit` |
 | `workweeks.day` | GET | `/workweeks/day/{date}` |
+| `workweeks.nazcab` | GET/POST | `/workweeks/nazcab` |
 | `workweeks.settings.get` | GET | `/workweeks/settings` |
 | `workweeks.settings.update` | POST | `/workweeks/settings` |
 
@@ -57,4 +62,5 @@ curl -sS -b jar.txt 'https://example/workweeks/settings?format=json'
 
 ## Notes
 
-- Soft comments / cabinets / tables / bots.
+- Soft comments / cabinets / tables / audio (nazcab badges) / bots.
+- `ID_TABLE` on shifts = massage section; bulk edit via nazcab (not nazop).

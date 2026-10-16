@@ -52,3 +52,4 @@ curl -sS -b jar.txt 'https://example/tables?format=json'
 ## Notes
 
 - Soft procedures for type dictionary on edit.
+- Day assignment of table → staff is `base_workweeks.ID_TABLE` via workweeks **nazcab** (`/workweeks/nazcab`) and calendar shift strip labels — not edited here.

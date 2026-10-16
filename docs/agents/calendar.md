@@ -29,6 +29,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 ## Human UI
 
 - `/calendar` week grid; `/calendar/day/{date}` day board.
+- Shift strip: nazop (who works) and, when `tables` is on, nazcab (massage sections) via `/workweeks/nazcab` dialog; table names shown on shift chips.
 - `/calendar/events/new` and `/calendar/events/{id}/edit` — event CRUD; can create procedures.
 - `/calendar/settings` — manual create / hours (superadmin).
 - Booking advance slots are `/booking/new` (separate module), not slot-click on the day board.

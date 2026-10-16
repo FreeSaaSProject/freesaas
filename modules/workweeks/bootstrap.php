@@ -27,6 +27,7 @@ $pages = [
     '/workweeks/new' => ['permission' => 'workweeks.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/workweeks/{id}/edit' => ['permission' => 'workweeks.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/workweeks/nazop' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'nazop.php'],
+    '/workweeks/nazcab' => ['permission' => 'workweeks.view', 'methods' => ['GET', 'POST'], 'file' => 'nazcab.php'],
     '/workweeks/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     // Legacy day URL → list filtered by date
     '/workweeks/day/{date}' => ['permission' => 'workweeks.view', 'methods' => ['GET'], 'file' => 'day_redirect.php'],
