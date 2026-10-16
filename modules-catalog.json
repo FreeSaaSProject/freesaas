@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-16T07:33:37+00:00",
+    "generated_at": "2026-10-16T07:38:43+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1153,7 +1153,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.8",
+            "version": "0.1.9",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1599,7 +1599,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.7",
+            "version": "0.2.8",
             "type": "product",
             "name": {
                 "en": "Shifts",

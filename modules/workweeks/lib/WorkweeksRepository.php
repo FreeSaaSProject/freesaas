@@ -3,6 +3,15 @@ declare(strict_types=1);
 
 final class WorkweeksRepository
 {
+    /** @var array<string,array<int,list<array<string,mixed>>>> request memo for listForDayRange */
+    private static $rangeShiftsCache = [];
+
+    /** @var array<int,list<array<string,mixed>>> per-day slices filled from range queries */
+    private static $dayShiftsCache = [];
+
+    /** @var array<int,float> PRICE_COL → pay units (request memo) */
+    private static $payUnitsCache = [];
+
     /** When tables module is off / empty, massage-table id defaults to 1. */
     public static function tablesActive(): bool
     {
@@ -253,6 +262,7 @@ final class WorkweeksRepository
             (int)$data['id_table'],
             $id,
         ]);
+        self::clearShiftsCache();
 
         if ($changed) {
             $bits = [];
@@ -479,21 +489,24 @@ final class WorkweeksRepository
     public static function shiftPayUnits(int $priceCol): float
     {
         $priceCol = max(1, min(5, $priceCol));
+        if (isset(self::$payUnitsCache[$priceCol])) {
+            return self::$payUnitsCache[$priceCol];
+        }
         $cfg = trim((string)Config::get('workweeks', 'shift_' . $priceCol . '_units', ''));
         if ($cfg !== '') {
             $u = (float)str_replace(',', '.', $cfg);
-            return $u > 0.0 ? $u : 0.0;
+            return self::$payUnitsCache[$priceCol] = ($u > 0.0 ? $u : 0.0);
         }
         $windows = self::shiftWindows();
         $self = $windows[$priceCol] ?? null;
         if ($self === null) {
-            return 1.0;
+            return self::$payUnitsCache[$priceCol] = 1.0;
         }
         $selfStart = self::hmToMinutes((string)$self['start']);
         $selfEnd = self::hmToMinutes((string)$self['end']);
         $selfDur = $selfEnd - $selfStart;
         if ($selfDur <= 0) {
-            return 1.0;
+            return self::$payUnitsCache[$priceCol] = 1.0;
         }
         // Composite (e.g. I+II): window fully contains ≥2 shorter sibling windows.
         $covered = 0;
@@ -515,7 +528,7 @@ final class WorkweeksRepository
                 $covered++;
             }
         }
-        return $covered >= 2 ? 2.0 : 1.0;
+        return self::$payUnitsCache[$priceCol] = ($covered >= 2 ? 2.0 : 1.0);
     }
 
     /**
@@ -677,12 +690,16 @@ final class WorkweeksRepository
         if ($dayStart <= 0) {
             return [];
         }
+        if (array_key_exists($dayStart, self::$dayShiftsCache)) {
+            return self::$dayShiftsCache[$dayStart];
+        }
         $byDay = self::listForDayRange($dayStart, $dayStart + 86400);
-        return $byDay[$dayStart] ?? [];
+        return self::$dayShiftsCache[$dayStart] ?? ($byDay[$dayStart] ?? []);
     }
 
     /**
      * Shifts for [rangeStart, rangeEnd) grouped by day DT (unix midnight).
+     * Request-memoized; also fills per-day cache so week footer seed reuses the week load.
      *
      * @return array<int,list<array<string,mixed>>>
      */
@@ -691,6 +708,25 @@ final class WorkweeksRepository
         $out = [];
         if ($rangeStart <= 0 || $rangeEnd <= $rangeStart || !Database::tableExists('base_workweeks')) {
             return $out;
+        }
+        $rangeKey = $rangeStart . '|' . $rangeEnd;
+        if (isset(self::$rangeShiftsCache[$rangeKey])) {
+            return self::$rangeShiftsCache[$rangeKey];
+        }
+        // Assemble from per-day cache when week (or wider) already loaded those midnights.
+        $assembled = [];
+        $canAssemble = true;
+        for ($ts = $rangeStart; $ts < $rangeEnd; $ts += 86400) {
+            if (!array_key_exists($ts, self::$dayShiftsCache)) {
+                $canAssemble = false;
+                break;
+            }
+            if (self::$dayShiftsCache[$ts] !== []) {
+                $assembled[$ts] = self::$dayShiftsCache[$ts];
+            }
+        }
+        if ($canAssemble) {
+            return self::$rangeShiftsCache[$rangeKey] = $assembled;
         }
         $pdo = Database::pdo();
         $joins = '';
@@ -754,7 +790,10 @@ final class WorkweeksRepository
             }
             $out[$dt][] = self::normalizeShiftRow($row);
         }
-        return $out;
+        for ($ts = $rangeStart; $ts < $rangeEnd; $ts += 86400) {
+            self::$dayShiftsCache[$ts] = $out[$ts] ?? [];
+        }
+        return self::$rangeShiftsCache[$rangeKey] = $out;
     }
 
     /**
@@ -1039,6 +1078,7 @@ final class WorkweeksRepository
             $idTable,
             $masMax,
         ]);
+        self::clearShiftsCache();
         return (int)Database::pdo()->lastInsertId();
     }
 
@@ -1056,6 +1096,7 @@ final class WorkweeksRepository
             self::normalizeTableId($idTable),
             $id,
         ]);
+        self::clearShiftsCache();
     }
 
     public static function delete(int $id): void
@@ -1064,6 +1105,14 @@ final class WorkweeksRepository
             return;
         }
         Database::pdo()->prepare('DELETE FROM base_workweeks WHERE ID = ?')->execute([$id]);
+        self::clearShiftsCache();
+    }
+
+    /** Drop request-memoized shift lists after writes. */
+    private static function clearShiftsCache(): void
+    {
+        self::$rangeShiftsCache = [];
+        self::$dayShiftsCache = [];
     }
 
     public static function canAssign(): bool

@@ -627,38 +627,47 @@ final class ProcentsRepository
 
         $hourRate = (float)($rates['audio_hour_rate'] ?? 0);
         $scriptRate = (float)($rates['script_score_rate'] ?? 0);
-        $stats = self::audioHoursStats($adminId, $start, $end);
-        $hours = (float)$stats['hours'];
+        // Skip DB when neither rate accrues (desk stubs / staff without audio pay).
+        if ($hourRate == 0.0 && $scriptRate == 0.0) {
+            return $empty;
+        }
+
         $salaryAudio = 0.0;
-        if ($hours > 0.0 && $hourRate != 0.0) {
-            $salaryAudio = round($hours * $hourRate);
-            $descr = t('procents.audio.hours');
-            if ($stats['avg_score'] !== null) {
-                $descr .= ' ®' . rtrim(rtrim(number_format((float)$stats['avg_score'], 1, '.', ''), '0'), '.');
+        if ($hourRate != 0.0) {
+            $stats = self::audioHoursStats($adminId, $start, $end);
+            $hours = (float)$stats['hours'];
+            if ($hours > 0.0) {
+                $salaryAudio = round($hours * $hourRate);
+                $descr = t('procents.audio.hours');
+                if ($stats['avg_score'] !== null) {
+                    $descr .= ' ®' . rtrim(rtrim(number_format((float)$stats['avg_score'], 1, '.', ''), '0'), '.');
+                }
+                $empty['rows_audio'][] = [
+                    'type' => t('procents.audio.hours_type'),
+                    'descr' => $descr,
+                    'sum' => $hours,
+                    'rate' => $hourRate,
+                    'accrued' => $salaryAudio,
+                    'rate_kind' => 'absolute',
+                ];
             }
-            $empty['rows_audio'][] = [
-                'type' => t('procents.audio.hours_type'),
-                'descr' => $descr,
-                'sum' => $hours,
-                'rate' => $hourRate,
-                'accrued' => $salaryAudio,
-                'rate_kind' => 'absolute',
-            ];
         }
         $empty['salary_audio'] = $salaryAudio;
 
-        $scoreSum = self::scriptScoreSum($adminId, $start, $end);
         $salaryScripts = 0.0;
-        if ($scoreSum > 0.0 && $scriptRate != 0.0) {
-            $salaryScripts = round($scoreSum * $scriptRate);
-            $empty['rows_scripts'][] = [
-                'type' => t('procents.audio.scripts_type'),
-                'descr' => t('procents.audio.scripts'),
-                'sum' => $scoreSum,
-                'rate' => $scriptRate,
-                'accrued' => $salaryScripts,
-                'rate_kind' => 'absolute',
-            ];
+        if ($scriptRate != 0.0) {
+            $scoreSum = self::scriptScoreSum($adminId, $start, $end);
+            if ($scoreSum > 0.0) {
+                $salaryScripts = round($scoreSum * $scriptRate);
+                $empty['rows_scripts'][] = [
+                    'type' => t('procents.audio.scripts_type'),
+                    'descr' => t('procents.audio.scripts'),
+                    'sum' => $scoreSum,
+                    'rate' => $scriptRate,
+                    'accrued' => $salaryScripts,
+                    'rate_kind' => 'absolute',
+                ];
+            }
         }
         $empty['salary_scripts'] = $salaryScripts;
 

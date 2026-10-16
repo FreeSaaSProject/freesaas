@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.7",
+    "version": "0.2.8",
     "type": "product",
     "runtime": "both",
     "requires": {
