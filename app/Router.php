@@ -65,7 +65,7 @@ final class Router
             return null;
         }
         $params = [];
-        if (preg_match_all('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', $pattern, $m)) {
+        if (preg_match_all('/\{\*?([a-zA-Z_][a-zA-Z0-9_]*)\}/', $pattern, $m)) {
             foreach ($m[1] as $name) {
                 if (!array_key_exists($name, $pathArgs)) {
                     return null;
@@ -78,6 +78,32 @@ final class Router
             'route' => $routes[$pattern],
             'params' => $params,
         ];
+    }
+
+    /**
+     * Compile a route pattern to a regex. `{name}` = one path segment; `{*name}` = greedy
+     * rest (slashes allowed). Static segments are preg_quoted (so `.php` is literal).
+     */
+    public static function patternToRegex(string $pattern): string
+    {
+        $parts = preg_split('/(\{\*?[a-zA-Z_][a-zA-Z0-9_]*\})/', $pattern, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if (!is_array($parts)) {
+            return '#^' . preg_quote($pattern, '#') . '$#';
+        }
+        $out = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            if (preg_match('/^\{\*([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $part, $m)) {
+                $out .= '(?P<' . $m[1] . '>.+)';
+            } elseif (preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $part, $m)) {
+                $out .= '(?P<' . $m[1] . '>[^/]+)';
+            } else {
+                $out .= preg_quote($part, '#');
+            }
+        }
+        return '#^' . $out . '$#';
     }
 
     public static function dispatch(): void
@@ -97,8 +123,7 @@ final class Router
                 if (strpos($pattern, '{') === false) {
                     continue;
                 }
-                $regex = preg_replace('#\{([a-zA-Z_][a-zA-Z0-9_]*)\}#', '(?P<$1>[^/]+)', $pattern);
-                $regex = '#^' . $regex . '$#';
+                $regex = self::patternToRegex($pattern);
                 if (preg_match($regex, $path, $m)) {
                     $len = strlen($pattern);
                     if ($len > $bestLen) {

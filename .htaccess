@@ -45,6 +45,13 @@ DirectorySlash Off
   RewriteRule ^\.git(/|$) - [F,L]
   RewriteRule ^themes/[^/]+/(layouts|views|partials)/ - [F,L]
 
+  # Legacy 1C proxy PATH_INFO (/api1c.php/client_by_card) → front controller.
+  # Exact /api1c.php is also covered (no on-disk stub). Keep ahead of !-f catch-all.
+  RewriteCond %{ENV:FREESAAS_FRONT} ^site$ [NC]
+  RewriteRule ^api1c\.php(?:/.*)?$ site.php [L,QSA]
+  RewriteCond %{ENV:FREESAAS_FRONT} !^site$ [NC]
+  RewriteRule ^api1c\.php(?:/.*)?$ index.php [L,QSA]
+
   # Front controller: default index.php (admin).
   # Storefront: FREESAAS_FRONT=site from Host rule above, or vhost SetEnv / htaccess.storefront.
   RewriteCond %{REQUEST_FILENAME} !-f

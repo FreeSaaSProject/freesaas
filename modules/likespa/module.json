@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.15",
+    "version": "0.3.16",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -62,7 +62,8 @@
             "/likespa/legacy-api/status",
             "/api_termy.php",
             "/api.php",
-            "/api1c.php"
+            "/api1c.php",
+            "/api1c.php/{*path}"
         ]
     },
     "agent": {

@@ -92,6 +92,7 @@ $allowed = [
     '/api_termy.php' => ['methods' => ['GET'], 'why' => 'Termy order-mode booking drop-in'],
     '/api.php' => ['methods' => ['GET'], 'why' => 'legacy booking/terminal API drop-in'],
     '/api1c.php' => ['methods' => ['GET', 'POST', 'PUT', 'PATCH'], 'why' => '1C reverse proxy drop-in'],
+    '/api1c.php/{*path}' => ['methods' => ['GET', 'POST', 'PUT', 'PATCH'], 'why' => '1C proxy PATH_INFO (client_by_card, …)'],
     '/robots.txt' => ['methods' => ['GET'], 'why' => 'SEO robots'],
     '/sitemap.xml' => ['methods' => ['GET'], 'why' => 'SEO sitemap'],
 

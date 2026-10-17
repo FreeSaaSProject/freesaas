@@ -185,7 +185,7 @@ final class LikespaLegacyApi
             'legacy_api_enabled' => $enabled,
             'legacy_api_key_set' => $key !== '',
             'termy_category' => LikespaConfig::int('legacy_api_termy_category', 16),
-            'routes' => ['/api_termy.php', '/api.php', '/api1c.php'],
+            'routes' => ['/api_termy.php', '/api.php', '/api1c.php', '/api1c.php/{*path}'],
             'soft_deps' => [
                 'booking' => class_exists(BookingBook::class, false),
                 'orders' => class_exists(OrdersRepository::class, false),

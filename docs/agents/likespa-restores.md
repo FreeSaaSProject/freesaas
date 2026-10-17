@@ -57,7 +57,7 @@ Optional facade for DNS cutover without changing Termy/NFC clients. Off by defau
 |------|---------|------|
 | `/api_termy.php?endpoint=` | GET | Termy order-mode (catalog category from ini, default 16) → `booking` / `orders` |
 | `/api.php?endpoint=` | GET | Broader legacy ops incl. procedure book when `terminalId` set |
-| `/api1c.php` | GET/POST/… | Reverse proxy → `terminals` `OnecClient::proxy` |
+| `/api1c.php` and `/api1c.php/{*path}` | GET/POST/… | Reverse proxy → `terminals` `OnecClient::proxy` (PATH_INFO e.g. `/api1c.php/client_by_card?card=`) |
 
 Threat model: legacy Termy was open GET — empty `legacy_api_key` keeps that. Optional key via `X-Likespa-Api-Key` or `api_key=`. Secrets never returned. Public routes are allow-listed in `bin/check-routes.php`. Product agent layer is **`likespa.legacy_api.status`** (session SUPERADMIN), not the drop-in paths as chat tools. See [`agent-surfaces.md`](agent-surfaces.md).
 

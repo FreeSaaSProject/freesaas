@@ -26,6 +26,9 @@ DirectoryIndex site.php index.php
   RewriteRule ^\.git(/|$) - [F,L]
   RewriteRule ^themes/[^/]+/(layouts|views|partials)/ - [F,L]
 
+  # Legacy 1C proxy PATH_INFO (/api1c.php/client_by_card) → storefront front controller.
+  RewriteRule ^api1c\.php(?:/.*)?$ site.php [L,QSA]
+
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^ site.php [L,QSA]

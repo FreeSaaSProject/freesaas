@@ -77,6 +77,12 @@ $pages = [
         'methods' => ['GET', 'POST', 'PUT', 'PATCH'],
         'file' => 'api1c.php',
     ],
+    // Legacy PATH_INFO: /api1c.php/client_by_card (physical stub + PATH_INFO parity).
+    '/api1c.php/{*path}' => [
+        'public' => true,
+        'methods' => ['GET', 'POST', 'PUT', 'PATCH'],
+        'file' => 'api1c.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {
