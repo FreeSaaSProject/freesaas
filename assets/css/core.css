@@ -1104,11 +1104,20 @@ body.rail-collapsed .workspace .main.main-flush {
 .data { width: 100%; border-collapse: collapse; }
 .data th, .data td {
   text-align: left;
-  padding: 0.7rem 0.85rem;
+  padding: 0.35rem 0.5rem;
   border-bottom: 1px solid var(--line);
-  vertical-align: top;
+  vertical-align: middle;
+  font-size: 0.875rem;
+  line-height: 1.3;
 }
-.data th { color: var(--muted); font-weight: 600; font-size: 0.85rem; }
+.data th { color: var(--muted); font-weight: 600; font-size: 0.8rem; }
+.data--compact th,
+.data--compact td {
+  padding: 0.22rem 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+.data--compact th { font-size: 0.75rem; }
 .data th.th-sort a {
   color: inherit;
   text-decoration: none;

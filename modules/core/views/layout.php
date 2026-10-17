@@ -60,7 +60,15 @@ $jsI18n = I18n::jsDict([
     'core.widget.likes.mark_error',
 ]);
 
-$layoutGate = ['blocked' => false, 'html' => '', 'chrome' => '', 'js_i18n' => []];
+$layoutGate = [
+    'blocked' => false,
+    'html' => '',
+    'chrome' => '',
+    'floating' => '',
+    'js_i18n' => [],
+    'page_title' => isset($title) && is_string($title) ? $title : '',
+    'page_context_json' => '',
+];
 if (Auth::check()) {
     try {
         $gatePayload = EventBus::emit('core.layout.gate', $layoutGate);
@@ -83,6 +91,8 @@ $gateChrome = (string)($layoutGate['chrome'] ?? '');
 if ($gateChrome === '') {
     $gateChrome = (string)($layoutGate['topbar'] ?? '');
 }
+$gateFloating = (string)($layoutGate['floating'] ?? '');
+$pageContextJson = (string)($layoutGate['page_context_json'] ?? '');
 
 $schemaSetup = ['needed' => false, 'pending' => 0, 'legacy_users' => false, 'ledger' => true];
 if (Auth::check() && class_exists('SchemaMigrator', false)) {
@@ -373,6 +383,12 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
     </footer>
   </div>
 <?php endif; ?>
+  <?php if ($gateFloating !== ''): ?>
+    <?= $gateFloating ?>
+  <?php endif; ?>
+  <?php if ($pageContextJson !== ''): ?>
+    <script type="application/json" id="freesaas-page-context"><?= $pageContextJson ?></script>
+  <?php endif; ?>
   <script src="/assets/js/core.js?v=<?= (int)@filemtime(base_path('assets/js/core.js')) ?>"></script>
   <?= Assets::jsTags() ?>
 </body>

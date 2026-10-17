@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T04:41:24+00:00",
+    "generated_at": "2026-10-17T06:02:15+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.52",
+            "version": "0.1.56",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -73,7 +73,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.20",
+            "version": "0.2.21",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -207,7 +207,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.23",
+            "version": "0.3.25",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",

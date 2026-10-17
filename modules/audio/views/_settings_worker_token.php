@@ -4,10 +4,12 @@ declare(strict_types=1);
 /** @var bool $workerTokenJustGenerated */
 /** @var string $workerTokenPlain */
 /** @var string $workerTokenMasked */
+/** @var string $ingestUrl */
 $workerTokenConfigured = !empty($workerTokenConfigured);
 $workerTokenJustGenerated = !empty($workerTokenJustGenerated);
 $workerTokenPlain = (string)($workerTokenPlain ?? '');
 $workerTokenMasked = (string)($workerTokenMasked ?? '');
+$ingestUrl = (string)($ingestUrl ?? '');
 ?>
 <fieldset class="settings-worker-token">
   <legend><?= te('audio.settings.worker_token.title') ?></legend>
@@ -36,6 +38,19 @@ $workerTokenMasked = (string)($workerTokenMasked ?? '');
     </p>
   <?php else: ?>
     <p class="muted"><?= te('audio.settings.worker_token.status_missing') ?></p>
+  <?php endif; ?>
+
+  <?php if ($ingestUrl !== ''): ?>
+    <div style="margin-top:1rem">
+      <h3 class="subhead" style="font-size:1rem;margin:0 0 .35rem"><?= te('audio.settings.ingest_url.title') ?></h3>
+      <p class="muted"><?= te('audio.settings.ingest_url.help') ?></p>
+      <p style="margin:.5rem 0 0;word-break:break-all">
+        <code id="audio-ingest-url"><?= e($ingestUrl) ?></code>
+      </p>
+      <p class="actions" style="margin-top:.5rem">
+        <button type="button" class="btn-secondary" data-copy-text="<?= e($ingestUrl) ?>"><?= te('audio.settings.ingest_url.btn_copy') ?></button>
+      </p>
+    </div>
   <?php endif; ?>
 
   <p class="muted" style="margin-top:.5rem"><?= te('audio.settings.worker_token.save_note') ?></p>

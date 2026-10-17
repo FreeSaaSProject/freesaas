@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.3.23",
+    "version": "0.3.25",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -68,11 +68,11 @@
             },
             {
                 "id": "audio_pipeline.jobs.ingest",
-                "method": "POST",
+                "method": "GET",
                 "path": "/audio/jobs/ingest",
                 "permission": "audio_pipeline.view",
                 "assistant": false,
-                "description": "Cron ingest job (X-Audio-Token); optional importBrokenDate"
+                "description": "Inbox ingest (GET|POST). Auth: ?token= or X-Audio-Token. Optional importBrokenDate=1. Platform cron: audio_pipeline.ingest"
             },
             {
                 "id": "audio_pipeline.jobs.stem",
@@ -93,9 +93,9 @@
         ]
     },
     "jobs": [
-        "POST /audio/jobs/ingest",
-        "POST /audio/jobs/stem",
-        "POST /audio/jobs/collect"
+        "GET|POST /audio/jobs/ingest",
+        "GET|POST /audio/jobs/stem",
+        "GET|POST /audio/jobs/collect"
     ],
     "menu": [],
     "configSchema": [],

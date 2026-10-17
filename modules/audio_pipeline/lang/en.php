@@ -6,6 +6,7 @@ return [
     'audio_pipeline.perm.view' => 'Audio pipeline (status)',
     'audio_pipeline.module.description' => 'Ingest / cabin ASR / stem / collect workers for cabin audio analytics.',
     'audio_pipeline.module.summary' => 'Enable for cabin recording background jobs. Requires asr + audio + audio_dicts. Soft procedures. Messenger voice lives in module asr.',
+    'audio_pipeline.cron.ingest' => 'Audio inbox ingest (nightly 02:00 backup)',
     'audio_pipeline.settings.coverage' => 'Record coverage (disable idle)',
     'audio_pipeline.settings.coverage_hint' => 'Global defaults. Per-role / per-staff overrides below (optional). Outside likespa leave match off for plain ® analytics.',
     'audio_pipeline.settings.disable_outside' => 'Disable records outside coverage after collect',

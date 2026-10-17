@@ -6,6 +6,7 @@ return [
     'audio_pipeline.perm.view' => 'Аудио-пайплайн (статус)',
     'audio_pipeline.module.description' => 'Воркеры ingest / cabin ASR / stem / collect для аудиоаналитики кабинета.',
     'audio_pipeline.module.summary' => 'Включайте для фоновой обработки записей кабинета. Требует asr + audio + audio_dicts. Мягко procedures. Голосовые боты — в модуле asr.',
+    'audio_pipeline.cron.ingest' => 'Ingest inbox аудио (резерв ночью в 02:00)',
     'audio_pipeline.settings.coverage' => 'Покрытие записей (отключение простоя)',
     'audio_pipeline.settings.coverage_hint' => 'Глобальные значения. Ниже — опциональные оверрайды по роли / сотруднику. Вне likespa оставляйте сопоставление процедур выключенным.',
     'audio_pipeline.settings.disable_outside' => 'Отключать записи вне покрытия после collect',

@@ -9,12 +9,14 @@ declare(strict_types=1);
 /** @var bool $workerTokenJustGenerated */
 /** @var string $workerTokenPlain */
 /** @var string $workerTokenMasked */
+/** @var string $ingestUrl */
 $extraHtml = (string)($extraHtml ?? '');
 $canWorkerToken = !empty($canWorkerToken);
 $workerTokenConfigured = !empty($workerTokenConfigured);
 $workerTokenJustGenerated = !empty($workerTokenJustGenerated);
 $workerTokenPlain = (string)($workerTokenPlain ?? '');
 $workerTokenMasked = (string)($workerTokenMasked ?? '');
+$ingestUrl = (string)($ingestUrl ?? '');
 ?>
 <section class="page-head">
   <p class="lede"><?= t('audio.settings.lede') ?></p>

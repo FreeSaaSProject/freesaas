@@ -17,6 +17,21 @@ final class AssistantConfig
         return $name !== '' ? $name : self::DEFAULT_NAME;
     }
 
+    /** First grapheme/letter for the compact FAB button. */
+    public static function initialLetter(): string
+    {
+        $name = self::displayName();
+        if ($name === '') {
+            return 'A';
+        }
+        if (function_exists('mb_substr') && function_exists('mb_strtoupper')) {
+            $ch = mb_substr($name, 0, 1, 'UTF-8');
+            return $ch !== '' ? mb_strtoupper($ch, 'UTF-8') : 'A';
+        }
+        $ch = substr($name, 0, 1);
+        return $ch !== '' ? strtoupper($ch) : 'A';
+    }
+
     /**
      * t() with {name} always filled from displayName().
      *

@@ -98,26 +98,11 @@
   vertical-align: middle;
 }
 
-/* Compact payments tables (list + monthly) */
-.table-wrap .data th,
-.table-wrap .data td,
-.payments-monthly .data th,
-.payments-monthly .data td {
-  padding: 0.22rem 0.35rem;
-  font-size: 0.82rem;
-  line-height: 1.3;
-}
-
 .table-wrap .data .user-badge,
 .payments-monthly .user-badge {
   margin-right: 0.2rem;
   font-size: 0.7rem;
   padding: 0.06rem 0.25rem;
-}
-
-.table-wrap .data .money-signed,
-.payments-monthly .money-signed {
-  font-size: 0.82rem;
 }
 
 /* Monthly settlements layout (oper show_payments mode=2 parity) */

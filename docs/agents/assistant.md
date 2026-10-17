@@ -1,8 +1,12 @@
 # Assistant — in-system AI (tool harness)
 
-Product module `assistant`: conversational agent that calls product `agent.ops` automatically. Channels: UI `/assistant` and staff Telegram/Max-messenger bot («Ask {name}»). Not platform `/agent/*`.
+Product module `assistant`: conversational agent that calls product `agent.ops` automatically. Channels: UI `/assistant`, floating single-letter FAB on admin pages, and staff Telegram/Max-messenger bot («Ask {name}»). Not platform `/agent/*`.
 
-**Persona name:** configurable under **System settings** (`/settings`, field «Assistant name»). Default **Макс**. Stored in `cfg/modules/assistant.ini` (`[assistant] name=`). The system prompt, chat UI, rail chat item, and bot cabinet button use this name.
+**Persona name:** configurable under **System settings** (`/settings`, field «Assistant name»). Default **Макс**. Stored in `cfg/modules/assistant.ini` (`[assistant] name=`). The system prompt, chat UI, rail chat item, FAB letter, and bot cabinet button use this name.
+
+**Floating FAB:** one letter (first of the persona name) bottom-right on admin pages (not on `/assistant/*`). Opens a drawer that shares `AssistantDialog` history with the full chat and bot. Each FAB message sends `mode=page` + `page_context` JSON; the harness shrinks tools to the current module + `core.help.*` and appends the screen JSON to the system prompt. When the catalog is truncated, virtual meta-tools `assistant.tools.modules` → `list` → `unlock` let the model browse the full permitted catalog and unlock other modules mid-turn (still `Auth::can` — not a permission bypass).
+
+**Personal prefs** (`/assistant/prefs`, every signed-in staff user): hide FAB everywhere (`assistant.fab_off`) or per path (`assistant.fab_hidden_paths`) via `base_user_prefs`. From the drawer: **Hide on this page** → `POST /assistant/fab/hide`. Full `/assistant` stays reachable by URL.
 
 ## Enable
 
@@ -26,12 +30,15 @@ Opt out of the assistant tool list with `"assistant": false` on an op (used for 
 
 ## UI
 
-- `GET /assistant` — chat page
-- `POST /assistant/chat` — JSON body `{ "messages":[{"role":"user","content":"…"}] }`
+- `GET /assistant` — full chat page (all tools)
+- `POST /assistant/chat` — JSON `{ "message":"…" }` or `messages[]`; FAB adds `mode:"page"` + `page_context` (path/module/title/breadcrumbs/…)
 - `POST /assistant/confirm` — `{ "token":"…", "action":"confirm"|"cancel" }`
-- `POST /assistant/feedback` — rate a reply `{ rating:"good"|"bad", reasons:[], comment, messages:[{role,content}] }`; stored as JSONL under `var/assistant/feedback/YYYY-MM.jsonl` (context = rated turn + previous turn)
+- `POST /assistant/feedback` — rate a reply `{ rating:"good"|"bad", reasons:[], comment, messages:[{role,content}] }`; stored as JSONL under `var/assistant/feedback/YYYY-MM.jsonl`
+- `GET`/`POST` `/assistant/prefs` — personal FAB prefs (all staff)
+- `POST /assistant/fab/hide` — `{ "path":"/…" }` hide FAB on that path for the current user
 - `GET`/`POST` `/assistant/eval` — **SUPERADMIN** hybrid eval (deterministic + live LLM); JSON on `Accept: application/json`
 - Persona name: **Settings** (`/settings`) → Assistant name (SUPERADMIN / `core.settings`)
+- Layout stamps `#freesaas-page-context` JSON and injects FAB via `core.layout.gate` → `floating`
 
 Outgoing assistant text runs through `AssistantLinks::absolutize`: relative `/paths` become absolute admin URLs, and bare module roots with a single menu/route screen (e.g. `/finance` → `/finance/balance`) are rewritten so messengers and the chat UI do not get 404s.
 

@@ -17,10 +17,14 @@ final class AssistantHarness
      * @param array{
      *   profile?:string,timeout?:int,temperature?:float,max_tokens?:int,user_id?:int,
      *   ops?:list<array<string,mixed>>,
+     *   full_ops?:list<array<string,mixed>>,
+     *   page_context?:array<string,mixed>,
      *   tool_stubs?:array<string,callable|array>,
      *   on_progress?:callable
      * } $opts on_progress receives {phase,op_id,description,side_effect,args,status?};
-     *          ops = prebuilt tool catalog (eval personas); does not touch AssistantDialog.
+     *          ops = prebuilt tool catalog (eval personas / page-chat); does not touch AssistantDialog.
+     *          full_ops = full user catalog for meta unlock (page-chat); enables assistant.tools.* meta.
+     *          page_context = compact screen JSON appended to the system prompt.
      *          tool_stubs = op_id → payload array or (opId, args) => payload (eval fixtures).
      * @return array{
      *   ok:bool,text:string,messages:list,pending_actions:list,
@@ -40,6 +44,23 @@ final class AssistantHarness
         if ($ops === []) {
             return self::fail(t('assistant.err.tools'));
         }
+        $fullOps = isset($opts['full_ops']) && is_array($opts['full_ops'])
+            ? array_values($opts['full_ops'])
+            : [];
+        $productOpsCount = static function (array $list): int {
+            $n = 0;
+            foreach ($list as $op) {
+                if (is_array($op) && empty($op['meta'])) {
+                    $n++;
+                }
+            }
+            return $n;
+        };
+        $catalogEnabled = $fullOps !== []
+            && $productOpsCount($ops) < $productOpsCount($fullOps);
+        if ($catalogEnabled) {
+            $ops = AssistantTools::withMetaCatalog($ops);
+        }
         $byFn = AssistantTools::indexByFunctionName($ops);
         $tools = AssistantTools::toLlmTools($ops);
         $onProgress = isset($opts['on_progress']) && is_callable($opts['on_progress'])
@@ -50,6 +71,17 @@ final class AssistantHarness
             : [];
 
         $system = self::buildSystemPrompt($ops);
+        if (isset($opts['page_context']) && is_array($opts['page_context']) && $opts['page_context'] !== []
+            && class_exists('AssistantPageContext', false)
+        ) {
+            $system .= AssistantPageContext::promptBlock($opts['page_context']);
+        }
+        if ($catalogEnabled) {
+            $hint = t('assistant.system_prompt.tool_catalog');
+            if ($hint !== '' && $hint !== 'assistant.system_prompt.tool_catalog') {
+                $system .= "\n" . $hint;
+            }
+        }
 
         $norm = [];
         $norm[] = ['role' => 'system', 'content' => $system];
@@ -223,6 +255,42 @@ final class AssistantHarness
                     'side_effect' => $side,
                     'args' => $args,
                 ]);
+
+                if (AssistantTools::isMetaOpId($opId) && $catalogEnabled) {
+                    $meta = AssistantTools::invokeMeta($opId, $args, $ops, $fullOps);
+                    $payload = is_array($meta)
+                        ? [
+                            'ok' => !empty($meta['ok']),
+                            'error' => (string)($meta['error'] ?? ''),
+                            'data' => $meta['data'] ?? null,
+                        ]
+                        : ['ok' => false, 'error' => 'Meta tool failed'];
+                    if (!empty($meta['ok']) && $opId === 'assistant.tools.unlock') {
+                        $byFn = AssistantTools::indexByFunctionName($ops);
+                        $tools = AssistantTools::toLlmTools($ops);
+                    }
+                    $trace[] = [
+                        'op_id' => $opId,
+                        'label' => self::humanOpTitle($opId),
+                        'status' => !empty($payload['ok']) ? 'ok' : 'error',
+                        'args' => $args,
+                        'meta' => true,
+                    ];
+                    self::emitProgress($onProgress, [
+                        'phase' => 'done',
+                        'op_id' => $opId,
+                        'description' => $desc,
+                        'side_effect' => 'read',
+                        'args' => $args,
+                        'status' => !empty($payload['ok']) ? 'ok' : 'error',
+                    ]);
+                    $norm[] = [
+                        'role' => 'tool',
+                        'tool_call_id' => $tcId,
+                        'content' => self::encodeToolContent($payload),
+                    ];
+                    continue;
+                }
 
                 $stubPayload = self::resolveToolStub($toolStubs, $opId, $args);
                 if ($stubPayload !== null) {

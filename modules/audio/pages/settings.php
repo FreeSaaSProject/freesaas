@@ -103,12 +103,23 @@ $extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
 
 $workerTokenConfigured = $canWorkerToken && AsrWorkerAuth::isConfigured();
 $workerTokenMasked = $canWorkerToken ? AsrWorkerAuth::mask() : '';
+// Superadmin settings: full token for copy-paste ingest URL (uploader has no header auth).
+if ($canWorkerToken && $workerTokenPlain === '' && $workerTokenConfigured) {
+    $workerTokenPlain = AsrWorkerAuth::configuredToken();
+}
+$ingestUrl = '';
+if ($workerTokenConfigured && $workerTokenPlain !== '' && class_exists('AppRuntime', false)) {
+    $ingestUrl = AppRuntime::adminUrl(
+        '/audio/jobs/ingest?token=' . rawurlencode($workerTokenPlain)
+    );
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'cfg' => AudioSettingsRepository::storageConfigForAgent(),
         'worker_token_configured' => $workerTokenConfigured,
+        'ingest_url_configured' => $ingestUrl !== '',
     ]);
     return;
 }
@@ -122,8 +133,9 @@ View::render('settings', [
     'canWorkerToken' => $canWorkerToken,
     'workerTokenConfigured' => $workerTokenConfigured,
     'workerTokenJustGenerated' => $workerTokenJustGenerated,
-    'workerTokenPlain' => $workerTokenPlain,
+    'workerTokenPlain' => $workerTokenJustGenerated ? $workerTokenPlain : '',
     'workerTokenMasked' => $workerTokenMasked,
+    'ingestUrl' => $ingestUrl,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('audio.menu.list'), 'href' => '/audio'],
         ['label' => t('audio.menu.settings'), 'current' => true],

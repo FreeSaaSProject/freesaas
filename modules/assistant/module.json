@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.52",
+    "version": "0.1.56",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -28,6 +28,8 @@
             "/assistant/confirm",
             "/assistant/clear",
             "/assistant/feedback",
+            "/assistant/prefs",
+            "/assistant/fab/hide",
             "/assistant/eval"
         ]
     },
@@ -79,6 +81,13 @@
         {
             "group": "llm.menu.group",
             "kind": "settings",
+            "num": 15,
+            "path": "/assistant/prefs",
+            "title": "assistant.menu.prefs"
+        },
+        {
+            "group": "llm.menu.group",
+            "kind": "settings",
             "num": 20,
             "path": "/assistant/eval",
             "title": "assistant.menu.eval",
@@ -104,7 +113,8 @@
             "core.dashboard.command_html",
             "core.menu.items",
             "core.settings.sections",
-            "core.settings.save"
+            "core.settings.save",
+            "core.layout.gate"
         ],
         "publish": [
             "bots.send"

@@ -16,7 +16,8 @@ require_once __DIR__ . '/lib/AudioCoverageProfiles.php';
 /**
  * Cabin audio analytics workers (ingest / base_records ASR / stem / collect).
  * Shared worker token + messenger voice queue live in module `asr`.
- * Shared hosting: cron → curl -H "X-Audio-Token: …" /audio/jobs/{ingest|stem|collect}
+ * Uploader / host cron (no POST body): GET /audio/jobs/ingest?token=…
+ * Platform tick: Cron job audio_pipeline.ingest (in-process, same IngestRunner).
  */
 
 $asrRoutes = [
@@ -53,6 +54,34 @@ foreach ($jobRoutes as $path => $file) {
         },
     ]);
 }
+
+// Nightly backup inbox → records (uploader should still ping GET ingest after upload).
+Cron::register('audio_pipeline.ingest', [
+    'module' => 'audio_pipeline',
+    'label' => 'audio_pipeline.cron.ingest',
+    'daily_at' => '02:00',
+    'handler' => static function (): array {
+        $lock = JobLock::tryAcquire('ingest');
+        if ($lock === null) {
+            return [
+                'ok' => true,
+                'skipped' => 1,
+                'message' => 'blocked_run',
+            ];
+        }
+        try {
+            $out = IngestRunner::run(false);
+            return [
+                'ok' => !empty($out['ok']),
+                'processed' => (int)($out['processed'] ?? 0),
+                'skipped' => (int)($out['skipped'] ?? 0),
+                'message' => (string)($out['message'] ?? ''),
+            ];
+        } finally {
+            $lock->release();
+        }
+    },
+]);
 
 EventBus::on('audio_dicts.changed', static function ($payload) {
     // NEVER wipe instances / collections / SCORE for the whole DB here.

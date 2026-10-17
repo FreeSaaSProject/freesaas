@@ -2,6 +2,8 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/AssistantConfig.php';
+require_once __DIR__ . '/lib/AssistantPrefs.php';
+require_once __DIR__ . '/lib/AssistantPageContext.php';
 require_once __DIR__ . '/lib/PendingActionsRepository.php';
 require_once __DIR__ . '/lib/AssistantDialog.php';
 require_once __DIR__ . '/lib/AssistantAccess.php';
@@ -37,6 +39,14 @@ $pages = [
     '/assistant/clear' => [
         'methods' => ['POST'],
         'file' => 'clear.php',
+    ],
+    '/assistant/prefs' => [
+        'methods' => ['GET', 'POST'],
+        'file' => 'prefs.php',
+    ],
+    '/assistant/fab/hide' => [
+        'methods' => ['POST'],
+        'file' => 'fab_hide.php',
     ],
     '/assistant/eval' => [
         'methods' => ['GET', 'POST'],
@@ -117,6 +127,90 @@ EventBus::on('core.dashboard.command_html', static function ($payload) {
     }
     Assets::need('assistant');
     $payload['html'] = View::capture('_widget_ask', [], 'assistant');
+    return $payload;
+});
+
+// Floating single-letter FAB + page context (personal prefs may hide it).
+EventBus::on('core.layout.gate', static function ($payload) {
+    if (!is_array($payload) || !Auth::check()) {
+        return $payload;
+    }
+    $uid = Auth::userId();
+    $path = request_path();
+    $pageTitle = '';
+    if (isset($payload['page_title']) && is_string($payload['page_title'])) {
+        $pageTitle = $payload['page_title'];
+    }
+    $ctx = AssistantPageContext::collect($pageTitle);
+    $payload['page_context'] = $ctx;
+    $payload['page_context_json'] = json_encode($ctx, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}';
+
+    if (!AssistantPrefs::shouldShowFab($uid, $path)) {
+        return $payload;
+    }
+
+    Assets::need('assistant');
+    $history = AssistantDialog::tableReady() ? AssistantDialog::getHistory($uid) : [];
+    $menuLabels = [];
+    foreach (ModuleManager::menuItems() as $item) {
+        $p = parse_url((string)($item['path'] ?? ''), PHP_URL_PATH);
+        $p = is_string($p) && $p !== '' ? $p : (string)($item['path'] ?? '');
+        $p = rtrim($p, '/') ?: '/';
+        $title = trim((string)($item['title'] ?? ''));
+        if ($p === '' || $title === '') {
+            continue;
+        }
+        if (!isset($menuLabels[$p])) {
+            $menuLabels[$p] = $title;
+        }
+    }
+    $an = static function (string $key, array $replace = []): string {
+        return AssistantConfig::t($key, $replace);
+    };
+    $payload['floating'] = (string)($payload['floating'] ?? '') . View::capture('_fab', [
+        'page_context' => $ctx,
+        'history' => $history,
+        'menu_labels' => $menuLabels,
+        'admin_base' => AssistantLinks::base(),
+        'i18n' => [
+            'send' => t('assistant.chat.send'),
+            'thinking' => t('assistant.chat.thinking'),
+            'you' => t('assistant.chat.you'),
+            'assistant' => $an('assistant.chat.assistant'),
+            'error' => t('assistant.chat.error'),
+            'empty' => t('assistant.chat.empty'),
+            'confirm' => t('assistant.confirm.btn'),
+            'cancel' => t('assistant.confirm.cancel'),
+            'confirm_all' => t('assistant.confirm.btn_all'),
+            'cancel_all' => t('assistant.confirm.cancel_all'),
+            'pending' => t('assistant.confirm.pending', ['summary' => '{summary}']),
+            'pending_n' => t('assistant.confirm.pending_n', ['n' => '{n}']),
+            'confirm_done' => t('assistant.confirm.done'),
+            'confirm_cancelled' => t('assistant.confirm.cancelled'),
+            'clear' => t('assistant.chat.clear'),
+            'cleared' => t('assistant.chat.cleared'),
+            'tools' => t('assistant.tool.trace'),
+            'tool_pending' => t('assistant.tool.pending'),
+            'tool_forbidden' => t('assistant.tool.forbidden'),
+            'hide_page' => t('assistant.fab.hide_page'),
+            'hide_done' => t('assistant.fab.hide_done'),
+            'fb_rate' => t('assistant.feedback.rate'),
+            'fb_good' => t('assistant.feedback.good'),
+            'fb_bad' => t('assistant.feedback.bad'),
+            'fb_thanks' => t('assistant.feedback.thanks'),
+            'fb_need_reason' => t('assistant.feedback.err.need_reason'),
+            'fb_err' => t('assistant.feedback.err.save'),
+            'fb_reasons' => [
+                'inaccurate' => t('assistant.feedback.reason.inaccurate'),
+                'ignored_instructions' => t('assistant.feedback.reason.ignored_instructions'),
+                'off_topic' => t('assistant.feedback.reason.off_topic'),
+                'lost_context' => t('assistant.feedback.reason.lost_context'),
+                'slow_or_errors' => t('assistant.feedback.reason.slow_or_errors'),
+                'safety_legal' => t('assistant.feedback.reason.safety_legal'),
+                'other' => t('assistant.feedback.reason.other'),
+            ],
+        ],
+    ], 'assistant');
     return $payload;
 });
 

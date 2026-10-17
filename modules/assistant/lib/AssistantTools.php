@@ -309,4 +309,320 @@ final class AssistantTools
             'additionalProperties' => true,
         ];
     }
+
+    /**
+     * Virtual tools for truncated (page-chat) catalogs: browse + unlock more ops mid-run.
+     * Not agent.ops — harness-only; never go through AgentHttp.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function metaCatalogOps(): array
+    {
+        $modulesDesc = t('assistant.tool.meta.modules');
+        $listDesc = t('assistant.tool.meta.list');
+        $unlockDesc = t('assistant.tool.meta.unlock');
+        if ($modulesDesc === '' || $modulesDesc === 'assistant.tool.meta.modules') {
+            $modulesDesc = 'List modules that have tools for this user (counts). Use before unlocking when page tools are incomplete.';
+        }
+        if ($listDesc === '' || $listDesc === 'assistant.tool.meta.list') {
+            $listDesc = 'List tool ids for a module or search q. Hierarchy step after modules.';
+        }
+        if ($unlockDesc === '' || $unlockDesc === 'assistant.tool.meta.unlock') {
+            $unlockDesc = 'Unlock more tools for THIS turn (module id, prefix.*, or exact ids). Then CALL those tools.';
+        }
+        return [
+            [
+                'id' => 'assistant.tools.modules',
+                'method' => 'GET',
+                'path' => '',
+                'permission' => '',
+                'description' => $modulesDesc,
+                'side_effect' => 'read',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => new stdClass(),
+                    'additionalProperties' => false,
+                ],
+                'function_name' => self::opIdToFunctionName('assistant.tools.modules'),
+                'module' => 'assistant',
+                'meta' => true,
+            ],
+            [
+                'id' => 'assistant.tools.list',
+                'method' => 'GET',
+                'path' => '',
+                'permission' => '',
+                'description' => $listDesc,
+                'side_effect' => 'read',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'module' => [
+                            'type' => 'string',
+                            'description' => 'Module id (e.g. core, payments, finance)',
+                        ],
+                        'q' => [
+                            'type' => 'string',
+                            'description' => 'Optional substring filter on tool id/description',
+                        ],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'function_name' => self::opIdToFunctionName('assistant.tools.list'),
+                'module' => 'assistant',
+                'meta' => true,
+            ],
+            [
+                'id' => 'assistant.tools.unlock',
+                'method' => 'POST',
+                'path' => '',
+                'permission' => '',
+                'description' => $unlockDesc,
+                'side_effect' => 'read',
+                'parameters' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'allow' => [
+                            'type' => 'array',
+                            'items' => ['type' => 'string'],
+                            'description' => 'Rules: module id, "prefix.*", or exact tool id (e.g. core.users.*, payments)',
+                        ],
+                        'module' => [
+                            'type' => 'string',
+                            'description' => 'Shorthand: unlock all tools of this module',
+                        ],
+                    ],
+                    'additionalProperties' => false,
+                ],
+                'function_name' => self::opIdToFunctionName('assistant.tools.unlock'),
+                'module' => 'assistant',
+                'meta' => true,
+            ],
+        ];
+    }
+
+    public static function isMetaOpId(string $opId): bool
+    {
+        return $opId === 'assistant.tools.modules'
+            || $opId === 'assistant.tools.list'
+            || $opId === 'assistant.tools.unlock';
+    }
+
+    /**
+     * @param list<array<string,mixed>> $activeOps current LLM catalog (mutated on unlock)
+     * @param list<array<string,mixed>> $fullOps all ops permitted for this user
+     * @param array<string,mixed> $args
+     * @return array{ok:bool,data:?array,error:string,unlocked?:list<string>}|null null if not a meta op
+     */
+    public static function invokeMeta(string $opId, array $args, array &$activeOps, array $fullOps): ?array
+    {
+        if (!self::isMetaOpId($opId)) {
+            return null;
+        }
+        if ($opId === 'assistant.tools.modules') {
+            return ['ok' => true, 'data' => self::catalogModules($fullOps), 'error' => ''];
+        }
+        if ($opId === 'assistant.tools.list') {
+            return ['ok' => true, 'data' => self::catalogList($fullOps, $args), 'error' => ''];
+        }
+        // unlock
+        $allow = [];
+        if (isset($args['allow']) && is_array($args['allow'])) {
+            foreach ($args['allow'] as $r) {
+                $r = trim((string)$r);
+                if ($r !== '') {
+                    $allow[] = $r;
+                }
+            }
+        }
+        $module = trim((string)($args['module'] ?? ''));
+        // module= is shorthand only when allow[] omitted — avoid unlocking all of core when
+        // the model already passed allow=["core.users.*"].
+        if ($module !== '' && $allow === []) {
+            $allow[] = $module . '.*';
+        }
+        if ($allow === []) {
+            return [
+                'ok' => false,
+                'data' => null,
+                'error' => 'Pass allow[] (ids / prefix.*) or module',
+            ];
+        }
+        $extra = class_exists('AssistantEval', false)
+            ? AssistantEval::filterOps($fullOps, $allow)
+            : [];
+        if ($extra === []) {
+            return [
+                'ok' => false,
+                'data' => [
+                    'unlocked' => [],
+                    'hint' => 'No matching tools (wrong id/module or no permission)',
+                ],
+                'error' => 'No tools matched allow rules',
+            ];
+        }
+        $have = [];
+        foreach ($activeOps as $op) {
+            if (is_array($op) && isset($op['id'])) {
+                $have[(string)$op['id']] = true;
+            }
+        }
+        $added = [];
+        foreach ($extra as $op) {
+            if (!is_array($op)) {
+                continue;
+            }
+            $id = (string)($op['id'] ?? '');
+            if ($id === '' || isset($have[$id]) || !empty($op['meta'])) {
+                continue;
+            }
+            $activeOps[] = $op;
+            $have[$id] = true;
+            $added[] = $id;
+        }
+        sort($added);
+        return [
+            'ok' => true,
+            'data' => [
+                'unlocked' => $added,
+                'active_tool_count' => count(array_filter(
+                    $activeOps,
+                    static function ($o): bool {
+                        return is_array($o) && empty($o['meta']);
+                    }
+                )),
+                'hint' => $added === []
+                    ? 'Those tools were already active — CALL them now'
+                    : 'Tools unlocked for this turn — CALL them now (do not ask the user to open another screen)',
+            ],
+            'error' => '',
+            'unlocked' => $added,
+        ];
+    }
+
+    /**
+     * Merge meta catalog tools into an active catalog (dedupe by id).
+     *
+     * @param list<array<string,mixed>> $ops
+     * @return list<array<string,mixed>>
+     */
+    public static function withMetaCatalog(array $ops): array
+    {
+        $have = [];
+        foreach ($ops as $op) {
+            if (is_array($op) && isset($op['id'])) {
+                $have[(string)$op['id']] = true;
+            }
+        }
+        foreach (self::metaCatalogOps() as $meta) {
+            $id = (string)($meta['id'] ?? '');
+            if ($id === '' || isset($have[$id])) {
+                continue;
+            }
+            $ops[] = $meta;
+            $have[$id] = true;
+        }
+        return array_values($ops);
+    }
+
+    /**
+     * @param list<array<string,mixed>> $fullOps
+     * @return array{modules:list<array{id:string,count:int,examples:list<string>}>}
+     */
+    private static function catalogModules(array $fullOps): array
+    {
+        $counts = [];
+        $examples = [];
+        foreach ($fullOps as $op) {
+            if (!is_array($op) || !empty($op['meta'])) {
+                continue;
+            }
+            $mod = trim((string)($op['module'] ?? ''));
+            if ($mod === '') {
+                $id = (string)($op['id'] ?? '');
+                $mod = $id !== '' && strpos($id, '.') !== false
+                    ? explode('.', $id, 2)[0]
+                    : 'other';
+            }
+            if (!isset($counts[$mod])) {
+                $counts[$mod] = 0;
+                $examples[$mod] = [];
+            }
+            $counts[$mod]++;
+            if (count($examples[$mod]) < 4) {
+                $examples[$mod][] = (string)($op['id'] ?? '');
+            }
+        }
+        ksort($counts);
+        $modules = [];
+        foreach ($counts as $id => $n) {
+            $modules[] = [
+                'id' => $id,
+                'count' => $n,
+                'examples' => $examples[$id] ?? [],
+            ];
+        }
+        return [
+            'modules' => $modules,
+            'hint' => 'Next: assistant.tools.list(module=…) then assistant.tools.unlock(module=…) or allow=["mod.*"]',
+        ];
+    }
+
+    /**
+     * @param list<array<string,mixed>> $fullOps
+     * @param array<string,mixed> $args
+     * @return array{tools:list<array{id:string,side_effect:string,description:string}>,truncated:bool}
+     */
+    private static function catalogList(array $fullOps, array $args): array
+    {
+        $module = trim((string)($args['module'] ?? ''));
+        $qRaw = trim((string)($args['q'] ?? ''));
+        $q = function_exists('mb_strtolower')
+            ? mb_strtolower($qRaw, 'UTF-8')
+            : strtolower($qRaw);
+        $out = [];
+        foreach ($fullOps as $op) {
+            if (!is_array($op) || !empty($op['meta'])) {
+                continue;
+            }
+            $id = (string)($op['id'] ?? '');
+            $mod = trim((string)($op['module'] ?? ''));
+            if ($mod === '' && $id !== '' && strpos($id, '.') !== false) {
+                $mod = explode('.', $id, 2)[0];
+            }
+            if ($module !== '' && $mod !== $module && strpos($id, $module . '.') !== 0) {
+                continue;
+            }
+            $desc = (string)($op['description'] ?? '');
+            if ($q !== '') {
+                $hay = $id . ' ' . $desc;
+                $hay = function_exists('mb_strtolower')
+                    ? mb_strtolower($hay, 'UTF-8')
+                    : strtolower($hay);
+                if (strpos($hay, $q) === false) {
+                    continue;
+                }
+            }
+            // Strip long write suffix for catalog brevity
+            $short = preg_replace('/\s*\[CALL NOW.*$/u', '', $desc) ?? $desc;
+            if (function_exists('mb_substr') && mb_strlen($short) > 120) {
+                $short = mb_substr($short, 0, 117) . '…';
+            } elseif (strlen($short) > 120) {
+                $short = substr($short, 0, 117) . '…';
+            }
+            $out[] = [
+                'id' => $id,
+                'side_effect' => (string)($op['side_effect'] ?? 'read'),
+                'description' => $short,
+            ];
+            if (count($out) >= 80) {
+                break;
+            }
+        }
+        return [
+            'tools' => $out,
+            'truncated' => count($out) >= 80,
+            'hint' => 'Unlock with assistant.tools.unlock(allow=["exact.id","mod.*"]) then CALL',
+        ];
+    }
 }

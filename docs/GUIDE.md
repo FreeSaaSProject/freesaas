@@ -248,7 +248,7 @@ modules/<id>/
 | `core.dashboard.catalog` | home / dashboard | Каталог виджетов рабочего стола |
 | `core.dashboard.widgets` | home | Виджеты на главной |
 | `core.notices.collect` | layout | Колокольчик / notices |
-| `core.layout.gate` | layout | Перехват chrome: `blocked` + `html`, слот `chrome` (rail + topbar), доп. ключи в `js_i18n` (без product-кода в core) |
+| `core.layout.gate` | layout | Перехват chrome: `blocked` + `html`, слоты `chrome` (rail) и `floating` (FAB), `page_context_json`, доп. `js_i18n` (без product-кода в core) |
 | `core.news_item.handle_post` | news_item | POST-actions (like, comment…) |
 | `core.news_item.section` | news_item | HTML-секция под карточкой |
 | `core.news_item.meta` | news_item | Мета/счётчики в шапке |

@@ -70,6 +70,22 @@ if (isset($bodyIn['temperature'])) {
     $opts['temperature'] = (float)$bodyIn['temperature'];
 }
 
+// Page-chat (FAB): shrink tools to current module + help; inject screen JSON into prompt.
+$mode = trim((string)($bodyIn['mode'] ?? ''));
+$pageCtxRaw = $bodyIn['page_context'] ?? null;
+if (($mode === 'page' || is_array($pageCtxRaw)) && class_exists('AssistantPageContext', false)) {
+    $ctx = AssistantPageContext::fromClient(is_array($pageCtxRaw) ? $pageCtxRaw : []);
+    if ($ctx !== []) {
+        $opts['page_context'] = $ctx;
+        $allOps = AssistantTools::availableOps();
+        $filtered = AssistantPageContext::filterOpsForPage($ctx, $allOps);
+        // Never leave the model with zero tools (e.g. module without agent.ops).
+        $opts['ops'] = $filtered !== [] ? $filtered : $allOps;
+        // Full catalog for assistant.tools.modules / list / unlock mid-run.
+        $opts['full_ops'] = $allOps;
+    }
+}
+
 $result = AssistantHarness::run($history, $opts);
 if (!$result['ok']) {
     $err = $result['error'] !== '' ? $result['error'] : t('assistant.chat.error');

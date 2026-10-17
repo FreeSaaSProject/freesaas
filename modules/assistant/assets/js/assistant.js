@@ -1,25 +1,56 @@
 (function () {
-  var root = document.getElementById('assistant-chat');
-  if (!root) {
-    return;
+  function readPageContext(root) {
+    var raw = root.getAttribute('data-page-context') || '';
+    if (raw) {
+      try {
+        var fromRoot = JSON.parse(raw);
+        if (fromRoot && typeof fromRoot === 'object') {
+          return fromRoot;
+        }
+      } catch (e) {}
+    }
+    var el = document.getElementById('freesaas-page-context');
+    if (el && el.textContent) {
+      try {
+        var fromStamp = JSON.parse(el.textContent);
+        if (fromStamp && typeof fromStamp === 'object') {
+          return fromStamp;
+        }
+      } catch (e2) {}
+    }
+    return {
+      path: window.location.pathname || '/',
+      title: document.title || '',
+    };
   }
 
-  var log = document.getElementById('assistant-chat-log');
-  var form = document.getElementById('assistant-chat-form');
-  var input = document.getElementById('assistant-chat-input');
-  var sendBtn = document.getElementById('assistant-chat-send');
+  function initChat(root) {
+  if (!root || root.getAttribute('data-assistant-ready') === '1') {
+    return;
+  }
+  root.setAttribute('data-assistant-ready', '1');
+
+  var isFab = root.getAttribute('data-mode') === 'page';
+  var idPrefix = isFab ? 'assistant-fab-chat' : 'assistant-chat';
+  var log = document.getElementById(idPrefix + '-log') || root.querySelector('.assistant-chat__log');
+  var form = document.getElementById(idPrefix + '-form') || root.querySelector('.assistant-chat__form');
+  var input = document.getElementById(idPrefix + '-input') || root.querySelector('textarea');
+  var sendBtn = document.getElementById(idPrefix + '-send') || root.querySelector('button[type="submit"]');
   var chatUrl = root.getAttribute('data-chat-url') || '/assistant/chat';
   var confirmUrl = root.getAttribute('data-confirm-url') || '/assistant/confirm';
   var clearUrl = root.getAttribute('data-clear-url') || '/assistant/clear';
   var feedbackUrl = root.getAttribute('data-feedback-url') || '/assistant/feedback';
   var adminBase = (root.getAttribute('data-admin-base') || '').replace(/\/$/, '');
-  var clearBtn = document.getElementById('assistant-chat-clear');
-  var fbModal = document.getElementById('assistant-fb-modal');
-  var fbChips = document.getElementById('assistant-fb-chips');
-  var fbComment = document.getElementById('assistant-fb-comment');
-  var fbSubmit = document.getElementById('assistant-fb-submit');
+  var clearBtn = isFab
+    ? document.getElementById('assistant-fab-clear')
+    : document.getElementById('assistant-chat-clear');
+  var fbModal = isFab ? null : document.getElementById('assistant-fb-modal');
+  var fbChips = isFab ? null : document.getElementById('assistant-fb-chips');
+  var fbComment = isFab ? null : document.getElementById('assistant-fb-comment');
+  var fbSubmit = isFab ? null : document.getElementById('assistant-fb-submit');
   var fbPendingIdx = -1;
   var fbSelected = {};
+  var pageContext = isFab ? readPageContext(root) : null;
   var i18n = {};
   try {
     i18n = JSON.parse(root.getAttribute('data-i18n') || '{}') || {};
@@ -658,6 +689,11 @@
     setBusy(true);
     var thinking = appendMsg(t('assistant', 'Assistant'), t('thinking', '…'), null, null, 'assistant');
 
+    var payload = { message: text };
+    if (isFab) {
+      payload.mode = 'page';
+      payload.page_context = pageContext || readPageContext(root);
+    }
     fetch(chatUrl, {
       method: 'POST',
       headers: {
@@ -665,7 +701,7 @@
         'Content-Type': 'application/json',
       },
       credentials: 'same-origin',
-      body: JSON.stringify({ message: text }),
+      body: JSON.stringify(payload),
     })
       .then(function (r) {
         return r.json().then(function (j) {
@@ -853,4 +889,105 @@
     }
     sendMessage(seedQ);
   }
+  } // end initChat
+
+  function initFabShell() {
+    var fab = document.getElementById('assistant-fab');
+    if (!fab || fab.getAttribute('data-fab-ready') === '1') {
+      return;
+    }
+    fab.setAttribute('data-fab-ready', '1');
+    var btn = document.getElementById('assistant-fab-btn');
+    var panel = document.getElementById('assistant-fab-panel');
+    var closeBtn = document.getElementById('assistant-fab-close');
+    var hideBtn = document.getElementById('assistant-fab-hide');
+    var chatRoot = document.getElementById('assistant-fab-chat');
+    var hideUrl = fab.getAttribute('data-hide-url') || '/assistant/fab/hide';
+    var path = fab.getAttribute('data-path') || window.location.pathname || '/';
+    var i18n = {};
+    try {
+      i18n = JSON.parse((chatRoot && chatRoot.getAttribute('data-i18n')) || '{}') || {};
+    } catch (e) {
+      i18n = {};
+    }
+
+    function setOpen(open) {
+      if (!panel || !btn) {
+        return;
+      }
+      if (open) {
+        panel.hidden = false;
+        fab.classList.add('is-open');
+        btn.setAttribute('aria-expanded', 'true');
+        var input = document.getElementById('assistant-fab-chat-input');
+        if (input) {
+          setTimeout(function () {
+            input.focus();
+          }, 50);
+        }
+      } else {
+        panel.hidden = true;
+        fab.classList.remove('is-open');
+        btn.setAttribute('aria-expanded', 'false');
+      }
+    }
+
+    if (btn) {
+      btn.addEventListener('click', function () {
+        setOpen(panel && panel.hidden);
+      });
+    }
+    if (closeBtn) {
+      closeBtn.addEventListener('click', function () {
+        setOpen(false);
+      });
+    }
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && fab.classList.contains('is-open')) {
+        setOpen(false);
+      }
+    });
+    if (hideBtn) {
+      hideBtn.addEventListener('click', function () {
+        hideBtn.disabled = true;
+        fetch(hideUrl, {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({ path: path }),
+        })
+          .then(function (r) {
+            return r.json().then(function (j) {
+              return { ok: r.ok, json: j };
+            });
+          })
+          .then(function (res) {
+            if (!res.ok || !res.json || !res.json.ok) {
+              hideBtn.disabled = false;
+              window.alert(
+                (res.json && res.json.error) || i18n.error || 'Error'
+              );
+              return;
+            }
+            fab.parentNode && fab.parentNode.removeChild(fab);
+          })
+          .catch(function () {
+            hideBtn.disabled = false;
+            window.alert(i18n.error || 'Error');
+          });
+      });
+    }
+    if (chatRoot) {
+      initChat(chatRoot);
+    }
+  }
+
+  var full = document.getElementById('assistant-chat');
+  if (full) {
+    initChat(full);
+  }
+  initFabShell();
 })();

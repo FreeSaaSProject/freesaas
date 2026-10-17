@@ -45,9 +45,9 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `audio_pipeline.asr.result` | POST | `/audio/asr/result` |
 | `audio_pipeline.asr.chunk_claim` | GET | `/audio/asr/chunk-claim` |
 | `audio_pipeline.asr.chunk_result` | POST | `/audio/asr/chunk-result` |
-| `audio_pipeline.jobs.ingest` | POST | `/audio/jobs/ingest` |
-| `audio_pipeline.jobs.stem` | POST | `/audio/jobs/stem` |
-| `audio_pipeline.jobs.collect` | POST | `/audio/jobs/collect` |
+| `audio_pipeline.jobs.ingest` | GET|POST | `/audio/jobs/ingest` |
+| `audio_pipeline.jobs.stem` | GET|POST | `/audio/jobs/stem` |
+| `audio_pipeline.jobs.collect` | GET|POST | `/audio/jobs/collect` |
 
 ```bash
 curl -sS -b jar.txt 'https://example/audio/asr/claim?format=json'
@@ -57,7 +57,19 @@ curl -sS -b jar.txt 'https://example/audio/asr/chunk-claim?format=json'
 ## Notes
 
 - Requires `asr` + `audio` + `audio_dicts`.
-- Worker endpoints use `X-Audio-Token` (generate on `/audio/settings` → cfg/modules/asr.ini).
+- Worker endpoints use `X-Audio-Token` or `?token=` (generate on `/audio/settings` → cfg/modules/asr.ini).
+
+## Uploader → auto-recognition
+
+After files land in the audio inbox, call ingest (safe GET — no body):
+
+```bash
+curl -sS "https://<host>/audio/jobs/ingest?token=WORKER_TOKEN"
+```
+
+Creates `base_records` rows awaiting Whisper (`/audio/asr/claim`). Repeat until inbox empty / `processed=0`.
+
+**Platform backup:** Cron job `audio_pipeline.ingest` daily at **02:00** via `/cron/tick` (same `IngestRunner`, skips if lock busy). Copy-paste GET URL with token: `/audio/settings`. Host still needs `*/5` → `/cron/tick` — see [cron.md](cron.md).
 
 ## Whisper cabin worker (oper → FreeSaaS)
 
@@ -70,7 +82,7 @@ Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 | `GET …/gens/getFileName.php` | `GET /audio/asr/claim` |
 | save transcript (`saveFileDescription`) | `POST /audio/asr/result` |
 | chunk claim / result (if used) | `GET /audio/asr/chunk-claim`, `POST /audio/asr/chunk-result` |
-| `recordParser.php` (inbox → records) | `POST /audio/jobs/ingest` |
+| `recordParser.php` (inbox → records) | `GET|POST /audio/jobs/ingest` |
 | **`recordParser3.php` (keys / morph / score)** | **`POST /audio/jobs/stem`** |
 | `recordCollector` (script collections) | included by stem (`collect=1` default); alone: `POST /audio/jobs/collect` |
 
