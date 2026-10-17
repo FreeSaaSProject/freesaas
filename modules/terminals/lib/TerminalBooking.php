@@ -17,6 +17,8 @@ final class TerminalBooking
      *   dt_start:int,
      *   client_id?:int,
      *   onec_client_id?:string,
+     *   sale_id?:string,
+     *   document_id?:string,
      *   onec_bracelet?:string,
      *   price?:float,
      *   token?:string,
@@ -121,9 +123,22 @@ final class TerminalBooking
         }
 
         $onecClient = trim((string)($input['onec_client_id'] ?? ''));
+        // Pre-paid sale (legacy api.php: document_id = idSale after api1c.php/payment).
+        $preSaleId = trim((string)($input['sale_id'] ?? $input['document_id'] ?? ''));
         $saleId = '';
         $saleStub = false;
-        if ($onecClient !== '' && $onecProduct !== '' && $price > 0) {
+        if ($preSaleId !== '') {
+            $saleId = $preSaleId;
+            $stack[] = [
+                'key' => 'sale',
+                'ok' => true,
+                'skipped' => true,
+                'preexisting' => true,
+                'sale_id' => $saleId,
+                'price' => $price,
+                'detail' => 'sale_id provided',
+            ];
+        } elseif ($onecClient !== '' && $onecProduct !== '' && $price > 0) {
             $sale = OnecClient::sale($onecClient, $onecProduct, $price, $disable1c);
             if (empty($sale['ok'])) {
                 $stack[] = [

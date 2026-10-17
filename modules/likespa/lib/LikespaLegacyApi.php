@@ -832,6 +832,9 @@ final class LikespaLegacyApi
                     'updateInfo' => [],
                 ];
             }
+            // document_id = idSale from prior api1c.php/payment (procedure 1C_ID), not 1C client id.
+            // Do not call OnecClient::sale again — funds already reserved by the terminal.
+            $onecClientId = trim((string)($_GET['onec_client_id'] ?? $_GET['onecClientId'] ?? ''));
             $bookIn = [
                 'product_id' => $serviceId,
                 'operator_id' => $operatorId,
@@ -839,12 +842,15 @@ final class LikespaLegacyApi
                 'terminal_id' => $terminalId,
                 'dt_start' => $dtStart,
                 'client_id' => $clientId,
-                'onec_client_id' => $documentId,
+                'sale_id' => $documentId,
                 'onec_bracelet' => $braceletId,
                 'disable_1c' => !empty($_GET['disable1C']),
                 'lead_sec' => LikespaConfig::leadSecApi(),
                 'price' => $price,
             ];
+            if ($onecClientId !== '') {
+                $bookIn['onec_client_id'] = $onecClientId;
+            }
             $res = TerminalBooking::book($bookIn);
             $ok = !empty($res['ok']);
             $err = $ok ? '' : (string)($res['error'] ?? 'book failed');
