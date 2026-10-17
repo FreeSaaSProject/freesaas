@@ -55,6 +55,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'server_name' => trim(preg_replace('/\s+/u', ' ', (string)($in['server_name'] ?? '')) ?? ''),
                 'description' => trim(preg_replace('/\s+/u', ' ', (string)($in['description'] ?? '')) ?? ''),
                 'consent_url' => $consent,
+                'show_note' => !empty($in['show_note']),
+                'note_text' => trim(preg_replace('/\s+/u', ' ', strip_tags((string)($in['note_text'] ?? ''))) ?? ''),
                 'disabled_tools' => $disabled,
             ]);
         }

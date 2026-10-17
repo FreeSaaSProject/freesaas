@@ -96,7 +96,34 @@ final class SiteTheme
             $layoutFile = base_path('modules/sites/views/_fallback_layout.php');
         }
         extract($data, EXTR_SKIP);
+        ob_start();
         require $layoutFile;
+        echo self::injectChrome((string)ob_get_clean(), $view, $layout);
+    }
+
+    /**
+     * Module chrome for any theme (incl. private ones): EventBus sites.page.inject
+     * returns trusted HTML in head (before </head>) and body_end (before </body>).
+     */
+    private static function injectChrome(string $html, string $view, string $layout): string
+    {
+        $payload = EventBus::emit('sites.page.inject', [
+            'view' => $view,
+            'layout' => $layout,
+            'head' => '',
+            'body_end' => '',
+        ]);
+        $head = is_array($payload) ? trim((string)($payload['head'] ?? '')) : '';
+        $body = is_array($payload) ? trim((string)($payload['body_end'] ?? '')) : '';
+        if ($head !== '') {
+            $pos = stripos($html, '</head>');
+            $html = $pos === false ? $head . "\n" . $html : substr_replace($html, $head . "\n", $pos, 0);
+        }
+        if ($body !== '') {
+            $pos = strripos($html, '</body>');
+            $html = $pos === false ? $html . "\n" . $body : substr_replace($html, $body . "\n", $pos, 0);
+        }
+        return $html;
     }
 
     /**

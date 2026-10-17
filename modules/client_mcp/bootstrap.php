@@ -52,6 +52,8 @@ EventBus::on('client_mcp.tools', [ClientMcpCoreTools::class, 'onTools']);
 EventBus::on('client_mcp.tools', [ClientMcpBookingTools::class, 'onTools']);
 EventBus::on('client_mcp.business_info', [ClientMcpBookingTools::class, 'onBusinessInfo']);
 EventBus::on('sites.ai_catalog', [ClientMcpDiscovery::class, 'onAiCatalog']);
+EventBus::on('sites.page.inject', [ClientMcpDiscovery::class, 'onPageInject']);
+EventBus::on('sites.llms_txt', [ClientMcpDiscovery::class, 'onLlmsTxt']);
 EventBus::on('orders.sources', static function ($payload) {
     if (is_array($payload)) {
         $payload['sources'][] = 'mcp';

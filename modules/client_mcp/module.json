@@ -3,7 +3,7 @@
     "name": "client_mcp.module.name",
     "description": "client_mcp.module.description",
     "summary": "client_mcp.module.summary",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -76,6 +76,8 @@
             "client_mcp.tools",
             "client_mcp.business_info",
             "sites.ai_catalog",
+            "sites.page.inject",
+            "sites.llms_txt",
             "orders.sources"
         ],
         "publish": [

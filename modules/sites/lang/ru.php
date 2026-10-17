@@ -430,4 +430,12 @@ return [
     'sites.perm.promopages_delete' => 'Удаление промо-страниц',
     'sites.perm.pages_delete' => 'Удаление страниц CMS',
     'sites.perm.redirects_delete' => 'Удаление редиректов',
+    'sites.llms.contacts' => 'Контакты',
+    'sites.llms.website' => 'Сайт',
+    'sites.llms.phone' => 'Телефон',
+    'sites.llms.pages' => 'Страницы',
+    'sites.llms.shop' => 'Каталог услуг',
+    'sites.llms.shop_note' => 'услуги и цены',
+    'sites.llms.cart' => 'Корзина и запись',
+    'sites.llms.cart_note' => 'онлайн-запись для человека в браузере',
 ];

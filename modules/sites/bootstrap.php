@@ -185,6 +185,15 @@ BulkActions::register('sites_redirects', 'delete', [
     },
 ]);
 
+// Point LLM readers of every storefront page to /llms.txt.
+EventBus::on('sites.page.inject', static function ($payload) {
+    if (is_array($payload)) {
+        $payload['head'] = (string)($payload['head'] ?? '')
+            . '<link rel="alternate" type="text/markdown" href="/llms.txt" title="llms.txt">' . "\n";
+    }
+    return $payload;
+});
+
 EventBus::on('core.bulk.check_item', static function (array $payload): array {
     if (($payload['action'] ?? '') !== 'delete') {
         return $payload;
@@ -215,6 +224,7 @@ $publicPages = [
     '/sitemap.xml' => ['methods' => ['GET'], 'file' => 'sitemap.php'],
     '/robots.txt' => ['methods' => ['GET'], 'file' => 'robots.php'],
     '/.well-known/ai-catalog.json' => ['methods' => ['GET', 'OPTIONS'], 'file' => 'ai_catalog.php'],
+    '/llms.txt' => ['methods' => ['GET'], 'file' => 'llms_txt.php'],
 ];
 foreach ($publicPages as $path => $def) {
     $file = (string)$def['file'];

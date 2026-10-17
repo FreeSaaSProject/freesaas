@@ -430,4 +430,12 @@ return [
     'sites.perm.promopages_delete' => 'Delete promo pages',
     'sites.perm.pages_delete' => 'Delete CMS pages',
     'sites.perm.redirects_delete' => 'Delete redirects',
+    'sites.llms.contacts' => 'Contacts',
+    'sites.llms.website' => 'Website',
+    'sites.llms.phone' => 'Phone',
+    'sites.llms.pages' => 'Pages',
+    'sites.llms.shop' => 'Services catalog',
+    'sites.llms.shop_note' => 'services and prices',
+    'sites.llms.cart' => 'Cart and booking',
+    'sites.llms.cart_note' => 'online booking for a human in the browser',
 ];

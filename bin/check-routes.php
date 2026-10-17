@@ -132,6 +132,7 @@ $allowed = [
     '/mcp/server-card' => ['methods' => ['GET', 'OPTIONS'], 'why' => 'MCP server card (per storefront host)'],
     // Domain AI catalog (sites aggregator; entries via EventBus sites.ai_catalog, 404 when empty)
     '/.well-known/ai-catalog.json' => ['methods' => ['GET', 'OPTIONS'], 'why' => 'AI catalog (agent discovery)'],
+    '/llms.txt' => ['methods' => ['GET'], 'why' => 'site card for LLM readers (llmstxt.org)'],
 
     // ASR / audio pipeline workers (worker_token in handler)
     '/asr/voice-transcribe/worker' => ['methods' => ['GET', 'POST'], 'why' => 'ASR worker claim'],

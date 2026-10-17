@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T10:01:08+00:00",
+    "generated_at": "2026-10-17T10:24:42+00:00",
     "modules": [
         {
             "id": "asr",
@@ -588,7 +588,7 @@
         },
         {
             "id": "client_mcp",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Client MCP",
@@ -1284,7 +1284,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.8",
+            "version": "0.2.9",
             "type": "product",
             "name": {
                 "en": "Sites",

@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "0.2.8",
+    "version": "0.2.9",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -89,7 +89,8 @@
             "/promo/{code}",
             "/sitemap.xml",
             "/robots.txt",
-            "/.well-known/ai-catalog.json"
+            "/.well-known/ai-catalog.json",
+            "/llms.txt"
         ]
     },
     "agent": {
@@ -277,7 +278,8 @@
     ],
     "hooks": {
         "subscribe": [
-            "router.not_found"
+            "router.not_found",
+            "sites.page.inject"
         ],
         "publish": [
             "sites.request",
@@ -291,7 +293,9 @@
             "sites.diagnose",
             "sites.host_edit.sections",
             "sites.host_edit.save",
-            "sites.ai_catalog"
+            "sites.ai_catalog",
+            "sites.llms_txt",
+            "sites.page.inject"
         ]
     },
     "bulkActions": [

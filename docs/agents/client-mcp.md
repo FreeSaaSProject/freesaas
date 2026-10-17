@@ -31,6 +31,15 @@ Diagnose: `php bin/freesaas.php health --format=json` → `client_mcp.endpoint` 
 
 Client config: `{"mcpServers":{"likespa-ru":{"url":"https://likespa.ru/mcp"}}}`. ChatGPT / Claude web: custom connector, URL `https://<domain>/mcp`, authentication **none**.
 
+**Agents do not auto-connect.** ChatGPT / Claude browse a site as HTML; MCP tools appear only after the user adds the connector. To make browsing agents notice and suggest the server, while MCP is on for the domain the module adds (all removed when the domain MCP or the module is off):
+
+| Hint | Where |
+|------|-------|
+| `<link rel="alternate" type="application/mcp-server-card+json" href="…/mcp/server-card">` + `<meta name="mcp-server" content="…/mcp">` | `<head>` of every storefront page (via `sites.page.inject`) |
+| Visible line «book via AI assistant: connect {url}» + link to `/llms.txt` | before `</body>`; per-domain toggle + custom text (`{url}` placeholder) in settings |
+| Section «AI assistants (MCP)» with URL, card, tools, ChatGPT/Claude/Cursor connect steps, instructions for the assistant | `/llms.txt` (via `sites.llms_txt`) |
+| Entry `application/mcp-server-card+json` | `/.well-known/ai-catalog.json` (via `sites.ai_catalog`) |
+
 ## Built-in tools
 
 | Tool | Provider | Requires | Notes |

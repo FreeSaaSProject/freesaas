@@ -80,6 +80,9 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://www.example.com/agent/heal
 | `/promo/{code}` | Promo LP by code |
 | `/sitemap.xml`, `/robots.txt` | Current host |
 | `/.well-known/ai-catalog.json` | Domain AI Catalog for agent discovery; entries from EventBus `sites.ai_catalog` (`identifier`, `type`, `url` or `data`); 404 when no module contributes (e.g. `client_mcp` adds its server card per host) |
+| `/llms.txt` | Site card for LLM readers ([llmstxt.org](https://llmstxt.org)): host name, summary, contacts, shop/cart links; modules append sections via EventBus `sites.llms_txt` (`sections[] = {title, lines[]}`) |
+
+**Theme-independent chrome:** `SiteTheme::render` emits `sites.page.inject` (`view`, `layout`, `head`, `body_end`) and inserts the returned trusted HTML before `</head>` / `</body>` of any theme, including private ones. Sites itself adds `<link rel="alternate" type="text/markdown" href="/llms.txt">`. Escape everything you inject.
 | unknown path | Redirects (scoped) then page-by-link then 404 |
 | `/login` | Redirect to `admin_host` when set |
 

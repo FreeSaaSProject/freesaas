@@ -62,6 +62,77 @@ final class ClientMcpDiscovery
         return $payload;
     }
 
+    /**
+     * EventBus sites.page.inject subscriber: head hints for agents + optional visible note.
+     *
+     * @param mixed $payload
+     * @return mixed
+     */
+    public static function onPageInject($payload)
+    {
+        if (!is_array($payload)) {
+            return $payload;
+        }
+        $host = ClientMcpHost::currentEnabled();
+        if ($host === null) {
+            return $payload;
+        }
+        $mcp = ClientMcpHost::mcpUrl($host);
+        $payload['head'] = (string)($payload['head'] ?? '')
+            . '<link rel="alternate" type="' . self::CARD_TYPE . '" href="' . e(ClientMcpHost::serverCardUrl($host)) . '" title="MCP">' . "\n"
+            . '<meta name="mcp-server" content="' . e($mcp) . '">' . "\n";
+        if (!empty($host['settings']['show_note'])) {
+            $payload['body_end'] = (string)($payload['body_end'] ?? '') . self::noteHtml($host);
+        }
+        return $payload;
+    }
+
+    /**
+     * EventBus sites.llms_txt subscriber: how an assistant connects and what it can do.
+     *
+     * @param mixed $payload
+     * @return mixed
+     */
+    public static function onLlmsTxt($payload)
+    {
+        if (!is_array($payload)) {
+            return $payload;
+        }
+        $host = ClientMcpHost::currentEnabled();
+        if ($host === null) {
+            return $payload;
+        }
+        $mcp = ClientMcpHost::mcpUrl($host);
+        $tools = array_keys(ClientMcpTools::availableFor($host));
+        $lines = [
+            '- ' . t('client_mcp.llms.server', ['url' => $mcp]),
+            '- ' . t('client_mcp.llms.card', ['url' => ClientMcpHost::serverCardUrl($host)]),
+            '- ' . t('client_mcp.llms.tools', ['tools' => implode(', ', $tools)]),
+            '- ' . t('client_mcp.llms.chatgpt', ['url' => $mcp]),
+            '- ' . t('client_mcp.llms.claude', ['url' => $mcp]),
+            '- ' . t('client_mcp.llms.config', ['url' => $mcp]),
+            '',
+            t('client_mcp.llms.assistant_hint', ['url' => $mcp]),
+        ];
+        $consent = ClientMcpHost::consentUrl($host);
+        if ($consent !== '') {
+            $lines[] = '';
+            $lines[] = t('client_mcp.llms.consent', ['url' => $consent]);
+        }
+        $payload['sections'][] = ['title' => t('client_mcp.llms.title'), 'lines' => $lines];
+        return $payload;
+    }
+
+    /** @param array<string,mixed> $host */
+    private static function noteHtml(array $host): string
+    {
+        $mcp = ClientMcpHost::mcpUrl($host);
+        $custom = trim((string)($host['settings']['note_text'] ?? ''));
+        $text = $custom !== '' ? str_replace('{url}', $mcp, $custom) : t('client_mcp.note.default', ['url' => $mcp]);
+        return '<div class="freesaas-agent-note" style="font-size:12px;line-height:1.4;opacity:.75;text-align:center;padding:8px 12px">'
+            . e($text) . ' <a href="/llms.txt" rel="nofollow">' . te('client_mcp.note.more') . '</a></div>' . "\n";
+    }
+
     public static function emitServerCard(): void
     {
         header('Access-Control-Allow-Origin: *');

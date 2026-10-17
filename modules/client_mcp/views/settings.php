@@ -35,6 +35,11 @@ declare(strict_types=1);
         <input name="<?= e($p) ?>[consent_url]" value="<?= e((string)$s['consent_url']) ?>" placeholder="/page/offer/">
         <span class="muted"><?= te('client_mcp.settings.consent_url_hint') ?></span>
       </label>
+      <label class="check"><input type="checkbox" name="<?= e($p) ?>[show_note]" value="1"<?= !empty($s['show_note']) ? ' checked' : '' ?>> <?= te('client_mcp.settings.show_note') ?></label>
+      <label><?= te('client_mcp.settings.note_text') ?>
+        <input name="<?= e($p) ?>[note_text]" maxlength="400" value="<?= e((string)($s['note_text'] ?? '')) ?>" placeholder="<?= e(t('client_mcp.note.default')) ?>">
+        <span class="muted"><?= te('client_mcp.settings.note_text_hint') ?></span>
+      </label>
 
       <p><b><?= te('client_mcp.settings.tools') ?></b></p>
       <table class="data-table">
