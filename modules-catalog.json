@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T06:37:14+00:00",
+    "generated_at": "2026-10-17T06:44:17+00:00",
     "modules": [
         {
             "id": "asr",
@@ -852,7 +852,7 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.16",
+            "version": "0.3.17",
             "type": "product",
             "name": {
                 "en": "LikeSpa",

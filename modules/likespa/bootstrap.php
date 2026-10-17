@@ -74,12 +74,14 @@ $pages = [
     ],
     '/api1c.php' => [
         'public' => true,
+        'csrf' => false, // terminal/1C clients; no session CSRF token
         'methods' => ['GET', 'POST', 'PUT', 'PATCH'],
         'file' => 'api1c.php',
     ],
     // Legacy PATH_INFO: /api1c.php/client_by_card (physical stub + PATH_INFO parity).
     '/api1c.php/{*path}' => [
         'public' => true,
+        'csrf' => false,
         'methods' => ['GET', 'POST', 'PUT', 'PATCH'],
         'file' => 'api1c.php',
     ],
@@ -102,6 +104,9 @@ foreach ($pages as $path => $def) {
     }
     if (!empty($def['permission'])) {
         $route['permission'] = $def['permission'];
+    }
+    if (array_key_exists('csrf', $def)) {
+        $route['csrf'] = $def['csrf'];
     }
     ModuleManager::registerRoute($path, $route);
 }
