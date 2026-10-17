@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T12:15:19+00:00",
+    "generated_at": "2026-10-17T14:31:07+00:00",
     "modules": [
         {
             "id": "asr",
@@ -384,7 +384,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.6",
+            "version": "0.1.9",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -1159,7 +1159,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.19",
+            "version": "0.1.22",
             "type": "product",
             "name": {
                 "en": "Procedures",

@@ -4,9 +4,6 @@ declare(strict_types=1);
 /** Staff bot: procedures assigned for the rest of today (oper assigned_procedures). */
 final class AssignedProceduresBotPlugin
 {
-    /** Break / pause type id from oper. */
-    private const TYPE_BREAK = 38;
-
     public static function register(): void
     {
         if (!ModuleManager::isEnabled('bots') || !class_exists('BotPlugins', false)) {
@@ -79,7 +76,7 @@ final class AssignedProceduresBotPlugin
         $rows = ProceduresRepository::listForDayRange($now, $todayEnd + 1, $uid);
         $lines = [];
         foreach ($rows as $row) {
-            if ((int)($row['type'] ?? 0) === self::TYPE_BREAK) {
+            if (class_exists('ProceduresChain', false) && ProceduresChain::isBreak($row)) {
                 continue;
             }
             if (isset($row['enabled']) && (int)$row['enabled'] === 0) {

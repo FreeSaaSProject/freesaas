@@ -67,6 +67,17 @@ final class BookingOperatorGate
                 return false;
             }
             if ($useRates) {
+                // Breaks/pauses are not in the rates matrix — still allow reassign to masseurs.
+                if (class_exists('ProceduresChain', false) && ProceduresChain::isBreakProductTypeId($typeId)) {
+                    continue;
+                }
+                if (
+                    $gid > 0
+                    && class_exists('TerminalsConfig', false)
+                    && TerminalsConfig::chillProductId() === $gid
+                ) {
+                    continue;
+                }
                 if ($typeId < 1) {
                     return false;
                 }

@@ -10,14 +10,14 @@ final class BookingOccupancy
 {
     /**
      * @param int|null $excludeOrderId omit this advance order from occupancy (re-validate on edit)
-     * @param int|null $excludeProcedureId omit this procedure from occupancy (procedure edit)
+     * @param int|list<int>|null $excludeProcedureId omit procedure(s) from occupancy (procedure / chain edit)
      * @return UsedMap
      */
     public static function build(
         int $dayStart,
         int $dayEnd,
         ?int $excludeOrderId = null,
-        ?int $excludeProcedureId = null
+        $excludeProcedureId = null
     ): array {
         if ($dayEnd <= $dayStart) {
             return [];
@@ -25,9 +25,7 @@ final class BookingOccupancy
         /** @var UsedMap $used */
         $used = [];
         $excludeOrderId = $excludeOrderId !== null && $excludeOrderId > 0 ? $excludeOrderId : null;
-        $excludeProcedureId = $excludeProcedureId !== null && $excludeProcedureId > 0
-            ? $excludeProcedureId
-            : null;
+        $excludeSet = self::normalizeExcludeProcedureIds($excludeProcedureId);
 
         if (class_exists(EventsRepository::class, false) && Database::tableExists('base_events')) {
             foreach (EventsRepository::listForDayRange($dayStart, $dayEnd) as $ev) {
@@ -61,26 +59,28 @@ final class BookingOccupancy
         }
 
         if (class_exists(ProceduresRepository::class, false) && Database::tableExists('base_procedures')) {
-            $excludeChillStart = null;
-            $excludeChillOp = null;
-            if ($excludeProcedureId !== null) {
-                // Chill companion (TerminalBooking notice chill#{id}) must leave with the parent
-                // so procedure edit re-assert does not collide with its own rest block.
-                $exRow = ProceduresRepository::find($excludeProcedureId);
-                if (is_array($exRow)) {
-                    $excludeChillStart = (int)($exRow['dtend'] ?? 0);
-                    $excludeChillOp = (int)($exRow['id_operator'] ?? 0);
-                    if ($excludeChillOp < 1) {
-                        $excludeChillOp = (int)($exRow['id_admin'] ?? 0);
-                    }
+            /** @var array<int,array{end:int,op:int}> $excludeParents */
+            $excludeParents = [];
+            foreach ($excludeSet as $exId => $_) {
+                $exRow = ProceduresRepository::find($exId);
+                if (!is_array($exRow)) {
+                    continue;
                 }
+                $exOp = (int)($exRow['id_operator'] ?? 0);
+                if ($exOp < 1) {
+                    $exOp = (int)($exRow['id_admin'] ?? 0);
+                }
+                $excludeParents[$exId] = [
+                    'end' => (int)($exRow['dtend'] ?? 0),
+                    'op' => $exOp,
+                ];
             }
             foreach (ProceduresRepository::listForDayRange($dayStart, $dayEnd) as $pr) {
                 if (isset($pr['enabled']) && (int)$pr['enabled'] === 0) {
                     continue;
                 }
                 $pid = (int)($pr['id'] ?? 0);
-                if ($excludeProcedureId !== null && $pid === $excludeProcedureId) {
+                if ($pid > 0 && isset($excludeSet[$pid])) {
                     continue;
                 }
                 $op = (int)($pr['id_operator'] ?? 0);
@@ -92,25 +92,32 @@ final class BookingOccupancy
                 if ($op < 1 || $start < 1 || $end <= $start) {
                     continue;
                 }
-                if (
-                    $excludeProcedureId !== null
-                    && $excludeChillStart !== null
-                    && $excludeChillStart > 0
-                    && $start === $excludeChillStart
-                    && $op === $excludeChillOp
-                ) {
+                if ($excludeParents !== []) {
                     $notice = (string)($pr['notice'] ?? '');
-                    if ($notice === 'chill#' . $excludeProcedureId
-                        || strncmp($notice, 'chill#' . $excludeProcedureId, strlen('chill#' . $excludeProcedureId)) === 0
-                    ) {
-                        continue;
-                    }
-                    // Same operator + starts at parent DTEND: treat as linked chill even without notice.
-                    if (class_exists(TerminalsConfig::class, false)) {
-                        $chillGood = TerminalsConfig::chillProductId();
-                        if ($chillGood > 0 && (int)($pr['id_good'] ?? 0) === $chillGood) {
-                            continue;
+                    $skip = false;
+                    foreach ($excludeParents as $exId => $meta) {
+                        if ($notice === 'chill#' . $exId
+                            || strncmp($notice, 'chill#' . $exId, strlen('chill#' . $exId)) === 0
+                        ) {
+                            $skip = true;
+                            break;
                         }
+                        // Same operator + starts at parent DTEND: linked chill even without notice.
+                        if (
+                            $meta['end'] > 0
+                            && $start === $meta['end']
+                            && $op === $meta['op']
+                            && class_exists(TerminalsConfig::class, false)
+                        ) {
+                            $chillGood = TerminalsConfig::chillProductId();
+                            if ($chillGood > 0 && (int)($pr['id_good'] ?? 0) === $chillGood) {
+                                $skip = true;
+                                break;
+                            }
+                        }
+                    }
+                    if ($skip) {
+                        continue;
                     }
                 }
                 $key = 'p' . $pid;
@@ -200,5 +207,25 @@ final class BookingOccupancy
             (int)mktime(23, 59, 59)
         );
         return max(BookingSlots::INTERVAL_SEC, (int)$probe['totalTime']);
+    }
+
+    /**
+     * @param int|list<int>|null $excludeProcedureId
+     * @return array<int,true>
+     */
+    public static function normalizeExcludeProcedureIds($excludeProcedureId): array
+    {
+        if ($excludeProcedureId === null) {
+            return [];
+        }
+        $ids = is_array($excludeProcedureId) ? $excludeProcedureId : [$excludeProcedureId];
+        $out = [];
+        foreach ($ids as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $out[$id] = true;
+            }
+        }
+        return $out;
     }
 }

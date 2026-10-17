@@ -2,7 +2,7 @@
     "id": "booking",
     "name": "booking.module.name",
     "description": "booking.module.description",
-    "version": "0.1.6",
+    "version": "0.1.9",
     "type": "product",
     "runtime": "both",
     "requires": {

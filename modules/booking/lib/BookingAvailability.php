@@ -11,7 +11,7 @@ final class BookingAvailability
      * @param int|null $excludeOrderId omit order from occupancy (edit re-check)
      * @param bool $allowPastLead when true, do not push rangeStart past "now+lead" (order edit)
      * @param int|null $leadSec override lead seconds (null → booking.lead_sec / 180)
-     * @param int|null $excludeProcedureId omit procedure from occupancy (procedure edit)
+     * @param int|list<int>|null $excludeProcedureId omit procedure(s) from occupancy (procedure / chain edit)
      * @return array{
      *   date:string,
      *   day_start:int,
@@ -34,7 +34,7 @@ final class BookingAvailability
         ?int $excludeOrderId = null,
         bool $allowPastLead = false,
         ?int $leadSec = null,
-        ?int $excludeProcedureId = null
+        $excludeProcedureId = null
     ): array {
         $dayStart = self::parseDayStart($dateYmd);
         if ($dayStart === null) {

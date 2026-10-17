@@ -68,25 +68,85 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $acl = ProceduresEditAcl::forRow($probe, $isNew);
         $data = ProceduresEditAcl::dataFromPost($_POST, $isNew ? [] : $row, $acl);
+        $chain = (!$isNew && class_exists('ProceduresChain', false))
+            ? ProceduresChain::contiguousAround($id)
+            : [];
+        $excludeIds = [];
+        foreach ($chain as $cr) {
+            $cid = (int)($cr['id'] ?? 0);
+            if ($cid > 0) {
+                $excludeIds[] = $cid;
+            }
+        }
+        if ($excludeIds === [] && !$isNew) {
+            $excludeIds = [$id];
+        }
+        $doRelocate = !$isNew
+            && class_exists('ProceduresChain', false)
+            && ProceduresChain::needsRelocate($data, $row)
+            && count($chain) > 1;
         if (
             Config::moduleEnabled('booking')
             && class_exists(BookingValidate::class, false)
         ) {
+            $lead = class_exists(BookingConfig::class, false)
+                ? BookingConfig::leadSec()
+                : null;
             $opId = (int)($data['id_operator'] ?? 0);
-            $goodId = (int)($data['id_good'] ?? 0);
-            $dtStart = (int)($data['dtstart'] ?? 0);
-            if ($opId > 0 && $goodId > 0 && $dtStart > 0) {
-                BookingValidate::assertSlot(
-                    [$goodId],
-                    $opId,
-                    $dtStart,
-                    null,
-                    true,
-                    class_exists(BookingConfig::class, false)
-                        ? BookingConfig::leadSec()
-                        : null,
-                    $isNew ? null : $id
-                );
+            $oldStart = (int)($row['dtstart'] ?? 0);
+            $newStart = (int)($data['dtstart'] ?? $oldStart);
+            $delta = ($doRelocate && $newStart > 0 && $oldStart > 0)
+                ? ($newStart - $oldStart)
+                : 0;
+            if ($isNew) {
+                $goodId = (int)($data['id_good'] ?? 0);
+                if ($opId > 0 && $goodId > 0 && $newStart > 0) {
+                    BookingValidate::assertSlot(
+                        [$goodId],
+                        $opId,
+                        $newStart,
+                        null,
+                        true,
+                        $lead,
+                        null
+                    );
+                }
+            } else {
+                // Existing rows: use real DTEND−DTSTART (catalog ПЕРЕРЫВ has time_sec=0 → 60′ default).
+                $toCheck = $doRelocate ? $chain : [$row];
+                foreach ($toCheck as $cr) {
+                    $rid = (int)($cr['id'] ?? 0);
+                    $goodId = $rid === $id
+                        ? (int)($data['id_good'] ?? $cr['id_good'] ?? 0)
+                        : (int)($cr['id_good'] ?? 0);
+                    $dtStart = $rid === $id
+                        ? $newStart
+                        : ((int)($cr['dtstart'] ?? 0) + $delta);
+                    $dtEnd = $rid === $id
+                        ? (int)($data['dtend'] ?? 0)
+                        : ((int)($cr['dtend'] ?? 0) + $delta);
+                    if ($dtEnd <= $dtStart && $rid === $id) {
+                        $oldEnd = (int)($row['dtend'] ?? 0);
+                        if ($oldEnd > $oldStart) {
+                            $dtEnd = $dtStart + ($oldEnd - $oldStart);
+                        }
+                    }
+                    if ($opId < 1 || $goodId < 1 || $dtStart < 1 || $dtEnd <= $dtStart) {
+                        continue;
+                    }
+                    $probeRow = $rid === $id ? array_merge($cr, $data) : $cr;
+                    BookingValidate::assertProcedureWindow(
+                        $opId,
+                        $dtStart,
+                        $dtEnd,
+                        $goodId,
+                        $excludeIds,
+                        [
+                            'allow_past_work_end' => class_exists('ProceduresChain', false)
+                                && ProceduresChain::isBreak($probeRow),
+                        ]
+                    );
+                }
             }
         }
         if ($isNew) {
@@ -105,7 +165,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             ]));
             return;
         }
-        ProceduresRepository::update($id, $data);
+        $movedLines = [];
+        $chainCount = 1;
+        if (class_exists('ProceduresChain', false)) {
+            $relocated = ProceduresChain::relocateOnUpdate($id, $data, $row);
+            $chainCount = (int)($relocated['count'] ?? 1);
+            $movedLines = is_array($relocated['lines'] ?? null) ? $relocated['lines'] : [];
+        } else {
+            ProceduresRepository::update($id, $data);
+        }
         $row = ProceduresRepository::find($id) ?: $row;
         $acl = ProceduresEditAcl::forRow($row, false);
         if ($wantsJson) {
@@ -113,10 +181,21 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'ok' => true,
                 'id' => $id,
                 'item' => $row,
+                'chain_moved' => $chainCount,
+                'chain_moved_lines' => $movedLines,
             ]);
             return;
         }
-        $message = t('core.common.saved');
+        if ($movedLines !== []) {
+            $message = t('procedures.edit.chain_saved_list', [
+                'count' => max($chainCount, count($movedLines)),
+                'list' => implode('; ', $movedLines),
+            ]);
+        } elseif ($chainCount > 1) {
+            $message = t('procedures.edit.chain_saved', ['count' => $chainCount]);
+        } else {
+            $message = t('core.common.saved');
+        }
     } catch (Throwable $e) {
         if ($wantsJson) {
             AgentHttp::error($e->getMessage(), 400);
