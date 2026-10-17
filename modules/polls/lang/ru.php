@@ -5,6 +5,9 @@ return [
     'polls.module.name' => 'Опросы',
     'polls.menu.group' => 'Опросы',
     'polls.menu.list' => 'Определения опросов',
+    'polls.menu.settings' => 'Настройки',
+    'polls.settings.lede' => 'Настройки опросов и приглашений (секции модулей вроде poll_invites появляются, если они включены). Только для суперадминистратора.',
+    'polls.settings.empty' => 'Нет дополнительных секций: включите poll_invites или другие модули, которые подписываются на polls.settings.sections.',
     'polls.perm.view' => 'Опросы (просмотр)',
     'polls.perm.edit' => 'Опросы (редактирование)',
     'polls.list.search_placeholder' => 'Поиск: название, id',
@@ -72,6 +75,6 @@ return [
     'polls.err.has_children' => 'Нельзя удалить: есть дочерние элементы',
     'polls.err.cannot_change_type' => 'Тип элемента нельзя менять после создания',
     'polls.module.description' => 'Дерево определений опросов (base_polls); каналы через EventBus.',
-    'polls.module.summary' => 'Включайте для определений опросов. Мягко procedures/catalog. Нужен poll_invites. Универсальный модуль; для заполнения — вместе с poll_invites.',
+    'polls.module.summary' => 'Включайте для определений опросов. Мягко procedures/catalog. Нужен poll_invites. /polls/settings — хаб настроек (oral poll и др.). Универсальный; для заполнения — с poll_invites.',
     'polls.perm.delete' => 'Удаление опросов',
 ];

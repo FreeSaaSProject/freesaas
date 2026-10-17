@@ -23,6 +23,19 @@ $llm = is_array($publisher['llm'] ?? null) ? $publisher['llm'] : [];
     <input type="number" min="0" name="sr_gratitude_news_id" value="<?= (int)($publisher['gratitude_news_id'] ?? 0) ?>">
   </label>
   <p class="muted small"><?= te('staff_reports.settings.gratitude_news_id_hint') ?></p>
+  <?php
+  $mark = StaffReportPublisherConfig::normalizeGratitudeMark((string)($publisher['gratitude_mark'] ?? 'headphones'));
+  ?>
+  <label><?= te('staff_reports.settings.gratitude_mark') ?>
+    <select name="sr_gratitude_mark">
+      <?php foreach (StaffReportPublisherConfig::GRATITUDE_MARKS as $markId => $emoji): ?>
+        <option value="<?= e($markId) ?>"<?= $mark === $markId ? ' selected' : '' ?>>
+          <?= e($emoji) ?> <?= te('staff_reports.settings.gratitude_mark.' . $markId) ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+  </label>
+  <p class="muted small"><?= te('staff_reports.settings.gratitude_mark_hint') ?></p>
   <label><?= te('staff_reports.settings.ticket_prefix') ?>
     <input type="text" name="sr_ticket_prefix" value="<?= e((string)($publisher['ticket_title_prefix'] ?? '[Отчеты:')) ?>">
   </label>

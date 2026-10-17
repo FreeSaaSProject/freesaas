@@ -7,6 +7,26 @@ final class MonthRewards
     /** @var array<string, array<int, array<int, array{reward:bool,ticket:int,no_records:bool,comment_id?:int}>>> */
     private static $forMonthCache = [];
 
+    public static function clearCache(): void
+    {
+        self::$forMonthCache = [];
+    }
+
+    /**
+     * True when day report footer grants a reward (« - НАЧИСЛЯЕТСЯ»), not «НЕ начисляется».
+     */
+    public static function plainGrantsReward(string $plain): bool
+    {
+        if (preg_match('/-\s*НАЧИСЛЯЕТСЯ/u', $plain) || preg_match('/—\s*НАЧИСЛЯЕТСЯ/u', $plain)) {
+            return true;
+        }
+        // English footer fallback
+        if (preg_match('/\bGRANTED\b/i', $plain) && !preg_match('/NOT\s+granted/i', $plain)) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * @return array<int, array<int, array{reward:bool,ticket:int,no_records:bool,comment_id?:int}>>
      *         dayNum => adminId => meta
@@ -74,7 +94,7 @@ final class MonthRewards
             if ($empId < 1) {
                 continue;
             }
-            $reward = (strpos($plain, 'НАЧИСЛЯЕТСЯ') !== false);
+            $reward = self::plainGrantsReward($plain);
             $noRecords = (mb_stripos($plain, 'нет аудиозаписей за день') !== false)
                 || (stripos($plain, 'no audio records') !== false);
             if (!isset($data[$d])) {

@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.3",
+    "version": "0.1.8",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -10,7 +10,9 @@
     },
     "optionalRequires": {
         "clients": ">=0.1.0",
-        "bonuses": ">=0.1.0"
+        "bonuses": ">=0.1.0",
+        "calendar": ">=0.1.0",
+        "procedures": ">=0.1.0"
     },
     "provides": [
         "poll_invites.instances"
@@ -34,6 +36,7 @@
         "pages": [
             "/poll-invites",
             "/poll-invites/new",
+            "/poll-invites/oral-asked",
             "/poll-invites/{id}/edit",
             "/poll-invites/{id}/fill"
         ]
@@ -54,6 +57,13 @@
                 "path": "/poll-invites/new",
                 "permission": "poll_invites.edit",
                 "description": "Create a poll invite"
+            },
+            {
+                "id": "poll_invites.oral_asked",
+                "method": "POST",
+                "path": "/poll-invites/oral-asked",
+                "permission": "poll_invites.edit",
+                "description": "Mark oral review asked for a procedure (creates invite with ID_PROC, empty CODE); body: id_proc, optional id_poll, ret"
             },
             {
                 "id": "poll_invites.fill",
@@ -81,7 +91,10 @@
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "core.notices.collect"
+            "core.notices.collect",
+            "calendar.timeline.enrich",
+            "polls.settings.sections",
+            "polls.settings.save"
         ],
         "publish": [
             "poll_invites.created",

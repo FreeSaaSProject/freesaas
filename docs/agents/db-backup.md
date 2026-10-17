@@ -2,11 +2,11 @@
 
 Facade: [`app/DbTools.php`](../../app/DbTools.php). Implementation: [`app/Db/`](../../app/Db/) (`DbDump`, `DbRestore`, `DbJobs`, …).
 
-Schema migrations, optional data migrators, SQL backups of FreeSaaS-owned tables, and CHECK/REPAIR/OPTIMIZE.
+Schema migrations, SQL backups of FreeSaaS-owned tables, and CHECK/REPAIR/OPTIMIZE. Data migrators are not exposed on `/db` (cutover done; CLI `php bin/data-migrate.php` remains for rare one-offs — see [`migrations.md`](migrations.md)).
 
 **Module uninstall** always runs a per-module dump (`DbTools::dumpModule` → label `uninstall-<id>`) of that module’s **exclusively owned** `module.json` → `tables` **before** DROP (tables also listed by another module are skipped). Restore that file via `db restore` if you need the data back; then `module enable` recreates empty schema from migrations if tables are gone.
 
-**Auth:** `/db` requires a staff session + permission `core.db` (not public). Greenfield / lost-login: CLI `migrate run` / `bootstrap` / `rescue`, or HTTP `/agent/*` with pre-set `agent_token` or `var/setup.key` (bootstrap/rescue only — no anonymous virgin door). Destructive data migrators: prefer CLI `php bin/data-migrate.php --module=… --id=…` (full run needs `--i-understand-replace`).
+**Auth:** `/db` requires a staff session + permission `core.db` (not public). Greenfield / lost-login: CLI `migrate run` / `bootstrap` / `rescue`, or HTTP `/agent/*` with pre-set `agent_token` or `var/setup.key` (bootstrap/rescue only — no anonymous virgin door).
 
 ## Human UI
 
@@ -56,7 +56,7 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/db/restore?file=….sql.gz"
 ```
 
-Session twin (login + `core.db`): `GET/POST /db?format=json` with `action=schema|data|db_dump|db_restore|…`.
+Session twin (login + `core.db`): `GET/POST /db?format=json` with `action=schema|db_dump|db_restore|…`.
 
 Product ops: `modules/core/module.json` → `agent.ops` (`core.db.*`).
 

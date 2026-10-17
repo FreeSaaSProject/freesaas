@@ -230,11 +230,14 @@ EventBus::on('calendar.day.stats', static function ($payload) {
             }
             $text = implode(' ', $parts);
             $c = $colors[$oid] ?? null;
+            // Oper footer buckets: mass → admin → equipment (fish chairs last).
+            $sortGroup = $isEquipment ? 2 : ($isAdminLine ? 1 : 0);
             $lines[] = [
                 'acronym' => (string)$op['acronym'],
                 'text' => $text,
                 'is_admin' => $isAdminLine,
                 'is_equipment' => $isEquipment,
+                'sort_group' => $sortGroup,
                 'load_pct' => $loadPct,
                 'load_min' => $loadMin,
                 'bg' => $c['bg'] ?? '',
@@ -243,7 +246,7 @@ EventBus::on('calendar.day.stats', static function ($payload) {
         }
 
         usort($lines, static function (array $a, array $b): int {
-            return ((int)!empty($a['is_admin']) <=> (int)!empty($b['is_admin']))
+            return ((int)($a['sort_group'] ?? 0) <=> (int)($b['sort_group'] ?? 0))
                 ?: strcmp((string)$a['acronym'], (string)$b['acronym']);
         });
 

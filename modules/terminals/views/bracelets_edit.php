@@ -21,7 +21,9 @@ declare(strict_types=1);
     <input name="uid2" maxlength="20" value="<?= e((string)($row['uid2'] ?? '')) ?>"<?= $canEdit ? '' : ' disabled' ?>>
   </label>
   <label><?= te('terminals.bracelets.col.num') ?>
-    <input type="number" name="num" min="0" value="<?= (int)($row['num'] ?? 0) ?>"<?= $canEdit ? '' : ' disabled' ?>>
+    <input type="text" name="num" maxlength="16" pattern="[A-Za-z0-9]*" inputmode="text"
+           autocomplete="off" placeholder="<?= e(t('terminals.t.num_placeholder')) ?>"
+           value="<?= e((string)($row['num'] ?? '')) ?>"<?= $canEdit ? '' : ' disabled' ?>>
   </label>
   <div class="page-actions">
     <?php if ($canEdit): ?>

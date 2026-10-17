@@ -2,7 +2,6 @@
 declare(strict_types=1);
 
 $schemaReport = [];
-$dataReport = [];
 $maintReport = [];
 $message = '';
 $error = '';
@@ -127,43 +126,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'pending' => SchemaMigrator::pendingList(),
             ], $errors === 0 ? 200 : 500);
         }
-    } elseif ($action === 'data') {
-        if (!Database::tableExists('base_users')) {
-            $error = t('core.db.msg.schema_first');
-            if ($wantsJson) {
-                AgentHttp::error($error, 400);
-            }
-        } else {
-            $dataReport = DataMigrator::runAll(true);
-            $dataOk = 0;
-            $dataErr = 0;
-            foreach ($dataReport as $row) {
-                if (($row['status'] ?? '') === 'ok') {
-                    $dataOk++;
-                } else {
-                    $dataErr++;
-                }
-            }
-            $message = t('core.db.msg.data_done_counts', [
-                'ok' => (string)$dataOk,
-                'error' => (string)$dataErr,
-                'n' => (string)count($dataReport),
-            ]);
-            if ($dataErr > 0 && $error === '') {
-                $error = t('core.db.msg.data_errors', ['n' => (string)$dataErr]);
-            }
-            if ($wantsJson) {
-                AgentHttp::emit([
-                    'ok' => $dataErr === 0,
-                    'action' => 'data',
-                    'message' => $message,
-                    'ok_count' => $dataOk,
-                    'error_count' => $dataErr,
-                    'report' => $dataReport,
-                    'catalog' => DataMigrator::catalog(),
-                ], $dataErr === 0 ? 200 : 500);
-            }
-        }
     } elseif (in_array($action, ['db_job_start', 'db_job_tick', 'db_job_cancel'], true)) {
         if (!$canDb) {
             AgentHttp::error(t('core.db.err.forbidden'), 403);
@@ -212,14 +174,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                         'tables' => $scope,
                         'owned' => $ownedTables,
                     ]);
-                } elseif ($op === 'data') {
-                    if (!Database::tableExists('base_users')) {
-                        AgentHttp::error(t('core.db.msg.schema_first'), 400);
-                    }
-                    if (session_status() === PHP_SESSION_ACTIVE) {
-                        session_write_close();
-                    }
-                    $job = DbTools::jobStart('data', []);
                 } elseif (in_array($op, ['optimize', 'repair', 'check'], true)) {
                     $posted = isset($_POST['tables']) && is_array($_POST['tables']) ? $_POST['tables'] : null;
                     $tables = $resolveTables($posted);
@@ -256,13 +210,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'mode' => $mode,
                     'rows' => $job['result']['diag'] ?? [],
                 ];
-            }
-            if (($job['op'] ?? '') === 'data' && ($job['status'] ?? '') === 'done') {
-                // Surface report into the page flash after reload via session.
-                if (session_status() !== PHP_SESSION_ACTIVE) {
-                    @session_start();
-                }
-                $_SESSION['freesaas_db_data_report'] = $job['result']['report'] ?? [];
             }
             AgentHttp::emit([
                 'ok' => true,
@@ -452,38 +399,6 @@ if ($canDb) {
     }
 }
 
-$dataCatalog = [];
-try {
-    $dataCatalog = DataMigrator::catalog();
-} catch (Throwable $e) {
-    $dataCatalog = [];
-}
-
-// After a job-based data run, surface the report once (page reload from overlay OK).
-if ($dataReport === [] && !empty($_SESSION['freesaas_db_data_report']) && is_array($_SESSION['freesaas_db_data_report'])) {
-    $dataReport = $_SESSION['freesaas_db_data_report'];
-    unset($_SESSION['freesaas_db_data_report']);
-    if ($message === '') {
-        $okN = 0;
-        $errN = 0;
-        foreach ($dataReport as $row) {
-            if (($row['status'] ?? '') === 'ok') {
-                $okN++;
-            } else {
-                $errN++;
-            }
-        }
-        $message = t('core.db.msg.data_done_counts', [
-            'ok' => (string)$okN,
-            'error' => (string)$errN,
-            'n' => (string)count($dataReport),
-        ]);
-        if ($errN > 0 && $error === '') {
-            $error = t('core.db.msg.data_errors', ['n' => (string)$errN]);
-        }
-    }
-}
-
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     if (!$canDb) {
         AgentHttp::error(t('core.db.err.forbidden'), 403);
@@ -507,10 +422,8 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'diagnose_ran' => $diagRan,
         'diagnose_at' => $diagAt,
         'diagnose_need' => $diagNeedCount,
-        'data_catalog' => $dataCatalog,
         'ops' => [
             ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'schema'], 'description' => 'Apply all pending schema migrations'],
-            ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'data'], 'description' => 'Run data migrators (replace; destructive — prefer CLI)'],
             ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'db_dump'], 'description' => 'Dump owned tables'],
             ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'db_upload'], 'description' => 'Upload .sql/.sql.gz (multipart field dump; does not restore)'],
             ['method' => 'POST', 'path' => '/db', 'auth' => 'session+core.db', 'body' => ['action' => 'db_restore', 'file' => '…'], 'description' => 'Restore dump (owned allow-list in normal mode)'],
@@ -528,8 +441,6 @@ View::render('db', [
     'message' => $message,
     'error' => $error,
     'schemaReport' => $schemaReport,
-    'dataReport' => $dataReport,
-    'dataCatalog' => $dataCatalog,
     'maintReport' => $maintReport,
     'pending' => $pending,
     'pendingCount' => (int)($setup['pending'] ?? count($pending)),

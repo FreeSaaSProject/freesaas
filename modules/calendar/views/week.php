@@ -134,15 +134,28 @@ require __DIR__ . '/_timeline.php';
   var info = document.getElementById('calendar-info');
   var touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   var openChip = null;
+  var hideTimer = null;
 
+  function cancelHideInfo() {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = null;
+    }
+  }
   function hideInfo() {
+    cancelHideInfo();
     if (!info) return;
     info.hidden = true;
     info.innerHTML = '';
     openChip = null;
   }
+  function scheduleHideInfo() {
+    cancelHideInfo();
+    hideTimer = setTimeout(hideInfo, 120);
+  }
   function showInfo(chip, fromTouch) {
     if (!info || !chip) return;
+    cancelHideInfo();
     var html = chip.getAttribute('data-info') || '';
     if (!html) return;
     info.innerHTML = html + (fromTouch
@@ -157,10 +170,15 @@ require __DIR__ . '/_timeline.php';
     if (closer) closer.addEventListener('click', hideInfo);
   }
 
+  if (info && !touch) {
+    info.addEventListener('mouseenter', cancelHideInfo);
+    info.addEventListener('mouseleave', scheduleHideInfo);
+  }
+
   document.querySelectorAll('.calendar-tl-chip').forEach(function (chip) {
     if (!touch) {
       chip.addEventListener('mouseenter', function () { showInfo(chip, false); });
-      chip.addEventListener('mouseleave', function () { hideInfo(); });
+      chip.addEventListener('mouseleave', scheduleHideInfo);
     } else {
       chip.addEventListener('click', function (e) {
         if (openChip === chip) return;

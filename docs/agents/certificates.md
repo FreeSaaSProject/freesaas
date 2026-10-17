@@ -14,8 +14,7 @@ Or `[modules] certificates=1` in `cfg/config.ini`. Role flag `EVT_SERT` shows ap
 Optional one-shot cleanup of unused oper tables:
 
 ```bash
-php bin/data-migrate.php
-# or POST /db action=data — migrator id drop_legacy_sert
+php bin/data-migrate.php --module=certificates --id=drop_legacy_sert
 ```
 
 ## Tables

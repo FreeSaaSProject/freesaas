@@ -80,6 +80,7 @@ EventBus::on('audio.settings.save', static function ($payload) {
         'ticket_status_id' => (int)($post['sr_ticket_status'] ?? 4),
         'ticket_title_prefix' => (string)($post['sr_ticket_prefix'] ?? '[Отчеты:'),
         'gratitude_news_id' => (int)($post['sr_gratitude_news_id'] ?? 0),
+        'gratitude_mark' => (string)($post['sr_gratitude_mark'] ?? 'headphones'),
         'contract_working_days' => (int)($post['sr_contract_working_days'] ?? 5),
         'llm' => ['enabled' => !empty($post['sr_llm_enabled'])],
     ]);

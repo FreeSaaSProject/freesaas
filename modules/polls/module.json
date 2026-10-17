@@ -2,7 +2,7 @@
     "id": "polls",
     "name": "polls.module.name",
     "description": "polls.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -33,7 +33,8 @@
         "pages": [
             "/polls",
             "/polls/new",
-            "/polls/{id}/edit"
+            "/polls/{id}/edit",
+            "/polls/settings"
         ]
     },
     "agent": {
@@ -52,6 +53,21 @@
                 "path": "/polls/{id}/edit",
                 "permission": "polls.view",
                 "description": "Get one poll tree node"
+            },
+            {
+                "id": "polls.settings",
+                "method": "GET",
+                "path": "/polls/settings",
+                "permission": "polls.view",
+                "description": "Polls settings hub; sibling modules append via polls.settings.sections (superadmin capability on route)"
+            },
+            {
+                "id": "polls.settings.save",
+                "method": "POST",
+                "path": "/polls/settings",
+                "permission": "polls.view",
+                "side_effect": "write",
+                "description": "Save polls settings; emits polls.settings.save (superadmin capability on route)"
             }
         ]
     },
@@ -63,6 +79,14 @@
             "path": "/polls",
             "title": "polls.menu.list",
             "kind": "crud"
+        },
+        {
+            "group": "polls.menu.group",
+            "num": 90,
+            "path": "/polls/settings",
+            "title": "polls.menu.settings",
+            "kind": "settings",
+            "capability": "SUPERADMIN_ACCESS"
         }
     ],
     "configSchema": [],
@@ -73,7 +97,9 @@
     "hooks": {
         "subscribe": [],
         "publish": [
-            "polls.definition.changed"
+            "polls.definition.changed",
+            "polls.settings.sections",
+            "polls.settings.save"
         ]
     },
     "bulkActions": [

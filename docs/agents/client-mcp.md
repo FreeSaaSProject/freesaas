@@ -108,7 +108,7 @@ Default `verification = none`: the phone the agent passes is trusted, same as th
 | `client_mcp.business_info` | `info`, `host` | Add sections / registration fields |
 | `client_mcp.identify` | `phone`, `client_id`, `known`, `client_name`, `ip`, `site_host_id`, `verification{mode,hint}`, `error` | Set `verification.mode='code'` + `hint` and send an OTP; or `error` to refuse |
 | `client_mcp.verify` | `session`, `code`, `verified`, `client_id`, `error` | Check the code; set `verified=true` (optionally `client_id`) |
-| `client_mcp.payment` | `order`, `payment{required,mode,status,amount,currency,url,qr,expires_at,instructions}`, `site_host_id` | Acquiring fills `mode='online'`, `url`/`qr`, `expires_at`. `orders` already subscribes for the legacy still-payable link (`OrdersRepository::pendingPaymentLink`) |
+| `client_mcp.payment` | `order`, `payment{required,mode,status,amount,currency,url,qr,expires_at,instructions}`, `site_host_id` | Default = pay-on-site. A future acquiring module (own tables, not `base_orders` columns) fills `mode='online'`, `url`/`qr`, `expires_at` |
 | `client_mcp.booking.created` | see Domain | Notifications, CRM, analytics |
 
 ## Related

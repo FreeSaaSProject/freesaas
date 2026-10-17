@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.105",
+    "version": "0.3.106",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -562,14 +562,6 @@
                 "path": "/db",
                 "permission": "core.db",
                 "description": "Apply all pending schema migrations (POST action=schema&format=json)",
-                "assistant": false
-            },
-            {
-                "id": "core.db.run_data",
-                "method": "POST",
-                "path": "/db",
-                "permission": "core.db",
-                "description": "Run data migrators replace mode (POST action=data&format=json; optional)",
                 "assistant": false
             },
             {

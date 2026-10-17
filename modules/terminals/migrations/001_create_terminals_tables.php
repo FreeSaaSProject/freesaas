@@ -75,13 +75,13 @@ return static function (PDO $pdo): void {
             DT INT UNSIGNED NOT NULL DEFAULT 0,
             UID VARCHAR(20) NOT NULL DEFAULT '',
             UID2 VARCHAR(20) NOT NULL DEFAULT '',
-            NUM INT UNSIGNED NOT NULL DEFAULT 0,
+            NUM VARCHAR(16) NOT NULL DEFAULT '',
             PRIMARY KEY (ID),
             UNIQUE KEY UID (UID),
             UNIQUE KEY UID2 (UID2)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
-    $ensureCol($pdo, 'base_bracelets', 'NUM', 'NUM INT UNSIGNED NOT NULL DEFAULT 0');
+    $ensureCol($pdo, 'base_bracelets', 'NUM', "NUM VARCHAR(16) NOT NULL DEFAULT ''");
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_termloads (

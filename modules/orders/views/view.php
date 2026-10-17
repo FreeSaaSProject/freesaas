@@ -127,9 +127,6 @@ $editHref = ListQuery::url('/orders/' . $oid . '/edit', ['ret' => $listUrl]);
           #<?= $eventUseId ?>
         <?php endif; ?>
       </dd>
-      <dt><?= te('orders.view.event_paid') ?></dt><dd><?=
-        (int)($order['id_event_paid'] ?? 0) > 0 ? (int)$order['id_event_paid'] : '—'
-      ?></dd>
       <dt><?= te('orders.view.sert') ?></dt><dd><?=
         (int)($order['id_sert'] ?? 0) > 0 ? (int)$order['id_sert'] : '—'
       ?></dd>
@@ -141,19 +138,6 @@ $editHref = ListQuery::url('/orders/' . $oid . '/edit', ['ret' => $listUrl]);
     <dl class="kv">
       <dt><?= te('orders.view.summ') ?></dt><dd><?= e((string)($order['summ'] ?? '0')) ?></dd>
       <dt><?= te('orders.view.summ_real') ?></dt><dd><?= e((string)($order['summ_real'] ?? '0')) ?></dd>
-      <dt><?= te('orders.view.summ_sber') ?></dt><dd><?= e((string)($order['summ_sber'] ?? '0')) ?></dd>
-      <dt><?= te('orders.view.summ_bonus') ?></dt><dd><?= e((string)($order['summ_bonus'] ?? '0')) ?></dd>
-      <dt><?= te('orders.view.epaid') ?></dt><dd><?= e((string)($order['epaid'] ?? '0')) ?></dd>
-      <dt><?= te('orders.view.sber_id') ?></dt><dd><?= e((string)($order['sber_id'] ?: '—')) ?></dd>
-      <dt><?= te('orders.view.sber_status') ?></dt><dd><?= e((string)($order['sber_status'] ?? '0')) ?></dd>
-      <dt><?= te('orders.view.sber_link') ?></dt>
-      <dd>
-        <?php if ((string)($order['sber_link'] ?? '') !== ''): ?>
-          <a href="<?= e((string)$order['sber_link']) ?>" target="_blank" rel="noopener"><?= te('orders.view.sber_link') ?></a>
-        <?php else: ?>
-          —
-        <?php endif; ?>
-      </dd>
     </dl>
   </div>
 

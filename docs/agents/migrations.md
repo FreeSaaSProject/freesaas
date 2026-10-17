@@ -61,7 +61,6 @@ Declared in `modules/core/module.json` → `agent.ops`. Same routes as UI; `?for
 |----|--------|------|
 | `core.db.status` | `GET /db` | — |
 | `core.db.run_schema` | `POST /db` | `action=schema` |
-| `core.db.run_data` | `POST /db` | `action=data` |
 | `core.db.dump` | `POST /db` | `action=db_dump` |
 | `core.db.restore` | `POST /db` | `action=db_restore&file=…` |
 
@@ -75,14 +74,13 @@ Optional one-shot scripts under `modules/*/migrators/`, declared in `module.json
 php bin/data-migrate.php --list                 # preview: what each migrator does
 php bin/data-migrate.php --module=… --id=…      # one migrator (live progress)
 php bin/data-migrate.php --i-understand-replace # ALL (destructive) — know what you run
-# or POST /db action=data&format=json
 ```
 
-`/db` lists the data catalog before the button. The run uses the **same job overlay** as dump/restore (progress bars + live log); after OK the page reloads with the report. CLI still prints `→ id` / description / `… running` / `[ok|error] …` as each migrator finishes (`--list` to preview).
+`/db` no longer runs data migrators (cutover done). CLI prints `→ id` / description / `… running` / `[ok|error] …` as each migrator finishes (`--list` to preview).
 
 ### Staff identity from phpshop (oper → FreeSaaS)
 
-**TEMP cutover pack** — not runtime. Enable `core`, `bots`, and `terminals` so `/db` data / `runAll` picks them up. After phpshop tables are dropped, delete the files + `module.json` `migrators[]` entries + matching `*.migrator.*` lang keys (see list below). Do **not** revert `Auth::hasNamespacedPermissions()` — that is permanent `module.perm` shape checking.
+**TEMP cutover pack** — not runtime. Prefer CLI `data-migrate.php` if still needed. After phpshop tables are dropped, delete the files + `module.json` `migrators[]` entries + matching `*.migrator.*` lang keys (see list below). Do **not** revert `Auth::hasNamespacedPermissions()` — that is permanent `module.perm` shape checking.
 
 | Migrator | Module | What |
 |----------|--------|------|

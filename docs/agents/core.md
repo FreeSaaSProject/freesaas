@@ -84,7 +84,6 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` â†
 | `core.statuses.update` | POST | `/statuses/{id}/edit` |
 | `core.db.status` | GET | `/db` |
 | `core.db.run_schema` | POST | `/db` |
-| `core.db.run_data` | POST | `/db` |
 | `core.db.dump` | POST | `/db` |
 | `core.db.restore` | POST | `/db` |
 | `core.db.upload` | POST | `/db` |

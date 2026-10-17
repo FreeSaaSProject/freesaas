@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T10:24:42+00:00",
+    "generated_at": "2026-10-17T12:15:19+00:00",
     "modules": [
         {
             "id": "asr",
@@ -481,7 +481,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.24",
+            "version": "0.1.26",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1024,7 +1024,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.7",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1094,7 +1094,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.1.3",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1105,8 +1105,8 @@
                 "ru": "Инстансы приглашений на опросы и заполнение сотрудниками; хуки для bots/site."
             },
             "summary": {
-                "en": "Enable to send/fill poll invites. Requires polls. Soft clients/bonuses. Publishes poll_invites.* for bots and site channels.",
-                "ru": "Включайте для рассылки/заполнения опросов. Требует polls. Мягко clients/bonuses. Публикует poll_invites.* для bots и сайта."
+                "en": "Enable to send/fill poll invites. Requires polls. Soft clients/bonuses/calendar/procedures. “Review asked” button on calendar procedure chips. Publishes poll_invites.* for bots and site channels.",
+                "ru": "Включайте для рассылки/заполнения опросов. Требует polls. Мягко clients/bonuses/calendar/procedures. Кнопка «собран отзыв» на чипах календаря. Публикует poll_invites.* для bots и сайта."
             },
             "requires": {
                 "core": ">=0.3.0",
@@ -1114,7 +1114,9 @@
             },
             "optionalRequires": {
                 "clients": ">=0.1.0",
-                "bonuses": ">=0.1.0"
+                "bonuses": ">=0.1.0",
+                "calendar": ">=0.1.0",
+                "procedures": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1126,7 +1128,7 @@
         },
         {
             "id": "polls",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Polls",
@@ -1137,8 +1139,8 @@
                 "ru": "Дерево определений опросов (base_polls); каналы через EventBus."
             },
             "summary": {
-                "en": "Enable to define reusable polls. Soft procedures/catalog. Required by poll_invites. Universal — not spa-specific; pair with poll_invites for staff fill.",
-                "ru": "Включайте для определений опросов. Мягко procedures/catalog. Нужен poll_invites. Универсальный модуль; для заполнения — вместе с poll_invites."
+                "en": "Enable to define reusable polls. Soft procedures/catalog. Required by poll_invites. /polls/settings is the settings hub (oral poll etc.). Pair with poll_invites for staff fill.",
+                "ru": "Включайте для определений опросов. Мягко procedures/catalog. Нужен poll_invites. /polls/settings — хаб настроек (oral poll и др.). Универсальный; для заполнения — с poll_invites."
             },
             "requires": {
                 "core": ">=0.3.0"
@@ -1157,7 +1159,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.18",
+            "version": "0.1.19",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1320,7 +1322,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "0.1.11",
+            "version": "0.1.15",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1486,7 +1488,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.34",
+            "version": "0.1.35",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

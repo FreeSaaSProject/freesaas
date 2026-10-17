@@ -60,7 +60,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
         <td class="muted"><a href="/terminals/bracelets/<?= (int)$u['id'] ?>/edit"><?= (int)$u['id'] ?></a></td>
         <td><code><?= e((string)$u['uid']) ?></code></td>
         <td><code><?= e((string)$u['uid2']) ?></code></td>
-        <td><?= (int)$u['num'] ?></td>
+        <td><?= e((string)($u['num'] ?? '')) ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>

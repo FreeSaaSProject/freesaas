@@ -303,6 +303,7 @@ return [
     'core.db.badge_foreign' => 'чужие',
     'core.db.sel.all' => 'Выделить все',
     'core.db.sel.owned' => 'Выделить свои',
+    'core.db.sel.foreign' => 'Выделить чужие',
     'core.db.sel.need' => 'Выделить требующие обслуживания',
     'core.db.sel.none' => 'Снять выделение',
     'core.db.btn_dump' => 'Создать дамп',

@@ -114,6 +114,8 @@ final class StaffReportRunner
 
         $stats = ['ok' => 0, 'skipped' => 0, 'error' => 0];
         $results = [];
+        $rewardedEmpIds = [];
+        $authorId = 0;
         foreach ($emps as $empId) {
             $r = self::generateForEmployee($empId, $bounds);
             $status = (string)($r['status'] ?? 'error');
@@ -123,8 +125,19 @@ final class StaffReportRunner
                 $stats['error']++;
             }
             $results[$empId] = $r;
+            if ($status === 'ok' && !empty($r['reward_granted'])) {
+                $rewardedEmpIds[] = (int)$empId;
+            }
         }
-        self::log('done ' . $bounds['day_text'] . ' ok=' . $stats['ok'] . ' skipped=' . $stats['skipped'] . ' error=' . $stats['error']);
+        // One board rebuild after all day comments are written (pass who got bonus this run for «+»).
+        $pub = StaffReportPublisherConfig::asTicketConfig();
+        $newsId = (int)($pub['gratitude_news_id'] ?? 0);
+        if ($newsId > 0) {
+            $authorId = TicketWriter::robotId();
+            GratitudeBoard::refreshMonth($newsId, $bounds['day_start'], $authorId, $rewardedEmpIds);
+        }
+        self::log('done ' . $bounds['day_text'] . ' ok=' . $stats['ok'] . ' skipped=' . $stats['skipped'] . ' error=' . $stats['error']
+            . ' rewarded=' . count($rewardedEmpIds));
         return [
             'day_text' => $bounds['day_text'],
             'date' => $bounds['date'],
@@ -301,11 +314,7 @@ final class StaffReportRunner
             self::log("$name: reward contract disabled #" . (int)$contract['comment_id']);
         }
 
-        GratitudeBoard::refreshMonth(
-            (int)($config['gratitude_news_id'] ?? 0),
-            $bounds['day_start'],
-            $authorId
-        );
+        // Gratitude board is refreshed once from runDay() after the full employee loop.
 
         $after = [
             'employee_id' => $employeeId,

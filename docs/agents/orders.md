@@ -39,7 +39,7 @@ Callers must set on create (technical codes, not translated):
 
 Other modules add channel codes via EventBus `orders.sources` (`$payload['sources'][] = 'code'`, `[a-z0-9_]`); `OrdersConfig::sources()` is the effective list. Example: `client_mcp` adds `mcp` for public client MCP bookings ([client-mcp.md](client-mcp.md)).
 
-Client-facing channels read `OrdersRepository::clientState($order)` (`state` active|past|cancelled|completed|other, `paid`, `cancellable`) instead of parsing `STATUS`. `orders` subscribes `client_mcp.payment` to expose a still-payable legacy acquiring link (`OrdersRepository::pendingPaymentLink`).
+Client-facing channels read `OrdersRepository::clientState($order)` (`state` active|past|cancelled|completed|other, `paid`, `cancellable`) instead of parsing `STATUS`. Online acquiring does **not** live on `base_orders` — a future payment module owns its own tables and may subscribe to `client_mcp.payment` (emit stays in `client_mcp`; default without a subscriber is pay-on-site).
 
 ## Max-group notify
 

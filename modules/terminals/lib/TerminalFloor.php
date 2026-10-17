@@ -141,7 +141,7 @@ final class TerminalFloor
         $numState = TerminalFloorHome::handleBraceletNum(
             $terminal,
             $bracelet,
-            (int)($q['braceletNum'] ?? 0)
+            (string)($q['braceletNum'] ?? '')
         );
         if (!empty($numState['need_prompt'])) {
             return self::withHomeExtras([
@@ -151,9 +151,9 @@ final class TerminalFloor
                 'guest' => $guest,
                 'client_id' => $clientId,
                 'admin_id' => (int)($terminal['id_admin'] ?? 0),
-                'bracelet_num' => (int)$numState['num'],
+                'bracelet_num' => (string)$numState['num'],
                 'message' => $message,
-                'error' => $error,
+                'error' => $error !== '' ? $error : (string)($numState['error'] ?? ''),
                 'query' => $q,
                 'onec_stub' => $disable1c,
             ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
@@ -203,7 +203,7 @@ final class TerminalFloor
                     'guest' => $guest,
                     'client_id' => $clientId,
                     'admin_id' => $claimedAdminId,
-                    'bracelet_num' => (int)$numState['num'],
+                    'bracelet_num' => (string)$numState['num'],
                     'cancel' => $cancelFlow['cancel'] ?? [],
                     'message' => $message,
                     'error' => (string)($cancelFlow['error'] ?? ''),
@@ -219,7 +219,7 @@ final class TerminalFloor
                     'guest' => $guest,
                     'client_id' => $clientId,
                     'admin_id' => $claimedAdminId,
-                    'bracelet_num' => (int)$numState['num'],
+                    'bracelet_num' => (string)$numState['num'],
                     'message' => !empty($cancelFlow['ok']) ? t('terminals.t.cancelled') : '',
                     'error' => (string)($cancelFlow['error'] ?? ''),
                     'results' => is_array($cancelFlow['results'] ?? null) ? $cancelFlow['results'] : [],
@@ -262,7 +262,7 @@ final class TerminalFloor
                 'guest' => $guest,
                 'client_id' => $clientId,
                 'admin_id' => (int)($terminal['id_admin'] ?? 0),
-                'bracelet_num' => (int)$numState['num'],
+                'bracelet_num' => (string)$numState['num'],
                 'phone_hint' => (string)($identity['phone_hint'] ?? ''),
                 'message' => $message,
                 'error' => $error !== '' ? $error : (string)($identity['error'] ?? ''),
@@ -507,7 +507,7 @@ final class TerminalFloor
                 'active' => $promoActive,
                 'positions_configured' => !empty($discount['promo_positions']),
             ],
-            'bracelet_num' => (int)$numState['num'],
+            'bracelet_num' => (string)$numState['num'],
             'gids' => $gids,
             'operators' => $operators,
             'slots' => $slots,
@@ -872,7 +872,7 @@ final class TerminalFloor
             'procedure_id' => (int)($_GET['procedure_id'] ?? $_REQUEST['procedure_id'] ?? 0),
             'oldProcedureOff' => (int)($_GET['oldProcedureOff'] ?? $_REQUEST['oldProcedureOff'] ?? 0),
             'category' => (int)($_GET['category'] ?? $_REQUEST['category'] ?? 0),
-            'braceletNum' => (int)($_GET['braceletNum'] ?? $_REQUEST['braceletNum'] ?? 0),
+            'braceletNum' => trim((string)($_GET['braceletNum'] ?? $_REQUEST['braceletNum'] ?? '')),
             'unlinkClient' => !empty($_GET['unlinkClient']) || !empty($_REQUEST['unlinkClient']),
             'resetCache' => !empty($_GET['resetCache']) || !empty($_REQUEST['resetCache']),
             'forceLimit' => !empty($_GET['forceLimit']) || !empty($_REQUEST['forceLimit']),
@@ -1085,7 +1085,7 @@ final class TerminalFloor
             ? TerminalFloorHome::dayLoad()
             : ['operators' => [], 'blocks' => [], 'hour_marks' => [], 'day_start' => 0, 'day_end' => 0];
         $state['show_unlink'] = $clientId > 0;
-        $state['bracelet_num'] = (int)($state['bracelet_num'] ?? 0);
+        $state['bracelet_num'] = (string)($state['bracelet_num'] ?? '');
         return $state;
     }
 

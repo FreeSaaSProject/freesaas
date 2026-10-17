@@ -7,6 +7,13 @@ declare(strict_types=1);
  */
 final class StaffReportPublisherConfig
 {
+    /** Preset id => emoji for monthly gratitude board. */
+    public const GRATITUDE_MARKS = [
+        'headphones' => '🎧',
+        'check' => '✅',
+        'money' => '💰',
+    ];
+
     /** @return array<string,mixed> */
     public static function defaults(): array
     {
@@ -19,9 +26,24 @@ final class StaffReportPublisherConfig
             'ticket_title_prefix' => '[Отчеты:',
             'ticket_default_body' => 'Здесь формируются отчёты по работе',
             'gratitude_news_id' => 0,
+            'gratitude_mark' => 'headphones',
             'contract_working_days' => 5,
             'llm' => ['enabled' => false],
         ];
+    }
+
+    /** Normalize preset id; unknown/empty → headphones. */
+    public static function normalizeGratitudeMark(string $mark): string
+    {
+        $mark = trim($mark);
+        return isset(self::GRATITUDE_MARKS[$mark]) ? $mark : 'headphones';
+    }
+
+    /** Resolve preset id to emoji glyph. */
+    public static function gratitudeMarkEmoji(string $mark = ''): string
+    {
+        $id = self::normalizeGratitudeMark($mark !== '' ? $mark : (string)(self::read()['gratitude_mark'] ?? 'headphones'));
+        return self::GRATITUDE_MARKS[$id];
     }
 
     /** @return array<string,mixed> */
@@ -47,6 +69,9 @@ final class StaffReportPublisherConfig
             $d['ticket_default_body'] = $body;
         }
         $d['gratitude_news_id'] = max(0, (int)Config::get('staff_reports', 'gratitude_news_id', 0));
+        $d['gratitude_mark'] = self::normalizeGratitudeMark(
+            (string)Config::get('staff_reports', 'gratitude_mark', $d['gratitude_mark'])
+        );
         $d['contract_working_days'] = max(0, (int)Config::get(
             'staff_reports',
             'contract_working_days',
@@ -77,6 +102,11 @@ final class StaffReportPublisherConfig
         Config::set('staff_reports', 'gratitude_news_id', (string)max(0, (int)($data['gratitude_news_id'] ?? 0)));
         Config::set(
             'staff_reports',
+            'gratitude_mark',
+            self::normalizeGratitudeMark((string)($data['gratitude_mark'] ?? $d['gratitude_mark']))
+        );
+        Config::set(
+            'staff_reports',
             'contract_working_days',
             (string)max(0, (int)($data['contract_working_days'] ?? $d['contract_working_days']))
         );
@@ -100,6 +130,7 @@ final class StaffReportPublisherConfig
             'require_full_parse' => !empty($c['require_full_parse']),
             'allow_same_day_publish' => !empty($c['allow_same_day_publish']),
             'gratitude_news_id' => (int)($c['gratitude_news_id'] ?? 0),
+            'gratitude_mark' => self::normalizeGratitudeMark((string)($c['gratitude_mark'] ?? 'headphones')),
         ];
     }
 

@@ -236,11 +236,20 @@ final class PollInvitesRepository
         ];
     }
 
-    /** @param array<string,mixed> $data */
+    /**
+     * @param array<string,mixed> $data
+     *   Optional overrides: code (incl. empty for oral), resp_users, is_result, source
+     */
     public static function create(array $data): int
     {
         $pdo = Database::pdo();
-        $code = self::generateCode();
+        $code = array_key_exists('code', $data) ? (string)$data['code'] : self::generateCode();
+        $respUsers = (string)($data['resp_users'] ?? '');
+        $isResult = !empty($data['is_result']) ? 1 : 0;
+        $source = (string)($data['source'] ?? 'staff');
+        if ($source === '') {
+            $source = 'staff';
+        }
         $uid = Auth::userId();
         $now = time();
         $log = $data['log'];
@@ -261,7 +270,7 @@ final class PollInvitesRepository
                 ?,?,?,?,?,
                 ?,?,?,?,?,?,
                 ?,?,?,?,
-                ?,?,?,?,0,
+                ?,?,?,?,?,
                 ?,0,0,
                 0,0,0';
         $params = [
@@ -271,9 +280,9 @@ final class PollInvitesRepository
             $data['text_admin_to_user'],
             $data['bonus_auto'], $data['bonus_value'], $data['bonus_given'], $log,
             $data['dt_nextcall'], $data['status'],
-            '{}', '{}', '', '',
+            '{}', '{}', $respUsers, '',
             $code, '',
-            $data['is_special'], $data['is_special_friend'],
+            $data['is_special'], $data['is_special_friend'], $isResult,
             $data['sign_req'],
         ];
         if ($hasUsersViewed) {
@@ -289,9 +298,334 @@ final class PollInvitesRepository
             'poll_id' => $data['id_poll'],
             'client_id' => $data['id_user'],
             'code' => $code,
-            'source' => 'staff',
+            'source' => $source,
+            'id_proc' => (int)$data['id_proc'],
         ]);
         return $id;
+    }
+
+    /**
+     * Any invite linked to procedure (oper dedupe: ID_PROC, not only [ORAL_ASKED]).
+     *
+     * @return array{id:int,id_poll:int,code:string,log:string}|null
+     */
+    public static function findMarkByProc(int $procId): ?array
+    {
+        if ($procId < 1 || !Database::tableExists('base_poll_invites')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_POLL AS id_poll, CODE AS code, LOG AS log
+             FROM base_poll_invites WHERE ID_PROC = ? ORDER BY ID DESC LIMIT 1'
+        );
+        $st->execute([$procId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    /**
+     * @param list<int> $procIds
+     * @return array<int,int> procId => inviteId
+     */
+    public static function idsMarkedByProc(array $procIds): array
+    {
+        $ids = [];
+        foreach ($procIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        if ($ids === [] || !Database::tableExists('base_poll_invites')) {
+            return [];
+        }
+        $list = array_values($ids);
+        $ph = implode(',', array_fill(0, count($list), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID_PROC AS id_proc, MAX(ID) AS id
+             FROM base_poll_invites
+             WHERE ID_PROC IN ($ph)
+             GROUP BY ID_PROC"
+        );
+        $st->execute($list);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $out[(int)$row['id_proc']] = (int)$row['id'];
+        }
+        return $out;
+    }
+
+    /**
+     * Oral marks for clients within a procedure day range (one invite per client per calendar day).
+     * Key: "{userId}|{Y-m-d}" from procedure DTSTART.
+     *
+     * @param list<int> $userIds
+     * @return array<string,int> clientDayKey => inviteId
+     */
+    public static function idsMarkedByClientDay(array $userIds, int $rangeStart, int $rangeEnd): array
+    {
+        $uids = [];
+        foreach ($userIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $uids[$id] = $id;
+            }
+        }
+        if ($uids === []
+            || $rangeEnd <= $rangeStart
+            || !Database::tableExists('base_poll_invites')
+            || !Database::tableExists('base_procedures')
+        ) {
+            return [];
+        }
+        $list = array_values($uids);
+        $ph = implode(',', array_fill(0, count($list), '?'));
+        $params = $list;
+        $params[] = $rangeStart;
+        $params[] = $rangeEnd;
+        $st = Database::pdo()->prepare(
+            "SELECT i.ID AS id, i.ID_USER AS id_user, p.DTSTART AS dtstart
+             FROM base_poll_invites i
+             INNER JOIN base_procedures p ON p.ID = i.ID_PROC
+             WHERE i.ID_PROC > 0
+               AND i.ID_USER IN ($ph)
+               AND p.DTSTART >= ? AND p.DTSTART < ?
+             ORDER BY i.ID ASC"
+        );
+        $st->execute($params);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $uid = (int)$row['id_user'];
+            $day = date('Y-m-d', (int)$row['dtstart']);
+            $key = $uid . '|' . $day;
+            // Keep first (oldest) invite for the client-day.
+            if (!isset($out[$key])) {
+                $out[$key] = (int)$row['id'];
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * Invite already marking this client on the calendar day of $dayStart (unix).
+     *
+     * @return array{id:int,id_poll:int,id_proc:int}|null
+     */
+    public static function findMarkByClientDay(int $userId, int $dayStart): ?array
+    {
+        if ($userId < 1 || $dayStart < 1
+            || !Database::tableExists('base_poll_invites')
+            || !Database::tableExists('base_procedures')
+        ) {
+            return null;
+        }
+        $day = (int)strtotime(date('Y-m-d', $dayStart) . ' 00:00:00');
+        if ($day < 1) {
+            return null;
+        }
+        $dayEnd = $day + 86400;
+        $st = Database::pdo()->prepare(
+            'SELECT i.ID AS id, i.ID_POLL AS id_poll, i.ID_PROC AS id_proc
+             FROM base_poll_invites i
+             INNER JOIN base_procedures p ON p.ID = i.ID_PROC
+             WHERE i.ID_USER = ? AND i.ID_PROC > 0
+               AND p.DTSTART >= ? AND p.DTSTART < ?
+             ORDER BY i.ID ASC
+             LIMIT 1'
+        );
+        $st->execute([$userId, $day, $dayEnd]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    /** Config oral_poll_id → first enabled IS_RESULT root poll → 0. */
+    public static function resolveOralPollId(?int $pollId = null): int
+    {
+        if ($pollId !== null && $pollId > 0) {
+            return $pollId;
+        }
+        $cfg = class_exists('PollInvitesConfig', false)
+            ? PollInvitesConfig::oralPollId()
+            : max(0, (int)Config::get('poll_invites', 'oral_poll_id', 0));
+        if ($cfg > 0) {
+            return $cfg;
+        }
+        if (!Database::tableExists('base_polls')
+            || !Database::columnExists('base_polls', 'IS_RESULT')
+        ) {
+            return 0;
+        }
+        $st = Database::pdo()->query(
+            'SELECT ID FROM base_polls
+             WHERE PID = 0 AND ENABLED = 1 AND IS_RESULT = 1
+             ORDER BY NUM ASC, ID ASC LIMIT 1'
+        );
+        $id = $st ? (int)$st->fetchColumn() : 0;
+        return $id > 0 ? $id : 0;
+    }
+
+    /**
+     * Oper poll_oral_asked: create invite with empty CODE + [ORAL_ASKED] log.
+     *
+     * @return array{ok:bool,id_invite:int,id_proc:int,id_poll:int,message:string,error:string,already:bool}
+     */
+    public static function markOralAsked(int $procId, ?int $pollId = null): array
+    {
+        $empty = [
+            'ok' => false,
+            'id_invite' => 0,
+            'id_proc' => $procId,
+            'id_poll' => 0,
+            'message' => '',
+            'error' => '',
+            'already' => false,
+        ];
+        if ($procId < 1) {
+            $empty['error'] = t('poll_invites.oral.err.proc_required');
+            return $empty;
+        }
+        if (!Database::tableExists('base_poll_invites')) {
+            $empty['error'] = t('poll_invites.oral.err.table');
+            return $empty;
+        }
+        if (!class_exists('ProceduresRepository', false) || !Database::tableExists('base_procedures')) {
+            $empty['error'] = t('poll_invites.oral.err.proc_module');
+            return $empty;
+        }
+
+        $existing = self::findMarkByProc($procId);
+        if ($existing !== null) {
+            return [
+                'ok' => true,
+                'id_invite' => (int)$existing['id'],
+                'id_proc' => $procId,
+                'id_poll' => (int)$existing['id_poll'],
+                'message' => t('poll_invites.oral.already', ['id' => (int)$existing['id']]),
+                'error' => '',
+                'already' => true,
+            ];
+        }
+
+        $proc = ProceduresRepository::find($procId);
+        if ($proc === null) {
+            $empty['error'] = t('poll_invites.oral.err.proc_not_found', ['id' => $procId]);
+            return $empty;
+        }
+        if ((float)($proc['summ'] ?? 0) <= 0) {
+            $empty['error'] = t('poll_invites.oral.err.not_paid');
+            return $empty;
+        }
+        $userId = (int)($proc['id_user'] ?? 0);
+        if ($userId < 1) {
+            $empty['error'] = t('poll_invites.oral.err.no_client');
+            return $empty;
+        }
+        // One oral mark per client per calendar day of the procedure.
+        $dayExisting = self::findMarkByClientDay($userId, (int)($proc['dtstart'] ?? 0));
+        if ($dayExisting !== null) {
+            return [
+                'ok' => true,
+                'id_invite' => (int)$dayExisting['id'],
+                'id_proc' => $procId,
+                'id_poll' => (int)$dayExisting['id_poll'],
+                'message' => t('poll_invites.oral.already_client_day', ['id' => (int)$dayExisting['id']]),
+                'error' => '',
+                'already' => true,
+            ];
+        }
+        if (Database::tableExists('base_clients')
+            && Database::columnExists('base_clients', 'ANONYMOUS')
+        ) {
+            $stAnon = Database::pdo()->prepare(
+                'SELECT ANONYMOUS FROM base_clients WHERE id = ? LIMIT 1'
+            );
+            $stAnon->execute([$userId]);
+            if ((int)$stAnon->fetchColumn() > 0) {
+                $empty['error'] = t('poll_invites.oral.err.anonymous');
+                return $empty;
+            }
+        }
+
+        $resolvedPollId = self::resolveOralPollId($pollId);
+        if ($resolvedPollId < 1) {
+            $empty['error'] = t('poll_invites.oral.err.no_poll');
+            return $empty;
+        }
+        $poll = class_exists('PollsRepository', false)
+            ? PollsRepository::find($resolvedPollId)
+            : null;
+        if ($poll === null || (int)($poll['pid'] ?? 0) !== 0) {
+            $empty['error'] = t('poll_invites.err.poll_missing', ['id' => $resolvedPollId]);
+            return $empty;
+        }
+
+        $dtStart = (int)($proc['dtstart'] ?? 0);
+        $dtEnd = (int)($proc['dtend'] ?? 0);
+        if ($dtEnd < 1) {
+            $dtEnd = time();
+        }
+        if ($dtStart < 1) {
+            $dtStart = $dtEnd;
+        }
+        $idEventParent = (int)($proc['id_event_parent'] ?? 0);
+        $idEvent = $idEventParent > 0 ? $idEventParent : $procId;
+
+        $respParts = [];
+        $opId = (int)($proc['id_operator'] ?? 0);
+        $admId = (int)($proc['id_admin'] ?? 0);
+        if ($opId > 0) {
+            $respParts[] = '#' . $opId . '#';
+        }
+        if ($admId > 0 && $admId !== $opId) {
+            $respParts[] = '#' . $admId . '#';
+        }
+        $respUsers = implode(',', $respParts);
+
+        $uid = Auth::userId();
+        $pollName = (string)($poll['name'] ?? '');
+        $log = '[' . date('d.m.y H:i') . '][' . $uid . ']: [ORAL_ASKED] '
+            . t('poll_invites.oral.log', ['proc' => $procId, 'poll' => $pollName]) . "\n";
+
+        $availTs = (int)mktime(0, 0, 1, (int)date('n', $dtStart), (int)date('j', $dtStart), (int)date('Y', $dtStart));
+        $expireTs = (int)mktime(23, 59, 59, (int)date('n', $dtEnd), (int)date('j', $dtEnd), (int)date('Y', $dtEnd));
+
+        $inviteId = self::create([
+            'dt_avail' => $availTs,
+            'dt_expire' => $expireTs,
+            'id_operator_linked' => $uid > 0 ? $uid : $opId,
+            'id_user' => $userId,
+            'id_event' => $idEvent,
+            'id_proc' => $procId,
+            'id_poll' => $resolvedPollId,
+            'text_admin_to_user' => '',
+            'bonus_auto' => !empty($poll['bonus_auto']) ? 1 : 0,
+            'bonus_value' => max(0, (int)($poll['bonus_default'] ?? 0)),
+            'bonus_given' => 0,
+            'log' => $log,
+            'dt_nextcall' => 0,
+            'status' => 0,
+            'is_special' => !empty($poll['is_special']) ? 1 : 0,
+            'is_special_friend' => !empty($poll['is_special_friend']) ? 1 : 0,
+            'sign_req' => 0,
+            'code' => '',
+            'resp_users' => $respUsers,
+            'is_result' => !empty($poll['is_result']) ? 1 : 0,
+            'source' => 'oral_asked',
+        ]);
+
+        return [
+            'ok' => true,
+            'id_invite' => $inviteId,
+            'id_proc' => $procId,
+            'id_poll' => $resolvedPollId,
+            'message' => t('poll_invites.oral.created', [
+                'id' => $inviteId,
+                'proc' => $procId,
+                'client' => $userId,
+            ]),
+            'error' => '',
+            'already' => false,
+        ];
     }
 
     /** @param array<string,mixed> $data */

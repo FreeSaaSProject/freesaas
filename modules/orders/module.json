@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -81,7 +81,7 @@
                 "path": "/orders/{id}/edit",
                 "permission": "orders.delete",
                 "side_effect": "write",
-                "description": "Delete order; POST action=delete if unpaid/unlinked"
+                "description": "Delete order; POST action=delete if not linked via ID_EVENT_USE"
             }
         ]
     },
@@ -109,8 +109,7 @@
             "core.dashboard.widgets",
             "calendar.day.stats",
             "calendar.settings.sections",
-            "calendar.settings.save",
-            "client_mcp.payment"
+            "calendar.settings.save"
         ],
         "publish": [
             "orders.created",

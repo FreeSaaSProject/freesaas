@@ -58,15 +58,9 @@ EventBus::on('core.bulk.check_item', static function (array $payload): array {
         $payload['reason'] = t('core.entity.err.not_found');
         return $payload;
     }
-    $eventId = (int)($row['id_event_use'] ?? 0) + (int)($row['id_event_paid'] ?? 0);
-    if ($eventId > 0) {
+    if ((int)($row['id_event_use'] ?? 0) > 0) {
         $payload['blocked'] = true;
         $payload['reason'] = t('orders.err.delete_has_event');
-        return $payload;
-    }
-    if (!empty($row['epaid']) || (float)($row['summ_real'] ?? 0) > 0) {
-        $payload['blocked'] = true;
-        $payload['reason'] = t('orders.err.delete_has_payment');
     }
     return $payload;
 });
@@ -214,21 +208,5 @@ EventBus::on('calendar.day.stats', static function ($payload) {
         $day['sections'] = $sections;
         $payload['days'][$date] = $day;
     }
-    return $payload;
-});
-
-// Public client channels (client_mcp): expose a still-payable legacy acquiring link.
-EventBus::on('client_mcp.payment', static function ($payload) {
-    if (!is_array($payload) || !is_array($payload['order'] ?? null) || !is_array($payload['payment'] ?? null)) {
-        return $payload;
-    }
-    $link = OrdersRepository::pendingPaymentLink($payload['order']);
-    if ($link === '' || ($payload['payment']['status'] ?? '') === 'paid') {
-        return $payload;
-    }
-    $payload['payment']['mode'] = 'online';
-    $payload['payment']['required'] = true;
-    $payload['payment']['url'] = $link;
-    $payload['payment']['instructions'] = t('orders.payment.pay_by_link');
     return $payload;
 });

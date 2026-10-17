@@ -19,7 +19,7 @@ $dayLoad = is_array($state['day_load'] ?? null) ? $state['day_load'] : [];
 $matrix = is_array($state['matrix'] ?? null) ? $state['matrix'] : ['columns' => [], 'rows' => []];
 $flyer = is_array($state['flyer'] ?? null) ? $state['flyer'] : [];
 $promo = is_array($state['promo'] ?? null) ? $state['promo'] : [];
-$braceletNum = (int)($state['bracelet_num'] ?? 0);
+$braceletNum = (string)($state['bracelet_num'] ?? '');
 $categoryId = (int)($state['category_id'] ?? 0);
 $categoryName = (string)($state['category_name'] ?? '');
 $operatorId = (int)($state['operator_id'] ?? 0);
@@ -159,7 +159,10 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
                 <label><?= e(t('terminals.t.num_label')) ?>
-                    <input type="number" name="braceletNum" min="1" required autofocus>
+                    <input type="text" name="braceletNum" required autofocus
+                           maxlength="16" pattern="[A-Za-z0-9]+" inputmode="text"
+                           autocomplete="off" placeholder="<?= e(t('terminals.t.num_placeholder')) ?>"
+                           value="">
                 </label>
                 <button class="btn" type="submit"><?= e(t('core.common.save')) ?></button>
             </form>
@@ -230,11 +233,11 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
         </div>
     <?php else: ?>
 
-        <?php if ($braceletNum > 0 && !empty($terminal['is_bracelet_num_prompt'])): ?>
+        <?php if ($braceletNum !== '' && !empty($terminal['is_bracelet_num_prompt'])): ?>
             <div class="num-line">
                 <?= e(t('terminals.t.num_line')) ?>:
-                <b><?= (int)$braceletNum ?></b>
-                <a href="/t/?<?= e(http_build_query($baseQ + ['braceletNum' => -1])) ?>">[<?= e(t('terminals.t.num_change')) ?>]</a>
+                <b><?= e($braceletNum) ?></b>
+                <a href="/t/?<?= e(http_build_query($baseQ + ['braceletNum' => '-1'])) ?>">[<?= e(t('terminals.t.num_change')) ?>]</a>
             </div>
         <?php endif; ?>
 

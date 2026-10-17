@@ -250,10 +250,15 @@ $renderShiftChip = static function (array $sh): string {
               <?php
               $chipExtra = preg_replace('/[^a-zA-Z0-9_\-\s]/', '', (string)($chip['class'] ?? '')) ?? '';
               $chipExtra = trim(preg_replace('/\s+/', ' ', $chipExtra) ?? '');
+              $chipInfo = (string)($chip['info'] ?? '');
+              $chipActions = trim((string)($chip['actions_html'] ?? ''));
+              if ($chipActions !== '') {
+                  $chipInfo .= $chipActions;
+              }
               ?>
               <a class="calendar-tl-chip calendar-tl-chip-<?= e((string)$chip['kind']) ?><?= $chipExtra !== '' ? ' ' . e($chipExtra) : '' ?>"
                  href="<?= e((string)$chip['href']) ?>"
-                 data-info="<?= e((string)($chip['info'] ?? '')) ?>"
+                 data-info="<?= e($chipInfo) ?>"
                  <?php if (!empty($chip['id_good'])): ?>data-id-good="<?= (int)$chip['id_good'] ?>"<?php endif; ?>
                  style="top:<?= (int)$chip['top'] ?>px;height:<?= (int)$chip['height'] ?>px;left:<?= e((string)$chip['left']) ?>%;width:<?= e((string)$chip['width']) ?>%;background:<?= e((string)$chip['bg']) ?>;color:<?= e((string)$chip['fg']) ?>;">
                 <?= e((string)$chip['label']) ?>

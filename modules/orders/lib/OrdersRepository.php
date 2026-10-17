@@ -7,7 +7,7 @@ declare(strict_types=1);
 final class OrdersRepository
 {
     /** Statuses counted as “new / placed” for notices and status=new filters. */
-    public const NEW_STATUSES = ['cashComplete', 'sberPayReady', 'paidSber'];
+    public const NEW_STATUSES = ['cashComplete'];
 
     /**
      * UI status filter keys → i18n label keys (DB STATUS values stay raw).
@@ -23,14 +23,9 @@ final class OrdersRepository
             '0' => 'orders.status.0',
             '1' => 'orders.status.1',
             'cashComplete' => 'orders.status.cashComplete',
-            'sberPayReady' => 'orders.status.sberPayReady',
-            'paidSber' => 'orders.status.paidSber',
-            'failedPaySber' => 'orders.status.failedPaySber',
             'userCancelPay' => 'orders.status.userCancelPay',
             'complete' => 'orders.status.complete',
-            'ukassaNew' => 'orders.status.ukassaNew',
             'deletedByAdmin' => 'orders.status.deletedByAdmin',
-            'paymentProblem' => 'orders.status.paymentProblem',
         ];
     }
 
@@ -40,12 +35,8 @@ final class OrdersRepository
         return [
             '0',
             'cashComplete',
-            'sberPayReady',
-            'paidSber',
-            'failedPaySber',
             'userCancelPay',
             'complete',
-            'ukassaNew',
             'deletedByAdmin',
         ];
     }
@@ -57,8 +48,8 @@ final class OrdersRepository
             return t('orders.status.0');
         }
         $known = [
-            '1', 'cashComplete', 'deletedByAdmin', 'sberPayReady', 'paidSber',
-            'failedPaySber', 'userCancelPay', 'complete', 'ukassaNew', 'paymentProblem',
+            '1', 'cashComplete', 'deletedByAdmin',
+            'userCancelPay', 'complete',
         ];
         if (in_array($status, $known, true)) {
             return t('orders.status.' . $status);
@@ -130,10 +121,9 @@ final class OrdersRepository
                        o.DT_UPDATE_BY_USER AS dt_update, o.DT_SAVE AS dt_save,
                        o.DT_EVENT_NEW AS dt_event, o.ID_USER AS id_user,
                        o.ID_COSMETOLOG AS id_cosmetolog, o.ID_EVENT_USE AS id_event_use,
-                       o.ID_EVENT_PAID AS id_event_paid, o.ID_SERT AS id_sert,
+                       o.ID_SERT AS id_sert,
                        o.PHONE AS phone, o.MAIL AS mail, o.STATUS AS status,
-                       o.SUMM AS summ, o.SUMM_REAL AS summ_real, o.SUMM_SBER AS summ_sber,
-                       o.SUMM_BONUS AS summ_bonus, o.EPAID AS epaid,
+                       o.SUMM AS summ, o.SUMM_REAL AS summ_real,
                        o.ID_PROMOCODE AS id_promocode, o.TEXT_PROMOCODE AS text_promocode,
                        o.FREE_TICKET AS free_ticket, o.COMMENT AS comment
                        $clientSelect $staffSelect
@@ -179,12 +169,10 @@ final class OrdersRepository
                     o.DT_UPDATE_BY_USER AS dt_update, o.DT_SAVE AS dt_save,
                     o.DT_EVENT_NEW AS dt_event, o.ID_USER AS id_user,
                     o.ID_COSMETOLOG AS id_cosmetolog, o.ID_EVENT_USE AS id_event_use,
-                    o.ID_EVENT_PAID AS id_event_paid, o.ID_SERT AS id_sert,
+                    o.ID_SERT AS id_sert,
                     o.PHONE AS phone, o.MAIL AS mail, o.STATUS AS status,
-                    o.CART AS cart, o.COMMENT AS comment, o.PPP_LOG AS ppp_log,
-                    o.SUMM AS summ, o.SUMM_REAL AS summ_real, o.SUMM_SBER AS summ_sber,
-                    o.SUMM_BONUS AS summ_bonus, o.EPAID AS epaid,
-                    o.SBER_ID AS sber_id, o.SBER_LINK AS sber_link, o.SBER_STATUS AS sber_status,
+                    o.CART AS cart, o.COMMENT AS comment,
+                    o.SUMM AS summ, o.SUMM_REAL AS summ_real,
                     o.ID_PROMOCODE AS id_promocode, o.TEXT_PROMOCODE AS text_promocode,
                     o.FREE_TICKET AS free_ticket
                     " . (Database::columnExists('base_orders', 'SOURCE') ? ', o.SOURCE AS source' : ', NULL AS source') . "
@@ -695,12 +683,11 @@ final class OrdersRepository
         $hasSource = Database::columnExists('base_orders', 'SOURCE');
         $cols = '
                 DT_CREATE, DT_UPDATE_BY_USER, DT_SAVE, DT_EVENT_NEW,
-                ID_USER, ID_SERT, ID_EVENT_PAID, ID_EVENT_USE, ID_COSMETOLOG,
-                CART, PHONE, MAIL, STATUS, COMMENT, PPP_LOG,
-                EPAID, SBER_ID, SBER_LINK, SBER_STATUS,
-                SUMM, SUMM_REAL, SUMM_SBER, SUMM_BONUS, UID,
+                ID_USER, ID_SERT, ID_EVENT_USE, ID_COSMETOLOG,
+                CART, PHONE, MAIL, STATUS, COMMENT,
+                SUMM, SUMM_REAL, UID,
                 ID_PROMOCODE, TEXT_PROMOCODE, FREE_TICKET';
-        $placeholders = '?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?, \'\', 0, \'\', \'\', 0, ?, ?, 0, 0, ?, ?, ?, ?';
+        $placeholders = '?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?';
         $vals = [
             $now,
             $now,
@@ -1027,8 +1014,6 @@ final class OrdersRepository
         } elseif ($status === 'newToday') {
             $parts[] = 'o.STATUS IN (' . self::newStatusInSql() . ') AND o.DT_EVENT_NEW < ?';
             $params[] = (int)mktime(23, 59, 59);
-        } elseif ($status === 'paymentProblem') {
-            $parts[] = 'o.STATUS IN (\'failedPaySber\', \'userCancelPay\')';
         } elseif ($status === '0') {
             $parts[] = '(o.STATUS = \'\' OR o.STATUS = \'0\')';
         } elseif ($status === '1') {
@@ -1107,30 +1092,17 @@ final class OrdersRepository
         if (in_array($status, self::NEW_STATUSES, true)) {
             $state = $dt > 0 && $dt < time() ? 'past' : 'active';
             $cancellable = $state === 'active';
-        } elseif (in_array($status, ['userCancelPay', 'deletedByAdmin', 'failedPaySber'], true)) {
+        } elseif (in_array($status, ['userCancelPay', 'deletedByAdmin'], true)) {
             $state = 'cancelled';
         } elseif ($status === 'complete') {
             $state = 'completed';
         }
         return [
             'state' => $state,
-            'paid' => !empty($order['epaid']) || $status === 'paidSber',
+            // Online paid flag belongs to a future acquiring module (own tables / EventBus).
+            'paid' => false,
             'cancellable' => $cancellable,
         ];
-    }
-
-    /**
-     * Legacy acquiring link stored on the order (oper Sber flow), when still payable.
-     *
-     * @param array<string,mixed> $order row from find()
-     */
-    public static function pendingPaymentLink(array $order): string
-    {
-        $link = trim((string)($order['sber_link'] ?? ''));
-        if ((string)($order['status'] ?? '') !== 'sberPayReady' || !preg_match('#^https://#i', $link)) {
-            return '';
-        }
-        return $link;
     }
 
     /**
@@ -1188,14 +1160,9 @@ final class OrdersRepository
                 $skipped[] = ['id' => $id, 'reason' => t('core.entity.err.not_found')];
                 continue;
             }
-            // Block when linked to a calendar event or payment settlement.
-            $eventId = (int)($row['id_event_use'] ?? 0) + (int)($row['id_event_paid'] ?? 0);
-            if ($eventId > 0) {
+            // Block when linked to a fulfilled procedure on the floor.
+            if ((int)($row['id_event_use'] ?? 0) > 0) {
                 $skipped[] = ['id' => $id, 'reason' => t('orders.err.delete_has_event')];
-                continue;
-            }
-            if (!empty($row['epaid']) || (float)($row['summ_real'] ?? 0) > 0) {
-                $skipped[] = ['id' => $id, 'reason' => t('orders.err.delete_has_payment')];
                 continue;
             }
             if (!Database::tableExists('base_orders')) {
@@ -1216,15 +1183,15 @@ final class OrdersRepository
     private static function normalizeRow(array $row): array
     {
         foreach ([
-            'id', 'id_user', 'id_cosmetolog', 'id_event_use', 'id_event_paid', 'id_sert',
+            'id', 'id_user', 'id_cosmetolog', 'id_event_use', 'id_sert',
             'id_promocode', 'dt_create', 'dt_update', 'dt_save', 'dt_event',
-            'epaid', 'sber_status', 'summ_bonus', 'free_ticket', 'client_row_id',
+            'free_ticket', 'client_row_id',
         ] as $k) {
             if (array_key_exists($k, $row)) {
                 $row[$k] = (int)$row[$k];
             }
         }
-        foreach (['summ', 'summ_real', 'summ_sber'] as $k) {
+        foreach (['summ', 'summ_real'] as $k) {
             if (array_key_exists($k, $row)) {
                 $row[$k] = (float)$row[$k];
             }

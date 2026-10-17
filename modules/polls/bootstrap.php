@@ -9,18 +9,29 @@ $pages = [
     '/polls' => ['permission' => 'polls.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/polls/new' => ['permission' => 'polls.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/polls/{id}/edit' => ['permission' => 'polls.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/polls/settings' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'settings.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'polls',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/polls/pages/' . $file);
         },
-    ]);
+    ];
+    if (!empty($def['capability'])) {
+        $route['capability'] = $def['capability'];
+    }
+    if (!empty($def['permission'])) {
+        $route['permission'] = $def['permission'];
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 BulkActions::register('polls', 'delete', [

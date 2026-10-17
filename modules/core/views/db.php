@@ -3,7 +3,6 @@ declare(strict_types=1);
 /** @var string $message */
 /** @var string $error */
 /** @var array $schemaReport */
-/** @var array $dataReport */
 /** @var array $maintReport */
 /** @var list<array{module:string,id:string}> $pending */
 /** @var int $pendingCount */
@@ -62,6 +61,7 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   <div class="db-select-bar actions">
     <button type="button" class="btn-secondary" data-db-sel="all" data-db-sel-scope="<?= e($scope) ?>"><?= te('core.db.sel.all') ?></button>
     <button type="button" class="btn-secondary" data-db-sel="owned" data-db-sel-scope="<?= e($scope) ?>"><?= te('core.db.sel.owned') ?></button>
+    <button type="button" class="btn-secondary" data-db-sel="foreign" data-db-sel-scope="<?= e($scope) ?>"><?= te('core.db.sel.foreign') ?></button>
     <?php if ($withNeed): ?>
       <button type="button" class="btn-secondary" data-db-sel="need" data-db-sel-scope="<?= e($scope) ?>"><?= te('core.db.sel.need') ?></button>
     <?php endif; ?>
@@ -149,46 +149,6 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     <?php if (!$schemaNeeded && $pendingCount < 1): ?>
       <a class="btn-secondary" href="/"><?= te('core.menu.home') ?></a>
     <?php endif; ?>
-  </div>
-</section>
-
-<section class="calendar-section">
-  <h2 class="subhead"><?= te('core.db.data_heading') ?></h2>
-  <p class="muted"><?= te('core.db.data_help') ?></p>
-  <?php
-    $dataCatalog = $dataCatalog ?? [];
-    $dataCatalogCount = is_array($dataCatalog) ? count($dataCatalog) : 0;
-  ?>
-  <?php if ($dataCatalogCount > 0): ?>
-    <p class="muted"><?= te('core.db.data_will_run', ['n' => (string)$dataCatalogCount]) ?></p>
-    <ul class="report">
-      <?php foreach ($dataCatalog as $m): ?>
-        <?php
-          $src = !empty($m['source']) && is_array($m['source']) ? implode(', ', $m['source']) : '—';
-          $dst = !empty($m['target']) && is_array($m['target']) ? implode(', ', $m['target']) : '—';
-          $mode = (string)($m['mode'] ?? '');
-        ?>
-        <li class="pending">
-          <code><?= e(($m['module'] ?? '') . '/' . ($m['id'] ?? '')) ?></code>
-          <span class="muted">[<?= e($mode) ?>]</span>
-          — <?= e((string)($m['description'] ?? '')) ?>
-          <span class="muted">(<?= e($src) ?> → <?= e($dst) ?>)</span>
-        </li>
-      <?php endforeach; ?>
-    </ul>
-  <?php else: ?>
-    <p class="muted"><?= te('core.db.data_none') ?></p>
-  <?php endif; ?>
-  <div class="actions">
-    <form method="post" class="db-job-form" data-db-job="data"
-          data-db-confirm="<?= e(t('core.db.confirm_data')) ?>">
-      <input type="hidden" name="action" value="data">
-      <input type="hidden" name="op" value="data">
-      <button class="btn-secondary" type="submit"<?= $schemaNeeded || $dataCatalogCount < 1 ? ' disabled' : '' ?>>
-        <?= te('core.db.btn_data') ?>
-        <?php if ($dataCatalogCount > 0): ?> (<?= (int)$dataCatalogCount ?>)<?php endif; ?>
-      </button>
-    </form>
   </div>
 </section>
 
@@ -457,32 +417,6 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   </ul>
 <?php endif; ?>
 
-<?php if ($dataReport): ?>
-  <h2 class="subhead"><?= te('core.db.data_report') ?></h2>
-  <ul class="report">
-    <?php foreach ($dataReport as $r): ?>
-      <?php
-        $summary = class_exists(DataMigrator::class, false)
-          ? DataMigrator::formatSummary($r)
-          : '';
-        if ($summary === '' && !empty($r['stats']['copied'])) {
-            $summary = t('core.db.copied', ['n' => (int)$r['stats']['copied']]);
-        }
-      ?>
-      <li class="<?= e((string)($r['status'] ?? '')) ?>">
-        <code><?= e(($r['module'] ?? '') . '/' . ($r['id'] ?? '')) ?></code>:
-        <?= e((string)($r['status'] ?? '')) ?>
-        <?php if (!empty($r['description'])): ?>
-          <span class="muted">— <?= e((string)$r['description']) ?></span>
-        <?php endif; ?>
-        <?php if ($summary !== ''): ?>
-          <br><span class="muted"><?= e($summary) ?></span>
-        <?php endif; ?>
-      </li>
-    <?php endforeach; ?>
-  </ul>
-<?php endif; ?>
-
 <?php if ($maintReport): ?>
   <h2 class="subhead"><?= te('core.db.maint_report') ?></h2>
   <ul class="report">
@@ -601,6 +535,7 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       if (mode === 'all') cb.checked = true;
       else if (mode === 'none') cb.checked = false;
       else if (mode === 'owned') cb.checked = cb.getAttribute('data-owned') === '1';
+      else if (mode === 'foreign') cb.checked = cb.getAttribute('data-owned') !== '1';
       else if (mode === 'need') cb.checked = cb.getAttribute('data-need') === '1';
     });
   }
@@ -639,7 +574,6 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     badJson: <?= json_encode(t('core.db.job.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
     eta: <?= json_encode(t('core.db.job.eta'), JSON_UNESCAPED_UNICODE) ?>,
     barTable: <?= json_encode(t('core.db.job.bar_table'), JSON_UNESCAPED_UNICODE) ?>,
-    barMigrator: <?= json_encode(t('core.db.job.bar_migrator'), JSON_UNESCAPED_UNICODE) ?>,
     doneTitle: <?= json_encode(t('core.db.job.done_title'), JSON_UNESCAPED_UNICODE) ?>,
     errorTitle: <?= json_encode(t('core.db.job.error_title'), JSON_UNESCAPED_UNICODE) ?>,
     cancelledTitle: <?= json_encode(t('core.db.job.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
@@ -778,17 +712,12 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     setBar(fillOverall, barOverall, pctOverall, overall);
     setBar(fillTable, barTable, pctTable, table);
     if (tableLabel) {
-      var barKind = (j.op === 'data') ? i18n.barMigrator : i18n.barTable;
       tableLabel.textContent = j.table
-        ? (barKind + ': ' + j.table + (j.tables_total ? (' (' + ((j.table_idx || 0) + 1) + '/' + j.tables_total + ')') : ''))
-        : barKind;
+        ? (i18n.barTable + ': ' + j.table + (j.tables_total ? (' (' + ((j.table_idx || 0) + 1) + '/' + j.tables_total + ')') : ''))
+        : i18n.barTable;
     }
     if (bytesEl) {
-      if (j.op === 'data') {
-        bytesEl.textContent = ((j.table_idx || 0) + (j.status === 'done' ? 0 : 1)) + ' / ' + (j.tables_total || 0);
-      } else {
-        bytesEl.textContent = fmtBytes(j.bytes || 0);
-      }
+      bytesEl.textContent = fmtBytes(j.bytes || 0);
     }
     if (etaEl) {
       if (j.eta_seconds != null && j.status === 'running' && !finished) {

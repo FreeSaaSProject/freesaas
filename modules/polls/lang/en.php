@@ -5,6 +5,9 @@ return [
     'polls.module.name' => 'Polls',
     'polls.menu.group' => 'Polls',
     'polls.menu.list' => 'Poll definitions',
+    'polls.menu.settings' => 'Settings',
+    'polls.settings.lede' => 'Poll and invite settings (sections from modules like poll_invites appear when those modules are enabled). Superadministrator only.',
+    'polls.settings.empty' => 'No extra sections: enable poll_invites or other modules that subscribe to polls.settings.sections.',
     'polls.perm.view' => 'Polls (view)',
     'polls.perm.edit' => 'Polls (edit)',
     'polls.list.search_placeholder' => 'Search: name, id',
@@ -72,6 +75,6 @@ return [
     'polls.err.has_children' => 'Cannot delete: element has children',
     'polls.err.cannot_change_type' => 'Element type cannot be changed after create',
     'polls.module.description' => 'Poll definitions tree (base_polls); channels via EventBus.',
-    'polls.module.summary' => 'Enable to define reusable polls. Soft procedures/catalog. Required by poll_invites. Universal — not spa-specific; pair with poll_invites for staff fill.',
+    'polls.module.summary' => 'Enable to define reusable polls. Soft procedures/catalog. Required by poll_invites. /polls/settings is the settings hub (oral poll etc.). Pair with poll_invites for staff fill.',
     'polls.perm.delete' => 'Delete polls',
 ];

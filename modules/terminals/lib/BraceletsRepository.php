@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class BraceletsRepository
 {
+    /** Max length of locker NUM (alphanumeric, e.g. V019). */
+    public const NUM_MAX_LEN = 16;
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -13,6 +16,31 @@ final class BraceletsRepository
             'num' => 'NUM',
             'dt' => 'DT',
         ];
+    }
+
+    /**
+     * Normalize locker NUM: trim, uppercase A–Z0–9, empty/'0' → ''.
+     * Returns null when the raw value is non-empty but invalid.
+     */
+    public static function normalizeNum($raw): ?string
+    {
+        $s = strtoupper(trim((string)$raw));
+        if ($s === '' || $s === '0') {
+            return '';
+        }
+        if (mb_strlen($s) > self::NUM_MAX_LEN) {
+            return null;
+        }
+        if (!preg_match('/^[A-Z0-9]+$/', $s)) {
+            return null;
+        }
+        return $s;
+    }
+
+    public static function isNumSet($num): bool
+    {
+        $n = self::normalizeNum($num);
+        return $n !== null && $n !== '';
     }
 
     /**
@@ -29,7 +57,7 @@ final class BraceletsRepository
         $params = [];
         $q = trim((string)($opts['q'] ?? ''));
         if ($q !== '') {
-            $where[] = '(UID LIKE ? OR UID2 LIKE ? OR CAST(NUM AS CHAR) = ? OR CAST(ID AS CHAR) = ?)';
+            $where[] = '(UID LIKE ? OR UID2 LIKE ? OR NUM = ? OR CAST(ID AS CHAR) = ?)';
             $params[] = '%' . $q . '%';
             $params[] = '%' . $q . '%';
             $params[] = $q;
@@ -85,14 +113,18 @@ final class BraceletsRepository
         return $row ?: null;
     }
 
-    public static function setNum(int $id, int $num): void
+    public static function setNum(int $id, string $num): void
     {
         if ($id < 1 || !Database::tableExists('base_bracelets')) {
             return;
         }
+        $normalized = self::normalizeNum($num);
+        if ($normalized === null) {
+            return;
+        }
         Database::pdo()->prepare(
             'UPDATE base_bracelets SET NUM = ? WHERE ID = ?'
-        )->execute([max(0, $num), $id]);
+        )->execute([$normalized, $id]);
     }
 
     /**
@@ -109,20 +141,28 @@ final class BraceletsRepository
         if (mb_strlen($uid) > 20 || mb_strlen($uid2) > 20) {
             throw new InvalidArgumentException(t('terminals.err.bracelet_uid_too_long'));
         }
+        $num = self::normalizeNum($post['num'] ?? '');
+        if ($num === null) {
+            throw new InvalidArgumentException(t('terminals.err.bracelet_num_invalid'));
+        }
         return [
             'uid' => $uid,
             'uid2' => $uid2,
-            'num' => max(0, (int)($post['num'] ?? 0)),
+            'num' => $num,
         ];
     }
 
     /** @param array<string,mixed> $data */
     public static function create(array $data): int
     {
+        $num = self::normalizeNum($data['num'] ?? '');
+        if ($num === null) {
+            $num = '';
+        }
         $st = Database::pdo()->prepare(
             'INSERT INTO base_bracelets (DT, UID, UID2, NUM) VALUES (?, ?, ?, ?)'
         );
-        $st->execute([time(), $data['uid'], $data['uid2'], (int)$data['num']]);
+        $st->execute([time(), $data['uid'], $data['uid2'], $num]);
         return (int)Database::pdo()->lastInsertId();
     }
 
@@ -132,10 +172,14 @@ final class BraceletsRepository
         if ($id < 1) {
             throw new InvalidArgumentException('Invalid bracelet id');
         }
+        $num = self::normalizeNum($data['num'] ?? '');
+        if ($num === null) {
+            throw new InvalidArgumentException(t('terminals.err.bracelet_num_invalid'));
+        }
         $st = Database::pdo()->prepare(
             'UPDATE base_bracelets SET UID = ?, UID2 = ?, NUM = ? WHERE ID = ?'
         );
-        $st->execute([$data['uid'], $data['uid2'], (int)$data['num'], $id]);
+        $st->execute([$data['uid'], $data['uid2'], $num, $id]);
     }
 
     /**

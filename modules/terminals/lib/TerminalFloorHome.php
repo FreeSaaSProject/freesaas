@@ -8,42 +8,62 @@ final class TerminalFloorHome
 {
     /**
      * @param array<string,mixed> $terminal
-     * @return array{row:?array<string,mixed>,need_prompt:bool,num:int,saved:bool}
+     * @return array{row:?array<string,mixed>,need_prompt:bool,num:string,saved:bool,error:string}
      */
-    public static function handleBraceletNum(array $terminal, string $braceletUid, int $braceletNumIn): array
+    public static function handleBraceletNum(array $terminal, string $braceletUid, string $braceletNumIn): array
     {
         $promptOn = !empty($terminal['is_bracelet_num_prompt'])
             && empty($terminal['masseur_mode'])
             && empty($terminal['is_term_admin_mode']);
         $row = BraceletsRepository::findByUid($braceletUid);
         $saved = false;
+        $raw = trim($braceletNumIn);
 
-        if ($promptOn && $braceletNumIn < 0) {
+        // Change-number link: braceletNum=-1 clears stored NUM and re-prompts.
+        if ($promptOn && $raw === '-1') {
             if ($row !== null) {
-                BraceletsRepository::setNum((int)$row['id'], 0);
+                BraceletsRepository::setNum((int)$row['id'], '');
                 $row = BraceletsRepository::find((int)$row['id']);
             }
-            return ['row' => $row, 'need_prompt' => true, 'num' => 0, 'saved' => false];
+            return ['row' => $row, 'need_prompt' => true, 'num' => '', 'saved' => false, 'error' => ''];
         }
 
-        if ($promptOn && $braceletNumIn > 0) {
-            if ($row === null) {
-                $id = BraceletsRepository::create([
-                    'uid' => $braceletUid,
-                    'uid2' => $braceletUid,
-                    'num' => $braceletNumIn,
-                ]);
-                $row = BraceletsRepository::find($id);
-            } else {
-                BraceletsRepository::setNum((int)$row['id'], $braceletNumIn);
-                $row = BraceletsRepository::find((int)$row['id']);
+        if ($promptOn && $raw !== '') {
+            $normalized = BraceletsRepository::normalizeNum($raw);
+            if ($normalized === null) {
+                $num = (string)($row['num'] ?? '');
+                if (!BraceletsRepository::isNumSet($num)) {
+                    $num = '';
+                }
+                return [
+                    'row' => $row,
+                    'need_prompt' => true,
+                    'num' => $num,
+                    'saved' => false,
+                    'error' => t('terminals.err.bracelet_num_invalid'),
+                ];
             }
-            $saved = true;
+            if ($normalized !== '') {
+                if ($row === null) {
+                    $id = BraceletsRepository::create([
+                        'uid' => $braceletUid,
+                        'uid2' => $braceletUid,
+                        'num' => $normalized,
+                    ]);
+                    $row = BraceletsRepository::find($id);
+                } else {
+                    BraceletsRepository::setNum((int)$row['id'], $normalized);
+                    $row = BraceletsRepository::find((int)$row['id']);
+                }
+                $saved = true;
+            }
         }
 
-        $num = (int)($row['num'] ?? 0);
-        $need = $promptOn && $num < 1;
-        return ['row' => $row, 'need_prompt' => $need, 'num' => $num, 'saved' => $saved];
+        $numRaw = is_array($row) ? (string)($row['num'] ?? '') : '';
+        $numNorm = BraceletsRepository::normalizeNum($numRaw);
+        $num = ($numNorm !== null && $numNorm !== '') ? $numNorm : '';
+        $need = $promptOn && $num === '';
+        return ['row' => $row, 'need_prompt' => $need, 'num' => $num, 'saved' => $saved, 'error' => ''];
     }
 
     /**

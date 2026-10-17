@@ -304,8 +304,10 @@ final class CalendarTimeline
             $chips[] = [
                 'kind' => 'proc',
                 'id' => (int)$pr['id'],
-                // Metadata for product modules (e.g. terminals chill paint via calendar.timeline.enrich).
+                // Metadata for product modules (e.g. terminals chill paint / poll_invites oral mark).
                 'id_good' => (int)($pr['id_good'] ?? 0),
+                'id_user' => (int)($pr['id_user'] ?? 0),
+                'summ' => (float)($pr['summ'] ?? 0),
                 'notice' => (string)($pr['notice'] ?? ''),
                 'href' => '/procedures/' . (int)$pr['id'] . '/edit',
                 'top' => $pos['top'],
@@ -320,6 +322,8 @@ final class CalendarTimeline
                 'label' => $label,
                 'title' => $label,
                 'info' => $info,
+                // Optional trusted HTML from calendar.timeline.enrich (merged into info panel).
+                'actions_html' => '',
             ];
         }
 

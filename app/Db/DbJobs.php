@@ -12,7 +12,7 @@ final class DbJobs
     {
         @set_time_limit(120);
         $op = strtolower(trim($op));
-        if (!in_array($op, ['dump', 'restore', 'optimize', 'repair', 'check', 'diagnose', 'fetch', 'data'], true)) {
+        if (!in_array($op, ['dump', 'restore', 'optimize', 'repair', 'check', 'diagnose', 'fetch'], true)) {
             throw new InvalidArgumentException('Unknown job op');
         }
         $id = date('YmdHis') . '-' . bin2hex(random_bytes(4));
@@ -197,33 +197,6 @@ final class DbJobs
             $job['rows'] = [];
             $job['message'] = t('core.db.job.diag_start', ['n' => (string)count($tables)]);
             self::appendLog($job, (string)$job['message']);
-        } elseif ($op === 'data') {
-            $catalog = DataMigrator::catalog();
-            if ($catalog === []) {
-                throw new InvalidArgumentException(t('core.db.data_none'));
-            }
-            $items = [];
-            foreach ($catalog as $row) {
-                $items[] = [
-                    'module' => (string)($row['module'] ?? ''),
-                    'id' => (string)($row['id'] ?? ''),
-                    'description' => (string)($row['description'] ?? ''),
-                    'mode' => (string)($row['mode'] ?? ''),
-                ];
-            }
-            $job['items'] = $items;
-            $job['item_idx'] = 0;
-            $job['report'] = [];
-            $job['ok_count'] = 0;
-            $job['error_count'] = 0;
-            $job['tables_total'] = count($items);
-            $job['table_idx'] = 0;
-            $job['progress_overall'] = 0;
-            $job['progress_table'] = 0;
-            $job['elapsed'] = 0;
-            $job['eta_seconds'] = null;
-            $job['message'] = t('core.db.job.data_start', ['n' => (string)count($items)]);
-            self::appendLog($job, (string)$job['message']);
         } else {
             $tables = DbTables::filterValidTables($opts['tables'] ?? []);
             if ($tables === []) {
@@ -308,8 +281,6 @@ final class DbJobs
                 $job = DbMaint::tickDiagnose($job);
             } elseif ($op === 'fetch') {
                 $job = DbFetch::tickFetch($job);
-            } elseif ($op === 'data') {
-                $job = self::tickData($job);
             } elseif (in_array($op, ['optimize', 'repair', 'check'], true)) {
                 $job = DbMaint::tickMaint($job);
             } else {
@@ -410,105 +381,6 @@ final class DbJobs
             'file' => (string)($job['file'] ?? ''),
             'log' => $log,
         ];
-    }
-
-    /**
-     * One data migrator per tick (same UI progress as dump/restore).
-     *
-     * @param array<string,mixed> $job
-     * @return array<string,mixed>
-     */
-    private static function tickData(array $job): array
-    {
-        $items = is_array($job['items'] ?? null) ? $job['items'] : [];
-        $n = count($items);
-        $idx = (int)($job['item_idx'] ?? 0);
-        if ($n < 1) {
-            $job['status'] = 'done';
-            $job['message'] = t('core.db.data_none');
-            self::appendLog($job, (string)$job['message']);
-            return self::attachProgressMeta($job, 1.0, 1.0);
-        }
-        if ($idx >= $n) {
-            $job['status'] = 'done';
-            $job['message'] = t('core.db.msg.data_done_counts', [
-                'ok' => (string)(int)($job['ok_count'] ?? 0),
-                'error' => (string)(int)($job['error_count'] ?? 0),
-                'n' => (string)$n,
-            ]);
-            self::appendLog($job, (string)$job['message']);
-            $job['result'] = [
-                'ok' => ((int)($job['error_count'] ?? 0)) === 0,
-                'report' => $job['report'] ?? [],
-                'ok_count' => (int)($job['ok_count'] ?? 0),
-                'error_count' => (int)($job['error_count'] ?? 0),
-            ];
-            return self::attachProgressMeta($job, 1.0, 1.0);
-        }
-
-        $item = is_array($items[$idx] ?? null) ? $items[$idx] : [];
-        $mod = (string)($item['module'] ?? '');
-        $mid = (string)($item['id'] ?? '');
-        $desc = (string)($item['description'] ?? '');
-        $job['table'] = $mod . '/' . $mid;
-        $job['table_idx'] = $idx;
-        $job['tables_total'] = $n;
-        $label = $mod . '/' . $mid;
-        self::appendLog($job, t('core.db.job.data_run', [
-            'id' => $label,
-            'i' => (string)($idx + 1),
-            'n' => (string)$n,
-        ]));
-        if ($desc !== '') {
-            self::appendLog($job, '  ' . $desc);
-        }
-
-        $row = DataMigrator::runOne($mod, $mid);
-        $report = is_array($job['report'] ?? null) ? $job['report'] : [];
-        $report[] = $row;
-        $job['report'] = $report;
-        $summary = DataMigrator::formatSummary($row);
-        $status = (string)($row['status'] ?? 'error');
-        if ($status === 'ok') {
-            $job['ok_count'] = (int)($job['ok_count'] ?? 0) + 1;
-            self::appendLog($job, t('core.db.job.data_ok', [
-                'id' => $label,
-                'detail' => $summary !== '' ? $summary : 'ok',
-            ]));
-        } else {
-            $job['error_count'] = (int)($job['error_count'] ?? 0) + 1;
-            $err = (string)($row['message'] ?? $summary);
-            if ($err === '') {
-                $err = 'error';
-            }
-            self::appendLog($job, t('core.db.job.data_fail', [
-                'id' => $label,
-                'detail' => $err,
-            ]));
-        }
-
-        $idx++;
-        $job['item_idx'] = $idx;
-        $frac = $idx / max(1, $n);
-        $job = self::attachProgressMeta($job, $frac, 1.0);
-
-        if ($idx >= $n) {
-            $job['status'] = 'done';
-            $job['message'] = t('core.db.msg.data_done_counts', [
-                'ok' => (string)(int)($job['ok_count'] ?? 0),
-                'error' => (string)(int)($job['error_count'] ?? 0),
-                'n' => (string)$n,
-            ]);
-            self::appendLog($job, (string)$job['message']);
-            $job['result'] = [
-                'ok' => ((int)($job['error_count'] ?? 0)) === 0,
-                'report' => $job['report'],
-                'ok_count' => (int)($job['ok_count'] ?? 0),
-                'error_count' => (int)($job['error_count'] ?? 0),
-            ];
-            return self::attachProgressMeta($job, 1.0, 1.0);
-        }
-        return $job;
     }
 
     /** @param array<string,mixed> $job */

@@ -303,6 +303,7 @@ return [
     'core.db.badge_foreign' => 'foreign',
     'core.db.sel.all' => 'Select all',
     'core.db.sel.owned' => 'Select owned',
+    'core.db.sel.foreign' => 'Select foreign',
     'core.db.sel.need' => 'Select needing care',
     'core.db.sel.none' => 'Clear selection',
     'core.db.btn_dump' => 'Create dump',
