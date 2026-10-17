@@ -1093,6 +1093,47 @@ final class OrdersRepository
     }
 
     /**
+     * Client-facing state of an order (channels like client MCP / bots must not parse STATUS codes).
+     *
+     * @param array<string,mixed> $order row from find()
+     * @return array{state:string,paid:bool,cancellable:bool}
+     */
+    public static function clientState(array $order): array
+    {
+        $status = (string)($order['status'] ?? '');
+        $dt = (int)($order['dt_event'] ?? 0);
+        $state = 'other';
+        $cancellable = false;
+        if (in_array($status, self::NEW_STATUSES, true)) {
+            $state = $dt > 0 && $dt < time() ? 'past' : 'active';
+            $cancellable = $state === 'active';
+        } elseif (in_array($status, ['userCancelPay', 'deletedByAdmin', 'failedPaySber'], true)) {
+            $state = 'cancelled';
+        } elseif ($status === 'complete') {
+            $state = 'completed';
+        }
+        return [
+            'state' => $state,
+            'paid' => !empty($order['epaid']) || $status === 'paidSber',
+            'cancellable' => $cancellable,
+        ];
+    }
+
+    /**
+     * Legacy acquiring link stored on the order (oper Sber flow), when still payable.
+     *
+     * @param array<string,mixed> $order row from find()
+     */
+    public static function pendingPaymentLink(array $order): string
+    {
+        $link = trim((string)($order['sber_link'] ?? ''));
+        if ((string)($order['status'] ?? '') !== 'sberPayReady' || !preg_match('#^https://#i', $link)) {
+            return '';
+        }
+        return $link;
+    }
+
+    /**
      * Client cancel of an advance order (legacy cancel_order → userCancelPay).
      *
      * @return array{ok:bool,cancelled?:int,error?:string}

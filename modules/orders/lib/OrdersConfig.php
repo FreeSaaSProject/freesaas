@@ -7,6 +7,31 @@ final class OrdersConfig
     /** Canonical create sources (technical codes, not translated). */
     public const SOURCES = ['api_termy', 'api', 'site', 'staff'];
 
+    /** @var list<string>|null */
+    private static $sources = null;
+
+    /**
+     * Built-in sources + channels added by other modules via EventBus orders.sources.
+     *
+     * @return list<string>
+     */
+    public static function sources(): array
+    {
+        if (self::$sources !== null) {
+            return self::$sources;
+        }
+        $payload = EventBus::emit('orders.sources', ['sources' => self::SOURCES]);
+        $out = [];
+        foreach ((array)($payload['sources'] ?? []) as $s) {
+            $s = strtolower(trim((string)$s));
+            if (preg_match('/^[a-z][a-z0-9_]{0,31}$/', $s) && !in_array($s, $out, true)) {
+                $out[] = $s;
+            }
+        }
+        self::$sources = $out;
+        return $out;
+    }
+
     /** @return array<string, string> */
     public static function defaults(): array
     {
@@ -68,7 +93,7 @@ final class OrdersConfig
     public static function normalizeSource(string $source): string
     {
         $s = strtolower(trim($source));
-        if ($s === '' || !in_array($s, self::SOURCES, true)) {
+        if ($s === '' || !in_array($s, self::sources(), true)) {
             return '';
         }
         return $s;

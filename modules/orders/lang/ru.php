@@ -20,6 +20,7 @@ return [
     'orders.max_notify.title_new' => 'Новый заказ',
     'orders.max_notify.title_cancel' => 'Отмена заказа',
     'orders.max_notify.line_source' => 'Источник: {source}',
+    'orders.payment.pay_by_link' => 'Оплатите онлайн по ссылке',
     'orders.max_notify.line_client' => 'Клиент: {name} (id {id})',
     'orders.max_notify.line_tel' => 'Тел: {tel}',
     'orders.max_notify.line_date' => 'Дата: {date}',

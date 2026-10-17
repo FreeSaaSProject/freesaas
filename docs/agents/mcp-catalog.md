@@ -8,6 +8,8 @@ FreeSaaS exposes **per-instance** MCP (not a global SaaS URL):
 - **Discovery:** `/.well-known/oauth-authorization-server`, `oauth-protected-resource`  
 - **Requires modules:** `llm`, `assistant`
 
+Separate **public client** MCP (`client_mcp`, no auth): one server per storefront domain `https://<domain>/mcp`, discoverable via that domain's `/.well-known/ai-catalog.json` → `/mcp/server-card` — [client-mcp.md](client-mcp.md). List each business domain separately, not as the FreeSaaS ops server.
+
 ## Checklist before submitting a listing
 
 1. Public HTTPS demo or documented self-host path ([QUICKSTART.md](QUICKSTART.md), Docker Compose).

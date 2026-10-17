@@ -7,6 +7,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [QUICKSTART.md](QUICKSTART.md) | Fast path: config → bootstrap → doctor/smoke |
 | [agent-surfaces.md](agent-surfaces.md) | Platform `agent_token` vs product session/MCP/OAuth |
 | [connect-mcp.md](connect-mcp.md) | Connect external agents (MCP hub) |
+| [client-mcp.md](client-mcp.md) | Public client MCP `/mcp` per storefront domain: agents book on behalf of clients (no auth); tool registry for modules |
 | [connect-chatgpt.md](connect-chatgpt.md) / [connect-codex.md](connect-codex.md) / [connect-cursor.md](connect-cursor.md) / [connect-claude-code.md](connect-claude-code.md) / [connect-gemini.md](connect-gemini.md) | Per-environment 5-minute connect |
 | [repair.md](repair.md) | Doctor codes → next command → upstream issue |
 | [upstream.md](upstream.md) | Doctor → issue → CLA → PR flywheel |
@@ -67,6 +68,7 @@ Staff/MCP how-to uses these via `core.help.search` / `core.help.get`. Keep **Hum
 | [catalog.md](catalog.md) | `catalog` |
 | [certificates.md](certificates.md) | `certificates` |
 | [clientics.md](clientics.md) | `clientics` |
+| [client-mcp.md](client-mcp.md) | `client_mcp` |
 | [clients.md](clients.md) | `clients` |
 | [comments.md](comments.md) | `comments` |
 | [contracts.md](contracts.md) | `contracts` |

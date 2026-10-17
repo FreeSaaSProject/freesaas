@@ -79,6 +79,7 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://www.example.com/agent/heal
 | `/cart`, `GET /cart/availability`, `POST /cart/checkout` | Session cart; **phone first** (`SitesGuest`) then, with `booking` on + bookable services → slot wizard → `BookingBook::createOrder`; else → `OrdersRepository::create`. Clients with status `block_online` cannot proceed (message: book at the centre). |
 | `/promo/{code}` | Promo LP by code |
 | `/sitemap.xml`, `/robots.txt` | Current host |
+| `/.well-known/ai-catalog.json` | Domain AI Catalog for agent discovery; entries from EventBus `sites.ai_catalog` (`identifier`, `type`, `url` or `data`); 404 when no module contributes (e.g. `client_mcp` adds its server card per host) |
 | unknown path | Redirects (scoped) then page-by-link then 404 |
 | `/login` | Redirect to `admin_host` when set |
 

@@ -216,3 +216,19 @@ EventBus::on('calendar.day.stats', static function ($payload) {
     }
     return $payload;
 });
+
+// Public client channels (client_mcp): expose a still-payable legacy acquiring link.
+EventBus::on('client_mcp.payment', static function ($payload) {
+    if (!is_array($payload) || !is_array($payload['order'] ?? null) || !is_array($payload['payment'] ?? null)) {
+        return $payload;
+    }
+    $link = OrdersRepository::pendingPaymentLink($payload['order']);
+    if ($link === '' || ($payload['payment']['status'] ?? '') === 'paid') {
+        return $payload;
+    }
+    $payload['payment']['mode'] = 'online';
+    $payload['payment']['required'] = true;
+    $payload['payment']['url'] = $link;
+    $payload['payment']['instructions'] = t('orders.payment.pay_by_link');
+    return $payload;
+});

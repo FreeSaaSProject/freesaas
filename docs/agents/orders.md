@@ -37,6 +37,10 @@ Callers must set on create (technical codes, not translated):
 | `site` | storefront cart / checkout |
 | `staff` | staff `/booking/new`, `/booking/book` |
 
+Other modules add channel codes via EventBus `orders.sources` (`$payload['sources'][] = 'code'`, `[a-z0-9_]`); `OrdersConfig::sources()` is the effective list. Example: `client_mcp` adds `mcp` for public client MCP bookings ([client-mcp.md](client-mcp.md)).
+
+Client-facing channels read `OrdersRepository::clientState($order)` (`state` active|past|cancelled|completed|other, `paid`, `cancellable`) instead of parsing `STATUS`. `orders` subscribes `client_mcp.payment` to expose a still-payable legacy acquiring link (`OrdersRepository::pendingPaymentLink`).
+
 ## Max-group notify
 
 When `max_notify_enabled=1` and `max_notify_chat_id` set (`cfg/modules/orders.ini` or `/orders/settings`):

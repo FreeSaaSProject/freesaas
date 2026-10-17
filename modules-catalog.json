@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T09:17:31+00:00",
+    "generated_at": "2026-10-17T10:01:08+00:00",
     "modules": [
         {
             "id": "asr",
@@ -587,6 +587,44 @@
             }
         },
         {
+            "id": "client_mcp",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Client MCP",
+                "ru": "Клиентский MCP"
+            },
+            "description": {
+                "en": "Public MCP server for client AI agents — one per storefront domain: services, free slots, booking, my bookings, cancel, payment info.",
+                "ru": "Публичный MCP-сервер для ИИ-агентов клиентов — свой на каждый домен витрины: услуги, свободное время, запись, мои записи, отмена, данные для оплаты."
+            },
+            "summary": {
+                "en": "Enable to let any MCP-capable agent (Claude, ChatGPT, Cursor…) book on behalf of a client at https://<domain>/mcp without plugins. Needs sites + clients; booking tools appear when booking, catalog and orders are on. Other modules add tools via EventBus client_mcp.tools. Each domain is switched on separately. Alpha.",
+                "ru": "Включите, чтобы любой агент с поддержкой MCP (Claude, ChatGPT, Cursor…) мог записать клиента через https://<домен>/mcp без плагинов. Нужны sites + clients; инструменты записи — при включённых booking, catalog, orders. Другие модули добавляют инструменты через EventBus client_mcp.tools. Каждый домен включается отдельно. Alpha."
+            },
+            "requires": {
+                "core": ">=0.3.0",
+                "sites": ">=0.2.0",
+                "clients": ">=0.1.0"
+            },
+            "optionalRequires": {
+                "booking": ">=0.1.0",
+                "catalog": ">=0.1.0",
+                "orders": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "site",
+                    "integrations"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "integration",
+                    "llm"
+                ]
+            }
+        },
+        {
             "id": "clientics",
             "version": "0.1.2",
             "type": "product",
@@ -986,7 +1024,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.6",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1246,7 +1284,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.7",
+            "version": "0.2.8",
             "type": "product",
             "name": {
                 "en": "Sites",

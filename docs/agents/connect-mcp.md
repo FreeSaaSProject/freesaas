@@ -2,6 +2,8 @@
 
 Copy-paste entry for external agents. Auth model: [agent-surfaces.md](agent-surfaces.md). Deep dive: [llm.md](llm.md).
 
+This page is the **staff** MCP (`/llm/mcp`, OAuth). Client agents that book on behalf of customers use the public storefront server `/mcp` (no auth): [client-mcp.md](client-mcp.md).
+
 ## Prerequisites
 
 ```bash

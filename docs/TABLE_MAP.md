@@ -61,6 +61,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | — (read models) | finance / procents | Reports over ledger/rates/procedures |
 | `base_bi_shares` | bi | Live share tokens for BI report families |
 | `base_bi_family_defs` | bi | BI recipe overrides/customs (`RECIPE_JSON`); shipped defaults under `modules/bi/recipes/` |
+| `base_client_mcp_sessions` | client_mcp | Public MCP client sessions (hashed `client_token`, `SITE_HOST_ID`, phone, session order ids) |
+| `base_client_mcp_hosts` | client_mcp | Per-storefront-host MCP settings (`SITE_HOST_ID` → on/off, name, consent link, disabled tools) |
 | `base_orders` | orders | Website/cart orders (admin UI + storefront `sites` checkout via `OrdersRepository::create`) |
 | `base_polls` | polls | Poll definition tree (EL_TYPE poll/question/answer) |
 | `base_poll_invites` | poll_invites | Poll invite instances + answers in DATA_OPTS |

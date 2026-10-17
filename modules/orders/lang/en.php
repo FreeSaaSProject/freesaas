@@ -20,6 +20,7 @@ return [
     'orders.max_notify.title_new' => 'New order',
     'orders.max_notify.title_cancel' => 'Order cancelled',
     'orders.max_notify.line_source' => 'Source: {source}',
+    'orders.payment.pay_by_link' => 'Pay online using the link',
     'orders.max_notify.line_client' => 'Client: {name} (id {id})',
     'orders.max_notify.line_tel' => 'Phone: {tel}',
     'orders.max_notify.line_date' => 'Date: {date}',

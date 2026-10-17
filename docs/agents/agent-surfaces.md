@@ -33,6 +33,10 @@ Docs: [module-agent-api.md](module-agent-api.md), [assistant.md](assistant.md), 
 
 **Threat model:** acts as a **staff user** (least privilege). Writes may require assistant confirm / `ops.write` scope. Superadmin screens stay capability-gated.
 
+## Not a surface: public client MCP
+
+`/mcp` on each storefront domain (`client_mcp`) is a **customer** channel, like the website cart: no staff identity, no `Auth::can`, only client tools (business info, services, slots, book, own bookings, cancel, plus tools other modules register). Off by default per domain; on the admin host `/mcp` is 404 so OAuth discovery there always points to the staff `/llm/mcp`. Docs: [client-mcp.md](client-mcp.md).
+
 ## Overlap (read carefully)
 
 | Capability | Surface A | Surface B |

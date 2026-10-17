@@ -1,0 +1,102 @@
+{
+    "id": "client_mcp",
+    "name": "client_mcp.module.name",
+    "description": "client_mcp.module.description",
+    "summary": "client_mcp.module.summary",
+    "version": "0.1.0",
+    "type": "product",
+    "runtime": "both",
+    "requires": {
+        "core": ">=0.3.0",
+        "sites": ">=0.2.0",
+        "clients": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "booking": ">=0.1.0",
+        "catalog": ">=0.1.0",
+        "orders": ">=0.1.0"
+    },
+    "provides": [
+        "client_mcp.server",
+        "client_mcp.tools"
+    ],
+    "migrations": "migrations/",
+    "permissions": [],
+    "routes": {
+        "pages": [
+            "/mcp",
+            "/mcp/server-card",
+            "/client-mcp/settings"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/client-mcp.md",
+        "ops": [
+            {
+                "id": "client_mcp.settings.get",
+                "method": "GET",
+                "path": "/client-mcp/settings",
+                "permission": "",
+                "side_effect": "read",
+                "assistant": false,
+                "description": "Per-host client MCP settings, endpoints, tool availability, session stats (SUPERADMIN_ACCESS)"
+            },
+            {
+                "id": "client_mcp.settings.save",
+                "method": "POST",
+                "path": "/client-mcp/settings",
+                "permission": "",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Save common limits + hosts[<site_host_id>][present|enabled|server_name|description|consent_url|tools[]] (SUPERADMIN_ACCESS)"
+            }
+        ]
+    },
+    "jobs": [
+        "platform Cron::register client_mcp.purge → /cron/tick"
+    ],
+    "menu": [
+        {
+            "group": "sites.menu.group",
+            "num": 88,
+            "kind": "settings",
+            "path": "/client-mcp/settings",
+            "title": "client_mcp.menu.settings",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_client_mcp_sessions",
+        "base_client_mcp_hosts"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "client_mcp.tools",
+            "client_mcp.business_info",
+            "sites.ai_catalog",
+            "orders.sources"
+        ],
+        "publish": [
+            "client_mcp.tools",
+            "client_mcp.business_info",
+            "client_mcp.identify",
+            "client_mcp.verify",
+            "client_mcp.payment",
+            "client_mcp.booking.created"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "site",
+            "integrations"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "integration",
+            "llm"
+        ],
+        "screenshots": []
+    }
+}

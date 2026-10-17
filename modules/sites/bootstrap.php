@@ -214,6 +214,7 @@ $publicPages = [
     '/promo/{code}' => ['methods' => ['GET'], 'file' => 'promo.php'],
     '/sitemap.xml' => ['methods' => ['GET'], 'file' => 'sitemap.php'],
     '/robots.txt' => ['methods' => ['GET'], 'file' => 'robots.php'],
+    '/.well-known/ai-catalog.json' => ['methods' => ['GET', 'OPTIONS'], 'file' => 'ai_catalog.php'],
 ];
 foreach ($publicPages as $path => $def) {
     $file = (string)$def['file'];

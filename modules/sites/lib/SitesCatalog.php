@@ -98,6 +98,29 @@ final class SitesCatalog
     }
 
     /**
+     * Storefront price of a product (cart + public channels).
+     * PRICE table: strike price2/price, online price3 when lower.
+     *
+     * @param array<string,mixed> $product
+     * @return array{price:float,original:float}
+     */
+    public static function onlinePrice(array $product): array
+    {
+        $price = (float)($product['price'] ?? 0);
+        $original = (float)($product['price2'] ?? 0);
+        $price3 = (float)($product['price3'] ?? 0);
+        if ($price3 > 0 && $price3 < $price) {
+            if ($original <= $price) {
+                $original = $price;
+            }
+            $price = $price3;
+        } elseif ($original <= $price) {
+            $original = $price;
+        }
+        return ['price' => $price, 'original' => $original];
+    }
+
+    /**
      * @return array{id:int,name:string,price:float}|null
      */
     public static function addToCartFromPost(): ?array
@@ -110,18 +133,7 @@ final class SitesCatalog
         if (!self::isProductVisible($p)) {
             return null;
         }
-        $price = (float)$p['price'];
-        $original = (float)($p['price2'] ?? 0);
-        $price3 = (float)($p['price3'] ?? 0);
-        // PRICE table: strike price2/price, cart gets online price3 when lower.
-        if ($price3 > 0 && $price3 < $price) {
-            if ($original <= $price) {
-                $original = $price;
-            }
-            $price = $price3;
-        } elseif ($original <= $price) {
-            $original = $price;
-        }
+        ['price' => $price, 'original' => $original] = self::onlinePrice($p);
         SitesCart::add($pid, (string)$p['name'], $price, $original);
         flash_set('ok', t('sites.cart.added'));
         return [

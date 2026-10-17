@@ -127,6 +127,12 @@ $allowed = [
     '/.well-known/oauth-protected-resource' => ['methods' => ['GET', 'OPTIONS'], 'why' => 'OAuth resource metadata'],
     '/.well-known/oauth-protected-resource/llm/mcp' => ['methods' => ['GET', 'OPTIONS'], 'why' => 'MCP resource metadata'],
 
+    // Public client MCP (client_mcp); anonymous by design, 404/503 unless enabled for the request host
+    '/mcp' => ['methods' => ['GET', 'POST', 'DELETE', 'OPTIONS'], 'why' => 'client MCP endpoint (per storefront host)'],
+    '/mcp/server-card' => ['methods' => ['GET', 'OPTIONS'], 'why' => 'MCP server card (per storefront host)'],
+    // Domain AI catalog (sites aggregator; entries via EventBus sites.ai_catalog, 404 when empty)
+    '/.well-known/ai-catalog.json' => ['methods' => ['GET', 'OPTIONS'], 'why' => 'AI catalog (agent discovery)'],
+
     // ASR / audio pipeline workers (worker_token in handler)
     '/asr/voice-transcribe/worker' => ['methods' => ['GET', 'POST'], 'why' => 'ASR worker claim'],
     '/asr/voice-transcribe/file' => ['methods' => ['GET', 'POST'], 'why' => 'ASR worker file'],
