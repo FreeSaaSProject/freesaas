@@ -468,19 +468,52 @@ final class Auth
         // Lazy hydrate for sessions started before status_flags existed.
         $sid = self::statusId();
         if ($sid > 0) {
-            $fetched = self::fetchStatusFlags($sid);
+            $fetched = self::mergedStatusFlags($sid, self::statusId2());
             $_SESSION['status_flags'] = $fetched;
             return $fetched;
         }
         return is_array($f) ? $f : [];
     }
 
-    /** Load status row flags into session (primary role). */
+    /** Load role flags into session: primary status widened by secondary (ID_STATUS2). */
     public static function setStatusContext(int $statusId, int $statusId2 = 0): void
     {
         $_SESSION['status_id'] = $statusId;
         $_SESSION['status_id2'] = $statusId2;
-        $_SESSION['status_flags'] = self::fetchStatusFlags($statusId);
+        $_SESSION['status_flags'] = self::mergedStatusFlags($statusId, $statusId2);
+    }
+
+    /**
+     * Secondary status only grants: a flag set there is added to the primary set.
+     * Never grants SUPERADMIN_ACCESS. Restriction flags lift only when both statuses lack them
+     * (EVT_MY_ONLY); other restrictions, ENABLED and ID_* columns stay from the primary status.
+     *
+     * @return array<string,int>
+     */
+    public static function mergedStatusFlags(int $statusId, int $statusId2 = 0): array
+    {
+        $flags = self::fetchStatusFlags($statusId);
+        if ($statusId2 < 1 || $statusId2 === $statusId || $flags === []) {
+            return $flags;
+        }
+        $extra = self::fetchStatusFlags($statusId2);
+        if ($extra === []) {
+            return $flags;
+        }
+        $primaryOnly = ['SUPERADMIN_ACCESS', 'ENABLED', 'FASTAUTH_WORKTIME_ONLY', 'DISABLE_NON_PROCEDURE_TIME', 'PAY_DAILY'];
+        foreach ($extra as $key => $value) {
+            if (in_array($key, $primaryOnly, true) || strncmp($key, 'ID_', 3) === 0) {
+                continue;
+            }
+            if ($key === 'EVT_MY_ONLY') {
+                $flags[$key] = min((int)($flags[$key] ?? 0), $value);
+                continue;
+            }
+            if ($value > 0 && (int)($flags[$key] ?? 0) < 1) {
+                $flags[$key] = $value;
+            }
+        }
+        return $flags;
     }
 
     /** @return array<string,int> */
