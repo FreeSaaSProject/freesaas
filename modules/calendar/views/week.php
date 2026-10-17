@@ -48,7 +48,9 @@ foreach ($dayColumns as $col) {
 }
 $canBook = class_exists(ModuleManager::class, false)
     && ModuleManager::isEnabled('booking')
-    && Auth::can('booking.edit');
+    && Auth::can('booking.edit')
+    && class_exists(BookingConfig::class, false)
+    && BookingConfig::showCalendarCta();
 $newBookingUrl = '/booking/new?date=' . rawurlencode($dayLinkDate)
     . ($staffId > 0 ? ('&staff=' . $staffId) : '')
     . '&ret=' . rawurlencode($weekUrl($monday));
@@ -64,6 +66,14 @@ $newBookingUrl = '/booking/new?date=' . rawurlencode($dayLinkDate)
       <?php endforeach; ?>
     </select>
     <a class="btn-secondary" href="<?= e($weekUrl($nextWeek)) ?>" title="<?= te('calendar.week.next') ?>" aria-label="<?= te('calendar.week.next') ?>">»</a>
+    <?php
+    $todayMonday = class_exists(CalendarWeek::class, false)
+        ? date('Y-m-d', CalendarWeek::mondayOf(strtotime($today . ' 00:00:00') ?: time()))
+        : $today;
+    if ($monday !== $todayMonday):
+    ?>
+      <a class="btn-secondary" href="<?= e($weekUrl($todayMonday)) ?>"><?= te('calendar.day.today') ?></a>
+    <?php endif; ?>
     <a class="btn-secondary" href="<?= e($dayUrl($dayLinkDate)) ?>"><?= te('calendar.week.to_day') ?></a>
     <?php if ($canBook): ?>
       <a class="btn-secondary" href="<?= e($newBookingUrl) ?>"><?= te('booking.calendar.add_booking') ?></a>

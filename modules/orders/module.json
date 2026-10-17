@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -94,14 +94,6 @@
             "path": "/orders",
             "title": "orders.menu.list",
             "permission": "orders.view"
-        },
-        {
-            "group": "calendar.menu.group",
-            "num": 90,
-            "kind": "settings",
-            "path": "/orders/settings",
-            "title": "orders.menu.settings",
-            "capability": "SUPERADMIN_ACCESS"
         }
     ],
     "configSchema": [],
@@ -115,7 +107,9 @@
             "core.bulk.check_item",
             "core.dashboard.catalog",
             "core.dashboard.widgets",
-            "calendar.day.stats"
+            "calendar.day.stats",
+            "calendar.settings.sections",
+            "calendar.settings.save"
         ],
         "publish": [
             "orders.created",

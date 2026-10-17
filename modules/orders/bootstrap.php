@@ -148,6 +148,29 @@ EventBus::on('core.bulk.check_item', static function (array $payload): array {
     return $payload;
 });
 
+EventBus::on('calendar.settings.sections', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_section', [
+        'cfg' => OrdersConfig::formValues(),
+        'bots_enabled' => ModuleManager::isEnabled('bots'),
+    ], 'orders');
+    return $payload;
+});
+
+EventBus::on('calendar.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (!isset($post['orders_settings_save'])) {
+        return $payload;
+    }
+    OrdersConfig::saveFromPost($post);
+    return $payload;
+});
+
 EventBus::on('calendar.day.stats', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

@@ -5,6 +5,8 @@ declare(strict_types=1);
 /** @var ?array $row */
 /** @var bool $showHours */
 /** @var bool $manualCreate */
+/** @var string $extraHtml */
+$extraHtml = (string)($extraHtml ?? '');
 ?>
 <section class="page-head">
   <p class="lede"><?= t('calendar.settings.lede') ?></p>
@@ -15,6 +17,7 @@ declare(strict_types=1);
 
 <form method="post" class="form-grid">
   <?php require __DIR__ . '/_settings_hours.php'; ?>
+  <?= $extraHtml ?>
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
   </div>

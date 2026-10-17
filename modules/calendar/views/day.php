@@ -42,7 +42,9 @@ if ($staffId > 0) {
 $newEventUrl .= '&ret=' . rawurlencode($dayUrl($date));
 $canBook = class_exists(ModuleManager::class, false)
     && ModuleManager::isEnabled('booking')
-    && Auth::can('booking.edit');
+    && Auth::can('booking.edit')
+    && class_exists(BookingConfig::class, false)
+    && BookingConfig::showCalendarCta();
 $newBookingUrl = '/booking/new?date=' . rawurlencode($date)
     . ($staffId > 0 ? ('&staff=' . $staffId) : '')
     . '&ret=' . rawurlencode($dayUrl($date));
@@ -59,6 +61,9 @@ $newBookingUrl = '/booking/new?date=' . rawurlencode($date)
     <?php endif; ?>
     <a class="btn-secondary" href="<?= e($dayUrl($prevDate)) ?>" title="<?= te('calendar.day.prev') ?>" aria-label="<?= te('calendar.day.prev') ?>">«</a>
     <a class="btn-secondary" href="<?= e($dayUrl($nextDate)) ?>" title="<?= te('calendar.day.next') ?>" aria-label="<?= te('calendar.day.next') ?>">»</a>
+    <?php if ($date !== $today): ?>
+      <a class="btn-secondary" href="<?= e($dayUrl($today)) ?>"><?= te('calendar.day.today') ?></a>
+    <?php endif; ?>
     <a class="btn-secondary" href="/calendar/week/<?= e(rawurlencode($date)) ?>"><?= te('calendar.day.to_week') ?></a>
   </div>
 </section>

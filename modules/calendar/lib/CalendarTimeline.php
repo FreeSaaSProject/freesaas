@@ -277,9 +277,13 @@ final class CalendarTimeline
                 $title = '#' . (int)$pr['id'];
             }
             $client = trim((string)($pr['client_name'] ?? ''));
+            $phone = trim((string)($pr['client_tel'] ?? ''));
             $label = date('H:i', (int)($pr['dtstart'] ?? 0)) . '–' . date('H:i', (int)($pr['dtend'] ?? 0));
             if ($client !== '') {
                 $label .= ' ' . $client;
+            }
+            if ($showEventPhone && $phone !== '') {
+                $label .= ' ' . $phone;
             }
             $label .= ' ' . $title;
             $color = $colors[$op] ?? ['bg' => 'var(--accent-soft)', 'fg' => 'var(--text)'];
@@ -287,6 +291,9 @@ final class CalendarTimeline
                 . '<div>' . date('H:i', (int)($pr['dtstart'] ?? 0)) . ' – ' . date('H:i', (int)($pr['dtend'] ?? 0)) . '</div>';
             if ($client !== '') {
                 $info .= '<div>' . $client . '</div>';
+            }
+            if ($showEventPhone && $phone !== '') {
+                $info .= '<div class="muted">' . $phone . '</div>';
             }
             if (!empty($pr['operator_name'])) {
                 $info .= '<div class="muted">' . (string)$pr['operator_name'] . '</div>';

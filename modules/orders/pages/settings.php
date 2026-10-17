@@ -2,50 +2,30 @@
 declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
-$message = '';
-$error = '';
+
+// UI lives on unified /calendar/settings; keep this route for agent JSON + bookmarks.
+if (!$wantsJson) {
+    redirect('/calendar/settings');
+    return;
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         OrdersConfig::saveFromPost($_POST);
-        $message = t('core.common.saved');
-        if ($wantsJson) {
-            AgentHttp::emit([
-                'ok' => true,
-                'saved' => true,
-                'settings' => OrdersConfig::formValues(),
-            ]);
-            return;
-        }
+        AgentHttp::emit([
+            'ok' => true,
+            'saved' => true,
+            'settings' => OrdersConfig::formValues(),
+        ]);
     } catch (Throwable $e) {
-        if ($wantsJson) {
-            AgentHttp::error($e->getMessage(), 400);
-            return;
-        }
-        $error = $e->getMessage();
+        AgentHttp::error($e->getMessage(), 400);
     }
-}
-
-$cfg = OrdersConfig::formValues();
-$botsOn = ModuleManager::isEnabled('bots');
-
-if ($wantsJson) {
-    AgentHttp::emit([
-        'ok' => true,
-        'settings' => $cfg,
-        'bots_enabled' => $botsOn,
-    ]);
     return;
 }
 
-View::render('settings', [
-    'title' => t('orders.settings.title'),
-    'message' => $message,
-    'error' => $error,
-    'cfg' => $cfg,
-    'bots_enabled' => $botsOn,
-    'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('orders.menu.list'), 'href' => '/orders'],
-        ['label' => t('orders.settings.title'), 'current' => true],
-    ]),
-], 'layout', 'orders');
+AgentHttp::emit([
+    'ok' => true,
+    'settings' => OrdersConfig::formValues(),
+    'bots_enabled' => ModuleManager::isEnabled('bots'),
+    'ui' => '/calendar/settings',
+]);

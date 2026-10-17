@@ -2,7 +2,7 @@
     "id": "booking",
     "name": "booking.module.name",
     "description": "booking.module.description",
-    "version": "0.1.4",
+    "version": "0.1.6",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -155,20 +155,16 @@
             "path": "/booking/new",
             "title": "booking.menu.new",
             "permission": "booking.edit"
-        },
-        {
-            "group": "calendar.menu.group",
-            "num": 90,
-            "kind": "settings",
-            "path": "/booking/settings",
-            "title": "booking.menu.settings"
         }
     ],
     "configSchema": [],
     "tables": [],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "calendar.settings.sections",
+            "calendar.settings.save"
+        ],
         "publish": [
             "booking.book.before",
             "booking.book.after"

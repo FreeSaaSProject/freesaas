@@ -266,14 +266,16 @@ final class ProceduresRepository
         }
 
         $joins = '';
-        $extraCols = 'NULL AS type_name, NULL AS client_name, NULL AS product_name, NULL AS admin_name, NULL AS operator_name';
+        $extraCols = 'NULL AS type_name, NULL AS client_name, NULL AS client_tel, NULL AS product_name, NULL AS admin_name, NULL AS operator_name';
         if (Database::tableExists('base_procedure_types')) {
             $joins .= ' LEFT JOIN base_procedure_types t ON t.ID = p.TYPE';
-            $extraCols = 't.TYPE AS type_name, NULL AS client_name, NULL AS product_name, NULL AS admin_name, NULL AS operator_name';
+            $extraCols = 't.TYPE AS type_name, NULL AS client_name, NULL AS client_tel, NULL AS product_name, NULL AS admin_name, NULL AS operator_name';
         }
         if (Database::tableExists('base_clients')) {
             $joins .= ' LEFT JOIN base_clients c ON c.id = p.ID_USER';
             $extraCols = preg_replace('/NULL AS client_name/', 'c.name AS client_name', $extraCols, 1) ?? $extraCols;
+            $telCol = Database::columnExists('base_clients', 'tel') ? 'c.tel' : 'NULL';
+            $extraCols = preg_replace('/NULL AS client_tel/', $telCol . ' AS client_tel', $extraCols, 1) ?? $extraCols;
         }
         if (Database::tableExists('base_products')) {
             $joins .= ' LEFT JOIN base_products g ON g.id = p.ID_GOOD';

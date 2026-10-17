@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T07:06:38+00:00",
+    "generated_at": "2026-10-17T07:35:38+00:00",
     "modules": [
         {
             "id": "asr",
@@ -384,7 +384,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.4",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -481,7 +481,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.22",
+            "version": "0.1.24",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -986,7 +986,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1119,7 +1119,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.17",
+            "version": "0.1.18",
             "type": "product",
             "name": {
                 "en": "Procedures",

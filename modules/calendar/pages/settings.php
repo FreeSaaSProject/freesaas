@@ -21,6 +21,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (array_key_exists('calendar_manual_create', $post)) {
             Config::set('calendar', 'manual_create', !empty($post['calendar_manual_create']) ? '1' : '0');
         }
+        EventBus::emit('calendar.settings.save', [
+            'post' => $post,
+        ]);
         $message = t('core.common.saved');
         $row = SystemRepository::get();
         if ($wantsJson) {
@@ -47,6 +50,11 @@ $showHours = Database::tableExists('base_system')
     && Database::columnExists('base_system', 'work_hour_start')
     && Database::columnExists('base_system', 'work_hour_end');
 
+$sections = EventBus::emit('calendar.settings.sections', [
+    'html' => '',
+]);
+$extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -65,6 +73,7 @@ View::render('settings', [
     'row' => $row,
     'showHours' => $showHours,
     'manualCreate' => (int)Config::get('calendar', 'manual_create', 1) === 1,
+    'extraHtml' => $extraHtml,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('calendar.menu.week'), 'href' => '/calendar'],
         ['label' => t('calendar.menu.settings'), 'current' => true],

@@ -2,39 +2,29 @@
 declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
-$message = '';
-$error = '';
+
+// UI lives on unified /calendar/settings; keep this route for agent JSON + bookmarks.
+if (!$wantsJson) {
+    redirect('/calendar/settings');
+    return;
+}
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         BookingConfig::saveFromPost($_POST);
-        $message = t('core.common.saved');
+        AgentHttp::emit([
+            'ok' => true,
+            'saved' => true,
+            'settings' => BookingConfig::formValues(),
+        ]);
     } catch (Throwable $e) {
-        if ($wantsJson) {
-            AgentHttp::error($e->getMessage(), 400);
-            return;
-        }
-        $error = $e->getMessage();
+        AgentHttp::error($e->getMessage(), 400);
     }
-}
-
-$cfg = BookingConfig::formValues();
-
-if ($wantsJson) {
-    AgentHttp::emit([
-        'ok' => true,
-        'settings' => $cfg,
-    ]);
     return;
 }
 
-View::render('settings', [
-    'title' => t('booking.settings.title'),
-    'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('booking.menu.new'), 'href' => '/booking/new'],
-        ['label' => t('booking.menu.settings'), 'current' => true],
-    ]),
-    'message' => $message,
-    'error' => $error,
-    'cfg' => $cfg,
-], 'layout', 'booking');
+AgentHttp::emit([
+    'ok' => true,
+    'settings' => BookingConfig::formValues(),
+    'ui' => '/calendar/settings',
+]);

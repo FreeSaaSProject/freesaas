@@ -41,3 +41,26 @@ foreach ($pages as $path => $def) {
     }
     ModuleManager::registerRoute($path, $route);
 }
+
+EventBus::on('calendar.settings.sections', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_section', [
+        'cfg' => BookingConfig::formValues(),
+    ], 'booking');
+    return $payload;
+});
+
+EventBus::on('calendar.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (!isset($post['booking_settings_save'])) {
+        return $payload;
+    }
+    BookingConfig::saveFromPost($post);
+    return $payload;
+});
+
