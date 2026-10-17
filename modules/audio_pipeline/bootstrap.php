@@ -6,6 +6,7 @@ require_once __DIR__ . '/lib/AsrClaimLock.php';
 require_once __DIR__ . '/lib/AsrService.php';
 require_once __DIR__ . '/lib/JobLock.php';
 require_once __DIR__ . '/lib/JobRunner.php';
+require_once __DIR__ . '/lib/AudioJobQueue.php';
 require_once __DIR__ . '/lib/IngestRunner.php';
 require_once __DIR__ . '/lib/StemRunner.php';
 require_once __DIR__ . '/lib/CollectRunner.php';
@@ -16,8 +17,9 @@ require_once __DIR__ . '/lib/AudioCoverageProfiles.php';
 /**
  * Cabin audio analytics workers (ingest / base_records ASR / stem / collect).
  * Shared worker token + messenger voice queue live in module `asr`.
- * Uploader / host cron (no POST body): GET /audio/jobs/ingest?token=…
- * Platform tick: Cron job audio_pipeline.ingest (in-process, same IngestRunner).
+ * Enqueue (fast 202): GET /audio/jobs/ingest|stem?token=…
+ * Sync processors: /audio/jobs/ingest/run, /audio/jobs/stem/run
+ * Drain: Cron every 5 min + nightly 02:00 force (audio_pipeline.ingest|stem + *_nightly).
  */
 
 $asrRoutes = [
@@ -40,7 +42,9 @@ foreach ($asrRoutes as $path => $file) {
 
 $jobRoutes = [
     '/audio/jobs/ingest' => 'job_ingest.php',
+    '/audio/jobs/ingest/run' => 'job_ingest_run.php',
     '/audio/jobs/stem' => 'job_stem.php',
+    '/audio/jobs/stem/run' => 'job_stem_run.php',
     '/audio/jobs/collect' => 'job_collect.php',
 ];
 
@@ -55,31 +59,65 @@ foreach ($jobRoutes as $path => $file) {
     ]);
 }
 
-// Nightly backup inbox → records (uploader should still ping GET ingest after upload).
+// Drain queued ingest (~5 min). Uploader still pings GET /audio/jobs/ingest after upload.
 Cron::register('audio_pipeline.ingest', [
     'module' => 'audio_pipeline',
     'label' => 'audio_pipeline.cron.ingest',
+    'every' => 5,
+    'handler' => static function (): array {
+        $out = AudioJobQueue::drainIngest(false);
+        return [
+            'ok' => !empty($out['ok']),
+            'processed' => (int)($out['processed'] ?? 0),
+            'skipped' => (int)($out['skipped'] ?? 0),
+            'message' => (string)($out['message'] ?? ''),
+        ];
+    },
+]);
+
+// Nightly force: empty queue flag but dirty inbox still gets a pass.
+Cron::register('audio_pipeline.ingest_nightly', [
+    'module' => 'audio_pipeline',
+    'label' => 'audio_pipeline.cron.ingest_nightly',
     'daily_at' => '02:00',
     'handler' => static function (): array {
-        $lock = JobLock::tryAcquire('ingest');
-        if ($lock === null) {
-            return [
-                'ok' => true,
-                'skipped' => 1,
-                'message' => 'blocked_run',
-            ];
-        }
-        try {
-            $out = IngestRunner::run(false);
-            return [
-                'ok' => !empty($out['ok']),
-                'processed' => (int)($out['processed'] ?? 0),
-                'skipped' => (int)($out['skipped'] ?? 0),
-                'message' => (string)($out['message'] ?? ''),
-            ];
-        } finally {
-            $lock->release();
-        }
+        $out = AudioJobQueue::drainIngest(true);
+        return [
+            'ok' => !empty($out['ok']),
+            'processed' => (int)($out['processed'] ?? 0),
+            'skipped' => (int)($out['skipped'] ?? 0),
+            'message' => (string)($out['message'] ?? ''),
+        ];
+    },
+]);
+
+Cron::register('audio_pipeline.stem', [
+    'module' => 'audio_pipeline',
+    'label' => 'audio_pipeline.cron.stem',
+    'every' => 5,
+    'handler' => static function (): array {
+        $out = AudioJobQueue::drainStem(false);
+        return [
+            'ok' => !empty($out['ok']),
+            'processed' => (int)($out['processed'] ?? 0),
+            'skipped' => (int)($out['skipped'] ?? 0),
+            'message' => (string)($out['message'] ?? ''),
+        ];
+    },
+]);
+
+Cron::register('audio_pipeline.stem_nightly', [
+    'module' => 'audio_pipeline',
+    'label' => 'audio_pipeline.cron.stem_nightly',
+    'daily_at' => '02:00',
+    'handler' => static function (): array {
+        $out = AudioJobQueue::drainStem(true);
+        return [
+            'ok' => !empty($out['ok']),
+            'processed' => (int)($out['processed'] ?? 0),
+            'skipped' => (int)($out['skipped'] ?? 0),
+            'message' => (string)($out['message'] ?? ''),
+        ];
     },
 ]);
 
@@ -88,7 +126,7 @@ EventBus::on('audio_dicts.changed', static function ($payload) {
     // A single key/dict/type/trash save used to call markAllForReparse() and
     // zero every SCORE + DELETE all instances — that bit production.
     // Safe reaction: refresh stem lemma cache only. Day/record reparse stays
-    // explicit via calendar Re-® or /audio/jobs/stem?reset=1&day=…|record=….
+    // explicit via calendar Re-® or /audio/jobs/stem/run?reset=1&day=…|record=….
     StemRunner::invalidateCaches();
     return is_array($payload) ? $payload : [];
 });

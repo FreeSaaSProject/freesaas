@@ -247,7 +247,7 @@ return [
     'audio.settings.worker_token.copy_prompt' => 'Скопируйте токен:',
     'audio.settings.worker_token.asr_required' => 'Модуль asr не загружен — токен воркера недоступен.',
     'audio.settings.ingest_url.title' => 'Ссылка для разбора файлов (загрузчик)',
-    'audio.settings.ingest_url.help' => 'GET после выгрузки в inbox. Вставьте в загрузчик как есть (токен уже в URL). Резерв платформы: cron в 02:00.',
+    'audio.settings.ingest_url.help' => 'GET после выгрузки в inbox (ставит в очередь, HTTP 202). Вставьте в загрузчик как есть. Cron разбирает ~каждые 5 мин; форс в 02:00. Синхронно: /audio/jobs/ingest/run.',
     'audio.settings.ingest_url.btn_copy' => 'Копировать ссылку',
     'audio.user_edit.analytics' => 'Аудиоаналитика',
     'audio.badge.gate.title_forced' => 'Выберите ваш бейдж для аудиоаналитики',

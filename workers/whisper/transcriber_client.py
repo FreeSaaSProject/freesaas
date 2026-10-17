@@ -982,9 +982,9 @@ def transcribe_upload_srt(
 
 def run_analytics() -> bool:
 	"""
-	POST stem. Returns True if this idle slot should count as a completed analytics attempt.
-	HTTP 409 blocked_run = another stem still holds the lock (often after a gateway timeout
-	while PHP keeps working) — retry later, do not burn max_runs_per_idle.
+	POST stem enqueue (HTTP 202). Cron drains stem/collect/publish.
+	Returns True if this idle slot should count as a completed analytics attempt.
+	HTTP 409 blocked_run on /run = lock busy — retry later, do not burn max_runs_per_idle.
 	"""
 	# Day-scoped stem keeps collect in today's window (avoids full-table orphan DELETE / 1317).
 	day = datetime.now().strftime("%Y-%m-%d")

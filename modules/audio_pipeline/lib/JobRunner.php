@@ -71,4 +71,22 @@ final class JobRunner
             'extra' => $extra,
         ], 409);
     }
+
+    /**
+     * Fast enqueue reply for uploaders / Whisper (HTTP 202).
+     *
+     * @param array<string,mixed> $payload
+     */
+    public static function queuedResponse(array $payload): void
+    {
+        $extra = $payload;
+        unset($extra['ok'], $extra['message'], $extra['processed'], $extra['skipped']);
+        self::jsonResponse([
+            'ok' => true,
+            'processed' => 0,
+            'skipped' => 0,
+            'message' => (string)($payload['message'] ?? 'queued'),
+            'extra' => $extra,
+        ], 202);
+    }
 }

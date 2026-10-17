@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.3.25",
+    "version": "0.3.26",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -27,7 +27,9 @@
             "/audio/asr/chunk-claim",
             "/audio/asr/chunk-result",
             "/audio/jobs/ingest",
+            "/audio/jobs/ingest/run",
             "/audio/jobs/stem",
+            "/audio/jobs/stem/run",
             "/audio/jobs/collect"
         ]
     },
@@ -72,7 +74,15 @@
                 "path": "/audio/jobs/ingest",
                 "permission": "audio_pipeline.view",
                 "assistant": false,
-                "description": "Inbox ingest (GET|POST). Auth: ?token= or X-Audio-Token. Optional importBrokenDate=1. Platform cron: audio_pipeline.ingest"
+                "description": "Enqueue inbox ingest (HTTP 202). Auth: ?token= or X-Audio-Token. Cron drain: audio_pipeline.ingest every 5m + ingest_nightly 02:00. Sync: /audio/jobs/ingest/run"
+            },
+            {
+                "id": "audio_pipeline.jobs.ingest_run",
+                "method": "GET",
+                "path": "/audio/jobs/ingest/run",
+                "permission": "audio_pipeline.view",
+                "assistant": false,
+                "description": "Sync inbox ingest (blocking). Optional importBrokenDate=1"
             },
             {
                 "id": "audio_pipeline.jobs.stem",
@@ -80,7 +90,15 @@
                 "path": "/audio/jobs/stem",
                 "permission": "audio_pipeline.view",
                 "assistant": false,
-                "description": "Cron stem/lemma job (X-Audio-Token)"
+                "description": "Enqueue stem/day (HTTP 202, day=YYYY-MM-DD). Cron: audio_pipeline.stem every 5m + stem_nightly. Sync/reset/score: /audio/jobs/stem/run"
+            },
+            {
+                "id": "audio_pipeline.jobs.stem_run",
+                "method": "POST",
+                "path": "/audio/jobs/stem/run",
+                "permission": "audio_pipeline.view",
+                "assistant": false,
+                "description": "Sync stem/collect/publish (blocking); reset=1, score=1"
             },
             {
                 "id": "audio_pipeline.jobs.collect",
@@ -94,7 +112,9 @@
     },
     "jobs": [
         "GET|POST /audio/jobs/ingest",
+        "GET|POST /audio/jobs/ingest/run",
         "GET|POST /audio/jobs/stem",
+        "GET|POST /audio/jobs/stem/run",
         "GET|POST /audio/jobs/collect"
     ],
     "menu": [],

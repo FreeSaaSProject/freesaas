@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 /**
  * Staff UI: immediate inbox → base_records ingest (oper gens/recordParser.php).
- * Cron equivalent: /audio/jobs/ingest (token).
+ * Token enqueue: /audio/jobs/ingest; sync: /audio/jobs/ingest/run.
  */
 if (!Auth::can('audio.edit')) {
     http_response_code(403);

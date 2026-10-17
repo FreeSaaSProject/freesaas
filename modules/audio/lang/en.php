@@ -247,7 +247,7 @@ return [
     'audio.settings.worker_token.copy_prompt' => 'Copy the token:',
     'audio.settings.worker_token.asr_required' => 'Module asr is not loaded — worker token UI unavailable.',
     'audio.settings.ingest_url.title' => 'Ingest URL (uploader)',
-    'audio.settings.ingest_url.help' => 'GET after files land in the inbox. Paste into the uploader as-is (token is already in the URL). Platform backup: cron at 02:00.',
+    'audio.settings.ingest_url.help' => 'GET after files land in the inbox (queues work, HTTP 202). Paste into the uploader as-is. Cron drains every ~5 min; nightly 02:00 force. Sync: /audio/jobs/ingest/run.',
     'audio.settings.ingest_url.btn_copy' => 'Copy link',
     'audio.user_edit.analytics' => 'Audio analytics',
     'audio.badge.gate.title_forced' => 'Choose your badge for audio analytics',
