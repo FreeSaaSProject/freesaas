@@ -625,6 +625,54 @@ final class LikespaLegacyApi
                 ];
             }
         }
+        // Legacy api.php: map keyed by procedure id (Android ClientResponse.procedures).
+        $procs = [];
+        if (class_exists(ProceduresRepository::class, false)) {
+            $listed = ProceduresRepository::list([
+                'id_user' => (int)$client['id'],
+                'skip_viewer_scope' => true,
+                'skip_total' => true,
+                'order' => 'p.DTSTART DESC',
+                'limit' => 100,
+            ]);
+            foreach ($listed['items'] as $row) {
+                $pid = (string)(int)($row['id'] ?? 0);
+                if ($pid === '0') {
+                    continue;
+                }
+                $procs[$pid] = [
+                    'DTCREATE' => (int)($row['dtcreate'] ?? 0),
+                    'DTSTART' => (int)($row['dtstart'] ?? 0),
+                    'DTEND' => (int)($row['dtend'] ?? 0),
+                    'DTEND_PLAN' => (int)($row['dtend_plan'] ?? 0),
+                    'ID_OPERATOR' => (int)($row['id_operator'] ?? 0),
+                    'ID_ADMIN' => (int)($row['id_admin'] ?? 0),
+                    'ID_GOOD' => (int)($row['id_good'] ?? 0),
+                    'ID_TABLE' => (int)($row['id_table'] ?? 0),
+                    'ID_TERMINAL' => (int)($row['id_terminal'] ?? 0),
+                    'TYPE' => (int)($row['type'] ?? 0),
+                    'SUMM' => (string)($row['summ'] ?? '0'),
+                    'SUMM_DEFAULT' => (string)($row['summ_default'] ?? '0'),
+                    'NOTICE' => (string)($row['notice'] ?? ''),
+                    'ENABLED' => (string)(int)($row['enabled'] ?? 0),
+                    'TOKEN' => (string)($row['token'] ?? ''),
+                    '1C_ID' => (string)($row['onec_id'] ?? ''),
+                    '1C_BRACELET' => (string)($row['onec_bracelet'] ?? ''),
+                    'RESTORED' => (string)(int)($row['restored'] ?? 0),
+                ];
+            }
+        }
+        $onecId = '';
+        $onecDtValid = '';
+        if (class_exists(ClientOnecBindingsRepository::class, false)
+            && ClientOnecBindingsRepository::tableReady()
+        ) {
+            $bind = ClientOnecBindingsRepository::findByClientId((int)$client['id']);
+            if ($bind !== null) {
+                $onecId = (string)($bind['onec_id'] ?? '');
+                $onecDtValid = (string)(int)($bind['dt_valid'] ?? 0);
+            }
+        }
         return [
             'id' => (string)(int)$client['id'],
             'name' => (string)($client['name'] ?? ''),
@@ -632,10 +680,10 @@ final class LikespaLegacyApi
             'bday' => (string)($client['bday'] ?? ''),
             'status' => (string)($client['status_id'] ?? $client['status'] ?? '0'),
             'BONUS' => (float)($client['bonus'] ?? 0),
-            'procedures' => new stdClass(),
+            'procedures' => $procs === [] ? new stdClass() : $procs,
             'orders' => $orders === [] ? new stdClass() : $orders,
-            '1C_ID' => '',
-            '1C_DT_VALID' => '',
+            '1C_ID' => $onecId,
+            '1C_DT_VALID' => $onecDtValid,
             '1C_BRACELET' => '',
             'ID_USER' => '',
         ];

@@ -80,6 +80,7 @@ Endpoints: Termy subset plus `cancel_booking`, `free_terminal`, `get_employee_st
 | Endpoint | Notes |
 |----------|--------|
 | `health` | `status: "OK"` (uppercase; Termy keeps `"ok"`) |
+| `get_client` | Map: `procedures` keyed by procedure id (legacy `DTSTART`/`ID_GOOD`/`ENABLED`/`TOKEN`/`1C_ID`…); empty → `{}`. `1C_ID`/`1C_DT_VALID` from `base_client_onec_bindings` when present |
 | `get_categories` | **Map** keyed by id: `id`, `name`, `num`, `parent_to`, `contentstart`, `NO_CART` |
 | `get_services` | **Map** keyed by id: `id`, `category`, `id1c`, descriptions; `addons`/`upgrades` = **arrays** `[{id,benefit}]` (not object-maps); `is_addon` int `0`/`1`. Filter enabled + non-material + non-empty `onec_id`. `duration` = chill-capped booking span. Top-level `work_hours` = salon hours. Optional `include_booking_eligibility=true` → top-level `booking_eligibility` map `{serviceId: bookable\|no_masters\|no_time_slots}`. Promo query → `promo.valid=false` |
 | `get_personnel` | Empty `date` → today; always `massage_therapists` / `equipment` / `administrators`; `gender` int `0`. Therapists may include `price_col` / `shift_end` (informational); **slots stay salon-window**, not clipped to shift I |
