@@ -45,6 +45,8 @@ final class CalendarDayStats
                 'my_only' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
                 'can_money' => Auth::capability('SUPERADMIN_ACCESS')
                     || Auth::capability('EVT_MONEY_DATA'),
+                'can_contact' => Auth::capability('SUPERADMIN_ACCESS')
+                    || Auth::capability('EVT_CONTACT_DATA'),
                 'can_see_others' => Auth::capability('SUPERADMIN_ACCESS')
                     || Auth::capability('CAN_SEE_SUM_OTHERS'),
                 'is_super' => Auth::capability('SUPERADMIN_ACCESS'),

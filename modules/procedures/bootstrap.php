@@ -204,7 +204,7 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                 if ((float)$p['salary_fix'] > 0) {
                     $pushBit('Ф', (float)$p['salary_fix']);
                 }
-                if ((float)$p['salary'] > 0 && $isSuper) {
+                if ((float)$p['salary'] > 0 && ($canMoney || $isSuper)) {
                     $pushBit('', (float)$p['salary']);
                 }
                 if ((float)$p['salary_terminal'] > 0) {
@@ -285,7 +285,7 @@ EventBus::on('calendar.day.stats', static function ($payload) {
                     'promoCount' => (int)$stats['promo_count'],
                     'restored' => (float)$stats['restored'],
                     'salaryTotal' => $salaryTotal,
-                    'showSalary' => $isSuper && $salaryTotal > 0,
+                    'showSalary' => ($canMoney || $isSuper) && $salaryTotal > 0,
                 ], 'procedures'),
                 'data' => [
                     'revenue' => (float)$stats['revenue'],

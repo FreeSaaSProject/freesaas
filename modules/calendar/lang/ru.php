@@ -119,6 +119,7 @@ return [
     'calendar.widget.board.title' => 'Доска дня',
     'calendar.widget.board.empty' => 'На сегодня пока пусто',
     'calendar.widget.board.order' => 'Заказ',
+    'calendar.day.order_unassigned' => 'Специалист не назначен',
     'calendar.settings.lede' => 'Рабочие часы и создание событий. Только для суперадминистратора.',
     'calendar.settings.work_hours' => 'Рабочие часы календаря',
     'calendar.settings.work_hours_hint' => 'Ось времени в календаре (включительно). Источник: base_system.work_hour_start / work_hour_end.',

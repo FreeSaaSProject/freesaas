@@ -178,8 +178,9 @@ final class CalendarTimeline
     }
 
     /**
-     * Chip-lane operator ids in the same order as the top shift badges.
-     * Only staff who have events/procedures/orders get a lane; off-shift chip ops append last.
+     * Chip-lane operator ids: only staff who have events/procedures/orders (used width).
+     * Order follows top shift badges when on shift; off-shift chip ops append last.
+     * Empty shift badges do not get a lane — columns fill available width.
      *
      * @param list<array<string,mixed>> $shifts WorkweeksRepository::listForDay rows (already group-sorted)
      * @param list<array<string,mixed>> ...$itemLists events, procedures, orders
@@ -250,6 +251,23 @@ final class CalendarTimeline
         $width = (float)($stacks['width'] ?? 95);
         $lefts = $stacks['lefts'] ?? [0 => 0.0];
         $chips = [];
+        $canContact = Auth::capability('SUPERADMIN_ACCESS')
+            || Auth::capability('EVT_CONTACT_DATA');
+        $isToday = date('Y-m-d', $dayStart) === date('Y-m-d');
+        $showEventPhone = $canContact && $isToday;
+        $showOrderPhone = $canContact;
+
+        $cosmIds = [];
+        foreach ($orders as $ord) {
+            $cid = (int)($ord['id_cosmetolog'] ?? $ord['id_operator'] ?? 0);
+            if ($cid > 0) {
+                $cosmIds[$cid] = true;
+            }
+        }
+        $cosmNames = [];
+        if ($cosmIds !== [] && class_exists(UsersRepository::class, false)) {
+            $cosmNames = UsersRepository::staffNamesIncluding(array_keys($cosmIds));
+        }
 
         foreach ($procedures as $pr) {
             $op = (int)($pr['id_operator'] ?? 0);
@@ -311,7 +329,11 @@ final class CalendarTimeline
                     ? t('calendar.day.block')
                     : ((int)($ev['id_user'] ?? 0) > 0 ? ('#' . (int)$ev['id_user']) : ('#' . (int)$ev['id']));
             }
+            $phone = trim((string)($ev['phone'] ?? ''));
             $label = date('H:i', (int)$ev['dtstart']) . '–' . date('H:i', (int)$ev['dtend']) . ' ' . $client;
+            if (!$isBlock && $showEventPhone && $phone !== '') {
+                $label .= ' ' . $phone;
+            }
             $color = $colors[$op] ?? ['bg' => 'var(--accent-soft)', 'fg' => 'var(--text)'];
             if ($isBlock) {
                 $safeBg = self::safeCssColor($color['bg'], '#444');
@@ -327,8 +349,8 @@ final class CalendarTimeline
                 . ($isBlock ? ' · ' . t('calendar.day.block') : '') . '</div>'
                 . '<div>' . date('H:i', (int)$ev['dtstart']) . ' – ' . date('H:i', (int)$ev['dtend']) . '</div>'
                 . '<div>' . $client . '</div>';
-            if (!empty($ev['phone'])) {
-                $info .= '<div class="muted">' . (string)$ev['phone'] . '</div>';
+            if (!$isBlock && $showEventPhone && $phone !== '') {
+                $info .= '<div class="muted">' . $phone . '</div>';
             }
             if (!empty($ev['operator_name'])) {
                 $info .= '<div class="muted">' . (string)$ev['operator_name'] . '</div>';
@@ -366,14 +388,44 @@ final class CalendarTimeline
             $pos = self::position($dayStart, $ts, $end);
             $phone = trim((string)($ord['phone'] ?? ''));
             $status = trim((string)($ord['status'] ?? ''));
+            $cosmName = $op > 0 ? trim((string)($cosmNames[$op] ?? '')) : '';
+            $cartSummary = self::orderCartSummary($ord);
+
             $label = date('H:i', $ts) . ' ' . t('calendar.widget.board.order');
-            if ($phone !== '') {
+            if ($cartSummary['short'] !== '') {
+                $label .= ' ' . $cartSummary['short'];
+            }
+            if ($cosmName !== '') {
+                $label .= ' · ' . $cosmName;
+            }
+            if ($showOrderPhone && $phone !== '') {
                 $label .= ' ' . $phone;
             }
+
+            $laneOk = $op > 0 && array_key_exists($op, $lefts);
+            $chipLeft = $laneOk ? (float)$lefts[$op] : 2.0;
+            $chipWidth = $laneOk ? $width : 96.0;
+            // Use specialist colors when known (same as procs/events); amber only if unassigned.
+            if ($op > 0 && isset($colors[$op])) {
+                $chipBg = (string)$colors[$op]['bg'];
+                $chipFg = (string)$colors[$op]['fg'];
+            } else {
+                $chipBg = 'rgba(251, 191, 36, 0.28)';
+                $chipFg = 'var(--text)';
+            }
+
             $info = '<div class="calendar-info-head">' . t('calendar.widget.board.order')
                 . ' #' . (int)($ord['id'] ?? 0) . '</div>'
                 . '<div>' . date('H:i', $ts) . ' – ' . date('H:i', $end) . '</div>';
-            if ($phone !== '') {
+            if ($cosmName !== '') {
+                $info .= '<div>' . $cosmName . '</div>';
+            } elseif (!$laneOk) {
+                $info .= '<div class="muted">' . t('calendar.day.order_unassigned') . '</div>';
+            }
+            foreach ($cartSummary['names'] as $svc) {
+                $info .= '<div class="muted">' . $svc . '</div>';
+            }
+            if ($showOrderPhone && $phone !== '') {
                 $info .= '<div>' . $phone . '</div>';
             }
             if ($status !== '') {
@@ -388,10 +440,10 @@ final class CalendarTimeline
                 'href' => '/orders/' . (int)($ord['id'] ?? 0) . '/edit',
                 'top' => $pos['top'],
                 'height' => $pos['height'],
-                'left' => $lefts[$op] ?? ($lefts[0] ?? 0.0),
-                'width' => $width,
-                'bg' => 'rgba(251, 191, 36, 0.45)',
-                'fg' => 'var(--text)',
+                'left' => $chipLeft,
+                'width' => $chipWidth,
+                'bg' => $chipBg,
+                'fg' => $chipFg,
                 'is_block' => false,
                 'label' => $label,
                 'title' => $label,
@@ -400,6 +452,41 @@ final class CalendarTimeline
         }
 
         return $chips;
+    }
+
+    /**
+     * Short cart labels for advance-order chips (no fake procedure chips).
+     *
+     * @param array<string,mixed> $ord
+     * @return array{short:string,names:list<string>}
+     */
+    private static function orderCartSummary(array $ord): array
+    {
+        $empty = ['short' => '', 'names' => []];
+        if (!class_exists(OrdersRepository::class, false)) {
+            return $empty;
+        }
+        $lines = OrdersRepository::enrichCartNames(
+            OrdersRepository::decodeCart((string)($ord['cart'] ?? ''))
+        );
+        $names = [];
+        foreach ($lines as $line) {
+            $n = trim((string)($line['name'] ?? ''));
+            if ($n === '' && (int)($line['id'] ?? 0) > 0) {
+                $n = '#' . (int)$line['id'];
+            }
+            if ($n !== '') {
+                $names[] = $n;
+            }
+        }
+        if ($names === []) {
+            return $empty;
+        }
+        $short = $names[0];
+        if (count($names) > 1) {
+            $short .= ' +' . (count($names) - 1);
+        }
+        return ['short' => $short, 'names' => $names];
     }
 
     /**

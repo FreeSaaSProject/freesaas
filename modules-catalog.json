@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-16T15:42:49+00:00",
+    "generated_at": "2026-10-17T04:41:24+00:00",
     "modules": [
         {
             "id": "asr",
@@ -107,7 +107,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "0.1.30",
+            "version": "0.1.31",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -207,7 +207,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.18",
+            "version": "0.3.23",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -481,7 +481,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.19",
+            "version": "0.1.22",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -1119,7 +1119,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.16",
+            "version": "0.1.17",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1282,7 +1282,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "0.1.9",
+            "version": "0.1.11",
             "type": "product",
             "name": {
                 "en": "Staff reports",

@@ -119,6 +119,7 @@ return [
     'calendar.widget.board.title' => 'Day board',
     'calendar.widget.board.empty' => 'Nothing on the board for today',
     'calendar.widget.board.order' => 'Order',
+    'calendar.day.order_unassigned' => 'No specialist assigned',
     'calendar.settings.lede' => 'Work hours and event creation. Superadministrator only.',
     'calendar.settings.work_hours' => 'Calendar working hours',
     'calendar.settings.work_hours_hint' => 'Timeline axis in the calendar (inclusive). Source: base_system.work_hour_start / work_hour_end.',
