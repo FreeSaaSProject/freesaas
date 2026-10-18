@@ -166,4 +166,6 @@ return [
     'finance.funds.cash_in_funds' => 'Накоплено в фондах денег',
     'finance.funds.cash_accounts' => 'Остатки по счетам',
     'finance.funds.coverage' => 'Процент покрытия',
+    'finance.assistant.hint' => 'Баланс / ОПиУ — только через finance.balance, путь /finance/balance (не /finance).',
+    'finance.assistant.hint_absent' => 'Экранов Баланс / ОПиУ / ОДДС в tools нет — не выдумывай их URL. Не упоминай эти разделы, пока пользователь сам о них не спросит; если спросит — коротко: нет инструмента, без перечня чужих прав.',
 ];

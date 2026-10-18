@@ -24,6 +24,7 @@ $assert(Csrf::isExemptPath('/agent/bootstrap'), 'exempt agent');
 $assert(!Csrf::isExemptPath('/agents'), 'not exempt /agents');
 $assert(!Csrf::isExemptPath('/agent-ops'), 'not exempt /agent-ops');
 $assert(Csrf::isExemptPath('/bots/webhook/telegram/x'), 'exempt bots webhook');
+$assert(Csrf::isExemptPath('/assistant-groups/webhook/max'), 'exempt assistant_groups webhook');
 $assert(Csrf::isExemptPath('/oauth/token'), 'exempt oauth');
 $assert(Csrf::isExemptPath('/llm/mcp'), 'exempt mcp');
 $assert(Csrf::isExemptPath('/cron/tick'), 'exempt cron tick');

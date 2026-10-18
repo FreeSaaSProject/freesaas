@@ -2,7 +2,7 @@
     "id": "finance",
     "name": "finance.module.name",
     "description": "finance.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "catalog": {
         "categories": [
@@ -61,7 +61,9 @@
     "tables": [],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "assistant.system.hints"
+        ],
         "publish": []
     }
 }

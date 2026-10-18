@@ -248,10 +248,17 @@ final class BotWebhook
 
         // Group messages: never run dialog link/cabinet UX here — group plugins decide.
         if ($isGroup) {
+            $linkMeta = class_exists('AssistantGroupsInbound', false) && is_array($msg)
+                ? AssistantGroupsInbound::extractReplyLink($msg)
+                : ['mid' => self::maxReplyToMid($msg), 'type' => '', 'sender_id' => '', 'sender_is_bot' => false];
             self::processInbound($cfg, 'max', $chatId, $user, $text !== '' ? 'text' : 'message', [
                 'text' => $text,
                 'from_user_id' => $fromUserId,
                 'is_group' => true,
+                'reply_to_mid' => (string)($linkMeta['mid'] ?? ''),
+                'reply_link_type' => (string)($linkMeta['type'] ?? ''),
+                'reply_link_sender_id' => (string)($linkMeta['sender_id'] ?? ''),
+                'reply_link_sender_is_bot' => !empty($linkMeta['sender_is_bot']),
                 'raw' => $msg,
             ]);
             return;
@@ -311,6 +318,32 @@ final class BotWebhook
             'is_group' => false,
             'raw' => $msg,
         ]);
+    }
+
+    /** @param array<string,mixed>|null $msg */
+    private static function maxReplyToMid(?array $msg): string
+    {
+        if ($msg === null) {
+            return '';
+        }
+        $link = is_array($msg['link'] ?? null) ? $msg['link'] : null;
+        if ($link === null) {
+            return '';
+        }
+        $linked = is_array($link['message'] ?? null) ? $link['message'] : null;
+        if ($linked !== null) {
+            $mid = (string)($linked['body']['mid'] ?? $linked['body']['message_id'] ?? $linked['mid'] ?? '');
+            if ($mid !== '') {
+                return $mid;
+            }
+        }
+        foreach (['mid', 'message_id', 'messageId'] as $k) {
+            $v = trim((string)($link[$k] ?? ''));
+            if ($v !== '') {
+                return $v;
+            }
+        }
+        return '';
     }
 
     /**
@@ -401,6 +434,10 @@ final class BotWebhook
                 'text' => (string)($extra['text'] ?? ''),
                 'message_id' => $mid,
                 'from_user_id' => (string)($extra['from_user_id'] ?? ''),
+                'reply_to_mid' => (string)($extra['reply_to_mid'] ?? ''),
+                'reply_link_type' => (string)($extra['reply_link_type'] ?? ''),
+                'reply_link_sender_id' => (string)($extra['reply_link_sender_id'] ?? ''),
+                'reply_link_sender_is_bot' => !empty($extra['reply_link_sender_is_bot']),
                 'is_group' => $isGroup,
                 'raw' => $extra['raw'] ?? null,
                 'handled' => false,

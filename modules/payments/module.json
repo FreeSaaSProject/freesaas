@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "0.1.15",
+    "version": "0.1.16",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -172,7 +172,8 @@
             "ledger.moves.edit.sections",
             "ledger.moves.deleted",
             "ledger.moves.badges",
-            "assistant.write.preview"
+            "assistant.write.preview",
+            "assistant.system.hints"
         ],
         "publish": []
     },

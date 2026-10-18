@@ -74,5 +74,8 @@ return [
     'assistant_groups.bot.no_pending' => 'No draft to confirm in this chat.',
     'assistant_groups.bot.no_ops' => 'Group command allowlist (group_ops) is empty in settings.',
     'assistant_groups.bot.dm_only' => 'I can only help with this in a private chat.',
-    'assistant_groups.bot.system_extra' => 'You are in a Max staff group. Use only available tools. Write tools queue a draft for a manager — never claim the change already ran. If the request is outside tools, say you can only help in private chat.',
+    'assistant_groups.bot.cleared' => 'Group context cleared. Start a new task.',
+    'assistant_groups.bot.system_extra' => "You are in a staff group. This chat’s history is one conversation: keep names, date, and intent.\nFollow-ups without a new @ continue the same task.\nWrite tools only queue a manager confirm; never claim it is already applied.\nOutside tools — private chat only.\n«What can you do» — only tools in this request; do not list modules that are not in the tool list.",
+    'assistant_groups.bot.user_prefix' => '{name}: ',
+    'assistant_groups.bot.reply_prefix' => '[reply to the previous assistant message] ',
 ];

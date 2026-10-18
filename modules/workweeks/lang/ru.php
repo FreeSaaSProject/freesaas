@@ -144,4 +144,5 @@ return [
     'workweeks.assistant.field.price_col' => 'Смена',
     'workweeks.assistant.field.mas_max' => 'Макс. массажей',
     'workweeks.assistant.field.id_table' => 'Стол',
+    'workweeks.assistant.hint' => 'Смены: при «кто/поменяй/убери/поставь на день» сначала CALL workweeks.day(date) (или list с date_from/date_to). Имена вроде «Даша»/«Таня» резолви по operator_name в сменах этого дня; если на день одна Даша и одна Таня — это однозначно, сразу queue update (поменять price_col/местами). Фамилию/ID спрашивай только если в результате дня ≥2 человека с одним именем. core.users.list(q) — доп. поиск staff, не замена day-roster.',
 ];

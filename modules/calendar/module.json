@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.1.31",
+    "version": "0.1.32",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -162,7 +162,8 @@
         "subscribe": [
             "core.dashboard.catalog",
             "core.dashboard.widgets",
-            "assistant.write.preview"
+            "assistant.write.preview",
+            "assistant.system.hints"
         ],
         "publish": [
             "calendar.day.stats",

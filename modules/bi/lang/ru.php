@@ -147,4 +147,6 @@ return [
 
     'bi.cron.expire' => 'Просрочка ссылок БизнесАналитики',
     'bi.perm.delete' => 'Удаление семейств отчётов',
+    'bi.assistant.hint' => 'Отчёты BI: CALL bi.families.list; ссылки только из open_url (/bi/run?family=…).',
+    'bi.assistant.hint_no_shares' => 'Страница управления шарингом (/bi/shares) — не ссылка на отчёт; для staff не предлагай её.',
 ];

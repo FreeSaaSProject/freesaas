@@ -76,7 +76,8 @@ final class AssistantHarness
             ? $opts['tool_stubs']
             : [];
 
-        $system = self::buildSystemPrompt($ops);
+        $groupMode = !empty($opts['group_mode']);
+        $system = self::buildSystemPrompt($ops, $groupMode);
         if (isset($opts['page_context']) && is_array($opts['page_context']) && $opts['page_context'] !== []
             && class_exists('AssistantPageContext', false)
         ) {
@@ -92,7 +93,6 @@ final class AssistantHarness
         if ($systemExtra !== '') {
             $system .= "\n" . $systemExtra;
         }
-        $groupMode = !empty($opts['group_mode']);
         $confirmMode = strtolower(trim((string)($opts['confirm_mode'] ?? ($groupMode ? 'capability' : 'self'))));
         if ($confirmMode !== 'capability') {
             $confirmMode = 'self';
@@ -540,41 +540,59 @@ final class AssistantHarness
         return '❌ ' . $title . ($err !== '' ? ' — ' . $err : '');
     }
 
-    /** Localized compact title: «Счета · поиск». */
+    /**
+     * Localized compact title: «Счета · поиск».
+     * Place labels live in the owning module:
+     *   {mod}.assistant.area.{area} → {mod}.assistant.tool_title → {mod}.module.name
+     * Exact override (rare): {mod}.assistant.op.{fullOpId} or assistant.tool.op.{fullOpId}
+     * Action verbs (list/get/…) stay in assistant.tool.act.*
+     */
     public static function humanOpTitle(string $opId): string
     {
         $opId = trim($opId);
         if ($opId === '') {
             return '';
         }
-        $exactKey = 'assistant.tool.op.' . $opId;
-        $exact = t($exactKey);
-        if ($exact !== $exactKey) {
-            return $exact;
-        }
         $parts = explode('.', $opId);
         $mod = (string)($parts[0] ?? '');
+
+        foreach ([
+            $mod !== '' ? $mod . '.assistant.op.' . $opId : '',
+            'assistant.tool.op.' . $opId,
+        ] as $exactKey) {
+            if ($exactKey === '') {
+                continue;
+            }
+            $exact = t($exactKey);
+            if ($exact !== $exactKey) {
+                return $exact;
+            }
+        }
+
         $action = (string)(end($parts) ?: '');
         $area = count($parts) >= 3 ? (string)$parts[1] : '';
 
-        $areaKey = $area !== '' ? 'assistant.tool.area.' . $mod . '.' . $area : '';
-        $modKey = 'assistant.tool.mod.' . $mod;
         $place = '';
-        if ($areaKey !== '') {
+        if ($mod !== '' && $area !== '') {
+            $areaKey = $mod . '.assistant.area.' . $area;
             $place = t($areaKey);
             if ($place === $areaKey) {
                 $place = '';
             }
         }
-        if ($place === '') {
-            $place = t($modKey);
-            if ($place === $modKey) {
+        if ($place === '' && $mod !== '') {
+            $shortKey = $mod . '.assistant.tool_title';
+            $place = t($shortKey);
+            if ($place === $shortKey) {
                 $modNameKey = $mod . '.module.name';
                 $place = t($modNameKey);
                 if ($place === $modNameKey) {
-                    $place = $mod !== '' ? $mod : $opId;
+                    $place = $mod;
                 }
             }
+        }
+        if ($place === '') {
+            $place = $opId;
         }
 
         $actKey = 'assistant.tool.act.' . $action;
@@ -1430,7 +1448,7 @@ final class AssistantHarness
      *
      * @param list<array<string,mixed>> $ops
      */
-    public static function buildSystemPrompt(array $ops): string
+    public static function buildSystemPrompt(array $ops, bool $groupMode = false): string
     {
         $company = class_exists('SystemRepository', false)
             ? trim(SystemRepository::companyName())
@@ -1451,7 +1469,7 @@ final class AssistantHarness
         $system .= "\nToday is {$today}. Yesterday is {$yesterday}. Tomorrow is {$tomorrow}.";
         $system .= "\nCall several read tools in one step when useful. After a write is queued for confirmation, stop — do not keep searching.";
         $system .= "\n" . t('assistant.system_prompt.totals');
-        $system .= self::scopedHintsForOps($ops);
+        $system .= self::scopedHintsForOps($ops, $groupMode);
         if (class_exists('AssistantLinks', false)) {
             $base = AssistantLinks::base();
             if ($base !== '') {
@@ -1469,13 +1487,14 @@ final class AssistantHarness
     }
 
     /**
-     * Module-specific prompt lines only when the matching tool is in THIS catalog.
-     * Keeps inaccessible products (finance, BI, …) out of the system message.
+     * Collect module-owned prompt hints via EventBus `assistant.system.hints`.
+     * Owning modules append lines when their tools are in the catalog (or absent-guards).
      * Public for AssistantEval deterministic checks.
      *
      * @param list<array<string,mixed>> $ops
+     * @param bool $groupMode group channel: modules should omit «product absent» leaks
      */
-    public static function scopedHintsForOps(array $ops): string
+    public static function scopedHintsForOps(array $ops, bool $groupMode = false): string
     {
         $ids = [];
         foreach ($ops as $op) {
@@ -1484,36 +1503,19 @@ final class AssistantHarness
                 $ids[$id] = true;
             }
         }
-        $hasPrefix = static function (string $prefix) use ($ids): bool {
-            foreach ($ids as $id => $_true) {
-                if ($id === $prefix || strpos($id, $prefix . '.') === 0) {
-                    return true;
-                }
-            }
-            return false;
-        };
-
+        $payload = EventBus::emit('assistant.system.hints', [
+            'op_ids' => $ids,
+            'ops' => $ops,
+            'group_mode' => $groupMode,
+            'hints' => [],
+        ]);
+        $raw = is_array($payload) && is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
         $lines = [];
-        if ($hasPrefix('payments')) {
-            $lines[] = t('assistant.system_prompt.hint.fot');
-        }
-        if (isset($ids['finance.balance'])) {
-            $lines[] = t('assistant.system_prompt.hint.finance');
-        } else {
-            // No path literals here — det checks forbid /finance in hints without the tool.
-            $lines[] = t('assistant.system_prompt.hint.no_finance');
-        }
-        if (isset($ids['bi.families.list']) || isset($ids['bi.report.run'])) {
-            $lines[] = t('assistant.system_prompt.hint.bi');
-            if (!$hasPrefix('bi.share')) {
-                $lines[] = t('assistant.system_prompt.hint.bi_no_shares');
+        foreach ($raw as $line) {
+            $s = trim((string)$line);
+            if ($s !== '') {
+                $lines[] = $s;
             }
-        }
-        if ($hasPrefix('wellness')) {
-            $lines[] = t('assistant.system_prompt.hint.wellness');
-        }
-        if (isset($ids['workweeks.day']) || isset($ids['workweeks.list'])) {
-            $lines[] = t('assistant.system_prompt.hint.workweeks');
         }
         if ($lines === []) {
             return '';

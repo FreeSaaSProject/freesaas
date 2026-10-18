@@ -151,4 +151,5 @@ return [
     'calendar.assistant.preview.will' => 'Будет: {v}',
     'calendar.assistant.preview.create' => 'Создать: {v}',
     'calendar.assistant.preview.delete' => 'Удалить это событие',
+    'calendar.assistant.hint_block' => '«Блок» / «поставь блок» = событие календаря с is_block (calendar.events.create), не смена/замена в workweeks. Сначала CALL calendar.day для даты (и workweeks.day, если нужны люди в смене).',
 ];

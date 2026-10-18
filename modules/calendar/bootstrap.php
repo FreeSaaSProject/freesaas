@@ -17,6 +17,19 @@ EventBus::on('assistant.write.preview', static function ($payload) {
     return CalendarAssistantPreview::onWritePreview($payload);
 });
 
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $ids = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    if (isset($ids['calendar.events.create']) || isset($ids['calendar.day'])) {
+        $hints[] = t('calendar.assistant.hint_block');
+    }
+    $payload['hints'] = $hints;
+    return $payload;
+});
+
 Assets::register('calendar', [
     'css' => ['calendar.css'],
     'js' => ['calendar.js'],

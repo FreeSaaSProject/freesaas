@@ -2,7 +2,7 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.2.19",
+    "version": "0.2.21",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -1094,7 +1094,8 @@
     "hooks": {
         "subscribe": [
             "bots.ready",
-            "bots.voice.transcription_result"
+            "bots.voice.transcription_result",
+            "assistant.system.hints"
         ],
         "publish": []
     },

@@ -147,4 +147,6 @@ return [
 
     'bi.cron.expire' => 'Expire BI share links',
     'bi.perm.delete' => 'Delete BI families',
+    'bi.assistant.hint' => 'BI reports: CALL bi.families.list; link only open_url values (/bi/run?family=…).',
+    'bi.assistant.hint_no_shares' => 'The share-admin page (/bi/shares) is not a report link — do not offer it to staff.',
 ];

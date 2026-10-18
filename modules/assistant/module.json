@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.60",
+    "version": "0.1.64",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -118,7 +118,8 @@
         ],
         "publish": [
             "bots.send",
-            "assistant.write.preview"
+            "assistant.write.preview",
+            "assistant.system.hints"
         ]
     },
     "catalog": {

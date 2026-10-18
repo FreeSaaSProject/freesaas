@@ -72,7 +72,9 @@ final class AssistantGroupsBotHandler
         $payload['handled'] = true;
 
         $botMeta = self::botIdentity($token);
-        if (AssistantGroupsConfig::requireMention() && !self::isMentioned($text, $botMeta)) {
+        $isReplyToBot = self::isReplyToBot($chatId, $payload, $botMeta);
+        $mentioned = self::isMentioned($text, $botMeta);
+        if (AssistantGroupsConfig::requireMention() && !$mentioned && !$isReplyToBot) {
             return $payload;
         }
 
@@ -94,7 +96,17 @@ final class AssistantGroupsBotHandler
 
         $clean = self::stripMention($text, $botMeta);
         if ($clean === '') {
-            self::reply($token, $chatId, t('assistant_groups.bot.empty_after_mention'));
+            if ($isReplyToBot) {
+                // Bare reply with only a mention stripped — still empty.
+                self::reply($token, $chatId, t('assistant_groups.bot.empty_after_mention'));
+            }
+            return $payload;
+        }
+
+        if (self::looksLikeClearPhrase($clean)) {
+            AssistantGroupsDialog::clear($chatId);
+            self::cancelGroupPendings($chatId, $uid);
+            self::reply($token, $chatId, t('assistant_groups.bot.cleared'));
             return $payload;
         }
 
@@ -103,8 +115,38 @@ final class AssistantGroupsBotHandler
             return $payload;
         }
 
-        self::runDraft($token, $chatId, $uid, $user, $clean);
+        $speaker = trim((string)($user['name'] ?? $user['login'] ?? ''));
+        if ($speaker !== '') {
+            $clean = t('assistant_groups.bot.user_prefix', ['name' => $speaker]) . $clean;
+        }
+
+        self::runDraft($token, $chatId, $uid, $user, $clean, $isReplyToBot);
         return $payload;
+    }
+
+    private static function cancelGroupPendings(string $chatId, int $actorId): void
+    {
+        if (!class_exists('PendingActionsRepository', false) || !class_exists('AssistantHarness', false)) {
+            return;
+        }
+        for ($i = 0; $i < 10; $i++) {
+            $row = PendingActionsRepository::findLatestPendingForGroup($chatId, 'max');
+            if ($row === null) {
+                return;
+            }
+            $pendingToken = (string)($row['TOKEN'] ?? '');
+            if ($pendingToken === '') {
+                return;
+            }
+            try {
+                Auth::runAs($actorId, static function () use ($pendingToken, $actorId) {
+                    return AssistantHarness::resolvePending($pendingToken, 'cancel', $actorId);
+                });
+            } catch (Throwable $e) {
+                error_log('[assistant_groups] clear pending: ' . $e->getMessage());
+                return;
+            }
+        }
     }
 
     /**
@@ -209,8 +251,14 @@ final class AssistantGroupsBotHandler
     /**
      * @param array<string,mixed> $user
      */
-    private static function runDraft(string $apiToken, string $chatId, int $uid, array $user, string $text): void
-    {
+    private static function runDraft(
+        string $apiToken,
+        string $chatId,
+        int $uid,
+        array $user,
+        string $text,
+        bool $isReplyToBot = false
+    ): void {
         $ops = AssistantGroupsCatalog::opsForGroup();
         if ($ops === []) {
             self::reply($apiToken, $chatId, t('assistant_groups.bot.no_ops'));
@@ -220,7 +268,11 @@ final class AssistantGroupsBotHandler
         $name = class_exists('AssistantConfig', false) ? AssistantConfig::displayName() : 'Assistant';
         self::reply($apiToken, $chatId, t('assistant_groups.bot.working', ['name' => $name]));
 
-        $history = [['role' => 'user', 'content' => $text]];
+        $history = AssistantGroupsDialog::getHistory($chatId);
+        if ($isReplyToBot && $history !== []) {
+            $text = t('assistant_groups.bot.reply_prefix') . $text;
+        }
+        $history[] = ['role' => 'user', 'content' => $text];
         $systemExtra = t('assistant_groups.bot.system_extra');
 
         try {
@@ -243,7 +295,10 @@ final class AssistantGroupsBotHandler
 
         if (empty($result['ok'])) {
             $err = (string)($result['error'] ?? t('assistant.chat.error'));
-            self::reply($apiToken, $chatId, $err);
+            $mid = self::reply($apiToken, $chatId, $err);
+            AssistantGroupsDialog::saveHistory($chatId, array_merge($history, [
+                ['role' => 'assistant', 'content' => $err],
+            ]), $mid);
             return;
         }
 
@@ -251,11 +306,13 @@ final class AssistantGroupsBotHandler
         $replyText = trim((string)($result['text'] ?? ''));
 
         if ($pending === []) {
-            // Model answered without a write — if they tried a non-allowlisted topic, hint DM.
             if ($replyText === '') {
                 $replyText = t('assistant_groups.bot.dm_only');
             }
-            self::reply($apiToken, $chatId, $replyText);
+            $mid = self::reply($apiToken, $chatId, $replyText);
+            AssistantGroupsDialog::saveHistory($chatId, array_merge($history, [
+                ['role' => 'assistant', 'content' => $replyText],
+            ]), $mid);
             return;
         }
 
@@ -280,9 +337,13 @@ final class AssistantGroupsBotHandler
                 'perm' => $perm !== '' ? $perm : '…',
             ]);
         }
+        $out = implode("\n\n", $lines);
         $firstToken = (string)($pending[0]['token'] ?? '');
         $kb = $firstToken !== '' ? self::confirmKeyboard($firstToken) : null;
-        self::reply($apiToken, $chatId, implode("\n\n", $lines), $kb);
+        $mid = self::reply($apiToken, $chatId, $out, $kb);
+        AssistantGroupsDialog::saveHistory($chatId, array_merge($history, [
+            ['role' => 'assistant', 'content' => $out],
+        ]), $mid);
     }
 
     /**
@@ -311,21 +372,35 @@ final class AssistantGroupsBotHandler
 
     /**
      * @param array{inline_keyboard?:list}|null $replyMarkup
+     * @return string|null sent Max message mid
      */
-    private static function reply(string $token, string $chatId, string $text, ?array $replyMarkup = null): void
+    private static function reply(string $token, string $chatId, string $text, ?array $replyMarkup = null): ?string
     {
         $text = trim($text);
         if ($text === '' || $token === '' || $chatId === '') {
-            return;
+            return null;
         }
         if (class_exists('BotClient', false)) {
-            BotClient::sendKeepMessage('max', $token, $chatId, $text, $replyMarkup, 'html');
-            return;
+            $res = BotClient::sendKeepMessage('max', $token, $chatId, $text, $replyMarkup, 'html');
+            $mid = BotClient::extractMessageId('max', is_array($res['data'] ?? null) ? $res['data'] : null);
+            if ($mid !== null && $mid !== '') {
+                AssistantGroupsDialog::rememberBotMid($chatId, $mid);
+                return $mid;
+            }
+            return null;
         }
-        MaxGroupSpike::request($token, 'POST', '/messages', ['chat_id' => $chatId], [
+        $res = MaxGroupSpike::request($token, 'POST', '/messages', ['chat_id' => $chatId], [
             'text' => $text,
             'format' => 'html',
         ]);
+        $mid = null;
+        if ($res['ok'] && is_array($res['data'] ?? null)) {
+            $mid = (string)($res['data']['message']['body']['mid'] ?? '');
+            if ($mid !== '') {
+                AssistantGroupsDialog::rememberBotMid($chatId, $mid);
+            }
+        }
+        return $mid !== '' ? $mid : null;
     }
 
     /** @return array{user_id:int,username:string,name:string} */
@@ -343,6 +418,43 @@ final class AssistantGroupsBotHandler
             'name' => (string)($d['first_name'] ?? $d['name'] ?? ''),
         ];
         return $cache;
+    }
+
+    /**
+     * Reply to our bot message (Max LinkedMessage.sender / stored mid), without @mention.
+     *
+     * @param array<string,mixed> $payload
+     * @param array{user_id:int,username:string,name:string} $bot
+     */
+    private static function isReplyToBot(string $chatId, array $payload, array $bot): bool
+    {
+        $linkType = strtolower(trim((string)($payload['reply_link_type'] ?? '')));
+        if ($linkType !== '' && $linkType !== 'reply') {
+            return false; // forward ≠ continue task
+        }
+
+        $botUid = (int)($bot['user_id'] ?? 0);
+        $linkSender = trim((string)($payload['reply_link_sender_id'] ?? ''));
+        if ($botUid > 0 && $linkSender !== '' && (int)$linkSender === $botUid) {
+            return true;
+        }
+        // LinkedMessage.sender.is_bot without id — accept reply when we already have group history.
+        if ($linkType === 'reply' && !empty($payload['reply_link_sender_is_bot'])
+            && AssistantGroupsDialog::getHistory($chatId) !== []) {
+            return true;
+        }
+
+        $replyToMid = trim((string)($payload['reply_to_mid'] ?? ''));
+        if ($replyToMid !== '' && AssistantGroupsDialog::isBotMessageMid($chatId, $replyToMid)) {
+            return true;
+        }
+
+        // Fallback: reply with mid while this group has an open dialog (mid store miss after deploy).
+        if ($linkType === 'reply' && $replyToMid !== '' && AssistantGroupsDialog::getHistory($chatId) !== []) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -392,6 +504,16 @@ final class AssistantGroupsBotHandler
         $lower = trim($lower);
         return (bool)preg_match(
             '/^(confirm|подтверд(ить|аю|ждаю)?|ок|ok|готово|делай|оформляй|записывай|согласен)$/iu',
+            $lower
+        );
+    }
+
+    private static function looksLikeClearPhrase(string $text): bool
+    {
+        $lower = function_exists('mb_strtolower') ? mb_strtolower($text, 'UTF-8') : strtolower($text);
+        $lower = trim($lower);
+        return (bool)preg_match(
+            '/^(clear|reset|очисти(ть)?|сброс(ить)?(\s+контекст)?|новый\s+диалог|заново)$/iu',
             $lower
         );
     }

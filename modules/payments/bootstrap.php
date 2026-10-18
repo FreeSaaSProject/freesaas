@@ -17,6 +17,22 @@ EventBus::on('assistant.write.preview', static function ($payload) {
     return PaymentsAssistantPreview::onWritePreview($payload);
 });
 
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $ids = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    foreach ($ids as $id => $_true) {
+        if ($id === 'payments' || strpos((string)$id, 'payments.') === 0) {
+            $hints[] = t('payments.assistant.hint_fot');
+            break;
+        }
+    }
+    $payload['hints'] = $hints;
+    return $payload;
+});
+
 StatusesRepository::registerFieldGroup([
     'title' => 'payments.statuses.group',
     'when' => 'payments',

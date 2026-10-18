@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.19",
+    "version": "0.2.20",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -251,7 +251,8 @@
     "hooks": {
         "subscribe": [
             "bots.ready",
-            "assistant.write.preview"
+            "assistant.write.preview",
+            "assistant.system.hints"
         ],
         "publish": []
     },

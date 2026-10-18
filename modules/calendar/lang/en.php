@@ -151,4 +151,5 @@ return [
     'calendar.assistant.preview.will' => 'Will be: {v}',
     'calendar.assistant.preview.create' => 'Create: {v}',
     'calendar.assistant.preview.delete' => 'Delete this event',
+    'calendar.assistant.hint_block' => '«Block» / «put a block» = a calendar event with is_block (calendar.events.create), not a workweeks shift swap. CALL calendar.day for the date first (and workweeks.day if you need who is on shift).',
 ];

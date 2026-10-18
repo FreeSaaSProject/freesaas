@@ -166,4 +166,6 @@ return [
     'finance.funds.cash_in_funds' => 'Cash accumulated in funds',
     'finance.funds.cash_accounts' => 'Account balances',
     'finance.funds.coverage' => 'Coverage %',
+    'finance.assistant.hint' => 'Balance / P&L / OPIU — only via finance.balance, path /finance/balance (not /finance).',
+    'finance.assistant.hint_absent' => 'Balance / P&L / OPIU / ODDS screens are not in your tools — do not invent URLs. Do not mention those areas unless the user asks; if they ask — briefly: no tool, without listing other people’s permissions.',
 ];

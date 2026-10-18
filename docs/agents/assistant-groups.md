@@ -26,6 +26,8 @@ UI: **Assistant groups** (`/assistant-groups/settings`, SUPERADMIN).
 
 **New groups:** Max does not list chats the bot is in. Keep webhook/poll live → add bot to the group → `bot_added` is stored under **Discovered** on settings → «Add to allowlist» (or enable `auto_add_groups`).
 
+**Context:** history is per group chat (`var/assistant_groups/dialogs/`), not personal DM history. A **reply** to the bot’s message (Max `link.type=reply`, sender = bot or known bot mid) continues the task without `@mention`. Mentions still start/continue the same chat thread. Reset: `@bot очисти` / `сброс` / `clear` (also cancels pending confirms for that group). Idle TTL 24h.
+
 Diagnose: `/assistant-groups/status`.
 
 ## Inbound paths

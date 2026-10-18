@@ -24,6 +24,22 @@ Assets::register('wellness', [
     'js' => ['wellness.js'],
 ]);
 
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $ids = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    foreach ($ids as $id => $_true) {
+        if (strpos((string)$id, 'wellness.') === 0) {
+            $hints[] = t('wellness.assistant.hint');
+            break;
+        }
+    }
+    $payload['hints'] = $hints;
+    return $payload;
+});
+
 ModuleManager::registerMenuGroup('wellness.menu.group', 650, '/wellness');
 
 $pages = [

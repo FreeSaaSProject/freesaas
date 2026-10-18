@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 return [
     'ledger.module.name' => 'Движения по счетам',
+    'ledger.assistant.tool_title' => 'Финансы',
+    'ledger.assistant.area.accounts' => 'Счета',
+    'ledger.assistant.area.moves' => 'Движения',
+    'ledger.assistant.area.types' => 'Типы движений',
     'ledger.module.description' => 'Счета компании, типы движений, ДПС, сверки и обещанные платежи.',
     'ledger.module.summary' => 'Включайте, когда нужна кассовая книга: счета компании, типы движений, ежедневные ДПС, сверки и обещанные платежи. Мягко связан с payments (авто-ДПС), suppliers, stickers и funds. Модули banks, funds, finance и liquid_assets требуют ledger. Выключайте только после отключения зависимых.',
     'ledger.menu.accounts' => 'Счета предприятия',

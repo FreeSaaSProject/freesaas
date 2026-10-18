@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 return [
     'wellness.module.name' => 'Здоровье и фитнес',
+    'wellness.assistant.tool_title' => 'Здоровье',
+    'wellness.assistant.area.foods' => 'Продукты',
+    'wellness.assistant.area.food_diary' => 'Дневник еды',
     'wellness.menu.group' => 'Здоровье и фитнес',
     'wellness.menu.calendar' => 'Календарь',
     'wellness.menu.food_diary' => 'Дневник еды',
@@ -211,4 +214,5 @@ return [
     'wellness.bot.voice_queued' => 'Голосовое принято. Расшифровываю и добавляю еду… Job: {id}',
     'wellness.bot.voice_asr_err' => 'Ошибка распознавания голосового: {error}',
     'wellness.perm.delete' => 'Удаление записей wellness',
+    'wellness.assistant.hint' => 'Еда: wellness.foods.list(q) → wellness.food_diary.create(food_id, weight) по одному на позицию (пачкой в одном шаге OK).',
 ];

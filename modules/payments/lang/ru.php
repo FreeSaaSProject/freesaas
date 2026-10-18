@@ -210,4 +210,5 @@ return [
     'payments.assistant.preview.type' => 'Тип: {v}',
     'payments.assistant.preview.type_create' => 'Новый тип: {v}',
     'payments.assistant.preview.type_id' => 'Тип #{v}',
+    'payments.assistant.hint_fot' => '«ФОТ» = фонд оплаты труда / зарплата (tool payments.*), никогда не «фото».',
 ];

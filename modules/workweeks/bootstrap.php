@@ -13,6 +13,19 @@ EventBus::on('assistant.write.preview', static function ($payload) {
     return WorkweeksAssistantPreview::onWritePreview($payload);
 });
 
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $ids = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    if (isset($ids['workweeks.day']) || isset($ids['workweeks.list'])) {
+        $hints[] = t('workweeks.assistant.hint');
+    }
+    $payload['hints'] = $hints;
+    return $payload;
+});
+
 Assets::register('workweeks', [
     'css' => ['workweeks.css'],
     'js' => ['workweeks.js'],

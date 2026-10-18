@@ -210,4 +210,5 @@ return [
     'payments.assistant.preview.type' => 'Type: {v}',
     'payments.assistant.preview.type_create' => 'New type: {v}',
     'payments.assistant.preview.type_id' => 'Type #{v}',
+    'payments.assistant.hint_fot' => '«ФОТ» means payroll / staff pay (payments.* tools), never «photos».',
 ];

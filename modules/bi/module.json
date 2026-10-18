@@ -2,7 +2,7 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "0.2.14",
+    "version": "0.2.15",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -368,7 +368,9 @@
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "assistant.system.hints"
+        ],
         "publish": []
     },
     "catalog": {

@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 return [
     'ledger.module.name' => 'Account ledger',
+    'ledger.assistant.tool_title' => 'Finance',
+    'ledger.assistant.area.accounts' => 'Accounts',
+    'ledger.assistant.area.moves' => 'Moves',
+    'ledger.assistant.area.types' => 'Move types',
     'ledger.module.description' => 'Company accounts, move types, account moves (ДПС), reconciliations, and promised payments.',
     'ledger.module.summary' => 'Enable when you need the double-entry style cash journal: company accounts, move types, daily account moves (ДПС), reconciliations, and promised payments. Soft-depends on payments (auto-DPS), suppliers, stickers, and funds. Other finance modules (banks, funds, finance reports, liquid assets) require ledger. Disable only after dependents are off.',
     'ledger.menu.accounts' => 'Company accounts',

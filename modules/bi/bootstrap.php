@@ -21,6 +21,29 @@ require_once __DIR__ . '/lib/ReportRegistry.php';
 require_once __DIR__ . '/lib/BiShiftLanes.php';
 require_once __DIR__ . '/lib/BiFilterOptions.php';
 
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $ids = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    if (isset($ids['bi.families.list']) || isset($ids['bi.report.run'])) {
+        $hints[] = t('bi.assistant.hint');
+        $hasShare = false;
+        foreach ($ids as $id => $_true) {
+            if (strpos((string)$id, 'bi.share') === 0) {
+                $hasShare = true;
+                break;
+            }
+        }
+        if (!$hasShare) {
+            $hints[] = t('bi.assistant.hint_no_shares');
+        }
+    }
+    $payload['hints'] = $hints;
+    return $payload;
+});
+
 Assets::register('bi', [
     'css' => ['bi.css'],
     'js' => ['bi.js'],

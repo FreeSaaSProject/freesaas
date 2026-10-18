@@ -161,7 +161,7 @@ final class AssistantEvalCases
                 'layer' => 'det',
                 'title_key' => 'assistant.eval.case.prompt_bi_when_listed',
                 'explain_key' => 'assistant.eval.case.prompt_bi_when_listed.explain',
-                'need_modules' => [],
+                'need_modules' => ['bi'],
                 'tool_allow' => null,
                 'prompt_key' => '',
                 'grade' => static function (): array {
@@ -181,7 +181,7 @@ final class AssistantEvalCases
                 'layer' => 'det',
                 'title_key' => 'assistant.eval.case.prompt_workweeks_hint',
                 'explain_key' => 'assistant.eval.case.prompt_workweeks_hint.explain',
-                'need_modules' => [],
+                'need_modules' => ['workweeks'],
                 'tool_allow' => null,
                 'prompt_key' => '',
                 'grade' => static function (): array {

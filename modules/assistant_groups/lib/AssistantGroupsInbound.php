@@ -100,6 +100,7 @@ final class AssistantGroupsInbound
         }
         $text = trim((string)($msg['body']['text'] ?? ''));
         $user = BotIdentity::findStaffByChat('max', $fromId);
+        $linkMeta = self::extractReplyLink($msg);
         $payload = [
             'audience' => 'staff',
             'platform' => 'max',
@@ -113,10 +114,59 @@ final class AssistantGroupsInbound
             'callback_id' => '',
             'text' => $text,
             'message_id' => self::extractMid($msg),
+            'reply_to_mid' => $linkMeta['mid'],
+            'reply_link_type' => $linkMeta['type'],
+            'reply_link_sender_id' => $linkMeta['sender_id'],
+            'reply_link_sender_is_bot' => $linkMeta['sender_is_bot'],
             'raw' => $update,
             'handled' => false,
         ];
         EventBus::emit('bots.inbound', $payload);
+    }
+
+    /**
+     * Max LinkedMessage: { type, sender?, message: MessageBody{mid,…} }.
+     *
+     * @param array<string,mixed> $msg
+     * @return array{mid:string,type:string,sender_id:string,sender_is_bot:bool}
+     */
+    public static function extractReplyLink(array $msg): array
+    {
+        $empty = ['mid' => '', 'type' => '', 'sender_id' => '', 'sender_is_bot' => false];
+        $link = is_array($msg['link'] ?? null) ? $msg['link'] : null;
+        if ($link === null) {
+            return $empty;
+        }
+        $type = strtolower(trim((string)($link['type'] ?? '')));
+        $sender = is_array($link['sender'] ?? null) ? $link['sender'] : null;
+        $senderId = $sender !== null ? trim((string)($sender['user_id'] ?? '')) : '';
+        $senderIsBot = $sender !== null && !empty($sender['is_bot']);
+
+        $mid = '';
+        // LinkedMessage.message is MessageBody (mid at top level), not a full Message.
+        $linked = is_array($link['message'] ?? null) ? $link['message'] : null;
+        if ($linked !== null) {
+            $mid = trim((string)($linked['mid'] ?? $linked['message_id'] ?? ''));
+            if ($mid === '' && is_array($linked['body'] ?? null)) {
+                $mid = trim((string)($linked['body']['mid'] ?? $linked['body']['message_id'] ?? ''));
+            }
+        }
+        if ($mid === '') {
+            foreach (['mid', 'message_id', 'messageId'] as $k) {
+                $v = trim((string)($link[$k] ?? ''));
+                if ($v !== '') {
+                    $mid = $v;
+                    break;
+                }
+            }
+        }
+
+        return [
+            'mid' => $mid,
+            'type' => $type,
+            'sender_id' => $senderId,
+            'sender_is_bot' => $senderIsBot,
+        ];
     }
 
     /**
@@ -144,13 +194,16 @@ final class AssistantGroupsInbound
         return '';
     }
 
-    /** @param array<string,mixed>|null $msg */
+    /** @param array<string,mixed>|null $msg full Message or MessageBody */
     private static function extractMid(?array $msg): ?string
     {
         if ($msg === null) {
             return null;
         }
-        $mid = (string)($msg['body']['mid'] ?? $msg['body']['message_id'] ?? '');
+        $mid = trim((string)($msg['body']['mid'] ?? $msg['body']['message_id'] ?? ''));
+        if ($mid === '') {
+            $mid = trim((string)($msg['mid'] ?? $msg['message_id'] ?? ''));
+        }
         return $mid !== '' ? $mid : null;
     }
 

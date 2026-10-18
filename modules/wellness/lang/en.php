@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 return [
     'wellness.module.name' => 'Health & fitness',
+    'wellness.assistant.tool_title' => 'Wellness',
+    'wellness.assistant.area.foods' => 'Foods',
+    'wellness.assistant.area.food_diary' => 'Food diary',
     'wellness.menu.group' => 'Health & fitness',
     'wellness.menu.calendar' => 'Calendar',
     'wellness.menu.food_diary' => 'Food diary',
@@ -211,4 +214,5 @@ return [
     'wellness.bot.voice_queued' => 'Voice accepted. Transcribing and adding food… Job: {id}',
     'wellness.bot.voice_asr_err' => 'Voice recognition error: {error}',
     'wellness.perm.delete' => 'Delete wellness records',
+    'wellness.assistant.hint' => 'Food: wellness.foods.list(q) → wellness.food_diary.create(food_id, weight) once per item (batch in one step OK).',
 ];

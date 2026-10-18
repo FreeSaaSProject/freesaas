@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/AssistantGroupsConfig.php';
 require_once __DIR__ . '/lib/AssistantGroupsCatalog.php';
 require_once __DIR__ . '/lib/AssistantGroupsChats.php';
+require_once __DIR__ . '/lib/AssistantGroupsDialog.php';
 require_once __DIR__ . '/lib/MaxGroupSpike.php';
 require_once __DIR__ . '/lib/AssistantGroupsInbound.php';
 require_once __DIR__ . '/lib/AssistantGroupsPoller.php';
@@ -37,6 +38,7 @@ ModuleManager::registerRoute('/assistant-groups/webhook/max', [
     'module' => 'assistant_groups',
     'methods' => ['POST'],
     'public' => true,
+    'csrf' => false, // Max POST; auth via X-Max-Bot-Api-Secret
     'handler' => static function (): void {
         AssistantGroupsWebhook::handleHttp();
     },

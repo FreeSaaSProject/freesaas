@@ -112,6 +112,7 @@ final class Csrf
         $prefixes = [
             '/agent/',
             '/bots/webhook/',
+            '/assistant-groups/webhook/',
             '/oauth/',
             '/.well-known/',
             '/asr/',
