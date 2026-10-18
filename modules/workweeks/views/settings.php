@@ -15,6 +15,7 @@ $shiftWindows = $shiftWindows ?? WorkweeksRepository::shiftWindows();
 $newsOptions = $newsOptions ?? [];
 $logTableMode = (string)($logTableMode ?? WorkweeksRepository::logTableChangesMode());
 $tablesOn = !empty($tablesOn) || WorkweeksRepository::tablesActive();
+$canDeleteShift = count($shiftWindows) > 1;
 ?>
 <section class="page-head">
   <p class="lede"><?= te('workweeks.settings.lede') ?></p>
@@ -34,29 +35,40 @@ $tablesOn = !empty($tablesOn) || WorkweeksRepository::tablesActive();
           <th><?= te('workweeks.settings.shift_label') ?></th>
           <th><?= te('workweeks.settings.shift_start') ?></th>
           <th><?= te('workweeks.settings.shift_end') ?></th>
+          <th></th>
         </tr>
       </thead>
       <tbody>
-      <?php for ($n = 1; $n <= 5; $n++): ?>
-        <?php $w = $shiftWindows[$n]; ?>
+      <?php foreach ($shiftWindows as $n => $w): ?>
         <tr>
-          <td class="muted"><?= $n ?></td>
+          <td class="muted"><?= (int)$n ?></td>
           <td>
-            <input type="text" name="shift_<?= $n ?>_label" value="<?= e($w['label']) ?>"
+            <input type="text" name="shifts[<?= (int)$n ?>][label]" value="<?= e($w['label']) ?>"
                    maxlength="16" required aria-label="<?= te('workweeks.settings.shift_label') ?>">
           </td>
           <td>
-            <input type="time" name="shift_<?= $n ?>_start" value="<?= e($w['start']) ?>" required
+            <input type="time" name="shifts[<?= (int)$n ?>][start]" value="<?= e($w['start']) ?>" required
                    aria-label="<?= te('workweeks.settings.shift_start') ?>">
           </td>
           <td>
-            <input type="time" name="shift_<?= $n ?>_end" value="<?= e($w['end']) ?>" required
+            <input type="time" name="shifts[<?= (int)$n ?>][end]" value="<?= e($w['end']) ?>" required
                    aria-label="<?= te('workweeks.settings.shift_end') ?>">
           </td>
+          <td>
+            <?php if ($canDeleteShift): ?>
+              <button type="submit" class="btn-secondary btn-sm" name="shift_delete" value="<?= (int)$n ?>"
+                      onclick="return confirm(<?= tj('workweeks.settings.shift_delete_confirm') ?>);">
+                <?= te('workweeks.settings.shift_delete') ?>
+              </button>
+            <?php endif; ?>
+          </td>
         </tr>
-      <?php endfor; ?>
+      <?php endforeach; ?>
       </tbody>
     </table>
+    <div class="page-actions" style="margin-top:0.5rem">
+      <button type="submit" class="btn-secondary" name="shift_action" value="add"><?= te('workweeks.settings.shift_add') ?></button>
+    </div>
   </fieldset>
 
   <?php if (empty($loggingOn)): ?>
@@ -98,6 +110,6 @@ $tablesOn = !empty($tablesOn) || WorkweeksRepository::tablesActive();
   <?php endif; ?>
 
   <div class="page-actions">
-    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+    <button class="btn-primary" type="submit" name="shift_action" value="save"><?= te('core.common.save') ?></button>
   </div>
 </form>

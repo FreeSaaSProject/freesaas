@@ -99,6 +99,8 @@ if (!isset($staffOptions) || !is_array($staffOptions)) {
              value="<?= e((string)($cfg['chill_product_id'] ?? '16')) ?>">
       <span class="muted"><?= te('terminals.settings.chill_product_id_hint') ?></span>
     </label>
+    <label class="check"><input type="checkbox" name="ignore_staff_shift_windows" value="1"<?= $on('ignore_staff_shift_windows') ? ' checked' : '' ?>> <?= te('terminals.settings.ignore_staff_shift_windows') ?></label>
+    <p class="muted"><?= te('terminals.settings.ignore_staff_shift_windows_hint') ?></p>
   </fieldset>
 
   <div class="page-actions">

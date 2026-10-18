@@ -2,20 +2,12 @@
 declare(strict_types=1);
 
 /**
- * LikeSpa shift windows (oper show_kpi10 PRICE_COL → time lanes).
+ * LikeSpa shift windows (PRICE_COL → time lanes).
  * Used by derive expand_shift_lanes so recipes can attribute guests/cash by shift.
+ * Windows come from WorkweeksRepository when available (same as /workweeks/settings).
  */
 final class BiShiftLanes
 {
-    /** @var array<int,string> */
-    public const SMENA = [
-        1 => 'I',
-        2 => 'II',
-        3 => 'I+II',
-        4 => 'IV',
-        5 => 'V',
-    ];
-
     /**
      * Local midnight for a unix timestamp (PHP default TZ).
      */
@@ -39,10 +31,53 @@ final class BiShiftLanes
     }
 
     /**
+     * @return array<int,string>
+     */
+    public static function smenaMap(): array
+    {
+        if (class_exists('WorkweeksRepository', false)) {
+            $out = [];
+            foreach (WorkweeksRepository::shiftWindows() as $n => $w) {
+                $out[(int)$n] = (string)$w['label'];
+            }
+            if ($out !== []) {
+                return $out;
+            }
+        }
+        return [
+            1 => 'I',
+            2 => 'II',
+            3 => 'I+II',
+            4 => 'IV',
+            5 => 'V',
+        ];
+    }
+
+    /**
      * @return array<int,array{start:int,end:int}>
      */
     public static function windowsForDay(int $dayTs): array
     {
+        $dayTs = self::dayStart($dayTs);
+        if ($dayTs <= 0) {
+            return [];
+        }
+        if (class_exists('WorkweeksRepository', false)) {
+            $out = [];
+            foreach (WorkweeksRepository::shiftWindows() as $n => $_w) {
+                $range = WorkweeksRepository::shiftRangeForDay($dayTs, (int)$n);
+                if ($range === null) {
+                    continue;
+                }
+                $out[(int)$n] = [
+                    'start' => $range['start'],
+                    'end' => $range['end'],
+                ];
+            }
+            if ($out !== []) {
+                return $out;
+            }
+        }
         $y = (int)date('Y', $dayTs);
         $m = (int)date('n', $dayTs);
         $d = (int)date('j', $dayTs);
@@ -72,11 +107,11 @@ final class BiShiftLanes
 
     public static function smenaLabel(int $priceCol, bool $isHalf): string
     {
-        $label = self::SMENA[$priceCol] ?? (string)$priceCol;
+        $map = self::smenaMap();
+        $label = $map[$priceCol] ?? (string)$priceCol;
         if ($isHalf) {
-            // Half lanes use price_col 1/2 labels in oper display via halfLane number.
             if ($priceCol === 1 || $priceCol === 2) {
-                $label = self::SMENA[$priceCol] ?? $label;
+                $label = $map[$priceCol] ?? $label;
             }
             $label .= ' (½ смены)';
         }
@@ -104,7 +139,9 @@ final class BiShiftLanes
         $mode = strtolower($mode) === 'cash' ? 'cash' : 'tickets';
         $out = [];
 
-        if ($priceCol === 3) {
+        // Composite full-day lane (classic PRICE_COL=3 / I+II): split into halves at lane 1 end.
+        $isComposite = $priceCol === 3 && isset($windows[1], $windows[2], $windows[3]);
+        if ($isComposite) {
             foreach ([1, 2] as $half) {
                 if ($half === 1) {
                     $start = $windows[1]['start'];
@@ -135,7 +172,7 @@ final class BiShiftLanes
         $lane['day_label'] = self::dayLabel($dayTs);
         $lane['lane'] = $priceCol;
         $lane['is_half'] = 0;
-        if ($mode === 'cash') {
+        if ($mode === 'cash' && isset($windows[3])) {
             // Full day — oper cash for non-I+II is not window-clipped.
             $lane['window_start'] = $windows[3]['start'];
             $lane['window_end'] = $windows[3]['end'];

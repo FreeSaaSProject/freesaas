@@ -12,6 +12,7 @@ return [
     'booking.err.operator' => 'Нужен operator_id',
     'booking.err.slot' => 'Выбранное время недоступно',
     'booking.err.slot_past_work_end' => 'Окончание {end} позже конца рабочего дня ({work_end}). Сдвиньте раньше или сократите услугу (перерыв/chill за конец дня допускается).',
+    'booking.err.slot_past_shift_end' => 'Окончание {end} позже конца смены сотрудника ({shift_end}). Сдвиньте раньше или сократите услугу (перерыв/chill за конец смены допускается).',
     'booking.err.slot_busy_procedure' => 'Время занято процедурой #{id} «{name}», клиент #{client_id} {client} ({time}). Перенесите её или выберите другое время.',
     'booking.err.slot_busy_event' => 'Время занято событием календаря #{id} «{name}» ({time}).',
     'booking.err.slot_busy_event_label' => 'блок / событие',
@@ -76,5 +77,5 @@ return [
     'booking.new.pick_products' => 'Отметьте услуги и нажмите «Показать мастеров и слоты».',
     'booking.new.link_event' => 'Вместо этого — событие календаря',
     'booking.new.flash_ok' => 'Заказ №{id} создан',
-    'booking.calendar.add_booking' => 'Новая запись',
+    'booking.calendar.add_booking' => '+Зап.',
 ];

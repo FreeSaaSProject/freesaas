@@ -15,6 +15,7 @@ final class BookingValidate
      *
      * @param list<int> $productIds
      * @param int|list<int>|null $excludeProcedureId omit procedure(s) from occupancy
+     * @param array{respect_staff_shift?:bool} $opts forwarded to BookingAvailability::forDay
      * @throws InvalidArgumentException
      */
     public static function assertSlot(
@@ -24,7 +25,8 @@ final class BookingValidate
         ?int $excludeOrderId = null,
         bool $allowPastLead = false,
         ?int $leadSec = null,
-        $excludeProcedureId = null
+        $excludeProcedureId = null,
+        array $opts = []
     ): void {
         if (!class_exists(BookingAvailability::class, false)) {
             return;
@@ -59,7 +61,8 @@ final class BookingValidate
             $excludeOrderId,
             $allowPastLead,
             $leadSec,
-            $excludeProcedureId
+            $excludeProcedureId,
+            $opts
         );
 
         foreach ($avail['operators'] as $op) {
@@ -146,7 +149,7 @@ final class BookingValidate
      * Breaks/chill may end after work_hour_end (solid chill continues past closing).
      *
      * @param int|list<int>|null $excludeProcedureId
-     * @param array{allow_past_work_end?:bool} $opts
+     * @param array{allow_past_work_end?:bool,allow_past_shift_end?:bool,respect_staff_shift?:bool} $opts
      * @throws InvalidArgumentException
      */
     public static function assertProcedureWindow(
@@ -177,6 +180,7 @@ final class BookingValidate
         }
 
         $onShift = false;
+        $priceCol = 1;
         if (class_exists(WorkweeksRepository::class, false)) {
             foreach (WorkweeksRepository::listForDay($dayStart) as $shift) {
                 if ((int)($shift['id_operator'] ?? 0) !== $operatorId) {
@@ -186,6 +190,7 @@ final class BookingValidate
                     continue;
                 }
                 $onShift = true;
+                $priceCol = (int)($shift['price_col'] ?? 1);
                 break;
             }
         }
@@ -201,7 +206,7 @@ final class BookingValidate
             throw new InvalidArgumentException(t('booking.err.cannot_do'));
         }
 
-        $allowPastWorkEnd = !empty($opts['allow_past_work_end']);
+        $allowPastWorkEnd = !empty($opts['allow_past_work_end']) || !empty($opts['allow_past_shift_end']);
         if (!$allowPastWorkEnd
             && class_exists('ProceduresChain', false)
             && ProceduresChain::isBreakProductTypeId((int)($products[0]['type_id'] ?? 0))
@@ -227,6 +232,20 @@ final class BookingValidate
                 'end' => date('H:i', $dtEnd),
                 'work_end' => sprintf('%02d:%02d', $workHourEnd, $workMinuteEnd),
             ]));
+        }
+
+        $respectStaffShift = !array_key_exists('respect_staff_shift', $opts) || !empty($opts['respect_staff_shift']);
+        if ($respectStaffShift && !$allowPastWorkEnd && class_exists(WorkweeksRepository::class, false)) {
+            $staffRange = WorkweeksRepository::shiftRangeForDay($dayStart, $priceCol);
+            if ($staffRange !== null) {
+                $shiftEnd = (int)$staffRange['end'];
+                if ($dtEnd > $shiftEnd + 1) {
+                    throw new InvalidArgumentException(t('booking.err.slot_past_shift_end', [
+                        'end' => date('H:i', $dtEnd),
+                        'shift_end' => date('H:i', $shiftEnd),
+                    ]));
+                }
+            }
         }
 
         $dayEnd = (int)mktime(23, 59, 59, $dayMonth, $dayDay, $dayYear);

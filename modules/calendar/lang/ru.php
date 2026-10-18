@@ -74,7 +74,7 @@ return [
     'calendar.day.col_product' => 'Услуга',
     'calendar.day.col_parent' => 'Событие',
     'calendar.day.no_parent' => '—',
-    'calendar.day.add_event' => 'Новое событие',
+    'calendar.day.add_event' => '+Соб.',
     'calendar.timeline.load_title' => 'Загрузка зала',
     'calendar.event.title_new' => 'Новое событие',
     'calendar.event.title' => 'Событие #{id}',

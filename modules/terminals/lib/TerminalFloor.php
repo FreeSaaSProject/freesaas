@@ -433,7 +433,9 @@ final class TerminalFloor
                     $operatorId,
                     null,
                     false,
-                    TerminalsConfig::leadSec()
+                    TerminalsConfig::leadSec(),
+                    null,
+                    TerminalsConfig::bookingShiftOpts()
                 );
                 $operators = self::filterOperators(
                     is_array($avail['operators'] ?? null) ? $avail['operators'] : [],

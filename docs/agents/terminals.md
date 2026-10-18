@@ -6,6 +6,8 @@ Calendar day/week: chill/rest procedure chips are painted by `calendar.timeline.
 
 Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`, `flyerOn`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home (oper-parity): bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`, optional **`likespa`** (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in likespa (`/api_termy.php`).
 
+**Staff shift ends:** ini `ignore_staff_shift_windows=1` (default) — `/t` and `/terminals/floor` keep salon `work_hour_*` only and do **not** clip to the masseur’s PRICE_COL window (staff must still be on the day roster). Set to `0` to match site/API clipping. Site, MCP, and legacy API never read this flag.
+
 ### Discounts on `/t` (soft `likespa`)
 
 Settings: `/likespa/settings` → `base_system` (`flyerEnabled` / `flyerDiscount`, `PROMO_POSITION_ID`, `PROMO_DISCOUNTS`, `DISCOUNTS_TYPES`). Per-terminal flyer button: `IS_TERMINAL_FLYER_DISCOUNT`.

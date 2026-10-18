@@ -65,6 +65,8 @@ Occupancy for slots merges:
 
 Workday hours: `base_system.work_hour_start` / `work_hour_end`.
 
+**Staff shift windows:** when `workweeks` is on, `BookingAvailability::forDay` (default `respect_staff_shift=true`) clips each operator to **PRICE_COL lane ∩ salon hours**. Site, MCP, legacy API, `/booking/*`, and order/procedure validates use that. Terminals may pass `respect_staff_shift=false` via `terminals.ignore_staff_shift_windows`. Breaks/chill still may end after salon/shift close (`allow_past_work_end` / `allow_past_shift_end`).
+
 ## Agent ops
 
 ```bash

@@ -4,6 +4,7 @@ declare(strict_types=1);
 /** @var array $row */
 /** @var list<array{title:string,when:string,fields:list<array{key:string,label:string,type:string}>}> $groups */
 /** @var array<int,string> $audioOptions */
+/** @var array<int,string> $shiftOptions */
 /** @var string $message */
 /** @var string $error */
 $sid = (int)($row['ID'] ?? 0);
@@ -33,6 +34,14 @@ $sid = (int)($row['ID'] ?? 0);
         <label><?= e(t((string)$f['label'])) ?>
           <select name="<?= e($key) ?>">
             <?php foreach ($audioOptions as $oid => $olabel): ?>
+              <option value="<?= (int)$oid ?>"<?= (int)$val === (int)$oid ? ' selected' : '' ?>><?= e($olabel) ?></option>
+            <?php endforeach; ?>
+          </select>
+        </label>
+      <?php elseif ($type === 'select_shift'): ?>
+        <label><?= e(t((string)$f['label'])) ?>
+          <select name="<?= e($key) ?>">
+            <?php foreach (($shiftOptions ?? []) as $oid => $olabel): ?>
               <option value="<?= (int)$oid ?>"<?= (int)$val === (int)$oid ? ' selected' : '' ?>><?= e($olabel) ?></option>
             <?php endforeach; ?>
           </select>

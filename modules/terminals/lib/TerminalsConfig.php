@@ -25,6 +25,8 @@ final class TerminalsConfig
             'lead_sec' => 180,
             'lead_sec_api' => 600,
             'chill_product_id' => 16,
+            // Floor may book past staff PRICE_COL end (still on roster + salon hours).
+            'ignore_staff_shift_windows' => '1',
         ];
     }
 
@@ -33,7 +35,7 @@ final class TerminalsConfig
     {
         $out = [];
         foreach (self::defaults() as $key => $default) {
-            if (in_array($key, ['registry_enabled', 'analytics_enabled', 'sync_enabled', '1c_enabled'], true)) {
+            if (in_array($key, ['registry_enabled', 'analytics_enabled', 'sync_enabled', '1c_enabled', 'ignore_staff_shift_windows'], true)) {
                 $out[$key] = self::flag($key, (string)$default === '1') ? '1' : '0';
                 continue;
             }
@@ -57,7 +59,7 @@ final class TerminalsConfig
      */
     public static function saveFromPost(array $post): void
     {
-        foreach (['registry_enabled', 'analytics_enabled', 'sync_enabled', '1c_enabled'] as $key) {
+        foreach (['registry_enabled', 'analytics_enabled', 'sync_enabled', '1c_enabled', 'ignore_staff_shift_windows'] as $key) {
             Config::set('terminals', $key, !empty($post[$key]) ? '1' : '0');
         }
 
@@ -185,6 +187,21 @@ final class TerminalsConfig
     public static function chillProductId(): int
     {
         return max(0, self::int('chill_product_id', 16));
+    }
+
+    /**
+     * When true (default), /t and floor book ignore staff PRICE_COL end times
+     * (still require roster day + salon work hours). Site/API/MCP never read this.
+     */
+    public static function ignoreStaffShiftWindows(): bool
+    {
+        return self::flag('ignore_staff_shift_windows', true);
+    }
+
+    /** @return array{respect_staff_shift:bool} */
+    public static function bookingShiftOpts(): array
+    {
+        return ['respect_staff_shift' => !self::ignoreStaffShiftWindows()];
     }
 
     public static function maskSecret(string $raw): string

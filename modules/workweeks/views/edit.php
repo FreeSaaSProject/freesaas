@@ -12,7 +12,7 @@ declare(strict_types=1);
 $tablesOn = !empty($tablesOn);
 $date = (string)($row['date'] ?? date('Y-m-d'));
 $op = (int)($row['id_operator'] ?? 0);
-$pc = max(1, (int)($row['price_col'] ?? 1));
+$pc = WorkweeksRepository::normalizePriceCol((int)($row['price_col'] ?? 1));
 $mm = max(1, (int)($row['mas_max'] ?? 1));
 $tid = WorkweeksRepository::normalizeTableId((int)($row['id_table'] ?? 1));
 $shiftWindows = WorkweeksRepository::shiftWindows();
@@ -39,12 +39,11 @@ $shiftWindows = WorkweeksRepository::shiftWindows();
   </label>
   <label><?= te('workweeks.col.price') ?>
     <select name="price_col" required>
-      <?php for ($n = 1; $n <= 5; $n++): ?>
-        <?php $w = $shiftWindows[$n]; ?>
-        <option value="<?= $n ?>"<?= $pc === $n ? ' selected' : '' ?>>
+      <?php foreach ($shiftWindows as $n => $w): ?>
+        <option value="<?= (int)$n ?>"<?= $pc === (int)$n ? ' selected' : '' ?>>
           <?= e($w['label'] . ' ' . $w['start'] . '–' . $w['end']) ?>
         </option>
-      <?php endfor; ?>
+      <?php endforeach; ?>
     </select>
   </label>
   <label><?= te('workweeks.col.mas_max') ?>

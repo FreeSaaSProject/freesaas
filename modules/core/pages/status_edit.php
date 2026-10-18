@@ -26,6 +26,9 @@ $message = '';
 $error = '';
 $groups = StatusesRepository::visibleFieldGroups();
 $audioOptions = StatusesRepository::optionsForAudio($id);
+$shiftOptions = class_exists('WorkweeksRepository', false)
+    ? WorkweeksRepository::shiftOptionsForStatus()
+    : [0 => '—'];
 
 
 if (!$isNew && EntityDelete::tryHandle('core_statuses', $id, '/statuses', [
@@ -83,6 +86,7 @@ if ($wantsJson) {
         'item' => $row ?: null,
         'groups' => $groups,
         'audio_options' => $audioOptions,
+        'shift_options' => $shiftOptions,
     ]);
 }
 
@@ -94,6 +98,7 @@ View::render('status_edit', [
     'row' => $row,
     'groups' => $groups,
     'audioOptions' => $audioOptions,
+    'shiftOptions' => $shiftOptions,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

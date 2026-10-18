@@ -211,7 +211,7 @@ final class StatusesRepository
                 $type = (string)$f['type'];
                 if ($type === 'checkbox') {
                     $data[$key] = !empty($post[$key]) ? 1 : 0;
-                } elseif ($type === 'select_status') {
+                } elseif ($type === 'select_status' || $type === 'select_shift') {
                     $data[$key] = (int)($post[$key] ?? 0);
                 } else {
                     $data[$key] = trim((string)($post[$key] ?? ''));

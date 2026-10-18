@@ -282,7 +282,11 @@ $dayColumns = CalendarTimelineEnrich::enrichColumns($dayColumns, $hours, 'week')
 View::render('week', [
     'title' => t('calendar.week.title', ['range' => $rangeLabel]),
     'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('calendar.menu.week'), 'href' => '/calendar', 'current' => true],
+        [
+            'label' => t('calendar.menu.week'),
+            'href' => '/calendar/week/' . date('Y-m-d', CalendarWeek::mondayOf(strtotime($today . ' 00:00:00') ?: time())),
+            'current' => true,
+        ],
     ]),
     'breadcrumbs_aria' => t('calendar.week.aria'),
     'date' => $dateParam,

@@ -12,6 +12,7 @@ return [
     'booking.err.operator' => 'operator_id required',
     'booking.err.slot' => 'Selected time is not available',
     'booking.err.slot_past_work_end' => 'End time {end} is after the work day ends ({work_end}). Move earlier or shorten the service (break/chill past closing is allowed).',
+    'booking.err.slot_past_shift_end' => 'End time {end} is after the staff shift ends ({shift_end}). Move earlier or shorten the service (break/chill past shift end is allowed).',
     'booking.err.slot_busy_procedure' => 'Time conflicts with procedure #{id} “{name}”, client #{client_id} {client} ({time}). Move that one or pick another time.',
     'booking.err.slot_busy_event' => 'Time conflicts with calendar event #{id} “{name}” ({time}).',
     'booking.err.slot_busy_event_label' => 'block / event',
@@ -76,5 +77,5 @@ return [
     'booking.new.pick_products' => 'Check services and click “Show specialists and slots”.',
     'booking.new.link_event' => 'Create calendar event instead',
     'booking.new.flash_ok' => 'Order #{id} created',
-    'booking.calendar.add_booking' => 'New booking',
+    'booking.calendar.add_booking' => '+Bk.',
 ];

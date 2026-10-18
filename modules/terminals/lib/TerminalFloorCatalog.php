@@ -146,6 +146,7 @@ final class TerminalFloorCatalog
                 'color_text' => trim((string)($shift['color_text'] ?? '')) !== '' ? (string)$shift['color_text'] : '#fff',
                 'table_id' => $tableId,
                 'table_name' => $tableName,
+                'price_col' => (int)($shift['price_col'] ?? 1),
                 'busy' => $busy,
                 'busy_until' => $busy ? (int)($busyMap[$opId]['free_time'] ?? 0) : 0,
                 'busy_terminal' => $busy ? (string)($busyMap[$opId]['terminal_name'] ?? '') : '',
@@ -160,6 +161,9 @@ final class TerminalFloorCatalog
         $rangeStart = $dayStart;
         $workHourEnd = 22;
         $workMinuteEnd = 0;
+        $respectStaffShift = class_exists(TerminalsConfig::class, false)
+            ? !TerminalsConfig::ignoreStaffShiftWindows()
+            : true;
         if ($slotEngine) {
             $used = BookingOccupancy::build($dayStart, $dayEnd + 1, null);
             [$workHourStart, $workMinuteStart] = BookingAvailability::workDayStart();
@@ -299,14 +303,29 @@ final class TerminalFloorCatalog
                             }
                         }
                         if ($probeProducts !== []) {
+                            $opRangeStart = $rangeStart;
+                            $opWhEnd = $workHourEnd;
+                            $opWmEnd = $workMinuteEnd;
+                            if ($respectStaffShift) {
+                                $clipped = BookingAvailability::clipToStaffShift(
+                                    $dayStart,
+                                    (int)($col['price_col'] ?? 1),
+                                    $opRangeStart,
+                                    $opWhEnd,
+                                    $opWmEnd
+                                );
+                                $opRangeStart = $clipped['range_start'];
+                                $opWhEnd = $clipped['hour_end'];
+                                $opWmEnd = $clipped['minute_end'];
+                            }
                             $check = BookingSlots::check(
                                 $probeProducts,
                                 $opId,
                                 $used,
-                                $rangeStart,
+                                $opRangeStart,
                                 $dayEnd,
-                                $workHourEnd,
-                                $workMinuteEnd
+                                $opWhEnd,
+                                $opWmEnd
                             );
                             $slots = array_values($check['timeSlots'] ?? []);
                             sort($slots);

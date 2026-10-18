@@ -37,10 +37,14 @@ foreach ($availableOps as $oid => $_info) {
 $allCsv = implode(',', $allIds);
 $allVisible = $availableOps !== [] && count($visibleIds) >= count($availableOps);
 
+$statusDefaults = WorkweeksRepository::defaultPriceColsForOperators(
+    array_values(array_unique(array_merge(array_keys($visibleIds), $allIds)))
+);
+
 $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string {
     $html = '';
-    for ($n = 1; $n <= 5; $n++) {
-        $w = $shiftWindows[$n];
+    foreach ($shiftWindows as $n => $w) {
+        $n = (int)$n;
         $sel = $selected === $n ? ' selected' : '';
         $text = $w['label'] . ' ' . $w['start'] . '–' . $w['end'];
         $html .= '<option value="' . $n . '"' . $sel . '>' . e($text) . '</option>';
@@ -65,6 +69,12 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
       <a class="btn-secondary btn-sm" href="<?= e($retUrl) ?>" data-nazop-close><?= te('core.common.cancel') ?></a>
       <button type="button" class="btn-secondary btn-sm" data-nazop-check="1"><?= te('workweeks.nazop.check_all') ?></button>
       <button type="button" class="btn-secondary btn-sm" data-nazop-check="0"><?= te('workweeks.nazop.uncheck_all') ?></button>
+      <span class="nazop-bulk-shift" title="<?= te('workweeks.nazop.set_shift_hint') ?>">
+        <select class="nazop-select" data-nazop-bulk-shift aria-label="<?= te('workweeks.nazop.set_shift') ?>">
+          <?= $shiftOptionsHtml(1) ?>
+        </select>
+        <button type="button" class="btn-secondary btn-sm" data-nazop-set-shift><?= te('workweeks.nazop.set_shift') ?></button>
+      </span>
     </div>
     <p class="muted nazop-lede"><?= te('workweeks.nazop.lede') ?></p>
   </div>
@@ -137,9 +147,7 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
         $d = $day['date'];
         $rowAssigned = $assigned[$d] ?? [];
         $pc = (int)($dayPrice[$d] ?? 1);
-        if ($pc < 1 || $pc > 5) {
-            $pc = 1;
-        }
+        $pc = WorkweeksRepository::normalizePriceCol($pc);
         $mm = (int)($dayMasMax[$d] ?? 1);
         $onCount = 0;
         foreach ($rowAssigned as $oid => $_meta) {
@@ -156,9 +164,10 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
             <?php
             $oid = (int)$op['id'];
             $on = isset($rowAssigned[$oid]);
+            $statusPc = (int)($statusDefaults[$oid] ?? 0);
             $opPc = $on
-                ? max(1, min(5, (int)$rowAssigned[$oid]['price_col']))
-                : $pc;
+                ? WorkweeksRepository::normalizePriceCol((int)$rowAssigned[$oid]['price_col'])
+                : ($statusPc >= 1 ? $statusPc : $pc);
             ?>
             <td class="nazop-cell" style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;">
               <label class="nazop-check">

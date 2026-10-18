@@ -201,6 +201,8 @@ return [
     'terminals.settings.lead_sec_api_hint' => 'Default 600 (10 min) for /terminals/floor book/assert.',
     'terminals.settings.chill_product_id' => 'Chill (rest) product id',
     'terminals.settings.chill_product_id_hint' => 'Legacy rest procedure (usually 16). 0 disables chill insert.',
+    'terminals.settings.ignore_staff_shift_windows' => 'Ignore staff shift end times on /t',
+    'terminals.settings.ignore_staff_shift_windows_hint' => 'When checked (default), floor booking uses salon hours only — not each masseur’s PRICE_COL window. Site and API still clip to the staff shift. Staff must still be on the day roster.',
     'terminals.settings.secret_empty' => '(not set)',
     'terminals.settings.secret_keep' => 'Leave blank to keep current value',
     'terminals.settings.current' => 'Current: {masked}',

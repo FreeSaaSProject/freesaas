@@ -174,8 +174,8 @@ $dayColumns = CalendarTimelineEnrich::enrichColumns($dayColumns, $hours, 'day');
 View::render('day', [
     'title' => t('calendar.day.title', ['date' => $dateLabel]),
     'breadcrumbs' => Breadcrumbs::withHome([
-        ['label' => t('calendar.menu.week'), 'href' => '/calendar'],
-        ['label' => $dateLabel, 'href' => '/calendar/day/' . $dateParam, 'current' => true],
+        ['label' => t('calendar.menu.week'), 'href' => '/calendar/day/' . $today],
+        ['label' => $dateLabel, 'current' => true],
     ]),
     'breadcrumbs_aria' => t('calendar.day.aria'),
     'date' => $dateParam,

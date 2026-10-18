@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/ShiftsBotPlugin.php';
 
 Assets::register('workweeks', [
     'css' => ['workweeks.css'],
+    'js' => ['workweeks.js'],
 ]);
 
 StatusesRepository::registerFieldGroup([
@@ -19,6 +20,7 @@ StatusesRepository::registerFieldGroup([
         ['key' => 'CAN_BE_ASSIGNED_ASANY', 'label' => 'workweeks.statuses.field.CAN_BE_ASSIGNED_ASANY', 'type' => 'checkbox'],
         ['key' => 'EVT_ASSIGN', 'label' => 'workweeks.statuses.field.EVT_ASSIGN', 'type' => 'checkbox'],
         ['key' => 'EVT_ASSIGN_MY', 'label' => 'workweeks.statuses.field.EVT_ASSIGN_MY', 'type' => 'checkbox'],
+        ['key' => 'DEFAULT_PRICE_COL', 'label' => 'workweeks.statuses.field.DEFAULT_PRICE_COL', 'type' => 'select_shift'],
     ],
 ]);
 

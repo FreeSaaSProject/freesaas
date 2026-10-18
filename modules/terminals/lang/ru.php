@@ -201,6 +201,8 @@ return [
     'terminals.settings.lead_sec_api_hint' => 'По умолчанию 600 (10 мин) для /terminals/floor.',
     'terminals.settings.chill_product_id' => 'ID товара перерыва (отдых)',
     'terminals.settings.chill_product_id_hint' => 'Legacy процедура отдыха (обычно 16). 0 — не создавать перерыв.',
+    'terminals.settings.ignore_staff_shift_windows' => 'Игнорировать конец смены сотрудника на /t',
+    'terminals.settings.ignore_staff_shift_windows_hint' => 'Если включено (по умолчанию), запись с пола идёт по часам салона, а не по PRICE_COL массажиста. Сайт и API по-прежнему клипают по смене. Сотрудник всё равно должен быть в графике дня.',
     'terminals.settings.secret_empty' => '(не задано)',
     'terminals.settings.secret_keep' => 'Оставьте пустым, чтобы не менять',
     'terminals.settings.current' => 'Сейчас: {masked}',

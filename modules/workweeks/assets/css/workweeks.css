@@ -33,6 +33,17 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+.nazop-bulk-shift {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  align-items: center;
+  margin-left: 0.15rem;
+}
+.nazop-bulk-shift .nazop-select {
+  max-width: 11rem;
 }
 .nazop-toolbar-bottom {
   margin-top: 1rem;

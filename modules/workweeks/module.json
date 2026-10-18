@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.15",
+    "version": "0.2.17",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -98,7 +98,7 @@
                 "method": "POST",
                 "path": "/workweeks/settings",
                 "permission": "workweeks.view",
-                "description": "Save shift windows (PRICE_COL 1–5) and schedule news id (superadmin capability on route)"
+                "description": "Save shift windows (PRICE_COL lanes) and schedule news id (superadmin capability on route)"
             }
         ]
     },
@@ -129,6 +129,10 @@
             "log_table_changes": {
                 "type": "string",
                 "default": "1"
+            },
+            "shift_ids": {
+                "type": "string",
+                "default": ""
             },
             "shift_1_start": {
                 "type": "string",

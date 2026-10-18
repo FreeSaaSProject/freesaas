@@ -12,6 +12,7 @@ final class BookingAvailability
      * @param bool $allowPastLead when true, do not push rangeStart past "now+lead" (order edit)
      * @param int|null $leadSec override lead seconds (null → booking.lead_sec / 180)
      * @param int|list<int>|null $excludeProcedureId omit procedure(s) from occupancy (procedure / chain edit)
+     * @param array{respect_staff_shift?:bool} $opts respect_staff_shift default true — clip slots to PRICE_COL ∩ salon hours
      * @return array{
      *   date:string,
      *   day_start:int,
@@ -34,7 +35,8 @@ final class BookingAvailability
         ?int $excludeOrderId = null,
         bool $allowPastLead = false,
         ?int $leadSec = null,
-        $excludeProcedureId = null
+        $excludeProcedureId = null,
+        array $opts = []
     ): array {
         $dayStart = self::parseDayStart($dateYmd);
         if ($dayStart === null) {
@@ -80,6 +82,8 @@ final class BookingAvailability
             $rangeStart = max($rangeStart, time() + $lead);
         }
 
+        $respectStaffShift = !array_key_exists('respect_staff_shift', $opts) || !empty($opts['respect_staff_shift']);
+
         $used = BookingOccupancy::build($dayStart, $dayEnd + 1, $excludeOrderId, $excludeProcedureId);
         $shifts = class_exists(WorkweeksRepository::class, false)
             ? WorkweeksRepository::listForDay($dayStart)
@@ -105,14 +109,29 @@ final class BookingAvailability
                 continue;
             }
             $eligibleCount++;
+            $opRangeStart = $rangeStart;
+            $opWhEnd = $workHourEnd;
+            $opWmEnd = $workMinuteEnd;
+            if ($respectStaffShift && class_exists(WorkweeksRepository::class, false)) {
+                $clipped = self::clipToStaffShift(
+                    $dayStart,
+                    (int)($shift['price_col'] ?? 1),
+                    $opRangeStart,
+                    $opWhEnd,
+                    $opWmEnd
+                );
+                $opRangeStart = $clipped['range_start'];
+                $opWhEnd = $clipped['hour_end'];
+                $opWmEnd = $clipped['minute_end'];
+            }
             $check = BookingSlots::check(
                 $products,
                 $opId,
                 $used,
-                $rangeStart,
+                $opRangeStart,
                 $dayEnd,
-                $workHourEnd,
-                $workMinuteEnd
+                $opWhEnd,
+                $opWmEnd
             );
             $slots = array_values($check['timeSlots']);
             sort($slots);
@@ -203,6 +222,46 @@ final class BookingAvailability
                 'type_id' => max(0, (int)($p['type_id'] ?? 0)),
             ];
         }
+        return $out;
+    }
+
+    /**
+     * Intersect salon search window with staff PRICE_COL lane.
+     *
+     * @return array{range_start:int,hour_end:int,minute_end:int}
+     */
+    public static function clipToStaffShift(
+        int $dayStart,
+        int $priceCol,
+        int $rangeStart,
+        int $workHourEnd,
+        int $workMinuteEnd
+    ): array {
+        $out = [
+            'range_start' => $rangeStart,
+            'hour_end' => $workHourEnd,
+            'minute_end' => $workMinuteEnd,
+        ];
+        if ($dayStart <= 0 || $priceCol < 1 || !class_exists(WorkweeksRepository::class, false)) {
+            return $out;
+        }
+        $range = WorkweeksRepository::shiftRangeForDay($dayStart, $priceCol);
+        if ($range === null) {
+            return $out;
+        }
+        $out['range_start'] = max($rangeStart, (int)$range['start']);
+        $salonEnd = (int)mktime(
+            $workHourEnd,
+            $workMinuteEnd,
+            59,
+            (int)date('n', $dayStart),
+            (int)date('j', $dayStart),
+            (int)date('Y', $dayStart)
+        );
+        $staffEnd = (int)$range['end'];
+        $clipEnd = min($salonEnd, $staffEnd);
+        $out['hour_end'] = (int)date('G', $clipEnd);
+        $out['minute_end'] = (int)date('i', $clipEnd);
         return $out;
     }
 

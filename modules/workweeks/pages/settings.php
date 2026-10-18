@@ -10,6 +10,45 @@ $newsId = $loggingOn ? WorkweeksRepository::scheduleNewsId() : 0;
 $logTableMode = WorkweeksRepository::logTableChangesMode();
 $shiftWindows = WorkweeksRepository::shiftWindows();
 
+/**
+ * @param array<string,mixed> $post
+ * @return array<int,array{start:string,end:string,label:string}>
+ */
+$parsePostedShifts = static function (array $post): array {
+    $posted = [];
+    $raw = $post['shifts'] ?? null;
+    if (is_array($raw)) {
+        foreach ($raw as $id => $row) {
+            $n = (int)$id;
+            if ($n < 1 || $n > 99 || !is_array($row)) {
+                continue;
+            }
+            $posted[$n] = [
+                'start' => (string)($row['start'] ?? ''),
+                'end' => (string)($row['end'] ?? ''),
+                'label' => (string)($row['label'] ?? ''),
+            ];
+        }
+    }
+    // Legacy agent payload: shift_N_* keys
+    if ($posted === []) {
+        for ($n = 1; $n <= 99; $n++) {
+            if (!isset($post['shift_' . $n . '_start']) && !isset($post['shift_' . $n . '_label'])) {
+                if ($n > 5) {
+                    break;
+                }
+                continue;
+            }
+            $posted[$n] = [
+                'start' => (string)($post['shift_' . $n . '_start'] ?? ''),
+                'end' => (string)($post['shift_' . $n . '_end'] ?? ''),
+                'label' => (string)($post['shift_' . $n . '_label'] ?? ''),
+            ];
+        }
+    }
+    return $posted;
+};
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         if ($loggingOn) {
@@ -32,18 +71,42 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
         }
 
-        $posted = [];
-        for ($n = 1; $n <= 5; $n++) {
-            $posted[$n] = [
-                'start' => (string)($_POST['shift_' . $n . '_start'] ?? ''),
-                'end' => (string)($_POST['shift_' . $n . '_end'] ?? ''),
-                'label' => (string)($_POST['shift_' . $n . '_label'] ?? ''),
-            ];
+        $posted = $parsePostedShifts($_POST);
+        if ($posted === []) {
+            $posted = WorkweeksRepository::shiftWindows();
         }
-        WorkweeksRepository::setShiftWindows($posted);
+
+        $action = (string)($_POST['shift_action'] ?? 'save');
+        $deleteId = (int)($_POST['shift_delete'] ?? 0);
+        if ($deleteId > 0) {
+            if (count($posted) <= 1) {
+                throw new InvalidArgumentException(t('workweeks.settings.err.shift_min'));
+            }
+            unset($posted[$deleteId]);
+            WorkweeksRepository::setShiftWindows($posted);
+            $message = t('workweeks.settings.msg.shift_deleted');
+        } elseif ($action === 'add') {
+            $next = WorkweeksRepository::nextShiftId();
+            // If next already in posted (race), bump.
+            while (isset($posted[$next]) && $next < 99) {
+                $next++;
+            }
+            if (isset($posted[$next])) {
+                throw new InvalidArgumentException(t('workweeks.settings.err.shift_max'));
+            }
+            $posted[$next] = [
+                'start' => '10:00',
+                'end' => '18:00',
+                'label' => (string)$next,
+            ];
+            WorkweeksRepository::setShiftWindows($posted);
+            $message = t('workweeks.settings.msg.shift_added');
+        } else {
+            WorkweeksRepository::setShiftWindows($posted);
+            $message = t('core.common.saved');
+        }
         $shiftWindows = WorkweeksRepository::shiftWindows();
 
-        $message = t('core.common.saved');
         if ($wantsJson) {
             AgentHttp::emit([
                 'ok' => true,

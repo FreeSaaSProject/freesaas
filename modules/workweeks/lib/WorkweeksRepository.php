@@ -191,7 +191,7 @@ final class WorkweeksRepository
             'dt' => (int)$ts,
             'date' => $date,
             'id_operator' => $op,
-            'price_col' => max(1, min(5, $priceCol)),
+            'price_col' => self::normalizePriceCol($priceCol),
             'mas_max' => max(1, min(9, $masMax)),
             'id_table' => self::normalizeTableId($tableRaw),
         ];
@@ -439,7 +439,7 @@ final class WorkweeksRepository
     }
 
     /**
-     * Oper hard-coded adminWorkTime windows (PRICE_COL 1..5).
+     * Oper hard-coded adminWorkTime windows (PRICE_COL 1..5 factory defaults).
      *
      * @return array<int,array{start:string,end:string,label:string}>
      */
@@ -455,29 +455,72 @@ final class WorkweeksRepository
     }
 
     /**
-     * Configurable shift windows for PRICE_COL 1..5 (cfg/modules/workweeks.ini).
+     * Configured shift lane ids (PRICE_COL). Empty/missing → factory 1..5.
+     *
+     * @return list<int>
+     */
+    public static function shiftIds(): array
+    {
+        $raw = trim((string)Config::get('workweeks', 'shift_ids', ''));
+        if ($raw === '') {
+            return array_keys(self::defaultShiftWindows());
+        }
+        $ids = [];
+        foreach (explode(',', $raw) as $part) {
+            $n = (int)trim($part);
+            if ($n >= 1 && $n <= 99) {
+                $ids[$n] = $n;
+            }
+        }
+        if ($ids === []) {
+            return array_keys(self::defaultShiftWindows());
+        }
+        $list = array_values($ids);
+        sort($list, SORT_NUMERIC);
+        return $list;
+    }
+
+    /**
+     * Configurable shift windows (cfg/modules/workweeks.ini). Extensible beyond 1..5.
      *
      * @return array<int,array{start:string,end:string,label:string}>
      */
     public static function shiftWindows(): array
     {
-        $out = self::defaultShiftWindows();
-        for ($n = 1; $n <= 5; $n++) {
-            $start = trim((string)Config::get('workweeks', 'shift_' . $n . '_start', $out[$n]['start']));
-            $end = trim((string)Config::get('workweeks', 'shift_' . $n . '_end', $out[$n]['end']));
-            $label = trim((string)Config::get('workweeks', 'shift_' . $n . '_label', $out[$n]['label']));
+        $defaults = self::defaultShiftWindows();
+        $out = [];
+        foreach (self::shiftIds() as $n) {
+            $def = $defaults[$n] ?? ['start' => '10:00', 'end' => '18:00', 'label' => (string)$n];
+            $start = trim((string)Config::get('workweeks', 'shift_' . $n . '_start', $def['start']));
+            $end = trim((string)Config::get('workweeks', 'shift_' . $n . '_end', $def['end']));
+            $label = trim((string)Config::get('workweeks', 'shift_' . $n . '_label', $def['label']));
             $out[$n] = [
-                'start' => self::normalizeTimeHm($start, $out[$n]['start']),
-                'end' => self::normalizeTimeHm($end, $out[$n]['end']),
-                'label' => $label !== '' ? mb_substr($label, 0, 16) : $out[$n]['label'],
+                'start' => self::normalizeTimeHm($start, $def['start']),
+                'end' => self::normalizeTimeHm($end, $def['end']),
+                'label' => $label !== '' ? mb_substr($label, 0, 16) : $def['label'],
             ];
         }
         return $out;
     }
 
+    /** Map PRICE_COL to a known lane (orphan ids kept; invalid → first catalog id). */
+    public static function normalizePriceCol(int $priceCol): int
+    {
+        $windows = self::shiftWindows();
+        if ($priceCol >= 1 && isset($windows[$priceCol])) {
+            return $priceCol;
+        }
+        if ($priceCol >= 1) {
+            // Historical orphan still stored on base_workweeks — keep as-is.
+            return $priceCol;
+        }
+        $ids = array_keys($windows);
+        return $ids !== [] ? (int)$ids[0] : 1;
+    }
+
     public static function shiftLabel(int $priceCol): string
     {
-        $priceCol = max(1, min(5, $priceCol));
+        $priceCol = max(1, $priceCol);
         $w = self::shiftWindows();
         return (string)($w[$priceCol]['label'] ?? (string)$priceCol);
     }
@@ -488,7 +531,7 @@ final class WorkweeksRepository
      */
     public static function shiftPayUnits(int $priceCol): float
     {
-        $priceCol = max(1, min(5, $priceCol));
+        $priceCol = max(1, $priceCol);
         if (isset(self::$payUnitsCache[$priceCol])) {
             return self::$payUnitsCache[$priceCol];
         }
@@ -510,12 +553,8 @@ final class WorkweeksRepository
         }
         // Composite (e.g. I+II): window fully contains ≥2 shorter sibling windows.
         $covered = 0;
-        for ($n = 1; $n <= 5; $n++) {
-            if ($n === $priceCol) {
-                continue;
-            }
-            $other = $windows[$n] ?? null;
-            if ($other === null) {
+        foreach ($windows as $n => $other) {
+            if ((int)$n === $priceCol) {
                 continue;
             }
             $os = self::hmToMinutes((string)$other['start']);
@@ -533,15 +572,15 @@ final class WorkweeksRepository
 
     /**
      * Absolute start/end timestamps for a PRICE_COL on a calendar day (00:00 of day).
+     * Unknown/orphan lane → null (callers fall back to salon hours only).
      *
      * @return array{start:int,end:int,label:string}|null
      */
     public static function shiftRangeForDay(int $dayStart, int $priceCol): ?array
     {
-        if ($dayStart <= 0) {
+        if ($dayStart <= 0 || $priceCol < 1) {
             return null;
         }
-        $priceCol = max(1, min(5, $priceCol));
         $w = self::shiftWindows()[$priceCol] ?? null;
         if ($w === null) {
             return null;
@@ -565,18 +604,86 @@ final class WorkweeksRepository
     public static function setShiftWindows(array $windows): void
     {
         $defaults = self::defaultShiftWindows();
-        for ($n = 1; $n <= 5; $n++) {
-            $row = is_array($windows[$n] ?? null) ? $windows[$n] : [];
-            $start = self::normalizeTimeHm((string)($row['start'] ?? ''), $defaults[$n]['start']);
-            $end = self::normalizeTimeHm((string)($row['end'] ?? ''), $defaults[$n]['end']);
-            $label = trim((string)($row['label'] ?? $defaults[$n]['label']));
-            if ($label === '') {
-                $label = $defaults[$n]['label'];
+        $clean = [];
+        foreach ($windows as $id => $row) {
+            $n = (int)$id;
+            if ($n < 1 || $n > 99 || !is_array($row)) {
+                continue;
             }
-            Config::set('workweeks', 'shift_' . $n . '_start', $start);
-            Config::set('workweeks', 'shift_' . $n . '_end', $end);
-            Config::set('workweeks', 'shift_' . $n . '_label', mb_substr($label, 0, 16));
+            $def = $defaults[$n] ?? ['start' => '10:00', 'end' => '18:00', 'label' => (string)$n];
+            $start = self::normalizeTimeHm((string)($row['start'] ?? ''), $def['start']);
+            $end = self::normalizeTimeHm((string)($row['end'] ?? ''), $def['end']);
+            $label = trim((string)($row['label'] ?? $def['label']));
+            if ($label === '') {
+                $label = $def['label'];
+            }
+            $clean[$n] = [
+                'start' => $start,
+                'end' => $end,
+                'label' => mb_substr($label, 0, 16),
+            ];
         }
+        if ($clean === []) {
+            $clean = $defaults;
+        }
+        ksort($clean, SORT_NUMERIC);
+        self::$payUnitsCache = [];
+        Config::set('workweeks', 'shift_ids', implode(',', array_keys($clean)));
+        foreach ($clean as $n => $row) {
+            Config::set('workweeks', 'shift_' . $n . '_start', $row['start']);
+            Config::set('workweeks', 'shift_' . $n . '_end', $row['end']);
+            Config::set('workweeks', 'shift_' . $n . '_label', $row['label']);
+        }
+    }
+
+    /** Next free PRICE_COL id for a custom lane (max existing + 1, capped at 99). */
+    public static function nextShiftId(): int
+    {
+        $ids = self::shiftIds();
+        $max = $ids !== [] ? max($ids) : 0;
+        return min(99, max(1, $max + 1));
+    }
+
+    /**
+     * Status DEFAULT_PRICE_COL for operator (0 = use day default / lane I).
+     */
+    public static function defaultPriceColForOperator(int $operatorId): int
+    {
+        if ($operatorId < 1
+            || !Database::tableExists('base_users')
+            || !Database::tableExists('base_admin_statuses')
+            || !Database::columnExists('base_admin_statuses', 'DEFAULT_PRICE_COL')
+        ) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT COALESCE(st.DEFAULT_PRICE_COL, 0) AS pc
+             FROM base_users u
+             LEFT JOIN base_admin_statuses st ON st.ID = u.ID_STATUS
+             WHERE u.ID = ?
+             LIMIT 1'
+        );
+        $st->execute([$operatorId]);
+        $pc = (int)$st->fetchColumn();
+        if ($pc < 1) {
+            return 0;
+        }
+        $windows = self::shiftWindows();
+        return isset($windows[$pc]) ? $pc : 0;
+    }
+
+    /**
+     * Options for status DEFAULT_PRICE_COL select (0 = none / day default).
+     *
+     * @return array<int,string>
+     */
+    public static function shiftOptionsForStatus(): array
+    {
+        $out = [0 => t('workweeks.statuses.field.DEFAULT_PRICE_COL_none')];
+        foreach (self::shiftWindows() as $n => $w) {
+            $out[(int)$n] = $w['label'] . ' ' . $w['start'] . '–' . $w['end'];
+        }
+        return $out;
     }
 
     private static function normalizeTimeHm(string $raw, string $fallback): string
@@ -602,7 +709,7 @@ final class WorkweeksRepository
     /** Chip label suffix like oper (assist always shows lane; others when PRICE_COL>1). */
     public static function shiftChipSuffix(int $priceCol, int $group = 0): string
     {
-        $priceCol = max(1, min(5, $priceCol));
+        $priceCol = max(1, $priceCol);
         $label = self::shiftLabel($priceCol);
         if ($group === 3) {
             return ' ' . $label;
@@ -1053,7 +1160,7 @@ final class WorkweeksRepository
         if (isset($row['dt']) && !isset($row['date'])) {
             $row['date'] = date('Y-m-d', (int)$row['dt']);
         }
-        $pc = max(1, min(5, (int)($row['price_col'] ?? 1)));
+        $pc = self::normalizePriceCol((int)($row['price_col'] ?? 1));
         $row['price_col'] = $pc;
         $row['shift_label'] = self::shiftLabel($pc);
         $dayStart = (int)($row['dt'] ?? 0);
@@ -1066,9 +1173,11 @@ final class WorkweeksRepository
                 $row['shift_end_hm'] = date('H:i', $range['end']);
             }
         } else {
-            $w = self::shiftWindows()[$pc];
-            $row['shift_start_hm'] = $w['start'];
-            $row['shift_end_hm'] = $w['end'];
+            $w = self::shiftWindows()[$pc] ?? null;
+            if ($w !== null) {
+                $row['shift_start_hm'] = $w['start'];
+                $row['shift_end_hm'] = $w['end'];
+            }
         }
         return $row;
     }
@@ -1133,7 +1242,7 @@ final class WorkweeksRepository
             self::update((int)$existing['id'], $priceCol, $masMax, $idTable);
             return (int)$existing['id'];
         }
-        $priceCol = max(1, min(5, $priceCol));
+        $priceCol = self::normalizePriceCol($priceCol);
         $masMax = max(1, $masMax);
         $idTable = self::normalizeTableId($idTable);
         $st = Database::pdo()->prepare(
@@ -1163,7 +1272,7 @@ final class WorkweeksRepository
             'UPDATE base_workweeks SET PRICE_COL = ?, MAS_MAX = ?, ID_TABLE = ? WHERE ID = ?'
         );
         $st->execute([
-            max(1, min(5, $priceCol)),
+            self::normalizePriceCol($priceCol),
             max(1, $masMax),
             self::normalizeTableId($idTable),
             $id,
@@ -1285,14 +1394,14 @@ final class WorkweeksRepository
                 self::logChangeHtml(self::buildLogLine('add', [
                     'id_operator' => $op,
                     'dt' => $dayStart,
-                    'price_col' => max(1, min(5, $pc)),
+                    'price_col' => self::normalizePriceCol($pc),
                 ]));
-            } elseif ((int)$before['price_col'] !== max(1, min(5, $pc))) {
+            } elseif ((int)$before['price_col'] !== self::normalizePriceCol($pc)) {
                 self::logChangeHtml(self::buildLogLine('price', [
                     'id_operator' => $op,
                     'dt' => $dayStart,
                     'from' => (int)$before['price_col'],
-                    'to' => max(1, min(5, $pc)),
+                    'to' => self::normalizePriceCol($pc),
                 ]));
             }
             return t('workweeks.msg.saved');
@@ -1306,7 +1415,7 @@ final class WorkweeksRepository
             if (!self::canAssignOperator((int)$row['id_operator'])) {
                 throw new RuntimeException(t('workweeks.err.no_assign'));
             }
-            $pc = max(1, min(5, (int)($post['price_col'] ?? 1)));
+            $pc = self::normalizePriceCol((int)($post['price_col'] ?? 1));
             $mm = max(1, (int)($post['mas_max'] ?? 1));
             $tid = self::normalizeTableId((int)($post['id_table'] ?? 0));
             $bits = [];
@@ -1462,7 +1571,7 @@ final class WorkweeksRepository
     /**
      * Resolve PRICE_COL for one nazop cell.
      * Existing rows keep their PRICE_COL unless a per-op value is provided.
-     * Day-level default applies only to brand-new assigns (never clobber others).
+     * Brand-new: per-op → status DEFAULT_PRICE_COL → day-level default.
      *
      * @param array<int|string,int> $dayOpPrices
      * @param array<string,mixed>|null $existing
@@ -1471,16 +1580,60 @@ final class WorkweeksRepository
         array $dayOpPrices,
         int $operatorId,
         ?array $existing,
-        int $dayDefaultPc
+        int $dayDefaultPc,
+        int $statusDefaultPc = 0
     ): int {
-        $dayDefaultPc = max(1, min(5, $dayDefaultPc));
+        $dayDefaultPc = self::normalizePriceCol($dayDefaultPc);
         if (array_key_exists($operatorId, $dayOpPrices) || array_key_exists((string)$operatorId, $dayOpPrices)) {
-            return max(1, min(5, (int)($dayOpPrices[$operatorId] ?? $dayOpPrices[(string)$operatorId])));
+            return self::normalizePriceCol((int)($dayOpPrices[$operatorId] ?? $dayOpPrices[(string)$operatorId]));
         }
         if ($existing !== null) {
-            return max(1, min(5, (int)($existing['price_col'] ?? 1)));
+            return self::normalizePriceCol((int)($existing['price_col'] ?? 1));
+        }
+        if ($statusDefaultPc >= 1) {
+            return self::normalizePriceCol($statusDefaultPc);
         }
         return $dayDefaultPc;
+    }
+
+    /**
+     * @param list<int> $operatorIds
+     * @return array<int,int> opId → DEFAULT_PRICE_COL (0 omitted)
+     */
+    public static function defaultPriceColsForOperators(array $operatorIds): array
+    {
+        $ids = [];
+        foreach ($operatorIds as $oid) {
+            $oid = (int)$oid;
+            if ($oid > 0) {
+                $ids[$oid] = $oid;
+            }
+        }
+        if ($ids === []
+            || !Database::tableExists('base_users')
+            || !Database::tableExists('base_admin_statuses')
+            || !Database::columnExists('base_admin_statuses', 'DEFAULT_PRICE_COL')
+        ) {
+            return [];
+        }
+        $list = array_values($ids);
+        $placeholders = implode(',', array_fill(0, count($list), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT u.ID AS id, COALESCE(st.DEFAULT_PRICE_COL, 0) AS pc
+             FROM base_users u
+             LEFT JOIN base_admin_statuses st ON st.ID = u.ID_STATUS
+             WHERE u.ID IN ($placeholders)"
+        );
+        $st->execute($list);
+        $windows = self::shiftWindows();
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $pc = (int)($row['pc'] ?? 0);
+            if ($pc >= 1 && isset($windows[$pc])) {
+                $out[(int)$row['id']] = $pc;
+            }
+        }
+        return $out;
     }
 
     /**
@@ -1527,6 +1680,8 @@ final class WorkweeksRepository
             }
         }
 
+        $statusDefaults = self::defaultPriceColsForOperators(array_keys($managed));
+
         $logBits = [];
         foreach (array_keys($dates) as $date) {
             $ts = strtotime($date . ' 00:00:00');
@@ -1534,7 +1689,7 @@ final class WorkweeksRepository
                 continue;
             }
             $dayStart = (int)$ts;
-            $dayDefaultPc = max(1, min(5, (int)($prices[$date] ?? 1)));
+            $dayDefaultPc = self::normalizePriceCol((int)($prices[$date] ?? 1));
             $mm = max(1, min(9, (int)($masMax[$date] ?? 1)));
             $want = [];
             foreach (($checked[$date] ?? []) as $oid => $on) {
@@ -1549,7 +1704,13 @@ final class WorkweeksRepository
                 if (isset($want[$oid])) {
                     // Invariant: never apply day-level default to an existing row.
                     // Day price is only for brand-new assigns without per-op price.
-                    $pc = self::resolveNazopPriceCol($dayOpPrices, $oid, $existing, $dayDefaultPc);
+                    $pc = self::resolveNazopPriceCol(
+                        $dayOpPrices,
+                        $oid,
+                        $existing,
+                        $dayDefaultPc,
+                        (int)($statusDefaults[$oid] ?? 0)
+                    );
                     if ($existing) {
                         $oldPc = (int)$existing['price_col'];
                         $oldMm = (int)$existing['mas_max'];
