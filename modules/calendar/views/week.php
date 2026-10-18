@@ -55,30 +55,36 @@ $newBookingUrl = '/booking/new?date=' . rawurlencode($dayLinkDate)
     . ($staffId > 0 ? ('&staff=' . $staffId) : '')
     . '&ret=' . rawurlencode($weekUrl($monday));
 ?>
+<?php
+$todayMonday = class_exists(CalendarWeek::class, false)
+    ? date('Y-m-d', CalendarWeek::mondayOf(strtotime($today . ' 00:00:00') ?: time()))
+    : $today;
+$navMode = 'week';
+$prevUrl = $weekUrl($prevWeek);
+$nextUrl = $weekUrl($nextWeek);
+$todayUrl = $weekUrl($todayMonday);
+$showToday = ($monday !== $todayMonday);
+$prevLabel = t('calendar.week.prev');
+$nextLabel = t('calendar.week.next');
+$todayLabel = t('calendar.day.today');
+$selectId = 'calendar-week-select';
+$selectAria = t('calendar.week.pick');
+$selectBasePath = '/calendar/week/';
+$periodOptions = $weekOptions;
+$selectedValue = $monday;
+$optionCurrentClass = 'is-current-week';
+$modeDayUrl = $dayUrl($dayLinkDate);
+$modeWeekUrl = $weekUrl($monday);
+$periodCtas = [];
+if ($canBook) {
+    $periodCtas[] = [
+        'href' => $newBookingUrl,
+        'label' => t('booking.calendar.add_booking'),
+    ];
+}
+?>
 <section class="page-head page-head-compact">
-  <div class="page-actions calendar-period-nav" data-calendar-nav="week"
-       data-prev="<?= e($weekUrl($prevWeek)) ?>"
-       data-next="<?= e($weekUrl($nextWeek)) ?>">
-    <a class="btn-secondary" href="<?= e($weekUrl($prevWeek)) ?>" title="<?= te('calendar.week.prev') ?>" aria-label="<?= te('calendar.week.prev') ?>">«</a>
-    <select id="calendar-week-select" aria-label="<?= te('calendar.week.pick') ?>">
-      <?php foreach ($weekOptions as $opt): ?>
-        <option value="<?= e($opt['value']) ?>"<?= $opt['value'] === $monday ? ' selected' : '' ?><?= !empty($opt['current']) ? ' class="is-current-week"' : '' ?>><?= e($opt['label']) ?></option>
-      <?php endforeach; ?>
-    </select>
-    <a class="btn-secondary" href="<?= e($weekUrl($nextWeek)) ?>" title="<?= te('calendar.week.next') ?>" aria-label="<?= te('calendar.week.next') ?>">»</a>
-    <?php
-    $todayMonday = class_exists(CalendarWeek::class, false)
-        ? date('Y-m-d', CalendarWeek::mondayOf(strtotime($today . ' 00:00:00') ?: time()))
-        : $today;
-    if ($monday !== $todayMonday):
-    ?>
-      <a class="btn-secondary" href="<?= e($weekUrl($todayMonday)) ?>"><?= te('calendar.day.today') ?></a>
-    <?php endif; ?>
-    <a class="btn-secondary" href="<?= e($dayUrl($dayLinkDate)) ?>"><?= te('calendar.week.to_day') ?></a>
-    <?php if ($canBook): ?>
-      <a class="btn-secondary" href="<?= e($newBookingUrl) ?>"><?= te('booking.calendar.add_booking') ?></a>
-    <?php endif; ?>
-  </div>
+  <?php require __DIR__ . '/_period_nav.php'; ?>
 </section>
 
 <?php if ($shiftFlash !== ''): ?><div class="flash flash-ok"><?= e($shiftFlash) ?></div><?php endif; ?>
@@ -89,6 +95,7 @@ $retUrl = $weekRet;
 $ariaLabel = t('calendar.week.aria');
 $showShiftsRow = true;
 require __DIR__ . '/_timeline.php';
+require __DIR__ . '/_period_footer.php';
 ?>
 
 <div id="calendar-info" class="calendar-info" hidden></div>
@@ -107,30 +114,6 @@ require __DIR__ . '/_timeline.php';
 
 <script>
 (function () {
-  var weekSel = document.getElementById('calendar-week-select');
-  if (weekSel) {
-    weekSel.addEventListener('change', function () {
-      if (!weekSel.value) return;
-      location.href = '/calendar/week/' + encodeURIComponent(weekSel.value);
-    });
-  }
-
-  var nav = document.querySelector('[data-calendar-nav="week"]');
-  document.addEventListener('keydown', function (e) {
-    if (!nav) return;
-    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-    var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
-    if (document.getElementById('calendar-shift-dialog') && document.getElementById('calendar-shift-dialog').open) return;
-    if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      location.href = nav.getAttribute('data-prev');
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      location.href = nav.getAttribute('data-next');
-    }
-  });
-
   var info = document.getElementById('calendar-info');
   var touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   var openChip = null;

@@ -163,14 +163,19 @@ tr.is-block td { opacity: 0.75; }
 .page-head-compact .page-actions {
   width: 100%;
 }
-.calendar-period-nav select#calendar-week-select {
+.calendar-period-nav select#calendar-week-select,
+.calendar-period-nav select#calendar-day-select {
   min-width: 16rem;
   max-width: 22rem;
   width: auto;
   font-variant-numeric: tabular-nums;
 }
-.calendar-period-nav select#calendar-week-select option.is-current-week {
+.calendar-period-nav select#calendar-week-select option.is-current-week,
+.calendar-period-nav select#calendar-day-select option.is-today {
   font-weight: 700;
+}
+.calendar-period-nav .calendar-period-cta {
+  margin-left: 0.15rem;
 }
 
 .calendar-tl {
@@ -464,57 +469,96 @@ tr.is-block td { opacity: 0.75; }
 .calendar-tl-chip-block {
   opacity: 0.92;
 }
+/* Bottom Day | Week — plain links, no box */
+.calendar-mode-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: center;
+  margin: 0.65rem 0 1rem;
+  font-size: 0.85rem;
+}
+.calendar-mode-switch a {
+  color: var(--muted);
+  text-decoration: none;
+  border: 0;
+  background: none;
+  padding: 0;
+  box-shadow: none;
+}
+.calendar-mode-switch a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.calendar-mode-switch a.is-active {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: default;
+}
+.calendar-mode-sep {
+  color: var(--muted);
+  user-select: none;
+}
+
 @media (max-width: 960px) {
+  /* Week: wide sheet + horizontal pan (no column crush / fake pinch). */
   .calendar-tl-wrap {
-    /* Keep week on-screen like oper: shrink columns, pinch-zoom to read. */
-    overflow-x: visible;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  .calendar-tl {
+  .calendar-tl--week {
+    min-width: 56rem;
+    font-size: 0.8rem;
+  }
+  .calendar-tl--day {
     min-width: 0;
     font-size: 0.72rem;
   }
-  .calendar-tl-axis-h,
-  .calendar-tl-col-axis {
+  .calendar-tl--day .calendar-tl-axis-h,
+  .calendar-tl--day .calendar-tl-col-axis {
     width: 1.6rem;
   }
   .calendar-tl--day .calendar-tl-col-day {
     width: calc(100% - 1.6rem);
   }
-  .calendar-tl-day-h {
+  .calendar-tl--day .calendar-tl-day-h {
     padding: 0.25rem 0.1rem;
     white-space: normal;
   }
-  .calendar-tl-day-h a {
+  .calendar-tl--day .calendar-tl-day-h a {
     white-space: normal;
   }
-  .calendar-tl-dow,
-  .calendar-tl-date {
+  .calendar-tl--day .calendar-tl-dow,
+  .calendar-tl--day .calendar-tl-date {
     display: block;
     white-space: normal;
   }
-  .calendar-tl-dow::after {
+  .calendar-tl--day .calendar-tl-dow::after {
     content: none;
   }
-  .calendar-tl-dow {
+  .calendar-tl--day .calendar-tl-dow {
     font-size: 0.62rem;
     letter-spacing: 0;
   }
-  .calendar-tl-date {
+  .calendar-tl--day .calendar-tl-date {
     font-size: 0.78rem;
   }
-  .calendar-tl-chip {
+  .calendar-tl--day .calendar-tl-chip {
     font-size: 0.48rem;
     line-height: 1.05;
   }
-  .calendar-tl-hour {
+  .calendar-tl--day .calendar-tl-hour {
     font-size: 0.58rem;
     padding: 0.05rem 0.1rem;
   }
-  .calendar-tl-shift {
+  .calendar-tl--day .calendar-tl-shift {
     font-size: 0.58rem;
     padding: 0.02rem 0.15rem;
   }
-  .calendar-period-nav select#calendar-week-select {
+  .calendar-period-nav select#calendar-week-select,
+  .calendar-period-nav select#calendar-day-select {
     min-width: 0;
     flex: 1 1 8rem;
     max-width: 100%;

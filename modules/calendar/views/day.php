@@ -19,6 +19,7 @@ declare(strict_types=1);
 /** @var string $retUrl */
 /** @var string $openShiftDay */
 /** @var array<string,string> $dayStatsHtml */
+/** @var list<array{value:string,label:string,current?:bool}> $dayOptions */
 
 $canAssign = !empty($canAssign);
 $canTables = !empty($canTables);
@@ -49,23 +50,41 @@ $newBookingUrl = '/booking/new?date=' . rawurlencode($date)
     . ($staffId > 0 ? ('&staff=' . $staffId) : '')
     . '&ret=' . rawurlencode($dayUrl($date));
 ?>
+<?php
+$dayOptions = $dayOptions ?? [];
+$navMode = 'day';
+$prevUrl = $dayUrl($prevDate);
+$nextUrl = $dayUrl($nextDate);
+$todayUrl = $dayUrl($today);
+$showToday = ($date !== $today);
+$prevLabel = t('calendar.day.prev');
+$nextLabel = t('calendar.day.next');
+$todayLabel = t('calendar.day.today');
+$selectId = 'calendar-day-select';
+$selectAria = t('calendar.day.pick');
+$selectBasePath = '/calendar/day/';
+$periodOptions = $dayOptions;
+$selectedValue = $date;
+$optionCurrentClass = 'is-today';
+$modeDayUrl = $dayUrl($date);
+$modeWeekUrl = '/calendar/week/' . rawurlencode($date);
+$periodCtas = [];
+if (!empty($canCreate)) {
+    $periodCtas[] = [
+        'href' => $newEventUrl,
+        'label' => t('calendar.day.add_event'),
+        'primary' => true,
+    ];
+}
+if ($canBook) {
+    $periodCtas[] = [
+        'href' => $newBookingUrl,
+        'label' => t('booking.calendar.add_booking'),
+    ];
+}
+?>
 <section class="page-head page-head-compact">
-  <div class="page-actions calendar-period-nav" data-calendar-nav="day"
-       data-prev="<?= e($dayUrl($prevDate)) ?>"
-       data-next="<?= e($dayUrl($nextDate)) ?>">
-    <?php if (!empty($canCreate)): ?>
-      <a class="btn-primary" href="<?= e($newEventUrl) ?>"><?= te('calendar.day.add_event') ?></a>
-    <?php endif; ?>
-    <?php if ($canBook): ?>
-      <a class="btn-secondary" href="<?= e($newBookingUrl) ?>"><?= te('booking.calendar.add_booking') ?></a>
-    <?php endif; ?>
-    <a class="btn-secondary" href="<?= e($dayUrl($prevDate)) ?>" title="<?= te('calendar.day.prev') ?>" aria-label="<?= te('calendar.day.prev') ?>">«</a>
-    <a class="btn-secondary" href="<?= e($dayUrl($nextDate)) ?>" title="<?= te('calendar.day.next') ?>" aria-label="<?= te('calendar.day.next') ?>">»</a>
-    <?php if ($date !== $today): ?>
-      <a class="btn-secondary" href="<?= e($dayUrl($today)) ?>"><?= te('calendar.day.today') ?></a>
-    <?php endif; ?>
-    <a class="btn-secondary" href="/calendar/week/<?= e(rawurlencode($date)) ?>"><?= te('calendar.day.to_week') ?></a>
-  </div>
+  <?php require __DIR__ . '/_period_nav.php'; ?>
 </section>
 
 <?php if ($shiftFlash !== ''): ?><div class="flash flash-ok"><?= e($shiftFlash) ?></div><?php endif; ?>
@@ -75,6 +94,7 @@ $newBookingUrl = '/booking/new?date=' . rawurlencode($date)
 $ariaLabel = t('calendar.day.aria');
 $showShiftsRow = true;
 require __DIR__ . '/_timeline.php';
+require __DIR__ . '/_period_footer.php';
 ?>
 
 <div id="calendar-info" class="calendar-info" hidden></div>
@@ -93,22 +113,6 @@ require __DIR__ . '/_timeline.php';
 
 <script>
 (function () {
-  var nav = document.querySelector('[data-calendar-nav="day"]');
-  document.addEventListener('keydown', function (e) {
-    if (!nav) return;
-    if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
-    var tag = (e.target && e.target.tagName) ? e.target.tagName.toLowerCase() : '';
-    if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable)) return;
-    if (document.getElementById('calendar-shift-dialog') && document.getElementById('calendar-shift-dialog').open) return;
-    if (e.key === 'ArrowLeft') {
-      e.preventDefault();
-      location.href = nav.getAttribute('data-prev');
-    } else if (e.key === 'ArrowRight') {
-      e.preventDefault();
-      location.href = nav.getAttribute('data-next');
-    }
-  });
-
   var info = document.getElementById('calendar-info');
   var touch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   var openChip = null;

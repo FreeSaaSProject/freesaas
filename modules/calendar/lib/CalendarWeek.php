@@ -117,6 +117,43 @@ final class CalendarWeek
     }
 
     /**
+     * Day picker around anchor (±past/future calendar days).
+     * Labels: `Пн 17.10` + today mark.
+     *
+     * @return list<array{value:string,label:string,current:bool}>
+     */
+    public static function dayOptions(int $anchorTs, int $past = 14, int $future = 14): array
+    {
+        if ($anchorTs <= 0) {
+            $anchorTs = time();
+        }
+        $anchorMid = strtotime(date('Y-m-d 00:00:00', $anchorTs));
+        if ($anchorMid === false) {
+            $anchorMid = $anchorTs;
+        }
+        $today = date('Y-m-d');
+        $past = max(0, $past);
+        $future = max(0, $future);
+        $out = [];
+        for ($i = -$past; $i <= $future; $i++) {
+            $ts = $anchorMid + ($i * 86400);
+            $value = date('Y-m-d', $ts);
+            $n = (int)date('N', $ts);
+            $label = self::weekdayShort($n) . ' ' . date('d.m', $ts);
+            $current = ($value === $today);
+            if ($current) {
+                $label .= ' ' . t('calendar.day.today_mark');
+            }
+            $out[] = [
+                'value' => $value,
+                'label' => $label,
+                'current' => $current,
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * @param list<array<string,mixed>> $items
      * @param string $tsKey
      * @return array<string,list<array<string,mixed>>> date => items

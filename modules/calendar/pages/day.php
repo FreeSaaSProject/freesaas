@@ -183,6 +183,7 @@ View::render('day', [
     'prevDate' => $prevDate,
     'nextDate' => $nextDate,
     'today' => $today,
+    'dayOptions' => CalendarWeek::dayOptions($dayStart, 14, 14),
     'staffId' => $staffId,
     'staffLocked' => $myOnly,
     'canAssign' => $canAssign,
