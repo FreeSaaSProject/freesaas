@@ -73,7 +73,9 @@ try {
         $operatorId > 0 ? $operatorId : null,
         null,
         false,
-        SitesBooking::leadSec()
+        SitesBooking::leadSec(),
+        null,
+        SitesBooking::bookingSlotOpts()
     );
 } catch (InvalidArgumentException $e) {
     SitesCart::emitJson(['ok' => false, 'error' => $e->getMessage()], 400);

@@ -278,6 +278,8 @@ return [
     'stickers.qr.done_close' => 'Done! Close',
     'stickers.qr.free_act' => 'Free act',
     'stickers.qr.no_events' => 'No procedures today (or enable procedures).',
+    'stickers.qr.choose_proc' => 'Choose procedure',
+    'stickers.qr.change_proc' => 'Change procedure',
     'stickers.qr.choose_stock' => 'Choose stock',
     'stickers.qr.confirm_value' => 'Value verified — commit',
     'stickers.qr.confirm_post' => 'Confirm action (POST)',

@@ -60,7 +60,14 @@ final class BookingBook
         }
 
         $leadSec = isset($input['lead_sec']) ? max(0, (int)$input['lead_sec']) : null;
-        BookingValidate::assertSlot($productIds, $operatorId, $dtStart, null, false, $leadSec);
+        $assertOpts = [];
+        if (isset($input['interval_sec'])) {
+            $assertOpts['interval_sec'] = BookingSlots::normalizeIntervalSec(
+                (int)$input['interval_sec'],
+                BookingSlots::INTERVAL_SEC
+            );
+        }
+        BookingValidate::assertSlot($productIds, $operatorId, $dtStart, null, false, $leadSec, null, $assertOpts);
 
         $lines = [];
         $summ = 0.0;

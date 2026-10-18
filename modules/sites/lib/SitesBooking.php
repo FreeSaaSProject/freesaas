@@ -143,7 +143,16 @@ final class SitesBooking
             $dayStart = $today + ($i * 86400);
             $ymd = date('Y-m-d', $dayStart);
             try {
-                $av = BookingAvailability::forDay($ymd, $productIds, null, null, false, self::leadSec());
+                $av = BookingAvailability::forDay(
+                    $ymd,
+                    $productIds,
+                    null,
+                    null,
+                    false,
+                    self::leadSec(),
+                    null,
+                    self::bookingSlotOpts()
+                );
             } catch (Throwable $e) {
                 continue;
             }
@@ -192,7 +201,9 @@ final class SitesBooking
                     $operatorId > 0 ? $operatorId : null,
                     null,
                     false,
-                    self::leadSec()
+                    self::leadSec(),
+                    null,
+                    self::bookingSlotOpts()
                 );
             } catch (Throwable $e) {
                 continue;
@@ -223,15 +234,49 @@ final class SitesBooking
     }
 
     /**
-     * Client-facing slots: first free + 15-min grid + first after a gap.
+     * Persist storefront slot interval (calendar settings embed).
      *
-     * @param list<int> $slots unix timestamps (5-min engine grid)
+     * @param array<string,mixed> $post
+     */
+    public static function saveSlotIntervalFromPost(array $post): void
+    {
+        $raw = $post['booking_slot_interval_min'] ?? 15;
+        $n = class_exists(BookingSlots::class, false)
+            ? BookingSlots::normalizeIntervalMinutes($raw, 15)
+            : (in_array((int)$raw, [5, 10, 15, 20, 30], true) ? (int)$raw : 15);
+        Config::set('sites', 'booking_slot_interval_min', (string)$n);
+    }
+
+    /** Storefront slot grid (minutes). Default 15. */
+    public static function slotIntervalMin(): int
+    {
+        $raw = Config::get('sites', 'booking_slot_interval_min', 15);
+        return class_exists(BookingSlots::class, false)
+            ? BookingSlots::normalizeIntervalMinutes($raw, 15)
+            : (in_array((int)$raw, [5, 10, 15, 20, 30], true) ? (int)$raw : 15);
+    }
+
+    public static function slotIntervalSec(): int
+    {
+        return self::slotIntervalMin() * 60;
+    }
+
+    /** @return array{interval_sec:int} */
+    public static function bookingSlotOpts(): array
+    {
+        return ['interval_sec' => self::slotIntervalSec()];
+    }
+
+    /**
+     * Client-facing slots: first free + channel grid + first after a gap.
+     *
+     * @param list<int> $slots unix timestamps
      * @return list<int>
      */
     public static function filterClientSlots(array $slots): array
     {
         if (class_exists(BookingSlots::class, false)) {
-            return BookingSlots::filterListSlots($slots);
+            return BookingSlots::filterListSlots($slots, self::slotIntervalSec());
         }
         $slots = array_values(array_unique(array_filter(
             array_map('intval', $slots),
@@ -243,7 +288,7 @@ final class SitesBooking
 
     /**
      * Shape day availability for the public cart JSON (no full FIO).
-     * Slots are thinned for client display; engine still validates any 5-min start.
+     * Slots follow booking_slot_interval_min; assertSlot uses the same channel grid.
      *
      * @param array<string,mixed> $data BookingAvailability::forDay result
      * @return list<array{id:int,display_name:string,photo:string,initial:string,slots:list<int>,slots_hhmm:list<string>}>
@@ -285,7 +330,16 @@ final class SitesBooking
             return 0;
         }
         try {
-            $data = BookingAvailability::forDay($ymd, $productIds, null, null, false, self::leadSec());
+            $data = BookingAvailability::forDay(
+                $ymd,
+                $productIds,
+                null,
+                null,
+                false,
+                self::leadSec(),
+                null,
+                self::bookingSlotOpts()
+            );
         } catch (Throwable $e) {
             return 0;
         }

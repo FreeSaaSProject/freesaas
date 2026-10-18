@@ -295,7 +295,9 @@ final class ClientMcpBookingTools
             $operatorId > 0 ? $operatorId : null,
             null,
             false,
-            SitesBooking::leadSec()
+            SitesBooking::leadSec(),
+            null,
+            class_exists(SitesBooking::class, false) ? SitesBooking::bookingSlotOpts() : []
         );
 
         $specialists = [];
@@ -413,6 +415,7 @@ final class ClientMcpBookingTools
                 'dt_start' => $dtStart,
                 'source' => 'mcp',
                 'lead_sec' => SitesBooking::leadSec(),
+                'interval_sec' => SitesBooking::slotIntervalSec(),
             ]);
         } catch (InvalidArgumentException | RuntimeException $e) {
             throw new ClientMcpToolError('booking_failed', $e->getMessage(), [

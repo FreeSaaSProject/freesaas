@@ -125,7 +125,7 @@ return [
     'calendar.widget.board.empty' => 'Nothing on the board for today',
     'calendar.widget.board.order' => 'Order',
     'calendar.day.order_unassigned' => 'No specialist assigned',
-    'calendar.settings.lede' => 'Calendar, website orders and online booking in one place (orders/booking sections appear when those modules are enabled). Superadministrator only.',
+    'calendar.settings.lede' => 'Calendar, website orders, online booking and per-channel slot steps in one place (orders/booking/likespa/terminals/sites sections appear when those modules are enabled). Superadministrator only.',
     'calendar.settings.work_hours' => 'Calendar working hours',
     'calendar.settings.work_hours_hint' => 'Timeline axis in the calendar (inclusive). Source: base_system.work_hour_start / work_hour_end.',
     'calendar.settings.field_hour_start' => 'Start hour',

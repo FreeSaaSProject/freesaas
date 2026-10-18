@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-18T19:37:46+00:00",
+    "generated_at": "2026-10-18T20:37:38+00:00",
     "modules": [
         {
             "id": "asr",
@@ -281,7 +281,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "0.2.32",
+            "version": "0.2.33",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -417,7 +417,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.10",
+            "version": "0.1.11",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -514,7 +514,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.37",
+            "version": "0.1.38",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -891,7 +891,7 @@
         },
         {
             "id": "laundry",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Laundry",
@@ -957,7 +957,7 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.24",
+            "version": "0.3.26",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -1357,7 +1357,7 @@
         },
         {
             "id": "sites",
-            "version": "0.2.9",
+            "version": "0.2.10",
             "type": "product",
             "name": {
                 "en": "Sites",
@@ -1393,7 +1393,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "0.1.20",
+            "version": "0.1.22",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1431,7 +1431,7 @@
         },
         {
             "id": "stickers",
-            "version": "0.1.17",
+            "version": "0.1.18",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1559,7 +1559,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.40",
+            "version": "0.1.41",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

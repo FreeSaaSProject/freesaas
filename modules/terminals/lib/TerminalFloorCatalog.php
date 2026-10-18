@@ -325,7 +325,10 @@ final class TerminalFloorCatalog
                                 $opRangeStart,
                                 $dayEnd,
                                 $opWhEnd,
-                                $opWmEnd
+                                $opWmEnd,
+                                class_exists(TerminalsConfig::class, false)
+                                    ? TerminalsConfig::slotIntervalSec()
+                                    : null
                             );
                             $slots = array_values($check['timeSlots'] ?? []);
                             sort($slots);

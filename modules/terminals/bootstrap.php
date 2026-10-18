@@ -358,3 +358,25 @@ EventBus::on('calendar.timeline.enrich', static function ($payload) {
     $payload['days'] = $days;
     return $payload;
 });
+
+EventBus::on('calendar.settings.sections', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_calendar_slot_settings', [
+        'intervalMin' => TerminalsConfig::slotIntervalMin(),
+    ], 'terminals');
+    return $payload;
+});
+
+EventBus::on('calendar.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (!isset($post['terminals_slot_settings_save'])) {
+        return $payload;
+    }
+    TerminalsConfig::saveSlotIntervalFromPost($post);
+    return $payload;
+});

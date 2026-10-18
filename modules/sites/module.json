@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "0.2.9",
+    "version": "0.2.10",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -279,7 +279,9 @@
     "hooks": {
         "subscribe": [
             "router.not_found",
-            "sites.page.inject"
+            "sites.page.inject",
+            "calendar.settings.sections",
+            "calendar.settings.save"
         ],
         "publish": [
             "sites.request",

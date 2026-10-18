@@ -9,10 +9,58 @@ declare(strict_types=1);
  */
 final class BookingSlots
 {
-    public const INTERVAL_SEC = 300; // 5 minutes
+    public const INTERVAL_SEC = 300; // 5 minutes (finest engine grid)
+    /** Default client-facing list step when channel does not override (legacy quarter-hour). */
+    public const LIST_INTERVAL_SEC = 900;
     public const DEFAULT_DURATION_SEC = 3600;
     /** @deprecated Use defaultLeadSec() / caller-owned lead override */
     public const LEAD_SEC = 180;
+
+    /** @return list<int> */
+    public static function allowedIntervalMinutes(): array
+    {
+        return [5, 10, 15, 20, 30];
+    }
+
+    /**
+     * Clamp channel slot step to allowlist (minutes). Invalid → $default.
+     */
+    public static function normalizeIntervalMinutes($raw, int $default = 15): int
+    {
+        $n = is_numeric($raw) ? (int)$raw : $default;
+        if (!in_array($n, self::allowedIntervalMinutes(), true)) {
+            return in_array($default, self::allowedIntervalMinutes(), true) ? $default : 15;
+        }
+        return $n;
+    }
+
+    /** Seconds for an allowlisted minute step (or default 15). */
+    public static function intervalSecFromMinutes($raw, int $defaultMinutes = 15): int
+    {
+        return self::normalizeIntervalMinutes($raw, $defaultMinutes) * 60;
+    }
+
+    /**
+     * Accept seconds or minutes; return allowlisted seconds.
+     * null → $defaultSec (usually INTERVAL_SEC or LIST_INTERVAL_SEC).
+     */
+    public static function normalizeIntervalSec(?int $sec, int $defaultSec = self::INTERVAL_SEC): int
+    {
+        if ($sec === null) {
+            $sec = $defaultSec;
+        }
+        $sec = (int)$sec;
+        if (in_array($sec, [300, 600, 900, 1200, 1800], true)) {
+            return $sec;
+        }
+        if (in_array($sec, self::allowedIntervalMinutes(), true)) {
+            return $sec * 60;
+        }
+        if (in_array($defaultSec, [300, 600, 900, 1200, 1800], true)) {
+            return $defaultSec;
+        }
+        return self::INTERVAL_SEC;
+    }
 
     /**
      * Staff/booking default lead (seconds). Product channels pass their own override.
@@ -25,13 +73,14 @@ final class BookingSlots
     }
 
     /**
-     * Thin dense free timestamps for UI/API listing:
-     * first free slot + :00/:15/:30/:45 + first after a gap.
+     * Thin free timestamps for UI/API listing:
+     * first free slot + on-grid starts + first after a gap.
+     * Default grid = 15 min (legacy); pass channel intervalSec to override.
      *
      * @param list<int>|array<int,int> $slots
      * @return list<int>
      */
-    public static function filterListSlots(array $slots): array
+    public static function filterListSlots(array $slots, ?int $intervalSec = null): array
     {
         $slots = array_values(array_unique(array_filter(
             array_map('intval', $slots),
@@ -41,15 +90,17 @@ final class BookingSlots
         if ($slots === []) {
             return [];
         }
-        $step = self::INTERVAL_SEC;
+        $step = self::normalizeIntervalSec($intervalSec, self::LIST_INTERVAL_SEC);
+        $intervalMin = max(1, intdiv($step, 60));
+        $gapStep = min($step, self::INTERVAL_SEC);
         $out = [];
         $prev = null;
         foreach ($slots as $i => $ts) {
             $min = (int)date('i', $ts);
-            $isQuarter = ($min % 15) === 0;
+            $isOnGrid = ($min % $intervalMin) === 0;
             $isFirst = $i === 0;
-            $isGapStart = $prev !== null && ($ts - $prev) > $step;
-            if ($isFirst || $isQuarter || $isGapStart) {
+            $isGapStart = $prev !== null && ($ts - $prev) > $gapStep;
+            if ($isFirst || $isOnGrid || $isGapStart) {
                 $out[] = $ts;
             }
             $prev = $ts;
@@ -107,7 +158,8 @@ final class BookingSlots
         int $rangeStart,
         int $rangeEnd,
         int $workHourEnd = 22,
-        int $workMinuteEnd = 0
+        int $workMinuteEnd = 0,
+        ?int $intervalSec = null
     ): array {
         $empty = [
             'result' => false,
@@ -121,6 +173,9 @@ final class BookingSlots
         if ($adminId < 1 || $products === [] || $rangeEnd <= $rangeStart) {
             return $empty;
         }
+
+        $step = self::normalizeIntervalSec($intervalSec, self::INTERVAL_SEC);
+        $stepMin = max(1, intdiv($step, 60));
 
         $totalTime = 0;
         $totalNetTime = 0;
@@ -169,7 +224,7 @@ final class BookingSlots
         $firstH = $currentH;
         $aligned = false;
         for ($num = $currentM; $num < 60; $num++) {
-            if (($num % 5) === 0) {
+            if (($num % $stepMin) === 0) {
                 $firstM = $num;
                 $aligned = true;
                 break;
@@ -183,20 +238,22 @@ final class BookingSlots
         $timeSlots = [];
         $secondTime = (int)mktime($firstH, $firstM, 0, $dayMonth, $dayDay, $dayYear);
         if ($secondTime < $rangeStart) {
-            $secondTime += self::INTERVAL_SEC;
+            $secondTime += $step;
             while ($secondTime < $rangeStart) {
-                $secondTime += self::INTERVAL_SEC;
+                $secondTime += $step;
             }
         }
+        // Max probes scales with coarser grids (day ≈ 24h / step).
+        $maxProbes = max(50, (int)ceil(86400 / $step) + 10);
         if (($secondTime + $totalTime) <= $searchEventEnd) {
             $timeSlots[$secondTime] = $secondTime;
             $searchCheckEnd = $secondTime + $totalTime;
             $n = 0;
-            for ($searchCheckStart = $secondTime; $searchCheckEnd <= $searchEventEnd; $searchCheckStart += self::INTERVAL_SEC) {
+            for ($searchCheckStart = $secondTime; $searchCheckEnd <= $searchEventEnd; $searchCheckStart += $step) {
                 $timeSlots[$searchCheckStart] = $searchCheckStart;
                 $searchCheckEnd = $searchCheckStart + $totalTime;
                 $n++;
-                if ($n > 200) {
+                if ($n > $maxProbes) {
                     break;
                 }
             }

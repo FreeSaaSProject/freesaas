@@ -296,3 +296,26 @@ EventBus::on('core.user_edit.profile', static function ($payload) {
     $payload['html_site'] = ($payload['html_site'] ?? '') . (string)ob_get_clean();
     return $payload;
 });
+
+EventBus::on('calendar.settings.sections', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_calendar_slot_settings', [
+        'intervalApi' => LikespaConfig::slotIntervalMinApi(),
+        'intervalTermy' => LikespaConfig::slotIntervalMinTermy(),
+    ], 'likespa');
+    return $payload;
+});
+
+EventBus::on('calendar.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (!isset($post['likespa_slot_settings_save'])) {
+        return $payload;
+    }
+    LikespaConfig::saveSlotIntervalsFromPost($post);
+    return $payload;
+});

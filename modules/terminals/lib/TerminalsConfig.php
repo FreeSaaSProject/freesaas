@@ -24,6 +24,7 @@ final class TerminalsConfig
             'booking_admin_id' => '',
             'lead_sec' => 180,
             'lead_sec_api' => 600,
+            'slot_interval_min' => 15,
             'chill_product_id' => 16,
             // Floor may book past staff PRICE_COL end (still on roster + salon hours).
             'ignore_staff_shift_windows' => '1',
@@ -39,7 +40,7 @@ final class TerminalsConfig
                 $out[$key] = self::flag($key, (string)$default === '1') ? '1' : '0';
                 continue;
             }
-            if (in_array($key, ['1c_timeout_sec', 'lead_sec', 'lead_sec_api', 'chill_product_id'], true)) {
+            if (in_array($key, ['1c_timeout_sec', 'lead_sec', 'lead_sec_api', 'slot_interval_min', 'chill_product_id'], true)) {
                 $out[$key] = (string)self::int($key, (int)$default);
                 continue;
             }
@@ -73,6 +74,7 @@ final class TerminalsConfig
         Config::set('terminals', 'booking_admin_id', trim((string)($post['booking_admin_id'] ?? '')));
         Config::set('terminals', 'lead_sec', (string)max(0, min(7200, (int)($post['lead_sec'] ?? 180))));
         Config::set('terminals', 'lead_sec_api', (string)max(0, min(7200, (int)($post['lead_sec_api'] ?? 600))));
+        self::saveSlotIntervalFromPost($post);
         Config::set('terminals', 'chill_product_id', (string)max(0, (int)($post['chill_product_id'] ?? 16)));
 
         foreach (['1c_auth', '1c_apikey', 'worker_token'] as $secretKey) {
@@ -182,6 +184,40 @@ final class TerminalsConfig
     public static function leadSecApi(): int
     {
         return max(0, min(7200, self::int('lead_sec_api', 600)));
+    }
+
+    /**
+     * Persist floor slot interval only (calendar settings embed).
+     *
+     * @param array<string,mixed> $post
+     */
+    public static function saveSlotIntervalFromPost(array $post): void
+    {
+        $raw = $post['slot_interval_min'] ?? 15;
+        $n = class_exists(BookingSlots::class, false)
+            ? BookingSlots::normalizeIntervalMinutes($raw, 15)
+            : (in_array((int)$raw, [5, 10, 15, 20, 30], true) ? (int)$raw : 15);
+        Config::set('terminals', 'slot_interval_min', (string)$n);
+    }
+
+    /** Floor /t slot grid (minutes). */
+    public static function slotIntervalMin(): int
+    {
+        $raw = self::int('slot_interval_min', 15);
+        return class_exists(BookingSlots::class, false)
+            ? BookingSlots::normalizeIntervalMinutes($raw, 15)
+            : (in_array($raw, [5, 10, 15, 20, 30], true) ? $raw : 15);
+    }
+
+    public static function slotIntervalSec(): int
+    {
+        return self::slotIntervalMin() * 60;
+    }
+
+    /** @return array{respect_staff_shift?:bool,interval_sec:int} */
+    public static function bookingSlotOpts(): array
+    {
+        return self::bookingShiftOpts() + ['interval_sec' => self::slotIntervalSec()];
     }
 
     public static function chillProductId(): int

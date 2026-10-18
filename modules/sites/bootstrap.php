@@ -210,6 +210,28 @@ EventBus::on('core.bulk.check_item', static function (array $payload): array {
     return $payload;
 });
 
+EventBus::on('calendar.settings.sections', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_calendar_slot_settings', [
+        'intervalMin' => SitesBooking::slotIntervalMin(),
+    ], 'sites');
+    return $payload;
+});
+
+EventBus::on('calendar.settings.save', static function ($payload) {
+    if (!is_array($payload) || !Auth::capability('SUPERADMIN_ACCESS')) {
+        return $payload;
+    }
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    if (!isset($post['sites_slot_settings_save'])) {
+        return $payload;
+    }
+    SitesBooking::saveSlotIntervalFromPost($post);
+    return $payload;
+});
+
 // Public storefront routes (available on admin too for preview, except `/` and `/login`).
 $publicPages = [
     // CMS articles: /page/… resolved in router.not_found (hierarchical paths).

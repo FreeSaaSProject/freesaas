@@ -11,11 +11,11 @@ declare(strict_types=1);
 final class BookingValidate
 {
     /**
-     * Dense slot gate (5-min grid). Listing may thin slots; assert always uses dense forDay.
+     * Slot gate on channel grid (default 5-min). Pass opts.interval_sec for coarser channels.
      *
      * @param list<int> $productIds
      * @param int|list<int>|null $excludeProcedureId omit procedure(s) from occupancy
-     * @param array{respect_staff_shift?:bool} $opts forwarded to BookingAvailability::forDay
+     * @param array{respect_staff_shift?:bool,interval_sec?:int} $opts forwarded to BookingAvailability::forDay
      * @throws InvalidArgumentException
      */
     public static function assertSlot(
@@ -47,8 +47,11 @@ final class BookingValidate
             throw new InvalidArgumentException(t('booking.err.dt_start'));
         }
 
-        // Align to 5-minute grid used by BookingSlots
-        $mod = $dtStart % BookingSlots::INTERVAL_SEC;
+        $intervalSec = isset($opts['interval_sec'])
+            ? BookingSlots::normalizeIntervalSec((int)$opts['interval_sec'], BookingSlots::INTERVAL_SEC)
+            : BookingSlots::INTERVAL_SEC;
+        $opts['interval_sec'] = $intervalSec;
+        $mod = $dtStart % $intervalSec;
         if ($mod !== 0) {
             $dtStart -= $mod;
         }

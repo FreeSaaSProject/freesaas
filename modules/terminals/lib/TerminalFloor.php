@@ -445,7 +445,7 @@ final class TerminalFloor
                     false,
                     TerminalsConfig::leadSec(),
                     null,
-                    TerminalsConfig::bookingShiftOpts()
+                    TerminalsConfig::bookingSlotOpts()
                 );
                 $operators = self::filterOperators(
                     is_array($avail['operators'] ?? null) ? $avail['operators'] : [],
@@ -456,7 +456,7 @@ final class TerminalFloor
                     if ((int)($op['id'] ?? 0) === $operatorId) {
                         $rawSlots = array_map('intval', $op['slots'] ?? []);
                         $slots = class_exists(BookingSlots::class, false)
-                            ? BookingSlots::filterListSlots($rawSlots)
+                            ? BookingSlots::filterListSlots($rawSlots, TerminalsConfig::slotIntervalSec())
                             : $rawSlots;
                         $slotTimeText = (float)($op['time_text'] ?? 0);
                         $slotChillText = (float)($op['time_chill_text'] ?? 0);

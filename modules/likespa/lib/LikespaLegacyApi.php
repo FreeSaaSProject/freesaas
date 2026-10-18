@@ -440,13 +440,15 @@ final class LikespaLegacyApi
         ];
     }
 
-    private static function serviceEligibility(int $productId, string $date, int $leadSec): string
+    private static function serviceEligibility(int $productId, string $date, int $leadSec, ?int $intervalSec = null): string
     {
         if ($productId < 1 || !class_exists(BookingAvailability::class, false)) {
             return 'no_masters';
         }
+        $intervalSec = $intervalSec ?? LikespaConfig::slotIntervalSecApi();
+        $slotOpts = ['interval_sec' => $intervalSec];
         try {
-            $avail = BookingAvailability::forDay($date, [$productId], null, null, false, $leadSec);
+            $avail = BookingAvailability::forDay($date, [$productId], null, null, false, $leadSec, null, $slotOpts);
         } catch (Throwable $e) {
             return 'no_masters';
         }
@@ -454,7 +456,7 @@ final class LikespaLegacyApi
         foreach ($avail['operators'] ?? [] as $op) {
             $rawSlots = array_map('intval', $op['slots'] ?? []);
             $slots = class_exists(BookingSlots::class, false)
-                ? BookingSlots::filterListSlots($rawSlots)
+                ? BookingSlots::filterListSlots($rawSlots, $intervalSec)
                 : $rawSlots;
             if ($slots !== []) {
                 $hasSlots = true;
@@ -501,8 +503,10 @@ final class LikespaLegacyApi
             return $empty;
         }
         $leadSec = $cat > 0 ? LikespaConfig::leadSecTermy() : LikespaConfig::leadSecApi();
+        $intervalSec = $cat > 0 ? LikespaConfig::slotIntervalSecTermy() : LikespaConfig::slotIntervalSecApi();
+        $slotOpts = ['interval_sec' => $intervalSec];
         try {
-            $avail = BookingAvailability::forDay($date, [$serviceId], null, null, false, $leadSec);
+            $avail = BookingAvailability::forDay($date, [$serviceId], null, null, false, $leadSec, null, $slotOpts);
         } catch (Throwable $e) {
             return $empty + ['error' => $e->getMessage()];
         }
@@ -538,7 +542,7 @@ final class LikespaLegacyApi
             }
             $rawSlots = array_map('intval', $op['slots'] ?? []);
             $slots = class_exists(BookingSlots::class, false)
-                ? BookingSlots::filterListSlots($rawSlots)
+                ? BookingSlots::filterListSlots($rawSlots, $intervalSec)
                 : $rawSlots;
             $slotsHhmm = [];
             foreach ($slots as $ts) {
@@ -737,6 +741,9 @@ final class LikespaLegacyApi
             'lead_sec' => $source === 'api'
                 ? LikespaConfig::leadSecApi()
                 : LikespaConfig::leadSecTermy(),
+            'interval_sec' => $source === 'api'
+                ? LikespaConfig::slotIntervalSecApi()
+                : LikespaConfig::slotIntervalSecTermy(),
         ];
         if (isset($_GET['price']) && $_GET['price'] !== '') {
             $price = (float)$_GET['price'];
@@ -896,6 +903,7 @@ final class LikespaLegacyApi
                 'onec_bracelet' => $braceletId,
                 'disable_1c' => !empty($_GET['disable1C']),
                 'lead_sec' => LikespaConfig::leadSecApi(),
+                'interval_sec' => LikespaConfig::slotIntervalSecApi(),
                 'price' => $price,
             ];
             if ($onecClientId !== '') {

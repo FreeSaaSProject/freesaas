@@ -78,9 +78,14 @@ final class TerminalBooking
         // Live 1C: full slot/shift gate. Stub/force-majeure: still refuse past starts, skip shift matrix.
         if (!$disable1c && class_exists(BookingValidate::class, false)) {
             try {
-                $shiftOpts = class_exists(TerminalsConfig::class, false)
-                    ? TerminalsConfig::bookingShiftOpts()
+                $slotOpts = class_exists(TerminalsConfig::class, false)
+                    ? TerminalsConfig::bookingSlotOpts()
                     : [];
+                if (isset($input['interval_sec'])) {
+                    $slotOpts['interval_sec'] = class_exists(BookingSlots::class, false)
+                        ? BookingSlots::normalizeIntervalSec((int)$input['interval_sec'], BookingSlots::INTERVAL_SEC)
+                        : max(300, (int)$input['interval_sec']);
+                }
                 BookingValidate::assertSlot(
                     [$productId],
                     $operatorId,
@@ -89,7 +94,7 @@ final class TerminalBooking
                     false,
                     $leadSec,
                     null,
-                    $shiftOpts
+                    $slotOpts
                 );
             } catch (Throwable $e) {
                 return ['ok' => false, 'error' => $e->getMessage(), 'stack' => $stack];

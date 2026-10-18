@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.40",
+    "version": "0.1.41",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -365,7 +365,9 @@
             "core.user_edit.profile",
             "calendar.timeline.enrich",
             "bi.datasets",
-            "bi.recipes"
+            "bi.recipes",
+            "calendar.settings.sections",
+            "calendar.settings.save"
         ],
         "publish": [
             "terminals.guest.identified"

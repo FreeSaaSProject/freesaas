@@ -12,7 +12,9 @@ final class BookingAvailability
      * @param bool $allowPastLead when true, do not push rangeStart past "now+lead" (order edit)
      * @param int|null $leadSec override lead seconds (null → booking.lead_sec / 180)
      * @param int|list<int>|null $excludeProcedureId omit procedure(s) from occupancy (procedure / chain edit)
-     * @param array{respect_staff_shift?:bool} $opts respect_staff_shift default true — clip slots to PRICE_COL ∩ salon hours
+     * @param array{respect_staff_shift?:bool,interval_sec?:int} $opts
+     *        respect_staff_shift default true — clip slots to PRICE_COL ∩ salon hours;
+     *        interval_sec — slot step (5/10/15/20/30 min as seconds); default engine 5 min
      * @return array{
      *   date:string,
      *   day_start:int,
@@ -83,6 +85,9 @@ final class BookingAvailability
         }
 
         $respectStaffShift = !array_key_exists('respect_staff_shift', $opts) || !empty($opts['respect_staff_shift']);
+        $intervalSec = isset($opts['interval_sec'])
+            ? BookingSlots::normalizeIntervalSec((int)$opts['interval_sec'], BookingSlots::INTERVAL_SEC)
+            : BookingSlots::INTERVAL_SEC;
 
         $used = BookingOccupancy::build($dayStart, $dayEnd + 1, $excludeOrderId, $excludeProcedureId);
         $shifts = class_exists(WorkweeksRepository::class, false)
@@ -131,7 +136,8 @@ final class BookingAvailability
                 $opRangeStart,
                 $dayEnd,
                 $opWhEnd,
-                $opWmEnd
+                $opWmEnd,
+                $intervalSec
             );
             $slots = array_values($check['timeSlots']);
             sort($slots);
@@ -158,7 +164,16 @@ final class BookingAvailability
         if ($operatorsOut !== []) {
             $totalTime = (int)($operatorsOut[0]['total_time'] ?? 0);
         } else {
-            $probe = BookingSlots::check($products, 1, [], $rangeStart, $dayEnd, $workHourEnd, $workMinuteEnd);
+            $probe = BookingSlots::check(
+                $products,
+                1,
+                [],
+                $rangeStart,
+                $dayEnd,
+                $workHourEnd,
+                $workMinuteEnd,
+                $intervalSec
+            );
             $totalTime = $probe['totalTime'];
         }
 

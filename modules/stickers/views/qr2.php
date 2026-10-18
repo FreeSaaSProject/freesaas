@@ -45,23 +45,31 @@ $actions = is_array($r['actions'] ?? null) ? $r['actions'] : [];
       <input type="hidden" name="q" value="<?= e($hash) ?>">
       <input type="hidden" name="token" value="<?= e($token) ?>">
       <?php if ($type === 'proc_event'): ?>
-        <fieldset>
+        <?php $procEvents = (array)($form['events'] ?? []); ?>
+        <fieldset class="qr-scan__proc-field">
           <legend><?= e((string)($form['label'] ?? '')) ?></legend>
-          <label class="check">
-            <input type="radio" name="proc_event" value="-1_-1" required>
+          <label class="check qr-scan__free-act">
+            <input type="radio" name="proc_event" value="-1_-1" checked required>
             <?= te('stickers.qr.free_act') ?>
           </label>
-          <?php foreach ((array)($form['events'] ?? []) as $ev): ?>
-            <label class="check">
-              <input type="radio" name="proc_event" value="<?= e((string)($ev['value'] ?? '')) ?>">
-              #<?= (int)($ev['id'] ?? 0) ?>
-              <?= e((string)($ev['operator_name'] ?? '')) ?>
-              · <?= e((string)($ev['client_name'] ?? '')) ?>
-              · <?= e((string)($ev['product_name'] ?? '')) ?>
-              (<?= e(date('H:i', (int)($ev['dtstart'] ?? 0))) ?>)
-            </label>
-          <?php endforeach; ?>
-          <?php if ((array)($form['events'] ?? []) === []): ?>
+          <?php if ($procEvents !== []): ?>
+            <p class="qr-scan__proc-picked muted" hidden></p>
+            <details class="qr-scan__procs">
+              <summary class="qr-scan__procs-toggle"><?= te('stickers.qr.choose_proc') ?></summary>
+              <div class="qr-scan__procs-list">
+                <?php foreach ($procEvents as $ev): ?>
+                  <label class="check">
+                    <input type="radio" name="proc_event" value="<?= e((string)($ev['value'] ?? '')) ?>">
+                    #<?= (int)($ev['id'] ?? 0) ?>
+                    <?= e((string)($ev['client_name'] ?? '')) ?>
+                    · <?= e((string)($ev['operator_name'] ?? '')) ?>
+                    · <?= e((string)($ev['product_name'] ?? '')) ?>
+                    (<?= e(date('H:i', (int)($ev['dtstart'] ?? 0))) ?>)
+                  </label>
+                <?php endforeach; ?>
+              </div>
+            </details>
+          <?php else: ?>
             <p class="muted"><?= te('stickers.qr.no_events') ?></p>
           <?php endif; ?>
         </fieldset>
@@ -160,4 +168,58 @@ $actions = is_array($r['actions'] ?? null) ? $r['actions'] : [];
 .qr-scan button{font-size:1.3rem;margin:0.35rem 0;min-height:2.75rem}
 .qr-scan__msgs{list-style:none;padding:0;margin:1rem 0}
 .qr-scan__msgs li{margin:0.35rem 0}
+.qr-scan__free-act{display:block;margin:0.5rem 0 0.5rem}
+.qr-scan__proc-picked{margin:0.35rem 0 0.5rem;line-height:1.35}
+.qr-scan__procs{margin:0.25rem 0 0.75rem}
+.qr-scan__procs-toggle{
+  display:inline-flex;align-items:center;gap:0.35rem;
+  list-style:none;cursor:pointer;user-select:none;
+  font-size:1.15rem;min-height:2.5rem;padding:0.4rem 0.85rem;
+  border:1px solid var(--line,#ccc);border-radius:0.35rem;background:var(--bg-elevated,#f6f6f6);
+}
+.qr-scan__procs-toggle::-webkit-details-marker{display:none}
+.qr-scan__procs-toggle::before{content:'▸';font-size:0.9em;line-height:1}
+.qr-scan__procs[open]>.qr-scan__procs-toggle::before{content:'▾'}
+.qr-scan__procs-list{margin-top:0.6rem;max-height:16rem;overflow:auto;padding-right:0.25rem}
+.qr-scan__procs-list .check{display:block;margin:0.45rem 0;line-height:1.35}
 </style>
+<script>
+(function () {
+  var root = document.querySelector('.qr-scan__procs');
+  if (!root) return;
+  var summary = root.querySelector('.qr-scan__procs-toggle');
+  var picked = document.querySelector('.qr-scan__proc-picked');
+  var free = document.querySelector('input[name="proc_event"][value="-1_-1"]');
+  var chooseLabel = <?= tj('stickers.qr.choose_proc') ?>;
+  var changeLabel = <?= tj('stickers.qr.change_proc') ?>;
+  function labelText(inp) {
+    var lab = inp.closest('label');
+    return lab ? lab.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+  function showFree() {
+    if (summary) summary.textContent = chooseLabel;
+    if (picked) {
+      picked.hidden = true;
+      picked.textContent = '';
+    }
+  }
+  function showPicked(text) {
+    if (summary) summary.textContent = changeLabel;
+    if (picked) {
+      picked.hidden = false;
+      picked.textContent = text;
+    }
+  }
+  root.addEventListener('change', function (e) {
+    var inp = e.target;
+    if (!(inp instanceof HTMLInputElement) || inp.name !== 'proc_event') return;
+    showPicked(labelText(inp));
+    root.open = false;
+  });
+  if (free) {
+    free.addEventListener('change', function () {
+      if (free.checked) showFree();
+    });
+  }
+})();
+</script>

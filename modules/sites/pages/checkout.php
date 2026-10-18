@@ -114,6 +114,7 @@ if ($needsBooking) {
             'client_id' => SitesGuest::clientId(),
             'source' => 'site',
             'lead_sec' => SitesBooking::leadSec(),
+            'interval_sec' => SitesBooking::slotIntervalSec(),
         ]);
         $orderId = (int)$booked['order_id'];
     } catch (Throwable $e) {

@@ -278,6 +278,8 @@ return [
     'stickers.qr.done_close' => 'Готово! Закрыть',
     'stickers.qr.free_act' => 'Свободный акт',
     'stickers.qr.no_events' => 'Нет процедур на сегодня (или включите procedures).',
+    'stickers.qr.choose_proc' => 'Выбрать процедуру',
+    'stickers.qr.change_proc' => 'Сменить процедуру',
     'stickers.qr.choose_stock' => 'Укажите склад',
     'stickers.qr.confirm_value' => 'Значение проверено, зафиксировать',
     'stickers.qr.confirm_post' => 'Подтвердить действие (POST)',

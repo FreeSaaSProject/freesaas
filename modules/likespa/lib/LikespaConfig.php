@@ -18,6 +18,8 @@ final class LikespaConfig
             'legacy_api_key' => '',
             'lead_sec_api' => 600,
             'lead_sec_termy' => 1200,
+            'slot_interval_min_api' => 15,
+            'slot_interval_min_termy' => 15,
             'promo_price_col' => 4,
             'promo_min_work_hours' => 6.8,
             'promo_script_ids' => '4,20',
@@ -111,6 +113,7 @@ final class LikespaConfig
         }
         Config::set('likespa', 'lead_sec_api', (string)max(0, min(7200, (int)($post['lead_sec_api'] ?? 600))));
         Config::set('likespa', 'lead_sec_termy', (string)max(0, min(7200, (int)($post['lead_sec_termy'] ?? 1200))));
+        self::saveSlotIntervalsFromPost($post);
 
         Config::set('likespa', 'promo_price_col', (string)max(1, (int)($post['promo_price_col'] ?? 4)));
         $hours = (float)($post['promo_min_work_hours'] ?? 6.8);
@@ -205,6 +208,52 @@ final class LikespaConfig
     public static function leadSecTermy(): int
     {
         return max(0, min(7200, self::int('lead_sec_termy', 1200)));
+    }
+
+    /**
+     * Persist slot interval fields only (calendar settings embed).
+     *
+     * @param array<string,mixed> $post
+     */
+    public static function saveSlotIntervalsFromPost(array $post): void
+    {
+        $norm = static function ($raw, int $default): int {
+            if (class_exists(BookingSlots::class, false)) {
+                return BookingSlots::normalizeIntervalMinutes($raw, $default);
+            }
+            $n = is_numeric($raw) ? (int)$raw : $default;
+            return in_array($n, [5, 10, 15, 20, 30], true) ? $n : $default;
+        };
+        Config::set('likespa', 'slot_interval_min_api', (string)$norm($post['slot_interval_min_api'] ?? 15, 15));
+        Config::set('likespa', 'slot_interval_min_termy', (string)$norm($post['slot_interval_min_termy'] ?? 15, 15));
+    }
+
+    /** /api.php slot grid (minutes). */
+    public static function slotIntervalMinApi(): int
+    {
+        $raw = self::int('slot_interval_min_api', 15);
+        return class_exists(BookingSlots::class, false)
+            ? BookingSlots::normalizeIntervalMinutes($raw, 15)
+            : (in_array($raw, [5, 10, 15, 20, 30], true) ? $raw : 15);
+    }
+
+    /** /api_termy.php slot grid (minutes). */
+    public static function slotIntervalMinTermy(): int
+    {
+        $raw = self::int('slot_interval_min_termy', 15);
+        return class_exists(BookingSlots::class, false)
+            ? BookingSlots::normalizeIntervalMinutes($raw, 15)
+            : (in_array($raw, [5, 10, 15, 20, 30], true) ? $raw : 15);
+    }
+
+    public static function slotIntervalSecApi(): int
+    {
+        return self::slotIntervalMinApi() * 60;
+    }
+
+    public static function slotIntervalSecTermy(): int
+    {
+        return self::slotIntervalMinTermy() * 60;
     }
 
     public static function termScansEnabled(): bool
