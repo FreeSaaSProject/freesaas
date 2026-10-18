@@ -8,6 +8,14 @@ require_once __DIR__ . '/lib/PaymentMoveAllocUi.php';
 require_once __DIR__ . '/lib/DayPayroll.php';
 require_once __DIR__ . '/lib/ShiftSalaryBotPlugin.php';
 require_once __DIR__ . '/lib/DayPayrollBotPlugin.php';
+require_once __DIR__ . '/lib/PaymentsAssistantPreview.php';
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return PaymentsAssistantPreview::onWritePreview($payload);
+});
 
 StatusesRepository::registerFieldGroup([
     'title' => 'payments.statuses.group',

@@ -119,4 +119,10 @@ return [
     'catalog.product.err.in_use_stocks' => 'Есть остатки на складе ({n})',
     'catalog.category.err.has_children' => 'Есть дочерние категории ({n}) — сначала удалите их',
     'catalog.category.err.has_products' => 'Есть товары ({n}) — сначала перенесите или удалите',
+    'catalog.assistant.preview.now' => 'Сейчас: {v}',
+    'catalog.assistant.preview.will' => 'Будет: {v}',
+    'catalog.assistant.preview.create' => 'Создать: {v}',
+    'catalog.assistant.preview.delete' => 'Удалить этот товар',
+    'catalog.assistant.preview.category' => 'Категория: {v}',
+    'catalog.assistant.preview.category_create' => 'Новая категория: {v}',
 ];

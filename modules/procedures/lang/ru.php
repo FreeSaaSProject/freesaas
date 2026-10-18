@@ -128,4 +128,9 @@ return [
     'procedures.module.summary' => 'Включайте для типов и журнала процедур. Требует clients + catalog. Мягко tables/bots. Нужен calendar, rates, procents, bonuses, staff_reports. Базовый spa-домен — до calendar/rates.',
     'procedures.perm.delete' => 'Удаление процедур',
     'procedures.perm.types_delete' => 'Удаление типов процедур',
+    'procedures.assistant.preview.now' => 'Сейчас: {v}',
+    'procedures.assistant.preview.will' => 'Будет: {v}',
+    'procedures.assistant.preview.create' => 'Создать: {v}',
+    'procedures.assistant.preview.delete' => 'Удалить эту процедуру',
+    'procedures.assistant.preview.type' => 'Тип: {v}',
 ];

@@ -165,4 +165,12 @@ return [
     'ledger.dir.0' => '0',
     'ledger.perm.delete' => 'Delete accounts / moves',
     'ledger.perm.types_delete' => 'Delete move types',
+    'ledger.assistant.preview.now' => 'Now: {v}',
+    'ledger.assistant.preview.will' => 'Will be: {v}',
+    'ledger.assistant.preview.create' => 'Create: {v}',
+    'ledger.assistant.preview.delete' => 'Delete this move',
+    'ledger.assistant.preview.transfer' => 'Transfer: {v}',
+    'ledger.assistant.preview.account' => 'Account: {v}',
+    'ledger.assistant.preview.account_delete' => 'Delete account: {v}',
+    'ledger.assistant.preview.type' => 'Type: {v}',
 ];

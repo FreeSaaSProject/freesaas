@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -23,7 +23,8 @@
         "suppliers": ">=0.1.0",
         "stickers": ">=0.1.0",
         "funds": ">=0.1.0",
-        "banks": ">=0.1.0"
+        "banks": ">=0.1.0",
+        "assistant": ">=0.1.0"
     },
     "provides": [
         "ledger.accounts",
@@ -275,7 +276,8 @@
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "core.notices.collect"
+            "core.notices.collect",
+            "assistant.write.preview"
         ],
         "publish": [
             "ledger.accounts.badges",

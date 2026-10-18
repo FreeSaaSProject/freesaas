@@ -130,4 +130,10 @@ return [
     'clients.perm.tags_delete' => 'Удаление тегов клиентов',
     'clients.perm.statuses_delete' => 'Удаление статусов клиентов',
     'clients.status.err.in_use' => 'Статус используется у {n} клиент(ов) — сначала переназначьте',
+    'clients.assistant.preview.now' => 'Сейчас: {v}',
+    'clients.assistant.preview.will' => 'Будет: {v}',
+    'clients.assistant.preview.create' => 'Создать: {v}',
+    'clients.assistant.preview.delete' => 'Удалить этого клиента',
+    'clients.assistant.preview.status' => 'Статус: {v}',
+    'clients.assistant.preview.tag' => 'Тег: {v}',
 ];

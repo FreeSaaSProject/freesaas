@@ -189,6 +189,40 @@
     return esc;
   }
 
+  function pendingHeadline(p) {
+    if (!p) {
+      return '';
+    }
+    if (p.headline) {
+      return String(p.headline);
+    }
+    var summary = String(p.summary || p.op_id || p.token || '');
+    var nl = summary.indexOf('\n');
+    return nl >= 0 ? summary.slice(0, nl) : summary;
+  }
+
+  function pendingLines(p) {
+    if (!p) {
+      return [];
+    }
+    if (Array.isArray(p.lines) && p.lines.length) {
+      return p.lines.map(function (ln) {
+        return String(ln || '').trim();
+      }).filter(Boolean);
+    }
+    var summary = String(p.summary || '');
+    if (summary.indexOf('\n') < 0) {
+      return [];
+    }
+    return summary
+      .split(/\n/)
+      .slice(1)
+      .map(function (ln) {
+        return ln.trim();
+      })
+      .filter(Boolean);
+  }
+
   function attachPending(wrap, pending) {
     if (!wrap || !pending || !pending.length) {
       return;
@@ -201,10 +235,30 @@
         return;
       }
       tokens.push(p.token);
-      var line = document.createElement('div');
-      line.className = 'assistant-chat__pending-item';
-      line.textContent = '• ' + (p.summary || p.op_id || p.token);
-      list.appendChild(line);
+      var headline = pendingHeadline(p);
+      var lines = pendingLines(p);
+      var item;
+      if (lines.length) {
+        item = document.createElement('details');
+        item.className = 'assistant-chat__pending-item';
+        item.open = true;
+        var sum = document.createElement('summary');
+        sum.textContent = '• ' + headline;
+        item.appendChild(sum);
+        var detail = document.createElement('ul');
+        detail.className = 'assistant-chat__pending-detail';
+        lines.forEach(function (ln) {
+          var li = document.createElement('li');
+          li.textContent = ln;
+          detail.appendChild(li);
+        });
+        item.appendChild(detail);
+      } else {
+        item = document.createElement('div');
+        item.className = 'assistant-chat__pending-item';
+        item.textContent = '• ' + (headline || p.op_id || p.token);
+      }
+      list.appendChild(item);
     });
     if (!tokens.length) {
       return;

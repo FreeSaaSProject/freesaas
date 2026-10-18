@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.56",
+    "version": "0.1.59",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -117,7 +117,8 @@
             "core.layout.gate"
         ],
         "publish": [
-            "bots.send"
+            "bots.send",
+            "assistant.write.preview"
         ]
     },
     "catalog": {

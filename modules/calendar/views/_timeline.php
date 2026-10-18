@@ -256,6 +256,12 @@ $renderShiftChip = static function (array $sh): string {
                   $chipInfo .= $chipActions;
               }
               ?>
+              <?php if ((string)($chip['kind'] ?? '') === 'shift_bound'): ?>
+              <div class="calendar-tl-chip calendar-tl-chip-shift_bound<?= $chipExtra !== '' ? ' ' . e($chipExtra) : '' ?>"
+                   title="<?= e((string)($chip['title'] ?? '')) ?>"
+                   aria-hidden="true"
+                   style="top:<?= (int)$chip['top'] ?>px;height:<?= (int)$chip['height'] ?>px;left:<?= e((string)$chip['left']) ?>%;width:<?= e((string)$chip['width']) ?>%;background:<?= e((string)$chip['bg']) ?>;"></div>
+              <?php else: ?>
               <a class="calendar-tl-chip calendar-tl-chip-<?= e((string)$chip['kind']) ?><?= $chipExtra !== '' ? ' ' . e($chipExtra) : '' ?>"
                  href="<?= e((string)$chip['href']) ?>"
                  data-info="<?= e($chipInfo) ?>"
@@ -263,6 +269,7 @@ $renderShiftChip = static function (array $sh): string {
                  style="top:<?= (int)$chip['top'] ?>px;height:<?= (int)$chip['height'] ?>px;left:<?= e((string)$chip['left']) ?>%;width:<?= e((string)$chip['width']) ?>%;background:<?= e((string)$chip['bg']) ?>;color:<?= e((string)$chip['fg']) ?>;">
                 <?= e((string)$chip['label']) ?>
               </a>
+              <?php endif; ?>
             <?php endforeach; ?>
             </div>
           </td>

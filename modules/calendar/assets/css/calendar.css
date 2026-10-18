@@ -469,6 +469,23 @@ tr.is-block td { opacity: 0.75; }
 .calendar-tl-chip-block {
   opacity: 0.92;
 }
+/* Out-of-shift lane wash (only when staff already has chips). */
+.calendar-tl-chip-shift_bound {
+  z-index: 1;
+  opacity: 0.14;
+  border: 0;
+  pointer-events: none;
+  padding: 0;
+  box-shadow: none;
+}
+.calendar-tl-chip-shift_bound:hover {
+  outline: none;
+  z-index: 1;
+}
+[data-theme="dark"] .calendar-tl-chip-shift_bound,
+:root:not([data-theme="light"]) .calendar-tl-chip-shift_bound {
+  opacity: 0.22;
+}
 /* Bottom Day | Week — plain links, no box */
 .calendar-mode-switch {
   display: flex;

@@ -165,4 +165,12 @@ return [
     'ledger.dir.0' => '0',
     'ledger.perm.delete' => 'Удаление счетов / операций',
     'ledger.perm.types_delete' => 'Удаление типов операций',
+    'ledger.assistant.preview.now' => 'Сейчас: {v}',
+    'ledger.assistant.preview.will' => 'Будет: {v}',
+    'ledger.assistant.preview.create' => 'Создать: {v}',
+    'ledger.assistant.preview.delete' => 'Удалить это движение',
+    'ledger.assistant.preview.transfer' => 'Перевод: {v}',
+    'ledger.assistant.preview.account' => 'Счёт: {v}',
+    'ledger.assistant.preview.account_delete' => 'Удалить счёт: {v}',
+    'ledger.assistant.preview.type' => 'Тип: {v}',
 ];

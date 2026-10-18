@@ -8,6 +8,14 @@ require_once __DIR__ . '/lib/ProceduresEditAcl.php';
 require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
+require_once __DIR__ . '/lib/ProceduresAssistantPreview.php';
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return ProceduresAssistantPreview::onWritePreview($payload);
+});
 
 ModuleManager::registerMenuGroup('procedures.menu.group', 300, '/procedures');
 

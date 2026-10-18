@@ -58,7 +58,16 @@ if ($staffId > 0 && $stackOpIds === []) {
 }
 $stacks = CalendarTimeline::staffStacks($stackOpIds);
 $colors = CalendarTimeline::operatorColors($opIds);
-$chips = CalendarTimeline::chipsForDay($dayStart, $events, $procedures, $stacks, $colors, $canEdit, $orders);
+$chips = CalendarTimeline::chipsForDay(
+    $dayStart,
+    $events,
+    $procedures,
+    $stacks,
+    $colors,
+    $canEdit,
+    $orders,
+    $shifts
+);
 $retDay = '/calendar/day/' . $dateParam . ($staffId > 0 && !$myOnly ? ('?staff=' . $staffId) : '');
 foreach ($chips as &$chip) {
     if (($chip['kind'] === 'event' || $chip['kind'] === 'block') && $canEdit) {

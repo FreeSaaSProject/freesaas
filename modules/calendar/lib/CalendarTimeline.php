@@ -237,6 +237,7 @@ final class CalendarTimeline
      * @param list<array<string,mixed>> $procedures
      * @param array<int,array{bg:string,fg:string}> $colors
      * @param list<array<string,mixed>> $orders advance website orders (base_orders)
+     * @param list<array<string,mixed>> $shifts workweeks rows for the day (PRICE_COL bounds)
      * @return list<array<string,mixed>>
      */
     public static function chipsForDay(
@@ -246,11 +247,14 @@ final class CalendarTimeline
         array $stacks,
         array $colors,
         bool $canEditEvents,
-        array $orders = []
+        array $orders = [],
+        array $shifts = []
     ): array {
         $width = (float)($stacks['width'] ?? 95);
         $lefts = $stacks['lefts'] ?? [0 => 0.0];
         $chips = [];
+        /** @var array<int,true> ops that already have event/proc/order chips */
+        $opsWithItems = [];
         $canContact = Auth::capability('SUPERADMIN_ACCESS')
             || Auth::capability('EVT_CONTACT_DATA');
         $isToday = date('Y-m-d', $dayStart) === date('Y-m-d');
@@ -271,6 +275,9 @@ final class CalendarTimeline
 
         foreach ($procedures as $pr) {
             $op = (int)($pr['id_operator'] ?? 0);
+            if ($op > 0) {
+                $opsWithItems[$op] = true;
+            }
             $pos = self::position($dayStart, (int)($pr['dtstart'] ?? 0), (int)($pr['dtend'] ?? 0));
             $title = trim((string)($pr['product_name'] ?? $pr['type_name'] ?? ''));
             if ($title === '') {
@@ -329,6 +336,9 @@ final class CalendarTimeline
 
         foreach ($events as $ev) {
             $op = (int)($ev['id_operator'] ?? 0);
+            if ($op > 0) {
+                $opsWithItems[$op] = true;
+            }
             $pos = self::position($dayStart, (int)($ev['dtstart'] ?? 0), (int)($ev['dtend'] ?? 0));
             $isBlock = !empty($ev['is_block']);
             $client = trim((string)($ev['client_name'] ?? ''));
@@ -395,6 +405,9 @@ final class CalendarTimeline
                 continue;
             }
             $op = (int)($ord['id_cosmetolog'] ?? $ord['id_operator'] ?? 0);
+            if ($op > 0) {
+                $opsWithItems[$op] = true;
+            }
             $end = $ts + self::orderDurationSec($ord);
             $pos = self::position($dayStart, $ts, $end);
             $phone = trim((string)($ord['phone'] ?? ''));
@@ -462,7 +475,113 @@ final class CalendarTimeline
             ];
         }
 
+        foreach (self::shiftBoundChips($dayStart, $shifts, $lefts, $width, $colors, $opsWithItems) as $bound) {
+            $chips[] = $bound;
+        }
+
         return $chips;
+    }
+
+    /**
+     * Faint out-of-shift overlays on lanes that already have calendar items.
+     * Pre-shift (grid start → shift start) and post-shift (shift end → grid end).
+     *
+     * @param list<array<string,mixed>> $shifts
+     * @param array<int|string,float> $lefts
+     * @param array<int,array{bg:string,fg:string}> $colors
+     * @param array<int,true> $opsWithItems
+     * @return list<array<string,mixed>>
+     */
+    private static function shiftBoundChips(
+        int $dayStart,
+        array $shifts,
+        array $lefts,
+        float $width,
+        array $colors,
+        array $opsWithItems
+    ): array {
+        if ($shifts === [] || $opsWithItems === [] || !class_exists(WorkweeksRepository::class, false)) {
+            return [];
+        }
+        $hStart = self::hourStart();
+        $hEnd = self::hourEnd();
+        $gridStart = $dayStart + $hStart * 3600;
+        $gridEnd = $dayStart + ($hEnd + 1) * 3600;
+        $byOp = [];
+        foreach ($shifts as $sh) {
+            $oid = (int)($sh['id_operator'] ?? 0);
+            if ($oid < 1 || !isset($opsWithItems[$oid]) || !array_key_exists($oid, $lefts)) {
+                continue;
+            }
+            if (isset($byOp[$oid])) {
+                continue;
+            }
+            $pc = WorkweeksRepository::normalizePriceCol((int)($sh['price_col'] ?? 1));
+            $range = WorkweeksRepository::shiftRangeForDay($dayStart, $pc);
+            if ($range === null) {
+                continue;
+            }
+            $byOp[$oid] = $range;
+        }
+        $out = [];
+        foreach ($byOp as $oid => $range) {
+            $shiftStart = (int)$range['start'];
+            $shiftEnd = (int)$range['end'];
+            $label = (string)($range['label'] ?? '');
+            $title = t('calendar.timeline.shift_bound', [
+                'label' => $label !== '' ? $label : (string)$oid,
+                'start' => date('H:i', $shiftStart),
+                'end' => date('H:i', $shiftEnd),
+            ]);
+            $color = $colors[$oid] ?? ['bg' => 'var(--accent-soft)', 'fg' => 'var(--text)'];
+            $bg = self::safeCssColor((string)$color['bg'], 'var(--accent-soft)');
+            $left = (float)$lefts[$oid];
+            // Before shift start (outside working window).
+            if ($shiftStart > $gridStart + 60) {
+                $pos = self::position($dayStart, $gridStart, min($shiftStart, $gridEnd));
+                if ($pos['height'] >= self::MIN_CHIP_PX) {
+                    $out[] = self::makeShiftBoundChip($pos, $left, $width, $bg, $title, 'pre');
+                }
+            }
+            // After shift end.
+            if ($shiftEnd < $gridEnd - 60) {
+                $pos = self::position($dayStart, max($shiftEnd, $gridStart), $gridEnd);
+                if ($pos['height'] >= self::MIN_CHIP_PX) {
+                    $out[] = self::makeShiftBoundChip($pos, $left, $width, $bg, $title, 'post');
+                }
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param array{top:int,height:int} $pos
+     * @return array<string,mixed>
+     */
+    private static function makeShiftBoundChip(
+        array $pos,
+        float $left,
+        float $width,
+        string $bg,
+        string $title,
+        string $side
+    ): array {
+        return [
+            'kind' => 'shift_bound',
+            'id' => 0,
+            'href' => '#',
+            'top' => $pos['top'],
+            'height' => $pos['height'],
+            'left' => $left,
+            'width' => $width,
+            'bg' => $bg,
+            'fg' => 'transparent',
+            'is_block' => false,
+            'label' => '',
+            'title' => $title,
+            'info' => '',
+            'class' => 'is-shift-' . $side,
+        ];
     }
 
     /**

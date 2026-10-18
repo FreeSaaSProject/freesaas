@@ -201,4 +201,13 @@ return [
     'payments.bot.salary.assist_only' => 'Для администраторов на смене: запросы наличной выдачи оформляют сотрудники с поденным расчётом.',
     'payments.perm.delete' => 'Удаление выплат',
     'payments.perm.types_delete' => 'Удаление типов выплат',
+    'payments.assistant.preview.now' => 'Сейчас: {v}',
+    'payments.assistant.preview.will' => 'Будет: {v}',
+    'payments.assistant.preview.create' => 'Создать: {v}',
+    'payments.assistant.preview.delete' => 'Удалить эту выплату',
+    'payments.assistant.preview.dir_in' => 'начисление',
+    'payments.assistant.preview.dir_out' => 'списание',
+    'payments.assistant.preview.type' => 'Тип: {v}',
+    'payments.assistant.preview.type_create' => 'Новый тип: {v}',
+    'payments.assistant.preview.type_id' => 'Тип #{v}',
 ];

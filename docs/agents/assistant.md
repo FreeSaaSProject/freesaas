@@ -24,7 +24,7 @@ Requires a ready LLM profile (`/llm/tokens`, `llm.manage` + SUPERADMIN). Assista
 - **Tool catalog** is built automatically from enabled modules’ `module.json` → `agent.ops` (filtered by `Auth::can` and route presence). No per-module `AssistantTools::register`.
 - **Invoke** runs the same page handler in-process with `format=json` / `AgentHttp::capture` (no HTTP loopback).
 - **Read tools** run immediately inside `AssistantHarness`.
-- **Write tools** never auto-run: harness stores `base_assistant_pending` and returns `pending_actions[]`. UI buttons or bot callbacks confirm/cancel (TTL 15 minutes).
+- **Write tools** never auto-run: harness stores `base_assistant_pending` and returns `pending_actions[]`. UI buttons or bot callbacks confirm/cancel (TTL 15 minutes). Draft detail (who/what changes) comes from EventBus `assistant.write.preview` — owning modules append `lines` / set `handled` (`*AssistantPreview` in workweeks, calendar, payments, clients, ledger, catalog, procedures); harness only formats a generic args fallback.
 
 Opt out of the assistant tool list with `"assistant": false` on an op (used for `assistant.chat` / `assistant.confirm` / `llm.chat` to avoid recursion).
 

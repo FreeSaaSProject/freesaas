@@ -76,6 +76,7 @@ return [
     'calendar.day.no_parent' => '—',
     'calendar.day.add_event' => '+Соб.',
     'calendar.timeline.load_title' => 'Загрузка зала',
+    'calendar.timeline.shift_bound' => 'Вне смены {label} ({start}–{end})',
     'calendar.event.title_new' => 'Новое событие',
     'calendar.event.title' => 'Событие #{id}',
     'calendar.event.heading_new' => 'Новое событие',
@@ -146,4 +147,8 @@ return [
     'calendar.module.description' => 'Дневной вид и CRUD событий (base_events*); создание процедур из событий.',
     'calendar.module.summary' => 'Включайте для операционного дня. Требует clients, catalog, procedures, orders, workweeks. Мягко cabinets/tables. Мягко — bonuses/clientics. Центр смены — после workweeks + procedures.',
     'calendar.perm.delete' => 'Удаление событий',
+    'calendar.assistant.preview.now' => 'Сейчас: {v}',
+    'calendar.assistant.preview.will' => 'Будет: {v}',
+    'calendar.assistant.preview.create' => 'Создать: {v}',
+    'calendar.assistant.preview.delete' => 'Удалить это событие',
 ];

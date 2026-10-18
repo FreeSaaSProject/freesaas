@@ -230,14 +230,35 @@ final class AssistantBotPlugin
                             continue;
                         }
                         $token = (string)($p['token'] ?? '');
-                        $summary = trim((string)($p['summary'] ?? ''));
                         if ($token === '') {
                             continue;
                         }
                         $batchTokens[] = $token;
-                        if ($summary !== '') {
-                            $lines[] = '• ' . $summary;
+                        $headline = trim((string)($p['headline'] ?? ''));
+                        $detailLines = is_array($p['lines'] ?? null) ? $p['lines'] : [];
+                        $summary = trim((string)($p['summary'] ?? ''));
+                        if ($headline === '' && $summary !== '') {
+                            $parts = preg_split('/\n+/u', $summary) ?: [];
+                            $headline = trim((string)($parts[0] ?? ''));
+                            if ($detailLines === [] && count($parts) > 1) {
+                                $detailLines = array_slice($parts, 1);
+                            }
                         }
+                        if ($headline === '' && $summary !== '') {
+                            $headline = $summary;
+                        }
+                        if ($headline === '') {
+                            continue;
+                        }
+                        $block = '• ' . $headline;
+                        foreach ($detailLines as $ln) {
+                            $ln = trim((string)$ln);
+                            if ($ln === '') {
+                                continue;
+                            }
+                            $block .= "\n  " . $ln;
+                        }
+                        $lines[] = $block;
                     }
                     if ($batchTokens !== []) {
                         $n = count($batchTokens);

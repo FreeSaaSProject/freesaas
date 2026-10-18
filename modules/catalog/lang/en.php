@@ -119,4 +119,10 @@ return [
     'catalog.product.err.in_use_stocks' => 'Has stock qty rows ({n})',
     'catalog.category.err.has_children' => 'Has child categories ({n}) — delete them first',
     'catalog.category.err.has_products' => 'Has products ({n}) — move or delete them first',
+    'catalog.assistant.preview.now' => 'Now: {v}',
+    'catalog.assistant.preview.will' => 'Will be: {v}',
+    'catalog.assistant.preview.create' => 'Create: {v}',
+    'catalog.assistant.preview.delete' => 'Delete this product',
+    'catalog.assistant.preview.category' => 'Category: {v}',
+    'catalog.assistant.preview.category_create' => 'New category: {v}',
 ];

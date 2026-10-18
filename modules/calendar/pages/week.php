@@ -145,7 +145,8 @@ foreach ($days as $day) {
         $stacks,
         $colors,
         $canEdit,
-        $dayOrders
+        $dayOrders,
+        $shifts
     );
     foreach ($chips as &$chip) {
         if (($chip['kind'] === 'event' || $chip['kind'] === 'block') && $canEdit) {

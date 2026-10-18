@@ -128,4 +128,9 @@ return [
     'procedures.module.summary' => 'Enable for spa procedure catalog and journal. Requires clients + catalog. Soft tables/bots. Required by calendar, rates, procents, bonuses, staff_reports. Core spa domain — enable before calendar/rates.',
     'procedures.perm.delete' => 'Delete procedures',
     'procedures.perm.types_delete' => 'Delete procedure types',
+    'procedures.assistant.preview.now' => 'Now: {v}',
+    'procedures.assistant.preview.will' => 'Will be: {v}',
+    'procedures.assistant.preview.create' => 'Create: {v}',
+    'procedures.assistant.preview.delete' => 'Delete this procedure',
+    'procedures.assistant.preview.type' => 'Type: {v}',
 ];

@@ -4,6 +4,14 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/CategoriesRepository.php';
 require_once __DIR__ . '/lib/ProductsRepository.php';
 require_once __DIR__ . '/lib/ProductRelationsRepository.php';
+require_once __DIR__ . '/lib/CatalogAssistantPreview.php';
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return CatalogAssistantPreview::onWritePreview($payload);
+});
 
 $pages = [
     '/catalog' => ['permission' => 'catalog.view', 'methods' => ['GET', 'POST'], 'file' => 'browse.php'],

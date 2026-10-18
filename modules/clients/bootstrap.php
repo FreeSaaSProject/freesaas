@@ -5,6 +5,14 @@ require_once __DIR__ . '/lib/ClientsRepository.php';
 require_once __DIR__ . '/lib/ClientStatusesRepository.php';
 require_once __DIR__ . '/lib/ClientTagsRepository.php';
 require_once __DIR__ . '/lib/ClientBotPlugin.php';
+require_once __DIR__ . '/lib/ClientsAssistantPreview.php';
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return ClientsAssistantPreview::onWritePreview($payload);
+});
 
 ModuleManager::registerMenuGroup('clients.menu.group', 400, '/clients');
 

@@ -2,7 +2,7 @@
     "id": "catalog",
     "name": "catalog.module.name",
     "description": "catalog.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -11,7 +11,8 @@
     "optionalRequires": {
         "units": ">=0.1.0",
         "suppliers": ">=0.1.0",
-        "procedures": ">=0.1.0"
+        "procedures": ">=0.1.0",
+        "assistant": ">=0.1.0"
     },
     "provides": [
         "catalog.products",
@@ -176,7 +177,8 @@
     ],
     "hooks": {
         "subscribe": [
-            "core.bulk.check_item"
+            "core.bulk.check_item",
+            "assistant.write.preview"
         ],
         "publish": [
             "catalog.product_edit.sections",

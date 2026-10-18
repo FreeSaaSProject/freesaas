@@ -5,6 +5,14 @@ require_once __DIR__ . '/lib/LedgerAccountsRepository.php';
 require_once __DIR__ . '/lib/AccountMoveTypesRepository.php';
 require_once __DIR__ . '/lib/LedgerReconciliationsRepository.php';
 require_once __DIR__ . '/lib/LedgerMovesRepository.php';
+require_once __DIR__ . '/lib/LedgerAssistantPreview.php';
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return LedgerAssistantPreview::onWritePreview($payload);
+});
 
 Assets::register('ledger', [
     'css' => ['ledger.css'],

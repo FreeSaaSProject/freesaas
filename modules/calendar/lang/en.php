@@ -76,6 +76,7 @@ return [
     'calendar.day.no_parent' => '—',
     'calendar.day.add_event' => '+Evt.',
     'calendar.timeline.load_title' => 'Hall occupancy',
+    'calendar.timeline.shift_bound' => 'Outside shift {label} ({start}–{end})',
     'calendar.event.title_new' => 'New event',
     'calendar.event.title' => 'Event #{id}',
     'calendar.event.heading_new' => 'New event',
@@ -146,4 +147,8 @@ return [
     'calendar.module.description' => 'Day view and event CRUD (base_events*); can create procedures from events.',
     'calendar.module.summary' => 'Enable for the operational day board. Requires clients, catalog, procedures, orders, workweeks. Soft cabinets/tables. Soft-used by bonuses/clientics. Central ops screen — enable after workweeks + procedures.',
     'calendar.perm.delete' => 'Delete events',
+    'calendar.assistant.preview.now' => 'Now: {v}',
+    'calendar.assistant.preview.will' => 'Will be: {v}',
+    'calendar.assistant.preview.create' => 'Create: {v}',
+    'calendar.assistant.preview.delete' => 'Delete this event',
 ];

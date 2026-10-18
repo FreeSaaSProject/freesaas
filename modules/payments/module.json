@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "0.1.14",
+    "version": "0.1.15",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -12,7 +12,8 @@
         "bots": ">=0.1.0",
         "procents": ">=0.1.5",
         "procedures": ">=0.1.0",
-        "contracts": ">=0.1.0"
+        "contracts": ">=0.1.0",
+        "assistant": ">=0.1.0"
     },
     "provides": [
         "payments.list",
@@ -170,7 +171,8 @@
         "subscribe": [
             "ledger.moves.edit.sections",
             "ledger.moves.deleted",
-            "ledger.moves.badges"
+            "ledger.moves.badges",
+            "assistant.write.preview"
         ],
         "publish": []
     },

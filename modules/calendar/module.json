@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.1.29",
+    "version": "0.1.31",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -18,7 +18,8 @@
         "tables": ">=0.1.0",
         "audio": ">=0.1.0",
         "booking": ">=0.1.0",
-        "bonuses": ">=0.1.0"
+        "bonuses": ">=0.1.0",
+        "assistant": ">=0.1.0"
     },
     "provides": [
         "calendar.week",
@@ -160,7 +161,8 @@
     "hooks": {
         "subscribe": [
             "core.dashboard.catalog",
-            "core.dashboard.widgets"
+            "core.dashboard.widgets",
+            "assistant.write.preview"
         ],
         "publish": [
             "calendar.day.stats",

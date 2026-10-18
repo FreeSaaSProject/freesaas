@@ -27,7 +27,12 @@ final class PendingActionsRepository
         if ($argsJson === false) {
             $argsJson = '{}';
         }
-        $summary = mb_substr(trim($summary), 0, 500);
+        $summary = trim($summary);
+        if (function_exists('mb_substr')) {
+            $summary = mb_substr($summary, 0, 4000);
+        } else {
+            $summary = substr($summary, 0, 4000);
+        }
         $st = Database::pdo()->prepare(
             'INSERT INTO base_assistant_pending
              (TOKEN, ID_USER, OP_ID, ARGS_JSON, SUMMARY, STATUS, CREATED_AT, EXPIRES_AT)

@@ -8,6 +8,14 @@ require_once __DIR__ . '/lib/CalendarWidgets.php';
 require_once __DIR__ . '/lib/CalendarDayStats.php';
 require_once __DIR__ . '/lib/CalendarTimelineEnrich.php';
 require_once __DIR__ . '/lib/CalendarViewPref.php';
+require_once __DIR__ . '/lib/CalendarAssistantPreview.php';
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return CalendarAssistantPreview::onWritePreview($payload);
+});
 
 Assets::register('calendar', [
     'css' => ['calendar.css'],

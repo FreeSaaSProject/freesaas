@@ -130,4 +130,10 @@ return [
     'clients.perm.tags_delete' => 'Delete client tags',
     'clients.perm.statuses_delete' => 'Delete client statuses',
     'clients.status.err.in_use' => 'Status is used by {n} client(s) — reassign them first',
+    'clients.assistant.preview.now' => 'Now: {v}',
+    'clients.assistant.preview.will' => 'Will be: {v}',
+    'clients.assistant.preview.create' => 'Create: {v}',
+    'clients.assistant.preview.delete' => 'Delete this client',
+    'clients.assistant.preview.status' => 'Status: {v}',
+    'clients.assistant.preview.tag' => 'Tag: {v}',
 ];

@@ -201,4 +201,13 @@ return [
     'payments.bot.salary.assist_only' => 'For admins on shift: cash requests are created by staff with daily payroll.',
     'payments.perm.delete' => 'Delete payments',
     'payments.perm.types_delete' => 'Delete payment types',
+    'payments.assistant.preview.now' => 'Now: {v}',
+    'payments.assistant.preview.will' => 'Will be: {v}',
+    'payments.assistant.preview.create' => 'Create: {v}',
+    'payments.assistant.preview.delete' => 'Delete this payment',
+    'payments.assistant.preview.dir_in' => 'credit',
+    'payments.assistant.preview.dir_out' => 'debit',
+    'payments.assistant.preview.type' => 'Type: {v}',
+    'payments.assistant.preview.type_create' => 'New type: {v}',
+    'payments.assistant.preview.type_id' => 'Type #{v}',
 ];

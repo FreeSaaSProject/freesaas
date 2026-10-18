@@ -2,8 +2,16 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/WorkweeksRepository.php';
+require_once __DIR__ . '/lib/WorkweeksAssistantPreview.php';
 require_once __DIR__ . '/lib/NeededPeopleBotPlugin.php';
 require_once __DIR__ . '/lib/ShiftsBotPlugin.php';
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return WorkweeksAssistantPreview::onWritePreview($payload);
+});
 
 Assets::register('workweeks', [
     'css' => ['workweeks.css'],

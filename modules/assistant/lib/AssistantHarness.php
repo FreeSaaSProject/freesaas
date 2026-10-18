@@ -296,15 +296,15 @@ final class AssistantHarness
                 if ($stubPayload !== null) {
                     if ($side === 'write' && !empty($stubPayload['pending'])) {
                         $token = (string)($stubPayload['token'] ?? ('eval-stub-' . substr(sha1($opId), 0, 8)));
-                        $summary = (string)($stubPayload['summary'] ?? self::summarizeWrite($opId, $args, $desc));
-                        $pending[] = [
-                            'token' => $token,
-                            'op_id' => $opId,
-                            'summary' => $summary,
-                            'expires_at' => time() + 900,
-                        ];
+                        $preview = self::writePreview($opId, $args, $desc);
+                        if (isset($stubPayload['summary']) && is_string($stubPayload['summary']) && trim($stubPayload['summary']) !== '') {
+                            $preview['summary'] = trim($stubPayload['summary']);
+                        }
+                        $pending[] = self::pendingActionPayload($token, $opId, $preview, time() + 900);
                         $stubPayload['token'] = $token;
-                        $stubPayload['summary'] = $summary;
+                        $stubPayload['summary'] = $preview['summary'];
+                        $stubPayload['headline'] = $preview['headline'];
+                        $stubPayload['lines'] = $preview['lines'];
                         $trace[] = [
                             'op_id' => $opId,
                             'label' => self::humanOpTitle($opId),
@@ -320,7 +320,7 @@ final class AssistantHarness
                             'side_effect' => $side,
                             'args' => $args,
                             'status' => 'pending',
-                            'summary' => $summary,
+                            'summary' => $preview['summary'],
                         ]);
                     } else {
                         $ok = !isset($stubPayload['ok']) || !empty($stubPayload['ok']);
@@ -350,8 +350,8 @@ final class AssistantHarness
                 }
 
                 if ($side === 'write') {
-                    $summary = self::summarizeWrite($opId, $args, $desc);
-                    $row = PendingActionsRepository::create($userId, $opId, $args, $summary);
+                    $preview = self::writePreview($opId, $args, $desc);
+                    $row = PendingActionsRepository::create($userId, $opId, $args, $preview['summary']);
                     if ($row === null) {
                         $payload = ['ok' => false, 'error' => 'Could not create pending confirmation'];
                         $trace[] = [
@@ -369,18 +369,20 @@ final class AssistantHarness
                             'status' => 'error',
                         ]);
                     } else {
-                        $pending[] = [
-                            'token' => $row['token'],
-                            'op_id' => $opId,
-                            'summary' => $row['summary'],
-                            'expires_at' => $row['expires_at'],
-                        ];
+                        $pending[] = self::pendingActionPayload(
+                            (string)$row['token'],
+                            $opId,
+                            $preview,
+                            (int)$row['expires_at']
+                        );
                         $payload = [
                             'ok' => true,
                             'pending' => true,
                             'token' => $row['token'],
                             'message' => 'Write queued. UI shows Confirm/Cancel buttons. Reply with ONE short sentence; do not invent Confirm text; do not claim it ran.',
-                            'summary' => $row['summary'],
+                            'summary' => $preview['summary'],
+                            'headline' => $preview['headline'],
+                            'lines' => $preview['lines'],
                         ];
                         $trace[] = [
                             'op_id' => $opId,
@@ -396,7 +398,7 @@ final class AssistantHarness
                             'side_effect' => $side,
                             'args' => $args,
                             'status' => 'pending',
-                            'summary' => $row['summary'],
+                            'summary' => $preview['summary'],
                         ]);
                     }
                     $norm[] = [
@@ -558,34 +560,38 @@ final class AssistantHarness
     }
 
     /**
+     * Compact args for progress traces — no module field names; picks universal keys then any scalars.
+     *
      * @param array<string,mixed> $args
      */
     public static function formatArgsBrief(array $args): string
     {
-        if ($args === []) {
-            return '';
-        }
-        $prefer = [
-            'q', 'summ', 'account_id', 'type_id', 'supplier_id', 'descr',
-            'food_id', 'weight', 'id', 'day', 'year', 'month', 'name', 'direction',
-        ];
         $bits = [];
-        foreach ($prefer as $k) {
-            if (!array_key_exists($k, $args) || $args[$k] === '' || $args[$k] === null) {
-                continue;
-            }
-            $v = is_scalar($args[$k]) ? (string)$args[$k] : (string)json_encode($args[$k], JSON_UNESCAPED_UNICODE);
+        foreach (self::pickScalarArgs($args, 5) as $pair) {
+            $v = $pair['value'];
             if ((function_exists('mb_strlen') ? mb_strlen($v) : strlen($v)) > 48) {
                 $v = (function_exists('mb_substr') ? mb_substr($v, 0, 48) : substr($v, 0, 48)) . '…';
             }
-            $argKey = 'assistant.tool.arg.' . $k;
-            $tpl = t($argKey, ['v' => $v]);
-            $bits[] = $tpl !== $argKey ? $tpl : $v;
-            if (count($bits) >= 5) {
-                break;
-            }
+            $bits[] = self::formatArgBit($pair['key'], $v, true);
         }
         return $bits !== [] ? implode(' · ', $bits) : '';
+    }
+
+    /**
+     * @param array{summary:string,headline:string,lines:list<string>,args:array<string,mixed>} $preview
+     * @return array<string,mixed>
+     */
+    private static function pendingActionPayload(string $token, string $opId, array $preview, int $expiresAt): array
+    {
+        return [
+            'token' => $token,
+            'op_id' => $opId,
+            'summary' => (string)($preview['summary'] ?? ''),
+            'headline' => (string)($preview['headline'] ?? ''),
+            'lines' => is_array($preview['lines'] ?? null) ? array_values($preview['lines']) : [],
+            'args' => is_array($preview['args'] ?? null) ? $preview['args'] : [],
+            'expires_at' => $expiresAt,
+        ];
     }
 
     /** Short success after Confirm — green check, optional id. */
@@ -887,14 +893,221 @@ final class AssistantHarness
     }
 
     /**
+     * Human draft for Confirm UI / bot: title + who/what will change (not just #id).
+     * Domain detail comes from EventBus `assistant.write.preview` (owning modules append lines).
+     *
+     * @param array<string,mixed> $args
+     * @return array{summary:string,headline:string,lines:list<string>,args:array<string,mixed>}
+     */
+    public static function writePreview(string $opId, array $args, string $description = ''): array
+    {
+        $title = self::humanOpTitle($opId);
+        $headline = $title;
+        $id = (int)($args['id'] ?? 0);
+        if ($id > 0) {
+            $headline .= ' · #' . $id;
+        }
+
+        $payload = [
+            'op_id' => $opId,
+            'args' => $args,
+            'description' => $description,
+            'headline' => $headline,
+            'lines' => [],
+            'handled' => false,
+        ];
+        if (class_exists('EventBus', false)) {
+            $payload = EventBus::emit('assistant.write.preview', $payload);
+            if (!is_array($payload)) {
+                $payload = [];
+            }
+        }
+
+        $headline = trim((string)($payload['headline'] ?? $headline));
+        if ($headline === '') {
+            $headline = $title !== '' ? $title : $opId;
+        }
+
+        $lines = [];
+        if (is_array($payload['lines'] ?? null)) {
+            foreach ($payload['lines'] as $line) {
+                $line = trim((string)$line);
+                if ($line !== '' && $line !== $headline) {
+                    $lines[] = $line;
+                }
+            }
+        }
+
+        if ($lines === [] && empty($payload['handled'])) {
+            $lines = self::previewGenericArgs($args);
+            if ($lines === []) {
+                $brief = self::formatArgsBrief($args);
+                if ($brief !== '') {
+                    $lines[] = $brief;
+                } elseif (trim($description) !== '') {
+                    $short = preg_replace('/\s*\[CALL NOW.*$/u', '', $description) ?? $description;
+                    $lines[] = function_exists('mb_substr') ? mb_substr(trim($short), 0, 160) : substr(trim($short), 0, 160);
+                }
+            }
+        }
+
+        $parts = [$headline];
+        foreach ($lines as $line) {
+            $parts[] = $line;
+        }
+        $summary = implode("\n", $parts);
+        if (function_exists('mb_substr')) {
+            $summary = mb_substr($summary, 0, 4000);
+        } else {
+            $summary = substr($summary, 0, 4000);
+        }
+        return [
+            'summary' => $summary,
+            'headline' => $headline,
+            'lines' => $lines,
+            'args' => self::publicArgs($args),
+        ];
+    }
+
+    /**
      * @param array<string,mixed> $args
      */
     private static function summarizeWrite(string $opId, array $args, string $description): string
     {
-        $title = self::humanOpTitle($opId);
-        $argsBrief = self::formatArgsBrief($args);
-        $joined = $argsBrief !== '' ? $title . ' · ' . $argsBrief : $title;
-        return function_exists('mb_substr') ? mb_substr($joined, 0, 500) : substr($joined, 0, 500);
+        return self::writePreview($opId, $args, $description)['summary'];
+    }
+
+    /**
+     * Fallback when no module handled assistant.write.preview — raw scalar args only.
+     *
+     * @param array<string,mixed> $args
+     * @return list<string>
+     */
+    private static function previewGenericArgs(array $args): array
+    {
+        $lines = [];
+        foreach (self::pickScalarArgs($args, 8) as $pair) {
+            $lines[] = self::formatArgBit($pair['key'], $pair['value'], true);
+        }
+        return $lines;
+    }
+
+    /**
+     * Universal keys first, then remaining scalar args in input order (no product-field allowlists).
+     *
+     * @param array<string,mixed> $args
+     * @return list<array{key:string,value:string}>
+     */
+    private static function pickScalarArgs(array $args, int $limit): array
+    {
+        if ($args === [] || $limit < 1) {
+            return [];
+        }
+        $priority = [
+            'id', 'q', 'name', 'date', 'dt', 'day', 'date_from', 'date_to',
+            'year', 'month', 'descr', 'comment', 'status', 'action',
+        ];
+        $skip = [
+            'format' => true, '_csrf' => true, 'csrf' => true,
+            'token' => true, 'password' => true, 'passwd' => true,
+        ];
+        $dateKeys = [
+            'date' => true, 'dt' => true, 'day' => true,
+            'date_from' => true, 'date_to' => true,
+        ];
+        $out = [];
+        $seen = [];
+        $push = static function (string $k, $raw) use (&$out, &$seen, $limit, $dateKeys): void {
+            if (isset($seen[$k]) || count($out) >= $limit) {
+                return;
+            }
+            if ($raw === '' || $raw === null || is_array($raw) || is_object($raw)) {
+                return;
+            }
+            if (!is_scalar($raw)) {
+                return;
+            }
+            $v = (string)$raw;
+            if (isset($dateKeys[$k])) {
+                $v = self::formatDayValue($v);
+            }
+            if ($v === '') {
+                return;
+            }
+            $seen[$k] = true;
+            $out[] = ['key' => $k, 'value' => $v];
+        };
+
+        foreach ($priority as $k) {
+            if (array_key_exists($k, $args)) {
+                $push($k, $args[$k]);
+            }
+        }
+        foreach ($args as $k => $raw) {
+            $k = (string)$k;
+            if ($k === '' || isset($skip[$k])) {
+                continue;
+            }
+            $push($k, $raw);
+        }
+        return $out;
+    }
+
+    private static function formatArgBit(string $key, string $value, bool $withKeyFallback): string
+    {
+        $argKey = 'assistant.tool.arg.' . $key;
+        $tpl = t($argKey, ['v' => $value]);
+        if ($tpl !== $argKey) {
+            return $tpl;
+        }
+        return $withKeyFallback ? ($key . '=' . $value) : $value;
+    }
+
+    /** @param mixed $raw */
+    private static function formatDayValue($raw): string
+    {
+        if (is_int($raw) || (is_string($raw) && ctype_digit($raw))) {
+            $ts = (int)$raw;
+            if ($ts > 100000) {
+                return date('Y-m-d', $ts);
+            }
+        }
+        $s = trim((string)$raw);
+        if ($s === '') {
+            return '';
+        }
+        if (preg_match('/^\d{4}-\d{2}-\d{2}/', $s, $m)) {
+            return $m[0];
+        }
+        $ts = strtotime($s);
+        return $ts ? date('Y-m-d', $ts) : $s;
+    }
+
+    /**
+     * @param array<string,mixed> $args
+     * @return array<string,mixed>
+     */
+    private static function publicArgs(array $args): array
+    {
+        $out = [];
+        foreach ($args as $k => $v) {
+            $key = (string)$k;
+            if ($key === '' || $key === 'format' || $key === '_csrf' || $key === 'csrf') {
+                continue;
+            }
+            if (is_scalar($v) || $v === null) {
+                $out[$key] = $v;
+            } elseif (is_array($v)) {
+                $json = json_encode($v, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                if (is_string($json) && strlen($json) <= 400) {
+                    $out[$key] = $v;
+                }
+            }
+            if (count($out) >= 24) {
+                break;
+            }
+        }
+        return $out;
     }
 
     /**
