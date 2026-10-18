@@ -2,7 +2,7 @@
     "id": "stickers",
     "name": "stickers.module.name",
     "description": "stickers.module.description",
-    "version": "0.1.16",
+    "version": "0.1.17",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -59,6 +59,7 @@
             "/stickers/writeoffs/{id}/edit",
             "/stickers/writeoff",
             "/stickers/status",
+            "/stickers/settings",
             "/stickers/printstickers",
             "/qr2.php"
         ]
@@ -184,7 +185,23 @@
                 "path": "/stickers/status",
                 "permission": "stickers.status",
                 "side_effect": "read",
-                "description": "Diagnose stickers/QR: hosts, cookie domain, soft deps, tables, issues[]"
+                "description": "Diagnose stickers/QR: hosts, cookie domain, setup[], soft deps, tables, issues[]"
+            },
+            {
+                "id": "stickers.settings.get",
+                "method": "GET",
+                "path": "/stickers/settings",
+                "permission": "",
+                "side_effect": "read",
+                "description": "Stickers settings: session_cookie_domain (app.ini), public_print_enabled; SUPERADMIN_ACCESS"
+            },
+            {
+                "id": "stickers.settings.update",
+                "method": "POST",
+                "path": "/stickers/settings",
+                "permission": "",
+                "side_effect": "write",
+                "description": "Save session_cookie_domain + public_print_enabled; SUPERADMIN_ACCESS; staff must re-login after cookie domain change"
             },
             {
                 "id": "stickers.qr.scan",
@@ -319,6 +336,13 @@
             "num": 90,
             "path": "/stickers/status",
             "title": "stickers.menu.status",
+            "kind": "settings"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 91,
+            "path": "/stickers/settings",
+            "title": "stickers.menu.settings",
             "kind": "settings"
         }
     ],

@@ -41,19 +41,30 @@ $pages = [
     '/stickers/writeoffs/{id}/edit' => ['permission' => 'stickers.edit', 'methods' => ['GET', 'POST'], 'file' => 'writeoff_edit.php'],
     '/stickers/outs' => ['permission' => 'stickers.view', 'methods' => ['GET', 'POST'], 'file' => 'outs_list.php'],
     '/stickers/writeoff' => ['permission' => 'stickers.writeoff', 'methods' => ['GET', 'POST'], 'file' => 'writeoff_form.php'],
-    '/stickers/status' => ['permission' => 'stickers.status', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],
+    '/stickers/status' => ['permission' => 'stickers.status', 'methods' => ['GET'], 'file' => 'status.php'],
+    '/stickers/settings' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'settings.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'stickers',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/stickers/pages/' . $file);
         },
-    ]);
+    ];
+    if (!empty($def['capability'])) {
+        $route['capability'] = $def['capability'];
+    }
+    if (!empty($def['permission'])) {
+        $route['permission'] = $def['permission'];
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 // Legacy printed QR entry (public; staff gate inside handler — no route permission).

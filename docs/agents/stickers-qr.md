@@ -14,12 +14,14 @@ HASH = `md5(PIN + time[+n])` (same as oper / `StickerInsRepository::makeHash`).
 | Staff session + `GOOD_USE` (or SUPERADMIN) | Scanner UI / JSON |
 | Activate / revision / movement | also needs user `STOCK_REVISION` (or SUPERADMIN) |
 
-Staff must be logged into FreeSaaS **on the host that serves the QR** (usually `public_host`). If `admin_host` ≠ `public_host`, set:
+Staff must be logged into FreeSaaS **on the host that serves the QR** (usually `public_host`). If `admin_host` ≠ `public_host`, set shared cookie domain (UI: **Stickers → Settings** `/stickers/settings`, or ini):
 
 ```ini
 [app]
 session_cookie_domain=.example.com
 ```
+
+Then **re-login** (old host-only cookie is not upgraded). Diagnose checklist: `/stickers/status` (`setup[]` + `issues[].fix`).
 
 ## Security
 
@@ -36,6 +38,7 @@ Session JSON (`?format=json` / `Accept: application/json`). See `modules/sticker
 | id | method | path |
 |----|--------|------|
 | `stickers.qr.diagnose` | GET | `/stickers/status` |
+| `stickers.settings.get` / `.update` | GET/POST | `/stickers/settings` (SUPERADMIN) |
 | `stickers.qr.scan` | GET | `/qr2.php?q=` |
 | `stickers.qr.act` | POST | `/qr2.php` (+ csrf) |
 | `stickers.print.preview` | GET | `/stickers/ins/print` |
@@ -66,7 +69,7 @@ Optional anonymous warehouse-PC link (oper `printstickers=1`):
 public_print_enabled=1
 ```
 
-Or toggle on `/stickers/status` (SUPERADMIN). URL: `https://{admin_host}/stickers/printstickers`.
+Or toggle on `/stickers/settings` (SUPERADMIN). URL: `https://{admin_host}/stickers/printstickers`.
 
 | Rule | Behavior |
 |------|----------|

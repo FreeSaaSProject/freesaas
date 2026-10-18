@@ -8,29 +8,58 @@ final class StickersDiagnose
     public static function report(): array
     {
         $issues = [];
-        $publicHost = AppRuntime::publicHost();
+        $publicHost = self::normalizeHost(AppRuntime::publicHost());
+        $adminHost = self::normalizeHost(AppRuntime::adminHost());
+        $cookieDomain = self::normalizeCookieDomain(
+            (string)Config::get('app', 'session_cookie_domain', '')
+        );
+        $suggested = self::suggestCookieDomain($adminHost, $publicHost);
+        $hostsSplit = $adminHost !== '' && $publicHost !== ''
+            && strcasecmp($adminHost, $publicHost) !== 0;
+        $cookieCovers = $cookieDomain !== ''
+            && self::cookieDomainCovers($cookieDomain, $adminHost)
+            && self::cookieDomainCovers($cookieDomain, $publicHost);
+
         if ($publicHost === '') {
             $issues[] = [
                 'level' => 'warn',
                 'code' => 'no_public_host',
-                'message' => 'app.public_host / likespa.mothersite empty — QR absolute URLs fall back to HTTP_HOST',
+                'message' => t('stickers.status.issue.no_public_host'),
+                'fix' => t('stickers.status.issue.no_public_host_fix'),
             ];
         }
-        $cookieDomain = trim((string)Config::get('app', 'session_cookie_domain', ''));
-        $adminHost = AppRuntime::adminHost();
-        if ($adminHost !== '' && $publicHost !== '' && strcasecmp($adminHost, $publicHost) !== 0
-            && $cookieDomain === '') {
+        if ($hostsSplit && $cookieDomain === '') {
             $issues[] = [
                 'level' => 'warn',
                 'code' => 'split_host_no_cookie_domain',
-                'message' => 'admin_host ≠ public_host and session_cookie_domain empty — staff must login on public host for QR',
+                'message' => t('stickers.status.issue.split_host'),
+                'fix' => t('stickers.status.issue.split_host_fix', [
+                    'admin' => $adminHost,
+                    'public' => $publicHost,
+                    'suggest' => $suggested !== '' ? $suggested : '.example.com',
+                    'settings' => '/stickers/settings',
+                ]),
+            ];
+        } elseif ($hostsSplit && $cookieDomain !== '' && !$cookieCovers) {
+            $issues[] = [
+                'level' => 'warn',
+                'code' => 'cookie_domain_mismatch',
+                'message' => t('stickers.status.issue.cookie_mismatch'),
+                'fix' => t('stickers.status.issue.cookie_mismatch_fix', [
+                    'domain' => $cookieDomain,
+                    'admin' => $adminHost,
+                    'public' => $publicHost,
+                    'suggest' => $suggested !== '' ? $suggested : $cookieDomain,
+                    'settings' => '/stickers/settings',
+                ]),
             ];
         }
         if (!is_file(__DIR__ . '/phpqrcode/phpqrcode.php')) {
             $issues[] = [
                 'level' => 'error',
                 'code' => 'phpqrcode_missing',
-                'message' => 'phpqrcode vendor missing under modules/stickers/lib/phpqrcode/',
+                'message' => t('stickers.status.issue.phpqrcode'),
+                'fix' => t('stickers.status.issue.phpqrcode_fix'),
             ];
         }
         $soft = [
@@ -44,7 +73,8 @@ final class StickersDiagnose
                 $issues[] = [
                     'level' => 'info',
                     'code' => 'soft_off_' . $id,
-                    'message' => $id . ' disabled — related QR features degraded',
+                    'message' => t('stickers.status.issue.soft_off', ['module' => $id]),
+                    'fix' => t('stickers.status.issue.soft_off_fix', ['module' => $id]),
                 ];
             }
         }
@@ -55,7 +85,8 @@ final class StickersDiagnose
                 $issues[] = [
                     'level' => 'error',
                     'code' => 'missing_table',
-                    'message' => $t . ' missing',
+                    'message' => t('stickers.status.issue.missing_table', ['table' => $t]),
+                    'fix' => t('stickers.status.issue.missing_table_fix', ['table' => $t]),
                 ];
             }
         }
@@ -74,7 +105,10 @@ final class StickersDiagnose
             $issues[] = [
                 'level' => 'warn',
                 'code' => 'public_print_enabled',
-                'message' => 'Anonymous GET /stickers/printstickers is ON — print sheet only, still exposes pending label data',
+                'message' => t('stickers.status.issue.public_print'),
+                'fix' => t('stickers.status.issue.public_print_fix', [
+                    'settings' => '/stickers/settings',
+                ]),
             ];
             if ($status === 'ok') {
                 $status = 'warn';
@@ -91,20 +125,232 @@ final class StickersDiagnose
                 $pendingPrint = 0;
             }
         }
+
+        $sessionShareOk = !$hostsSplit || ($cookieDomain !== '' && $cookieCovers);
+        $tablesOk = !in_array(false, $tables, true);
+        $setup = [
+            [
+                'id' => 'public_host',
+                'ok' => $publicHost !== '',
+                'title' => t('stickers.status.setup.public_host'),
+                'detail' => $publicHost !== ''
+                    ? t('stickers.status.setup.public_host_ok', ['host' => $publicHost])
+                    : t('stickers.status.setup.public_host_need'),
+            ],
+            [
+                'id' => 'session_share',
+                'ok' => $sessionShareOk,
+                'title' => t('stickers.status.setup.session_share'),
+                'detail' => self::sessionShareDetail(
+                    $hostsSplit,
+                    $adminHost,
+                    $publicHost,
+                    $cookieDomain,
+                    $suggested,
+                    $cookieCovers
+                ),
+                'href' => $sessionShareOk ? '' : '/stickers/settings',
+            ],
+            [
+                'id' => 'tables',
+                'ok' => $tablesOk,
+                'title' => t('stickers.status.setup.tables'),
+                'detail' => $tablesOk
+                    ? t('stickers.status.setup.tables_ok')
+                    : t('stickers.status.setup.tables_need'),
+            ],
+            [
+                'id' => 'phpqrcode',
+                'ok' => is_file(__DIR__ . '/phpqrcode/phpqrcode.php'),
+                'title' => t('stickers.status.setup.phpqrcode'),
+                'detail' => is_file(__DIR__ . '/phpqrcode/phpqrcode.php')
+                    ? t('stickers.status.setup.phpqrcode_ok')
+                    : t('stickers.status.setup.phpqrcode_need'),
+            ],
+            [
+                'id' => 'staff_good_use',
+                'ok' => null,
+                'title' => t('stickers.status.setup.good_use'),
+                'detail' => t('stickers.status.setup.good_use_detail'),
+            ],
+            [
+                'id' => 'staff_stock_revision',
+                'ok' => null,
+                'title' => t('stickers.status.setup.stock_revision'),
+                'detail' => t('stickers.status.setup.stock_revision_detail'),
+            ],
+            [
+                'id' => 'relogin',
+                'ok' => null,
+                'title' => t('stickers.status.setup.relogin'),
+                'detail' => t('stickers.status.setup.relogin_detail', [
+                    'admin' => $adminHost !== '' ? $adminHost : 'admin_host',
+                    'public' => $publicHost !== '' ? $publicHost : 'public_host',
+                ]),
+            ],
+        ];
+
         return [
             'ok' => $status !== 'error',
             'status' => $status,
             'runtime' => AppRuntime::role(),
             'public_host' => $publicHost,
             'admin_host' => $adminHost,
+            'hosts_split' => $hostsSplit,
             'session_cookie_domain' => $cookieDomain,
+            'session_cookie_domain_suggested' => $suggested,
+            'session_share_ok' => $sessionShareOk,
             'sample_qr_url' => StickerQr::absoluteScanUrl(str_repeat('a', 32)),
             'public_print_enabled' => $publicPrint,
             'public_print_url' => StickerPrint::publicPrintUrl(),
             'pending_print' => $pendingPrint,
+            'settings_url' => '/stickers/settings',
             'soft' => $soft,
             'tables' => $tables,
+            'setup' => $setup,
             'issues' => $issues,
         ];
+    }
+
+    public static function normalizeCookieDomain(string $raw): string
+    {
+        $raw = strtolower(trim($raw));
+        if ($raw === '') {
+            return '';
+        }
+        if (strpos($raw, '://') !== false) {
+            $host = (string)(parse_url($raw, PHP_URL_HOST) ?: '');
+            $raw = $host !== '' ? $host : $raw;
+        }
+        if (strpos($raw, '/') !== false) {
+            $raw = explode('/', $raw, 2)[0];
+        }
+        if (strpos($raw, ':') !== false && preg_match('/:\d+$/', $raw)) {
+            $raw = preg_replace('/:\d+$/', '', $raw) ?? $raw;
+        }
+        return $raw;
+    }
+
+    /**
+     * Empty string clears the setting. Non-empty must be a host/domain (optional leading dot).
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function validateCookieDomain(string $raw): string
+    {
+        $raw = self::normalizeCookieDomain($raw);
+        if ($raw === '') {
+            return '';
+        }
+        if (!preg_match('/^\.?[a-z0-9.-]+$/i', $raw) || strpos($raw, '..') !== false) {
+            throw new InvalidArgumentException(t('stickers.settings.err.cookie_domain'));
+        }
+        $bare = ltrim($raw, '.');
+        if ($bare === '' || strpos($bare, '.') === false) {
+            // Allow bare TLD-less local names only without leading-dot parent form.
+            if ($raw[0] === '.') {
+                throw new InvalidArgumentException(t('stickers.settings.err.cookie_domain_parent'));
+            }
+        }
+        return $raw;
+    }
+
+    public static function suggestCookieDomain(string $adminHost, string $publicHost): string
+    {
+        $adminHost = self::normalizeHost($adminHost);
+        $publicHost = self::normalizeHost($publicHost);
+        if ($adminHost === '' || $publicHost === '' || strcasecmp($adminHost, $publicHost) === 0) {
+            return '';
+        }
+        $a = explode('.', $adminHost);
+        $b = explode('.', $publicHost);
+        $common = [];
+        while ($a !== [] && $b !== []) {
+            $la = $a[count($a) - 1];
+            $lb = $b[count($b) - 1];
+            if (strcasecmp($la, $lb) !== 0) {
+                break;
+            }
+            array_unshift($common, $la);
+            array_pop($a);
+            array_pop($b);
+        }
+        if (count($common) < 2) {
+            return '';
+        }
+        return '.' . implode('.', $common);
+    }
+
+    public static function cookieDomainCovers(string $cookieDomain, string $host): bool
+    {
+        $cookieDomain = self::normalizeCookieDomain($cookieDomain);
+        $host = self::normalizeHost($host);
+        if ($cookieDomain === '' || $host === '') {
+            return false;
+        }
+        $bare = ltrim($cookieDomain, '.');
+        if (strcasecmp($host, $bare) === 0) {
+            return true;
+        }
+        $suffix = '.' . $bare;
+        $hlen = strlen($host);
+        $slen = strlen($suffix);
+        return $hlen > $slen && strcasecmp(substr($host, -$slen), $suffix) === 0;
+    }
+
+    private static function normalizeHost(string $host): string
+    {
+        $host = strtolower(trim($host));
+        if ($host === '') {
+            return '';
+        }
+        if (strpos($host, '://') !== false) {
+            $parsed = (string)(parse_url($host, PHP_URL_HOST) ?: '');
+            if ($parsed !== '') {
+                $host = $parsed;
+            }
+        }
+        if (strpos($host, '/') !== false) {
+            $host = explode('/', $host, 2)[0];
+        }
+        if (strpos($host, ':') !== false && preg_match('/:\d+$/', $host)) {
+            $host = preg_replace('/:\d+$/', '', $host) ?? $host;
+        }
+        return $host;
+    }
+
+    private static function sessionShareDetail(
+        bool $hostsSplit,
+        string $adminHost,
+        string $publicHost,
+        string $cookieDomain,
+        string $suggested,
+        bool $cookieCovers
+    ): string {
+        if (!$hostsSplit) {
+            return t('stickers.status.setup.session_share_same', [
+                'host' => $publicHost !== '' ? $publicHost : $adminHost,
+            ]);
+        }
+        if ($cookieDomain === '') {
+            return t('stickers.status.setup.session_share_need', [
+                'admin' => $adminHost,
+                'public' => $publicHost,
+                'suggest' => $suggested !== '' ? $suggested : '.example.com',
+            ]);
+        }
+        if (!$cookieCovers) {
+            return t('stickers.status.setup.session_share_bad', [
+                'domain' => $cookieDomain,
+                'admin' => $adminHost,
+                'public' => $publicHost,
+                'suggest' => $suggested !== '' ? $suggested : $cookieDomain,
+            ]);
+        }
+        return t('stickers.status.setup.session_share_ok', [
+            'domain' => $cookieDomain,
+            'admin' => $adminHost,
+            'public' => $publicHost,
+        ]);
     }
 }
