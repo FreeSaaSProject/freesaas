@@ -270,9 +270,9 @@
         {
           "as": "acr",
           "expr": {
-            "acronym": [
+            "badge": [
               {
-                "field": "name"
+                "field": "id_operator"
               }
             ]
           }

@@ -2,7 +2,7 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "0.2.7",
+    "version": "0.2.13",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -264,7 +264,7 @@
                 "path": "/bi/shares",
                 "permission": "bi.manage",
                 "side_effect": "write",
-                "description": "Create live share. audience=guest|staff; ttl=1h|1d|1mo|3mo|1y (1y staff-only); optional staff_user_ids[]; superadmin can open any staff link",
+                "description": "Create live share. audience=guest|staff; ttl=1h|1d|1mo|3mo|1y (1y staff-only); optional staff_user_ids[] and/or staff_status_ids[]; union match; superadmin opens any staff link",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -302,6 +302,13 @@
                             "items": {
                                 "type": "integer"
                             }
+                        },
+                        "staff_status_ids": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "description": "base_admin_statuses IDs (должности); union with staff_user_ids"
                         }
                     },
                     "required": [

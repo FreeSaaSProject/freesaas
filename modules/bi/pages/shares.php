@@ -52,6 +52,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'ttl' => (string)($_POST['ttl'] ?? '1d'),
             'label' => (string)($_POST['label'] ?? ''),
             'staff_user_ids' => $staffRaw,
+            'staff_status_ids' => $_POST['staff_status_ids'] ?? [],
             'params' => $paramsRaw,
             'accept_partial_filters' => !empty($_POST['accept_partial_filters']),
         ]);
@@ -69,6 +70,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             $error = t('bi.shares.err.ttl_1y');
         } elseif ($code === 'staff_allowlist_empty') {
             $error = t('bi.shares.err.staff_empty');
+        } elseif ($code === 'status_allowlist_empty') {
+            $error = t('bi.shares.err.status_empty');
         } elseif ($code === 'filters_partial') {
             $error = t('bi.shares.err.filters_partial');
         } elseif ($code === 'invalid_family') {
@@ -100,6 +103,7 @@ $shares = BiSharesRepository::list(200);
 $families = ReportRegistry::catalog();
 
 $staff = BiFilterOptions::shareStaffPicker();
+$statuses = BiFilterOptions::shareStatusPicker();
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     AgentHttp::emit([
@@ -115,11 +119,12 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
                 'name' => (string)($u['name'] !== '' ? $u['name'] : $u['login']),
             ];
         }, $staff),
+        'status_picker' => $statuses,
         'notes' => [
             '1y_ttl' => 'staff audience only',
             'superadmin' => 'opens any staff share even if not in allowlist',
             'is_hidden' => 'omitted from staff_picker (ASSIST_TEAM kept)',
-            'staff_allowlist' => 'missing/[]/blank = any staff; non-blank invalid ([0],[-1],bad) rejected before normalize',
+            'staff_allowlist' => 'staff_user_ids and/or staff_status_ids; both empty = any staff; union match',
             'filters' => 'locked id_* require full dataset coverage unless accept_partial_filters',
             'rate_limit' => 'atomic beginRun/endRun, 8/min + one in-flight per share',
         ],
@@ -140,6 +145,7 @@ View::render('shares', [
     'shares' => $shares,
     'families' => $families,
     'staff' => $staff,
+    'statuses' => $statuses,
     'created' => $created,
     'flash' => $flash,
     'error' => $error,

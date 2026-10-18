@@ -26,7 +26,8 @@ final class ReportRenderer
             if ($type === 'metrics' && is_array($sec['metrics'] ?? null)) {
                 $html .= '<dl class="bi-metrics">';
                 foreach ($sec['metrics'] as $k => $v) {
-                    $html .= '<div class="bi-metric"><dt>' . e((string)$k) . '</dt><dd>' . e((string)$v) . '</dd></div>';
+                    $html .= '<div class="bi-metric"><dt>' . e((string)$k) . '</dt><dd>'
+                        . BiSafeHtml::expandCell($v) . '</dd></div>';
                 }
                 $html .= '</dl>';
             } elseif ($type === 'text') {
@@ -72,7 +73,19 @@ final class ReportRenderer
                 $html .= '<tr>';
                 foreach ($columns as $col) {
                     $id = (string)($col['id'] ?? '');
-                    $html .= '<td>' . e((string)($row[$id] ?? '')) . '</td>';
+                    $fmt = strtolower((string)($col['format'] ?? ''));
+                    if ($fmt === 'user_badge') {
+                        $userField = (string)($col['user_field'] ?? $id);
+                        $uid = (int)($row[$userField] ?? 0);
+                        $badge = class_exists('UsersRepository', false)
+                            ? UsersRepository::badgeHtml($uid, !empty($col['link']), true)
+                            : e('[' . $uid . ']');
+                        $suffixField = (string)($col['suffix_field'] ?? '');
+                        $suffix = $suffixField !== '' ? BiSafeHtml::expandCell($row[$suffixField] ?? '') : '';
+                        $html .= '<td>' . $badge . ($suffix !== '' ? ' ' . $suffix : '') . '</td>';
+                        continue;
+                    }
+                    $html .= '<td>' . BiSafeHtml::expandCell($row[$id] ?? '') . '</td>';
                 }
                 $html .= '</tr>';
             }

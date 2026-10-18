@@ -39,7 +39,7 @@ final class BiExpr
             'and', 'or', 'not',
             'if', 'coalesce', 'nullif',
             'min', 'max', 'floor', 'round', 'concat',
-            'in', 'date_label', 'format_ts', 'acronym',
+            'in', 'date_label', 'day_start', 'day_label', 'format_ts', 'acronym', 'badge',
         ];
         foreach ($ops as $op) {
             if (!array_key_exists($op, $expr)) {
@@ -49,6 +49,22 @@ final class BiExpr
             switch ($op) {
                 case 'not':
                     return !self::truthy(self::eval($args, $row));
+                case 'day_start':
+                    $ts = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
+                    return class_exists('BiShiftLanes', false)
+                        ? BiShiftLanes::dayStart($ts)
+                        : (int)mktime(0, 0, 0, (int)date('n', $ts), (int)date('j', $ts), (int)date('Y', $ts));
+                case 'day_label':
+                    $ts = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
+                    return class_exists('BiShiftLanes', false)
+                        ? BiShiftLanes::dayLabel($ts)
+                        : ($ts > 0 ? date('j.n.Y', $ts) : '');
+                case 'badge':
+                    // Safe token → UsersRepository::badgeHtml at render (see BiSafeHtml).
+                    $id = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
+                    return class_exists('BiSafeHtml', false)
+                        ? BiSafeHtml::badgeToken($id)
+                        : ('[' . $id . ']');
                 case 'acronym':
                     // System shortName / CalendarTimeline::acronym — initials of each word.
                     $name = (string)self::eval(is_array($args) ? ($args[0] ?? '') : $args, $row);
@@ -220,7 +236,8 @@ final class BiExpr
             }
             $found = true;
             $args = $expr[$op];
-            if ($op === 'not' || $op === 'floor' || $op === 'date_label' || $op === 'acronym') {
+            if ($op === 'not' || $op === 'floor' || $op === 'date_label' || $op === 'day_start'
+                || $op === 'day_label' || $op === 'acronym' || $op === 'badge') {
                 if (is_array($args) && !isset($args['lit']) && !isset($args['field']) && !self::looksLikeOp($args)) {
                     self::validate($args[0] ?? $args, $path . '.' . $op, $errors);
                 } else {

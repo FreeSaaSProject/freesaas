@@ -83,6 +83,31 @@ final class BiFilterOptions
     }
 
     /**
+     * Admin statuses (должности) for staff-share allowlist.
+     *
+     * @return list<array{id:int,name:string}>
+     */
+    public static function shareStatusPicker(): array
+    {
+        if (!class_exists('UsersRepository', false) || !Database::tableExists('base_admin_statuses')) {
+            return [];
+        }
+        $out = [];
+        foreach (UsersRepository::statusNamesFiltered(false) as $id => $name) {
+            $id = (int)$id;
+            $name = trim((string)$name);
+            if ($id < 1) {
+                continue;
+            }
+            $out[] = [
+                'id' => $id,
+                'name' => $name !== '' ? $name : ('#' . $id),
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Staff for share allowlist: enabled, not IS_HIDDEN (equipment / hidden accounts).
      * ASSIST_TEAM stays visible — admins and assist roles can receive staff shares.
      *

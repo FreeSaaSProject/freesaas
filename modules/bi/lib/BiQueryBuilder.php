@@ -6,7 +6,8 @@ declare(strict_types=1);
  */
 final class BiQueryBuilder
 {
-    public const MAX_LIMIT = 5000;
+    /** Allow month-grain guest/procedure frames (busy spa months). */
+    public const MAX_LIMIT = 50000;
 
     /**
      * @param array<string,mixed> $query

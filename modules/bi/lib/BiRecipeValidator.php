@@ -123,12 +123,26 @@ final class BiRecipeValidator
                     $errors[] = 'derive[' . $i . '].join_frame.frame: unknown';
                 }
                 $jt = strtolower((string)($joinFrame['type'] ?? 'left'));
-                if (!in_array($jt, ['left', 'cross'], true)) {
+                if (!in_array($jt, ['left', 'inner', 'cross'], true)) {
                     $errors[] = 'derive[' . $i . '].join_frame.type: bad';
                 }
                 if ($jt === 'cross') {
                     $warnings[] = 'derive[' . $i . '].join_frame: cross join bounded to '
                         . BiRecipeEngine::MAX_CROSS_CELLS . ' cells at runtime';
+                }
+                if (isset($joinFrame['range']) && !is_array($joinFrame['range'])) {
+                    $errors[] = 'derive[' . $i . '].join_frame.range: need object';
+                }
+            }
+            if (isset($d['expand_shift_lanes']) && $d['expand_shift_lanes'] !== false) {
+                $ex = $d['expand_shift_lanes'];
+                if (is_array($ex)) {
+                    $mode = strtolower((string)($ex['mode'] ?? 'tickets'));
+                    if (!in_array($mode, ['tickets', 'cash', ''], true)) {
+                        $errors[] = 'derive[' . $i . '].expand_shift_lanes.mode: tickets|cash';
+                    }
+                } elseif ($ex !== true) {
+                    $errors[] = 'derive[' . $i . '].expand_shift_lanes: bool|object';
                 }
             }
             if (isset($d['filter'])) {
@@ -151,7 +165,10 @@ final class BiRecipeValidator
                 $errors[] = 'derive[' . $i . '].group_by: need array';
             }
             $aggs = is_array($d['aggs'] ?? null) ? $d['aggs'] : [];
-            $allowedAggs = ['count', 'count_where', 'sum', 'avg', 'min', 'max', 'first', 'join', 'join_where', 'collect'];
+            $allowedAggs = [
+                'count', 'count_where', 'count_distinct', 'sum', 'avg', 'min', 'max',
+                'first', 'join', 'join_where', 'collect',
+            ];
             foreach ($aggs as $ai => $agg) {
                 if (!is_array($agg)) {
                     $errors[] = 'derive[' . $i . '].aggs[' . $ai . ']: not object';
@@ -196,6 +213,16 @@ final class BiRecipeValidator
                 $from = (string)($sec['from'] ?? '');
                 if ($from === '' || !isset($frameNames[$from])) {
                     $errors[] = 'sections[' . $i . '].from: unknown frame';
+                }
+                $columns = is_array($sec['columns'] ?? null) ? $sec['columns'] : [];
+                foreach ($columns as $ci => $col) {
+                    if (!is_array($col)) {
+                        continue;
+                    }
+                    $fmt = strtolower((string)($col['format'] ?? ''));
+                    if ($fmt !== '' && $fmt !== 'user_badge') {
+                        $errors[] = 'sections[' . $i . '].columns[' . $ci . '].format: bad';
+                    }
                 }
             }
             if ($type === 'metrics') {

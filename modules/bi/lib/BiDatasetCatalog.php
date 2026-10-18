@@ -39,13 +39,38 @@ final class BiDatasetCatalog
             'expr_ops' => self::exprOps(),
             'compare_ops' => ['=', '!=', '>', '>=', '<', '<=', 'in', 'not_in'],
             'aggs' => ['count', 'sum', 'avg', 'min', 'max', 'count_distinct'],
-            'group_aggs' => ['count', 'count_where', 'sum', 'avg', 'min', 'max', 'first', 'join', 'join_where', 'collect'],
+            'group_aggs' => [
+                'count', 'count_where', 'count_distinct', 'sum', 'avg', 'min', 'max',
+                'first', 'join', 'join_where', 'collect',
+            ],
             'window_fns' => ['rank', 'row_number', 'dense_rank'],
             'section_types' => ['metrics', 'table', 'pivot', 'text'],
             'pivot_grains' => ['month_to_date', 'days_in_month'],
-            'derive_steps' => ['join_frame', 'filter', 'select', 'compute', 'group_by', 'aggs', 'compute_after', 'having', 'window', 'sort', 'limit'],
+            'derive_steps' => [
+                'expand_shift_lanes', 'join_frame', 'filter', 'select', 'compute',
+                'group_by', 'aggs', 'compute_after', 'having', 'window', 'sort', 'limit',
+            ],
+            'expand_shift_lanes' => [
+                'day_field' => 'dt (workweeks day unix)',
+                'price_field' => 'price_col',
+                'mode' => 'tickets|cash — cash uses full-day window for non-I+II (oper show_kpi10)',
+                'emits' => ['day_start', 'day_label', 'lane', 'is_half', 'window_start', 'window_end', 'smena_label', 'stats_key'],
+            ],
+            'join_frame_types' => ['left', 'inner', 'cross'],
+            'join_frame_range' => [
+                'left' => 'timestamp field on left rows',
+                'start' => 'window_start on right',
+                'end' => 'window_end on right',
+                'note' => 'Applied after equality keys (left/right or on[])',
+            ],
+            'engine_opts' => [
+                'join_group_fuse' => 'join-only derive followed by group_by (sole consumer) is fused; join product is not materialised',
+                'streaming_aggs' => 'group_by accumulates without storing member row lists',
+                'badge' => 'expr badge(user_id) → safe token; ReportRenderer expands via UsersRepository::badgeHtml. Column format user_badge + user_field also supported',
+            ],
+            'column_formats' => ['user_badge'],
             'run_params' => ['year', 'month', 'dayshow', 'id_operator', 'id_admin', 'id_good', 'variant'],
-            'text_rules' => 'sections type=text body = plain UTF-8 (no HTML/PHP/event handlers); escaped on render via e_nl',
+            'text_rules' => 'sections type=text body = plain UTF-8 (no HTML/PHP/event handlers); escaped on render via e_nl. badge tokens are expanded to user-badge HTML',
             'examples' => self::examples(),
             'ops' => [
                 'bi.families.list',
@@ -83,7 +108,9 @@ final class BiDatasetCatalog
                     ['id' => 'enabled', 'col' => 'ENABLED', 'type' => 'int'],
                     ['id' => 'id_operator', 'col' => 'ID_OPERATOR', 'type' => 'int'],
                     ['id' => 'id_admin', 'col' => 'ID_ADMIN', 'type' => 'int'],
+                    ['id' => 'id_user', 'col' => 'ID_USER', 'type' => 'int'],
                     ['id' => 'id_good', 'col' => 'ID_GOOD', 'type' => 'int'],
+                    ['id' => 'restored', 'col' => 'RESTORED', 'type' => 'int'],
                 ],
                 'joins' => [
                     ['dataset' => 'users_staff', 'left' => 'id_operator', 'right' => 'id'],
@@ -296,7 +323,7 @@ final class BiDatasetCatalog
             'and', 'or', 'not',
             'if', 'coalesce', 'nullif',
             'min', 'max', 'floor', 'round', 'concat', 'in',
-            'date_label', 'format_ts', 'acronym',
+            'date_label', 'day_start', 'day_label', 'format_ts', 'acronym', 'badge',
             'field', 'lit',
         ];
     }

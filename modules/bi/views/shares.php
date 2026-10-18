@@ -3,9 +3,11 @@ declare(strict_types=1);
 /** @var list<array<string,mixed>> $shares */
 /** @var list<array{id:string,title:string,ready:bool,ready_note:string}> $families */
 /** @var list<array<string,mixed>> $staff */
+/** @var list<array{id:int,name:string}> $statuses */
 /** @var array<string,mixed>|null $created */
 /** @var string $flash */
 /** @var string $error */
+$statuses = $statuses ?? [];
 ?>
 <p class="lede"><?= te('bi.shares.lede') ?></p>
 <?php if ($flash !== ''): ?><p class="flash-ok"><?= e($flash) ?></p><?php endif; ?>
@@ -53,7 +55,28 @@ declare(strict_types=1);
   </div>
 
   <div id="bi-share-staff-box" class="bi-span2" hidden>
-    <p><?= te('bi.shares.staff_pick') ?></p>
+    <p><?= te('bi.shares.status_pick') ?></p>
+    <?php if ($statuses === []): ?>
+      <p class="muted"><?= te('bi.shares.status_empty') ?></p>
+    <?php else: ?>
+      <div class="bi-staff-checks">
+        <?php foreach ($statuses as $st): ?>
+          <?php
+            $sid = (int)($st['id'] ?? 0);
+            $sname = (string)($st['name'] ?? '');
+            if ($sid < 1) {
+                continue;
+            }
+          ?>
+          <label>
+            <input type="checkbox" name="staff_status_ids[]" value="<?= $sid ?>">
+            <?= e($sname !== '' ? $sname : ('#' . $sid)) ?>
+          </label>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+
+    <p style="margin-top:0.75rem"><?= te('bi.shares.staff_pick') ?></p>
     <?php if ($staff === []): ?>
       <p class="muted"><?= te('bi.shares.staff_empty') ?></p>
     <?php else: ?>
@@ -115,7 +138,23 @@ declare(strict_types=1);
             <div class="muted"><?= e((string)$s['LABEL']) ?></div>
           <?php endif; ?>
         </td>
-        <td><?= e((string)$s['AUDIENCE']) ?></td>
+        <td>
+          <?= e((string)$s['AUDIENCE']) ?>
+          <?php
+            $su = is_array($s['staff_user_ids'] ?? null) ? $s['staff_user_ids'] : [];
+            $ss = is_array($s['staff_status_ids'] ?? null) ? $s['staff_status_ids'] : [];
+            if ($su !== [] || $ss !== []):
+          ?>
+            <div class="muted">
+              <?php if ($ss !== []): ?>
+                <?= te('bi.shares.status_ids') ?>: <?= e(implode(', ', array_map('strval', $ss))) ?>
+              <?php endif; ?>
+              <?php if ($su !== []): ?>
+                <?= $ss !== [] ? ' · ' : '' ?><?= te('bi.shares.staff_ids') ?>: <?= e(implode(', ', array_map('strval', $su))) ?>
+              <?php endif; ?>
+            </div>
+          <?php endif; ?>
+        </td>
         <td class="mono"><a href="<?= e((string)$s['url']) ?>" target="_blank" rel="noopener"><?= e((string)$s['url']) ?></a></td>
         <td><?= (int)$s['DT_EXPIRE'] > 0 ? e(date('Y-m-d H:i', (int)$s['DT_EXPIRE'])) : '—' ?></td>
         <td><?= e($status) ?></td>

@@ -24,7 +24,8 @@ final class BiSharesRepository
      *   ttl?:string,
      *   label?:string,
      *   params?:array<string,mixed>,
-     *   staff_user_ids?:list<int>|string
+     *   staff_user_ids?:list<int>|string,
+     *   staff_status_ids?:list<int>|string
      * } $data
      * @return array<string,mixed>
      */
@@ -71,26 +72,68 @@ final class BiSharesRepository
         if ($hadExplicitStaff && $staffIds === []) {
             throw new InvalidArgumentException('staff_allowlist_empty');
         }
+
+        $rawStatusInput = $data['staff_status_ids'] ?? null;
+        $hadExplicitStatus = self::staffInputProvided($rawStatusInput);
+        $statusIds = self::normalizeStaffIds($rawStatusInput ?? []);
+        $allowedStatuses = [];
+        foreach (BiFilterOptions::shareStatusPicker() as $s) {
+            $allowedStatuses[(int)$s['id']] = true;
+        }
+        if ($allowedStatuses !== []) {
+            $statusIds = array_values(array_filter($statusIds, static function (int $id) use ($allowedStatuses): bool {
+                return isset($allowedStatuses[$id]);
+            }));
+        }
+        if ($hadExplicitStatus && $statusIds === []) {
+            throw new InvalidArgumentException('status_allowlist_empty');
+        }
+
         $token = self::generateToken();
         $label = mb_substr(trim((string)($data['label'] ?? '')), 0, 255);
+        $hasStatusCol = self::hasStatusIdsColumn();
 
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_bi_shares
-             (TOKEN, FAMILY, AUDIENCE, TTL_KIND, DT_EXPIRE, PARAMS_JSON, STAFF_USER_IDS, LABEL, ID_CREATOR, DT_CREATE, REVOKED_AT, RUN_COUNT, LAST_RUN_AT)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)'
-        );
-        $st->execute([
-            $token,
-            $family,
-            $audience,
-            $ttl,
-            $expire,
-            json_encode($params, JSON_UNESCAPED_UNICODE),
-            json_encode($staffIds, JSON_UNESCAPED_UNICODE),
-            $label,
-            Auth::userId(),
-            $now,
-        ]);
+        if ($hasStatusCol) {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_bi_shares
+                 (TOKEN, FAMILY, AUDIENCE, TTL_KIND, DT_EXPIRE, PARAMS_JSON, STAFF_USER_IDS, STAFF_STATUS_IDS, LABEL, ID_CREATOR, DT_CREATE, REVOKED_AT, RUN_COUNT, LAST_RUN_AT)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)'
+            );
+            $st->execute([
+                $token,
+                $family,
+                $audience,
+                $ttl,
+                $expire,
+                json_encode($params, JSON_UNESCAPED_UNICODE),
+                json_encode($staffIds, JSON_UNESCAPED_UNICODE),
+                json_encode($statusIds, JSON_UNESCAPED_UNICODE),
+                $label,
+                Auth::userId(),
+                $now,
+            ]);
+        } else {
+            if ($statusIds !== []) {
+                throw new RuntimeException('shares_status_column_missing');
+            }
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_bi_shares
+                 (TOKEN, FAMILY, AUDIENCE, TTL_KIND, DT_EXPIRE, PARAMS_JSON, STAFF_USER_IDS, LABEL, ID_CREATOR, DT_CREATE, REVOKED_AT, RUN_COUNT, LAST_RUN_AT)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)'
+            );
+            $st->execute([
+                $token,
+                $family,
+                $audience,
+                $ttl,
+                $expire,
+                json_encode($params, JSON_UNESCAPED_UNICODE),
+                json_encode($staffIds, JSON_UNESCAPED_UNICODE),
+                $label,
+                Auth::userId(),
+                $now,
+            ]);
+        }
         $id = (int)Database::pdo()->lastInsertId();
         $row = self::find($id);
         if ($row === null) {
@@ -98,6 +141,11 @@ final class BiSharesRepository
         }
         $row['filter_coverage'] = $coverage;
         return $row;
+    }
+
+    public static function hasStatusIdsColumn(): bool
+    {
+        return self::tableReady() && Database::columnExists('base_bi_shares', 'STAFF_STATUS_IDS');
     }
 
     /**
@@ -367,10 +415,24 @@ final class BiSharesRepository
                 return true;
             }
             $ids = is_array($share['staff_user_ids'] ?? null) ? $share['staff_user_ids'] : [];
-            if ($ids === []) {
+            $statusIds = is_array($share['staff_status_ids'] ?? null) ? $share['staff_status_ids'] : [];
+            // Both empty = any logged-in staff.
+            if ($ids === [] && $statusIds === []) {
                 return true;
             }
-            return in_array(Auth::userId(), $ids, true);
+            // Union: person allowlist OR role allowlist.
+            if ($ids !== [] && in_array(Auth::userId(), $ids, true)) {
+                return true;
+            }
+            if ($statusIds !== []) {
+                $mine = [Auth::statusId(), Auth::statusId2()];
+                foreach ($mine as $sid) {
+                    if ($sid > 0 && in_array($sid, $statusIds, true)) {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
         return false;
     }
@@ -590,6 +652,10 @@ final class BiSharesRepository
         if (!is_array($staff)) {
             $staff = [];
         }
+        $statuses = json_decode((string)($row['STAFF_STATUS_IDS'] ?? ''), true);
+        if (!is_array($statuses)) {
+            $statuses = [];
+        }
         $token = (string)($row['TOKEN'] ?? '');
         $hydrated = [
             'ID' => (int)($row['ID'] ?? 0),
@@ -600,6 +666,7 @@ final class BiSharesRepository
             'DT_EXPIRE' => (int)($row['DT_EXPIRE'] ?? 0),
             'params' => self::sparseParams($params),
             'staff_user_ids' => self::normalizeStaffIds($staff),
+            'staff_status_ids' => self::normalizeStaffIds($statuses),
             'LABEL' => (string)($row['LABEL'] ?? ''),
             'ID_CREATOR' => (int)($row['ID_CREATOR'] ?? 0),
             'DT_CREATE' => (int)($row['DT_CREATE'] ?? 0),

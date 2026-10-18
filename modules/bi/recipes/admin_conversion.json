@@ -9,15 +9,53 @@
   ],
   "queries": [
     {
-      "as": "by_admin",
-      "from": "procedures",
+      "as": "workweeks_raw",
+      "from": "workweeks",
       "join": [
         {
           "dataset": "users_staff",
-          "left": "id_admin",
+          "left": "id_operator",
           "right": "id"
         }
       ],
+      "select": [
+        {
+          "field": "dt",
+          "as": "dt"
+        },
+        {
+          "field": "id_operator",
+          "as": "id_operator"
+        },
+        {
+          "field": "price_col",
+          "as": "price_col"
+        },
+        {
+          "field": "users_staff.name",
+          "as": "admin_name"
+        }
+      ],
+      "limit": 5000
+    },
+    {
+      "as": "guests_raw",
+      "from": "guests",
+      "select": [
+        {
+          "field": "dtstart",
+          "as": "dtstart"
+        },
+        {
+          "field": "id",
+          "as": "guest_id"
+        }
+      ],
+      "limit": 50000
+    },
+    {
+      "as": "procs_raw",
+      "from": "procedures",
       "where": [
         {
           "field": "summ",
@@ -28,127 +66,623 @@
           "field": "enabled",
           "op": ">",
           "value": 0
+        },
+        {
+          "field": "restored",
+          "op": "<",
+          "value": 1
         }
-      ],
-      "group_by": [
-        "id_admin",
-        "admin_name"
       ],
       "select": [
         {
-          "field": "id_admin"
+          "field": "dtstart",
+          "as": "dtstart"
         },
         {
-          "field": "users_staff.name",
-          "as": "admin_name"
-        },
-        {
-          "agg": "count",
-          "as": "procs"
-        },
-        {
-          "agg": "sum",
           "field": "summ",
-          "as": "revenue"
+          "as": "summ"
+        },
+        {
+          "field": "id_admin",
+          "as": "id_admin"
+        },
+        {
+          "field": "id_user",
+          "as": "id_user"
         }
       ],
-      "order_by": [
-        {
-          "field": "revenue",
-          "dir": "desc"
-        }
-      ],
-      "limit": 200
-    },
-    {
-      "as": "guest_stats",
-      "from": "guests",
-      "select": [
-        {
-          "agg": "count",
-          "as": "guests"
-        }
-      ]
+      "limit": 50000
     }
   ],
   "derive": [
     {
-      "as": "rated",
-      "from": "by_admin",
-      "select": [
-        "*"
-      ],
-      "window": [
-        {
-          "fn": "rank",
-          "order_by": [
-            {
-              "field": "revenue",
-              "dir": "desc"
-            }
-          ],
-          "as": "rank_rev"
-        }
-      ],
+      "as": "ticket_lanes",
+      "from": "workweeks_raw",
+      "expand_shift_lanes": {
+        "day_field": "dt",
+        "price_field": "price_col",
+        "mode": "tickets"
+      }
+    },
+    {
+      "as": "cash_lanes",
+      "from": "workweeks_raw",
+      "expand_shift_lanes": {
+        "day_field": "dt",
+        "price_field": "price_col",
+        "mode": "cash"
+      }
+    },
+    {
+      "as": "guests_day",
+      "from": "guests_raw",
       "compute": [
         {
-          "as": "rev_per_proc",
+          "as": "day_start",
           "expr": {
-            "div": [
+            "day_start": [
               {
-                "field": "revenue"
+                "field": "dtstart"
+              }
+            ]
+          }
+        },
+        {
+          "as": "day_label",
+          "expr": {
+            "day_label": [
+              {
+                "field": "dtstart"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "procs_day",
+      "from": "procs_raw",
+      "filter": {
+        "gt": [
+          {
+            "field": "id_admin"
+          },
+          {
+            "lit": 0
+          }
+        ]
+      },
+      "compute": [
+        {
+          "as": "day_start",
+          "expr": {
+            "day_start": [
+              {
+                "field": "dtstart"
+              }
+            ]
+          }
+        },
+        {
+          "as": "day_label",
+          "expr": {
+            "day_label": [
+              {
+                "field": "dtstart"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "guest_attr",
+      "from": "guests_day",
+      "join_frame": {
+        "frame": "ticket_lanes",
+        "type": "inner",
+        "left": "day_start",
+        "right": "day_start",
+        "range": {
+          "left": "dtstart",
+          "start": "window_start",
+          "end": "window_end"
+        }
+      }
+    },
+    {
+      "as": "tickets_by_shift",
+      "from": "guest_attr",
+      "group_by": [
+        "day_label",
+        "stats_key"
+      ],
+      "aggs": [
+        {
+          "as": "tickets",
+          "op": "count"
+        }
+      ]
+    },
+    {
+      "as": "cash_attr",
+      "from": "procs_day",
+      "join_frame": {
+        "frame": "cash_lanes",
+        "type": "inner",
+        "on": [
+          {
+            "left": "day_start",
+            "right": "day_start"
+          },
+          {
+            "left": "id_admin",
+            "right": "id_operator"
+          }
+        ],
+        "range": {
+          "left": "dtstart",
+          "start": "window_start",
+          "end": "window_end"
+        }
+      }
+    },
+    {
+      "as": "cash_by_shift",
+      "from": "cash_attr",
+      "group_by": [
+        "day_label",
+        "stats_key",
+        "smena_label",
+        "admin_name",
+        "id_operator"
+      ],
+      "aggs": [
+        {
+          "as": "cash",
+          "op": "sum",
+          "field": "summ"
+        }
+      ]
+    },
+    {
+      "as": "shift_merged",
+      "from": "cash_by_shift",
+      "join_frame": {
+        "frame": "tickets_by_shift",
+        "type": "left",
+        "on": [
+          {
+            "left": "day_label",
+            "right": "day_label"
+          },
+          {
+            "left": "stats_key",
+            "right": "stats_key"
+          }
+        ]
+      },
+      "compute": [
+        {
+          "as": "tickets",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "tickets"
               },
               {
-                "nullif": [
+                "lit": 0
+              }
+            ]
+          }
+        },
+        {
+          "as": "conversion",
+          "expr": {
+            "if": [
+              {
+                "and": [
                   {
-                    "field": "procs"
+                    "gt": [
+                      {
+                        "field": "cash"
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  },
+                  {
+                    "gt": [
+                      {
+                        "coalesce": [
+                          {
+                            "field": "tickets"
+                          },
+                          {
+                            "lit": 0
+                          }
+                        ]
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "round": [
+                  {
+                    "div": [
+                      {
+                        "field": "cash"
+                      },
+                      {
+                        "field": "tickets"
+                      }
+                    ]
                   },
                   {
                     "lit": 0
                   }
                 ]
+              },
+              {
+                "lit": 0
               }
             ]
           }
+        },
+        {
+          "as": "admin_disp",
+          "expr": {
+            "concat": [
+              {
+                "badge": [
+                  {
+                    "field": "id_operator"
+                  }
+                ]
+              },
+              {
+                "lit": " "
+              },
+              {
+                "field": "smena_label"
+              }
+            ]
+          }
+        },
+        {
+          "as": "cash_i",
+          "expr": {
+            "round": [
+              {
+                "field": "cash"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "shift_ok",
+      "from": "shift_merged",
+      "filter": {
+        "gt": [
+          {
+            "field": "conversion"
+          },
+          {
+            "lit": 0
+          }
+        ]
+      },
+      "compute": [
+        {
+          "as": "admin_line",
+          "expr": {
+            "concat": [
+              {
+                "field": "admin_disp"
+              },
+              {
+                "lit": " "
+              },
+              {
+                "field": "cash_i"
+              },
+              {
+                "lit": " 👥"
+              },
+              {
+                "field": "tickets"
+              },
+              {
+                "lit": " "
+              },
+              {
+                "field": "conversion"
+              },
+              {
+                "lit": "%"
+              }
+            ]
+          }
+        },
+        {
+          "as": "conversion_pct",
+          "expr": {
+            "concat": [
+              {
+                "field": "conversion"
+              },
+              {
+                "lit": "%"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "leaders",
+      "from": "shift_ok",
+      "window": [
+        {
+          "fn": "row_number",
+          "order_by": [
+            {
+              "field": "cash",
+              "dir": "desc"
+            }
+          ],
+          "as": "pos"
+        }
+      ],
+      "sort": [
+        {
+          "field": "cash",
+          "dir": "desc"
+        }
+      ],
+      "limit": 8
+    },
+    {
+      "as": "day_by_admin",
+      "from": "shift_ok",
+      "group_by": [
+        "day_label"
+      ],
+      "aggs": [
+        {
+          "as": "by_admin",
+          "op": "join",
+          "field": "admin_line",
+          "sep": " · "
+        }
+      ]
+    },
+    {
+      "as": "day_guests",
+      "from": "guests_day",
+      "group_by": [
+        "day_start",
+        "day_label"
+      ],
+      "aggs": [
+        {
+          "as": "guests",
+          "op": "count"
+        }
+      ]
+    },
+    {
+      "as": "day_procs",
+      "from": "procs_day",
+      "group_by": [
+        "day_start",
+        "day_label"
+      ],
+      "aggs": [
+        {
+          "as": "procs",
+          "op": "count"
+        },
+        {
+          "as": "clients",
+          "op": "count_distinct",
+          "field": "id_user"
+        },
+        {
+          "as": "revenue",
+          "op": "sum",
+          "field": "summ"
+        }
+      ]
+    },
+    {
+      "as": "day_with_guests",
+      "from": "day_procs",
+      "join_frame": {
+        "frame": "day_guests",
+        "type": "left",
+        "left": "day_start",
+        "right": "day_start"
+      },
+      "compute": [
+        {
+          "as": "guests",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "guests"
+              },
+              {
+                "lit": 0
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "as": "day_table",
+      "from": "day_with_guests",
+      "join_frame": {
+        "frame": "day_by_admin",
+        "type": "left",
+        "left": "day_label",
+        "right": "day_label"
+      },
+      "compute": [
+        {
+          "as": "by_admin",
+          "expr": {
+            "coalesce": [
+              {
+                "field": "by_admin"
+              },
+              {
+                "lit": ""
+              }
+            ]
+          }
+        },
+        {
+          "as": "conversion",
+          "expr": {
+            "if": [
+              {
+                "and": [
+                  {
+                    "gt": [
+                      {
+                        "field": "revenue"
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  },
+                  {
+                    "gt": [
+                      {
+                        "coalesce": [
+                          {
+                            "field": "guests"
+                          },
+                          {
+                            "lit": 0
+                          }
+                        ]
+                      },
+                      {
+                        "lit": 0
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "round": [
+                  {
+                    "div": [
+                      {
+                        "field": "revenue"
+                      },
+                      {
+                        "field": "guests"
+                      }
+                    ]
+                  },
+                  {
+                    "lit": 0
+                  }
+                ]
+              },
+              {
+                "lit": ""
+              }
+            ]
+          }
+        }
+      ],
+      "sort": [
+        {
+          "field": "day_start",
+          "dir": "asc"
         }
       ]
     }
   ],
   "sections": [
     {
-      "type": "metrics",
-      "title": "Сводка",
-      "items": [
+      "type": "table",
+      "title": "ЛИДЕРЫ (топ-8 смен по выручке)",
+      "from": "leaders",
+      "columns": [
         {
-          "label": "Гости",
-          "from": "guest_stats",
-          "field": "guests"
+          "id": "pos",
+          "label": "Поз"
         },
         {
-          "label": "Процедуры",
-          "from": "by_admin",
-          "agg": "sum",
-          "field": "procs"
+          "id": "day_label",
+          "label": "Дата"
         },
         {
-          "label": "Выручка",
-          "from": "by_admin",
-          "agg": "sum",
-          "field": "revenue"
+          "id": "admin_disp",
+          "label": "Админ"
+        },
+        {
+          "id": "cash_i",
+          "label": "Выручка"
+        },
+        {
+          "id": "conversion_pct",
+          "label": "Конверсия"
         }
       ]
     },
     {
       "type": "table",
-      "title": "Итоговый рейтинг",
-      "from": "rated",
+      "title": "По дням",
+      "from": "day_table",
       "columns": [
-        "rank_rev",
-        "admin_name",
-        "procs",
-        "revenue",
-        "rev_per_proc"
+        {
+          "id": "day_label",
+          "label": "Дата"
+        },
+        {
+          "id": "by_admin",
+          "label": "По админно"
+        },
+        {
+          "id": "guests",
+          "label": "Гости"
+        },
+        {
+          "id": "clients",
+          "label": "Клиенты"
+        },
+        {
+          "id": "procs",
+          "label": "Процы"
+        },
+        {
+          "id": "conversion",
+          "label": "Конв"
+        }
       ]
+    },
+    {
+      "type": "text",
+      "title": "Примечание",
+      "body": "JSON-порт oper show_kpi10. Лидеры — 8 сильнейших смен месяца по выручке. Конверсия смены = выручка / гости термов в окне смены. Конв дня = выручка / гости дня. I+II → половины смен."
     }
   ]
 }

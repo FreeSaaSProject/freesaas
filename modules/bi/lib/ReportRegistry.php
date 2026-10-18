@@ -131,30 +131,36 @@ final class ReportRegistry
             self::register(new RecipeFamily($recipe, (string)($recipe['title'] ?? $id)));
         }
         // DB rows override / add customs
-        if (!class_exists('BiFamilyDefsRepository', false) || !BiFamilyDefsRepository::tableReady()) {
-            return;
+        if (class_exists('BiFamilyDefsRepository', false)
+            && BiFamilyDefsRepository::tableReady()
+            && BiFamilyDefsRepository::hasRecipeColumn()
+        ) {
+            foreach (BiFamilyDefsRepository::listEnabled() as $def) {
+                $recipe = $def['RECIPE'] ?? [];
+                if (!is_array($recipe) || $recipe === []) {
+                    continue;
+                }
+                $recipe['id'] = (string)$def['FAMILY_ID'];
+                if (trim((string)($recipe['title'] ?? '')) === '' && (string)$def['NAME'] !== '') {
+                    $recipe['title'] = (string)$def['NAME'];
+                }
+                $label = (string)$def['NAME'];
+                if ($label === '') {
+                    $label = (string)($recipe['title'] ?? $recipe['id']);
+                }
+                try {
+                    self::register(new RecipeFamily($recipe, $label));
+                } catch (Throwable $e) {
+                    continue;
+                }
+            }
         }
-        if (!BiFamilyDefsRepository::hasRecipeColumn()) {
-            return;
-        }
-        foreach (BiFamilyDefsRepository::listEnabled() as $def) {
-            $recipe = $def['RECIPE'] ?? [];
-            if (!is_array($recipe) || $recipe === []) {
-                continue;
-            }
-            $recipe['id'] = (string)$def['FAMILY_ID'];
-            if (trim((string)($recipe['title'] ?? '')) === '' && (string)$def['NAME'] !== '') {
-                $recipe['title'] = (string)$def['NAME'];
-            }
-            $label = (string)$def['NAME'];
-            if ($label === '') {
-                $label = (string)($recipe['title'] ?? $recipe['id']);
-            }
-            try {
-                self::register(new RecipeFamily($recipe, $label));
-            } catch (Throwable $e) {
-                continue;
-            }
-        }
+
+    }
+
+    /** @deprecated coded runners removed — keep for run UI edit-hide compatibility */
+    public static function isCodedId(string $id): bool
+    {
+        return false;
     }
 }

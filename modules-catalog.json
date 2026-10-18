@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-17T14:31:07+00:00",
+    "generated_at": "2026-10-18T07:13:03+00:00",
     "modules": [
         {
             "id": "asr",
@@ -311,19 +311,19 @@
         },
         {
             "id": "bi",
-            "version": "0.2.7",
+            "version": "0.2.13",
             "type": "product",
             "name": {
                 "en": "BI reports",
-                "ru": "BI-отчёты"
+                "ru": "БизнесАналитика"
             },
             "description": {
                 "en": "JSON-recipe operational BI reports with live share links",
-                "ru": "Операционные BI-отчёты на JSON-рецептах со live-ссылками"
+                "ru": "Операционные отчёты БизнесАналитики на JSON-рецептах со live-ссылками"
             },
             "summary": {
                 "en": "BI packs as JSON recipes with guest/staff shares and TTL. Soft-depends on procedures, workweeks, terminals, polls, audio.",
-                "ru": "BI-пакеты как JSON-рецепты со шарингом guest/staff и TTL. Мягкие зависимости: procedures, workweeks, terminals, polls, audio."
+                "ru": "Пакеты БизнесАналитики как JSON-рецепты со шарингом guest/staff и TTL. Мягкие зависимости: procedures, workweeks, terminals, polls, audio."
             },
             "requires": {
                 "core": ">=0.3.0"

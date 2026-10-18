@@ -47,7 +47,7 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 curl -sS -b jar.txt -H 'Accept: application/json' 'https://example/bi/shares'
 curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/json' \
   -X POST 'https://example/bi/shares' \
-  -d '{"action":"create","family":"masseur_shifts","audience":"staff","ttl":"1y","staff_user_ids":[12,34]}'
+  -d '{"action":"create","family":"admin_conversion","audience":"staff","ttl":"1y","staff_status_ids":[2,5],"staff_user_ids":[12]}'
 ```
 
 ### Reading results
@@ -67,7 +67,7 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 
 - **Titles, column labels, metric labels, `text.body`** = plain constructor text (UTF-8). Not module i18n keys.
 - **`type: text`** bodies are validated (`BiText`): no HTML/PHP/event handlers/template injection; rendered with `e_nl`.
-- **Expr `acronym`** = system shortName (same as calendar badges).
+- **Expr `acronym`** = plain shortName text. **Expr `badge`** = safe token → colored `UsersRepository::badgeHtml` at render (also column `format: user_badge` + `user_field`).
 - Ship overrides: save with a **shipped** `family_id` → DB override; `action=delete` + `def_id` restores the file.
 - Never invent SQL tables outside `legend.datasets` allowlist. Joins must match catalog `joins[]`.
 
@@ -103,7 +103,9 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 }
 ```
 
-Derive pipeline (in order): `join_frame` → `filter` → `select`/`compute` → `group_by`/`aggs` → `compute_after` → `having` → `window` → `sort` → `limit`.
+Derive pipeline (in order): `expand_shift_lanes` → `join_frame` → `filter` → `select`/`compute` → `group_by`/`aggs` → `compute_after` → `having` → `window` → `sort` → `limit`.
+
+Engine opts (general): join-only step followed by sole-consumer `group_by` is **fused** (join product never stored); `group_by` streams accumulators (no member-row lists). Put `join_frame` + `group_by` on one derive step for the same effect.
 
 Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`, `expr_ops`, `group_aggs`, `examples`).
 
@@ -113,7 +115,7 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 |----|------|--------|
 | `demo_counts` | `recipes/demo_counts.json` | Procedures + guests metrics |
 | `masseur_shifts` | `recipes/masseur_shifts.json` | Oper show_kpi11 (shifts / slots / vacations) |
-| `admin_conversion` | `recipes/admin_conversion.json` | Admin revenue ranking |
+| `admin_conversion` | `recipes/admin_conversion.json` | Oper **show_kpi10**: **ЛИДЕРЫ** top-8 admin×shift by cash; day table; uses `expand_shift_lanes` + range join |
 | `staff_kpi` | `recipes/staff_kpi.json` | Pivot matrix stub |
 
 ## Shares
@@ -122,8 +124,8 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 |------|--------|
 | Paths | `/bi/s/{token}` (public route; guest or staff audience) |
 | TTL | `1h` \| `1d` \| `1mo` \| `3mo` \| `1y` (`1y` **staff only**) |
-| Allowlist | Optional `staff_user_ids`; **intentionally empty** (missing/`[]`/blank) = any logged-in staff. Non-blank input that yields no valid picker IDs (`[0]`, `[-1]`, `["invalid"]`, unknown ids) → `staff_allowlist_empty` |
-| Picker filter | `IS_HIDDEN` omitted from picker and stripped on create; `ASSIST_TEAM` kept (admins / assist roles can be recipients) |
+| Allowlist | Optional `staff_user_ids` and/or `staff_status_ids` (должности / `base_admin_statuses`). **Both empty** = any logged-in staff. Non-blank invalid user ids → `staff_allowlist_empty`; invalid status ids → `status_allowlist_empty`. Match is **union** (person OR role, incl. `ID_STATUS2`) |
+| Picker filter | `IS_HIDDEN` omitted from staff picker; `ASSIST_TEAM` kept. Status picker = `UsersRepository::statusNamesFiltered(false)` |
 | In-app list | Staff with a usable staff share see that family on `/bi` (same chrome as director; no constructor). Run via `/bi/run` + `/bi/work` with share constraints / rate limit |
 | Superadmin | Can open any staff share (and revoke all) |
 | Locked filters | `id_operator` / `id_admin` / `id_good` bind only on datasets that declare them. Create refuses partial coverage unless `accept_partial_filters=1` |
@@ -131,7 +133,9 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 
 ## Engine budgets
 
-Runtime caps (also enforced on validate for step counts): query frames ≤ 5 000 rows; derive frames ≤ 25 000; cross-join ≤ 100 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s (`microtime` ticks in derive/join/group/window/sections). Each SQL SELECT sets session `MAX_EXECUTION_TIME` / MariaDB `max_statement_time` = remaining budget ms and **verifies** the var; if neither backend accepts the limit → `sql_timeout_unavailable` (run aborted, no unbounded query). Query kill / wall exceed → `recipe_timeout`.
+Runtime caps (also enforced on validate for step counts): query frames ≤ 50 000 rows; derive frames ≤ 500 000; cross-join ≤ 500 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s (`microtime` ticks in derive/join/group/window/sections). Each SQL SELECT sets session `MAX_EXECUTION_TIME` / MariaDB `max_statement_time` = remaining budget ms and **verifies** the var; if neither backend accepts the limit → `sql_timeout_unavailable` (run aborted, no unbounded query). Query kill / wall exceed → `recipe_timeout`. Peak memory: fused join→group + streaming aggs; run still raises `memory_limit` to 512M for busy attribution months.
+
+Shift attribution (show_kpi10-style): derive `expand_shift_lanes` (PRICE_COL → window lanes; mode `tickets`|`cash`) + `join_frame` type `inner` with optional `on[]` keys and `range` (`dtstart` in `[window_start, window_end]`). Exprs `day_start` / `day_label` / `badge`. Group agg `count_distinct`.
 
 ## Agent ops (`module.json`)
 

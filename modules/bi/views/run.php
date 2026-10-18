@@ -21,7 +21,7 @@ $workUrl = '/bi/work';
 <?php if (!$ready): ?>
   <p class="flash-err"><?= e($readyNote !== '' ? $readyNote : t('bi.err.not_ready')) ?></p>
 <?php else: ?>
-  <?php if ($canManage): ?>
+  <?php if ($canManage && !ReportRegistry::isCodedId($familyId)): ?>
     <p class="bi-report-toolbar">
       <a class="btn-secondary" href="/bi/families/<?= e(rawurlencode($familyId)) ?>"><?= te('bi.index.edit') ?></a>
     </p>

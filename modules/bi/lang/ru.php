@@ -2,13 +2,13 @@
 declare(strict_types=1);
 
 return [
-    'bi.module.name' => 'BI-отчёты',
-    'bi.module.description' => 'Операционные BI-отчёты на JSON-рецептах со live-ссылками',
-    'bi.module.summary' => 'BI-пакеты как JSON-рецепты со шарингом guest/staff и TTL. Мягкие зависимости: procedures, workweeks, terminals, polls, audio.',
+    'bi.module.name' => 'БизнесАналитика',
+    'bi.module.description' => 'Операционные отчёты БизнесАналитики на JSON-рецептах со live-ссылками',
+    'bi.module.summary' => 'Пакеты БизнесАналитики как JSON-рецепты со шарингом guest/staff и TTL. Мягкие зависимости: procedures, workweeks, terminals, polls, audio.',
 
-    'bi.perm.manage' => 'Управление BI-отчётами и ссылками',
+    'bi.perm.manage' => 'Управление отчётами БизнесАналитики и ссылками',
 
-    'bi.menu.group' => 'BI',
+    'bi.menu.group' => 'БизнесАналитика',
     'bi.menu.list' => 'Отчёты',
     'bi.menu.shares' => 'Ссылки',
 
@@ -31,9 +31,9 @@ return [
     'bi.index.new_family' => 'Новый отчёт',
     'bi.index.shares' => 'Ссылки',
 
-    'bi.family.lede' => 'JSON-рецепт. Заголовки, подписи колонок и пояснения — обычный текст в recipe (не переводы). Секции type=text — plain text (без HTML/скриптов). Expr acronym — акроним как в системе.',
-    'bi.family.new_title' => 'Новое семейство BI',
-    'bi.family.edit_title' => 'Правка семейства BI',
+    'bi.family.lede' => 'JSON-рецепт. Заголовки, подписи колонок и пояснения — обычный текст в recipe (не переводы). Секции type=text — plain text (без HTML/скриптов). Expr badge(user_id) — цветной акроним сотрудника; acronym — короткий текст без цвета.',
+    'bi.family.new_title' => 'Новое семейство',
+    'bi.family.edit_title' => 'Правка семейства',
     'bi.family.fork_title' => 'Форк семейства',
     'bi.family.id' => 'Id семейства',
     'bi.family.name' => 'Название',
@@ -42,7 +42,7 @@ return [
     'bi.family.legend' => 'Легенда (datasets / ops)',
     'bi.family.legend_link' => 'Полная легенда',
     'bi.family.legend_hint' => 'Allowlist datasets, полей, join, expr, примеры. Агентам: GET /bi/legend?format=json',
-    'bi.family.legend_page_lede' => 'Машиночитаемый каталог для BI JSON-рецептов. Предпочтительно Accept: application/json.',
+    'bi.family.legend_page_lede' => 'Машиночитаемый каталог для JSON-рецептов. Предпочтительно Accept: application/json.',
     'bi.family.shipped_hint' => 'Поставляемый рецепт (файл). Save пишет override в БД; Сброс возвращает файл.',
     'bi.family.validate' => 'Проверить',
     'bi.family.save' => 'Сохранить',
@@ -93,7 +93,7 @@ return [
     'bi.month.12' => 'Декабрь',
 
     'bi.shares.title' => 'Ссылки на отчёты',
-    'bi.shares.lede' => 'Live-доступ к семейству. Получатель может менять период. Guest — без логина; staff — сотрудник (опциональный список). Суперадмин открывает любые staff-ссылки.',
+    'bi.shares.lede' => 'Live-доступ к семейству. Получатель может менять период. Guest — без логина; staff — сотрудник (по людям и/или должностям). Суперадмин открывает любые staff-ссылки.',
     'bi.shares.create' => 'Создать ссылку',
     'bi.shares.family' => 'Семейство',
     'bi.shares.audience' => 'Аудитория',
@@ -107,8 +107,11 @@ return [
     'bi.shares.ttl_1y' => '1 год (только сотрудники)',
     'bi.shares.label' => 'Метка',
     'bi.shares.staff_ids' => 'Список сотрудников',
-    'bi.shares.staff_pick' => 'Ограничить выбранными сотрудниками (необязательно). Пусто = любой вошедший сотрудник. Скрытые учётные записи (IS_HIDDEN) не показываются.',
+    'bi.shares.staff_pick' => 'Ограничить выбранными сотрудниками (необязательно). Можно комбинировать с должностями: доступ, если совпал человек или должность. Пусто в обоих списках = любой вошедший сотрудник. Скрытые учётные записи (IS_HIDDEN) не показываются.',
     'bi.shares.staff_empty' => 'Нет подходящих сотрудников.',
+    'bi.shares.status_ids' => 'Должности',
+    'bi.shares.status_pick' => 'Ограничить по должностям (ролям staff). Например все админы и промоутеры. Пусто = не фильтровать по должности.',
+    'bi.shares.status_empty' => 'Нет должностей.',
     'bi.shares.created' => 'Ссылка создана',
     'bi.shares.copy' => 'Копировать URL',
     'bi.shares.revoke' => 'Отозвать',
@@ -120,7 +123,8 @@ return [
     'bi.shares.col.status' => 'Статус',
     'bi.shares.err.family' => 'Выберите семейство.',
     'bi.shares.err.ttl_1y' => 'Срок «1 год» доступен только для ссылок сотрудникам.',
-    'bi.shares.err.staff_empty' => 'Ни один из выбранных сотрудников не допущен. Выберите из списка или оставьте пустым — любой вошедший сотрудник.',
+    'bi.shares.err.staff_empty' => 'Ни один из выбранных сотрудников не допущен. Выберите из списка или оставьте пустым.',
+    'bi.shares.err.status_empty' => 'Ни одна из выбранных должностей не допущена. Выберите из списка или оставьте пустым.',
     'bi.shares.err.filters_partial' => 'Зафиксированные фильтры не применяются ко всем запросам семейства. Уберите их или подтвердите частичное покрытие.',
     'bi.shares.err.create' => 'Не удалось создать ссылку.',
     'bi.shares.accept_partial_filters' => 'Разрешить создание, если фильтры покрывают только часть датасетов',
@@ -141,6 +145,6 @@ return [
     'bi.err.forbidden' => 'Нет доступа',
     'bi.err.run' => 'Ошибка отчёта.',
 
-    'bi.cron.expire' => 'Просрочка BI-ссылок',
-    'bi.perm.delete' => 'Удаление семейств BI',
+    'bi.cron.expire' => 'Просрочка ссылок БизнесАналитики',
+    'bi.perm.delete' => 'Удаление семейств отчётов',
 ];
