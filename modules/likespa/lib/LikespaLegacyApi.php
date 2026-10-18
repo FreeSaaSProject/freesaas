@@ -517,11 +517,13 @@ final class LikespaLegacyApi
                     if ($oid < 1) {
                         continue;
                     }
-                    $pc = max(1, min(5, (int)($shift['price_col'] ?? 1)));
+                    $pc = class_exists(WorkweeksRepository::class, false)
+                        ? WorkweeksRepository::normalizePriceCol((int)($shift['price_col'] ?? 1))
+                        : max(1, (int)($shift['price_col'] ?? 1));
                     $range = WorkweeksRepository::shiftRangeForDay((int)$dayStart, $pc);
                     $shiftMetaByOp[$oid] = [
                         'price_col' => $pc,
-                        'shift_label' => (string)($range['label'] ?? ''),
+                        'shift_label' => (string)($range['label'] ?? WorkweeksRepository::shiftLabel($pc)),
                         'shift_start' => $range !== null ? date('H:i', (int)$range['start']) : '',
                         'shift_end' => $range !== null ? date('H:i', (int)$range['end']) : '',
                     ];
@@ -563,7 +565,7 @@ final class LikespaLegacyApi
                 'products' => $slotsHhmm !== [] ? [(string)$serviceId => $slotsHhmm[0]] : [],
                 'startTime' => $slotsHhmm[0] ?? '',
                 'endTime' => $slotsHhmm !== [] ? $slotsHhmm[count($slotsHhmm) - 1] : '',
-                // Informational: workweeks lane. Slots above are salon-window, not clipped to shift_end.
+                // Lane metadata; available_slots already clipped to PRICE_COL ∩ salon hours.
                 'price_col' => (int)$meta['price_col'],
                 'shift_label' => (string)$meta['shift_label'],
                 'shift_start' => (string)$meta['shift_start'],
