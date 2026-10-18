@@ -166,7 +166,9 @@
       volume_gt: i18n.condVolumeGt,
       volume_lt: i18n.condVolumeLt,
       strings_gt: i18n.condStringsGt,
-      strings_lt: i18n.condStringsLt
+      strings_lt: i18n.condStringsLt,
+      term_scan_unique: i18n.condTermScanUnique,
+      term_scan_conversion: i18n.condTermScanUnique
     };
     return map[type] || type || '';
   }
@@ -632,6 +634,8 @@
     var flow = document.getElementById('canvas-flow');
     var dayBonusCb = document.getElementById('script-day-bonus');
     var dayBonusFields = document.getElementById('script-day-bonus-fields');
+    var dayGatesBody = document.getElementById('script-day-gates-body');
+    var dayGatesAdd = document.getElementById('script-day-gates-add');
     var ratingEnabledCb = form
       ? form.querySelector('input[name="rating_enabled"]')
       : document.querySelector('#scripts-canvas-form input[name="rating_enabled"]');
@@ -647,6 +651,65 @@
     function syncDayBonusUi() {
       var on = dayBonusEnabled();
       if (dayBonusFields) dayBonusFields.hidden = !on;
+    }
+
+    function reindexDayGates() {
+      if (!dayGatesBody) return;
+      var rows = dayGatesBody.querySelectorAll('tr.scripts-day-gate-row');
+      for (var i = 0; i < rows.length; i++) {
+        var inputs = rows[i].querySelectorAll('select, input');
+        for (var j = 0; j < inputs.length; j++) {
+          var name = inputs[j].getAttribute('name') || '';
+          var m = name.match(/^day_gates\[\d+\](\[.+\])$/);
+          if (m) {
+            inputs[j].setAttribute('name', 'day_gates[' + i + ']' + m[1]);
+          }
+        }
+      }
+    }
+
+    if (dayGatesAdd && dayGatesBody) {
+      dayGatesAdd.addEventListener('click', function () {
+        var first = dayGatesBody.querySelector('tr.scripts-day-gate-row');
+        if (!first) return;
+        var clone = first.cloneNode(true);
+        var fields = clone.querySelectorAll('select, input');
+        for (var i = 0; i < fields.length; i++) {
+          if (fields[i].tagName === 'SELECT') {
+            fields[i].selectedIndex = 0;
+          } else if (fields[i].type === 'number') {
+            fields[i].value = '0';
+          } else {
+            fields[i].value = '';
+          }
+        }
+        dayGatesBody.appendChild(clone);
+        reindexDayGates();
+      });
+      dayGatesBody.addEventListener('click', function (ev) {
+        var btn = ev.target && ev.target.closest
+          ? ev.target.closest('.scripts-day-gate-remove')
+          : null;
+        if (!btn) return;
+        var row = btn.closest('tr.scripts-day-gate-row');
+        if (!row) return;
+        var rows = dayGatesBody.querySelectorAll('tr.scripts-day-gate-row');
+        if (rows.length <= 1) {
+          var fields = row.querySelectorAll('select, input');
+          for (var i = 0; i < fields.length; i++) {
+            if (fields[i].tagName === 'SELECT') {
+              fields[i].selectedIndex = 0;
+            } else if (fields[i].type === 'number') {
+              fields[i].value = '0';
+            } else {
+              fields[i].value = '';
+            }
+          }
+          return;
+        }
+        row.parentNode.removeChild(row);
+        reindexDayGates();
+      });
     }
 
     function syncHidden() {
@@ -720,9 +783,12 @@
         ['volume_gt', i18n.condVolumeGt || 'volume_gt'],
         ['volume_lt', i18n.condVolumeLt || 'volume_lt'],
         ['strings_gt', i18n.condStringsGt || 'strings_gt'],
-        ['strings_lt', i18n.condStringsLt || 'strings_lt']
+        ['strings_lt', i18n.condStringsLt || 'strings_lt'],
+        ['term_scan_unique', i18n.condTermScanUnique || 'term_scan_unique']
       ];
       var isMetric = !!(part.cond_type && part.cond_type !== '');
+      var isDayQualityMetric = part.cond_type === 'term_scan_unique'
+        || part.cond_type === 'term_scan_conversion';
       var needsCondValue = part.cond_type === 'volume_gt' || part.cond_type === 'volume_lt'
         || part.cond_type === 'strings_gt' || part.cond_type === 'strings_lt';
       var isTrigger = hasRole(part, 'trigger');
@@ -762,8 +828,11 @@
           : '') +
         '</div>' +
         '<div class="scripts-panel-section"><h3>' + esc(i18n.timeoutsSec || 'Timeouts') + '</h3>' +
-        '<label>' + esc(i18n.timeout) + '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-        '<p class="scripts-field-hint">' + esc(i18n.timeoutHint || '') + '</p>' +
+        '<label>' + esc(isDayQualityMetric ? (i18n.scanWindow || i18n.timeout || 'Window, s') : (i18n.timeout || 'TIMEOUT')) +
+        '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(isDayQualityMetric
+          ? (i18n.scanWindowHint || i18n.condTermScanConversionHint || i18n.timeoutHint || '')
+          : (i18n.timeoutHint || '')) + '</p>' +
         '<label>' + esc(i18n.kpi || 'KPI') + '<input type="number" min="0" data-field="kpi" value="' + esc(part.kpi || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
         '<p class="scripts-field-hint">' + esc(i18n.kpiHint || '') + '</p>' +
         '<label class="checkbox"><input type="checkbox" data-field="extend_timeout" value="1"' + ((part.extend_timeout === 0) ? '' : ' checked') + (canEdit ? '' : ' disabled') + '> ' + esc(i18n.extendTimeout || 'EXTEND_TIMEOUT') + '</label>' +
@@ -777,10 +846,15 @@
           : '') +
         (dayBonusEnabled()
           ? '<h3 class="scripts-panel-subhead">' + esc(i18n.qualitySec || 'Quality') + '</h3>' +
-            '<label>' + esc(i18n.gateRedMax || 'red %') + '<input type="number" min="0" step="0.1" data-field="gate_red_max" value="' + esc(part.gate_red_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-            '<p class="scripts-field-hint">' + esc(i18n.gateRedMaxHint || '') + '</p>' +
-            '<label>' + esc(i18n.gateYellowMax || 'yellow %') + '<input type="number" min="0" step="0.1" data-field="gate_yellow_max" value="' + esc(part.gate_yellow_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-            '<p class="scripts-field-hint">' + esc(i18n.gateYellowMaxHint || '') + '</p>'
+            (isDayQualityMetric
+              ? '<p class="scripts-field-hint">' + esc(i18n.condTermScanConversionHint || '') + '</p>'
+              : '') +
+            '<label>' + esc(isDayQualityMetric ? (i18n.gateRedMaxScan || i18n.gateRedMax || 'red') : (i18n.gateRedMax || 'red %')) +
+            '<input type="number" min="0" step="' + (isDayQualityMetric ? '1' : '0.1') + '" data-field="gate_red_max" value="' + esc(part.gate_red_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(isDayQualityMetric ? (i18n.gateRedMaxHintScan || i18n.gateRedMaxHint || '') : (i18n.gateRedMaxHint || '')) + '</p>' +
+            '<label>' + esc(isDayQualityMetric ? (i18n.gateYellowMaxScan || i18n.gateYellowMax || 'yellow') : (i18n.gateYellowMax || 'yellow %')) +
+            '<input type="number" min="0" step="' + (isDayQualityMetric ? '1' : '0.1') + '" data-field="gate_yellow_max" value="' + esc(part.gate_yellow_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(isDayQualityMetric ? (i18n.gateYellowMaxHintScan || i18n.gateYellowMaxHint || '') : (i18n.gateYellowMaxHint || '')) + '</p>'
           : '') +
         '<label class="checkbox"><input type="checkbox" data-field="hide_from_reports" value="1"' + (part.hide_from_reports ? ' checked' : '') + (canEdit ? '' : ' disabled') + '> ' + esc(i18n.hideFromReports || 'Hide from reports') + '</label>' +
         '<p class="scripts-field-hint">' + esc(i18n.hideFromReportsHint || '') + '</p>' +

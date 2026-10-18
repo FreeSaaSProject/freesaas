@@ -86,6 +86,27 @@ if ($wantsJson) {
     return;
 }
 
+$dayMetricCatalog = [];
+if (class_exists('ModuleManager', false) && ModuleManager::isEnabled('audio_reports')) {
+    if (!class_exists('DayQualityMetrics', false)) {
+        $dqm = base_path('modules/audio_reports/lib/DayQualityMetrics.php');
+        if (is_file($dqm)) {
+            require_once $dqm;
+        }
+    }
+    if (class_exists('DayQualityMetrics', false)) {
+        $dayMetricCatalog = DayQualityMetrics::catalog();
+    }
+}
+if ($dayMetricCatalog === []) {
+    $dayMetricCatalog = [
+        ['id' => 'audio_playtime', 'label' => t('audio_dicts.scripts.metric.audio_playtime'), 'unit' => 's'],
+        ['id' => 'script_starts', 'label' => t('audio_dicts.scripts.metric.script_starts'), 'unit' => ''],
+        ['id' => 'script_finishes', 'label' => t('audio_dicts.scripts.metric.script_finishes'), 'unit' => ''],
+        ['id' => 'proc_ratio', 'label' => t('audio_dicts.scripts.metric.proc_ratio'), 'unit' => '%'],
+    ];
+}
+
 View::render('scripts_canvas', [
     'title' => t('audio_dicts.scripts.edit_title', ['name' => (string)$tree['root']['name']]),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -104,6 +125,7 @@ View::render('scripts_canvas', [
     'dictOptions' => RecordsDictsRepository::options(true),
     'dictPositionMap' => RecordsDictsRepository::positionMap(true),
     'positionOptions' => RecordsScriptsRepository::positionOptions(),
+    'dayMetricCatalog' => $dayMetricCatalog,
     'roleOptions' => [
         'ordinary' => t('audio_dicts.scripts.role.ordinary'),
         'trigger' => t('audio_dicts.scripts.role.trigger'),

@@ -450,10 +450,29 @@ final class CalendarAggregates
 
         $dictIds = array_column($out['dicts'], 'id');
         $inD = implode(',', array_map('intval', $dictIds));
-        $sql = "SELECT i.ID_ADMIN AS id_admin, k.ID_DICTONARY AS id_dict,
-                       FROM_UNIXTIME(i.DT_START, '%Y-%m-%d') AS day_key, COUNT(*) AS cnt
-                FROM base_records_instances i
-                INNER JOIN base_records_keys k ON k.ID = i.ID_KEY";
+        // Resolve key ids first — avoids a full scan of base_records_instances (no DT_START-leading index).
+        $keyToDict = [];
+        $stKeys = Database::pdo()->query(
+            "SELECT ID AS id, ID_DICTONARY AS id_dict
+             FROM base_records_keys
+             WHERE ID_DICTONARY IN ($inD)"
+        );
+        if ($stKeys) {
+            while ($row = $stKeys->fetch(PDO::FETCH_ASSOC)) {
+                $kid = (int)($row['id'] ?? 0);
+                $did = (int)($row['id_dict'] ?? 0);
+                if ($kid > 0 && $did > 0) {
+                    $keyToDict[$kid] = $did;
+                }
+            }
+        }
+        if ($keyToDict === []) {
+            return $out;
+        }
+        $inK = implode(',', array_map('intval', array_keys($keyToDict)));
+
+        $sql = 'SELECT i.ID_ADMIN AS id_admin, i.ID_KEY AS id_key, i.DT_START AS dt_start
+                FROM base_records_instances i';
         $params = [];
         if ($badgeFilter > 0 && Database::tableExists('base_records')) {
             $sql .= ' INNER JOIN base_records r ON r.ID = i.ID_RECORD AND r.ID_DICTOPHONE = ?';
@@ -464,7 +483,7 @@ final class CalendarAggregates
             $params[] = $positionFilter;
         }
         $sql .= " WHERE i.DT_START >= ? AND i.DT_START <= ?
-                  AND k.ID_DICTONARY IN ($inD)
+                  AND i.ID_KEY IN ($inK)
                   AND i.ID_ADMIN > 0";
         $params[] = $fromTs;
         $params[] = $toTs;
@@ -472,28 +491,24 @@ final class CalendarAggregates
             $sql .= ' AND i.ID_ADMIN = ?';
             $params[] = $adminFilter;
         }
-        $sql .= ' GROUP BY i.ID_ADMIN, k.ID_DICTONARY, day_key';
         $st = Database::pdo()->prepare($sql);
         $st->execute($params);
         while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
             $aid = (int)$row['id_admin'];
-            $did = (int)$row['id_dict'];
-            $day = (string)$row['day_key'];
-            $cnt = (int)$row['cnt'];
-            if ($day === '') {
+            $did = $keyToDict[(int)$row['id_key']] ?? 0;
+            $dt = (int)$row['dt_start'];
+            if ($aid < 1 || $did < 1 || $dt < 1) {
                 continue;
             }
-            if (!isset($out['by_admin_day'][$aid])) {
-                $out['by_admin_day'][$aid] = [];
+            $day = date('Y-m-d', $dt);
+            if (!isset($out['by_admin_day'][$aid][$did][$day])) {
+                $out['by_admin_day'][$aid][$did][$day] = 0;
             }
-            if (!isset($out['by_admin_day'][$aid][$did])) {
-                $out['by_admin_day'][$aid][$did] = [];
-            }
-            $out['by_admin_day'][$aid][$did][$day] = $cnt;
+            $out['by_admin_day'][$aid][$did][$day]++;
             if (!isset($out['by_admin'][$aid][$did])) {
                 $out['by_admin'][$aid][$did] = 0;
             }
-            $out['by_admin'][$aid][$did] += $cnt;
+            $out['by_admin'][$aid][$did]++;
         }
         return $out;
     }
@@ -586,22 +601,41 @@ final class CalendarAggregates
         /** @var array<int, array<int,true>> $finishPartsByCollection collectionId → finish part ids present */
         $finishPartsByCollection = [];
         if (Database::tableExists('base_records_collections_datas') && $finishPartByScript !== []) {
-            $ids = array_values(array_unique(array_filter(array_map(static function (array $r): int {
-                return (int)$r['id'];
-            }, $collections))));
+            // One range JOIN instead of chunked IN (thousands of collection ids) — same filters as above.
             $finishIn = implode(',', array_map('intval', array_unique(array_values($finishPartByScript))));
-            foreach (array_chunk($ids, 500) as $chunk) {
-                $in = implode(',', $chunk);
-                $qf = $pdo->query(
-                    "SELECT ID_COLLECTION AS id, ID_PART AS id_part
-                     FROM base_records_collections_datas
-                     WHERE ID_COLLECTION IN ($in) AND ID_PART IN ($finishIn)"
-                );
-                if ($qf) {
-                    while ($fr = $qf->fetch(PDO::FETCH_ASSOC)) {
-                        $finishPartsByCollection[(int)$fr['id']][(int)$fr['id_part']] = true;
-                    }
-                }
+            $sqlFinish = 'SELECT d.ID_COLLECTION AS id, d.ID_PART AS id_part
+                FROM base_records_collections_datas d
+                INNER JOIN base_records_collections c ON c.ID = d.ID_COLLECTION';
+            $finishParams = [];
+            if ($positionFilter > 0 && Database::tableExists('base_users')) {
+                $sqlFinish .= ' INNER JOIN base_users u ON u.id = c.ID_ADMIN AND u.ID_STATUS = ?';
+                $finishParams[] = $positionFilter;
+            }
+            $sqlFinish .= ' WHERE c.DT_START >= ? AND c.DT_START <= ? AND c.ID_ADMIN > 0 AND c.ID_SCRIPT > 0
+                AND d.ID_PART IN (' . $finishIn . ')';
+            $finishParams[] = $fromTs;
+            $finishParams[] = $toTs;
+            if ($adminFilter > 0) {
+                $sqlFinish .= ' AND c.ID_ADMIN = ?';
+                $finishParams[] = $adminFilter;
+            }
+            if ($badgeFilter > 0
+                && Database::tableExists('base_records_collections_datas')
+                && Database::tableExists('base_records_instances')
+                && Database::tableExists('base_records')
+            ) {
+                $sqlFinish .= ' AND EXISTS (
+                    SELECT 1 FROM base_records_collections_datas d2
+                    INNER JOIN base_records_instances i ON i.ID = d2.ID_INSTANCE
+                    INNER JOIN base_records r ON r.ID = i.ID_RECORD
+                    WHERE d2.ID_COLLECTION = c.ID AND r.ID_DICTOPHONE = ?
+                )';
+                $finishParams[] = $badgeFilter;
+            }
+            $qf = $pdo->prepare($sqlFinish);
+            $qf->execute($finishParams);
+            while ($fr = $qf->fetch(PDO::FETCH_ASSOC)) {
+                $finishPartsByCollection[(int)$fr['id']][(int)$fr['id_part']] = true;
             }
         }
 

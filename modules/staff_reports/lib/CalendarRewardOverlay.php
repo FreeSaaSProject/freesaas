@@ -4,12 +4,29 @@ declare(strict_types=1);
 /** Overlay rewards on audio records calendar + summary.external series. */
 final class CalendarRewardOverlay
 {
-    /** @var array{range:string,data:array}|null */
-    private static $cache = null;
+    /** @var array<string, array<int, array<string, array{reward:bool,ticket:int,no_records:bool,comment_id?:int}>>> */
+    private static $byMonth = [];
+
+    /** @var bool|null */
+    private static $allowed = null;
+
+    /** @var bool */
+    private static $assetsQueued = false;
 
     public static function resetCache(): void
     {
-        self::$cache = null;
+        self::$byMonth = [];
+        self::$allowed = null;
+        self::$assetsQueued = false;
+    }
+
+    private static function isAllowed(): bool
+    {
+        if (self::$allowed !== null) {
+            return self::$allowed;
+        }
+        self::$allowed = ModuleManager::isEnabled('staff_reports') && Auth::can('staff_reports.view');
+        return self::$allowed;
     }
 
     /**
@@ -18,13 +35,10 @@ final class CalendarRewardOverlay
     private static function monthData(int $year, int $month): array
     {
         $key = $year . '-' . $month;
-        if (self::$cache === null || (self::$cache['range'] ?? '') !== $key) {
-            self::$cache = [
-                'range' => $key,
-                'data' => MonthRewards::forMonth($year, $month),
-            ];
+        if (!isset(self::$byMonth[$key])) {
+            self::$byMonth[$key] = MonthRewards::forMonth($year, $month);
         }
-        return self::$cache['data'];
+        return self::$byMonth[$key];
     }
 
     /**
@@ -36,7 +50,7 @@ final class CalendarRewardOverlay
         if (!is_array($payload)) {
             return $payload;
         }
-        if (!ModuleManager::isEnabled('staff_reports') || !Auth::can('staff_reports.view')) {
+        if (!self::isAllowed()) {
             return $payload;
         }
         $date = (string)($payload['date'] ?? '');
@@ -53,8 +67,9 @@ final class CalendarRewardOverlay
             return $payload;
         }
 
-        if (class_exists('Assets', false)) {
+        if (!self::$assetsQueued && class_exists('Assets', false)) {
             Assets::need('staff_reports');
+            self::$assetsQueued = true;
         }
 
         $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
@@ -80,7 +95,7 @@ final class CalendarRewardOverlay
         if (!is_array($payload)) {
             return $payload;
         }
-        if (!ModuleManager::isEnabled('staff_reports') || !Auth::can('staff_reports.view')) {
+        if (!self::isAllowed()) {
             return $payload;
         }
         $year = (int)($payload['year'] ?? 0);

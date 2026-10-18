@@ -23,8 +23,9 @@ final class StaffReportPublisherConfig
             'allow_same_day_publish' => false,
             'managing_contract_id' => 0,
             'ticket_status_id' => 4,
-            'ticket_title_prefix' => '[Отчеты:',
-            'ticket_default_body' => 'Здесь формируются отчёты по работе',
+            // Empty → TicketWriter falls back to staff_reports.ticket.prefix_default / body_default.
+            'ticket_title_prefix' => '',
+            'ticket_default_body' => '',
             'gratitude_news_id' => 0,
             'gratitude_mark' => 'headphones',
             'contract_working_days' => 5,
@@ -122,8 +123,8 @@ final class StaffReportPublisherConfig
         return [
             'managing_contract_id' => (int)($c['managing_contract_id'] ?? 0),
             'ticket_status_id' => (int)($c['ticket_status_id'] ?? 4),
-            'ticket_title_prefix' => (string)($c['ticket_title_prefix'] ?? '[Отчеты:'),
-            'ticket_default_body' => (string)($c['ticket_default_body'] ?? 'Здесь формируются отчёты по работе'),
+            'ticket_title_prefix' => (string)($c['ticket_title_prefix'] ?? ''),
+            'ticket_default_body' => (string)($c['ticket_default_body'] ?? ''),
             'contract_reward_sum' => 0,
             'contract_working_days' => max(0, (int)($c['contract_working_days'] ?? 5)),
             'llm' => is_array($c['llm'] ?? null) ? $c['llm'] : ['enabled' => false],

@@ -1,6 +1,6 @@
 # BI reports (`bi`)
 
-JSON-recipe operational reports (director). Shipped defaults: `modules/bi/recipes/*.json`. Saving in the constructor writes a DB override in `base_bi_family_defs`. Live share links with TTL.
+JSON-recipe operational reports (director). **BI is the engine only** — datasets, domain derive steps, and shipped recipes are contributed by enabled product modules via EventBus (`bi.datasets`, `bi.derive_steps`, `bi.recipes`). Saving in the constructor writes a DB override in `base_bi_family_defs`. Live share links with TTL.
 
 Surface B (staff session / MCP) — permission **`bi.manage`**. Runbook twin: UI `/bi`. Module catalog maturity: **beta**.
 
@@ -11,7 +11,19 @@ php bin/freesaas.php module enable bi --accept-risk --format=json
 # Grant role permission bi.manage (director / report owner).
 ```
 
-Soft deps (datasets become available when tables exist): `procedures`, `workweeks`, `vacations`, `terminals`, `polls` / `poll_invites`, `audio`, `catalog`.
+Datasets appear in legend only when the owning module is enabled (and its table exists). Examples: `procedures` ← procedures, `workweeks` + `expand_shift_lanes` ← workweeks, `guests` ← terminals, `records` ← audio (+ enrich from audio_reports), `users_staff` ← core.
+
+## Contrib contract (modules)
+
+In owning `bootstrap.php`:
+
+```php
+EventBus::on('bi.datasets', [MyBiContrib::class, 'onDatasets']);
+EventBus::on('bi.derive_steps', ...); // optional expand_* handlers
+EventBus::on('bi.recipes', ...);      // optional shipped JSON path or inline recipe
+```
+
+Use `BiDatasetCatalog::define($id, $label, $table, $moduleId, $extra)`. No arbitrary SQL. Duplicate dataset ids from different modules → runtime conflict.
 
 ## Agent workflow (build → edit → run → share)
 
@@ -21,7 +33,7 @@ Always send `Accept: application/json` or `?format=json` with a staff session th
 # 1) List families
 curl -sS -b jar.txt -H 'Accept: application/json' 'https://example/bi'
 
-# 2) Legend (datasets / expr / derive / section types / recipe_shape / examples)
+# 2) Legend (datasets / expr / derive / section types / examples) — instance-specific
 curl -sS -b jar.txt -H 'Accept: application/json' 'https://example/bi/legend'
 
 # 3) Load one recipe (shipped or DB override)
@@ -45,9 +57,6 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 
 # 7) Shares
 curl -sS -b jar.txt -H 'Accept: application/json' 'https://example/bi/shares'
-curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/json' \
-  -X POST 'https://example/bi/shares' \
-  -d '{"action":"create","family":"admin_conversion","audience":"staff","ttl":"1y","staff_status_ids":[2,5],"staff_user_ids":[12]}'
 ```
 
 ### Reading results
@@ -68,7 +77,7 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 - **Titles, column labels, metric labels, `text.body`** = plain constructor text (UTF-8). Not module i18n keys.
 - **`type: text`** bodies are validated (`BiText`): no HTML/PHP/event handlers/template injection; rendered with `e_nl`.
 - **Expr `acronym`** = plain shortName text. **Expr `badge`** = safe token → colored `UsersRepository::badgeHtml` at render (also column `format: user_badge` + `user_field`).
-- Ship overrides: save with a **shipped** `family_id` → DB override; `action=delete` + `def_id` restores the file.
+- Ship overrides: save with a **shipped** `family_id` → DB override; `action=delete` + `def_id` restores the file from owning module.
 - Never invent SQL tables outside `legend.datasets` allowlist. Joins must match catalog `joins[]`.
 
 ## Recipe shape (minimal)
@@ -103,20 +112,23 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 }
 ```
 
-Derive pipeline (in order): `expand_shift_lanes` → `join_frame` → `filter` → `select`/`compute` → `group_by`/`aggs` → `compute_after` → `having` → `window` → `sort` → `limit`.
+Derive pipeline (in order): contrib expand steps (e.g. `expand_shift_lanes` from workweeks) → `join_frame` → `filter` → `select`/`compute` → `group_by`/`aggs` → `compute_after` → `having` → `window` → `sort` → `limit`.
 
 Engine opts (general): join-only step followed by sole-consumer `group_by` is **fused** (join product never stored); `group_by` streams accumulators (no member-row lists). Put `join_frame` + `group_by` on one derive step for the same effect.
 
 Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`, `expr_ops`, `group_aggs`, `examples`).
 
-## Shipped recipes
+## Shipped recipes (by owning module)
 
-| Id | File | Notes |
-|----|------|--------|
-| `demo_counts` | `recipes/demo_counts.json` | Procedures + guests metrics |
-| `masseur_shifts` | `recipes/masseur_shifts.json` | Oper show_kpi11 (shifts / slots / vacations) |
-| `admin_conversion` | `recipes/admin_conversion.json` | Oper **show_kpi10**: **ЛИДЕРЫ** top-8 admin×shift by cash; day table; uses `expand_shift_lanes` + range join |
-| `staff_kpi` | `recipes/staff_kpi.json` | Pivot matrix stub |
+| Id | Owner | Path |
+|----|-------|------|
+| `demo_counts` | procedures | `modules/procedures/recipes/bi/` |
+| `staff_kpi` | procedures | same |
+| `masseur_shifts` | workweeks | `modules/workweeks/recipes/bi/` |
+| `admin_conversion` | terminals | `modules/terminals/recipes/bi/` |
+| `audio_desk_month` | audio_reports | `modules/audio_reports/recipes/bi/` |
+
+`/audio/summaries` (summary profiles UI) remains available alongside the BI family for comparison / gradual migration.
 
 ## Shares
 
@@ -124,43 +136,9 @@ Full allowlist: **`GET /bi/legend`** (`agent_howto`, `recipe_shape`, `datasets`,
 |------|--------|
 | Paths | `/bi/s/{token}` (public route; guest or staff audience) |
 | TTL | `1h` \| `1d` \| `1mo` \| `3mo` \| `1y` (`1y` **staff only**) |
-| Allowlist | Optional `staff_user_ids` and/or `staff_status_ids` (должности / `base_admin_statuses`). **Both empty** = any logged-in staff. Non-blank invalid user ids → `staff_allowlist_empty`; invalid status ids → `status_allowlist_empty`. Match is **union** (person OR role, incl. `ID_STATUS2`) |
-| Picker filter | `IS_HIDDEN` omitted from staff picker; `ASSIST_TEAM` kept. Status picker = `UsersRepository::statusNamesFiltered(false)` |
-| In-app list | Staff with a usable staff share see that family on `/bi` (same chrome as director; no constructor). Run via `/bi/run` + `/bi/work` with share constraints / rate limit |
-| Superadmin | Can open any staff share (and revoke all) |
-| Locked filters | `id_operator` / `id_admin` / `id_good` bind only on datasets that declare them. Create refuses partial coverage unless `accept_partial_filters=1` |
-| Rate limit | Atomic `beginRun` / `endRun`: per-share `GET_LOCK` + minute-bucket `RUN_COUNT` (8/min); concurrent recomputes serialize |
+| Allowlist | Optional `staff_user_ids` and/or `staff_status_ids`. **Both empty** = any logged-in staff. Match is **union** |
+| Rate limit | ~8 runs/min per share |
 
 ## Engine budgets
 
-Runtime caps (also enforced on validate for step counts): query frames ≤ 50 000 rows; derive frames ≤ 500 000; cross-join ≤ 500 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s (`microtime` ticks in derive/join/group/window/sections). Each SQL SELECT sets session `MAX_EXECUTION_TIME` / MariaDB `max_statement_time` = remaining budget ms and **verifies** the var; if neither backend accepts the limit → `sql_timeout_unavailable` (run aborted, no unbounded query). Query kill / wall exceed → `recipe_timeout`. Peak memory: fused join→group + streaming aggs; run still raises `memory_limit` to 512M for busy attribution months.
-
-Shift attribution (show_kpi10-style): derive `expand_shift_lanes` (PRICE_COL → window lanes; mode `tickets`|`cash`) + `join_frame` type `inner` with optional `on[]` keys and `range` (`dtstart` in `[window_start, window_end]`). Exprs `day_start` / `day_label` / `badge`. Group agg `count_distinct`.
-
-## Agent ops (`module.json`)
-
-| Op | Method | Path | Who |
-|----|--------|------|-----|
-| `bi.families.list` | GET | `/bi` | any signed-in staff (`mode=manage` or `shared`; each row has `open_url`) |
-| `bi.legend` | GET | `/bi/legend` | `bi.manage` |
-| `bi.family.get` | GET | `/bi/families/{id}` | `bi.manage` |
-| `bi.family.validate` | POST | `/bi/families/new` (`action=validate`) | `bi.manage` |
-| `bi.family.save` | POST | `/bi/families/new` (`action=save`) | `bi.manage` |
-| `bi.family.delete` | POST | `/bi/families/{id}` (`action=delete`) | `bi.manage` |
-| `bi.report.run` | POST | `/bi/work` (`action=run`) | any staff (`share=` required without `bi.manage`) |
-| `bi.share.list` | GET | `/bi/shares` | `bi.manage` (admin UI, not report links) |
-| `bi.share.create` | POST | `/bi/shares` | `bi.manage` |
-| `bi.share.revoke` | POST | `/bi/shares` (`action=revoke`) | `bi.manage` |
-
-Staff UI links for reports are `/bi/run?family=…` (plus `&share=` when shared) — never `/bi/shares`.
-
-Same routes as the UI; JSON via `AgentHttp::wantsJson()`. See [module-agent-api.md](module-agent-api.md).
-
-## UI
-
-`/bi` · `/bi/run?family=` (edit button on run page) · `/bi/legend` · `/bi/families/…` · `/bi/shares`
-
-## Rights
-
-Director: **`bi.manage`** (constructor, shares, full catalog).  
-Staff recipient: any logged-in user with a usable **staff** share — `/bi` lists those families only; no `bi.manage` required.
+Runtime caps (also enforced on validate for step counts): query frames ≤ 50 000 rows; derive frames ≤ 500 000; cross-join ≤ 500 000 cells; ≤ 40 queries / 60 derive steps; wall clock ≤ 20 s. Each SQL SELECT sets session `MAX_EXECUTION_TIME` / MariaDB `max_statement_time`.

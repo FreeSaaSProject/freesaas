@@ -4,7 +4,7 @@ declare(strict_types=1);
 return [
     'bi.module.name' => 'БизнесАналитика',
     'bi.module.description' => 'Операционные отчёты БизнесАналитики на JSON-рецептах со live-ссылками',
-    'bi.module.summary' => 'Пакеты БизнесАналитики как JSON-рецепты со шарингом guest/staff и TTL. Мягкие зависимости: procedures, workweeks, terminals, polls, audio.',
+    'bi.module.summary' => 'Движок BI на JSON-рецептах с шарингом. Датасеты, доменные derive и shipped-рецепты приносят включённые модули через EventBus.',
 
     'bi.perm.manage' => 'Управление отчётами БизнесАналитики и ссылками',
 

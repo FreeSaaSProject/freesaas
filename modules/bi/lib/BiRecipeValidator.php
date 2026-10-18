@@ -134,15 +134,20 @@ final class BiRecipeValidator
                     $errors[] = 'derive[' . $i . '].join_frame.range: need object';
                 }
             }
-            if (isset($d['expand_shift_lanes']) && $d['expand_shift_lanes'] !== false) {
-                $ex = $d['expand_shift_lanes'];
-                if (is_array($ex)) {
-                    $mode = strtolower((string)($ex['mode'] ?? 'tickets'));
-                    if (!in_array($mode, ['tickets', 'cash', ''], true)) {
-                        $errors[] = 'derive[' . $i . '].expand_shift_lanes.mode: tickets|cash';
+            $expandKey = BiDeriveRegistry::expandKeyIn(is_array($d) ? $d : []);
+            if ($expandKey !== null) {
+                if (!BiDeriveRegistry::has($expandKey)) {
+                    $errors[] = 'derive[' . $i . '].' . $expandKey . ': step not registered (enable owning module)';
+                } else {
+                    $ex = $d[$expandKey] ?? null;
+                    if ($expandKey === 'expand_shift_lanes' && is_array($ex)) {
+                        $mode = strtolower((string)($ex['mode'] ?? 'tickets'));
+                        if (!in_array($mode, ['tickets', 'cash', ''], true)) {
+                            $errors[] = 'derive[' . $i . '].expand_shift_lanes.mode: tickets|cash';
+                        }
+                    } elseif ($ex !== true && !is_array($ex)) {
+                        $errors[] = 'derive[' . $i . '].' . $expandKey . ': bool|object';
                     }
-                } elseif ($ex !== true) {
-                    $errors[] = 'derive[' . $i . '].expand_shift_lanes: bool|object';
                 }
             }
             if (isset($d['filter'])) {

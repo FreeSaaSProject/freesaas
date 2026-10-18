@@ -6,6 +6,21 @@ declare(strict_types=1);
  */
 final class RecordsScriptsRepository
 {
+    /**
+     * Allowed COND_TYPE values on parts (collect activators + day-quality metrics).
+     *
+     * @return list<string>
+     */
+    public static function allowedCondTypes(): array
+    {
+        return [
+            'intersect', 'no_intersect',
+            'volume_gt', 'volume_lt',
+            'strings_gt', 'strings_lt',
+            'term_scan_unique',
+        ];
+    }
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
@@ -221,6 +236,7 @@ final class RecordsScriptsRepository
         try {
             if (Database::columnExists('base_records_scripts', 'RATING_ENABLED')) {
                 $hasDayBonus = Database::columnExists('base_records_scripts', 'DAY_BONUS');
+                $hasDayGates = Database::columnExists('base_records_scripts', 'DAY_GATES');
                 $st = $pdo->prepare(
                     'INSERT INTO base_records_scripts
                      (PID, NEXT_QID, EL_TYPE, NUM, NAME, DT_CREATE, DISABLED, IS_REQ, FINISH,
@@ -228,9 +244,11 @@ final class RecordsScriptsRepository
                       COLLECTION_KILLER, ID_POSITION, RATING_ENABLED, IS_HIDDEN, LEGACY_TYPE_ID,
                       SCORE_RATE, KPI, COND_TYPE, COND_VALUE'
                     . ($hasDayBonus ? ', DAY_BONUS, DAY_BONUS_SUM, PROC_RATIO_MIN' : '')
+                    . ($hasDayGates ? ', DAY_GATES' : '')
                     . ')
                      VALUES (0, 0, 0, ?, ?, ?, ?, 0, 0, \'\', 0, 0, 0, 0, 0, 0, ?, ?, ?, ?, 0, 0, \'\', 0'
                     . ($hasDayBonus ? ', ?, ?, ?' : '')
+                    . ($hasDayGates ? ', ?' : '')
                     . ')'
                 );
                 $params = [
@@ -246,7 +264,10 @@ final class RecordsScriptsRepository
                 if ($hasDayBonus) {
                     $params[] = (int)($meta['day_bonus'] ?? 0);
                     $params[] = max(0, (int)($meta['day_bonus_sum'] ?? 0));
-                    $params[] = max(0, (int)($meta['proc_ratio_min'] ?? 0));
+                    $params[] = self::legacyProcRatioMinFromMeta($meta);
+                }
+                if ($hasDayGates) {
+                    $params[] = self::encodeDayGates(is_array($meta['day_gates'] ?? null) ? $meta['day_gates'] : []);
                 }
                 $st->execute($params);
             } else {
@@ -300,10 +321,12 @@ final class RecordsScriptsRepository
         try {
             if (Database::columnExists('base_records_scripts', 'RATING_ENABLED')) {
                 $hasDayBonus = Database::columnExists('base_records_scripts', 'DAY_BONUS');
+                $hasDayGates = Database::columnExists('base_records_scripts', 'DAY_GATES');
                 $st = $pdo->prepare(
                     'UPDATE base_records_scripts SET NAME=?, DISABLED=?, NUM=?, ID_POSITION=?,
                      RATING_ENABLED=?, IS_HIDDEN=?, LEGACY_TYPE_ID=?'
                     . ($hasDayBonus ? ', DAY_BONUS=?, DAY_BONUS_SUM=?, PROC_RATIO_MIN=?' : '')
+                    . ($hasDayGates ? ', DAY_GATES=?' : '')
                     . ' WHERE ID=? AND PID=0'
                 );
                 $params = [
@@ -318,7 +341,10 @@ final class RecordsScriptsRepository
                 if ($hasDayBonus) {
                     $params[] = (int)($meta['day_bonus'] ?? 0);
                     $params[] = max(0, (int)($meta['day_bonus_sum'] ?? 0));
-                    $params[] = max(0, (int)($meta['proc_ratio_min'] ?? 0));
+                    $params[] = self::legacyProcRatioMinFromMeta($meta);
+                }
+                if ($hasDayGates) {
+                    $params[] = self::encodeDayGates(is_array($meta['day_gates'] ?? null) ? $meta['day_gates'] : []);
                 }
                 $params[] = $id;
                 $st->execute($params);
@@ -551,8 +577,126 @@ final class RecordsScriptsRepository
             'legacy_type_id' => max(0, (int)($post['legacy_type_id'] ?? 0)),
             'day_bonus' => !empty($post['day_bonus']) ? 1 : 0,
             'day_bonus_sum' => max(0, (int)($post['day_bonus_sum'] ?? 0)),
-            'proc_ratio_min' => max(0, (int)($post['proc_ratio_min'] ?? 0)),
+            'day_gates' => self::dayGatesFromPost($post),
+            'proc_ratio_min' => 0,
         ];
+    }
+
+    /**
+     * @param array<string,mixed> $post
+     * @return list<array{metric:string,op:string,threshold:float,label:string}>
+     */
+    public static function dayGatesFromPost(array $post): array
+    {
+        $raw = $post['day_gates'] ?? null;
+        if (is_string($post['day_gates_json'] ?? null) && trim((string)$post['day_gates_json']) !== '') {
+            $decoded = json_decode((string)$post['day_gates_json'], true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            }
+        }
+        return self::normalizeDayGates($raw);
+    }
+
+    /**
+     * @param mixed $raw
+     * @return list<array{metric:string,op:string,threshold:float,label:string}>
+     */
+    public static function normalizeDayGates($raw): array
+    {
+        if (is_string($raw)) {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : [];
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+        $ops = ['gt', 'gte', 'lt', 'lte'];
+        $out = [];
+        foreach ($raw as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $metric = preg_replace('/[^a-z0-9_]/', '', strtolower(trim((string)($row['metric'] ?? '')))) ?? '';
+            if ($metric === '') {
+                continue;
+            }
+            $op = strtolower(trim((string)($row['op'] ?? 'gte')));
+            if (!in_array($op, $ops, true)) {
+                $op = 'gte';
+            }
+            $threshold = (float)str_replace(',', '.', (string)($row['threshold'] ?? '0'));
+            $label = mb_substr(trim((string)($row['label'] ?? '')), 0, 80);
+            $out[] = [
+                'metric' => $metric,
+                'op' => $op,
+                'threshold' => $threshold,
+                'label' => $label,
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param list<array<string,mixed>> $gates
+     */
+    public static function encodeDayGates(array $gates): string
+    {
+        $norm = self::normalizeDayGates($gates);
+        if ($norm === []) {
+            return '';
+        }
+        $json = json_encode($norm, JSON_UNESCAPED_UNICODE);
+
+        return is_string($json) ? $json : '';
+    }
+
+    /**
+     * Merge DAY_GATES JSON with legacy PROC_RATIO_MIN when gates empty.
+     *
+     * @param array<string,mixed> $row
+     * @return list<array{metric:string,op:string,threshold:float,label:string}>
+     */
+    public static function resolveDayGatesFromRow(array $row): array
+    {
+        $gates = self::normalizeDayGates($row['day_gates'] ?? ($row['DAY_GATES'] ?? null));
+        if ($gates !== []) {
+            return $gates;
+        }
+        $min = (int)($row['proc_ratio_min'] ?? ($row['PROC_RATIO_MIN'] ?? 0));
+        if ($min > 0) {
+            return [[
+                'metric' => 'proc_ratio',
+                'op' => 'gte',
+                'threshold' => (float)$min,
+                'label' => '',
+            ]];
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array<string,mixed> $meta
+     */
+    private static function legacyProcRatioMinFromMeta(array $meta): int
+    {
+        $gates = is_array($meta['day_gates'] ?? null) ? $meta['day_gates'] : [];
+        foreach ($gates as $g) {
+            if (!is_array($g)) {
+                continue;
+            }
+            if (($g['metric'] ?? '') !== 'proc_ratio') {
+                continue;
+            }
+            $op = (string)($g['op'] ?? 'gte');
+            if ($op === 'gte' || $op === 'gt') {
+                return max(0, (int)round((float)($g['threshold'] ?? 0)));
+            }
+        }
+
+        return max(0, (int)($meta['proc_ratio_min'] ?? 0));
     }
 
     /**
@@ -598,8 +742,10 @@ final class RecordsScriptsRepository
             }
             $roles = self::normalizeRoles($roles);
             $condType = strtolower(trim((string)($row['cond_type'] ?? '')));
-            $allowedCond = ['intersect', 'no_intersect', 'volume_gt', 'volume_lt', 'strings_gt', 'strings_lt'];
-            if (!in_array($condType, $allowedCond, true)) {
+            if ($condType === 'term_scan_conversion') {
+                $condType = 'term_scan_unique';
+            }
+            if (!in_array($condType, self::allowedCondTypes(), true)) {
                 $condType = '';
             }
             $cleanDicts = array_values(array_filter(array_map('intval', $dictIds), static fn ($i) => $i > 0));
@@ -906,6 +1052,11 @@ final class RecordsScriptsRepository
         } else {
             $cols .= ', 0 AS day_bonus, 0 AS day_bonus_sum, 0 AS proc_ratio_min';
         }
+        if (Database::columnExists('base_records_scripts', 'DAY_GATES')) {
+            $cols .= ', DAY_GATES AS day_gates';
+        } else {
+            $cols .= ", '' AS day_gates";
+        }
         if (Database::columnExists('base_records_scripts', 'GATE_RED_MAX')) {
             $cols .= ', GATE_RED_MAX AS gate_red_max, GATE_YELLOW_MAX AS gate_yellow_max';
         } else {
@@ -935,6 +1086,9 @@ final class RecordsScriptsRepository
             'legacy_type_id' => (int)($root['legacy_type_id'] ?? 0),
             'day_bonus' => (int)($root['day_bonus'] ?? 0),
             'day_bonus_sum' => (int)($root['day_bonus_sum'] ?? 0),
+            'day_gates' => is_array($root['day_gates'] ?? null)
+                ? $root['day_gates']
+                : self::resolveDayGatesFromRow($root),
             'proc_ratio_min' => (int)($root['proc_ratio_min'] ?? 0),
         ];
     }
@@ -975,6 +1129,7 @@ final class RecordsScriptsRepository
             'legacy_type_id' => (int)($row['legacy_type_id'] ?? 0),
             'day_bonus' => (int)($row['day_bonus'] ?? 0),
             'day_bonus_sum' => (int)($row['day_bonus_sum'] ?? 0),
+            'day_gates' => self::resolveDayGatesFromRow($row),
             'proc_ratio_min' => (int)($row['proc_ratio_min'] ?? 0),
         ];
     }

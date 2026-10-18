@@ -185,29 +185,14 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
 
   <fieldset>
     <legend><?= te('likespa.settings.sec.promo') ?></legend>
+    <p class="muted"><?= te('likespa.settings.promo_calendar_hint') ?></p>
     <label><?= te('likespa.settings.promo_price_col') ?>
       <input type="number" name="promo_price_col" min="1" value="<?= e($c('promo_price_col', '4')) ?>">
       <span class="muted"><?= te('likespa.settings.promo_price_col_hint') ?></span>
     </label>
-    <label><?= te('likespa.settings.promo_min_work_hours') ?>
-      <input type="number" name="promo_min_work_hours" min="0" step="0.1" value="<?= e($c('promo_min_work_hours', '6.8')) ?>">
-    </label>
     <label><?= te('likespa.settings.promo_script_ids') ?>
       <input type="text" name="promo_script_ids" value="<?= e($c('promo_script_ids', '4,20')) ?>" placeholder="4,20">
       <span class="muted"><?= te('likespa.settings.ids_hint') ?></span>
-    </label>
-    <label><?= te('likespa.settings.promo_min_script_count') ?>
-      <input type="number" name="promo_min_script_count" min="0" value="<?= e($c('promo_min_script_count', '95')) ?>">
-    </label>
-    <label><?= te('likespa.settings.promo_min_conversion') ?>
-      <input type="number" name="promo_min_conversion" min="0" step="0.1" value="<?= e($c('promo_min_conversion', '20')) ?>">
-      <span class="muted"><?= te('likespa.settings.promo_min_conversion_hint') ?></span>
-    </label>
-    <label><?= te('likespa.settings.promo_bonus_playtime') ?>
-      <input type="number" name="promo_bonus_playtime" min="1" value="<?= e($c('promo_bonus_playtime', '9000')) ?>">
-    </label>
-    <label><?= te('likespa.settings.promo_bonus_score_add') ?>
-      <input type="number" name="promo_bonus_score_add" step="0.1" value="<?= e($c('promo_bonus_score_add', '1.5')) ?>">
     </label>
     <label class="check"><input type="checkbox" name="promo_term_scan_conversion" value="1"<?= $on('promo_term_scan_conversion') ? ' checked' : '' ?>> <?= te('likespa.settings.promo_term_scan_conversion') ?></label>
     <label><?= te('likespa.settings.promo_term_scan_proc_window_hours') ?>

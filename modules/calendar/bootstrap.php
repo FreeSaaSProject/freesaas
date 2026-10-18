@@ -9,6 +9,9 @@ require_once __DIR__ . '/lib/CalendarDayStats.php';
 require_once __DIR__ . '/lib/CalendarTimelineEnrich.php';
 require_once __DIR__ . '/lib/CalendarViewPref.php';
 require_once __DIR__ . '/lib/CalendarAssistantPreview.php';
+require_once __DIR__ . '/lib/CalendarBiContrib.php';
+
+EventBus::on('bi.datasets', [CalendarBiContrib::class, 'onDatasets']);
 
 EventBus::on('assistant.write.preview', static function ($payload) {
     if (!is_array($payload)) {

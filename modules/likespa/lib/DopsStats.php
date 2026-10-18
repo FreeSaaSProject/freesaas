@@ -4,12 +4,43 @@ declare(strict_types=1);
 /** Additional procedures (dops) day stats for masseur positions. */
 final class DopsStats
 {
-    /** @var array{range:string,dops:array,clients:array,positions:array<int,true>}|null */
+    /**
+     * @var array{
+     *   cover_from:int,cover_to:int,positions_key:string,
+     *   dops:array,clients:array,positions:array<int,true>
+     * }|null
+     */
     private static $cache = null;
 
     public static function resetRequestCache(): void
     {
         self::$cache = null;
+    }
+
+    /**
+     * Prefetch dops/client stats for a calendar window (inclusive end via exclusive $toTs).
+     */
+    public static function warmForRange(int $fromTs, int $toTsExclusive): void
+    {
+        if ($fromTs < 1 || $toTsExclusive <= $fromTs || !LikespaConfig::dopsEnabled()) {
+            return;
+        }
+        if (!Database::tableExists('base_procedures') || !Database::tableExists('base_users')) {
+            return;
+        }
+        $positions = LikespaConfig::intList('dops_position_ids', [1]);
+        if ($positions === []) {
+            return;
+        }
+        $posKey = implode(',', $positions);
+        if (self::$cache !== null
+            && (int)(self::$cache['cover_from'] ?? 0) <= $fromTs
+            && (int)(self::$cache['cover_to'] ?? 0) >= $toTsExclusive
+            && (string)(self::$cache['positions_key'] ?? '') === $posKey
+        ) {
+            return;
+        }
+        self::warm($fromTs, $toTsExclusive, $positions, $posKey);
     }
 
     /**
@@ -30,9 +61,13 @@ final class DopsStats
             return $empty;
         }
         [$from, $to] = PromoterBonus::monthRange($date);
-        $key = $from . '-' . $to . '-' . implode(',', $positions);
-        if (self::$cache === null || (self::$cache['range'] ?? '') !== $key) {
-            self::warm($from, $to, $positions, $key);
+        $posKey = implode(',', $positions);
+        $covers = self::$cache !== null
+            && (int)(self::$cache['cover_from'] ?? 0) <= $from
+            && (int)(self::$cache['cover_to'] ?? 0) >= $to
+            && (string)(self::$cache['positions_key'] ?? '') === $posKey;
+        if (!$covers) {
+            self::warm($from, $to, $positions, $posKey);
         }
 
         if (!isset(self::$cache['positions'][$adminId])) {
@@ -51,10 +86,12 @@ final class DopsStats
     }
 
     /** @param list<int> $positions */
-    private static function warm(int $from, int $to, array $positions, string $key): void
+    private static function warm(int $from, int $to, array $positions, string $posKey): void
     {
         self::$cache = [
-            'range' => $key,
+            'cover_from' => $from,
+            'cover_to' => $to,
+            'positions_key' => $posKey,
             'dops' => [],
             'clients' => [],
             'positions' => [],

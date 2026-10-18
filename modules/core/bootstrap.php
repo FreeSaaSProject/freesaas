@@ -27,6 +27,9 @@ require_once __DIR__ . '/lib/NewsBotPlugin.php';
 require_once __DIR__ . '/lib/PasswordRestoreBotPlugin.php';
 require_once __DIR__ . '/lib/LoginLinksRepository.php';
 require_once __DIR__ . '/lib/HelpDocs.php';
+require_once __DIR__ . '/lib/CoreBiContrib.php';
+
+EventBus::on('bi.datasets', [CoreBiContrib::class, 'onDatasets']);
 
 // Shared rail groups (core.menu.group.*) — product modules register their own keys.
 // Default order (×100): desktop → … → warehouse → dictionaries → site → team → settings last.

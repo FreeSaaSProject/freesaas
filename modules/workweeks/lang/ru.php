@@ -144,5 +144,5 @@ return [
     'workweeks.assistant.field.price_col' => 'Смена',
     'workweeks.assistant.field.mas_max' => 'Макс. массажей',
     'workweeks.assistant.field.id_table' => 'Стол',
-    'workweeks.assistant.hint' => 'Смены: при «кто/поменяй/убери/поставь на день» сначала CALL workweeks.day(date) (или list с date_from/date_to). Имена вроде «Даша»/«Таня» резолви по operator_name в сменах этого дня; если на день одна Даша и одна Таня — это однозначно, сразу queue update (поменять price_col/местами). Фамилию/ID спрашивай только если в результате дня ≥2 человека с одним именем. core.users.list(q) — доп. поиск staff, не замена day-roster.',
+    'workweeks.assistant.hint' => 'Смены: при «кто/поменяй/убери/поставь/замени на день» сначала CALL workweeks.day(date) (или list с date_from/date_to). Резолв людей: operator_name, operator_acronym (МСА/ДВМ = инициалы ФИО) или имя «Даша». Если на день один матч — сразу queue. Замена A→B: workweeks.update на смене A с id_operator=B (не create+забыть старую). Убрать со смены: workweeks.delete (action=delete). Поставить нового: create. Фамилию/ID спрашивай только если ≥2 матча. Вне дня: core.users.list(q=МСА) ищет по acronym.',
 ];

@@ -5,6 +5,9 @@ require_once __DIR__ . '/lib/CategoriesRepository.php';
 require_once __DIR__ . '/lib/ProductsRepository.php';
 require_once __DIR__ . '/lib/ProductRelationsRepository.php';
 require_once __DIR__ . '/lib/CatalogAssistantPreview.php';
+require_once __DIR__ . '/lib/CatalogBiContrib.php';
+
+EventBus::on('bi.datasets', [CatalogBiContrib::class, 'onDatasets']);
 
 EventBus::on('assistant.write.preview', static function ($payload) {
     if (!is_array($payload)) {

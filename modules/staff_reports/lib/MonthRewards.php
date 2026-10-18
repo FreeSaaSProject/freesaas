@@ -12,19 +12,10 @@ final class MonthRewards
         self::$forMonthCache = [];
     }
 
-    /**
-     * True when day report footer grants a reward (« - НАЧИСЛЯЕТСЯ»), not «НЕ начисляется».
-     */
+    /** True when day report footer grants a reward (locale-aware + legacy). */
     public static function plainGrantsReward(string $plain): bool
     {
-        if (preg_match('/-\s*НАЧИСЛЯЕТСЯ/u', $plain) || preg_match('/—\s*НАЧИСЛЯЕТСЯ/u', $plain)) {
-            return true;
-        }
-        // English footer fallback
-        if (preg_match('/\bGRANTED\b/i', $plain) && !preg_match('/NOT\s+granted/i', $plain)) {
-            return true;
-        }
-        return false;
+        return StaffReportTicketText::plainGrantsReward($plain);
     }
 
     /**
@@ -43,26 +34,30 @@ final class MonthRewards
         if (!Database::tableExists('base_news') || !Database::tableExists('base_comments')) {
             return self::$forMonthCache[$cacheKey] = [];
         }
-        $prefix = '[Отчеты:';
+        $prefixes = ['[Отчеты:', '[Reports:'];
         if (class_exists('StaffReportPublisherConfig', false)) {
             $pfx = (string)(StaffReportPublisherConfig::read()['ticket_title_prefix'] ?? '');
             if ($pfx !== '') {
-                $prefix = $pfx;
+                array_unshift($prefixes, $pfx);
             }
         }
+        $prefixes[] = t('staff_reports.ticket.prefix_default');
+        $prefixes = array_values(array_unique(array_filter($prefixes)));
 
         $tickets = [];
-        $st = Database::pdo()->prepare(
-            "SELECT ID, NAME FROM base_news
-             WHERE TYPE = '2' AND DISABLED = '0' AND NAME LIKE ?"
-        );
-        $st->execute([$prefix . '%']);
-        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-            if (preg_match('/\[Отчеты:(\d+)\]/u', (string)$row['NAME'], $m)
-                || preg_match('/\[Reports:(\d+)\]/ui', (string)$row['NAME'], $m)) {
-                $tickets[(int)$row['ID']] = (int)$m[1];
-            } elseif (preg_match('/:(\d+)\]/u', (string)$row['NAME'], $m)) {
-                $tickets[(int)$row['ID']] = (int)$m[1];
+        foreach ($prefixes as $prefix) {
+            $st = Database::pdo()->prepare(
+                "SELECT ID, NAME FROM base_news
+                 WHERE TYPE = '2' AND DISABLED = '0' AND NAME LIKE ?"
+            );
+            $st->execute([$prefix . '%']);
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                if (preg_match('/\[Отчеты:(\d+)\]/u', (string)$row['NAME'], $m)
+                    || preg_match('/\[Reports:(\d+)\]/ui', (string)$row['NAME'], $m)
+                    || preg_match('/:(\d+)\]/u', (string)$row['NAME'], $m)
+                ) {
+                    $tickets[(int)$row['ID']] = (int)$m[1];
+                }
             }
         }
         if ($tickets === []) {
@@ -71,21 +66,27 @@ final class MonthRewards
 
         $ids = implode(',', array_map('intval', array_keys($tickets)));
         $data = [];
-        $sql = "SELECT ID, ID_OBJECT, TEXT FROM base_comments
-                WHERE ID_OBJECT IN ($ids) AND TEXT LIKE '%Отчёт за %'";
-        $res = Database::pdo()->query($sql);
-        if (!$res) {
-            return self::$forMonthCache[$cacheKey] = [];
-        }
-        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-            $text = (string)$row['TEXT'];
-            $plain = html_entity_decode(strip_tags($text), ENT_QUOTES, 'UTF-8');
-            if (!preg_match('/Отчёт за (\d{2})\.(\d{2})\.(\d{4})/u', $plain, $m)) {
+        $commentRows = [];
+        foreach (StaffReportTicketText::dayMarkerLikeNeedles() as $like) {
+            $sql = "SELECT ID, ID_OBJECT, TEXT FROM base_comments
+                    WHERE ID_OBJECT IN ($ids) AND TEXT LIKE " . Database::pdo()->quote($like);
+            $res = Database::pdo()->query($sql);
+            if (!$res) {
                 continue;
             }
-            $d = (int)$m[1];
-            $mo = (int)$m[2];
-            $y = (int)$m[3];
+            while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+                $commentRows[(int)$row['ID']] = $row;
+            }
+        }
+        foreach ($commentRows as $row) {
+            $plain = html_entity_decode(strip_tags((string)$row['TEXT']), ENT_QUOTES, 'UTF-8');
+            $parsed = StaffReportTicketText::parseDayFromPlain($plain);
+            if ($parsed === null) {
+                continue;
+            }
+            $d = (int)$parsed['day'];
+            $mo = (int)$parsed['month'];
+            $y = (int)$parsed['year'];
             if ($mo !== $month || $y !== $year) {
                 continue;
             }
@@ -95,8 +96,7 @@ final class MonthRewards
                 continue;
             }
             $reward = self::plainGrantsReward($plain);
-            $noRecords = (mb_stripos($plain, 'нет аудиозаписей за день') !== false)
-                || (stripos($plain, 'no audio records') !== false);
+            $noRecords = StaffReportTicketText::plainNoRecords($plain);
             if (!isset($data[$d])) {
                 $data[$d] = [];
             }

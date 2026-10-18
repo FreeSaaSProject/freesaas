@@ -151,5 +151,5 @@ return [
     'calendar.assistant.preview.will' => 'Will be: {v}',
     'calendar.assistant.preview.create' => 'Create: {v}',
     'calendar.assistant.preview.delete' => 'Delete this event',
-    'calendar.assistant.hint_block' => '«Block» / «put a block» = a calendar event with is_block (calendar.events.create), not a workweeks shift swap. CALL calendar.day for the date first (and workweeks.day if you need who is on shift). To delete: find events[].id with is_block=1 and matching operator_name/time → calendar.events.delete. Do not ask the user for id when calendar.day already returned it.',
+    'calendar.assistant.hint_block' => '«Block» / «put a block» = a calendar event with is_block (calendar.events.create), not a workweeks shift swap. CALL calendar.day for the date first (and workweeks.day if you need who is on shift). Resolve people in events[] via operator_name / operator_acronym (МСА, ДВМ). To delete: find events[].id with is_block=1 and matching operator/time → calendar.events.delete. Do not ask the user for id when calendar.day already returned it.',
 ];

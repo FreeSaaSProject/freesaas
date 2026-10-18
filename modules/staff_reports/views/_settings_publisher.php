@@ -37,7 +37,9 @@ $llm = is_array($publisher['llm'] ?? null) ? $publisher['llm'] : [];
   </label>
   <p class="muted small"><?= te('staff_reports.settings.gratitude_mark_hint') ?></p>
   <label><?= te('staff_reports.settings.ticket_prefix') ?>
-    <input type="text" name="sr_ticket_prefix" value="<?= e((string)($publisher['ticket_title_prefix'] ?? '[Отчеты:')) ?>">
+    <input type="text" name="sr_ticket_prefix" value="<?= e((string)(($publisher['ticket_title_prefix'] ?? '') !== ''
+        ? $publisher['ticket_title_prefix']
+        : t('staff_reports.ticket.prefix_default'))) ?>">
   </label>
   <label><?= te('staff_reports.settings.ticket_status') ?>
     <input type="number" min="0" name="sr_ticket_status" value="<?= (int)($publisher['ticket_status_id'] ?? 4) ?>">

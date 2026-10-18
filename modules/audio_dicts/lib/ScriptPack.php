@@ -92,6 +92,7 @@ final class ScriptPack
                 'is_hidden' => (int)($root['is_hidden'] ?? 0),
                 'day_bonus' => (int)($root['day_bonus'] ?? 0),
                 'day_bonus_sum' => (int)($root['day_bonus_sum'] ?? 0),
+                'day_gates' => is_array($root['day_gates'] ?? null) ? $root['day_gates'] : [],
                 'proc_ratio_min' => (int)($root['proc_ratio_min'] ?? 0),
                 'parts' => $partsOut,
             ],
@@ -224,8 +225,17 @@ final class ScriptPack
             'legacy_type_id' => 0,
             'day_bonus' => !empty($script['day_bonus']) ? 1 : 0,
             'day_bonus_sum' => max(0, (int)($script['day_bonus_sum'] ?? 0)),
+            'day_gates' => RecordsScriptsRepository::normalizeDayGates($script['day_gates'] ?? []),
             'proc_ratio_min' => max(0, (int)($script['proc_ratio_min'] ?? 0)),
         ];
+        if ($meta['day_gates'] === [] && $meta['proc_ratio_min'] > 0) {
+            $meta['day_gates'] = [[
+                'metric' => 'proc_ratio',
+                'op' => 'gte',
+                'threshold' => (float)$meta['proc_ratio_min'],
+                'label' => '',
+            ]];
+        }
 
         $newId = RecordsScriptsRepository::create($meta, $parts);
         return ['id' => $newId, 'warnings' => $warnings];

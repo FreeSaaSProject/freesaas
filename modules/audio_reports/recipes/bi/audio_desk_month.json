@@ -1,0 +1,118 @@
+{
+  "v": 1,
+  "id": "audio_desk_month",
+  "title": "Audio desk (month)",
+  "requires": ["records", "users_staff"],
+  "queries": [
+    {
+      "as": "by_admin",
+      "from": "records",
+      "join": [
+        {
+          "dataset": "users_staff",
+          "left": "id_admin",
+          "right": "id"
+        }
+      ],
+      "group_by": ["id_admin", "admin_name"],
+      "select": [
+        {"field": "id_admin"},
+        {"field": "users_staff.name", "as": "admin_name"},
+        {"agg": "count", "as": "records"},
+        {"agg": "sum", "field": "playtime", "as": "playtime_sec"},
+        {"agg": "sum", "field": "score", "as": "score_sum"},
+        {"agg": "avg", "field": "score", "as": "score_avg"}
+      ],
+      "order_by": [{"field": "playtime_sec", "dir": "desc"}],
+      "limit": 500
+    },
+    {
+      "as": "totals",
+      "from": "records",
+      "select": [
+        {"agg": "count", "as": "records"},
+        {"agg": "sum", "field": "playtime", "as": "playtime_sec"},
+        {"agg": "avg", "field": "score", "as": "score_avg"}
+      ]
+    }
+  ],
+  "derive": [
+    {
+      "as": "rated",
+      "from": "by_admin",
+      "select": ["*"],
+      "compute": [
+        {
+          "as": "audio_hours",
+          "expr": {
+            "round": [
+              {"div": [{"field": "playtime_sec"}, {"lit": 3600}]},
+              {"lit": 2}
+            ]
+          }
+        },
+        {
+          "as": "score_avg",
+          "expr": {"round": [{"field": "score_avg"}, {"lit": 2}]}
+        }
+      ],
+      "window": [
+        {
+          "fn": "rank",
+          "order_by": [{"field": "playtime_sec", "dir": "desc"}],
+          "as": "rank_hours"
+        }
+      ],
+      "sort": [{"field": "playtime_sec", "dir": "desc"}],
+      "limit": 50
+    },
+    {
+      "as": "totals_h",
+      "from": "totals",
+      "select": ["*"],
+      "compute": [
+        {
+          "as": "audio_hours",
+          "expr": {
+            "round": [
+              {"div": [{"field": "playtime_sec"}, {"lit": 3600}]},
+              {"lit": 2}
+            ]
+          }
+        },
+        {
+          "as": "score_avg",
+          "expr": {"round": [{"field": "score_avg"}, {"lit": 2}]}
+        }
+      ]
+    }
+  ],
+  "sections": [
+    {
+      "type": "metrics",
+      "title": "Volume",
+      "items": [
+        {"label": "Records", "from": "totals_h", "field": "records"},
+        {"label": "Audio hours", "from": "totals_h", "field": "audio_hours"},
+        {"label": "Avg SCORE®", "from": "totals_h", "field": "score_avg"}
+      ]
+    },
+    {
+      "type": "table",
+      "title": "Leaders (by hours)",
+      "from": "rated",
+      "columns": [
+        {"id": "rank_hours", "label": "#"},
+        {"id": "admin_name", "label": "Staff"},
+        {"id": "records", "label": "Records"},
+        {"id": "audio_hours", "label": "Hours"},
+        {"id": "score_avg", "label": "Avg ®"}
+      ]
+    },
+    {
+      "type": "text",
+      "title": "Note",
+      "body": "Replaces /audio/summaries volume+score+leaders cards. Mix with procedures/workweeks via other BI families. Weighted day-pass SCORE® and script criteria remain domain-specific."
+    }
+  ]
+}

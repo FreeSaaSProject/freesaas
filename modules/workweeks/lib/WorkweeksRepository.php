@@ -1179,6 +1179,24 @@ final class WorkweeksRepository
                 $row['shift_end_hm'] = $w['end'];
             }
         }
+        $opName = trim((string)($row['operator_name'] ?? ''));
+        if ($opName === '') {
+            $opId = (int)($row['id_operator'] ?? 0);
+            if ($opId > 0 && class_exists('UsersRepository', false)) {
+                $label = trim(UsersRepository::nameById($opId));
+                if ($label !== '' && $label !== '—' && !preg_match('/^#\d+$/', $label)) {
+                    $opName = $label;
+                    $row['operator_name'] = $opName;
+                }
+            }
+        }
+        if ($opName !== '') {
+            $row['operator_acronym'] = class_exists('UsersRepository', false)
+                ? UsersRepository::shortName($opName)
+                : (class_exists('CalendarTimeline', false) ? CalendarTimeline::acronym($opName) : '');
+        } else {
+            $row['operator_acronym'] = '';
+        }
         return $row;
     }
 

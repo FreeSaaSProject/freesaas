@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.3.26",
+    "version": "0.3.27",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -134,7 +134,9 @@
             "audio.settings.sections",
             "audio.settings.save"
         ],
-        "publish": []
+        "publish": [
+            "audio_pipeline.collect.after_admin"
+        ]
     },
     "catalog": {
         "categories": [

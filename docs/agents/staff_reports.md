@@ -57,3 +57,4 @@ curl -sS -b jar.txt 'https://example/staff-reports/day?format=json'
 ## Notes
 
 - Requires audio + audio_dicts + comments + procedures.
+- Day-bonus amounts and traffic lights come from scripts (`DAY_BONUS` / part `GATE_*` / root `DAY_GATES` for hours/starts). Unique bracelet scans are a script part (`COND_TYPE=term_scan_unique`); gone when term_scans off. Not likespa `BONUS TIME`.

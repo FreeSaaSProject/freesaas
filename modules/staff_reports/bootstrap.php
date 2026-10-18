@@ -8,6 +8,7 @@ require_once __DIR__ . '/lib/DayCollector.php';
 require_once __DIR__ . '/lib/CriteriaAnalyzer.php';
 require_once __DIR__ . '/lib/CoverageCalculator.php';
 require_once __DIR__ . '/lib/TicketWriter.php';
+require_once __DIR__ . '/lib/StaffReportTicketText.php';
 require_once __DIR__ . '/lib/MonthRewards.php';
 require_once __DIR__ . '/lib/GratitudeBoard.php';
 require_once __DIR__ . '/lib/DayRewardContract.php';
@@ -78,7 +79,7 @@ EventBus::on('audio.settings.save', static function ($payload) {
         'allow_same_day_publish' => !empty($post['sr_allow_same_day_publish']),
         'managing_contract_id' => (int)($post['sr_managing_contract'] ?? 0),
         'ticket_status_id' => (int)($post['sr_ticket_status'] ?? 4),
-        'ticket_title_prefix' => (string)($post['sr_ticket_prefix'] ?? '[Отчеты:'),
+        'ticket_title_prefix' => (string)($post['sr_ticket_prefix'] ?? ''),
         'gratitude_news_id' => (int)($post['sr_gratitude_news_id'] ?? 0),
         'gratitude_mark' => (string)($post['sr_gratitude_mark'] ?? 'headphones'),
         'contract_working_days' => (int)($post['sr_contract_working_days'] ?? 5),

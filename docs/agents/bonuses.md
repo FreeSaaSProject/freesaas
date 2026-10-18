@@ -38,4 +38,4 @@ curl -sS -b jar.txt -X POST 'https://example/bonuses/events/456/apply?format=jso
 ## Notes
 
 - Uses event `CONTENT_PRICE` + procedure type % + client status `bonus`.
-- Promoter audio `BONUS TIME` stays in `likespa`.
+- Promoter day payout is via script `DAY_BONUS` / `DAY_GATES` (staff_reports). Legacy `BONUS TIME` create on `/audio/calendar` was removed from likespa.

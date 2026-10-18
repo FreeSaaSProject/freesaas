@@ -29,7 +29,10 @@ final class TicketWriter
 
     public static function ticketTitle(int $employeeId, array $config): string
     {
-        $prefix = (string)($config['ticket_title_prefix'] ?? '[Отчеты:');
+        $prefix = (string)($config['ticket_title_prefix'] ?? '');
+        if ($prefix === '') {
+            $prefix = t('staff_reports.ticket.prefix_default');
+        }
         $name = self::employeeName($employeeId);
         return $prefix . $employeeId . '] ' . $name;
     }
@@ -55,7 +58,28 @@ final class TicketWriter
             "SELECT ID FROM base_news WHERE NAME = ? AND TYPE = '2' AND DISABLED = '0' LIMIT 1"
         );
         $st->execute([$title]);
-        return (int)$st->fetchColumn();
+        $id = (int)$st->fetchColumn();
+        if ($id > 0) {
+            return $id;
+        }
+        // Locale / prefix drift: reuse existing «[…:empId] …» quality ticket.
+        $st = Database::pdo()->prepare(
+            "SELECT ID, NAME FROM base_news
+             WHERE TYPE = '2' AND DISABLED = '0'
+               AND (NAME LIKE ? OR NAME LIKE ?)
+             ORDER BY ID ASC LIMIT 5"
+        );
+        $st->execute([
+            '[Отчеты:' . $employeeId . ']%',
+            '[Reports:' . $employeeId . ']%',
+        ]);
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            if (preg_match('/:(?:' . preg_quote((string)$employeeId, '/') . ')\]/u', (string)($row['NAME'] ?? ''))) {
+                return (int)$row['ID'];
+            }
+        }
+
+        return 0;
     }
 
     public static function findOrCreateTicket(int $employeeId, array $config): int
@@ -81,7 +105,10 @@ final class TicketWriter
         if ($curator < 1) {
             $curator = $authorId;
         }
-        $body = (string)($config['ticket_default_body'] ?? 'Здесь формируются отчёты по работе');
+        $body = trim((string)($config['ticket_default_body'] ?? ''));
+        if ($body === '') {
+            $body = t('staff_reports.ticket.body_default');
+        }
         $id = NewsRepository::create([
             'NAME' => self::ticketTitle($employeeId, $config),
             'BIG' => nl2br($body),
@@ -149,7 +176,17 @@ final class TicketWriter
         }
         // Store with newlines → br for legacy HTML comments.
         $stored = nl2br($text);
-        $existing = self::findCommentId($ticketId, $marker);
+        // Prefer multi-locale day markers when marker looks like a day report line.
+        $dayText = '';
+        if (preg_match('/(\d{2}\.\d{2}\.\d{4})/u', $marker, $dm)) {
+            $dayText = $dm[1];
+        }
+        $existing = $dayText !== '' && class_exists('StaffReportTicketText', false)
+            ? StaffReportTicketText::findDayReportCommentId($ticketId, $dayText)
+            : self::findCommentId($ticketId, $marker);
+        if ($existing < 1) {
+            $existing = self::findCommentId($ticketId, $marker);
+        }
         if ($existing > 0) {
             $row = CommentsRepository::find($existing);
             $cur = $row ? (string)($row['TEXT'] ?? '') : '';
@@ -198,33 +235,41 @@ final class TicketWriter
         $m = (int)date('n', $dayStart);
         $targetDay = date('d.m.Y', $dayStart);
         $byDay = [];
-        $st = Database::pdo()->prepare(
-            "SELECT ID, TEXT FROM base_comments
-             WHERE ID_OBJECT = ? AND (DISABLED IS NULL OR DISABLED < 1) AND TEXT LIKE '%Отчёт за %'
-             ORDER BY ID ASC"
-        );
-        $st->execute([$ticketId]);
-        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+        $likes = class_exists('StaffReportTicketText', false)
+            ? StaffReportTicketText::dayMarkerLikeNeedles()
+            : ['%Отчёт за %', '%Report for %'];
+        $rows = [];
+        foreach ($likes as $like) {
+            $st = Database::pdo()->prepare(
+                'SELECT ID, TEXT FROM base_comments
+                 WHERE ID_OBJECT = ? AND (DISABLED IS NULL OR DISABLED < 1) AND TEXT LIKE ?
+                 ORDER BY ID ASC'
+            );
+            $st->execute([$ticketId, $like]);
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                $rows[(int)$row['ID']] = $row;
+            }
+        }
+        foreach ($rows as $row) {
             $plain = html_entity_decode(strip_tags((string)$row['TEXT']), ENT_QUOTES, 'UTF-8');
-            if (!preg_match('/Отчёт за (\d{2})\.(\d{2})\.(\d{4})/u', $plain, $dm)) {
+            $day = StaffReportTicketText::parseDayFromPlain($plain);
+            if ($day === null) {
                 continue;
             }
-            $rd = (int)$dm[1];
-            $rm = (int)$dm[2];
-            $ry = (int)$dm[3];
-            if ($ry !== $y || $rm !== $m) {
+            if ((int)$day['year'] !== $y || (int)$day['month'] !== $m) {
                 continue;
             }
-            $code = sprintf('%02d.%02d.%04d', $rd, $rm, $ry);
+            $code = (string)$day['day_text'];
             if ($code === $targetDay) {
                 continue;
             }
-            if (!preg_match('/Вознаграждение за \d{2}\.\d{2}\.\d{4} в (\d+)\s*[^\n]*-\s*(НАЧИСЛЯЕТСЯ|НЕ\s+начисляется)/u', $plain, $rmatch)) {
+            $reward = StaffReportTicketText::parseRewardFromPlain($plain);
+            if ($reward === null) {
                 continue;
             }
             $byDay[$code] = [
-                'sum' => (int)$rmatch[1],
-                'granted' => ($rmatch[2] === 'НАЧИСЛЯЕТСЯ'),
+                'sum' => (int)$reward['sum'],
+                'granted' => !empty($reward['granted']),
             ];
         }
         foreach ($byDay as $rep) {

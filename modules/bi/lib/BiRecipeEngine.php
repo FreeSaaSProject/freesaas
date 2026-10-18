@@ -284,7 +284,7 @@ final class BiRecipeEngine
         if (!empty($d['sort']) || !empty($d['order_by']) || (int)($d['limit'] ?? 0) > 0) {
             return false;
         }
-        if (($d['expand_shift_lanes'] ?? null) !== null && ($d['expand_shift_lanes'] ?? false) !== false) {
+        if (BiDeriveRegistry::expandKeyIn($d) !== null) {
             return false;
         }
         $select = $d['select'] ?? ['*'];
@@ -300,7 +300,7 @@ final class BiRecipeEngine
         if (is_array($d['join_frame'] ?? null)) {
             return false;
         }
-        if (($d['expand_shift_lanes'] ?? null) !== null && ($d['expand_shift_lanes'] ?? false) !== false) {
+        if (BiDeriveRegistry::expandKeyIn($d) !== null) {
             return false;
         }
         if (($d['filter'] ?? null) !== null) {
@@ -331,16 +331,17 @@ final class BiRecipeEngine
         $from = (string)($derive['from'] ?? '');
         $rows = $frames[$from] ?? [];
 
-        $expand = $derive['expand_shift_lanes'] ?? null;
-        if ($expand !== null && $expand !== false) {
-            if (!class_exists('BiShiftLanes', false)) {
-                throw new RuntimeException('shift_lanes_unavailable');
+        $expandKey = BiDeriveRegistry::expandKeyIn($derive);
+        if ($expandKey !== null) {
+            $step = BiDeriveRegistry::get($expandKey);
+            if ($step === null || !is_callable($step['handler'] ?? null)) {
+                throw new RuntimeException('derive_step_unavailable:' . $expandKey);
             }
-            $cfg = is_array($expand) ? $expand : [];
-            $dayField = (string)($cfg['day_field'] ?? 'dt');
-            $priceField = (string)($cfg['price_field'] ?? 'price_col');
-            $mode = (string)($cfg['mode'] ?? 'tickets');
-            $rows = BiShiftLanes::expandRows($rows, $dayField, $priceField, $mode);
+            $cfg = is_array($derive[$expandKey] ?? null) ? $derive[$expandKey] : [];
+            $rows = call_user_func($step['handler'], $rows, $cfg);
+            if (!is_array($rows)) {
+                throw new RuntimeException('derive_step_bad_result:' . $expandKey);
+            }
             self::tickBudget();
         }
 

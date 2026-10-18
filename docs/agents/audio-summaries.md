@@ -97,3 +97,5 @@ curl -sS -b jar.txt -X POST 'https://example.com/audio/summaries/new?format=json
 | `month` | JSON | Light counts for month switch |
 
 HTML progress uses `SummaryProgress::start/mark/done` and posts result to `window.parent.rsWorkDone`.
+
+Parallel BI family (same module): `audio_desk_month` — see [`bi.md`](bi.md).

@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/ReportFamily.php';
 require_once __DIR__ . '/lib/ReportRenderer.php';
 require_once __DIR__ . '/lib/BiSharesRepository.php';
 require_once __DIR__ . '/lib/BiDatasetCatalog.php';
+require_once __DIR__ . '/lib/BiDeriveRegistry.php';
 require_once __DIR__ . '/lib/BiExpr.php';
 require_once __DIR__ . '/lib/BiSafeHtml.php';
 require_once __DIR__ . '/lib/BiQueryBuilder.php';
@@ -18,7 +19,6 @@ require_once __DIR__ . '/lib/BiFamilyDefsRepository.php';
 require_once __DIR__ . '/lib/BiShippedRecipes.php';
 require_once __DIR__ . '/lib/FamilyValidator.php';
 require_once __DIR__ . '/lib/ReportRegistry.php';
-require_once __DIR__ . '/lib/BiShiftLanes.php';
 require_once __DIR__ . '/lib/BiFilterOptions.php';
 
 EventBus::on('assistant.system.hints', static function ($payload) {

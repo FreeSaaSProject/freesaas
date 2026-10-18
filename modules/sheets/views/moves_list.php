@@ -4,8 +4,11 @@ declare(strict_types=1);
 /** @var int $total */
 /** @var int $idAccount */
 /** @var array<int,string> $accounts */
+/** @var list<array<string,mixed>> $balances */
+/** @var int $balanceTotal */
 /** @var bool $canEdit */
 /** @var bool $canTransfer */
+/** @var bool $canReconcile */
 /** @var string $sort */
 /** @var string $dir */
 /** @var int $page */
@@ -14,6 +17,7 @@ declare(strict_types=1);
 /** @var array $filters */
 $path = '/sheets/moves';
 $canTransfer = !empty($canTransfer);
+$canReconcile = !empty($canReconcile);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, !empty($showAll));
 $dirLabel = static function (int $d): string {
     if ($d > 0) return t('sheets.dir.in');
@@ -22,13 +26,30 @@ $dirLabel = static function (int $d): string {
 };
 ?>
 <section class="page-head">
-  <?php if ($canEdit || $canTransfer): ?>
+  <?php if ($canEdit || $canTransfer || $canReconcile): ?>
   <div class="page-head-row"><div></div><div class="page-actions">
     <?php if ($canEdit): ?><a class="btn-primary" href="/sheets/moves/new"><?= te('core.common.add') ?></a><?php endif; ?>
     <?php if ($canTransfer): ?><a class="btn-secondary" href="/sheets/transfers/new"><?= te('sheets.moves.add_transfer') ?></a><?php endif; ?>
+    <?php if ($canReconcile): ?><a class="btn-secondary" href="/sheets/reconcile"><?= te('sheets.reconcile.menu') ?></a><?php endif; ?>
   </div></div>
   <?php endif; ?>
 </section>
+<?php if ($balances !== []): ?>
+<p class="muted" style="margin:0.5rem 0 1rem">
+  <strong><?= te('sheets.balances.title') ?>:</strong>
+  <?php
+  $balParts = [];
+  foreach ($balances as $b) {
+      $bal = (int)($b['balance'] ?? 0);
+      $cls = $bal < 0 ? 'bad-text' : '';
+      $balParts[] = '<a class="' . e($cls) . '" href="/sheets/moves?id_account=' . (int)$b['id'] . '">'
+          . e((string)$b['name']) . ': <strong>' . $bal . '</strong></a>';
+  }
+  echo implode(' · ', $balParts);
+  ?>
+  · <?= te('sheets.balances.total') ?>: <strong><?= (int)$balanceTotal ?></strong>
+</p>
+<?php endif; ?>
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
   <select name="id_account" data-auto-submit>
@@ -47,6 +68,7 @@ $dirLabel = static function (int $d): string {
   <th><?= te('sheets.col.direction') ?></th>
   <?= ListQuery::sortTh(t('sheets.col.summ'), 'summ', $sort, $dir, $path, $filters) ?>
   <th><?= te('sheets.col.descr') ?></th>
+  <th><?= te('sheets.col.pair') ?></th>
 </tr></thead>
 <tbody>
 <?php foreach ($items as $r): ?>
@@ -57,8 +79,14 @@ $dirLabel = static function (int $d): string {
   <td><?= e($dirLabel((int)$r['direction'])) ?></td>
   <td><?= (int)$r['summ'] ?></td>
   <td><?= e((string)$r['descr']) ?></td>
+  <td class="muted"><?php
+    $linked = (int)($r['id_movement_linked'] ?? 0);
+    if ($linked > 0):
+      if ($canEdit): ?><a href="/sheets/moves/<?= $linked ?>/edit">#<?= $linked ?></a><?php else: ?>#<?= $linked ?><?php endif;
+    else: ?>—<?php endif;
+  ?></td>
 </tr>
 <?php endforeach; ?>
-<?php if (!$items): ?><tr><td colspan="6" class="muted"><?= te('sheets.list.empty') ?></td></tr><?php endif; ?>
+<?php if (!$items): ?><tr><td colspan="7" class="muted"><?= te('sheets.list.empty') ?></td></tr><?php endif; ?>
 </tbody></table></div>
 <?= $pager ?>

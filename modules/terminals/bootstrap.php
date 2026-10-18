@@ -16,6 +16,10 @@ require_once __DIR__ . '/lib/TerminalBooking.php';
 require_once __DIR__ . '/lib/TerminalFloorHome.php';
 require_once __DIR__ . '/lib/TerminalFloorCatalog.php';
 require_once __DIR__ . '/lib/TerminalFloor.php';
+require_once __DIR__ . '/lib/TerminalsBiContrib.php';
+
+EventBus::on('bi.datasets', [TerminalsBiContrib::class, 'onDatasets']);
+EventBus::on('bi.recipes', [TerminalsBiContrib::class, 'onRecipes']);
 
 Assets::register('terminals', [
     'css' => ['terminals.css'],

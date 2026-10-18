@@ -135,6 +135,10 @@ final class SheetMovesRepository
     /** @param array<string,mixed> $data */
     public static function update(int $id, array $data, int $userId): void
     {
+        $existing = self::find($id);
+        if ($existing && (int)($existing['id_movement_linked'] ?? 0) > 0) {
+            throw new InvalidArgumentException(t('sheets.err.linked_use_pair'));
+        }
         Database::pdo()->prepare(
             'UPDATE base_sheet_moves SET
              ID_ACCOUNT = ?, DIRECTION = ?, SUMM = ?, DESCR = ?, WEIGHT = ?, DT = ?,
@@ -151,6 +155,101 @@ final class SheetMovesRepository
             time(),
             $id,
         ]);
+    }
+
+    /**
+     * @return array{from:array<string,mixed>,to:array<string,mixed>}|null
+     */
+    public static function findTransferPair(int $id): ?array
+    {
+        $row = self::find($id);
+        if (!$row || (int)($row['deleted'] ?? 0) > 0) {
+            return null;
+        }
+        $linked = (int)($row['id_movement_linked'] ?? 0);
+        if ($linked < 1) {
+            return null;
+        }
+        $twin = self::find($linked);
+        if (!$twin || (int)($twin['deleted'] ?? 0) > 0) {
+            return null;
+        }
+        if ((int)$row['direction'] < 0) {
+            return ['from' => $row, 'to' => $twin];
+        }
+        if ((int)$twin['direction'] < 0) {
+            return ['from' => $twin, 'to' => $row];
+        }
+        if ((int)$row['id'] <= (int)$twin['id']) {
+            return ['from' => $row, 'to' => $twin];
+        }
+        return ['from' => $twin, 'to' => $row];
+    }
+
+    /**
+     * Update both legs of a transfer (keeps pairing and matching SUMM).
+     *
+     * @param array{summ?:int,descr?:string,weight?:float,dt?:int,id_account?:int,id_account_to?:int} $data
+     * @return array{from_id:int,to_id:int}
+     */
+    public static function updateTransferPair(int $eitherId, array $data, int $userId): array
+    {
+        $pair = self::findTransferPair($eitherId);
+        if ($pair === null) {
+            throw new InvalidArgumentException(t('sheets.err.not_found', ['id' => $eitherId]));
+        }
+        $from = $pair['from'];
+        $to = $pair['to'];
+        $fromAcc = (int)($data['id_account'] ?? $from['id_account']);
+        $toAcc = (int)($data['id_account_to'] ?? ((int)$from['id_account_to'] > 0
+            ? $from['id_account_to']
+            : $to['id_account']));
+        if ($fromAcc < 1 || $toAcc < 1) {
+            throw new InvalidArgumentException(t('sheets.err.account_required'));
+        }
+        if ($fromAcc === $toAcc) {
+            throw new InvalidArgumentException(t('sheets.err.accounts_same'));
+        }
+        $summ = max(1, (int)($data['summ'] ?? $from['summ']));
+        $descr = array_key_exists('descr', $data)
+            ? mb_substr((string)$data['descr'], 0, 255)
+            : (string)$from['descr'];
+        $weight = array_key_exists('weight', $data)
+            ? (float)$data['weight']
+            : (float)$from['weight'];
+        $dt = max(0, (int)($data['dt'] ?? $from['dt'])) ?: time();
+        $now = time();
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $pdo->prepare(
+                'UPDATE base_sheet_moves SET
+                 ID_ACCOUNT = ?, ID_ACCOUNT_TO = ?, DIRECTION = -1, SUMM = ?, DESCR = ?, WEIGHT = ?, DT = ?,
+                 ID_USER_UPDATE = ?, DT_UPDATE = ?
+                 WHERE ID = ? AND DELETED = 0'
+            )->execute([$fromAcc, $toAcc, $summ, $descr, $weight, $dt, $userId, $now, (int)$from['id']]);
+            $pairDescr = t('sheets.transfer.pair_descr', ['id' => (int)$from['id'], 'descr' => $descr]);
+            $pdo->prepare(
+                'UPDATE base_sheet_moves SET
+                 ID_ACCOUNT = ?, ID_ACCOUNT_TO = 0, DIRECTION = 1, SUMM = ?, DESCR = ?, WEIGHT = ?, DT = ?,
+                 ID_USER_UPDATE = ?, DT_UPDATE = ?
+                 WHERE ID = ? AND DELETED = 0'
+            )->execute([
+                $toAcc,
+                $summ,
+                mb_substr($pairDescr, 0, 255),
+                $weight,
+                $dt,
+                $userId,
+                $now,
+                (int)$to['id'],
+            ]);
+            $pdo->commit();
+            return ['from_id' => (int)$from['id'], 'to_id' => (int)$to['id']];
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
     }
 
     /**

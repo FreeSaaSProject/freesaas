@@ -13,8 +13,13 @@ require_once __DIR__ . '/lib/SummaryCatalog.php';
 require_once __DIR__ . '/lib/SummaryRunner.php';
 require_once __DIR__ . '/lib/SummaryRenderer.php';
 require_once __DIR__ . '/lib/DayRatingReport.php';
+require_once __DIR__ . '/lib/DayQualityMetrics.php';
 require_once __DIR__ . '/lib/DayQualityReport.php';
 require_once __DIR__ . '/lib/ReparseCost.php';
+require_once __DIR__ . '/lib/AudioReportsBiContrib.php';
+
+EventBus::on('bi.datasets', [AudioReportsBiContrib::class, 'onDatasets']);
+EventBus::on('bi.recipes', [AudioReportsBiContrib::class, 'onRecipes']);
 
 Assets::register('audio_reports', [
     'css' => ['audio_reports.css'],

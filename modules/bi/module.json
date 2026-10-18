@@ -2,21 +2,12 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "0.2.15",
+    "version": "0.3.0",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
     },
-    "optionalRequires": {
-        "procedures": ">=0.1.0",
-        "workweeks": ">=0.1.0",
-        "vacations": ">=0.1.0",
-        "terminals": ">=0.1.0",
-        "polls": ">=0.1.0",
-        "poll_invites": ">=0.1.0",
-        "audio": ">=0.1.0",
-        "catalog": ">=0.1.0"
-    },
+    "optionalRequires": {},
     "provides": [
         "bi.families",
         "bi.share"
@@ -371,7 +362,11 @@
         "subscribe": [
             "assistant.system.hints"
         ],
-        "publish": []
+        "publish": [
+            "bi.datasets",
+            "bi.derive_steps",
+            "bi.recipes"
+        ]
     },
     "catalog": {
         "categories": [

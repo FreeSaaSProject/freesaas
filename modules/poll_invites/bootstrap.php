@@ -6,6 +6,9 @@ require_once __DIR__ . '/lib/PollAnswersCodec.php';
 require_once __DIR__ . '/lib/PollWalkEngine.php';
 require_once __DIR__ . '/lib/PollInvitesConfig.php';
 require_once __DIR__ . '/lib/PollInvitesRepository.php';
+require_once __DIR__ . '/lib/PollInvitesBiContrib.php';
+
+EventBus::on('bi.datasets', [PollInvitesBiContrib::class, 'onDatasets']);
 
 $pages = [
     '/poll-invites' => ['permission' => 'poll_invites.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],

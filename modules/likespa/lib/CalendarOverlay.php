@@ -4,6 +4,29 @@ declare(strict_types=1);
 /** EventBus subscriber helper for audio_reports records calendar cells. */
 final class CalendarOverlay
 {
+    /** @var bool|null null = unset for this request */
+    private static $allowed = null;
+
+    /** @var bool */
+    private static $assetsQueued = false;
+
+    public static function resetRequestCache(): void
+    {
+        self::$allowed = null;
+        self::$assetsQueued = false;
+    }
+
+    private static function isAllowed(): bool
+    {
+        if (self::$allowed !== null) {
+            return self::$allowed;
+        }
+        self::$allowed = ModuleManager::isEnabled('audio_reports')
+            && Auth::can('audio_reports.view')
+            && (Auth::can('likespa.view') || Auth::capability('SUPERADMIN_ACCESS'));
+        return self::$allowed;
+    }
+
     /**
      * @param array<string,mixed> $payload
      * @return array<string,mixed>
@@ -13,10 +36,7 @@ final class CalendarOverlay
         if (!is_array($payload)) {
             return $payload;
         }
-        if (!ModuleManager::isEnabled('audio_reports') || !Auth::can('audio_reports.view')) {
-            return $payload;
-        }
-        if (!Auth::can('likespa.view') && !Auth::capability('SUPERADMIN_ACCESS')) {
+        if (!self::isAllowed()) {
             return $payload;
         }
 
@@ -30,21 +50,14 @@ final class CalendarOverlay
         $sections = is_array($payload['sections'] ?? null) ? $payload['sections'] : [];
         $added = false;
 
+        // Read-only promoter day stats (bonus payout is via DAY_BONUS / staff_reports).
         if (LikespaConfig::promoEnabled() && PromoterBonus::isPromoterOnDay($adminId, $date)) {
             $metrics = PromoterBonus::metrics($adminId, $date, $aggregates);
-            $canCreate = Auth::can('likespa.promo') || Auth::capability('SUPERADMIN_ACCESS');
-            $createHref = '';
-            if ($canCreate && !empty($metrics['eligible']) && empty($metrics['has_bonus'])) {
-                $createHref = NavContext::withReturn(
-                    '/likespa/promo/bonus?admin=' . $adminId . '&date=' . rawurlencode($date)
-                );
-            }
             $sections[] = [
                 'id' => 'likespa.promo.stats',
                 'order' => 40,
                 'html' => View::capture('_cell_promo', [
                     'metrics' => $metrics,
-                    'createHref' => $createHref,
                     'showProcLine' => LikespaConfig::flag('promo_term_scan_conversion', true),
                 ], 'likespa'),
             ];
@@ -68,8 +81,9 @@ final class CalendarOverlay
             }
         }
 
-        if ($added) {
+        if ($added && !self::$assetsQueued) {
             Assets::need('likespa');
+            self::$assetsQueued = true;
         }
 
         $payload['sections'] = $sections;

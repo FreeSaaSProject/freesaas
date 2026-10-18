@@ -9,6 +9,10 @@ require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
 require_once __DIR__ . '/lib/ProceduresAssistantPreview.php';
+require_once __DIR__ . '/lib/ProceduresBiContrib.php';
+
+EventBus::on('bi.datasets', [ProceduresBiContrib::class, 'onDatasets']);
+EventBus::on('bi.recipes', [ProceduresBiContrib::class, 'onRecipes']);
 
 EventBus::on('assistant.write.preview', static function ($payload) {
     if (!is_array($payload)) {

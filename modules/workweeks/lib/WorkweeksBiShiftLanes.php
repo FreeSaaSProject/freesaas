@@ -3,11 +3,26 @@ declare(strict_types=1);
 
 /**
  * LikeSpa shift windows (PRICE_COL → time lanes).
- * Used by derive expand_shift_lanes so recipes can attribute guests/cash by shift.
+ * BI derive expand_shift_lanes (EventBus bi.derive_steps) — owned by workweeks.
  * Windows come from WorkweeksRepository when available (same as /workweeks/settings).
  */
-final class BiShiftLanes
+final class WorkweeksBiShiftLanes
 {
+    /**
+     * BI engine handler: expandRows(list, cfg).
+     *
+     * @param list<array<string,mixed>> $rows
+     * @param array<string,mixed> $cfg
+     * @return list<array<string,mixed>>
+     */
+    public static function expandForBi(array $rows, array $cfg): array
+    {
+        $dayField = (string)($cfg['day_field'] ?? 'dt');
+        $priceField = (string)($cfg['price_field'] ?? 'price_col');
+        $mode = (string)($cfg['mode'] ?? 'tickets');
+        return self::expandRows($rows, $dayField, $priceField, $mode);
+    }
+
     /**
      * Local midnight for a unix timestamp (PHP default TZ).
      */

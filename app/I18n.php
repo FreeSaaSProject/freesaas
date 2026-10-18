@@ -22,6 +22,9 @@ final class I18n
     /** @var bool */
     private static $loaded = false;
 
+    /** @var array<string, array<string, string>> Full locale catalogs (collectCatalogKeys). */
+    private static $localeFileCache = [];
+
     /** @return list<string> */
     public static function supported(): array
     {
@@ -471,6 +474,9 @@ final class I18n
     /** @return array<string, string> */
     private static function loadLocaleFiles(string $locale): array
     {
+        if (isset(self::$localeFileCache[$locale])) {
+            return self::$localeFileCache[$locale];
+        }
         $out = [];
         $files = [base_path('app/lang/' . $locale . '.php')];
         // Modules: prefer ModuleManager if booted, else scan directory
@@ -505,6 +511,6 @@ final class I18n
                 }
             }
         }
-        return $out;
+        return self::$localeFileCache[$locale] = $out;
     }
 }

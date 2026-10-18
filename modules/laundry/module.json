@@ -1,0 +1,165 @@
+{
+    "id": "laundry",
+    "name": "laundry.module.name",
+    "description": "laundry.module.description",
+    "version": "0.1.1",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "laundry.accounts",
+        "laundry.moves",
+        "laundry.shipments"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "laundry.view",
+            "label": "laundry.perm.view"
+        },
+        {
+            "id": "laundry.ship",
+            "label": "laundry.perm.ship"
+        },
+        {
+            "id": "laundry.accounts",
+            "label": "laundry.perm.accounts"
+        },
+        {
+            "id": "laundry.edit",
+            "label": "laundry.perm.edit"
+        },
+        {
+            "id": "laundry.delete",
+            "label": "laundry.perm.delete"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/laundry",
+            "/laundry/accounts",
+            "/laundry/accounts/new",
+            "/laundry/accounts/{id}/edit",
+            "/laundry/types",
+            "/laundry/types/new",
+            "/laundry/types/{id}/edit",
+            "/laundry/settings",
+            "/laundry/moves",
+            "/laundry/shipments",
+            "/laundry/ship",
+            "/laundry/accept",
+            "/laundry/inventory"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/laundry.md",
+        "ops": [
+            {
+                "id": "laundry.moves.list",
+                "method": "GET",
+                "path": "/laundry/moves",
+                "permission": "laundry.view",
+                "description": "List laundry moves; balances matrix"
+            },
+            {
+                "id": "laundry.shipments.list",
+                "method": "GET",
+                "path": "/laundry/shipments",
+                "permission": "laundry.view",
+                "description": "List shipments (open/partial/closed)"
+            },
+            {
+                "id": "laundry.ship.create",
+                "method": "POST",
+                "path": "/laundry/ship",
+                "permission": "laundry.ship",
+                "description": "Create outbound shipment with lines"
+            },
+            {
+                "id": "laundry.accept.create",
+                "method": "POST",
+                "path": "/laundry/accept",
+                "permission": "laundry.ship",
+                "description": "Accept return against open shipment lines"
+            },
+            {
+                "id": "laundry.inventory.apply",
+                "method": "POST",
+                "path": "/laundry/inventory",
+                "permission": "laundry.edit",
+                "description": "Set absolute stock per account×type (opening or recount)"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 8,
+            "path": "/laundry",
+            "title": "laundry.menu.home"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 9,
+            "path": "/laundry/shipments",
+            "title": "laundry.menu.shipments"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 10,
+            "path": "/laundry/inventory",
+            "title": "laundry.menu.inventory",
+            "kind": "settings"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 11,
+            "path": "/laundry/accounts",
+            "title": "laundry.menu.accounts",
+            "kind": "settings"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 12,
+            "path": "/laundry/types",
+            "title": "laundry.menu.types",
+            "kind": "settings"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 13,
+            "path": "/laundry/settings",
+            "title": "laundry.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_laundry_accounts",
+        "base_laundry_item_types",
+        "base_laundry_moves",
+        "base_laundry_shipments",
+        "base_laundry_shipment_lines",
+        "base_laundry_returns",
+        "base_laundry_return_lines"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.news_item.section",
+            "core.news_item.handle_post"
+        ],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "warehouse"
+        ],
+        "maturity": "beta",
+        "tags": [],
+        "screenshots": []
+    }
+}

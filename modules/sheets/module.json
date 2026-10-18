@@ -2,7 +2,7 @@
     "id": "sheets",
     "name": "sheets.module.name",
     "description": "sheets.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -43,7 +43,8 @@
             "/sheets/moves",
             "/sheets/moves/new",
             "/sheets/moves/{id}/edit",
-            "/sheets/transfers/new"
+            "/sheets/transfers/new",
+            "/sheets/reconcile"
         ]
     },
     "agent": {
@@ -118,6 +119,20 @@
                 "path": "/sheets/transfers/new",
                 "permission": "sheets.transfer",
                 "description": "Create paired transfer move; fields id_account, id_account_to, summ, descr, weight, dt"
+            },
+            {
+                "id": "sheets.reconcile.get",
+                "method": "GET",
+                "path": "/sheets/reconcile",
+                "permission": "sheets.edit",
+                "description": "Preview ticket comment vs transfer discrepancies; optional news_id="
+            },
+            {
+                "id": "sheets.reconcile.apply",
+                "method": "POST",
+                "path": "/sheets/reconcile",
+                "permission": "sheets.edit",
+                "description": "Apply selected keys[] (missing_recv / qty_mismatch); stops when laundry balance insufficient"
             }
         ]
     },

@@ -2,19 +2,25 @@
 declare(strict_types=1);
 /** @var array<string,mixed> $row */
 /** @var array<int,string> $accounts */
+/** @var array<int,int> $accountBalances */
 /** @var string $message */
 /** @var string $error */
+$accountBalances = $accountBalances ?? [];
 ?>
 <section class="page-head"><h1><?= te('sheets.transfer.title') ?></h1></section>
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 <form method="post" class="form-grid form-wide">
+  <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
   <fieldset>
     <label><?= te('sheets.col.account') ?>
       <select name="id_account" required>
         <option value="">—</option>
         <?php foreach ($accounts as $aid => $aname): ?>
-          <option value="<?= (int)$aid ?>"<?= (int)($row['id_account'] ?? 0) === (int)$aid ? ' selected' : '' ?>><?= e($aname) ?></option>
+          <?php $bal = (int)($accountBalances[(int)$aid] ?? 0); ?>
+          <option value="<?= (int)$aid ?>"<?= (int)($row['id_account'] ?? 0) === (int)$aid ? ' selected' : '' ?>>
+            <?= e($aname) ?> (<?= te('sheets.col.balance') ?>: <?= $bal ?>)
+          </option>
         <?php endforeach; ?>
       </select>
     </label>
@@ -22,7 +28,10 @@ declare(strict_types=1);
       <select name="id_account_to" required>
         <option value="">—</option>
         <?php foreach ($accounts as $aid => $aname): ?>
-          <option value="<?= (int)$aid ?>"<?= (int)($row['id_account_to'] ?? 0) === (int)$aid ? ' selected' : '' ?>><?= e($aname) ?></option>
+          <?php $bal = (int)($accountBalances[(int)$aid] ?? 0); ?>
+          <option value="<?= (int)$aid ?>"<?= (int)($row['id_account_to'] ?? 0) === (int)$aid ? ' selected' : '' ?>>
+            <?= e($aname) ?> (<?= te('sheets.col.balance') ?>: <?= $bal ?>)
+          </option>
         <?php endforeach; ?>
       </select>
     </label>

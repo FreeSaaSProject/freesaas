@@ -36,12 +36,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $accounts = SheetAccountsRepository::names(true);
+$accountBalances = [];
+foreach (array_keys($accounts) as $aid) {
+    $accountBalances[(int)$aid] = SheetMovesRepository::balance((int)$aid);
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'item' => $row,
         'accounts' => $accounts,
+        'account_balances' => $accountBalances,
     ]);
     return;
 }
@@ -50,6 +55,7 @@ View::render('transfer_edit', [
     'title' => t('sheets.transfer.title'),
     'row' => $row,
     'accounts' => $accounts,
+    'accountBalances' => $accountBalances,
     'message' => $message,
     'error' => $error,
 ], 'layout', 'sheets');

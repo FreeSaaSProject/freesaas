@@ -2,13 +2,26 @@
 declare(strict_types=1);
 
 /**
- * Default KPI recipes shipped as JSON under modules/bi/recipes/.
+ * Default KPI recipes contributed via EventBus bi.recipes (owning modules).
+ *
+ * Listener appends to recipes[]:
+ *   id (string)
+ *   module (string)
+ *   path (string) — absolute JSON file, OR
+ *   recipe (array) — inline recipe
  */
 final class BiShippedRecipes
 {
-    public static function dir(): string
+    /** @var array<string,array<string,mixed>>|null id => recipe */
+    private static $cache = null;
+
+    /** @var array<string,string>|null id => module */
+    private static $modules = null;
+
+    public static function flush(): void
     {
-        return base_path('modules/bi/recipes');
+        self::$cache = null;
+        self::$modules = null;
     }
 
     /**
@@ -16,10 +29,7 @@ final class BiShippedRecipes
      */
     public static function ids(): array
     {
-        $ids = [];
-        foreach (self::listFiles() as $id => $_path) {
-            $ids[] = $id;
-        }
+        $ids = array_keys(self::map());
         sort($ids);
         return $ids;
     }
@@ -27,7 +37,7 @@ final class BiShippedRecipes
     public static function isShipped(string $id): bool
     {
         $id = BiFamilyDefsRepository::safeId($id);
-        return $id !== '' && isset(self::listFiles()[$id]);
+        return $id !== '' && isset(self::map()[$id]);
     }
 
     /**
@@ -36,20 +46,11 @@ final class BiShippedRecipes
     public static function get(string $id): ?array
     {
         $id = BiFamilyDefsRepository::safeId($id);
-        $files = self::listFiles();
-        if ($id === '' || !isset($files[$id])) {
+        if ($id === '') {
             return null;
         }
-        $raw = file_get_contents($files[$id]);
-        if (!is_string($raw) || $raw === '') {
-            return null;
-        }
-        $decoded = json_decode($raw, true);
-        if (!is_array($decoded)) {
-            return null;
-        }
-        $decoded['id'] = $id;
-        return $decoded;
+        $map = self::map();
+        return $map[$id] ?? null;
     }
 
     /**
@@ -68,26 +69,60 @@ final class BiShippedRecipes
     }
 
     /**
-     * @return array<string,string> id => absolute path
+     * Owning module for a shipped id (empty if unknown).
      */
-    private static function listFiles(): array
+    public static function moduleOf(string $id): string
     {
-        static $cache = null;
-        if ($cache !== null) {
-            return $cache;
+        self::map();
+        return (string)(self::$modules[$id] ?? '');
+    }
+
+    /**
+     * @return array<string,array<string,mixed>>
+     */
+    private static function map(): array
+    {
+        if (self::$cache !== null) {
+            return self::$cache;
         }
-        $cache = [];
-        $dir = self::dir();
-        if (!is_dir($dir)) {
-            return $cache;
-        }
-        foreach (glob($dir . '/*.json') ?: [] as $path) {
-            $base = basename($path, '.json');
-            $id = BiFamilyDefsRepository::safeId($base);
-            if ($id !== '') {
-                $cache[$id] = $path;
+        self::$cache = [];
+        self::$modules = [];
+        $payload = EventBus::emit('bi.recipes', ['recipes' => []]);
+        $list = is_array($payload['recipes'] ?? null) ? $payload['recipes'] : [];
+        foreach ($list as $entry) {
+            if (!is_array($entry)) {
+                continue;
             }
+            $id = BiFamilyDefsRepository::safeId((string)($entry['id'] ?? ''));
+            if ($id === '') {
+                continue;
+            }
+            $module = (string)($entry['module'] ?? '');
+            if (isset(self::$cache[$id])) {
+                $prev = (string)(self::$modules[$id] ?? '?');
+                throw new RuntimeException(
+                    'bi.recipes conflict: ' . $id . ' (' . $prev . ' vs ' . ($module !== '' ? $module : '?') . ')'
+                );
+            }
+            $recipe = null;
+            if (isset($entry['recipe']) && is_array($entry['recipe'])) {
+                $recipe = $entry['recipe'];
+            } elseif (!empty($entry['path']) && is_string($entry['path']) && is_file($entry['path'])) {
+                $raw = file_get_contents($entry['path']);
+                if (is_string($raw) && $raw !== '') {
+                    $decoded = json_decode($raw, true);
+                    if (is_array($decoded)) {
+                        $recipe = $decoded;
+                    }
+                }
+            }
+            if ($recipe === null) {
+                continue;
+            }
+            $recipe['id'] = $id;
+            self::$cache[$id] = $recipe;
+            self::$modules[$id] = $module;
         }
-        return $cache;
+        return self::$cache;
     }
 }

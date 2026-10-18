@@ -2,6 +2,9 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/VacationsRepository.php';
+require_once __DIR__ . '/lib/VacationsBiContrib.php';
+
+EventBus::on('bi.datasets', [VacationsBiContrib::class, 'onDatasets']);
 
 $pages = [
     '/vacations' => ['permission' => 'vacations.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],

@@ -105,7 +105,9 @@ $criteria = implode(',', StaffReportConfig::intList($cfg['criteria_type_ids'] ??
     </div>
     <div class="form-row">
       <label><?= te('staff_reports.settings.ticket_prefix') ?>
-        <input type="text" name="sr_ticket_prefix" value="<?= e((string)($cfg['ticket_title_prefix'] ?? '[Отчеты:')) ?>">
+        <input type="text" name="sr_ticket_prefix" value="<?= e((string)(($cfg['ticket_title_prefix'] ?? '') !== ''
+            ? $cfg['ticket_title_prefix']
+            : t('staff_reports.ticket.prefix_default'))) ?>">
       </label>
     </div>
     <label class="check">

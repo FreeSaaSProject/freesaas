@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/SheetAccountsRepository.php';
 require_once __DIR__ . '/lib/SheetMovesRepository.php';
+require_once __DIR__ . '/lib/SheetTicketReconcile.php';
 
 $pages = [
     '/sheets/accounts' => ['permission' => 'sheets.accounts', 'methods' => ['GET', 'POST'], 'file' => 'accounts_list.php'],
@@ -12,6 +13,7 @@ $pages = [
     '/sheets/moves/new' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'move_edit.php'],
     '/sheets/moves/{id}/edit' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'move_edit.php'],
     '/sheets/transfers/new' => ['permission' => 'sheets.transfer', 'methods' => ['GET', 'POST'], 'file' => 'transfer_edit.php'],
+    '/sheets/reconcile' => ['permission' => 'sheets.edit', 'methods' => ['GET', 'POST'], 'file' => 'reconcile.php'],
 ];
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];

@@ -17,7 +17,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_stocks` | stocks | Warehouses + leftovers |
 | `base_acts2_in` / `base_acts2_out` / `base_good_sticker_*` | stickers | Receipt/writeoff acts + sticker lines |
 | `base_good_defaults` | norms | Procedure → material norms |
-| `base_sheet_accounts` / `base_sheet_moves` | sheets | Linen ledger (disableable) |
+| `base_sheet_accounts` / `base_sheet_moves` | sheets | Legacy linen ledger (disableable; prefer `laundry`) |
+| `base_laundry_accounts` / `base_laundry_item_types` / `base_laundry_moves` / `base_laundry_shipments*` / `base_laundry_returns*` | laundry | Wash-cycle linen SoT (ship/accept by type) |
 | `base_term_scans` | likespa | Terminal scans / promoter conversion (disableable) |
 | `base_staff_bracelets` / `base_comments` / `base_news` (usage) | likespa (staff debts scan) | No owned tables; cron/UI posts 1C folio debts as comments when `staff_debts_enabled` |
 | `base_site_hosts` | sites | Public domains: theme, home promo, catalog root(s), phone; resolve by `HTTP_HOST` |
@@ -60,7 +61,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_bank_connections` / `base_bank_account_links` / `base_bank_tx_map` | banks | Bank OAuth connections, account links, statement→move map |
 | — (read models) | finance / procents | Reports over ledger/rates/procedures |
 | `base_bi_shares` | bi | Live share tokens for BI report families |
-| `base_bi_family_defs` | bi | BI recipe overrides/customs (`RECIPE_JSON`); shipped defaults under `modules/bi/recipes/` |
+| `base_bi_family_defs` | bi | BI recipe overrides/customs (`RECIPE_JSON`); shipped defaults live in owning modules (`modules/*/recipes/bi/`) via EventBus `bi.recipes` |
 | `base_client_mcp_sessions` | client_mcp | Public MCP client sessions (hashed `client_token`, `SITE_HOST_ID`, phone, session order ids) |
 | `base_client_mcp_hosts` | client_mcp | Per-storefront-host MCP settings (`SITE_HOST_ID` → on/off, name, consent link, disabled tools) |
 | `base_orders` | orders | Website/cart orders (admin UI + storefront `sites` checkout via `OrdersRepository::create`) |

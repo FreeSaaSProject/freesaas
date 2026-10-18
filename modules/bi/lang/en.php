@@ -4,7 +4,7 @@ declare(strict_types=1);
 return [
     'bi.module.name' => 'BI reports',
     'bi.module.description' => 'JSON-recipe operational BI reports with live share links',
-    'bi.module.summary' => 'BI packs as JSON recipes with guest/staff shares and TTL. Soft-depends on procedures, workweeks, terminals, polls, audio.',
+    'bi.module.summary' => 'JSON-recipe BI engine with shares. Datasets, domain derive steps and shipped recipes are contributed by enabled product modules via EventBus.',
 
     'bi.perm.manage' => 'Manage BI reports and share links',
 

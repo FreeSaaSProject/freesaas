@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.20",
+    "version": "0.2.22",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -14,7 +14,8 @@
         "tables": ">=0.1.0",
         "audio": ">=0.1.0",
         "bots": ">=0.1.0",
-        "assistant": ">=0.1.0"
+        "assistant": ">=0.1.0",
+        "bi": ">=0.3.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -105,14 +106,22 @@
                 "method": "POST",
                 "path": "/workweeks/{id}/edit",
                 "permission": "workweeks.edit",
-                "description": "Update shift; required id. Optional patch: date, id_operator, price_col, mas_max, id_table (omitted fields keep current row)"
+                "description": "Update shift; required id. Optional patch: date, id_operator, price_col, mas_max, id_table (omitted fields keep current row). Replace staff on a shift = update id_operator (not create+orphan)"
+            },
+            {
+                "id": "workweeks.delete",
+                "method": "POST",
+                "path": "/workweeks/{id}/edit",
+                "permission": "workweeks.delete",
+                "side_effect": "write",
+                "description": "Delete shift row; POST action=delete (required id)"
             },
             {
                 "id": "workweeks.day",
                 "method": "GET",
                 "path": "/workweeks/day/{date}",
                 "permission": "workweeks.view",
-                "description": "Shifts on one calendar day (YYYY-MM-DD). CALL first to resolve who works that day by first name (operator_name); swap/assign from this roster before asking the user"
+                "description": "Shifts on one calendar day (YYYY-MM-DD). Each shift has operator_name + operator_acronym (МСА/ДВМ). CALL first to resolve who works; swap/replace/assign from this roster before asking the user"
             },
             {
                 "id": "workweeks.settings.get",
@@ -252,7 +261,10 @@
         "subscribe": [
             "bots.ready",
             "assistant.write.preview",
-            "assistant.system.hints"
+            "assistant.system.hints",
+            "bi.datasets",
+            "bi.derive_steps",
+            "bi.recipes"
         ],
         "publish": []
     },

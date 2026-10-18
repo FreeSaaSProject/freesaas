@@ -343,16 +343,54 @@ $statHint = static function (string $hintKey): void {
               <?php endif; ?>
             <?php endif; ?>
             <span class="muted"><?= (int)($qs['session_count'] ?? 0) ?> <?= te('audio_reports.day_report.quality_sessions') ?></span>
-            <?php if ((int)($qs['proc_ratio_min'] ?? 0) > 0 && $qs['proc_ratio_pct'] !== null): ?>
-              <span class="ar-day-quality-ratio ar-day-quality-ratio--<?= e((string)$qs['proc_ratio_color']) ?>">
-                <?= e($qualityEmoji((string)$qs['proc_ratio_color'])) ?>
-                <?= te('audio_reports.day_report.quality_proc_ratio', [
-                    'pct' => (string)$qs['proc_ratio_pct'],
-                    'min' => (string)(int)$qs['proc_ratio_min'],
-                ]) ?>
-              </span>
-            <?php endif; ?>
           </div>
+          <?php
+          $dayGates = is_array($qs['day_gates'] ?? null) ? $qs['day_gates'] : [];
+          if ($dayGates !== []):
+          ?>
+          <ul class="ar-day-quality-gates">
+            <?php foreach ($dayGates as $dg): ?>
+              <?php
+              $dgColor = (string)($dg['color'] ?? 'skip');
+              $dgMetric = (string)($dg['metric'] ?? '');
+              $dgLabel = trim((string)($dg['label'] ?? ''));
+              if ($dgLabel === '') {
+                  $dgLabel = class_exists('DayQualityMetrics', false)
+                      ? DayQualityMetrics::metricLabel($dgMetric)
+                      : '';
+                  if ($dgLabel === '') {
+                      $dgLabel = $dgMetric;
+                  }
+              }
+              $dgVal = $dg['value'];
+              $dgThr = $dg['threshold'] ?? 0;
+              $dgOp = (string)($dg['op'] ?? 'gte');
+              $dgOpSym = class_exists('DayQualityMetrics', false)
+                  ? DayQualityMetrics::opSymbol($dgOp)
+                  : $dgOp;
+              ?>
+              <li class="ar-day-quality-gate ar-day-quality-gate--<?= e($dgColor) ?>">
+                <?php if (!empty($dg['skipped'])): ?>
+                  <span class="muted">○</span>
+                  <span><?= e($dgLabel) ?></span>
+                  <span class="muted"><?= te('audio_reports.day_report.quality_gate_skip') ?></span>
+                <?php else: ?>
+                  <span aria-hidden="true"><?= e($qualityEmoji($dgColor === 'green' ? 'green' : ($dgColor === 'red' ? 'red' : 'none'))) ?></span>
+                  <span><?= e($dgLabel) ?></span>
+                  <span class="muted"><?= e((string)$dgVal) ?> <?= e($dgOpSym) ?> <?= e((string)$dgThr) ?></span>
+                <?php endif; ?>
+              </li>
+            <?php endforeach; ?>
+          </ul>
+          <?php elseif ((int)($qs['proc_ratio_min'] ?? 0) > 0 && $qs['proc_ratio_pct'] !== null): ?>
+            <span class="ar-day-quality-ratio ar-day-quality-ratio--<?= e((string)$qs['proc_ratio_color']) ?>">
+              <?= e($qualityEmoji((string)$qs['proc_ratio_color'])) ?>
+              <?= te('audio_reports.day_report.quality_proc_ratio', [
+                  'pct' => (string)$qs['proc_ratio_pct'],
+                  'min' => (string)(int)$qs['proc_ratio_min'],
+              ]) ?>
+            </span>
+          <?php endif; ?>
           <ul class="ar-day-quality-parts">
             <?php foreach (($qs['parts'] ?? []) as $qp): ?>
               <li class="ar-day-quality-part ar-day-quality-part--<?= e((string)$qp['color']) ?>">
@@ -362,8 +400,16 @@ $statHint = static function (string $hintKey): void {
                   <span class="ar-day-quality-dot muted" aria-hidden="true">○</span>
                 <?php endif; ?>
                 <span class="ar-day-quality-part-name"><?= e((string)$qp['name']) ?></span>
-                <span class="muted"><?= (int)$qp['numerator'] ?>/<?= (int)$qp['denominator'] ?> (<?= e((string)$qp['percent']) ?>%)</span>
-                <?php if (empty($qp['is_scoring'])): ?>
+                <?php
+                $isScanUnique = ($qp['part_kind'] ?? '') === 'day_metric'
+                    && in_array((string)($qp['cond_type'] ?? ''), ['term_scan_unique', 'term_scan_conversion'], true);
+                ?>
+                <?php if ($isScanUnique): ?>
+                  <span class="muted"><?= (int)$qp['numerator'] ?> <?= te('audio_reports.day_report.quality_scan_unique') ?></span>
+                <?php else: ?>
+                  <span class="muted"><?= (int)$qp['numerator'] ?>/<?= (int)$qp['denominator'] ?> (<?= e((string)$qp['percent']) ?>%)</span>
+                <?php endif; ?>
+                <?php if (empty($qp['is_scoring']) && !$isScanUnique): ?>
                   <span class="muted"><?= te('audio_reports.day_report.quality_ref') ?></span>
                 <?php endif; ?>
               </li>

@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "0.1.23",
+    "version": "0.1.24",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -15,7 +15,8 @@
         "bots": ">=0.1.0",
         "procents": ">=0.1.0",
         "workweeks": ">=0.1.0",
-        "assistant": ">=0.1.0"
+        "assistant": ">=0.1.0",
+        "bi": ">=0.3.0"
     },
     "provides": [
         "procedures.list",
@@ -220,7 +221,9 @@
             "calendar.day.stats",
             "core.user_edit.sections",
             "core.user_edit.save",
-            "assistant.write.preview"
+            "assistant.write.preview",
+            "bi.datasets",
+            "bi.recipes"
         ],
         "publish": [
             "bots.send",

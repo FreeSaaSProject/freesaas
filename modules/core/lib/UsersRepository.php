@@ -344,13 +344,16 @@ final class UsersRepository
                 : 'enabled DESC, name ASC';
         }
 
+        // Uppercase 2–5 letters (МСА, ДВМ): match ФИО initials — LIKE on name never finds them.
+        $acronymNeedle = self::acronymQueryNeedle($q);
+
         $where = ['1=1'];
         $params = [];
         if ($enabled === '1' || $enabled === '0') {
             $where[] = 'enabled = ?';
             $params[] = $enabled;
         }
-        if ($q !== '') {
+        if ($q !== '' && $acronymNeedle === '') {
             $where[] = '(login LIKE ? OR name LIKE ? OR mail LIKE ? OR tel LIKE ?)';
             $like = '%' . $q . '%';
             $params[] = $like;
@@ -365,16 +368,49 @@ final class UsersRepository
         }
         $sqlWhere = implode(' AND ', $where);
         $pdo = Database::pdo();
-        $stCount = $pdo->prepare("SELECT COUNT(*) FROM base_users WHERE $sqlWhere");
-        $stCount->execute($params);
-        $total = (int)$stCount->fetchColumn();
 
         $cols = self::selectList([
             'id', 'login', 'name', 'mail', 'enabled', 'ID_STATUS', 'color', 'color_text', 'tel', 'IS_HIDDEN', 'IS_ACCEPTOR', 'num',
         ]);
         if ($cols === '') {
-            return ['items' => [], 'total' => $total];
+            return ['items' => [], 'total' => 0];
         }
+
+        if ($acronymNeedle !== '') {
+            $sql = "SELECT $cols
+                 FROM base_users
+                 WHERE $sqlWhere
+                 ORDER BY $order";
+            $st = $pdo->prepare($sql);
+            $st->execute($params);
+            $all = $st->fetchAll() ?: [];
+            $items = [];
+            foreach ($all as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $name = trim((string)($row['name'] ?? ''));
+                if ($name === '') {
+                    $name = (string)($row['login'] ?? '');
+                }
+                if (self::shortName($name) !== $acronymNeedle) {
+                    continue;
+                }
+                $items[] = $row;
+            }
+            $total = count($items);
+            if ($limit > 0) {
+                $items = array_slice($items, $offset, $limit);
+            } elseif ($offset > 0) {
+                $items = array_slice($items, $offset);
+            }
+            return ['items' => $items, 'total' => $total];
+        }
+
+        $stCount = $pdo->prepare("SELECT COUNT(*) FROM base_users WHERE $sqlWhere");
+        $stCount->execute($params);
+        $total = (int)$stCount->fetchColumn();
+
         $sql = "SELECT $cols
              FROM base_users
              WHERE $sqlWhere
@@ -385,6 +421,22 @@ final class UsersRepository
         $st = $pdo->prepare($sql);
         $st->execute($params);
         return ['items' => $st->fetchAll() ?: [], 'total' => $total];
+    }
+
+    /**
+     * Staff МСА/ДВМ-style query: uppercase Cyrillic/Latin letters only, length 2–5.
+     * Empty string = not an acronym search (use normal LIKE).
+     */
+    public static function acronymQueryNeedle(string $q): string
+    {
+        $q = trim($q);
+        if ($q === '' || !preg_match('/^[\p{L}]{2,5}$/u', $q)) {
+            return '';
+        }
+        $upper = function_exists('mb_strtoupper')
+            ? mb_strtoupper($q, 'UTF-8')
+            : strtoupper($q);
+        return $upper === $q ? $upper : '';
     }
 
     public static function find(int $id): ?array
@@ -1054,6 +1106,11 @@ final class UsersRepository
         $names = self::statusNames();
         $out['status_name'] = $names[$out['status_id']] ?? '';
         $out['status2_name'] = $out['status2_id'] > 0 ? ($names[$out['status2_id']] ?? '') : '';
+        $display = trim((string)($out['name'] ?? ''));
+        if ($display === '') {
+            $display = trim((string)($out['login'] ?? ''));
+        }
+        $out['acronym'] = $display !== '' ? self::shortName($display) : '';
         return $out;
     }
 

@@ -144,5 +144,5 @@ return [
     'workweeks.assistant.field.price_col' => 'Shift',
     'workweeks.assistant.field.mas_max' => 'Max sessions',
     'workweeks.assistant.field.id_table' => 'Table',
-    'workweeks.assistant.hint' => 'Shifts: for who/swap/remove/assign on a day — CALL workweeks.day(date) first (or list with date_from/date_to). Resolve first names («Dasha», «Tanya») against operator_name on that day’s shifts; if the day has one Dasha and one Tanya — unambiguous, queue updates (swap price_col) immediately. Ask surname/id only if the day result has ≥2 people with the same first name. core.users.list(q) is extra staff search, not a substitute for the day roster.',
+    'workweeks.assistant.hint' => 'Shifts: for who/swap/remove/assign/replace on a day — CALL workweeks.day(date) first (or list with date_from/date_to). Resolve people via operator_name, operator_acronym (МСА/ДВМ = ФИО initials), or first name. One match → queue immediately. Replace A→B: workweeks.update on A’s shift with id_operator=B (do not create and leave the old row). Remove: workweeks.delete (action=delete). Assign new: create. Ask surname/id only if ≥2 matches. Off-roster: core.users.list(q=МСА) matches acronym.',
 ];

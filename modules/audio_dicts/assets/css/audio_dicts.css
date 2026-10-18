@@ -358,6 +358,14 @@
 }
 .scripts-rating-flags { margin: 0.75rem 0; padding: 0.5rem 0.75rem; border: 1px solid var(--border, #e2e8f0); }
 .scripts-rating-flags legend { padding: 0 0.25rem; font-size: 0.85rem; }
+.scripts-day-gates { margin-top: 0.75rem; }
+.scripts-day-gates-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.scripts-day-gates-table th,
+.scripts-day-gates-table td { padding: 0.25rem 0.35rem; vertical-align: middle; }
+.scripts-day-gates-table input[type="number"],
+.scripts-day-gates-table input[type="text"],
+.scripts-day-gates-table select { width: 100%; max-width: 11rem; }
+.scripts-day-gates-table input[name*="[label]"] { max-width: 8rem; }
 .scripts-flow-score-rate { font-size: 0.8rem; color: #075985; margin-top: 0.15rem; }
 .scripts-flow-score-rate.is-penalty { color: #991b1b; font-weight: 700; }
 

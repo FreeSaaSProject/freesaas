@@ -2,12 +2,14 @@
     "id": "vacations",
     "name": "vacations.module.name",
     "description": "vacations.module.description",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
     },
-    "optionalRequires": [],
+    "optionalRequires": {
+        "bi": ">=0.3.0"
+    },
     "provides": [
         "vacations.list"
     ],
@@ -82,7 +84,8 @@
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "core.notices.collect"
+            "core.notices.collect",
+            "bi.datasets"
         ],
         "publish": []
     },

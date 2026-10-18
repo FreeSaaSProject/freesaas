@@ -1287,7 +1287,8 @@ final class AssistantHarness
     {
         $prefer = [
             'id', 'uuid', 'token', 'date', 'dt', 'dtstart', 'dtend', 'dtstart_iso', 'dtend_iso', 'dt_iso',
-            'id_operator', 'operator_name', 'id_user', 'client_name', 'is_block', 'name', 'phone',
+            'id_operator', 'operator_name', 'operator_acronym', 'acronym', 'id_user', 'client_name',
+            'is_block', 'name', 'phone',
             'title', 'status', 'price_col', 'shift_label', 'shift_start_hm', 'shift_end_hm',
             'sum', 'summ', 'amount', 'content_brief', 'product_name', 'type_name', 'id_event_parent',
             'enabled', 'weekday', 'is_today',

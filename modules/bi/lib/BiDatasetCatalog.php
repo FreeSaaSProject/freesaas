@@ -2,10 +2,19 @@
 declare(strict_types=1);
 
 /**
- * Allowlisted datasets / fields / joins for KPI JSON recipes (no live SHOW TABLES).
+ * Allowlisted datasets / fields / joins for KPI JSON recipes.
+ * Product datasets come from EventBus bi.datasets (owning modules). BI keeps no product tables.
  */
 final class BiDatasetCatalog
 {
+    /** @var list<array<string,mixed>>|null */
+    private static $cache = null;
+
+    public static function flush(): void
+    {
+        self::$cache = null;
+    }
+
     /**
      * Full legend payload for agents + constructor sidebar.
      *
@@ -13,7 +22,14 @@ final class BiDatasetCatalog
      */
     public static function legend(): array
     {
-        return [
+        $coreDerive = [
+            'join_frame', 'filter', 'select', 'compute',
+            'group_by', 'aggs', 'compute_after', 'having', 'window', 'sort', 'limit',
+        ];
+        $contribIds = class_exists('BiDeriveRegistry', false) ? BiDeriveRegistry::ids() : [];
+        $deriveSteps = array_values(array_unique(array_merge($contribIds, $coreDerive)));
+
+        $legend = [
             'v' => 1,
             'agent_howto' => [
                 '1. GET /bi?format=json — list families (id, title, ready)',
@@ -23,6 +39,7 @@ final class BiDatasetCatalog
                 '5. POST /bi/families/new?format=json action=save — persist (shipped id = DB override)',
                 '6. POST /bi/work?format=json action=run&family=&year=&month= — read report.sections',
                 '7. Optional: GET /bi/families/{id}?format=json — load recipe; POST shares for live links',
+                'Datasets and domain derive steps are contributed by enabled modules (EventBus bi.datasets / bi.derive_steps / bi.recipes).',
             ],
             'recipe_shape' => [
                 'v' => 1,
@@ -46,16 +63,7 @@ final class BiDatasetCatalog
             'window_fns' => ['rank', 'row_number', 'dense_rank'],
             'section_types' => ['metrics', 'table', 'pivot', 'text'],
             'pivot_grains' => ['month_to_date', 'days_in_month'],
-            'derive_steps' => [
-                'expand_shift_lanes', 'join_frame', 'filter', 'select', 'compute',
-                'group_by', 'aggs', 'compute_after', 'having', 'window', 'sort', 'limit',
-            ],
-            'expand_shift_lanes' => [
-                'day_field' => 'dt (workweeks day unix)',
-                'price_field' => 'price_col',
-                'mode' => 'tickets|cash — cash uses full-day window for non-I+II (oper show_kpi10)',
-                'emits' => ['day_start', 'day_label', 'lane', 'is_half', 'window_start', 'window_end', 'smena_label', 'stats_key'],
-            ],
+            'derive_steps' => $deriveSteps,
             'join_frame_types' => ['left', 'inner', 'cross'],
             'join_frame_range' => [
                 'left' => 'timestamp field on left rows',
@@ -67,6 +75,7 @@ final class BiDatasetCatalog
                 'join_group_fuse' => 'join-only derive followed by group_by (sole consumer) is fused; join product is not materialised',
                 'streaming_aggs' => 'group_by accumulates without storing member row lists',
                 'badge' => 'expr badge(user_id) → safe token; ReportRenderer expands via UsersRepository::badgeHtml. Column format user_badge + user_field also supported',
+                'contrib' => 'Product datasets/recipes/derive via EventBus bi.datasets, bi.recipes, bi.derive_steps',
             ],
             'column_formats' => ['user_badge'],
             'run_params' => ['year', 'month', 'dayshow', 'id_operator', 'id_admin', 'id_good', 'variant'],
@@ -85,6 +94,14 @@ final class BiDatasetCatalog
                 'bi.share.revoke',
             ],
         ];
+
+        if (class_exists('BiDeriveRegistry', false)) {
+            foreach (BiDeriveRegistry::legendMeta() as $id => $meta) {
+                $legend[$id] = $meta;
+            }
+        }
+
+        return $legend;
     }
 
     /**
@@ -92,142 +109,78 @@ final class BiDatasetCatalog
      */
     public static function datasets(): array
     {
-        return [
-            self::ds('procedures', 'Procedures', 'base_procedures', 'procedures', [
-                'period_field' => 'DTSTART',
-                'period_kind' => 'inclusive_dt',
-                'filters' => [
-                    'operator' => 'ID_OPERATOR',
-                    'admin' => 'ID_ADMIN',
-                    'good' => 'ID_GOOD',
-                ],
-                'fields' => [
-                    ['id' => 'id', 'col' => 'ID', 'type' => 'int', 'agg' => true],
-                    ['id' => 'dtstart', 'col' => 'DTSTART', 'type' => 'datetime'],
-                    ['id' => 'summ', 'col' => 'SUMM', 'type' => 'float', 'agg' => true],
-                    ['id' => 'enabled', 'col' => 'ENABLED', 'type' => 'int'],
-                    ['id' => 'id_operator', 'col' => 'ID_OPERATOR', 'type' => 'int'],
-                    ['id' => 'id_admin', 'col' => 'ID_ADMIN', 'type' => 'int'],
-                    ['id' => 'id_user', 'col' => 'ID_USER', 'type' => 'int'],
-                    ['id' => 'id_good', 'col' => 'ID_GOOD', 'type' => 'int'],
-                    ['id' => 'restored', 'col' => 'RESTORED', 'type' => 'int'],
-                ],
-                'joins' => [
-                    ['dataset' => 'users_staff', 'left' => 'id_operator', 'right' => 'id'],
-                    ['dataset' => 'users_staff', 'left' => 'id_admin', 'right' => 'id'],
-                    ['dataset' => 'products', 'left' => 'id_good', 'right' => 'id'],
-                ],
-            ]),
-            self::ds('guests', 'Guests (fullstats)', 'base_fullstats', 'terminals', [
-                'period_field' => 'DTSTART',
-                'period_kind' => 'half_open',
-                'filters' => [],
-                'fields' => [
-                    ['id' => 'id', 'col' => 'ID', 'type' => 'int', 'agg' => true],
-                    ['id' => 'dtstart', 'col' => 'DTSTART', 'type' => 'datetime'],
-                ],
-                'joins' => [],
-            ]),
-            self::ds('workweeks', 'Workweeks / shifts', 'base_workweeks', 'workweeks', [
-                'period_field' => 'DT',
-                // base_workweeks.DT is unix timestamp (legacy oper), not Y-m-d.
-                'period_kind' => 'inclusive_dt',
-                'filters' => [
-                    'operator' => 'ID_OPERATOR',
-                ],
-                'fields' => [
-                    ['id' => 'dt', 'col' => 'DT', 'type' => 'datetime'],
-                    ['id' => 'id_operator', 'col' => 'ID_OPERATOR', 'type' => 'int'],
-                    ['id' => 'price_col', 'col' => 'PRICE_COL', 'type' => 'int'],
-                    ['id' => 'mas_max', 'col' => 'MAS_MAX', 'type' => 'int'],
-                    ['id' => 'id_table', 'col' => 'ID_TABLE', 'type' => 'int'],
-                ],
-                'joins' => [
-                    ['dataset' => 'users_staff', 'left' => 'id_operator', 'right' => 'id'],
-                ],
-            ]),
-            self::ds('users_staff', 'Staff users', 'base_users', 'core', [
-                'period_field' => null,
-                'period_kind' => null,
-                'filters' => [],
-                'fields' => [
-                    ['id' => 'id', 'col' => 'id', 'type' => 'int'],
-                    ['id' => 'name', 'col' => 'name', 'type' => 'string'],
-                    ['id' => 'login', 'col' => 'login', 'type' => 'string'],
-                    ['id' => 'enabled', 'col' => 'enabled', 'type' => 'string'],
-                    ['id' => 'id_status', 'col' => 'ID_STATUS', 'type' => 'int', 'schema_alt' => ['name_enabled']],
-                    ['id' => 'is_hidden', 'col' => 'IS_HIDDEN', 'type' => 'int'],
-                    ['id' => 'assist_team', 'col' => 'ASSIST_TEAM', 'type' => 'int'],
-                ],
-                'joins' => [],
-            ]),
-            self::ds('products', 'Products / services', 'base_products', 'catalog', [
-                'period_field' => null,
-                'period_kind' => null,
-                'filters' => [],
-                'fields' => [
-                    ['id' => 'id', 'col' => 'id', 'type' => 'int'],
-                    ['id' => 'type_id', 'col' => 'type_id', 'type' => 'int', 'schema_alt' => ['TYPE']],
-                    ['id' => 'duration', 'col' => 'time_sec', 'type' => 'int', 'schema_alt' => ['time_net', 'TIME_NET', 'TIME']],
-                ],
-                'joins' => [],
-            ]),
-            self::ds('vacations', 'Vacations', 'base_vacations', 'vacations', [
-                'period_field' => 'DT_START',
-                'period_end_field' => 'DT_END',
-                'period_kind' => 'overlap_dt',
-                'filters' => [
-                    'operator' => 'ID_USER',
-                ],
-                'fields' => [
-                    ['id' => 'id_user', 'col' => 'ID_USER', 'type' => 'int'],
-                    ['id' => 'id_type', 'col' => 'ID_TYPE', 'type' => 'int'],
-                    ['id' => 'dt_start', 'col' => 'DT_START', 'type' => 'datetime'],
-                    ['id' => 'dt_end', 'col' => 'DT_END', 'type' => 'datetime'],
-                ],
-                'joins' => [
-                    ['dataset' => 'users_staff', 'left' => 'id_user', 'right' => 'id'],
-                ],
-            ]),
-            self::ds('events', 'Calendar events', 'base_events', 'calendar', [
-                'period_field' => 'DTSTART',
-                'period_kind' => 'inclusive_dt',
-                'filters' => [],
-                'fields' => [
-                    ['id' => 'id', 'col' => 'ID', 'type' => 'int', 'agg' => true],
-                    ['id' => 'dtstart', 'col' => 'DTSTART', 'type' => 'datetime'],
-                    ['id' => 'dtend', 'col' => 'DTEND', 'type' => 'datetime'],
-                ],
-                'joins' => [],
-            ]),
-            self::ds('records', 'Audio records', 'base_records', 'audio', [
-                'period_field' => 'DT_RECORDED',
-                'period_kind' => 'inclusive_dt',
-                'filters' => [
-                    'admin' => 'ID_ADMIN',
-                ],
-                'fields' => [
-                    ['id' => 'id', 'col' => 'ID', 'type' => 'int', 'agg' => true],
-                    ['id' => 'playtime', 'col' => 'PLAYTIME', 'type' => 'float', 'agg' => true],
-                    ['id' => 'id_admin', 'col' => 'ID_ADMIN', 'type' => 'int'],
-                    ['id' => 'dt_recorded', 'col' => 'DT_RECORDED', 'type' => 'datetime'],
-                ],
-                'joins' => [
-                    ['dataset' => 'users_staff', 'left' => 'id_admin', 'right' => 'id'],
-                ],
-            ]),
-            self::ds('poll_invites', 'Poll invites', 'base_poll_invites', 'poll_invites', [
-                'period_field' => 'DT_CREATE',
-                'period_kind' => 'inclusive_dt',
-                'filters' => [],
-                'fields' => [
-                    ['id' => 'id', 'col' => 'ID', 'type' => 'int', 'agg' => true],
-                    ['id' => 'dt_create', 'col' => 'DT_CREATE', 'type' => 'datetime'],
-                    ['id' => 'status', 'col' => 'STATUS', 'type' => 'int'],
-                ],
-                'joins' => [],
-            ]),
-        ];
+        if (self::$cache !== null) {
+            return self::$cache;
+        }
+        $payload = EventBus::emit('bi.datasets', ['datasets' => []]);
+        $list = is_array($payload['datasets'] ?? null) ? $payload['datasets'] : [];
+        $byId = [];
+        $order = [];
+        foreach ($list as $ds) {
+            if (!is_array($ds)) {
+                continue;
+            }
+            $id = trim((string)($ds['id'] ?? ''));
+            if ($id === '' || !preg_match('/^[a-z][a-z0-9_]*$/', $id)) {
+                throw new RuntimeException('bi.datasets: invalid id');
+            }
+            $module = (string)($ds['requires_module'] ?? $ds['module'] ?? '');
+            if (isset($byId[$id])) {
+                // Same module may enrich (replace) its own dataset; different module = conflict.
+                $prevMod = (string)($byId[$id]['requires_module'] ?? '');
+                if ($module !== '' && $prevMod !== '' && $module !== $prevMod) {
+                    throw new RuntimeException(
+                        'bi.datasets conflict: ' . $id . ' (' . $prevMod . ' vs ' . $module . ')'
+                    );
+                }
+                $byId[$id] = self::normalizeDataset($ds);
+                continue;
+            }
+            $byId[$id] = self::normalizeDataset($ds);
+            $order[] = $id;
+        }
+        $out = [];
+        foreach ($order as $id) {
+            $out[] = $byId[$id];
+        }
+        self::$cache = $out;
+        return self::$cache;
+    }
+
+    /**
+     * Build a dataset definition for contrib listeners (public helper).
+     *
+     * @param array<string,mixed> $extra
+     * @return array<string,mixed>
+     */
+    public static function define(string $id, string $label, string $table, string $module, array $extra): array
+    {
+        return self::normalizeDataset(array_merge([
+            'id' => $id,
+            'label' => $label,
+            'requires_table' => $table,
+            'requires_module' => $module,
+        ], $extra));
+    }
+
+    /**
+     * @param array<string,mixed> $ds
+     * @return array<string,mixed>
+     */
+    private static function normalizeDataset(array $ds): array
+    {
+        $table = (string)($ds['requires_table'] ?? '');
+        $ds['available'] = $table !== '' && Database::tableExists($table);
+        if (!isset($ds['fields']) || !is_array($ds['fields'])) {
+            $ds['fields'] = [];
+        }
+        if (!isset($ds['joins']) || !is_array($ds['joins'])) {
+            $ds['joins'] = [];
+        }
+        if (!isset($ds['filters']) || !is_array($ds['filters'])) {
+            $ds['filters'] = [];
+        }
+        return $ds;
     }
 
     /**
@@ -485,31 +438,27 @@ final class BiDatasetCatalog
     }
 
     /**
-     * Default blank recipe for constructor.
+     * Default blank recipe for constructor (no foreign datasets assumed).
      *
      * @return array<string,mixed>
      */
     public static function blankRecipe(string $familyId = 'my_report', string $title = 'My report'): array
     {
-        $ex = self::examples()[0]['recipe'];
-        $ex['id'] = $familyId;
-        $ex['title'] = $title;
-        return $ex;
-    }
-
-    /**
-     * @param array<string,mixed> $extra
-     * @return array<string,mixed>
-     */
-    private static function ds(string $id, string $label, string $table, string $module, array $extra): array
-    {
-        return array_merge([
-            'id' => $id,
-            'label' => $label,
-            'requires_table' => $table,
-            'requires_module' => $module,
-            'available' => Database::tableExists($table),
-        ], $extra);
+        return [
+            'v' => 1,
+            'id' => $familyId,
+            'title' => $title,
+            'requires' => [],
+            'queries' => [],
+            'derive' => [],
+            'sections' => [
+                [
+                    'type' => 'text',
+                    'title' => 'Note',
+                    'body' => 'Edit this recipe. See /bi/legend for datasets available on this instance.',
+                ],
+            ],
+        ];
     }
 
     private static function columnExists(string $table, string $col): bool

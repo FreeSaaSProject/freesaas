@@ -11,6 +11,9 @@ require_once __DIR__ . '/lib/RecordsRepository.php';
 require_once __DIR__ . '/lib/RecordsReviewsRepository.php';
 require_once __DIR__ . '/lib/TranscriptGarbage.php';
 require_once __DIR__ . '/lib/TranscriptHighlighter.php';
+require_once __DIR__ . '/lib/AudioBiContrib.php';
+
+EventBus::on('bi.datasets', [AudioBiContrib::class, 'onDatasets']);
 
 Assets::register('audio', [
     'css' => ['audio.css'],

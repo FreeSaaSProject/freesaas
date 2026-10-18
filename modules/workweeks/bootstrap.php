@@ -5,6 +5,12 @@ require_once __DIR__ . '/lib/WorkweeksRepository.php';
 require_once __DIR__ . '/lib/WorkweeksAssistantPreview.php';
 require_once __DIR__ . '/lib/NeededPeopleBotPlugin.php';
 require_once __DIR__ . '/lib/ShiftsBotPlugin.php';
+require_once __DIR__ . '/lib/WorkweeksBiShiftLanes.php';
+require_once __DIR__ . '/lib/WorkweeksBiContrib.php';
+
+EventBus::on('bi.datasets', [WorkweeksBiContrib::class, 'onDatasets']);
+EventBus::on('bi.derive_steps', [WorkweeksBiContrib::class, 'onDeriveSteps']);
+EventBus::on('bi.recipes', [WorkweeksBiContrib::class, 'onRecipes']);
 
 EventBus::on('assistant.write.preview', static function ($payload) {
     if (!is_array($payload)) {

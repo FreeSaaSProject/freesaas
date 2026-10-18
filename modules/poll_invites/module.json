@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -12,7 +12,8 @@
         "clients": ">=0.1.0",
         "bonuses": ">=0.1.0",
         "calendar": ">=0.1.0",
-        "procedures": ">=0.1.0"
+        "procedures": ">=0.1.0",
+        "bi": ">=0.3.0"
     },
     "provides": [
         "poll_invites.instances"
@@ -94,7 +95,8 @@
             "core.notices.collect",
             "calendar.timeline.enrich",
             "polls.settings.sections",
-            "polls.settings.save"
+            "polls.settings.save",
+            "bi.datasets"
         ],
         "publish": [
             "poll_invites.created",

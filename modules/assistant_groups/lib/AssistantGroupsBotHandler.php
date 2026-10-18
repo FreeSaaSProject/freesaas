@@ -529,19 +529,15 @@ final class AssistantGroupsBotHandler
         if ($botUid > 0 && $linkSender !== '' && (int)$linkSender === $botUid) {
             return true;
         }
-        // LinkedMessage.sender.is_bot without id — accept reply when we already have group history.
-        if ($linkType === 'reply' && !empty($payload['reply_link_sender_is_bot'])
-            && AssistantGroupsDialog::getHistory($chatId) !== []) {
-            return true;
-        }
 
         $replyToMid = trim((string)($payload['reply_to_mid'] ?? ''));
         if ($replyToMid !== '' && AssistantGroupsDialog::isBotMessageMid($chatId, $replyToMid)) {
             return true;
         }
 
-        // Fallback: reply with mid while this group has an open dialog (mid store miss after deploy).
-        if ($linkType === 'reply' && $replyToMid !== '' && AssistantGroupsDialog::getHistory($chatId) !== []) {
+        // is_bot without sender id: only if mid is known as ours (no «any reply in open dialog»).
+        if ($linkType === 'reply' && !empty($payload['reply_link_sender_is_bot'])
+            && $replyToMid !== '' && AssistantGroupsDialog::isBotMessageMid($chatId, $replyToMid)) {
             return true;
         }
 

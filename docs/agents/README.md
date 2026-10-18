@@ -88,7 +88,8 @@ Staff/MCP how-to uses these via `core.help.search` / `core.help.get`. Keep **Hum
 | [procedures.md](procedures.md) | `procedures` |
 | [procents.md](procents.md) | `procents` |
 | [rates.md](rates.md) | `rates` |
-| [sheets.md](sheets.md) | `sheets` |
+| [sheets.md](sheets.md) | `sheets` (legacy; prefer laundry) |
+| [laundry.md](laundry.md) | `laundry` |
 | [sites.md](sites.md) | `sites` |
 | [staff_reports.md](staff_reports.md) | `staff_reports` |
 | [stickers-qr.md](stickers-qr.md) | `stickers` |

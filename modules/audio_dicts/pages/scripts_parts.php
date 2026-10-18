@@ -61,8 +61,10 @@ try {
 
     if ($action === 'save' || $action === 'add') {
         $condType = strtolower(trim((string)($_POST['cond_type'] ?? '')));
-        $allowedCond = ['intersect', 'no_intersect', 'volume_gt', 'volume_lt', 'strings_gt', 'strings_lt'];
-        if (!in_array($condType, $allowedCond, true)) {
+        if ($condType === 'term_scan_conversion') {
+            $condType = 'term_scan_unique';
+        }
+        if (!in_array($condType, RecordsScriptsRepository::allowedCondTypes(), true)) {
             $condType = '';
         }
         $partData = [

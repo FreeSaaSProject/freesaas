@@ -1378,6 +1378,21 @@ textarea.mono {
   margin-bottom: 0.4rem;
 }
 
+.ar-day-quality-gates {
+  list-style: none;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0;
+  font-size: 0.9rem;
+}
+.ar-day-quality-gate {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.5rem;
+  padding: 0.15rem 0;
+}
+.ar-day-quality-gate--red { color: #b91c1c; }
+.ar-day-quality-gate--green { color: #15803d; }
+.ar-day-quality-gate--skip { opacity: 0.75; }
 .ar-day-quality-parts {
   list-style: none;
   margin: 0;

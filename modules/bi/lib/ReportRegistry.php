@@ -24,6 +24,15 @@ final class ReportRegistry
     public static function reloadCustoms(): void
     {
         self::$families = [];
+        if (class_exists('BiDatasetCatalog', false)) {
+            BiDatasetCatalog::flush();
+        }
+        if (class_exists('BiShippedRecipes', false)) {
+            BiShippedRecipes::flush();
+        }
+        if (class_exists('BiDeriveRegistry', false)) {
+            BiDeriveRegistry::flush();
+        }
         self::loadAll();
     }
 

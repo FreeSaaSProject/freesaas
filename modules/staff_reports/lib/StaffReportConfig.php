@@ -34,8 +34,8 @@ final class StaffReportConfig
             'contract_working_days' => 5,
             'managing_contract_id' => 0,
             'ticket_status_id' => 4,
-            'ticket_title_prefix' => '[Отчеты:',
-            'ticket_default_body' => 'Здесь формируются отчёты по работе',
+            'ticket_title_prefix' => '',
+            'ticket_default_body' => '',
             'thank_you_news' => [
                 'title' => '',
                 'body' => '',
@@ -89,7 +89,7 @@ final class StaffReportConfig
             'contract_working_days' => max(0, (int)($raw['contract_working_days'] ?? $d['contract_working_days'])),
             'managing_contract_id' => max(0, (int)($raw['managing_contract_id'] ?? 0)),
             'ticket_status_id' => max(0, (int)($raw['ticket_status_id'] ?? $d['ticket_status_id'])),
-            'ticket_title_prefix' => trim((string)($raw['ticket_title_prefix'] ?? $d['ticket_title_prefix'])) ?: '[Отчеты:',
+            'ticket_title_prefix' => trim((string)($raw['ticket_title_prefix'] ?? $d['ticket_title_prefix'])),
             'ticket_default_body' => (string)($raw['ticket_default_body'] ?? $d['ticket_default_body']),
             'thank_you_news' => [
                 'title' => (string)($thank['title'] ?? ''),

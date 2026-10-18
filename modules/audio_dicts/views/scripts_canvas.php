@@ -51,6 +51,11 @@ $i18n = [
     'condVolumeLt' => t('audio_dicts.scripts.cond.volume_lt'),
     'condStringsGt' => t('audio_dicts.scripts.cond.strings_gt'),
     'condStringsLt' => t('audio_dicts.scripts.cond.strings_lt'),
+    'condTermScanUnique' => t('audio_dicts.scripts.cond.term_scan_unique'),
+    'condTermScanConversionHint' => t('audio_dicts.scripts.cond.term_scan_unique_hint'),
+    'scanWindow' => t('audio_dicts.scripts.field.scan_window'),
+    'scanWindowHint' => t('audio_dicts.scripts.field.scan_window_hint'),
+    'gateRedMaxHintScan' => t('audio_dicts.scripts.field.gate_red_max_hint_scan'),
     'timeout' => t('audio_dicts.scripts.field.timeout'),
     'timeoutHint' => t('audio_dicts.scripts.field.timeout_hint'),
     'timeoutFlow' => t('audio_dicts.scripts.flow.timeout'),
@@ -66,8 +71,11 @@ $i18n = [
     'instMinHint' => t('audio_dicts.scripts.field.inst_min_hint'),
     'gateRedMax' => t('audio_dicts.scripts.field.gate_red_max'),
     'gateRedMaxHint' => t('audio_dicts.scripts.field.gate_red_max_hint'),
+    'gateRedMaxScan' => t('audio_dicts.scripts.field.gate_red_max_scan'),
     'gateYellowMax' => t('audio_dicts.scripts.field.gate_yellow_max'),
     'gateYellowMaxHint' => t('audio_dicts.scripts.field.gate_yellow_max_hint'),
+    'gateYellowMaxScan' => t('audio_dicts.scripts.field.gate_yellow_max_scan'),
+    'gateYellowMaxHintScan' => t('audio_dicts.scripts.field.gate_yellow_max_hint_scan'),
     'hideFromReports' => t('audio_dicts.scripts.field.hide_from_reports'),
     'hideFromReportsHint' => t('audio_dicts.scripts.field.hide_from_reports_hint'),
     'qualitySec' => t('audio_dicts.scripts.sec.quality_part'),
@@ -155,10 +163,81 @@ if ($importWarnings !== []): ?>
                 <input type="number" min="0" name="day_bonus_sum" value="<?= (int)($root['day_bonus_sum'] ?? 0) ?>"<?= $canEdit ? '' : ' readonly' ?>>
               </label>
               <p class="muted small"><?= te('audio_dicts.scripts.field.day_bonus_sum_hint') ?></p>
-              <label><?= te('audio_dicts.scripts.field.proc_ratio_min') ?>
-                <input type="number" min="0" max="100" name="proc_ratio_min" value="<?= (int)($root['proc_ratio_min'] ?? 0) ?>"<?= $canEdit ? '' : ' readonly' ?>>
-              </label>
-              <p class="muted small"><?= te('audio_dicts.scripts.field.proc_ratio_min_hint') ?></p>
+              <div class="scripts-day-gates" id="script-day-gates"
+                   data-can-edit="<?= $canEdit ? '1' : '0' ?>">
+                <p class="muted small"><?= te('audio_dicts.scripts.field.day_gates_hint') ?></p>
+                <table class="scripts-day-gates-table">
+                  <thead>
+                    <tr>
+                      <th><?= te('audio_dicts.scripts.field.day_gate_metric') ?></th>
+                      <th><?= te('audio_dicts.scripts.field.day_gate_op') ?></th>
+                      <th><?= te('audio_dicts.scripts.field.day_gate_threshold') ?></th>
+                      <th><?= te('audio_dicts.scripts.field.day_gate_label') ?></th>
+                      <?php if ($canEdit): ?><th></th><?php endif; ?>
+                    </tr>
+                  </thead>
+                  <tbody id="script-day-gates-body">
+                  <?php
+                  $gates = is_array($root['day_gates'] ?? null) ? $root['day_gates'] : [];
+                  $metricOpts = is_array($dayMetricCatalog ?? null) ? $dayMetricCatalog : [];
+                  if ($gates === []) {
+                      $gates = [['metric' => '', 'op' => 'gte', 'threshold' => 0, 'label' => '']];
+                  }
+                  foreach ($gates as $gi => $gate):
+                      $gMetric = (string)($gate['metric'] ?? '');
+                      $gOp = (string)($gate['op'] ?? 'gte');
+                      $gThr = $gate['threshold'] ?? 0;
+                      $gLabel = (string)($gate['label'] ?? '');
+                  ?>
+                    <tr class="scripts-day-gate-row">
+                      <td>
+                        <select name="day_gates[<?= (int)$gi ?>][metric]"<?= $canEdit ? '' : ' disabled' ?>>
+                          <option value=""><?= te('audio_dicts.scripts.field.day_gate_metric_none') ?></option>
+                          <?php foreach ($metricOpts as $m): ?>
+                            <?php $mid = (string)($m['id'] ?? ''); if ($mid === '') { continue; } ?>
+                            <option value="<?= e($mid) ?>"<?= $gMetric === $mid ? ' selected' : '' ?>>
+                              <?= e((string)($m['label'] ?? $mid)) ?><?= !empty($m['unit']) ? ' (' . e((string)$m['unit']) . ')' : '' ?>
+                            </option>
+                          <?php endforeach; ?>
+                          <?php if ($gMetric !== '' && !in_array($gMetric, array_column($metricOpts, 'id'), true)): ?>
+                            <option value="<?= e($gMetric) ?>" selected><?= e($gMetric) ?></option>
+                          <?php endif; ?>
+                        </select>
+                      </td>
+                      <td>
+                        <select name="day_gates[<?= (int)$gi ?>][op]"<?= $canEdit ? '' : ' disabled' ?>>
+                          <?php
+                          $gateOps = class_exists('DayQualityMetrics', false)
+                              ? DayQualityMetrics::ops()
+                              : ['gt', 'gte', 'lt', 'lte'];
+                          foreach ($gateOps as $op):
+                              $opLabel = class_exists('DayQualityMetrics', false)
+                                  ? DayQualityMetrics::opSymbol($op)
+                                  : $op;
+                          ?>
+                            <option value="<?= e($op) ?>"<?= $gOp === $op ? ' selected' : '' ?>><?= e($opLabel) ?></option>
+                          <?php endforeach; ?>
+                        </select>
+                      </td>
+                      <td>
+                        <input type="number" step="any" name="day_gates[<?= (int)$gi ?>][threshold]"
+                               value="<?= e((string)$gThr) ?>"<?= $canEdit ? '' : ' readonly' ?>>
+                      </td>
+                      <td>
+                        <input type="text" name="day_gates[<?= (int)$gi ?>][label]" maxlength="80"
+                               value="<?= e($gLabel) ?>"<?= $canEdit ? '' : ' readonly' ?>>
+                      </td>
+                      <?php if ($canEdit): ?>
+                      <td><button type="button" class="btn-secondary btn-sm scripts-day-gate-remove" title="<?= te('core.bulk.delete') ?>">×</button></td>
+                      <?php endif; ?>
+                    </tr>
+                  <?php endforeach; ?>
+                  </tbody>
+                </table>
+                <?php if ($canEdit): ?>
+                <button type="button" class="btn-secondary btn-sm" id="script-day-gates-add"><?= te('audio_dicts.scripts.btn_add_day_gate') ?></button>
+                <?php endif; ?>
+              </div>
             </div>
           </fieldset>
         </div>

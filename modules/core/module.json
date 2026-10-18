@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.116",
+    "version": "0.3.119",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -382,12 +382,13 @@
                 "method": "GET",
                 "path": "/users",
                 "permission": "core.users",
-                "description": "List staff users; filters: q, enabled, status_id",
+                "description": "List staff users; filters: q, enabled, status_id. q=МСА/ДВМ (uppercase 2–5 letters) matches ФИО initials (acronym field)",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "q": {
-                            "type": "string"
+                            "type": "string",
+                            "description": "Name/login/mail/tel substring, or uppercase acronym (МСА)"
                         },
                         "enabled": {
                             "type": "string",
@@ -1093,7 +1094,8 @@
     "hooks": {
         "subscribe": [
             "comments.form.ticket_controls",
-            "comments.prepare_add"
+            "comments.prepare_add",
+            "bi.datasets"
         ],
         "publish": [
             "core.auth.after_login",

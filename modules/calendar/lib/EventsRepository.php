@@ -575,10 +575,21 @@ final class EventsRepository
         } elseif (strlen($descr) > 120) {
             $descr = substr($descr, 0, 117) . '…';
         }
+        $opName = trim((string)($row['operator_name'] ?? ''));
+        $opAcronym = '';
+        if ($opName !== '') {
+            $opAcronym = class_exists('CalendarTimeline', false)
+                ? CalendarTimeline::acronym($opName)
+                : (class_exists('UsersRepository', false) ? UsersRepository::shortName($opName) : '');
+            if ($opAcronym === '?') {
+                $opAcronym = '';
+            }
+        }
         return [
             'id' => (int)($row['id'] ?? 0),
             'id_operator' => (int)($row['id_operator'] ?? 0),
-            'operator_name' => trim((string)($row['operator_name'] ?? '')),
+            'operator_name' => $opName,
+            'operator_acronym' => $opAcronym,
             'id_user' => (int)($row['id_user'] ?? 0),
             'client_name' => trim((string)($row['client_name'] ?? '')),
             'name' => trim((string)($row['name'] ?? '')),

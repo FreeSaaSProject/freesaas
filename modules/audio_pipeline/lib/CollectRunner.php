@@ -108,6 +108,14 @@ final class CollectRunner
             $collections += (int)($built['collections'] ?? 0);
             $offersTotal += (int)($built['offers'] ?? 0);
 
+            // Soft metrics (e.g. likespa bracelet scans after openings) before SCORE.
+            EventBus::emit('audio_pipeline.collect.after_admin', [
+                'admin_id' => $adminId,
+                'window_start' => $hasWindow ? $winStart : 0,
+                'window_end' => $hasWindow ? $winEnd : 0,
+                'collections' => (int)($built['collections'] ?? 0),
+            ]);
+
             // Derived record SCORE from rated collections.
             if (class_exists('RatingAggregates', false)) {
                 RatingAggregates::applyRecordScores(

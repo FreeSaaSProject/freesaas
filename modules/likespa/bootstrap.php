@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/LikespaConfig.php';
 require_once __DIR__ . '/lib/TermScansRepository.php';
+require_once __DIR__ . '/lib/TermScanCollect.php';
 require_once __DIR__ . '/lib/PromoterBonus.php';
 require_once __DIR__ . '/lib/DopsStats.php';
 require_once __DIR__ . '/lib/CalendarOverlay.php';
@@ -25,11 +26,6 @@ $pages = [
         'permission' => 'likespa.view',
         'methods' => ['GET'],
         'file' => 'term_scans.php',
-    ],
-    '/likespa/promo/bonus' => [
-        'permission' => 'likespa.promo',
-        'methods' => ['GET', 'POST'],
-        'file' => 'promo_bonus.php',
     ],
     '/likespa/restores' => [
         'permission' => 'likespa.restores',
@@ -154,6 +150,40 @@ BulkActions::register('likespa_restores', 'delete', [
 
 EventBus::on('audio_reports.calendar.cell', static function ($payload) {
     return CalendarOverlay::onCell($payload);
+});
+
+// Unique bracelet scans matched to openings (window after collection) + SCORE_RATE on collect.
+EventBus::on('audio_pipeline.collect.after_admin', [TermScanCollect::class, 'onCollectAfterAdmin']);
+
+EventBus::on('audio_reports.day_quality.part_metric', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $cond = (string)($payload['cond_type'] ?? '');
+    if ($cond !== 'term_scan_unique' && $cond !== 'term_scan_conversion') {
+        return $payload;
+    }
+    if (!TermScansRepository::tableReady() || !LikespaConfig::flag('term_scans_enabled', true)) {
+        return $payload;
+    }
+    $adminId = (int)($payload['admin_id'] ?? 0);
+    $date = (string)($payload['date'] ?? '');
+    $scriptId = (int)($payload['script_id'] ?? 0);
+    if ($adminId < 1 || $date === '' || $scriptId < 1) {
+        return $payload;
+    }
+    $m = TermScanCollect::matchedUniqueForScript($adminId, $date, $scriptId);
+    if (empty($m['available'])) {
+        return $payload;
+    }
+    $unique = (int)($m['unique_clients'] ?? 0);
+    $payload['available'] = true;
+    $payload['numerator'] = $unique;
+    $payload['denominator'] = (int)($m['matched_sessions'] ?? 0);
+    // Gate thresholds compare unique matched clients (not a percent).
+    $payload['percent'] = (float)$unique;
+    $payload['window_sec'] = (int)($m['window_sec'] ?? 0);
+    return $payload;
 });
 
 EventBus::on('procedures.list.row', static function ($payload) {

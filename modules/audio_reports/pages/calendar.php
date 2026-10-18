@@ -174,6 +174,8 @@ $scriptsAgg = CalendarAggregates::scriptsForRange((int)$rangeFrom, (int)$rangeTo
 $calendarScripts = $scriptsAgg['scripts'];
 if (class_exists('PromoterBonus', false)) {
     PromoterBonus::warmScriptsCache($scriptsAgg, (int)$rangeFrom, (int)$rangeTo);
+    // Prefetch promo/dops maps for the whole window once (avoids per-month re-warm in cell hooks).
+    PromoterBonus::warmForRange((int)$rangeFrom, (int)$rangeTo + 1);
 }
 if (class_exists('StageTiming', false)) {
     StageTiming::mark('Calendar: scripts');

@@ -151,5 +151,5 @@ return [
     'calendar.assistant.preview.will' => 'Будет: {v}',
     'calendar.assistant.preview.create' => 'Создать: {v}',
     'calendar.assistant.preview.delete' => 'Удалить это событие',
-    'calendar.assistant.hint_block' => '«Блок» / «поставь блок» = событие календаря с is_block (calendar.events.create), не смена/замена в workweeks. Сначала CALL calendar.day для даты (и workweeks.day, если нужны люди в смене). Удаление: найди events[].id где is_block=1 и нужный operator_name/время → calendar.events.delete. Не проси id у пользователя, если он уже есть в ответе calendar.day.',
+    'calendar.assistant.hint_block' => '«Блок» / «поставь блок» = событие календаря с is_block (calendar.events.create), не смена/замена в workweeks. Сначала CALL calendar.day для даты (и workweeks.day, если нужны люди в смене). Людей в events[] резолви по operator_name / operator_acronym (МСА, ДВМ). Удаление: найди events[].id где is_block=1 и нужный operator/время → calendar.events.delete. Не проси id у пользователя, если он уже есть в ответе calendar.day.',
 ];

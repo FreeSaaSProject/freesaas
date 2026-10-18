@@ -2,8 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Pre-accepted PRICE_OFFER child comment under the day report (oper massage reward contract).
- * Marker: «Вознаграждение за отчёт DD.MM.YYYY» — stable for find/upsert.
+ * Pre-accepted PRICE_OFFER child comment under the day report.
+ * Marker from staff_reports.report.contract_marker (multi-locale find).
  */
 final class DayRewardContract
 {
@@ -24,8 +24,7 @@ final class DayRewardContract
         if ($ticketId < 1 || $employeeId < 1 || $dayText === '' || !class_exists('CommentsRepository', false)) {
             return $empty;
         }
-        $marker = 'Вознаграждение за отчёт ' . $dayText;
-        $existingId = TicketWriter::findCommentId($ticketId, $marker);
+        $existingId = StaffReportTicketText::findContractCommentId($ticketId, $dayText);
 
         if (!$rewardGranted || $rewardSum < 1) {
             if ($existingId > 0) {
@@ -37,7 +36,7 @@ final class DayRewardContract
         }
 
         $deadline = self::addWorkingDays($workingDays);
-        $text = $marker . '. Основание: аудиоаналитика';
+        $text = StaffReportTicketText::contractBody($dayText);
         $acceptorId = self::ticketCurator($ticketId);
         $extra = [
             'PRICE_OFFER' => $rewardSum,

@@ -190,8 +190,13 @@ final class StaffReportRunner
         self::log("$name: records={$parse['total']} parsed={$parse['parsed']} pending={$parse['pending']}");
 
         if (!empty($config['require_full_parse']) && !$parse['is_ready'] && $hasRecords) {
-            self::log("$name: skip not_parsed");
-            return ['status' => 'skipped', 'reason' => 'not_parsed', 'has_records' => $hasRecords];
+            // Day-quality bonuses use existing collections; one stuck pending record
+            // must not block the ticket/PRICE_OFFER when enough audio already parsed.
+            if ((int)$parse['parsed'] < 1) {
+                self::log("$name: skip not_parsed");
+                return ['status' => 'skipped', 'reason' => 'not_parsed', 'has_records' => $hasRecords];
+            }
+            self::log("$name: warn partial_parse pending={$parse['pending']} (publish anyway)");
         }
 
         if (!class_exists('DayQualityReport', false)) {
@@ -244,7 +249,7 @@ final class StaffReportRunner
         $rewardPotential = max($rewardSum, (int)($quality['bonus_sum_potential'] ?? $rewardSum));
         $rewardMissed = max(0, (int)($quality['bonus_sum_missed'] ?? ($rewardPotential - $rewardSum)));
         $rewardGranted = !empty($quality['bonus_eligible']) && $rewardSum > 0;
-        // Contract + footer «НАЧИСЛЯЕТСЯ» use eligible sum; full-fail day uses potential for missed totals.
+        // Contract + reward footer use eligible sum; full-fail day uses potential for missed totals.
         $rewardDisplaySum = $rewardGranted ? $rewardSum : $rewardPotential;
 
         $ticketId = TicketWriter::findOrCreateTicket($employeeId, $config);
@@ -261,10 +266,10 @@ final class StaffReportRunner
             $rewardGranted ? $rewardMissed : 0
         );
 
-        $markerRu = 'Отчёт за ' . $bounds['day_text'];
+        $marker = StaffReportTicketText::dayMarker($bounds['day_text']);
 
         $text = self::formatQualityReport(
-            $markerRu,
+            $marker,
             $quality,
             [
                 'reward_granted' => $rewardGranted,
@@ -278,7 +283,7 @@ final class StaffReportRunner
             'employee_id' => $employeeId,
             'ticket_id' => $ticketId,
             'text' => $text,
-            'marker' => $markerRu,
+            'marker' => $marker,
             'reward_granted' => $rewardGranted,
             'config' => $config,
             'quality' => $quality,
@@ -293,7 +298,7 @@ final class StaffReportRunner
         if ($authorId < 1) {
             $authorId = $employeeId;
         }
-        $up = TicketWriter::upsertReportComment($ticketId, $authorId, $markerRu, $text);
+        $up = TicketWriter::upsertReportComment($ticketId, $authorId, $marker, $text);
         self::log("$name: " . ($rewardGranted ? 'reward' : 'no-reward') . ' comment=' . $up['comment_id']);
 
         $workingDays = max(0, (int)($config['contract_working_days'] ?? 5));
@@ -402,7 +407,37 @@ final class StaffReportRunner
         }
         foreach ($scripts as $script) {
             $lines[] = '<b>' . e((string)($script['name'] ?? '')) . '</b>';
-            if ((int)($script['proc_ratio_min'] ?? 0) > 0 && $script['proc_ratio_pct'] !== null) {
+            $dayGates = is_array($script['day_gates'] ?? null) ? $script['day_gates'] : [];
+            if ($dayGates !== []) {
+                foreach ($dayGates as $dg) {
+                    if (!is_array($dg)) {
+                        continue;
+                    }
+                    $label = trim((string)($dg['label'] ?? ''));
+                    if ($label === '') {
+                        $metricId = (string)($dg['metric'] ?? '');
+                        $label = class_exists('DayQualityMetrics', false)
+                            ? DayQualityMetrics::metricLabel($metricId)
+                            : '';
+                        if ($label === '') {
+                            $label = $metricId;
+                        }
+                    }
+                    if (!empty($dg['skipped'])) {
+                        $lines[] = '○ ' . e($label) . ' ' . t('staff_reports.report.gate_skip');
+                        continue;
+                    }
+                    $color = (string)($dg['color'] ?? '');
+                    $emoji = $color === 'red' ? '🔴 ' : ($color === 'green' ? '🟢 ' : '');
+                    $opSym = class_exists('DayQualityMetrics', false)
+                        ? DayQualityMetrics::opSymbol((string)($dg['op'] ?? 'gte'))
+                        : (string)($dg['op'] ?? 'gte');
+                    $lines[] = $emoji . e($label) . ' '
+                        . e((string)($dg['value'] ?? '')) . ' '
+                        . e($opSym) . ' '
+                        . e((string)($dg['threshold'] ?? ''));
+                }
+            } elseif ((int)($script['proc_ratio_min'] ?? 0) > 0 && $script['proc_ratio_pct'] !== null) {
                 $emoji = ((string)($script['proc_ratio_color'] ?? '') === 'red') ? '🔴 ' : '';
                 $lines[] = $emoji . t('staff_reports.report.proc_ratio', [
                     'pct' => (string)$script['proc_ratio_pct'],
@@ -439,15 +474,15 @@ final class StaffReportRunner
         $dayText = (string)($context['day_text'] ?? '');
         $sum = (int)($context['reward_sum'] ?? 0);
         $totals = is_array($context['reward_month_totals'] ?? null) ? $context['reward_month_totals'] : [];
-        if (!empty($context['reward_granted'])) {
-            $lines[] = '<b>Вознаграждение за ' . $dayText . ' в ' . $sum . 'р - НАЧИСЛЯЕТСЯ! ✅</b>';
+        $granted = !empty($context['reward_granted']);
+        $lines[] = '<b>' . e(StaffReportTicketText::rewardFooter($dayText, $sum, $granted)) . '</b>';
+        if ($granted) {
             $lines[] = t('staff_reports.report.earned_month', ['n' => (string)(int)($totals['earned'] ?? 0)]);
             $missedN = (int)($totals['missed'] ?? 0);
             if ($missedN > 0) {
                 $lines[] = t('staff_reports.report.missed_month', ['n' => (string)$missedN]);
             }
         } else {
-            $lines[] = '<b>Вознаграждение за ' . $dayText . ' в ' . $sum . 'р - НЕ начисляется! ❌</b>';
             $lines[] = t('staff_reports.report.missed_month', ['n' => (string)(int)($totals['missed'] ?? 0)]);
         }
 

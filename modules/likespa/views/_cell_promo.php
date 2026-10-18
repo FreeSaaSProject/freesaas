@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 /** @var array $metrics */
-/** @var string $createHref */
 /** @var bool $showProcLine */
 $m = is_array($metrics ?? null) ? $metrics : [];
 $term = is_array($m['term'] ?? null) ? $m['term'] : [];
@@ -24,12 +23,5 @@ $countLabel = $mode === 'scans'
           'pct' => (string)($term['procedure_conversion'] ?? 0),
       ])) ?>
     </span>
-  <?php endif; ?>
-  <?php if (!empty($m['has_bonus'])): ?>
-    <span class="likespa-promo-bonus likespa-promo-bonus--done"><?= te('likespa.promo.bonus_done') ?></span>
-  <?php elseif (!empty($m['eligible']) && $createHref !== ''): ?>
-    <a class="likespa-promo-bonus" href="<?= e($createHref) ?>" title="<?= te('likespa.promo.create') ?>"><?= te('likespa.promo.bonus') ?></a>
-  <?php elseif (!empty($m['eligible'])): ?>
-    <span class="likespa-promo-bonus"><?= te('likespa.promo.bonus') ?></span>
   <?php endif; ?>
 </span>

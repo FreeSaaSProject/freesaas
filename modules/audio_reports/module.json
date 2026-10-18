@@ -2,7 +2,7 @@
     "id": "audio_reports",
     "name": "audio_reports.module.name",
     "description": "audio_reports.module.description",
-    "version": "0.2.24",
+    "version": "0.2.33",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -12,7 +12,8 @@
     },
     "optionalRequires": {
         "procedures": ">=0.1.0",
-        "audio_pipeline": ">=0.1.0"
+        "audio_pipeline": ">=0.1.0",
+        "bi": ">=0.3.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -170,7 +171,9 @@
     "hooks": {
         "subscribe": [
             "audio.settings.sections",
-            "audio.settings.save"
+            "audio.settings.save",
+            "bi.datasets",
+            "bi.recipes"
         ],
         "publish": [
             "audio_reports.calendar.cell",
@@ -178,7 +181,10 @@
             "audio_reports.calendar.summary_enrich",
             "audio_reports.calendar.reparse.after",
             "audio_reports.summary.cards",
-            "audio_reports.summary.external"
+            "audio_reports.summary.external",
+            "audio_reports.day_quality.metrics.catalog",
+            "audio_reports.day_quality.metrics",
+            "audio_reports.day_quality.part_metric"
         ]
     },
     "catalog": {

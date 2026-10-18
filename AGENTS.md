@@ -176,14 +176,15 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `stocks` | Warehouses (`base_stocks`) + leftovers report |
 | `stickers` | Receipt/writeoff acts + sticker ins/outs + writeoff service |
 | `norms` | Default consumptions (`base_good_defaults`); embed on catalog product edit |
-| `sheets` | LikeSpa linen accounts/moves (`base_sheet_*`); disableable |
+| `sheets` | Legacy linen ledger (`base_sheet_*`); prefer `laundry`; disableable |
+| `laundry` | Wash-cycle linen SoT (`base_laundry_*`): ship/accept by item type, inventory opening; ticket embed; disableable |
 | `likespa` | Spa instance pack: flyer + promoter discounts (`/likespa/settings`), term scans, promoter bonus + dops on `/audio/calendar`; procedure restores + settlement (ACCOUNT=0); optional legacy drop-in `/api_termy.php` `/api.php` `/api1c.php` (`legacy_api_enabled`); staff public profile; disableable. CMS moved to `sites`. |
 | `sites` | Storefront + CMS: multi-host (`base_site_hosts`), SEO, articles, promo, redirects, themes (`site.php`); shop/cart + booking wizard; agent diagnose `GET /sites/status` — [`docs/agents/sites.md`](docs/agents/sites.md); themes: [`docs/agents/themes.md`](docs/agents/themes.md) |
 | `booking` | Slot engine + advance order book (`base_orders`); UI `/booking/new` in Calendar rail (not event slot-click); alpha; agent `/booking/availability` `/booking/book` `/booking/orders` `/booking/cancel`; storefront `/cart` wizard when enabled — [`docs/agents/booking.md`](docs/agents/booking.md) |
 | `client_mcp` | Public anonymous MCP `/mcp`, one server per storefront host (own switch, consent, tools, sessions; admin host → 404). Tool registry via EventBus `client_mcp.tools` + `ClientMcpContext`; built-in `business_info`, `identify_client`, booking tools (`create_booking` → `BookingBook` `source=mcp`, own bookings/cancel, `client_mcp.payment`). Server card per host; entry in sites `/.well-known/ai-catalog.json`; alpha — [`docs/agents/client-mcp.md`](docs/agents/client-mcp.md) |
 | `terminals` | Device registry + bracelets + therm occupancy; live `/t` floor shell; 1C sale/bracelet + sync jobs (`cfg/modules/terminals.ini`); disableable — [`docs/agents/terminals.md`](docs/agents/terminals.md) |
 | `staff_reports` | Staff quality day reports (traffic lights by position); rewards on `/audio/calendar`; generate via Re-® / `/staff-reports/generate` |
-| `bi` | JSON-recipe BI reports (`modules/bi/recipes/` + constructor `/bi/families`, legend `/bi/legend`); director `bi.manage`; share `/bi/s/{token}` — [`docs/agents/bi.md`](docs/agents/bi.md) |
+| `bi` | JSON-recipe BI **engine** (constructor `/bi/families`, legend `/bi/legend`); datasets/recipes/derive via EventBus from product modules; director `bi.manage`; share `/bi/s/{token}` — [`docs/agents/bi.md`](docs/agents/bi.md) |
 | `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`, `base_procedure_restores` schema); restore UI lives in `likespa` |
 | `orders` | Website orders (`base_orders`, shared with site/oper); notice chips; `orders.for_day` for calendar |
 | `polls` | Poll definitions tree (`base_polls`); universal; channels via EventBus |

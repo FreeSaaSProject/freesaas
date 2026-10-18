@@ -51,14 +51,13 @@ final class BiExpr
                     return !self::truthy(self::eval($args, $row));
                 case 'day_start':
                     $ts = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
-                    return class_exists('BiShiftLanes', false)
-                        ? BiShiftLanes::dayStart($ts)
-                        : (int)mktime(0, 0, 0, (int)date('n', $ts), (int)date('j', $ts), (int)date('Y', $ts));
+                    if ($ts <= 0) {
+                        return 0;
+                    }
+                    return (int)mktime(0, 0, 0, (int)date('n', $ts), (int)date('j', $ts), (int)date('Y', $ts));
                 case 'day_label':
                     $ts = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);
-                    return class_exists('BiShiftLanes', false)
-                        ? BiShiftLanes::dayLabel($ts)
-                        : ($ts > 0 ? date('j.n.Y', $ts) : '');
+                    return $ts > 0 ? date('j.n.Y', $ts) : '';
                 case 'badge':
                     // Safe token → UsersRepository::badgeHtml at render (see BiSafeHtml).
                     $id = (int)self::eval(is_array($args) ? ($args[0] ?? 0) : $args, $row);

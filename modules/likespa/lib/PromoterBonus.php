@@ -6,16 +6,16 @@ final class PromoterBonus
 {
     public const MARKER = 'BONUS TIME';
 
-    /** @var array{range:string,days:array<int,array<string,true>>}|null */
+    /** @var array{cover_from:int,cover_to:int,days:array<int,array<string,true>>}|null */
     private static $promoterDays = null;
 
-    /** @var array{range:string,by_admin_day:array,days_with_data:array<string,true>}|null */
+    /** @var array{cover_from:int,cover_to:int,by_admin_day:array,days_with_data:array<string,true>}|null */
     private static $termScanCache = null;
 
     /** @var array{range:string,scripts:array,cover_from?:int,cover_to?:int}|null */
     private static $scriptsCache = null;
 
-    /** @var array{range:string,bonus:array<string,true>}|null */
+    /** @var array{cover_from:int,cover_to:int,bonus:array<string,true>}|null */
     private static $bonusCache = null;
 
     public static function resetRequestCache(): void
@@ -43,6 +43,108 @@ final class PromoterBonus
             'cover_to' => $toTs,
             'scripts' => $scriptsAgg,
         ];
+    }
+
+    /**
+     * Prefetch promoter-day / term-scan / BONUS TIME maps for a calendar window.
+     * $toTsExclusive is the first instant after the last included day.
+     */
+    public static function warmForRange(int $fromTs, int $toTsExclusive): void
+    {
+        if ($fromTs < 1 || $toTsExclusive <= $fromTs) {
+            return;
+        }
+        if (LikespaConfig::promoEnabled()) {
+            self::ensurePromoterDays($fromTs, $toTsExclusive);
+            if (TermScansRepository::tableReady()) {
+                self::ensureTermScanCache($fromTs, $toTsExclusive);
+            }
+            self::ensureBonusCache($fromTs, $toTsExclusive);
+        }
+        if (LikespaConfig::dopsEnabled()) {
+            DopsStats::warmForRange($fromTs, $toTsExclusive);
+        }
+    }
+
+    private static function ensurePromoterDays(int $from, int $to): void
+    {
+        if (!Database::tableExists('base_workweeks')) {
+            return;
+        }
+        if (self::$promoterDays !== null
+            && (int)(self::$promoterDays['cover_from'] ?? 0) <= $from
+            && (int)(self::$promoterDays['cover_to'] ?? 0) >= $to
+        ) {
+            return;
+        }
+        self::$promoterDays = ['cover_from' => $from, 'cover_to' => $to, 'days' => []];
+        $st = Database::pdo()->prepare(
+            'SELECT ID_OPERATOR AS id_operator, DT AS dt
+             FROM base_workweeks
+             WHERE DT >= ? AND DT < ? AND PRICE_COL = ?'
+        );
+        $st->execute([$from, $to, self::priceCol()]);
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $oid = (int)($row['id_operator'] ?? 0);
+            $dt = (int)($row['dt'] ?? 0);
+            if ($oid < 1 || $dt < 1) {
+                continue;
+            }
+            self::$promoterDays['days'][$oid][date('Y-m-d', $dt)] = true;
+        }
+    }
+
+    private static function ensureTermScanCache(int $from, int $to): void
+    {
+        if (self::$termScanCache !== null
+            && (int)(self::$termScanCache['cover_from'] ?? 0) <= $from
+            && (int)(self::$termScanCache['cover_to'] ?? 0) >= $to
+        ) {
+            return;
+        }
+        $window = LikespaConfig::int('promo_term_scan_proc_window_hours', 4);
+        $byAdmin = TermScansRepository::buildAdminDayCache($from, $to, $window);
+        $daysWith = [];
+        foreach ($byAdmin as $days) {
+            foreach ($days as $d => $_) {
+                $daysWith[$d] = true;
+            }
+        }
+        self::$termScanCache = [
+            'cover_from' => $from,
+            'cover_to' => $to,
+            'by_admin_day' => $byAdmin,
+            'days_with_data' => $daysWith,
+        ];
+    }
+
+    private static function ensureBonusCache(int $from, int $to): void
+    {
+        if (self::$bonusCache !== null
+            && (int)(self::$bonusCache['cover_from'] ?? 0) <= $from
+            && (int)(self::$bonusCache['cover_to'] ?? 0) >= $to
+        ) {
+            return;
+        }
+        self::$bonusCache = ['cover_from' => $from, 'cover_to' => $to, 'bonus' => []];
+        if (!Database::tableExists('base_records') || !Database::columnExists('base_records', 'DESCRIPTION')) {
+            return;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID_ADMIN AS id_admin, DT_RECORDED AS dt
+             FROM base_records
+             WHERE DT_RECORDED >= ? AND DT_RECORDED < ?
+               AND DESCRIPTION = ?
+               AND (DISABLED IS NULL OR DISABLED < 1)'
+        );
+        $st->execute([$from, $to, self::MARKER]);
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $aid = (int)($row['id_admin'] ?? 0);
+            $dt = (int)($row['dt'] ?? 0);
+            if ($aid > 0 && $dt > 0) {
+                self::$bonusCache['bonus'][$aid . '|' . date('Y-m-d', $dt)] = true;
+            }
+        }
     }
 
     public static function priceCol(): int
@@ -81,24 +183,7 @@ final class PromoterBonus
             return false;
         }
         [$from, $to] = self::monthRange($date);
-        $key = $from . '-' . $to;
-        if (self::$promoterDays === null || (self::$promoterDays['range'] ?? '') !== $key) {
-            self::$promoterDays = ['range' => $key, 'days' => []];
-            $st = Database::pdo()->prepare(
-                'SELECT ID_OPERATOR AS id_operator, DT AS dt
-                 FROM base_workweeks
-                 WHERE DT >= ? AND DT < ? AND PRICE_COL = ?'
-            );
-            $st->execute([$from, $to, self::priceCol()]);
-            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-                $oid = (int)($row['id_operator'] ?? 0);
-                $dt = (int)($row['dt'] ?? 0);
-                if ($oid < 1 || $dt < 1) {
-                    continue;
-                }
-                self::$promoterDays['days'][$oid][date('Y-m-d', $dt)] = true;
-            }
-        }
+        self::ensurePromoterDays($from, $to);
         return isset(self::$promoterDays['days'][$adminId][$date]);
     }
 
@@ -117,22 +202,7 @@ final class PromoterBonus
             return $empty;
         }
         [$from, $to] = self::monthRange($date);
-        $key = $from . '-' . $to;
-        if (self::$termScanCache === null || (self::$termScanCache['range'] ?? '') !== $key) {
-            $window = LikespaConfig::int('promo_term_scan_proc_window_hours', 4);
-            $byAdmin = TermScansRepository::buildAdminDayCache($from, $to, $window);
-            $daysWith = [];
-            foreach ($byAdmin as $days) {
-                foreach ($days as $d => $_) {
-                    $daysWith[$d] = true;
-                }
-            }
-            self::$termScanCache = [
-                'range' => $key,
-                'by_admin_day' => $byAdmin,
-                'days_with_data' => $daysWith,
-            ];
-        }
+        self::ensureTermScanCache($from, $to);
         $data = self::$termScanCache['by_admin_day'][$adminId][$date] ?? null;
         if (!is_array($data)) {
             return $empty;
@@ -277,102 +347,8 @@ final class PromoterBonus
             return false;
         }
         [$from, $to] = self::monthRange($date);
-        $key = $from . '-' . $to;
-        if (self::$bonusCache === null || (self::$bonusCache['range'] ?? '') !== $key) {
-            self::$bonusCache = ['range' => $key, 'bonus' => []];
-            if (!Database::columnExists('base_records', 'DESCRIPTION')) {
-                return false;
-            }
-            $st = Database::pdo()->prepare(
-                'SELECT ID_ADMIN AS id_admin, DT_RECORDED AS dt
-                 FROM base_records
-                 WHERE DT_RECORDED >= ? AND DT_RECORDED < ?
-                   AND DESCRIPTION = ?
-                   AND (DISABLED IS NULL OR DISABLED < 1)'
-            );
-            $st->execute([$from, $to, self::MARKER]);
-            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
-                $aid = (int)($row['id_admin'] ?? 0);
-                $dt = (int)($row['dt'] ?? 0);
-                if ($aid > 0 && $dt > 0) {
-                    self::$bonusCache['bonus'][$aid . '|' . date('Y-m-d', $dt)] = true;
-                }
-            }
-        }
+        self::ensureBonusCache($from, $to);
         return isset(self::$bonusCache['bonus'][$adminId . '|' . $date]);
     }
 
-    /**
-     * Create BONUS TIME record. Returns new id or 0 on failure.
-     */
-    public static function createBonus(int $adminId, string $date): int
-    {
-        if ($adminId < 1 || $date === '' || !Database::tableExists('base_records')) {
-            return 0;
-        }
-        if (self::hasBonusRecord($adminId, $date)) {
-            return 0;
-        }
-        $dayStart = strtotime($date . ' 00:00:00');
-        if ($dayStart === false) {
-            return 0;
-        }
-        $dayEnd = $dayStart + 86400 - 1;
-        $pdo = Database::pdo();
-        $hasDesc = Database::columnExists('base_records', 'DESCRIPTION');
-        $sql = 'SELECT SUM(SCORE * PLAYTIME) AS w, SUM(PLAYTIME) AS play, MAX(DT_RECORDED + PLAYTIME) AS last_end
-                FROM base_records
-                WHERE ID_ADMIN = ? AND DT_RECORDED >= ? AND DT_RECORDED <= ?
-                  AND (DISABLED IS NULL OR DISABLED < 1)';
-        if ($hasDesc) {
-            $sql .= ' AND (DESCRIPTION IS NULL OR DESCRIPTION <> ?)';
-        }
-        $st = $pdo->prepare($sql);
-        $params = [$adminId, $dayStart, $dayEnd];
-        if ($hasDesc) {
-            $params[] = self::MARKER;
-        }
-        $st->execute($params);
-        $row = $st->fetch(PDO::FETCH_ASSOC) ?: [];
-        $totalW = (float)($row['w'] ?? 0);
-        $totalPlay = (int)($row['play'] ?? 0);
-        $lastEnd = (int)($row['last_end'] ?? 0);
-        if ($lastEnd < 1) {
-            $lastEnd = (int)mktime(23, 0, 0, (int)date('n', $dayStart), (int)date('j', $dayStart), (int)date('Y', $dayStart));
-        }
-
-        $bonusPlay = max(1, LikespaConfig::int('promo_bonus_playtime', 9000));
-        $scoreAdd = LikespaConfig::float('promo_bonus_score_add', 1.5);
-        if ($totalPlay > 0) {
-            $currentAvg = $totalW / $totalPlay;
-            $targetAvg = $currentAvg + $scoreAdd;
-            $bonusScore = ($targetAvg * ($totalPlay + $bonusPlay) - $totalW) / $bonusPlay;
-        } else {
-            $bonusScore = 5.0;
-        }
-        $bonusScore = max(0.0, min(11.0, round($bonusScore, 2)));
-        // base_records.SCORE is INT UNSIGNED in FreeSaaS schema — store rounded points.
-        $bonusScoreInt = (int)max(0, min(11, (int)round($bonusScore)));
-
-        $cols = ['ID_ADMIN', 'DT_RECORDED', 'PLAYTIME', 'SCORE', 'DISABLED', 'DT_CREATE'];
-        $vals = [$adminId, $lastEnd, $bonusPlay, $bonusScoreInt, 0, time()];
-        if ($hasDesc) {
-            $cols[] = 'DESCRIPTION';
-            $vals[] = self::MARKER;
-        }
-        if (Database::columnExists('base_records', 'TRANSCRIPTION')) {
-            $cols[] = 'TRANSCRIPTION';
-            $vals[] = self::MARKER;
-        }
-        $ph = implode(',', array_fill(0, count($cols), '?'));
-        $ins = $pdo->prepare(
-            'INSERT INTO base_records (' . implode(', ', $cols) . ') VALUES (' . $ph . ')'
-        );
-        $ins->execute($vals);
-        $id = (int)$pdo->lastInsertId();
-        if ($id > 0) {
-            self::$bonusCache = null;
-        }
-        return $id;
-    }
 }

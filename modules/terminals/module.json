@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.39",
+    "version": "0.1.40",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -13,7 +13,8 @@
         "clients": ">=0.1.0",
         "booking": ">=0.1.0",
         "procedures": ">=0.1.0",
-        "orders": ">=0.1.0"
+        "orders": ">=0.1.0",
+        "bi": ">=0.3.0"
     },
     "provides": [
         "terminals.registry",
@@ -362,7 +363,9 @@
             "core.user_edit.sections",
             "core.user_edit.save",
             "core.user_edit.profile",
-            "calendar.timeline.enrich"
+            "calendar.timeline.enrich",
+            "bi.datasets",
+            "bi.recipes"
         ],
         "publish": [
             "terminals.guest.identified"
