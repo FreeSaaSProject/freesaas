@@ -3,13 +3,19 @@ declare(strict_types=1);
 /** @var int $operatorId */
 /** @var int $year */
 /** @var int $month */
+/** @var int $limit */
 /** @var list<int> $years */
 /** @var array<int,string> $staff */
 /** @var bool $canSeeOthers */
-/** @var array{periods:list<array<string,mixed>>,grand_total:float,soft_notes:list<string>,range_label:string} $report */
+/** @var bool $canAudit */
+/** @var array{periods:list<array<string,mixed>>,grand_total:float,soft_notes:list<string>,range_label:string,limit?:int,has_more?:bool,mode?:string} $report */
 /** @var array{synced:bool,sum:float,payment_id:int|null,label:string} $paymentSync */
 $path = '/procents';
 $paymentSync = is_array($paymentSync ?? null) ? $paymentSync : ['synced' => false, 'sum' => 0.0, 'payment_id' => null, 'label' => ''];
+$canAudit = !empty($canAudit);
+$limit = max(0, (int)($limit ?? 0));
+$isRecent = ((int)$year === 0 && (int)$month === 0);
+$hasMore = $isRecent && !empty($report['has_more']);
 $currentMonthLabel = date('Y-m');
 
 $fmt = static function (float $n): string {
@@ -45,7 +51,7 @@ $fmtQty = static function (float $n): string {
   <?php endif; ?>
   <label><?= te('procents.filter.year') ?>
     <select name="year">
-      <option value="0"><?= te('procents.filter.all_months') ?></option>
+      <option value="0"><?= te('procents.filter.recent') ?></option>
       <?php foreach ($years as $y): ?>
         <option value="<?= (int)$y ?>"<?= (int)$year === (int)$y ? ' selected' : '' ?>><?= (int)$y ?></option>
       <?php endforeach; ?>
@@ -135,9 +141,42 @@ $fmtQty = static function (float $n): string {
       <?php if (!empty($paymentSync['synced']) && (string)($period['label'] ?? '') === $currentMonthLabel): ?>
         <p class="muted"><?= te('procents.payment_sync.hint', ['sum' => $fmt((float)$paymentSync['sum'])]) ?></p>
       <?php endif; ?>
+
+      <?php if ($canAudit): ?>
+        <?php
+          $periodLabel = (string)($period['label'] ?? '');
+          $daysUrl = '/procents/days?' . http_build_query([
+              'operator_id' => (int)$operatorId,
+              'ym' => $periodLabel,
+              'start' => (int)($period['start'] ?? 0),
+              'end' => (int)($period['end'] ?? 0),
+          ]);
+        ?>
+        <div class="procents-audit" data-days-url="<?= e($daysUrl) ?>" data-error="<?= e(t('procents.audit.error')) ?>">
+          <p class="procents-audit-actions">
+            <button type="button" class="btn procents-audit-open" data-loading="<?= e(t('procents.audit.loading')) ?>"><?= te('procents.audit.open') ?></button>
+          </p>
+          <div class="procents-audit-body" hidden></div>
+        </div>
+      <?php endif; ?>
     </section>
   <?php endforeach; ?>
 
   <p class="procents-grand-total"><strong><?= te('procents.grand_total') ?>:</strong> <?= e($fmt((float)$report['grand_total'])) ?></p>
+
+  <?php if ($hasMore): ?>
+    <?php
+      $moreQs = [
+          'operator_id' => (int)$operatorId,
+          'year' => 0,
+          'month' => 0,
+          'limit' => max(2, $limit) + 2,
+      ];
+    ?>
+    <p class="procents-load-more">
+      <a class="btn" href="<?= e($path . '?' . http_build_query($moreQs)) ?>#procents-older"><?= te('procents.load_more') ?></a>
+    </p>
+    <div id="procents-older"></div>
+  <?php endif; ?>
 <?php endif; ?>
 </div>

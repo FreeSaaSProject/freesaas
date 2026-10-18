@@ -89,6 +89,108 @@
   font-size: 0.95rem;
 }
 
+.procents-report .procents-load-more {
+  margin: 0.75rem 0 0;
+}
+
+.procents-report .procents-load-more .btn {
+  display: inline-block;
+}
+
+
+.procents-report .procents-audit {
+  margin-top: 0.55rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--border, #ddd);
+}
+
+.procents-report .procents-audit-actions {
+  margin: 0;
+}
+
+.procents-report .procents-audit-body {
+  margin-top: 0.35rem;
+}
+
+.procents-report .procents-day-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.procents-report .procents-day {
+  border: 1px solid transparent;
+  border-radius: 3px;
+}
+
+.procents-report .procents-day[open] {
+  border-color: var(--border, #ddd);
+  background: var(--bg-soft, rgba(0, 0, 0, 0.02));
+}
+
+.procents-report .procents-day > summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.22rem 0.35rem;
+  font-size: 0.82rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.procents-report .procents-day > summary::-webkit-details-marker {
+  display: none;
+}
+
+.procents-report .procents-day > summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 1em;
+  color: var(--muted, #888);
+  flex: 0 0 auto;
+}
+
+.procents-report .procents-day[open] > summary::before {
+  content: '▾';
+}
+
+.procents-report .procents-day-label {
+  flex: 1 1 auto;
+}
+
+.procents-report .procents-day-sum {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.procents-report .procents-day-body {
+  padding: 0.2rem 0.35rem 0.45rem;
+}
+
+.procents-report .procents-day-loading,
+.procents-report .procents-day-empty {
+  margin: 0.2rem 0;
+  font-size: 0.78rem;
+}
+
+.procents-report .procents-day-total {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+}
+
+.procents-report .procents-day-lines td:nth-child(5),
+.procents-report .procents-day-lines td:nth-child(6),
+.procents-report .procents-day-lines td:nth-child(7),
+.procents-report .procents-day-lines th:nth-child(5),
+.procents-report .procents-day-lines th:nth-child(6),
+.procents-report .procents-day-lines th:nth-child(7) {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 640px) {
   .procents-report .procents-month {
     padding: 0.4rem 0.45rem;

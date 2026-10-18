@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-18T09:47:16+00:00",
+    "generated_at": "2026-10-18T10:56:57+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1200,7 +1200,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.10",
+            "version": "0.1.13",
             "type": "product",
             "name": {
                 "en": "Commission accruals",

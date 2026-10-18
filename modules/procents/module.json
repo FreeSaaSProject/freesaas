@@ -2,7 +2,7 @@
     "id": "procents",
     "name": "procents.module.name",
     "description": "procents.module.description",
-    "version": "0.1.10",
+    "version": "0.1.13",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -26,7 +26,9 @@
     ],
     "routes": {
         "pages": [
-            "/procents"
+            "/procents",
+            "/procents/days",
+            "/procents/day"
         ]
     },
     "agent": {
@@ -37,7 +39,21 @@
                 "method": "GET",
                 "path": "/procents",
                 "permission": "procents.view",
-                "description": "Commission accrual report; operator_id (required unless own-only role), year, month filters"
+                "description": "Commission accrual report; operator_id (required unless own-only role). Default year=0&month=0 = recent limit months (default 2). year/month for specific period; limit expands recent window."
+            },
+            {
+                "id": "procents.days_audit",
+                "method": "GET",
+                "path": "/procents/days",
+                "permission": "procents.view",
+                "description": "Superadmin only: day totals for a month; operator_id + ym=Y-m (or start/end)"
+            },
+            {
+                "id": "procents.day_audit",
+                "method": "GET",
+                "path": "/procents/day",
+                "permission": "procents.view",
+                "description": "Superadmin only: line-level accrual detail for one day; operator_id + day=Y-m-d (or day_ts)"
             }
         ]
     },
