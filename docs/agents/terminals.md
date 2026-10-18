@@ -45,7 +45,7 @@ Permissions: `terminals.view`, `terminals.edit`, `terminals.sync` (jobs use `wor
 | `/terminals/bracelets` | Bracelet UID ↔ NUM |
 | `/terminals/termloads` | Day occupancy series |
 | `/terminals/fullstats` | Ticket visits + classify |
-| `/terminals/settings` | Superadmin: flags + secrets + floor/API lead + chill product |
+| `/terminals/settings` | Superadmin: flags + secrets + floor/API lead + chill product + `ignore_staff_shift_windows` |
 | `/t` | Public NFC floor shell (no admin chrome) |
 | `/terminals/t/status` | Staff diagnose for /t (claim / 1C / soft-deps) |
 | `/terminals/1c` | **1C diagnostics** console (legacy `/1c`): bracelet/client lookup, price, sale/unsale, raw dump. Permission `terminals.edit`. Live API only (`onecLive`); no cheese-password — session auth. Modes: `/terminals/1c/{mode}` |
@@ -90,6 +90,7 @@ curl -sS -X POST -H "X-Terminals-Token: $TOKEN" \
 | `1c_url`, `1c_auth`, `1c_apikey`, `1c_terminal`, `1c_uid` | 1C club API credentials |
 | `worker_token` | Jobs auth |
 | `booking_terminal_id`, `booking_admin_id` | Defaults for bots / floor tests |
+| `ignore_staff_shift_windows` | `1` (default): `/t` ignores PRICE_COL end; `0`: clip like site/API |
 
 Per-request override: `/t/?…&disable1C=1` (even when `1c_enabled=1`).
 

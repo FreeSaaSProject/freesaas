@@ -115,6 +115,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'news_id' => $newsId,
                 'log_table_changes' => $logTableMode,
                 'shift_windows' => $shiftWindows,
+                'next_shift_id' => WorkweeksRepository::nextShiftId(),
             ]);
             return;
         }
@@ -155,6 +156,11 @@ if ($wantsJson) {
         'log_table_changes' => $logTableMode,
         'shift_windows' => $shiftWindows,
         'defaults' => WorkweeksRepository::defaultShiftWindows(),
+        'next_shift_id' => WorkweeksRepository::nextShiftId(),
+        'hint' => 'POST shifts[{id}][label|start|end] to replace catalog; '
+            . 'shift_action=add appends next_shift_id; shift_delete={id} removes a lane (keep ≥1). '
+            . 'Then set role DEFAULT_PRICE_COL via core.statuses.update; assign days via workweeks.nazop.save. '
+            . 'Public booking clips to lane ∩ salon hours; terminals.ignore_staff_shift_windows may skip lane end.',
     ]);
     return;
 }

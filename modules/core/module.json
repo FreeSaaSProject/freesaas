@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.111",
+    "version": "0.3.112",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -530,7 +530,7 @@
                 "method": "GET",
                 "path": "/statuses/{id}/edit",
                 "permission": "core.statuses",
-                "description": "One role + editable field groups"
+                "description": "One role + field groups. When workweeks on: shift_options + DEFAULT_PRICE_COL (default nazop lane; 0=day default)"
             },
             {
                 "id": "core.statuses.create",
@@ -538,7 +538,7 @@
                 "path": "/statuses/new",
                 "permission": "core.statuses",
                 "side_effect": "write",
-                "description": "Create staff role/status"
+                "description": "Create staff role/status; include DEFAULT_PRICE_COL when setting masseur default shift lane"
             },
             {
                 "id": "core.statuses.update",
@@ -546,7 +546,7 @@
                 "path": "/statuses/{id}/edit",
                 "permission": "core.statuses",
                 "side_effect": "write",
-                "description": "Update staff role/status flags"
+                "description": "Update role flags; DEFAULT_PRICE_COL=lane id from workweeks.settings (0=day default on nazop)"
             },
             {
                 "id": "core.db.status",

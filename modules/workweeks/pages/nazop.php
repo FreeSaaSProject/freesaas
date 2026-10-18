@@ -1,7 +1,13 @@
 <?php
 declare(strict_types=1);
 
+$wantsJson = AgentHttp::wantsJson();
+
 if (!WorkweeksRepository::canAssign()) {
+    if ($wantsJson) {
+        AgentHttp::error(t('workweeks.err.no_assign'), 403);
+        return;
+    }
     http_response_code(403);
     echo '<div class="flash flash-warn">' . e(t('workweeks.err.no_assign')) . '</div>';
     return;
@@ -44,9 +50,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['nazop_action'] 
                 }
             }
         }
-        WorkweeksRepository::saveNazopMatrix($checked, $prices, $masMax, $ops, $opPrices);
+        $msg = WorkweeksRepository::saveNazopMatrix($checked, $prices, $masMax, $ops, $opPrices);
         $sep = strpos($retUrl, '?') === false ? '?' : '&';
         $redirectTo = $retUrl . $sep . 'shift_ok=1';
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'saved' => true,
+                'message' => $msg,
+                'redirect' => $redirectTo,
+            ]);
+            return;
+        }
         if ($isAjax) {
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['ok' => true, 'redirect' => $redirectTo], JSON_UNESCAPED_UNICODE);
@@ -55,6 +70,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && ($_POST['nazop_action'] 
         redirect($redirectTo);
         return;
     } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
         if ($isAjax) {
             http_response_code(400);
             header('Content-Type: text/html; charset=utf-8');
@@ -120,6 +139,24 @@ $opsFilter = array_values(array_unique(array_filter($opsFilter)));
 $matrix = WorkweeksRepository::nazopMatrix((int)$startTs, $dayCount, $opsFilter);
 $availableOps = WorkweeksRepository::listAssignableStaff();
 $canManageOps = !$myOnly && $availableOps !== [];
+
+if ($wantsJson) {
+    AgentHttp::emit([
+        'ok' => true,
+        'mode' => $mode,
+        'day_count' => $dayCount,
+        'start_ts' => (int)$startTs,
+        'ops_filter' => $opsFilter,
+        'matrix' => $matrix,
+        'available_ops' => $availableOps,
+        'can_manage_ops' => $canManageOps,
+        'shift_windows' => WorkweeksRepository::shiftWindows(),
+        'hint' => 'POST nazop_action=save with ops[], checked[YYYY-MM-DD][opId]=1, '
+            . 'op_price[YYYY-MM-DD][opId]=PRICE_COL, optional price[date]=day default, mas_max[date]. '
+            . 'Existing rows keep price_col unless op_price is sent. New checks use status DEFAULT_PRICE_COL then day default.',
+    ]);
+    return;
+}
 
 ob_start();
 $formAction = '/workweeks/nazop';

@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.36",
+    "version": "0.1.37",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -241,14 +241,29 @@
                 "method": "GET",
                 "path": "/terminals/settings",
                 "permission": "",
-                "description": "Flags + masked secrets (SUPERADMIN_ACCESS)"
+                "description": "Flags + masked secrets (SUPERADMIN_ACCESS). Includes ignore_staff_shift_windows (1=floor ignores PRICE_COL end; site/API still clip)"
             },
             {
                 "id": "terminals.settings.save",
                 "method": "POST",
                 "path": "/terminals/settings",
                 "permission": "",
-                "description": "Save ini; empty secret fields keep previous (SUPERADMIN_ACCESS)"
+                "side_effect": "write",
+                "description": "Save ini; empty secrets keep previous. Set ignore_staff_shift_windows=0|1 for /t shift-end policy (SUPERADMIN_ACCESS)",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ignore_staff_shift_windows": {
+                            "type": "string",
+                            "enum": ["0", "1"],
+                            "description": "1 (default): /t uses salon hours only; 0: clip like site/API"
+                        },
+                        "lead_sec": { "type": "integer" },
+                        "lead_sec_api": { "type": "integer" },
+                        "chill_product_id": { "type": "integer" },
+                        "1c_enabled": { "type": "string" }
+                    }
+                }
             },
             {
                 "id": "terminals.jobs.load",

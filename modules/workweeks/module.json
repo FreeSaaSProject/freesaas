@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.17",
+    "version": "0.2.18",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -52,6 +52,33 @@
                 "description": "Nazcab: tables only for today; badges multi-day. POST table[today][opId], badge[date][opId]. Gate: tables.view and/or audio.view|badges (not EVT_ASSIGN); route workweeks.view"
             },
             {
+                "id": "workweeks.nazop.get",
+                "method": "GET",
+                "path": "/workweeks/nazop",
+                "permission": "workweeks.view",
+                "description": "Nazop matrix JSON (EVT_ASSIGN). Query: day=YYYY-MM-DD|all, ops=comma ids. Returns matrix, shift_windows, available_ops. Prefer this to bulk-set price_col for many staff/days"
+            },
+            {
+                "id": "workweeks.nazop.save",
+                "method": "POST",
+                "path": "/workweeks/nazop",
+                "permission": "workweeks.view",
+                "side_effect": "write",
+                "description": "Save nazop: nazop_action=save, ops[], checked[date][opId]=1, op_price[date][opId]=PRICE_COL, optional price[date], mas_max[date]. New assigns use status DEFAULT_PRICE_COL then day default",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "nazop_action": { "type": "string", "const": "save" },
+                        "ops": { "type": "array", "items": { "type": "integer" } },
+                        "checked": { "type": "object", "description": "checked[YYYY-MM-DD][opId]=1" },
+                        "op_price": { "type": "object", "description": "op_price[YYYY-MM-DD][opId]=PRICE_COL lane id" },
+                        "price": { "type": "object", "description": "price[YYYY-MM-DD]=day default PRICE_COL for new checks" },
+                        "mas_max": { "type": "object" }
+                    },
+                    "required": ["nazop_action", "ops"]
+                }
+            },
+            {
                 "id": "workweeks.list",
                 "method": "GET",
                 "path": "/workweeks",
@@ -70,7 +97,7 @@
                 "method": "POST",
                 "path": "/workweeks/new",
                 "permission": "workweeks.edit",
-                "description": "Create shift; date, id_operator, price_col, mas_max, id_table"
+                "description": "Create shift; date, id_operator, price_col (lane id from settings), mas_max, id_table"
             },
             {
                 "id": "workweeks.update",
@@ -91,14 +118,34 @@
                 "method": "GET",
                 "path": "/workweeks/settings",
                 "permission": "workweeks.view",
-                "description": "Workweeks settings (superadmin capability on route)"
+                "description": "Shift lane catalog (PRICE_COL windows) + schedule log (SUPERADMIN_ACCESS). Returns shift_windows, next_shift_id, defaults"
             },
             {
                 "id": "workweeks.settings.update",
                 "method": "POST",
                 "path": "/workweeks/settings",
                 "permission": "workweeks.view",
-                "description": "Save shift windows (PRICE_COL lanes) and schedule news id (superadmin capability on route)"
+                "side_effect": "write",
+                "description": "Save lanes: shifts[{id}][label|start|end]; shift_action=add|save; shift_delete={id}. Also news_schedule_id, log_table_changes. SUPERADMIN_ACCESS",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "shifts": {
+                            "type": "object",
+                            "description": "Map PRICE_COL id → {label, start HH:MM, end HH:MM}"
+                        },
+                        "shift_action": {
+                            "type": "string",
+                            "enum": ["save", "add"]
+                        },
+                        "shift_delete": {
+                            "type": "integer",
+                            "description": "Lane id to remove (keep ≥1)"
+                        },
+                        "news_schedule_id": { "type": "integer" },
+                        "log_table_changes": { "type": "string" }
+                    }
+                }
             }
         ]
     },

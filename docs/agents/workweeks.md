@@ -43,7 +43,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 ## Agent JSON
 
-Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (8 ops).
+Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops`.
 
 | Op | Method | Path |
 |----|--------|------|
@@ -52,6 +52,8 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `workweeks.create` | POST | `/workweeks/new` |
 | `workweeks.update` | POST | `/workweeks/{id}/edit` |
 | `workweeks.day` | GET | `/workweeks/day/{date}` |
+| `workweeks.nazop.get` | GET | `/workweeks/nazop` |
+| `workweeks.nazop.save` | POST | `/workweeks/nazop` |
 | `workweeks.nazcab` | GET/POST | `/workweeks/nazcab` |
 | `workweeks.settings.get` | GET | `/workweeks/settings` |
 | `workweeks.settings.update` | POST | `/workweeks/settings` |
@@ -59,7 +61,15 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 ```bash
 curl -sS -b jar.txt 'https://example/workweeks?format=json'
 curl -sS -b jar.txt 'https://example/workweeks/settings?format=json'
+curl -sS -b jar.txt 'https://example/workweeks/nazop?day=2026-10-19&ops=53,80&format=json'
 ```
+
+### Agent playbook: custom lane for masseurs
+
+1. **Catalog** (superadmin): `workweeks.settings.get` → note `next_shift_id`. POST `shifts` map (keep existing lanes + new `{label,start,end}`) or `shift_action=add` then PATCH times.
+2. **Role default**: `core.statuses.list` / `.get` → set `DEFAULT_PRICE_COL` to that lane id via `core.statuses.update` (masseur role). `shift_options` on get lists lanes.
+3. **Day assign**: `workweeks.nazop.get?day=YYYY-MM-DD&ops=…` then `workweeks.nazop.save` with `checked` + `op_price` (or rely on DEFAULT_PRICE_COL for brand-new checks). One-off: `workweeks.create` / `.update` with `price_col`.
+4. **Floor policy**: `terminals.settings.get` / `.save` → `ignore_staff_shift_windows` (`1` = /t ignores lane end; site/API always clip).
 
 ## Notes
 

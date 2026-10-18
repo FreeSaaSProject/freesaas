@@ -31,6 +31,9 @@ if ($wantsJson) {
         'settings' => $cfg,
         'terminal_options' => $terminalOptions,
         'staff_options' => $staffOptions,
+        'hint' => 'ignore_staff_shift_windows=1 (default): /t and floor book ignore staff PRICE_COL end '
+            . '(still need day roster + salon hours). Site, MCP, legacy API always clip. '
+            . 'Set 0 to match public booking.',
     ]);
     return;
 }
