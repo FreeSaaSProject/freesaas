@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-18T10:56:57+00:00",
+    "generated_at": "2026-10-18T12:19:08+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.59",
+            "version": "0.1.60",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -69,6 +69,44 @@
                 ],
                 "maturity": "beta",
                 "tags": []
+            }
+        },
+        {
+            "id": "assistant_groups",
+            "version": "0.1.3",
+            "type": "product",
+            "name": {
+                "en": "Assistant in groups",
+                "ru": "Ассистент в группах"
+            },
+            "description": {
+                "en": "Max groups: mention the bot → draft write → manager confirm with permission.",
+                "ru": "Max-группы: упоминание бота → черновик задания → подтверждение менеджером с правом."
+            },
+            "summary": {
+                "en": "Enable when the assistant should work in a Max staff group. Needs bots + assistant, bot admin with read_all_messages and write, staff linked in base_bot_links.",
+                "ru": "Включите, когда нужен ассистент в рабочей Max-группе. Нужны bots + assistant, бот-админ с read_all_messages и write, привязка сотрудников в base_bot_links."
+            },
+            "requires": {
+                "core": ">=0.3.0",
+                "assistant": ">=0.1.0",
+                "bots": ">=0.1.0"
+            },
+            "optionalRequires": {
+                "llm": ">=0.1.0",
+                "workweeks": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "integrations",
+                    "communications"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "llm",
+                    "transport",
+                    "settings"
+                ]
             }
         },
         {
@@ -423,7 +461,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.15",
+            "version": "0.2.16",
             "type": "product",
             "name": {
                 "en": "Messenger bots",

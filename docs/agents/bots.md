@@ -138,6 +138,10 @@ BotPlugins::register('my_feature', [
 
 Events: `bots.inbound`, `bots.cabinet.collect`, `bots.send` / `notify.send`.
 
+### Max groups (inbound)
+
+`BotWebhook::handleMax` distinguishes **dialog** vs **group**: reply target = `recipient.chat_id` (negative / `chat_type=chat`); identity = `sender.user_id` or callback `user.user_id`. Unhandled group messages do **not** open the staff cabinet. Product group assistant: [`assistant-groups.md`](assistant-groups.md).
+
 ### Outbound enqueue (`BotSend` / `base_telegram_sends`)
 
 Two modes:

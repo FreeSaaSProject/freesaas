@@ -134,12 +134,44 @@ final class AssistantTools
             return ['ok' => false, 'data' => null, 'error' => 'Tool not permitted or unknown: ' . $opId];
         }
 
+        return self::invokeOpMeta($opMeta, $args);
+    }
+
+    /**
+     * Invoke using a prebuilt op row (group draft catalog may skip Auth::can).
+     *
+     * @param array<string,mixed> $opMeta
+     * @param array<string,mixed> $args
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function invokeOpMeta(array $opMeta, array $args): array
+    {
+        $opId = (string)($opMeta['id'] ?? '');
+        if ($opId === '') {
+            return ['ok' => false, 'data' => null, 'error' => 'Tool meta missing id'];
+        }
         try {
-            $result = self::dispatchOp($opMeta, self::normalizeArgs($opId, $args));
-            return $result;
+            return self::dispatchOp($opMeta, self::normalizeArgs($opId, $args));
         } catch (Throwable $e) {
             return ['ok' => false, 'data' => null, 'error' => t('assistant.err.invoke') . ': ' . $e->getMessage()];
         }
+    }
+
+    /**
+     * Resolve op from a provided catalog (does not re-check Auth::can).
+     *
+     * @param list<array<string,mixed>> $ops
+     * @param array<string,mixed> $args
+     * @return array{ok:bool,data:?array,error:string}
+     */
+    public static function invokeFromOps(string $opId, array $args, array $ops): array
+    {
+        foreach ($ops as $op) {
+            if (is_array($op) && (string)($op['id'] ?? '') === $opId) {
+                return self::invokeOpMeta($op, $args);
+            }
+        }
+        return ['ok' => false, 'data' => null, 'error' => 'Tool not permitted or unknown: ' . $opId];
     }
 
     /**

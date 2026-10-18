@@ -39,7 +39,6 @@ return [
     'procents.payment_sync.hint' => 'Записано в расчётный лист: {sum}',
     'procents.grand_total' => 'Всего начислено',
     'procents.offers' => 'Ставка за подход',
-    'procents.soft.sales_missing' => 'Таблица продаж недоступна — секция скрыта',
     'procents.soft.stocks_missing' => 'Стикер-склад недоступен — расходная секция скрыта',
     'procents.soft.records_missing' => 'Аудиозаписи недоступны — секция скрыта',
     'procents.err.forbidden' => 'Недостаточно прав для просмотра чужих начислений',

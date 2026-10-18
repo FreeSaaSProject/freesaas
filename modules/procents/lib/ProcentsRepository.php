@@ -736,9 +736,6 @@ final class ProcentsRepository
             return $empty;
         }
 
-        if (!Database::tableExists('base_sales')) {
-            $soft[] = t('procents.soft.sales_missing');
-        }
         if (!Database::tableExists('base_good_sticker_outs') && !Database::tableExists('base_goods_out')) {
             $soft[] = t('procents.soft.stocks_missing');
         }

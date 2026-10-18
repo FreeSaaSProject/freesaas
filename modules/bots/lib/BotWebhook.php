@@ -203,24 +203,27 @@ final class BotWebhook
             if ($msg === null && isset($cb['message']) && is_array($cb['message'])) {
                 $msg = $cb['message'];
             }
-            $chatId = (string)(
-                $msg['recipient']['user_id']
-                ?? $cb['user']['user_id']
-                ?? $cb['user_id']
-                ?? $cb['from']['user_id']
-                ?? $msg['sender']['user_id']
-                ?? ''
-            );
+            $ids = self::maxRouteIds($msg, $update, $cb);
+            $chatId = $ids['chat_id'];
+            $fromUserId = $ids['from_user_id'];
+            $isGroup = $ids['is_group'];
+            if ($chatId === '') {
+                return;
+            }
             $payload = (string)($cb['payload'] ?? $cb['callback_data'] ?? '');
             $callbackId = (string)($cb['callback_id'] ?? $cb['callbackId'] ?? $cb['id'] ?? '');
             $messageId = self::extractMaxMessageId($msg);
-            $user = self::resolveUser($cfg['audience'], 'max', $chatId);
+            // Identity = clicker / dialog user, never the group chat id.
+            $user = self::resolveUser($cfg['audience'], 'max', $fromUserId !== '' ? $fromUserId : $chatId);
             if ($callbackId !== '') {
                 BotClient::answerCallback('max', $cfg['token'], $callbackId);
             }
             self::processInbound($cfg, 'max', $chatId, $user, 'callback', [
                 'callback_data' => $payload,
+                'callback_id' => $callbackId,
                 'message_id' => $messageId,
+                'from_user_id' => $fromUserId,
+                'is_group' => $isGroup,
                 'raw' => $cb,
             ]);
             return;
@@ -233,12 +236,26 @@ final class BotWebhook
         if ($msg === null) {
             return;
         }
-        $chatId = (string)($msg['sender']['user_id'] ?? $msg['recipient']['user_id'] ?? $msg['user_id'] ?? '');
+        $ids = self::maxRouteIds($msg, $update, null);
+        $chatId = $ids['chat_id'];
+        $fromUserId = $ids['from_user_id'];
+        $isGroup = $ids['is_group'];
         if ($chatId === '') {
             return;
         }
         $text = trim((string)($msg['body']['text'] ?? $msg['text'] ?? ''));
-        $user = self::resolveUser($cfg['audience'], 'max', $chatId);
+        $user = self::resolveUser($cfg['audience'], 'max', $fromUserId !== '' ? $fromUserId : $chatId);
+
+        // Group messages: never run dialog link/cabinet UX here — group plugins decide.
+        if ($isGroup) {
+            self::processInbound($cfg, 'max', $chatId, $user, $text !== '' ? 'text' : 'message', [
+                'text' => $text,
+                'from_user_id' => $fromUserId,
+                'is_group' => true,
+                'raw' => $msg,
+            ]);
+            return;
+        }
 
         $contactPhone = (string)($msg['body']['contact']['vcf_phone'] ?? $msg['contact']['phone_number'] ?? '');
         if ($contactPhone !== '') {
@@ -290,8 +307,69 @@ final class BotWebhook
         }
         self::processInbound($cfg, 'max', $chatId, $user, $text !== '' ? 'text' : 'message', [
             'text' => $text,
+            'from_user_id' => $fromUserId,
+            'is_group' => false,
             'raw' => $msg,
         ]);
+    }
+
+    /**
+     * Split Max dialog vs group: reply target (chat_id) vs identity (from_user_id).
+     *
+     * @param array<string,mixed>|null $msg
+     * @param array<string,mixed> $update
+     * @param array<string,mixed>|null $cb
+     * @return array{chat_id:string,from_user_id:string,is_group:bool}
+     */
+    private static function maxRouteIds(?array $msg, array $update, ?array $cb): array
+    {
+        $recipientChatId = '';
+        $recipientUserId = '';
+        $chatType = '';
+        if (is_array($msg)) {
+            $recipientChatId = (string)($msg['recipient']['chat_id'] ?? '');
+            $recipientUserId = (string)($msg['recipient']['user_id'] ?? '');
+            $chatType = (string)($msg['recipient']['chat_type'] ?? '');
+        }
+        if ($recipientChatId === '' && isset($update['chat_id'])) {
+            $recipientChatId = (string)$update['chat_id'];
+        }
+        $senderId = '';
+        if (is_array($msg)) {
+            $senderId = (string)($msg['sender']['user_id'] ?? '');
+        }
+        if ($cb !== null) {
+            $clicker = (string)($cb['user']['user_id'] ?? $cb['user_id'] ?? '');
+            if ($clicker !== '') {
+                $senderId = $clicker;
+            }
+        }
+
+        $isGroup = false;
+        if ($chatType === 'chat' || $chatType === 'channel') {
+            $isGroup = true;
+        } elseif ($recipientChatId !== '' && isset($recipientChatId[0]) && $recipientChatId[0] === '-') {
+            $isGroup = true;
+        } elseif ($recipientChatId !== '' && $recipientUserId === '') {
+            $isGroup = true;
+        }
+
+        if ($isGroup) {
+            $chatId = $recipientChatId !== '' ? $recipientChatId : (string)($update['chat_id'] ?? '');
+            return [
+                'chat_id' => $chatId,
+                'from_user_id' => $senderId,
+                'is_group' => true,
+            ];
+        }
+
+        // Dialog: reply to the human user id.
+        $dialogId = $senderId !== '' ? $senderId : ($recipientUserId !== '' ? $recipientUserId : '');
+        return [
+            'chat_id' => $dialogId,
+            'from_user_id' => $dialogId,
+            'is_group' => false,
+        ];
     }
 
     /**
@@ -310,6 +388,7 @@ final class BotWebhook
         $messageId = isset($extra['message_id']) ? trim((string)$extra['message_id']) : '';
         $mid = $messageId !== '' ? $messageId : null;
         self::withUiSession($cfg['audience'], $mid, static function () use ($cfg, $platform, $chatId, $user, $kind, $extra, $mid): void {
+            $isGroup = !empty($extra['is_group']);
             $payload = [
                 'audience' => $cfg['audience'],
                 'platform' => $platform,
@@ -318,8 +397,11 @@ final class BotWebhook
                 'kind' => $kind,
                 'token' => $cfg['token'],
                 'callback_data' => (string)($extra['callback_data'] ?? ''),
+                'callback_id' => (string)($extra['callback_id'] ?? ''),
                 'text' => (string)($extra['text'] ?? ''),
                 'message_id' => $mid,
+                'from_user_id' => (string)($extra['from_user_id'] ?? ''),
+                'is_group' => $isGroup,
                 'raw' => $extra['raw'] ?? null,
                 'handled' => false,
             ];
@@ -328,6 +410,11 @@ final class BotWebhook
                 $payload = [];
             }
             if (!empty($payload['handled'])) {
+                return;
+            }
+
+            // Unhandled group traffic: stay silent (no cabinet spam).
+            if ($isGroup) {
                 return;
             }
 

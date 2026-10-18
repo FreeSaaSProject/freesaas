@@ -65,6 +65,8 @@ curl -sS -b jar.txt -H 'Content-Type: application/json' -H 'Accept: application/
 
 With `bots` enabled, plugin `assistant` handles free-text on the staff webhook. Confirm/cancel via `assistant:ok:{token}` / `assistant:no:{token}`. Auth: `Auth::runAs(staff_id)`.
 
+**Max groups:** optional module [`assistant_groups`](assistant-groups.md) — mention → draft with `CONFIRM_MODE=capability` → manager confirm (button or text). Private DM flow unchanged (`CONFIRM_MODE=self`).
+
 ## How-to («как сделать»)
 
 Staff how-to answers use **`core.help.search`** / **`core.help.get`**, which read `module.json` → `agent.docs` → `docs/agents/*.md` (permission-filtered). Keep the **Human UI** section in that runbook updated — do not duplicate guides in i18n. Same tools appear on MCP `/llm/mcp`.

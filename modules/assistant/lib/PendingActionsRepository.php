@@ -13,9 +13,15 @@ final class PendingActionsRepository
 
     /**
      * @param array<string,mixed> $args
-     * @return array{token:string,op_id:string,summary:string,expires_at:int}|null
+     * @param array{
+     *   confirm_mode?:string,
+     *   required_permission?:string,
+     *   group_chat_id?:string,
+     *   group_platform?:string
+     * } $meta
+     * @return array{token:string,op_id:string,summary:string,expires_at:int,confirm_mode:string,required_permission:string}|null
      */
-    public static function create(int $userId, string $opId, array $args, string $summary): ?array
+    public static function create(int $userId, string $opId, array $args, string $summary, array $meta = []): ?array
     {
         if ($userId < 1 || $opId === '' || !self::tableReady()) {
             return null;
@@ -33,17 +39,40 @@ final class PendingActionsRepository
         } else {
             $summary = substr($summary, 0, 4000);
         }
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_assistant_pending
-             (TOKEN, ID_USER, OP_ID, ARGS_JSON, SUMMARY, STATUS, CREATED_AT, EXPIRES_AT)
-             VALUES (?, ?, ?, ?, ?, \'pending\', ?, ?)'
-        );
-        $st->execute([$token, $userId, $opId, $argsJson, $summary, $now, $expires]);
+        $confirmMode = strtolower(trim((string)($meta['confirm_mode'] ?? 'self')));
+        if ($confirmMode !== 'capability') {
+            $confirmMode = 'self';
+        }
+        $reqPerm = trim((string)($meta['required_permission'] ?? ''));
+        $groupChat = trim((string)($meta['group_chat_id'] ?? ''));
+        $groupPlatform = trim((string)($meta['group_platform'] ?? ''));
+        $hasGroupCols = Database::columnExists('base_assistant_pending', 'CONFIRM_MODE');
+        if ($hasGroupCols) {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_assistant_pending
+                 (TOKEN, ID_USER, OP_ID, ARGS_JSON, SUMMARY, STATUS, CREATED_AT, EXPIRES_AT,
+                  CONFIRM_MODE, REQUIRED_PERMISSION, GROUP_CHAT_ID, GROUP_PLATFORM)
+                 VALUES (?, ?, ?, ?, ?, \'pending\', ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $token, $userId, $opId, $argsJson, $summary, $now, $expires,
+                $confirmMode, $reqPerm, $groupChat, $groupPlatform,
+            ]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_assistant_pending
+                 (TOKEN, ID_USER, OP_ID, ARGS_JSON, SUMMARY, STATUS, CREATED_AT, EXPIRES_AT)
+                 VALUES (?, ?, ?, ?, ?, \'pending\', ?, ?)'
+            );
+            $st->execute([$token, $userId, $opId, $argsJson, $summary, $now, $expires]);
+        }
         return [
             'token' => $token,
             'op_id' => $opId,
             'summary' => $summary,
             'expires_at' => $expires,
+            'confirm_mode' => $confirmMode,
+            'required_permission' => $reqPerm,
         ];
     }
 
@@ -134,5 +163,41 @@ final class PendingActionsRepository
         }
         $decoded = json_decode($raw, true);
         return is_array($decoded) ? $decoded : [];
+    }
+
+    /** Latest pending write bound to a Max/Telegram group chat. */
+    public static function findLatestPendingForGroup(string $groupChatId, string $platform = 'max'): ?array
+    {
+        $groupChatId = trim($groupChatId);
+        $platform = strtolower(trim($platform));
+        if ($groupChatId === '' || !self::tableReady()) {
+            return null;
+        }
+        if (!Database::columnExists('base_assistant_pending', 'GROUP_CHAT_ID')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT * FROM base_assistant_pending
+             WHERE GROUP_CHAT_ID = ? AND GROUP_PLATFORM = ? AND STATUS = \'pending\' AND EXPIRES_AT > ?
+             ORDER BY CREATED_AT DESC, ID DESC
+             LIMIT 1'
+        );
+        $st->execute([$groupChatId, $platform, time()]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    public static function markConfirmedBy(string $token, int $confirmedBy, $result = null): bool
+    {
+        if (!self::mark($token, 'confirmed', $result)) {
+            return false;
+        }
+        if ($confirmedBy > 0 && Database::columnExists('base_assistant_pending', 'CONFIRMED_BY')) {
+            $st = Database::pdo()->prepare(
+                'UPDATE base_assistant_pending SET CONFIRMED_BY = ? WHERE TOKEN = ?'
+            );
+            $st->execute([$confirmedBy, $token]);
+        }
+        return true;
     }
 }

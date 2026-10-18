@@ -27,6 +27,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [update.md](update.md) | Self-update: core + private module zips (`cfg/updates.ini`) |
 | [module-agent-api.md](module-agent-api.md) | Product JSON ops (`module.json` → `agent.ops` on all modules; session auth) |
 | [assistant.md](assistant.md) | In-system LLM harness (UI + bot, tools, confirm writes) |
+| [assistant-groups.md](assistant-groups.md) | Max group channel: mention → draft → manager confirm |
 | [audio-summaries.md](audio-summaries.md) | Audio summary profiles: construct + run via JSON |
 | [llm.md](llm.md) | LLM tokens, OAuth/MCP adapter, chat op, audio studies |
 | [clients.md](clients.md) | Client CRM: list/get/create/update + statuses/tags JSON |
@@ -102,5 +103,6 @@ Staff/MCP how-to uses these via `core.help.search` / `core.help.get`. Keep **Hum
 | [workweeks.md](workweeks.md) | `workweeks` |
 | [yclients.md](yclients.md) | `yclients` |
 | [assistant.md](assistant.md) | `assistant` |
+| [assistant-groups.md](assistant-groups.md) | `assistant_groups` |
 
 Canonical CLI: `php bin/freesaas.php … --format=json`. First bring-up: `bootstrap` or `POST /agent/bootstrap`. HTTP twin: `/agent/*` (see remote-api). Diagnose: `doctor`. Smoke: `php bin/smoke.php`.

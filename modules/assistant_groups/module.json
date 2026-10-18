@@ -1,0 +1,90 @@
+{
+    "id": "assistant_groups",
+    "name": "assistant_groups.module.name",
+    "description": "assistant_groups.module.description",
+    "version": "0.1.3",
+    "type": "product",
+    "catalog": {
+        "categories": ["integrations", "communications"],
+        "maturity": "alpha",
+        "tags": ["llm", "transport", "settings"]
+    },
+    "requires": {
+        "core": ">=0.3.0",
+        "assistant": ">=0.1.0",
+        "bots": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "llm": ">=0.1.0",
+        "workweeks": ">=0.1.0"
+    },
+    "provides": [
+        "assistant_groups.channel"
+    ],
+    "migrations": "migrations/",
+    "permissions": [],
+    "routes": {
+        "pages": [
+            "/assistant-groups/settings",
+            "/assistant-groups/status",
+            "/assistant-groups/webhook/max"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/assistant-groups.md",
+        "ops": [
+            {
+                "id": "assistant_groups.settings.get",
+                "method": "GET",
+                "path": "/assistant-groups/settings",
+                "capability": "SUPERADMIN_ACCESS",
+                "assistant": false,
+                "description": "Group assistant settings (chat allowlist, ops allowlist, Max token status)"
+            },
+            {
+                "id": "assistant_groups.settings.update",
+                "method": "POST",
+                "path": "/assistant-groups/settings",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Save group assistant settings"
+            },
+            {
+                "id": "assistant_groups.status",
+                "method": "GET",
+                "path": "/assistant-groups/status",
+                "capability": "SUPERADMIN_ACCESS",
+                "assistant": false,
+                "description": "Diagnose Max group bot: me, chat membership, recent spike notes"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "llm.menu.group",
+            "kind": "settings",
+            "num": 25,
+            "path": "/assistant-groups/settings",
+            "title": "assistant_groups.menu.settings",
+            "capability": "SUPERADMIN_ACCESS"
+        },
+        {
+            "group": "llm.menu.group",
+            "kind": "settings",
+            "num": 26,
+            "path": "/assistant-groups/status",
+            "title": "assistant_groups.menu.status",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "tables": [],
+    "hooks": {
+        "publish": [],
+        "subscribe": [
+            "bots.inbound",
+            "bots.ready"
+        ]
+    }
+}

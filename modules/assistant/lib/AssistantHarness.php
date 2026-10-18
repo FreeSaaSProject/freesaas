@@ -20,12 +20,18 @@ final class AssistantHarness
      *   full_ops?:list<array<string,mixed>>,
      *   page_context?:array<string,mixed>,
      *   tool_stubs?:array<string,callable|array>,
-     *   on_progress?:callable
+     *   on_progress?:callable,
+     *   group_mode?:bool,
+     *   group_chat_id?:string,
+     *   group_platform?:string,
+     *   confirm_mode?:string,
+     *   system_extra?:string
      * } $opts on_progress receives {phase,op_id,description,side_effect,args,status?};
      *          ops = prebuilt tool catalog (eval personas / page-chat); does not touch AssistantDialog.
      *          full_ops = full user catalog for meta unlock (page-chat); enables assistant.tools.* meta.
      *          page_context = compact screen JSON appended to the system prompt.
      *          tool_stubs = op_id → payload array or (opId, args) => payload (eval fixtures).
+     *          group_mode + confirm_mode=capability → pending confirmable by any staff with op permission.
      * @return array{
      *   ok:bool,text:string,messages:list,pending_actions:list,
      *   tool_trace:list,error:string,profile:?string
@@ -82,6 +88,18 @@ final class AssistantHarness
                 $system .= "\n" . $hint;
             }
         }
+        $systemExtra = trim((string)($opts['system_extra'] ?? ''));
+        if ($systemExtra !== '') {
+            $system .= "\n" . $systemExtra;
+        }
+        $groupMode = !empty($opts['group_mode']);
+        $confirmMode = strtolower(trim((string)($opts['confirm_mode'] ?? ($groupMode ? 'capability' : 'self'))));
+        if ($confirmMode !== 'capability') {
+            $confirmMode = 'self';
+        }
+        $groupChatId = trim((string)($opts['group_chat_id'] ?? ''));
+        $groupPlatform = trim((string)($opts['group_platform'] ?? 'max'));
+        $useProvidedOps = isset($opts['ops']) && is_array($opts['ops']);
 
         $norm = [];
         $norm[] = ['role' => 'system', 'content' => $system];
@@ -351,7 +369,13 @@ final class AssistantHarness
 
                 if ($side === 'write') {
                     $preview = self::writePreview($opId, $args, $desc);
-                    $row = PendingActionsRepository::create($userId, $opId, $args, $preview['summary']);
+                    $reqPerm = (string)($op['permission'] ?? '');
+                    $row = PendingActionsRepository::create($userId, $opId, $args, $preview['summary'], [
+                        'confirm_mode' => $confirmMode,
+                        'required_permission' => $reqPerm,
+                        'group_chat_id' => $groupChatId,
+                        'group_platform' => $groupPlatform,
+                    ]);
                     if ($row === null) {
                         $payload = ['ok' => false, 'error' => 'Could not create pending confirmation'];
                         $trace[] = [
@@ -369,12 +393,15 @@ final class AssistantHarness
                             'status' => 'error',
                         ]);
                     } else {
-                        $pending[] = self::pendingActionPayload(
+                        $pendingItem = self::pendingActionPayload(
                             (string)$row['token'],
                             $opId,
                             $preview,
                             (int)$row['expires_at']
                         );
+                        $pendingItem['required_permission'] = $reqPerm;
+                        $pendingItem['confirm_mode'] = $confirmMode;
+                        $pending[] = $pendingItem;
                         $payload = [
                             'ok' => true,
                             'pending' => true,
@@ -409,7 +436,9 @@ final class AssistantHarness
                     continue;
                 }
 
-                $inv = AssistantTools::invoke($opId, $args);
+                $inv = $useProvidedOps
+                    ? AssistantTools::invokeFromOps($opId, $args, $ops)
+                    : AssistantTools::invoke($opId, $args);
                 $payload = $inv['ok']
                     ? ($inv['data'] ?? ['ok' => true])
                     : ['ok' => false, 'error' => $inv['error']];
@@ -825,6 +854,12 @@ final class AssistantHarness
      *
      * @return array{ok:bool,action:string,result:?array,error:string}
      */
+    /**
+     * @return array{
+     *   ok:bool,action:string,result:?array,error:string,
+     *   required_permission?:string,forbidden_capability?:bool
+     * }
+     */
     public static function resolvePending(string $token, string $action, int $userId): array
     {
         $action = strtolower(trim($action));
@@ -835,8 +870,38 @@ final class AssistantHarness
         if ($row === null) {
             return ['ok' => false, 'action' => $action, 'result' => null, 'error' => t('assistant.confirm.not_found')];
         }
-        if ((int)($row['ID_USER'] ?? 0) !== $userId) {
-            return ['ok' => false, 'action' => $action, 'result' => null, 'error' => t('assistant.confirm.forbidden')];
+        $confirmMode = strtolower(trim((string)($row['CONFIRM_MODE'] ?? 'self')));
+        if ($confirmMode !== 'capability') {
+            $confirmMode = 'self';
+        }
+        $reqPerm = trim((string)($row['REQUIRED_PERMISSION'] ?? ''));
+        if ($confirmMode === 'self') {
+            if ((int)($row['ID_USER'] ?? 0) !== $userId) {
+                return ['ok' => false, 'action' => $action, 'result' => null, 'error' => t('assistant.confirm.forbidden')];
+            }
+        } else {
+            // capability: any linked staff may cancel; confirm requires Auth::can(required_permission).
+            if ($action === 'confirm') {
+                if ($reqPerm === '') {
+                    // Fall back to op permission from catalog.
+                    foreach (AgentHttp::allOps() as $op) {
+                        if ((string)($op['id'] ?? '') === (string)($row['OP_ID'] ?? '')) {
+                            $reqPerm = (string)($op['permission'] ?? '');
+                            break;
+                        }
+                    }
+                }
+                if ($reqPerm !== '' && !Auth::can($reqPerm)) {
+                    return [
+                        'ok' => false,
+                        'action' => $action,
+                        'result' => null,
+                        'error' => t('assistant_groups.bot.no_permission', ['perm' => $reqPerm]),
+                        'required_permission' => $reqPerm,
+                        'forbidden_capability' => true,
+                    ];
+                }
+            }
         }
         if ((string)($row['STATUS'] ?? '') !== 'pending') {
             return ['ok' => false, 'action' => $action, 'result' => null, 'error' => t('assistant.confirm.not_found')];
@@ -858,12 +923,37 @@ final class AssistantHarness
 
         $opId = (string)($row['OP_ID'] ?? '');
         $args = PendingActionsRepository::decodeArgs($row);
+        // Execute as the confirmer (already Auth::runAs in bot/UI callers).
         $inv = AssistantTools::invoke($opId, $args);
+        if (!$inv['ok'] && $confirmMode === 'capability') {
+            // Op may be missing from confirmer catalog edge-case: dispatch raw meta from AgentHttp.
+            $opMeta = null;
+            foreach (AgentHttp::allOps() as $op) {
+                if ((string)($op['id'] ?? '') === $opId && !empty($op['assistant'])) {
+                    $side = (string)($op['side_effect'] ?? 'write');
+                    $opMeta = [
+                        'id' => $opId,
+                        'method' => (string)$op['method'],
+                        'path' => (string)$op['path'],
+                        'permission' => (string)($op['permission'] ?? ''),
+                        'description' => (string)($op['description'] ?? $opId),
+                        'side_effect' => $side,
+                        'parameters' => [],
+                        'function_name' => AssistantTools::opIdToFunctionName($opId),
+                        'module' => (string)($op['module'] ?? ''),
+                    ];
+                    break;
+                }
+            }
+            if ($opMeta !== null) {
+                $inv = AssistantTools::invokeOpMeta($opMeta, $args);
+            }
+        }
         if (!$inv['ok']) {
             PendingActionsRepository::mark($token, 'failed', ['error' => $inv['error']]);
             return ['ok' => false, 'action' => 'confirm', 'result' => null, 'error' => $inv['error']];
         }
-        PendingActionsRepository::mark($token, 'confirmed', $inv['data']);
+        PendingActionsRepository::markConfirmedBy($token, $userId, $inv['data']);
         return [
             'ok' => true,
             'action' => 'confirm',

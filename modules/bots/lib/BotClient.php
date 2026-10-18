@@ -606,25 +606,28 @@ final class BotClient
         if (strpos($messageId, 'mid.') === 0) {
             $idVariants[] = substr($messageId, 4);
         }
+        $asGroup = self::maxUsesChatId($userId);
         $queries = [
-            ['message_id' => '', 'user_id' => $userId],
+            ['message_id' => '', ($asGroup ? 'chat_id' : 'user_id') => $userId],
             ['message_id' => ''],
         ];
+        if (!$asGroup) {
+            $queries[] = ['message_id' => '', 'user_id' => $userId];
+        }
         foreach (array_values(array_unique($idVariants)) as $idv) {
             foreach ($queries as $base) {
                 $q = $base;
                 $q['message_id'] = (string)$idv;
-                if (($q['user_id'] ?? '') === '') {
-                    unset($q['user_id']);
+                if (($q['user_id'] ?? '') === '' && ($q['chat_id'] ?? '') === '') {
+                    unset($q['user_id'], $q['chat_id']);
                 }
                 $res = self::maxRequest($token, 'DELETE', '/messages', $q, null);
                 if ($res['ok']) {
                     return $res;
                 }
             }
-            $res = self::maxRequest($token, 'DELETE', '/messages/' . rawurlencode((string)$idv), [
-                'user_id' => $userId,
-            ], null);
+            $idQuery = $asGroup ? ['chat_id' => $userId] : ['user_id' => $userId];
+            $res = self::maxRequest($token, 'DELETE', '/messages/' . rawurlencode((string)$idv), $idQuery, null);
             if ($res['ok']) {
                 return $res;
             }
@@ -646,10 +649,12 @@ final class BotClient
         if (strpos($messageId, 'mid.') === 0) {
             $idVariants[] = substr($messageId, 4);
         }
+        $asGroup = self::maxUsesChatId($userId);
+        $idKey = $asGroup ? 'chat_id' : 'user_id';
         foreach (array_values(array_unique($idVariants)) as $idv) {
             $res = self::maxRequest($token, 'PUT', '/messages', [
                 'message_id' => (string)$idv,
-                'user_id' => $userId,
+                $idKey => $userId,
             ], $body);
             if ($res['ok']) {
                 return $res;
@@ -661,7 +666,7 @@ final class BotClient
                 return $res;
             }
             $res = self::maxRequest($token, 'PUT', '/messages/' . rawurlencode((string)$idv), [
-                'user_id' => $userId,
+                $idKey => $userId,
             ], $body);
             if ($res['ok']) {
                 return $res;

@@ -99,6 +99,7 @@ $allowed = [
     // Bots webhooks (secret in handler; POST-only lock below)
     '/bots/webhook/telegram/{channel}' => ['methods' => ['POST'], 'why' => 'Telegram webhook'],
     '/bots/webhook/max/{channel}' => ['methods' => ['POST'], 'why' => 'Max webhook'],
+    '/assistant-groups/webhook/max' => ['methods' => ['POST'], 'why' => 'Max group assistant webhook'],
 
     // Surface A module repair (agent_token gated in agent_api.php)
     '/agent/bots/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token bots settings'],
@@ -176,7 +177,7 @@ $dbRoute = $routes['/db'] ?? null;
 $assert(!(is_array($dbRoute) && !empty($dbRoute['public'])), '/db is not public');
 
 // Named lock: bot webhooks POST-only when public
-foreach (['/bots/webhook/telegram/{channel}', '/bots/webhook/max/{channel}'] as $wh) {
+foreach (['/bots/webhook/telegram/{channel}', '/bots/webhook/max/{channel}', '/assistant-groups/webhook/max'] as $wh) {
     $r = $routes[$wh] ?? null;
     if (!is_array($r) || empty($r['public'])) {
         continue;

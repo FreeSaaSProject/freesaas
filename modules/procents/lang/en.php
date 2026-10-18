@@ -39,7 +39,6 @@ return [
     'procents.payment_sync.hint' => 'Written to settlement sheet: {sum}',
     'procents.grand_total' => 'Grand total',
     'procents.offers' => 'Per-visit fee',
-    'procents.soft.sales_missing' => 'Sales table unavailable — section hidden',
     'procents.soft.stocks_missing' => 'Sticker stock unavailable — COGS section hidden',
     'procents.soft.records_missing' => 'Audio records unavailable — section hidden',
     'procents.err.forbidden' => 'Not allowed to view other staff accruals',
