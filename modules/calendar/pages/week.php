@@ -259,8 +259,8 @@ if ($wantsJson) {
             'weekday' => $day['weekday'] ?? '',
             'is_today' => !empty($day['is_today']),
             'events' => EventsRepository::listForAgent($eventsByDate[$d] ?? []),
-            'procedures' => $procsByDate[$d] ?? [],
-            'orders' => $ordersByDate[$d] ?? [],
+            'procedures' => CalendarTimeline::proceduresForAgent($procsByDate[$d] ?? []),
+            'orders' => CalendarTimeline::ordersForAgent($ordersByDate[$d] ?? []),
             'shifts' => WorkweeksRepository::listForAgent($dayShifts),
         ];
     }
@@ -273,7 +273,9 @@ if ($wantsJson) {
         'staff_locked' => $myOnly,
         'can_edit' => $canEdit,
         'can_create' => $canCreate,
+        'can_delete' => Auth::can('calendar.delete') && Auth::capability('EVT_DELETE'),
         'days' => $daysOut,
+        'hint' => 'Match blocks via days[].events[].is_block=1; delete with calendar.events.delete id=events[].id',
     ]);
     return;
 }

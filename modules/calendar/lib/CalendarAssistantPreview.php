@@ -70,7 +70,9 @@ final class CalendarAssistantPreview
         $action = strtolower(trim((string)($args['action'] ?? '')));
         $isDelete = $opId === 'calendar.events.delete' || $action === 'delete';
         if ($isDelete) {
-            if ($lines === []) {
+            // Without a resolved row, do not invent a generic “delete this” line —
+            // harness should reject missing path id before pending; keep preview honest.
+            if ($lines === [] && $id > 0) {
                 $lines[] = t('calendar.assistant.preview.delete');
             }
             return $lines;

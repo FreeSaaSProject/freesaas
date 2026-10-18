@@ -75,7 +75,10 @@ return [
     'assistant_groups.bot.no_ops' => 'Group command allowlist (group_ops) is empty in settings.',
     'assistant_groups.bot.dm_only' => 'I can only help with this in a private chat.',
     'assistant_groups.bot.cleared' => 'Group context cleared. Start a new task.',
-    'assistant_groups.bot.system_extra' => "You are in a staff group. This chat’s history is one conversation: keep names, date, and intent.\nFollow-ups without a new @ continue the same task.\nWrite tools only queue a manager confirm; never claim it is already applied.\nOutside tools — private chat only.\n«What can you do» — only tools in this request; do not list modules that are not in the tool list.",
+    'assistant_groups.tool.clear' => 'Clear this group chat’s history and cancel pending confirms. Call when asked to clear/reset context, start over, new dialog, forget prior turns — any “clean slate” wording.',
+    'assistant_groups.assistant.tool_title' => 'Group',
+    'assistant_groups.assistant.area.dialog' => 'Dialog',
+    'assistant_groups.bot.system_extra' => "You are in a staff group. This chat’s history is one conversation: keep names, date, and intent.\nFollow-ups without a new @ continue the same task.\nWrite tools only queue a manager confirm; never claim it is already applied.\nOutside tools — private chat only.\n«What can you do» — only tools in this request; do not list modules that are not in the tool list.\nClear/reset context requests → CALL assistant_groups.dialog.clear (do not refuse or ask to create a new chat).",
     'assistant_groups.bot.user_prefix' => '{name}: ',
     'assistant_groups.bot.reply_prefix' => '[reply to the previous assistant message] ',
 ];

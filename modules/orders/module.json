@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.8",
+    "version": "0.1.11",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -109,11 +109,14 @@
             "core.dashboard.widgets",
             "calendar.day.stats",
             "calendar.settings.sections",
-            "calendar.settings.save"
+            "calendar.settings.save",
+            "orders.client.arrived"
         ],
         "publish": [
             "orders.created",
             "orders.cancelled",
+            "orders.completed",
+            "orders.client.arrived",
             "orders.sources"
         ]
     },

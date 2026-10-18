@@ -1106,6 +1106,94 @@ final class OrdersRepository
     }
 
     /**
+     * Transition open orders for a client (orders.client.arrived).
+     * Match/set STATUS come from opts or OrdersConfig arrive_* settings.
+     *
+     * @param array{
+     *   from_status?:string,
+     *   to_status?:string,
+     *   window_sec?:int,
+     *   reason?:string,
+     *   meta?:array<string,mixed>
+     * } $opts
+     * @return list<int> transitioned order ids
+     */
+    public static function transitionOpenForClient(int $clientId, array $opts = []): array
+    {
+        if ($clientId < 1 || !Database::tableExists('base_orders')) {
+            return [];
+        }
+        $fromStatus = OrdersConfig::normalizeEditableStatus(
+            (string)($opts['from_status'] ?? OrdersConfig::arriveMatchStatus()),
+            OrdersConfig::arriveMatchStatus()
+        );
+        $toStatus = OrdersConfig::normalizeEditableStatus(
+            (string)($opts['to_status'] ?? OrdersConfig::arriveSetStatus()),
+            OrdersConfig::arriveSetStatus()
+        );
+        if ($fromStatus === $toStatus) {
+            return [];
+        }
+
+        $window = (int)($opts['window_sec'] ?? OrdersConfig::arriveWindowSec());
+        if ($window < 3600) {
+            $window = 3600;
+        }
+        if ($window > 7 * 86400) {
+            $window = 7 * 86400;
+        }
+        $now = time();
+        $from = $now - $window;
+        $to = $now + $window;
+        $sourceSql = Database::columnExists('base_orders', 'SOURCE')
+            ? ', SOURCE AS source'
+            : ', NULL AS source';
+        $st = Database::pdo()->prepare(
+            "SELECT ID AS id, STATUS AS status, ID_USER AS id_user, ID_COSMETOLOG AS id_cosmetolog,
+                    DT_EVENT_NEW AS dt_event, ID_EVENT_USE AS id_event_use{$sourceSql}
+             FROM base_orders
+             WHERE ID_USER = ? AND STATUS = ?
+               AND DT_EVENT_NEW >= ? AND DT_EVENT_NEW <= ?
+             ORDER BY DT_EVENT_NEW ASC, ID ASC
+             LIMIT 50"
+        );
+        $st->execute([$clientId, $fromStatus, $from, $to]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($rows === []) {
+            return [];
+        }
+
+        $reason = trim((string)($opts['reason'] ?? 'client_arrived'));
+        $meta = is_array($opts['meta'] ?? null) ? $opts['meta'] : [];
+        $upd = Database::pdo()->prepare(
+            'UPDATE base_orders SET STATUS = ?, DT_SAVE = ? WHERE ID = ? AND STATUS = ?'
+        );
+        $done = [];
+        foreach ($rows as $row) {
+            $orderId = (int)($row['id'] ?? 0);
+            if ($orderId < 1) {
+                continue;
+            }
+            $upd->execute([$toStatus, $now, $orderId, $fromStatus]);
+            if ($upd->rowCount() < 1) {
+                continue;
+            }
+            $done[] = $orderId;
+            EventBus::emit('orders.completed', [
+                'order_id' => $orderId,
+                'client_id' => $clientId,
+                'source' => (string)($row['source'] ?? ''),
+                'reason' => $reason,
+                'from_status' => $fromStatus,
+                'to_status' => $toStatus,
+                'meta' => $meta,
+                'order' => $row,
+            ]);
+        }
+        return $done;
+    }
+
+    /**
      * Client cancel of an advance order (legacy cancel_order → userCancelPay).
      *
      * @return array{ok:bool,cancelled?:int,error?:string}

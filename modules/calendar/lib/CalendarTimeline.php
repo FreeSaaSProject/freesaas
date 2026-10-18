@@ -736,6 +736,67 @@ final class CalendarTimeline
     }
 
     /**
+     * Compact procedure rows for assistant / agent JSON (keep ids + time + names).
+     *
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function proceduresForAgent(array $items): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $dtstart = (int)($row['dtstart'] ?? 0);
+            $dtend = (int)($row['dtend'] ?? 0);
+            $out[] = [
+                'id' => (int)($row['id'] ?? 0),
+                'id_operator' => (int)($row['id_operator'] ?? 0),
+                'operator_name' => trim((string)($row['operator_name'] ?? '')),
+                'id_event_parent' => (int)($row['id_event_parent'] ?? 0),
+                'product_name' => trim((string)($row['product_name'] ?? '')),
+                'client_name' => trim((string)($row['client_name'] ?? '')),
+                'type_name' => trim((string)($row['type_name'] ?? '')),
+                'summ' => isset($row['summ']) ? (float)$row['summ'] : null,
+                'dtstart' => $dtstart,
+                'dtend' => $dtend,
+                'dtstart_iso' => $dtstart > 0 ? date('Y-m-d\TH:i', $dtstart) : '',
+                'dtend_iso' => $dtend > 0 ? date('Y-m-d\TH:i', $dtend) : '',
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Compact advance-order rows for assistant / agent JSON.
+     *
+     * @param list<array<string,mixed>> $items
+     * @return list<array<string,mixed>>
+     */
+    public static function ordersForAgent(array $items): array
+    {
+        $out = [];
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $dt = (int)($row['dt'] ?? $row['dtstart'] ?? 0);
+            $out[] = [
+                'id' => (int)($row['id'] ?? 0),
+                'id_operator' => (int)($row['id_operator'] ?? 0),
+                'status' => (string)($row['status'] ?? ''),
+                'name' => trim((string)($row['name'] ?? $row['client_name'] ?? '')),
+                'phone' => trim((string)($row['phone'] ?? $row['tel'] ?? '')),
+                'sum' => isset($row['sum']) ? (float)$row['sum'] : (isset($row['summ']) ? (float)$row['summ'] : null),
+                'dt' => $dt,
+                'dt_iso' => $dt > 0 ? date('Y-m-d\TH:i', $dt) : '',
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * @param list<int> $ids
      * @return array<int,array{bg:string,fg:string}>
      */

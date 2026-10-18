@@ -155,9 +155,11 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
         $procedures = CalendarWidgets::proceduresTodayActive($staffId);
         $orders = [];
         if (class_exists('OrdersRepository', false) && Database::tableExists('base_orders')) {
+            $allow = array_fill_keys(OrdersRepository::NEW_STATUSES, true);
             $orders = OrdersRepository::listForDayRange($dayStart - 1, $dayEnd, $staffId);
-            $orders = array_values(array_filter($orders, static function (array $o) use ($now): bool {
-                return (int)($o['dt_event'] ?? 0) >= $now - 1800;
+            $orders = array_values(array_filter($orders, static function (array $o) use ($now, $allow): bool {
+                $st = (string)($o['status'] ?? '');
+                return isset($allow[$st]) && (int)($o['dt_event'] ?? 0) >= $now - 1800;
             }));
         }
         $chips = CalendarTimeline::chipsForBoard($dayStart, $events, $procedures, $orders);

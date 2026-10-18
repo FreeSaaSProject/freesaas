@@ -7,16 +7,20 @@ declare(strict_types=1);
  */
 final class AssistantGroupsCatalog
 {
+    public const OP_CLEAR = 'assistant_groups.dialog.clear';
+
     /**
+     * Always includes dialog.clear (local stub); product ops from group_ops allowlist.
+     *
      * @return list<array<string,mixed>>
      */
     public static function opsForGroup(): array
     {
+        $out = [self::clearDialogOp()];
         $patterns = AssistantGroupsConfig::groupOpsPatterns();
         if ($patterns === []) {
-            return [];
+            return $out;
         }
-        $out = [];
         foreach (AgentHttp::allOps() as $op) {
             if (empty($op['assistant'])) {
                 continue;
@@ -34,7 +38,7 @@ final class AssistantGroupsCatalog
                 $side = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) ? 'write' : 'read';
             }
             $params = class_exists('AssistantTools', false)
-                ? self::parametersViaTools($op)
+                ? AssistantTools::parametersForOp($op)
                 : ['type' => 'object', 'properties' => new stdClass()];
             $desc = (string)($op['description'] ?? $id);
             if ($side === 'write') {
@@ -54,9 +58,44 @@ final class AssistantGroupsCatalog
             ];
         }
         usort($out, static function (array $a, array $b): int {
+            // Keep clear first so the model sees it; then alpha.
+            if ($a['id'] === self::OP_CLEAR) {
+                return -1;
+            }
+            if ($b['id'] === self::OP_CLEAR) {
+                return 1;
+            }
             return strcmp($a['id'], $b['id']);
         });
         return $out;
+    }
+
+    /**
+     * Local read tool: clear group history + cancel pendings (handled via tool_stubs).
+     *
+     * @return array<string,mixed>
+     */
+    public static function clearDialogOp(): array
+    {
+        return [
+            'id' => self::OP_CLEAR,
+            'method' => 'POST',
+            'path' => '',
+            'permission' => '',
+            'description' => t('assistant_groups.tool.clear'),
+            'side_effect' => 'read',
+            'parameters' => [
+                'type' => 'object',
+                'properties' => new stdClass(),
+                'additionalProperties' => false,
+            ],
+            'function_name' => class_exists('AssistantTools', false)
+                ? AssistantTools::opIdToFunctionName(self::OP_CLEAR)
+                : 'assistant_groups__dialog__clear',
+            'module' => 'assistant_groups',
+            'group_draft' => true,
+            'local' => true,
+        ];
     }
 
     public static function isOpAllowed(string $opId): bool
@@ -271,20 +310,4 @@ final class AssistantGroupsCatalog
         return false;
     }
 
-    /**
-     * @param array<string,mixed> $op
-     * @return array<string,mixed>
-     */
-    private static function parametersViaTools(array $op): array
-    {
-        // Mirror AssistantTools::availableOps parameter build via a tiny reflection-free path:
-        // reuse toLlmTools on a one-op list if public builders are not available.
-        $side = (string)($op['side_effect'] ?? 'read');
-        $params = ['type' => 'object', 'properties' => new stdClass()];
-        if (isset($op['parameters']) && is_array($op['parameters'])) {
-            $params = $op['parameters'];
-        }
-        unset($side);
-        return $params;
-    }
 }

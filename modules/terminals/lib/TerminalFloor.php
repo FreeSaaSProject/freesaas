@@ -271,6 +271,16 @@ final class TerminalFloor
             ], $terminal, $guest, $clientId, $bracelet, $disable1c, $cacheTtl);
         }
 
+        // Guest known → orders (etc.) may fulfill open advance bookings for this client.
+        self::emitGuestIdentified(
+            $clientId,
+            $terminal,
+            $bracelet,
+            (string)$numState['num'],
+            $claimedAdminId,
+            (string)$q['token']
+        );
+
         $discount = self::resolveDiscountContext(
             $terminal,
             $guest,
@@ -1052,6 +1062,67 @@ final class TerminalFloor
             return '';
         }
         return $digits;
+    }
+
+    /**
+     * Once per scan token+client: guest identity resolved on /t.
+     * Emits terminals.guest.identified and (soft) orders.client.arrived —
+     * orders owns arrive transition; terminals must not call OrdersRepository.
+     *
+     * @param array<string,mixed> $terminal
+     */
+    private static function emitGuestIdentified(
+        int $clientId,
+        array $terminal,
+        string $braceletUid,
+        string $braceletNum,
+        int $adminId,
+        string $token
+    ): void {
+        if ($clientId < 1) {
+            return;
+        }
+        $token = trim($token);
+        $dedupeKey = ($token !== '' ? $token : $braceletUid) . ':' . $clientId;
+        if (!isset($_SESSION['t_guest_identified']) || !is_array($_SESSION['t_guest_identified'])) {
+            $_SESSION['t_guest_identified'] = [];
+        }
+        if (!empty($_SESSION['t_guest_identified'][$dedupeKey])) {
+            return;
+        }
+        $_SESSION['t_guest_identified'][$dedupeKey] = time();
+        // Cap session map growth on long-lived public terminals.
+        if (count($_SESSION['t_guest_identified']) > 200) {
+            $_SESSION['t_guest_identified'] = array_slice(
+                $_SESSION['t_guest_identified'],
+                -100,
+                null,
+                true
+            );
+        }
+        $payload = [
+            'client_id' => $clientId,
+            'terminal_id' => (int)($terminal['id'] ?? 0),
+            'bracelet_uid' => $braceletUid,
+            'bracelet_num' => $braceletNum,
+            'admin_id' => $adminId,
+            'token' => $token,
+        ];
+        EventBus::emit('terminals.guest.identified', $payload);
+        // orders contract (no hard dep): only when orders module is enabled/loaded.
+        if (ModuleManager::isEnabled('orders')) {
+            EventBus::emit('orders.client.arrived', [
+                'client_id' => $clientId,
+                'reason' => 'terminal_floor',
+                'meta' => [
+                    'terminal_id' => (int)($terminal['id'] ?? 0),
+                    'bracelet_uid' => $braceletUid,
+                    'bracelet_num' => $braceletNum,
+                    'admin_id' => $adminId,
+                    'token' => $token,
+                ],
+            ]);
+        }
     }
 
     /**

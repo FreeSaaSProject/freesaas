@@ -542,14 +542,57 @@ final class EventsRepository
         if ($row === null) {
             return null;
         }
-        unset($row['ppp_log'], $row['sms']);
-        if (isset($row['dtstart'])) {
-            $row['dtstart_iso'] = self::tsToLocal((int)$row['dtstart']);
+        $dtstart = (int)($row['dtstart'] ?? 0);
+        $dtend = (int)($row['dtend'] ?? 0);
+        $content = $row['content'] ?? null;
+        $contentBrief = '';
+        if (is_string($content) && $content !== '') {
+            $decoded = json_decode($content, true);
+            if (is_array($decoded)) {
+                $names = [];
+                foreach ($decoded as $c) {
+                    if (!is_array($c)) {
+                        continue;
+                    }
+                    $n = trim((string)($c['name'] ?? $c['NAME'] ?? ''));
+                    if ($n !== '') {
+                        $names[] = $n;
+                    }
+                    if (count($names) >= 3) {
+                        break;
+                    }
+                }
+                $contentBrief = implode(', ', $names);
+            } else {
+                $contentBrief = function_exists('mb_substr')
+                    ? mb_substr($content, 0, 80, 'UTF-8')
+                    : substr($content, 0, 80);
+            }
         }
-        if (isset($row['dtend'])) {
-            $row['dtend_iso'] = self::tsToLocal((int)$row['dtend']);
+        $descr = trim((string)($row['descr'] ?? ''));
+        if ($descr !== '' && function_exists('mb_strlen') && mb_strlen($descr, 'UTF-8') > 120) {
+            $descr = mb_substr($descr, 0, 117, 'UTF-8') . '…';
+        } elseif (strlen($descr) > 120) {
+            $descr = substr($descr, 0, 117) . '…';
         }
-        return $row;
+        return [
+            'id' => (int)($row['id'] ?? 0),
+            'id_operator' => (int)($row['id_operator'] ?? 0),
+            'operator_name' => trim((string)($row['operator_name'] ?? '')),
+            'id_user' => (int)($row['id_user'] ?? 0),
+            'client_name' => trim((string)($row['client_name'] ?? '')),
+            'name' => trim((string)($row['name'] ?? '')),
+            'phone' => trim((string)($row['phone'] ?? '')),
+            'descr' => $descr,
+            'dtstart' => $dtstart,
+            'dtend' => $dtend,
+            'dtstart_iso' => $dtstart > 0 ? self::tsToLocal($dtstart) : '',
+            'dtend_iso' => $dtend > 0 ? self::tsToLocal($dtend) : '',
+            'is_block' => (int)($row['is_block'] ?? 0),
+            'enabled' => (int)($row['enabled'] ?? 1),
+            'content_brief' => $contentBrief,
+            'real_summ' => isset($row['real_summ']) ? (float)$row['real_summ'] : null,
+        ];
     }
 
     /**

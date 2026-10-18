@@ -149,6 +149,7 @@ EventBus::on('calendar.settings.sections', static function ($payload) {
     $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_section', [
         'cfg' => OrdersConfig::formValues(),
         'bots_enabled' => ModuleManager::isEnabled('bots'),
+        'status_options' => OrdersRepository::editableStatuses(),
     ], 'orders');
     return $payload;
 });
@@ -162,6 +163,27 @@ EventBus::on('calendar.settings.save', static function ($payload) {
         return $payload;
     }
     OrdersConfig::saveFromPost($post);
+    return $payload;
+});
+
+// Channel-agnostic: any module may emit orders.client.arrived after identifying a client.
+EventBus::on('orders.client.arrived', static function (array $payload): array {
+    if (!OrdersConfig::arriveTransitionEnabled() || !Database::tableExists('base_orders')) {
+        return $payload;
+    }
+    $clientId = (int)($payload['client_id'] ?? 0);
+    if ($clientId < 1) {
+        return $payload;
+    }
+    $meta = is_array($payload['meta'] ?? null) ? $payload['meta'] : [];
+    $ids = OrdersRepository::transitionOpenForClient($clientId, [
+        'from_status' => OrdersConfig::arriveMatchStatus(),
+        'to_status' => OrdersConfig::arriveSetStatus(),
+        'window_sec' => OrdersConfig::arriveWindowSec(),
+        'reason' => trim((string)($payload['reason'] ?? 'client_arrived')),
+        'meta' => $meta,
+    ]);
+    $payload['orders_transitioned'] = $ids;
     return $payload;
 });
 

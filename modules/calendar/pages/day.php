@@ -170,10 +170,12 @@ if ($wantsJson) {
         'staff_locked' => $myOnly,
         'can_edit' => $canEdit,
         'can_create' => $canCreate,
+        'can_delete' => Auth::can('calendar.delete') && Auth::capability('EVT_DELETE'),
         'events' => EventsRepository::listForAgent($events),
-        'procedures' => $procedures,
-        'orders' => $orders,
+        'procedures' => CalendarTimeline::proceduresForAgent($procedures),
+        'orders' => CalendarTimeline::ordersForAgent($orders),
         'shifts' => WorkweeksRepository::listForAgent($shifts),
+        'hint' => 'Match blocks via events[].is_block=1 + operator_name/time; delete with calendar.events.delete id=events[].id',
     ]);
     return;
 }

@@ -32,6 +32,7 @@ final class AssistantGroupsDialog
         }
         $row = self::load($chatId);
         $mids = is_array($row['bot_mids'] ?? null) ? $row['bot_mids'] : [];
+        $keyboardMids = is_array($row['keyboard_mids'] ?? null) ? $row['keyboard_mids'] : [];
         if ($lastBotMid !== null && $lastBotMid !== '') {
             $mids[] = $lastBotMid;
             $mids = array_values(array_unique(array_filter(array_map('strval', $mids))));
@@ -43,6 +44,7 @@ final class AssistantGroupsDialog
             'updated_at' => time(),
             'messages' => self::trim(self::normalize($history)),
             'bot_mids' => $mids,
+            'keyboard_mids' => self::trimMids($keyboardMids),
         ];
         self::write($chatId, $row);
     }
@@ -91,16 +93,86 @@ final class AssistantGroupsDialog
         $row = self::load($chatId);
         $mids = is_array($row['bot_mids'] ?? null) ? $row['bot_mids'] : [];
         $mids[] = $mid;
-        $mids = array_values(array_unique(array_filter(array_map('strval', $mids))));
-        if (count($mids) > self::BOT_MIDS_MAX) {
-            $mids = array_slice($mids, -self::BOT_MIDS_MAX);
-        }
-        $row['bot_mids'] = $mids;
+        $row['bot_mids'] = self::trimMids($mids);
         $row['updated_at'] = time();
         if (!isset($row['messages']) || !is_array($row['messages'])) {
             $row['messages'] = [];
         }
+        if (!isset($row['keyboard_mids']) || !is_array($row['keyboard_mids'])) {
+            $row['keyboard_mids'] = [];
+        }
         self::write($chatId, $row);
+    }
+
+    /** Track a bot message that still has confirm/cancel buttons. */
+    public static function rememberKeyboardMid(string $chatId, string $mid): void
+    {
+        $mid = trim($mid);
+        $chatId = trim($chatId);
+        if ($mid === '' || $chatId === '') {
+            return;
+        }
+        $row = self::load($chatId);
+        $mids = is_array($row['keyboard_mids'] ?? null) ? $row['keyboard_mids'] : [];
+        $mids[] = $mid;
+        $row['keyboard_mids'] = self::trimMids($mids);
+        $row['updated_at'] = time();
+        if (!isset($row['messages']) || !is_array($row['messages'])) {
+            $row['messages'] = [];
+        }
+        if (!isset($row['bot_mids']) || !is_array($row['bot_mids'])) {
+            $row['bot_mids'] = [];
+        }
+        self::write($chatId, $row);
+    }
+
+    /**
+     * Pop all keyboard message ids (caller clears buttons on Max).
+     *
+     * @return list<string>
+     */
+    public static function takeKeyboardMids(string $chatId): array
+    {
+        $chatId = trim($chatId);
+        if ($chatId === '') {
+            return [];
+        }
+        $row = self::load($chatId);
+        $mids = is_array($row['keyboard_mids'] ?? null) ? $row['keyboard_mids'] : [];
+        $row['keyboard_mids'] = [];
+        $row['updated_at'] = time();
+        if (!isset($row['messages']) || !is_array($row['messages'])) {
+            $row['messages'] = [];
+        }
+        if (!isset($row['bot_mids']) || !is_array($row['bot_mids'])) {
+            $row['bot_mids'] = [];
+        }
+        self::write($chatId, $row);
+        return self::trimMids(array_map('strval', $mids));
+    }
+
+    /** @return list<string> */
+    public static function listKeyboardMids(string $chatId): array
+    {
+        $row = self::load($chatId);
+        $mids = is_array($row['keyboard_mids'] ?? null) ? $row['keyboard_mids'] : [];
+        return self::trimMids(array_map('strval', $mids));
+    }
+
+    /**
+     * @param list<mixed> $mids
+     * @return list<string>
+     */
+    private static function trimMids(array $mids): array
+    {
+        $out = array_values(array_unique(array_filter(array_map(
+            static fn($m): string => trim((string)$m),
+            $mids
+        ), static fn(string $m): bool => $m !== '')));
+        if (count($out) > self::BOT_MIDS_MAX) {
+            $out = array_slice($out, -self::BOT_MIDS_MAX);
+        }
+        return $out;
     }
 
     /**

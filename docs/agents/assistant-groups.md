@@ -26,7 +26,9 @@ UI: **Assistant groups** (`/assistant-groups/settings`, SUPERADMIN).
 
 **New groups:** Max does not list chats the bot is in. Keep webhook/poll live → add bot to the group → `bot_added` is stored under **Discovered** on settings → «Add to allowlist» (or enable `auto_add_groups`).
 
-**Context:** history is per group chat (`var/assistant_groups/dialogs/`), not personal DM history. A **reply** to the bot’s message (Max `link.type=reply`, sender = bot or known bot mid) continues the task without `@mention`. Mentions still start/continue the same chat thread. Reset: `@bot очисти` / `сброс` / `clear` (also cancels pending confirms for that group). Idle TTL 24h.
+**Context:** history is per group chat (`var/assistant_groups/dialogs/`), not personal DM history. A **reply** to the bot’s message (Max `link.type=reply`, sender = bot or known bot mid) continues the task without `@mention`. Mentions still start/continue the same chat thread. Reset via tool `assistant_groups.dialog.clear` (always in the group catalog; LLM calls it on clear/reset wording). Idle TTL 24h.
+
+**Confirm buttons:** mids with keyboards are stored in the dialog file (`keyboard_mids`). Buttons are stripped (message text kept) after confirm/cancel, on stale callback, on dialog clear, and on the next `@mention` / new draft — so old Confirm rows do not linger.
 
 Diagnose: `/assistant-groups/status`.
 

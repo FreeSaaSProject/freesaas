@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.37",
+    "version": "0.1.39",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -364,7 +364,9 @@
             "core.user_edit.profile",
             "calendar.timeline.enrich"
         ],
-        "publish": []
+        "publish": [
+            "terminals.guest.identified"
+        ]
     },
     "bulkActions": [
         {

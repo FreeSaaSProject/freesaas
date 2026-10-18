@@ -34,7 +34,7 @@ final class AssistantTools
                 $method = strtoupper((string)($op['method'] ?? 'GET'));
                 $side = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) ? 'write' : 'read';
             }
-            $params = self::buildParameters($op);
+            $params = self::parametersForOp($op);
             $desc = (string)($op['description'] ?? $op['id']);
             if ($side === 'write') {
                 // Wording matters: models otherwise wait for the user to type "Confirm"
@@ -176,6 +176,7 @@ final class AssistantTools
 
     /**
      * Fill implied form actions for known write ops (LLM often omits action=delete|copy).
+     * Also map common path-id aliases (event_id → id) when `id` is empty.
      *
      * @param array<string,mixed> $args
      * @return array<string,mixed>
@@ -188,7 +189,53 @@ final class AssistantTools
         if ($opId !== '' && preg_match('/\.copy$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
             $args['action'] = 'copy';
         }
+        $idEmpty = !array_key_exists('id', $args) || $args['id'] === '' || $args['id'] === null;
+        if ($idEmpty) {
+            foreach (['event_id', 'eventId', 'ID'] as $alt) {
+                if (!array_key_exists($alt, $args)) {
+                    continue;
+                }
+                if ($args[$alt] === '' || $args[$alt] === null) {
+                    continue;
+                }
+                $args['id'] = $args[$alt];
+                break;
+            }
+        }
         return $args;
+    }
+
+    /**
+     * Path placeholders in op.path that are missing/empty in args.
+     *
+     * @param array<string,mixed> $op
+     * @param array<string,mixed> $args
+     * @return list<string>
+     */
+    public static function missingPathArgs(array $op, array $args): array
+    {
+        $path = (string)($op['path'] ?? '');
+        $missing = [];
+        if ($path === '' || !preg_match_all('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', $path, $m)) {
+            return $missing;
+        }
+        foreach ($m[1] as $name) {
+            if (!array_key_exists($name, $args) || $args[$name] === '' || $args[$name] === null) {
+                $missing[] = $name;
+            }
+        }
+        return $missing;
+    }
+
+    /**
+     * JSON-schema parameters for an agent.op (path placeholders → required properties).
+     *
+     * @param array<string,mixed> $op
+     * @return array<string,mixed>
+     */
+    public static function parametersForOp(array $op): array
+    {
+        return self::buildParameters($op);
     }
 
     /**

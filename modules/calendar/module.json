@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.1.32",
+    "version": "0.1.35",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -116,7 +116,7 @@
                 "path": "/calendar/events/{id}/edit",
                 "permission": "calendar.delete",
                 "side_effect": "write",
-                "description": "Delete event; needs calendar.delete + EVT_DELETE"
+                "description": "Delete event; required id= from calendar.day events[].id (or events.get); action=delete; needs calendar.delete + EVT_DELETE"
             }
         ]
     },
