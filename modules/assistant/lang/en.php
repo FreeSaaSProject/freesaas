@@ -173,6 +173,8 @@ return [
     'assistant.confirm.none' => 'No pending action. Have {name} queue a write first — Confirm/Cancel buttons will appear.',
     'assistant.confirm.not_queued' => 'No write was queued. Ask again — {name} must find the row with a tool and call delete/save so Confirm/Cancel buttons appear.',
     'assistant.confirm.press_buttons' => 'Draft ready — press Confirm or Cancel on the buttons below.',
+    'assistant.ui.show_on_screen' => 'Show on screen',
+    'assistant.ui.mirror_hint' => 'On-screen fields are a draft preview; the write applies only after Confirm.',
     'assistant.err.config' => '{name} is not configured. Add a token under LLM settings.',
     'assistant.err.tools' => 'No tools available for your permissions.',
     'assistant.err.loop' => '{name} stopped after too many tool steps.',

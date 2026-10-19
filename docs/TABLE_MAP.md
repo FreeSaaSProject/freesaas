@@ -39,6 +39,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_records_badges`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances` | audio | Badges, assignments; storage settings in `cfg/modules/audio.ini` |
 | `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
 | `base_records_llm_studies`, `base_records_llm_study_results` | audio_llm | LLM studies over transcripts + cyclic templates |
+| `base_script_coach_runs`, `base_script_coach_artifacts`, `base_script_coach_proposals` | audio_script_coach | Day investigation jobs + LLM dict enrichment proposals |
+| `base_records_phrases`, `base_records_phrase_days` | audio_phrases | Top N-gram harvest (coach is soft successor for script enrichment) |
 | `base_events` / `base_event_items` | calendar | Visit/block shell + planned basket |
 | `base_event_bonus` | bonuses | Bonus intent per calendar visit |
 | `base_cabinets` | cabinets | Rooms; staff `skin`; stocks `ID_CABINET` |

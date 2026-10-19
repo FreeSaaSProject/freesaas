@@ -1,0 +1,114 @@
+{
+    "id": "audio_script_coach",
+    "name": "audio_script_coach.module.name",
+    "description": "audio_script_coach.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "audio": ">=0.1.0",
+        "audio_dicts": ">=0.1.0",
+        "llm": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "audio_reports": ">=0.1.0",
+        "audio_pipeline": ">=0.1.0"
+    },
+    "provides": [],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "audio_script_coach.view",
+            "label": "audio_script_coach.perm.view"
+        },
+        {
+            "id": "audio_script_coach.edit",
+            "label": "audio_script_coach.perm.edit"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/audio/script-coach",
+            "/audio/script-coach/day",
+            "/audio/script-coach/run/{id}",
+            "/audio/script-coach/work",
+            "/audio/script-coach/proposal/{id}"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/audio_script_coach.md",
+        "ops": [
+            {
+                "id": "audio_script_coach.list",
+                "method": "GET",
+                "path": "/audio/script-coach",
+                "permission": "audio_script_coach.view",
+                "description": "List coach runs; optional admin/day filters"
+            },
+            {
+                "id": "audio_script_coach.day",
+                "method": "GET",
+                "path": "/audio/script-coach/day",
+                "permission": "audio_script_coach.view",
+                "description": "Day coach page; admin=&date=YYYY-MM-DD; POST start=1 to spawn run (SUPERADMIN)"
+            },
+            {
+                "id": "audio_script_coach.run",
+                "method": "GET",
+                "path": "/audio/script-coach/run/{id}",
+                "permission": "audio_script_coach.view",
+                "description": "Run detail with artifacts and proposals"
+            },
+            {
+                "id": "audio_script_coach.work",
+                "method": "POST",
+                "path": "/audio/script-coach/work",
+                "permission": "audio_script_coach.edit",
+                "side_effect": "write",
+                "description": "Advance run phases; body run_id="
+            },
+            {
+                "id": "audio_script_coach.proposal",
+                "method": "POST",
+                "path": "/audio/script-coach/proposal/{id}",
+                "permission": "audio_script_coach.edit",
+                "side_effect": "write",
+                "description": "Accept/reject proposal; action=accept|reject; optional link_part=1 force=1"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "audio.menu.group",
+            "kind": "crud",
+            "num": 17,
+            "path": "/audio/script-coach",
+            "title": "audio_script_coach.menu.list"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_script_coach_runs",
+        "base_script_coach_artifacts",
+        "base_script_coach_proposals"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "audio_reports.day_report.sections"
+        ],
+        "publish": []
+    },
+    "bulkActions": [],
+    "catalog": {
+        "categories": [
+            "audio"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "llm"
+        ],
+        "screenshots": []
+    }
+}

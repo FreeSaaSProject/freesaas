@@ -296,18 +296,20 @@ final class Auth
 
         $_SESSION['_seen_at'] = $now;
 
-        // Do not regenerate id / rotate CSRF on mutating requests: the browser still
-        // holds the old CSRF meta token and the next verify would fail mid-POST.
-        if (!$forceGuard) {
+        // Periodic session id rotation (fixation). Skip on mutating requests even when
+        // Auth::can()/capability() call check(false) after Router's check(true) — otherwise
+        // a mid-POST regenerate would race cookie/session state before Csrf::verify.
+        // CSRF token is NOT rotated here (login/logout only) so multi-tab forms stay valid.
+        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $unsafeMethod = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true);
+        if (!$forceGuard && !$unsafeMethod) {
             $regenAt = (int)($_SESSION['_regen_at'] ?? 0);
             if ($regenAt > 0 && ($now - $regenAt) >= self::REGEN_SECONDS) {
-                if (session_status() === PHP_SESSION_ACTIVE) {
+                // After output (CLI checks / early echo) regenerate_id cannot run — still bump stamp.
+                if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
                     session_regenerate_id(true);
                 }
                 $_SESSION['_regen_at'] = $now;
-                if (class_exists('Csrf', false)) {
-                    Csrf::rotate();
-                }
             }
         }
 

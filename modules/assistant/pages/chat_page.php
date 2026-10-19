@@ -68,6 +68,8 @@ View::render('chat', [
         'pending_n' => t('assistant.confirm.pending_n', ['n' => '{n}']),
         'confirm_done' => t('assistant.confirm.done'),
         'confirm_cancelled' => t('assistant.confirm.cancelled'),
+        'show_on_screen' => t('assistant.ui.show_on_screen'),
+        'mirror_hint' => t('assistant.ui.mirror_hint'),
         'clear' => t('assistant.chat.clear'),
         'cleared' => t('assistant.chat.cleared'),
         'tools' => t('assistant.tool.trace'),

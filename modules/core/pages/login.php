@@ -11,7 +11,25 @@ if (Auth::check()) {
     $afterLogin();
 }
 
+// Session ended (idle / auth_epoch / …) — show why, then clear (GET only; POST has own errors).
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    $reason = (string)($_SESSION['auth_redirect_reason'] ?? '');
+    unset($_SESSION['auth_redirect_reason']);
+    $reasonMap = [
+        'idle' => 'core.login.session.idle',
+        'auth_epoch' => 'core.login.session.auth_epoch',
+        'disabled' => 'core.login.session.disabled',
+        'expired' => 'core.login.session.expired',
+        'user_missing' => 'core.login.session.user_missing',
+        'session_cleared' => 'core.login.session.cleared',
+    ];
+    if ($reason !== '' && isset($reasonMap[$reason])) {
+        $error = t($reasonMap[$reason]);
+    }
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    unset($_SESSION['auth_redirect_reason']);
     $login = (string)($_POST['login'] ?? '');
     $password = (string)($_POST['password'] ?? '');
     $remember = isset($_POST['remember']) && (string)$_POST['remember'] !== '0';

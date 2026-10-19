@@ -489,6 +489,13 @@ final class CollectRunner
                 }
 
                 if (!empty($partMeta['killer'])) {
+                    // Conversion already reached (FINISH part met): persist, then close.
+                    // Without conversion: abort — drop open session without writing.
+                    if (!empty($open[$scriptId]['finish']) && !empty($open[$scriptId]['save'])) {
+                        $flushed = self::flushOpen($adminId, $scriptId, $open[$scriptId], $scripts);
+                        $saved += $flushed['saved'];
+                        $offersTotal += $flushed['offers'];
+                    }
                     unset($open[$scriptId]);
                     continue;
                 }

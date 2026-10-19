@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/AssistantDialog.php';
 require_once __DIR__ . '/lib/AssistantAccess.php';
 require_once __DIR__ . '/lib/AssistantLinks.php';
 require_once __DIR__ . '/lib/AssistantTools.php';
+require_once __DIR__ . '/lib/AssistantUiActions.php';
 require_once __DIR__ . '/lib/AssistantHarness.php';
 require_once __DIR__ . '/lib/AssistantEval.php';
 require_once __DIR__ . '/lib/AssistantEvalCases.php';
@@ -151,6 +152,14 @@ EventBus::on('core.layout.gate', static function ($payload) {
 
     Assets::need('assistant');
     $history = AssistantDialog::tableReady() ? AssistantDialog::getHistory($uid) : [];
+    $openPending = class_exists('AssistantUiActions', false)
+        ? AssistantUiActions::pendingPayloadsForUser($uid)
+        : [];
+    $openUiActions = [];
+    if ($openPending !== [] && class_exists('AssistantUiActions', false)) {
+        $opsUi = class_exists('AssistantTools', false) ? AssistantTools::availableOps() : [];
+        $openUiActions = AssistantUiActions::fromPending($openPending, $opsUi);
+    }
     $menuLabels = [];
     foreach (ModuleManager::menuItems() as $item) {
         $p = parse_url((string)($item['path'] ?? ''), PHP_URL_PATH);
@@ -170,6 +179,8 @@ EventBus::on('core.layout.gate', static function ($payload) {
     $payload['floating'] = (string)($payload['floating'] ?? '') . View::capture('_fab', [
         'page_context' => $ctx,
         'history' => $history,
+        'open_pending' => $openPending,
+        'open_ui_actions' => $openUiActions,
         'menu_labels' => $menuLabels,
         'admin_base' => AssistantLinks::base(),
         'i18n' => [
@@ -187,6 +198,8 @@ EventBus::on('core.layout.gate', static function ($payload) {
             'pending_n' => t('assistant.confirm.pending_n', ['n' => '{n}']),
             'confirm_done' => t('assistant.confirm.done'),
             'confirm_cancelled' => t('assistant.confirm.cancelled'),
+            'show_on_screen' => t('assistant.ui.show_on_screen'),
+            'mirror_hint' => t('assistant.ui.mirror_hint'),
             'clear' => t('assistant.chat.clear'),
             'cleared' => t('assistant.chat.cleared'),
             'tools' => t('assistant.tool.trace'),

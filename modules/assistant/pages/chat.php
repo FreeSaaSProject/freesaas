@@ -117,10 +117,25 @@ if ($pendingOut === [] && preg_match(
 $history[] = ['role' => 'assistant', 'content' => $reply];
 AssistantDialog::saveHistory($userId, $history);
 
+// Browser shadow UI (FAB / full chat). Bots never hit this page.
+$uiActions = [];
+if ($pendingOut !== [] && class_exists('AssistantUiActions', false)) {
+    $opsForUi = [];
+    if (isset($opts['full_ops']) && is_array($opts['full_ops'])) {
+        $opsForUi = $opts['full_ops'];
+    } elseif (isset($opts['ops']) && is_array($opts['ops'])) {
+        $opsForUi = $opts['ops'];
+    } elseif (class_exists('AssistantTools', false)) {
+        $opsForUi = AssistantTools::availableOps();
+    }
+    $uiActions = AssistantUiActions::fromPending($pendingOut, $opsForUi);
+}
+
 AgentHttp::emit([
     'ok' => true,
     'text' => $reply,
     'pending_actions' => $pendingOut,
+    'ui_actions' => $uiActions,
     'tool_trace' => $result['tool_trace'],
     'profile' => $result['profile'],
     'history' => AssistantDialog::getHistory($userId),

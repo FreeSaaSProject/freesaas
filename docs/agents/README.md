@@ -58,6 +58,8 @@ Staff/MCP how-to uses these via `core.help.search` / `core.help.get`. Keep **Hum
 | [audio_dicts.md](audio_dicts.md) | `audio_dicts` |
 | [audio_llm.md](audio_llm.md) | `audio_llm` |
 | [audio_pipeline.md](audio_pipeline.md) | `audio_pipeline` |
+| [audio_phrases.md](audio_phrases.md) | `audio_phrases` |
+| [audio_script_coach.md](audio_script_coach.md) | `audio_script_coach` |
 | [audio-summaries.md](audio-summaries.md) | `audio_reports` |
 | [banks.md](banks.md) | `banks` |
 | [bi.md](bi.md) | `bi` |

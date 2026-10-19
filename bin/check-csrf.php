@@ -45,6 +45,17 @@ $_SERVER['HTTP_X_CSRF_TOKEN'] = $t;
 $assert(Csrf::verify(), 'verify header');
 unset($_SERVER['HTTP_X_CSRF_TOKEN']);
 
+// Mid-POST Auth::check(false) must not rotate CSRF (Router calls can() before verify).
+// No DB user: skip guard by leaving user_id empty — only assert rotate() is explicit.
+$tStable = Csrf::token();
+$_SERVER['REQUEST_METHOD'] = 'POST';
+$_SESSION['_regen_at'] = time() - 2000;
+$_SESSION['user_id'] = 0;
+$assert(!Auth::check(false), 'empty session check fails');
+$assert(Csrf::token() === $tStable, 'failed check does not rotate csrf');
+unset($_SERVER['REQUEST_METHOD']);
+$_SESSION['_regen_at'] = time();
+
 // JSON body csrf (shared hosts may strip X-CSRF-Token).
 $_SERVER['CONTENT_TYPE'] = 'application/json';
 $GLOBALS['FREESAAS_TEST_RAW_BODY'] = json_encode(['csrf' => $t, 'message' => 'hi'], JSON_UNESCAPED_UNICODE);

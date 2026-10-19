@@ -42,6 +42,8 @@ Opt out of the assistant tool list with `"assistant": false` on an op (used for 
 - Persona name: **Settings** (`/settings`) → Assistant name (SUPERADMIN / `core.settings`)
 - Layout stamps `#freesaas-page-context` JSON and injects FAB via `core.layout.gate` → `floating`
 
+**Shadow UI (browser only):** when a write is queued, `POST /assistant/chat` may also return `ui_actions[]` (`navigate` / `fill` / `highlight`) derived from the first pending op’s path + args (`AssistantUiActions`). The FAB auto-opens the edit screen and cosmetically fills matching `name=` fields so staff can see the draft; **Confirm still runs the API** (no HTML form submit). After Confirm, `ui_actions: [{type:"reload"}]` refreshes the page. Full chat does not auto-navigate — pending card has «Show on screen». Messengers ignore this channel.
+
 Outgoing assistant text runs through `AssistantLinks::absolutize`: relative `/paths` become absolute admin URLs, and bare module roots with a single menu/route screen (e.g. `/finance` → `/finance/balance`) are rewritten so messengers and the chat UI do not get 404s.
 
 Link discipline: the system prompt is **tool-scoped** — no hardcoded product modules. Module hints (ФОТ, finance, BI `open_url`, wellness food chain) are appended only when the matching tool is in **this** user's catalog. If the final reply still invents denied admin URLs, the harness sends one **link_repair** turn (lists bad hrefs + allowed tool paths/`open_url`) and asks the model to rewrite. Then `AssistantLinks::filterUnauthorized` strips any leftovers so hallucinated links never reach the user.

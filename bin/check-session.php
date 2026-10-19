@@ -149,20 +149,41 @@ try {
 
     $check('guard_ok', Auth::check(true));
 
-    $_SESSION['user_id'] = $uid;
-    $_SESSION['auth_epoch'] = $epoch - 1;
-    $_SESSION['_guard_at'] = 0;
-    $_SESSION['_seen_at'] = time();
-    $check('stale_epoch_logs_out', !Auth::check(true));
-    $check('session_cleared', empty($_SESSION['user_id']));
+    // CSRF must stay stable across periodic session-id regen and mid-POST Auth::can() → check(false).
+    if (class_exists('Csrf', false)) {
+        Csrf::rotate();
+        $csrfBefore = Csrf::token();
+        $_SESSION['_regen_at'] = time() - 2000;
+        $_SESSION['_seen_at'] = time();
+        $_SESSION['_guard_at'] = time();
+        $_SERVER['REQUEST_METHOD'] = 'GET';
+        $check('get_regen_keeps_session', Auth::check(false));
+        $check('get_regen_csrf_stable', Csrf::token() === $csrfBefore && strlen($csrfBefore) === 64);
+        $check('get_regen_at_advanced', (int)($_SESSION['_regen_at'] ?? 0) >= time() - 5);
 
-    $_SESSION['user_id'] = $uid;
-    $_SESSION['auth_epoch'] = $epoch;
-    $_SESSION['_seen_at'] = time() - (8 * 86400);
-    $_SESSION['_guard_at'] = time();
-    $check('idle_timeout', !Auth::check(false));
+        Csrf::rotate();
+        $csrfPost = Csrf::token();
+        $regenStale = time() - 2000;
+        $_SESSION['_regen_at'] = $regenStale;
+        $_SESSION['_seen_at'] = time();
+        $_SESSION['_guard_at'] = time();
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        $check('post_force_guard', Auth::check(true));
+        // Mimic Router: check(true) then Auth::can() → check(false) before Csrf::verify.
+        Auth::can('core.nonexistent_perm_for_csrf_check');
+        $check('post_can_csrf_stable', Csrf::token() === $csrfPost);
+        $check('post_can_no_id_regen', (int)($_SESSION['_regen_at'] ?? 0) === $regenStale);
+        $_POST['csrf'] = $csrfPost;
+        $check('post_can_csrf_verify', Csrf::verify());
+        unset($_POST['csrf'], $_SERVER['REQUEST_METHOD']);
+        $_SESSION['_regen_at'] = time();
+        $_SESSION['_seen_at'] = time();
+        $_SESSION['_guard_at'] = time();
+    } else {
+        echo "SKIP csrf_regen (Csrf missing)\n";
+    }
 
-    // runAs must keep Auth::can working even with a stale leftover session epoch.
+    // runAs before destructive logout paths (idle/epoch) so CLI session_start stays healthy.
     $_SESSION = [];
     $_SESSION['user_id'] = $uid;
     $_SESSION['auth_epoch'] = $epoch - 1;
@@ -187,9 +208,24 @@ try {
         $before = $epoch;
         $after = Auth::bumpAuthEpoch($uid);
         $check('bump_increments', $after === $before + 1 || ($before === 0 && $after >= 1));
+        $epoch = $after;
     } else {
         echo "SKIP bump_increments (no auth_epoch)\n";
     }
+
+    $_SESSION['user_id'] = $uid;
+    $_SESSION['auth_epoch'] = $epoch - 1;
+    $_SESSION['_guard_at'] = 0;
+    $_SESSION['_seen_at'] = time();
+    $check('stale_epoch_logs_out', !Auth::check(true));
+    $check('session_cleared', empty($_SESSION['user_id']));
+
+    // Re-hydrate after logout destroyed the PHP session (in-request $_SESSION write is enough for idle).
+    $_SESSION['user_id'] = $uid;
+    $_SESSION['auth_epoch'] = $epoch;
+    $_SESSION['_seen_at'] = time() - (8 * 86400);
+    $_SESSION['_guard_at'] = time();
+    $check('idle_timeout', !Auth::check(false));
 } catch (Throwable $e) {
     echo 'FAIL temp_user_setup ' . $e->getMessage() . PHP_EOL;
     $fail++;

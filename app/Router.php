@@ -200,13 +200,19 @@ final class Router
         $forceGuard = $unsafe || (is_string($capability) && $capability !== '');
         $wantJson = class_exists('AgentHttp', false) && AgentHttp::wantsJson();
         if ($needsAuth && !Auth::check($forceGuard)) {
+            $why = Auth::lastCheckFail();
             if ($wantJson) {
-                $why = Auth::lastCheckFail();
                 AgentHttp::error(
                     $why !== '' ? ('auth:' . $why) : 'Unauthorized',
                     401,
                     ['error_code' => $why !== '' ? $why : 'unauthorized']
                 );
+            }
+            // logout() inside check() may have destroyed the session — restart for flash.
+            Auth::startSession();
+            $explain = ['idle', 'auth_epoch', 'disabled', 'expired', 'user_missing', 'session_cleared'];
+            if ($why !== '' && in_array($why, $explain, true)) {
+                $_SESSION['auth_redirect_reason'] = $why;
             }
             redirect('/login');
         }

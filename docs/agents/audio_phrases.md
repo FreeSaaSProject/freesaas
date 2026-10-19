@@ -59,3 +59,5 @@ Personal chatter: prefer **skip** (reversible, does not pollute trash). Use a «
 ## Future: LLM auto-classify
 
 Soft `llm`: batch new phrases with dicts + ~30 sample keys each → JSON suggestions → human bulk confirm via `setStatusMany`. Not implemented yet.
+
+**Script enrichment successor:** [`audio_script_coach`](audio_script_coach.md) (alpha) investigates a staff day for silent/trigger gaps and proposes keys/new dicts via LLM. Keep this module until coach proves out; do not uninstall phrases solely because coach exists.

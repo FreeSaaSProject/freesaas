@@ -69,13 +69,24 @@ if ($userId > 0 && class_exists('AssistantDialog', false)) {
     AssistantDialog::saveHistory($userId, $history);
 }
 
+$emitAction = (string)($result['action'] ?? $action);
+$uiActions = [];
+if (
+    $emitAction === 'confirm'
+    && (int)($result['done'] ?? 0) > 0
+    && class_exists('AssistantUiActions', false)
+) {
+    $uiActions = AssistantUiActions::reload();
+}
+
 AgentHttp::emit([
     'ok' => true,
-    'action' => $result['action'] ?? $action,
+    'action' => $emitAction,
     'result' => $result['result'] ?? null,
     'done' => (int)($result['done'] ?? 0),
     'failed' => (int)($result['failed'] ?? 0),
     'message' => $message,
+    'ui_actions' => $uiActions,
     'history' => class_exists('AssistantDialog', false)
         ? AssistantDialog::getHistory($userId)
         : [],

@@ -223,7 +223,238 @@
       .filter(Boolean);
   }
 
-  function attachPending(wrap, pending) {
+  var UI_MIRROR_KEY = 'assistant.ui_mirror';
+
+  function normalizePathname(p) {
+    p = String(p || '/').split('?')[0].split('#')[0];
+    if (!p || p.charAt(0) !== '/') {
+      p = '/' + p;
+    }
+    if (p.length > 1 && p.slice(-1) === '/') {
+      p = p.slice(0, -1);
+    }
+    return p || '/';
+  }
+
+  function pathsMatch(a, b) {
+    return normalizePathname(a) === normalizePathname(b);
+  }
+
+  function adminHref(path) {
+    path = String(path || '');
+    if (!path || path.charAt(0) !== '/') {
+      return path;
+    }
+    var base = (adminBase || '').replace(/\/$/, '');
+    return base + path;
+  }
+
+  function findNamedControls(name) {
+    name = String(name || '');
+    if (!name) {
+      return [];
+    }
+    var out = [];
+    var exact = document.querySelectorAll(
+      'input[name], select[name], textarea[name]'
+    );
+    var lower = name.toLowerCase();
+    for (var i = 0; i < exact.length; i++) {
+      var el = exact[i];
+      var n = String(el.getAttribute('name') || '');
+      if (n === name || n.toLowerCase() === lower) {
+        out.push(el);
+      }
+    }
+    return out;
+  }
+
+  function markAssistantFill(el) {
+    if (!el) {
+      return;
+    }
+    el.classList.add('assistant-ui-fill');
+    var label = el.closest('label') || (el.id ? document.querySelector('label[for="' + el.id + '"]') : null);
+    if (label) {
+      label.classList.add('assistant-ui-fill-label');
+    }
+  }
+
+  function applyFillFields(fields) {
+    if (!fields || typeof fields !== 'object') {
+      return;
+    }
+    Object.keys(fields).forEach(function (name) {
+      var value = fields[name];
+      var els = findNamedControls(name);
+      if (!els.length && name.slice(-2) !== '[]') {
+        els = findNamedControls(name + '[]');
+      }
+      if (!els.length) {
+        return;
+      }
+      if (Array.isArray(value)) {
+        var want = {};
+        value.forEach(function (v) {
+          want[String(v)] = true;
+        });
+        els.forEach(function (el) {
+          if (el.type === 'checkbox' || el.type === 'radio') {
+            el.checked = !!want[String(el.value)];
+            markAssistantFill(el);
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        });
+        return;
+      }
+      var str = value === null || value === undefined ? '' : String(value);
+      els.forEach(function (el) {
+        if (el.type === 'checkbox') {
+          var on = str === '1' || str.toLowerCase() === 'true' || str === el.value;
+          el.checked = on;
+        } else if (el.type === 'radio') {
+          el.checked = String(el.value) === str;
+        } else if (el.tagName === 'SELECT') {
+          el.value = str;
+        } else {
+          el.value = str;
+        }
+        markAssistantFill(el);
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    });
+  }
+
+  function applyHighlightFields(names) {
+    if (!Array.isArray(names)) {
+      return;
+    }
+    names.forEach(function (name) {
+      findNamedControls(String(name)).forEach(markAssistantFill);
+      if (String(name).slice(-2) !== '[]') {
+        findNamedControls(String(name) + '[]').forEach(markAssistantFill);
+      }
+    });
+  }
+
+  function applyLocalUiActions(actions) {
+    if (!Array.isArray(actions)) {
+      return;
+    }
+    actions.forEach(function (a) {
+      if (!a || !a.type) {
+        return;
+      }
+      if (a.type === 'fill' && a.fields) {
+        applyFillFields(a.fields);
+      } else if (a.type === 'highlight' && a.fields) {
+        applyHighlightFields(a.fields);
+      }
+    });
+  }
+
+  function storeUiMirror(payload) {
+    try {
+      sessionStorage.setItem(UI_MIRROR_KEY, JSON.stringify(payload));
+    } catch (e) {}
+  }
+
+  function clearUiMirror() {
+    try {
+      sessionStorage.removeItem(UI_MIRROR_KEY);
+    } catch (e) {}
+  }
+
+  function readUiMirror() {
+    try {
+      var raw = sessionStorage.getItem(UI_MIRROR_KEY);
+      if (!raw) {
+        return null;
+      }
+      var data = JSON.parse(raw);
+      return data && typeof data === 'object' ? data : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function lastAssistantWrap() {
+    if (!log) {
+      return null;
+    }
+    var nodes = log.querySelectorAll('.assistant-chat__msg--assistant');
+    return nodes.length ? nodes[nodes.length - 1] : log.lastElementChild;
+  }
+
+  function handleUiActions(actions, pending, opts) {
+    if (!Array.isArray(actions) || !actions.length) {
+      return false;
+    }
+    opts = opts || {};
+    // FAB auto-applies navigate; full chat only when user clicks «Show on screen».
+    var allowNavigate = opts.navigate !== false && (isFab || opts.forceNavigate);
+    var navPath = '';
+    var local = [];
+    var needReload = false;
+    actions.forEach(function (a) {
+      if (!a || !a.type) {
+        return;
+      }
+      if (a.type === 'reload') {
+        needReload = true;
+      } else if (a.type === 'navigate' && a.path) {
+        navPath = String(a.path);
+      } else {
+        local.push(a);
+      }
+    });
+    if (needReload) {
+      clearUiMirror();
+      window.location.reload();
+      return true;
+    }
+    if (navPath && allowNavigate && !pathsMatch(navPath, window.location.pathname)) {
+      storeUiMirror({
+        path: normalizePathname(navPath),
+        actions: local,
+        pending: Array.isArray(pending) ? pending : [],
+      });
+      window.location.assign(adminHref(navPath));
+      return true;
+    }
+    if (local.length) {
+      window.setTimeout(function () {
+        applyLocalUiActions(local);
+      }, 40);
+    }
+    return false;
+  }
+
+  function restoreUiMirror() {
+    var data = readUiMirror();
+    if (!data) {
+      return false;
+    }
+    var target = normalizePathname(data.path || '');
+    if (!target || !pathsMatch(target, window.location.pathname)) {
+      return false;
+    }
+    clearUiMirror();
+    window.setTimeout(function () {
+      applyLocalUiActions(data.actions || []);
+    }, 60);
+    if (Array.isArray(data.pending) && data.pending.length) {
+      var wrap = lastAssistantWrap();
+      if (wrap) {
+        attachPending(wrap, data.pending, data.actions || []);
+      }
+    }
+    root.setAttribute('data-ui-mirror-open', '1');
+    return true;
+  }
+
+  function attachPending(wrap, pending, uiActionsForShow) {
     if (!wrap || !pending || !pending.length) {
       return;
     }
@@ -264,6 +495,13 @@
       return;
     }
     wrap.appendChild(list);
+    var hint = t('mirror_hint', '');
+    if (hint) {
+      var hintEl = document.createElement('p');
+      hintEl.className = 'assistant-chat__mirror-hint muted';
+      hintEl.textContent = hint;
+      wrap.appendChild(hintEl);
+    }
     var row = document.createElement('div');
     row.className = 'assistant-chat__pending';
     var ok = document.createElement('button');
@@ -288,6 +526,25 @@
     });
     row.appendChild(ok);
     row.appendChild(no);
+    // Full chat: optional navigate without leaving until user asks.
+    if (!isFab && Array.isArray(uiActionsForShow) && uiActionsForShow.length) {
+      var showPath = '';
+      uiActionsForShow.forEach(function (a) {
+        if (a && a.type === 'navigate' && a.path) {
+          showPath = String(a.path);
+        }
+      });
+      if (showPath) {
+        var showBtn = document.createElement('button');
+        showBtn.type = 'button';
+        showBtn.className = 'btn-secondary';
+        showBtn.textContent = t('show_on_screen', 'Show on screen');
+        showBtn.addEventListener('click', function () {
+          handleUiActions(uiActionsForShow, pending, { forceNavigate: true });
+        });
+        row.appendChild(showBtn);
+      }
+    }
     wrap.appendChild(row);
   }
 
@@ -638,7 +895,7 @@
     input.style.height = Math.min(input.scrollHeight, 144) + 'px';
   }
 
-  function applyServerHistory(list, pending, trace) {
+  function applyServerHistory(list, pending, trace, uiActions) {
     if (!Array.isArray(list)) {
       return;
     }
@@ -660,7 +917,7 @@
       last.appendChild(toolsEl);
     }
     if (pending && pending.length) {
-      attachPending(last, pending);
+      attachPending(last, pending, uiActions || null);
     }
   }
 
@@ -702,6 +959,13 @@
           stale.forEach(function (el) {
             el.remove();
           });
+        }
+        var uiActions =
+          res.json && Array.isArray(res.json.ui_actions) ? res.json.ui_actions : [];
+        if (res.ok && res.json && res.json.ok && uiActions.length) {
+          if (handleUiActions(uiActions, null)) {
+            return;
+          }
         }
         if (res.json && Array.isArray(res.json.history)) {
           applyServerHistory(res.json.history);
@@ -768,12 +1032,22 @@
           thinking.parentNode.removeChild(thinking);
         }
         var trace = (res.json && res.json.tool_trace) || [];
+        var pending =
+          res.ok && res.json && res.json.ok ? res.json.pending_actions || [] : [];
+        var uiActions =
+          res.ok && res.json && res.json.ok && Array.isArray(res.json.ui_actions)
+            ? res.json.ui_actions
+            : [];
         if (res.json && Array.isArray(res.json.history)) {
           applyServerHistory(
             res.json.history,
-            res.ok && res.json.ok ? res.json.pending_actions || [] : [],
-            res.ok && res.json.ok ? trace : []
+            pending,
+            res.ok && res.json.ok ? trace : [],
+            uiActions
           );
+          if (uiActions.length) {
+            handleUiActions(uiActions, pending, isFab ? null : { navigate: false });
+          }
           return;
         }
         if (!res.ok || !res.json || !res.json.ok) {
@@ -794,11 +1068,27 @@
         appendMsg(
           t('assistant', 'Assistant'),
           reply,
-          res.json.pending_actions || [],
+          pending,
           trace,
           'assistant',
           history.length - 1
         );
+        // Re-attach with show-on-screen for full chat (appendMsg→attachPending without uiActions).
+        if (!isFab && uiActions.length && pending.length) {
+          var last = lastAssistantWrap();
+          if (last) {
+            var stale = last.querySelectorAll(
+              '.assistant-chat__pending, .assistant-chat__pending-list'
+            );
+            stale.forEach(function (el) {
+              el.remove();
+            });
+            attachPending(last, pending, uiActions);
+          }
+        }
+        if (uiActions.length) {
+          handleUiActions(uiActions, pending, isFab ? null : { navigate: false });
+        }
       })
       .catch(function () {
         setBusy(false);
@@ -932,6 +1222,38 @@
     sendMessage(input.value || '');
   });
 
+  // Restore shadow UI after navigate (sessionStorage) or open pending from server.
+  var mirrored = restoreUiMirror();
+  if (!mirrored && isFab) {
+    var openPending = [];
+    var openUi = [];
+    try {
+      openPending = JSON.parse(root.getAttribute('data-open-pending') || '[]') || [];
+    } catch (ePend) {
+      openPending = [];
+    }
+    try {
+      openUi = JSON.parse(root.getAttribute('data-open-ui-actions') || '[]') || [];
+    } catch (eUi) {
+      openUi = [];
+    }
+    if (Array.isArray(openPending) && openPending.length) {
+      var wrapOpen = lastAssistantWrap();
+      if (wrapOpen) {
+        attachPending(wrapOpen, openPending, null);
+      }
+      if (Array.isArray(openUi) && openUi.length) {
+        var localOnly = openUi.filter(function (a) {
+          return a && a.type && a.type !== 'navigate' && a.type !== 'reload';
+        });
+        window.setTimeout(function () {
+          applyLocalUiActions(localOnly);
+        }, 60);
+      }
+      root.setAttribute('data-ui-mirror-open', '1');
+    }
+  }
+
   // Home invite → /assistant?q=… auto-sends once, then cleans the URL.
   var seedQ = (root.getAttribute('data-seed-q') || '').trim();
   if (seedQ) {
@@ -1036,6 +1358,9 @@
     }
     if (chatRoot) {
       initChat(chatRoot);
+      if (chatRoot.getAttribute('data-ui-mirror-open') === '1') {
+        setOpen(true);
+      }
     }
   }
 

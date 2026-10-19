@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-19T14:22:39+00:00",
+    "generated_at": "2026-10-19T15:06:43+00:00",
     "modules": [
         {
             "id": "asr",
@@ -314,6 +314,42 @@
                 ],
                 "maturity": "beta",
                 "tags": []
+            }
+        },
+        {
+            "id": "audio_script_coach",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Script coach",
+                "ru": "Дообучение скриптов"
+            },
+            "description": {
+                "en": "Investigate a staff day and propose dictionary enrichments so scripts fire on new phrasing.",
+                "ru": "Исследование смены сотрудника и предложения по обогащению словарей, чтобы скрипты ловили новые формулировки."
+            },
+            "summary": {
+                "en": "Enable when audio dicts + LLM are ready. Superadmin button on day-report. Successor to top-phrases for script enrichment; keep audio_phrases until this proves out.",
+                "ru": "Включать при готовых audio_dicts + llm. Кнопка у суперadmin на отчёте ®. Преемник топ-фраз для обогащения скриптов; audio_phrases пока не удаляем."
+            },
+            "requires": {
+                "core": ">=0.3.0",
+                "audio": ">=0.1.0",
+                "audio_dicts": ">=0.1.0",
+                "llm": ">=0.1.0"
+            },
+            "optionalRequires": {
+                "audio_reports": ">=0.1.0",
+                "audio_pipeline": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "audio"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "llm"
+                ]
             }
         },
         {

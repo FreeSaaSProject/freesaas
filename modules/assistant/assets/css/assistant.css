@@ -913,6 +913,23 @@ body.app-shell:has(.assistant-shell) .app-footer {
   max-width: 100%;
 }
 
+/* Shadow UI: cosmetic fill/highlight while pending Confirm (API still writes). */
+.assistant-ui-fill {
+  outline: 2px solid var(--accent, #2a6fdb);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--accent-ring, rgba(42, 111, 219, 0.25));
+  transition: outline-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.assistant-ui-fill-label {
+  color: var(--accent, #2a6fdb);
+}
+
+.assistant-chat__mirror-hint {
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.85rem;
+}
+
 .assistant-prefs-hidden {
   list-style: none;
   margin: 0;

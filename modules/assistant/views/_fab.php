@@ -2,11 +2,15 @@
 declare(strict_types=1);
 /** @var array<string,mixed> $page_context */
 /** @var list<array{role:string,content:string}> $history */
+/** @var list<array<string,mixed>> $open_pending */
+/** @var list<array<string,mixed>> $open_ui_actions */
 /** @var array<string,string> $menu_labels */
 /** @var array<string,mixed> $i18n */
 /** @var string $admin_base */
 $page_context = is_array($page_context ?? null) ? $page_context : [];
 $history = is_array($history ?? null) ? $history : [];
+$open_pending = is_array($open_pending ?? null) ? $open_pending : [];
+$open_ui_actions = is_array($open_ui_actions ?? null) ? $open_ui_actions : [];
 $menu_labels = is_array($menu_labels ?? null) ? $menu_labels : [];
 $i18n = is_array($i18n ?? null) ? $i18n : [];
 $admin_base = isset($admin_base) ? (string)$admin_base : '';
@@ -15,6 +19,14 @@ $letter = AssistantConfig::initialLetter();
 $historyJson = json_encode($history, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if ($historyJson === false) {
     $historyJson = '[]';
+}
+$openPendingJson = json_encode($open_pending, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+if ($openPendingJson === false) {
+    $openPendingJson = '[]';
+}
+$openUiActionsJson = json_encode($open_ui_actions, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+if ($openUiActionsJson === false) {
+    $openUiActionsJson = '[]';
 }
 $menuLabelsJson = json_encode($menu_labels, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 if ($menuLabelsJson === false) {
@@ -75,6 +87,8 @@ $path = (string)($page_context['path'] ?? '/');
          data-feedback-url="/assistant/feedback"
          data-admin-base="<?= e($admin_base) ?>"
          data-history="<?= e($historyJson) ?>"
+         data-open-pending="<?= e($openPendingJson) ?>"
+         data-open-ui-actions="<?= e($openUiActionsJson) ?>"
          data-menu-labels="<?= e($menuLabelsJson) ?>"
          data-page-context="<?= e($ctxJson) ?>"
          data-i18n="<?= e($i18nJson) ?>">
