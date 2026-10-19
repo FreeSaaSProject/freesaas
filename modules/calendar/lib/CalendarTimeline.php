@@ -369,18 +369,21 @@ final class CalendarTimeline
             $info = '<div class="calendar-info-head">#' . (int)$ev['id']
                 . ($isBlock ? ' · ' . t('calendar.day.block') : '') . '</div>'
                 . '<div>' . date('H:i', (int)$ev['dtstart']) . ' – ' . date('H:i', (int)$ev['dtend']) . '</div>'
-                . '<div>' . $client . '</div>';
+                . '<div>' . htmlspecialchars($client, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
             if (!$isBlock && $showEventPhone && $phone !== '') {
-                $info .= '<div class="muted">' . $phone . '</div>';
+                $info .= '<div class="muted">' . htmlspecialchars($phone, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
             }
             if (!empty($ev['operator_name'])) {
-                $info .= '<div class="muted">' . (string)$ev['operator_name'] . '</div>';
+                $info .= '<div class="muted">' . htmlspecialchars((string)$ev['operator_name'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
             }
-            if (!$isBlock && isset($ev['real_summ'])) {
-                $info .= '<div><b>' . number_format((float)$ev['real_summ'], 0, '.', ' ') . '</b></div>';
+            if (!$isBlock) {
+                $info .= self::eventBasketInfoHtml($ev);
+            }
+            if (!$isBlock && isset($ev['real_summ']) && (float)$ev['real_summ'] > 0) {
+                $info .= '<div><b>' . number_format((float)$ev['real_summ'], 0, '.', ' ') . ' ₽</b></div>';
             }
             if (!empty($ev['descr'])) {
-                $info .= '<div class="muted">' . mb_substr((string)$ev['descr'], 0, 160) . '</div>';
+                $info .= '<div class="muted">' . htmlspecialchars(mb_substr((string)$ev['descr'], 0, 160), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
             }
             $chips[] = [
                 'kind' => $isBlock ? 'block' : 'event',
@@ -582,6 +585,50 @@ final class CalendarTimeline
             'info' => '',
             'class' => 'is-shift-' . $side,
         ];
+    }
+
+    /**
+     * Basket lines for event info popup (names × qty · price).
+     *
+     * @param array<string,mixed> $ev
+     */
+    private static function eventBasketInfoHtml(array $ev): string
+    {
+        $items = is_array($ev['items'] ?? null) ? $ev['items'] : [];
+        if ($items === []) {
+            return '';
+        }
+        $names = class_exists(ProductsRepository::class, false)
+            ? ProductsRepository::names(true)
+            : [];
+        $html = '<ul class="calendar-info-items">';
+        $n = 0;
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $gid = (int)($it['id_good'] ?? 0);
+            if ($gid < 1) {
+                continue;
+            }
+            $qty = max(1, (int)($it['qty'] ?? 1));
+            $price = (float)($it['price'] ?? 0);
+            $label = (string)($names[$gid] ?? ('#' . $gid));
+            $line = htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            if ($qty > 1) {
+                $line .= ' ×' . $qty;
+            }
+            if ($price > 0) {
+                $line .= ' · ' . number_format($price * $qty, 0, '.', ' ') . ' ₽';
+            }
+            $html .= '<li>' . $line . '</li>';
+            $n++;
+            if ($n >= 12) {
+                break;
+            }
+        }
+        $html .= '</ul>';
+        return $n > 0 ? $html : '';
     }
 
     /**

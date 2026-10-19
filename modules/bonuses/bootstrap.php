@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/BonusMovesRepository.php';
+require_once __DIR__ . '/lib/EventBonusRepository.php';
 require_once __DIR__ . '/lib/BonusProcessor.php';
 
 Assets::register('bonuses', [
@@ -42,6 +43,9 @@ EventBus::on('calendar.event.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;
     }
+    if (class_exists('CalendarConfig', false) && !CalendarConfig::isVisitsMode()) {
+        return $payload;
+    }
     if (!Auth::can('bonuses.view') && !Auth::can('bonuses.apply')) {
         return $payload;
     }
@@ -56,6 +60,11 @@ EventBus::on('calendar.event.sections', static function ($payload) {
     $isNew = !empty($payload['is_new']);
     $canModify = !empty($payload['can_modify']);
     $eventId = (int)($payload['id'] ?? 0);
+    if ($eventId > 0) {
+        $intent = EventBonusRepository::get($eventId);
+        $row['bonus_use'] = $intent['bonus_use'];
+        $row['bonus_discount'] = $intent['bonus_discount'];
+    }
     $clientId = (int)($row['id_user'] ?? 0);
     $balance = $clientId > 0 ? BonusMovesRepository::balance($clientId) : 0.0;
     $already = $eventId > 0 && BonusMovesRepository::eventHasSettlement($eventId);
@@ -96,22 +105,27 @@ EventBus::on('calendar.event.save', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;
     }
-    $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
-    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
-
-    $canBonusFields = Auth::capability('EVT_BONUS') || Auth::capability('SUPERADMIN_ACCESS');
-    if (!$canBonusFields || !Auth::can('bonuses.view')) {
-        $data['bonus_use'] = 0;
-        $data['bonus_discount'] = 0.0;
-        $payload['data'] = $data;
+    if (class_exists('CalendarConfig', false) && !CalendarConfig::isVisitsMode()) {
         return $payload;
     }
+    $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
+    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $eventId = (int)($payload['id'] ?? 0);
 
-    $data['bonus_use'] = !empty($post['bonus_use']) ? 1 : 0;
-    $data['bonus_discount'] = max(0.0, (float)($post['bonus_discount'] ?? 0));
-    if (empty($data['bonus_use'])) {
-        $data['bonus_discount'] = 0.0;
+    $canBonusFields = Auth::capability('EVT_BONUS') || Auth::capability('SUPERADMIN_ACCESS');
+    $bonusUse = 0;
+    $bonusDiscount = 0.0;
+    if ($canBonusFields && Auth::can('bonuses.view')) {
+        $bonusUse = !empty($post['bonus_use']) ? 1 : 0;
+        $bonusDiscount = max(0.0, (float)($post['bonus_discount'] ?? 0));
+        if ($bonusUse < 1) {
+            $bonusDiscount = 0.0;
+        }
     }
+    // Keep keys for quote UI on same request; persist after save via event id.
+    $data['bonus_use'] = $bonusUse;
+    $data['bonus_discount'] = $bonusDiscount;
     $payload['data'] = $data;
+    $payload['_bonus_persist'] = ['use' => $bonusUse, 'discount' => $bonusDiscount, 'event_id' => $eventId];
     return $payload;
 });

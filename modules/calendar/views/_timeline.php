@@ -232,7 +232,7 @@ $renderShiftChip = static function (array $sh): string {
               <?php if ($canCreate): ?>
                 <a class="calendar-tl-slot"
                    style="top:<?= (int)($i * $pxPerHour) ?>px;height:<?= (int)$pxPerHour ?>px;"
-                   href="/calendar/events/new?date=<?= e(rawurlencode($d)) ?>&amp;hour=<?= (int)$h ?>&amp;staff=<?= (int)$staffId ?>&amp;ret=<?= e(rawurlencode($retUrl)) ?>"
+                   href="/calendar/events/new?date=<?= e(rawurlencode($d)) ?>&amp;hour=<?= (int)$h ?>&amp;staff=<?= (int)$staffId ?><?= (class_exists('CalendarConfig', false) && CalendarConfig::isBlocksMode()) ? '&amp;block=1' : '' ?>&amp;ret=<?= e(rawurlencode($retUrl)) ?>"
                    title="<?= te('calendar.day.add_event') ?>"></a>
               <?php else: ?>
                 <div class="calendar-tl-slot is-static"

@@ -128,6 +128,15 @@ final class BonusProcessor
 
         $clientId = (int)($event['id_user'] ?? 0);
         $balance = BonusMovesRepository::balance($clientId);
+        $intent = class_exists('EventBonusRepository', false)
+            ? EventBonusRepository::get($eventId)
+            : ['bonus_use' => 0, 'bonus_discount' => 0.0];
+        if (!isset($event['bonus_use'])) {
+            $event['bonus_use'] = $intent['bonus_use'];
+        }
+        if (!isset($event['bonus_discount'])) {
+            $event['bonus_discount'] = $intent['bonus_discount'];
+        }
         $bonusUse = !empty($event['bonus_use']);
         $requested = max(0.0, (float)($event['bonus_discount'] ?? 0));
         if ($bonusUse && $requested <= 0 && $balance > 0) {
@@ -287,27 +296,24 @@ final class BonusProcessor
      */
     public static function buildGoods(array $event): array
     {
-        $ids = $event['content_ids'] ?? null;
-        if (!is_array($ids)) {
-            $ids = class_exists('EventsRepository', false)
-                ? EventsRepository::parseContentIds((string)($event['content'] ?? ''))
-                : [];
-        }
-        $priceMap = $event['content_price_map'] ?? null;
-        if (!is_array($priceMap)) {
-            $priceMap = class_exists('EventsRepository', false)
-                ? EventsRepository::parseContentPrices((string)($event['content_price'] ?? ''))
-                : [];
+        $items = is_array($event['items'] ?? null) ? $event['items'] : [];
+        if ($items === [] && class_exists('EventItemsRepository', false) && (int)($event['id'] ?? 0) > 0) {
+            $items = EventItemsRepository::listByEvent((int)$event['id']);
         }
 
         $goods = [];
         $sum = 0.0;
-        foreach ($ids as $pid) {
-            $pid = (int)$pid;
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $pid = (int)($it['id_good'] ?? 0);
             if ($pid < 1) {
                 continue;
             }
-            $price = isset($priceMap[$pid]) ? (float)$priceMap[$pid] : 0.0;
+            $unit = (float)($it['price'] ?? 0);
+            $qty = max(1, (int)($it['qty'] ?? 1));
+            $linePrice = $unit * $qty;
             $name = '#' . $pid;
             $typeId = 0;
             if (class_exists('ProductsRepository', false)) {
@@ -315,8 +321,9 @@ final class BonusProcessor
                 if ($product) {
                     $name = (string)($product['name'] ?? $name);
                     $typeId = (int)($product['type_id'] ?? 0);
-                    if ($price <= 0 && isset($product['price'])) {
-                        $price = (float)$product['price'];
+                    if ($unit <= 0 && isset($product['price'])) {
+                        $unit = (float)$product['price'];
+                        $linePrice = $unit * $qty;
                     }
                 }
             }
@@ -331,11 +338,11 @@ final class BonusProcessor
             }
             $goods[$pid] = [
                 'name' => $name,
-                'price' => $price,
+                'price' => $linePrice,
                 'bonus_in_proc' => $in,
                 'bonus_out_proc' => $out,
             ];
-            $sum += $price;
+            $sum += $linePrice;
         }
 
         return ['goods' => $goods, 'sum' => $sum];
@@ -343,12 +350,16 @@ final class BonusProcessor
 
     private static function updateEventMoney(int $eventId, float $bonusDiscount, float $realSumm): void
     {
-        if ($eventId < 1 || !Database::tableExists('base_events')) {
+        if ($eventId < 1) {
             return;
         }
-        $st = Database::pdo()->prepare(
-            'UPDATE base_events SET BONUS_DISCOUNT = ?, REAL_SUMM = ?, DTUPDATE = ? WHERE ID = ?'
-        );
-        $st->execute([$bonusDiscount, $realSumm, time(), $eventId]);
+        if (class_exists('EventBonusRepository', false)) {
+            $cur = EventBonusRepository::get($eventId);
+            $use = (int)$cur['bonus_use'] > 0 || $bonusDiscount > 0 ? 1 : 0;
+            EventBonusRepository::upsert($eventId, $use, $bonusDiscount);
+        }
+        if (class_exists('EventsRepository', false)) {
+            EventsRepository::touch($eventId);
+        }
     }
 }

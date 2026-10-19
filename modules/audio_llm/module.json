@@ -2,7 +2,7 @@
     "id": "audio_llm",
     "name": "audio_llm.module.name",
     "description": "audio_llm.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -105,7 +105,8 @@
             "audio.settings.save"
         ],
         "publish": [
-            "audio_llm.cyclic.spawn_for_procedure"
+            "audio_llm.cyclic.spawn_for_procedure",
+            "audio_llm.study.result"
         ]
     },
     "catalog": {

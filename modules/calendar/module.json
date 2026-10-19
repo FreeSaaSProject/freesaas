@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.1.38",
+    "version": "0.2.6",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -48,6 +48,8 @@
             "/calendar/day/{date}",
             "/calendar/events/new",
             "/calendar/events/{id}/edit",
+            "/calendar/clients",
+            "/calendar/products",
             "/calendar/nazop",
             "/calendar/settings"
         ]
@@ -88,14 +90,14 @@
                 "method": "POST",
                 "path": "/calendar/events/new",
                 "permission": "calendar.edit",
-                "description": "Create event; dtstart/dtend (local), id_operator, content[], optional phone/name/descr"
+                "description": "Create event/block; dtstart/dtend, id_operator; visits mode: content[] + content_price/qty; blocks mode forces is_block"
             },
             {
                 "id": "calendar.events.update",
                 "method": "POST",
                 "path": "/calendar/events/{id}/edit",
                 "permission": "calendar.edit",
-                "description": "Update event; action=save|delete|create_procedures"
+                "description": "Update event; action=save|delete|create_procedures (procedures only in visits mode)"
             },
             {
                 "id": "calendar.settings.get",
@@ -109,7 +111,7 @@
                 "method": "POST",
                 "path": "/calendar/settings",
                 "permission": "calendar.view",
-                "description": "Save manual_create and work hours (superadmin capability on route)"
+                "description": "Save event_mode (blocks|visits) and work hours (superadmin capability on route)"
             },
             {
                 "id": "calendar.events.delete",
@@ -118,6 +120,20 @@
                 "permission": "calendar.delete",
                 "side_effect": "write",
                 "description": "Delete event; required id= from calendar.day events[].id (or events.get); action=delete; needs calendar.delete + EVT_DELETE"
+            },
+            {
+                "id": "calendar.clients.search",
+                "method": "GET",
+                "path": "/calendar/clients",
+                "permission": "calendar.edit",
+                "description": "Client autocomplete for event edit; query q= name or phone digits (min 2)"
+            },
+            {
+                "id": "calendar.products.search",
+                "method": "GET",
+                "path": "/calendar/products",
+                "permission": "calendar.edit",
+                "description": "Product/service autocomplete for event basket; query q= (empty = frequent goods)"
             }
         ]
     },
@@ -140,9 +156,9 @@
     ],
     "configSchema": {
         "calendar": {
-            "manual_create": {
-                "type": "boolean",
-                "default": true
+            "event_mode": {
+                "type": "string",
+                "default": "blocks"
             },
             "hour_start": {
                 "type": "integer",
@@ -156,7 +172,7 @@
     },
     "tables": [
         "base_events",
-        "base_events_changes"
+        "base_event_items"
     ],
     "migrators": [],
     "hooks": {
@@ -172,6 +188,7 @@
             "calendar.timeline.enrich",
             "calendar.event.sections",
             "calendar.event.save",
+            "calendar.event.saved",
             "calendar.settings.sections",
             "calendar.settings.save"
         ]

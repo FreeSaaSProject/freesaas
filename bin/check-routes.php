@@ -87,6 +87,8 @@ $allowed = [
     '/qr2.php' => ['methods' => ['GET', 'POST'], 'why' => 'legacy sticker QR scan gate'],
     // Optional anonymous A4 print (handler 404 unless stickers.public_print_enabled)
     '/stickers/printstickers' => ['methods' => ['GET'], 'why' => 'optional anonymous sticker A4 print sheet'],
+    // Document archive QR (handler 404 unless docs.qr_archive; no PII; POST sign needs session + docs.sign)
+    '/documents/qr/{hash}' => ['methods' => ['GET', 'POST'], 'why' => 'printed document archive check / archivist sign'],
 
     // LikeSpa legacy drop-in APIs (handlers 503 unless legacy_api_enabled)
     '/api_termy.php' => ['methods' => ['GET'], 'why' => 'Termy order-mode booking drop-in'],

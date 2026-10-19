@@ -245,10 +245,18 @@ if ($wantsJson) {
     return;
 }
 
+$sections = $isNew ? null : EventBus::emit('procedures.edit.sections', [
+    'html' => '',
+    'row' => $row,
+    'id' => $id,
+]);
+$extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+
 View::render('edit', [
     'title' => $isNew
         ? t('procedures.edit.title_new')
         : t('procedures.edit.title', ['id' => $id]),
+    'extraHtml' => $extraHtml,
     'isNew' => $isNew,
     'row' => $row,
     'acl' => $acl,

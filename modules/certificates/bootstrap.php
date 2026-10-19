@@ -81,6 +81,9 @@ EventBus::on('calendar.event.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;
     }
+    if (class_exists('CalendarConfig', false) && !CalendarConfig::isVisitsMode()) {
+        return $payload;
+    }
     if (!Auth::can('certificates.view') && !Auth::can('certificates.apply')) {
         return $payload;
     }

@@ -1,0 +1,31 @@
+{
+    "format": "freesaas.doc-template-pack",
+    "name": "Косметология (elos)",
+    "description": "Active templates exported from legacy elos/oper; company requisites replaced with {org.*} placeholders.",
+    "exported_at": "2026-10-19T17:15:18+04:00",
+    "count": 103,
+    "placeholders": {
+        "org.address": 93,
+        "org.city": 2,
+        "org.director_genitive": 2,
+        "org.director_short": 6,
+        "org.director_short_genitive": 4,
+        "org.domain": 1,
+        "org.inn": 7,
+        "org.kpp": 7,
+        "org.license": 4,
+        "org.license_date": 4,
+        "org.license_issuer": 4,
+        "org.license_issuer_address": 2,
+        "org.license_scope": 2,
+        "org.name": 114,
+        "org.ogrn": 12,
+        "org.ogrn_date": 2,
+        "org.phone": 8,
+        "org.region_genitive": 6,
+        "org.registrar": 2,
+        "org.short_name": 8,
+        "org.signature": 6,
+        "org.site": 8
+    }
+}

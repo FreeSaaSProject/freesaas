@@ -18,8 +18,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 (int)($post['work_hour_end'] ?? 22)
             );
         }
-        if (array_key_exists('calendar_manual_create', $post)) {
-            Config::set('calendar', 'manual_create', !empty($post['calendar_manual_create']) ? '1' : '0');
+        if (isset($post['calendar_event_mode'])) {
+            CalendarConfig::setEventMode((string)$post['calendar_event_mode']);
+        } elseif (array_key_exists('calendar_manual_create', $post)) {
+            // Legacy POST key
+            CalendarConfig::setEventMode(!empty($post['calendar_manual_create']) ? 'visits' : 'blocks');
         }
         EventBus::emit('calendar.settings.save', [
             'post' => $post,
@@ -30,7 +33,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             AgentHttp::emit([
                 'ok' => true,
                 'saved' => true,
-                'manual_create' => (int)Config::get('calendar', 'manual_create', 1) === 1,
+                'event_mode' => CalendarConfig::eventMode(),
+                'manual_create' => CalendarConfig::isVisitsMode(),
                 'work_hour_start' => (int)($row['work_hour_start'] ?? Config::get('calendar', 'hour_start', 9)),
                 'work_hour_end' => (int)($row['work_hour_end'] ?? Config::get('calendar', 'hour_end', 21)),
             ]);
@@ -54,11 +58,13 @@ $sections = EventBus::emit('calendar.settings.sections', [
     'html' => '',
 ]);
 $extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+$eventMode = CalendarConfig::eventMode();
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
-        'manual_create' => (int)Config::get('calendar', 'manual_create', 1) === 1,
+        'event_mode' => $eventMode,
+        'manual_create' => $eventMode === CalendarConfig::MODE_VISITS,
         'work_hour_start' => (int)($row['work_hour_start'] ?? Config::get('calendar', 'hour_start', 9)),
         'work_hour_end' => (int)($row['work_hour_end'] ?? Config::get('calendar', 'hour_end', 21)),
         'show_hours' => $showHours,
@@ -72,7 +78,7 @@ View::render('settings', [
     'error' => $error,
     'row' => $row,
     'showHours' => $showHours,
-    'manualCreate' => (int)Config::get('calendar', 'manual_create', 1) === 1,
+    'eventMode' => $eventMode,
     'extraHtml' => $extraHtml,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('calendar.menu.week'), 'href' => '/calendar'],

@@ -8,7 +8,7 @@ Three different things look like “запись” in the UI. Keep them separat
 
 | Entity | Table | Module / UI | Role |
 |--------|--------|-------------|------|
-| **Calendar event** | `base_events` | `calendar` → `/calendar/events/new` | Staff appointment on the timeline (who is busy when). Created by slot click or «Новое событие» when `manual_create` + `EVT_CREATE_NEW`. |
+| **Calendar event** | `base_events` (+ `base_event_items` in visits mode) | `calendar` → `/calendar/events/new` | Timeline block or visit. `event_mode=blocks|visits` + `EVT_CREATE_NEW`. |
 | **Booking (order)** | `base_orders` | `booking` → `/booking/new` | Client advance order with specialist + slot (`ID_COSMETOLOG`, `DT_EVENT_NEW`, status in `OrdersRepository::NEW_STATUSES`). Rail: Calendar group → «Новая запись». Also buttons on day/week headers. |
 | **Procedure** | `base_procedures` | `procedures` / floor `/t` / “create procedures” from an event | Delivered service (journal). Occupancy for slots; not created by `/booking/new` in v0.1. |
 

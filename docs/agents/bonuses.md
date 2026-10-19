@@ -37,5 +37,5 @@ curl -sS -b jar.txt -X POST 'https://example/bonuses/events/456/apply?format=jso
 
 ## Notes
 
-- Uses event `CONTENT_PRICE` + procedure type % + client status `bonus`.
+- Uses `base_event_items` (price×qty) + procedure type % + client status `bonus`. Intent stored in `base_event_bonus`. Only when `calendar.event_mode=visits`.
 - Promoter day payout is via script `DAY_BONUS` / `DAY_GATES` (staff_reports). Legacy `BONUS TIME` create on `/audio/calendar` was removed from likespa.

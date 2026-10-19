@@ -313,9 +313,9 @@ final class BookingValidate
             if (class_exists('EventsRepository', false)) {
                 $evRow = EventsRepository::find($eid);
                 if (is_array($evRow)) {
-                    $content = trim((string)($evRow['content'] ?? ''));
-                    if ($content !== '') {
-                        $label = $content;
+                    $contentIds = is_array($evRow['content_ids'] ?? null) ? $evRow['content_ids'] : [];
+                    if ($contentIds !== []) {
+                        $label = '#' . implode(',#', array_map('intval', $contentIds));
                     }
                 }
             }

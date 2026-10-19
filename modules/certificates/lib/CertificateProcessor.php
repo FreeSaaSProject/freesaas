@@ -857,27 +857,24 @@ final class CertificateProcessor
      */
     private static function buildEventGoods(array $event): array
     {
-        $ids = $event['content_ids'] ?? null;
-        if (!is_array($ids)) {
-            $ids = class_exists('EventsRepository', false)
-                ? EventsRepository::parseContentIds((string)($event['content'] ?? ''))
-                : [];
-        }
-        $priceMap = $event['content_price_map'] ?? null;
-        if (!is_array($priceMap)) {
-            $priceMap = class_exists('EventsRepository', false)
-                ? EventsRepository::parseContentPrices((string)($event['content_price'] ?? ''))
-                : [];
+        $items = is_array($event['items'] ?? null) ? $event['items'] : [];
+        if ($items === [] && class_exists('EventItemsRepository', false) && (int)($event['id'] ?? 0) > 0) {
+            $items = EventItemsRepository::listByEvent((int)$event['id']);
         }
         $goods = [];
         $typeIds = [];
         $sum = 0.0;
-        foreach ($ids as $pid) {
-            $pid = (int)$pid;
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $pid = (int)($it['id_good'] ?? 0);
             if ($pid < 1) {
                 continue;
             }
-            $price = isset($priceMap[$pid]) ? (float)$priceMap[$pid] : 0.0;
+            $unit = (float)($it['price'] ?? 0);
+            $qty = max(1, (int)($it['qty'] ?? 1));
+            $price = $unit * $qty;
             $name = '#' . $pid;
             if (class_exists('ProductsRepository', false)) {
                 $product = ProductsRepository::find($pid);
@@ -887,8 +884,9 @@ final class CertificateProcessor
                     if ($tid > 0) {
                         $typeIds[] = $tid;
                     }
-                    if ($price <= 0) {
-                        $price = (float)($product['price'] ?? 0);
+                    if ($unit <= 0) {
+                        $unit = (float)($product['price'] ?? 0);
+                        $price = $unit * $qty;
                     }
                 }
             }
@@ -898,34 +896,17 @@ final class CertificateProcessor
         return ['goods' => $goods, 'type_ids' => array_values(array_unique($typeIds)), 'sum' => $sum];
     }
 
-    /** @param array<int,float> $overrides */
+    /** @param array<int,float> $overrides unit prices by good id */
     private static function applyPriceOverrides(int $eventId, array $overrides): void
     {
-        if ($eventId < 1 || $overrides === [] || !Database::tableExists('base_events')) {
+        if ($eventId < 1 || $overrides === []) {
             return;
         }
-        if (!class_exists('EventsRepository', false)) {
-            return;
+        if (class_exists('EventItemsRepository', false)) {
+            EventItemsRepository::updatePrices($eventId, $overrides);
         }
-        $event = EventsRepository::find($eventId);
-        if (!$event) {
-            return;
+        if (class_exists('EventsRepository', false)) {
+            EventsRepository::touch($eventId);
         }
-        $map = EventsRepository::parseContentPrices((string)($event['content_price'] ?? ''));
-        foreach ($overrides as $pid => $price) {
-            $map[(int)$pid] = (float)$price;
-        }
-        $parts = [];
-        foreach ($map as $pid => $price) {
-            $parts[] = 'p' . (int)$pid . ':' . $price;
-        }
-        $contentPrice = implode(',', $parts);
-        $real = 0.0;
-        foreach ($map as $price) {
-            $real += (float)$price;
-        }
-        Database::pdo()->prepare(
-            'UPDATE base_events SET CONTENT_PRICE = ?, REAL_SUMM = ?, DTUPDATE = ? WHERE ID = ?'
-        )->execute([$contentPrice, round($real, 2), time(), $eventId]);
     }
 }

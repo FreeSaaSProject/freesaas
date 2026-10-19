@@ -36,13 +36,10 @@ final class EventsRepository
 
         $st = $pdo->prepare(
             "SELECT e.ID AS id, e.ID_OPERATOR AS id_operator, e.ID_OPERATOR_CREATE AS id_operator_create,
-                    e.ID_USER AS id_user, e.ID_PROMO_ACT AS id_promo_act,
+                    e.ID_USER AS id_user,
                     e.DTCREATE AS dtcreate, e.DTSTART AS dtstart, e.DTEND AS dtend, e.DTUPDATE AS dtupdate,
-                    e.FIX_MOVE AS fix_move, e.CONTENT AS content, e.CONTENT_PRICE AS content_price,
                     e.DESCR AS descr, e.PHONE AS phone, e.NAME AS name,
-                    e.BONUS_DISCOUNT AS bonus_discount, e.BONUS_USE AS bonus_use, e.PAY AS pay,
-                    e.IS_BLOCK AS is_block, e.REAL_SUMM AS real_summ, e.ENABLED AS enabled,
-                    e.EVT_COSM_ACCEPT AS evt_cosm_accept,
+                    e.IS_BLOCK AS is_block, e.ENABLED AS enabled,
                     $extra
              FROM base_events e
              $joins
@@ -64,16 +61,10 @@ final class EventsRepository
         }
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, ID_OPERATOR AS id_operator, ID_OPERATOR_CREATE AS id_operator_create,
-                    ID_USER AS id_user, ID_PROMO_ACT AS id_promo_act,
+                    ID_USER AS id_user,
                     DTCREATE AS dtcreate, DTSTART AS dtstart, DTEND AS dtend, DTUPDATE AS dtupdate,
-                    FIX_MOVE AS fix_move, CONTENT AS content, CONTENT_PRICE AS content_price,
-                    SMS AS sms, DESCR AS descr, NODEFTIMEXPL AS nodeftimexpl,
-                    PHONE AS phone, NAME AS name, BONUS_DISCOUNT AS bonus_discount,
-                    BONUS_USE AS bonus_use, PAY AS pay, PPP_LOG AS ppp_log,
-                    IS_BLOCK AS is_block, REAL_SUMM AS real_summ, ENABLED AS enabled,
-                    EVT_TIME_RECOM AS evt_time_recom, EVT_TIME_REAL AS evt_time_real,
-                    EVT_COSM_ACCEPT AS evt_cosm_accept, EVT_DECLINE_REASON AS evt_decline_reason,
-                    EVT_DT_COSM_MOD AS evt_dt_cosm_mod
+                    DESCR AS descr, PHONE AS phone, NAME AS name,
+                    IS_BLOCK AS is_block, ENABLED AS enabled
              FROM base_events WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -94,6 +85,18 @@ final class EventsRepository
         $raw = trim($raw);
         if ($raw === '') {
             return 0;
+        }
+        // datetime-local: YYYY-MM-DDTHH:MM — parse as server local wall time (no UTC shift).
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/', $raw, $m)) {
+            $ts = mktime(
+                (int)$m[4],
+                (int)$m[5],
+                isset($m[6]) ? (int)$m[6] : 0,
+                (int)$m[2],
+                (int)$m[3],
+                (int)$m[1]
+            );
+            return $ts !== false ? (int)$ts : 0;
         }
         $ts = strtotime($raw);
         return $ts !== false ? (int)$ts : 0;
@@ -131,8 +134,6 @@ final class EventsRepository
     }
 
     /**
-     * Overlapping events for the same operator (legacy saveEvent rules, simplified).
-     *
      * @return list<array{id:int,dtstart:int,dtend:int}>
      */
     public static function findOverlaps(int $operatorId, int $dtStart, int $dtEnd, int $excludeId = 0): array
@@ -191,81 +192,136 @@ final class EventsRepository
             throw new InvalidArgumentException(t('calendar.event.err.operator_required'));
         }
 
-        $isBlock = !empty($post['is_block']) ? 1 : 0;
-        $contentIds = [];
-        $rawContent = $post['content'] ?? [];
-        if (is_array($rawContent)) {
-            foreach ($rawContent as $cid) {
-                $cid = (int)$cid;
-                if ($cid > 0) {
-                    $contentIds[] = $cid;
+        $blocksOnly = CalendarConfig::isBlocksMode();
+        $isBlock = $blocksOnly ? 1 : (!empty($post['is_block']) ? 1 : 0);
+
+        $items = [];
+        if (!$isBlock) {
+            $items = EventItemsRepository::itemsFromPost($post);
+            if ($items === []) {
+                throw new InvalidArgumentException(t('calendar.event.err.content_required'));
+            }
+            self::assertOperatorCanPerform($idOperator, $items, $dtStart);
+            // Basket drives visit length when client left auto duration on (default).
+            $autoDur = !isset($post['auto_duration']) || (string)$post['auto_duration'] !== '0';
+            if ($autoDur) {
+                $dur = EventItemsRepository::durationSec($items);
+                if ($dur > 0) {
+                    $dtEnd = $dtStart + $dur;
                 }
             }
         }
-        $contentIds = array_values(array_unique($contentIds));
-        if (!$isBlock && $contentIds === []) {
-            throw new InvalidArgumentException(t('calendar.event.err.content_required'));
+
+        $phone = '';
+        $name = '';
+        $idUser = 0;
+        if (!$isBlock) {
+            $phone = self::normalizeEventPhone((string)($post['phone'] ?? ''));
+            $name = mb_substr(trim((string)($post['name'] ?? '')), 0, 255);
+            $idUser = max(0, (int)($post['id_user'] ?? 0));
+            // Bind existing client by phone so the visit is not orphaned.
+            if (class_exists('ClientsRepository', false)) {
+                if ($idUser > 0) {
+                    $client = ClientsRepository::find($idUser);
+                    if (!$client) {
+                        $idUser = 0;
+                    } else {
+                        if ($phone === '') {
+                            $phone = self::normalizeEventPhone((string)($client['tel'] ?? ''));
+                        }
+                        if ($name === '') {
+                            $name = mb_substr(trim((string)($client['name'] ?? '')), 0, 255);
+                        }
+                    }
+                }
+                if ($idUser < 1 && $phone !== '') {
+                    $byPhone = ClientsRepository::findByPhoneDigits($phone);
+                    if ($byPhone) {
+                        $idUser = (int)($byPhone['id'] ?? 0);
+                        if ($name === '') {
+                            $name = mb_substr(trim((string)($byPhone['name'] ?? '')), 0, 255);
+                        }
+                    }
+                }
+            }
         }
 
+        $contentIds = [];
         $priceMap = [];
-        $rawPrices = $post['content_price'] ?? [];
-        if (!is_array($rawPrices)) {
-            $rawPrices = [];
-        }
-        $realSumm = 0.0;
-        $priceParts = [];
-        foreach ($contentIds as $cid) {
-            $price = null;
-            if (isset($rawPrices[$cid]) && $rawPrices[$cid] !== '') {
-                $price = (float)$rawPrices[$cid];
-            } elseif (isset($rawPrices[(string)$cid]) && $rawPrices[(string)$cid] !== '') {
-                $price = (float)$rawPrices[(string)$cid];
-            } else {
-                $prod = ProductsRepository::find($cid);
-                $price = $prod ? (float)($prod['price'] ?? 0) : 0.0;
-            }
-            if ($price < 0) {
-                $price = 0.0;
-            }
-            $priceMap[$cid] = $price;
-            $realSumm += $price;
-            $priceParts[] = 'p' . $cid . ':' . (string)(int)round($price);
-        }
-
-        $phone = preg_replace('/\D+/', '', (string)($post['phone'] ?? '')) ?? '';
-        if (mb_strlen($phone) > 11) {
-            $phone = mb_substr($phone, 0, 11);
-        }
-        if (!$isBlock && $phone === '' && (int)($post['id_user'] ?? 0) < 1) {
-            // walk-in without phone is allowed if name given; soft check only for empty both later
-        }
-
-        $postedSumm = trim((string)($post['real_summ'] ?? ''));
-        if ($postedSumm !== '') {
-            $realSumm = max(0.0, (float)$postedSumm);
+        $qtyMap = [];
+        foreach ($items as $it) {
+            $gid = (int)$it['id_good'];
+            $contentIds[] = $gid;
+            $priceMap[$gid] = (float)$it['price'];
+            $qtyMap[$gid] = (int)$it['qty'];
         }
 
         return [
             'id_operator' => $idOperator,
-            'id_user' => max(0, (int)($post['id_user'] ?? 0)),
-            'id_promo_act' => max(0, (int)($post['id_promo_act'] ?? 0)),
+            'id_user' => $idUser,
             'dtstart' => $dtStart,
             'dtend' => $dtEnd,
-            'fix_move' => !empty($post['fix_move']) ? 1 : 0,
-            'content' => implode(',', $contentIds),
+            'items' => $items,
             'content_ids' => $contentIds,
-            'content_price' => implode(',', $priceParts),
             'content_price_map' => $priceMap,
+            'content_qty_map' => $qtyMap,
             'descr' => mb_substr(trim((string)($post['descr'] ?? '')), 0, 2000),
             'phone' => $phone,
-            'name' => mb_substr(trim((string)($post['name'] ?? '')), 0, 255),
-            'bonus_discount' => max(0.0, (float)($post['bonus_discount'] ?? 0)),
-            'bonus_use' => !empty($post['bonus_use']) ? 1 : 0,
-            'pay' => max(0, min(255, (int)($post['pay'] ?? 0))),
+            'name' => $name,
             'is_block' => $isBlock,
-            'real_summ' => $realSumm,
-            'sms' => serialize(['2d' => 0, '2h' => 0, 'os' => 0, 'w' => 0]),
         ];
+    }
+
+    /**
+     * @param list<array{id_good:int,qty?:int}> $items
+     */
+    private static function assertOperatorCanPerform(int $operatorId, array $items, int $dayTs): void
+    {
+        if ($operatorId < 1 || $items === [] || !class_exists('BookingOperatorGate', false)) {
+            return;
+        }
+        $dayStart = (int)strtotime(date('Y-m-d 00:00:00', $dayTs > 0 ? $dayTs : time()));
+        $probe = [];
+        foreach ($items as $it) {
+            $gid = (int)($it['id_good'] ?? 0);
+            if ($gid < 1) {
+                continue;
+            }
+            $typeId = 0;
+            if (class_exists('ProductsRepository', false)) {
+                $p = ProductsRepository::find($gid);
+                $typeId = $p ? max(0, (int)($p['type_id'] ?? 0)) : 0;
+            }
+            $probe[] = ['id' => $gid, 'type_id' => $typeId];
+        }
+        if ($probe === []) {
+            return;
+        }
+        if (!BookingOperatorGate::canPerform($operatorId, $probe, $dayStart, false)) {
+            throw new InvalidArgumentException(t('calendar.event.err.staff_goods'));
+        }
+    }
+
+    /** Normalize to 11-digit 7XXXXXXXXXX (same as storefront) or empty. */
+    public static function normalizeEventPhone(string $raw): string
+    {
+        if (class_exists('SitesGuest', false)) {
+            return SitesGuest::normalizePhone($raw);
+        }
+        $digits = preg_replace('/\D+/', '', $raw) ?? '';
+        if ($digits === '') {
+            return '';
+        }
+        if (strlen($digits) === 11 && $digits[0] === '8') {
+            $digits = '7' . substr($digits, 1);
+        }
+        if (strlen($digits) === 10) {
+            $digits = '7' . $digits;
+        }
+        if (strlen($digits) !== 11 || $digits[0] !== '7') {
+            return '';
+        }
+        return $digits;
     }
 
     /**
@@ -273,74 +329,45 @@ final class EventsRepository
      */
     public static function create(array $data): int
     {
-        $overlaps = self::findOverlaps((int)$data['id_operator'], (int)$data['dtstart'], (int)$data['dtend']);
-        if ($overlaps !== []) {
-            throw new InvalidArgumentException(self::overlapMessage($overlaps));
-        }
+        self::assertModeAllowsWrite($data);
+
+        self::assertTimelineFree(
+            (int)$data['id_operator'],
+            (int)$data['dtstart'],
+            (int)$data['dtend'],
+            0
+        );
 
         $now = time();
-        $creator = Auth::userId();
-        // Legacy shared table: several NOT NULL columns have no DEFAULT in old dumps.
-        $cols = [
-            'ID_OPERATOR', 'ID_OPERATOR_CREATE', 'ID_USER', 'ID_PROMO_ACT',
-            'DTCREATE', 'DTSTART', 'DTEND', 'DTUPDATE',
-            'FIX_MOVE', 'CONTENT', 'CONTENT_PRICE', 'SMS', 'DESCR', 'NODEFTIMEXPL',
-            'PHONE', 'NAME', 'BONUS_DISCOUNT', 'BONUS_USE', 'PAY', 'PPP_LOG',
-            'IS_BLOCK', 'REAL_SUMM', 'ENABLED',
-            'EVT_TIME_RECOM', 'EVT_TIME_REAL', 'EVT_COSM_ACCEPT', 'EVT_DECLINE_REASON', 'EVT_DT_COSM_MOD',
-        ];
-        $vals = [
+        $isBlock = !empty($data['is_block']) ? 1 : 0;
+        $st = Database::pdo()->prepare(
+            'INSERT INTO base_events
+             (ID_OPERATOR, ID_OPERATOR_CREATE, ID_USER, DTCREATE, DTSTART, DTEND, DTUPDATE,
+              DESCR, PHONE, NAME, IS_BLOCK, ENABLED)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $st->execute([
             $data['id_operator'],
-            $creator,
-            $data['id_user'],
-            $data['id_promo_act'],
+            Auth::userId(),
+            $data['id_user'] ?? 0,
             $now,
             $data['dtstart'],
             $data['dtend'],
             $now,
-            $data['fix_move'],
-            $data['content'],
-            $data['content_price'],
-            $data['sms'],
-            $data['descr'],
-            '',
-            $data['phone'],
-            $data['name'],
-            $data['bonus_discount'],
-            $data['bonus_use'],
-            $data['pay'],
-            '',
-            $data['is_block'],
-            $data['real_summ'],
-            // Active client events ENABLED=1; legacy blocks commonly use 0 (still occupy via BookingOccupancy).
-            !empty($data['is_block']) ? 0 : 1,
-            0,
-            0,
-            0,
-            '',
-            0,
-        ];
-        // Optional legacy columns (present on oper dumps, often without DEFAULT).
-        $optional = [
-            'DTENABLE' => 0,
-            'OPERATOR_ENABLED' => 0,
-            'UPSALE_DATA' => '',
-            'CONTENT_DATA' => '',
-            'NONEWEXPL' => '',
-        ];
-        foreach ($optional as $col => $default) {
-            if (Database::columnExists('base_events', $col)) {
-                $cols[] = $col;
-                $vals[] = $default;
-            }
-        }
-        $placeholders = implode(', ', array_fill(0, count($cols), '?'));
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_events (' . implode(', ', $cols) . ') VALUES (' . $placeholders . ')'
-        );
-        $st->execute($vals);
+            $data['descr'] ?? '',
+            $data['phone'] ?? '',
+            $data['name'] ?? '',
+            $isBlock,
+            $isBlock ? 0 : 1,
+        ]);
         $id = (int)Database::pdo()->lastInsertId();
-        self::logChange($id, 'create', '', self::snapshotText($data), '');
+
+        $items = is_array($data['items'] ?? null) ? $data['items'] : [];
+        if ($isBlock) {
+            EventItemsRepository::replaceItems($id, []);
+        } else {
+            EventItemsRepository::replaceItems($id, $items);
+        }
         return $id;
     }
 
@@ -357,40 +384,57 @@ final class EventsRepository
             throw new InvalidArgumentException(t('calendar.event.err.not_found', ['id' => $id]));
         }
 
-        $overlaps = self::findOverlaps((int)$data['id_operator'], (int)$data['dtstart'], (int)$data['dtend'], $id);
-        if ($overlaps !== []) {
-            throw new InvalidArgumentException(self::overlapMessage($overlaps));
-        }
+        self::assertModeAllowsWrite($data, $old);
+
+        self::assertTimelineFree(
+            (int)$data['id_operator'],
+            (int)$data['dtstart'],
+            (int)$data['dtend'],
+            $id
+        );
+
+        $oldStart = (int)($old['dtstart'] ?? 0);
+        $newStart = (int)$data['dtstart'];
+        $deltaSec = ($oldStart > 0 && $newStart > 0) ? ($newStart - $oldStart) : 0;
+        $newOp = (int)$data['id_operator'];
+        $oldOp = (int)($old['id_operator'] ?? 0);
+        $newUser = (int)($data['id_user'] ?? 0);
+        $oldUser = (int)($old['id_user'] ?? 0);
 
         $now = time();
+        $isBlock = !empty($data['is_block']) ? 1 : 0;
         $st = Database::pdo()->prepare(
             'UPDATE base_events SET
-             ID_OPERATOR = ?, ID_USER = ?, ID_PROMO_ACT = ?, DTSTART = ?, DTEND = ?, DTUPDATE = ?,
-             FIX_MOVE = ?, CONTENT = ?, CONTENT_PRICE = ?, DESCR = ?, PHONE = ?, NAME = ?,
-             BONUS_DISCOUNT = ?, BONUS_USE = ?, PAY = ?, IS_BLOCK = ?, REAL_SUMM = ?
+             ID_OPERATOR = ?, ID_USER = ?, DTSTART = ?, DTEND = ?, DTUPDATE = ?,
+             DESCR = ?, PHONE = ?, NAME = ?, IS_BLOCK = ?, ENABLED = ?
              WHERE ID = ?'
         );
         $st->execute([
             $data['id_operator'],
-            $data['id_user'],
-            $data['id_promo_act'],
+            $data['id_user'] ?? 0,
             $data['dtstart'],
             $data['dtend'],
             $now,
-            $data['fix_move'],
-            $data['content'],
-            $data['content_price'],
-            $data['descr'],
-            $data['phone'],
-            $data['name'],
-            $data['bonus_discount'],
-            $data['bonus_use'],
-            $data['pay'],
-            $data['is_block'],
-            $data['real_summ'],
+            $data['descr'] ?? '',
+            $data['phone'] ?? '',
+            $data['name'] ?? '',
+            $isBlock,
+            $isBlock ? 0 : 1,
             $id,
         ]);
-        self::logChange($id, 'update', self::snapshotText($old), self::snapshotText($data), '');
+
+        $items = is_array($data['items'] ?? null) ? $data['items'] : [];
+        EventItemsRepository::replaceItems($id, $isBlock ? [] : $items);
+
+        // Child journal rows travel with the visit (do not block the landing zone).
+        if (!$isBlock && class_exists('ProceduresRepository', false)) {
+            ProceduresRepository::syncAfterEventMove(
+                $id,
+                $deltaSec,
+                $newOp > 0 && $newOp !== $oldOp ? $newOp : null,
+                $newUser > 0 && $newUser !== $oldUser ? $newUser : null
+            );
+        }
     }
 
     public static function delete(int $id): void
@@ -402,9 +446,75 @@ final class EventsRepository
         if (!$old) {
             return;
         }
-        $undo = 'INSERT INTO base_events SET ID="' . $id . '", ' . self::snapshotText($old);
+        EventItemsRepository::deleteByEvent($id);
+        if (class_exists('EventBonusRepository', false)) {
+            EventBonusRepository::deleteByEvent($id);
+        }
         Database::pdo()->prepare('DELETE FROM base_events WHERE ID = ?')->execute([$id]);
-        self::logChange($id, 'delete', self::snapshotText($old), '', $undo);
+    }
+
+    public static function touch(int $id): void
+    {
+        if ($id < 1 || !Database::tableExists('base_events')) {
+            return;
+        }
+        Database::pdo()->prepare('UPDATE base_events SET DTUPDATE = ? WHERE ID = ?')->execute([time(), $id]);
+    }
+
+    /**
+     * Reject save when operator timeline is busy (events + procedures + advance orders).
+     * Soft-depends on booking occupancy when that module is enabled.
+     */
+    private static function assertTimelineFree(int $operatorId, int $dtStart, int $dtEnd, int $excludeEventId = 0): void
+    {
+        if ($operatorId < 1 || $dtStart <= 0 || $dtEnd <= $dtStart) {
+            return;
+        }
+
+        if (class_exists('BookingOccupancy', false)) {
+            $dayStart = (int)strtotime(date('Y-m-d 00:00:00', $dtStart));
+            $dayEnd = (int)strtotime(date('Y-m-d 23:59:59', $dtStart));
+            $scanEnd = max($dayEnd, $dtEnd) + 1;
+            // Own journal rows (ID_EVENT_PARENT) must not block moving/resaving the visit.
+            $excludeProcIds = null;
+            if ($excludeEventId > 0 && class_exists('ProceduresRepository', false)) {
+                $excludeProcIds = ProceduresRepository::idsByEventParent($excludeEventId);
+                if ($excludeProcIds === []) {
+                    $excludeProcIds = null;
+                }
+            }
+            $used = BookingOccupancy::build(
+                $dayStart,
+                $scanEnd,
+                null,
+                $excludeProcIds,
+                $excludeEventId > 0 ? $excludeEventId : null
+            );
+            $busy = $used[$operatorId] ?? [];
+            foreach ($busy as $key => $ev) {
+                $evStart = (int)($ev['DTSTART'] ?? 0);
+                $evEnd = (int)($ev['DTEND'] ?? 0);
+                if ($evStart < 1 || $evEnd <= $evStart) {
+                    continue;
+                }
+                if ($evStart < $dtEnd && $evEnd > $dtStart) {
+                    if (class_exists('BookingValidate', false)) {
+                        throw new InvalidArgumentException(
+                            BookingValidate::describeBusyConflict((string)$key, $ev)
+                        );
+                    }
+                    throw new InvalidArgumentException(t('calendar.event.err.overlap', [
+                        'list' => (string)$key . ' (' . self::formatRange($evStart, $evEnd) . ')',
+                    ]));
+                }
+            }
+            return;
+        }
+
+        $overlaps = self::findOverlaps($operatorId, $dtStart, $dtEnd, $excludeEventId);
+        if ($overlaps !== []) {
+            throw new InvalidArgumentException(self::overlapMessage($overlaps));
+        }
     }
 
     /**
@@ -420,43 +530,20 @@ final class EventsRepository
     }
 
     /**
-     * @param array<string,mixed> $row
+     * @param array<string,mixed> $data
+     * @param array<string,mixed>|null $existing
      */
-    private static function snapshotText(array $row): string
+    private static function assertModeAllowsWrite(array $data, ?array $existing = null): void
     {
-        $keys = [
-            'id_operator', 'id_user', 'dtstart', 'dtend', 'content', 'content_price',
-            'descr', 'phone', 'name', 'real_summ', 'is_block', 'fix_move', 'pay',
-        ];
-        $parts = [];
-        foreach ($keys as $k) {
-            if (array_key_exists($k, $row)) {
-                $parts[] = strtoupper($k) . '="' . str_replace('"', '\\"', (string)$row[$k]) . '"';
-            }
-        }
-        return implode(",\n", $parts);
-    }
-
-    private static function logChange(int $eventId, string $type, string $old, string $new, string $undo): void
-    {
-        if (!Database::tableExists('base_events_changes')) {
+        if (!CalendarConfig::isBlocksMode()) {
             return;
         }
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_events_changes
-             (ID_EVENT, ID_OPERATOR, ID_USER, TYPE, DT, TEXT_OLD, TEXT_NEW, UNDO_SQL, FIX_MOVE)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)'
-        );
-        $st->execute([
-            $eventId,
-            Auth::userId(),
-            0,
-            $type,
-            time(),
-            $old,
-            $new,
-            $undo,
-        ]);
+        if ($existing !== null && empty($existing['is_block'])) {
+            throw new InvalidArgumentException(t('calendar.event.err.visit_readonly_blocks'));
+        }
+        if (empty($data['is_block'])) {
+            throw new InvalidArgumentException(t('calendar.event.err.visits_disabled'));
+        }
     }
 
     /**
@@ -471,46 +558,27 @@ final class EventsRepository
         $row['id_user'] = (int)($row['id_user'] ?? 0);
         $row['dtstart'] = (int)($row['dtstart'] ?? 0);
         $row['dtend'] = (int)($row['dtend'] ?? 0);
-        $row['real_summ'] = (float)($row['real_summ'] ?? 0);
         $row['is_block'] = (int)($row['is_block'] ?? 0);
         $row['enabled'] = (int)($row['enabled'] ?? 0);
-        $row['fix_move'] = (int)($row['fix_move'] ?? 0);
-        $row['content_ids'] = self::parseContentIds((string)($row['content'] ?? ''));
-        $row['content_price_map'] = self::parseContentPrices((string)($row['content_price'] ?? ''));
+
+        $eventId = $row['id'];
+        $items = $eventId > 0 ? EventItemsRepository::listByEvent($eventId) : [];
+        $row['items'] = $items;
+        $contentIds = [];
+        $priceMap = [];
+        $qtyMap = [];
+        $realSumm = 0.0;
+        foreach ($items as $it) {
+            $contentIds[] = $it['id_good'];
+            $priceMap[$it['id_good']] = $it['price'];
+            $qtyMap[$it['id_good']] = $it['qty'];
+            $realSumm += $it['price'] * $it['qty'];
+        }
+        $row['content_ids'] = $contentIds;
+        $row['content_price_map'] = $priceMap;
+        $row['content_qty_map'] = $qtyMap;
+        $row['real_summ'] = $realSumm;
         return $row;
-    }
-
-    /** @return list<int> */
-    public static function parseContentIds(string $raw): array
-    {
-        $raw = trim($raw);
-        if ($raw === '') {
-            return [];
-        }
-        $ids = [];
-        foreach (preg_split('/\s*,\s*/', $raw) ?: [] as $part) {
-            $id = (int)$part;
-            if ($id > 0) {
-                $ids[] = $id;
-            }
-        }
-        return $ids;
-    }
-
-    /** @return array<int,float> productId => price */
-    public static function parseContentPrices(string $raw): array
-    {
-        $raw = trim($raw);
-        if ($raw === '') {
-            return [];
-        }
-        $out = [];
-        foreach (preg_split('/\s*,\s*/', $raw) ?: [] as $part) {
-            if (preg_match('/^p(\d+):([\d.]+)$/', $part, $m)) {
-                $out[(int)$m[1]] = (float)$m[2];
-            }
-        }
-        return $out;
     }
 
     public static function formatTime(int $ts): string
@@ -544,29 +612,20 @@ final class EventsRepository
         }
         $dtstart = (int)($row['dtstart'] ?? 0);
         $dtend = (int)($row['dtend'] ?? 0);
-        $content = $row['content'] ?? null;
-        $contentBrief = '';
-        if (is_string($content) && $content !== '') {
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $names = [];
-                foreach ($decoded as $c) {
-                    if (!is_array($c)) {
-                        continue;
-                    }
-                    $n = trim((string)($c['name'] ?? $c['NAME'] ?? ''));
-                    if ($n !== '') {
-                        $names[] = $n;
-                    }
-                    if (count($names) >= 3) {
-                        break;
-                    }
-                }
-                $contentBrief = implode(', ', $names);
-            } else {
-                $contentBrief = function_exists('mb_substr')
-                    ? mb_substr($content, 0, 80, 'UTF-8')
-                    : substr($content, 0, 80);
+        $items = is_array($row['items'] ?? null) ? $row['items'] : [];
+        $briefParts = [];
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $gid = (int)($it['id_good'] ?? 0);
+            if ($gid < 1) {
+                continue;
+            }
+            $qty = max(1, (int)($it['qty'] ?? 1));
+            $briefParts[] = '#' . $gid . ($qty > 1 ? ('×' . $qty) : '');
+            if (count($briefParts) >= 5) {
+                break;
             }
         }
         $descr = trim((string)($row['descr'] ?? ''));
@@ -585,6 +644,18 @@ final class EventsRepository
                 $opAcronym = '';
             }
         }
+        $agentItems = [];
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $agentItems[] = [
+                'good_id' => (int)($it['id_good'] ?? 0),
+                'price' => (float)($it['price'] ?? 0),
+                'qty' => max(1, (int)($it['qty'] ?? 1)),
+                'pos' => (int)($it['pos'] ?? 0),
+            ];
+        }
         return [
             'id' => (int)($row['id'] ?? 0),
             'id_operator' => (int)($row['id_operator'] ?? 0),
@@ -601,8 +672,10 @@ final class EventsRepository
             'dtend_iso' => $dtend > 0 ? self::tsToLocal($dtend) : '',
             'is_block' => (int)($row['is_block'] ?? 0),
             'enabled' => (int)($row['enabled'] ?? 1),
-            'content_brief' => $contentBrief,
-            'real_summ' => isset($row['real_summ']) ? (float)$row['real_summ'] : null,
+            'content_brief' => implode(', ', $briefParts),
+            'items' => $agentItems,
+            'real_summ' => isset($row['real_summ']) ? (float)$row['real_summ'] : EventItemsRepository::totalSum((int)($row['id'] ?? 0)),
+            'event_mode' => CalendarConfig::eventMode(),
         ];
     }
 
@@ -626,10 +699,6 @@ final class EventsRepository
     }
 
     /**
-     * Operator <select> for event create/edit (oper getOperators).
-     * Day shifts with CAN_BE_ASSIGNED (procedures), excl. ASSIST_TEAM;
-     * always keeps $keepOperatorId even if off-shift / disabled.
-     *
      * @return array<int,string> id => label
      */
     public static function staffChoicesForDay(int $dayStart, int $keepOperatorId = 0): array
@@ -670,7 +739,6 @@ final class EventsRepository
             $out[$oid] = $label;
         }
 
-        // No workweeks / empty day: still offer assignable procedure staff (not assistants).
         if ($out === [] && !$myOnly && class_exists('WorkweeksRepository', false)) {
             foreach (WorkweeksRepository::listAssignableStaff() as $oid => $card) {
                 $oid = (int)$oid;
@@ -746,11 +814,20 @@ final class EventsRepository
         return $out;
     }
 
-    /** Whether current user may create events (module perm + status flag). */
+    /** Create anything allowed by event_mode (block and/or visit). */
     public static function canCreate(): bool
     {
-        $manual = strtolower(trim((string)Config::get('calendar', 'manual_create', '1')));
-        if (in_array($manual, ['0', 'false', 'off', 'no'], true)) {
+        return self::canCreateBlock() || self::canCreateVisit();
+    }
+
+    public static function canCreateBlock(): bool
+    {
+        return Auth::can('calendar.edit') && Auth::capability('EVT_CREATE_NEW');
+    }
+
+    public static function canCreateVisit(): bool
+    {
+        if (!CalendarConfig::isVisitsMode()) {
             return false;
         }
         return Auth::can('calendar.edit') && Auth::capability('EVT_CREATE_NEW');

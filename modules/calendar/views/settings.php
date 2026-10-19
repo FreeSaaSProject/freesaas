@@ -4,9 +4,10 @@ declare(strict_types=1);
 /** @var string $error */
 /** @var ?array $row */
 /** @var bool $showHours */
-/** @var bool $manualCreate */
+/** @var string $eventMode */
 /** @var string $extraHtml */
 $extraHtml = (string)($extraHtml ?? '');
+$eventMode = (string)($eventMode ?? 'blocks');
 ?>
 <section class="page-head">
   <p class="lede"><?= t('calendar.settings.lede') ?></p>

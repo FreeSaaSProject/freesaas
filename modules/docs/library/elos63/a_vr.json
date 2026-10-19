@@ -1,0 +1,27 @@
+{
+    "format": "freesaas.doc-template",
+    "format_version": 1,
+    "code": "a_vr",
+    "kind": "check",
+    "name": "Акт выполненных работ",
+    "scope": "event",
+    "trigger_mode": "medical",
+    "trigger_types": [],
+    "trigger_procs": [],
+    "expire_days": 0,
+    "require_medcard": 0,
+    "orientation": "landscape",
+    "paper": "A4",
+    "copies": 2,
+    "schema": {
+        "sections": []
+    },
+    "print_html": "<div style=\"font-size:8pt\"><B>АКТ №{doc.id} от {doc.date}г.</B>\r\n<table cellpadding=0 cellspacing=0 width=\"100%\">\r\n<tr>\r\n<td style=\"border-top:1px solid black;\" valign=top>Исполнитель:</td>\r\n<td style=\"border-top:1px solid black;\" valign=top>{org.name}, ИНН: {org.inn}, КПП:{org.kpp}, ОГРН: {org.ogrn}. Адрес: {org.address}. </td>\r\n</tr><tr>\r\n<td valign=top>Заказчик:</td>\r\n<td valign=top>{client.name} Паспортные данные: серия {client.passport_serie} номер {client.passport_number} выдан  {client.passport_issued_at} {client.passport_issued_by} Адрес:  {client.address_passport} На основании договора №{contract.id} от {contract.date}</td>\r\n</tr>\r\n</table>\r\n<BR>\r\n{event.items}\r\n{qr}\r\n<B>Всего оказано услуг на сумму:</B> {event.total} руб. ({event.total_text}) <BR><BR>\r\n<B>Вышеперечисленные услуги выполнены полностью и в срок. Заказчик претензий по объему, качеству и срокам оказания услуг не имеет. Услугу, получил и принял. </B>\r\n<BR><BR>\r\n<table width=\"100%\">\r\n<tr>\r\n<TD style=\"border-top:0px solid black;width:50%;\" valign=top> <B>Исполнитель:</B><BR>\r\n{org.name}<BR>\r\nИНН/КПП/ОГРН: {org.inn}/{org.kpp}/{org.ogrn}<BR>\r\nТел.: {org.phone}, {org.address}<BR>\r\n<LI>{org.signature}/{org.director_short}</LI>\r\n                           М.П. \t(ген. директор)\r\n</TD><TD style=\"border-top:0px solid black;\" valign=top>\r\n<B>Заказчик:  </B><BR>\r\n{client.name}\r\nПасп. данные: \r\nсерия {client.passport_serie} номер {client.passport_number} выдан  {client.passport_issued_at}  {client.passport_issued_by}<BR>\r\nАдрес: {client.address_passport}  Тел.:<U>+7{client.tel}</U><BR>\r\n<LI>____________ /__________  </LI></TD>\r\n</td>\r\n\r\n</table></div>",
+    "source": {
+        "system": "elos",
+        "legacy_code": "А-ВР",
+        "legacy_version": 1,
+        "trigger": "medical",
+        "text_approved": true
+    }
+}

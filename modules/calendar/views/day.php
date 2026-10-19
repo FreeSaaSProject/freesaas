@@ -70,9 +70,10 @@ $modeDayUrl = $dayUrl($date);
 $modeWeekUrl = '/calendar/week/' . rawurlencode($date);
 $periodCtas = [];
 if (!empty($canCreate)) {
+    $blocksOnly = class_exists('CalendarConfig', false) && CalendarConfig::isBlocksMode();
     $periodCtas[] = [
-        'href' => $newEventUrl,
-        'label' => t('calendar.day.add_event'),
+        'href' => $newEventUrl . ($blocksOnly ? '&block=1' : ''),
+        'label' => $blocksOnly ? t('calendar.day.add_block') : t('calendar.day.add_event'),
         'primary' => true,
     ];
 }

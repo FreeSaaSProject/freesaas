@@ -1,0 +1,313 @@
+{
+    "id": "docs",
+    "name": "docs.module.name",
+    "description": "docs.module.description",
+    "version": "0.2.2",
+    "type": "product",
+    "runtime": "admin",
+    "requires": {
+        "core": ">=0.3.0",
+        "clients": ">=0.1.0"
+    },
+    "optionalRequires": {
+        "calendar": ">=0.2.0",
+        "procedures": ">=0.1.0",
+        "catalog": ">=0.1.0",
+        "audio": ">=0.1.0",
+        "audio_llm": ">=0.1.0",
+        "stickers": ">=0.1.0"
+    },
+    "provides": [
+        "docs.engine",
+        "docs.medcard"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "docs.view",
+            "label": "docs.perm.view"
+        },
+        {
+            "id": "docs.edit",
+            "label": "docs.perm.edit"
+        },
+        {
+            "id": "docs.print",
+            "label": "docs.perm.print"
+        },
+        {
+            "id": "docs.medical",
+            "label": "docs.perm.medical"
+        },
+        {
+            "id": "docs.manage",
+            "label": "docs.perm.manage"
+        },
+        {
+            "id": "docs.sign",
+            "label": "docs.perm.sign"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/documents",
+            "/documents/new",
+            "/documents/{id}/edit",
+            "/documents/{id}/print",
+            "/documents/qr/{hash}",
+            "/documents/defs",
+            "/documents/defs/new",
+            "/documents/defs/import",
+            "/documents/defs/import/sample",
+            "/documents/defs/{id}/edit",
+            "/documents/defs/{id}/export",
+            "/documents/defs/{id}/sample",
+            "/documents/clients/{id}/profile",
+            "/documents/clients/{id}/medcard",
+            "/documents/settings"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/docs.md",
+        "ops": [
+            {
+                "id": "docs.list",
+                "method": "GET",
+                "path": "/documents",
+                "permission": "docs.view",
+                "description": "List document instances (meta only); filters: kind, client, event, status, def"
+            },
+            {
+                "id": "docs.get",
+                "method": "GET",
+                "path": "/documents/{id}/edit",
+                "permission": "docs.view",
+                "description": "One instance: payload, schema fields, provenance, pending proposals"
+            },
+            {
+                "id": "docs.create",
+                "method": "POST",
+                "path": "/documents/new",
+                "permission": "docs.edit",
+                "side_effect": "write",
+                "description": "Create instance; def (id or code), client, event, procedure; optional f[field_id] values"
+            },
+            {
+                "id": "docs.update",
+                "method": "POST",
+                "path": "/documents/{id}/edit",
+                "permission": "docs.edit",
+                "side_effect": "write",
+                "description": "action=save (f[field_id]) | revise | void | accept (proposal_id) | reject (proposal_id) | pull_segments"
+            },
+            {
+                "id": "docs.print",
+                "method": "GET",
+                "path": "/documents/{id}/print",
+                "permission": "docs.print",
+                "side_effect": "read",
+                "description": "Print HTML: preview (not frozen yet) or the frozen snapshot"
+            },
+            {
+                "id": "docs.print.freeze",
+                "method": "POST",
+                "path": "/documents/{id}/print",
+                "permission": "docs.print",
+                "side_effect": "write",
+                "description": "Freeze the print snapshot and mark the document printed (irreversible; edits need a new revision)"
+            },
+            {
+                "id": "docs.defs.list",
+                "method": "GET",
+                "path": "/documents/defs",
+                "permission": "docs.manage",
+                "description": "Definitions (templates) with current version schema; use docs.defs.get for print_html"
+            },
+            {
+                "id": "docs.defs.get",
+                "method": "GET",
+                "path": "/documents/defs/{id}/edit",
+                "permission": "docs.manage",
+                "description": "One template: meta + current schema_json + print_html (form) for editing"
+            },
+            {
+                "id": "docs.defs.create",
+                "method": "POST",
+                "path": "/documents/defs/new",
+                "permission": "docs.manage",
+                "side_effect": "write",
+                "description": "Create a template; required code, name, kind. Placeholders: see docs.defs.get / docs/agents/docs.md",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "code": {"type": "string", "description": "Latin code [a-z0-9_-], unique"},
+                        "name": {"type": "string"},
+                        "kind": {"type": "string", "enum": ["consent", "contract", "check", "medcard_profile", "medcard_visit", "medcard_dossier"]},
+                        "scope": {"type": "string", "enum": ["client", "event"]},
+                        "trigger_mode": {"type": "string", "enum": ["manual", "every", "medical", "non_medical", "types", "procs"]},
+                        "expire_days": {"type": "integer"},
+                        "enabled": {"type": "integer", "enum": [0, 1]},
+                        "schema_json": {"type": "object", "description": "{\"sections\":[{\"id\",\"title\",\"fields\":[{\"id\",\"type\",\"label\",\"required\",\"index\"}]}]}"},
+                        "print_html": {"type": "string", "description": "HTML with {placeholders}, e.g. {client.name} {fields} {org.name} {qr} {g:female|male|}"}
+                    },
+                    "required": ["code", "name", "kind"],
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "docs.defs.update",
+                "method": "POST",
+                "path": "/documents/defs/{id}/edit",
+                "permission": "docs.manage",
+                "side_effect": "write",
+                "description": "Partial update: send only changed keys (name, enabled, trigger_mode, expire_days, schema_json, print_html, …). Changed schema/HTML creates a new immutable version; existing documents keep theirs. Read docs.defs.get first",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "enabled": {"type": "integer", "enum": [0, 1]},
+                        "trigger_mode": {"type": "string", "enum": ["manual", "every", "medical", "non_medical", "types", "procs"]},
+                        "expire_days": {"type": "integer"},
+                        "require_medcard": {"type": "integer", "enum": [0, 1]},
+                        "schema_json": {"type": "object"},
+                        "print_html": {"type": "string"},
+                        "orientation": {"type": "string", "enum": ["portrait", "landscape"]},
+                        "format": {"type": "string", "enum": ["A4", "A5"]},
+                        "copies": {"type": "integer"}
+                    },
+                    "additionalProperties": true
+                }
+            },
+            {
+                "id": "docs.defs.sample",
+                "method": "GET",
+                "path": "/documents/defs/{id}/sample",
+                "permission": "docs.print",
+                "description": "Sample print HTML with demo data (nothing stored); optional version= version id"
+            },
+            {
+                "id": "docs.defs.export",
+                "method": "GET",
+                "path": "/documents/defs/{id}/export",
+                "permission": "docs.manage",
+                "description": "Definition (current version) as an importable template file"
+            },
+            {
+                "id": "docs.library",
+                "method": "GET",
+                "path": "/documents/defs/import",
+                "permission": "docs.manage",
+                "description": "Bundled template packs and their files; query pack="
+            },
+            {
+                "id": "docs.library.import",
+                "method": "POST",
+                "path": "/documents/defs/import",
+                "permission": "docs.manage",
+                "side_effect": "write",
+                "description": "action=import_pack (pack, files[]) | upload (file); keep_ids, update, enable"
+            },
+            {
+                "id": "docs.client.profile",
+                "method": "GET",
+                "path": "/documents/clients/{id}/profile",
+                "permission": "docs.medical",
+                "description": "Ensure + return current medcard_profile instance id for a client"
+            },
+            {
+                "id": "docs.settings",
+                "method": "POST",
+                "path": "/documents/settings",
+                "permission": "docs.view",
+                "side_effect": "write",
+                "description": "Partial update: qr_archive=0|1 and/or org[key]=value (organization requisites {org.*}); superadmin capability on route"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "docs.menu.group",
+            "num": 1,
+            "path": "/documents",
+            "title": "docs.menu.list",
+            "permission": "docs.view"
+        },
+        {
+            "group": "docs.menu.group",
+            "num": 20,
+            "path": "/documents/defs",
+            "title": "docs.menu.defs",
+            "permission": "docs.manage",
+            "kind": "crud"
+        },
+        {
+            "group": "docs.menu.group",
+            "num": 90,
+            "path": "/documents/settings",
+            "title": "docs.menu.settings",
+            "permission": "docs.view",
+            "capability": "SUPERADMIN_ACCESS"
+        }
+    ],
+    "configSchema": {
+        "docs": {
+            "qr_archive": {
+                "type": "integer",
+                "default": 0
+            }
+        }
+    },
+    "tables": [
+        "base_doc_defs",
+        "base_doc_def_versions",
+        "base_doc_instances",
+        "base_doc_field_index",
+        "base_doc_proposals"
+    ],
+    "migrators": [
+        {
+            "id": "legacy_docs_medcard",
+            "mode": "append",
+            "source": [
+                "phpshop_shopusers",
+                "base_procedures"
+            ],
+            "target": [
+                "base_doc_instances"
+            ]
+        }
+    ],
+    "hooks": {
+        "subscribe": [
+            "calendar.event.sections",
+            "calendar.event.saved",
+            "clients.view.profile",
+            "procedures.edit.sections",
+            "audio_llm.study.result",
+            "docs.instance.propose"
+        ],
+        "publish": [
+            "docs.merge.context",
+            "docs.instance.saved",
+            "docs.instance.propose"
+        ]
+    },
+    "bulkActions": [
+        {
+            "list_id": "docs_instances",
+            "action": "delete"
+        }
+    ],
+    "catalog": {
+        "categories": [
+            "crm"
+        ],
+        "maturity": "alpha",
+        "tags": [],
+        "screenshots": []
+    },
+    "uninstall": {
+        "strategy": "drop_owned"
+    }
+}

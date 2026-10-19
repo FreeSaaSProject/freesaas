@@ -11,13 +11,15 @@ final class BookingOccupancy
     /**
      * @param int|null $excludeOrderId omit this advance order from occupancy (re-validate on edit)
      * @param int|list<int>|null $excludeProcedureId omit procedure(s) from occupancy (procedure / chain edit)
+     * @param int|null $excludeEventId omit this calendar event from occupancy (event edit re-check)
      * @return UsedMap
      */
     public static function build(
         int $dayStart,
         int $dayEnd,
         ?int $excludeOrderId = null,
-        $excludeProcedureId = null
+        $excludeProcedureId = null,
+        ?int $excludeEventId = null
     ): array {
         if ($dayEnd <= $dayStart) {
             return [];
@@ -25,10 +27,15 @@ final class BookingOccupancy
         /** @var UsedMap $used */
         $used = [];
         $excludeOrderId = $excludeOrderId !== null && $excludeOrderId > 0 ? $excludeOrderId : null;
+        $excludeEventId = $excludeEventId !== null && $excludeEventId > 0 ? $excludeEventId : null;
         $excludeSet = self::normalizeExcludeProcedureIds($excludeProcedureId);
 
         if (class_exists(EventsRepository::class, false) && Database::tableExists('base_events')) {
             foreach (EventsRepository::listForDayRange($dayStart, $dayEnd) as $ev) {
+                $eid = (int)($ev['id'] ?? 0);
+                if ($excludeEventId !== null && $eid === $excludeEventId) {
+                    continue;
+                }
                 // Legacy blocks often have ENABLED=0 but still mean "busy".
                 // Skip only non-block events that are explicitly disabled.
                 $isBlock = !empty($ev['is_block']);
@@ -42,18 +49,15 @@ final class BookingOccupancy
                     continue;
                 }
                 $gid = 0;
-                $content = trim((string)($ev['content'] ?? ''));
-                if ($content !== '') {
-                    $parts = preg_split('/[,#\s]+/', $content) ?: [];
-                    foreach ($parts as $part) {
-                        $id = (int)$part;
-                        if ($id > 0) {
-                            $gid = $id;
-                            break;
-                        }
+                $contentIds = is_array($ev['content_ids'] ?? null) ? $ev['content_ids'] : [];
+                foreach ($contentIds as $part) {
+                    $cid = (int)$part;
+                    if ($cid > 0) {
+                        $gid = $cid;
+                        break;
                     }
                 }
-                $key = 'e' . (int)($ev['id'] ?? 0);
+                $key = 'e' . $eid;
                 $used[$op][$key] = ['DTSTART' => $start, 'DTEND' => $end, 'ID_GOOD' => $gid];
             }
         }

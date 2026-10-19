@@ -5,11 +5,14 @@ declare(strict_types=1);
  *
  * @var ?array $row
  * @var bool $showHours
- * @var bool $manualCreate
+ * @var string $eventMode blocks|visits
  */
 $row = is_array($row ?? null) ? $row : [];
 $showHours = !empty($showHours);
-$manualCreate = !empty($manualCreate);
+$eventMode = (string)($eventMode ?? CalendarConfig::MODE_BLOCKS);
+if ($eventMode !== CalendarConfig::MODE_VISITS) {
+    $eventMode = CalendarConfig::MODE_BLOCKS;
+}
 $start = (int)($row['work_hour_start'] ?? 9);
 $end = (int)($row['work_hour_end'] ?? 22);
 ?>
@@ -29,11 +32,14 @@ $end = (int)($row['work_hour_end'] ?? 22);
 <?php endif; ?>
 
 <fieldset class="form-fieldset">
-  <legend><?= te('calendar.settings.manual_create') ?></legend>
-  <p class="muted"><?= te('calendar.settings.manual_create_hint') ?></p>
+  <legend><?= te('calendar.settings.event_mode') ?></legend>
+  <p class="muted"><?= te('calendar.settings.event_mode_hint') ?></p>
   <label class="logo-remove">
-    <input type="hidden" name="calendar_manual_create" value="0">
-    <input type="checkbox" name="calendar_manual_create" value="1"<?= $manualCreate ? ' checked' : '' ?>>
-    <?= te('calendar.settings.manual_create_label') ?>
+    <input type="radio" name="calendar_event_mode" value="blocks"<?= $eventMode === 'blocks' ? ' checked' : '' ?>>
+    <?= te('calendar.settings.event_mode_blocks') ?>
+  </label>
+  <label class="logo-remove">
+    <input type="radio" name="calendar_event_mode" value="visits"<?= $eventMode === 'visits' ? ' checked' : '' ?>>
+    <?= te('calendar.settings.event_mode_visits') ?>
   </label>
 </fieldset>

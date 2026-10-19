@@ -190,6 +190,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `polls` | Poll definitions tree (`base_polls`); universal; channels via EventBus |
 | `poll_invites` | Poll invite instances + staff fill (`base_poll_invites`); requires `polls`; publish `poll_invites.*` for bots/site |
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
+| `docs` | Document engine + medical cards (`base_doc_*`): versioned schema/template definitions, filled instances, frozen print, optional QR archive, audio/LLM autofill proposals; URL prefix `/documents`; alpha — [`docs/agents/docs.md`](docs/agents/docs.md) |
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
 | `asr` | Voice queue + shared Whisper worker token (`/asr/voice-transcribe/*`); requires `core` only; soft `bots` |

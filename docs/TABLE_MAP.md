@@ -39,7 +39,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_records_badges`, `base_badge_assignments`, `base_records_reviews`, `base_records_balances` | audio | Badges, assignments; storage settings in `cfg/modules/audio.ini` |
 | `base_records_coverage_profiles` | audio_pipeline | Per-status / per-staff coverage overrides |
 | `base_records_llm_studies`, `base_records_llm_study_results` | audio_llm | LLM studies over transcripts + cyclic templates |
-| `base_events` / `base_events_changes` | calendar | Appointments + audit |
+| `base_events` / `base_event_items` | calendar | Visit/block shell + planned basket |
+| `base_event_bonus` | bonuses | Bonus intent per calendar visit |
 | `base_cabinets` | cabinets | Rooms; staff `skin`; stocks `ID_CABINET` |
 | `base_workweeks` | workweeks | Shifts |
 | `base_procent_history` | rates | Specialist pay rates |
@@ -67,6 +68,10 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_orders` | orders | Website/cart orders (admin UI + storefront `sites` checkout via `OrdersRepository::create`) |
 | `base_polls` | polls | Poll definition tree (EL_TYPE poll/question/answer) |
 | `base_poll_invites` | poll_invites | Poll invite instances + answers in DATA_OPTS |
+| `base_doc_defs` / `base_doc_def_versions` | docs | Document definitions (kind, trigger, scope) + immutable schema/template versions |
+| `base_doc_instances` / `base_doc_field_index` | docs | Filled documents incl. medcards (`PAYLOAD` JSON, frozen print, QR hashes) + narrow search index |
+| `base_doc_proposals` | docs | Pending autofill values (audio/LLM/import) awaiting staff accept |
+| `base_clients` / `base_procedures` / `base_events` / `base_records` (read) | docs | Merge context + spawn triggers; no medical columns added to these tables |
 
 Session keys: `user_id`, `login`, `user_name`, `permissions`, `status_id`, `status_flags`.
 

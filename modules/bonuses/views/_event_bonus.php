@@ -19,9 +19,27 @@ declare(strict_types=1);
 $readonly = !$canModify;
 $bonusUse = !empty($row['bonus_use']);
 $discount = (float)($row['bonus_discount'] ?? 0);
+$open = $alreadyApplied
+    || $bonusUse
+    || $applyFlash !== ''
+    || $applyError !== ''
+    || ($clientId > 0 && $balance > 0 && $canApply);
+$summaryExtra = '';
+if ($clientId < 1) {
+    $summaryExtra = t('bonuses.event.need_client');
+} elseif ($alreadyApplied) {
+    $summaryExtra = t('bonuses.event.applied');
+} elseif ($balance > 0) {
+    $summaryExtra = t('bonuses.event.balance', ['n' => number_format($balance, 0, '.', ' ')]);
+}
 ?>
-<fieldset class="bonuses-event-block">
-  <legend><?= te('bonuses.event.sec') ?></legend>
+<details class="bonuses-event-block"<?= $open ? ' open' : '' ?>>
+  <summary class="bonuses-event-summary">
+    <span><?= te('bonuses.event.sec') ?></span>
+    <?php if ($summaryExtra !== ''): ?>
+      <span class="muted bonuses-event-summary-extra"><?= e($summaryExtra) ?></span>
+    <?php endif; ?>
+  </summary>
 
   <?php if ($applyFlash !== ''): ?>
     <div class="flash flash-ok"><?= e($applyFlash) ?></div>
@@ -77,4 +95,4 @@ $discount = (float)($row['bonus_discount'] ?? 0);
       </div>
     <?php endif; ?>
   <?php endif; ?>
-</fieldset>
+</details>

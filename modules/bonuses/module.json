@@ -2,7 +2,7 @@
     "id": "bonuses",
     "name": "bonuses.module.name",
     "description": "bonuses.module.description",
-    "version": "0.2.2",
+    "version": "0.2.4",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -98,7 +98,8 @@
     ],
     "configSchema": [],
     "tables": [
-        "base_bonus_moves"
+        "base_bonus_moves",
+        "base_event_bonus"
     ],
     "migrators": [],
     "hooks": {

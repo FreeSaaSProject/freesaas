@@ -69,6 +69,7 @@ if (!$isNew) {
     if (!empty(Auth::statusFlags()['EVT_MY_ONLY'])) {
         $staffHint = Auth::userId();
     }
+    $forceBlock = CalendarConfig::isBlocksMode() || !empty($_GET['block']);
     $row = [
         'dtstart' => $startTs,
         'dtend' => $startTs + 3600,
@@ -76,8 +77,9 @@ if (!$isNew) {
         'id_user' => 0,
         'content_ids' => [],
         'content_price_map' => [],
-        'is_block' => 0,
-        'fix_move' => 0,
+        'content_qty_map' => [],
+        'items' => [],
+        'is_block' => $forceBlock ? 1 : 0,
         'real_summ' => 0,
         'phone' => '',
         'name' => '',
@@ -90,9 +92,11 @@ if (!$isNew) {
 
 $message = '';
 $error = '';
+$visitsMode = CalendarConfig::isVisitsMode();
 $canModify = $isNew ? EventsRepository::canCreate() : EventsRepository::canModify($row);
 $canDelete = !$isNew && EventsRepository::canDelete($row);
 $canMakeProcedures = !$isNew
+    && $visitsMode
     && Auth::can('procedures.edit')
     && Auth::can('calendar.edit')
     && empty($row['is_block']);
@@ -153,6 +157,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             if ($isNew) {
                 $newId = EventsRepository::create($data);
+                if (is_array($saved) && isset($saved['_bonus_persist']) && class_exists('EventBonusRepository', false)) {
+                    $bp = $saved['_bonus_persist'];
+                    EventBonusRepository::upsert(
+                        $newId,
+                        (int)($bp['use'] ?? 0),
+                        (float)($bp['discount'] ?? 0)
+                    );
+                }
+                EventBus::emit('calendar.event.saved', ['id' => $newId, 'is_new' => true, 'data' => $data]);
                 if ($wantsJson) {
                     AgentHttp::emit([
                         'ok' => true,
@@ -168,6 +181,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 return;
             }
             EventsRepository::update($id, $data);
+            if (is_array($saved) && isset($saved['_bonus_persist']) && class_exists('EventBonusRepository', false)) {
+                $bp = $saved['_bonus_persist'];
+                EventBonusRepository::upsert(
+                    $id,
+                    (int)($bp['use'] ?? 0),
+                    (float)($bp['discount'] ?? 0)
+                );
+            }
+            EventBus::emit('calendar.event.saved', ['id' => $id, 'is_new' => false, 'data' => $data]);
             $row = EventsRepository::find($id) ?: array_merge($row, $data);
             if ($wantsJson) {
                 AgentHttp::emit([
@@ -180,7 +202,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             $message = t('core.common.saved');
             $canModify = EventsRepository::canModify($row);
             $canDelete = EventsRepository::canDelete($row);
-            $canMakeProcedures = Auth::can('procedures.edit')
+            $canMakeProcedures = $visitsMode
+                && Auth::can('procedures.edit')
                 && Auth::can('calendar.edit')
                 && empty($row['is_block']);
         }
@@ -201,6 +224,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     $map[(int)$cid] = (float)$price;
                 }
                 $row['content_price_map'] = $map;
+            }
+            if (isset($_POST['content_qty']) && is_array($_POST['content_qty'])) {
+                $qmap = [];
+                foreach ($_POST['content_qty'] as $cid => $qty) {
+                    $qmap[(int)$cid] = max(1, (int)$qty);
+                }
+                $row['content_qty_map'] = $qmap;
             }
         }
     }
@@ -236,6 +266,36 @@ $staffNames = EventsRepository::staffChoicesForDay($dayForStaff, $keepOp);
 
 $productNames = ProductsRepository::names(true);
 $productPrices = ProductsRepository::priceMap(true);
+$staffForGoods = (int)($row['id_operator'] ?? 0);
+$dayForGoods = (int)($row['dtstart'] ?? 0);
+if ($dayForGoods <= 0) {
+    $dayForGoods = time();
+}
+$keepGoodIds = [];
+foreach (is_array($row['content_ids'] ?? null) ? $row['content_ids'] : [] as $gid) {
+    $gid = (int)$gid;
+    if ($gid > 0) {
+        $keepGoodIds[] = $gid;
+    }
+}
+$frequentGoods = EventItemsRepository::frequentGoods(12, $staffForGoods, $dayForGoods, $keepGoodIds);
+
+$selectedItems = [];
+$contentIds = is_array($row['content_ids'] ?? null) ? $row['content_ids'] : [];
+$priceMap = is_array($row['content_price_map'] ?? null) ? $row['content_price_map'] : [];
+$qtyMap = is_array($row['content_qty_map'] ?? null) ? $row['content_qty_map'] : [];
+foreach ($contentIds as $gid) {
+    $gid = (int)$gid;
+    if ($gid < 1) {
+        continue;
+    }
+    $selectedItems[] = [
+        'id' => $gid,
+        'name' => (string)($productNames[$gid] ?? ('#' . $gid)),
+        'price' => (float)($priceMap[$gid] ?? $productPrices[$gid] ?? 0),
+        'qty' => max(1, (int)($qtyMap[$gid] ?? 1)),
+    ];
+}
 
 $clientLabel = '';
 $clientId = (int)($row['id_user'] ?? 0);
@@ -251,6 +311,7 @@ if ($clientId > 0) {
         }
     }
 }
+$row['phone'] = EventsRepository::normalizeEventPhone((string)($row['phone'] ?? ''));
 
 $dayBack = $returnUrl;
 $dtForBack = $row['dtstart'] ?? 0;
@@ -290,8 +351,12 @@ if ($wantsJson) {
         'staff_names' => $staffNames,
         'product_names' => $productNames,
         'product_prices' => $productPrices,
+        'selected_items' => $selectedItems,
+        'frequent_goods' => $frequentGoods,
         'client_label' => $clientLabel,
         'staff_locked' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
+        'event_mode' => CalendarConfig::eventMode(),
+        'visits_mode' => $visitsMode,
     ]);
     return;
 }
@@ -306,14 +371,15 @@ View::render('event_edit', [
     'error' => $error,
     'returnUrl' => $dayBack,
     'staffNames' => $staffNames,
-    'productNames' => $productNames,
-    'productPrices' => $productPrices,
+    'selectedItems' => $selectedItems,
+    'frequentGoods' => $frequentGoods,
     'clientLabel' => $clientLabel,
     'canModify' => $canModify,
     'canDelete' => $canDelete,
     'canMakeProcedures' => $canMakeProcedures,
     'linkedProcedures' => $linkedProcedures,
     'staffLocked' => !empty(Auth::statusFlags()['EVT_MY_ONLY']),
+    'visitsMode' => $visitsMode,
     'bonusExtraHtml' => $bonusExtraHtml,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('calendar.menu.week'), 'href' => '/calendar'],

@@ -155,6 +155,12 @@ final class StudyRunner
             'UPDATE base_records_llm_study_results SET STATUS = 2, RESULT_TEXT = ?, ERROR_TEXT = \'\', DT_PROCESSED = ? WHERE ID = ?'
         )->execute([$llm['result'], $now, $resultId]);
         StudiesRepository::refreshCounters($studyId);
+        EventBus::emit('audio_llm.study.result', [
+            'study_id' => $studyId,
+            'result_id' => $resultId,
+            'record_id' => $recordId,
+            'result_text' => (string)$llm['result'],
+        ]);
         return true;
     }
 

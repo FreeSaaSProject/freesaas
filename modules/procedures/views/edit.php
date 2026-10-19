@@ -181,6 +181,9 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
     <a class="btn-secondary" href="<?= e($returnUrl) ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if (!empty($extraHtml)): ?>
+<?= $extraHtml ?>
+<?php endif; ?>
 <?php if (!$isNew): ?>
 <?= EntityDelete::form('procedures', (int)($row['id'] ?? 0)) ?>
 <?php endif; ?>

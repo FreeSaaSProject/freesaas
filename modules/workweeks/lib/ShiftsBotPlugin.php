@@ -142,10 +142,10 @@ final class ShiftsBotPlugin
         $out = [];
         try {
             $st = Database::pdo()->prepare(
-                'SELECT DT_START AS dt_start, DT_END AS dt_end FROM base_events
-                 WHERE ID_ADMIN = ? AND IS_BLOCK = 1 AND ENABLED = 1
-                   AND DT_START >= ? AND DT_START < ?
-                 ORDER BY DT_START ASC'
+                'SELECT DTSTART AS dt_start, DTEND AS dt_end FROM base_events
+                 WHERE ID_OPERATOR = ? AND IS_BLOCK = 1
+                   AND DTSTART >= ? AND DTSTART < ?
+                 ORDER BY DTSTART ASC'
             );
             $st->execute([$uid, $from, $to]);
             foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {

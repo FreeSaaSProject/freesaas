@@ -385,15 +385,20 @@ final class ProceduresRepository
         if ((int)($event['id_user'] ?? 0) < 1) {
             throw new InvalidArgumentException(t('procedures.err.event_no_client'));
         }
-        $goodIds = $event['content_ids'] ?? EventsRepository::parseContentIds((string)($event['content'] ?? ''));
-        if ($onlyGoodId !== null && $onlyGoodId > 0) {
-            $goodIds = in_array($onlyGoodId, $goodIds, true) ? [$onlyGoodId] : [];
+        $items = is_array($event['items'] ?? null) ? $event['items'] : [];
+        if ($items === [] && class_exists('EventItemsRepository', false)) {
+            $items = EventItemsRepository::listByEvent($eventId);
         }
-        if ($goodIds === []) {
+        if ($onlyGoodId !== null && $onlyGoodId > 0) {
+            $items = array_values(array_filter(
+                $items,
+                static fn(array $it): bool => (int)($it['id_good'] ?? 0) === $onlyGoodId
+            ));
+        }
+        if ($items === []) {
             throw new InvalidArgumentException(t('procedures.err.event_no_content'));
         }
 
-        $priceMap = $event['content_price_map'] ?? EventsRepository::parseContentPrices((string)($event['content_price'] ?? ''));
         $dayStart = (int)$event['dtstart'];
         if ($dayStart > 0) {
             $dayStart = (int)strtotime(date('Y-m-d 00:00:00', $dayStart));
@@ -412,12 +417,27 @@ final class ProceduresRepository
         $skipped = [];
         $cursor = (int)$event['dtstart'] > 0 ? (int)$event['dtstart'] : time();
         $eventEnd = (int)$event['dtend'];
-
-        foreach ($goodIds as $gid) {
-            $gid = (int)$gid;
+        $serviceItems = [];
+        foreach ($items as $it) {
+            if (!is_array($it)) {
+                continue;
+            }
+            $gid = (int)($it['id_good'] ?? 0);
             if ($gid < 1) {
                 continue;
             }
+            $product = ProductsRepository::find($gid);
+            if ($product && !empty($product['is_material'])) {
+                continue; // cosmetics / materials stay commercial lines only
+            }
+            $serviceItems[] = $it;
+        }
+        if ($serviceItems === []) {
+            throw new InvalidArgumentException(t('procedures.err.event_no_content'));
+        }
+
+        foreach ($serviceItems as $it) {
+            $gid = (int)$it['id_good'];
             if (self::existsForEventGood($eventId, $gid)) {
                 $skipped[] = $gid;
                 continue;
@@ -427,13 +447,15 @@ final class ProceduresRepository
             if ($typeId < 1) {
                 throw new InvalidArgumentException(t('procedures.err.product_no_type', ['id' => $gid]));
             }
-            $summ = (int)round((float)($priceMap[$gid] ?? ($product['price'] ?? 0)));
+            $unit = (float)($it['price'] ?? ($product['price'] ?? 0));
+            $qty = max(1, (int)($it['qty'] ?? 1));
+            $summ = (int)round($unit * $qty);
             $dur = $product ? max(0, (int)($product['time_sec'] ?? 0)) : 0;
             if ($dur < 1) {
                 $dur = 3600;
             }
             $dtend = $cursor + $dur;
-            if ($eventEnd > $cursor && $dtend > $eventEnd && count($goodIds) === 1) {
+            if ($eventEnd > $cursor && $dtend > $eventEnd && count($serviceItems) === 1) {
                 $dtend = $eventEnd;
             }
             $newId = self::create([
@@ -493,6 +515,71 @@ final class ProceduresRepository
         );
         $st->execute([$eventId]);
         return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /** @return list<int> */
+    public static function idsByEventParent(int $eventId): array
+    {
+        $ids = [];
+        foreach (self::listByEventParent($eventId) as $row) {
+            $id = (int)($row['id'] ?? 0);
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        return $ids;
+    }
+
+    /**
+     * Keep journal rows glued to a moved visit: shift times by $deltaSec, sync operator/client.
+     *
+     * @return int number of rows updated
+     */
+    public static function syncAfterEventMove(
+        int $eventId,
+        int $deltaSec,
+        ?int $idOperator = null,
+        ?int $idUser = null
+    ): int {
+        if ($eventId < 1 || !Database::tableExists('base_procedures')) {
+            return 0;
+        }
+        if ($deltaSec === 0 && $idOperator === null && $idUser === null) {
+            return 0;
+        }
+        $rows = self::listByEventParent($eventId);
+        if ($rows === []) {
+            return 0;
+        }
+        $sets = [];
+        $params = [];
+        if ($deltaSec !== 0) {
+            $sets[] = 'DTSTART = DTSTART + ?';
+            $params[] = $deltaSec;
+            $sets[] = 'DTEND = DTEND + ?';
+            $params[] = $deltaSec;
+            if (Database::columnExists('base_procedures', 'DTEND_PLAN')) {
+                $sets[] = 'DTEND_PLAN = CASE WHEN DTEND_PLAN > 0 THEN DTEND_PLAN + ? ELSE DTEND_PLAN END';
+                $params[] = $deltaSec;
+            }
+        }
+        if ($idOperator !== null && $idOperator > 0) {
+            $sets[] = 'ID_OPERATOR = ?';
+            $params[] = $idOperator;
+        }
+        if ($idUser !== null && $idUser > 0) {
+            $sets[] = 'ID_USER = ?';
+            $params[] = $idUser;
+        }
+        if ($sets === []) {
+            return 0;
+        }
+        $params[] = $eventId;
+        $st = Database::pdo()->prepare(
+            'UPDATE base_procedures SET ' . implode(', ', $sets) . ' WHERE ID_EVENT_PARENT = ?'
+        );
+        $st->execute($params);
+        return $st->rowCount();
     }
 
     /**

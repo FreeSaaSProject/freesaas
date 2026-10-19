@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-19T07:18:25+00:00",
+    "generated_at": "2026-10-19T14:22:39+00:00",
     "modules": [
         {
             "id": "asr",
@@ -111,7 +111,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.24",
+            "version": "0.2.26",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -179,7 +179,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.4",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -283,7 +283,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "0.2.33",
+            "version": "0.2.34",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -386,7 +386,7 @@
         },
         {
             "id": "bonuses",
-            "version": "0.2.2",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
@@ -419,7 +419,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.11",
+            "version": "0.1.13",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -516,15 +516,15 @@
         },
         {
             "id": "calendar",
-            "version": "0.1.38",
+            "version": "0.2.6",
             "type": "product",
             "name": {
                 "en": "Calendar",
                 "ru": "Календарь"
             },
             "description": {
-                "en": "Day view and event CRUD (base_events*); can create procedures from events.",
-                "ru": "Дневной вид и CRUD событий (base_events*); создание процедур из событий."
+                "en": "Day view, blocks and visits (base_events + base_event_items); event_mode setting.",
+                "ru": "Дневной вид, блоки и визиты (base_events + base_event_items); режим event_mode."
             },
             "summary": {
                 "en": "Enable for the operational day board. Requires clients, catalog, procedures, orders, workweeks. Soft cabinets/tables. Soft-used by bonuses/clientics. Central ops screen — enable after workweeks + procedures.",
@@ -591,7 +591,7 @@
         },
         {
             "id": "certificates",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Certificates",
@@ -789,6 +789,42 @@
                     "accounting"
                 ],
                 "maturity": "beta",
+                "tags": []
+            }
+        },
+        {
+            "id": "docs",
+            "version": "0.2.2",
+            "type": "product",
+            "name": {
+                "en": "Documents & medical cards",
+                "ru": "Документы и медкарты"
+            },
+            "description": {
+                "en": "Document builder: consents, checks and medical cards on one engine — versioned templates, schema-driven forms, frozen prints and a QR archive.",
+                "ru": "Конструктор документов: согласия, чеки и медицинские карты на одном движке — шаблоны с версиями, заполнение по схеме, печать с фиксацией и QR-архив."
+            },
+            "summary": {
+                "en": "Enable to print consents and keep medical cards. Needs clients; soft: calendar (visits), procedures (medical types), audio/audio_llm (autofill), stickers (QR library). Alpha.",
+                "ru": "Включать для печати согласий и ведения медкарт. Нужен clients; мягко: calendar (визиты), procedures (мед. процедуры), audio/audio_llm (автозаполнение), stickers (QR-библиотека). Альфа."
+            },
+            "requires": {
+                "core": ">=0.3.0",
+                "clients": ">=0.1.0"
+            },
+            "optionalRequires": {
+                "calendar": ">=0.2.0",
+                "procedures": ">=0.1.0",
+                "catalog": ">=0.1.0",
+                "audio": ">=0.1.0",
+                "audio_llm": ">=0.1.0",
+                "stickers": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "crm"
+                ],
+                "maturity": "alpha",
                 "tags": []
             }
         },
@@ -1230,7 +1266,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.24",
+            "version": "0.1.27",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1716,7 +1752,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.22",
+            "version": "0.2.23",
             "type": "product",
             "name": {
                 "en": "Shifts",

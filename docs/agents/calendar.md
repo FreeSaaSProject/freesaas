@@ -10,56 +10,50 @@ php bin/freesaas.php module enable calendar --accept-risk --format=json
 
 Or `[modules] calendar=1` in `cfg/config.ini`.
 
-Permissions: `calendar.view`, `calendar.edit`.
+Permissions: `calendar.view`, `calendar.edit`, `calendar.delete`.
 
-## Dependencies
+## Event mode (`event_mode`)
 
-- Requires: `core` >=0.3.0, `clients` >=0.1.0, `catalog` >=0.1.0, `procedures` >=0.1.0, `orders` >=0.1.0, `workweeks` >=0.1.0
-- Soft: `cabinets` >=0.1.0, `tables` >=0.1.0, `booking` >=0.1.0, `bonuses` >=0.1.0
+`cfg/modules/calendar.ini` → `[calendar] event_mode`:
+
+| Value | Meaning |
+|-------|---------|
+| `blocks` (default in example) | UI/agent create **blocks only** (`IS_BLOCK=1`). No client basket. Spa / likespa. |
+| `visits` | Full visit: `base_event_items` basket, client, `createFromEvent`, bonuses/certs sections. |
+
+Legacy `manual_create=0|1` is still read as fallback when `event_mode` is unset (`0`→blocks, `1`→visits).
 
 ## Tables
 
 | Table | Role |
 |-------|------|
-| `base_events` | Owned by `calendar` |
-| `base_events_changes` | Owned by `calendar` |
+| `base_events` | Visit / block shell (owned) |
+| `base_event_items` | Planned basket lines (`ID_GOOD`, `PRICE`, `QTY`, `POS`) |
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 ## Human UI
 
 - `/calendar` week grid; `/calendar/day/{date}` day board.
-- Shift strip: nazop (who works) and, when `tables` is on, nazcab (massage sections) via `/workweeks/nazcab` dialog; table names shown on shift chips.
-- `/calendar/events/new` and `/calendar/events/{id}/edit` — event CRUD; can create procedures.
-- `/calendar/settings` — manual create / hours (superadmin).
-- Booking advance slots are `/booking/new` (separate module), not slot-click on the day board.
-
-| Path | Permission |
-|------|------------|
-| `/calendar` | `—` |
-| `/calendar/settings` | `calendar.view` |
+- Shift strip: nazop / nazcab via workweeks.
+- `/calendar/events/new` and `/calendar/events/{id}/edit` — event/block CRUD; in `visits` mode: client phone mask + CRM suggest, compact product search/frequent chips, `create_procedures` from items.
+- `/calendar/clients?q=` / `/calendar/products?q=&staff=&date=&mode=catalog|frequent` — JSON autocomplete; products filtered by `BookingOperatorGate` when booking is on.
+- Visit length follows basket `time_sec` (auto `dtend`; set `auto_duration=0` to keep a manual end).
+- Save checks operator timeline occupancy (events + procedures + advance orders via `BookingOccupancy` when booking is on).
+- Moving a visit excludes its own `ID_EVENT_PARENT` procedures from the busy check and shifts those journal rows (time / operator / client) with the event.
+- Timed catalog goods (`time_sec > 0`) lock `qty=1` on the event form (no multi-procedure lines).
+- Phone on `base_events.PHONE` is normalized `7XXXXXXXXXX` (VARCHAR 16); save binds existing client by `id_user` or phone digits.
+- `/calendar/settings` — `event_mode` + hours (superadmin).
+- Booking advance slots are `/booking/new` (separate module).
 
 ## Agent JSON
 
-Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (8 ops).
+Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops`.
 
-| Op | Method | Path |
-|----|--------|------|
-| `calendar.week` | GET | `/calendar` |
-| `calendar.week.date` | GET | `/calendar/week/{date}` |
-| `calendar.day` | GET | `/calendar/day/{date}` |
-| `calendar.events.get` | GET | `/calendar/events/{id}/edit` |
-| `calendar.events.create` | POST | `/calendar/events/new` |
-| `calendar.events.update` | POST | `/calendar/events/{id}/edit` |
-| `calendar.settings.get` | GET | `/calendar/settings` |
-| `calendar.settings.update` | POST | `/calendar/settings` |
-
-```bash
-curl -sS -b jar.txt 'https://example/calendar?format=json'
-curl -sS -b jar.txt 'https://example/calendar/settings?format=json'
-```
+Event payload includes `items[]` (`good_id`, `price`, `qty`, `pos`), `real_summ` (derived), `event_mode`.
 
 ## Notes
 
-- Requires workweeks, clients, catalog, procedures, orders.
-- Soft bonuses / cabinets / tables / booking for overlays.
+- Procedures may exist with `ID_EVENT_PARENT=0` (floor / likespa). Mode does not force linking.
+- Bonuses intent for a visit lives in `base_event_bonus` (bonuses module), not on `base_events`.
+- `calendar.event.saved` (`id`, `is_new`, `data`) fires after create/update; `docs` uses it to spawn document / medcard shells.
