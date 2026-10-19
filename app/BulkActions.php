@@ -486,14 +486,16 @@ final class BulkActions
             . '</th>';
     }
 
-    public static function td(string $listId, int $id): string
+    public static function td(string $listId, int $id, bool $checked = false): string
     {
         if (!self::hasVisible($listId) || $id < 1) {
             return '';
         }
         return '<td class="bulk-check-col">'
             . '<label class="bulk-check-hit">'
-            . '<input type="checkbox" name="ids[]" value="' . $id . '" data-bulk-id>'
+            . '<input type="checkbox" name="ids[]" value="' . $id . '" data-bulk-id'
+            . ($checked ? ' checked' : '')
+            . '>'
             . '</label>'
             . '</td>';
     }

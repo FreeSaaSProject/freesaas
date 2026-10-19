@@ -2,7 +2,7 @@
     "id": "audio_llm",
     "name": "audio_llm.module.name",
     "description": "audio_llm.module.description",
-    "version": "0.1.2",
+    "version": "0.1.4",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
@@ -39,7 +39,8 @@
             "/audio/llm-studies",
             "/audio/llm-studies/new",
             "/audio/llm-studies/work",
-            "/audio/llm-studies/{id}"
+            "/audio/llm-studies/{id}",
+            "/audio/review-moderate"
         ]
     },
     "agent": {
@@ -72,6 +73,13 @@
                 "path": "/audio/llm-studies/work",
                 "permission": "audio_llm.edit",
                 "description": "Process queue (POST + CSRF): study_id, limit; action=process|retry|reset|summary|process_all"
+            },
+            {
+                "id": "audio_llm.review_moderate",
+                "method": "POST",
+                "path": "/audio/review-moderate",
+                "permission": "audio.view",
+                "description": "LLM moderator assistant for pending-review queue (admin+day); returns plain-text analysis"
             }
         ]
     },
@@ -92,7 +100,9 @@
     "migrators": [],
     "hooks": {
         "subscribe": [
-            "staff_reports.day.after_publish"
+            "staff_reports.day.after_publish",
+            "audio.settings.sections",
+            "audio.settings.save"
         ],
         "publish": [
             "audio_llm.cyclic.spawn_for_procedure"

@@ -274,6 +274,18 @@ if ($wantsJson) {
     return;
 }
 
+$moderationReady = false;
+$canModerate = false;
+if ($review === 'pending'
+    && ModuleManager::isEnabled('audio_llm')
+    && class_exists('ReviewModerationLlm', false)
+    && ReviewModerationLlm::isReady()
+) {
+    $moderationReady = true;
+    $canModerate = $admin > 0 && $day > 0 && $year > 0 && $month > 0;
+    Assets::need('audio_llm');
+}
+
 View::render('list', [
     'title' => t('audio.menu.list'),
     'breadcrumbs' => Breadcrumbs::withHome([
@@ -320,5 +332,7 @@ View::render('list', [
     'reviewById' => $reviewById,
     'currentUserId' => Auth::userId(),
     'pageStats' => RecordsRepository::pageStats($result['items']),
+    'moderationReady' => $moderationReady,
+    'canModerate' => $canModerate,
     'main_flush' => true,
 ], 'layout', 'audio');

@@ -102,6 +102,16 @@ require __DIR__ . '/_inbox_banner.php';
   </p>
 <?php endif; ?>
 
+<?php if (!empty($moderationReady) && class_exists('View', false)): ?>
+  <?= View::capture('_review_moderation_panel', [
+      'canModerate' => !empty($canModerate),
+      'year' => (int)$year,
+      'month' => (int)$month,
+      'day' => (int)$day,
+      'admin' => (int)$admin,
+  ], 'audio_llm') ?>
+<?php endif; ?>
+
 <form class="filters audio-filters" method="get" action="<?= e($path) ?>" data-auto-filter>
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
   <?php if ($rangeFrom > 0): ?><input type="hidden" name="range_from" value="<?= (int)$rangeFrom ?>"><?php endif; ?>
@@ -232,7 +242,7 @@ require __DIR__ . '/_inbox_banner.php';
       <tr class="audio-record-card<?= $rowClass ? ' ' . e(implode(' ', $rowClass)) : '' ?>"
           data-record-id="<?= $rid ?>"
           <?= $playUrl !== '' ? ' data-play-url="' . e($playUrl) . '"' : '' ?>>
-        <?= BulkActions::td($listId, $rid) ?>
+        <?= BulkActions::td($listId, $rid, $review === 'pending') ?>
         <td class="audio-meta-cell">
           <div class="audio-meta">
             <a class="audio-meta-id" href="<?= e(NavContext::withReturn('/audio/' . $rid)) ?>">#<?= $rid ?></a>

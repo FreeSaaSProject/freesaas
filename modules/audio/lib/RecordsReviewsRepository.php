@@ -231,9 +231,14 @@ final class RecordsReviewsRepository
             return null;
         }
 
+        $href = '/audio?review=pending&year=0&month=0&day=0';
+        if (class_exists('ModuleManager', false) && ModuleManager::isEnabled('audio_reports')) {
+            $href = '/audio/calendar';
+        }
+
         return [
             'short' => t('audio.notice.review_short', ['n' => $n]),
-            'href' => '/audio?review=pending&year=0&month=0&day=0',
+            'href' => $href,
             'title' => t('audio.notice.review_title'),
             'tone' => 'danger',
         ];

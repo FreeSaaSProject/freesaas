@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-18T20:37:38+00:00",
+    "generated_at": "2026-10-19T07:10:18+00:00",
     "modules": [
         {
             "id": "asr",
@@ -177,7 +177,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.2",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -957,7 +957,7 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.26",
+            "version": "0.3.27",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -1091,7 +1091,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.11",
+            "version": "0.1.12",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1559,7 +1559,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.41",
+            "version": "0.1.42",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
