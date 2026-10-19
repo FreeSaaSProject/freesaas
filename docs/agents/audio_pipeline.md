@@ -30,6 +30,8 @@ Permissions: `audio_pipeline.view`.
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
+Stem writes `base_records.KEY_TYPES` (legacy name) as a dict-hit chip blob — see [`audio.md`](audio.md) § `KEY_TYPES`. Do not derive chips from `base_records_instances` on list/read.
+
 ## Human UI
 
 - No staff CRUD menu — background jobs: ingest, ASR claim/result, stem, collect.

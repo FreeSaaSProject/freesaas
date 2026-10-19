@@ -43,7 +43,7 @@ final class RecordsKeysRepository
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $sql = "SELECT k.ID AS id, k.DT_CREATE AS dt_create, k.NAME AS name, k.DISABLED AS disabled,
-                       k.ID_TYPE AS id_type, k.ID_DICTONARY AS id_dictonary, k.ID_LOOKLIKE AS id_looklike,
+                       k.ID_DICTONARY AS id_dictonary, k.ID_LOOKLIKE AS id_looklike,
                        d.NAME AS dict_name
                 FROM base_records_keys k
                 LEFT JOIN base_records_dictonarys d ON d.ID = k.ID_DICTONARY
@@ -63,7 +63,7 @@ final class RecordsKeysRepository
         }
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, DT_CREATE AS dt_create, NAME AS name, DISABLED AS disabled,
-                    ID_TYPE AS id_type, ID_DICTONARY AS id_dictonary, ID_LOOKLIKE AS id_looklike
+                    ID_DICTONARY AS id_dictonary, ID_LOOKLIKE AS id_looklike
              FROM base_records_keys WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -81,8 +81,6 @@ final class RecordsKeysRepository
         return [
             'name' => mb_substr($name, 0, 255),
             'disabled' => !empty($post['disabled']) ? 1 : 0,
-            // ID_TYPE kept in schema for legacy/oper; product UI no longer sets it.
-            'id_type' => 0,
             'id_dictonary' => max(0, (int)($post['id_dictonary'] ?? 0)),
             'id_looklike' => max(0, (int)($post['id_looklike'] ?? 0)),
         ];
@@ -92,11 +90,11 @@ final class RecordsKeysRepository
     public static function create(array $data): int
     {
         $st = Database::pdo()->prepare(
-            'INSERT INTO base_records_keys (ID_TYPE, DT_CREATE, NAME, DISABLED, ID_DICTONARY, ID_LOOKLIKE)
-             VALUES (?,?,?,?,?,?)'
+            'INSERT INTO base_records_keys (DT_CREATE, NAME, DISABLED, ID_DICTONARY, ID_LOOKLIKE)
+             VALUES (?,?,?,?,?)'
         );
         $st->execute([
-            (int)($data['id_type'] ?? 0), time(), $data['name'], $data['disabled'],
+            time(), $data['name'], $data['disabled'],
             $data['id_dictonary'], $data['id_looklike'],
         ]);
         self::clearOverlapCatalogCache();
@@ -107,7 +105,6 @@ final class RecordsKeysRepository
     /** @param array<string,mixed> $data */
     public static function update(int $id, array $data): void
     {
-        // Preserve legacy ID_TYPE; product form no longer edits it.
         $st = Database::pdo()->prepare(
             'UPDATE base_records_keys SET NAME=?, DISABLED=?, ID_DICTONARY=?, ID_LOOKLIKE=? WHERE ID=?'
         );
@@ -127,7 +124,7 @@ final class RecordsKeysRepository
         }
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, DT_CREATE AS dt_create, NAME AS name, DISABLED AS disabled,
-                    ID_TYPE AS id_type, ID_DICTONARY AS id_dictonary, ID_LOOKLIKE AS id_looklike
+                    ID_DICTONARY AS id_dictonary, ID_LOOKLIKE AS id_looklike
              FROM base_records_keys WHERE NAME = ? LIMIT 1'
         );
         $st->execute([mb_substr($name, 0, 255)]);

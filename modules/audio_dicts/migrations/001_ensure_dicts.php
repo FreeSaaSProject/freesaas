@@ -16,35 +16,6 @@ return static function (PDO $pdo): void {
         }
     };
 
-    // base_records_types is legacy/oper-shared: soft-ensure columns only if the table already exists.
-    // FreeSaaS product no longer owns or creates it (rating uses scripts.RATING_ENABLED).
-    $typesExists = false;
-    try {
-        $st = $pdo->query(
-            "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
-             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'base_records_types'"
-        );
-        $typesExists = $st !== false && (int)$st->fetchColumn() > 0;
-    } catch (Throwable $e) {
-        $typesExists = false;
-    }
-    if ($typesExists) {
-        foreach ([
-            'SCORE_VALUE' => 'SCORE_VALUE INT NOT NULL DEFAULT 0',
-            'SCORE_TYPE_ID' => 'SCORE_TYPE_ID INT UNSIGNED NOT NULL DEFAULT 0',
-            'SCORE_DIVERSITY' => 'SCORE_DIVERSITY INT UNSIGNED NOT NULL DEFAULT 0',
-            'SCORE_INSTANCES_MIN' => 'SCORE_INSTANCES_MIN INT NOT NULL DEFAULT 0',
-            'SCORE_INSTANCES_MAX' => 'SCORE_INSTANCES_MAX INT NOT NULL DEFAULT 0',
-            'VOLUME' => 'VOLUME INT UNSIGNED NOT NULL DEFAULT 0',
-            'STRINGS_AMOUNT' => 'STRINGS_AMOUNT INT UNSIGNED NOT NULL DEFAULT 0',
-            'INTERSECT' => '`INTERSECT` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0',
-            'IS_HIDDEN' => 'IS_HIDDEN INT UNSIGNED NOT NULL DEFAULT 0',
-            'ID_POSITION' => 'ID_POSITION TEXT NULL',
-        ] as $col => $ddl) {
-            $ensureCol($pdo, 'base_records_types', $col, $ddl);
-        }
-    }
-
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_records_dictonarys (
             ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -72,19 +43,16 @@ return static function (PDO $pdo): void {
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_records_keys (
             ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            ID_TYPE INT UNSIGNED NOT NULL DEFAULT 0,
             DT_CREATE INT UNSIGNED NOT NULL DEFAULT 0,
             NAME VARCHAR(255) NOT NULL DEFAULT '',
             DISABLED TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             ID_DICTONARY INT UNSIGNED NOT NULL DEFAULT 0,
             ID_LOOKLIKE INT UNSIGNED NOT NULL DEFAULT 0,
             PRIMARY KEY (ID),
-            KEY ID_DICTONARY (ID_DICTONARY),
-            KEY ID_TYPE (ID_TYPE)
+            KEY ID_DICTONARY (ID_DICTONARY)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
     );
     foreach ([
-        'ID_TYPE' => 'ID_TYPE INT UNSIGNED NOT NULL DEFAULT 0',
         'ID_DICTONARY' => 'ID_DICTONARY INT UNSIGNED NOT NULL DEFAULT 0',
         'ID_LOOKLIKE' => 'ID_LOOKLIKE INT UNSIGNED NOT NULL DEFAULT 0',
     ] as $col => $ddl) {

@@ -9,7 +9,7 @@ declare(strict_types=1);
 final class TranscriptHighlighter
 {
     /**
-     * @param list<array{string_num:int,string_position:int,id_key:int,length:int,key_name?:string,type_color?:string,type_bg?:string}> $instances
+     * @param list<array{string_num:int,string_position:int,id_key:int,length:int,key_name?:string,color?:string,bg?:string}> $instances
      * @param list<string> $trashPhrases
      * @param array{
      *   window_from?:int,
@@ -70,8 +70,8 @@ final class TranscriptHighlighter
                 'pos' => (int)($inst['string_position'] ?? 0),
                 'len' => (int)($inst['length'] ?? 0),
                 'name' => (string)($inst['key_name'] ?? ''),
-                'color' => (string)($inst['type_color'] ?? '#111'),
-                'bg' => (string)($inst['type_bg'] ?? '#fde68a'),
+                'color' => (string)($inst['color'] ?? '#111'),
+                'bg' => (string)($inst['bg'] ?? '#fde68a'),
             ];
         }
 
@@ -309,11 +309,13 @@ final class TranscriptHighlighter
     }
 
     /**
-     * KEY_TYPES: ##typeId-diversity-instances##...
+     * Parse base_records.KEY_TYPES (legacy column name — do not rename/drop).
+     * Blob: ##dictId-diversity-instances##… Written by StemRunner; read for UI chips.
+     * Not key-types, not scripts (SCORE comes from collections). Do not recompute from instances.
      *
-     * @return list<array{type_id:int,diversity:int,instances:int}>
+     * @return list<array{dict_id:int,diversity:int,instances:int}>
      */
-    public static function parseKeyTypes(?string $raw): array
+    public static function parseKeyDicts(?string $raw): array
     {
         $raw = trim((string)$raw);
         if ($raw === '') {
@@ -330,7 +332,7 @@ final class TranscriptHighlighter
                 continue;
             }
             $out[] = [
-                'type_id' => (int)$parts[0],
+                'dict_id' => (int)$parts[0],
                 'diversity' => (int)$parts[1],
                 'instances' => (int)$parts[2],
             ];

@@ -17,7 +17,7 @@ declare(strict_types=1);
 /** @var int $preload */
 /** @var int $rangeFrom */
 /** @var int $rangeTo */
-/** @var array<int,array{name:string,color:string,bg:string}> $typeMeta */
+/** @var array<int,array{name:string,color:string,bg:string}> $dictMeta */
 /** @var array<int,array{html:string,lines:int,trash:int,keys:int}> $transcriptById */
 /** @var array<int,string> $playUrlById */
 /** @var array<int,string> $downloadUrlById */
@@ -45,7 +45,7 @@ $currentUserId = (int)($currentUserId ?? 0);
 $listId = 'audio_records';
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$typeMeta = is_array($typeMeta ?? null) ? $typeMeta : [];
+$dictMeta = is_array($dictMeta ?? null) ? $dictMeta : [];
 $transcriptById = is_array($transcriptById ?? null) ? $transcriptById : [];
 $playUrlById = is_array($playUrlById ?? null) ? $playUrlById : [];
 $downloadUrlById = is_array($downloadUrlById ?? null) ? $downloadUrlById : [];
@@ -209,7 +209,7 @@ require __DIR__ . '/_inbox_banner.php';
       <?php
         $rid = (int)$r['id'];
         $dt = (int)($r['dt_recorded'] ?? 0);
-        $kt = TranscriptHighlighter::parseKeyTypes(isset($r['key_types']) ? (string)$r['key_types'] : null);
+        $kt = TranscriptHighlighter::parseKeyDicts(isset($r['key_dicts']) ? (string)$r['key_dicts'] : null);
         $fn = basename((string)($r['filename'] ?? ''));
         $rowClass = [];
         if (!empty($r['disabled'])) {
@@ -256,9 +256,9 @@ require __DIR__ . '/_inbox_banner.php';
             <?php if ($kt): ?>
             <div class="audio-key-chips audio-key-chips--compact">
               <?php foreach ($kt as $chip): ?>
-                <?php $meta = $typeMeta[$chip['type_id']] ?? null; ?>
-                <span class="key-type-chip" style="<?= $meta ? 'background:' . e($meta['bg']) . ';color:' . e($meta['color']) : '' ?>">
-                  <?= e($meta['name'] ?? ('#' . $chip['type_id'])) ?>
+                <?php $meta = $dictMeta[$chip['dict_id']] ?? null; ?>
+                <span class="key-dict-chip" style="<?= $meta ? 'background:' . e($meta['bg']) . ';color:' . e($meta['color']) : '' ?>">
+                  <?= e($meta['name'] ?? ('#' . $chip['dict_id'])) ?>
                   <?= (int)$chip['diversity'] ?>/<?= (int)$chip['instances'] ?>
                 </span>
               <?php endforeach; ?>

@@ -6,10 +6,10 @@ declare(strict_types=1);
 /** @var bool $canEdit */
 /** @var array{html:string,lines:int,trash:int,keys:int} $transcript */
 /** @var list<array<string,mixed>> $instances */
-/** @var array<int,array{name:string,color:string,bg:string}> $typeMeta */
-/** @var list<array{type_id:int,diversity:int,instances:int}> $keyTypes */
-$typeMeta = is_array($typeMeta ?? null) ? $typeMeta : [];
-$keyTypes = is_array($keyTypes ?? null) ? $keyTypes : [];
+/** @var array<int,array{name:string,color:string,bg:string}> $dictMeta */
+/** @var list<array{dict_id:int,diversity:int,instances:int}> $keyDicts */
+$dictMeta = is_array($dictMeta ?? null) ? $dictMeta : [];
+$keyDicts = is_array($keyDicts ?? null) ? $keyDicts : [];
 $instances = is_array($instances ?? null) ? $instances : [];
 $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'lines' => 0, 'trash' => 0, 'keys' => 0];
 ?>
@@ -42,12 +42,12 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
       <dt><?= te('audio.col.disabled') ?></dt><dd><?= !empty($row['disabled']) ? te('core.common.on') : te('core.common.off') ?></dd>
     </dl>
 
-    <?php if ($keyTypes): ?>
-    <p class="audio-key-chips">
-      <?php foreach ($keyTypes as $chip): ?>
-        <?php $meta = $typeMeta[$chip['type_id']] ?? null; ?>
-        <span class="key-type-chip" style="<?= $meta ? 'background:' . e($meta['bg']) . ';color:' . e($meta['color']) : '' ?>">
-          <?= e($meta['name'] ?? ('#' . $chip['type_id'])) ?>
+    <?php if ($keyDicts): ?>
+    <p class="audio-key-chips" aria-label="<?= te('audio.col.key_dicts') ?>">
+      <?php foreach ($keyDicts as $chip): ?>
+        <?php $meta = $dictMeta[$chip['dict_id']] ?? null; ?>
+        <span class="key-dict-chip" style="<?= $meta ? 'background:' . e($meta['bg']) . ';color:' . e($meta['color']) : '' ?>">
+          <?= e($meta['name'] ?? ('#' . $chip['dict_id'])) ?>
           <?= te('audio.view.kv_ratio', ['d' => $chip['diversity'], 'i' => $chip['instances']]) ?>
         </span>
       <?php endforeach; ?>
@@ -86,7 +86,7 @@ $transcript = is_array($transcript ?? null) ? $transcript : ['html' => '', 'line
       <ul class="audio-instances">
         <?php foreach ($instances as $inst): ?>
           <li>
-            <span class="key-hit" style="background:<?= e((string)($inst['type_bg'] ?: '#fde68a')) ?>;color:<?= e((string)($inst['type_color'] ?: '#111')) ?>">
+            <span class="key-hit" style="background:<?= e((string)($inst['bg'] ?? '#fde68a')) ?>;color:<?= e((string)($inst['color'] ?? '#111')) ?>">
               <?= e((string)($inst['key_name'] ?: ('#' . $inst['id_key']))) ?>
             </span>
             <span class="muted">L<?= (int)$inst['string_num'] ?> @<?= (int)$inst['string_position'] ?> +<?= (int)$inst['length'] ?></span>

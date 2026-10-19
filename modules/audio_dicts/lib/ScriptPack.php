@@ -379,7 +379,6 @@ final class ScriptPack
                 $kid = RecordsKeysRepository::create([
                     'name' => $kname,
                     'disabled' => !empty($k['disabled']) ? 1 : 0,
-                    'id_type' => 0,
                     'id_dictonary' => $dictId,
                     'id_looklike' => 0,
                 ]);

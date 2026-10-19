@@ -138,6 +138,19 @@ final class TerminalFloor
             $message = t('terminals.t.client_unlinked');
         }
 
+        // Oper/likespa /t: write term-scan as soon as NFC+1C+claimed admin are known
+        // (before NUM / phone / name). Promoter discount activation must not wait for CRM.
+        $claimedAdminId = (int)($terminal['id_admin'] ?? 0);
+        self::maybeRegisterTermScanEarly(
+            $q,
+            $terminal,
+            $guest,
+            $clientId,
+            $bracelet,
+            $claimedAdminId,
+            $employeeClient !== null
+        );
+
         $numState = TerminalFloorHome::handleBraceletNum(
             $terminal,
             $bracelet,
@@ -160,7 +173,7 @@ final class TerminalFloor
         }
 
         // Claimed staff (ID_ADMIN) ≠ performing masseur. Masseur is only query adminId.
-        $claimedAdminId = (int)($terminal['id_admin'] ?? 0);
+        $claimedAdminId = (int)($terminal['id_admin'] ?? $claimedAdminId);
         $operatorId = (int)($q['adminId'] ?? 0);
         $gids = self::parseGids((string)($q['gids'] ?? ''));
         $categoryId = (int)($q['category'] ?? 0);
@@ -280,6 +293,9 @@ final class TerminalFloor
             $claimedAdminId,
             (string)$q['token']
         );
+
+        // Oper: enrich early term-scan with phone / local client id after auth.
+        self::maybeSupplementTermScan($q, $guest, $clientId, $bracelet, $claimedAdminId);
 
         $discount = self::resolveDiscountContext(
             $terminal,
@@ -574,26 +590,7 @@ final class TerminalFloor
             }
         }
 
-        if ($claimedAdminId > 0
-            && class_exists(TermScansRepository::class, false)
-            && class_exists(LikespaConfig::class, false)
-            && LikespaConfig::termScansEnabled()
-        ) {
-            try {
-                TermScansRepository::register([
-                    'id_admin' => $claimedAdminId,
-                    'id_terminal' => (int)($terminal['id'] ?? 0),
-                    'bracelet_uid' => $bracelet,
-                    'id_1c' => $id1c,
-                    'id_user' => $clientId,
-                    'phone' => $phone,
-                    'phone_1c' => $phone,
-                    'dt' => time(),
-                ]);
-            } catch (Throwable $e) {
-                // Soft: floor must not die on scan analytics.
-            }
-        }
+        // Term-scan INSERT is early (maybeRegisterTermScanEarly); here only discount context.
 
         $clientPct = 0.0;
         if ($clientId > 0
@@ -1062,6 +1059,137 @@ final class TerminalFloor
             return '';
         }
         return $digits;
+    }
+
+    /**
+     * Oper/likespa parity: INSERT base_term_scans on primary floor home before
+     * NUM/phone/name. Once per scan token (session). Soft-dep likespa.
+     *
+     * @param array<string,mixed> $q
+     * @param array<string,mixed> $terminal
+     * @param array<string,mixed> $guest
+     */
+    private static function maybeRegisterTermScanEarly(
+        array $q,
+        array $terminal,
+        array $guest,
+        int $clientId,
+        string $bracelet,
+        int $claimedAdminId,
+        bool $isEmployee
+    ): void {
+        if ($isEmployee || $claimedAdminId < 1) {
+            return;
+        }
+        // Primary home only — not category / cart / slot / commit navigations.
+        if ((int)($q['category'] ?? 0) > 0
+            || trim((string)($q['gids'] ?? '')) !== ''
+            || trim((string)($q['getTime'] ?? '')) !== ''
+        ) {
+            return;
+        }
+        if (!class_exists(TermScansRepository::class, false)
+            || !class_exists(LikespaConfig::class, false)
+            || !LikespaConfig::termScansEnabled()
+        ) {
+            return;
+        }
+        $token = trim((string)($q['token'] ?? ''));
+        if ($token !== '') {
+            if (!isset($_SESSION['termScanTokens']) || !is_array($_SESSION['termScanTokens'])) {
+                $_SESSION['termScanTokens'] = [];
+            }
+            if (!empty($_SESSION['termScanTokens'][$token])) {
+                return;
+            }
+        }
+        $id1c = trim((string)($guest['client_id'] ?? ''));
+        $phone = trim((string)($guest['phone'] ?? $guest['data']['phone'] ?? ''));
+        if ($phone === '' && $clientId > 0 && class_exists(ClientsRepository::class, false)) {
+            $cl = ClientsRepository::find($clientId);
+            if ($cl !== null) {
+                $phone = trim((string)($cl['tel'] ?? ''));
+            }
+        }
+        try {
+            $scanId = TermScansRepository::register([
+                'id_admin' => $claimedAdminId,
+                'id_terminal' => (int)($terminal['id'] ?? 0),
+                'bracelet_uid' => $bracelet,
+                'id_1c' => $id1c,
+                'id_user' => $clientId,
+                'phone' => $phone,
+                'phone_1c' => $phone,
+                'dt' => time(),
+            ]);
+        } catch (Throwable $e) {
+            return;
+        }
+        if ($token !== '') {
+            $_SESSION['termScanTokens'][$token] = 1;
+            if ($scanId !== null && $scanId > 0) {
+                if (!isset($_SESSION['termScanIds']) || !is_array($_SESSION['termScanIds'])) {
+                    $_SESSION['termScanIds'] = [];
+                }
+                $_SESSION['termScanIds'][$token] = $scanId;
+            }
+            // Cap growth on long-lived public terminals.
+            if (count($_SESSION['termScanTokens']) > 300) {
+                $_SESSION['termScanTokens'] = array_slice($_SESSION['termScanTokens'], -150, null, true);
+            }
+            if (isset($_SESSION['termScanIds']) && count($_SESSION['termScanIds']) > 300) {
+                $_SESSION['termScanIds'] = array_slice($_SESSION['termScanIds'], -150, null, true);
+            }
+        }
+    }
+
+    /**
+     * After guest CRM identity: fill empty fields on the early term-scan row.
+     *
+     * @param array<string,mixed> $q
+     * @param array<string,mixed> $guest
+     */
+    private static function maybeSupplementTermScan(
+        array $q,
+        array $guest,
+        int $clientId,
+        string $bracelet,
+        int $claimedAdminId
+    ): void {
+        if ($clientId < 1 && trim((string)($guest['client_id'] ?? '')) === '') {
+            return;
+        }
+        if (!class_exists(TermScansRepository::class, false)
+            || !class_exists(LikespaConfig::class, false)
+            || !LikespaConfig::termScansEnabled()
+        ) {
+            return;
+        }
+        $token = trim((string)($q['token'] ?? ''));
+        if ($token === '' || empty($_SESSION['termScanTokens'][$token])) {
+            return;
+        }
+        $phone = trim((string)($guest['phone'] ?? $guest['data']['phone'] ?? ''));
+        if ($phone === '' && $clientId > 0 && class_exists(ClientsRepository::class, false)) {
+            $cl = ClientsRepository::find($clientId);
+            if ($cl !== null) {
+                $phone = trim((string)($cl['tel'] ?? ''));
+            }
+        }
+        try {
+            TermScansRepository::supplementClientData([
+                'token' => $token,
+                'id_1c' => trim((string)($guest['client_id'] ?? '')),
+                'id_user' => $clientId,
+                'phone' => $phone,
+                'phone_1c' => $phone,
+                'bracelet_uid' => $bracelet,
+                'id_admin' => $claimedAdminId,
+                'dt' => time(),
+            ]);
+        } catch (Throwable $e) {
+            // Soft.
+        }
     }
 
     /**

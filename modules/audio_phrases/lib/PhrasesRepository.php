@@ -610,7 +610,6 @@ final class PhrasesRepository
                 $keyId = RecordsKeysRepository::create([
                     'name' => mb_substr($name, 0, 255),
                     'id_dictonary' => $dictId,
-                    'id_type' => 0,
                     'id_looklike' => $looklike,
                     'disabled' => 0,
                 ]);

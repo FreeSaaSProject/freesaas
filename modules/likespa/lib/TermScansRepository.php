@@ -745,6 +745,97 @@ final class TermScansRepository
     }
 
     /**
+     * Fill empty ID_USER / PHONE / PHONE_1C on an earlier scan after client auth.
+     * Oper termScansSupplementClientData — look up by session scan_id, else day+1C+bracelet.
+     *
+     * @param array{
+     *   token?:string,scan_id?:int,id_1c?:string,id_user?:int,phone?:string,
+     *   phone_1c?:string,bracelet_uid?:string,id_admin?:int,dt?:int
+     * } $ctx
+     */
+    public static function supplementClientData(array $ctx): bool
+    {
+        if (!self::tableReady()) {
+            return false;
+        }
+        $id1c = trim((string)($ctx['id_1c'] ?? ''));
+        $idUser = (int)($ctx['id_user'] ?? 0);
+        $phone = substr(trim((string)($ctx['phone'] ?? '')), 0, 16);
+        $phone1c = substr(trim((string)($ctx['phone_1c'] ?? '')), 0, 16);
+        if ($id1c === '' && $idUser < 1) {
+            return false;
+        }
+        $dt = (int)($ctx['dt'] ?? time());
+        if ($dt < 1) {
+            $dt = time();
+        }
+        $scanDay = self::dayStart($dt);
+        $scanId = (int)($ctx['scan_id'] ?? 0);
+        $token = trim((string)($ctx['token'] ?? ''));
+        $braceletUid = substr(trim((string)($ctx['bracelet_uid'] ?? '')), 0, 32);
+        $idAdmin = (int)($ctx['id_admin'] ?? 0);
+
+        if ($scanId < 1 && $token !== ''
+            && isset($_SESSION['termScanIds']) && is_array($_SESSION['termScanIds'])
+        ) {
+            $scanId = (int)($_SESSION['termScanIds'][$token] ?? 0);
+        }
+
+        if ($scanId < 1 && $id1c !== '') {
+            $sql = 'SELECT ID FROM base_term_scans WHERE SCAN_DAY = ? AND ID_1C = ?';
+            $params = [$scanDay, $id1c];
+            if ($braceletUid !== '') {
+                $sql .= ' AND BRACELET_UID = ?';
+                $params[] = $braceletUid;
+            }
+            if ($idAdmin > 0) {
+                $sql .= ' AND ID_ADMIN = ?';
+                $params[] = $idAdmin;
+            }
+            $sql .= ' ORDER BY ID DESC LIMIT 1';
+            $st = Database::pdo()->prepare($sql);
+            $st->execute($params);
+            $scanId = (int)$st->fetchColumn();
+        }
+        if ($scanId < 1) {
+            return false;
+        }
+
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ID_USER AS id_user, PHONE AS phone, PHONE_1C AS phone_1c
+             FROM base_term_scans WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$scanId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return false;
+        }
+
+        $sets = [];
+        $params = [];
+        if ($idUser > 0 && (int)($row['id_user'] ?? 0) < 1) {
+            $sets[] = 'ID_USER = ?';
+            $params[] = $idUser;
+        }
+        if ($phone !== '' && $phone !== '0' && trim((string)($row['phone'] ?? '')) === '') {
+            $sets[] = 'PHONE = ?';
+            $params[] = $phone;
+        }
+        if ($phone1c !== '' && trim((string)($row['phone_1c'] ?? '')) === '') {
+            $sets[] = 'PHONE_1C = ?';
+            $params[] = $phone1c;
+        }
+        if ($sets === []) {
+            return false;
+        }
+        $params[] = $scanId;
+        Database::pdo()->prepare(
+            'UPDATE base_term_scans SET ' . implode(', ', $sets) . ' WHERE ID = ?'
+        )->execute($params);
+        return true;
+    }
+
+    /**
      * Register bracelet scan. Debounced per bracelet+admin+day (~2 min) unless
      * promoter still needs first-day activation.
      *

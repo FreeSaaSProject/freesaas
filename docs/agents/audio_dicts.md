@@ -29,7 +29,9 @@ Permissions: `audio_dicts.view`, `audio_dicts.edit`.
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
-Legacy (not owned): `base_records_types` may exist from oper / older installs. Soft-read only; migrator `types_to_scripts` converts scoring types into `RATING_ENABLED` scripts. Product rating uses scripts, not types.
+Product rating uses scripts (`RATING_ENABLED`). Keys belong to dictionaries (`ID_DICTONARY`); there is no key-type table/column in product path.
+
+Record chip summary lives on `base_records.KEY_TYPES` (legacy name = dict ids) — see [`audio.md`](audio.md). Agents: do not treat that column as “types”.
 
 ## Human UI
 
@@ -85,4 +87,3 @@ curl -sS -b jar.txt 'https://example/audio/scripts?format=json'
 
 - Required by recognition pipeline and staff reports.
 - Requires `audio`.
-- Key `ID_TYPE` column remains in schema for legacy compatibility but is not edited in product UI.

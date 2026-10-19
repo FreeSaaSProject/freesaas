@@ -144,7 +144,7 @@
                 "path": "/audio/api/dict",
                 "permission": "audio.edit",
                 "assistant": false,
-                "description": "List UX: action=add_key|add_trash with text (+ optional type_id, dict_id)"
+                "description": "List UX: action=add_key|add_trash with text (+ optional dict_id)"
             },
             {
                 "id": "audio.api.badge",

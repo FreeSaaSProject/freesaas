@@ -51,8 +51,8 @@ $transcript = TranscriptHighlighter::render(
     $instances,
     $trash
 );
-$typeMeta = RecordsRepository::typeMetaMap();
-$keyTypes = TranscriptHighlighter::parseKeyTypes(isset($row['key_types']) ? (string)$row['key_types'] : null);
+$dictMeta = RecordsRepository::dictMetaMap();
+$keyDicts = TranscriptHighlighter::parseKeyDicts(isset($row['key_dicts']) ? (string)$row['key_dicts'] : null);
 
 if ($wantsJson) {
     $withTranscription = !empty($_GET['include_transcription']);
@@ -62,7 +62,7 @@ if ($wantsJson) {
         'item' => RecordsRepository::forAgent($row, $withTranscription),
         'play_url' => $playUrl,
         'instances' => $instances,
-        'key_types' => $keyTypes,
+        'key_dicts' => $keyDicts,
         'can_edit' => Auth::can('audio.edit'),
     ]);
     return;
@@ -81,6 +81,6 @@ View::render('view', [
     'canEdit' => Auth::can('audio.edit'),
     'transcript' => $transcript,
     'instances' => $instances,
-    'typeMeta' => $typeMeta,
-    'keyTypes' => $keyTypes,
+    'dictMeta' => $dictMeta,
+    'keyDicts' => $keyDicts,
 ], 'layout', 'audio');

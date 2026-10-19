@@ -144,12 +144,12 @@
   gap: 0.15rem;
 }
 
-.audio-key-chips--compact .key-type-chip {
+.audio-key-chips--compact .key-dict-chip {
   font-size: 0.6rem;
   padding: 0 0.2rem;
 }
 
-.key-type-chip,
+.key-dict-chip,
 .key-hit {
   display: inline-block;
   padding: 0.02rem 0.25rem;

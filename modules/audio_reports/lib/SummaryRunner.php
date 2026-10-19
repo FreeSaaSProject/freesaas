@@ -984,9 +984,10 @@ final class SummaryRunner
     }
 
     /**
-     * Parse KEY_TYPES: ##id-…## fragments (oper ## split).
+     * Presence map from base_records.KEY_TYPES chip blob (legacy column name).
+     * First segment of each ##…## fragment is a dictionary id (StemRunner), not a type id.
      *
-     * @return array<int,true>
+     * @return array<int,true> dictId => true
      */
     public static function parseKeyTypes(string $raw): array
     {
@@ -998,9 +999,9 @@ final class SummaryRunner
                 continue;
             }
             $bits = explode('-', $p);
-            $tid = isset($bits[0]) ? (int)$bits[0] : 0;
-            if ($tid > 0) {
-                $found[$tid] = true;
+            $dictId = isset($bits[0]) ? (int)$bits[0] : 0;
+            if ($dictId > 0) {
+                $found[$dictId] = true;
             }
         }
         return $found;

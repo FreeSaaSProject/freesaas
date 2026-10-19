@@ -153,7 +153,7 @@ if (class_exists('StageTiming', false)) {
     StageTiming::mark('Audio: records');
 }
 
-$typeMeta = RecordsRepository::typeMetaMap();
+$dictMeta = RecordsRepository::dictMetaMap();
 $transcriptById = [];
 $playUrlById = [];
 $downloadUrlById = [];
@@ -296,7 +296,7 @@ View::render('list', [
     'preload' => $preload,
     'rangeFrom' => $rangeFrom,
     'rangeTo' => $rangeTo,
-    'typeMeta' => $typeMeta,
+    'dictMeta' => $dictMeta,
     'transcriptById' => $transcriptById,
     'playUrlById' => $playUrlById,
     'downloadUrlById' => $downloadUrlById,

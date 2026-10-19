@@ -50,7 +50,7 @@ final class RecordsRepository
                        DT_TRANSCRIBED AS dt_transcribed, DT_PARSED AS dt_parsed,
                        FILENAME AS filename, PLAYTIME AS playtime, SCORE AS score,
                        DISABLED AS disabled, QUALITY AS quality, ERROR_TRANS AS error_trans,
-                       KEY_TYPES AS key_types, STRINGS AS strings, STRINGS_NOK AS strings_nok,
+                       KEY_TYPES AS key_dicts, STRINGS AS strings, STRINGS_NOK AS strings_nok,
                        VOLUME AS volume, OFFERS AS offers";
         if (!empty($opts['with_transcription'])) {
             $sql .= ', TRANSCRIPTION AS transcription';
@@ -202,7 +202,7 @@ final class RecordsRepository
                     DT_PARSED AS dt_parsed, FILENAME AS filename,
                     TRANSCRIPTION AS transcription, DESCRIPTION AS description,
                     PLAYTIME AS playtime, OFFERS AS offers, VOLUME AS volume,
-                    QUALITY AS quality, DISABLED AS disabled, KEY_TYPES AS key_types,
+                    QUALITY AS quality, DISABLED AS disabled, KEY_TYPES AS key_dicts,
                     SCORE AS score, STRINGS AS strings, STRINGS_NOK AS strings_nok,
                     ERROR_TRANS AS error_trans, INTERSECTIONS AS intersections
              FROM base_records WHERE ID = ? LIMIT 1'
@@ -231,7 +231,7 @@ final class RecordsRepository
                     ID_DICTOPHONE AS id_dictophone, DT_RECORDED AS dt_recorded,
                     DT_PARSED AS dt_parsed, FILENAME AS filename,
                     TRANSCRIPTION AS transcription, PLAYTIME AS playtime,
-                    KEY_TYPES AS key_types, SCORE AS score, DISABLED AS disabled,
+                    KEY_TYPES AS key_dicts, SCORE AS score, DISABLED AS disabled,
                     ERROR_TRANS AS error_trans{$intersectCol}
              FROM base_records WHERE ID IN ($in)"
         );
@@ -244,7 +244,7 @@ final class RecordsRepository
     }
 
     /**
-     * Instances for one or many records, joined with key/type colors.
+     * Instances for one or many records, joined with dictionary colors.
      *
      * @param list<int> $recordIds
      * @return list<array<string,mixed>>
@@ -257,28 +257,27 @@ final class RecordsRepository
         }
         $in = implode(',', array_fill(0, count($recordIds), '?'));
         $hasKeys = Database::tableExists('base_records_keys');
-        // Optional legacy type colors when table still exists (not owned by product).
-        $hasTypes = Database::tableExists('base_records_types');
+        $hasDicts = $hasKeys && Database::tableExists('base_records_dictonarys');
 
-        if ($hasKeys && $hasTypes) {
+        if ($hasKeys && $hasDicts) {
             $sql = "SELECT i.ID AS id, i.ID_RECORD AS id_record, i.STRING_NUM AS string_num,
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
                            i.DT_START AS dt_start, i.DT_END AS dt_end,
-                           k.NAME AS key_name, k.ID_TYPE AS id_type, k.ID_DICTONARY AS id_dictonary,
-                           COALESCE(NULLIF(t.NAME, ''), '') AS type_name,
-                           COALESCE(NULLIF(t.COLOR, ''), '#111') AS type_color,
-                           COALESCE(NULLIF(t.COLOR_BACKGROUND, ''), '#fde68a') AS type_bg
+                           k.NAME AS key_name, k.ID_DICTONARY AS id_dictonary,
+                           COALESCE(NULLIF(d.NAME, ''), '') AS dict_name,
+                           COALESCE(NULLIF(d.COLOR, ''), '#111') AS color,
+                           COALESCE(NULLIF(d.COLOR_BACKGROUND, ''), '#fde68a') AS bg
                     FROM base_records_instances i
                     LEFT JOIN base_records_keys k ON k.ID = i.ID_KEY
-                    LEFT JOIN base_records_types t ON t.ID = k.ID_TYPE
+                    LEFT JOIN base_records_dictonarys d ON d.ID = k.ID_DICTONARY
                     WHERE i.ID_RECORD IN ($in)
                     ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";
         } elseif ($hasKeys) {
             $sql = "SELECT i.ID AS id, i.ID_RECORD AS id_record, i.STRING_NUM AS string_num,
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
                            i.DT_START AS dt_start, i.DT_END AS dt_end,
-                           k.NAME AS key_name, k.ID_TYPE AS id_type, k.ID_DICTONARY AS id_dictonary,
-                           '' AS type_name, '#111' AS type_color, '#fde68a' AS type_bg
+                           k.NAME AS key_name, k.ID_DICTONARY AS id_dictonary,
+                           '' AS dict_name, '#111' AS color, '#fde68a' AS bg
                     FROM base_records_instances i
                     LEFT JOIN base_records_keys k ON k.ID = i.ID_KEY
                     WHERE i.ID_RECORD IN ($in)
@@ -287,8 +286,8 @@ final class RecordsRepository
             $sql = "SELECT i.ID AS id, i.ID_RECORD AS id_record, i.STRING_NUM AS string_num,
                            i.STRING_POSITION AS string_position, i.ID_KEY AS id_key, i.LENGTH AS length,
                            i.DT_START AS dt_start, i.DT_END AS dt_end,
-                           '' AS key_name, 0 AS id_type, 0 AS id_dictonary,
-                           '' AS type_name, '#111' AS type_color, '#fde68a' AS type_bg
+                           '' AS key_name, 0 AS id_dictonary,
+                           '' AS dict_name, '#111' AS color, '#fde68a' AS bg
                     FROM base_records_instances i
                     WHERE i.ID_RECORD IN ($in)
                     ORDER BY i.ID_RECORD ASC, i.STRING_NUM ASC, i.STRING_POSITION ASC";
@@ -318,21 +317,23 @@ final class RecordsRepository
     }
 
     /**
+     * Dictionary colors for KEY_TYPES chip cache / transcript legend (see docs/agents/audio.md).
+     *
      * @return array<int,array{name:string,color:string,bg:string}>
      */
-    public static function typeMetaMap(): array
+    public static function dictMetaMap(): array
     {
-        if (!Database::tableExists('base_records_types')) {
+        if (!Database::tableExists('base_records_dictonarys')) {
             return [];
         }
         $out = [];
         foreach (Database::pdo()->query(
-            'SELECT ID, NAME, COLOR, COLOR_BACKGROUND FROM base_records_types'
+            'SELECT ID, NAME, COLOR, COLOR_BACKGROUND FROM base_records_dictonarys'
         )->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
             $out[(int)$r['ID']] = [
                 'name' => (string)$r['NAME'],
-                'color' => (string)($r['COLOR'] ?: '#000'),
-                'bg' => (string)($r['COLOR_BACKGROUND'] ?: '#ff0'),
+                'color' => (string)($r['COLOR'] ?: '#111'),
+                'bg' => (string)($r['COLOR_BACKGROUND'] ?: '#fde68a'),
             ];
         }
         return $out;

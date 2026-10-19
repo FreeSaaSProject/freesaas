@@ -96,7 +96,6 @@ try {
         $id = RecordsKeysRepository::create([
             'name' => $text,
             'disabled' => 0,
-            'id_type' => 0,
             'id_dictonary' => $dictId,
             'id_looklike' => $looklike,
         ]);

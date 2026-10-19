@@ -10,7 +10,6 @@ require_once __DIR__ . '/CollectRunner.php';
  */
 final class StemRunner
 {
-    private const KPI_GAP_SEC = 7;
     private const LOOKBACK_DAYS = 10;
     private const MAX_BATCH = 700;
 
@@ -34,7 +33,7 @@ final class StemRunner
 
     /**
      * Recalculate SCORE via script collections (collect + RatingAggregates).
-     * Legacy type-based KEY_TYPES scoring is disabled.
+     * Writes base_records.KEY_TYPES (legacy name) as dict-hit chip cache; SCORE from collections.
      *
      * @param array{day?:string,admin?:int,record?:int,limit?:int,time_budget_sec?:int} $opts
      * @return array{ok:bool,processed:int,skipped:int,message:string,extra?:array}
@@ -908,7 +907,6 @@ final class StemRunner
     /**
      * @return array{
      *   keys:array<int,array<string,mixed>>,
-     *   types:array<int,array<string,mixed>>,
      *   dicts:array<int,array<string,mixed>>,
      *   trashes:list<string>,
      *   operators:array<int,array{ID_STATUS:int}>,
@@ -919,7 +917,6 @@ final class StemRunner
     {
         $pdo = Database::pdo();
         $keys = [];
-        $types = [];
         $dicts = [];
         $trashes = [];
         $operators = [];
@@ -927,21 +924,10 @@ final class StemRunner
 
         if (Database::tableExists('base_records_keys')) {
             foreach ($pdo->query(
-                'SELECT ID, NAME, ID_TYPE, ID_DICTONARY FROM base_records_keys WHERE DISABLED < 1'
+                'SELECT ID, NAME, ID_DICTONARY FROM base_records_keys WHERE DISABLED < 1'
             )->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
                 $id = (int)$row['ID'];
                 $keys[$id] = $row;
-            }
-        }
-        if (Database::tableExists('base_records_types')) {
-            foreach ($pdo->query(
-                'SELECT ID, ENABLED, KPI_ENABLED, ID_POSITION,
-                        SCORE_VALUE, SCORE_TYPE_ID, SCORE_DIVERSITY,
-                        SCORE_INSTANCES_MIN, SCORE_INSTANCES_MAX,
-                        VOLUME, STRINGS_AMOUNT, MINTERSECT
-                 FROM base_records_types'
-            )->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
-                $types[(int)$row['ID']] = $row;
             }
         }
         if (Database::tableExists('base_records_dictonarys')) {
@@ -978,7 +964,7 @@ final class StemRunner
             }
         }
 
-        return compact('keys', 'types', 'dicts', 'trashes', 'operators', 'statuses');
+        return compact('keys', 'dicts', 'trashes', 'operators', 'statuses');
     }
 
     /**
@@ -1335,32 +1321,20 @@ final class StemRunner
             ]);
         }
 
-        // SCORE is derived from rated script collections after CollectRunner (see runCollectAfterStem).
-        // Type-based applyScores retired — KEY_TYPES still written for legacy highlight/debug.
+        // SCORE: CollectRunner after stem. KEY_TYPES: denormalized ##dictId-diversity-instances##
+        // (legacy column name; do not recompute on read — docs/agents/audio.md).
         unset($refs);
     }
 
     /**
-     * @deprecated Type-based scoring retired; SCORE comes from CollectRunner + RatingAggregates.
-     *
-     * @param list<int> $batchIds
+     * @param array<int, array<int, int>> $keysByDictArray dictId => [keyId => count]
      * @param array<string, mixed> $refs
      */
-    private static function applyScores(array $batchIds, array $refs): void
-    {
-        // No-op: keep signature for any external callers; rating is collection-based now.
-        unset($batchIds, $refs);
-    }
-
-    /**
-     * @param array<int, array<int, int>> $keysByTypeArray
-     * @param array<string, mixed> $refs
-     */
-    private static function recordNeedsReview(array $keysByTypeArray, array $refs): bool
+    private static function recordNeedsReview(array $keysByDictArray, array $refs): bool
     {
         $keys = $refs['keys'] ?? [];
         $dicts = $refs['dicts'] ?? [];
-        foreach ($keysByTypeArray as $keyData) {
+        foreach ($keysByDictArray as $keyData) {
             if (!is_array($keyData)) {
                 continue;
             }
@@ -1379,148 +1353,18 @@ final class StemRunner
     }
 
     /**
-     * @return array<int, array{DIVERSITY:int,INSTANCES:int}>
+     * @param array<int, array<int, int>> $keysByDictArray
      */
-    private static function parseKeyTypesAnalytics(string $keysData): array
-    {
-        $keysAnalytics = [];
-        if ($keysData === '') {
-            return $keysAnalytics;
-        }
-        foreach (explode('##', $keysData) as $keyData) {
-            $keyData = str_replace('#', '', $keyData);
-            $keyData = trim($keyData);
-            if ($keyData === '') {
-                continue;
-            }
-            $parts = explode('-', $keyData);
-            if (count($parts) < 3) {
-                continue;
-            }
-            $typeId = (int)$parts[0];
-            if ($typeId < 1) {
-                continue;
-            }
-            $keysAnalytics[$typeId] = [
-                'DIVERSITY' => (int)$parts[1],
-                'INSTANCES' => (int)$parts[2],
-            ];
-        }
-
-        return $keysAnalytics;
-    }
-
-    /**
-     * @param array<int, array{DIVERSITY:int,INSTANCES:int}> $keysAnalytics
-     * @param array<int, array<string, mixed>> $types
-     */
-    private static function checkKeyType(
-        int $keyTypeId,
-        array $keysAnalytics,
-        int $volume,
-        int $strings,
-        int $intersect,
-        int $offers,
-        array $types
-    ): bool {
-        if (!isset($types[$keyTypeId])) {
-            return false;
-        }
-        $keyTypeData = $types[$keyTypeId];
-        $testKeyType = true;
-        $anyCheck = 0;
-
-        $linked = (int)($keyTypeData['SCORE_TYPE_ID'] ?? 0);
-        if ($linked > 0) {
-            $testKeyType = self::checkKeyType($linked, $keysAnalytics, $volume, $strings, $intersect, $offers, $types);
-        }
-        if (!$testKeyType) {
-            return false;
-        }
-
-        $scoreDiversity = (int)($keyTypeData['SCORE_DIVERSITY'] ?? 0);
-        if ($scoreDiversity > 0) {
-            $anyCheck++;
-            if (!isset($keysAnalytics[$keyTypeId])) {
-                return false;
-            }
-            if ($scoreDiversity >= (int)$keysAnalytics[$keyTypeId]['DIVERSITY']) {
-                return false;
-            }
-        }
-
-        $instMin = (int)($keyTypeData['SCORE_INSTANCES_MIN'] ?? 0);
-        if ($instMin < 0) {
-            $anyCheck++;
-            if (isset($keysAnalytics[$keyTypeId])) {
-                return false;
-            }
-        } elseif ($instMin > 0) {
-            $anyCheck++;
-            if (!isset($keysAnalytics[$keyTypeId])) {
-                if (!((int)($keyTypeData['KPI_ENABLED'] ?? 0) > 0 && $offers > 0)) {
-                    return false;
-                }
-            } elseif ((int)$keysAnalytics[$keyTypeId]['INSTANCES'] < $instMin) {
-                return false;
-            }
-        }
-
-        $instMax = (int)($keyTypeData['SCORE_INSTANCES_MAX'] ?? 0);
-        if ($instMin > 0 && $instMax > 0) {
-            $anyCheck++;
-            if (!isset($keysAnalytics[$keyTypeId])) {
-                return false;
-            }
-            if ((int)$keysAnalytics[$keyTypeId]['INSTANCES'] > $instMax) {
-                return false;
-            }
-        }
-
-        $volReq = (int)($keyTypeData['VOLUME'] ?? 0);
-        if ($volReq > 0) {
-            $anyCheck++;
-            if ($volReq >= $volume) {
-                return false;
-            }
-        }
-
-        $stringsReq = (int)($keyTypeData['STRINGS_AMOUNT'] ?? 0);
-        if ($stringsReq > 0) {
-            $anyCheck++;
-            if ($stringsReq >= $strings) {
-                return false;
-            }
-        }
-
-        $mIntersect = (int)($keyTypeData['MINTERSECT'] ?? 0);
-        if ($mIntersect > 0) {
-            $anyCheck++;
-            if ($intersect) {
-                if ($instMin < 0) {
-                    return false;
-                }
-            } elseif ($instMin > 0) {
-                return false;
-            }
-        }
-
-        return $anyCheck > 0;
-    }
-
-    /**
-     * @param array<int, array<int, array<int, int>>> $keysByTypeArray
-     */
-    private static function formatKeyTypes(array $keysByTypeArray): string
+    private static function formatKeyTypes(array $keysByDictArray): string
     {
         $keyTypeText = '';
-        foreach ($keysByTypeArray as $keyType => $keyData) {
+        foreach ($keysByDictArray as $dictId => $keyData) {
             $keysAmountOfType = count($keyData);
             $keysAmount = 0;
             foreach ($keyData as $keyAmount) {
                 $keysAmount += (int)$keyAmount;
             }
-            $keyTypeText .= '#' . (int)$keyType . '-' . $keysAmountOfType . '-' . $keysAmount . '#';
+            $keyTypeText .= '#' . (int)$dictId . '-' . $keysAmountOfType . '-' . $keysAmount . '#';
         }
 
         return $keyTypeText;
@@ -1536,7 +1380,7 @@ final class StemRunner
      *   offers:array<int,int>,
      *   offersTotal:int,
      *   statsKeysTimeSkip:int,
-     *   keysByTypeArray:array<int, array<int, array<int,int>>>
+     *   keysByTypeArray:array<int, array<int, array<int,int>>>  (keyed by dictionary id)
      * }
      */
     private static function findPhraseOccurrences(array $keyArrayEncoded, array $records, int $maxLength, array $refs): array
@@ -1557,13 +1401,10 @@ final class StemRunner
         $keysByTypeArray = [];
 
         foreach ($records['encoded'] ?? [] as $recordId => $record) {
-            $keysLastTime = 0;
             $offers[(int)$recordId] = 0;
             foreach ($record as $lineNumber => $line) {
                 $lineIds = array_values($line);
                 $i = 0;
-                $stringTimeSeconds = (int)($records['TimeStarts'][$recordId][$lineNumber] ?? 0);
-                $stringTimeEnd = (int)($records['TimeEnds'][$recordId][$lineNumber] ?? 0);
 
                 while ($i < count($lineIds)) {
                     $found = false;
@@ -1581,53 +1422,32 @@ final class StemRunner
                         if ($keyMeta === null) {
                             continue;
                         }
-                        $keyType = (int)($keyMeta['ID_TYPE'] ?? 0);
-                        $typeRow = $keyType > 0 ? ($refs['types'][$keyType] ?? null) : null;
-                        // Product path: keys without a type still match (rating uses scripts).
-                        // Legacy: when type row exists, apply KPI gap + position filters.
-                        $isKpi = $typeRow !== null && (int)($typeRow['KPI_ENABLED'] ?? 0) > 0;
-                        $canBeAddedByTime = true;
-                        if ($isKpi && $stringTimeSeconds && self::KPI_GAP_SEC && $keysLastTime) {
-                            if ($stringTimeSeconds - $keysLastTime < self::KPI_GAP_SEC) {
-                                $canBeAddedByTime = false;
-                            }
-                        }
-
-                        $typePositionValue = $typeRow !== null
-                            ? (string)($typeRow['ID_POSITION'] ?? '0')
-                            : '0';
                         $dictId = (int)($keyMeta['ID_DICTONARY'] ?? 0);
                         $dictRow = $refs['dicts'][$dictId] ?? null;
                         $dictonaryPositionValue = (string)($dictRow['ID_POSITION'] ?? '0');
-                        $canBeAddedByPosition = self::isRecordPositionGlobal($typePositionValue)
-                            && self::isRecordPositionGlobal($dictonaryPositionValue);
+                        $canBeAddedByPosition = self::isRecordPositionGlobal($dictonaryPositionValue);
                         $recordAdminId = (int)($records['Admins'][$recordId] ?? 0);
                         if (!$canBeAddedByPosition && $recordAdminId > 0) {
                             $recordPositionId = (int)($refs['operators'][$recordAdminId]['ID_STATUS'] ?? 0);
                             $recordAllowedPositions = self::getEquivalentAudioPositions($recordPositionId, $refs['statuses']);
                             $recordAllowedPositions[] = 0;
-                            if (self::isRecordPositionAllowed($typePositionValue, $recordAllowedPositions)
-                                && self::isRecordPositionAllowed($dictonaryPositionValue, $recordAllowedPositions)
-                            ) {
+                            if (self::isRecordPositionAllowed($dictonaryPositionValue, $recordAllowedPositions)) {
                                 $canBeAddedByPosition = true;
                             }
                         }
 
-                        if ($canBeAddedByTime && $canBeAddedByPosition) {
-                            if (!isset($keysByTypeArray[$recordId][$keyType])) {
-                                $keysByTypeArray[$recordId][$keyType] = [];
+                        if ($canBeAddedByPosition) {
+                            if ($dictId > 0) {
+                                if (!isset($keysByTypeArray[$recordId][$dictId])) {
+                                    $keysByTypeArray[$recordId][$dictId] = [];
+                                }
+                                if (!isset($keysByTypeArray[$recordId][$dictId][$phraseKey])) {
+                                    $keysByTypeArray[$recordId][$dictId][$phraseKey] = 0;
+                                }
+                                $keysByTypeArray[$recordId][$dictId][$phraseKey]++;
                             }
-                            if (!isset($keysByTypeArray[$recordId][$keyType][$phraseKey])) {
-                                $keysByTypeArray[$recordId][$keyType][$phraseKey] = 0;
-                            }
-                            $keysByTypeArray[$recordId][$keyType][$phraseKey]++;
                             $instnances[$recordId][$lineNumber][$phraseKey][] = range($i, $i + $length - 1);
                             $founds++;
-                            if ($isKpi) {
-                                $offers[$recordId]++;
-                                $keysLastTime = $stringTimeEnd;
-                                $offersTotal++;
-                            }
                         } else {
                             $statsKeysTimeSkip++;
                         }

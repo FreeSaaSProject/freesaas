@@ -271,20 +271,7 @@
         "base_records_scripts",
         "base_records_trashes"
     ],
-    "migrators": [
-        {
-            "id": "types_to_scripts",
-            "mode": "seed",
-            "source": [
-                "base_records_types",
-                "base_records_keys"
-            ],
-            "target": [
-                "base_records_scripts"
-            ],
-            "description": "audio_dicts.migrator.types_to_scripts"
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [],
         "publish": [

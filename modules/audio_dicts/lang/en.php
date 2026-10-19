@@ -200,7 +200,6 @@ return [
     'audio_dicts.scripts.cond.volume_lt' => 'Volume <',
     'audio_dicts.scripts.cond.strings_gt' => 'Strings >',
     'audio_dicts.scripts.cond.strings_lt' => 'Strings <',
-    'audio_dicts.migrator.types_to_scripts' => 'Types → rating scripts (SCORE_RATE)',
     'audio_dicts.scripts.badge.rating' => '®',
     'audio_dicts.scripts.badge.day_bonus' => 'day',
     'audio_dicts.scripts.badge.day_bonus_off' => 'day—',

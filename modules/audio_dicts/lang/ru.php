@@ -200,7 +200,6 @@ return [
     'audio_dicts.scripts.cond.volume_lt' => 'Громкость <',
     'audio_dicts.scripts.cond.strings_gt' => 'Строк >',
     'audio_dicts.scripts.cond.strings_lt' => 'Строк <',
-    'audio_dicts.migrator.types_to_scripts' => 'Типы → рейтинговые скрипты (SCORE_RATE)',
     'audio_dicts.scripts.badge.rating' => '®',
     'audio_dicts.scripts.badge.day_bonus' => 'день',
     'audio_dicts.scripts.badge.day_bonus_off' => 'день—',

@@ -31,6 +31,12 @@ Storage/FTP settings: `cfg/modules/audio.ini` (`[storage]` / `[audio]`), not a D
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
+### `base_records.KEY_TYPES` (legacy column name)
+
+Legacy column name: chip cache of dictionary hits, not “key types”. Do **not** rename/drop or recompute on read.
+
+Denormalized chip cache written once by stem (`StemRunner`): `##dictId-diversity-instances##…` per dictionary that hit the record. PHP alias / UI: `key_dicts` / `parseKeyDicts()`. Readers: list/view chips, `SummaryRunner` (ids in the blob = **dictionary** ids). Rating/`SCORE` comes from scripts/collections, not this column.
+
 ## Human UI
 
 - `/audio` — cabin records list / player.

@@ -32,7 +32,7 @@ final class CriteriaAnalyzer
             : '(ID_POSITION="0" OR ID_POSITION="")';
 
         $types = [];
-        // Prefer rating scripts (criteria_type_ids remapped to script ids by types_to_scripts).
+        // Rating criteria come from RATING_ENABLED scripts (legacy types table removed).
         if (Database::tableExists('base_records_scripts')
             && Database::columnExists('base_records_scripts', 'RATING_ENABLED')
         ) {
