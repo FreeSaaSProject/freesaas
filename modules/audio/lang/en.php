@@ -286,6 +286,7 @@ return [
     'audio.bot.mod.empty' => 'No recordings pending review.',
     'audio.bot.mod.queue_title' => '🧠 Review queue — pick a day and employee:',
     'audio.bot.mod.day_header' => "{name} · {date}\nPending recordings: {n}",
+    'audio.bot.mod.working' => "⏳ Working on: {name} · {date} ({n})\nThinking over transcripts…",
     'audio.bot.mod.day_empty' => 'Nothing left to review for that day.',
     'audio.bot.mod.bad_day' => 'Invalid date.',
     'audio.bot.mod.llm_unavailable' => 'LLM is not configured — you can still browse key hits or confirm the review.',

@@ -286,6 +286,7 @@ return [
     'audio.bot.mod.empty' => 'Нет записей, требующих осмотра.',
     'audio.bot.mod.queue_title' => '🧠 Очередь осмотра — выберите день и сотрудника:',
     'audio.bot.mod.day_header' => "{name} · {date}\nЗаписей на осмотр: {n}",
+    'audio.bot.mod.working' => "⏳ Взяла в работу: {name} · {date} ({n})\nДумаю над транскриптами…",
     'audio.bot.mod.day_empty' => 'На этот день записей на осмотр уже нет.',
     'audio.bot.mod.bad_day' => 'Некорректная дата.',
     'audio.bot.mod.llm_unavailable' => 'LLM не настроен — можно просмотреть записи по ключам или подтвердить осмотр.',

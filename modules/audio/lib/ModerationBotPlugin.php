@@ -171,7 +171,7 @@ final class ModerationBotPlugin
             $label = sprintf(
                 '%s · %s (%d)',
                 date('d.m', mktime(0, 0, 0, (int)$c['month'], (int)$c['day'], (int)$c['year'])),
-                self::shortName($name),
+                self::nameAcronym($name !== '' ? $name : ('#' . $aid)),
                 (int)$c['pending']
             );
             $cb = 'mod_d_' . $aid . '_' . $ymd;
@@ -201,12 +201,23 @@ final class ModerationBotPlugin
         $name = class_exists('UsersRepository', false)
             ? UsersRepository::nameById($adminId)
             : ('#' . $adminId);
+        if ($name === '') {
+            $name = '#' . $adminId;
+        }
+        $acro = self::nameAcronym($name);
         $dateLabel = sprintf('%02d.%02d.%04d', $d, $m, $y);
         $header = t('audio.bot.mod.day_header', [
-            'name' => $name !== '' ? $name : ('#' . $adminId),
+            'name' => $acro,
             'date' => $dateLabel,
             'n' => count($ids),
         ]);
+
+        // Immediate UI feedback — LLM can take up to ~3 minutes.
+        BotClient::replyUi($ctx, t('audio.bot.mod.working', [
+            'name' => $acro,
+            'date' => $dateLabel,
+            'n' => count($ids),
+        ]));
 
         $body = '';
         if (class_exists('ReviewModerationLlm', false) && ReviewModerationLlm::isReady()) {
@@ -377,13 +388,32 @@ final class ModerationBotPlugin
         return [$y, $mo, $d];
     }
 
-    private static function shortName(string $name): string
+    /** "Иванов Иван Иванович" → "Иванов И.И."; single word → as-is (trimmed). */
+    private static function nameAcronym(string $name): string
     {
-        $name = trim($name);
-        if (mb_strlen($name, 'UTF-8') <= 22) {
-            return $name;
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
+        if ($name === '') {
+            return '?';
         }
-        return mb_substr($name, 0, 20, 'UTF-8') . '…';
+        $parts = preg_split('/\s+/u', $name) ?: [];
+        if (count($parts) === 1) {
+            $w = (string)$parts[0];
+            return mb_strlen($w, 'UTF-8') > 16 ? (mb_substr($w, 0, 14, 'UTF-8') . '…') : $w;
+        }
+        $surname = (string)$parts[0];
+        $initials = '';
+        for ($i = 1, $n = count($parts); $i < $n; $i++) {
+            $ch = mb_substr((string)$parts[$i], 0, 1, 'UTF-8');
+            if ($ch === '') {
+                continue;
+            }
+            $initials .= mb_strtoupper($ch, 'UTF-8') . '.';
+        }
+        $out = $initials !== '' ? ($surname . ' ' . $initials) : $surname;
+        if (mb_strlen($out, 'UTF-8') > 22) {
+            $out = mb_substr($out, 0, 20, 'UTF-8') . '…';
+        }
+        return $out;
     }
 
     /** @return array{inline_keyboard:list<list<array{text:string,callback_data:string}>>} */
