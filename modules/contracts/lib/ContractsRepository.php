@@ -528,13 +528,20 @@ final class ContractsRepository
         $actions = self::availableActions($comment, $uid);
         $cid = (int)$comment['ID'];
         $html = '<div class="contract-box">';
+        $meta = '';
         if ($info['label'] !== '') {
             $tone = $info['tone'] !== '' ? ' is-' . $info['tone'] : '';
-            $html .= '<span class="contract-status' . $tone . '">' . e($info['label']) . '</span>';
+            $meta .= '<span class="contract-status' . $tone . '">' . e($info['label']) . '</span>';
         }
         $acceptor = (int)($comment['ID_ACCEPTOR'] ?? 0);
         if ($acceptor > 0) {
-            $html .= ' <span class="muted">' . te('contracts.actions.curator') . ':</span> ' . UsersRepository::badgeHtml($acceptor, false);
+            $meta .= '<span class="contract-curator">'
+                . '<span class="muted">' . te('contracts.actions.curator') . ':</span> '
+                . UsersRepository::badgeHtml($acceptor, false)
+                . '</span>';
+        }
+        if ($meta !== '') {
+            $html .= '<div class="contract-meta">' . $meta . '</div>';
         }
         $forms = '';
         if (!empty($actions['accept_offer'])) {
@@ -583,10 +590,7 @@ final class ContractsRepository
                 . e(t('payments.contract.pay')) . '</a>'
                 . ' <span class="muted">' . e(t('contracts.list.pay_dps', ['id' => $cid])) . '</span>';
         }
-        if ($paymentId > 0) {
-            return ' <a class="btn-secondary" href="/payments/' . $paymentId . '/edit">'
-                . e(t('payments.contract.paid')) . '</a>';
-        }
+        // Already paid: status line shows “оплачен”; no bulky button.
         return '';
     }
 

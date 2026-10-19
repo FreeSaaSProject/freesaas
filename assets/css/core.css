@@ -2455,13 +2455,29 @@ table.data tr.is-disabled td a {
 }
 
 .contract-box {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 0.35rem;
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 1px dashed var(--line);
   width: 100%;
   flex-basis: 100%;
+}
+.contract-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.65rem;
+  align-items: center;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+.contract-curator {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.3rem;
+  white-space: nowrap;
 }
 .contract-status {
   font-size: 0.86rem;
@@ -2476,6 +2492,13 @@ table.data tr.is-disabled td a {
   flex-wrap: wrap;
   gap: 0.4rem;
   align-items: center;
+}
+.contract-actions .btn-primary,
+.contract-actions .btn-secondary,
+.contract-actions .btn-danger {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.86rem;
+  font-weight: 600;
 }
 .contract-warn { color: var(--danger); font-size: 0.85rem; }
 .contract-list { display: grid; gap: 0.65rem; }

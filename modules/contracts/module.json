@@ -2,7 +2,7 @@
     "id": "contracts",
     "name": "contracts.module.name",
     "description": "contracts.module.description",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "type": "product",
     "requires": {
         "core": ">=0.3.0",
