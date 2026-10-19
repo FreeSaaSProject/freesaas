@@ -1230,6 +1230,60 @@ final class OrdersRepository
     }
 
     /**
+     * Bulk STATUS change (list group ops). Appends a short audit line to COMMENT.
+     *
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function setStatusByIds(array $ids, string $status): array
+    {
+        $status = trim($status);
+        if (!in_array($status, self::editableStatuses(), true)) {
+            $skipped = [];
+            foreach ($ids as $raw) {
+                $id = (int)$raw;
+                if ($id > 0) {
+                    $skipped[] = ['id' => $id, 'reason' => t('orders.bulk.err.status_required')];
+                }
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        if (!Database::tableExists('base_orders')) {
+            return ['done' => 0, 'skipped' => []];
+        }
+
+        $done = 0;
+        $skipped = [];
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            'UPDATE base_orders SET STATUS = ?, COMMENT = ?, DT_SAVE = ? WHERE ID = ?'
+        );
+        $now = time();
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $row = self::find($id);
+            if ($row === null) {
+                $skipped[] = ['id' => $id, 'reason' => t('core.entity.err.not_found')];
+                continue;
+            }
+            $prev = (string)($row['status'] ?? '0');
+            if ($prev === $status) {
+                $done++;
+                continue;
+            }
+            $comment = trim((string)($row['comment'] ?? ''));
+            $audit = 'Изм.ст-с: ' . $prev . ' → ' . $status;
+            $comment = trim($comment . ' ' . $audit);
+            $st->execute([$status, $comment, $now, $id]);
+            $done++;
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
+    /**
      * @param list<int> $ids
      * @return array{done:int,skipped:list<array{id:int,reason:string}>}
      */

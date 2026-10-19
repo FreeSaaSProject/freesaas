@@ -15,11 +15,14 @@ declare(strict_types=1);
 /** @var int $perPage */
 /** @var bool $showAll */
 /** @var array $filters */
+/** @var array|null $bulkFlash */
 $path = '/orders';
+$listId = 'orders';
 $showAll = !empty($showAll);
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $listUrl = ListQuery::url($path, $filters);
-$colSpan = 9;
+$actionUrl = ListQuery::url($path, $filters, []);
+$colSpan = 9 + BulkActions::colSpanExtra($listId);
 ?>
 <section class="page-head">
   <div class="page-head-row">
@@ -28,6 +31,10 @@ $colSpan = 9;
     </div>
   </div>
 </section>
+
+<?php if (!empty($bulkFlash)): ?>
+  <?= BulkActions::flashHtml($bulkFlash) ?>
+<?php endif; ?>
 
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
   <?= ListQuery::sortHiddenInputs($sort, $dir, (int)$perPage) ?>
@@ -48,10 +55,13 @@ $colSpan = 9;
 
 <?= $pager ?>
 
+<?= BulkActions::beginForm($listId, $actionUrl) ?>
+<?= BulkActions::bar($listId) ?>
 <div class="table-wrap">
   <table class="data">
     <thead>
       <tr>
+        <?= BulkActions::th($listId) ?>
         <?= ListQuery::sortTh(t('orders.col.id'), 'id', $sort, $dir, $path, $filters) ?>
         <?= ListQuery::sortTh(t('orders.col.dt_event'), 'dt_event', $sort, $dir, $path, $filters) ?>
         <?= ListQuery::sortTh(t('orders.col.dt_save'), 'dt_save', $sort, $dir, $path, $filters) ?>
@@ -78,6 +88,7 @@ $colSpan = 9;
         }
       ?>
       <tr>
+        <?= BulkActions::td($listId, $oid) ?>
         <td class="muted">
           <a href="<?= e($viewHref) ?>"><?= $oid ?></a>
           <?php if ((string)($o['uid'] ?? '') !== ''): ?>
@@ -142,5 +153,6 @@ $colSpan = 9;
     </tbody>
   </table>
 </div>
+<?= BulkActions::endForm($listId) ?>
 
 <?= $pager ?>

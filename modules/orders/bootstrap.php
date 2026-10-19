@@ -10,7 +10,7 @@ Assets::register('orders', [
 ]);
 
 $pages = [
-    '/orders' => ['permission' => 'orders.view', 'methods' => ['GET'], 'file' => 'list.php'],
+    '/orders' => ['permission' => 'orders.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/orders/settings' => [
         'capability' => 'SUPERADMIN_ACCESS',
         'methods' => ['GET', 'POST'],
@@ -37,6 +37,42 @@ foreach ($pages as $path => $def) {
     }
     ModuleManager::registerRoute($path, $route);
 }
+
+BulkActions::register('orders', 'set_status', [
+    'label' => 'orders.bulk.set_status',
+    'group' => 'orders.bulk.group.status',
+    'permission' => 'orders.edit',
+    'fields' => [
+        [
+            'name' => 'status',
+            'type' => 'select',
+            'label' => 'orders.bulk.status',
+            // Skip '0': BulkActions empty option also uses value="0".
+            'options' => static function (): array {
+                $out = [];
+                foreach (OrdersRepository::editableStatuses() as $st) {
+                    if ($st === '0') {
+                        continue;
+                    }
+                    $out[$st] = OrdersRepository::statusLabel($st);
+                }
+                return $out;
+            },
+        ],
+    ],
+    'run' => static function (array $ids, array $params): array {
+        $status = trim((string)($params['status'] ?? ''));
+        // Placeholder in the bar is value="0" — treat as unset.
+        if ($status === '' || $status === '0') {
+            $skipped = [];
+            foreach ($ids as $id) {
+                $skipped[] = ['id' => (int)$id, 'reason' => t('orders.bulk.err.status_required')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        return OrdersRepository::setStatusByIds($ids, $status);
+    },
+]);
 
 BulkActions::register('orders', 'delete', [
     'label' => 'core.bulk.delete',

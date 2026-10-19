@@ -35,6 +35,8 @@ if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
 }
 
+BulkActions::tryHandle('orders', '/orders', $filters);
+
 $result = OrdersRepository::list([
     'q' => $q,
     'status' => $status,
@@ -97,6 +99,7 @@ View::render('list', [
     'perPage' => $lq['per_page'],
     'showAll' => $lq['show_all'],
     'filters' => $filters,
+    'bulkFlash' => BulkActions::consumeFlash(),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('calendar.menu.group'), 'href' => '/calendar'],
         $ordersCrumb,

@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.11",
+    "version": "0.1.12",
     "type": "product",
     "runtime": "both",
     "requires": {
