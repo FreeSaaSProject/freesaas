@@ -222,6 +222,108 @@ final class RecordsReviewsRepository
     }
 
     /**
+     * Pending review record IDs for one employee on one calendar day.
+     *
+     * @return list<int>
+     */
+    public static function pendingIdsForAdminDay(int $adminId, int $year, int $month, int $day): array
+    {
+        if ($adminId < 1 || $year < 1970 || $month < 1 || $month > 12 || $day < 1
+            || !self::tableExists() || !Database::tableExists('base_records')
+        ) {
+            return [];
+        }
+        $from = (int)mktime(0, 0, 0, $month, $day, $year);
+        $to = (int)mktime(23, 59, 59, $month, $day, $year);
+        $st = Database::pdo()->prepare(
+            'SELECT r.ID AS id
+             FROM base_records r
+             INNER JOIN base_records_reviews rv ON rv.ID_RECORD = r.ID AND rv.DT_REVIEW < 1
+             WHERE r.ID_ADMIN = ? AND r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
+               AND (r.DISABLED IS NULL OR r.DISABLED < 1)
+             ORDER BY r.DT_RECORDED ASC, r.ID ASC'
+        );
+        $st->execute([$adminId, $from, $to]);
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $id = (int)($row['id'] ?? 0);
+            if ($id > 0) {
+                $out[] = $id;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Pending cells (admin + day) in a recorded-time window, newest first.
+     *
+     * @param list<int>|null $positionIds Restrict to users with these ID_STATUS (null = all)
+     * @return list<array{admin_id:int,year:int,month:int,day:int,date:string,pending:int}>
+     */
+    public static function pendingCells(int $fromTs, int $toTs, ?array $positionIds = null): array
+    {
+        if ($fromTs < 1 || $toTs < $fromTs || !self::tableExists() || !Database::tableExists('base_records')) {
+            return [];
+        }
+        $sql = 'SELECT r.ID_ADMIN AS id_admin, r.DT_RECORDED AS dt
+                FROM base_records r
+                INNER JOIN base_records_reviews rv ON rv.ID_RECORD = r.ID AND rv.DT_REVIEW < 1
+                WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
+                  AND (r.DISABLED IS NULL OR r.DISABLED < 1)';
+        $params = [$fromTs, $toTs];
+        if ($positionIds !== null) {
+            $ids = array_values(array_filter(array_map('intval', $positionIds), static fn ($v) => $v > 0));
+            if ($ids === [] || !Database::tableExists('base_users')) {
+                return [];
+            }
+            $sql .= ' AND r.ID_ADMIN IN (SELECT id FROM base_users WHERE ID_STATUS IN ('
+                . implode(',', $ids) . '))';
+        }
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+
+        /** @var array<string, array{admin_id:int,year:int,month:int,day:int,date:string,pending:int,max_dt:int}> $cells */
+        $cells = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $aid = (int)($row['id_admin'] ?? 0);
+            $dt = (int)($row['dt'] ?? 0);
+            if ($aid < 1 || $dt < 1) {
+                continue;
+            }
+            $date = date('Y-m-d', $dt);
+            $key = $aid . '|' . $date;
+            if (!isset($cells[$key])) {
+                $cells[$key] = [
+                    'admin_id' => $aid,
+                    'year' => (int)date('Y', $dt),
+                    'month' => (int)date('n', $dt),
+                    'day' => (int)date('j', $dt),
+                    'date' => $date,
+                    'pending' => 0,
+                    'max_dt' => $dt,
+                ];
+            }
+            $cells[$key]['pending']++;
+            if ($dt > $cells[$key]['max_dt']) {
+                $cells[$key]['max_dt'] = $dt;
+            }
+        }
+
+        $out = array_values($cells);
+        usort($out, static function (array $a, array $b): int {
+            $cmp = ((int)$b['max_dt']) <=> ((int)$a['max_dt']);
+            return $cmp !== 0 ? $cmp : (((int)$a['admin_id']) <=> ((int)$b['admin_id']));
+        });
+        foreach ($out as &$row) {
+            unset($row['max_dt']);
+        }
+        unset($row);
+
+        return $out;
+    }
+
+    /**
      * @return array{short:string,href:string,title:string,tone:string}|null
      */
     public static function noticeChip(): ?array

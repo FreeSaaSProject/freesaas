@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-19T07:10:18+00:00",
+    "generated_at": "2026-10-19T07:18:25+00:00",
     "modules": [
         {
             "id": "asr",
@@ -111,7 +111,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.23",
+            "version": "0.2.24",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -133,6 +133,8 @@
                 "clients": ">=0.1.0",
                 "audio_dicts": ">=0.1.0",
                 "audio_pipeline": ">=0.1.0",
+                "audio_llm": ">=0.1.0",
+                "audio_reports": ">=0.1.0",
                 "bots": ">=0.1.0",
                 "bi": ">=0.3.0"
             },
