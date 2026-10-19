@@ -466,6 +466,7 @@ foreach ($periodMonths as $period) {
                     'day' => $dayD,
                     'admin' => $aid,
                     'review' => 'pending',
+                    'disabled' => 0, // include pipeline-disabled clips in the queue
                 ]))
                 : '';
 

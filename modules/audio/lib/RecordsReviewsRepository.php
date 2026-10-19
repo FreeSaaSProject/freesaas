@@ -177,12 +177,13 @@ final class RecordsReviewsRepository
         $badgeFilter = max(0, (int)($filters['badge'] ?? 0));
         $positionFilter = max(0, (int)($filters['position'] ?? 0));
 
+        // Include DISABLED records: pipeline often turns off non-procedure audio,
+        // but the review queue (chip / Тр.осм / bot) must still surface them.
         $sql = 'SELECT r.ID AS id, r.ID_ADMIN AS id_admin, r.DT_RECORDED AS dt,
                        brr.DT_REVIEW AS dt_review, brr.DT_SELECT AS dt_select
                 FROM base_records r
                 INNER JOIN base_records_reviews brr ON brr.ID_RECORD = r.ID
-                WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
-                  AND (r.DISABLED IS NULL OR r.DISABLED < 1)';
+                WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?';
         $params = [$fromTs, $toTs];
         if ($adminFilter > 0) {
             $sql .= ' AND r.ID_ADMIN = ?';
@@ -240,7 +241,6 @@ final class RecordsReviewsRepository
              FROM base_records r
              INNER JOIN base_records_reviews rv ON rv.ID_RECORD = r.ID AND rv.DT_REVIEW < 1
              WHERE r.ID_ADMIN = ? AND r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
-               AND (r.DISABLED IS NULL OR r.DISABLED < 1)
              ORDER BY r.DT_RECORDED ASC, r.ID ASC'
         );
         $st->execute([$adminId, $from, $to]);
@@ -269,8 +269,7 @@ final class RecordsReviewsRepository
         $sql = 'SELECT r.ID_ADMIN AS id_admin, r.DT_RECORDED AS dt
                 FROM base_records r
                 INNER JOIN base_records_reviews rv ON rv.ID_RECORD = r.ID AND rv.DT_REVIEW < 1
-                WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
-                  AND (r.DISABLED IS NULL OR r.DISABLED < 1)';
+                WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?';
         $params = [$fromTs, $toTs];
         if ($positionIds !== null) {
             $ids = array_values(array_filter(array_map('intval', $positionIds), static fn ($v) => $v > 0));

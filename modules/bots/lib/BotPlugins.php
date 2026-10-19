@@ -222,6 +222,7 @@ final class BotPlugins
             return;
         }
         $owner = (string)($state['module_id'] ?? '');
+        // BotChatState.module_id must equal the plugin id (see ModerationBotPlugin MODULE).
         if ($owner === '' || $owner === $pluginId) {
             return;
         }

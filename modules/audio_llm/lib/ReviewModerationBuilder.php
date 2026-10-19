@@ -128,13 +128,13 @@ final class ReviewModerationBuilder
      */
     private static function loadPending(int $adminId, int $from, int $to): array
     {
+        // Pending review ignores DISABLED (same as calendar Тр.осм / bot queue).
         $st = Database::pdo()->prepare(
             'SELECT r.ID AS id, r.DT_RECORDED AS dt_recorded, r.PLAYTIME AS playtime,
                     r.TRANSCRIPTION AS transcription, r.KEY_TYPES AS key_dicts
              FROM base_records r
              INNER JOIN base_records_reviews rv ON rv.ID_RECORD = r.ID AND rv.DT_REVIEW < 1
              WHERE r.ID_ADMIN = ? AND r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
-               AND (r.DISABLED IS NULL OR r.DISABLED < 1)
              ORDER BY r.DT_RECORDED ASC, r.ID ASC'
         );
         $st->execute([$adminId, $from, $to]);
@@ -156,11 +156,12 @@ final class ReviewModerationBuilder
      */
     private static function neighbor(int $adminId, int $dt, int $id, bool $next): ?array
     {
+        // Neighbors also ignore DISABLED so context stays continuous around queued clips.
         if ($next) {
             $sql = 'SELECT ID AS id, DT_RECORDED AS dt_recorded, PLAYTIME AS playtime,
                            TRANSCRIPTION AS transcription, KEY_TYPES AS key_dicts
                     FROM base_records
-                    WHERE ID_ADMIN = ? AND (DISABLED IS NULL OR DISABLED < 1)
+                    WHERE ID_ADMIN = ?
                       AND (DT_RECORDED > ? OR (DT_RECORDED = ? AND ID > ?))
                     ORDER BY DT_RECORDED ASC, ID ASC
                     LIMIT 1';
@@ -168,7 +169,7 @@ final class ReviewModerationBuilder
             $sql = 'SELECT ID AS id, DT_RECORDED AS dt_recorded, PLAYTIME AS playtime,
                            TRANSCRIPTION AS transcription, KEY_TYPES AS key_dicts
                     FROM base_records
-                    WHERE ID_ADMIN = ? AND (DISABLED IS NULL OR DISABLED < 1)
+                    WHERE ID_ADMIN = ?
                       AND (DT_RECORDED < ? OR (DT_RECORDED = ? AND ID < ?))
                     ORDER BY DT_RECORDED DESC, ID DESC
                     LIMIT 1';

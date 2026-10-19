@@ -43,7 +43,9 @@ if ($queueAllDates) {
     }
 }
 
-$disabled = (int)($_GET['disabled'] ?? 1); // default: hide disabled
+// Pending review queue includes DISABLED records (pipeline often turns them off).
+$disabledDefault = $review === 'pending' ? 0 : 1;
+$disabled = (int)($_GET['disabled'] ?? $disabledDefault);
 $score = isset($_GET['score']) && $_GET['score'] !== '' ? (int)$_GET['score'] : -1;
 $scoreLt = (int)($_GET['score_lt'] ?? 0);
 $errorsOnly = !empty($_GET['errors_only']) ? 1 : 0;

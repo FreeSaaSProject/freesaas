@@ -134,8 +134,7 @@ final class SummaryRunner
                  INNER JOIN base_records br ON br.ID = brr.ID_RECORD
                  WHERE brr.DT_REVIEW < 1
                    AND br.ID_ADMIN IN ({$empList})
-                   AND br.DT_RECORDED >= ? AND br.DT_RECORDED <= ?
-                   AND (br.DISABLED IS NULL OR br.DISABLED < 1)"
+                   AND br.DT_RECORDED >= ? AND br.DT_RECORDED <= ?"
             );
             $st->execute([$monthStart, $monthEnd]);
             while ($ir = $st->fetch(PDO::FETCH_ASSOC)) {

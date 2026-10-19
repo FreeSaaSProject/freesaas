@@ -5,11 +5,18 @@ declare(strict_types=1);
  * Staff bot: LLM skim of pending-review day + confirm / walk transcripts with key hits.
  * Catalog id `moderation` (BotMenuCatalog).
  * ACL (temporary): SUPERADMIN_ACCESS only — widen later to audio.edit + position scope.
+ *
+ * Session (BotChatState) caches the last day summary so «back» does not re-run LLM.
  */
 final class ModerationBotPlugin
 {
+    /** Must match BotPlugins::register id — clearForeignChatState keeps only matching owners. */
+    private const MODULE = 'moderation';
+    private const MODULE_LEGACY = 'audio_moderation';
     private const DAYS_BACK = 21;
     private const LIST_LIMIT = 20;
+    private const TTL = 7200;
+    private const MENTION_BTN_LIMIT = 8;
 
     public static function register(): void
     {
@@ -79,7 +86,7 @@ final class ModerationBotPlugin
             return true;
         }
 
-        // mod_d_{admin}_{Ymd} — open day (LLM + buttons)
+        // mod_d_{admin}_{Ymd} — open day (use cache if present, else LLM)
         if (preg_match('/^mod_d_(\d+)_(\d{8})$/', $data, $m)) {
             $adminId = (int)$m[1];
             $ymd = (string)$m[2];
@@ -87,7 +94,31 @@ final class ModerationBotPlugin
                 BotClient::replyUi($ctx, t('audio.bot.mod.denied'), self::kbMenu());
                 return true;
             }
-            self::showDaySummary($ctx, $adminId, $ymd);
+            self::showDaySummary($ctx, $adminId, $ymd, false);
+            return true;
+        }
+
+        // mod_sum_{admin}_{Ymd} — cached summary only (no LLM)
+        if (preg_match('/^mod_sum_(\d+)_(\d{8})$/', $data, $m)) {
+            $adminId = (int)$m[1];
+            $ymd = (string)$m[2];
+            if (!self::canAccessAdmin($adminId)) {
+                BotClient::replyUi($ctx, t('audio.bot.mod.denied'), self::kbMenu());
+                return true;
+            }
+            self::showCachedSummary($ctx, $adminId, $ymd);
+            return true;
+        }
+
+        // mod_rerun_{admin}_{Ymd} — force fresh LLM
+        if (preg_match('/^mod_rerun_(\d+)_(\d{8})$/', $data, $m)) {
+            $adminId = (int)$m[1];
+            $ymd = (string)$m[2];
+            if (!self::canAccessAdmin($adminId)) {
+                BotClient::replyUi($ctx, t('audio.bot.mod.denied'), self::kbMenu());
+                return true;
+            }
+            self::showDaySummary($ctx, $adminId, $ymd, true);
             return true;
         }
 
@@ -103,7 +134,20 @@ final class ModerationBotPlugin
             return true;
         }
 
-        // mod_v_{admin}_{Ymd}_{idx} — walk records
+        // mod_r_{admin}_{Ymd}_{recordId} — open one highlighted record
+        if (preg_match('/^mod_r_(\d+)_(\d{8})_(\d+)$/', $data, $m)) {
+            $adminId = (int)$m[1];
+            $ymd = (string)$m[2];
+            $recordId = (int)$m[3];
+            if (!self::canAccessAdmin($adminId)) {
+                BotClient::replyUi($ctx, t('audio.bot.mod.denied'), self::kbMenu());
+                return true;
+            }
+            self::showRecordById($ctx, $adminId, $ymd, $recordId);
+            return true;
+        }
+
+        // mod_v_{admin}_{Ymd}_{idx} — walk all pending
         if (preg_match('/^mod_v_(\d+)_(\d{8})_(\d+)$/', $data, $m)) {
             $adminId = (int)$m[1];
             $ymd = (string)$m[2];
@@ -112,7 +156,7 @@ final class ModerationBotPlugin
                 BotClient::replyUi($ctx, t('audio.bot.mod.denied'), self::kbMenu());
                 return true;
             }
-            self::showRecord($ctx, $adminId, $ymd, $idx);
+            self::showPendingAt($ctx, $adminId, $ymd, $idx);
             return true;
         }
 
@@ -127,7 +171,6 @@ final class ModerationBotPlugin
     /** @return list<int>|null null = no restriction (superadmin sees all) */
     private static function scopePositions(): ?array
     {
-        // Temporary superadmin-only gate: no position filter.
         return null;
     }
 
@@ -171,7 +214,7 @@ final class ModerationBotPlugin
             $label = sprintf(
                 '%s · %s (%d)',
                 date('d.m', mktime(0, 0, 0, (int)$c['month'], (int)$c['day'], (int)$c['year'])),
-                self::nameAcronym($name !== '' ? $name : ('#' . $aid)),
+                self::nameAcronym($name),
                 (int)$c['pending']
             );
             $cb = 'mod_d_' . $aid . '_' . $ymd;
@@ -185,8 +228,16 @@ final class ModerationBotPlugin
     }
 
     /** @param array<string,mixed> $ctx */
-    private static function showDaySummary(array $ctx, int $adminId, string $ymd): void
+    private static function showDaySummary(array $ctx, int $adminId, string $ymd, bool $force): void
     {
+        if (!$force) {
+            $cached = self::cachedSession($ctx, $adminId, $ymd);
+            if ($cached !== null) {
+                self::renderSummary($ctx, $cached);
+                return;
+            }
+        }
+
         [$y, $m, $d] = self::parseYmd($ymd);
         if ($y < 1) {
             BotClient::replyUi($ctx, t('audio.bot.mod.bad_day'), self::kbList());
@@ -212,7 +263,6 @@ final class ModerationBotPlugin
             'n' => count($ids),
         ]);
 
-        // Immediate UI feedback — LLM can take up to ~3 minutes.
         BotClient::replyUi($ctx, t('audio.bot.mod.working', [
             'name' => $acro,
             'date' => $dateLabel,
@@ -233,9 +283,50 @@ final class ModerationBotPlugin
             $body = t('audio.bot.mod.llm_unavailable');
         }
 
-        $text = $header . "\n\n" . $body;
-        $kb = self::kbDay($adminId, $ymd, count($ids) > 0);
-        BotClient::replyUi($ctx, $text, $kb);
+        $mentions = self::extractMentionIds($body, $ids);
+        $session = [
+            'admin_id' => $adminId,
+            'ymd' => $ymd,
+            'header' => $header,
+            'body' => $body,
+            'pending_ids' => $ids,
+            'mention_ids' => $mentions,
+        ];
+        self::setSession($ctx, $session);
+        self::renderSummary($ctx, $session);
+    }
+
+    /** @param array<string,mixed> $ctx */
+    private static function showCachedSummary(array $ctx, int $adminId, string $ymd): void
+    {
+        $cached = self::cachedSession($ctx, $adminId, $ymd);
+        if ($cached !== null) {
+            self::renderSummary($ctx, $cached);
+            return;
+        }
+        // TTL / legacy module_id clear — rebuild instead of a dead-end «cache miss».
+        self::showDaySummary($ctx, $adminId, $ymd, false);
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param array{
+     *   admin_id:int,ymd:string,header:string,body:string,
+     *   pending_ids:list<int>,mention_ids:list<int>
+     * } $session
+     */
+    private static function renderSummary(array $ctx, array $session): void
+    {
+        $adminId = (int)$session['admin_id'];
+        $ymd = (string)$session['ymd'];
+        $text = trim((string)$session['header'] . "\n\n" . (string)$session['body']);
+        $pending = is_array($session['pending_ids'] ?? null) ? $session['pending_ids'] : [];
+        $mentions = is_array($session['mention_ids'] ?? null) ? $session['mention_ids'] : [];
+        BotClient::replyUi(
+            $ctx,
+            $text,
+            self::kbSummary($adminId, $ymd, $pending !== [], $mentions)
+        );
     }
 
     /** @param array<string,mixed> $ctx */
@@ -248,22 +339,90 @@ final class ModerationBotPlugin
         }
         $ids = RecordsReviewsRepository::pendingIdsForAdminDay($adminId, $y, $m, $d);
         if ($ids === []) {
+            self::clearSession($ctx);
             BotClient::replyUi($ctx, t('audio.bot.mod.day_empty'), self::kbList());
             return;
         }
         $done = RecordsReviewsRepository::markReviewed($ids, $uid);
+        self::clearSession($ctx);
         BotClient::replyUi($ctx, t('audio.bot.mod.confirmed', ['n' => $done]), self::kbList());
     }
 
     /** @param array<string,mixed> $ctx */
-    private static function showRecord(array $ctx, int $adminId, string $ymd, int $idx): void
+    private static function showRecordById(array $ctx, int $adminId, string $ymd, int $recordId): void
     {
-        [$y, $m, $d] = self::parseYmd($ymd);
-        if ($y < 1) {
-            BotClient::replyUi($ctx, t('audio.bot.mod.bad_day'), self::kbList());
+        $session = self::cachedSession($ctx, $adminId, $ymd);
+        $mentions = $session !== null && is_array($session['mention_ids'] ?? null)
+            ? array_values(array_map('intval', $session['mention_ids']))
+            : [];
+        $pending = $session !== null && is_array($session['pending_ids'] ?? null)
+            ? array_values(array_map('intval', $session['pending_ids']))
+            : [];
+
+        if ($recordId < 1) {
+            BotClient::replyUi($ctx, t('audio.bot.mod.no_transcript'), self::kbBackSummary($adminId, $ymd));
             return;
         }
-        $ids = RecordsReviewsRepository::pendingIdsForAdminDay($adminId, $y, $m, $d);
+
+        $snippet = self::telegramSnippet($recordId);
+        $pos = array_search($recordId, $mentions, true);
+        $meta = $pos !== false
+            ? t('audio.bot.mod.record_meta', [
+                'i' => $pos + 1,
+                'total' => count($mentions),
+                'id' => $recordId,
+            ])
+            : t('audio.bot.mod.record_one', ['id' => $recordId]);
+        $text = $meta . "\n\n" . ($snippet !== '' ? $snippet : t('audio.bot.mod.no_transcript'));
+
+        $rows = [];
+        if ($pos !== false && $mentions !== []) {
+            $nav = [];
+            if ($pos > 0) {
+                $prevId = (int)$mentions[$pos - 1];
+                $nav[] = [
+                    'text' => t('audio.bot.mod.prev'),
+                    'callback_data' => 'mod_r_' . $adminId . '_' . $ymd . '_' . $prevId,
+                ];
+            }
+            if ($pos + 1 < count($mentions)) {
+                $nextId = (int)$mentions[$pos + 1];
+                $nav[] = [
+                    'text' => t('audio.bot.mod.next'),
+                    'callback_data' => 'mod_r_' . $adminId . '_' . $ymd . '_' . $nextId,
+                ];
+            }
+            if ($nav !== []) {
+                $rows[] = $nav;
+            }
+        }
+
+        $rows[] = [[
+            'text' => t('audio.bot.mod.back_summary'),
+            'callback_data' => 'mod_sum_' . $adminId . '_' . $ymd,
+        ]];
+        if ($pending !== []) {
+            $rows[] = [[
+                'text' => t('audio.bot.mod.confirm'),
+                'callback_data' => 'mod_ok_' . $adminId . '_' . $ymd,
+            ]];
+        }
+        $rows[] = [['text' => t('audio.bot.mod.back_list'), 'callback_data' => 'mod_list']];
+
+        BotClient::replyUi($ctx, $text, ['inline_keyboard' => $rows], 'HTML');
+    }
+
+    /** @param array<string,mixed> $ctx */
+    private static function showPendingAt(array $ctx, int $adminId, string $ymd, int $idx): void
+    {
+        $session = self::cachedSession($ctx, $adminId, $ymd);
+        $ids = $session !== null && is_array($session['pending_ids'] ?? null)
+            ? array_values(array_map('intval', $session['pending_ids']))
+            : [];
+        if ($ids === []) {
+            [$y, $m, $d] = self::parseYmd($ymd);
+            $ids = RecordsReviewsRepository::pendingIdsForAdminDay($adminId, $y, $m, $d);
+        }
         if ($ids === []) {
             BotClient::replyUi($ctx, t('audio.bot.mod.day_empty'), self::kbList());
             return;
@@ -298,16 +457,63 @@ final class ModerationBotPlugin
             $rows[] = $nav;
         }
         $rows[] = [[
-            'text' => t('audio.bot.mod.confirm'),
-            'callback_data' => 'mod_ok_' . $adminId . '_' . $ymd,
+            'text' => t('audio.bot.mod.back_summary'),
+            'callback_data' => 'mod_sum_' . $adminId . '_' . $ymd,
         ]];
         $rows[] = [[
-            'text' => t('audio.bot.mod.back_summary'),
-            'callback_data' => 'mod_d_' . $adminId . '_' . $ymd,
+            'text' => t('audio.bot.mod.confirm'),
+            'callback_data' => 'mod_ok_' . $adminId . '_' . $ymd,
         ]];
         $rows[] = [['text' => t('audio.bot.mod.back_list'), 'callback_data' => 'mod_list']];
 
         BotClient::replyUi($ctx, $text, ['inline_keyboard' => $rows], 'HTML');
+    }
+
+    /**
+     * Prefer IDs that appear in the LLM text; intersect with pending when possible.
+     *
+     * @param list<int> $pendingIds
+     * @return list<int>
+     */
+    private static function extractMentionIds(string $body, array $pendingIds): array
+    {
+        $found = [];
+        if (preg_match_all('/\bID\s*[#:]?\s*(\d{3,10})\b/u', $body, $m)) {
+            foreach ($m[1] as $raw) {
+                $id = (int)$raw;
+                if ($id > 0) {
+                    $found[$id] = true;
+                }
+            }
+        }
+        if (preg_match_all('/#(\d{3,10})\b/u', $body, $m2)) {
+            foreach ($m2[1] as $raw) {
+                $id = (int)$raw;
+                if ($id > 0) {
+                    $found[$id] = true;
+                }
+            }
+        }
+        $pendingSet = [];
+        foreach ($pendingIds as $pid) {
+            $pendingSet[(int)$pid] = true;
+        }
+        $ordered = [];
+        foreach (array_keys($found) as $id) {
+            if (isset($pendingSet[$id])) {
+                $ordered[] = $id;
+            }
+        }
+        // Mentions outside pending (context) — still offer if any.
+        foreach (array_keys($found) as $id) {
+            if (!isset($pendingSet[$id])) {
+                $ordered[] = $id;
+            }
+        }
+        if ($ordered === []) {
+            return array_slice(array_values(array_map('intval', $pendingIds)), 0, self::MENTION_BTN_LIMIT);
+        }
+        return array_slice($ordered, 0, self::MENTION_BTN_LIMIT);
     }
 
     private static function telegramSnippet(int $recordId): string
@@ -342,14 +548,12 @@ final class ModerationBotPlugin
         if ($html === '') {
             return '';
         }
-        // Convert web transcript HTML to Telegram-safe HTML (<b> only).
         $html = preg_replace('/<\/div>/i', "\n", $html) ?? $html;
         $html = preg_replace('/<br\s*\/?>/i', "\n", $html) ?? $html;
         $html = preg_replace('/<b\b[^>]*>/i', '<b>', $html) ?? $html;
         $html = strip_tags($html, '<b>');
         $html = preg_replace("/\n{3,}/", "\n\n", $html) ?? $html;
         $html = trim($html);
-        // Prefer lines that still contain hits; if none, keep first chunk.
         $lines = preg_split("/\n/", $html) ?: [];
         $hitLines = [];
         foreach ($lines as $ln) {
@@ -372,7 +576,93 @@ final class ModerationBotPlugin
     }
 
     /**
-     * @return array{0:int,1:int,2:int} year, month, day (0s if invalid)
+     * @param array<string,mixed> $ctx
+     * @return array{
+     *   admin_id:int,ymd:string,header:string,body:string,
+     *   pending_ids:list<int>,mention_ids:list<int>
+     * }|null
+     */
+    private static function cachedSession(array $ctx, int $adminId, string $ymd): ?array
+    {
+        $state = self::getState($ctx);
+        if ($state === null || !BotChatState::isFresh($state, self::TTL)) {
+            return null;
+        }
+        $mid = (string)($state['module_id'] ?? '');
+        if (($mid !== self::MODULE && $mid !== self::MODULE_LEGACY)
+            || (string)($state['mode'] ?? '') !== 'day') {
+            return null;
+        }
+        $data = is_array($state['data'] ?? null) ? $state['data'] : [];
+        if ((int)($data['admin_id'] ?? 0) !== $adminId || (string)($data['ymd'] ?? '') !== $ymd) {
+            return null;
+        }
+        $session = [
+            'admin_id' => $adminId,
+            'ymd' => $ymd,
+            'header' => (string)($data['header'] ?? ''),
+            'body' => (string)($data['body'] ?? ''),
+            'pending_ids' => is_array($data['pending_ids'] ?? null)
+                ? array_values(array_map('intval', $data['pending_ids']))
+                : [],
+            'mention_ids' => is_array($data['mention_ids'] ?? null)
+                ? array_values(array_map('intval', $data['mention_ids']))
+                : [],
+        ];
+        // Rewrite legacy module_id before dispatch's clearForeignChatState runs.
+        if ($mid === self::MODULE_LEGACY) {
+            self::setSession($ctx, $session);
+        }
+        return $session;
+    }
+
+    /**
+     * @param array<string,mixed> $ctx
+     * @param array<string,mixed> $session
+     */
+    private static function setSession(array $ctx, array $session): void
+    {
+        if (!class_exists('BotChatState', false) || !class_exists('BotLinksRepository', false)) {
+            return;
+        }
+        BotChatState::set(
+            BotLinksRepository::SOURCE_STAFF,
+            (string)($ctx['platform'] ?? 'telegram'),
+            (string)($ctx['chat_id'] ?? ''),
+            self::MODULE,
+            'day',
+            $session
+        );
+    }
+
+    /** @param array<string,mixed> $ctx */
+    private static function clearSession(array $ctx): void
+    {
+        if (!class_exists('BotChatState', false) || !class_exists('BotLinksRepository', false)) {
+            return;
+        }
+        BotChatState::clear(
+            BotLinksRepository::SOURCE_STAFF,
+            (string)($ctx['platform'] ?? 'telegram'),
+            (string)($ctx['chat_id'] ?? '')
+        );
+    }
+
+    /** @param array<string,mixed> $ctx @return array<string,mixed>|null */
+    private static function getState(array $ctx): ?array
+    {
+        if (!class_exists('BotChatState', false) || !class_exists('BotLinksRepository', false)) {
+            return null;
+        }
+        return BotChatState::get(
+            BotLinksRepository::SOURCE_STAFF,
+            (string)($ctx['platform'] ?? 'telegram'),
+            (string)($ctx['chat_id'] ?? '')
+        );
+    }
+
+    /**
+     * @return array{0:int,1:int,2:int}
      */
     private static function parseYmd(string $ymd): array
     {
@@ -388,7 +678,6 @@ final class ModerationBotPlugin
         return [$y, $mo, $d];
     }
 
-    /** "Иванов Иван Иванович" → "Иванов И.И."; single word → as-is (trimmed). */
     private static function nameAcronym(string $name): string
     {
         $name = trim(preg_replace('/\s+/u', ' ', $name) ?? $name);
@@ -416,8 +705,11 @@ final class ModerationBotPlugin
         return $out;
     }
 
-    /** @return array{inline_keyboard:list<list<array{text:string,callback_data:string}>>} */
-    private static function kbDay(int $adminId, string $ymd, bool $hasPending): array
+    /**
+     * @param list<int> $mentionIds
+     * @return array{inline_keyboard:list<list<array{text:string,callback_data:string}>>}
+     */
+    private static function kbSummary(int $adminId, string $ymd, bool $hasPending, array $mentionIds): array
     {
         $rows = [];
         if ($hasPending) {
@@ -425,13 +717,51 @@ final class ModerationBotPlugin
                 'text' => t('audio.bot.mod.confirm'),
                 'callback_data' => 'mod_ok_' . $adminId . '_' . $ymd,
             ]];
+        }
+
+        $chunk = [];
+        foreach ($mentionIds as $rid) {
+            $rid = (int)$rid;
+            if ($rid < 1) {
+                continue;
+            }
+            $cb = 'mod_r_' . $adminId . '_' . $ymd . '_' . $rid;
+            if (strlen($cb) > 64) {
+                continue;
+            }
+            $chunk[] = [
+                'text' => '#' . $rid,
+                'callback_data' => $cb,
+            ];
+            if (count($chunk) >= 3) {
+                $rows[] = $chunk;
+                $chunk = [];
+            }
+        }
+        if ($chunk !== []) {
+            $rows[] = $chunk;
+        }
+
+        if ($hasPending) {
             $rows[] = [[
-                'text' => t('audio.bot.mod.view_records'),
+                'text' => t('audio.bot.mod.view_all'),
                 'callback_data' => 'mod_v_' . $adminId . '_' . $ymd . '_0',
             ]];
         }
+        $rows[] = [[
+            'text' => t('audio.bot.mod.rerun'),
+            'callback_data' => 'mod_rerun_' . $adminId . '_' . $ymd,
+        ]];
         $rows[] = [['text' => t('audio.bot.mod.back_list'), 'callback_data' => 'mod_list']];
         return ['inline_keyboard' => $rows];
+    }
+
+    /** @return array{inline_keyboard:list<list<array{text:string,callback_data:string}>>} */
+    private static function kbBackSummary(int $adminId, string $ymd): array
+    {
+        return ['inline_keyboard' => [[
+            ['text' => t('audio.bot.mod.back_summary'), 'callback_data' => 'mod_sum_' . $adminId . '_' . $ymd],
+        ]]];
     }
 
     /** @return array{inline_keyboard:list<list<array{text:string,callback_data:string}>>} */
