@@ -224,8 +224,7 @@ final class PaymentMoveLinksRepository
             )';
         }
         $sql = 'SELECT p.ID AS id, p.ID_USER AS user_id, p.DT AS dt, p.DESCR AS descr,
-                       p.DIRECTION AS direction, p.SUM AS sum, p.ID_TYPE AS type_id,
-                       p.ACCOUNT AS account
+                       p.DIRECTION AS direction, p.SUM AS sum, p.ACCOUNT AS account
                 FROM base_payments p
                 WHERE ' . implode(' AND ', $where) . '
                 ORDER BY p.DT DESC, p.ID DESC
@@ -241,7 +240,6 @@ final class PaymentMoveLinksRepository
                 'descr' => (string)($row['descr'] ?? ''),
                 'direction' => (int)$row['direction'],
                 'sum' => (float)$row['sum'],
-                'type_id' => (int)$row['type_id'],
                 'account' => (int)$row['account'],
             ];
         }

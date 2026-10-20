@@ -45,7 +45,6 @@ final class EmployeeProcedureSettle
             'descr' => $descr,
             'direction' => -1,
             'sum' => $sum,
-            'type_id' => LikespaConfig::employeeSettlePaymentType(),
             'account' => 0,
             'dt_create' => $dt,
             'user_signed' => 0,

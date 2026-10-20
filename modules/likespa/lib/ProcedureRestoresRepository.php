@@ -412,7 +412,6 @@ final class ProcedureRestoresRepository
                     'descr' => $descr,
                     'direction' => -1,
                     'sum' => (float)$row['summ'],
-                    'type_id' => LikespaConfig::restoresPaymentType(),
                     'account' => 0,
                     'dt_create' => time(),
                     'user_signed' => Auth::userId(),

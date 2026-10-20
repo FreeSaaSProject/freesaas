@@ -94,14 +94,12 @@ final class ProcentsPaymentSync
         $monthEnd = (int)mktime(23, 59, 59, $m, (int)date('t', $monthStart), $y);
         $dt = (int)mktime(0, 0, 0, $m, (int)date('t', $monthStart), $y);
         $sumRounded = round($sum);
-        $typeId = self::resolveFotTypeId();
 
         $existing = self::findSyncedRow($userId, $descr, $monthStart, $monthEnd, $accrualKey);
         if ($existing !== null) {
             $id = (int)$existing['id'];
             if ((float)$existing['sum'] == $sumRounded
                 && (int)$existing['dt'] === $dt
-                && (int)$existing['type_id'] === $typeId
                 && (string)$existing['descr'] === $descr
             ) {
                 return $id;
@@ -112,7 +110,6 @@ final class ProcentsPaymentSync
                 'descr' => $descr,
                 'direction' => 1,
                 'sum' => $sumRounded,
-                'type_id' => $typeId,
                 'account' => 0,
                 'comment_id' => (int)($existing['comment_id'] ?? 0),
                 'is_partner' => (int)($existing['is_partner'] ?? 0),
@@ -133,7 +130,6 @@ final class ProcentsPaymentSync
                 'descr' => $descr,
                 'direction' => 1,
                 'sum' => $sumRounded,
-                'type_id' => $typeId,
                 'account' => 0,
                 'dt_create' => time(),
                 'user_signed' => Auth::userId() > 0 ? Auth::userId() : $userId,
@@ -205,25 +201,6 @@ final class ProcentsPaymentSync
         return sprintf('month:%04d-%02d', $year, $month);
     }
 
-    private static function resolveFotTypeId(): int
-    {
-        $configured = (int)Config::get('payments', 'procent_type_id', 0);
-        if ($configured > 0) {
-            return $configured;
-        }
-        if (Database::tableExists('base_payment_types')) {
-            $st = Database::pdo()->prepare(
-                'SELECT ID FROM base_payment_types WHERE NAME = ? ORDER BY ID ASC LIMIT 1'
-            );
-            $st->execute(['ФОТ']);
-            $id = (int)$st->fetchColumn();
-            if ($id > 0) {
-                return $id;
-            }
-        }
-        return 1;
-    }
-
     /**
      * @return array<string,mixed>|null
      */
@@ -237,7 +214,7 @@ final class ProcentsPaymentSync
         if ($accrualKey !== '' && Database::columnExists('base_payments', 'ACCRUAL_KEY')) {
             $st = Database::pdo()->prepare(
                 'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
-                        DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id, ACCOUNT AS account,
+                        DIRECTION AS direction, SUM AS sum, ACCOUNT AS account,
                         DT_CREATE AS dt_create, ID_USER_SIGNED AS user_signed, ID_COMMENT AS comment_id,
                         IS_PARTNER_PAYMENT AS is_partner,
                         ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,
@@ -256,7 +233,7 @@ final class ProcentsPaymentSync
         }
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
-                    DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id, ACCOUNT AS account,
+                    DIRECTION AS direction, SUM AS sum, ACCOUNT AS account,
                     DT_CREATE AS dt_create, ID_USER_SIGNED AS user_signed, ID_COMMENT AS comment_id,
                     IS_PARTNER_PAYMENT AS is_partner,
                     ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,

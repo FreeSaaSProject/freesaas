@@ -10,7 +10,7 @@ php bin/freesaas.php module enable payments --accept-risk --format=json
 
 Or `[modules] payments=1` in `cfg/config.ini`.
 
-Permissions: `payments.view`, `payments.edit`, `payments.types`.
+Permissions: `payments.view`, `payments.edit`, `payments.delete`.
 
 ## Dependencies
 
@@ -22,7 +22,6 @@ Permissions: `payments.view`, `payments.edit`, `payments.types`.
 | Table | Role |
 |-------|------|
 | `base_payments` | Owned by `payments` |
-| `base_payment_types` | Owned by `payments` |
 | `base_payment_move_links` | Owned by `payments` |
 
 Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base_admin_statuses.PAY_DAILY` (not owned).
@@ -31,7 +30,6 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 
 - `/payments` — staff settlements.
 - `/payments/settings` — payroll settings (superadmin): auto commission accrual, daily payroll (`day_pay_*` in `payments.ini`), soft contracts `deadline_penalty`.
-- `/payment-types` — payment type dictionary.
 - Role edit: flag **Daily payroll** (`PAY_DAILY`) on `base_admin_statuses`.
 - Contract pay CTA when contracts enabled; auto-DPS when ledger on.
 
@@ -39,7 +37,6 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 |------|------------|
 | `/payments` | `payments.view` |
 | `/payments/settings` | `SUPERADMIN_ACCESS` |
-| `/payment-types` | `payments.types` |
 
 ## Daily payroll (`DayPayroll`)
 

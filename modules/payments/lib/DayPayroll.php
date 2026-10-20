@@ -222,8 +222,6 @@ final class DayPayroll
         $monthStart = (int)mktime(0, 0, 0, (int)date('n'), 1, (int)date('Y'));
         $todayEnd = (int)mktime(23, 59, 59, (int)date('n'), (int)date('j'), (int)date('Y'));
         $syncFrom = self::dayStart(time()) - 180 * 86400;
-        $typeId = self::resolveFotTypeId();
-
         foreach (self::staffShiftDays($userId) as $dayTs) {
             if ($dayTs < $syncFrom || $dayTs > $todayEnd) {
                 continue;
@@ -255,7 +253,6 @@ final class DayPayroll
                             'descr' => (string)$existing['descr'],
                             'direction' => 1,
                             'sum' => $sum,
-                            'type_id' => (int)($existing['type_id'] ?? $typeId),
                             'account' => 0,
                             'comment_id' => (int)($existing['comment_id'] ?? 0),
                             'is_partner' => (int)($existing['is_partner'] ?? 0),
@@ -280,7 +277,6 @@ final class DayPayroll
                     'descr' => self::accrualDescr($dayTs),
                     'direction' => 1,
                     'sum' => $sum,
-                    'type_id' => $typeId,
                     'account' => 0,
                     'dt_create' => $now,
                     'user_signed' => $actorId,
@@ -436,7 +432,6 @@ final class DayPayroll
                 'descr' => $descr,
                 'direction' => -1,
                 'sum' => $sum,
-                'type_id' => self::resolveFotTypeId(),
                 'account' => 2,
                 'dt_create' => $now,
                 'user_signed' => $actorId,
@@ -754,7 +749,7 @@ final class DayPayroll
         $dayStart = self::dayStart($dayTs);
         $dayEnd = $dayStart + 86400 - 1;
         $cols = 'ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
-                 DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id, ACCOUNT AS account,
+                 DIRECTION AS direction, SUM AS sum, ACCOUNT AS account,
                  ID_COMMENT AS comment_id, IS_PARTNER_PAYMENT AS is_partner,
                  ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,
                  ID_ADMIN_SIGNED AS admin_signed, DT_ADMIN_SIGNED AS dt_admin_signed,
@@ -846,25 +841,6 @@ final class DayPayroll
         );
         $st->execute([$userId, $dayStart, $dayEnd]);
         return (int)$st->fetchColumn() > 0;
-    }
-
-    private static function resolveFotTypeId(): int
-    {
-        $configured = (int)Config::get('payments', 'procent_type_id', 0);
-        if ($configured > 0) {
-            return $configured;
-        }
-        if (Database::tableExists('base_payment_types')) {
-            $st = Database::pdo()->prepare(
-                'SELECT ID FROM base_payment_types WHERE NAME = ? ORDER BY ID ASC LIMIT 1'
-            );
-            $st->execute(['ФОТ']);
-            $id = (int)$st->fetchColumn();
-            if ($id > 0) {
-                return $id;
-            }
-        }
-        return 1;
     }
 
     private static function forceDeletePayment(int $paymentId): void

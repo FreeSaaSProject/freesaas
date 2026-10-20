@@ -10,11 +10,9 @@ declare(strict_types=1);
 /** @var int $total */
 /** @var string $q */
 /** @var int $userId */
-/** @var int $typeId */
 /** @var int|null $account */
 /** @var int|null $direction */
 /** @var array<int,string> $staff */
-/** @var array<int,string> $typeNames */
 /** @var bool $canSeeOthers */
 /** @var bool $canEdit */
 /** @var bool $ledgerEnabled */
@@ -117,7 +115,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
   <div class="page-head-row">
     <div></div>
     <div class="page-actions">
-      <a class="btn-primary" href="/payments/new"><?= te('core.common.add') ?></a>
+      <a class="btn-primary" href="/payments/new<?= $userId > 0 ? '?user_id=' . (int)$userId : '' ?>"><?= te('core.common.add') ?></a>
     </div>
   </div>
   <?php endif; ?>
@@ -173,14 +171,6 @@ $actionUrl = ListQuery::url($path, $filters, []);
     </select>
   </label>
   <?php endif; ?>
-  <label><?= te('payments.list.filter_type') ?>
-    <select name="type_id">
-      <option value="0"><?= te('payments.list.filter_all') ?></option>
-      <?php foreach ($typeNames as $tid => $tname): ?>
-        <option value="<?= (int)$tid ?>"<?= (int)$typeId === (int)$tid ? ' selected' : '' ?>><?= e($tname) ?></option>
-      <?php endforeach; ?>
-    </select>
-  </label>
   <label><?= te('payments.list.filter_account') ?>
     <select name="account">
       <option value=""><?= te('payments.list.filter_all') ?></option>

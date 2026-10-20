@@ -202,7 +202,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `bots` | Telegram/Max transport + `base_telegram_sends` queue + `base_bot_links` identities + webhooks; domain adapters via `BotPlugins` / `bots.send` |
 | `audio_llm` | LLM studies (`base_records_llm_studies*`); cyclic templates + staff day-report spawn; requires `llm` + `audio` |
 | `audio_script_coach` | Day investigation → LLM proposals to enrich script dicts/keys (alpha; soft successor to `audio_phrases` for enrichment) |
-| `payments` | Staff settlements (`base_payments`, `base_payment_types`); contracts pay CTA; auto-DPS when `ledger` on |
+| `payments` | Staff settlements (`base_payments`); contracts pay CTA; auto-DPS when `ledger` on |
 | `bonuses` | Client loyalty ledger (`base_bonus_moves`) + event settle (allocate/apply); EventBus on calendar event edit |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
 | `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |

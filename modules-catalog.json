@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-20T16:03:59+00:00",
+    "generated_at": "2026-10-20T17:39:22+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1201,15 +1201,15 @@
         },
         {
             "id": "payments",
-            "version": "0.1.16",
+            "version": "0.1.18",
             "type": "product",
             "name": {
                 "en": "Settlements",
                 "ru": "Взаиморасчёты"
             },
             "description": {
-                "en": "Staff settlements (base_payments, base_payment_types); contracts pay CTA; auto-DPS with ledger.",
-                "ru": "Взаиморасчёты сотрудников (base_payments, base_payment_types); CTA оплаты контрактов; авто-ДПС с ledger."
+                "en": "Staff settlements (base_payments); contracts pay CTA; auto-DPS with ledger.",
+                "ru": "Взаиморасчёты сотрудников (base_payments); CTA оплаты контрактов; авто-ДПС с ledger."
             },
             "summary": {
                 "en": "Enable for paying specialists and settlement docs. Soft ledger (auto-DPS), spa instance pack, procents (auto % MONTH or daily accruals). Use with contracts for pay CTAs.",
@@ -1339,7 +1339,7 @@
         },
         {
             "id": "procents",
-            "version": "0.1.13",
+            "version": "0.1.14",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1633,7 +1633,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.42",
+            "version": "0.1.43",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

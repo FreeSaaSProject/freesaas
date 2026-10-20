@@ -2,21 +2,9 @@
 declare(strict_types=1);
 
 /**
- * Staff settlements and payment types. Shared with legacy oper.
+ * Staff settlements. Shared with legacy oper.
  */
 return static function (PDO $pdo): void {
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS base_payment_types (
-            ID INT UNSIGNED NOT NULL AUTO_INCREMENT,
-            DESCR VARCHAR(255) NOT NULL DEFAULT '',
-            NAME VARCHAR(5) NOT NULL DEFAULT '',
-            DT INT UNSIGNED NOT NULL DEFAULT 0,
-            ID_USER INT UNSIGNED NOT NULL DEFAULT 0,
-            COLOR VARCHAR(10) NOT NULL DEFAULT '',
-            PRIMARY KEY (ID)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
-    );
-
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_payments (
             ID INT NOT NULL AUTO_INCREMENT,
@@ -27,7 +15,6 @@ return static function (PDO $pdo): void {
             SUM DOUBLE NOT NULL DEFAULT 0,
             ID_USER_SIGNED INT UNSIGNED NOT NULL DEFAULT 0,
             ID_CONTROL_NOTICE INT UNSIGNED NOT NULL DEFAULT 0,
-            ID_TYPE TINYINT UNSIGNED NOT NULL DEFAULT 0,
             ACCOUNT TINYINT UNSIGNED NOT NULL DEFAULT 0,
             DT_CREATE INT UNSIGNED NOT NULL DEFAULT 0,
             ID_ADMIN_SIGNED INT UNSIGNED NOT NULL DEFAULT 0,
@@ -39,7 +26,6 @@ return static function (PDO $pdo): void {
             IS_PARTNER_PAYMENT TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
             ID_MOVEMENT_LINKED INT UNSIGNED NOT NULL DEFAULT 0,
             ID_USER_TO INT UNSIGNED NOT NULL DEFAULT 0,
-            ID_TYPE_TO INT UNSIGNED NOT NULL DEFAULT 0,
             ID_RATE INT UNSIGNED NOT NULL DEFAULT 0,
             ID_COMMENT INT UNSIGNED NOT NULL DEFAULT 0,
             PRIMARY KEY (ID),

@@ -11,7 +11,6 @@ final class PaymentsRepository
             'user' => 'p.ID_USER',
             'dt' => 'p.DT',
             'sum' => 'p.SUM',
-            'type' => 'p.ID_TYPE',
             'account' => 'p.ACCOUNT',
         ];
     }
@@ -55,7 +54,7 @@ final class PaymentsRepository
     }
 
     /**
-     * @param array{q?:string,user_id?:int,type_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,dt_from?:int|null,dt_to?:int|null,order?:string,limit?:int,offset?:int} $opts
+     * @param array{q?:string,user_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,dt_from?:int|null,dt_to?:int|null,order?:string,limit?:int,offset?:int} $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function list(array $opts = []): array
@@ -77,7 +76,7 @@ final class PaymentsRepository
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $sql = "SELECT p.ID AS id, p.ID_USER AS user_id, p.DT AS dt, p.DESCR AS descr,
-                       p.DIRECTION AS direction, p.SUM AS sum, p.ID_TYPE AS type_id,
+                       p.DIRECTION AS direction, p.SUM AS sum,
                        p.ACCOUNT AS account, p.DT_CREATE AS dt_create,
                        p.ID_USER_SIGNED AS user_signed, p.ID_COMMENT AS comment_id,
                        p.IS_PARTNER_PAYMENT AS is_partner,
@@ -102,7 +101,7 @@ final class PaymentsRepository
     /**
      * Balance before period start: SUM(DIRECTION * SUM) for rows matching filters with DT < dt_from.
      *
-     * @param array{q?:string,user_id?:int,type_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,dt_from?:int} $opts
+     * @param array{q?:string,user_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,dt_from?:int} $opts
      */
     public static function sumBalanceBefore(array $opts): float
     {
@@ -230,11 +229,6 @@ final class PaymentsRepository
             $where[] = 'p.ID_USER = ?';
             $params[] = $userId;
         }
-        $typeId = (int)($opts['type_id'] ?? 0);
-        if ($typeId > 0) {
-            $where[] = 'p.ID_TYPE = ?';
-            $params[] = $typeId;
-        }
         if (array_key_exists('account', $opts) && $opts['account'] !== null && $opts['account'] !== '') {
             $where[] = 'p.ACCOUNT = ?';
             $params[] = (int)$opts['account'];
@@ -277,7 +271,7 @@ final class PaymentsRepository
             ? ', ACCRUAL_KEY AS accrual_key'
             : '';
         $sql = 'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
-                       DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id,
+                       DIRECTION AS direction, SUM AS sum,
                        ACCOUNT AS account, DT_CREATE AS dt_create,
                        ID_USER_SIGNED AS user_signed, ID_COMMENT AS comment_id,
                        IS_PARTNER_PAYMENT AS is_partner,
@@ -348,7 +342,6 @@ final class PaymentsRepository
         return [
             'user_id' => (int)$c['ID_USER'],
             'direction' => 1,
-            'type_id' => 1,
             'account' => 0,
             'sum' => $sum,
             'descr' => $descr,
@@ -430,18 +423,21 @@ final class PaymentsRepository
         if ($userId < 1) {
             throw new InvalidArgumentException(t('payments.err.user_required'));
         }
-        $typeId = (int)($post['type_id'] ?? 0);
-        if ($typeId < 1) {
-            throw new InvalidArgumentException(t('payments.err.type_required'));
-        }
         $sumRaw = trim((string)($post['sum'] ?? ''));
         if ($sumRaw === '') {
             throw new InvalidArgumentException(t('payments.err.sum_required'));
         }
         $sum = money_parse($sumRaw);
-        $direction = (int)($post['direction'] ?? 0);
-        if (!in_array($direction, [-1, 0, 1], true)) {
-            $direction = 0;
+        if (abs($sum) < 0.00001) {
+            throw new InvalidArgumentException(t('payments.err.sum_required'));
+        }
+        $directionRaw = $post['direction'] ?? '';
+        if ($directionRaw === '' || $directionRaw === null) {
+            throw new InvalidArgumentException(t('payments.err.direction_required'));
+        }
+        $direction = (int)$directionRaw;
+        if (!in_array($direction, [-1, 1], true)) {
+            throw new InvalidArgumentException(t('payments.err.direction_required'));
         }
         $account = (int)($post['account'] ?? 0);
         if (!in_array($account, [0, 1, 2], true)) {
@@ -462,6 +458,9 @@ final class PaymentsRepository
         ) {
             // Keep PIN/ADMIN machine tags; UI shows a masked value.
             $descr = (string)$existing['descr'];
+        }
+        if ($descr === '') {
+            throw new InvalidArgumentException(t('payments.err.descr_required'));
         }
         $commentId = (int)($post['comment_id'] ?? ($existing['comment_id'] ?? 0));
         // Partner payout UI removed; keep column at 0 on save.
@@ -500,7 +499,6 @@ final class PaymentsRepository
             'descr' => $descr,
             'direction' => $direction,
             'sum' => $sum,
-            'type_id' => $typeId,
             'account' => $account,
             'dt_create' => $existing ? (int)$existing['dt_create'] : time(),
             'user_signed' => $existing ? (int)$existing['user_signed'] : $uid,
@@ -521,7 +519,7 @@ final class PaymentsRepository
     {
         // Live oper schemas often have NOT NULL columns without DEFAULT — always send zeros.
         $cols = [
-            'ID_USER', 'DT', 'DESCR', 'DIRECTION', 'SUM', 'ID_TYPE', 'ACCOUNT', 'DT_CREATE',
+            'ID_USER', 'DT', 'DESCR', 'DIRECTION', 'SUM', 'ACCOUNT', 'DT_CREATE',
             'ID_USER_SIGNED', 'ID_COMMENT', 'IS_PARTNER_PAYMENT',
             'ID_ADMIN_INWORKED', 'DT_ADMIN_INWORKED',
             'ID_ADMIN_SIGNED', 'DT_ADMIN_SIGNED',
@@ -534,7 +532,6 @@ final class PaymentsRepository
             (string)$data['descr'],
             (string)$data['direction'],
             $data['sum'],
-            (int)$data['type_id'],
             (int)$data['account'],
             (int)$data['dt_create'],
             (int)$data['user_signed'],
@@ -551,7 +548,6 @@ final class PaymentsRepository
         $optional = [
             'ID_CONTROL_NOTICE' => (int)($data['control_notice'] ?? 0),
             'ID_USER_TO' => (int)($data['user_to'] ?? 0),
-            'ID_TYPE_TO' => (int)($data['type_to'] ?? 0),
             'ID_RATE' => (int)($data['rate_id'] ?? 0),
         ];
         foreach ($optional as $col => $val) {
@@ -585,7 +581,7 @@ final class PaymentsRepository
         }
         $st = Database::pdo()->prepare(
             'UPDATE base_payments SET
-             ID_USER = ?, DT = ?, DESCR = ?, DIRECTION = ?, SUM = ?, ID_TYPE = ?, ACCOUNT = ?,
+             ID_USER = ?, DT = ?, DESCR = ?, DIRECTION = ?, SUM = ?, ACCOUNT = ?,
              ID_COMMENT = ?, IS_PARTNER_PAYMENT = ?,
              ID_ADMIN_INWORKED = ?, DT_ADMIN_INWORKED = ?,
              ID_ADMIN_SIGNED = ?, DT_ADMIN_SIGNED = ?,
@@ -598,7 +594,6 @@ final class PaymentsRepository
             $data['descr'],
             (string)$data['direction'],
             $data['sum'],
-            $data['type_id'],
             $data['account'],
             $data['comment_id'],
             $data['is_partner'],
@@ -740,7 +735,7 @@ final class PaymentsRepository
     private static function castRow(array $row): array
     {
         foreach ([
-            'id', 'user_id', 'dt', 'type_id', 'account', 'dt_create', 'user_signed', 'comment_id',
+            'id', 'user_id', 'dt', 'account', 'dt_create', 'user_signed', 'comment_id',
             'is_partner', 'admin_inworked', 'dt_admin_inworked', 'admin_signed', 'dt_admin_signed',
             'accept_user', 'dt_accept', 'movement_linked',
         ] as $k) {

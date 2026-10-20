@@ -1,7 +1,6 @@
 <?php
 declare(strict_types=1);
 
-require_once __DIR__ . '/lib/PaymentTypesRepository.php';
 require_once __DIR__ . '/lib/PaymentsRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveLinksRepository.php';
 require_once __DIR__ . '/lib/PaymentMoveAllocUi.php';
@@ -56,9 +55,6 @@ $pages = [
     '/payments/new' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/payments/{id}/edit' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/payments/move-links/{moveId}' => ['permission' => 'payments.edit', 'methods' => ['POST'], 'file' => 'move_links.php'],
-    '/payment-types' => ['permission' => 'payments.types', 'methods' => ['GET', 'POST'], 'file' => 'types_list.php'],
-    '/payment-types/new' => ['permission' => 'payments.types', 'methods' => ['GET', 'POST'], 'file' => 'types_edit.php'],
-    '/payment-types/{id}/edit' => ['permission' => 'payments.types', 'methods' => ['GET', 'POST'], 'file' => 'types_edit.php'],
 ];
 
 foreach ($pages as $path => $def) {
@@ -140,15 +136,6 @@ BulkActions::register('payments', 'create_dps', [
     'permission' => 'payments.edit',
     'run' => static function (array $ids, array $params): array {
         return PaymentsRepository::createDpsByIds($ids);
-    },
-]);
-
-BulkActions::register('payment_types', 'delete', [
-    'label' => 'core.bulk.delete',
-    'permission' => 'payments.types.delete',
-    'confirm' => 'core.bulk.confirm_delete',
-    'run' => static function (array $ids, array $params): array {
-        return ['done' => PaymentTypesRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
 

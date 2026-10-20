@@ -3,7 +3,6 @@ declare(strict_types=1);
 /** @var bool $isNew */
 /** @var array<string,mixed> $row */
 /** @var array<int,string> $staff */
-/** @var array<int,string> $typeNames */
 /** @var bool $canSeeOthers */
 /** @var bool $ledgerEnabled */
 /** @var bool $canViewLedger */
@@ -11,11 +10,16 @@ declare(strict_types=1);
 /** @var bool $linkedMoves */
 /** @var list<int> $linkedMoveIds */
 /** @var bool $showCashMarks */
+/** @var bool $showCommentId */
 /** @var string $message */
 /** @var string $error */
 /** @var string $warn */
 $linkedMoveIds = is_array($linkedMoveIds ?? null) ? $linkedMoveIds : [];
 $canViewLedger = !empty($canViewLedger);
+$showCommentId = !empty($showCommentId);
+$userId = (int)($row['user_id'] ?? 0);
+$dirRaw = $row['direction'] ?? '';
+$dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('payments.edit.heading_new') : e('#' . (int)($row['id'] ?? 0)) ?></h1>
@@ -38,34 +42,19 @@ $canViewLedger = !empty($canViewLedger);
   <label><?= te('payments.col.user') ?>
     <?php if ($canSeeOthers): ?>
       <select name="user_id" required>
+        <option value=""><?= te('payments.edit.user_pick') ?></option>
         <?php foreach ($staff as $sid => $sname): ?>
-          <option value="<?= (int)$sid ?>"<?= (int)($row['user_id'] ?? 0) === (int)$sid ? ' selected' : '' ?>><?= e($sname) ?></option>
+          <option value="<?= (int)$sid ?>"<?= $userId === (int)$sid ? ' selected' : '' ?>><?= e($sname) ?></option>
         <?php endforeach; ?>
       </select>
     <?php else: ?>
-      <input type="hidden" name="user_id" value="<?= (int)($row['user_id'] ?? 0) ?>">
-      <input value="<?= e((string)($staff[(int)($row['user_id'] ?? 0)] ?? '')) ?>" disabled>
+      <input type="hidden" name="user_id" value="<?= $userId ?>">
+      <input value="<?= e((string)($staff[$userId] ?? '')) ?>" disabled>
     <?php endif; ?>
   </label>
 
   <label><?= te('payments.col.dt') ?>
     <input type="datetime-local" name="dt" value="<?= e($dtValue) ?>" required>
-  </label>
-
-  <label><?= te('payments.col.direction') ?>
-    <select name="direction">
-      <?php foreach ([1, -1] as $d): ?>
-        <option value="<?= $d ?>"<?= (int)($row['direction'] ?? 0) === $d ? ' selected' : '' ?>><?= e(PaymentsRepository::directionLabel($d)) ?></option>
-      <?php endforeach; ?>
-    </select>
-  </label>
-
-  <label><?= te('payments.col.type') ?>
-    <select name="type_id" required>
-      <?php foreach ($typeNames as $tid => $tname): ?>
-        <option value="<?= (int)$tid ?>"<?= (int)($row['type_id'] ?? 0) === (int)$tid ? ' selected' : '' ?>><?= e($tname) ?></option>
-      <?php endforeach; ?>
-    </select>
   </label>
 
   <label><?= te('payments.col.account') ?>
@@ -76,25 +65,23 @@ $canViewLedger = !empty($canViewLedger);
     </select>
   </label>
 
-  <label><?= te('payments.col.sum') ?>
-    <input name="sum" value="<?= e((string)($row['sum'] ?? '0')) ?>" required>
-  </label>
-
   <?php
     $rawDescr = (string)($row['descr'] ?? '');
     $isDayPayout = class_exists('DayPayroll', false) && DayPayroll::isPayoutDescr($rawDescr);
     $showDescr = $isDayPayout ? DayPayroll::maskDescr($rawDescr) : $rawDescr;
   ?>
   <label><?= te('payments.col.descr') ?>
-    <input name="descr" value="<?= e($showDescr) ?>"<?= $isDayPayout ? ' readonly' : '' ?>>
+    <input name="descr" value="<?= e($showDescr) ?>" required<?= $isDayPayout ? ' readonly' : '' ?>>
   </label>
   <?php if ($isDayPayout): ?>
     <p class="muted"><?= te('payments.edit.day_pay_descr_locked') ?></p>
   <?php endif; ?>
 
+  <?php if ($showCommentId): ?>
   <label><?= te('payments.field.comment_id') ?>
-    <input type="number" name="comment_id" min="0" value="<?= e((string)((int)($row['comment_id'] ?? 0))) ?>">
+    <input type="number" name="comment_id" min="0" value="<?= e((string)((int)($row['comment_id'] ?? 0))) ?>" readonly>
   </label>
+  <?php endif; ?>
 
   <?php if (!empty($showCashMarks)): ?>
     <?php if ((int)($row['admin_inworked'] ?? 0) < 1): ?>
@@ -109,6 +96,25 @@ $canViewLedger = !empty($canViewLedger);
     </label>
     <?php endif; ?>
   <?php endif; ?>
+
+  <div class="payments-dir-sum-row">
+    <div class="payments-dir-switch" role="radiogroup" aria-label="<?= te('payments.col.direction') ?>">
+      <label class="payments-dir-opt payments-dir-in<?= $dirSelected === 1 ? ' is-selected' : '' ?>">
+        <input type="radio" name="direction" value="1" required<?= $dirSelected === 1 ? ' checked' : '' ?>>
+        <span class="payments-dir-sign" aria-hidden="true">+</span>
+        <span class="payments-dir-label"><?= te('payments.dir.1') ?></span>
+      </label>
+      <label class="payments-dir-opt payments-dir-out<?= $dirSelected === -1 ? ' is-selected' : '' ?>">
+        <input type="radio" name="direction" value="-1" required<?= $dirSelected === -1 ? ' checked' : '' ?>>
+        <span class="payments-dir-sign" aria-hidden="true">−</span>
+        <span class="payments-dir-label"><?= te('payments.dir.-1') ?></span>
+      </label>
+    </div>
+    <label class="payments-sum-field"><?= te('payments.col.sum') ?>
+      <input type="number" name="sum" inputmode="decimal" step="0.01" min="0.01"
+             value="<?= e((string)($row['sum'] ?? '')) ?>" required>
+    </label>
+  </div>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
@@ -132,4 +138,3 @@ $canViewLedger = !empty($canViewLedger);
 <?php if (empty($isNew) && empty($is_new)): ?>
 <?= EntityDelete::form('payments', (int)($row['id'] ?? 0)) ?>
 <?php endif; ?>
-

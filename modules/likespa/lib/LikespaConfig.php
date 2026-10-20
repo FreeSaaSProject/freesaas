@@ -33,8 +33,6 @@ final class LikespaConfig
             'dops_procedure_type' => 44,
             'dops_position_ids' => '1',
             'restores_lookback_days' => 4,
-            'restores_payment_type' => 1,
-            'employee_settle_payment_type' => 1,
             'staff_debts_news_id' => 0,
             'staff_debts_comment_user_id' => 0,
             'staff_debts_daily_at' => '08:00',
@@ -145,8 +143,6 @@ final class LikespaConfig
         Config::set('likespa', 'dops_position_ids', $pos !== [] ? implode(',', $pos) : '1');
 
         Config::set('likespa', 'restores_lookback_days', (string)max(0, min(30, (int)($post['restores_lookback_days'] ?? 4))));
-        Config::set('likespa', 'restores_payment_type', (string)max(1, (int)($post['restores_payment_type'] ?? 1)));
-        Config::set('likespa', 'employee_settle_payment_type', (string)max(1, (int)($post['employee_settle_payment_type'] ?? 1)));
 
         Config::set('likespa', 'staff_debts_news_id', (string)max(0, (int)($post['staff_debts_news_id'] ?? 0)));
         Config::set('likespa', 'staff_debts_comment_user_id', (string)max(0, (int)($post['staff_debts_comment_user_id'] ?? 0)));
@@ -287,21 +283,11 @@ final class LikespaConfig
         return max(0, self::int('restores_lookback_days', 4));
     }
 
-    public static function restoresPaymentType(): int
-    {
-        return max(1, self::int('restores_payment_type', 1));
-    }
-
     /** Employee-as-client /t book → base_payments debit (oper internal payment). Soft payments. */
     public static function employeeSettleEnabled(): bool
     {
         return self::flag('employee_settle_enabled', true)
             && ModuleManager::isEnabled('payments');
-    }
-
-    public static function employeeSettlePaymentType(): int
-    {
-        return max(1, self::int('employee_settle_payment_type', 1));
     }
 
     public static function staffDebtsEnabled(): bool

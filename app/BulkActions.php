@@ -85,7 +85,7 @@ final class BulkActions
         if (strpos($listId, $moduleId . '.') === 0) {
             return true;
         }
-        // e.g. audio_scripts owned by audio_dicts, payment_types by payments
+        // e.g. audio_scripts owned by audio_dicts
         $compact = str_replace('_', '', $moduleId);
         $listCompact = str_replace('_', '', $listId);
         return $compact !== '' && strpos($listCompact, $compact) === 0;

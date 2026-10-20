@@ -22,7 +22,7 @@ Port of oper `show_procedure_restores` / `edit_procedure_restore`. Schema `base_
 ### Enable
 
 - `[modules] likespa=1` and `procedures=1` (soft: `payments=1` for settlement).
-- Ini: `cfg/modules/likespa.ini` — `restores_enabled=1`, `restores_lookback_days=4`, `restores_payment_type=1`.
+- Ini: `cfg/modules/likespa.ini` — `restores_enabled=1`, `restores_lookback_days=4`.
 - Permission: `likespa.restores`. Bulk delete / act signature: `SUPERADMIN_ACCESS`.
 
 ### Human UI

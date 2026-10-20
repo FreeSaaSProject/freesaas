@@ -8,13 +8,28 @@ $isNew = $id < 1;
 $canSeeOthers = PaymentsRepository::canSeeOthers();
 $commentId = (int)($_GET['id_comment'] ?? 0);
 
+$prefillUserId = 0;
+if ($isNew && $canSeeOthers) {
+    $prefillUserId = (int)($_GET['user_id'] ?? 0);
+    if ($prefillUserId < 1) {
+        $ret = (string)($_GET['ret'] ?? '');
+        if ($ret !== '') {
+            $retQuery = parse_url($ret, PHP_URL_QUERY);
+            if (is_string($retQuery) && $retQuery !== '') {
+                parse_str($retQuery, $retParams);
+                $prefillUserId = (int)($retParams['user_id'] ?? 0);
+            }
+        }
+    }
+}
+
 $row = [
-    'user_id' => $canSeeOthers ? Auth::userId() : Auth::userId(),
+    // New: empty staff/direction unless prefilled from list filter or comment — never default to self.
+    'user_id' => $canSeeOthers ? $prefillUserId : Auth::userId(),
     'dt' => time(),
     'descr' => '',
-    'direction' => -1,
-    'sum' => 0,
-    'type_id' => 1,
+    'direction' => '',
+    'sum' => '',
     'account' => 0,
     'comment_id' => 0,
     'is_partner' => 0,
@@ -140,13 +155,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $error = $e->getMessage();
         if (empty($_POST['create_dps'])) {
+            $postedDir = array_key_exists('direction', $_POST) ? (int)$_POST['direction'] : ($row['direction'] ?? '');
             $row = array_merge($row, [
                 'user_id' => (int)($_POST['user_id'] ?? $row['user_id']),
                 'dt' => (string)($_POST['dt'] ?? $row['dt']),
                 'descr' => (string)($_POST['descr'] ?? $row['descr']),
-                'direction' => (int)($_POST['direction'] ?? $row['direction']),
+                'direction' => $postedDir,
                 'sum' => $_POST['sum'] ?? $row['sum'],
-                'type_id' => (int)($_POST['type_id'] ?? $row['type_id']),
                 'account' => (int)($_POST['account'] ?? $row['account']),
                 'comment_id' => (int)($_POST['comment_id'] ?? $row['comment_id']),
             ]);
@@ -159,7 +174,6 @@ if (isset($_GET['saved']) && $message === '') {
 }
 
 $staff = UsersRepository::staffNamesIncluding([(int)($row['user_id'] ?? 0)]);
-$typeNames = PaymentTypesRepository::names();
 $dtValue = is_numeric($row['dt'] ?? null)
     ? date('Y-m-d\TH:i', (int)$row['dt'])
     : (string)($row['dt'] ?? '');
@@ -182,7 +196,6 @@ if ($wantsJson) {
         'id' => $isNew ? null : $id,
         'row' => $row,
         'staff' => $staff,
-        'type_names' => $typeNames,
         'can_see_others' => $canSeeOthers,
         'ledger_enabled' => $ledgerEnabled,
         'linked_move_ids' => $linkedMoveIds,
@@ -204,7 +217,6 @@ View::render('edit', [
     'isNew' => $isNew,
     'row' => $row,
     'staff' => $staff,
-    'typeNames' => $typeNames,
     'canSeeOthers' => $canSeeOthers,
     'ledgerEnabled' => $ledgerEnabled,
     'canViewLedger' => $canViewLedger,
@@ -212,6 +224,7 @@ View::render('edit', [
     'linkedMoves' => $linkedMoves,
     'linkedMoveIds' => $linkedMoveIds,
     'showCashMarks' => $showCashMarks,
+    'showCommentId' => $isNew && $commentId > 0,
     'message' => $message,
     'error' => $error,
     'warn' => $warn,

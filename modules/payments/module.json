@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "0.1.17",
+    "version": "0.1.18",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -16,8 +16,7 @@
         "assistant": ">=0.1.0"
     },
     "provides": [
-        "payments.list",
-        "payments.types"
+        "payments.list"
     ],
     "migrations": "migrations/",
     "permissions": [
@@ -30,16 +29,8 @@
             "label": "payments.perm.edit"
         },
         {
-            "id": "payments.types",
-            "label": "payments.perm.types"
-        },
-        {
             "id": "payments.delete",
             "label": "payments.perm.delete"
-        },
-        {
-            "id": "payments.types.delete",
-            "label": "payments.perm.types_delete"
         }
     ],
     "routes": {
@@ -48,10 +39,7 @@
             "/payments/settings",
             "/payments/new",
             "/payments/{id}/edit",
-            "/payments/move-links/{moveId}",
-            "/payment-types",
-            "/payment-types/new",
-            "/payment-types/{id}/edit"
+            "/payments/move-links/{moveId}"
         ]
     },
     "agent": {
@@ -62,7 +50,7 @@
                 "method": "GET",
                 "path": "/payments",
                 "permission": "payments.view",
-                "description": "List staff payments; mode=monthly|linear, year, month, q, user_id, type_id, account, direction. JSON includes totals.accrued / totals.issued (payroll FOТ sums) and monthly total_in/total_out"
+                "description": "List staff payments; mode=monthly|linear, year, month, q, user_id, account, direction. JSON includes totals.accrued / totals.issued (payroll FOТ sums) and monthly total_in/total_out"
             },
             {
                 "id": "payments.settings.get",
@@ -105,34 +93,6 @@
                 "path": "/payments/move-links/{moveId}",
                 "permission": "payments.edit",
                 "description": "Multi-allocate hanging payments to a ledger move (action=link|unlink)"
-            },
-            {
-                "id": "payments.types.list",
-                "method": "GET",
-                "path": "/payment-types",
-                "permission": "payments.types",
-                "description": "List payment types; filter: q"
-            },
-            {
-                "id": "payments.types.get",
-                "method": "GET",
-                "path": "/payment-types/{id}/edit",
-                "permission": "payments.types",
-                "description": "One payment type; new uses /payment-types/new"
-            },
-            {
-                "id": "payments.types.create",
-                "method": "POST",
-                "path": "/payment-types/new",
-                "permission": "payments.types",
-                "description": "Create payment type"
-            },
-            {
-                "id": "payments.types.update",
-                "method": "POST",
-                "path": "/payment-types/{id}/edit",
-                "permission": "payments.types",
-                "description": "Update payment type"
             }
         ]
     },
@@ -147,13 +107,6 @@
         },
         {
             "group": "core.menu.group.accounting",
-            "num": 21,
-            "kind": "work",
-            "path": "/payment-types",
-            "title": "payments.menu.types"
-        },
-        {
-            "group": "core.menu.group.accounting",
             "num": 90,
             "kind": "settings",
             "path": "/payments/settings",
@@ -163,7 +116,6 @@
     "configSchema": [],
     "tables": [
         "base_payments",
-        "base_payment_types",
         "base_payment_move_links"
     ],
     "migrators": [],
@@ -201,10 +153,6 @@
         {
             "list_id": "payments",
             "action": "create_dps"
-        },
-        {
-            "list_id": "payment_types",
-            "action": "delete"
         }
     ],
     "catalog": {

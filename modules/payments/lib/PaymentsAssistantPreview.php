@@ -52,10 +52,6 @@ final class PaymentsAssistantPreview
      */
     private static function linesFor(string $opId, array $args): array
     {
-        if (strpos($opId, 'payments.types.') === 0) {
-            return self::linesForType($opId, $args);
-        }
-
         $id = (int)($args['id'] ?? 0);
         $current = null;
         if ($id > 0) {
@@ -83,7 +79,7 @@ final class PaymentsAssistantPreview
         }
 
         $next = is_array($current) ? $current : [];
-        foreach (['user_id', 'id_user', 'sum', 'summ', 'direction', 'type_id', 'id_type', 'dt', 'date', 'descr'] as $k) {
+        foreach (['user_id', 'id_user', 'sum', 'summ', 'direction', 'dt', 'date', 'descr'] as $k) {
             if (!array_key_exists($k, $args) || $args[$k] === '' || $args[$k] === null) {
                 continue;
             }
@@ -91,8 +87,6 @@ final class PaymentsAssistantPreview
                 $next['user_id'] = $args[$k];
             } elseif ($k === 'summ') {
                 $next['sum'] = $args[$k];
-            } elseif ($k === 'id_type') {
-                $next['type_id'] = $args[$k];
             } elseif ($k === 'date') {
                 $next['dt'] = $args[$k];
             } else {
@@ -115,31 +109,6 @@ final class PaymentsAssistantPreview
     }
 
     /**
-     * @param array<string,mixed> $args
-     * @return list<string>
-     */
-    private static function linesForType(string $opId, array $args): array
-    {
-        $id = (int)($args['id'] ?? 0);
-        $name = trim((string)($args['name'] ?? ''));
-        if ($name === '' && $id > 0) {
-            try {
-                $row = PaymentTypesRepository::find($id);
-                $name = is_array($row) ? trim((string)($row['name'] ?? '')) : '';
-            } catch (Throwable $e) {
-                $name = '';
-            }
-        }
-        if ($name === '') {
-            return $id > 0 ? [t('payments.assistant.preview.type_id', ['v' => (string)$id])] : [];
-        }
-        if (strpos($opId, 'create') !== false) {
-            return [t('payments.assistant.preview.type_create', ['v' => $name])];
-        }
-        return [t('payments.assistant.preview.type', ['v' => $name])];
-    }
-
-    /**
      * @param array<string,mixed> $row
      */
     private static function formatPayment(array $row): string
@@ -149,8 +118,6 @@ final class PaymentsAssistantPreview
         $sum = $row['sum'] ?? $row['summ'] ?? '';
         $sumLabel = ($sum !== '' && $sum !== null) ? (string)$sum : '';
         $dir = self::directionLabel($row['direction'] ?? '');
-        $typeId = (int)($row['type_id'] ?? $row['id_type'] ?? 0);
-        $type = self::typeLabel($typeId);
         $when = self::formatDay($row['dt'] ?? $row['date'] ?? '');
         $descr = trim((string)($row['descr'] ?? ''));
         if (function_exists('mb_strlen') && mb_strlen($descr) > 60) {
@@ -158,7 +125,7 @@ final class PaymentsAssistantPreview
         } elseif (strlen($descr) > 60) {
             $descr = substr($descr, 0, 60) . '…';
         }
-        $bits = array_filter([$who, $sumLabel, $dir, $type, $when, $descr], static function (string $s): bool {
+        $bits = array_filter([$who, $sumLabel, $dir, $when, $descr], static function (string $s): bool {
             return $s !== '';
         });
         return implode(' · ', $bits);
@@ -175,20 +142,6 @@ final class PaymentsAssistantPreview
             return t('payments.assistant.preview.dir_out');
         }
         return '';
-    }
-
-    private static function typeLabel(int $typeId): string
-    {
-        if ($typeId < 1) {
-            return '';
-        }
-        try {
-            $row = PaymentTypesRepository::find($typeId);
-            $name = is_array($row) ? trim((string)($row['name'] ?? '')) : '';
-            return $name !== '' ? $name : ('#' . $typeId);
-        } catch (Throwable $e) {
-            return '#' . $typeId;
-        }
     }
 
     /** @param mixed $raw */

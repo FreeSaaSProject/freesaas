@@ -5,7 +5,6 @@ $wantsJson = AgentHttp::wantsJson();
 
 $q = trim((string)($_GET['q'] ?? ''));
 $userId = (int)($_GET['user_id'] ?? 0);
-$typeId = (int)($_GET['type_id'] ?? 0);
 $accountRaw = $_GET['account'] ?? '';
 $directionRaw = $_GET['direction'] ?? '';
 $account = $accountRaw === '' ? null : (int)$accountRaw;
@@ -125,7 +124,6 @@ $lq = ListQuery::resolve([
 $filters = [
     'q' => $q,
     'user_id' => $userId > 0 ? (string)$userId : '',
-    'type_id' => $typeId > 0 ? (string)$typeId : '',
     'account' => $accountRaw !== '' ? (string)$account : '',
     'direction' => $directionRaw !== '' ? (string)$direction : '',
     'mode' => $mode,
@@ -166,7 +164,6 @@ if ($syncUserId > 0 && $coversCurrentMonth) {
 $listOpts = [
     'q' => $q,
     'user_id' => $canSeeOthers ? $userId : 0,
-    'type_id' => $typeId,
     'account' => $account,
     'direction' => $direction,
     'scope_user_id' => $scopeUserId,
@@ -229,7 +226,6 @@ $staff = [];
 foreach (UsersRepository::listEnabledStaff() as $u) {
     $staff[(int)$u['id']] = trim((string)$u['name']) !== '' ? (string)$u['name'] : (string)$u['login'];
 }
-$typeNames = PaymentTypesRepository::names();
 $bulkFlash = BulkActions::consumeFlash();
 
 $yearOptions = [];
@@ -284,7 +280,6 @@ if ($wantsJson) {
         'filters' => [
             'q' => $q,
             'user_id' => $userId > 0 ? $userId : null,
-            'type_id' => $typeId > 0 ? $typeId : null,
             'account' => $account,
             'direction' => $direction,
             'year' => $year > 0 ? $year : null,
@@ -334,11 +329,9 @@ View::render('list', [
     'total' => $total,
     'q' => $q,
     'userId' => $userId,
-    'typeId' => $typeId,
     'account' => $account,
     'direction' => $direction,
     'staff' => $staff,
-    'typeNames' => $typeNames,
     'canSeeOthers' => $canSeeOthers,
     'canEdit' => Auth::can('payments.edit'),
     'ledgerEnabled' => $ledgerEnabled,
