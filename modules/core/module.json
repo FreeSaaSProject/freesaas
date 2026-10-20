@@ -531,7 +531,7 @@
                 "method": "GET",
                 "path": "/statuses/{id}/edit",
                 "permission": "core.statuses",
-                "description": "One role + field groups. When workweeks on: shift_options + DEFAULT_PRICE_COL (default nazop lane; 0=day default)"
+                "description": "One role + field groups. When workweeks on: shift_options + DEFAULT_PRICE_COL (default nazop lane; 0=lane I)"
             },
             {
                 "id": "core.statuses.create",
@@ -547,7 +547,7 @@
                 "path": "/statuses/{id}/edit",
                 "permission": "core.statuses",
                 "side_effect": "write",
-                "description": "Update role flags; DEFAULT_PRICE_COL=lane id from workweeks.settings (0=day default on nazop)"
+                "description": "Update role flags; DEFAULT_PRICE_COL=lane id from workweeks.settings (0=lane I on nazop)"
             },
             {
                 "id": "core.db.status",

@@ -1,0 +1,142 @@
+{
+    "id": "video",
+    "name": "video.module.name",
+    "description": "video.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": {
+        "bots": ">=0.1.0",
+        "video_label": ">=0.1.0"
+    },
+    "provides": [
+        "video.jobs",
+        "video.cameras"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "video.view",
+            "label": "video.perm.view"
+        },
+        {
+            "id": "video.edit",
+            "label": "video.perm.edit"
+        },
+        {
+            "id": "video.delete",
+            "label": "video.perm.delete"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/video",
+            "/video/cameras",
+            "/video/cameras/new",
+            "/video/cameras/{id}/edit",
+            "/video/cameras/{id}/live",
+            "/video/models",
+            "/video/alerts",
+            "/video/media",
+            "/video/settings",
+            "/video/worker/hello",
+            "/video/worker/claim",
+            "/video/worker/result",
+            "/video/worker/file",
+            "/video/worker/frame"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/video.md",
+        "ops": [
+            {
+                "id": "video.dashboard",
+                "method": "GET",
+                "path": "/video",
+                "permission": "video.view",
+                "description": "Dashboard: workers, cameras, jobs, alerts"
+            },
+            {
+                "id": "video.cameras.list",
+                "method": "GET",
+                "path": "/video/cameras",
+                "permission": "video.view",
+                "description": "List cameras"
+            },
+            {
+                "id": "video.settings",
+                "method": "GET",
+                "path": "/video/settings",
+                "permission": "video.edit",
+                "description": "Worker token and retention settings (superadmin)"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "video.menu.group",
+            "num": 1,
+            "path": "/video",
+            "title": "video.menu.dashboard",
+            "kind": "work"
+        },
+        {
+            "group": "video.menu.group",
+            "num": 2,
+            "path": "/video/cameras",
+            "title": "video.menu.cameras",
+            "kind": "work"
+        },
+        {
+            "group": "video.menu.group",
+            "num": 3,
+            "path": "/video/alerts",
+            "title": "video.menu.alerts",
+            "kind": "work"
+        },
+        {
+            "group": "video.menu.group",
+            "num": 4,
+            "path": "/video/models",
+            "title": "video.menu.models",
+            "kind": "crud"
+        },
+        {
+            "group": "video.menu.group",
+            "num": 90,
+            "path": "/video/settings",
+            "title": "video.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_video_workers",
+        "base_video_models",
+        "base_video_cameras",
+        "base_video_jobs",
+        "base_video_alerts",
+        "base_video_detections"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": [
+            "video.alert.created"
+        ]
+    },
+    "catalog": {
+        "categories": [
+            "integrations"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "integration",
+            "jobs"
+        ],
+        "screenshots": []
+    }
+}

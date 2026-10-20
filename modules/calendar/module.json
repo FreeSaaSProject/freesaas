@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.2.6",
+    "version": "0.2.9",
     "type": "product",
     "runtime": "both",
     "requires": {

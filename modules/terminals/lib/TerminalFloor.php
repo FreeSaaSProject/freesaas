@@ -35,8 +35,10 @@ final class TerminalFloor
         // Oper: shopusers with 1C_BRACELET+ID_USER = employee client (claim + guest floor + history).
         // Pure LikeSpa staff NFC (no linked client) → short staff_claim ack only.
         $employeeClient = null;
+        $staffUserId = 0;
         if ($staff !== null) {
             $adminId = (int)($staff['user_id'] ?? 0);
+            $staffUserId = $adminId;
             $claim = TerminalsRepository::claimStaffDay((int)$terminal['id'], $adminId);
             if (empty($claim['ok'])) {
                 return self::err($q, (string)($claim['error'] ?? t('terminals.t.err.claim')));
@@ -56,6 +58,9 @@ final class TerminalFloor
                     'catalog' => [],
                     'slots' => [],
                 ];
+            }
+            if ($staffUserId < 1) {
+                $staffUserId = max(0, (int)($employeeClient['staff_user_id'] ?? 0));
             }
         }
 
@@ -375,6 +380,10 @@ final class TerminalFloor
                     'price' => (float)$priced['price'],
                     'price_list' => $listPrice,
                 ];
+                if ($employeeClient !== null && $staffUserId > 0) {
+                    $bookIn['employee'] = true;
+                    $bookIn['staff_user_id'] = $staffUserId;
+                }
                 // One chill after the whole cart (legacy parity).
                 if ($idx === $lastIdx && $timeChill > 0) {
                     $bookIn['skip_chill'] = false;

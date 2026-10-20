@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.23",
+    "version": "0.2.29",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -66,7 +66,7 @@
                 "path": "/workweeks/nazop",
                 "permission": "workweeks.view",
                 "side_effect": "write",
-                "description": "Save nazop: nazop_action=save, ops[], checked[date][opId]=1, op_price[date][opId]=PRICE_COL, optional price[date], mas_max[date]. New assigns use status DEFAULT_PRICE_COL then day default",
+                "description": "Save nazop: nazop_action=save, ops[], checked[date][opId]=1, op_price[date][opId]=PRICE_COL, mas_max[date]. New assigns: op_price → status DEFAULT_PRICE_COL → lane I",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -74,7 +74,6 @@
                         "ops": { "type": "array", "items": { "type": "integer" } },
                         "checked": { "type": "object", "description": "checked[YYYY-MM-DD][opId]=1" },
                         "op_price": { "type": "object", "description": "op_price[YYYY-MM-DD][opId]=PRICE_COL lane id" },
-                        "price": { "type": "object", "description": "price[YYYY-MM-DD]=day default PRICE_COL for new checks" },
                         "mas_max": { "type": "object" }
                     },
                     "required": ["nazop_action", "ops"]

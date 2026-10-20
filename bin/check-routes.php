@@ -152,6 +152,13 @@ $allowed = [
     '/audio/asr/chunk-claim' => ['methods' => ['GET', 'POST'], 'why' => 'audio ASR chunk claim'],
     '/audio/asr/chunk-result' => ['methods' => ['GET', 'POST'], 'why' => 'audio ASR chunk result'],
 
+    // Video Mac worker (X-Video-Token)
+    '/video/worker/hello' => ['methods' => ['GET', 'POST'], 'why' => 'video worker heartbeat'],
+    '/video/worker/claim' => ['methods' => ['GET', 'POST'], 'why' => 'video worker claim'],
+    '/video/worker/result' => ['methods' => ['GET', 'POST'], 'why' => 'video worker result'],
+    '/video/worker/file' => ['methods' => ['GET', 'POST'], 'why' => 'video worker media download'],
+    '/video/worker/frame' => ['methods' => ['GET', 'POST'], 'why' => 'video worker live frame push'],
+
     // Integration workers / OAuth callbacks
     '/banks/jobs/sync' => ['methods' => ['POST', 'GET'], 'why' => 'banks sync worker'],
     '/terminals/jobs/load' => ['methods' => ['POST', 'GET'], 'why' => 'terminals load worker'],

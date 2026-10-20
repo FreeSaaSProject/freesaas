@@ -1,0 +1,48 @@
+.video-live-frame {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--border, #ccc);
+}
+.video-dash .table {
+  margin-bottom: 1.5rem;
+}
+.video-label-canvas-wrap {
+  position: relative;
+  overflow: auto;
+  max-height: 70vh;
+  background: #1a1a1a;
+}
+.video-label-canvas-wrap canvas {
+  display: block;
+  cursor: crosshair;
+  max-width: none;
+}
+.video-label-layout {
+  display: grid;
+  grid-template-columns: 180px 1fr 220px;
+  gap: 0.75rem;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .video-label-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.video-label-strip img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border: 2px solid transparent;
+}
+.video-label-strip .is-current img {
+  border-color: var(--accent, #3b82f6);
+}
+.video-label-strip button {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 0.35rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}

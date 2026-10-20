@@ -126,7 +126,9 @@ foreach ($days as $day) {
     $dayProcs = $procsByDate[$d] ?? [];
     $dayOrders = $ordersByDate[$d] ?? [];
     $shifts = $shiftsByDate[$d] ?? [];
-    if ($staffId > 0) {
+    // EVT_MY_ONLY: still show all shift neighbours (admin/masseurs on duty);
+    // events/procedures stay filtered via $staffFilter. Director ?staff= narrows badges.
+    if ($staffId > 0 && !$myOnly) {
         $shifts = array_values(array_filter(
             $shifts,
             static fn(array $sh): bool => (int)$sh['id_operator'] === $staffId
@@ -159,6 +161,12 @@ foreach ($days as $day) {
     unset($chip);
 
     $shiftLabels = [];
+    $shiftDefaultPcs = class_exists('WorkweeksRepository', false)
+        ? WorkweeksRepository::defaultPriceColsForOperators(array_map(
+            static fn(array $sh): int => (int)($sh['id_operator'] ?? 0),
+            $shifts
+        ))
+        : [];
     foreach ($shifts as $sh) {
         $oid = (int)$sh['id_operator'];
         $name = (string)($sh['operator_name'] !== '' ? $sh['operator_name'] : ('#' . $oid));
@@ -176,12 +184,13 @@ foreach ($days as $day) {
         if (class_exists('WorkweeksRepository', false)) {
             $label .= WorkweeksRepository::shiftChipSuffix(
                 (int)($sh['price_col'] ?? 1),
-                $group
+                (int)($shiftDefaultPcs[$oid] ?? 0)
             );
         } elseif ((int)($sh['price_col'] ?? 1) > 1) {
             $label .= (int)$sh['price_col'];
         }
-        $idTable = (int)($sh['id_table'] ?? 0);
+        // Tables/nazcab are today-only — never show table markers on other days.
+        $idTable = ($d === $today) ? (int)($sh['id_table'] ?? 0) : 0;
         $tablePlain = ($idTable > 0 && isset($tableMaps['plain'][$idTable]))
             ? (string)$tableMaps['plain'][$idTable]
             : '';
@@ -248,7 +257,7 @@ if ($wantsJson) {
     foreach ($days as $day) {
         $d = $day['date'];
         $dayShifts = $shiftsByDate[$d] ?? [];
-        if ($staffId > 0) {
+        if ($staffId > 0 && !$myOnly) {
             $dayShifts = array_values(array_filter(
                 $dayShifts,
                 static fn(array $sh): bool => (int)$sh['id_operator'] === $staffId

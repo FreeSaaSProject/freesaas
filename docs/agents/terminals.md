@@ -115,6 +115,15 @@ Not the same as `base_bracelets` (locker UID↔NUM registry) or `base_procedures
 
 Terminal writers resolve staff with `StaffBraceletsRepository::findByUid` before guest ticket → `ClientOnecBindingsRepository` / `OnecClient::getBraceletInfo`.
 
+### Employee-as-client settlement
+
+When a staff NFC has a linked `base_clients.staff_user_id`, `/t` opens the employee guest floor (fake 1C client `999`, balance `9999`, live 1C off). On book:
+
+1. Procedure `1C_ID` is set to **`999`** (not `stub-*`) so calendar `dayColumnStats` / revenue exclude it.
+2. If **likespa** is on with `employee_settle_enabled=1` and **payments** is enabled, `EmployeeProcedureSettle::applyOnBook` inserts `base_payments` with `DIRECTION=-1`, `ACCOUNT=0`, `ID_TYPE` from `employee_settle_payment_type` (default `1`), `ID_USER` = staff user, `DESCR` = `Оплата процедуры: ID: {procedureId}` (oper parity).
+
+Cancel disables the procedure and does **not** delete/reverse that payment. Chill rows are not settled. Settings: `/likespa/settings`.
+
 ## Notes
 
 - Column `IS_MASSЕUR_MODE` keeps Cyrillic Е for shared legacy DB compatibility.

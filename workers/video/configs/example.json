@@ -1,0 +1,42 @@
+{
+  "server": "https://freesaas.example.tld",
+  "worker_token": "CHANGE_ME",
+  "worker_key": "mac-office",
+  "endpoints": {
+    "hello": "/video/worker/hello",
+    "claim": "/video/worker/claim",
+    "result": "/video/worker/result",
+    "file": "/video/worker/file",
+    "frame": "/video/worker/frame"
+  },
+  "models": {
+    "default_weights": "models/best.pt",
+    "by_id": {}
+  },
+  "loop": {
+    "sleep_seconds_idle": 5,
+    "sleep_seconds_run": 1,
+    "hello_every_sec": 30
+  },
+  "ffmpeg": {
+    "bin": "ffmpeg",
+    "rtsp_transport": "tcp",
+    "timeout_sec": 15
+  },
+  "tunnel": {
+    "enabled": false,
+    "comment": "Optional camera-only tunnel. Prefer WireGuard AllowedIPs=camera subnet only — not full-tunnel OS VPN.",
+    "type": "wireguard",
+    "up_command": "",
+    "down_command": "",
+    "config_path": ""
+  },
+  "live": {
+    "push_enabled": false,
+    "fps": 2,
+    "camera_ids": []
+  },
+  "tailscale": {
+    "comment": "Optional: when Mac is on a tailnet, FreeSaaS can still use poll; on-demand jobs work the same."
+  }
+}

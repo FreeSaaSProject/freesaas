@@ -11,11 +11,10 @@ declare(strict_types=1);
  * @var string $mode all|Y-m-d
  */
 Assets::need('workweeks');
-$matrix = $matrix ?? ['days' => [], 'operators' => [], 'assigned' => [], 'day_price' => [], 'day_mas_max' => []];
+$matrix = $matrix ?? ['days' => [], 'operators' => [], 'assigned' => [], 'day_mas_max' => []];
 $days = $matrix['days'] ?? [];
 $operators = $matrix['operators'] ?? [];
 $assigned = $matrix['assigned'] ?? [];
-$dayPrice = $matrix['day_price'] ?? [];
 $dayMasMax = $matrix['day_mas_max'] ?? [];
 $availableOps = $availableOps ?? [];
 $canManageOps = !empty($canManageOps);
@@ -23,7 +22,8 @@ $formAction = (string)($formAction ?? '/workweeks/nazop');
 $retUrl = (string)($retUrl ?? '/calendar');
 $mode = (string)($mode ?? 'all');
 $shiftWindows = WorkweeksRepository::shiftWindows();
-$colspan = 3 + count($operators) + 2;
+$defaultLane = WorkweeksRepository::normalizePriceCol(1);
+$colspan = 3 + count($operators) + 1;
 
 $visibleIds = [];
 foreach ($operators as $op) {
@@ -46,8 +46,10 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
     foreach ($shiftWindows as $n => $w) {
         $n = (int)$n;
         $sel = $selected === $n ? ' selected' : '';
-        $text = $w['label'] . ' ' . $w['start'] . '–' . $w['end'];
-        $html .= '<option value="' . $n . '"' . $sel . '>' . e($text) . '</option>';
+        // Label only in the matrix (times live in workweeks settings / tooltips).
+        $text = (string)$w['label'];
+        $title = $w['label'] . ' ' . $w['start'] . '–' . $w['end'];
+        $html .= '<option value="' . $n . '"' . $sel . ' title="' . e($title) . '">' . e($text) . '</option>';
     }
     return $html;
 };
@@ -63,64 +65,66 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
     <input type="hidden" name="ops[]" value="<?= (int)$op['id'] ?>">
   <?php endforeach; ?>
 
-  <div class="nazop-toolbar">
-    <div class="nazop-toolbar-actions">
-      <button type="submit" class="btn-primary btn-sm"><?= te('workweeks.nazop.save') ?></button>
-      <a class="btn-secondary btn-sm" href="<?= e($retUrl) ?>" data-nazop-close><?= te('core.common.cancel') ?></a>
-      <button type="button" class="btn-secondary btn-sm" data-nazop-check="1"><?= te('workweeks.nazop.check_all') ?></button>
-      <button type="button" class="btn-secondary btn-sm" data-nazop-check="0"><?= te('workweeks.nazop.uncheck_all') ?></button>
-      <span class="nazop-bulk-shift" title="<?= te('workweeks.nazop.set_shift_hint') ?>">
-        <select class="nazop-select" data-nazop-bulk-shift aria-label="<?= te('workweeks.nazop.set_shift') ?>">
-          <?= $shiftOptionsHtml(1) ?>
-        </select>
-        <button type="button" class="btn-secondary btn-sm" data-nazop-set-shift><?= te('workweeks.nazop.set_shift') ?></button>
-      </span>
+  <div class="nazop-chrome">
+    <div class="nazop-toolbar">
+      <div class="nazop-toolbar-actions">
+        <button type="submit" class="btn-primary btn-sm"><?= te('workweeks.nazop.save') ?></button>
+        <button type="button" class="btn-secondary btn-sm" data-nazop-check="1"><?= te('workweeks.nazop.check_all') ?></button>
+        <button type="button" class="btn-secondary btn-sm" data-nazop-check="0"><?= te('workweeks.nazop.uncheck_all') ?></button>
+        <span class="nazop-bulk-shift" title="<?= te('workweeks.nazop.set_shift_hint') ?>">
+          <select class="nazop-select" data-nazop-bulk-shift aria-label="<?= te('workweeks.nazop.set_shift') ?>">
+            <?= $shiftOptionsHtml(1) ?>
+          </select>
+          <button type="button" class="btn-secondary btn-sm" data-nazop-set-shift><?= te('workweeks.nazop.set_shift') ?></button>
+        </span>
+        <button type="button" class="btn-secondary btn-sm" data-nazop-hide-shifts><?= te('workweeks.nazop.hide_shifts') ?></button>
+        <button type="button" class="btn-secondary btn-sm" data-nazop-show-shifts hidden><?= te('workweeks.nazop.show_shifts') ?></button>
+      </div>
     </div>
-    <p class="muted nazop-lede"><?= te('workweeks.nazop.lede') ?></p>
-  </div>
 
-  <?php if ($canManageOps && $availableOps): ?>
-  <div class="nazop-ops" role="group" aria-label="<?= te('workweeks.nazop.ops_aria') ?>">
-    <?php foreach ($availableOps as $oid => $info): ?>
-      <?php
-      $oid = (int)$oid;
-      $on = isset($visibleIds[$oid]);
-      if ($on) {
-          $next = [];
-          foreach (array_keys($visibleIds) as $vid) {
-              if ((int)$vid !== $oid) {
-                  $next[] = (int)$vid;
-              }
-          }
-          $nextCsv = $next === [] ? (string)Auth::userId() : implode(',', $next);
-          $sign = '−';
-      } else {
-          $next = array_keys($visibleIds);
-          $next[] = $oid;
-          $nextCsv = implode(',', array_map('intval', $next));
-          $sign = '+';
-      }
-      $bg = (string)($info['bg'] ?? 'var(--bg-input)');
-      $fg = (string)($info['fg'] ?? 'var(--text)');
-      $label = (string)($info['acronym'] ?? $info['label'] ?? ('#' . $oid));
-      ?>
-      <button type="button"
-              class="nazop-op-btn<?= $on ? ' is-on' : '' ?>"
-              data-nazop-ops="<?= e($nextCsv) ?>"
-              style="background:<?= e($bg) ?>;color:<?= e($fg) ?>;"
-              title="<?= e((string)($info['label'] ?? $label)) ?>"><?= e($sign . $label) ?></button>
-    <?php endforeach; ?>
-    <?php if ($allVisible): ?>
-      <button type="button" class="nazop-op-btn nazop-op-all" data-nazop-ops="<?= (int)Auth::userId() ?>">
-        <?= te('workweeks.nazop.ops_none') ?>
-      </button>
-    <?php else: ?>
-      <button type="button" class="nazop-op-btn nazop-op-all" data-nazop-ops="<?= e($allCsv) ?>">
-        <?= te('workweeks.nazop.ops_all') ?>
-      </button>
+    <?php if ($canManageOps && $availableOps): ?>
+    <div class="nazop-ops" role="group" aria-label="<?= te('workweeks.nazop.ops_aria') ?>">
+      <?php foreach ($availableOps as $oid => $info): ?>
+        <?php
+        $oid = (int)$oid;
+        $on = isset($visibleIds[$oid]);
+        if ($on) {
+            $next = [];
+            foreach (array_keys($visibleIds) as $vid) {
+                if ((int)$vid !== $oid) {
+                    $next[] = (int)$vid;
+                }
+            }
+            $nextCsv = $next === [] ? (string)Auth::userId() : implode(',', $next);
+            $sign = '−';
+        } else {
+            $next = array_keys($visibleIds);
+            $next[] = $oid;
+            $nextCsv = implode(',', array_map('intval', $next));
+            $sign = '+';
+        }
+        $bg = (string)($info['bg'] ?? 'var(--bg-input)');
+        $fg = (string)($info['fg'] ?? 'var(--text)');
+        $label = (string)($info['acronym'] ?? $info['label'] ?? ('#' . $oid));
+        ?>
+        <button type="button"
+                class="nazop-op-btn<?= $on ? ' is-on' : '' ?>"
+                data-nazop-ops="<?= e($nextCsv) ?>"
+                style="background:<?= e($bg) ?>;color:<?= e($fg) ?>;"
+                title="<?= e((string)($info['label'] ?? $label)) ?>"><?= e($sign . $label) ?></button>
+      <?php endforeach; ?>
+      <?php if ($allVisible): ?>
+        <button type="button" class="nazop-op-btn nazop-op-all" data-nazop-ops="<?= (int)Auth::userId() ?>">
+          <?= te('workweeks.nazop.ops_none') ?>
+        </button>
+      <?php else: ?>
+        <button type="button" class="nazop-op-btn nazop-op-all" data-nazop-ops="<?= e($allCsv) ?>">
+          <?= te('workweeks.nazop.ops_all') ?>
+        </button>
+      <?php endif; ?>
+    </div>
     <?php endif; ?>
   </div>
-  <?php endif; ?>
 
   <?php if (!$operators): ?>
     <div class="flash flash-warn"><?= te('workweeks.nazop.no_ops') ?></div>
@@ -137,7 +141,6 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
                 title="<?= e($op['label']) ?>"
                 style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;"><?= e($op['acronym']) ?></th>
           <?php endforeach; ?>
-          <th title="<?= te('workweeks.nazop.default_shift_hint') ?>"><?= te('workweeks.nazop.default_shift') ?></th>
           <th><?= te('workweeks.col.mas_max') ?></th>
         </tr>
       </thead>
@@ -146,8 +149,6 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
         <?php
         $d = $day['date'];
         $rowAssigned = $assigned[$d] ?? [];
-        $pc = (int)($dayPrice[$d] ?? 1);
-        $pc = WorkweeksRepository::normalizePriceCol($pc);
         $mm = (int)($dayMasMax[$d] ?? 1);
         $onCount = 0;
         foreach ($rowAssigned as $oid => $_meta) {
@@ -167,7 +168,7 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
             $statusPc = (int)($statusDefaults[$oid] ?? 0);
             $opPc = $on
                 ? WorkweeksRepository::normalizePriceCol((int)$rowAssigned[$oid]['price_col'])
-                : ($statusPc >= 1 ? $statusPc : $pc);
+                : ($statusPc >= 1 ? $statusPc : $defaultLane);
             ?>
             <td class="nazop-cell" style="background:<?= e($op['bg']) ?>;color:<?= e($op['fg']) ?>;">
               <label class="nazop-check">
@@ -185,17 +186,12 @@ $shiftOptionsHtml = static function (int $selected) use ($shiftWindows): string 
             </td>
           <?php endforeach; ?>
           <td>
-            <select name="price[<?= e($d) ?>]" class="nazop-select" aria-label="<?= te('workweeks.nazop.default_shift') ?>">
-              <?= $shiftOptionsHtml($pc) ?>
-            </select>
-            <span class="muted">[<?= (int)$onCount ?>]</span>
-          </td>
-          <td>
-            <select name="mas_max[<?= e($d) ?>]" class="nazop-select" aria-label="<?= te('workweeks.col.mas_max') ?>">
+            <select name="mas_max[<?= e($d) ?>]" class="nazop-select nazop-mas-max" aria-label="<?= te('workweeks.col.mas_max') ?>">
               <?php for ($n = 1; $n <= 9; $n++): ?>
                 <option value="<?= $n ?>"<?= $mm === $n ? ' selected' : '' ?>><?= $n ?></option>
               <?php endfor; ?>
             </select>
+            <span class="muted nazop-on-count">[<?= (int)$onCount ?>]</span>
           </td>
         </tr>
         <?php if ((int)date('N', $day['ts']) === 7): ?>

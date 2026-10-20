@@ -193,7 +193,8 @@ final class WorkweeksRepository
             'id_operator' => $op,
             'price_col' => self::normalizePriceCol($priceCol),
             'mas_max' => max(1, min(9, $masMax)),
-            'id_table' => self::normalizeTableId($tableRaw),
+            // 0 = unassigned; positive ids still go through catalog normalize.
+            'id_table' => $tableRaw > 0 ? self::normalizeTableId($tableRaw) : 0,
         ];
     }
 
@@ -645,7 +646,7 @@ final class WorkweeksRepository
     }
 
     /**
-     * Status DEFAULT_PRICE_COL for operator (0 = use day default / lane I).
+     * Status DEFAULT_PRICE_COL for operator (0 = catalog lane I).
      */
     public static function defaultPriceColForOperator(int $operatorId): int
     {
@@ -673,7 +674,7 @@ final class WorkweeksRepository
     }
 
     /**
-     * Options for status DEFAULT_PRICE_COL select (0 = none / day default).
+     * Options for status DEFAULT_PRICE_COL select (0 = none / lane I).
      *
      * @return array<int,string>
      */
@@ -706,18 +707,20 @@ final class WorkweeksRepository
         return max(0, min(23, (int)$m[1])) * 60 + max(0, min(59, (int)$m[2]));
     }
 
-    /** Chip label suffix like oper (assist always shows lane; others when PRICE_COL>1). */
-    public static function shiftChipSuffix(int $priceCol, int $group = 0): string
+    /**
+     * Chip label suffix when PRICE_COL differs from role DEFAULT_PRICE_COL.
+     * $defaultPriceCol 0 / missing = catalog lane I (same as status «— смена I —»).
+     */
+    public static function shiftChipSuffix(int $priceCol, int $defaultPriceCol = 0): string
     {
-        $priceCol = max(1, $priceCol);
-        $label = self::shiftLabel($priceCol);
-        if ($group === 3) {
-            return ' ' . $label;
+        $priceCol = self::normalizePriceCol($priceCol);
+        $default = $defaultPriceCol >= 1
+            ? self::normalizePriceCol($defaultPriceCol)
+            : self::normalizePriceCol(1);
+        if ($priceCol === $default) {
+            return '';
         }
-        if ($priceCol > 1) {
-            return ' ' . $label;
-        }
-        return '';
+        return ' ' . self::shiftLabel($priceCol);
     }
 
     /**
@@ -1262,7 +1265,8 @@ final class WorkweeksRepository
         }
         $priceCol = self::normalizePriceCol($priceCol);
         $masMax = max(1, $masMax);
-        $idTable = self::normalizeTableId($idTable);
+        // 0 = unassigned (nazcab «К+С»). Do not coerce to table #1 (о1).
+        $idTable = max(0, $idTable);
         $st = Database::pdo()->prepare(
             'INSERT INTO base_workweeks
              (ID_OPERATOR, ID_OPERATOR_CREATE, DT_CREATE, DT, PRICE_COL, ID_TABLE, MAS_MAX)
@@ -1292,7 +1296,7 @@ final class WorkweeksRepository
         $st->execute([
             self::normalizePriceCol($priceCol),
             max(1, $masMax),
-            self::normalizeTableId($idTable),
+            max(0, $idTable),
             $id,
         ]);
         self::clearShiftsCache();
@@ -1435,7 +1439,9 @@ final class WorkweeksRepository
             }
             $pc = self::normalizePriceCol((int)($post['price_col'] ?? 1));
             $mm = max(1, (int)($post['mas_max'] ?? 1));
-            $tid = self::normalizeTableId((int)($post['id_table'] ?? 0));
+            // Allow 0 (unassigned); only coerce when a positive id is posted.
+            $tidRaw = (int)($post['id_table'] ?? 0);
+            $tid = $tidRaw > 0 ? self::normalizeTableId($tidRaw) : 0;
             $bits = [];
             if ((int)$row['price_col'] !== $pc) {
                 $bits[] = self::buildLogLine('price', [
@@ -1589,7 +1595,8 @@ final class WorkweeksRepository
     /**
      * Resolve PRICE_COL for one nazop cell.
      * Existing rows keep their PRICE_COL unless a per-op value is provided.
-     * Brand-new: per-op → status DEFAULT_PRICE_COL → day-level default.
+     * Brand-new: per-op → status DEFAULT_PRICE_COL → catalog lane I
+     * (optional legacy $dayDefaultPc from API price[date] still accepted).
      *
      * @param array<int|string,int> $dayOpPrices
      * @param array<string,mixed>|null $existing
@@ -1598,10 +1605,10 @@ final class WorkweeksRepository
         array $dayOpPrices,
         int $operatorId,
         ?array $existing,
-        int $dayDefaultPc,
+        int $dayDefaultPc = 1,
         int $statusDefaultPc = 0
     ): int {
-        $dayDefaultPc = self::normalizePriceCol($dayDefaultPc);
+        $dayDefaultPc = self::normalizePriceCol($dayDefaultPc > 0 ? $dayDefaultPc : 1);
         if (array_key_exists($operatorId, $dayOpPrices) || array_key_exists((string)$operatorId, $dayOpPrices)) {
             return self::normalizePriceCol((int)($dayOpPrices[$operatorId] ?? $dayOpPrices[(string)$operatorId]));
         }
@@ -1657,13 +1664,13 @@ final class WorkweeksRepository
     /**
      * Save nazop matrix.
      * $checked[date][opId]=1, $masMax[date]=n,
-     * $opPrices[date][opId]=price_col (per-operator; preferred),
-     * $prices[date]=n used only as default for newly checked staff without op_price.
-     * Existing staff PRICE_COL is never overwritten by the day-level default
-     * (regression: assigning one masseur must not shift all admins' columns).
+     * $opPrices[date][opId]=price_col (per-operator; required from UI).
+     * $prices[date] is legacy/optional API fallback for brand-new checks without op_price
+     * (UI no longer sends it; falls through to status DEFAULT_PRICE_COL then lane I).
+     * Existing staff PRICE_COL is never overwritten by a day-level fallback.
      *
      * @param array<string,array<int,int|true>> $checked
-     * @param array<string,int> $prices day-level defaults for new assigns
+     * @param array<string,int> $prices legacy optional day defaults
      * @param array<string,int> $masMax
      * @param list<int> $managedOpIds operators columns in the form
      * @param array<string,array<int,int>> $opPrices
@@ -1720,8 +1727,7 @@ final class WorkweeksRepository
             foreach (array_keys($managed) as $oid) {
                 $existing = self::findByDayOperator($dayStart, $oid);
                 if (isset($want[$oid])) {
-                    // Invariant: never apply day-level default to an existing row.
-                    // Day price is only for brand-new assigns without per-op price.
+                    // Invariant: never apply day/legacy fallback to an existing row.
                     $pc = self::resolveNazopPriceCol(
                         $dayOpPrices,
                         $oid,
@@ -1748,12 +1754,14 @@ final class WorkweeksRepository
                                 'dt' => $dayStart,
                                 'price_col' => $pc,
                                 'mas_max' => $mm,
-                                'id_table' => (int)($existing['id_table'] ?? 1),
+                                'id_table' => (int)($existing['id_table'] ?? 0),
                             ]);
                         }
-                        self::update((int)$existing['id'], $pc, $mm, (int)($existing['id_table'] ?? 1));
+                        // Keep existing table (incl. 0); nazop must not invent о1.
+                        self::update((int)$existing['id'], $pc, $mm, (int)($existing['id_table'] ?? 0));
                     } else {
-                        self::assign($dayStart, $oid, $pc, $mm, 1);
+                        // New shift: no table until nazcab assigns one (today only).
+                        self::assign($dayStart, $oid, $pc, $mm, 0);
                         $logBits[] = self::buildLogLine('add', [
                             'id_operator' => $oid,
                             'dt' => $dayStart,

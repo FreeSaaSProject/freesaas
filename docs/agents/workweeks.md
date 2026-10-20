@@ -31,7 +31,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 - `/workweeks/nazop` — who works / shift / M-MAX matrix (`EVT_ASSIGN`). Toolbar **Set shift** applies the selected lane to all checked cells (then Save).
 - `/workweeks/nazcab` — multi-day matrix (~30 days): **tables/sections only on today’s row** (needs `tables`); **badges for the whole period** (soft `audio`). Hidden staff omitted. Calendar embeds via fragment dialog (`data-table-open`). Gate for ordinary admins: `tables.view` and/or `audio.view`|`audio.badges` — **not** `EVT_ASSIGN` (shift nazop stays senior). Route still needs `workweeks.view`.
 - `/workweeks/settings` — shift windows (PRICE_COL lanes, extensible beyond I–V) + schedule log target + `log_table_changes` (superadmin).
-- Role status flag `DEFAULT_PRICE_COL` — default lane when assigning that role on nazop (0 = day default).
+- Role status flag `DEFAULT_PRICE_COL` — default lane when assigning that role on nazop (0 = catalog lane I).
 - Embedded in calendar day when calendar on.
 
 | Path | Permission |

@@ -12,31 +12,21 @@ Assets::need('workweeks');
 <?= $html ?>
 <script>
 (function () {
-  function syncUncheckedFromDefault(tr) {
-    if (!tr) return;
-    var def = tr.querySelector('select[name^="price["]');
-    if (!def) return;
-    tr.querySelectorAll('.nazop-cell').forEach(function (cell) {
-      var cb = cell.querySelector('input[type="checkbox"]');
-      var sel = cell.querySelector('select.nazop-op-price');
-      if (cb && sel && !cb.checked) sel.value = def.value;
-    });
-  }
-  document.querySelectorAll('.nazop-table tbody tr').forEach(function (tr) {
-    var def = tr.querySelector('select[name^="price["]');
-    if (def) {
-      def.addEventListener('change', function () { syncUncheckedFromDefault(tr); });
-    }
-    tr.querySelectorAll('.nazop-cell').forEach(function (cell) {
-      var cb = cell.querySelector('input[type="checkbox"]');
-      var sel = cell.querySelector('select.nazop-op-price');
-      if (!cb || !sel) return;
-      cb.addEventListener('change', function () {
-        if (!cb.checked) return;
-        var d = tr.querySelector('select[name^="price["]');
-        if (d) sel.value = d.value;
-      });
-    });
+  // Full-page: reload with new ops columns (dialog does this via fetch).
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var b = t.closest('button[data-nazop-ops]');
+    if (!b || !b.closest('form.nazop-form')) return;
+    e.preventDefault();
+    var form = b.closest('form.nazop-form');
+    var day = (form && form.getAttribute('data-nazop-day')) || 'all';
+    var ret = (form && form.getAttribute('data-nazop-ret')) || '/workweeks';
+    var ops = b.getAttribute('data-nazop-ops') || '';
+    var url = '/workweeks/nazop?day=' + encodeURIComponent(day)
+      + '&ret=' + encodeURIComponent(ret);
+    if (ops) url += '&ops=' + encodeURIComponent(ops);
+    location.href = url;
   });
 })();
 </script>

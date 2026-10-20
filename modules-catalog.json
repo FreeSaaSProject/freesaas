@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-19T15:06:43+00:00",
+    "generated_at": "2026-10-20T14:02:28+00:00",
     "modules": [
         {
             "id": "asr",
@@ -250,7 +250,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.27",
+            "version": "0.3.28",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -552,7 +552,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.2.6",
+            "version": "0.2.9",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -799,7 +799,7 @@
         },
         {
             "id": "contracts",
-            "version": "0.1.7",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -1756,6 +1756,71 @@
             }
         },
         {
+            "id": "video",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Video analytics",
+                "ru": "Видеоаналитика"
+            },
+            "description": {
+                "en": "Camera monitoring, YOLO jobs, alerts, and Mac worker bridge",
+                "ru": "Мониторинг камер, YOLO-задания, алерты и мост к Mac worker"
+            },
+            "summary": {
+                "en": "Enable for RTSP monitoring and YOLO inference via an outbound Mac worker. Soft-depends on bots for alerts and video_label for datasets.",
+                "ru": "Включайте для RTSP-мониторинга и инференса YOLO через исходящий Mac worker. Мягко зависит от bots (алерты) и video_label (датасеты)."
+            },
+            "requires": {
+                "core": ">=0.3.0"
+            },
+            "optionalRequires": {
+                "bots": ">=0.1.0",
+                "video_label": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "integrations"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "integration",
+                    "jobs"
+                ]
+            }
+        },
+        {
+            "id": "video_label",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Video labeling",
+                "ru": "Разметка видео"
+            },
+            "description": {
+                "en": "YOLO image labeling with Label Assist and hover-peek for low-confidence boxes",
+                "ru": "Разметка изображений YOLO с Label Assist и hover-peek для low-conf боксов"
+            },
+            "summary": {
+                "en": "Requires video module for storage and infer/train jobs. Port of LabelForge workspace to the web.",
+                "ru": "Требует модуль video для хранилища и infer/train jobs. Веб-порт workspace LabelForge."
+            },
+            "requires": {
+                "core": ">=0.3.0",
+                "video": ">=0.1.0"
+            },
+            "optionalRequires": [],
+            "catalog": {
+                "categories": [
+                    "integrations"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "jobs"
+                ]
+            }
+        },
+        {
             "id": "wellness",
             "version": "0.2.21",
             "type": "product",
@@ -1788,7 +1853,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.23",
+            "version": "0.2.29",
             "type": "product",
             "name": {
                 "en": "Shifts",

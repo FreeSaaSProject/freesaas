@@ -152,8 +152,9 @@ if ($wantsJson) {
         'can_manage_ops' => $canManageOps,
         'shift_windows' => WorkweeksRepository::shiftWindows(),
         'hint' => 'POST nazop_action=save with ops[], checked[YYYY-MM-DD][opId]=1, '
-            . 'op_price[YYYY-MM-DD][opId]=PRICE_COL, optional price[date]=day default, mas_max[date]. '
-            . 'Existing rows keep price_col unless op_price is sent. New checks use status DEFAULT_PRICE_COL then day default.',
+            . 'op_price[YYYY-MM-DD][opId]=PRICE_COL, mas_max[date]. '
+            . 'Existing rows keep price_col unless op_price is sent. '
+            . 'New checks: op_price → status DEFAULT_PRICE_COL → lane I.',
     ]);
     return;
 }

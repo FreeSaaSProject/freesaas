@@ -1,0 +1,81 @@
+{
+    "id": "video_label",
+    "name": "video_label.module.name",
+    "description": "video_label.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "requires": {
+        "core": ">=0.3.0",
+        "video": ">=0.1.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "video_label.projects"
+    ],
+    "migrations": "migrations/",
+    "permissions": [
+        {
+            "id": "video_label.view",
+            "label": "video_label.perm.view"
+        },
+        {
+            "id": "video_label.edit",
+            "label": "video_label.perm.edit"
+        },
+        {
+            "id": "video_label.delete",
+            "label": "video_label.perm.delete"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/video-label",
+            "/video-label/new",
+            "/video-label/{id}/edit",
+            "/video-label/{id}/workspace",
+            "/video-label/media"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/video-label.md",
+        "ops": [
+            {
+                "id": "video_label.projects",
+                "method": "GET",
+                "path": "/video-label",
+                "permission": "video_label.view",
+                "description": "List labeling projects"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "video.menu.group",
+            "num": 10,
+            "path": "/video-label",
+            "title": "video_label.menu.projects",
+            "kind": "work"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_video_label_projects",
+        "base_video_label_images"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [],
+        "publish": []
+    },
+    "catalog": {
+        "categories": [
+            "integrations"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "jobs"
+        ],
+        "screenshots": []
+    }
+}

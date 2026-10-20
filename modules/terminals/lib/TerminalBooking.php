@@ -24,6 +24,8 @@ final class TerminalBooking
      *   token?:string,
      *   order_id?:int,
      *   disable_1c?:bool,
+     *   employee?:bool,
+     *   staff_user_id?:int,
      *   notice?:string,
      *   lead_sec?:int,
      *   skip_chill?:bool,
@@ -34,6 +36,7 @@ final class TerminalBooking
      *   procedure_id?:int,
      *   chill_procedure_id?:int,
      *   sale_id?:string,
+     *   payment_id?:int,
      *   product_name?:string,
      *   price?:float,
      *   dt_end?:int,
@@ -70,11 +73,17 @@ final class TerminalBooking
             $adminId = $operatorId;
         }
 
+        $staffUserId = max(0, (int)($input['staff_user_id'] ?? 0));
+        $isEmployee = !empty($input['employee']) || $staffUserId > 0;
+
         $leadSec = isset($input['lead_sec'])
             ? max(0, (int)$input['lead_sec'])
             : (class_exists(TerminalsConfig::class, false) ? TerminalsConfig::leadSec() : 180);
 
-        $disable1c = !empty($input['disable_1c']) || TerminalsConfig::onecStubMode(false);
+        // Employee floor: oper virtual sale idSale=999 — force stub / no live 1C.
+        $disable1c = $isEmployee
+            || !empty($input['disable_1c'])
+            || TerminalsConfig::onecStubMode(false);
         // Live 1C: full slot/shift gate. Stub/force-majeure: still refuse past starts, skip shift matrix.
         if (!$disable1c && class_exists(BookingValidate::class, false)) {
             try {
@@ -144,7 +153,20 @@ final class TerminalBooking
         $preSaleId = trim((string)($input['sale_id'] ?? $input['document_id'] ?? ''));
         $saleId = '';
         $saleStub = false;
-        if ($preSaleId !== '') {
+        if ($isEmployee) {
+            // Oper: virtual idSale=999 for staff-as-client (excluded from dayColumnStats revenue).
+            $saleId = '999';
+            $saleStub = true;
+            $stack[] = [
+                'key' => 'sale',
+                'ok' => true,
+                'stub' => true,
+                'employee' => true,
+                'sale_id' => $saleId,
+                'price' => $price,
+                'detail' => 'employee virtual sale',
+            ];
+        } elseif ($preSaleId !== '') {
             $saleId = $preSaleId;
             $stack[] = [
                 'key' => 'sale',
@@ -269,6 +291,25 @@ final class TerminalBooking
             'product_name' => $productName,
         ];
 
+        $paymentId = null;
+        if ($isEmployee && $staffUserId > 0 && class_exists(EmployeeProcedureSettle::class, false)) {
+            try {
+                $paymentId = EmployeeProcedureSettle::applyOnBook($procId, $staffUserId, $price, $dtStart);
+                $stack[] = [
+                    'key' => 'employee_settle',
+                    'ok' => true,
+                    'payment_id' => $paymentId,
+                    'skipped' => $paymentId === null,
+                ];
+            } catch (Throwable $e) {
+                $stack[] = [
+                    'key' => 'employee_settle',
+                    'ok' => false,
+                    'detail' => $e->getMessage(),
+                ];
+            }
+        }
+
         $chillId = 0;
         $skipChill = !empty($input['skip_chill']);
         $timeChill = isset($input['time_chill']) ? max(0, (int)$input['time_chill']) : -1;
@@ -354,6 +395,9 @@ final class TerminalBooking
             'dt_end' => $dtEnd,
             'stack' => $stack,
         ];
+        if ($paymentId !== null && $paymentId > 0) {
+            $out['payment_id'] = $paymentId;
+        }
         if ($chillId > 0) {
             $out['chill_procedure_id'] = $chillId;
         }

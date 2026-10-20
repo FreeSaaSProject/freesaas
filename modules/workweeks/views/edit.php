@@ -14,7 +14,7 @@ $date = (string)($row['date'] ?? date('Y-m-d'));
 $op = (int)($row['id_operator'] ?? 0);
 $pc = WorkweeksRepository::normalizePriceCol((int)($row['price_col'] ?? 1));
 $mm = max(1, (int)($row['mas_max'] ?? 1));
-$tid = WorkweeksRepository::normalizeTableId((int)($row['id_table'] ?? 1));
+$tid = max(0, (int)($row['id_table'] ?? 0));
 $shiftWindows = WorkweeksRepository::shiftWindows();
 ?>
 <section class="page-head">
@@ -52,16 +52,14 @@ $shiftWindows = WorkweeksRepository::shiftWindows();
   <?php if ($tablesOn): ?>
     <label><?= te('workweeks.col.table') ?>
       <select name="id_table">
+        <option value="0"<?= $tid < 1 ? ' selected' : '' ?>><?= te('workweeks.nazcab.table_none') ?></option>
         <?php foreach ($tableOptions as $oid => $olabel): ?>
           <option value="<?= (int)$oid ?>"<?= $tid === (int)$oid ? ' selected' : '' ?>><?= e($olabel) ?></option>
         <?php endforeach; ?>
-        <?php if ($tableOptions === []): ?>
-          <option value="1" selected>1</option>
-        <?php endif; ?>
       </select>
     </label>
   <?php else: ?>
-    <input type="hidden" name="id_table" value="1">
+    <input type="hidden" name="id_table" value="0">
   <?php endif; ?>
   <div class="form-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>

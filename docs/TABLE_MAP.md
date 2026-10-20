@@ -74,6 +74,8 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_doc_instances` / `base_doc_field_index` | docs | Filled documents incl. medcards (`PAYLOAD` JSON, frozen print, QR hashes) + narrow search index |
 | `base_doc_proposals` | docs | Pending autofill values (audio/LLM/import) awaiting staff accept |
 | `base_clients` / `base_procedures` / `base_events` / `base_records` (read) | docs | Merge context + spawn triggers; no medical columns added to these tables |
+| `base_video_workers`, `base_video_models`, `base_video_cameras`, `base_video_jobs`, `base_video_alerts`, `base_video_detections` | video | YOLO jobs, cameras, alerts; media files under `var/video/` |
+| `base_video_label_projects`, `base_video_label_images` | video_label | LabelForge-style projects; requires `video` for storage/infer |
 
 Session keys: `user_id`, `login`, `user_name`, `permissions`, `status_id`, `status_flags`.
 

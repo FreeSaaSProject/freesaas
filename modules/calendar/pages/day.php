@@ -83,6 +83,12 @@ $tableMaps = (class_exists('TablesRepository', false) && TablesRepository::isAct
     ? TablesRepository::labelMaps(false)
     : ['plain' => [], 'html' => []];
 $shiftLabels = [];
+$shiftDefaultPcs = class_exists('WorkweeksRepository', false)
+    ? WorkweeksRepository::defaultPriceColsForOperators(array_map(
+        static fn(array $sh): int => (int)($sh['id_operator'] ?? 0),
+        $shifts
+    ))
+    : [];
 foreach ($shifts as $sh) {
     $oid = (int)$sh['id_operator'];
     $name = (string)($sh['operator_name'] !== '' ? $sh['operator_name'] : ('#' . $oid));
@@ -99,12 +105,13 @@ foreach ($shifts as $sh) {
     if (class_exists('WorkweeksRepository', false)) {
         $label .= WorkweeksRepository::shiftChipSuffix(
             (int)($sh['price_col'] ?? 1),
-            (int)($sh['group'] ?? 0)
+            (int)($shiftDefaultPcs[$oid] ?? 0)
         );
     } elseif ((int)($sh['price_col'] ?? 1) > 1) {
         $label .= (int)$sh['price_col'];
     }
-    $idTable = (int)($sh['id_table'] ?? 0);
+    // Tables/nazcab are today-only — hide markers on past/future day boards.
+    $idTable = ($dateParam === $today) ? (int)($sh['id_table'] ?? 0) : 0;
     $tablePlain = ($idTable > 0 && isset($tableMaps['plain'][$idTable]))
         ? (string)$tableMaps['plain'][$idTable]
         : '';

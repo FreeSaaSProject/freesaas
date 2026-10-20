@@ -37,6 +37,7 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
     <label class="check"><input type="checkbox" name="promo_enabled" value="1"<?= $on('promo_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.promo_enabled') ?></label>
     <label class="check"><input type="checkbox" name="dops_enabled" value="1"<?= $on('dops_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.dops_enabled') ?></label>
     <label class="check"><input type="checkbox" name="restores_enabled" value="1"<?= $on('restores_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.restores_enabled') ?></label>
+    <label class="check"><input type="checkbox" name="employee_settle_enabled" value="1"<?= $on('employee_settle_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.employee_settle_enabled') ?></label>
     <label class="check"><input type="checkbox" name="staff_debts_enabled" value="1"<?= $on('staff_debts_enabled') ? ' checked' : '' ?>> <?= te('likespa.settings.staff_debts_enabled') ?></label>
   </fieldset>
 
@@ -221,6 +222,15 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
     <label><?= te('likespa.settings.restores_payment_type') ?>
       <input type="number" name="restores_payment_type" min="1" value="<?= e($c('restores_payment_type', '1')) ?>">
       <span class="muted"><?= te('likespa.settings.restores_payment_type_hint') ?></span>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend><?= te('likespa.settings.sec.employee_settle') ?></legend>
+    <p class="muted"><?= te('likespa.settings.employee_settle_hint') ?></p>
+    <label><?= te('likespa.settings.employee_settle_payment_type') ?>
+      <input type="number" name="employee_settle_payment_type" min="1" value="<?= e($c('employee_settle_payment_type', '1')) ?>">
+      <span class="muted"><?= te('likespa.settings.employee_settle_payment_type_hint') ?></span>
     </label>
   </fieldset>
 
