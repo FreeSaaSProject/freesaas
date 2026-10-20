@@ -190,7 +190,7 @@ return [
     'audio_dicts.scripts.cond.no_intersect' => 'No overlaps',
     'audio_dicts.scripts.cond.volume_gt' => 'Volume >',
     'audio_dicts.scripts.cond.term_scan_unique' => 'Unique bracelet scans',
-    'audio_dicts.scripts.cond.term_scan_unique_hint' => 'Scan after an opening communication (saved script collection). Window = TIMEOUT seconds after collection end (0 → 600). Orphan scans without openings do not count. SCORE_RATE is applied on Re-®/collect. Traffic light = unique matched clients. Needs likespa/term_scans.',
+    'audio_dicts.scripts.cond.term_scan_unique_hint' => 'Scan after an opening communication (saved script collection). Window = TIMEOUT seconds after collection end (0 → 600). Orphan scans without openings do not count. SCORE_RATE is applied on Re-®/collect. Traffic light = unique matched clients. Needs term_scans (spa instance pack).',
     'audio_dicts.scripts.field.scan_window' => 'Window after communication, s',
     'audio_dicts.scripts.field.scan_window_hint' => 'Look for a scan in this interval after collection end. 0 = 600s. Each client once; orphan scans without openings do not count.',
     'audio_dicts.scripts.field.gate_red_max_scan' => 'Red up to (uniques)',

@@ -26,7 +26,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 ## Human UI
 
-- `/units` — units of measure (shared with oper).
+- `/units` — units of measure.
 
 | Path | Permission |
 |------|------------|

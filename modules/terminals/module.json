@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "0.1.42",
+    "version": "0.1.43",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -344,18 +344,7 @@
         "base_client_onec_bindings",
         "base_staff_bracelets"
     ],
-    "migrators": [
-        {
-            "id": "phpshop_shopusers_bracelets_to_base_staff_bracelets",
-            "mode": "seed",
-            "source": [
-                "phpshop_shopusers"
-            ],
-            "target": [
-                "base_staff_bracelets"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "catalog.product_edit.sections",

@@ -39,14 +39,6 @@ if ($bin === false) {
 $ring = max(1, (int)Config::get('video', 'latest_frame_ring', 3));
 $rel = VideoStorage::putBytes('live/' . $cameraId, 'live_' . time() . '.jpg', $bin);
 
-// Trim ring
-$dir = VideoStorage::ensureSub('live/' . $cameraId);
-$files = glob($dir . '/live_*.jpg') ?: [];
-rsort($files);
-foreach (array_slice($files, $ring) as $old) {
-    @unlink($old);
-}
-
 $detections = $data['detections'] ?? [];
 if (!is_array($detections)) {
     $detections = [];
@@ -58,6 +50,11 @@ if (!empty($data['frame_b64'])) {
         $frameRel = VideoStorage::putBytes('live/' . $cameraId, 'raw_' . time() . '.jpg', $rawFrame);
     }
 }
+
+// Trim both annotated and raw rings (otherwise raw_*.jpg orphans grow forever)
+$liveSub = 'live/' . $cameraId;
+VideoStorage::trimRing($liveSub, 'live_*.jpg', $ring);
+VideoStorage::trimRing($liveSub, 'raw_*.jpg', $ring);
 
 VideoCamerasRepository::updateLastFrame($cameraId, $frameRel, $rel, ['detections' => $detections, 'live' => true]);
 

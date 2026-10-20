@@ -423,6 +423,11 @@ final class DocsInstancesRepository
             if ($row === null) {
                 continue;
             }
+            // Same gate as the edit UI: docs.edit alone must not delete medcards without docs.medical.
+            if (!DocsConfig::canSeeKind((string)$row['kind'])) {
+                $skipped[] = ['id' => $id, 'reason' => t('docs.err.no_medical')];
+                continue;
+            }
             if ((int)$row['dt_print'] > 0) {
                 $skipped[] = ['id' => $id, 'reason' => t('docs.err.delete_printed')];
                 continue;

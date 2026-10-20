@@ -1,4 +1,4 @@
-# AGENTS.md — FreeSaaS (likespa)
+# AGENTS.md — FreeSaaS
 
 Instructions for coding agents working in this repository. Human guide: [`docs/GUIDE.md`](docs/GUIDE.md). Table ownership: [`docs/TABLE_MAP.md`](docs/TABLE_MAP.md). Agent-native audit and platform/module requirements: [`docs/agent-native-audit.md`](docs/agent-native-audit.md). Operation runbooks: [`docs/agents/`](docs/agents/). Quick path: [`docs/agents/QUICKSTART.md`](docs/agents/QUICKSTART.md). Auth surfaces: [`docs/agents/agent-surfaces.md`](docs/agents/agent-surfaces.md).
 
@@ -95,7 +95,7 @@ View::render('foo', [/* vars */], 'layout', 'myid');
 
 ### Breadcrumbs
 
-Oper-style trail rendered by the **layout** at the top of every authenticated page. Pages build items and pass them to `View::render` (or call `Breadcrumbs::set()`). Always start from system Home via `withHome()`:
+Breadcrumb trail rendered by the **layout** at the top of every authenticated page. Pages build items and pass them to `View::render` (or call `Breadcrumbs::set()`). Always start from system Home via `withHome()`:
 
 ```php
 View::render('foo', [
@@ -167,8 +167,8 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `comments` | Comment thread on news items; no own menu routes |
 | `contracts` | Offers/contracts; depends on `core` + `comments` |
 | `clients` | Client CRM (`base_clients`) + client statuses; login identity = phone |
-| `units` | Units of measure (`base_units`, shared with oper) |
-| `suppliers` | Suppliers (`base_suppliers`, shared with oper) |
+| `units` | Units of measure (`base_units`) |
+| `suppliers` | Suppliers (`base_suppliers`) |
 | `cabinets` | Rooms (`base_cabinets`); used by stocks `ID_CABINET` and staff `skin` |
 | `tables` | Massage tables (`base_tables`); optional — without it `ID_TABLE` defaults to `1` |
 | `workweeks` | Day shifts (`base_workweeks`); menu under Team; embedded in calendar day |
@@ -185,8 +185,8 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `terminals` | Device registry + bracelets + therm occupancy; live `/t` floor shell; 1C sale/bracelet + sync jobs (`cfg/modules/terminals.ini`); disableable — [`docs/agents/terminals.md`](docs/agents/terminals.md) |
 | `staff_reports` | Staff quality day reports (traffic lights by position); rewards on `/audio/calendar`; generate via Re-® / `/staff-reports/generate` |
 | `bi` | JSON-recipe BI **engine** (constructor `/bi/families`, legend `/bi/legend`); datasets/recipes/derive via EventBus from product modules; director `bi.manage`; share `/bi/s/{token}` — [`docs/agents/bi.md`](docs/agents/bi.md) |
-| `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`, `base_procedure_restores` schema); restore UI lives in `likespa` |
-| `orders` | Website orders (`base_orders`, shared with site/oper); notice chips; `orders.for_day` for calendar |
+| `procedures` | Procedure types + journal (`base_procedure_types`, `base_procedures`, `base_procedure_restores` schema); restore UI in optional spa instance pack |
+| `orders` | Website orders (`base_orders`, shared with storefront); notice chips; `orders.for_day` for calendar |
 | `polls` | Poll definitions tree (`base_polls`); universal; channels via EventBus |
 | `poll_invites` | Poll invite instances + staff fill (`base_poll_invites`); requires `polls`; publish `poll_invites.*` for bots/site |
 | `calendar` | Day view + event CRUD (`base_events*`); requires `workweeks`; can create procedures from event |
@@ -229,6 +229,6 @@ Prefer extending these via hooks before forking page logic.
 
 ## Out of scope unless asked
 
-- Rewriting legacy oper in place.
+- Rewriting a co-hosted legacy admin UI in place.
 - Composer frameworks, React SPA, new build tooling.
 - Force-push, amend, or commits without explicit user request.

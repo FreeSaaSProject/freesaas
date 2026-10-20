@@ -5,7 +5,6 @@ return [
     'docs.module.name' => 'Документы и медкарты',
     'docs.module.description' => 'Конструктор документов: согласия, чеки и медицинские карты на одном движке — шаблоны с версиями, заполнение по схеме, печать с фиксацией и QR-архив.',
     'docs.module.summary' => 'Включать для печати согласий и ведения медкарт. Нужен clients; мягко: calendar (визиты), procedures (мед. процедуры), audio/audio_llm (автозаполнение), stickers (QR-библиотека). Альфа.',
-    'docs.migrator.legacy_docs_medcard' => 'Legacy: ANA_*/OBJ_* клиентов и мед. процедур → медкарты (шаблоны — через библиотеку файлов)',
     'docs.menu.group' => 'Документы',
     'docs.menu.list' => 'Документы',
     'docs.menu.defs' => 'Шаблоны документов',
@@ -107,6 +106,7 @@ return [
     'docs.err.no_dossier_def' => 'Нет шаблона полной медкарты',
     'docs.err.no_print' => 'Нет права печатать документы',
     'docs.err.proposal_not_found' => 'Предложение не найдено или уже обработано',
+    'docs.err.proposal_mismatch' => 'Предложение не относится к этому документу',
     'docs.err.proposal_field' => 'Поле {id} отсутствует в шаблоне документа',
 
     'docs.proposals.title' => 'Предложения автозаполнения ({n})',

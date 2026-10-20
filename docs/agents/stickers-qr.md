@@ -4,7 +4,7 @@ Legacy-compatible warehouse sticker scanner for FreeSaaS. Printed labels encode:
 
 `https://{public_host}/qr2.php?q={HASH}`
 
-HASH = `md5(PIN + time[+n])` (same as oper / `StickerInsRepository::makeHash`).
+HASH = `md5(PIN + time[+n])` (`StickerInsRepository::makeHash`).
 
 ## Auth (no `qq` / `qrauth`)
 
@@ -46,11 +46,11 @@ Session JSON (`?format=json` / `Accept: application/json`). See `modules/sticker
 
 ## Ins list filters / bulk
 
-`/stickers/ins` compact filters (oper parity): year, month, material name (`good_q` → `is_material`), stock, supplier, act/good id, activated, revision, QQR piece/multi, weighable, used.
+`/stickers/ins` compact filters: year, month, material name (`good_q` → `is_material`), stock, supplier, act/good id, activated, revision, QQR piece/multi, weighable, used.
 
 Bulk (selection): print, send to reactivation (`DT_REPRINT`), delete.
 
-Stock-wide (filter `id_stock` required): revision on/off (off = SUPERADMIN), movement on/off — same rules as oper (no open weight outs; mutually exclusive modes).
+Stock-wide (filter `id_stock` required): revision on/off (off = SUPERADMIN), movement on/off — no open weight outs; mutually exclusive modes.
 
 ## Print (A4 group)
 
@@ -58,10 +58,10 @@ Staff:
 
 - Menu **Print stickers** → `/stickers/ins/print` (all pending; multi-page).
 - Bulk action **Print selected** on `/stickers/ins` → `/stickers/ins/print?ids=…`.
-- Grid **5×13 = 65** labels per A4 page (oper parity); CSS page breaks for more.
+- Grid **5×13 = 65** labels per A4 page; CSS page breaks for more.
 - Does **not** set `DT_PRINT` (activation is on QR scan). QR via LGPL phpqrcode.
 
-Optional anonymous warehouse-PC link (oper `printstickers=1`):
+Optional anonymous warehouse-PC link (`public_print_enabled`):
 
 ```ini
 ; cfg/modules/stickers.ini — off by default

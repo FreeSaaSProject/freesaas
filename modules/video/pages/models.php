@@ -25,13 +25,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $baseWeights = trim((string)($_POST['base_weights'] ?? ''));
         $epochs = max(1, (int)($_POST['epochs'] ?? 50));
         $name = trim((string)($_POST['model_name'] ?? 'train'));
-        $dataYaml = '';
         $exportRel = '';
+        $exportZipRel = '';
         $classes = [];
         if ($projectId > 0 && class_exists(VideoLabelProjectsRepository::class, false)) {
             try {
                 $exportRel = VideoLabelProjectsRepository::exportYolo($projectId);
-                $dataYaml = VideoStorage::abs($exportRel . '/data.yaml');
+                // Ship zip for Mac worker (never pass PHP-server absolute paths)
+                $exportZipRel = VideoStorage::zipRelDir(
+                    $exportRel,
+                    'train_p' . $projectId . '_' . time() . '.zip'
+                );
                 $proj = VideoLabelProjectsRepository::find($projectId);
                 if ($proj) {
                     foreach ($proj['classes'] as $c) {
@@ -41,6 +45,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             } catch (Throwable $e) {
                 $error = $e->getMessage();
             }
+        } else {
+            $error = t('video.models.err_train_project');
+        }
+        if ($error === '' && $exportZipRel === '') {
+            $error = t('video.models.err_train_zip');
         }
         if ($error === '') {
             $jobId = VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_TRAIN, [
@@ -49,8 +58,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 'epochs' => $epochs,
                 'model_name' => $name,
                 'imgsz' => (int)($_POST['imgsz'] ?? 640),
-                'data_yaml' => $dataYaml,
                 'export_rel' => $exportRel,
+                'export_zip_rel' => $exportZipRel,
                 'classes' => $classes,
             ]);
             if ($wantsJson) {

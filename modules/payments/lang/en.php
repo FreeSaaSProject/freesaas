@@ -161,12 +161,14 @@ return [
     'payments.contract.pay' => 'Pay offer',
     'payments.contract.paid' => 'Paid',
     'payments.module.description' => 'Staff settlements (base_payments, base_payment_types); contracts pay CTA; auto-DPS with ledger.',
-    'payments.module.summary' => 'Enable for paying specialists and settlement docs. Soft ledger (auto-DPS), likespa, procents (auto % MONTH or daily accruals). Use with contracts for pay CTAs.',
+    'payments.module.summary' => 'Enable for paying specialists and settlement docs. Soft ledger (auto-DPS), spa instance pack, procents (auto % MONTH or daily accruals). Use with contracts for pay CTAs.',
 
     'payments.bot.day_pay.unavailable' => 'Cash requests are unavailable — contact the director.',
     'payments.bot.day_pay.after_shift' => 'You can schedule a payout after today’s shift ends.',
     'payments.bot.day_pay.only_daily' => 'Available to staff with daily payroll only.',
     'payments.bot.day_pay.pending_exists' => 'You already have an open payout request.',
+    'payments.bot.day_pay.busy' => 'Another payout operation is in progress — try again in a moment.',
+
     'payments.bot.day_pay.low_balance' => 'Balance too low (need at least 100).',
     'payments.bot.day_pay.bad_date' => 'Selected date is not available.',
     'payments.bot.day_pay.bad_issuer' => 'Selected issuer is not available on that date.',

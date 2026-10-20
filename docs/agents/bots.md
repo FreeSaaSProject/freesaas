@@ -77,7 +77,7 @@ Rail group **Bots** lists types present by enabled modules:
 
 Type page (`/bots/types/{audience}`):
 
-- **Cabinet menu catalog** — oper employeeBot/client features mapped to FreeSaaS modules with status `active` / `pending` / `module_off` / `missing` (`BotMenuCatalog`).
+- **Cabinet menu catalog** — staff/client cabinet features mapped to FreeSaaS modules with status `active` / `pending` / `module_off` / `missing` (`BotMenuCatalog`).
 - **Live preview** — labels from `BotPlugins::collectCabinet` right now.
 - Channels + queue pending count.
 
@@ -180,4 +180,4 @@ Staff/client messenger fields: `bots` via EventBus — `core.user_edit.*`, `core
 - `base_telegram_sends` — outbound queue (`BOT_SOURCE` 1=client, 2=staff; STATUS 1/2/3/100; optional `PLATFORM` for direct `CHAT_ID`)
 - `base_bot_links` — messenger identities (`BOT_SOURCE`, `ID_ENTITY`, `telegram_chat_id`, `max_user_id`, `BOT_NO_SEND`)
 
-Legacy columns on `base_users` / `base_clients` (if present) are copied then dropped by migration `002_bot_links_extract`. Fresh installs never add them. Import from phpshop: migrator `phpshop_messenger_to_base_bot_links`.
+Legacy columns on `base_users` / `base_clients` (if present) are copied then dropped by migration `002_bot_links_extract`. Fresh installs never add them.

@@ -2,7 +2,7 @@
 
 Product module `likespa`: restores, FREE_TICKET, flyer/promo, term scans, calendar overlays. Soft-depends on `sites` / `booking` / `procedures` / … — does not own the storefront kernel ([`sites.md`](sites.md)).
 
-## Cutover from legacy likespa2 / PHPShop / Balance
+## Cutover from legacy storefront
 
 1. Enable `sites` (+ catalog/orders/clients) on the shared FreeSaaS DB; enable `likespa` when you need instance features.
 2. Run sites migrations `006`/`007` — seeds default host from `public_host` / `mothersite`.
@@ -13,7 +13,7 @@ Product module `likespa`: restores, FREE_TICKET, flyer/promo, term scans, calend
    - `likespa2.hm` — host theme `likespa`, catalog roots as needed, FREE_TICKET on
    - `balance-spa2.hm` — host theme `balance`, promo `balance` (#10), catalog root **16**, FREE_TICKET off
 5. Symlink or sync `UserFiles/` from the legacy tree for promo/media URLs.
-6. Keep old PHPShop trees until parity; do not keep writing `phpshop_*` from the new runtime.
+6. Runtime writes only `base_*` tables.
 
 ## Procedure restores
 
@@ -73,7 +73,7 @@ Endpoints: `health` (`status: ok`), `get_categories`, `get_services`, `get_perso
 
 Shapes stay **arrays**: `{categories:[{id,name}]}`, `{services:[{id,name,price,duration,category_id}], date}`. Category scoped by `legacy_api_termy_category` (default 16). Do not change these to Android map shapes.
 
-### `/api.php` (Android kiosk — old phpshop contract)
+### `/api.php` (Android kiosk — legacy contract)
 
 Endpoints: Termy subset plus `cancel_booking`, `free_terminal`, `get_employee_status`, `log_event` (stub `{ok:1}`).
 

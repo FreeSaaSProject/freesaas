@@ -124,7 +124,7 @@ return [
     'procedures.bot.assigned.denied' => 'Доступно массажистам/совместителям в день смены.',
     'procedures.bot.assigned.line' => '{time} — {product} — {client}',
     'procedures.bot.assigned.order_line' => '{time} — ЗАКАЗ {products} — {client}',
-    'procedures.module.description' => 'Типы и журнал процедур (base_procedure_*); UI восстановлений — в likespa.',
+    'procedures.module.description' => 'Типы и журнал процедур (base_procedure_*); UI восстановлений — в опциональном spa instance pack.',
     'procedures.module.summary' => 'Включайте для типов и журнала процедур. Требует clients + catalog. Мягко tables/bots. Нужен calendar, rates, procents, bonuses, staff_reports. Базовый spa-домен — до calendar/rates.',
     'procedures.perm.delete' => 'Удаление процедур',
     'procedures.perm.types_delete' => 'Удаление типов процедур',

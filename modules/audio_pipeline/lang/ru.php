@@ -11,7 +11,7 @@ return [
     'audio_pipeline.cron.stem' => 'Stem/день (каждые 5 мин)',
     'audio_pipeline.cron.stem_nightly' => 'Stem/день (форс ночью в 02:00)',
     'audio_pipeline.settings.coverage' => 'Покрытие записей (отключение простоя)',
-    'audio_pipeline.settings.coverage_hint' => 'Глобальные значения. Ниже — опциональные оверрайды по роли / сотруднику. Вне likespa оставляйте сопоставление процедур выключенным.',
+    'audio_pipeline.settings.coverage_hint' => 'Глобальные значения. Ниже — опциональные оверрайды по роли / сотруднику. Без сопоставления процедур оставляйте match выключенным.',
     'audio_pipeline.settings.disable_outside' => 'Отключать записи вне покрытия после collect',
     'audio_pipeline.settings.disable_outside_hint' => 'Остаются включёнными: rated-коллекция, платная процедура (± буфер) или «треб. осмотра». Нужен флаг DISABLE_NON_PROCEDURE_TIME на роли.',
     'audio_pipeline.settings.match_procedures' => 'Сравнивать / сопоставлять платные процедуры с сессиями скриптов',

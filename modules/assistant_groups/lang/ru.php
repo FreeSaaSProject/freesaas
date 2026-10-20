@@ -45,7 +45,7 @@ return [
     'assistant_groups.settings.save' => 'Сохранить',
     'assistant_groups.settings.to_status' => 'Диагностика',
     'assistant_groups.settings.sec.webhook' => 'Webhook Max',
-    'assistant_groups.settings.webhook_intro' => 'Для production: HTTPS на likespa.ru. Long-poll и webhook одновременно нельзя — после подписки cron-опрос отключается.',
+    'assistant_groups.settings.webhook_intro' => 'Для production: HTTPS на публичном admin-хосте. Long-poll и webhook одновременно нельзя — после подписки cron-опрос отключается.',
     'assistant_groups.settings.webhook_url' => 'URL webhook',
     'assistant_groups.settings.webhook_status_on' => 'Подписка отмечена как активная (webhook_subscribed=1).',
     'assistant_groups.settings.webhook_status_off' => 'Подписка не отмечена — работает fallback long-poll (cron), пока Max не подписан.',

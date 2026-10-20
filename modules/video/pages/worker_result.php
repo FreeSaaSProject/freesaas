@@ -59,32 +59,40 @@ if ($type === VideoJobsRepository::TYPE_MONITOR_TICK || $type === VideoJobsRepos
     if (!is_array($detections)) {
         $detections = [];
     }
+    $allPaths = array_values(array_filter([$annotatedRel, $frameRel], static fn (string $p): bool => $p !== ''));
     $pathForDetect = $annotatedRel !== '' ? $annotatedRel : $frameRel;
-    $bytes = $pathForDetect !== '' ? VideoStorage::sizeBytes($pathForDetect) : 0;
+    $extraPaths = [];
+    foreach ($allPaths as $p) {
+        if ($p !== $pathForDetect) {
+            $extraPaths[] = $p;
+        }
+    }
+    $bytes = 0;
+    foreach ($allPaths as $p) {
+        $bytes += VideoStorage::sizeBytes($p);
+    }
 
     if (!empty($result['alert']) && is_array($result['alert'])) {
-        $paths = array_values(array_filter([$frameRel, $annotatedRel]));
         $alertId = VideoAlertsRepository::create(
             $cameraId,
             (string)($result['alert']['kind'] ?? 'absence'),
             (string)($result['alert']['message'] ?? ''),
-            $paths,
+            $allPaths,
             is_array($result['alert']['meta'] ?? null) ? $result['alert']['meta'] : []
         );
-        // Fire bots notice if available
         if (class_exists(EventBus::class, false)) {
             EventBus::emit('video.alert.created', [
                 'alert_id' => $alertId,
                 'camera_id' => $cameraId,
                 'kind' => (string)($result['alert']['kind'] ?? 'absence'),
                 'message' => (string)($result['alert']['message'] ?? ''),
-                'paths' => $paths,
+                'paths' => $allPaths,
             ]);
         }
     }
 
-    if ($cameraId > 0 && ($pathForDetect !== '' || $detections !== [])) {
-        VideoDetectionsRepository::insert($cameraId, $pathForDetect, $detections, $alertId, $bytes);
+    if ($cameraId > 0 && ($pathForDetect !== '' || $detections !== [] || $extraPaths !== [])) {
+        VideoDetectionsRepository::insert($cameraId, $pathForDetect, $detections, $alertId, $bytes, $extraPaths);
         VideoCamerasRepository::updateLastFrame($cameraId, $frameRel, $annotatedRel, [
             'detections' => $detections,
             'alert_id' => $alertId,

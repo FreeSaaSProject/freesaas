@@ -124,7 +124,7 @@ return [
     'procedures.bot.assigned.denied' => 'Available to masseurs/part-timers on a shift day.',
     'procedures.bot.assigned.line' => '{time} — {product} — {client}',
     'procedures.bot.assigned.order_line' => '{time} — ORDER {products} — {client}',
-    'procedures.module.description' => 'Procedure types and journal (base_procedure_*); restore UI lives in likespa.',
+    'procedures.module.description' => 'Procedure types and journal (base_procedure_*); restore UI lives in the optional spa instance pack.',
     'procedures.module.summary' => 'Enable for spa procedure catalog and journal. Requires clients + catalog. Soft tables/bots. Required by calendar, rates, procents, bonuses, staff_reports. Core spa domain — enable before calendar/rates.',
     'procedures.perm.delete' => 'Delete procedures',
     'procedures.perm.types_delete' => 'Delete procedure types',

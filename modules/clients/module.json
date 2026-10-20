@@ -237,38 +237,7 @@
         "base_shopusers_tags",
         "base_client_tag_links"
     ],
-    "migrators": [
-        {
-            "id": "phpshop_shopusers_status_to_base_client_statuses",
-            "mode": "replace",
-            "source": [
-                "phpshop_shopusers_status"
-            ],
-            "target": [
-                "base_client_statuses"
-            ]
-        },
-        {
-            "id": "phpshop_shopusers_to_base_clients",
-            "mode": "replace",
-            "source": [
-                "phpshop_shopusers"
-            ],
-            "target": [
-                "base_clients"
-            ]
-        },
-        {
-            "id": "phpshop_shopusers_tags_to_base_client_tag_links",
-            "mode": "replace",
-            "source": [
-                "phpshop_shopusers"
-            ],
-            "target": [
-                "base_client_tag_links"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "core.dashboard.catalog",

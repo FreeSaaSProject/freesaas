@@ -2,7 +2,7 @@
     "id": "procents",
     "name": "procents.module.name",
     "description": "procents.module.description",
-    "version": "0.1.13",
+    "version": "0.1.14",
     "type": "product",
     "runtime": "both",
     "requires": {

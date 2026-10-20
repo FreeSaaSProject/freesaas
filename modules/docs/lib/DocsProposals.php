@@ -123,31 +123,61 @@ final class DocsProposals
         return $out;
     }
 
-    public static function accept(int $proposalId): void
+    /**
+     * Accept a pending proposal into its instance payload.
+     * $instanceId must be the document currently open (prevents IDOR via a foreign proposal_id).
+     */
+    public static function accept(int $proposalId, int $instanceId): void
     {
-        $p = self::findPending($proposalId);
+        $p = self::assertProposalForInstance($proposalId, $instanceId);
         $prov = array_merge(['proposal_id' => (int)$p['id']], $p['meta']);
         if ((float)$p['confidence'] > 0) {
             $prov['confidence'] = (float)$p['confidence'];
         }
-        $row = DocsInstancesRepository::find((int)$p['id_instance']);
+        $row = DocsInstancesRepository::find($instanceId);
         $ver = $row !== null ? DocsDefsRepository::version((int)$row['id_version']) : null;
         if ($ver === null || !isset(DocsSchema::fieldMap($ver['schema'])[(string)$p['field_id']])) {
             throw new InvalidArgumentException(t('docs.err.proposal_field', ['id' => (string)$p['field_id']]));
         }
-        DocsInstancesRepository::updateFields((int)$p['id_instance'], [(string)$p['field_id'] => $p['value']], (string)$p['source'], $prov);
+        DocsInstancesRepository::updateFields($instanceId, [(string)$p['field_id'] => $p['value']], (string)$p['source'], $prov);
         self::decide($proposalId, self::STATUS_ACCEPTED);
         // Other pending values for the same field are superseded.
         Database::pdo()->prepare(
             'UPDATE base_doc_proposals SET STATUS = ?, DT_DECIDED = ?, ID_ADMIN_DECIDED = ?
              WHERE ID_INSTANCE = ? AND FIELD_ID = ? AND STATUS = 0'
-        )->execute([self::STATUS_REJECTED, time(), (int)(Auth::userId() ?? 0), (int)$p['id_instance'], (string)$p['field_id']]);
+        )->execute([self::STATUS_REJECTED, time(), (int)(Auth::userId() ?? 0), $instanceId, (string)$p['field_id']]);
     }
 
-    public static function reject(int $proposalId): void
+    /** Reject a pending proposal; $instanceId must own the proposal (same IDOR guard as accept). */
+    public static function reject(int $proposalId, int $instanceId): void
     {
-        self::findPending($proposalId);
+        self::assertProposalForInstance($proposalId, $instanceId);
         self::decide($proposalId, self::STATUS_REJECTED);
+    }
+
+    /**
+     * Proposal must belong to $instanceId and the caller must be allowed to see that document's kind
+     * (docs.medical for medcards).
+     *
+     * @return array<string,mixed>
+     */
+    private static function assertProposalForInstance(int $proposalId, int $instanceId): array
+    {
+        if ($instanceId < 1) {
+            throw new InvalidArgumentException(t('docs.err.proposal_mismatch'));
+        }
+        $p = self::findPending($proposalId);
+        if ((int)$p['id_instance'] !== $instanceId) {
+            throw new InvalidArgumentException(t('docs.err.proposal_mismatch'));
+        }
+        $row = DocsInstancesRepository::find($instanceId);
+        if ($row === null) {
+            throw new InvalidArgumentException(t('docs.err.not_found', ['id' => (string)$instanceId]));
+        }
+        if (!DocsConfig::canSeeKind((string)$row['kind'])) {
+            throw new RuntimeException(t('docs.err.no_medical'));
+        }
+        return $p;
     }
 
     /**

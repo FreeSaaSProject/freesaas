@@ -1059,38 +1059,7 @@
         "base_user_prefs",
         "base_user_login_links"
     ],
-    "migrators": [
-        {
-            "id": "phpshop_users_to_base_users",
-            "mode": "replace",
-            "source": [
-                "phpshop_users"
-            ],
-            "target": [
-                "base_users"
-            ]
-        },
-        {
-            "id": "remap_oper_user_permissions",
-            "mode": "seed",
-            "source": [
-                "base_users"
-            ],
-            "target": [
-                "base_users"
-            ]
-        },
-        {
-            "id": "phpshop_system_to_base_system",
-            "mode": "replace",
-            "source": [
-                "phpshop_system"
-            ],
-            "target": [
-                "base_system"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "comments.form.ticket_controls",

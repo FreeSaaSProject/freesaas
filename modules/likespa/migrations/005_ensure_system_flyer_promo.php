@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Flyer + promoter discount columns on base_system (oper show_site_sets / phpshop_system).
+ * Flyer + promoter discount columns on base_system.
  */
 return static function (PDO $pdo): void {
     $st = $pdo->prepare(

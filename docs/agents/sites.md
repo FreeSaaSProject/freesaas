@@ -98,7 +98,7 @@ Promo LPs (`base_promopages`): host `promo_id` → `/`; also `/promo/{code}`. Mo
 
 `module.json` → `"runtime": "admin"|"storefront"|"both"`. Missing key = `admin` (not booted on `site.php`). Storefront boots `core`, `sites`, and modules marked `both` (e.g. catalog, orders, clients).
 
-Legacy LikeSpa / PHPShop / Balance cutover: [`likespa-restores.md`](likespa-restores.md)#cutover-from-legacy-likespa2--phpshop--balance.
+Legacy storefront cutover: [`likespa-restores.md`](likespa-restores.md)#cutover-from-legacy-storefront.
 
 ## Reviews (Yandex + 2GIS widgets)
 
@@ -107,11 +107,7 @@ No separate product module. Add a root CMS article (Sites → Pages) with `linkR
 - Yandex iframe: `https://yandex.ru/maps-reviews-widget/{orgId}?comments` (org id from the Maps card URL `/org/…/{id}/`)
 - 2GIS rating badge: prefer `<img>` from `https://widget.2gis.ru/api/content/?org_id=…&branch_id=…&…` linking to the firm reviews tab (firm id from `2gis.ru/…/firm/{id}`). Optional iframe host `widget.2gis.ru` is also allowlisted.
 
-Storefront themes render article body via `page_html()` (not bare `safe_html()`): Yandex/2GIS widget iframes are kept; scripts and other embeds stay stripped. Seed migrator: `fill_reviews_page_widgets` (LikeSpa ids prefilled; edit the article to change orgs).
-
-```bash
-php bin/data-migrate.php --module=sites --id=fill_reviews_page_widgets
-```
+Storefront themes render article body via `page_html()` (not bare `safe_html()`): Yandex/2GIS widget iframes are kept; scripts and other embeds stay stripped.
 
 ## Health
 

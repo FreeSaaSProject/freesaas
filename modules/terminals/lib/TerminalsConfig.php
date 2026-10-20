@@ -11,7 +11,7 @@ final class TerminalsConfig
             'registry_enabled' => '1',
             'analytics_enabled' => '1',
             'sync_enabled' => '1',
-            // Legacy phpshop_system.1C_ENABLED — off → stub/debug data, no live 1C calls.
+            // Off → stub/debug data, no live 1C calls.
             '1c_enabled' => '1',
             '1c_url' => '',
             '1c_auth' => '',

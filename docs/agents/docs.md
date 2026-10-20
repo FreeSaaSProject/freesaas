@@ -4,7 +4,7 @@ Product module `docs`: one engine for printable documents (consents, checks) **a
 
 URL prefix is `/documents` (not `/docs`: `.htaccess` forbids `^docs/` because the repo's `docs/` folder must not be served). Module id, permissions (`docs.*`) and tables (`base_doc_*`) keep the short name.
 
-Medcard is not a separate module: it is a set of document **kinds** over the same definitions / instances / print pipeline. Legacy elos/oper had two stacks (`base_docs*` + `printdoc.php` for consents; hardcoded `getCardData()` 025/u over `phpshop_shopusers` + `base_procedures` columns for medcards). FreeSaaS keeps clinical data **only** in `base_doc_*` — never as columns on `base_clients` / `base_procedures`.
+Medcard is not a separate module: it is a set of document **kinds** over the same definitions / instances / print pipeline. Legacy export stacks had two paths (`base_docs*` + `printdoc.php` for consents; hardcoded `getCardData()` 025/u over client profile + `base_procedures` columns for medcards). FreeSaaS keeps clinical data **only** in `base_doc_*` — never as columns on `base_clients` / `base_procedures`.
 
 ## Enable
 
@@ -37,7 +37,7 @@ Indexes: instances `(ID_CLIENT, KIND, STATUS)`, `(ID_EVENT)`, `(ID_PROCEDURE)`, 
 | `consent` | client (reused until `DT_EXPIRE`) or event | Informed consents / notices (legacy `base_docs`) |
 | `contract` | client | Service contracts; `{contract.id}` / `{contract.date}` in acts point to the latest one |
 | `check` | event | Commercial printouts (basket table, totals) |
-| `medcard_profile` | client (one current) | Standing anamnesis / objective status (legacy `phpshop_shopusers.ANA_*`, `OBJ_*`) |
+| `medcard_profile` | client (one current) | Standing anamnesis / objective status (legacy client `ANA_*`, `OBJ_*`) |
 | `medcard_visit` | event (+ optional procedure) | Visit sheet: complaints, exam, diagnosis, recommendations, doctor, talk segments (legacy `base_procedures.ANA_*`, `DIA_CODE`, `RECOMENDS`, `ID_DOCTOR`) |
 | `medcard_dossier` | client | Print recipe: profile + all visit sheets (legacy `getCardData` / `base_card_logs`). Each print is an instance (audit) |
 
@@ -122,7 +122,7 @@ Templates (definitions, never instances) can live as files instead of DB rows:
 - `/documents/defs/{id}/export` — download one definition as a template file.
 - `/documents/defs/{id}/sample[?version=<version id>]` and `/documents/defs/import/sample?pack=&file=` — print a sample with demo data (watermark, nothing stored). Organization requisites use the real settings where filled, demo values otherwise.
 
-### Legacy export (elos / oper)
+### Legacy export (elos packs)
 
 ```bash
 php bin/docs-export-legacy.php --schema=elos63 --name="Cosmetology (elos)" [--pack=elos63] [--dry-run] [--report] [--force]
@@ -178,30 +178,24 @@ EventBus::emit('docs.instance.propose', [
 
 ## Legacy → field ids
 
-| Legacy column | Where | Kind | Field id |
-|---------------|-------|------|----------|
-| `ANA_LIFE` | `phpshop_shopusers` | `medcard_profile` | `ana_life` |
-| `ANA_CONTRAS` | `phpshop_shopusers` | `medcard_profile` | `ana_contras` |
-| `ANA_GYNO` | `phpshop_shopusers` | `medcard_profile` | `ana_gyno` |
-| `ANA_ALERG` | `phpshop_shopusers` | `medcard_profile` | `ana_alerg` |
-| `OBJ_SKIN` / `OBJ_SLIZ` / `OBJ_NOGOT` | `phpshop_shopusers` | `medcard_profile` | `obj_skin` / `obj_sliz` / `obj_nogot` |
-| blood / height / weight / eyes / hairs | `phpshop_shopusers` | `medcard_profile` | `blood_group` + `rh_factor` / `height_cm` / `weight_kg` / `eyes` / `hairs` |
-| `WORK_PLACE` / `WORK_POSITION` / `DISPANSER` | `phpshop_shopusers` | `medcard_profile` | `work_place` / `work_position` / `dispensary` |
-| — (025/у items 7–16) | — | `medcard_profile` | `oms_policy`, `snils`, `insurer`, `benefit_code`, `marital_status`, `education`, `employment`, `disability` |
-| `JAL` | `base_procedures` | `medcard_visit` | `complaints` |
-| `ANA_GEN` | `base_procedures` | `medcard_visit` | `ana_gen` |
-| `ANA_OBJ` | `base_procedures` | `medcard_visit` | `ana_obj` |
-| `DIA_CODE` | `base_procedures` | `medcard_visit` | `dia_codes` |
-| `RECOMENDS` | `base_procedures` | `medcard_visit` | `recommends` |
-| `ID_DOCTOR` | `base_procedures` | `medcard_visit` | `doctor_id` |
-| `base_docs` + `base_docs_datas` | docs | `consent` / `contract` / `check` | template files via `bin/docs-export-legacy.php` → import |
-| `base_card_logs` | print journal | `medcard_dossier` | instances |
-
-Optional migrator `legacy_docs_medcard` (run explicitly) copies medical card data that exists: `phpshop_shopusers.ANA_*`/`OBJ_*` → `medcard_profile`, medical `base_procedures` rows with `ANA_*` → `medcard_visit`. Columns are probed; missing sources are skipped. Templates are not copied by the migrator — use the library (below).
-
-```bash
-php bin/data-migrate.php --module=docs --id=legacy_docs_medcard
-```
+| Legacy column | Kind | Field id |
+|---------------|------|----------|
+| `ANA_LIFE` | `medcard_profile` | `ana_life` |
+| `ANA_CONTRAS` | `medcard_profile` | `ana_contras` |
+| `ANA_GYNO` | `medcard_profile` | `ana_gyno` |
+| `ANA_ALERG` | `medcard_profile` | `ana_alerg` |
+| `OBJ_SKIN` / `OBJ_SLIZ` / `OBJ_NOGOT` | `medcard_profile` | `obj_skin` / `obj_sliz` / `obj_nogot` |
+| blood / height / weight / eyes / hairs | `medcard_profile` | `blood_group` + `rh_factor` / `height_cm` / `weight_kg` / `eyes` / `hairs` |
+| `WORK_PLACE` / `WORK_POSITION` / `DISPANSER` | `medcard_profile` | `work_place` / `work_position` / `dispensary` |
+| — (025/у items 7–16) | `medcard_profile` | `oms_policy`, `snils`, `insurer`, `benefit_code`, `marital_status`, `education`, `employment`, `disability` |
+| `JAL` | `medcard_visit` | `complaints` |
+| `ANA_GEN` | `medcard_visit` | `ana_gen` |
+| `ANA_OBJ` | `medcard_visit` | `ana_obj` |
+| `DIA_CODE` | `medcard_visit` | `dia_codes` |
+| `RECOMENDS` | `medcard_visit` | `recommends` |
+| `ID_DOCTOR` | `medcard_visit` | `doctor_id` |
+| `base_docs` + `base_docs_datas` | `consent` / `contract` / `check` | template files via `bin/docs-export-legacy.php` → import |
+| `base_card_logs` | `medcard_dossier` | instances |
 
 ## Human UI
 

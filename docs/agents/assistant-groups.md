@@ -36,7 +36,7 @@ Diagnose: `/assistant-groups/status`.
 
 1. **Production (preferred):** public webhook `POST /assistant-groups/webhook/max` + header `X-Max-Bot-Api-Secret`. Subscribe from **Assistant groups** settings («Подписать webhook») or after deploy:
    - copy `cfg/modules/assistant_groups.ini` (token + chat ids) to the host;
-   - open `/assistant-groups/settings` on likespa.ru → Subscribe (URL `https://<admin_host>/assistant-groups/webhook/max`).
+   - open `/assistant-groups/settings` on the admin host → Subscribe (URL `https://<admin_host>/assistant-groups/webhook/max`).
    - Max forbids webhook + long-poll together; cron poll skips when `webhook_subscribed=1`.
 2. **Local / before subscribe:** cron `assistant_groups.max_poll` long-polls `GET /updates` (dev only).
 3. **Same as staff bot:** staff Max webhook (`/bots/webhook/max/staff`) — `BotWebhook` splits group `chat_id` vs sender identity. Unhandled group traffic stays silent.

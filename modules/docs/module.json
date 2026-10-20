@@ -2,7 +2,7 @@
     "id": "docs",
     "name": "docs.module.name",
     "description": "docs.module.description",
-    "version": "0.2.2",
+    "version": "0.2.3",
     "type": "product",
     "runtime": "admin",
     "requires": {
@@ -265,19 +265,7 @@
         "base_doc_field_index",
         "base_doc_proposals"
     ],
-    "migrators": [
-        {
-            "id": "legacy_docs_medcard",
-            "mode": "append",
-            "source": [
-                "phpshop_shopusers",
-                "base_procedures"
-            ],
-            "target": [
-                "base_doc_instances"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "calendar.event.sections",

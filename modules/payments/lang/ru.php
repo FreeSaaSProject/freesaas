@@ -161,12 +161,14 @@ return [
     'payments.contract.pay' => 'Оплатить оффер',
     'payments.contract.paid' => 'Оплачен',
     'payments.module.description' => 'Взаиморасчёты сотрудников (base_payments, base_payment_types); CTA оплаты контрактов; авто-ДПС с ledger.',
-    'payments.module.summary' => 'Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС), likespa, procents (авто % МЕСЯЦ или поденные начисления). С contracts — CTA оплаты.',
+    'payments.module.summary' => 'Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС), spa instance pack, procents (авто % МЕСЯЦ или поденные начисления). С contracts — CTA оплаты.',
 
     'payments.bot.day_pay.unavailable' => 'Возможность запроса финансов недоступна — обратитесь к директору.',
     'payments.bot.day_pay.after_shift' => 'Возможность назначить вывод суммы появится сегодня после смены.',
     'payments.bot.day_pay.only_daily' => 'Доступно только сотрудникам с поденным расчётом зарплаты.',
     'payments.bot.day_pay.pending_exists' => 'Уже есть незакрытый запрос на выдачу.',
+    'payments.bot.day_pay.busy' => 'Другая операция с выплатой уже выполняется — повторите через секунду.',
+
     'payments.bot.day_pay.low_balance' => 'Недостаточный баланс для запроса (нужно не меньше 100 ₽).',
     'payments.bot.day_pay.bad_date' => 'Выбранная дата недоступна.',
     'payments.bot.day_pay.bad_issuer' => 'Выбранный кассир недоступен на эту дату.',

@@ -2,6 +2,12 @@
   "server": "https://freesaas.example.tld",
   "ftp_server": "https://files.example.tld",
   "worker_token": "CHANGE_ME",
+  "tls": {
+    "verify": true,
+    "ca_bundle": "",
+    "upload_retries": 3,
+    "upload_retry_sleep_sec": 2.0
+  },
   "endpoints": {
     "get_file": "/audio/asr/claim",
     "save_result": "/audio/asr/result",

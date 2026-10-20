@@ -38,6 +38,8 @@ Header `X-Video-Token` (or `?token=`). Not `app.agent_token`.
 
 `infer_image`, `infer_batch`, `monitor_tick`, `capture_frame`, `on_demand`, `train`.
 
+**Train:** FreeSaaS exports the label project, zips it under `var/video/exports/`, and puts `export_zip_rel` in the job payload. The worker downloads the zip via `/video/worker/file`, extracts it, rewrites `data.yaml` to local paths, then runs Ultralytics. Never pass PHP-server absolute filesystem paths to the Mac.
+
 ## Tunnel (cameras only)
 
 In `configs/local.json` → `tunnel`: set `enabled`, `up_command` / `down_command` with **split routes** (WireGuard `AllowedIPs` = camera subnet). Do not use full-tunnel OS VPN for all Mac traffic.

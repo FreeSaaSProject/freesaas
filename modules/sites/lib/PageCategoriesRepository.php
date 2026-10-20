@@ -763,30 +763,24 @@ final class PageCategoriesRepository
     }
 
     /**
-     * Oper DoAfterSaveBeforeExit: mirror content into legacy phpshop_page / base_page when present.
+     * Mirror content into base_page when that table is present (home category / link).
      *
      * @param array<string,mixed> $data
      */
     public static function syncLegacyPage(array $data): void
     {
-        $table = null;
-        if (Database::tableExists('base_page')) {
-            $table = 'base_page';
-        } elseif (Database::tableExists('phpshop_page')) {
-            $table = 'phpshop_page';
-        }
-        if ($table === null) {
+        if (!Database::tableExists('base_page')) {
             return;
         }
         $content = (string)($data['content'] ?? '');
         $link = (string)($data['link'] ?? '');
         $pdo = Database::pdo();
         if ((int)($data['parent_to'] ?? 0) === self::PARENT_HOME) {
-            $st = $pdo->prepare("UPDATE `$table` SET content = ? WHERE category = 2000");
+            $st = $pdo->prepare('UPDATE `base_page` SET content = ? WHERE category = 2000');
             $st->execute([$content]);
         }
         if ($link !== '') {
-            $st = $pdo->prepare("UPDATE `$table` SET content = ? WHERE link = ?");
+            $st = $pdo->prepare('UPDATE `base_page` SET content = ? WHERE link = ?');
             $st->execute([$content, $link]);
         }
     }

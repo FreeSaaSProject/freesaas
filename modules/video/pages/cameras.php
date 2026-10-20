@@ -50,8 +50,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 }
 
 $rows = VideoCamerasRepository::list($q !== '' ? $q : null);
+$publicRows = array_map([VideoCamerasRepository::class, 'forPublicView'], $rows);
 if ($wantsJson) {
-    AgentHttp::emit(['ok' => true, 'cameras' => $rows]);
+    AgentHttp::emit(['ok' => true, 'cameras' => $publicRows]);
     return;
 }
 
@@ -60,6 +61,7 @@ View::render('cameras', [
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('video.menu.cameras'), 'current' => true],
     ]),
-    'rows' => $rows,
+    'rows' => $publicRows,
     'q' => $q,
+    'canEdit' => Auth::can('video.edit'),
 ], 'layout', 'video');

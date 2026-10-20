@@ -36,7 +36,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [ledger-chart.md](ledger-chart.md) | Agent-led chart seeding (interview, FOT + act_in, no hardcoded tree) |
 | [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins; `/agent/bots/*` repair |
 | [gcal.md](gcal.md) | Google Calendar sync; `/agent/gcal/*` diagnose/repair |
-| [likespa-restores.md](likespa-restores.md) | LikeSpa pack: legacy cutover, restores, FREE_TICKET, settlement JSON |
+| [likespa-restores.md](likespa-restores.md) | Spa instance pack: legacy cutover, restores, FREE_TICKET, settlement JSON |
 | [terminals.md](terminals.md) | Terminals/therms: registry, occupancy, sync jobs + JSON |
 | [yclients.md](yclients.md) | YClients pull: settings tokens, session ping, clients import JSON |
 | [clientics.md](clientics.md) | Clientics pull: settings tokens, session ping, day import, webhook |

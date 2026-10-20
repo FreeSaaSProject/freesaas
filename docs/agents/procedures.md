@@ -31,7 +31,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 - `/procedures` journal; `/procedure-types` dictionary.
 - `/procedures/day-stats` day stats.
-- Restore UI for spa packs lives in `likespa` (not this menu).
+- Restore UI for spa packs lives in the optional spa instance pack (not this menu).
 
 | Path | Permission |
 |------|------------|
@@ -61,4 +61,4 @@ curl -sS -b jar.txt 'https://example/procedure-types?format=json'
 
 ## Notes
 
-- Schema includes `base_procedure_restores`; restore product UI is likespa.
+- Schema includes `base_procedure_restores`; restore product UI is in the optional spa instance pack.

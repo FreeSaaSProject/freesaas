@@ -34,7 +34,7 @@ return [
     'suppliers.err.not_found' => 'Supplier #{id} not found',
     'suppliers.err.name_required' => 'Name is required',
     'suppliers.err.name_too_long' => 'Name must be at most 40 characters',
-    'suppliers.module.description' => 'Suppliers dictionary (base_suppliers), shared with legacy oper.',
+    'suppliers.module.description' => 'Suppliers dictionary (base_suppliers).',
     'suppliers.module.summary' => 'Enable for supplier cards used by catalog relations and sticker receipts. Soft-used by ledger and stickers. Dictionary module — enable with warehouse/catalog workflows.',
     'suppliers.perm.delete' => 'Delete suppliers',
 ];

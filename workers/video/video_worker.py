@@ -345,8 +345,54 @@ def handle_camera_job(job: dict, *, on_demand: bool = False) -> None:
     )
 
 
+def prepare_train_dataset(payload: dict) -> Path:
+    """Download export zip from FreeSaaS and rewrite data.yaml for local paths."""
+    import zipfile
+
+    zip_rel = str(payload.get("export_zip_rel") or "").strip()
+    if not zip_rel:
+        raise RuntimeError("export_zip_rel missing — server must ship dataset zip, not abs PHP paths")
+    raw = download_rel(zip_rel)
+    work = Path(tempfile.mkdtemp(prefix="video_train_"))
+    zip_path = work / "dataset.zip"
+    zip_path.write_bytes(raw)
+    extract_dir = work / "data"
+    extract_dir.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        zf.extractall(extract_dir)
+    # Prefer packaged data.yaml; rewrite path: to local extract root
+    yaml_path = extract_dir / "data.yaml"
+    if not yaml_path.is_file():
+        # nested single folder
+        subs = [p for p in extract_dir.iterdir() if p.is_dir()]
+        if len(subs) == 1 and (subs[0] / "data.yaml").is_file():
+            extract_dir = subs[0]
+            yaml_path = extract_dir / "data.yaml"
+    if not yaml_path.is_file():
+        raise RuntimeError("data.yaml not found in export zip")
+    names = payload.get("classes") or []
+    lines = [
+        f"path: {extract_dir}",
+        "train: train/images",
+        "val: val/images",
+        "test: test/images",
+        "names:",
+    ]
+    if names:
+        for i, n in enumerate(names):
+            lines.append(f"  {i}: {n}")
+    else:
+        # keep existing names block if present
+        text = yaml_path.read_text(encoding="utf-8")
+        for line in text.splitlines():
+            if line.strip().startswith("names:") or (line.startswith("  ") and ":" in line):
+                lines.append(line)
+    yaml_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return yaml_path
+
+
 def handle_train(job: dict) -> None:
-    """Run ultralytics train; expects exported dataset path or project_id hint in payload."""
+    """Download dataset zip from FreeSaaS, train Ultralytics locally, upload best.pt."""
     payload = job.get("payload") or {}
     job_id = int(job["id"])
     try:
@@ -355,14 +401,7 @@ def handle_train(job: dict) -> None:
         base = str(payload.get("base_weights") or "yolo11n.pt")
         epochs = int(payload.get("epochs") or 50)
         imgsz = int(payload.get("imgsz") or 640)
-        data_yaml = str(payload.get("data_yaml") or "")
-        if not data_yaml:
-            post_result(
-                job_id,
-                {},
-                error="data_yaml required on worker (export project on server, set path in job or local config)",
-            )
-            return
+        data_yaml = str(prepare_train_dataset(payload))
         model = YOLO(base)
         model.train(data=data_yaml, epochs=epochs, imgsz=imgsz)
         best = Path(model.trainer.best) if getattr(model, "trainer", None) else None

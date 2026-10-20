@@ -1,6 +1,6 @@
 # Booking (slots + advance orders)
 
-Alpha product module: shared **slot engine** and **order-mode** book into `base_orders`. Storefront cart wizard uses the same engine when `booking` is enabled. Termy drop-in HTTP lives in optional `likespa` (`/api_termy.php`); live floor `/t` is in `terminals`.
+Alpha product module: shared **slot engine** and **order-mode** book into `base_orders`. Storefront cart wizard uses the same engine when `booking` is enabled. Termy drop-in HTTP lives in the optional spa instance pack (`/api_termy.php`); live floor `/t` is in `terminals`.
 
 ## Entities — do not mix
 
@@ -114,4 +114,4 @@ Goods-only / mixed carts (any non-bookable line) keep the simple checkout (`Orde
 
 - [`sites.md`](sites.md) — storefront cart + booking wizard + agent diagnose
 - [`terminals.md`](terminals.md) — registry; live `/t` still on legacy site
-- Legacy: `likespa.hm/inc/api.php` `checkTimeEvents`, `shop.inc.php` `getTimesAndDates`
+- Historical site API: `checkTimeEvents`, shop `getTimesAndDates`

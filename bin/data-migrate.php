@@ -5,7 +5,7 @@ declare(strict_types=1);
 /**
  * Data migrators under modules/<id>/migrators/.
  *
- *   php bin/data-migrate.php --module=core --id=remap_oper_user_permissions
+ *   php bin/data-migrate.php --module=certificates --id=drop_legacy_sert
  *   php bin/data-migrate.php --i-understand-replace   # ALL migrators (destructive replace)
  *   php bin/data-migrate.php --list                   # preview catalog (no run)
  *

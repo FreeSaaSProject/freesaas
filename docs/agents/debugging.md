@@ -19,7 +19,7 @@ curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" https://<host>/agent/health
 
 Symptom: after login, only a setup screen (“Run schema migrations”) — or health fails with `platform.schema_pending`.
 
-Cause: restored vanilla likespa/oper DB (tables exist, FreeSaaS DDL not applied) or missing `base_schema_migrations` ledger.
+Cause: restored pre-FreeSaaS / shared `base_*` dump (tables exist, FreeSaaS DDL not applied) or missing `base_schema_migrations` ledger.
 
 ```bash
 php bin/freesaas.php migrate status --format=json

@@ -99,7 +99,7 @@ CI / [`bin/build-release-artifacts.sh`](../../bin/build-release-artifacts.sh) bu
 - `freesaas-manifest.json` — `{kind:"full", version, sha256, artifact}`
 - `freesaas-catalog.json` — installable modules catalog (same shape as repo-root `modules-catalog.json`)
 
-LikeSpa **module** (`modules/likespa`) ships with the public tree. Licensed storefront skins stay in private theme repos (gitignored; stripped from release zip):
+Spa instance pack module (`modules/likespa`) ships with the public tree. Licensed storefront skins stay in private theme repos (gitignored; stripped from release zip):
 [`freesaas-theme-likespa`](https://github.com/ilcommm/freesaas-theme-likespa), [`freesaas-theme-balance`](https://github.com/ilcommm/freesaas-theme-balance).
 
 Attach them to the GitHub Release (see `.github/workflows/release-artifacts.yml`). When adding a product module, regenerate and commit `modules-catalog.json` so channel=`main` instances see it via Contents API.

@@ -471,7 +471,7 @@ return [
     'audio_reports.summaries.js.hours' => 'Часы',
     'audio_reports.summaries.js.need_position' => 'Сначала выберите должность',
     'audio_reports.module.description' => 'Календарь аудиозаписей и сводные отчёты.',
-    'audio_reports.module.summary' => 'Включайте для календаря прослушивания и сводок. Требует audio + audio_dicts + workweeks. Мягко procedures/pipeline. Мягко — likespa и staff_reports.',
+    'audio_reports.module.summary' => 'Включайте для календаря прослушивания и сводок. Требует audio + audio_dicts + workweeks. Мягко procedures/pipeline. Мягко — spa instance pack и staff_reports.',
     'audio_reports.perm.delete' => 'Удаление коллекций',
     'audio_reports.perm.summaries_delete' => 'Удаление профилей сводок',
 ];

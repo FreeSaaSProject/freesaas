@@ -4,11 +4,11 @@ Product module `terminals`: device registry (`base_terminals`, `base_bracelets`)
 
 Calendar day/week: chill/rest procedure chips are painted by `calendar.timeline.enrich` in this module (`TerminalsConfig::chillProductId()` + `notice` `chill#…`) — calendar only passes `id_good`/`notice`/`class`, no hardcoded product id.
 
-Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`, `flyerOn`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home (oper-parity): bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`, optional **`likespa`** (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in likespa (`/api_termy.php`).
+Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`, `flyerOn`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home: bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`, optional spa instance pack (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in the instance pack (`/api_termy.php`).
 
 **Staff shift ends:** ini `ignore_staff_shift_windows=1` (default) — `/t` and `/terminals/floor` keep salon `work_hour_*` only and do **not** clip to the masseur’s PRICE_COL window (staff must still be on the day roster). Set to `0` to match site/API clipping. Site, MCP, and legacy API never read this flag.
 
-### Discounts on `/t` (soft `likespa`)
+### Discounts on `/t` (soft spa instance pack)
 
 Settings: `/likespa/settings` → `base_system` (`flyerEnabled` / `flyerDiscount`, `PROMO_POSITION_ID`, `PROMO_DISCOUNTS`, `DISCOUNTS_TYPES`). Per-terminal flyer button: `IS_TERMINAL_FLYER_DISCOUNT`.
 
@@ -107,8 +107,6 @@ Own tables (no ALTER of `base_clients` / `base_users`):
 | `base_client_onec_bindings` | Current 1C ticket id for a client (`onec_id` + `dt_valid` unix). Upsert by `client_id`; expire via `ClientOnecBindingsRepository::expireStale`. Visit history stays in `base_fullstats` / `base_procedures`. |
 | `base_staff_bracelets` | Permanent staff NFC UID ↔ `user_id`. Edit on staff user form via `core.user_edit.*` (persists in this table, not `UsersRepository`). |
 
-Legacy import: data migrator `phpshop_shopusers_bracelets_to_base_staff_bracelets` copies oper staff NFC from `phpshop_shopusers.1C_BRACELET` where `ID_USER` points at the admin (`phpshop_users` / `base_users.id`). See [migrations.md](migrations.md) staff identity pack.
-
 Product nomenclature `base_products.onec_id`: column stays on catalog table; UI/save via `catalog.product_edit.sections` / `.save` when `terminals` is on. Catalog create/update never touch the column, so values remain if the module is disabled.
 
 Not the same as `base_bracelets` (locker UID↔NUM registry) or `base_procedures.1C_BRACELET` (sale-time snapshot).
@@ -120,11 +118,11 @@ Terminal writers resolve staff with `StaffBraceletsRepository::findByUid` before
 When a staff NFC has a linked `base_clients.staff_user_id`, `/t` opens the employee guest floor (fake 1C client `999`, balance `9999`, live 1C off). On book:
 
 1. Procedure `1C_ID` is set to **`999`** (not `stub-*`) so calendar `dayColumnStats` / revenue exclude it.
-2. If **likespa** is on with `employee_settle_enabled=1` and **payments** is enabled, `EmployeeProcedureSettle::applyOnBook` inserts `base_payments` with `DIRECTION=-1`, `ACCOUNT=0`, `ID_TYPE` from `employee_settle_payment_type` (default `1`), `ID_USER` = staff user, `DESCR` = `Оплата процедуры: ID: {procedureId}` (oper parity).
+2. If the spa instance pack is on with `employee_settle_enabled=1` and **payments** is enabled, `EmployeeProcedureSettle::applyOnBook` inserts `base_payments` with `DIRECTION=-1`, `ACCOUNT=0`, `ID_TYPE` from `employee_settle_payment_type` (default `1`), `ID_USER` = staff user, `DESCR` = `Оплата процедуры: ID: {procedureId}`.
 
 Cancel disables the procedure and does **not** delete/reverse that payment. Chill rows are not settled. Settings: `/likespa/settings`.
 
 ## Notes
 
 - Column `IS_MASSЕUR_MODE` keeps Cyrillic Е for shared legacy DB compatibility.
-- When `terminals` is enabled, likespa term-scans UI soft-resolves terminal names.
+- When `terminals` is enabled, the instance-pack term-scans UI soft-resolves terminal names.

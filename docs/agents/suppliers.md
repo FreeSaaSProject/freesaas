@@ -26,7 +26,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP).
 
 ## Human UI
 
-- `/suppliers` — suppliers dictionary (shared with oper).
+- `/suppliers` — suppliers dictionary.
 
 | Path | Permission |
 |------|------------|

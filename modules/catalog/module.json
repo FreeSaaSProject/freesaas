@@ -144,38 +144,7 @@
         "base_products",
         "base_product_relations"
     ],
-    "migrators": [
-        {
-            "id": "phpshop_categories_to_base_categories",
-            "mode": "replace",
-            "source": [
-                "phpshop_categories"
-            ],
-            "target": [
-                "base_categories"
-            ]
-        },
-        {
-            "id": "phpshop_products_to_base_products",
-            "mode": "replace",
-            "source": [
-                "phpshop_products"
-            ],
-            "target": [
-                "base_products"
-            ]
-        },
-        {
-            "id": "phpshop_product_relations_to_base_product_relations",
-            "mode": "replace",
-            "source": [
-                "phpshop_product_relations"
-            ],
-            "target": [
-                "base_product_relations"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "core.bulk.check_item",

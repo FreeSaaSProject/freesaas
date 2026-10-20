@@ -2,14 +2,9 @@
 declare(strict_types=1);
 
 /**
- * Site articles / page tree (oper phpshop_page_categories → base_page_categories).
+ * Site articles / page tree (base_page_categories). Owned by sites; kept for installs that enabled likespa first.
  */
 return static function (PDO $pdo): void {
-    $src = $pdo->query("SHOW TABLES LIKE 'phpshop_page_categories'")->fetchColumn();
-    if ($src) {
-        $pdo->exec('CREATE TABLE IF NOT EXISTS base_page_categories LIKE phpshop_page_categories');
-        return;
-    }
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_page_categories (
             id INT NOT NULL AUTO_INCREMENT,

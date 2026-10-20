@@ -2,7 +2,7 @@
 
 Alpha product module `client_mcp`. Anonymous MCP server so any MCP-capable agent (Claude, ChatGPT, Cursor, …) can act on behalf of a client without plugins: business info → services → free slots → client identity → booking → own bookings / cancel → payment info.
 
-**One server per storefront host.** `https://likespa.ru/mcp` and `https://balance-spa.ru/mcp` are different servers: own on/off switch, name, consent link, tool set, services (host catalog roots via `SitesCatalog`) and sessions (a `client_token` from one domain is rejected on another). Admin and unknown hosts answer **404** on `/mcp`, so the staff MCP OAuth metadata (`/.well-known/oauth-*` → `/llm/mcp`) stays unambiguous.
+**One server per storefront host.** `https://store.example/mcp` and `https://other.example/mcp` are different servers: own on/off switch, name, consent link, tool set, services (host catalog roots via `SitesCatalog`) and sessions (a `client_token` from one domain is rejected on another). Admin and unknown hosts answer **404** on `/mcp`, so the staff MCP OAuth metadata (`/.well-known/oauth-*` → `/llm/mcp`) stays unambiguous.
 
 Not the staff MCP: `/llm/mcp` is OAuth + staff permissions ([connect-mcp.md](connect-mcp.md), [agent-surfaces.md](agent-surfaces.md)).
 
@@ -29,7 +29,7 @@ Diagnose: `php bin/freesaas.php health --format=json` → `client_mcp.endpoint` 
 | `GET /.well-known/ai-catalog.json` | **sites** | Domain AI Catalog; entries via EventBus `sites.ai_catalog` (404 when empty) |
 | `/client-mcp/settings` | client_mcp | Director settings (`SUPERADMIN_ACCESS`); JSON with `Accept: application/json` |
 
-Client config: `{"mcpServers":{"likespa-ru":{"url":"https://likespa.ru/mcp"}}}`. ChatGPT / Claude web: custom connector, URL `https://<domain>/mcp`, authentication **none**.
+Client config: `{"mcpServers":{"store":{"url":"https://store.example/mcp"}}}`. ChatGPT / Claude web: custom connector, URL `https://<domain>/mcp`, authentication **none**.
 
 **Agents do not auto-connect.** ChatGPT / Claude browse a site as HTML; MCP tools appear only after the user adds the connector. To make browsing agents notice and suggest the server, while MCP is on for the domain the module adds (all removed when the domain MCP or the module is off):
 

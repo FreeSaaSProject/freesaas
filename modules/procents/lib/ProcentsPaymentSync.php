@@ -72,16 +72,31 @@ final class ProcentsPaymentSync
         if (class_exists('DayPayroll', false) && DayPayroll::isDailyPayStaff($userId)) {
             return null;
         }
+
+        $locked = null;
+        if (class_exists('DayPayroll', false)) {
+            $locked = DayPayroll::withUserLock('msync', $userId, 10, static function () use ($userId, $sum): ?int {
+                return self::upsertCurrentMonthUnlocked($userId, $sum);
+            });
+            // null from withUserLock means lock busy — skip rather than race-insert.
+            return $locked;
+        }
+        return self::upsertCurrentMonthUnlocked($userId, $sum);
+    }
+
+    private static function upsertCurrentMonthUnlocked(int $userId, float $sum): ?int
+    {
         $y = (int)date('Y');
         $m = (int)date('n');
         $descr = self::monthDescr($y, $m);
+        $accrualKey = self::monthAccrualKey($y, $m);
         $monthStart = (int)mktime(0, 0, 0, $m, 1, $y);
         $monthEnd = (int)mktime(23, 59, 59, $m, (int)date('t', $monthStart), $y);
         $dt = (int)mktime(0, 0, 0, $m, (int)date('t', $monthStart), $y);
         $sumRounded = round($sum);
         $typeId = self::resolveFotTypeId();
 
-        $existing = self::findSyncedRow($userId, $descr, $monthStart, $monthEnd);
+        $existing = self::findSyncedRow($userId, $descr, $monthStart, $monthEnd, $accrualKey);
         if ($existing !== null) {
             $id = (int)$existing['id'];
             if ((float)$existing['sum'] == $sumRounded
@@ -111,26 +126,38 @@ final class ProcentsPaymentSync
             return $id;
         }
 
-        return PaymentsRepository::create([
-            'user_id' => $userId,
-            'dt' => $dt,
-            'descr' => $descr,
-            'direction' => 1,
-            'sum' => $sumRounded,
-            'type_id' => $typeId,
-            'account' => 0,
-            'dt_create' => time(),
-            'user_signed' => Auth::userId() > 0 ? Auth::userId() : $userId,
-            'comment_id' => 0,
-            'is_partner' => 0,
-            'admin_inworked' => 0,
-            'dt_admin_inworked' => 0,
-            'admin_signed' => 0,
-            'dt_admin_signed' => 0,
-            'accept_user' => 0,
-            'dt_accept' => 0,
-            'movement_linked' => 0,
-        ]);
+        try {
+            return PaymentsRepository::create([
+                'user_id' => $userId,
+                'dt' => $dt,
+                'descr' => $descr,
+                'direction' => 1,
+                'sum' => $sumRounded,
+                'type_id' => $typeId,
+                'account' => 0,
+                'dt_create' => time(),
+                'user_signed' => Auth::userId() > 0 ? Auth::userId() : $userId,
+                'comment_id' => 0,
+                'is_partner' => 0,
+                'admin_inworked' => 0,
+                'dt_admin_inworked' => 0,
+                'admin_signed' => 0,
+                'dt_admin_signed' => 0,
+                'accept_user' => 0,
+                'dt_accept' => 0,
+                'movement_linked' => 0,
+                'accrual_key' => $accrualKey,
+            ]);
+        } catch (Throwable $e) {
+            $msg = $e->getMessage();
+            if (stripos($msg, 'Duplicate') === false && stripos($msg, '1062') === false
+                && (string)$e->getCode() !== '23000'
+            ) {
+                throw $e;
+            }
+            $again = self::findSyncedRow($userId, $descr, $monthStart, $monthEnd, $accrualKey);
+            return $again !== null ? (int)$again['id'] : null;
+        }
     }
 
     /**
@@ -173,6 +200,11 @@ final class ProcentsPaymentSync
         return '% ' . $name . ' ' . $year;
     }
 
+    public static function monthAccrualKey(int $year, int $month): string
+    {
+        return sprintf('month:%04d-%02d', $year, $month);
+    }
+
     private static function resolveFotTypeId(): int
     {
         $configured = (int)Config::get('payments', 'procent_type_id', 0);
@@ -195,8 +227,33 @@ final class ProcentsPaymentSync
     /**
      * @return array<string,mixed>|null
      */
-    private static function findSyncedRow(int $userId, string $descr, int $monthStart, int $monthEnd): ?array
-    {
+    private static function findSyncedRow(
+        int $userId,
+        string $descr,
+        int $monthStart,
+        int $monthEnd,
+        string $accrualKey = ''
+    ): ?array {
+        if ($accrualKey !== '' && Database::columnExists('base_payments', 'ACCRUAL_KEY')) {
+            $st = Database::pdo()->prepare(
+                'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
+                        DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id, ACCOUNT AS account,
+                        DT_CREATE AS dt_create, ID_USER_SIGNED AS user_signed, ID_COMMENT AS comment_id,
+                        IS_PARTNER_PAYMENT AS is_partner,
+                        ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,
+                        ID_ADMIN_SIGNED AS admin_signed, DT_ADMIN_SIGNED AS dt_admin_signed,
+                        ID_ACCEPT_USER_SIGNED AS accept_user, DT_ACCEPT_USER_SIGNED AS dt_accept,
+                        ID_MOVEMENT_LINKED AS movement_linked
+                 FROM base_payments
+                 WHERE ID_USER = ? AND ACCRUAL_KEY = ?
+                 ORDER BY ID DESC LIMIT 1'
+            );
+            $st->execute([$userId, $accrualKey]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                return $row;
+            }
+        }
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
                     DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id, ACCOUNT AS account,

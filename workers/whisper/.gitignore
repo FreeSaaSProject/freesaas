@@ -3,3 +3,4 @@ __pycache__/
 *.pyc
 start_whisper_server.sh
 logs/
+var/

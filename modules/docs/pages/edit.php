@@ -120,7 +120,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     throw new RuntimeException(t('docs.err.no_proposals'));
                 }
                 $propId = (int)($_POST['proposal_id'] ?? 0);
-                $action === 'accept' ? DocsProposals::accept($propId) : DocsProposals::reject($propId);
+                $action === 'accept' ? DocsProposals::accept($propId, $id) : DocsProposals::reject($propId, $id);
                 $message = t($action === 'accept' ? 'docs.msg.accepted' : 'docs.msg.rejected');
                 break;
             case 'pull_segments':

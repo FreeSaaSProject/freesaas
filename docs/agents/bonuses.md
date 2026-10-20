@@ -14,7 +14,7 @@ Or `[modules] bonuses=1` in `cfg/config.ini`. Role flag `EVT_BONUS` shows bonus 
 
 Table `base_bonus_moves` (lowercase FreeSaaS columns): `client_id`, `direction`, `amount`, `kind` (`manual` | `event_accrue` | `event_spend`), `ref_type` / `ref_id`, `created_at`, `expires_at`, `note`, `dismissed`.
 
-Legacy `base_bonuspay` is dropped by migration `001_create_bonus_moves` — no oper compatibility.
+Legacy `base_bonuspay` is dropped by migration `001_create_bonus_moves` — no compatibility with the old ledger table.
 
 ## Human UI
 
@@ -38,4 +38,4 @@ curl -sS -b jar.txt -X POST 'https://example/bonuses/events/456/apply?format=jso
 ## Notes
 
 - Uses `base_event_items` (price×qty) + procedure type % + client status `bonus`. Intent stored in `base_event_bonus`. Only when `calendar.event_mode=visits`.
-- Promoter day payout is via script `DAY_BONUS` / `DAY_GATES` (staff_reports). Legacy `BONUS TIME` create on `/audio/calendar` was removed from likespa.
+- Promoter day payout is via script `DAY_BONUS` / `DAY_GATES` (staff_reports). Legacy `BONUS TIME` create on `/audio/calendar` was removed from the spa instance pack.

@@ -4,7 +4,7 @@ External pull client for cabin dictaphone ASR. Lives in-repo at [`workers/whispe
 
 **Not** part of `/cron/tick`. Chunk ASR (`/audio/asr/chunk-*`) is out of scope for this client.
 
-API contract and oper → FreeSaaS map: [audio_pipeline.md](audio_pipeline.md). Token UI: `/audio/settings`. Messenger voice queue (bots) is separate: `/asr/voice-transcribe/worker` — same `X-Audio-Token`, different client.
+API contract and cutover map: [audio_pipeline.md](audio_pipeline.md). Token UI: `/audio/settings`. Messenger voice queue (bots) is separate: `/asr/voice-transcribe/worker` — same `X-Audio-Token`, different client.
 
 ## Prerequisites (FreeSaaS)
 
@@ -72,8 +72,11 @@ cp configs/example.json configs/local.json
 #   server        = https://<freesaas-host>   (no trailing slash)
 #   ftp_server    = https://<http-file-host>  (serves /audioParsed/…)
 #   worker_token  = from /audio/settings (not CHANGE_ME)
+#   tls.verify    = true (default); for private CA set tls.ca_bundle=/path/to/ca.pem
 #   max.token / max.chat_id optional
 ```
+
+TLS: claim/result/stem (and HTTPS audio download) use certificate verification by default — the worker token must not ride `verify=False`. Own CA: `tls.ca_bundle`. Lab-only escape: `tls.verify=false` (logs a warning).
 
 4. **whisper-server launcher:**
 
@@ -111,6 +114,8 @@ Default config path is `configs/local.json` if you omit `-c`.
 
 All three send header **`X-Audio-Token`**. Audio bytes are downloaded from `{ftp_server}{FILENAME}` (no worker token).
 
+Result POST must be acked: HTTP 2xx **and** first body line JSON `true` (`/audio/asr/result`). On failure the client retries the **same** text (`tls.upload_retries`), keeps a local copy under `workers/whisper/var/pending_results/`, and does **not** mark the file done. A later claim re-POSTs pending text without re-running Whisper.
+
 ### Idle stem vs calendar Re-®
 
 | | Whisper idle `stem?day=…` (enqueue) | Calendar **Re-®** |
@@ -141,7 +146,7 @@ Client always appends `day=today`. Treat 202 like success. HTTP 409 on `/run` = 
 | `gens/saveFileDescription.php` | `/audio/asr/result` |
 | `gens/recordParser3.php` | `/audio/jobs/stem` |
 
-Do **not** point this client at `oper.likespa.ru` anymore.
+Do **not** point this client at a legacy admin host anymore.
 
 ## Secrets / git
 
@@ -154,8 +159,10 @@ Do **not** point this client at `oper.likespa.ru` anymore.
 | Symptom | Check |
 |---------|--------|
 | HTTP 401 / 503 on claim | Token missing/wrong; open `/audio/settings`; health `asr.worker_token` |
+| SSL / certificate error | Public CA: fix host cert; private CA: `tls.ca_bundle`; never leave `verify=false` in production |
 | Claim always `None` | No rows with `DT_TRANSCRIBED < 1`; run ingest `/audio/jobs/ingest` or wait for inbox |
 | Download 404 | `ftp_server` base ≠ path prefix of `FILENAME`; fix storage HTTP URL |
+| Upload not acked / `false` body | Result not saved — client retries + pending file; check PHP/DB logs on `/audio/asr/result` |
 | Stem 401 | Same token; POST not GET |
 | Client exits code 2 | Local whisper-server dead — fix binary/models, restart client |
 | Garbage / CJK garbage | Client already retries higher temperatures; see `garbage_detection` in JSON |

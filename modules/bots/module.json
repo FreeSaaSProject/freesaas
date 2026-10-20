@@ -138,19 +138,7 @@
         "base_bot_link_codes",
         "base_bot_link_throttle"
     ],
-    "migrators": [
-        {
-            "id": "phpshop_messenger_to_base_bot_links",
-            "mode": "replace",
-            "source": [
-                "phpshop_users",
-                "phpshop_shopusers"
-            ],
-            "target": [
-                "base_bot_links"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "core.user_edit.sections",

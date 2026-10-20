@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-20T14:02:28+00:00",
+    "generated_at": "2026-10-20T16:03:59+00:00",
     "modules": [
         {
             "id": "asr",
@@ -294,8 +294,8 @@
                 "ru": "Календарь аудиозаписей и сводные отчёты."
             },
             "summary": {
-                "en": "Enable for listening calendar and summaries. Requires audio + audio_dicts + workweeks. Soft procedures/pipeline. Soft-used by likespa and staff_reports.",
-                "ru": "Включайте для календаря прослушивания и сводок. Требует audio + audio_dicts + workweeks. Мягко procedures/pipeline. Мягко — likespa и staff_reports."
+                "en": "Enable for listening calendar and summaries. Requires audio + audio_dicts + workweeks. Soft procedures/pipeline. Soft-used by the spa instance pack and staff_reports.",
+                "ru": "Включайте для календаря прослушивания и сводок. Требует audio + audio_dicts + workweeks. Мягко procedures/pipeline. Мягко — spa instance pack и staff_reports."
             },
             "requires": {
                 "core": ">=0.3.0",
@@ -830,7 +830,7 @@
         },
         {
             "id": "docs",
-            "version": "0.2.2",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "Documents & medical cards",
@@ -1212,8 +1212,8 @@
                 "ru": "Взаиморасчёты сотрудников (base_payments, base_payment_types); CTA оплаты контрактов; авто-ДПС с ledger."
             },
             "summary": {
-                "en": "Enable for paying specialists and settlement docs. Soft ledger (auto-DPS), likespa, procents (auto % MONTH or daily accruals). Use with contracts for pay CTAs.",
-                "ru": "Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС), likespa, procents (авто % МЕСЯЦ или поденные начисления). С contracts — CTA оплаты."
+                "en": "Enable for paying specialists and settlement docs. Soft ledger (auto-DPS), spa instance pack, procents (auto % MONTH or daily accruals). Use with contracts for pay CTAs.",
+                "ru": "Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС), spa instance pack, procents (авто % МЕСЯЦ или поденные начисления). С contracts — CTA оплаты."
             },
             "requires": {
                 "core": ">=0.3.0"
@@ -1309,8 +1309,8 @@
                 "ru": "Процедуры"
             },
             "description": {
-                "en": "Procedure types and journal (base_procedure_*); restore UI lives in likespa.",
-                "ru": "Типы и журнал процедур (base_procedure_*); UI восстановлений — в likespa."
+                "en": "Procedure types and journal (base_procedure_*); restore UI lives in the optional spa instance pack.",
+                "ru": "Типы и журнал процедур (base_procedure_*); UI восстановлений — в опциональном spa instance pack."
             },
             "summary": {
                 "en": "Enable for spa procedure catalog and journal. Requires clients + catalog. Soft tables/bots. Required by calendar, rates, procents, bonuses, staff_reports. Core spa domain — enable before calendar/rates.",
@@ -1410,12 +1410,12 @@
                 "ru": "Простынки"
             },
             "description": {
-                "en": "LikeSpa linen accounts and moves (base_sheet_*); disableable.",
-                "ru": "Учёт простынок LikeSpa (base_sheet_*); отключаемый."
+                "en": "Legacy linen accounts and moves (base_sheet_*); disableable. Prefer laundry.",
+                "ru": "Legacy учёт простынок (base_sheet_*); отключаемый. Предпочтителен laundry."
             },
             "summary": {
-                "en": "Enable for linen/sheet inventory specific to LikeSpa. Standalone warehouse-adjacent module. Turn on only if the site tracks sheets separately from stickers.",
-                "ru": "Включайте для учёта простынок LikeSpa. Отдельный складской контур. Только если простынки ведутся отдельно от stickers."
+                "en": "Legacy linen ledger. Prefer the laundry module for new installs. Turn on only if the site still uses base_sheet_* separately from stickers.",
+                "ru": "Legacy учёт простынок. Для новых инстансов предпочтителен модуль laundry. Только если сайт ещё ведёт base_sheet_* отдельно от stickers."
             },
             "requires": {
                 "core": ">=0.3.0"
@@ -1582,8 +1582,8 @@
                 "ru": "Поставщики"
             },
             "description": {
-                "en": "Suppliers dictionary (base_suppliers), shared with legacy oper.",
-                "ru": "Справочник поставщиков (base_suppliers), общий с legacy oper."
+                "en": "Suppliers dictionary (base_suppliers).",
+                "ru": "Справочник поставщиков (base_suppliers)."
             },
             "summary": {
                 "en": "Enable for supplier cards used by catalog relations and sticker receipts. Soft-used by ledger and stickers. Dictionary module — enable with warehouse/catalog workflows.",
@@ -1675,8 +1675,8 @@
                 "ru": "Единицы измерения"
             },
             "description": {
-                "en": "Units of measure dictionary (base_units), shared with legacy oper.",
-                "ru": "Справочник единиц измерения (base_units), общий с legacy oper."
+                "en": "Units of measure dictionary (base_units).",
+                "ru": "Справочник единиц измерения (base_units)."
             },
             "summary": {
                 "en": "Enable for UoM on products and warehouse docs. Soft-used by catalog and stickers. Lightweight dictionary — safe to enable whenever catalog/stocks are used.",

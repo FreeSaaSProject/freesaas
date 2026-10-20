@@ -259,21 +259,38 @@ final class PaymentsRepository
 
     public static function find(int $id): ?array
     {
+        return self::findRow($id, false);
+    }
+
+    /** Row lock; caller must own an open transaction. */
+    public static function findForUpdate(int $id): ?array
+    {
+        return self::findRow($id, true);
+    }
+
+    private static function findRow(int $id, bool $forUpdate): ?array
+    {
         if ($id < 1 || !Database::tableExists('base_payments')) {
             return null;
         }
-        $st = Database::pdo()->prepare(
-            'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
-                    DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id,
-                    ACCOUNT AS account, DT_CREATE AS dt_create,
-                    ID_USER_SIGNED AS user_signed, ID_COMMENT AS comment_id,
-                    IS_PARTNER_PAYMENT AS is_partner,
-                    ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,
-                    ID_ADMIN_SIGNED AS admin_signed, DT_ADMIN_SIGNED AS dt_admin_signed,
-                    ID_ACCEPT_USER_SIGNED AS accept_user, DT_ACCEPT_USER_SIGNED AS dt_accept,
-                    ID_MOVEMENT_LINKED AS movement_linked
-             FROM base_payments WHERE ID = ? LIMIT 1'
-        );
+        $accrualCol = Database::columnExists('base_payments', 'ACCRUAL_KEY')
+            ? ', ACCRUAL_KEY AS accrual_key'
+            : '';
+        $sql = 'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
+                       DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id,
+                       ACCOUNT AS account, DT_CREATE AS dt_create,
+                       ID_USER_SIGNED AS user_signed, ID_COMMENT AS comment_id,
+                       IS_PARTNER_PAYMENT AS is_partner,
+                       ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,
+                       ID_ADMIN_SIGNED AS admin_signed, DT_ADMIN_SIGNED AS dt_admin_signed,
+                       ID_ACCEPT_USER_SIGNED AS accept_user, DT_ACCEPT_USER_SIGNED AS dt_accept,
+                       ID_MOVEMENT_LINKED AS movement_linked'
+            . $accrualCol
+            . ' FROM base_payments WHERE ID = ? LIMIT 1';
+        if ($forUpdate) {
+            $sql .= ' FOR UPDATE';
+        }
+        $st = Database::pdo()->prepare($sql);
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         return $row ? self::castRow($row) : null;
@@ -542,6 +559,11 @@ final class PaymentsRepository
                 $cols[] = $col;
                 $params[] = $val;
             }
+        }
+        if (Database::columnExists('base_payments', 'ACCRUAL_KEY')) {
+            $key = trim((string)($data['accrual_key'] ?? ''));
+            $cols[] = 'ACCRUAL_KEY';
+            $params[] = $key !== '' ? $key : null;
         }
         $placeholders = implode(', ', array_fill(0, count($cols), '?'));
         $st = Database::pdo()->prepare(

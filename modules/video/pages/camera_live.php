@@ -9,18 +9,19 @@ if ($row === null) {
     return;
 }
 
+$public = VideoCamerasRepository::forPublicView($row);
 $wantsJson = AgentHttp::wantsJson();
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
-        'camera' => $row,
-        'annotated_url' => $row['LAST_ANNOTATED_PATH'] !== ''
-            ? '/video/media?rel=' . rawurlencode((string)$row['LAST_ANNOTATED_PATH'])
+        'camera' => $public,
+        'annotated_url' => $public['LAST_ANNOTATED_PATH'] !== ''
+            ? '/video/media?rel=' . rawurlencode((string)$public['LAST_ANNOTATED_PATH'])
             : null,
-        'frame_url' => $row['LAST_FRAME_PATH'] !== ''
-            ? '/video/media?rel=' . rawurlencode((string)$row['LAST_FRAME_PATH'])
+        'frame_url' => $public['LAST_FRAME_PATH'] !== ''
+            ? '/video/media?rel=' . rawurlencode((string)$public['LAST_FRAME_PATH'])
             : null,
-        'detections' => json_decode((string)($row['LAST_DETECT_JSON'] ?? ''), true) ?: [],
+        'detections' => json_decode((string)($public['LAST_DETECT_JSON'] ?? ''), true) ?: [],
     ]);
     return;
 }
@@ -29,8 +30,8 @@ View::render('camera_live', [
     'title' => t('video.live.title', ['name' => (string)$row['NAME']]),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('video.menu.cameras'), 'href' => '/video/cameras'],
-        ['label' => (string)$row['NAME'], 'href' => '/video/cameras/' . $id . '/edit'],
+        ['label' => (string)$row['NAME'], 'href' => Auth::can('video.edit') ? '/video/cameras/' . $id . '/edit' : '/video/cameras'],
         ['label' => t('video.live.crumb'), 'current' => true],
     ]),
-    'row' => $row,
+    'row' => $public,
 ], 'layout', 'video');

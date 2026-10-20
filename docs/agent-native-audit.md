@@ -19,7 +19,7 @@ Related docs:
 
 > **Current readiness (~87/100).** Platform **v0.3.34** after Wave A: soft-dep honesty in `module validate`, richer `module inspect` (agent_ops/hooks/bulk/capabilities/soft_deps), optional tokens as health `skipped` + `error_code`, doctor `warning_codes` (no false 503 for missing `agent_token`). Public OSS baseline was v0.3.33.
 >
-> **Remaining drag:** residual foreign page/view requires (warned), plurals/number formatting, Core still partly oper-shaped, dual auth surfaces (intentional), no marketplace / PHPUnit, real-world health `degraded` when cron/bank config incomplete (not optional tokens). Uninstall/`drop_owned` is implemented (mandatory dump; `leave_tables` refuses).
+> **Remaining drag:** residual foreign page/view requires (warned), plurals/number formatting, Core still partly instance-shaped, dual auth surfaces (intentional), no marketplace / PHPUnit, real-world health `degraded` when cron/bank config incomplete (not optional tokens). Uninstall/`drop_owned` is implemented (mandatory dump; `leave_tables` refuses).
 
 **Historical baseline (2026-10-05, pre-P1):** score **56/100** — thin CLI, no validate/health, broken i18n checker, unreliable manifests. Kept only as archaeology; do not treat body “Critical Gaps” prose from that era as today’s blockers without checking the [Resolved vs open](#resolved-vs-still-open) table.
 
@@ -35,7 +35,7 @@ Related docs:
 | Self-verification | 15 | 90 | doctor warning_codes; optional tokens skipped not degraded |
 | Localization automation | 55 | 78 | discovery + validate; plurals still weak |
 | Lifecycle (install/uninstall) | 35 | 82 | bootstrap/enable/install + uninstall dump→DROP (`leave_tables` opt-out) |
-| Platform purity (vs LikeSpa) | 50 | 70 | theme private; likespa module public & disableable |
+| Platform purity (vs instance branding) | 50 | 70 | theme private; spa instance pack public & disableable |
 | Licensing / OSS packaging | — | 95 | AGPL + commercial + CLA; public repo `freesaas` |
 
 **Architecture verdict:** Do **not** rewrite Core. Evolve: honest contracts, CLI-first ops, keep product out of Core. Product MCP adapts `agent.ops`; platform lifecycle stays `agent_token`/CLI until an explicit admin threat model.
@@ -97,7 +97,7 @@ flowchart LR
 | Manifest hooks prose/phantoms | **Mostly resolved** — validate + dotted events; soft drift remains |
 | Soft / cross-module coupling | **Mostly resolved** — validate honesty + declared optionalRequires; legacy foreign requires = warnings |
 | No uninstall / drop_owned | **Resolved** — dump→DROP + agent/CLI/UI; `leave_tables` opt-out |
-| Core LikeSpa / oper residue | **Partially open** — theme out; tickets/flags/menu homes still Core-shaped |
+| Core instance residue | **Partially open** — theme out; tickets/flags/menu homes still Core-shaped |
 | Plurals / ICU / number format | **Open** — P2 quality |
 | Platform lifecycle on OAuth | **Open by design** — dual surface; see agent-surfaces |
 | Marketplace / full PHPUnit | **Out of scope** for now |
@@ -116,10 +116,10 @@ Problems that remain after the OSS tranche. Prefer small evolutionary fixes.
 - **Status:** **Done (P2.1)** — `module uninstall --confirm` / `POST /agent/modules/{id}/uninstall` with `confirm_uninstall=1`: mandatory dump of `tables[]` → DROP → clear ledger → disable. Code on disk remains. `uninstall.strategy=leave_tables` refuses DROP.
 - **Residual:** no down-migrations; shared columns/indexes on foreign tables are not reverted on uninstall; file purge of `modules/<id>/` is out of scope. `tables[]` = exclusive ownership (validate rejects duplicates; uninstall skips shared claims).
 
-### 3. Core still partly oper-shaped
+### 3. Core still partly instance-shaped
 
 - **Problem:** Ticket TYPE quirks, some status flags, menu group homes, residual product-shaped defaults.
-- **Mitigation done:** instance theme private; likespa is a normal disableable product module.
+- **Mitigation done:** instance theme private; spa instance pack is a normal disableable product module.
 - **Minimal fix:** No new product rules in Core; extract residuals over time ([A7](#a7-core-hygiene)).
 
 ### 4. Dual agent surfaces (not a bug — document forever)
@@ -267,7 +267,7 @@ See [Module Authoring Test](#module-authoring-test).
 
 ---
 
-## LikeSpa residue classification
+## Instance residue classification
 
 | Residue | Class |
 |---------|-------|
@@ -289,7 +289,7 @@ See [Module Authoring Test](#module-authoring-test).
 |----|--------|--------|
 | P0.1 | Validate contracts; stop prose/phantoms in `hooks` | **Mostly done** — keep enforcing |
 | P0.2 | Document lifecycle; reserve `uninstall.strategy` | **Done** (uninstall implemented — see P2.1) |
-| P0.3 | No new LikeSpa/Telegram product rules in `app/` or core chrome | **Ongoing** |
+| P0.3 | No new instance/Telegram product rules in `app/` or core chrome | **Ongoing** |
 | P0.4 | Locale list from discovery/config | **Done** |
 | P0.5 | Ban **new** direct `require` of another module’s `pages/` | **Ongoing** |
 
@@ -490,7 +490,7 @@ A module is agent-operable when:
 
 ### B8. Module documentation
 
-One short purpose statement for agents (manifest `description` **or** GUIDE table — single source). No LikeSpa history essays inside product modules.
+One short purpose statement for agents (manifest `description` **or** GUIDE table — single source). No instance-history essays inside product modules.
 
 ---
 

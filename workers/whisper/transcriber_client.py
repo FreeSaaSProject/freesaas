@@ -17,7 +17,6 @@ import urllib3
 from max_notify import send_message as max_send_message
 
 warnings.filterwarnings("ignore", category=FutureWarning)
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Настройки клиента (заполняются из JSON через load_config / --config)
 # FreeSaaS: claim/result/stem + X-Audio-Token (см. docs/agents/audio_pipeline.md).
@@ -27,6 +26,10 @@ WORKER_TOKEN = ""
 GET_FILE_URL = ""
 SAVE_RESULT_URL = ""
 ANALYTICS_URL = ""
+# TLS for FreeSaaS (+ HTTPS audio host): True | False | path to CA bundle.
+TLS_VERIFY: Any = True
+UPLOAD_RETRIES = 3
+UPLOAD_RETRY_SLEEP_SEC = 2.0
 ANALYTICS_MAX_RUNS_PER_IDLE = 2
 ANALYTICS_MIN_INTERVAL_SEC = 300
 WHISPER_SERVER_HOST = "127.0.0.1"
@@ -59,6 +62,12 @@ MAX_NOTIFY_NOVAD_FALLBACK = True
 # Copy configs/example.json → configs/local.json (gitignored) and fill secrets.
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "local.json"
 CLIENT_ROOT = Path(__file__).resolve().parent
+# Local copy of transcripts not yet acked by FreeSaaS (avoid re-whisper after failed POST).
+PENDING_RESULTS_DIR = CLIENT_ROOT / "var" / "pending_results"
+
+
+class BackendUploadError(RuntimeError):
+	"""FreeSaaS rejected or did not confirm saving a transcription (do not mark file done)."""
 
 
 def backend_headers() -> Dict[str, str]:
@@ -68,10 +77,16 @@ def backend_headers() -> Dict[str, str]:
 	return {"X-Audio-Token": WORKER_TOKEN}
 
 
+def tls_verify() -> Any:
+	"""requests `verify=` value: True, False, or CA bundle path."""
+	return TLS_VERIFY
+
+
 def load_config(config_path: Path) -> None:
 	"""Читает JSON-конфиг клиента и выставляет глобальные настройки обработчика."""
 	global SERVER, FTPSERVER, WORKER_TOKEN, GET_FILE_URL, SAVE_RESULT_URL
 	global ANALYTICS_URL, ANALYTICS_MAX_RUNS_PER_IDLE, ANALYTICS_MIN_INTERVAL_SEC
+	global TLS_VERIFY, UPLOAD_RETRIES, UPLOAD_RETRY_SLEEP_SEC
 	global WHISPER_SERVER_HOST, WHISPER_SERVER_PORT
 	global WHISPER_SERVER_BASE, WHISPER_SERVER_URL, WHISPER_SERVER_HEALTH_URL
 	global WHISPER_DOWN_RECHECK_SEC, WS_FORM_PARAMS
@@ -89,6 +104,25 @@ def load_config(config_path: Path) -> None:
 	SERVER = str(cfg["server"]).rstrip("/")
 	FTPSERVER = str(cfg["ftp_server"]).rstrip("/")
 	WORKER_TOKEN = str(cfg.get("worker_token") or cfg.get("audio_token") or "").strip()
+
+	tls = cfg.get("tls") or {}
+	ca_raw = str(tls.get("ca_bundle") or cfg.get("tls_ca_bundle") or "").strip()
+	verify_raw = tls.get("verify", cfg.get("tls_verify", True))
+	if ca_raw:
+		ca_path = Path(ca_raw).expanduser()
+		if not ca_path.is_absolute():
+			ca_path = (CLIENT_ROOT / ca_path).resolve()
+		if not ca_path.is_file():
+			raise SystemExit(f"tls.ca_bundle not found: {ca_path}")
+		TLS_VERIFY = str(ca_path)
+	elif verify_raw is False or verify_raw == 0 or str(verify_raw).lower() in ("false", "0", "no"):
+		TLS_VERIFY = False
+		urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+	else:
+		TLS_VERIFY = True
+
+	UPLOAD_RETRIES = max(1, int(tls.get("upload_retries", cfg.get("upload_retries", 3))))
+	UPLOAD_RETRY_SLEEP_SEC = float(tls.get("upload_retry_sleep_sec", 2.0))
 
 	ep = cfg.get("endpoints") or {}
 	# FreeSaaS defaults (oper: /gens/getFileName.php, saveFileDescription.php, recordParser3.php)
@@ -390,6 +424,9 @@ def recover_crash_with_novad(
 	try:
 		log("🧠 Повтор на novad (output=srt)...")
 		transcribe_upload_srt(audio_path, file_name, playtime=playtime, volume=volume)
+	except BackendUploadError:
+		# Transcript ready but FreeSaaS did not confirm — leave claim for retry.
+		raise
 	except Exception as e:
 		if is_whisper_server_unreachable_error(e):
 			fatal_whisper_server_down(
@@ -580,7 +617,7 @@ def pick_better_transcription(a: str, b: str) -> str:
 
 def download_file(url: str, local_path: Path):
 	log(f"⬇️  Скачиваем {url}")
-	r = requests.get(url, verify=False, timeout=60)
+	r = requests.get(url, verify=tls_verify(), timeout=60)
 	r.raise_for_status()
 	with open(local_path, "wb") as f:
 		f.write(r.content)
@@ -808,26 +845,137 @@ def probe_audio_metadata(audio_path: Path) -> Tuple[Optional[float], Optional[fl
 		)
 	return playtime, volume
 
+def parse_result_ack(body: str) -> bool:
+	"""
+	/audio/asr/result body: first line is JSON true/false (then optional diag).
+	Only true counts as saved — HTTP 200 + false must not clear the claim.
+	"""
+	first = (body or "").lstrip("\ufeff").splitlines()[:1]
+	if not first:
+		return False
+	line = first[0].strip()
+	try:
+		return json.loads(line) is True
+	except Exception:
+		return line.lower() == "true"
+
+
+def _pending_path(file_name: str) -> Path:
+	safe = re.sub(r"[^a-zA-Z0-9._-]+", "_", Path(file_name).name) or "pending"
+	return PENDING_RESULTS_DIR / f"{safe}.json"
+
+
+def save_pending_result(
+	file_name: str,
+	text: str,
+	playtime: Optional[float] = None,
+	volume: Optional[float] = None,
+) -> None:
+	PENDING_RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+	payload = {
+		"file_name": file_name,
+		"result": text,
+		"PLAYTIME": playtime,
+		"VOLUME": volume,
+		"saved_at": time.time(),
+	}
+	path = _pending_path(file_name)
+	tmp = path.with_suffix(".tmp")
+	tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+	tmp.replace(path)
+
+
+def load_pending_result(file_name: str) -> Optional[Dict[str, Any]]:
+	path = _pending_path(file_name)
+	if not path.is_file():
+		return None
+	try:
+		data = json.loads(path.read_text(encoding="utf-8"))
+		if not isinstance(data, dict) or not str(data.get("result", "")):
+			return None
+		return data
+	except Exception as e:
+		log("⚠️ pending result unreadable:", path.name, e)
+		return None
+
+
+def clear_pending_result(file_name: str) -> None:
+	path = _pending_path(file_name)
+	try:
+		path.unlink(missing_ok=True)
+	except Exception:
+		pass
+
+
 def upload_transcription(
 	file_name: str,
 	text: str,
 	playtime: Optional[float] = None,
 	volume: Optional[float] = None,
 ):
+	"""
+	POST transcript to FreeSaaS. Raises BackendUploadError unless the server
+	confirms with HTTP 2xx and body starting with JSON true.
+	Retries the same text (no re-whisper) on transient failure; keeps a local
+	pending copy until ack so a later claim can re-POST without re-ASR.
+	"""
+	save_pending_result(file_name, text, playtime=playtime, volume=volume)
 	log(f"📤 Отправляем результат для {file_name}")
 	data = {"file_name": file_name, "result": text}
 	if playtime is not None and playtime > 0:
 		data["PLAYTIME"] = str(int(round(playtime)))
 	if volume is not None:
 		data["VOLUME"] = f"{volume:.2f}".rstrip("0").rstrip(".")
-	r = requests.post(
-		SAVE_RESULT_URL,
-		data=data,
-		headers=backend_headers(),
-		verify=False,
-		timeout=60,
+
+	last_err: Optional[BaseException] = None
+	for attempt in range(1, UPLOAD_RETRIES + 1):
+		try:
+			r = requests.post(
+				SAVE_RESULT_URL,
+				data=data,
+				headers=backend_headers(),
+				verify=tls_verify(),
+				timeout=60,
+			)
+			body_preview = (r.text or "")[:240]
+			if r.status_code < 200 or r.status_code >= 300:
+				raise BackendUploadError(
+					f"HTTP {r.status_code}: {body_preview}"
+				)
+			if not parse_result_ack(r.text or ""):
+				raise BackendUploadError(
+					f"server did not ack save (need JSON true): {body_preview}"
+				)
+			clear_pending_result(file_name)
+			log("✅ Результат сохранён:", r.status_code, body_preview)
+			return
+		except BackendUploadError as e:
+			last_err = e
+			log(f"⚠️ Upload attempt {attempt}/{UPLOAD_RETRIES} failed:", e)
+		except requests.RequestException as e:
+			last_err = e
+			log(f"⚠️ Upload attempt {attempt}/{UPLOAD_RETRIES} network error:", e)
+		if attempt < UPLOAD_RETRIES:
+			time.sleep(UPLOAD_RETRY_SLEEP_SEC)
+
+	raise BackendUploadError(
+		f"upload failed after {UPLOAD_RETRIES} attempts: {last_err}"
 	)
-	log("✅ Статус сервера:", r.status_code, r.text)
+
+
+def try_upload_pending(file_name: str) -> bool:
+	"""If a prior run left an unacked transcript, POST it again. True = done."""
+	pending = load_pending_result(file_name)
+	if pending is None:
+		return False
+	text = str(pending.get("result") or "")
+	pt = pending.get("PLAYTIME")
+	vol = pending.get("VOLUME")
+	playtime = float(pt) if pt is not None and pt != "" else None
+	volume = float(vol) if vol is not None and vol != "" else None
+	log(f"♻️  Повторная отправка сохранённого текста для {file_name} (без Whisper)")
+	upload_transcription(file_name, text, playtime=playtime, volume=volume)
+	return True
 
 def upload_error_marker(
 	file_name: str,
@@ -836,7 +984,8 @@ def upload_error_marker(
 	volume: Optional[float] = None,
 ):
 	"""Отправляем «служебную строку» об ошибке, чтобы файл вышел из очереди без повторов.
-	PLAYTIME/VOLUME шлём и здесь — серверу не нужно потом самому оценивать аудио."""
+	PLAYTIME/VOLUME шлём и здесь — серверу не нужно потом самому оценивать аудио.
+	Raises BackendUploadError if FreeSaaS does not confirm (caller must not mark done)."""
 	# делаем однословную строку без переносов, ограничим длину
 	clean = " ".join(err_msg.split())
 	clean = clean[:300]
@@ -996,7 +1145,7 @@ def run_analytics() -> bool:
 		r = requests.post(
 			url,
 			headers=backend_headers(),
-			verify=False,
+			verify=tls_verify(),
 			timeout=600,
 		)
 		body = (r.text or "")[:240]
@@ -1034,6 +1183,10 @@ def main():
 	log(f"⚙️  X-Audio-Token={token_mask}")
 	if not token_ok:
 		log("⚠️ worker_token пуст — FreeSaaS вернёт 401/503 на claim/result/stem")
+	if TLS_VERIFY is False:
+		log("⚠️ TLS verify=OFF — X-Audio-Token уязвим к MITM; включите tls.verify или tls.ca_bundle")
+	else:
+		log(f"⚙️  TLS verify={TLS_VERIFY}")
 	log(f"⚙️  whisper={WHISPER_SERVER_BASE} language={WS_FORM_PARAMS.get('language')}")
 	log(
 		f"⚙️  auto_novad_fallback={WHISPER_AUTO_NOVAD_FALLBACK} "
@@ -1053,7 +1206,7 @@ def main():
 			r = requests.get(
 				GET_FILE_URL,
 				headers=backend_headers(),
-				verify=False,
+				verify=tls_verify(),
 				timeout=30,
 			)
 			r.raise_for_status()
@@ -1121,18 +1274,43 @@ def main():
 			full_url = f"{FTPSERVER}{filename}"
 			log(f"🎧 Получен файл: {filename}")
 
+			file_done = False
+			try:
+				# Re-POST text left after a previous unacked save (no re-whisper).
+				if try_upload_pending(filename):
+					file_done = True
+			except BackendUploadError as up_err:
+				log("❌ Повтор pending не подтверждён:", up_err)
+				# Keep pending on disk; skip Whisper this cycle.
+				log(f"⏳ Цикл завершён, ждём {LOOP_SLEEP_SECONDS_RUN} сек...\n")
+				time.sleep(LOOP_SLEEP_SECONDS_RUN)
+				continue
+
+			if file_done:
+				if session_started_at is None:
+					session_started_at = time.time()
+				session_processed += 1
+				log(f"⏳ Цикл завершён, ждём {LOOP_SLEEP_SECONDS_RUN} сек...\n")
+				time.sleep(LOOP_SLEEP_SECONDS_RUN)
+				continue
+
 			with tempfile.TemporaryDirectory() as tmpdir:
 				tmp_path = Path(tmpdir) / Path(filename).name
 				download_file(full_url, tmp_path)
 				playtime, volume = probe_audio_metadata(tmp_path)
 
-				file_done = False
 				try:
 					log("🧠 Отправляем в whisper-server (output=srt)...")
 					transcribe_upload_srt(
 						tmp_path, filename, playtime=playtime, volume=volume
 					)
 					file_done = True
+
+				except BackendUploadError as up_err:
+					# Текст уже есть в памяти/был отправлен, но FreeSaaS не подтвердил.
+					# Не ставим file_done — claim TTL вернёт файл; pending остаётся на диске.
+					log("❌ Сохранение результата не подтверждено:", up_err)
+					continue
 
 				except Exception as ws_err:
 					# Локальный сервер лёг → novad-fallback или стоп клиента.

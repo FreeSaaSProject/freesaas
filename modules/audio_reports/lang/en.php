@@ -471,7 +471,7 @@ return [
     'audio_reports.summaries.js.hours' => 'Hours',
     'audio_reports.summaries.js.need_position' => 'Select a position first',
     'audio_reports.module.description' => 'Audio records calendar and summary reports.',
-    'audio_reports.module.summary' => 'Enable for listening calendar and summaries. Requires audio + audio_dicts + workweeks. Soft procedures/pipeline. Soft-used by likespa and staff_reports.',
+    'audio_reports.module.summary' => 'Enable for listening calendar and summaries. Requires audio + audio_dicts + workweeks. Soft procedures/pipeline. Soft-used by the spa instance pack and staff_reports.',
     'audio_reports.perm.delete' => 'Delete collections',
     'audio_reports.perm.summaries_delete' => 'Delete summary profiles',
 ];

@@ -207,6 +207,17 @@ final class DayPayroll
         if (!ModuleManager::isEnabled('procents') || !class_exists('ProcentsRepository', false)) {
             return $log;
         }
+
+        $locked = self::withUserLock('sync', $userId, 15, static function () use ($userId, $actorId): array {
+            return self::syncOperatorUnlocked($userId, $actorId);
+        });
+        return $locked ?? $log;
+    }
+
+    /** Caller must already hold a per-user payroll lock (or accept races). */
+    private static function syncOperatorUnlocked(int $userId, int $actorId = 0): array
+    {
+        $log = [];
         $actorId = $actorId > 0 ? $actorId : ($userId > 0 ? $userId : Auth::userId());
         $monthStart = (int)mktime(0, 0, 0, (int)date('n'), 1, (int)date('Y'));
         $todayEnd = (int)mktime(23, 59, 59, (int)date('n'), (int)date('j'), (int)date('Y'));
@@ -218,12 +229,21 @@ final class DayPayroll
                 continue;
             }
             $sum = self::calcDaySalary($userId, $dayTs, true);
-            if ($sum <= 0) {
-                continue;
-            }
             $existing = self::findAccrual($userId, $dayTs);
             $inCurrentMonth = $dayTs >= $monthStart;
             $hasWriteoff = self::hasDayWriteoff($userId, $dayTs);
+
+            // Correct zero: clear previous positive accrual (do not skip before lookup).
+            if ($sum <= 0) {
+                if ($existing !== null && $inCurrentMonth && !$hasWriteoff) {
+                    $oldSum = round((float)$existing['sum'], 2);
+                    if ($oldSum >= 0.01) {
+                        self::forceDeletePayment((int)$existing['id']);
+                        $log[] = date('j.m.Y', $dayTs) . ': ' . $oldSum . ' → 0';
+                    }
+                }
+                continue;
+            }
 
             if ($existing !== null) {
                 if ($inCurrentMonth && !$hasWriteoff) {
@@ -253,31 +273,38 @@ final class DayPayroll
             }
 
             $now = time();
-            PaymentsRepository::create([
-                'user_id' => $userId,
-                'dt' => $dayTs + 23 * 3600,
-                'descr' => self::accrualDescr($dayTs),
-                'direction' => 1,
-                'sum' => $sum,
-                'type_id' => $typeId,
-                'account' => 0,
-                'dt_create' => $now,
-                'user_signed' => $actorId,
-                'comment_id' => 0,
-                'is_partner' => 0,
-                'admin_inworked' => $actorId,
-                'dt_admin_inworked' => $now,
-                'admin_signed' => $actorId,
-                'dt_admin_signed' => $now,
-                'accept_user' => $actorId,
-                'dt_accept' => $now,
-                'movement_linked' => 0,
-            ]);
-            $log[] = date('j.m.Y', $dayTs) . ': ' . $sum;
+            try {
+                PaymentsRepository::create([
+                    'user_id' => $userId,
+                    'dt' => $dayTs + 23 * 3600,
+                    'descr' => self::accrualDescr($dayTs),
+                    'direction' => 1,
+                    'sum' => $sum,
+                    'type_id' => $typeId,
+                    'account' => 0,
+                    'dt_create' => $now,
+                    'user_signed' => $actorId,
+                    'comment_id' => 0,
+                    'is_partner' => 0,
+                    'admin_inworked' => $actorId,
+                    'dt_admin_inworked' => $now,
+                    'admin_signed' => $actorId,
+                    'dt_admin_signed' => $now,
+                    'accept_user' => $actorId,
+                    'dt_accept' => $now,
+                    'movement_linked' => 0,
+                    'accrual_key' => self::dayAccrualKey($dayTs),
+                ]);
+                $log[] = date('j.m.Y', $dayTs) . ': ' . $sum;
+            } catch (Throwable $e) {
+                // Unique accrual_key race: another request inserted first — treat as synced.
+                if (!self::isDuplicateKey($e)) {
+                    throw $e;
+                }
+            }
         }
         return $log;
     }
-
     /** @return list<array<string,mixed>> */
     public static function pendingRequests(int $operatorId = 0): array
     {
@@ -361,114 +388,166 @@ final class DayPayroll
         if (self::blockedUntilAfterShift($operatorId)) {
             return ['ok' => false, 'msg' => t('payments.bot.day_pay.after_shift')];
         }
-        if (self::pendingRequests($operatorId) !== []) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.pending_exists')];
-        }
 
-        self::syncOperator($operatorId, $actorId);
-
-        $sum = self::maxRequestSum($operatorId);
-        if ($sum < 100) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.low_balance')];
-        }
-
-        $wantStart = self::dayStart($payoutDayTs);
-        $adminIdsOnDay = [];
-        $okDate = false;
-        foreach (self::availableDates(5) as $d) {
-            if ((int)$d['ts'] === $wantStart) {
-                $okDate = true;
-                $adminIdsOnDay = $d['admin_ids'];
-                break;
+        $locked = self::withUserLock('req', $operatorId, 10, static function () use ($operatorId, $payoutDayTs, $actorId, $issuerId): array {
+            // Re-check under lock — prevents double payout on parallel requests.
+            if (self::pendingRequests($operatorId) !== []) {
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.pending_exists')];
             }
-        }
-        if (!$okDate) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.bad_date')];
-        }
-        if ($issuerId > 0) {
-            if (!in_array($issuerId, $adminIdsOnDay, true)) {
-                return ['ok' => false, 'msg' => t('payments.bot.day_pay.bad_issuer')];
-            }
-        } else {
-            if (count($adminIdsOnDay) !== 1) {
-                return ['ok' => false, 'msg' => t('payments.bot.day_pay.pick_issuer')];
-            }
-            $issuerId = (int)$adminIdsOnDay[0];
-        }
 
-        $pin = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
-        $descr = self::payoutDescr($wantStart, $pin, $issuerId);
-        $now = time();
-        $paymentId = PaymentsRepository::create([
-            'user_id' => $operatorId,
-            'dt' => $wantStart + 12 * 3600,
-            'descr' => $descr,
-            'direction' => -1,
-            'sum' => $sum,
-            'type_id' => self::resolveFotTypeId(),
-            'account' => 2,
-            'dt_create' => $now,
-            'user_signed' => $actorId,
-            'comment_id' => 0,
-            'is_partner' => 0,
-            'admin_inworked' => $actorId,
-            'dt_admin_inworked' => $now,
-            'admin_signed' => 0,
-            'dt_admin_signed' => 0,
-            'accept_user' => 0,
-            'dt_accept' => 0,
-            'movement_linked' => 0,
-        ]);
+            // Already under pay_req_* lock — do not nest GET_LOCK (MySQL <5.7.5 releases prior lock).
+            self::syncOperatorUnlocked($operatorId, $actorId);
 
-        if (PaymentsRepository::ledgerEnabled()) {
-            $accountOverride = (int)self::settings()['account_id'];
-            $dps = PaymentsRepository::createDpsByIds([$paymentId], $accountOverride);
-            if ((int)($dps['done'] ?? 0) < 1) {
-                self::forceDeletePayment($paymentId);
-                $reason = $dps['skipped'][0]['reason'] ?? t('payments.bot.day_pay.dps_fail');
-                return ['ok' => false, 'msg' => (string)$reason];
+            $sum = self::maxRequestSum($operatorId);
+            if ($sum < 100) {
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.low_balance')];
             }
-        }
 
-        self::notifyIssuersOnDate(
-            $wantStart,
-            t('payments.bot.day_pay.notify_req', [
-                'name' => self::userName($operatorId),
+            $wantStart = self::dayStart($payoutDayTs);
+            $adminIdsOnDay = [];
+            $okDate = false;
+            foreach (self::availableDates(5) as $d) {
+                if ((int)$d['ts'] === $wantStart) {
+                    $okDate = true;
+                    $adminIdsOnDay = $d['admin_ids'];
+                    break;
+                }
+            }
+            if (!$okDate) {
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.bad_date')];
+            }
+            if ($issuerId > 0) {
+                if (!in_array($issuerId, $adminIdsOnDay, true)) {
+                    return ['ok' => false, 'msg' => t('payments.bot.day_pay.bad_issuer')];
+                }
+            } else {
+                if (count($adminIdsOnDay) !== 1) {
+                    return ['ok' => false, 'msg' => t('payments.bot.day_pay.pick_issuer')];
+                }
+                $issuerId = (int)$adminIdsOnDay[0];
+            }
+
+            $pin = str_pad((string)random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $descr = self::payoutDescr($wantStart, $pin, $issuerId);
+            $now = time();
+            $paymentId = PaymentsRepository::create([
+                'user_id' => $operatorId,
+                'dt' => $wantStart + 12 * 3600,
+                'descr' => $descr,
+                'direction' => -1,
                 'sum' => $sum,
-                'date' => date('d.m.Y', $wantStart),
-            ])
-        );
+                'type_id' => self::resolveFotTypeId(),
+                'account' => 2,
+                'dt_create' => $now,
+                'user_signed' => $actorId,
+                'comment_id' => 0,
+                'is_partner' => 0,
+                'admin_inworked' => $actorId,
+                'dt_admin_inworked' => $now,
+                'admin_signed' => 0,
+                'dt_admin_signed' => 0,
+                'accept_user' => 0,
+                'dt_accept' => 0,
+                'movement_linked' => 0,
+            ]);
 
-        $issuerLine = $issuerId > 0 ? self::contactLine($issuerId) : t('payments.bot.day_pay.issuer_none');
-        return [
-            'ok' => true,
-            'msg' => t('payments.bot.day_pay.created', [
+            if (PaymentsRepository::ledgerEnabled()) {
+                $accountOverride = (int)self::settings()['account_id'];
+                $dps = PaymentsRepository::createDpsByIds([$paymentId], $accountOverride);
+                if ((int)($dps['done'] ?? 0) < 1) {
+                    self::forceDeletePayment($paymentId);
+                    $reason = $dps['skipped'][0]['reason'] ?? t('payments.bot.day_pay.dps_fail');
+                    return ['ok' => false, 'msg' => (string)$reason];
+                }
+            }
+
+            self::notifyIssuersOnDate(
+                $wantStart,
+                t('payments.bot.day_pay.notify_req', [
+                    'name' => self::userName($operatorId),
+                    'sum' => $sum,
+                    'date' => date('d.m.Y', $wantStart),
+                ])
+            );
+
+            $issuerLine = $issuerId > 0 ? self::contactLine($issuerId) : t('payments.bot.day_pay.issuer_none');
+            return [
+                'ok' => true,
+                'msg' => t('payments.bot.day_pay.created', [
+                    'pin' => $pin,
+                    'sum' => $sum,
+                    'date' => date('d.m.Y', $wantStart),
+                    'issuer' => $issuerLine,
+                ]),
+                'payment_id' => $paymentId,
                 'pin' => $pin,
                 'sum' => $sum,
-                'date' => date('d.m.Y', $wantStart),
-                'issuer' => $issuerLine,
-            ]),
-            'payment_id' => $paymentId,
-            'pin' => $pin,
-            'sum' => $sum,
-            'issuer_line' => $issuerLine,
-        ];
+                'issuer_line' => $issuerLine,
+            ];
+        });
+
+        return $locked ?? ['ok' => false, 'msg' => t('payments.bot.day_pay.busy')];
     }
 
     /** @return array{ok:bool,msg:string} */
     public static function cancelRequest(int $paymentId, int $operatorId): array
     {
-        $row = PaymentsRepository::find($paymentId);
-        if ($row === null || (int)$row['user_id'] !== $operatorId) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_found')];
+        $pdo = Database::pdo();
+        $started = !$pdo->inTransaction();
+        if ($started) {
+            $pdo->beginTransaction();
         }
-        if (!self::isPayoutDescr((string)$row['descr'])) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_payout')];
+        try {
+            try {
+                $row = PaymentsRepository::findForUpdate($paymentId);
+            } catch (Throwable $e) {
+                // MyISAM / engines without row locks.
+                if ($started && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                    $started = false;
+                }
+                $row = PaymentsRepository::find($paymentId);
+            }
+            if ($row === null || (int)$row['user_id'] !== $operatorId) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_found')];
+            }
+            if (!self::isPayoutDescr((string)$row['descr'])) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_payout')];
+            }
+            if ((int)($row['dt_admin_signed'] ?? 0) > 0 || (int)($row['admin_signed'] ?? 0) > 0) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.already_paid')];
+            }
+            // Re-read signed flags immediately before delete (covers unlocked fallback path).
+            $fresh = PaymentsRepository::find($paymentId);
+            if ($fresh === null
+                || (int)($fresh['dt_admin_signed'] ?? 0) > 0
+                || (int)($fresh['admin_signed'] ?? 0) > 0
+            ) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.already_paid')];
+            }
+            self::forceDeletePayment($paymentId);
+            if ($started) {
+                $pdo->commit();
+            }
+        } catch (Throwable $e) {
+            if ($started && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
         }
-        if ((int)($row['dt_admin_signed'] ?? 0) > 0 || (int)($row['admin_signed'] ?? 0) > 0) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.already_paid')];
-        }
-        self::forceDeletePayment($paymentId);
+
         self::notifyIssuersOnDate(
             (int)$row['dt'],
             t('payments.bot.day_pay.notify_cancel', [
@@ -486,42 +565,73 @@ final class DayPayroll
         if (!self::isCashIssuer($adminId)) {
             return ['ok' => false, 'msg' => t('payments.bot.day_pay.unavailable')];
         }
-        $row = PaymentsRepository::find($paymentId);
-        if ($row === null) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_found')];
-        }
-        if (!self::isPayoutDescr((string)$row['descr'])) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_payout')];
-        }
-        if ((int)($row['dt_admin_signed'] ?? 0) > 0 || (int)($row['admin_signed'] ?? 0) > 0) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.already_confirmed')];
-        }
         $pin = preg_replace('/\D/', '', $pin) ?? '';
-        $real = self::extractPin((string)$row['descr']);
-        if ($real === '' || $real !== $pin) {
-            return ['ok' => false, 'msg' => t('payments.bot.day_pay.bad_pin')];
+        $pdo = Database::pdo();
+        $started = !$pdo->inTransaction();
+        if ($started) {
+            $pdo->beginTransaction();
         }
-        $now = time();
-        PaymentsRepository::update($paymentId, [
-            'user_id' => (int)$row['user_id'],
-            'dt' => (int)$row['dt'],
-            'descr' => (string)$row['descr'],
-            'direction' => (int)$row['direction'],
-            'sum' => (float)$row['sum'],
-            'type_id' => (int)$row['type_id'],
-            'account' => (int)$row['account'],
-            'comment_id' => (int)($row['comment_id'] ?? 0),
-            'is_partner' => (int)($row['is_partner'] ?? 0),
-            'admin_inworked' => (int)($row['admin_inworked'] ?? 0),
-            'dt_admin_inworked' => (int)($row['dt_admin_inworked'] ?? 0),
-            'admin_signed' => $adminId,
-            'dt_admin_signed' => $now,
-            'accept_user' => (int)($row['accept_user'] ?? 0),
-            'dt_accept' => (int)($row['dt_accept'] ?? 0),
-        ]);
+        try {
+            try {
+                $row = PaymentsRepository::findForUpdate($paymentId);
+            } catch (Throwable $e) {
+                if ($started && $pdo->inTransaction()) {
+                    $pdo->rollBack();
+                    $started = false;
+                }
+                $row = PaymentsRepository::find($paymentId);
+            }
+            if ($row === null) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_found')];
+            }
+            if (!self::isPayoutDescr((string)$row['descr'])) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_payout')];
+            }
+            if ((int)($row['dt_admin_signed'] ?? 0) > 0 || (int)($row['admin_signed'] ?? 0) > 0) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.already_confirmed')];
+            }
+            $real = self::extractPin((string)$row['descr']);
+            if ($real === '' || $real !== $pin) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.bad_pin')];
+            }
+            // Conditional update: only confirm still-unsigned rows (atomic vs cancel).
+            $now = time();
+            $st = Database::pdo()->prepare(
+                'UPDATE base_payments SET ID_ADMIN_SIGNED = ?, DT_ADMIN_SIGNED = ?
+                 WHERE ID = ?
+                   AND (DT_ADMIN_SIGNED IS NULL OR DT_ADMIN_SIGNED = 0 OR DT_ADMIN_SIGNED = \'\')
+                   AND (ID_ADMIN_SIGNED IS NULL OR ID_ADMIN_SIGNED = 0)'
+            );
+            $st->execute([$adminId, $now, $paymentId]);
+            if ($st->rowCount() < 1) {
+                if ($started) {
+                    $pdo->rollBack();
+                }
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.already_confirmed')];
+            }
+            if ($started) {
+                $pdo->commit();
+            }
+        } catch (Throwable $e) {
+            if ($started && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
         return ['ok' => true, 'msg' => t('payments.bot.day_pay.confirmed')];
     }
-
     public static function userName(int $userId): string
     {
         $u = UsersRepository::find($userId);
@@ -643,22 +753,85 @@ final class DayPayroll
     {
         $dayStart = self::dayStart($dayTs);
         $dayEnd = $dayStart + 86400 - 1;
+        $cols = 'ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
+                 DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id, ACCOUNT AS account,
+                 ID_COMMENT AS comment_id, IS_PARTNER_PAYMENT AS is_partner,
+                 ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,
+                 ID_ADMIN_SIGNED AS admin_signed, DT_ADMIN_SIGNED AS dt_admin_signed,
+                 ID_ACCEPT_USER_SIGNED AS accept_user, DT_ACCEPT_USER_SIGNED AS dt_accept';
+        if (Database::columnExists('base_payments', 'ACCRUAL_KEY')) {
+            $st = Database::pdo()->prepare(
+                "SELECT $cols FROM base_payments
+                 WHERE ID_USER = ? AND ACCRUAL_KEY = ?
+                 ORDER BY ID DESC LIMIT 1"
+            );
+            $st->execute([$userId, self::dayAccrualKey($dayStart)]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                return $row;
+            }
+        }
         $descr = self::accrualDescr($dayStart);
         $st = Database::pdo()->prepare(
-            'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
-                    DIRECTION AS direction, SUM AS sum, ID_TYPE AS type_id, ACCOUNT AS account,
-                    ID_COMMENT AS comment_id, IS_PARTNER_PAYMENT AS is_partner,
-                    ID_ADMIN_INWORKED AS admin_inworked, DT_ADMIN_INWORKED AS dt_admin_inworked,
-                    ID_ADMIN_SIGNED AS admin_signed, DT_ADMIN_SIGNED AS dt_admin_signed,
-                    ID_ACCEPT_USER_SIGNED AS accept_user, DT_ACCEPT_USER_SIGNED AS dt_accept
-             FROM base_payments
+            "SELECT $cols FROM base_payments
              WHERE ID_USER = ? AND CAST(DIRECTION AS SIGNED) > 0
                AND DT >= ? AND DT <= ? AND DESCR LIKE ?
-             ORDER BY ID DESC LIMIT 1'
+             ORDER BY ID DESC LIMIT 1"
         );
         $st->execute([$userId, $dayStart, $dayEnd, $descr . '%']);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
+    }
+
+    public static function dayAccrualKey(int $dayTs): string
+    {
+        return 'day:' . date('Y-m-d', self::dayStart($dayTs));
+    }
+
+    /**
+     * Named MySQL lock for payroll mutations on one staff member.
+     *
+     * @template T
+     * @param callable():T $fn
+     * @return T|null null when lock not acquired
+     */
+    public static function withUserLock(string $kind, int $userId, int $timeoutSec, callable $fn)
+    {
+        if ($userId < 1) {
+            return $fn();
+        }
+        $name = 'pay_' . preg_replace('/[^a-z0-9_]/i', '', $kind) . '_' . $userId;
+        if (strlen($name) > 64) {
+            $name = substr($name, 0, 64);
+        }
+        $pdo = Database::pdo();
+        $got = false;
+        try {
+            $st = $pdo->prepare('SELECT GET_LOCK(?, ?)');
+            $st->execute([$name, max(0, $timeoutSec)]);
+            $got = ((int)$st->fetchColumn() === 1);
+            if (!$got) {
+                return null;
+            }
+            return $fn();
+        } finally {
+            if ($got) {
+                try {
+                    $rel = $pdo->prepare('SELECT RELEASE_LOCK(?)');
+                    $rel->execute([$name]);
+                } catch (Throwable $e) {
+                    // ignore unlock errors
+                }
+            }
+        }
+    }
+
+    private static function isDuplicateKey(Throwable $e): bool
+    {
+        $msg = $e->getMessage();
+        return stripos($msg, 'Duplicate') !== false
+            || stripos($msg, '1062') !== false
+            || (method_exists($e, 'getCode') && (string)$e->getCode() === '23000');
     }
 
     private static function hasDayWriteoff(int $userId, int $dayTs): bool

@@ -1,6 +1,6 @@
 # Settlements
 
-Product module `payments`: Enable for paying specialists and settlement docs. Soft-used by ledger (auto-DPS) and likespa. Use with contracts for pay CTAs. Payroll side of staff pay. Catalog maturity: `beta`.
+Product module `payments`: Enable for paying specialists and settlement docs. Soft-used by ledger (auto-DPS) and the spa instance pack. Use with contracts for pay CTAs. Payroll side of staff pay. Catalog maturity: `beta`.
 
 ## Enable
 
@@ -50,7 +50,7 @@ For staff whose role has `PAY_DAILY=1`:
 3. Cash request on `/payments` (and optionally bot `shift_salary`): pick issuer shift day (≥ today+2) + issuer; PIN shown in UI; confirm on the same page (issuer role) or bot `day_payroll_issuer`.
 4. Settings: `day_pay_min_pay`, `day_pay_payout_account_id`, `day_pay_issuer_status2`.
 
-Machine DESCR prefixes keep oper history markers (`Начисление ЗП ФЛ`, `Выдача ФЛ на`).
+Machine DESCR prefixes keep legacy history markers (`Начисление ЗП ФЛ`, `Выдача ФЛ на`).
 
 ## Agent JSON
 

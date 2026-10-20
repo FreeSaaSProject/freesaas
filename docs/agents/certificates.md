@@ -11,7 +11,7 @@ php bin/freesaas.php migrate run --module=certificates --format=json
 
 Or `[modules] certificates=1` in `cfg/config.ini`. Role flag `EVT_SERT` shows apply UI on calendar events.
 
-Optional one-shot cleanup of unused oper tables:
+Optional one-shot cleanup of unused legacy tables:
 
 ```bash
 php bin/data-migrate.php --module=certificates --id=drop_legacy_sert
@@ -47,7 +47,7 @@ curl -sS -b jar.txt -X POST -d 'cert_code=ABC' 'https://example/certificates/eve
 
 ## Notes
 
-- Greenfield schema (not oper `base_sertificates`). No serialize CONTENT, no regen, no `base_client_payments`.
+- Greenfield schema (not the old `base_sertificates` spelling). No serialize CONTENT, no regen, no `base_client_payments`.
 - KIND `1` = money, `2` = abon. Ledger balance drives spend; `USED_AMOUNT` is a cache.
 - Cron `certificates.expire` writes off overdue remainders.
 - Soft deps: calendar, sites, orders, bonuses (`BONUS_FORBIDDEN` vs event bonus discount).

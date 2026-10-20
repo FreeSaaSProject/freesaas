@@ -4,6 +4,9 @@ declare(strict_types=1);
 /**
  * Lightweight work flags for audio_pipeline cron drain.
  * HTTP /audio/jobs/{ingest,stem} only enqueue; Cron (every ~5 min + nightly) processes batches.
+ *
+ * Stem queue holds a list of scopes (day/admin/record). New requests merge/append —
+ * they must not replace other pending days/staff.
  */
 final class AudioJobQueue
 {
@@ -29,33 +32,25 @@ final class AudioJobQueue
      */
     public static function requestStem(array $opts = []): array
     {
-        $day = trim((string)($opts['day'] ?? ''));
-        if ($day === '') {
-            $day = date('Y-m-d');
-        }
+        $job = self::stemJobFromOpts($opts);
         $prev = self::read('stem');
-        $payload = [
-            'requested_at' => time(),
-            'day' => $day,
-            'admin' => max(0, (int)($opts['admin'] ?? 0)),
-            'record' => max(0, (int)($opts['record'] ?? 0)),
-            'collect' => !isset($opts['collect']) || $opts['collect'] !== false,
-            'publish' => !isset($opts['publish']) || $opts['publish'] !== false,
-            'limit' => max(0, (int)($opts['limit'] ?? 0)),
-        ];
-        // Keep earliest day if already queued for an older unfinished day? Prefer merge: keep existing day if set.
-        if (is_array($prev) && trim((string)($prev['day'] ?? '')) !== '') {
-            $payload['day'] = (string)$prev['day'];
-            $payload['admin'] = max(0, (int)($prev['admin'] ?? $payload['admin']));
-            $payload['record'] = max(0, (int)($prev['record'] ?? $payload['record']));
-        }
-        self::write('stem', $payload);
+        $jobs = self::stemJobsFromPayload($prev);
+        $before = count($jobs);
+        $jobs = self::upsertStemJob($jobs, $job);
+        self::persistStemJobs($jobs);
+
         return [
             'ok' => true,
             'queued' => true,
-            'already' => $prev !== null,
+            'already' => $before > 0,
+            'merged' => $before > 0 && count($jobs) === $before,
             'message' => 'stem_queued',
-            'day' => $payload['day'],
+            'day' => $job['day'],
+            'days' => array_values(array_unique(array_map(
+                static fn (array $j): string => (string)$j['day'],
+                $jobs
+            ))),
+            'jobs' => count($jobs),
             'hint' => 'cron_within_5_min',
         ];
     }
@@ -121,29 +116,39 @@ final class AudioJobQueue
     }
 
     /**
-     * One stem batch (+ collect/publish when day pending hits 0).
+     * One stem batch for the first queued scope (+ collect/publish when that day pending hits 0).
      *
      * @return array{ok:bool,processed:int,skipped:int,message:string,extra?:array}
      */
     public static function drainStem(bool $force = false): array
     {
         $req = self::read('stem');
-        $day = is_array($req) ? trim((string)($req['day'] ?? '')) : '';
-        if ($day === '') {
+        $jobs = self::stemJobsFromPayload($req);
+
+        $day = '';
+        $admin = 0;
+        $record = 0;
+        $collect = true;
+        $publish = true;
+        $limit = 0;
+
+        if ($jobs !== []) {
+            $job = $jobs[0];
+            $day = (string)$job['day'];
+            $admin = (int)$job['admin'];
+            $record = (int)$job['record'];
+            $collect = !empty($job['collect']);
+            $publish = !empty($job['publish']);
+            $limit = (int)$job['limit'];
+        } else {
             $day = date('Y-m-d');
         }
-        $admin = is_array($req) ? max(0, (int)($req['admin'] ?? 0)) : 0;
-        $record = is_array($req) ? max(0, (int)($req['record'] ?? 0)) : 0;
-        $collect = !is_array($req) || !isset($req['collect']) || $req['collect'] !== false;
-        $publish = !is_array($req) || !isset($req['publish']) || $req['publish'] !== false;
-        $limit = is_array($req) ? max(0, (int)($req['limit'] ?? 0)) : 0;
 
         $pending = StemRunner::countPendingForDay($day);
-        if ($req === null && !$force && $pending < 1) {
-            // Also check lookback unparsed without day scope for force=false
+        if ($jobs === [] && !$force && $pending < 1) {
             return ['ok' => true, 'processed' => 0, 'skipped' => 1, 'message' => 'nothing_to_do'];
         }
-        if ($req === null && $force && $pending < 1) {
+        if ($jobs === [] && $force && $pending < 1) {
             // Nightly: try today; if empty, try yesterday
             $yday = date('Y-m-d', time() - 86400);
             $yPending = StemRunner::countPendingForDay($yday);
@@ -157,8 +162,15 @@ final class AudioJobQueue
 
         $lock = JobLock::tryAcquire('stem');
         if ($lock === null) {
-            if ($req === null) {
-                self::requestStem(['day' => $day, 'admin' => $admin, 'record' => $record, 'collect' => $collect, 'publish' => $publish, 'limit' => $limit]);
+            if ($jobs === []) {
+                self::requestStem([
+                    'day' => $day,
+                    'admin' => $admin,
+                    'record' => $record,
+                    'collect' => $collect,
+                    'publish' => $publish,
+                    'limit' => $limit,
+                ]);
             }
             return ['ok' => true, 'skipped' => 1, 'processed' => 0, 'message' => 'blocked_run'];
         }
@@ -166,8 +178,18 @@ final class AudioJobQueue
         try {
             $range = StemRunner::parseDayOption($day);
             if ($range === null) {
-                self::clear('stem');
-                return ['ok' => false, 'processed' => 0, 'skipped' => 0, 'message' => 'invalid_day'];
+                array_shift($jobs);
+                self::persistStemJobs($jobs);
+                return [
+                    'ok' => false,
+                    'processed' => 0,
+                    'skipped' => 0,
+                    'message' => 'invalid_day',
+                    'extra' => [
+                        'day' => $day,
+                        'remaining_jobs' => count($jobs),
+                    ],
+                ];
             }
 
             $batchLimit = $limit > 0 ? $limit : JobRunner::batchSize();
@@ -186,7 +208,7 @@ final class AudioJobQueue
                     'processed' => (int)($stem['processed'] ?? 0),
                     'skipped' => (int)($stem['skipped'] ?? 0),
                     'message' => 'stem_libs_unavailable',
-                    'extra' => ['day' => $day],
+                    'extra' => ['day' => $day, 'jobs' => count($jobs)],
                 ];
             }
 
@@ -195,17 +217,31 @@ final class AudioJobQueue
                 'day' => $day,
                 'pending' => $pendingAfter,
                 'stem' => $stem['extra'] ?? [],
+                'jobs_queued' => count($jobs),
             ];
 
             if ($pendingAfter > 0) {
-                self::requestStem([
-                    'day' => $day,
-                    'admin' => $admin,
-                    'record' => $record,
-                    'collect' => $collect,
-                    'publish' => $publish,
-                    'limit' => $limit,
-                ]);
+                // Keep current scope at head; siblings stay queued behind it.
+                if ($jobs === []) {
+                    $jobs = [self::stemJobFromOpts([
+                        'day' => $day,
+                        'admin' => $admin,
+                        'record' => $record,
+                        'collect' => $collect,
+                        'publish' => $publish,
+                        'limit' => $limit,
+                    ])];
+                } else {
+                    $jobs[0] = self::stemJobFromOpts([
+                        'day' => $day,
+                        'admin' => $admin,
+                        'record' => $record,
+                        'collect' => $collect,
+                        'publish' => $publish,
+                        'limit' => $limit,
+                    ]);
+                }
+                self::persistStemJobs($jobs);
                 return [
                     'ok' => true,
                     'processed' => (int)($stem['processed'] ?? 0),
@@ -215,7 +251,7 @@ final class AudioJobQueue
                 ];
             }
 
-            // Day drained — collect + publish once, then clear.
+            // Day drained — collect + publish once for this scope, then drop it.
             if ($collect) {
                 $admins = StemRunner::adminIdsForDay($day);
                 if ($admin > 0) {
@@ -258,12 +294,17 @@ final class AudioJobQueue
                 }
             }
 
-            self::clear('stem');
+            if ($jobs !== []) {
+                array_shift($jobs);
+            }
+            self::persistStemJobs($jobs);
+            $extra['remaining_jobs'] = count($jobs);
+
             return [
                 'ok' => true,
                 'processed' => (int)($stem['processed'] ?? 0),
                 'skipped' => (int)($stem['skipped'] ?? 0),
-                'message' => 'stem_day_done',
+                'message' => $jobs === [] ? 'stem_day_done' : 'stem_day_done_more_queued',
                 'extra' => $extra,
             ];
         } finally {
@@ -290,6 +331,113 @@ final class AudioJobQueue
         } catch (Throwable $e) {
             return false;
         }
+    }
+
+    /**
+     * @param array{day?:string,admin?:int,record?:int,collect?:bool,publish?:bool,limit?:int} $opts
+     * @return array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}
+     */
+    private static function stemJobFromOpts(array $opts): array
+    {
+        $day = trim((string)($opts['day'] ?? ''));
+        if ($day === '') {
+            $day = date('Y-m-d');
+        }
+        return [
+            'day' => $day,
+            'admin' => max(0, (int)($opts['admin'] ?? 0)),
+            'record' => max(0, (int)($opts['record'] ?? 0)),
+            'collect' => !isset($opts['collect']) || $opts['collect'] !== false,
+            'publish' => !isset($opts['publish']) || $opts['publish'] !== false,
+            'limit' => max(0, (int)($opts['limit'] ?? 0)),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed>|null $payload
+     * @return list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}>
+     */
+    private static function stemJobsFromPayload(?array $payload): array
+    {
+        if (!is_array($payload)) {
+            return [];
+        }
+        if (isset($payload['jobs']) && is_array($payload['jobs'])) {
+            $out = [];
+            foreach ($payload['jobs'] as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $day = trim((string)($row['day'] ?? ''));
+                if ($day === '') {
+                    continue;
+                }
+                $out[] = self::stemJobFromOpts($row);
+            }
+            return $out;
+        }
+        // Legacy single-scope file (pre multi-job).
+        $day = trim((string)($payload['day'] ?? ''));
+        if ($day === '') {
+            return [];
+        }
+        return [self::stemJobFromOpts($payload)];
+    }
+
+    /**
+     * @param list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}> $jobs
+     * @param array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int} $job
+     * @return list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}>
+     */
+    private static function upsertStemJob(array $jobs, array $job): array
+    {
+        $key = self::stemJobKey($job);
+        foreach ($jobs as $i => $existing) {
+            if (self::stemJobKey($existing) === $key) {
+                $jobs[$i] = [
+                    'day' => $job['day'],
+                    'admin' => $job['admin'],
+                    'record' => $job['record'],
+                    // Broader flags win: keep work if either request asked for it.
+                    'collect' => !empty($existing['collect']) || !empty($job['collect']),
+                    'publish' => !empty($existing['publish']) || !empty($job['publish']),
+                    'limit' => self::mergeStemLimit((int)$existing['limit'], (int)$job['limit']),
+                ];
+                return $jobs;
+            }
+        }
+        $jobs[] = $job;
+        return $jobs;
+    }
+
+    /** @param array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int} $job */
+    private static function stemJobKey(array $job): string
+    {
+        return $job['day'] . '|' . $job['admin'] . '|' . $job['record'];
+    }
+
+    private static function mergeStemLimit(int $a, int $b): int
+    {
+        // 0 = default batch size (unrestricted vs explicit cap) — keep 0 if either is 0.
+        if ($a < 1 || $b < 1) {
+            return 0;
+        }
+        return max($a, $b);
+    }
+
+    /**
+     * @param list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}> $jobs
+     */
+    private static function persistStemJobs(array $jobs): void
+    {
+        if ($jobs === []) {
+            self::clear('stem');
+            return;
+        }
+        self::write('stem', [
+            'requested_at' => time(),
+            'jobs' => array_values($jobs),
+        ]);
     }
 
     /** @return array<string,mixed>|null */

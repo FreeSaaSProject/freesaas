@@ -39,6 +39,10 @@ See [video-worker.md](video-worker.md). Client: `workers/video/`.
 
 Media files: `var/video/` (not in MySQL).
 
+**Security:** Agent/JSON and `video.view` responses use `VideoCamerasRepository::forPublicView()` — **no `RTSP_URL`**. Credentials stay on the edit form (`video.edit`) and in worker `hello`/job payloads only.
+
+**Retention:** Detections store primary + `EXTRA_PATHS_JSON` (raw/annotated siblings). Live ring trims both `live_*.jpg` and `raw_*.jpg`. Cron also sweeps orphan files under `frames/` and `live/`.
+
 ## Hooks
 
 Publishes `video.alert.created` (soft `bots.send` consumer).

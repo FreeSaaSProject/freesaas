@@ -80,12 +80,12 @@ final class TerminalBooking
             ? max(0, (int)$input['lead_sec'])
             : (class_exists(TerminalsConfig::class, false) ? TerminalsConfig::leadSec() : 180);
 
-        // Employee floor: oper virtual sale idSale=999 — force stub / no live 1C.
+        // Employee / disable_1c / stub: skip live 1C sale only — never skip local schedule.
         $disable1c = $isEmployee
             || !empty($input['disable_1c'])
             || TerminalsConfig::onecStubMode(false);
-        // Live 1C: full slot/shift gate. Stub/force-majeure: still refuse past starts, skip shift matrix.
-        if (!$disable1c && class_exists(BookingValidate::class, false)) {
+        // Occupancy + shift gate always (same as UI slots). disable_1c must not bypass this.
+        if (class_exists(BookingValidate::class, false)) {
             try {
                 $slotOpts = class_exists(TerminalsConfig::class, false)
                     ? TerminalsConfig::bookingSlotOpts()

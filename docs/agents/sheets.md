@@ -1,6 +1,6 @@
 # Sheets
 
-Product module `sheets`: Enable for linen/sheet inventory specific to LikeSpa. Standalone warehouse-adjacent module. Turn on only if the site tracks sheets separately from stickers. Catalog maturity: `beta`.
+Product module `sheets`: legacy linen ledger (`base_sheet_*`). Prefer [`laundry`](laundry.md) for new installs. Turn on only if the site still uses sheets separately from stickers. Catalog maturity: `beta`.
 
 ## Enable
 
@@ -68,6 +68,6 @@ curl -sS -b jar.txt 'https://example/sheets/reconcile?format=json'
 
 ## Notes
 
-- Disableable LikeSpa linen pack.
+- Disableable legacy linen pack; prefer `laundry`.
 - Ticket comments are not FK-linked to moves; reconcile matches by date (±3d) and quantity.
 - Editing a single leg of a linked transfer is blocked; use reconcile qty fix or `updateTransferPair`.

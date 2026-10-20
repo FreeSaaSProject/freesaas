@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
 $workers = VideoWorkersRepository::listAll();
-$cameras = VideoCamerasRepository::list();
+$cameras = VideoCamerasRepository::listForPublicView();
 $jobs = VideoJobsRepository::recent(30);
 $alerts = VideoAlertsRepository::recent(20);
 $online = VideoWorkersRepository::onlineCount();

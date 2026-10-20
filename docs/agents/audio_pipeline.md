@@ -89,7 +89,7 @@ curl -sS "https://<host>/audio/jobs/ingest?token=WORKER_TOKEN"
 
 Creates a queue flag; Cron creates `base_records` rows awaiting Whisper (`/audio/asr/claim`). Copy-paste GET URL with token: `/audio/settings`.
 
-## Whisper cabin worker (oper → FreeSaaS)
+## Whisper cabin worker (cutover)
 
 **Deploy the in-repo client:** [whisper-worker.md](whisper-worker.md) (`workers/whisper/`).
 
@@ -111,7 +111,7 @@ Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 
 ### Claim / result
 
-- Claim response: **plain text** filename or `None` (same as oper). Optional `?format=json` → `{"ok":true,"claim":"…"}`.
+- Claim response: **plain text** filename or `None`. Optional `?format=json` → `{"ok":true,"claim":"…"}`.
 - Result POST fields: `file_name`, `result`; optional `PLAYTIME`, `VOLUME`.
 - ASR claim/result are **not** part of `/cron/tick` — the Whisper worker polls FreeSaaS itself.
 
@@ -137,6 +137,7 @@ curl -sS -X POST -H "X-Audio-Token: …" \
 
 - Not required after every file — one idle ping per day is enough; Cron requeues until pending=0.
 - Filters on enqueue: `day=`, `admin=` / `idAdmin=`, `record=` / `idRecord=`, `limit=`, `collect=0`, `publish=0`.
+- Multi-day / multi-staff: `AudioJobQueue::requestStem` **appends or merges** scopes (`day|admin|record`) into `var/audio_jobs/queue_stem.json` → `jobs[]`. A second ping for another day must not replace the first; Cron drains head job, then the next. Same scope again only refreshes flags (`collect`/`publish` OR, `limit` widened).
 - `reset=1` / `score=1` on enqueue URL → 400 `use_run_endpoint`.
 - Day-report UI reads collections live; **messages/tickets** appear only after `reparse.after` (Re-® or Cron day drain).
 

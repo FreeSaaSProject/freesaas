@@ -8,7 +8,7 @@
 
 ## Что это
 
-**FreeSaaS** — модульный PHP CRM/операторский интерфейс (инстанс likespa). Новый Core живёт рядом с legacy `oper.likespa.hm` и постепенно заменяет его экраны.
+**FreeSaaS** — модульный PHP CRM / операторский интерфейс на отключаемых product-модулях.
 
 Ключевые правила:
 
@@ -214,7 +214,7 @@ modules/<id>/
 3. **`views/list.php`** — HTML (переменные из `extract`).
 4. **`lib/ContractsRepository.php`** — SQL только к `base_*`.
 
-Хлебные крошки (системный chrome layout, стиль oper):
+Хлебные крошки (системный chrome layout):
 
 1. В **page** собрать полный путь от модуля вглубь и обернуть `Breadcrumbs::withHome(...)` — первым всегда Home (`/`). Корень списка: `['label' => t('myid.menu.list'), 'current' => true]`.
 2. Передать в `View::render(..., ['breadcrumbs' => $trail, 'breadcrumbs_aria' => t('…')])`. Layout рисует их **сверху** `<main>` на каждой странице.

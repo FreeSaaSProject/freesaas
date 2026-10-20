@@ -18,7 +18,7 @@ Permissions: `calendar.view`, `calendar.edit`, `calendar.delete`.
 
 | Value | Meaning |
 |-------|---------|
-| `blocks` (default in example) | UI/agent create **blocks only** (`IS_BLOCK=1`). No client basket. Spa / likespa. |
+| `blocks` (default in example) | UI/agent create **blocks only** (`IS_BLOCK=1`). No client basket. Spa floor. |
 | `visits` | Full visit: `base_event_items` basket, client, `createFromEvent`, bonuses/certs sections. |
 
 Legacy `manual_create=0|1` is still read as fallback when `event_mode` is unset (`0`→blocks, `1`→visits).
@@ -54,6 +54,6 @@ Event payload includes `items[]` (`good_id`, `price`, `qty`, `pos`), `real_summ`
 
 ## Notes
 
-- Procedures may exist with `ID_EVENT_PARENT=0` (floor / likespa). Mode does not force linking.
+- Procedures may exist with `ID_EVENT_PARENT=0` (floor / instance pack). Mode does not force linking.
 - Bonuses intent for a visit lives in `base_event_bonus` (bonuses module), not on `base_events`.
 - `calendar.event.saved` (`id`, `is_new`, `data`) fires after create/update; `docs` uses it to spawn document / medcard shells.

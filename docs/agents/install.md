@@ -110,7 +110,7 @@ curl -sS -X POST "https://example.com/agent/rescue" \
 
 Pass `setup_key` only via header or JSON body — never query string.
 
-Schema-only (safe) while oper still runs: `migrate run`. Oper→FreeSaaS **data** replace migrators are intentional and destructive — run later via CLI with `--module`/`--id` or `--i-understand-replace`, or via authenticated `/db` after rescue/login.
+Schema-only (safe) while a legacy admin still shares the DB: `migrate run`. Legacy→FreeSaaS **data** replace migrators are intentional and destructive — run later via CLI with `--module`/`--id` or `--i-understand-replace`, or via authenticated `/db` after rescue/login.
 
 ## Staff roles: least privilege
 

@@ -3,46 +3,38 @@ declare(strict_types=1);
 
 /**
  * Core schema: base_users, base_system, module registry, schema ledger.
- * When source oper tables exist, clone structure into base_*; otherwise create minimal DDL.
  */
 return static function (PDO $pdo): void {
-    // base_users — structural copy from oper when present (local/transition installs).
-    // Do not keep oper-only link_gp; FreeSaaS order column is `num`.
-    $src = $pdo->query("SHOW TABLES LIKE 'phpshop_users'")->fetchColumn();
-    if ($src) {
-        $pdo->exec('CREATE TABLE IF NOT EXISTS base_users LIKE phpshop_users');
-    } else {
-        $pdo->exec(
-            "CREATE TABLE IF NOT EXISTS base_users (
-                id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-                status BLOB NOT NULL,
-                login VARCHAR(64) NOT NULL DEFAULT '',
-                password VARCHAR(255) NOT NULL DEFAULT '',
-                mail VARCHAR(64) NOT NULL DEFAULT '',
-                tel VARCHAR(64) NOT NULL DEFAULT '',
-                enabled ENUM('0','1') NOT NULL DEFAULT '0',
-                content MEDIUMTEXT NOT NULL,
-                skin VARCHAR(255) NOT NULL DEFAULT '',
-                skin_enabled ENUM('0','1') NOT NULL DEFAULT '0',
-                name VARCHAR(255) NOT NULL DEFAULT '',
-                num INT NOT NULL DEFAULT 0,
-                ID_STATUS INT NOT NULL DEFAULT 0,
-                ID_STATUS2 INT NOT NULL DEFAULT 0,
-                color VARCHAR(255) NOT NULL DEFAULT '',
-                color_text VARCHAR(255) NOT NULL DEFAULT '',
-                url VARCHAR(256) NOT NULL DEFAULT '',
-                retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
-                expire INT NOT NULL DEFAULT 0,
-                auth_epoch INT UNSIGNED NOT NULL DEFAULT 0,
-                favorites MEDIUMTEXT NULL,
-                showNewsAfter INT UNSIGNED NOT NULL DEFAULT 0,
-                IS_HIDDEN TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
-                ASSIST_TEAM TINYINT UNSIGNED NOT NULL DEFAULT 0,
-                PRIMARY KEY (id),
-                KEY idx_login (login)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-        );
-    }
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_users (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+            status BLOB NOT NULL,
+            login VARCHAR(64) NOT NULL DEFAULT '',
+            password VARCHAR(255) NOT NULL DEFAULT '',
+            mail VARCHAR(64) NOT NULL DEFAULT '',
+            tel VARCHAR(64) NOT NULL DEFAULT '',
+            enabled ENUM('0','1') NOT NULL DEFAULT '0',
+            content MEDIUMTEXT NOT NULL,
+            skin VARCHAR(255) NOT NULL DEFAULT '',
+            skin_enabled ENUM('0','1') NOT NULL DEFAULT '0',
+            name VARCHAR(255) NOT NULL DEFAULT '',
+            num INT NOT NULL DEFAULT 0,
+            ID_STATUS INT NOT NULL DEFAULT 0,
+            ID_STATUS2 INT NOT NULL DEFAULT 0,
+            color VARCHAR(255) NOT NULL DEFAULT '',
+            color_text VARCHAR(255) NOT NULL DEFAULT '',
+            url VARCHAR(256) NOT NULL DEFAULT '',
+            retries TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            expire INT NOT NULL DEFAULT 0,
+            auth_epoch INT UNSIGNED NOT NULL DEFAULT 0,
+            favorites MEDIUMTEXT NULL,
+            showNewsAfter INT UNSIGNED NOT NULL DEFAULT 0,
+            IS_HIDDEN TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            ASSIST_TEAM TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            KEY idx_login (login)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
     Database::clearSchemaCache();
     if (Database::tableExists('base_users') && Database::columnExists('base_users', 'link_gp')) {
         $pdo->exec('ALTER TABLE `base_users` DROP COLUMN `link_gp`');
@@ -53,20 +45,15 @@ return static function (PDO $pdo): void {
         Database::clearSchemaCache();
     }
 
-    $srcSys = $pdo->query("SHOW TABLES LIKE 'phpshop_system'")->fetchColumn();
-    if ($srcSys) {
-        $pdo->exec('CREATE TABLE IF NOT EXISTS base_system LIKE phpshop_system');
-    } else {
-        $pdo->exec(
-            "CREATE TABLE IF NOT EXISTS base_system (
-                id INT NOT NULL AUTO_INCREMENT,
-                name MEDIUMTEXT NULL,
-                company MEDIUMTEXT NULL,
-                title VARCHAR(255) NOT NULL DEFAULT '',
-                PRIMARY KEY (id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-        );
-    }
+    $pdo->exec(
+        "CREATE TABLE IF NOT EXISTS base_system (
+            id INT NOT NULL AUTO_INCREMENT,
+            name MEDIUMTEXT NULL,
+            company MEDIUMTEXT NULL,
+            title VARCHAR(255) NOT NULL DEFAULT '',
+            PRIMARY KEY (id)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
+    );
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_modules (

@@ -11,7 +11,7 @@ return [
     'audio_pipeline.cron.stem' => 'Stem/day parse drain (every 5 min)',
     'audio_pipeline.cron.stem_nightly' => 'Stem/day parse force (nightly 02:00)',
     'audio_pipeline.settings.coverage' => 'Record coverage (disable idle)',
-    'audio_pipeline.settings.coverage_hint' => 'Global defaults. Per-role / per-staff overrides below (optional). Outside likespa leave match off for plain ® analytics.',
+    'audio_pipeline.settings.coverage_hint' => 'Global defaults. Per-role / per-staff overrides below (optional). When not using spa procedure matching, leave match off for plain ® analytics.',
     'audio_pipeline.settings.disable_outside' => 'Disable records outside coverage after collect',
     'audio_pipeline.settings.disable_outside_hint' => 'Records kept enabled: overlap with a rated collection, a paid procedure (± buffer), or pending review queue. Roles need DISABLE_NON_PROCEDURE_TIME.',
     'audio_pipeline.settings.match_procedures' => 'Compare / match paid procedures with script sessions',

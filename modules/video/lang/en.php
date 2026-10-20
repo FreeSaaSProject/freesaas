@@ -40,6 +40,8 @@ return [
     'video.models.base_weights' => 'Base weights',
     'video.models.enqueue_train' => 'Start train job',
     'video.models.err_required' => 'Name and weights path are required',
+    'video.models.err_train_project' => 'Select a labeling project to export for train',
+    'video.models.err_train_zip' => 'Could not build dataset zip for the worker',
     'video.alerts.title' => 'Alerts',
     'video.alerts.frame' => 'Frame',
     'video.settings.title' => 'Video settings',

@@ -190,7 +190,7 @@ return [
     'audio_dicts.scripts.cond.no_intersect' => 'Нет пересечений',
     'audio_dicts.scripts.cond.volume_gt' => 'Громкость >',
     'audio_dicts.scripts.cond.term_scan_unique' => 'Уник. сканы браслетов',
-    'audio_dicts.scripts.cond.term_scan_unique_hint' => 'Скан после открывающей коммуникации (сохранённая коллекция скрипта). Окно — TIMEOUT сек после конца коллекции (0 → 600). Без открытий сканы не считаются. SCORE_RATE добавляется при Re-®/collect. Светофор — число уник. клиентов. Нужен likespa/term_scans.',
+    'audio_dicts.scripts.cond.term_scan_unique_hint' => 'Скан после открывающей коммуникации (сохранённая коллекция скрипта). Окно — TIMEOUT сек после конца коллекции (0 → 600). Без открытий сканы не считаются. SCORE_RATE добавляется при Re-®/collect. Светофор — число уник. клиентов. Нужны term_scans (spa instance pack).',
     'audio_dicts.scripts.field.scan_window' => 'Окно после коммуникации, сек',
     'audio_dicts.scripts.field.scan_window_hint' => 'Искать скан в этом интервале после конца коллекции. 0 = 600 сек. Клиент учитывается один раз; без открытий сканы не считаются.',
     'audio_dicts.scripts.field.gate_red_max_scan' => 'Красный до (уников)',

@@ -35,6 +35,13 @@ first-party storefront theme.
 | Chart.js 4.4.1 | CDN in `modules/finance/views/balance.php`, `modules/wellness/views/calendar.php` | MIT | Runtime CDN; not vendored in git. |
 | Google Fonts (DM Sans, Syne) | CDN in `modules/core/views/layout.php`, `layout_auth.php` | Typically OFL (font authors) | Runtime CDN. |
 
+## Runtime worker dependencies (not vendored in PHP tree)
+
+| Component | Location | License (as found) | Notes |
+|---|---|---|---|
+| **Ultralytics YOLO** | `workers/video/requirements.txt` (`ultralytics>=8.4.0`) | **AGPL-3.0** (Ultralytics upstream; confirm current terms at install time) | Optional Mac/GPU worker for video analytics (`docs/agents/video-worker.md`). **Not** bundled in the PHP app tarball; installed by the operator on the worker host. FreeSaaS public AGPL distribution may use it when Ultralytics AGPL obligations are met on that worker. A FreeSaaS **commercial** license does **not** by itself grant rights to Ultralytics — closed/on-prem deployments that ship or run Ultralytics need a separate Ultralytics commercial license **or** must exclude/disable the video worker integration. |
+| OpenCV (`opencv-python-headless`), Pillow, requests | same requirements.txt | Apache-2.0 / HPND / Apache-2.0 (typical) | Supporting libs for the video worker only. |
+
 ## Intentionally not shipped
 
 | Component | Notes |
@@ -53,7 +60,9 @@ first-party storefront theme.
 
 ## Summary
 
-- No GPL-only libraries are currently vendored in the public tree.
+- No GPL-only libraries are currently vendored in the public PHP tree.
+- Ultralytics is an **optional AGPL worker dependency** (not vendored); commercial FreeSaaS
+  licensees must license Ultralytics separately or omit `workers/video`.
 - Private / instance themes are out of scope for this file.
 - No outstanding public review items for unclear-provenance code.
 - phpMorphy (LGPL-2.1+) and phpqrcode (LGPL-3.0-or-later) stay manageable if

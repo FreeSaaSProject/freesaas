@@ -40,6 +40,8 @@ return [
     'video.models.base_weights' => 'Базовые веса',
     'video.models.enqueue_train' => 'Запустить train',
     'video.models.err_required' => 'Нужны имя и путь к весам',
+    'video.models.err_train_project' => 'Выберите проект разметки для train',
+    'video.models.err_train_zip' => 'Не удалось собрать zip датасета для worker',
     'video.alerts.title' => 'Алерты',
     'video.alerts.frame' => 'Кадр',
     'video.settings.title' => 'Настройки видео',

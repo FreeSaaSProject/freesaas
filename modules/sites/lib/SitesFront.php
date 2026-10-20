@@ -105,7 +105,7 @@ final class SitesFront
 
     /**
      * Public URL for a CMS page.
-     * Hierarchy: /page/vacancies/masseur/ (legacy PHPShop style).
+     * Hierarchy: /page/vacancies/masseur/.
      * link_rw kept for rewrites (/contacts/, /lk/, #anchors, external).
      * Note: /p/… is reserved for client poll/SMS short links — not CMS.
      */

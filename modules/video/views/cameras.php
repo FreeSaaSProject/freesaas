@@ -19,7 +19,7 @@
     <?php foreach ($rows as $c): ?>
       <tr>
         <td><a href="/video/cameras/<?= (int)$c['ID'] ?>/edit"><?= e((string)$c['NAME']) ?></a></td>
-        <td class="muted"><?= e(mb_substr((string)$c['RTSP_URL'], 0, 48)) ?></td>
+        <td class="muted"><?= e((string)($c['rtsp_hint'] ?? '')) ?></td>
         <td><?= e((string)$c['MODE']) ?></td>
         <td><?= !empty($c['ENABLED']) ? te('core.common.yes') : te('core.common.no') ?></td>
         <td class="row-actions">

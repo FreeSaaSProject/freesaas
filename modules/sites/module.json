@@ -248,34 +248,7 @@
         "base_page_categories",
         "base_redirects"
     ],
-    "migrators": [
-        {
-            "id": "phpshop_page_categories_to_base_page_categories",
-            "mode": "replace",
-            "source": [
-                "phpshop_page_categories"
-            ],
-            "target": [
-                "base_page_categories"
-            ]
-        },
-        {
-            "id": "fill_contacts_page_content",
-            "mode": "fill",
-            "source": [],
-            "target": [
-                "base_page_categories"
-            ]
-        },
-        {
-            "id": "fill_reviews_page_widgets",
-            "mode": "fill",
-            "source": [],
-            "target": [
-                "base_page_categories"
-            ]
-        }
-    ],
+    "migrators": [],
     "hooks": {
         "subscribe": [
             "router.not_found",

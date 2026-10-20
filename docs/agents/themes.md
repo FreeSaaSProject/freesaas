@@ -1,6 +1,6 @@
 # Storefront themes
 
-How FreeSaaS skins work under `themes/<id>/`. Independent of any legacy CMS: port whatever public site you have (static HTML, WordPress theme, PHPShop, custom PHP) into this contract.
+How FreeSaaS skins work under `themes/<id>/`. Independent of any legacy CMS: port whatever public site you have (static HTML, WordPress theme, custom PHP) into this contract.
 
 ## Mental model
 

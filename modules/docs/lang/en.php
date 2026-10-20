@@ -5,7 +5,6 @@ return [
     'docs.module.name' => 'Documents & medical cards',
     'docs.module.description' => 'Document builder: consents, checks and medical cards on one engine — versioned templates, schema-driven forms, frozen prints and a QR archive.',
     'docs.module.summary' => 'Enable to print consents and keep medical cards. Needs clients; soft: calendar (visits), procedures (medical types), audio/audio_llm (autofill), stickers (QR library). Alpha.',
-    'docs.migrator.legacy_docs_medcard' => 'Legacy: client and medical procedure ANA_*/OBJ_* → medical cards (templates go through the file library)',
     'docs.menu.group' => 'Documents',
     'docs.menu.list' => 'Documents',
     'docs.menu.defs' => 'Document templates',
@@ -107,6 +106,7 @@ return [
     'docs.err.no_dossier_def' => 'No full medical card template',
     'docs.err.no_print' => 'Not allowed to print documents',
     'docs.err.proposal_not_found' => 'Proposal not found or already decided',
+    'docs.err.proposal_mismatch' => 'Proposal does not belong to this document',
     'docs.err.proposal_field' => 'Field {id} is not in the document template',
 
     'docs.proposals.title' => 'Autofill proposals ({n})',

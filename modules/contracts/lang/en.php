@@ -83,7 +83,7 @@ return [
     'contracts.sort.ticket' => 'Ticket',
     'contracts.user_edit.acceptor' => 'Can accept tasks (contracts)',
     'contracts.settings.deadline_penalty' => 'Late deadline reduction',
-    'contracts.settings.deadline_penalty_hint' => 'If work is accepted after the deadline, the settlement amount is reduced by how far over time it was (oper overDL). Turn off to always pay full PRICE_OFFER. Stored in cfg/modules/contracts.ini → [contracts] deadline_penalty.',
+    'contracts.settings.deadline_penalty_hint' => 'If work is accepted after the deadline, the settlement amount is reduced by how far over time it was. Turn off to always pay full PRICE_OFFER. Stored in cfg/modules/contracts.ini → [contracts] deadline_penalty.',
     'contracts.settings.deadline_penalty_label' => 'Reduce payout when the deadline is overrun',
     'contracts.module.description' => 'Staff contracts/offers linked to comments, with widgets, notices, and payment CTAs.',
     'contracts.module.summary' => 'Enable for offer/contract workflow on top of comments. Hard-requires comments. Soft-used by payments (pay CTA) and staff_reports/audio_llm. Use when HR/ops track signed offers in the cabin.',

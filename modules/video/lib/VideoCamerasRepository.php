@@ -108,4 +108,56 @@ final class VideoCamerasRepository
             $id,
         ]);
     }
+
+    /**
+     * Safe camera payload for video.view / agent JSON — never includes RTSP credentials.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    public static function forPublicView(array $row): array
+    {
+        $rtsp = trim((string)($row['RTSP_URL'] ?? ''));
+
+        return [
+            'ID' => (int)($row['ID'] ?? 0),
+            'NAME' => (string)($row['NAME'] ?? ''),
+            'MODE' => (string)($row['MODE'] ?? ''),
+            'MODEL_ID' => (int)($row['MODEL_ID'] ?? 0),
+            'MODEL_NAME' => (string)($row['MODEL_NAME'] ?? ''),
+            'ENABLED' => (int)($row['ENABLED'] ?? 0),
+            'CONF_THRESHOLD' => (float)($row['CONF_THRESHOLD'] ?? 0),
+            'IOU_THRESHOLD' => (float)($row['IOU_THRESHOLD'] ?? 0),
+            'INTERVAL_SEC' => (int)($row['INTERVAL_SEC'] ?? 0),
+            'LAST_FRAME_PATH' => (string)($row['LAST_FRAME_PATH'] ?? ''),
+            'LAST_ANNOTATED_PATH' => (string)($row['LAST_ANNOTATED_PATH'] ?? ''),
+            'LAST_DETECT_JSON' => (string)($row['LAST_DETECT_JSON'] ?? ''),
+            'LAST_SEEN' => (int)($row['LAST_SEEN'] ?? 0),
+            'has_rtsp' => $rtsp !== '',
+            'rtsp_hint' => self::redactRtsp($rtsp),
+        ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $rows
+     * @return list<array<string, mixed>>
+     */
+    public static function listForPublicView(?string $q = null): array
+    {
+        return array_map([self::class, 'forPublicView'], self::list($q));
+    }
+
+    /** Strip userinfo from RTSP URL for display (rtsp://user:pass@host → rtsp://***@host/…). */
+    public static function redactRtsp(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return '';
+        }
+        if (preg_match('#^(rtsp[s]?://)([^/@]+)@(.+)$#i', $url, $m)) {
+            return $m[1] . '***@' . $m[3];
+        }
+
+        return $url;
+    }
 }
