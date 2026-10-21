@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-21T20:58:33+00:00",
+    "generated_at": "2026-10-21T21:40:05+00:00",
     "modules": [
         {
             "id": "asr",
@@ -73,7 +73,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "0.1.13",
+            "version": "0.1.14",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -494,7 +494,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.18",
+            "version": "0.2.22",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -512,7 +512,9 @@
                 "core": ">=0.3.0"
             },
             "optionalRequires": {
-                "clients": ">=0.1.0"
+                "clients": ">=0.1.0",
+                "assistant_groups": ">=0.1.0",
+                "orders": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1302,7 +1304,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.28",
+            "version": "0.1.30",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1372,7 +1374,7 @@
         },
         {
             "id": "rates",
-            "version": "0.2.1",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "Specialist rates",

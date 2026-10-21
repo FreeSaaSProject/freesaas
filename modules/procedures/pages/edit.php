@@ -35,6 +35,12 @@ if (!$isNew) {
     ];
 }
 
+// Baselines for chain-solo UI (before POST may merge into $row).
+$chainBaseDtstart = !$isNew
+    ? ProceduresRepository::tsToLocal((int)($row['dtstart'] ?? 0))
+    : '';
+$chainBaseOperator = !$isNew ? (string)(int)($row['id_operator'] ?? 0) : '0';
+
 $acl = ProceduresEditAcl::forRow($row, $isNew);
 if (empty($acl['allowed'])) {
     if ($wantsJson) {
@@ -68,14 +74,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $acl = ProceduresEditAcl::forRow($probe, $isNew);
         $data = ProceduresEditAcl::dataFromPost($_POST, $isNew ? [] : $row, $acl);
-        // Checked = do not drag the full abutting block (only this row + chill#{id}).
-        $chainSolo = !$isNew && !empty($_POST['chain_solo']);
-        $fullChain = (!$isNew && class_exists('ProceduresChain', false))
-            ? ProceduresChain::contiguousAround($id)
-            : [];
-        $chain = ($chainSolo && class_exists('ProceduresChain', false))
-            ? ProceduresChain::unitAround($id)
-            : $fullChain;
+        // Default: only this row + chill#{id}. Checked chain_move = full abutting block.
+        $moveFullChain = !$isNew && !empty($_POST['chain_move']);
+        $chain = [];
+        if (!$isNew && class_exists('ProceduresChain', false)) {
+            $chain = $moveFullChain
+                ? ProceduresChain::contiguousAround($id)
+                : ProceduresChain::unitAround($id);
+        }
         $excludeIds = [];
         foreach ($chain as $cr) {
             $cid = (int)($cr['id'] ?? 0);
@@ -173,7 +179,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $movedLines = [];
         $chainCount = 1;
         if (class_exists('ProceduresChain', false)) {
-            $relocated = ProceduresChain::relocateOnUpdate($id, $data, $row, !$chainSolo);
+            $relocated = ProceduresChain::relocateOnUpdate($id, $data, $row, $moveFullChain);
             $chainCount = (int)($relocated['count'] ?? 1);
             $movedLines = is_array($relocated['lines'] ?? null) ? $relocated['lines'] : [];
         } else {
@@ -237,8 +243,8 @@ if ($clientId > 0) {
 $chainLen = (!$isNew && class_exists('ProceduresChain', false))
     ? count(ProceduresChain::contiguousAround($id))
     : 0;
-$showChainSolo = $chainLen > 1;
-$chainSoloChecked = !empty($_POST['chain_solo']);
+$showChainMove = $chainLen > 1;
+$chainMoveChecked = !empty($_POST['chain_move']);
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -253,7 +259,7 @@ if ($wantsJson) {
         'staff' => $staffNames,
         'client_label' => $clientLabel,
         'chain_len' => $chainLen,
-        'chain_solo_available' => $showChainSolo,
+        'chain_move_available' => $showChainMove,
     ]);
     return;
 }
@@ -280,9 +286,11 @@ View::render('edit', [
     'productNames' => ProductsRepository::names(true),
     'staffNames' => $staffNames,
     'clientLabel' => $clientLabel,
-    'showChainSolo' => $showChainSolo,
+    'showChainMove' => $showChainMove,
     'chainLen' => $chainLen,
-    'chainSoloChecked' => $chainSoloChecked,
+    'chainMoveChecked' => $chainMoveChecked,
+    'chainBaseDtstart' => $chainBaseDtstart,
+    'chainBaseOperator' => $chainBaseOperator,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('procedures.menu.list'), 'href' => '/procedures'],
         [

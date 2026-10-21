@@ -67,7 +67,7 @@ Requires `assistant` enabled for tools. UI: **LLM → OAuth / MCP** (`/llm/oauth
 ### ChatGPT Custom MCP
 
 1. Connector URL = MCP endpoint only (`https://…/llm/mcp`). Leave Bearer empty; use **Authenticate** (not a pasted well-known URL).
-2. AS metadata advertises CIMD (`client_id_metadata_document_supported`) and DCR (`/oauth/register`). ChatGPT/Codex send `client_id=https://chatgpt.com/oauth/…/client.json` — no manual client in their UI.
+2. AS metadata advertises CIMD (`client_id_metadata_document_supported`) and DCR (`/oauth/register`). ChatGPT/Codex use `client_id=https://chatgpt.com/oauth/…`; Claude.ai uses `https://claude.ai/oauth/mcp-oauth-client-metadata` (pinned fallback — CDN often blocks server-side fetch). No manual client in their UI.
 3. Codex native uses loopback redirects (`http://127.0.0.1:PORT/callback`); any loopback port is accepted (RFC 8252). If the host cannot fetch chatgpt.com, built-in CIMD fallbacks apply.
 4. Authorize responses include `iss` (RFC 9207) so ChatGPT web can use `https://chatgpt.com/connector_platform_oauth_redirect`.
 5. Mixed auth: catalog is public; calls require Bearer. `tools/call` without token → `401` + `WWW-Authenticate`.

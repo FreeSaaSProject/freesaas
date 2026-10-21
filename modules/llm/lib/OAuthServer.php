@@ -247,6 +247,29 @@ final class OAuthServer
                 ],
                 'token_endpoint_auth_method' => 'none',
             ],
+            // Claude.ai hosted connectors (CIMD). Datacenter fetch often 403 — keep pinned.
+            // @see https://claude.com/docs/connectors/building/authentication
+            'https://claude.ai/oauth/mcp-oauth-client-metadata' => [
+                'client_id' => 'https://claude.ai/oauth/mcp-oauth-client-metadata',
+                'client_name' => 'Claude',
+                'client_uri' => 'https://claude.ai',
+                'redirect_uris' => [
+                    'https://claude.ai/api/mcp/auth_callback',
+                    'https://claude.com/api/mcp/auth_callback',
+                ],
+                'token_endpoint_auth_method' => 'none',
+            ],
+            // Claude Code (native loopback) — same port-agnostic match as Codex.
+            'https://claude.ai/oauth/claude-code-oauth-client-metadata' => [
+                'client_id' => 'https://claude.ai/oauth/claude-code-oauth-client-metadata',
+                'client_name' => 'Claude Code',
+                'application_type' => 'native',
+                'redirect_uris' => [
+                    'http://127.0.0.1/callback',
+                    'http://localhost/callback',
+                ],
+                'token_endpoint_auth_method' => 'none',
+            ],
         ];
     }
 
@@ -287,10 +310,11 @@ final class OAuthServer
         if (!is_string($host) || !self::isTrustedOAuthHost($host)) {
             return null;
         }
-        $meta = self::httpGetJson($clientIdUrl);
+        // Prefer pinned docs for known vendors (cloud egress often gets 403 from Claude/OpenAI CDN).
+        $known = self::knownCimdDocuments();
+        $meta = $known[$clientIdUrl] ?? null;
         if ($meta === null) {
-            $known = self::knownCimdDocuments();
-            $meta = $known[$clientIdUrl] ?? null;
+            $meta = self::httpGetJson($clientIdUrl);
         }
         if (!is_array($meta)) {
             return null;

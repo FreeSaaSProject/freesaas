@@ -256,14 +256,14 @@ final class ProceduresChain
      *
      * @param array<string,mixed> $anchorData full update payload for the edited row
      * @param array<string,mixed> $before row before edit
-     * @param bool $moveFullChain false = only this procedure + chill#{id}
+     * @param bool $moveFullChain true = full abutting block; false = this procedure + chill#{id}
      * @return array{count:int,lines:list<string>}
      */
     public static function relocateOnUpdate(
         int $anchorId,
         array $anchorData,
         array $before,
-        bool $moveFullChain = true
+        bool $moveFullChain = false
     ): array {
         $empty = static function () use ($anchorId, $anchorData): array {
             ProceduresRepository::update($anchorId, $anchorData);

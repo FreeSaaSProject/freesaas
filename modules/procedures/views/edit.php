@@ -10,14 +10,18 @@ declare(strict_types=1);
 /** @var array<int,string> $staffNames */
 /** @var string $clientLabel */
 /** @var string $returnUrl */
-/** @var bool $showChainSolo */
+/** @var bool $showChainMove */
 /** @var int $chainLen */
-/** @var bool $chainSoloChecked */
+/** @var bool $chainMoveChecked */
+/** @var string $chainBaseDtstart */
+/** @var string $chainBaseOperator */
 
 $returnUrl = $returnUrl ?? '/procedures';
-$showChainSolo = !empty($showChainSolo);
+$showChainMove = !empty($showChainMove);
 $chainLen = (int)($chainLen ?? 0);
-$chainSoloChecked = !empty($chainSoloChecked);
+$chainMoveChecked = !empty($chainMoveChecked);
+$chainBaseDtstart = (string)($chainBaseDtstart ?? '');
+$chainBaseOperator = (string)($chainBaseOperator ?? '0');
 $acl = is_array($acl ?? null) ? $acl : ['editable' => []];
 $can = static function (string $field) use ($acl): bool {
     return ProceduresEditAcl::canEditField($acl, $field);
@@ -141,13 +145,6 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
       </select>
       <?php if (!$can('id_operator')): ?><input type="hidden" name="id_operator" value="<?= (int)($row['id_operator'] ?? 0) ?>"><?php endif; ?>
     </label>
-    <?php if ($showChainSolo): ?>
-    <label class="check">
-      <input type="checkbox" name="chain_solo" value="1"<?= $chainSoloChecked ? ' checked' : '' ?>>
-      <?= te('procedures.edit.chain_solo') ?>
-    </label>
-    <p class="muted"><?= te('procedures.edit.chain_solo_hint', ['count' => $chainLen]) ?></p>
-    <?php endif; ?>
   </fieldset>
 
   <fieldset>
@@ -189,11 +186,56 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
     </label>
   </fieldset>
 
+  <?php if ($showChainMove): ?>
+  <div id="proc-chain-move" class="proc-chain-move" hidden
+       data-base-dtstart="<?= e($chainBaseDtstart) ?>"
+       data-base-operator="<?= e($chainBaseOperator) ?>">
+    <label class="check">
+      <input type="checkbox" name="chain_move" value="1"<?= $chainMoveChecked ? ' checked' : '' ?>>
+      <?= te('procedures.edit.chain_move') ?>
+    </label>
+    <p class="muted"><?= te('procedures.edit.chain_move_hint', ['count' => $chainLen]) ?></p>
+  </div>
+  <?php endif; ?>
+
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="<?= e($returnUrl) ?>"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+<?php if ($showChainMove): ?>
+<script>
+(function () {
+  var box = document.getElementById('proc-chain-move');
+  if (!box) return;
+  var form = box.closest('form');
+  if (!form) return;
+  var startEl = form.querySelector('[name="dtstart"]');
+  var opEl = form.querySelector('select[name="id_operator"], input[name="id_operator"]');
+  var cb = box.querySelector('input[name="chain_move"]');
+  var baseStart = box.getAttribute('data-base-dtstart') || '';
+  var baseOp = box.getAttribute('data-base-operator') || '0';
+  function sync() {
+    var startVal = startEl ? String(startEl.value || '') : baseStart;
+    var opVal = opEl ? String(opEl.value || '0') : baseOp;
+    var changed = startVal !== baseStart || opVal !== baseOp;
+    box.hidden = !changed;
+    if (cb) {
+      cb.disabled = !changed;
+      if (!changed) cb.checked = false;
+    }
+  }
+  if (startEl) {
+    startEl.addEventListener('change', sync);
+    startEl.addEventListener('input', sync);
+  }
+  if (opEl) {
+    opEl.addEventListener('change', sync);
+  }
+  sync();
+})();
+</script>
+<?php endif; ?>
 <?php if (!empty($extraHtml)): ?>
 <?= $extraHtml ?>
 <?php endif; ?>
