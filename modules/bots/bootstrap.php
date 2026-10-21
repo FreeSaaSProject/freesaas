@@ -11,6 +11,8 @@ require_once __DIR__ . '/lib/BotDrain.php';
 require_once __DIR__ . '/lib/BotPlugins.php';
 require_once __DIR__ . '/lib/BotMenuCatalog.php';
 require_once __DIR__ . '/lib/BotSend.php';
+require_once __DIR__ . '/lib/BotRecipients.php';
+require_once __DIR__ . '/lib/BotsAssistantPreview.php';
 require_once __DIR__ . '/lib/BotWebhook.php';
 require_once __DIR__ . '/lib/BotWebhookUpdatesRepository.php';
 require_once __DIR__ . '/lib/BotLinkCodesRepository.php';
@@ -58,6 +60,17 @@ $pages = [
         'methods' => ['GET'],
         'file' => 'plugins.php',
     ],
+    // Staff messaging for personal assistant (no SUPERADMIN gate).
+    '/bots/recipients' => [
+        'permission' => 'bots.message',
+        'methods' => ['GET'],
+        'file' => 'recipients.php',
+    ],
+    '/bots/message' => [
+        'permission' => 'bots.message',
+        'methods' => ['POST'],
+        'file' => 'message.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {
@@ -75,6 +88,35 @@ foreach ($pages as $path => $def) {
     }
     ModuleManager::registerRoute($path, $route);
 }
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return BotsAssistantPreview::onWritePreview($payload);
+});
+
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $opIds = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $want = false;
+    foreach ($opIds as $id) {
+        $id = (string)$id;
+        if ($id === 'bots.message.send' || $id === 'bots.recipients.list' || strpos($id, 'bots.message.') === 0) {
+            $want = true;
+            break;
+        }
+    }
+    if (!$want) {
+        return $payload;
+    }
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    $hints[] = t('bots.assistant.hint');
+    $payload['hints'] = $hints;
+    return $payload;
+});
 
 Cron::register('bots.sends_drain', [
     'module' => 'bots',

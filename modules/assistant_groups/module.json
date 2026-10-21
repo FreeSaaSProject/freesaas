@@ -2,7 +2,7 @@
     "id": "assistant_groups",
     "name": "assistant_groups.module.name",
     "description": "assistant_groups.module.description",
-    "version": "0.1.13",
+    "version": "0.1.14",
     "type": "product",
     "catalog": {
         "categories": ["integrations", "communications"],

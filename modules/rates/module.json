@@ -2,7 +2,7 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "0.2.1",
+    "version": "0.2.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -70,11 +70,18 @@
                 "description": "Update rate profile"
             },
             {
+                "id": "rates.skill.search",
+                "method": "GET",
+                "path": "/rates/skill",
+                "permission": "rates.edit",
+                "description": "Find procedure types + catalog products by name. Query: q=средиземноморский. Returns types[] and products[] (with type_id). Prefer product good_id when one product matches."
+            },
+            {
                 "id": "rates.skill.diagnose",
                 "method": "GET",
                 "path": "/rates/skill",
                 "permission": "rates.edit",
-                "description": "Why staff cannot perform a type/good: blockers[], percent, bans. Query: operator_id, type_id|good_id"
+                "description": "Why staff cannot perform a type/good: blockers[], percent, bans (booking/online/proc). Query: operator_id, type_id|good_id"
             },
             {
                 "id": "rates.skill.grant",
@@ -82,7 +89,15 @@
                 "path": "/rates/skill",
                 "permission": "rates.edit",
                 "side_effect": "write",
-                "description": "Enable skill: set % (explicit or suggest from own/peer) and clear ban_booking. dry_run=1 returns draft message only. Body: operator_id, type_id|good_id, optional percent, dry_run"
+                "description": "Enable skill (галочка записи): set % (explicit or suggest from own/peer), clear ban_booking/online, clear ban_procs for good_id. Body: action=grant, operator_id, type_id|good_id, optional percent, dry_run=1"
+            },
+            {
+                "id": "rates.skill.revoke",
+                "method": "POST",
+                "path": "/rates/skill",
+                "permission": "rates.edit",
+                "side_effect": "write",
+                "description": "Disable skill: good_id → ban that product (ban_procs); type_id only → ban_booking+ban_online (keeps %). Body: action=revoke, operator_id, type_id|good_id, dry_run=1"
             }
         ]
     },
@@ -130,7 +145,10 @@
         }
     ],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "assistant.write.preview",
+            "assistant.system.hints"
+        ],
         "publish": []
     },
     "bulkActions": [

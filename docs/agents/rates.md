@@ -64,15 +64,20 @@ php bin/check-service-access-parity.php --format=json
 | `rates.get` | GET | `/rates/{id}/edit` |
 | `rates.create` | POST | `/rates/new` |
 | `rates.update` | POST | `/rates/{id}/edit` |
+| `rates.skill.search` | GET | `/rates/skill?q=` — types + products by name |
 | `rates.skill.diagnose` | GET | `/rates/skill?operator_id=&type_id=` or `good_id=` |
-| `rates.skill.grant` | POST | `/rates/skill` — body: `operator_id`, `type_id`\|`good_id`, optional `percent`, `dry_run=1` |
+| `rates.skill.grant` | POST | `/rates/skill` — `action=grant`, `operator_id`, `type_id`\|`good_id`, optional `percent`, `dry_run=1` |
+| `rates.skill.revoke` | POST | `/rates/skill` — `action=revoke`; `good_id` → `ban_procs`; `type_id` only → `ban_booking`+`ban_online` (keeps %) |
 
-Grant never enables without `%`: uses explicit → existing → median of own other types → peer median → else `needs_percent`. Product bans (`ban_procs`) are preserved on grant.
+Grant never enables without `%`: uses explicit → existing → median of own other types → peer median → else `needs_percent`. Grant with `good_id` also clears that product’s `ban_procs`. Group bot: allowlist `rates.skill.*` (+ `core.users.list` to resolve staff).
 
 ```bash
+curl -sS -b jar.txt 'https://example/rates/skill?format=json&q=средиземноморский'
 curl -sS -b jar.txt 'https://example/rates/skill?format=json&operator_id=58&type_id=1'
 curl -sS -b jar.txt -X POST 'https://example/rates/skill?format=json' \
-  -d 'operator_id=58&type_id=1&dry_run=1'
+  -d 'action=grant&operator_id=58&good_id=12&dry_run=1'
+curl -sS -b jar.txt -X POST 'https://example/rates/skill?format=json' \
+  -d 'action=revoke&operator_id=58&good_id=12&dry_run=1'
 ```
 
 ## Notes

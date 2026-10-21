@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/RatesRepository.php';
 require_once __DIR__ . '/lib/ServiceAccessParity.php';
 require_once __DIR__ . '/lib/RatesSkill.php';
+require_once __DIR__ . '/lib/RatesAssistantPreview.php';
 
 Assets::register('rates', [
     'css' => ['assets/css/rates.css'],
@@ -27,6 +28,38 @@ foreach ($pages as $path => $def) {
         },
     ]);
 }
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return is_array($payload) ? $payload : [];
+    }
+    return RatesAssistantPreview::onWritePreview($payload);
+});
+
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $opIds = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $want = false;
+    foreach ($opIds as $id) {
+        $id = (string)$id;
+        if ($id === 'rates.skill.grant' || $id === 'rates.skill.revoke'
+            || $id === 'rates.skill.diagnose' || $id === 'rates.skill.search'
+            || strpos($id, 'rates.skill.') === 0
+        ) {
+            $want = true;
+            break;
+        }
+    }
+    if (!$want) {
+        return $payload;
+    }
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    $hints[] = t('rates.assistant.hint');
+    $payload['hints'] = $hints;
+    return $payload;
+});
 
 BulkActions::register('rates', 'delete', [
     'label' => 'core.bulk.delete',

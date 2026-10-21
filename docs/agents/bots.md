@@ -93,10 +93,32 @@ See [`module-agent-api.md`](module-agent-api.md). Same routes as UI; `?format=js
 | `bots.settings.save` | `POST /bots/settings` (form fields `staff_telegram_token`, …) |
 | `bots.queue.list` | `GET /bots/sends?format=json&status=&audience=&q=` |
 | `bots.queue.drain` | `POST /bots/sends/work` body `limit`, optional `audience` |
-| `bots.send.test` | `POST /bots/sends/test` body `user_id` or `client_id`, `text`, `audience`, optional `drain=1` |
+| `bots.send.test` | `POST /bots/sends/test` body `user_id` or `client_id`, `text`, `audience`, optional `drain=1` (superadmin; hidden from assistant) |
+| `bots.recipients.list` | `GET /bots/recipients?format=json&q=` — linked staff + linked clients + known Max groups (`bots.message`) |
+| `bots.message.send` | `POST /bots/message` — queue text to `user_id` / `client_id` / allowlisted `chat_id`+`platform` (`bots.message`; Confirm in assistant) |
 | `bots.plugins.list` | `GET /bots/plugins?format=json` |
 
 Tokens are always masked in JSON.
+
+### Personal assistant: message staff / clients / groups
+
+Permission **`bots.message`** (not SUPERADMIN). Data already in FreeSaaS:
+
+- Staff / clients → `base_bot_links` (`BOT_SOURCE` 2 / 1); client must have started the **client** bot and linked (phone contact or link-code)
+- Client bot token → `cfg/modules/bots.ini` `client_max_token` / `client_telegram_token` (+ webhook subscribed)
+- Known groups → `assistant_groups` allowlist/discovered + orders `max_notify_chat_id`
+
+```bash
+curl -sS -b jar.txt 'https://example/bots/recipients?format=json&q=7900'
+curl -sS -b jar.txt -X POST 'https://example/bots/message?format=json' \
+  -d 'user_id=58&text=Привет&dry_run=1'
+curl -sS -b jar.txt -X POST 'https://example/bots/message?format=json' \
+  -d 'client_id=42&text=Ждём вас завтра в 12:00'
+curl -sS -b jar.txt -X POST 'https://example/bots/message?format=json' \
+  -d 'chat_id=-8024…&platform=max&text=Напоминание'
+```
+
+Delivery: cron `bots.sends_drain`. Unknown `chat_id` / unlinked client is refused. Without a client-bot token, client rows enqueue but drain fails.
 
 ## Enqueue from domain code
 

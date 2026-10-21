@@ -280,6 +280,18 @@ final class AssistantGroupsBotHandler
         }
         $history[] = ['role' => 'user', 'content' => $text];
         $systemExtra = t('assistant_groups.bot.system_extra');
+        $chatMeta = AssistantGroupsConfig::metaForChat($chatId);
+        $chatTitle = trim((string)($chatMeta['title'] ?? ''));
+        $chatDescr = trim((string)($chatMeta['description'] ?? ''));
+        if ($chatTitle !== '' || $chatDescr !== '') {
+            $systemExtra .= "\n" . t('assistant_groups.bot.system_chat_context', [
+                'chat_id' => $chatId,
+                'title' => $chatTitle !== '' ? $chatTitle : $chatId,
+                'description' => $chatDescr !== '' ? $chatDescr : '—',
+            ]);
+        } else {
+            $systemExtra .= "\n" . t('assistant_groups.bot.system_chat_id', ['chat_id' => $chatId]);
+        }
         $toolStubs = [
             AssistantGroupsCatalog::OP_CLEAR => static function () use ($apiToken, $chatId, $uid): array {
                 self::stripKeyboards($apiToken, $chatId);

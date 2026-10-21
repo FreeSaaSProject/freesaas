@@ -11,6 +11,7 @@ $build = static function (): array {
         'group_require_mention' => AssistantGroupsConfig::requireMention() ? 1 : 0,
         'auto_add_groups' => AssistantGroupsConfig::autoAddDiscovered() ? 1 : 0,
         'group_chat_ids' => implode(',', AssistantGroupsConfig::groupChatIds()),
+        'group_chats' => AssistantGroupsConfig::groupChatsDetailed(),
         'group_ops' => implode(',', AssistantGroupsConfig::groupOpsPatterns()),
         'group_ops_extra' => implode(',', AssistantGroupsCatalog::orphanPatterns()),
         'ops_catalog' => AssistantGroupsCatalog::settingsCatalog(),

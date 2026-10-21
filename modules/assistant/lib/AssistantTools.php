@@ -186,6 +186,12 @@ final class AssistantTools
         if ($opId !== '' && preg_match('/\.delete$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
             $args['action'] = 'delete';
         }
+        if ($opId !== '' && preg_match('/\.revoke$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
+            $args['action'] = 'revoke';
+        }
+        if ($opId !== '' && preg_match('/\.grant$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
+            $args['action'] = 'grant';
+        }
         if ($opId !== '' && preg_match('/\.copy$/i', $opId) && trim((string)($args['action'] ?? '')) === '') {
             $args['action'] = 'copy';
         }

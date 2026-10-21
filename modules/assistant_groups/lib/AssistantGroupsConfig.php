@@ -28,6 +28,68 @@ final class AssistantGroupsConfig
         return array_values(array_unique($out));
     }
 
+    /**
+     * Human labels for allowlisted chats (ini JSON `group_chat_meta`).
+     *
+     * @return array<string, array{title:string,description:string}>
+     */
+    public static function groupChatMeta(): array
+    {
+        $raw = trim((string)Config::get('assistant_groups', 'group_chat_meta', ''));
+        if ($raw === '') {
+            return [];
+        }
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $out = [];
+        foreach ($decoded as $chatId => $row) {
+            $chatId = trim((string)$chatId);
+            if ($chatId === '' || !is_array($row)) {
+                continue;
+            }
+            $out[$chatId] = [
+                'title' => trim((string)($row['title'] ?? '')),
+                'description' => trim((string)($row['description'] ?? '')),
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * @return array{title:string,description:string}
+     */
+    public static function metaForChat(string $chatId): array
+    {
+        $chatId = trim($chatId);
+        $all = self::groupChatMeta();
+        if ($chatId !== '' && isset($all[$chatId])) {
+            return $all[$chatId];
+        }
+        return ['title' => '', 'description' => ''];
+    }
+
+    /**
+     * Allowlisted chats with title/description (for settings UI + bots.recipients).
+     *
+     * @return list<array{chat_id:string,title:string,description:string}>
+     */
+    public static function groupChatsDetailed(): array
+    {
+        $meta = self::groupChatMeta();
+        $out = [];
+        foreach (self::groupChatIds() as $id) {
+            $m = $meta[$id] ?? ['title' => '', 'description' => ''];
+            $out[] = [
+                'chat_id' => $id,
+                'title' => (string)($m['title'] ?? ''),
+                'description' => (string)($m['description'] ?? ''),
+            ];
+        }
+        return $out;
+    }
+
     public static function isAllowedChat(string $chatId): bool
     {
         $chatId = trim($chatId);
@@ -118,7 +180,8 @@ final class AssistantGroupsConfig
         $enabled = !empty($post['group_enabled']) ? '1' : '0';
         $mention = !empty($post['group_require_mention']) ? '1' : '0';
         $autoAdd = !empty($post['auto_add_groups']) ? '1' : '0';
-        $chats = self::normalizeCsv((string)($post['group_chat_ids'] ?? ''));
+        $parsed = self::parseChatsFromPost($post);
+        $chats = implode(',', $parsed['ids']);
         if (isset($post['group_ops_catalog']) || isset($post['group_ops_id']) || isset($post['group_ops_module'])) {
             $ops = AssistantGroupsCatalog::patternsFromPost($post);
         } else {
@@ -128,6 +191,7 @@ final class AssistantGroupsConfig
         Config::set('assistant_groups', 'group_require_mention', $mention);
         Config::set('assistant_groups', 'auto_add_groups', $autoAdd);
         Config::set('assistant_groups', 'group_chat_ids', $chats);
+        Config::set('assistant_groups', 'group_chat_meta', self::encodeMeta($parsed['meta']));
         Config::set('assistant_groups', 'group_ops', $ops);
 
         if (array_key_exists('max_token', $post)) {
@@ -167,5 +231,81 @@ final class AssistantGroupsConfig
             }
         }
         return implode(',', array_values(array_unique($parts)));
+    }
+
+    /**
+     * Rows from settings form + optional legacy CSV `group_chat_ids`.
+     *
+     * @param array<string,mixed> $post
+     * @return array{ids:list<string>,meta:array<string,array{title:string,description:string}>}
+     */
+    private static function parseChatsFromPost(array $post): array
+    {
+        $ids = [];
+        $meta = [];
+        $rows = $post['group_chat'] ?? null;
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $id = trim((string)($row['id'] ?? ''));
+                if ($id === '' || !isset($id[0]) || $id[0] !== '-') {
+                    continue;
+                }
+                $ids[] = $id;
+                $title = trim((string)($row['title'] ?? ''));
+                $descr = trim((string)($row['description'] ?? ''));
+                if (function_exists('mb_substr')) {
+                    $title = mb_substr($title, 0, 120, 'UTF-8');
+                    $descr = mb_substr($descr, 0, 500, 'UTF-8');
+                } else {
+                    $title = substr($title, 0, 120);
+                    $descr = substr($descr, 0, 500);
+                }
+                if ($title !== '' || $descr !== '') {
+                    $meta[$id] = ['title' => $title, 'description' => $descr];
+                }
+            }
+        }
+        // Legacy / agent: CSV only when structured rows were not posted (form always sends group_chat[]).
+        if (!is_array($rows)) {
+            $csv = self::normalizeCsv((string)($post['group_chat_ids'] ?? ''));
+            if ($csv !== '') {
+                $prevMeta = self::groupChatMeta();
+                foreach (explode(',', $csv) as $id) {
+                    $id = trim($id);
+                    if ($id === '' || (isset($id[0]) && $id[0] !== '-')) {
+                        continue;
+                    }
+                    if (!in_array($id, $ids, true)) {
+                        $ids[] = $id;
+                    }
+                    if (!isset($meta[$id]) && isset($prevMeta[$id])) {
+                        $meta[$id] = $prevMeta[$id];
+                    }
+                }
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        $kept = [];
+        foreach ($ids as $id) {
+            if (isset($meta[$id])) {
+                $kept[$id] = $meta[$id];
+            }
+        }
+        return ['ids' => $ids, 'meta' => $kept];
+    }
+
+    /**
+     * @param array<string,array{title:string,description:string}> $meta
+     */
+    private static function encodeMeta(array $meta): string
+    {
+        if ($meta === []) {
+            return '';
+        }
+        $enc = json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return $enc !== false ? $enc : '';
     }
 }
