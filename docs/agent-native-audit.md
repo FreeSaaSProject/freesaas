@@ -1,7 +1,7 @@
 # FreeSaaS — Agent-Native Architecture Audit
 
 **Date:** 2026-10-11 (full recount; original diagnosis 2026-10-05)  
-**Scope:** Public platform [`ilcommm/freesaas`](https://github.com/ilcommm/freesaas) (AGPL dual-license). Instance branding theme lives in private [`ilcommm/freesaas-theme-likespa`](https://github.com/ilcommm/freesaas-theme-likespa).  
+**Scope:** Public platform [`FreeSaaSProject/freesaas`](https://github.com/FreeSaaSProject/freesaas) (AGPL dual-license). Instance branding theme lives in private [`ilcommm/freesaas-theme-likespa`](https://github.com/ilcommm/freesaas-theme-likespa).  
 **Audience:** Product owners and coding agents. Working standard for platform/module work + readiness scoreboard.
 
 Related docs:
@@ -63,7 +63,7 @@ Do not redesign these — extend them.
 9. **Hard rules** — runtime `base_*` only; no second router/DI; product config in `cfg/modules/*.ini`.
 10. **Additive migrations ledger** — `base_schema_migrations`; CLI `migrate status|run`.
 11. **Product MCP + OAuth** — `/llm/mcp`, `agent.ops` (~388), assistant confirm writes; read-only `core.doctor` / `core.health.detail` on session/MCP.
-12. **Public packaging** — AGPL dual-license + CLA; Docker Compose; release zip excludes private themes; UpdateEngine → `ilcommm/freesaas`.
+12. **Public packaging** — AGPL dual-license + CLA; Docker Compose; release zip excludes private themes; UpdateEngine → `FreeSaaSProject/freesaas`.
 
 ```mermaid
 flowchart LR
@@ -276,7 +276,7 @@ See [Module Authoring Test](#module-authoring-test).
 | Status flags ZGV/STA/MARKET/ASSIST/PARTNER | Owning product modules via `registerFieldGroup` |
 | Menu homes → `/catalog`, `/payments`, `/ledger/moves` | Product modules; resilient fallbacks |
 | Messenger chat ids / bot gates in core user edit | Product `bots` module (`base_bot_links`, not columns on `base_users`) |
-| `dbase=` default / host branding | Deployment only; public repo is `ilcommm/freesaas` |
+| `dbase=` default / host branding | Deployment only; public repo is `FreeSaaSProject/freesaas` |
 | sheets linen, massage tables, audio ASR workers | Already product modules — OK |
 
 ---
@@ -594,7 +594,7 @@ Product MCP is **in scope and shipped**; see [Future Agent Layer](#future-agent-
 | Manifest hooks prose cleanup | **Done** (bulkActions field; dotted events only) |
 | `docs/agents/*` runbooks | **Done** (QUICKSTART, agent-surfaces, cases, repair, connect-*, skills) |
 | Docker Compose greenfield | **Done** |
-| Public repo `ilcommm/freesaas` + private theme repo | **Done** |
+| Public repo `FreeSaaSProject/freesaas` + private theme repo | **Done** |
 | MCP tools `core.doctor` / `core.health.detail` | **Done** |
 | Real uninstall / drop tables | **Done** (mandatory dump; `leave_tables` opt-out) |
 | `php bin/data-migrate.php` | Unchanged (destructive; document) |

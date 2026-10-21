@@ -68,7 +68,7 @@ Admin stores a `MODULES` blob (`base_promopages`). Storefront renders via `Promo
 | `likespa` | https://github.com/ilcommm/freesaas-theme-likespa |
 | `balance` | https://github.com/ilcommm/freesaas-theme-balance |
 
-Clone or sync into `themes/<id>/` on the instance (or storefront tree). Do not commit them to `ilcommm/freesaas`.
+Clone or sync into `themes/<id>/` on the instance (or storefront tree). Do not commit them to `FreeSaaSProject/freesaas`.
 
 ## Do / don’t
 
