@@ -129,11 +129,27 @@ final class TerminalBooking
             $onecProduct = TerminalsConfig::string('1c_uid', '');
         }
 
+        // Token gate before any 1C sale — retry must not charge then unsale a pre-paid document_id.
+        $token = substr(trim((string)($input['token'] ?? '')), 0, 32);
+        if ($token === '') {
+            $token = bin2hex(random_bytes(16));
+        } elseif (self::tokenUsed($token)) {
+            return [
+                'ok' => false,
+                'error' => 'token already used',
+                'product_name' => $productName,
+                'price' => $price,
+                'stack' => $stack,
+            ];
+        }
+
         $onecClient = trim((string)($input['onec_client_id'] ?? ''));
         // Pre-paid sale (legacy api.php: document_id = idSale after api1c.php/payment).
         $preSaleId = trim((string)($input['sale_id'] ?? $input['document_id'] ?? ''));
         $saleId = '';
         $saleStub = false;
+        // Only sales created by OnecClient::sale in THIS request may be auto-unsold on fail.
+        $saleCreatedThisRequest = false;
         if ($isEmployee) {
             // Oper: virtual idSale=999 for staff-as-client (excluded from dayColumnStats revenue).
             $saleId = '999';
@@ -178,6 +194,7 @@ final class TerminalBooking
             }
             $saleId = (string)($sale['sale_id'] ?? '');
             $saleStub = !empty($sale['stub']) || $disable1c;
+            $saleCreatedThisRequest = $saleId !== '' && !$saleStub;
             $stack[] = [
                 'key' => 'sale',
                 'ok' => true,
@@ -192,20 +209,6 @@ final class TerminalBooking
                 'skipped' => true,
                 'price' => $price,
                 'detail' => 'sale skipped',
-            ];
-        }
-
-        $token = substr(trim((string)($input['token'] ?? '')), 0, 32);
-        if ($token === '') {
-            $token = bin2hex(random_bytes(16));
-        } elseif (self::tokenUsed($token)) {
-            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
-            return [
-                'ok' => false,
-                'error' => 'token already used',
-                'product_name' => $productName,
-                'price' => $price,
-                'stack' => $stack,
             ];
         }
 
@@ -267,7 +270,7 @@ final class TerminalBooking
             if (class_exists(BookingLock::class, false)) {
                 $locked = BookingLock::withOperatorDay($operatorId, $dtStart, 10, $lockFn);
                 if ($locked === null) {
-                    self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
+                    self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $saleCreatedThisRequest, $stack);
                     $stack[] = ['key' => 'procedure', 'ok' => false, 'detail' => 'lock_busy'];
                     return [
                         'ok' => false,
@@ -283,7 +286,7 @@ final class TerminalBooking
                 $procId = (int)($locked['procedure_id'] ?? 0);
             }
         } catch (Throwable $e) {
-            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
+            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $saleCreatedThisRequest, $stack);
             $stack[] = [
                 'key' => 'procedure',
                 'ok' => false,
@@ -300,7 +303,7 @@ final class TerminalBooking
         }
 
         if ($procId < 1) {
-            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
+            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $saleCreatedThisRequest, $stack);
             $stack[] = ['key' => 'procedure', 'ok' => false, 'detail' => 'insert returned 0'];
             $stack[] = ['key' => 'admin', 'ok' => false];
             return [
@@ -635,7 +638,8 @@ final class TerminalBooking
     }
 
     /**
-     * Best-effort rollback of a live 1C sale when local assert/insert fails after sale.
+     * Best-effort rollback of a live 1C sale created in THIS request when local assert/insert fails.
+     * Never unsale a pre-paid document_id / sale_id handed in by legacy /api.php.
      *
      * @param list<array<string,mixed>> $stack
      */
@@ -643,9 +647,10 @@ final class TerminalBooking
         string $saleId,
         bool $saleStub,
         bool $disable1c,
+        bool $createdThisRequest,
         array &$stack
     ): void {
-        if ($saleId === '' || $saleStub || $disable1c) {
+        if (!$createdThisRequest || $saleId === '' || $saleStub || $disable1c) {
             return;
         }
         if (!class_exists(OnecClient::class, false)) {

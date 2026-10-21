@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-21T08:01:04+00:00",
+    "generated_at": "2026-10-21T09:05:28+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1633,7 +1633,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.44",
+            "version": "0.1.45",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
