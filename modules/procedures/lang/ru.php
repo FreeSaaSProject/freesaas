@@ -66,6 +66,8 @@ return [
     'procedures.edit.chain_saved' => 'Сохранено: перенесено процедур в блоке — {count}.',
     'procedures.edit.chain_saved_list' => 'Сохранено, перенесено {count}: {list}',
     'procedures.edit.chain_item' => '#{id} {name} {time}',
+    'procedures.edit.chain_solo' => 'Не переносить всю цепочку',
+    'procedures.edit.chain_solo_hint' => 'В блоке {count} стыкующихся процедур. С галочкой — только эта и её перерыв (chill#), без соседних услуг.',
     'procedures.err.bad_day' => 'Нужен параметр day=YYYY-MM-DD',
     'procedures.err.not_found' => 'Процедура #{id} не найдена',
     'procedures.err.type_required' => 'Укажите тип процедуры',

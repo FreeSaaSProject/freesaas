@@ -49,6 +49,8 @@ $allowed = [
     '/agent/db' => ['methods' => ['GET'], 'why' => 'agent db status'],
     '/agent/db/migrate' => ['methods' => ['GET'], 'why' => 'agent migrate status'],
     '/agent/db/migrate/run' => ['methods' => ['POST'], 'why' => 'agent migrate run'],
+    '/agent/db/data-migrate' => ['methods' => ['GET'], 'why' => 'agent data migrator catalog'],
+    '/agent/db/data-migrate/run' => ['methods' => ['POST'], 'why' => 'agent data migrator run one'],
     '/agent/db/dumps' => ['methods' => ['GET'], 'why' => 'agent dump list'],
     '/agent/db/dump' => ['methods' => ['POST'], 'why' => 'agent dump create'],
     '/agent/db/dump/file' => ['methods' => ['GET'], 'why' => 'agent dump download (header or signed)'],

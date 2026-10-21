@@ -109,6 +109,12 @@ curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
 curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/db/migrate/run"
 
+# Data migrator (one id only — never full catalog)
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/db/data-migrate?module=rates"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/db/data-migrate/run?module=rates&id=restrict_to_bans"
+
 # Health / validate
 curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
   "https://example.com/agent/health?module=equipment"

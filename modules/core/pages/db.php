@@ -430,6 +430,8 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
             ['method' => 'GET', 'path' => '/agent/db', 'auth' => 'agent_token', 'description' => 'Platform DB status'],
             ['method' => 'GET', 'path' => '/agent/db/migrate', 'auth' => 'agent_token', 'description' => 'Schema migrate status'],
             ['method' => 'POST', 'path' => '/agent/db/migrate/run', 'auth' => 'agent_token', 'description' => 'Schema migrate run'],
+            ['method' => 'GET', 'path' => '/agent/db/data-migrate', 'auth' => 'agent_token', 'description' => 'Data migrator catalog'],
+            ['method' => 'POST', 'path' => '/agent/db/data-migrate/run', 'auth' => 'agent_token', 'description' => 'Data migrator run one (module+id)'],
         ],
     ]);
 }

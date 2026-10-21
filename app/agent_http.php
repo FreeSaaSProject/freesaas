@@ -159,6 +159,15 @@ function agent_api_dispatch(string $path, string $method, string $id): array
         $mod = isset($_GET['module']) ? (string)$_GET['module'] : (isset($_POST['module']) ? (string)$_POST['module'] : null);
         return AgentOps::migrateRun($mod);
     }
+    if ($path === '/agent/db/data-migrate' && $method === 'GET') {
+        $mod = isset($_GET['module']) ? (string)$_GET['module'] : null;
+        return AgentOps::dataMigrateList($mod);
+    }
+    if ($path === '/agent/db/data-migrate/run' && $method === 'POST') {
+        $mod = isset($_GET['module']) ? (string)$_GET['module'] : (isset($_POST['module']) ? (string)$_POST['module'] : null);
+        $id = isset($_GET['id']) ? (string)$_GET['id'] : (isset($_POST['id']) ? (string)$_POST['id'] : null);
+        return AgentOps::dataMigrateRun($mod, $id);
+    }
     if ($path === '/agent/db/dumps' && $method === 'GET') {
         return AgentOps::dbListDumps();
     }

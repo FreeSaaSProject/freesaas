@@ -66,6 +66,8 @@ return [
     'procedures.edit.chain_saved' => 'Saved: moved {count} procedures in the contiguous block.',
     'procedures.edit.chain_saved_list' => 'Saved, moved {count}: {list}',
     'procedures.edit.chain_item' => '#{id} {name} {time}',
+    'procedures.edit.chain_solo' => 'Do not move the whole chain',
+    'procedures.edit.chain_solo_hint' => '{count} abutting procedures in the block. When checked — only this one and its chill# rest, not neighbouring services.',
     'procedures.err.bad_day' => 'day=YYYY-MM-DD is required',
     'procedures.err.not_found' => 'Procedure #{id} not found',
     'procedures.err.type_required' => 'Procedure type is required',

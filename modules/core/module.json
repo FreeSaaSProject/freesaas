@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.121",
+    "version": "0.3.123",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -120,6 +120,8 @@
             "/agent/db",
             "/agent/db/migrate",
             "/agent/db/migrate/run",
+            "/agent/db/data-migrate",
+            "/agent/db/data-migrate/run",
             "/agent/db/dump",
             "/agent/db/dumps",
             "/agent/db/dump/file",

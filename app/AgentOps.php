@@ -666,6 +666,54 @@ final class AgentOps
     }
 
     /**
+     * Preview data migrators (enabled modules). Optional filter: module=
+     *
+     * @return array{ok:bool,migrators:list,http:int}
+     */
+    public static function dataMigrateList(?string $module = null): array
+    {
+        $module = $module !== null ? trim($module) : '';
+        $rows = DataMigrator::catalog();
+        if ($module !== '') {
+            $rows = array_values(array_filter(
+                $rows,
+                static fn(array $r): bool => (string)($r['module'] ?? '') === $module
+            ));
+        }
+        return ['ok' => true, 'migrators' => $rows, 'http' => 200];
+    }
+
+    /**
+     * Run one data migrator (module + id required). Never runs the full catalog.
+     *
+     * @return array{ok:bool,result:array,http:int,error?:string}
+     */
+    public static function dataMigrateRun(?string $module = null, ?string $id = null): array
+    {
+        $module = $module !== null ? trim($module) : '';
+        $id = $id !== null ? trim($id) : '';
+        if ($module === '' || $id === '') {
+            return [
+                'ok' => false,
+                'error' => 'module and id required (never runs all migrators remotely)',
+                'result' => [],
+                'http' => 400,
+            ];
+        }
+        try {
+            $result = DataMigrator::runOne($module, $id);
+            $ok = ($result['status'] ?? '') === 'ok' || ($result['status'] ?? '') === 'skip';
+            return [
+                'ok' => $ok,
+                'result' => $result,
+                'http' => $ok ? 200 : 500,
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'result' => [], 'http' => 400];
+        }
+    }
+
+    /**
      * Owned-table DB hub status for agents (no expert / no DROP).
      *
      * @return array{ok:bool,owned:list<string>,owned_count:int,dumps:list,setup:array,http:int}
@@ -1100,6 +1148,13 @@ final class AgentOps
                 ['method' => 'GET', 'path' => '/agent/db', 'op' => 'db.status'],
                 ['method' => 'GET', 'path' => '/agent/db/migrate', 'op' => 'migrate.status', 'query' => ['module']],
                 ['method' => 'POST', 'path' => '/agent/db/migrate/run', 'op' => 'migrate.run', 'query' => ['module']],
+                ['method' => 'GET', 'path' => '/agent/db/data-migrate', 'op' => 'data_migrate.list', 'query' => ['module']],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/db/data-migrate/run',
+                    'op' => 'data_migrate.run',
+                    'query' => ['module', 'id'],
+                ],
                 ['method' => 'GET', 'path' => '/agent/db/dumps', 'op' => 'db.dumps'],
                 ['method' => 'GET', 'path' => '/agent/db/dump/file', 'op' => 'db.dump_file', 'query' => ['file', 'exp', 'sig']],
                 ['method' => 'POST', 'path' => '/agent/db/dump', 'op' => 'db.dump', 'query' => ['label']],

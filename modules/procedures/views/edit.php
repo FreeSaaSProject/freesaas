@@ -10,8 +10,14 @@ declare(strict_types=1);
 /** @var array<int,string> $staffNames */
 /** @var string $clientLabel */
 /** @var string $returnUrl */
+/** @var bool $showChainSolo */
+/** @var int $chainLen */
+/** @var bool $chainSoloChecked */
 
 $returnUrl = $returnUrl ?? '/procedures';
+$showChainSolo = !empty($showChainSolo);
+$chainLen = (int)($chainLen ?? 0);
+$chainSoloChecked = !empty($chainSoloChecked);
 $acl = is_array($acl ?? null) ? $acl : ['editable' => []];
 $can = static function (string $field) use ($acl): bool {
     return ProceduresEditAcl::canEditField($acl, $field);
@@ -135,6 +141,13 @@ if (isset($row['dtend_plan']) && is_string($row['dtend_plan']) && strpos((string
       </select>
       <?php if (!$can('id_operator')): ?><input type="hidden" name="id_operator" value="<?= (int)($row['id_operator'] ?? 0) ?>"><?php endif; ?>
     </label>
+    <?php if ($showChainSolo): ?>
+    <label class="check">
+      <input type="checkbox" name="chain_solo" value="1"<?= $chainSoloChecked ? ' checked' : '' ?>>
+      <?= te('procedures.edit.chain_solo') ?>
+    </label>
+    <p class="muted"><?= te('procedures.edit.chain_solo_hint', ['count' => $chainLen]) ?></p>
+    <?php endif; ?>
   </fieldset>
 
   <fieldset>

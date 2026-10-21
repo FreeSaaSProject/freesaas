@@ -146,6 +146,50 @@ final class ProceduresChain
     }
 
     /**
+     * Edited procedure + its own chill companions only (notice chill#{id}).
+     * Used when UI opts out of full contiguous-block relocate.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function unitAround(int $procId): array
+    {
+        if ($procId < 1 || !class_exists('ProceduresRepository', false)) {
+            return [];
+        }
+        $anchor = ProceduresRepository::find($procId);
+        if ($anchor === null) {
+            return [];
+        }
+        $op = (int)($anchor['id_operator'] ?? 0);
+        $dayStart = (int)strtotime(date('Y-m-d', (int)($anchor['dtstart'] ?? time())) . ' 00:00:00');
+        if ($op < 1 || $dayStart < 1) {
+            return [$anchor];
+        }
+        $prefix = 'chill#' . $procId;
+        $out = [$anchor];
+        foreach (ProceduresRepository::listForDayRange($dayStart, $dayStart + 86400, $op) as $r) {
+            $rid = (int)($r['id'] ?? 0);
+            if ($rid < 1 || $rid === $procId) {
+                continue;
+            }
+            if (isset($r['enabled']) && (int)$r['enabled'] === 0) {
+                continue;
+            }
+            $notice = (string)($r['notice'] ?? '');
+            if ($notice === $prefix
+                || strncmp($notice, $prefix, strlen($prefix)) === 0
+            ) {
+                $out[] = $r;
+            }
+        }
+        usort($out, static function (array $a, array $b): int {
+            return ((int)($a['dtstart'] ?? 0) <=> (int)($b['dtstart'] ?? 0))
+                ?: ((int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0));
+        });
+        return $out;
+    }
+
+    /**
      * Whether operator or start time in $data differs from $before (chain relocate trigger).
      *
      * @param array<string,mixed> $data
@@ -212,10 +256,15 @@ final class ProceduresChain
      *
      * @param array<string,mixed> $anchorData full update payload for the edited row
      * @param array<string,mixed> $before row before edit
+     * @param bool $moveFullChain false = only this procedure + chill#{id}
      * @return array{count:int,lines:list<string>}
      */
-    public static function relocateOnUpdate(int $anchorId, array $anchorData, array $before): array
-    {
+    public static function relocateOnUpdate(
+        int $anchorId,
+        array $anchorData,
+        array $before,
+        bool $moveFullChain = true
+    ): array {
         $empty = static function () use ($anchorId, $anchorData): array {
             ProceduresRepository::update($anchorId, $anchorData);
             return ['count' => 1, 'lines' => []];
@@ -227,7 +276,9 @@ final class ProceduresChain
             return $empty();
         }
 
-        $chain = self::contiguousAround($anchorId);
+        $chain = $moveFullChain
+            ? self::contiguousAround($anchorId)
+            : self::unitAround($anchorId);
         if (count($chain) < 2) {
             $oldStart = (int)($before['dtstart'] ?? 0);
             $newStart = (int)($anchorData['dtstart'] ?? $oldStart);

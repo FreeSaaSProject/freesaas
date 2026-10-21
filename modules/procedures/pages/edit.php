@@ -68,9 +68,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $acl = ProceduresEditAcl::forRow($probe, $isNew);
         $data = ProceduresEditAcl::dataFromPost($_POST, $isNew ? [] : $row, $acl);
-        $chain = (!$isNew && class_exists('ProceduresChain', false))
+        // Checked = do not drag the full abutting block (only this row + chill#{id}).
+        $chainSolo = !$isNew && !empty($_POST['chain_solo']);
+        $fullChain = (!$isNew && class_exists('ProceduresChain', false))
             ? ProceduresChain::contiguousAround($id)
             : [];
+        $chain = ($chainSolo && class_exists('ProceduresChain', false))
+            ? ProceduresChain::unitAround($id)
+            : $fullChain;
         $excludeIds = [];
         foreach ($chain as $cr) {
             $cid = (int)($cr['id'] ?? 0);
@@ -168,7 +173,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $movedLines = [];
         $chainCount = 1;
         if (class_exists('ProceduresChain', false)) {
-            $relocated = ProceduresChain::relocateOnUpdate($id, $data, $row);
+            $relocated = ProceduresChain::relocateOnUpdate($id, $data, $row, !$chainSolo);
             $chainCount = (int)($relocated['count'] ?? 1);
             $movedLines = is_array($relocated['lines'] ?? null) ? $relocated['lines'] : [];
         } else {
@@ -229,6 +234,12 @@ if ($clientId > 0) {
     }
 }
 
+$chainLen = (!$isNew && class_exists('ProceduresChain', false))
+    ? count(ProceduresChain::contiguousAround($id))
+    : 0;
+$showChainSolo = $chainLen > 1;
+$chainSoloChecked = !empty($_POST['chain_solo']);
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -241,6 +252,8 @@ if ($wantsJson) {
         'procedure_types' => ProcedureTypesRepository::names(),
         'staff' => $staffNames,
         'client_label' => $clientLabel,
+        'chain_len' => $chainLen,
+        'chain_solo_available' => $showChainSolo,
     ]);
     return;
 }
@@ -267,6 +280,9 @@ View::render('edit', [
     'productNames' => ProductsRepository::names(true),
     'staffNames' => $staffNames,
     'clientLabel' => $clientLabel,
+    'showChainSolo' => $showChainSolo,
+    'chainLen' => $chainLen,
+    'chainSoloChecked' => $chainSoloChecked,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('procedures.menu.list'), 'href' => '/procedures'],
         [

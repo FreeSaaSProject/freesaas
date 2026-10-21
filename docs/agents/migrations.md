@@ -76,7 +76,16 @@ php bin/data-migrate.php --module=… --id=…      # one migrator (live progres
 php bin/data-migrate.php --i-understand-replace # ALL (destructive) — know what you run
 ```
 
-`/db` no longer runs data migrators (cutover done). CLI prints `→ id` / description / `… running` / `[ok|error] …` as each migrator finishes (`--list` to preview). Legacy cutover data migrators were removed from the tree; `data-migrate.php` remains for any future (non-cutover) migrators modules may declare. Do **not** revert `Auth::hasNamespacedPermissions()` — that is permanent `module.perm` shape checking.
+Shared hosting (no SSH) — one migrator at a time via agent token:
+
+```bash
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/db/data-migrate?module=rates"
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+  "https://example.com/agent/db/data-migrate/run?module=rates&id=restrict_to_bans"
+```
+
+Never runs the full catalog remotely (`module` + `id` required). Session `/db` still does not run data migrators. CLI prints `→ id` / description / `… running` / `[ok|error] …` as each migrator finishes (`--list` to preview). Do **not** revert `Auth::hasNamespacedPermissions()` — that is permanent `module.perm` shape checking.
 
 ## Rules
 

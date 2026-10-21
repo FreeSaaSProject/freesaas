@@ -84,6 +84,8 @@ $pages = [
     '/agent/db' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/db/migrate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/db/migrate/run' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/db/data-migrate' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
+    '/agent/db/data-migrate/run' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/db/dump' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/db/dumps' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/db/dump/file' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
