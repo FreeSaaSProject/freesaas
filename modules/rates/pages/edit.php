@@ -14,6 +14,9 @@ $row = [
     'content_sales' => [],
     'content_income' => [],
     'content_terminal' => [],
+    'ban_booking' => [],
+    'ban_online' => [],
+    'ban_procs' => [],
     'loss' => 0,
     'loss_fix' => 0,
     'offers' => 0,
@@ -86,6 +89,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'content_sales' => is_array($_POST['content_sales'] ?? null) ? $_POST['content_sales'] : $row['content_sales'],
             'content_income' => is_array($_POST['content_income'] ?? null) ? $_POST['content_income'] : $row['content_income'],
             'content_terminal' => is_array($_POST['content_terminal'] ?? null) ? $_POST['content_terminal'] : $row['content_terminal'],
+            'ban_booking' => is_array($_POST['ban_booking'] ?? null) ? $_POST['ban_booking'] : ($row['ban_booking'] ?? []),
+            'ban_online' => is_array($_POST['ban_online'] ?? null) ? $_POST['ban_online'] : ($row['ban_online'] ?? []),
+            'ban_procs' => is_array($_POST['ban_procs'] ?? null) ? $_POST['ban_procs'] : ($row['ban_procs'] ?? []),
         ]);
     }
 }
@@ -94,14 +100,33 @@ if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
 }
 
-$staff = [];
-foreach (UsersRepository::listEnabledStaff() as $u) {
-    $staff[(int)$u['id']] = trim((string)$u['name']) !== '' ? (string)$u['name'] : (string)$u['login'];
-}
+$staff = UsersRepository::staffNamesAll();
 $typeNames = ProcedureTypesRepository::names();
 $dtValue = is_numeric($row['dt'] ?? null)
     ? date('Y-m-d\TH:i', (int)$row['dt'])
     : (string)($row['dt'] ?? '');
+
+$productsByType = [];
+if (class_exists(ProductsRepository::class, false)) {
+    $listed = ProductsRepository::list([
+        'enabled' => '1',
+        'is_material' => '0',
+        'limit' => 3000,
+        'order' => 'p.category ASC, p.name ASC',
+    ]);
+    foreach ($listed['items'] as $p) {
+        $pid = (int)($p['id'] ?? 0);
+        $tid = (int)($p['type_id'] ?? 0);
+        if ($pid < 1 || $tid < 1) {
+            continue;
+        }
+        $productsByType[$tid][] = [
+            'id' => $pid,
+            'name' => (string)($p['name'] ?? ('#' . $pid)),
+            'type_id' => $tid,
+        ];
+    }
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -110,12 +135,16 @@ if ($wantsJson) {
         'is_new' => $isNew,
         'staff' => $staff,
         'procedure_types' => $typeNames,
+        'products_by_type' => $productsByType,
+        'has_skill_bans' => RatesRepository::hasBanColumns(),
+        'has_ban_procs' => RatesRepository::hasBanProcsColumn(),
     ]);
     return;
 }
 
 $showAudioRates = RatesRepository::hasAudioRateColumns()
     && (ModuleManager::isEnabled('audio') || Database::tableExists('base_records'));
+$showSkillBans = RatesRepository::hasBanColumns();
 
 View::render('edit', [
     'title' => $isNew
@@ -134,8 +163,10 @@ View::render('edit', [
     'row' => $row,
     'staff' => $staff,
     'typeNames' => $typeNames,
+    'productsByType' => $productsByType,
     'dtValue' => $dtValue,
     'showAudioRates' => $showAudioRates,
+    'showSkillBans' => $showSkillBans,
     'message' => $message,
     'error' => $error,
 ], 'layout', 'rates');

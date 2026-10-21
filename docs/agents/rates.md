@@ -1,6 +1,6 @@
 # Specialist rates
 
-Product module `rates`: Enable to maintain commission % by specialist/procedure. Requires procedures. Required by procents. Set rates before expecting accrual reports. Catalog maturity: `beta`.
+Product module `rates`: commission % by specialist/procedure type — also the **skill SoT** (who may perform a type/product for booking / online / `/t`). Requires procedures. Required by procents. Catalog maturity: `beta`.
 
 ## Enable
 
@@ -10,7 +10,7 @@ php bin/freesaas.php module enable rates --accept-risk --format=json
 
 Or `[modules] rates=1` in `cfg/config.ini`.
 
-Permissions: `rates.view`, `rates.edit`.
+Permissions: `rates.view`, `rates.edit`, `rates.delete`.
 
 ## Dependencies
 
@@ -20,21 +20,43 @@ Permissions: `rates.view`, `rates.edit`.
 
 | Table | Role |
 |-------|------|
-| `base_procent_history` | Owned by `rates` |
+| `base_procent_history` | Owned by `rates` — `content*` maps + `ban_booking` / `ban_online` / `ban_procs` |
 
-Exclusive ownership in `module.json` → `tables` (uninstall DROP).
+## Skill model
 
-## Human UI
+- Type is **on** when `content[type_id] > 0` and not in `ban_booking` (online also checks `ban_online`).
+- Product ban: `ban_procs[product_id]` blocks that product even when the type is enabled.
+- **Zero %** (except SPEC/break type, default 38): saving a rates row auto-sets `ban_booking` + `ban_online` for that type.
+- UI: `/rates/{id}/edit` — Skills section = % + type bans + per-product bans under enabled types.
+- Live gate (`BookingOperatorGate`) reads rates only; legacy `RESTRICT_*` is ignored after migrator.
+- Category `executors` no longer gates `/t`.
 
-- `/rates` — specialist commission rate history (`base_procent_history`).
+### Migrator
 
-| Path | Permission |
-|------|------------|
-| `/rates` | `—` |
+```bash
+php bin/freesaas.php migrate run --module=rates
+php bin/data-migrate.php --module=rates --id=restrict_to_bans
+```
+
+Creates a new midnight rates row per operator:
+
+| Source | Target |
+|--------|--------|
+| `RESTRICT_TYPES` | `ban_booking` |
+| `RESTRICT_TYPES_ONLINE` | `ban_online` |
+| `RESTRICT_PROCS` | `ban_procs` (product ids) |
+| `content[type]=0` (not SPEC) | `ban_booking` + `ban_online` |
+
+Content maps are copied from the latest non-migrator row.
+
+### Parity check (old vs new)
+
+```bash
+php bin/check-service-access-parity.php
+php bin/check-service-access-parity.php --format=json
+```
 
 ## Agent JSON
-
-Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops` (4 ops).
 
 | Op | Method | Path |
 |----|--------|------|
@@ -42,13 +64,18 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 | `rates.get` | GET | `/rates/{id}/edit` |
 | `rates.create` | POST | `/rates/new` |
 | `rates.update` | POST | `/rates/{id}/edit` |
+| `rates.skill.diagnose` | GET | `/rates/skill?operator_id=&type_id=` or `good_id=` |
+| `rates.skill.grant` | POST | `/rates/skill` — body: `operator_id`, `type_id`\|`good_id`, optional `percent`, `dry_run=1` |
+
+Grant never enables without `%`: uses explicit → existing → median of own other types → peer median → else `needs_percent`. Product bans (`ban_procs`) are preserved on grant.
 
 ```bash
-curl -sS -b jar.txt 'https://example/rates?format=json'
+curl -sS -b jar.txt 'https://example/rates/skill?format=json&operator_id=58&type_id=1'
+curl -sS -b jar.txt -X POST 'https://example/rates/skill?format=json' \
+  -d 'operator_id=58&type_id=1&dry_run=1'
 ```
 
 ## Notes
 
-- Requires `procedures`.
-- Soft audio (when `audio` enabled / `base_records` present): `AUDIO_HOUR_RATE` (rub/hour) and `SCRIPT_SCORE_RATE` (rub per collection `SCORE` point) on `base_procent_history`. Consumed by `procents`.
-- `LOSS_FIX` UI label = fixed pay per shift; accrued in `procents` as shifts × rate (composite window e.g. I+II = 2 via `WorkweeksRepository::shiftPayUnits`; optional `shift_N_units` in workweeks.ini).
+- Soft audio: `AUDIO_HOUR_RATE`, `SCRIPT_SCORE_RATE` when columns present.
+- `LOSS_FIX` = fixed pay per shift (procents).

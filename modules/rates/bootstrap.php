@@ -2,11 +2,18 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/RatesRepository.php';
+require_once __DIR__ . '/lib/ServiceAccessParity.php';
+require_once __DIR__ . '/lib/RatesSkill.php';
+
+Assets::register('rates', [
+    'css' => ['assets/css/rates.css'],
+]);
 
 $pages = [
     '/rates' => ['permission' => 'rates.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/rates/new' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/rates/{id}/edit' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/rates/skill' => ['permission' => 'rates.edit', 'methods' => ['GET', 'POST'], 'file' => 'skill.php'],
 ];
 
 foreach ($pages as $path => $def) {

@@ -271,7 +271,10 @@ final class CategoriesRepository
             'num' => (int)($post['num'] ?? 0),
             'hidden' => !empty($post['hidden']) ? 1 : 0,
             'no_cart' => !empty($post['no_cart']) ? 1 : 0,
-            'executors' => trim((string)($post['executors'] ?? '')),
+            // Legacy column; UI removed — keep prior value unless explicitly posted.
+            'executors' => array_key_exists('executors', $post)
+                ? trim((string)$post['executors'])
+                : null,
             'review' => trim((string)($post['review'] ?? '')),
         ];
     }
@@ -291,7 +294,7 @@ final class CategoriesRepository
             $data['num'],
             $data['hidden'],
             $data['no_cart'],
-            $data['executors'] !== '' ? $data['executors'] : null,
+            ($data['executors'] ?? '') !== '' && $data['executors'] !== null ? $data['executors'] : null,
             $data['review'] !== '' ? $data['review'] : null,
         ]);
         return (int)Database::pdo()->lastInsertId();
@@ -302,6 +305,11 @@ final class CategoriesRepository
     {
         if ($id < 1) {
             throw new InvalidArgumentException('Invalid category id');
+        }
+        $executors = $data['executors'] ?? null;
+        if ($executors === null) {
+            $prev = self::find($id);
+            $executors = $prev !== null ? trim((string)($prev['executors'] ?? '')) : '';
         }
         $st = Database::pdo()->prepare(
             'UPDATE base_categories SET
@@ -316,7 +324,7 @@ final class CategoriesRepository
             $data['num'],
             $data['hidden'],
             $data['no_cart'],
-            $data['executors'] !== '' ? $data['executors'] : null,
+            $executors !== '' ? $executors : null,
             $data['review'] !== '' ? $data['review'] : null,
             $id,
         ]);

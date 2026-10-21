@@ -1,0 +1,38 @@
+.rates-skill-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+.rates-skill-block {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+.rates-skill-block:last-child {
+  border-bottom: 0;
+}
+.rates-skill-row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1.4fr) minmax(5rem, 6rem) auto auto;
+  gap: 0.5rem 1rem;
+  align-items: center;
+}
+.rates-skill-name {
+  font-weight: 500;
+}
+.rates-skill-pct input {
+  width: 100%;
+  max-width: 5.5rem;
+}
+.rates-skill-procs {
+  margin: 0.35rem 0 0 0.25rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+@media (max-width: 720px) {
+  .rates-skill-row {
+    grid-template-columns: 1fr 1fr;
+  }
+  .rates-skill-name {
+    grid-column: 1 / -1;
+  }
+}

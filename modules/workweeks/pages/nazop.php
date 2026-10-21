@@ -166,7 +166,8 @@ $html = ob_get_clean();
 
 if ($isAjax || !empty($_GET['fragment'])) {
     header('Content-Type: text/html; charset=utf-8');
-    echo $html;
+    // Fragment bypasses View::render — still inject CSRF for dialog forms.
+    echo class_exists('Csrf', false) ? Csrf::injectForms($html) : $html;
     return;
 }
 

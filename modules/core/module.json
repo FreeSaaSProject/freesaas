@@ -1059,7 +1059,30 @@
         "base_user_prefs",
         "base_user_login_links"
     ],
-    "migrators": [],
+    "migrators": [
+        {
+            "id": "user_perms_to_status_packs",
+            "mode": "transform",
+            "source": [
+                "base_users.status"
+            ],
+            "target": [
+                "base_admin_statuses.PERMISSIONS"
+            ],
+            "description": "core.migrator.user_perms_to_status_packs"
+        },
+        {
+            "id": "repair_status_packs_majority",
+            "mode": "transform",
+            "source": [
+                "base_users.status"
+            ],
+            "target": [
+                "base_admin_statuses.PERMISSIONS"
+            ],
+            "description": "core.migrator.repair_status_packs_majority"
+        }
+    ],
     "hooks": {
         "subscribe": [
             "comments.form.ticket_controls",

@@ -210,10 +210,16 @@ final class Csrf
         return is_string($out) ? $out : $html;
     }
 
-    /** Deny with JSON (error_code) when client asked for JSON, else plain 403. */
+    /**
+     * Deny with JSON (error_code) when client asked for JSON, else plain text.
+     * Use 422 (not 403): many nginx vhosts set error_page/fastcgi_intercept_errors
+     * for 403 and replace the body with a generic "403 Forbidden nginx" HTML page,
+     * which breaks AJAX (DB jobs, calendar, schedule) and hides the real reason.
+     */
     public static function deny(string $reason = 'csrf'): void
     {
-        http_response_code(403);
+        http_response_code(422);
+        header('X-FreeSaaS-Error: ' . $reason);
         $wantJson = class_exists('AgentHttp', false) && AgentHttp::wantsJson();
         if (!$wantJson) {
             $ct = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? ''));

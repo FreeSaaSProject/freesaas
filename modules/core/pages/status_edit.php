@@ -79,6 +79,11 @@ if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
 }
 
+$permGroups = class_exists(UsersRepository::class, false)
+    ? UsersRepository::availablePermissionKeys()
+    : [];
+$statusPerms = StatusesRepository::decodePermissions($row['PERMISSIONS'] ?? null);
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -87,6 +92,9 @@ if ($wantsJson) {
         'groups' => $groups,
         'audio_options' => $audioOptions,
         'shift_options' => $shiftOptions,
+        'permission_groups' => $permGroups,
+        'default_permissions' => $statusPerms,
+        'has_permissions_column' => Database::columnExists('base_admin_statuses', 'PERMISSIONS'),
     ]);
 }
 
@@ -99,6 +107,8 @@ View::render('status_edit', [
     'groups' => $groups,
     'audioOptions' => $audioOptions,
     'shiftOptions' => $shiftOptions,
+    'permGroups' => $permGroups,
+    'statusPerms' => $statusPerms,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

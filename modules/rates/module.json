@@ -2,7 +2,7 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "0.1.5",
+    "version": "0.2.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -34,7 +34,8 @@
         "pages": [
             "/rates",
             "/rates/new",
-            "/rates/{id}/edit"
+            "/rates/{id}/edit",
+            "/rates/skill"
         ]
     },
     "agent": {
@@ -52,14 +53,14 @@
                 "method": "GET",
                 "path": "/rates/{id}/edit",
                 "permission": "rates.edit",
-                "description": "Rate profile edit payload; includes staff and procedure_types dictionaries"
+                "description": "Rate profile edit payload; includes staff and procedure_types dictionaries; skill bans when columns present"
             },
             {
                 "id": "rates.create",
                 "method": "POST",
                 "path": "/rates/new",
                 "permission": "rates.edit",
-                "description": "Create rate profile"
+                "description": "Create rate profile (content % + optional ban_booking/ban_online maps)"
             },
             {
                 "id": "rates.update",
@@ -67,6 +68,21 @@
                 "path": "/rates/{id}/edit",
                 "permission": "rates.edit",
                 "description": "Update rate profile"
+            },
+            {
+                "id": "rates.skill.diagnose",
+                "method": "GET",
+                "path": "/rates/skill",
+                "permission": "rates.edit",
+                "description": "Why staff cannot perform a type/good: blockers[], percent, bans. Query: operator_id, type_id|good_id"
+            },
+            {
+                "id": "rates.skill.grant",
+                "method": "POST",
+                "path": "/rates/skill",
+                "permission": "rates.edit",
+                "side_effect": "write",
+                "description": "Enable skill: set % (explicit or suggest from own/peer) and clear ban_booking. dry_run=1 returns draft message only. Body: operator_id, type_id|good_id, optional percent, dry_run"
             }
         ]
     },
@@ -83,7 +99,36 @@
     "tables": [
         "base_procent_history"
     ],
-    "migrators": [],
+    "migrators": [
+        {
+            "id": "restrict_to_bans",
+            "mode": "transform",
+            "source": [
+                "base_users.RESTRICT_TYPES",
+                "base_users.RESTRICT_TYPES_ONLINE",
+                "base_users.RESTRICT_PROCS"
+            ],
+            "target": [
+                "base_procent_history.ban_booking",
+                "base_procent_history.ban_online",
+                "base_procent_history.ban_procs"
+            ],
+            "description": "rates.migrator.restrict_to_bans"
+        },
+        {
+            "id": "repair_bans_from_restrict_types",
+            "mode": "transform",
+            "source": [
+                "base_users.RESTRICT_TYPES",
+                "base_users.RESTRICT_TYPES_ONLINE"
+            ],
+            "target": [
+                "base_procent_history.ban_booking",
+                "base_procent_history.ban_online"
+            ],
+            "description": "rates.migrator.repair_bans_from_restrict_types"
+        }
+    ],
     "hooks": {
         "subscribe": [],
         "publish": []

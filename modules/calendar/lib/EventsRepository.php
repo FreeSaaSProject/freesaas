@@ -297,8 +297,10 @@ final class EventsRepository
         if ($probe === []) {
             return;
         }
-        if (!BookingOperatorGate::canPerform($operatorId, $probe, $dayStart, false)) {
-            throw new InvalidArgumentException(t('calendar.event.err.staff_goods'));
+        $exp = BookingOperatorGate::explain($operatorId, $probe, $dayStart, false);
+        if (empty($exp['ok'])) {
+            $detail = $exp['blockers'] !== [] ? (' [' . implode(', ', $exp['blockers']) . ']') : '';
+            throw new InvalidArgumentException(t('calendar.event.err.staff_goods') . $detail);
         }
     }
 

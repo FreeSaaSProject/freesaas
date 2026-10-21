@@ -318,73 +318,8 @@ EventBus::on('calendar.day.stats', static function ($payload) {
     return $payload;
 });
 
-EventBus::on('core.user_edit.sections', static function ($payload) {
-    if (!is_array($payload)) {
-        return $payload;
-    }
-    $user = $payload['user'] ?? null;
-    if (!is_array($user)) {
-        return $payload;
-    }
-    $procedureTypes = [];
-    foreach (ProcedureTypesRepository::listAll() as $r) {
-        $id = (int)($r['id'] ?? 0);
-        if ($id < 1) {
-            continue;
-        }
-        $label = trim((string)($r['type'] ?? ''));
-        $descr = trim((string)($r['descr'] ?? ''));
-        if ($descr !== '') {
-            $label .= ' — ' . $descr;
-        }
-        $procedureTypes[$id] = $label;
-    }
-    $rtSet = [];
-    $rtoSet = [];
-    foreach (UsersRepository::parseHashIds((string)($user['RESTRICT_TYPES'] ?? '')) as $tid) {
-        $rtSet[(int)$tid] = true;
-    }
-    foreach (UsersRepository::parseHashIds((string)($user['RESTRICT_TYPES_ONLINE'] ?? '')) as $tid) {
-        $rtoSet[(int)$tid] = true;
-    }
-    $products = [];
-    $rpSet = [];
-    if (class_exists('ProductsRepository', false)) {
-        $listed = ProductsRepository::list([
-            'enabled' => '1',
-            'is_material' => '0',
-            'limit' => 2000,
-            'order' => 'p.category ASC, p.name ASC',
-        ]);
-        foreach ($listed['items'] as $r) {
-            $id = (int)($r['id'] ?? 0);
-            if ($id < 1) {
-                continue;
-            }
-            $products[$id] = (string)($r['name'] ?? ('#' . $id));
-        }
-        foreach (UsersRepository::parseHashIds((string)($user['RESTRICT_PROCS'] ?? '')) as $pid) {
-            $rpSet[(int)$pid] = true;
-        }
-    }
-    ob_start();
-    require __DIR__ . '/views/_user_edit_restrict.php';
-    $payload['html'] = ($payload['html'] ?? '') . (string)ob_get_clean();
-    return $payload;
-});
-
-EventBus::on('core.user_edit.save', static function ($payload) {
-    if (!is_array($payload)) {
-        return $payload;
-    }
-    $data = is_array($payload['data'] ?? null) ? $payload['data'] : [];
-    $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
-    $data['RESTRICT_TYPES'] = UsersRepository::encodeHashIds(array_map('intval', (array)($post['RESTRICT_TYPES'] ?? [])));
-    $data['RESTRICT_TYPES_ONLINE'] = UsersRepository::encodeHashIds(array_map('intval', (array)($post['RESTRICT_TYPES_ONLINE'] ?? [])));
-    $data['RESTRICT_PROCS'] = UsersRepository::encodeHashIds(array_map('intval', (array)($post['RESTRICT_PROCS'] ?? [])));
-    $payload['data'] = $data;
-    return $payload;
-});
+// Skill bans moved to rates (ban_booking / ban_online). Legacy RESTRICT_* still
+// dual-read in BookingOperatorGate until migrator restrict_to_bans; UI removed.
 
 $registerProceduresBots = static function (): void {
     AssignedProceduresBotPlugin::register();

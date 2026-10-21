@@ -92,7 +92,6 @@ final class TerminalFloorCatalog
             : [];
         $dayStart = (int)mktime(0, 0, 0);
         $dayEnd = (int)mktime(23, 59, 59);
-        $catExecutors = self::categoryExecutorSet($categoryId);
         $tableNames = class_exists(TablesRepository::class, false)
             ? TablesRepository::names(false)
             : [];
@@ -117,9 +116,6 @@ final class TerminalFloorCatalog
                 continue;
             }
             if ($allowExecutors !== [] && !in_array($opId, $allowExecutors, true)) {
-                continue;
-            }
-            if ($catExecutors !== null && !isset($catExecutors[$opId])) {
                 continue;
             }
             $name = trim((string)($shift['operator_name'] ?? ''));
@@ -417,30 +413,5 @@ final class TerminalFloorCatalog
     private static function applyDiscount(float $price, float $pct): float
     {
         return self::priceForProduct($price, 0, $pct, false, [])['price'];
-    }
-
-    /** @return array<int,true>|null null = no category restriction */
-    private static function categoryExecutorSet(int $categoryId): ?array
-    {
-        if ($categoryId < 1 || !class_exists(CategoriesRepository::class, false)) {
-            return null;
-        }
-        $cat = CategoriesRepository::find($categoryId);
-        if ($cat === null) {
-            return null;
-        }
-        $raw = trim((string)($cat['executors'] ?? ''));
-        if ($raw === '') {
-            return null;
-        }
-        $raw = str_replace(['#', ' ', ';'], [',', '', ','], $raw);
-        $out = [];
-        foreach (explode(',', $raw) as $p) {
-            $n = (int)$p;
-            if ($n > 0) {
-                $out[$n] = true;
-            }
-        }
-        return $out === [] ? null : $out;
     }
 }

@@ -23,6 +23,35 @@
     return inp ? String(inp.value || '') : '';
   };
 
+  /**
+   * Shared hosts may block ALL multipart/form-data at nginx (403 HTML) as a temporary
+   * shield for PHP multipart/OOM RCEs (e.g. CVE-2026-109618 / CVE-2026-109619).
+   * Browser fetch(FormData) defaults to multipart — convert non-file bodies to
+   * application/x-www-form-urlencoded so AJAX (DB jobs, nazop, …) keeps working.
+   * Real file uploads must stay multipart until the host lifts the block / patches PHP.
+   */
+  function freesaasFormDataHasFiles(fd) {
+    if (!fd || typeof fd.forEach !== 'function') return false;
+    var found = false;
+    fd.forEach(function (value) {
+      if (typeof Blob !== 'undefined' && value instanceof Blob) {
+        found = true;
+      }
+    });
+    return found;
+  }
+
+  function freesaasFormDataToParams(fd) {
+    var params = new URLSearchParams();
+    fd.forEach(function (value, key) {
+      if (typeof Blob !== 'undefined' && value instanceof Blob) {
+        return;
+      }
+      params.append(key, value == null ? '' : String(value));
+    });
+    return params;
+  }
+
   // Attach CSRF on same-origin mutating fetch (header + FormData/URLSearchParams body).
   if (typeof window.fetch === 'function') {
     var _fetch = window.fetch.bind(window);
@@ -96,6 +125,17 @@
             }
           } catch (ignore) { /* ignore */ }
         }
+        // Prefer urlencoded over multipart when no files (host WAF often blocks multipart).
+        try {
+          if (
+            typeof FormData !== 'undefined' &&
+            typeof URLSearchParams !== 'undefined' &&
+            init.body instanceof FormData &&
+            !freesaasFormDataHasFiles(init.body)
+          ) {
+            init.body = freesaasFormDataToParams(init.body);
+          }
+        } catch (encIgnore) { /* leave multipart */ }
       }
       return _fetch(input, init);
     };

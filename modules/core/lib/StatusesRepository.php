@@ -179,6 +179,66 @@ final class StatusesRepository
         return $row ?: null;
     }
 
+    /**
+     * Default screen-permission pack for a position (empty = no pack configured).
+     *
+     * @return array<string,int>
+     */
+    public static function defaultPermissions(int $statusId): array
+    {
+        if ($statusId < 1 || !Database::columnExists('base_admin_statuses', 'PERMISSIONS')) {
+            return [];
+        }
+        $row = self::find($statusId);
+        if ($row === null) {
+            return [];
+        }
+        return self::decodePermissions($row['PERMISSIONS'] ?? null);
+    }
+
+    /**
+     * @param mixed $raw
+     * @return array<string,int>
+     */
+    public static function decodePermissions($raw): array
+    {
+        if (is_array($raw)) {
+            $out = [];
+            foreach ($raw as $k => $v) {
+                $out[(string)$k] = !empty($v) ? 1 : 0;
+            }
+            return $out;
+        }
+        $s = trim((string)$raw);
+        if ($s === '') {
+            return [];
+        }
+        $un = @unserialize($s, ['allowed_classes' => false]);
+        if (!is_array($un)) {
+            return [];
+        }
+        if (isset($un['permissions']) && is_array($un['permissions'])) {
+            $un = $un['permissions'];
+        }
+        $out = [];
+        foreach ($un as $k => $v) {
+            $out[(string)$k] = !empty($v) ? 1 : 0;
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string,int> $permissions
+     */
+    public static function encodePermissions(array $permissions): string
+    {
+        $clean = [];
+        foreach ($permissions as $k => $v) {
+            $clean[(string)$k] = !empty($v) ? 1 : 0;
+        }
+        return serialize(['permissions' => $clean]);
+    }
+
     /** @return array<int,string> */
     public static function optionsForAudio(int $excludeId = 0): array
     {
@@ -217,6 +277,20 @@ final class StatusesRepository
                     $data[$key] = trim((string)($post[$key] ?? ''));
                 }
             }
+        }
+        if (Database::columnExists('base_admin_statuses', 'PERMISSIONS')
+            && isset($post['permissions'])
+            && is_array($post['permissions'])
+            && class_exists(UsersRepository::class, false)
+        ) {
+            $merged = [];
+            foreach (UsersRepository::availablePermissionKeys() as $g) {
+                foreach ($g['keys'] as $key) {
+                    $pid = is_array($key) ? (string)$key['id'] : (string)$key;
+                    $merged[$pid] = !empty($post['permissions'][$pid]) ? 1 : 0;
+                }
+            }
+            $data['PERMISSIONS'] = self::encodePermissions($merged);
         }
         return $data;
     }

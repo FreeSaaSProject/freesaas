@@ -3075,6 +3075,14 @@ details.check-fieldset > summary::-webkit-details-marker { display: none; }
   border-radius: 999px;
   padding: 0.1rem 0.45rem;
 }
+.perm-role-pack {
+  margin: 0.5rem 0 0.75rem;
+}
+label.check.perm-diff {
+  outline: 1px dashed color-mix(in srgb, var(--accent, #2563eb) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
 .perm-group-summary .perm-group-count.is-on {
   color: var(--accent);
   border-color: color-mix(in srgb, var(--accent) 40%, var(--line));

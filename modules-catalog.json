@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-21T09:25:56+00:00",
+    "generated_at": "2026-10-21T15:05:10+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1372,7 +1372,7 @@
         },
         {
             "id": "rates",
-            "version": "0.1.5",
+            "version": "0.2.0",
             "type": "product",
             "name": {
                 "en": "Specialist rates",

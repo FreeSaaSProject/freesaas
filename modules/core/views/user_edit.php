@@ -9,6 +9,8 @@ declare(strict_types=1);
 /** @var array<int,string> $partnerStatuses */
 /** @var array<string,array{name:string,keys:list<string>}> $permGroups */
 /** @var array<string,int> $userPerms */
+/** @var array<string,int> $rolePackPerms */
+/** @var int $roleStatusId */
 /** @var list<array{id:int,login:string,name:string}> $copyUsers */
 /** @var string $genPass */
 /** @var int $favoritesCount */
@@ -176,13 +178,38 @@ if ($newsAfterTs > 0) {
   <p class="form-hint"><?= te('core.user_edit.perms_hint') ?></p>
   <?php
     $editBase = $isNew ? '/users/new' : ('/users/' . $uid . '/edit');
+    $rolePackPerms = $rolePackPerms ?? [];
+    $rolePackOn = 0;
+    $rolePackTotal = 0;
+    foreach ($permGroups as $g) {
+      foreach ($g['keys'] as $key) {
+        $rolePackTotal++;
+        $pid = is_array($key) ? (string)$key['id'] : (string)$key;
+        if (!empty($rolePackPerms[$pid])) {
+          $rolePackOn++;
+        }
+      }
+    }
   ?>
+  <div class="perm-role-pack">
+    <strong><?= te('core.user_edit.role_pack') ?></strong>
+    <?php if ($rolePackPerms === []): ?>
+      <p class="form-hint"><?= te('core.user_edit.role_pack_empty') ?></p>
+    <?php else: ?>
+      <p class="form-hint"><?= e(t('core.user_edit.role_pack_count', ['on' => $rolePackOn, 'total' => $rolePackTotal])) ?></p>
+      <a class="btn-ghost" href="<?= e($editBase) ?>?rolePack=1"><?= te('core.user_edit.role_pack_reset') ?></a>
+      <p class="form-hint"><?= te('core.user_edit.perms_override_hint') ?></p>
+    <?php endif; ?>
+  </div>
   <div class="perm-toolbar">
     <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=1"><?= te('core.user_edit.perms_all_on_btn') ?></a>
     <a class="btn-ghost" href="<?= e($editBase) ?>?turnon=0"><?= te('core.user_edit.perms_all_off_btn') ?></a>
     <button class="btn-ghost" type="button" id="perm-expand-all"><?= te('core.user_edit.perms_expand_all') ?></button>
     <button class="btn-ghost" type="button" id="perm-collapse-all"><?= te('core.user_edit.perms_collapse_all') ?></button>
   </div>
+  <label><?= te('core.user_edit.perms_search') ?>
+    <input type="search" id="perm-search" placeholder="<?= te('core.user_edit.perms_search') ?>" autocomplete="off">
+  </label>
   <?php if ($copyUsers): ?>
   <label><?= te('core.user_edit.copy_perms') ?>
     <select data-edit-base="<?= e($editBase) ?>" id="copy-perms-select">
@@ -206,7 +233,7 @@ if ($newsAfterTs > 0) {
     }
     // Collapsed by default — 40 modules with Save at the bottom stays usable.
     ?>
-    <details class="check-fieldset perm-group">
+    <details class="check-fieldset perm-group" data-perm-mod="<?= e((string)$modId) ?>">
       <summary class="perm-group-summary">
         <span class="perm-group-name"><?= e(t((string)$group['name'])) ?></span>
         <span class="perm-group-count<?= $onCount > 0 ? ' is-on' : '' ?>"><?= (int)$onCount ?>/<?= (int)$totalKeys ?></span>
@@ -215,11 +242,14 @@ if ($newsAfterTs > 0) {
         <?php foreach ($group['keys'] as $key):
           $pid = is_array($key) ? (string)$key['id'] : (string)$key;
           $plabel = is_array($key) ? (string)$key['label'] : (string)$key;
+          $userOn = !empty($userPerms[$pid]);
+          $roleOn = !empty($rolePackPerms[$pid]);
+          $diff = $rolePackPerms !== [] && $userOn !== $roleOn;
           ?>
-          <label class="check" title="<?= e($pid) ?>">
+          <label class="check<?= $diff ? ' perm-diff' : '' ?>" title="<?= e($pid . ($diff ? ' — ' . t('core.user_edit.perm_diff') : '')) ?>" data-perm-id="<?= e($pid) ?>" data-perm-label="<?= e(t($plabel)) ?>">
             <input type="hidden" name="permissions[<?= e($pid) ?>]" value="0">
-            <input type="checkbox" name="permissions[<?= e($pid) ?>]" value="1"<?= !empty($userPerms[$pid]) ? ' checked' : '' ?>>
-            <span><?= e(t($plabel)) ?></span>
+            <input type="checkbox" name="permissions[<?= e($pid) ?>]" value="1"<?= $userOn ? ' checked' : '' ?>>
+            <span><?= e(t($plabel)) ?><?php if ($diff): ?> <em class="muted">(<?= te('core.user_edit.perm_diff') ?>)</em><?php endif; ?></span>
           </label>
         <?php endforeach; ?>
       </div>
@@ -280,6 +310,28 @@ if ($newsAfterTs > 0) {
       if (!v) return;
       var base = copySel.getAttribute('data-edit-base') || '';
       location.href = base + (base.indexOf('?') >= 0 ? '&' : '?') + 'copyFrom=' + encodeURIComponent(v);
+    });
+  }
+  var search = document.getElementById('perm-search');
+  var permRoot = document.getElementById('perm-groups');
+  if (search && permRoot) {
+    search.addEventListener('input', function () {
+      var q = (search.value || '').toLowerCase().trim();
+      permRoot.querySelectorAll('details.perm-group').forEach(function (d) {
+        var mod = (d.getAttribute('data-perm-mod') || '').toLowerCase();
+        var nameEl = d.querySelector('.perm-group-name');
+        var name = nameEl ? (nameEl.textContent || '').toLowerCase() : '';
+        var any = false;
+        d.querySelectorAll('[data-perm-id]').forEach(function (lab) {
+          var id = (lab.getAttribute('data-perm-id') || '').toLowerCase();
+          var labTxt = (lab.getAttribute('data-perm-label') || '').toLowerCase();
+          var hit = !q || id.indexOf(q) >= 0 || labTxt.indexOf(q) >= 0 || mod.indexOf(q) >= 0 || name.indexOf(q) >= 0;
+          lab.style.display = hit ? '' : 'none';
+          if (hit) any = true;
+        });
+        d.style.display = any ? '' : 'none';
+        if (q && any) d.open = true;
+      });
     });
   }
 })();

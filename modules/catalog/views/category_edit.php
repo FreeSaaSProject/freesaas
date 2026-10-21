@@ -36,9 +36,6 @@ $backHref = $backHref ?? '/catalog';
   <label><?= te('catalog.cat.review') ?>
     <textarea name="review" rows="3"><?= e((string)($row['review'] ?? '')) ?></textarea>
   </label>
-  <label><?= te('catalog.cat.executors') ?>
-    <textarea name="executors" rows="2"><?= e((string)($row['executors'] ?? '')) ?></textarea>
-  </label>
   <label class="check">
     <input type="checkbox" name="hidden" value="1"<?= !empty($row['hidden']) ? ' checked' : '' ?>>
     <?= te('catalog.cat.hidden') ?>

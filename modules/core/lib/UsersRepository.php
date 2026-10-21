@@ -259,6 +259,33 @@ final class UsersRepository
     }
 
     /**
+     * Staff picker including disabled (rates / skill UI). Labels mark disabled.
+     *
+     * @return array<int,string> id => label
+     */
+    public static function staffNamesAll(int $limit = 500): array
+    {
+        $limit = max(1, min(2000, $limit));
+        $listed = self::list(['enabled' => null, 'limit' => $limit, 'order' => 'name ASC, login ASC']);
+        $out = [];
+        foreach ($listed['items'] as $u) {
+            $id = (int)($u['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            $label = trim((string)($u['name'] ?? '')) !== ''
+                ? (string)$u['name']
+                : (string)($u['login'] ?? ('#' . $id));
+            $enabled = (string)($u['enabled'] ?? '1') === '1' || (int)($u['enabled'] ?? 1) === 1;
+            if (!$enabled) {
+                $label .= ' (' . t('core.users.filter_disabled') . ')';
+            }
+            $out[$id] = $label;
+        }
+        return $out;
+    }
+
+    /**
      * Permissions declared by enabled modules, grouped by module id.
      * @return array<string,array{name:string,keys:list<array{id:string,label:string}>}>
      */

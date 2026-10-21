@@ -101,8 +101,10 @@ final class BookingValidate
             throw new InvalidArgumentException(t('booking.err.not_on_shift'));
         }
         $products = BookingAvailability::loadProducts($productIds);
-        if (!BookingOperatorGate::canPerform($operatorId, $products, $dayStart, false)) {
-            throw new InvalidArgumentException(t('booking.err.cannot_do'));
+        $exp = BookingOperatorGate::explain($operatorId, $products, $dayStart, false);
+        if (empty($exp['ok'])) {
+            $detail = $exp['blockers'] !== [] ? (' [' . implode(', ', $exp['blockers']) . ']') : '';
+            throw new InvalidArgumentException(t('booking.err.cannot_do') . $detail);
         }
         throw new InvalidArgumentException(t('booking.err.slot'));
     }
@@ -205,8 +207,10 @@ final class BookingValidate
         if ($products === []) {
             throw new InvalidArgumentException(t('booking.err.products'));
         }
-        if (!BookingOperatorGate::canPerform($operatorId, $products, $dayStart, false)) {
-            throw new InvalidArgumentException(t('booking.err.cannot_do'));
+        $exp = BookingOperatorGate::explain($operatorId, $products, $dayStart, false);
+        if (empty($exp['ok'])) {
+            $detail = $exp['blockers'] !== [] ? (' [' . implode(', ', $exp['blockers']) . ']') : '';
+            throw new InvalidArgumentException(t('booking.err.cannot_do') . $detail);
         }
 
         $allowPastWorkEnd = !empty($opts['allow_past_work_end']) || !empty($opts['allow_past_shift_end']);

@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once base_path('modules/core/lib/UsersRepository.php');
+require_once base_path('modules/core/lib/StatusesRepository.php');
 
 $wantsJson = AgentHttp::wantsJson();
 
@@ -80,6 +81,11 @@ if ($copyFrom > 0 && ($isNew || $copyFrom !== $id)) {
     }
 }
 
+$roleStatusId = (int)($user['ID_STATUS'] ?? 0);
+$rolePackPerms = class_exists(StatusesRepository::class, false)
+    ? StatusesRepository::defaultPermissions($roleStatusId)
+    : [];
+
 $turnon = $_GET['turnon'] ?? null;
 if ($turnon === '1' || $turnon === '0') {
     $val = $turnon === '1' ? 1 : 0;
@@ -90,6 +96,19 @@ if ($turnon === '1' || $turnon === '0') {
         }
     }
     $message = $val ? t('core.user_edit.perms_all_on') : t('core.user_edit.perms_all_off');
+}
+
+if (!empty($_GET['rolePack']) && $rolePackPerms !== []) {
+    $userPerms = $rolePackPerms;
+    $message = t('core.user_edit.role_pack_reset');
+}
+
+// New staff without copyFrom: seed from role pack when empty.
+if ($isNew && $copyFrom < 1 && $userPerms === [] && $rolePackPerms !== []
+    && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET'
+    && $turnon === null
+) {
+    $userPerms = $rolePackPerms;
 }
 
 /**
@@ -430,6 +449,8 @@ if ($wantsJson) {
         'copy_users' => $copyUsers,
         'copy_from' => $copyFrom > 0 ? $copyFrom : null,
         'is_super' => $isSuper,
+        'role_pack_permissions' => $rolePackPerms,
+        'role_status_id' => $roleStatusId,
     ]);
 }
 
@@ -477,6 +498,8 @@ View::render('user_edit', [
     'partnerStatuses' => $partnerStatuses,
     'permGroups' => $permGroups,
     'userPerms' => $userPerms,
+    'rolePackPerms' => $rolePackPerms,
+    'roleStatusId' => $roleStatusId,
     'copyUsers' => $copyUsers,
     'genPass' => $genPass,
     'favoritesCount' => $isNew ? 0 : count(UsersRepository::favoriteIds($id)),
