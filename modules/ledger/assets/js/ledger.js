@@ -60,6 +60,11 @@
     setHidden(form.querySelector('[data-ledger-type-hint]'), hasType);
     syncPromiseExecuted(form);
 
+    var dirRadios = form.querySelectorAll('input[name="direction"]');
+    for (var di = 0; di < dirRadios.length; di++) {
+      dirRadios[di].required = hasType;
+    }
+
     var accountSel = form.querySelector('#ledger-move-account, [name="account_id"]');
     if (accountSel) {
       accountSel.required = hasType;

@@ -147,6 +147,7 @@ return [
     'ledger.moves.err.account' => 'Выберите счёт',
     'ledger.moves.err.type' => 'Выберите тип',
     'ledger.moves.err.sum' => 'Укажите сумму',
+    'ledger.moves.err.direction' => 'Укажите направление: начисление или списание',
     'ledger.moves.confirm_delete' => 'Пометить операцию удалённой?',
     'ledger.moves.err.account_to' => 'Укажите счёт назначения',
     'ledger.moves.err.same_account' => 'Счета перевода должны отличаться',

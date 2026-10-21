@@ -30,7 +30,8 @@ if ($typeMetaJson === false) {
     $typeMetaJson = '{}';
 }
 $prevButtons = is_array($prevSuggestions['buttons'] ?? null) ? $prevSuggestions['buttons'] : [];
-$dirVal = (int)($row['direction'] ?? -1);
+$dirRaw = $row['direction'] ?? '';
+$dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
 $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
 ?>
 <section class="page-head"><h1><?= $isNew ? te('ledger.moves.edit_new') : e('#' . (int)($row['id'] ?? 0)) ?><?= $moveBadgeHtml ?? '' ?></h1></section>
@@ -47,31 +48,9 @@ $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
     </select>
   </label>
   <label><?= te('ledger.moves.col.dt') ?><input type="datetime-local" name="dt" value="<?= e($dtValue) ?>" required></label>
-  <label><?= te('ledger.moves.col.sum') ?><input name="summ" value="<?= e((string)($row['summ'] ?? '0')) ?>" required></label>
   <label class="ledger-move-descr"><?= te('ledger.moves.col.descr') ?>
     <textarea name="descr" rows="10"><?= e((string)($row['descr'] ?? '')) ?></textarea>
   </label>
-
-  <fieldset data-ledger-field="direction" class="ledger-dir-field"<?= $hasType ? '' : ' hidden' ?>>
-    <legend><?= te('ledger.moves.col.direction') ?><?php if (!empty($prevApplied['direction'])): ?> <span class="muted"><?= te('ledger.moves.prev_mark') ?></span><?php endif; ?></legend>
-    <div class="ledger-dir-options">
-      <?php foreach ([-1 => 'ledger.dir.label.out', 1 => 'ledger.dir.label.in', 0 => 'ledger.dir.label.none'] as $dv => $dkey): ?>
-        <label class="ledger-dir-opt">
-          <input type="radio" name="direction" value="<?= (int)$dv ?>"<?= $dirVal === (int)$dv ? ' checked' : '' ?>>
-          <?= te($dkey) ?>
-        </label>
-      <?php endforeach; ?>
-    </div>
-    <?php if ($isNew && !empty($prevButtons['direction'])): ?>
-      <div class="ledger-prev-btns">
-        <?php foreach ($prevButtons['direction'] as $btn): ?>
-          <button type="button" class="btn-secondary" data-ledger-prev-fill="direction" data-val="<?= e((string)$btn['val']) ?>">
-            → <?= e((string)$btn['label']) ?><?php if ((int)$btn['total'] > 1): ?> (<?= (int)$btn['cnt'] ?>/<?= (int)$btn['total'] ?>)<?php endif; ?>
-          </button>
-        <?php endforeach; ?>
-      </div>
-    <?php endif; ?>
-  </fieldset>
 
   <label data-ledger-field="account"<?= $hasType ? '' : ' hidden' ?>><?= te('ledger.moves.col.account') ?><?php if (!empty($prevApplied['account_id'])): ?> <span class="muted"><?= te('ledger.moves.prev_mark') ?></span><?php endif; ?>
     <select name="account_id" id="ledger-move-account">
@@ -157,6 +136,39 @@ $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
       <?= te('ledger.moves.field.promise_executed') ?>
     </label>
   </fieldset>
+
+  <div class="ledger-dir-sum-row">
+    <div data-ledger-field="direction" class="ledger-dir-switch-wrap"<?= $hasType ? '' : ' hidden' ?>>
+      <?php if (!empty($prevApplied['direction'])): ?>
+        <span class="muted ledger-dir-prev-mark"><?= te('ledger.moves.prev_mark') ?></span>
+      <?php endif; ?>
+      <div class="ledger-dir-switch" role="radiogroup" aria-label="<?= te('ledger.moves.col.direction') ?>">
+        <label class="ledger-dir-chip ledger-dir-in<?= $dirSelected === 1 ? ' is-selected' : '' ?>">
+          <input type="radio" name="direction" value="1"<?= $hasType ? ' required' : '' ?><?= $dirSelected === 1 ? ' checked' : '' ?>>
+          <span class="ledger-dir-sign" aria-hidden="true">+</span>
+          <span class="ledger-dir-label"><?= te('ledger.dir.label.in') ?></span>
+        </label>
+        <label class="ledger-dir-chip ledger-dir-out<?= $dirSelected === -1 ? ' is-selected' : '' ?>">
+          <input type="radio" name="direction" value="-1"<?= $hasType ? ' required' : '' ?><?= $dirSelected === -1 ? ' checked' : '' ?>>
+          <span class="ledger-dir-sign" aria-hidden="true">−</span>
+          <span class="ledger-dir-label"><?= te('ledger.dir.label.out') ?></span>
+        </label>
+      </div>
+      <?php if ($isNew && !empty($prevButtons['direction'])): ?>
+        <div class="ledger-prev-btns">
+          <?php foreach ($prevButtons['direction'] as $btn): ?>
+            <button type="button" class="btn-secondary" data-ledger-prev-fill="direction" data-val="<?= e((string)$btn['val']) ?>">
+              → <?= e((string)$btn['label']) ?><?php if ((int)$btn['total'] > 1): ?> (<?= (int)$btn['cnt'] ?>/<?= (int)$btn['total'] ?>)<?php endif; ?>
+            </button>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+    </div>
+    <label class="ledger-sum-field"><?= te('ledger.moves.col.sum') ?>
+      <input type="number" name="summ" inputmode="decimal" step="0.01" min="0.01"
+             value="<?= e((string)($row['summ'] ?? '')) ?>" required>
+    </label>
+  </div>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit" name="action" value="save" data-ledger-save<?= $hasType ? '' : ' hidden' ?>><?= te('core.common.save') ?></button>

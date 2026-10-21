@@ -4,16 +4,35 @@ declare(strict_types=1);
 $wantsJson = AgentHttp::wantsJson();
 $id = (int)(Router::param('id') ?? 0);
 $isNew = $id < 1;
+
+$prefillFrom = $_GET;
+if ($isNew) {
+    $ret = (string)($_GET['ret'] ?? '');
+    if ($ret !== '') {
+        $retQuery = parse_url($ret, PHP_URL_QUERY);
+        if (is_string($retQuery) && $retQuery !== '') {
+            parse_str($retQuery, $retParams);
+            foreach (['account_id', 'type_id', 'supplier_id', 'payment_id', 'direction'] as $k) {
+                if ((!isset($prefillFrom[$k]) || $prefillFrom[$k] === '' || $prefillFrom[$k] === '0')
+                    && isset($retParams[$k]) && $retParams[$k] !== '' && $retParams[$k] !== '0'
+                ) {
+                    $prefillFrom[$k] = $retParams[$k];
+                }
+            }
+        }
+    }
+}
+
 $row = [
-    'account_id' => (int)($_GET['account_id'] ?? 0),
-    'type_id' => (int)($_GET['type_id'] ?? 0),
-    'direction' => -1,
-    'summ' => (string)($_GET['summ'] ?? '0'),
+    'account_id' => $isNew ? (int)($prefillFrom['account_id'] ?? 0) : 0,
+    'type_id' => $isNew ? (int)($prefillFrom['type_id'] ?? 0) : 0,
+    'direction' => '',
+    'summ' => $isNew ? (string)($_GET['summ'] ?? '') : '0',
     'descr' => (string)($_GET['descr'] ?? ''),
     'dt' => time(),
     'unconfirmed' => 0,
-    'payment_id' => (int)($_GET['payment_id'] ?? 0),
-    'supplier_id' => (int)($_GET['supplier_id'] ?? 0),
+    'payment_id' => $isNew ? (int)($prefillFrom['payment_id'] ?? 0) : 0,
+    'supplier_id' => $isNew ? (int)($prefillFrom['supplier_id'] ?? 0) : 0,
     'user_payment' => 0,
     'fund_movement_id' => 0,
     'act2_in' => 0,
@@ -32,9 +51,9 @@ if ($isNew && isset($_GET['dt']) && trim((string)$_GET['dt']) !== '') {
         }
     }
 }
-if ($isNew && isset($_GET['direction']) && $_GET['direction'] !== '') {
-    $d = (int)$_GET['direction'];
-    if (in_array($d, [-1, 0, 1], true)) {
+if ($isNew && isset($prefillFrom['direction']) && $prefillFrom['direction'] !== '') {
+    $d = (int)$prefillFrom['direction'];
+    if (in_array($d, [-1, 1], true)) {
         $row['direction'] = $d;
     }
 }
@@ -115,10 +134,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
         $error = $e->getMessage();
+        $postedDir = array_key_exists('direction', $_POST) ? (int)$_POST['direction'] : ($row['direction'] ?? '');
         $row = array_merge($row, [
             'account_id' => (int)($_POST['account_id'] ?? $row['account_id']),
             'type_id' => (int)($_POST['type_id'] ?? $row['type_id']),
-            'direction' => (int)($_POST['direction'] ?? ($row['direction'] ?? -1)),
+            'direction' => $postedDir,
             'summ' => $_POST['summ'] ?? $row['summ'],
             'descr' => (string)($_POST['descr'] ?? $row['descr']),
             'dt' => (string)($_POST['dt'] ?? $row['dt']),
@@ -155,9 +175,13 @@ if ($isNew && $typeId > 0) {
         $row['account_id'] = (int)$defs['account_id'];
         $prevApplied['account_id'] = true;
     }
-    if (!isset($_GET['direction']) && isset($defs['direction'])) {
-        $row['direction'] = (int)$defs['direction'];
-        $prevApplied['direction'] = true;
+    $dirEmpty = ($row['direction'] === '' || $row['direction'] === null);
+    if ($dirEmpty && !isset($_GET['direction']) && isset($defs['direction'])) {
+        $pd = (int)$defs['direction'];
+        if (in_array($pd, [-1, 1], true)) {
+            $row['direction'] = $pd;
+            $prevApplied['direction'] = true;
+        }
     }
     if ((int)($row['supplier_id'] ?? 0) < 1 && isset($defs['supplier_id'])) {
         $row['supplier_id'] = (int)$defs['supplier_id'];
@@ -169,10 +193,13 @@ if ($isNew && $typeId > 0) {
 if ($type && (int)($row['account_id'] ?? 0) < 1 && (int)($type['account_id'] ?? 0) > 0) {
     $row['account_id'] = (int)$type['account_id'];
 }
-if ($type && !isset($_GET['direction']) && empty($prevApplied['direction']) && isset($type['direction'])) {
-    // Keep row direction if already set from type default on create without prev.
-    if ($isNew && (int)($row['direction'] ?? 0) === -1 && (int)$type['direction'] !== 0) {
-        $row['direction'] = (int)$type['direction'];
+$dirEmpty = ($row['direction'] === '' || $row['direction'] === null);
+if ($type && $isNew && $dirEmpty && empty($prevApplied['direction']) && !isset($_GET['direction'])
+    && isset($type['direction'])
+) {
+    $td = (int)$type['direction'];
+    if (in_array($td, [-1, 1], true)) {
+        $row['direction'] = $td;
     }
 }
 

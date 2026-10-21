@@ -195,6 +195,12 @@ if ($accountId > 0) {
 if ($typeId > 0) {
     $newQs['type_id'] = (string)$typeId;
 }
+if ($supplierId > 0) {
+    $newQs['supplier_id'] = (string)$supplierId;
+}
+if ($paymentId > 0) {
+    $newQs['payment_id'] = (string)$paymentId;
+}
 $newHref = '/ledger/moves/new' . ($newQs !== [] ? ('?' . http_build_query($newQs)) : '');
 
 $moveIds = [];

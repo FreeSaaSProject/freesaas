@@ -59,7 +59,12 @@ final class LedgerMovesRepository
         foreach (['direction', 'account_id', 'supplier_id'] as $field) {
             $values = [];
             foreach ($rows as $row) {
-                $values[] = (string)(int)$row[$field];
+                $v = (int)$row[$field];
+                // Move form only allows credit/debit — skip "no change" (0).
+                if ($field === 'direction' && !in_array($v, [-1, 1], true)) {
+                    continue;
+                }
+                $values[] = (string)$v;
             }
             $variants = self::prevTopVariants($values, 2);
             if ($variants === []) {
@@ -458,12 +463,13 @@ final class LedgerMovesRepository
         if ($dt < 1) {
             $dt = time();
         }
-        $direction = (int)($type['direction'] ?? 0);
-        if (isset($post['direction']) && $post['direction'] !== '') {
-            $d = (int)$post['direction'];
-            if (in_array($d, [-1, 0, 1], true)) {
-                $direction = $d;
-            }
+        $directionRaw = $post['direction'] ?? '';
+        if ($directionRaw === '' || $directionRaw === null) {
+            throw new InvalidArgumentException(t('ledger.moves.err.direction'));
+        }
+        $direction = (int)$directionRaw;
+        if (!in_array($direction, [-1, 1], true)) {
+            throw new InvalidArgumentException(t('ledger.moves.err.direction'));
         }
 
         $paymentId = !empty($type['payment_enabled']) ? max(0, (int)($post['payment_id'] ?? 0)) : 0;

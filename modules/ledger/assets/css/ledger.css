@@ -119,29 +119,104 @@
   margin-left: 0.25rem;
 }
 
-.ledger-dir-field {
-  border: 0;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-}
-
-.ledger-dir-field legend {
-  font-weight: 600;
-  margin-bottom: 0.35rem;
-}
-
-.ledger-dir-options {
+.ledger-dir-sum-row {
+  grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.25rem;
+  align-items: flex-end;
+  gap: 0.65rem 0.75rem;
 }
 
-.ledger-dir-opt {
-  display: inline-flex;
-  align-items: center;
+.ledger-dir-switch-wrap {
+  flex: 0 1 14rem;
+  min-width: 0;
+  max-width: 16rem;
+}
+
+.ledger-dir-prev-mark {
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  font-size: 0.85em;
+}
+
+.ledger-dir-switch {
+  display: flex;
   gap: 0.35rem;
-  font-weight: 400;
+  min-width: 0;
+  width: 100%;
+}
+
+.ledger-dir-chip {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  margin: 0;
+  padding: 0.25rem 0.4rem;
+  min-height: 1.25rem;
+  border: 1px solid color-mix(in srgb, var(--border, #cfd8d0) 90%, transparent);
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--bg, #fff) 92%, var(--border, #ccc));
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  user-select: none;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ledger-dir-chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ledger-dir-sign {
+  font-size: 0.95rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.ledger-dir-in .ledger-dir-sign {
+  color: var(--ok, #1a7a1a);
+}
+
+.ledger-dir-out .ledger-dir-sign {
+  color: var(--danger, #c0392b);
+}
+
+.ledger-dir-chip:hover {
+  border-color: color-mix(in srgb, var(--fg, #222) 35%, var(--border, #ccc));
+}
+
+.ledger-dir-chip:has(input:focus-visible) {
+  outline: 2px solid var(--accent, #2a6);
+  outline-offset: 2px;
+}
+
+.ledger-dir-in:has(input:checked),
+.ledger-dir-in.is-selected {
+  border-color: var(--ok, #1a7a1a);
+  background: color-mix(in srgb, var(--ok, #1a7a1a) 12%, var(--bg, #fff));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ok, #1a7a1a) 35%, transparent);
+}
+
+.ledger-dir-out:has(input:checked),
+.ledger-dir-out.is-selected {
+  border-color: var(--danger, #c0392b);
+  background: color-mix(in srgb, var(--danger, #c0392b) 12%, var(--bg, #fff));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger, #c0392b) 35%, transparent);
+}
+
+.ledger-sum-field {
+  flex: 0 1 10rem;
+  margin: 0;
+  min-width: 8rem;
+}
+
+.ledger-dir-switch-wrap[hidden] {
+  display: none !important;
 }
 
 .ledger-prev-btns {
