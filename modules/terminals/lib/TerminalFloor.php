@@ -17,6 +17,9 @@ final class TerminalFloor
         if (!empty($q['need_redirect']) || ($q['error'] ?? '') !== '') {
             return $q;
         }
+        $mutateIgnoredMsg = !empty($q['mutate_ignored'])
+            ? t('terminals.t.warn.get_mutate')
+            : '';
 
         $terminal = self::resolveTerminal((string)$q['terminalid']);
         if ($terminal === null || (int)($terminal['enabled'] ?? 0) < 1) {
@@ -107,7 +110,7 @@ final class TerminalFloor
             }
         }
 
-        $message = '';
+        $message = $mutateIgnoredMsg;
         $error = '';
         $displayName = (string)($guest['name'] ?? '');
         if ($clientId > 0 && class_exists(ClientsRepository::class, false)) {
@@ -876,28 +879,78 @@ final class TerminalFloor
      */
     private static function parseInput(): array
     {
-        $terminalid = trim((string)($_GET['terminalid'] ?? $_REQUEST['terminalid'] ?? ''));
-        $braceletid = trim((string)($_GET['braceletid'] ?? $_REQUEST['braceletid'] ?? ''));
-        $token = trim((string)($_GET['token'] ?? $_REQUEST['token'] ?? ''));
+        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        $isPost = $method === 'POST';
+        // Identity + navigation: GET (Android NFC) or POST. Writes: POST only.
+        $src = $isPost ? array_merge($_GET, $_POST) : $_GET;
+
+        $pick = static function (string $key, $default = '') use ($src) {
+            return $src[$key] ?? $default;
+        };
+
+        $terminalid = trim((string)$pick('terminalid', ''));
+        $braceletid = trim((string)$pick('braceletid', ''));
+        $token = trim((string)$pick('token', ''));
+
+        $getTimeRaw = (string)$pick('getTime', '');
+        $doStart = (string)$pick('doStart', '');
+        $doConfirm = trim((string)$pick('doConfirm', ''));
+        $loginUser = trim((string)$pick('loginUser', ''));
+        $braceletNum = trim((string)$pick('braceletNum', ''));
+        $unlinkClient = !empty($pick('unlinkClient'));
+        $resetCache = !empty($pick('resetCache'));
+        $userNameSent = trim((string)$pick('userNameSent', ''));
+        $clientPhoneSent = trim((string)$pick('clientPhoneSent', ''));
+
+        $mutateIgnored = false;
+        if (!$isPost) {
+            // Keep nav: getTime=1 (slot UI), doStart=2 without reason (cancel confirm screen).
+            $commitGetTime = ctype_digit($getTimeRaw) && (int)$getTimeRaw >= 1000000000;
+            if ($commitGetTime) {
+                $getTimeRaw = '';
+                $mutateIgnored = true;
+            }
+            if ($doConfirm !== '' || $loginUser !== '') {
+                $doConfirm = '';
+                $loginUser = '';
+                $mutateIgnored = true;
+            }
+            if ($braceletNum !== '') {
+                $braceletNum = '';
+                $mutateIgnored = true;
+            }
+            if ($unlinkClient || $resetCache) {
+                $unlinkClient = false;
+                $resetCache = false;
+                $mutateIgnored = true;
+            }
+            if ($userNameSent !== '' || $clientPhoneSent !== '') {
+                $userNameSent = '';
+                $clientPhoneSent = '';
+                $mutateIgnored = true;
+            }
+        }
+
         $common = [
-            'adminId' => (int)($_GET['adminId'] ?? $_REQUEST['adminId'] ?? 0),
-            'gids' => (string)($_GET['gids'] ?? $_REQUEST['gids'] ?? ''),
-            'getTime' => (string)($_GET['getTime'] ?? $_REQUEST['getTime'] ?? ''),
-            'doStart' => (string)($_GET['doStart'] ?? $_REQUEST['doStart'] ?? ''),
-            'doConfirm' => trim((string)($_GET['doConfirm'] ?? $_REQUEST['doConfirm'] ?? '')),
-            'loginUser' => trim((string)($_GET['loginUser'] ?? $_REQUEST['loginUser'] ?? '')),
-            'disable1C' => !empty($_GET['disable1C']) || !empty($_REQUEST['disable1C']),
-            'procedure_id' => (int)($_GET['procedure_id'] ?? $_REQUEST['procedure_id'] ?? 0),
-            'oldProcedureOff' => (int)($_GET['oldProcedureOff'] ?? $_REQUEST['oldProcedureOff'] ?? 0),
-            'category' => (int)($_GET['category'] ?? $_REQUEST['category'] ?? 0),
-            'braceletNum' => trim((string)($_GET['braceletNum'] ?? $_REQUEST['braceletNum'] ?? '')),
-            'unlinkClient' => !empty($_GET['unlinkClient']) || !empty($_REQUEST['unlinkClient']),
-            'resetCache' => !empty($_GET['resetCache']) || !empty($_REQUEST['resetCache']),
-            'forceLimit' => !empty($_GET['forceLimit']) || !empty($_REQUEST['forceLimit']),
-            'flyerOn' => !empty($_GET['flyerOn']) || !empty($_REQUEST['flyerOn']),
-            'rename' => !empty($_GET['rename']) || !empty($_REQUEST['rename']),
-            'userNameSent' => trim((string)($_GET['userNameSent'] ?? $_REQUEST['userNameSent'] ?? '')),
-            'clientPhoneSent' => trim((string)($_GET['clientPhoneSent'] ?? $_REQUEST['clientPhoneSent'] ?? '')),
+            'adminId' => (int)$pick('adminId', 0),
+            'gids' => (string)$pick('gids', ''),
+            'getTime' => $getTimeRaw,
+            'doStart' => $doStart,
+            'doConfirm' => $doConfirm,
+            'loginUser' => $loginUser,
+            'disable1C' => !empty($pick('disable1C')),
+            'procedure_id' => (int)$pick('procedure_id', 0),
+            'oldProcedureOff' => (int)$pick('oldProcedureOff', 0),
+            'category' => (int)$pick('category', 0),
+            'braceletNum' => $braceletNum,
+            'unlinkClient' => $unlinkClient,
+            'resetCache' => $resetCache,
+            'forceLimit' => !empty($pick('forceLimit')),
+            'flyerOn' => !empty($pick('flyerOn')),
+            'rename' => !empty($pick('rename')),
+            'userNameSent' => $userNameSent,
+            'clientPhoneSent' => $clientPhoneSent,
+            'mutate_ignored' => $mutateIgnored,
         ];
 
         if ($terminalid === '' || $braceletid === '') {

@@ -84,32 +84,13 @@ final class TerminalBooking
         $disable1c = $isEmployee
             || !empty($input['disable_1c'])
             || TerminalsConfig::onecStubMode(false);
-        // Occupancy + shift gate always (same as UI slots). disable_1c must not bypass this.
-        if (class_exists(BookingValidate::class, false)) {
-            try {
-                $slotOpts = class_exists(TerminalsConfig::class, false)
-                    ? TerminalsConfig::bookingSlotOpts()
-                    : [];
-                if (isset($input['interval_sec'])) {
-                    $slotOpts['interval_sec'] = class_exists(BookingSlots::class, false)
-                        ? BookingSlots::normalizeIntervalSec((int)$input['interval_sec'], BookingSlots::INTERVAL_SEC)
-                        : max(300, (int)$input['interval_sec']);
-                }
-                BookingValidate::assertSlot(
-                    [$productId],
-                    $operatorId,
-                    $dtStart,
-                    null,
-                    false,
-                    $leadSec,
-                    null,
-                    $slotOpts
-                );
-            } catch (Throwable $e) {
-                return ['ok' => false, 'error' => $e->getMessage(), 'stack' => $stack];
-            }
-        } elseif ($dtStart < time() - 120) {
-            return ['ok' => false, 'error' => 'dt_start in the past', 'stack' => $stack];
+        $slotOpts = class_exists(TerminalsConfig::class, false)
+            ? TerminalsConfig::bookingSlotOpts()
+            : [];
+        if (isset($input['interval_sec'])) {
+            $slotOpts['interval_sec'] = class_exists(BookingSlots::class, false)
+                ? BookingSlots::normalizeIntervalSec((int)$input['interval_sec'], BookingSlots::INTERVAL_SEC)
+                : max(300, (int)$input['interval_sec']);
         }
 
         $product = class_exists(ProductsRepository::class, false)
@@ -218,6 +199,7 @@ final class TerminalBooking
         if ($token === '') {
             $token = bin2hex(random_bytes(16));
         } elseif (self::tokenUsed($token)) {
+            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
             return [
                 'ok' => false,
                 'error' => 'token already used',
@@ -232,30 +214,76 @@ final class TerminalBooking
             $notice = 'Отключено от 1С администратором!';
         }
 
-        $procId = 0;
+        $createPayload = [
+            'dtstart' => $dtStart,
+            'dtend' => $dtEnd,
+            'dtend_plan' => $dtEnd,
+            'id_operator' => $operatorId,
+            'id_admin' => $adminId,
+            'id_good' => $productId,
+            'id_table' => 1,
+            'id_user' => $clientId,
+            'id_terminal' => max(0, $terminalId),
+            'type' => $typeId,
+            'summ' => $price,
+            'summ_default' => $listPrice > 0 ? $listPrice : $price,
+            'notice' => $notice,
+            'enabled' => 1,
+            'token' => $token,
+            'id_event_parent' => 0,
+            'onec_id' => $saleId,
+            'onec_bracelet' => $bracelet,
+            'restored' => 0,
+        ];
+
+        // Assert + insert under shared lock (same name as BookingBook) — 1C sale stays outside.
+        $lockFn = static function () use (
+            $productId,
+            $operatorId,
+            $dtStart,
+            $leadSec,
+            $slotOpts,
+            $createPayload
+        ): array {
+            if (class_exists(BookingValidate::class, false)) {
+                BookingValidate::assertSlot(
+                    [$productId],
+                    $operatorId,
+                    $dtStart,
+                    null,
+                    false,
+                    $leadSec,
+                    null,
+                    $slotOpts
+                );
+            } elseif ($dtStart < time() - 120) {
+                throw new RuntimeException('dt_start in the past');
+            }
+            $procId = ProceduresRepository::create($createPayload);
+            return ['procedure_id' => $procId];
+        };
+
         try {
-            $procId = ProceduresRepository::create([
-                'dtstart' => $dtStart,
-                'dtend' => $dtEnd,
-                'dtend_plan' => $dtEnd,
-                'id_operator' => $operatorId,
-                'id_admin' => $adminId,
-                'id_good' => $productId,
-                'id_table' => 1,
-                'id_user' => $clientId,
-                'id_terminal' => max(0, $terminalId),
-                'type' => $typeId,
-                'summ' => $price,
-                'summ_default' => $listPrice > 0 ? $listPrice : $price,
-                'notice' => $notice,
-                'enabled' => 1,
-                'token' => $token,
-                'id_event_parent' => 0,
-                'onec_id' => $saleId,
-                'onec_bracelet' => $bracelet,
-                'restored' => 0,
-            ]);
+            if (class_exists(BookingLock::class, false)) {
+                $locked = BookingLock::withOperatorDay($operatorId, $dtStart, 10, $lockFn);
+                if ($locked === null) {
+                    self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
+                    $stack[] = ['key' => 'procedure', 'ok' => false, 'detail' => 'lock_busy'];
+                    return [
+                        'ok' => false,
+                        'error' => class_exists('I18n', false) ? t('booking.err.lock_busy') : 'booking lock busy',
+                        'product_name' => $productName,
+                        'price' => $price,
+                        'stack' => $stack,
+                    ];
+                }
+                $procId = (int)($locked['procedure_id'] ?? 0);
+            } else {
+                $locked = $lockFn();
+                $procId = (int)($locked['procedure_id'] ?? 0);
+            }
         } catch (Throwable $e) {
+            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
             $stack[] = [
                 'key' => 'procedure',
                 'ok' => false,
@@ -272,6 +300,7 @@ final class TerminalBooking
         }
 
         if ($procId < 1) {
+            self::maybeUnsaleAfterFail($saleId, $saleStub, $disable1c, $stack);
             $stack[] = ['key' => 'procedure', 'ok' => false, 'detail' => 'insert returned 0'];
             $stack[] = ['key' => 'admin', 'ok' => false];
             return [
@@ -603,6 +632,32 @@ final class TerminalBooking
         );
         $st->execute([$token]);
         return (bool)$st->fetchColumn();
+    }
+
+    /**
+     * Best-effort rollback of a live 1C sale when local assert/insert fails after sale.
+     *
+     * @param list<array<string,mixed>> $stack
+     */
+    private static function maybeUnsaleAfterFail(
+        string $saleId,
+        bool $saleStub,
+        bool $disable1c,
+        array &$stack
+    ): void {
+        if ($saleId === '' || $saleStub || $disable1c) {
+            return;
+        }
+        if (!class_exists(OnecClient::class, false)) {
+            return;
+        }
+        $u = OnecClient::unsale($saleId, false);
+        $stack[] = [
+            'key' => 'unsale_after_fail',
+            'ok' => !empty($u['ok']),
+            'sale_id' => $saleId,
+            'detail' => (string)($u['error'] ?? ''),
+        ];
     }
 
     private static function consumeOrder(int $orderId, int $procedureId, int $adminId): void

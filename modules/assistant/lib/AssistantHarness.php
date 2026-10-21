@@ -950,7 +950,16 @@ final class AssistantHarness
                 }
             }
         }
-        if ((string)($row['STATUS'] ?? '') !== 'pending') {
+        $status = strtolower(trim((string)($row['STATUS'] ?? '')));
+        if ($status !== 'pending') {
+            if (in_array($status, ['confirmed', 'executing'], true)) {
+                return [
+                    'ok' => false,
+                    'action' => $action,
+                    'result' => null,
+                    'error' => t('assistant.confirm.already_done'),
+                ];
+            }
             return ['ok' => false, 'action' => $action, 'result' => null, 'error' => t('assistant.confirm.not_found')];
         }
         if ((int)($row['EXPIRES_AT'] ?? 0) < time()) {
@@ -959,7 +968,14 @@ final class AssistantHarness
         }
 
         if ($action === 'cancel') {
-            PendingActionsRepository::mark($token, 'cancelled');
+            if (!PendingActionsRepository::mark($token, 'cancelled')) {
+                return [
+                    'ok' => false,
+                    'action' => 'cancel',
+                    'result' => null,
+                    'error' => t('assistant.confirm.already_done'),
+                ];
+            }
             return [
                 'ok' => true,
                 'action' => 'cancel',
@@ -968,8 +984,38 @@ final class AssistantHarness
             ];
         }
 
-        $opId = (string)($row['OP_ID'] ?? '');
-        $args = PendingActionsRepository::decodeArgs($row);
+        // Claim before invoke so a second confirmer cannot run the same write.
+        $claimed = PendingActionsRepository::claimForExecution($token, $userId);
+        if ($claimed === null) {
+            $again = PendingActionsRepository::findByToken($token);
+            $st2 = strtolower(trim((string)($again['STATUS'] ?? '')));
+            if (in_array($st2, ['confirmed', 'executing', 'cancelled'], true)) {
+                return [
+                    'ok' => false,
+                    'action' => 'confirm',
+                    'result' => null,
+                    'error' => t('assistant.confirm.already_done'),
+                ];
+            }
+            if ($again !== null && (int)($again['EXPIRES_AT'] ?? 0) < time()) {
+                PendingActionsRepository::mark($token, 'expired');
+                return [
+                    'ok' => false,
+                    'action' => 'confirm',
+                    'result' => null,
+                    'error' => t('assistant.confirm.expired'),
+                ];
+            }
+            return [
+                'ok' => false,
+                'action' => 'confirm',
+                'result' => null,
+                'error' => t('assistant.confirm.not_found'),
+            ];
+        }
+
+        $opId = (string)($claimed['OP_ID'] ?? '');
+        $args = PendingActionsRepository::decodeArgs($claimed);
         // Execute as the confirmer (already Auth::runAs in bot/UI callers).
         $inv = AssistantTools::invoke($opId, $args);
         if (!$inv['ok'] && $confirmMode === 'capability') {
@@ -997,10 +1043,10 @@ final class AssistantHarness
             }
         }
         if (!$inv['ok']) {
-            PendingActionsRepository::mark($token, 'failed', ['error' => $inv['error']]);
+            PendingActionsRepository::finalizeExecution($token, 'failed', ['error' => $inv['error']]);
             return ['ok' => false, 'action' => 'confirm', 'result' => null, 'error' => $inv['error']];
         }
-        PendingActionsRepository::markConfirmedBy($token, $userId, $inv['data']);
+        PendingActionsRepository::finalizeExecution($token, 'confirmed', $inv['data']);
         return [
             'ok' => true,
             'action' => 'confirm',

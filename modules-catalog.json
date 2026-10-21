@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-20T17:39:22+00:00",
+    "generated_at": "2026-10-21T08:01:04+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.67",
+            "version": "0.1.68",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -250,7 +250,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.28",
+            "version": "0.3.29",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -455,7 +455,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.13",
+            "version": "0.1.14",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -1201,7 +1201,7 @@
         },
         {
             "id": "payments",
-            "version": "0.1.18",
+            "version": "0.1.20",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1633,7 +1633,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.43",
+            "version": "0.1.44",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

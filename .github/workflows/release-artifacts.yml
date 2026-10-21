@@ -3,6 +3,7 @@ name: Release artifacts
 # Builds one full FreeSaaS zip (+ freesaas-manifest.json) and attaches to the GitHub Release.
 # PRIVATE_MODULES — modules omitted from zip (empty = ship all, incl. likespa).
 # PRIVATE_THEMES — storefront themes omitted (default likespa; never drop themes/default).
+# Requires CI (ci.yml) green on the released commit before upload.
 
 on:
   release:
@@ -23,20 +24,45 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'release' && github.event.release.tag_name || github.sha }}
+
+      - name: Require CI green on release commit
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          sha="$(git rev-parse HEAD)"
+          echo "Checking CI for commit $sha"
+          conclusion="$(gh run list --workflow=ci.yml --commit="$sha" \
+            --status=completed --limit=1 --json conclusion -q '.[0].conclusion // empty')"
+          if [[ "$conclusion" != "success" ]]; then
+            echo "::error::CI not green for $sha (got: ${conclusion:-none}). Refusing to publish artifacts."
+            exit 1
+          fi
+          echo "CI green for $sha"
 
       - name: Build full zip
         env:
           PRIVATE_MODULES: ${{ github.event.inputs.private_modules }}
           PRIVATE_THEMES: ${{ github.event.inputs.private_themes || 'likespa' }}
+          RELEASE_REF: ${{ github.sha }}
         run: |
           chmod +x bin/build-release-artifacts.sh
+          # Pin archive to the checked-out commit (matches tag for release events).
+          RELEASE_REF="$(git rev-parse HEAD)"
+          export RELEASE_REF
           bin/build-release-artifacts.sh
           ls -la dist/
           test -f dist/freesaas-manifest.json
           # Instance theme must not ship in public artifacts
           ! unzip -l dist/freesaas-[0-9]*.zip | grep -q 'themes/likespa/'
+          # Local secrets must not ship
+          ! unzip -l dist/freesaas-[0-9]*.zip | grep -E -q '(^|/)\.env|/dumps/|\.sql$'
 
       - name: Upload to GitHub Release
         if: github.event_name == 'release'

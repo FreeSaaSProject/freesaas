@@ -27,6 +27,7 @@ return [
     'booking.err.blocked_online' => 'Online booking is unavailable. Please book at the centre.',
     'booking.err.client' => 'client_id required',
     'booking.err.cancel' => 'Could not cancel order',
+    'booking.err.lock_busy' => 'Booking is busy for this specialist — try again in a moment.',
     'booking.flash.cancelled' => 'Order cancelled',
     'booking.orders.title' => 'Client advance orders',
     'booking.orders.client' => 'Client #{id}',

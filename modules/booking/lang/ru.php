@@ -27,6 +27,7 @@ return [
     'booking.err.blocked_online' => 'Онлайн-запись недоступна. Запишитесь только в центре.',
     'booking.err.client' => 'Нужен client_id',
     'booking.err.cancel' => 'Не удалось отменить заказ',
+    'booking.err.lock_busy' => 'Запись для этого сотрудника занята — повторите через мгновение.',
     'booking.flash.cancelled' => 'Заказ отменён',
     'booking.orders.title' => 'Заказы клиента',
     'booking.orders.client' => 'Клиент #{id}',

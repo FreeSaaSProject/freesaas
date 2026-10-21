@@ -249,6 +249,7 @@ return [
     'terminals.t.booked' => 'Услуга зарегистрирована',
     'terminals.t.back_home' => '← На главную',
     'terminals.t.scan_again' => 'Отсканируйте браслет ещё раз. Токен сканирования использован.',
+    'terminals.t.warn.get_mutate' => 'Запись только через POST (формы на этой странице). GET-скан NFC не меняется.',
     'terminals.t.stack.product' => 'Процедура: {name} — {price}',
     'terminals.t.stack.sale_ok' => 'Резерв 1С подтверждён (списание #{id}). Сохраняю в нашей БД.',
     'terminals.t.stack.sale_stub' => 'Резерв 1С (stub/#{id}) — отладка без живой 1С. Сохраняю в нашей БД.',

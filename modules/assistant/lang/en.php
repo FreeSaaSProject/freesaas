@@ -170,6 +170,7 @@ return [
     'assistant.confirm.expired' => 'This confirmation expired.',
     'assistant.confirm.not_found' => 'Pending action not found.',
     'assistant.confirm.forbidden' => 'Not your pending action.',
+    'assistant.confirm.already_done' => 'Already confirmed (or cancelled) by someone else.',
     'assistant.confirm.none' => 'No pending action. Have {name} queue a write first — Confirm/Cancel buttons will appear.',
     'assistant.confirm.not_queued' => 'No write was queued. Ask again — {name} must find the row with a tool and call delete/save so Confirm/Cancel buttons appear.',
     'assistant.confirm.press_buttons' => 'Draft ready — press Confirm or Cancel on the buttons below.',

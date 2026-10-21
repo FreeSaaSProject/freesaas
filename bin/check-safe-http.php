@@ -30,6 +30,19 @@ $assert(!SafeHttp::validateOutboundUrl('file:///etc/passwd')['ok'], 'reject file
 $assert(SafeHttp::isPublicIp('8.8.8.8'), '8.8.8.8 public');
 $assert(!SafeHttp::isPublicIp('127.0.0.1'), '127 not public');
 
+// validateOutboundUrl exposes port for CURLOPT_RESOLVE pin (anti DNS rebinding).
+$v = SafeHttp::validateOutboundUrl('https://example.com/x');
+if ($v['ok']) {
+    $assert(($v['port'] ?? 0) === 443, 'https default port 443 for pin');
+    $assert(($v['ip'] ?? '') !== '', 'public ip for pin');
+} else {
+    // Offline / DNS blocked environments — still require shape when ok.
+    $assert(array_key_exists('port', $v), 'validate result includes port key');
+}
+$src = (string)file_get_contents(dirname(__DIR__) . '/app/SafeHttp.php');
+$assert(strpos($src, 'CURLOPT_RESOLVE') !== false, 'CURLOPT_RESOLVE pin present');
+$assert(strpos($src, 'CURLOPT_WRITEFUNCTION') !== false, 'streaming WRITEFUNCTION size cap');
+
 // Trusted OAuth hosts must not treat loopback as CIMD fetch target.
 $assert(!OAuthServer::isTrustedOAuthHost('localhost'), 'OAuth CIMD host rejects localhost');
 $assert(!OAuthServer::isTrustedOAuthHost('127.0.0.1'), 'OAuth CIMD host rejects 127.0.0.1');

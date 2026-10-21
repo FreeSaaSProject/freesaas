@@ -267,6 +267,7 @@ jobs:
           php bin/check-routes.php
           php bin/check-htaccess-denies.php
           php bin/check-safe-http.php
+          php bin/check-http-perms.php
           php -r '
           require "app/bootstrap.php";
           $tok = (string)Config::get("app", "agent_token", "");

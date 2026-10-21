@@ -44,8 +44,8 @@ $pages = [
     '/terminals/1c/{mode}' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'onec.php'],
     '/terminals/floor' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'floor_book.php'],
     '/t' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 't.php'],
-    '/terminals/jobs/load' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_load.php'],
-    '/terminals/jobs/tickets' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_tickets.php'],
+    '/terminals/jobs/load' => ['public' => true, 'methods' => ['POST'], 'file' => 'jobs_load.php'],
+    '/terminals/jobs/tickets' => ['public' => true, 'methods' => ['POST'], 'file' => 'jobs_tickets.php'],
 ];
 
 foreach ($pages as $path => $def) {

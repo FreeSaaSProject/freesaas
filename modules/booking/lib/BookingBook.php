@@ -67,7 +67,6 @@ final class BookingBook
                 BookingSlots::INTERVAL_SEC
             );
         }
-        BookingValidate::assertSlot($productIds, $operatorId, $dtStart, null, false, $leadSec, null, $assertOpts);
 
         $lines = [];
         $summ = 0.0;
@@ -190,8 +189,31 @@ final class BookingBook
             $payload = $before['payload'];
         }
 
-        $orderId = OrdersRepository::create($payload);
-        $row = OrdersRepository::find($orderId);
+        $locked = BookingLock::withOperatorDay(
+            $operatorId,
+            $dtStart,
+            10,
+            static function () use ($productIds, $operatorId, $dtStart, $leadSec, $assertOpts, $payload): array {
+                BookingValidate::assertSlot(
+                    $productIds,
+                    $operatorId,
+                    $dtStart,
+                    null,
+                    false,
+                    $leadSec,
+                    null,
+                    $assertOpts
+                );
+                $orderId = OrdersRepository::create($payload);
+                $row = OrdersRepository::find($orderId);
+                return ['order_id' => $orderId, 'row' => $row];
+            }
+        );
+        if ($locked === null) {
+            throw new RuntimeException(t('booking.err.lock_busy'));
+        }
+        $orderId = (int)$locked['order_id'];
+        $row = is_array($locked['row'] ?? null) ? $locked['row'] : OrdersRepository::find($orderId);
 
         EventBus::emit('booking.book.after', [
             'order_id' => $orderId,

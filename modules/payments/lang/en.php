@@ -157,6 +157,7 @@ return [
     'payments.bot.day_pay.only_daily' => 'Available to staff with daily payroll only.',
     'payments.bot.day_pay.pending_exists' => 'You already have an open payout request.',
     'payments.bot.day_pay.busy' => 'Another payout operation is in progress — try again in a moment.',
+    'payments.bot.day_pay.lock_failed' => 'Could not lock the payout row — try again. InnoDB is required for cash payouts.',
 
     'payments.bot.day_pay.low_balance' => 'Balance too low (need at least 100).',
     'payments.bot.day_pay.bad_date' => 'Selected date is not available.',

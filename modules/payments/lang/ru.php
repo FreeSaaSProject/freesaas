@@ -157,6 +157,7 @@ return [
     'payments.bot.day_pay.only_daily' => 'Доступно только сотрудникам с поденным расчётом зарплаты.',
     'payments.bot.day_pay.pending_exists' => 'Уже есть незакрытый запрос на выдачу.',
     'payments.bot.day_pay.busy' => 'Другая операция с выплатой уже выполняется — повторите через секунду.',
+    'payments.bot.day_pay.lock_failed' => 'Не удалось заблокировать строку выплаты — повторите. Для выдач нужен InnoDB.',
 
     'payments.bot.day_pay.low_balance' => 'Недостаточный баланс для запроса (нужно не меньше 100 ₽).',
     'payments.bot.day_pay.bad_date' => 'Выбранная дата недоступна.',

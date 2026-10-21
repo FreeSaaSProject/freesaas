@@ -249,6 +249,7 @@ return [
     'terminals.t.booked' => 'Service registered',
     'terminals.t.back_home' => '← Home',
     'terminals.t.scan_again' => 'Scan the bracelet again. This scan token has been used.',
+    'terminals.t.warn.get_mutate' => 'Write actions must use POST (forms on this page). NFC GET scan is unchanged.',
     'terminals.t.stack.product' => 'Service: {name} — {price}',
     'terminals.t.stack.sale_ok' => '1C reserve confirmed (charge #{id}). Saving to our DB.',
     'terminals.t.stack.sale_stub' => '1C reserve (stub/#{id}) — debug without live 1C. Saving to our DB.',

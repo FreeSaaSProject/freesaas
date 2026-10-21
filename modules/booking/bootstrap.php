@@ -8,6 +8,7 @@ require_once __DIR__ . '/lib/BookingOperatorGate.php';
 require_once __DIR__ . '/lib/BookingCatalog.php';
 require_once __DIR__ . '/lib/BookingAvailability.php';
 require_once __DIR__ . '/lib/BookingValidate.php';
+require_once __DIR__ . '/lib/BookingLock.php';
 require_once __DIR__ . '/lib/BookingBook.php';
 
 Assets::register('booking', [

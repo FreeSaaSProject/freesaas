@@ -50,6 +50,20 @@ $phoneHint = (string)($state['phone_hint'] ?? '');
 $bookResults = is_array($state['results'] ?? null) ? $state['results'] : [];
 $cart = is_array($state['cart'] ?? null) ? $state['cart'] : ['items' => [], 'sum' => 0.0];
 $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
+/** @param array<string,scalar|null> $extra */
+$tPostFormOpen = static function (array $extra = []) use ($baseQ): void {
+    echo '<form method="post" action="/t/" style="display:inline">';
+    echo Csrf::field();
+    foreach ($baseQ + $extra as $k => $v) {
+        if ($v === null || $v === '') {
+            continue;
+        }
+        echo '<input type="hidden" name="' . e((string)$k) . '" value="' . e((string)$v) . '">';
+    }
+};
+$tPostFormClose = static function (): void {
+    echo '</form>';
+};
 ?>
 <!DOCTYPE html>
 <html lang="<?= e(I18n::locale()) ?>">
@@ -154,7 +168,8 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
     <?php elseif ($mode === 'need_bracelet_num'): ?>
         <div class="card">
             <h1 style="color:var(--danger)"><?= e(t('terminals.t.num_required')) ?></h1>
-            <form class="num-form" method="get" action="/t/">
+            <form class="num-form" method="post" action="/t/">
+                <?= Csrf::field() ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -174,10 +189,13 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
             <?php if ($phoneHint !== ''): ?>
                 <p class="meta">
                     <?= e(t('terminals.t.phone_from_1c', ['phone' => $phoneHint])) ?>
-                    <a class="btn" href="/t/?<?= e(http_build_query($baseQ + ['clientPhoneSent' => $phoneHint])) ?>"><?= e(t('terminals.t.phone_use')) ?></a>
+                    <?php $tPostFormOpen(['clientPhoneSent' => $phoneHint]); ?>
+                        <button class="btn" type="submit"><?= e(t('terminals.t.phone_use')) ?></button>
+                    <?php $tPostFormClose(); ?>
                 </p>
             <?php endif; ?>
-            <form class="num-form" method="get" action="/t/">
+            <form class="num-form" method="post" action="/t/">
+                <?= Csrf::field() ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -194,7 +212,8 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
     <?php elseif ($mode === 'need_name'): ?>
         <div class="card">
             <h2><?= e(t('terminals.t.rename_label')) ?></h2>
-            <form class="rename-form" method="get" action="/t/">
+            <form class="rename-form" method="post" action="/t/">
+                <?= Csrf::field() ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -213,7 +232,8 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                 <p class="meta"><?= e((string)$cancelMeta['product_name']) ?>
                     · <?= e(date('d.m.Y H:i', (int)($cancelMeta['dtstart'] ?? time()))) ?></p>
             <?php endif; ?>
-            <form class="num-form" method="get" action="/t/">
+            <form class="num-form" method="post" action="/t/">
+                <?= Csrf::field() ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -237,7 +257,9 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
             <div class="num-line">
                 <?= e(t('terminals.t.num_line')) ?>:
                 <b><?= e($braceletNum) ?></b>
-                <a href="/t/?<?= e(http_build_query($baseQ + ['braceletNum' => '-1'])) ?>">[<?= e(t('terminals.t.num_change')) ?>]</a>
+                <?php $tPostFormOpen(['braceletNum' => '-1']); ?>
+                    <button type="submit" class="btn secondary" style="padding:.2rem .45rem;font-size:.85rem">[<?= e(t('terminals.t.num_change')) ?>]</button>
+                <?php $tPostFormClose(); ?>
             </div>
         <?php endif; ?>
 
@@ -276,7 +298,8 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
 
         <?php if ($mode === 'rename' && $clientId > 0): ?>
             <div class="card">
-                <form class="rename-form" method="get" action="/t/">
+                <form class="rename-form" method="post" action="/t/">
+                    <?= Csrf::field() ?>
                     <?php foreach ($baseQ as $k => $v): ?>
                         <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                     <?php endforeach; ?>
@@ -462,15 +485,18 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                     <?php foreach ($slots as $ts): ?>
                         <?php
                         $ts = (int)$ts;
-                        $pq = $baseQ;
-                        $pq['adminId'] = (string)$operatorId;
-                        $pq['gids'] = $gidsStr;
-                        $pq['getTime'] = (string)$ts;
+                        $pq = [
+                            'adminId' => (string)$operatorId,
+                            'gids' => $gidsStr,
+                            'getTime' => (string)$ts,
+                        ];
                         if ($categoryId > 0) {
                             $pq['category'] = (string)$categoryId;
                         }
                         ?>
-                        <li><a class="btn" href="/t/?<?= e(http_build_query($pq)) ?>"><?= e(date('H:i', $ts)) ?></a></li>
+                        <li><?php $tPostFormOpen($pq); ?>
+                            <button class="btn" type="submit"><?= e(date('H:i', $ts)) ?></button>
+                        <?php $tPostFormClose(); ?></li>
                     <?php endforeach; ?>
                 </ul>
                 <?php if ($slots === []): ?>
@@ -755,7 +781,9 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                 [<?= e(date('H:i:s d.m.y', (int)($diag['accessed_at'] ?? time()))) ?>]
                 <?php if ((int)($diag['cache_ttl'] ?? 0) > 0): ?>
                     [<?= e(t('terminals.t.diag.cache')) ?>:
-                    <a href="/t/?<?= e(http_build_query($baseQ + ['resetCache' => 1] + ($categoryId > 0 ? ['category' => (string)$categoryId] : []))) ?>"><?= (int)$diag['cache_ttl'] ?>c</a>]
+                    <?php $tPostFormOpen(['resetCache' => '1'] + ($categoryId > 0 ? ['category' => (string)$categoryId] : [])); ?>
+                        <button type="submit" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer"><?= (int)$diag['cache_ttl'] ?>c</button>
+                    <?php $tPostFormClose(); ?>]
                 <?php endif; ?>
                 [<?= e((string)($diag['bracelet_uid'] ?? '')) ?>]
                 [T:<?= e((string)($diag['terminal_short'] ?? '')) ?>]
@@ -763,7 +791,9 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
                     <?= e(t('terminals.t.diag.admin')) ?>: [<?= e((string)$diag['admin_acronym']) ?>]
                 <?php endif; ?>
                 <?php if (!empty($state['show_unlink'])): ?>
-                    <a href="/t/?<?= e(http_build_query($baseQ + ['unlinkClient' => 1])) ?>">[<?= e(t('terminals.t.unlink_client')) ?>]</a>
+                    <?php $tPostFormOpen(['unlinkClient' => '1']); ?>
+                        <button type="submit" style="background:none;border:0;padding:0;color:inherit;text-decoration:underline;cursor:pointer">[<?= e(t('terminals.t.unlink_client')) ?>]</button>
+                    <?php $tPostFormClose(); ?>
                 <?php endif; ?>
                 <?php if (!empty($diag['onec_stub'])): ?>
                     [stub]

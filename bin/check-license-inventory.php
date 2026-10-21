@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 /**
  * Lightweight license / third-party inventory check (SBOM-lite without Composer).
- * - THIRD_PARTY.md must exist and mention known vendored components
+ * - THIRD_PARTY.md must exist and mention known vendored components + worker deps + Feather
  * - Bundled trees must ship a LICENSE* file
  * Exit: 0 ok, 1 fail
  */
@@ -34,12 +34,6 @@ foreach ($mustMention as $name => $path) {
         $failed++;
         continue;
     }
-    $licenses = glob($abs . '/LICENSE*') ?: [];
-    $licenses = array_merge($licenses, glob($abs . '/**/LICENSE*') ?: []);
-    if ($licenses === []) {
-        // phpMorphy has LICENSE under vendor root
-        $licenses = glob($abs . '/*.txt') ?: [];
-    }
     $found = false;
     $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($abs, FilesystemIterator::SKIP_DOTS));
     foreach ($it as $f) {
@@ -58,6 +52,62 @@ foreach ($mustMention as $name => $path) {
     }
 }
 
+// Docs-only mentions (no LICENSE tree under workers — pip install on operator host).
+$docsOnly = ['Feather', 'Ultralytics', 'requests', 'urllib3'];
+foreach ($docsOnly as $name) {
+    if (stripos($md, $name) === false) {
+        echo "FAIL THIRD_PARTY.md missing mention of {$name}\n";
+        $failed++;
+    } else {
+        echo "OK  THIRD_PARTY.md mentions {$name}\n";
+    }
+}
+
+// Every top-level package in workers/*/requirements.txt must appear in THIRD_PARTY.md.
+$reqFiles = glob($root . '/workers/*/requirements.txt') ?: [];
+$workerPackages = [];
+foreach ($reqFiles as $reqFile) {
+    $lines = file($reqFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') {
+            continue;
+        }
+        if (!preg_match('/^([A-Za-z0-9_.-]+)/', $line, $m)) {
+            continue;
+        }
+        $pkg = strtolower($m[1]);
+        $workerPackages[$pkg] = basename(dirname($reqFile));
+    }
+}
+foreach ($workerPackages as $pkg => $worker) {
+    // Normalize common aliases for doc search.
+    $aliases = [$pkg];
+    if ($pkg === 'opencv-python-headless') {
+        $aliases[] = 'opencv';
+        $aliases[] = 'OpenCV';
+    }
+    if ($pkg === 'pillow') {
+        $aliases[] = 'Pillow';
+    }
+    if ($pkg === 'ultralytics') {
+        $aliases[] = 'Ultralytics';
+    }
+    $hit = false;
+    foreach ($aliases as $a) {
+        if (stripos($md, $a) !== false) {
+            $hit = true;
+            break;
+        }
+    }
+    if (!$hit) {
+        echo "FAIL THIRD_PARTY.md missing worker dep {$pkg} (from workers/{$worker}/requirements.txt)\n";
+        $failed++;
+    } else {
+        echo "OK  worker dep {$pkg} documented\n";
+    }
+}
+
 // Emit a tiny CycloneDX-ish stub for artifacts (optional inventory file in CI).
 $components = [];
 foreach ($mustMention as $name => $path) {
@@ -67,6 +117,18 @@ foreach ($mustMention as $name => $path) {
         'path' => $path,
     ];
 }
+foreach ($workerPackages as $pkg => $worker) {
+    $components[] = [
+        'type' => 'library',
+        'name' => $pkg,
+        'path' => 'workers/' . $worker . '/requirements.txt',
+    ];
+}
+$components[] = [
+    'type' => 'library',
+    'name' => 'Feather Icons',
+    'path' => 'assets/css/core.css',
+];
 $sbom = [
     'bomFormat' => 'CycloneDX',
     'specVersion' => '1.5',

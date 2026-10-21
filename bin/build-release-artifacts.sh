@@ -87,22 +87,45 @@ PRIVATE_MODULES="$PRIVATE_MODULES" php "$ROOT/bin/build-modules-catalog.php" --o
 name="freesaas-${VERSION}.zip"
 zip="$DIST/$name"
 stage="$(mktemp -d "${TMPDIR:-/tmp}/freesaas-full.XXXXXX")"
-(
-  cd "$ROOT"
-  tar -cf - \
-    --exclude='./cfg/config.ini' \
-    --exclude='./cfg/modules/*.ini' \
-    --exclude='./cfg/updates.ini' \
-    --exclude='./cfg/updates.state.json' \
-    --exclude='./var' \
-    --exclude='./log/*.log' \
-    --exclude='./dist' \
-    --exclude='./.git' \
-    --exclude='./.DS_Store' \
-    --exclude='./assets/uploads/logo/*' \
-    . \
-  | (cd "$stage" && tar -xf -)
-)
+# Prefer a controlled git tree (CI sets RELEASE_REF=github.sha) so local .env/dumps never ship.
+RELEASE_REF="${RELEASE_REF:-}"
+if [[ -n "$RELEASE_REF" ]] && git -C "$ROOT" rev-parse --verify "${RELEASE_REF}^{commit}" >/dev/null 2>&1; then
+  echo "Staging from git archive $RELEASE_REF"
+  git -C "$ROOT" archive --format=tar "$RELEASE_REF" | (cd "$stage" && tar -xf -)
+  # Drop secrets/runtime that may still be tracked on old branches.
+  rm -f "$stage/cfg/config.ini" "$stage/cfg/updates.ini" "$stage/cfg/updates.state.json"
+  rm -rf "$stage/cfg/modules" "$stage/var" "$stage/dist"
+  find "$stage/log" -name '*.log' -delete 2>/dev/null || true
+  find "$stage/assets/uploads/logo" -mindepth 1 -delete 2>/dev/null || true
+else
+  echo "Staging from working tree (set RELEASE_REF for git archive)"
+  (
+    cd "$ROOT"
+    tar -cf - \
+      --exclude='./cfg/config.ini' \
+      --exclude='./cfg/modules/*.ini' \
+      --exclude='./cfg/updates.ini' \
+      --exclude='./cfg/updates.state.json' \
+      --exclude='./var' \
+      --exclude='./log/*.log' \
+      --exclude='./dist' \
+      --exclude='./.git' \
+      --exclude='./.DS_Store' \
+      --exclude='./.env' \
+      --exclude='./.env.*' \
+      --exclude='./dumps' \
+      --exclude='./dump' \
+      --exclude='./backup' \
+      --exclude='./backups' \
+      --exclude='./*.sql' \
+      --exclude='./*.dump' \
+      --exclude='./**/*.sql' \
+      --exclude='./**/*.dump' \
+      --exclude='./assets/uploads/logo/*' \
+      . \
+    | (cd "$stage" && tar -xf -)
+  )
+fi
 
 if [[ -n "${PRIVATE_MODULES//[[:space:],]/}" ]]; then
   IFS=',' read -r -a priv <<< "$PRIVATE_MODULES"

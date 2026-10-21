@@ -496,12 +496,11 @@ final class DayPayroll
             try {
                 $row = PaymentsRepository::findForUpdate($paymentId);
             } catch (Throwable $e) {
-                // MyISAM / engines without row locks.
                 if ($started && $pdo->inTransaction()) {
                     $pdo->rollBack();
-                    $started = false;
                 }
-                $row = PaymentsRepository::find($paymentId);
+                // No unlocked fallback: without row lock cancel can race verifyPin.
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.lock_failed')];
             }
             if ($row === null || (int)$row['user_id'] !== $operatorId) {
                 if ($started) {
@@ -516,17 +515,6 @@ final class DayPayroll
                 return ['ok' => false, 'msg' => t('payments.bot.day_pay.not_payout')];
             }
             if ((int)($row['dt_admin_signed'] ?? 0) > 0 || (int)($row['admin_signed'] ?? 0) > 0) {
-                if ($started) {
-                    $pdo->rollBack();
-                }
-                return ['ok' => false, 'msg' => t('payments.bot.day_pay.already_paid')];
-            }
-            // Re-read signed flags immediately before delete (covers unlocked fallback path).
-            $fresh = PaymentsRepository::find($paymentId);
-            if ($fresh === null
-                || (int)($fresh['dt_admin_signed'] ?? 0) > 0
-                || (int)($fresh['admin_signed'] ?? 0) > 0
-            ) {
                 if ($started) {
                     $pdo->rollBack();
                 }
@@ -572,9 +560,9 @@ final class DayPayroll
             } catch (Throwable $e) {
                 if ($started && $pdo->inTransaction()) {
                     $pdo->rollBack();
-                    $started = false;
                 }
-                $row = PaymentsRepository::find($paymentId);
+                // No unlocked fallback: without row lock confirm can race cancel.
+                return ['ok' => false, 'msg' => t('payments.bot.day_pay.lock_failed')];
             }
             if ($row === null) {
                 if ($started) {
@@ -601,7 +589,7 @@ final class DayPayroll
                 }
                 return ['ok' => false, 'msg' => t('payments.bot.day_pay.bad_pin')];
             }
-            // Conditional update: only confirm still-unsigned rows (atomic vs cancel).
+            // Conditional update: only confirm still-unsigned rows (defense in depth vs cancel).
             $now = time();
             $st = Database::pdo()->prepare(
                 'UPDATE base_payments SET ID_ADMIN_SIGNED = ?, DT_ADMIN_SIGNED = ?

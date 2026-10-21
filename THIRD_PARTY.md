@@ -30,8 +30,9 @@ first-party storefront theme.
 
 | Component | Location | License (as found) | Notes |
 |---|---|---|---|
-| phpMorphy + morphology dicts | `modules/audio_pipeline/vendor/phpmorphy` | **LGPL-2.1+** (`LICENSE.LGPL-2.1.txt`, vendor README) | Sole lemmatizer for audio stem/reparse. Compatible with AGPL if notices kept. For commercial dual-license of FreeSaaS, keep as a separate LGPL library (do not strip LGPL rights). |
+| phpMorphy + morphology dicts | `modules/audio_pipeline/vendor/phpmorphy` | **LGPL-2.1+** (`LICENSE.LGPL-2.1.txt`, vendor README) | Sole lemmatizer for audio stem/reparse. Compatible with AGPL if notices kept. For commercial dual-license of FreeSaaS, keep as a separate LGPL library (do not strip LGPL rights). Binary dictionaries under `dicts/*.bin` are the standard phpMorphy morphology packs (RU/EN/DE/UA) as distributed with phpMorphy (Kamaev); historically derived from AOT / OpenCorpora-family morphology data. Redistribute with the LGPL notice; do not claim first-party authorship of dict binaries. |
 | PHP QR Code (phpqrcode) | `modules/stickers/lib/phpqrcode` | **LGPL-3.0-or-later** (`LICENSE.LGPL-3.0.txt` + `LICENSE.GPL-3.0.txt`; vendor README) | Merged build **1.9.9 / 20130526** from http://phpqrcode.sourceforge.net/ (Dominik Dzienia; based on libqrencode LGPL 2.1). Used for sticker label QR. LGPL does not forbid commercial host builds, but library obligations remain (notices, replaceability / corresponding source for the LGPL library). Do not strip license texts. |
+| Feather Icons (eye / eye-off) | Embedded SVG masks in `assets/css/core.css` (`.auth-pass-icon`) | **MIT** ([feathericons.com](https://feathericons.com)) | Password-visibility toggle only. |
 | Chart.js 4.4.1 | CDN in `modules/finance/views/balance.php`, `modules/wellness/views/calendar.php` | MIT | Runtime CDN; not vendored in git. |
 | Google Fonts (DM Sans, Syne) | CDN in `modules/core/views/layout.php`, `layout_auth.php` | Typically OFL (font authors) | Runtime CDN. |
 
@@ -40,7 +41,8 @@ first-party storefront theme.
 | Component | Location | License (as found) | Notes |
 |---|---|---|---|
 | **Ultralytics YOLO** | `workers/video/requirements.txt` (`ultralytics>=8.4.0`) | **AGPL-3.0** (Ultralytics upstream; confirm current terms at install time) | Optional Mac/GPU worker for video analytics (`docs/agents/video-worker.md`). **Not** bundled in the PHP app tarball; installed by the operator on the worker host. FreeSaaS public AGPL distribution may use it when Ultralytics AGPL obligations are met on that worker. A FreeSaaS **commercial** license does **not** by itself grant rights to Ultralytics — closed/on-prem deployments that ship or run Ultralytics need a separate Ultralytics commercial license **or** must exclude/disable the video worker integration. |
-| OpenCV (`opencv-python-headless`), Pillow, requests | same requirements.txt | Apache-2.0 / HPND / Apache-2.0 (typical) | Supporting libs for the video worker only. |
+| OpenCV (`opencv-python-headless`), Pillow, requests, urllib3 | `workers/video/requirements.txt` | Apache-2.0 / HPND / Apache-2.0 / MIT (typical) | Supporting libs for the video worker only. |
+| requests, urllib3 | `workers/whisper/requirements.txt` | Apache-2.0 / MIT (typical) | Whisper pull client only; not in PHP zip. |
 
 ## Intentionally not shipped
 
@@ -56,7 +58,7 @@ first-party storefront theme.
 |---|---|
 | `app/`, `bin/`, `modules/*/lib|pages|views|assets` (except vendor) | FreeSaaS first-party |
 | `themes/default/` | First-party storefront theme |
-| `assets/css/core.css`, `assets/js/core.js` | Admin chrome |
+| `assets/css/core.css`, `assets/js/core.js` | Admin chrome (Feather eye/eye-off masks attributed above) |
 
 ## Summary
 

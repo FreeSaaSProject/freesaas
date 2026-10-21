@@ -3,7 +3,7 @@
 Copy of oper `libs/phpmorphy` (Kamaev Vladimir), shipped with FreeSaaS audio_pipeline.
 
 - License: **GNU LGPL 2.1+** — see `LICENSE.LGPL-2.1.txt` and headers in `src/`.
-- Morphology dictionaries under `dicts/` (incl. `*.ru_ru.bin`) are part of the phpMorphy distribution used in production oper; keep the LGPL notice when redistributing.
+- Morphology dictionaries under `dicts/` (incl. `*.ru_ru.bin`, EN/DE/UA packs) are the standard phpMorphy morphology binaries as distributed with phpMorphy (Kamaev); historically derived from AOT / OpenCorpora-family morphology data. Keep the LGPL notice when redistributing; do not claim first-party authorship of dict binaries.
 - Default load path: `modules/audio_pipeline/vendor/phpmorphy` (no ini required).
 - Override: `cfg/modules/audio.ini` → `phpmorphy_dir=...`
 

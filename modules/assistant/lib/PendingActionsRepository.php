@@ -154,6 +154,89 @@ final class PendingActionsRepository
         return $st->rowCount() > 0;
     }
 
+    /**
+     * Atomically take a pending row before invoke (pending → executing).
+     * Only one concurrent confirmer wins; loser must not run the write.
+     *
+     * @return array<string,mixed>|null claimed row, or null if lost race / missing / expired
+     */
+    public static function claimForExecution(string $token, int $confirmedBy): ?array
+    {
+        $token = trim($token);
+        if ($token === '' || !self::tableReady()) {
+            return null;
+        }
+        self::failStaleExecuting($token);
+
+        $now = time();
+        $set = 'STATUS = \'executing\', RESOLVED_AT = ?';
+        $params = [$now];
+        if ($confirmedBy > 0 && Database::columnExists('base_assistant_pending', 'CONFIRMED_BY')) {
+            $set .= ', CONFIRMED_BY = ?';
+            $params[] = $confirmedBy;
+        }
+        $params[] = $token;
+        $params[] = $now;
+        $st = Database::pdo()->prepare(
+            'UPDATE base_assistant_pending
+             SET ' . $set . '
+             WHERE TOKEN = ? AND STATUS = \'pending\' AND EXPIRES_AT > ?'
+        );
+        $st->execute($params);
+        if ($st->rowCount() < 1) {
+            return null;
+        }
+        return self::findByToken($token);
+    }
+
+    /**
+     * Finish a claimed row (executing → confirmed|failed).
+     *
+     * @param array<string,mixed>|null $result
+     */
+    public static function finalizeExecution(string $token, string $status, $result = null): bool
+    {
+        $token = trim($token);
+        $status = strtolower(trim($status));
+        if ($token === '' || !in_array($status, ['confirmed', 'failed'], true) || !self::tableReady()) {
+            return false;
+        }
+        $json = null;
+        if (is_array($result)) {
+            $enc = json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            $json = $enc !== false ? $enc : null;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_assistant_pending
+             SET STATUS = ?, RESULT_JSON = ?, RESOLVED_AT = ?
+             WHERE TOKEN = ? AND STATUS = \'executing\''
+        );
+        $st->execute([$status, $json, time(), $token]);
+        return $st->rowCount() > 0;
+    }
+
+    /** Mark hung executing rows failed so they do not block forever (crash mid-invoke). */
+    public static function failStaleExecuting(string $token, int $maxAgeSec = 300): void
+    {
+        $token = trim($token);
+        if ($token === '' || !self::tableReady()) {
+            return;
+        }
+        $maxAgeSec = max(60, $maxAgeSec);
+        $cutoff = time() - $maxAgeSec;
+        $st = Database::pdo()->prepare(
+            'UPDATE base_assistant_pending
+             SET STATUS = \'failed\', RESULT_JSON = ?, RESOLVED_AT = ?
+             WHERE TOKEN = ? AND STATUS = \'executing\' AND RESOLVED_AT > 0 AND RESOLVED_AT < ?'
+        );
+        $st->execute([
+            '{"error":"stale executing"}',
+            time(),
+            $token,
+            $cutoff,
+        ]);
+    }
+
     /** @return array<string,mixed> */
     public static function decodeArgs(array $row): array
     {
@@ -187,8 +270,16 @@ final class PendingActionsRepository
         return is_array($row) ? $row : null;
     }
 
+    /**
+     * @deprecated Prefer claimForExecution + finalizeExecution (atomic before invoke).
+     * @param array<string,mixed>|null $result
+     */
     public static function markConfirmedBy(string $token, int $confirmedBy, $result = null): bool
     {
+        if (self::finalizeExecution($token, 'confirmed', $result)) {
+            return true;
+        }
+        // Legacy path: still pending (tests / old callers that skipped claim).
         if (!self::mark($token, 'confirmed', $result)) {
             return false;
         }

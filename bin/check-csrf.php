@@ -87,6 +87,21 @@ $assert(is_array($db) && empty($db['public']), '/db not public');
 $logout = $routes['/logout'] ?? null;
 $assert(is_array($logout) && ($logout['methods'] ?? []) === ['POST'], 'logout POST-only');
 
+$jobsLoad = $routes['/terminals/jobs/load'] ?? null;
+$jobsTickets = $routes['/terminals/jobs/tickets'] ?? null;
+if (is_array($jobsLoad)) {
+    $assert(($jobsLoad['methods'] ?? []) === ['POST'], 'terminals jobs/load POST-only');
+}
+if (is_array($jobsTickets)) {
+    $assert(($jobsTickets['methods'] ?? []) === ['POST'], 'terminals jobs/tickets POST-only');
+}
+$tFloor = $routes['/t'] ?? null;
+if (is_array($tFloor)) {
+    $assert(!Csrf::isExemptPath('/t'), '/t not csrf-exempt');
+    $methods = $tFloor['methods'] ?? [];
+    $assert(in_array('GET', $methods, true) && in_array('POST', $methods, true), '/t allows GET+POST');
+}
+
 // audio_llm may be disabled in config.example.ini — prefer runtime route, else manifest agent.ops.
 $work = $routes['/audio/llm-studies/work'] ?? null;
 if (is_array($work)) {

@@ -33,11 +33,15 @@ final class AudioJobQueue
     public static function requestStem(array $opts = []): array
     {
         $job = self::stemJobFromOpts($opts);
-        $prev = self::read('stem');
-        $jobs = self::stemJobsFromPayload($prev);
-        $before = count($jobs);
-        $jobs = self::upsertStemJob($jobs, $job);
-        self::persistStemJobs($jobs);
+        $before = 0;
+        $jobs = self::withStemQueueLock(static function () use ($job, &$before): array {
+            $prev = self::read('stem');
+            $jobs = self::stemJobsFromPayload($prev);
+            $before = count($jobs);
+            $jobs = self::upsertStemJob($jobs, $job);
+            self::persistStemJobs($jobs);
+            return $jobs;
+        });
 
         return [
             'ok' => true,
@@ -175,11 +179,25 @@ final class AudioJobQueue
             return ['ok' => true, 'skipped' => 1, 'processed' => 0, 'message' => 'blocked_run'];
         }
 
+        $headJob = self::stemJobFromOpts([
+            'day' => $day,
+            'admin' => $admin,
+            'record' => $record,
+            'collect' => $collect,
+            'publish' => $publish,
+            'limit' => $limit,
+        ]);
+        $headKey = self::stemJobKey($headJob);
+
         try {
             $range = StemRunner::parseDayOption($day);
             if ($range === null) {
-                array_shift($jobs);
-                self::persistStemJobs($jobs);
+                $remaining = self::withStemQueueLock(static function () use ($headKey): int {
+                    $fresh = self::stemJobsFromPayload(self::read('stem'));
+                    $fresh = self::dropStemJobByKey($fresh, $headKey);
+                    self::persistStemJobs($fresh);
+                    return count($fresh);
+                });
                 return [
                     'ok' => false,
                     'processed' => 0,
@@ -187,7 +205,7 @@ final class AudioJobQueue
                     'message' => 'invalid_day',
                     'extra' => [
                         'day' => $day,
-                        'remaining_jobs' => count($jobs),
+                        'remaining_jobs' => $remaining,
                     ],
                 ];
             }
@@ -217,31 +235,17 @@ final class AudioJobQueue
                 'day' => $day,
                 'pending' => $pendingAfter,
                 'stem' => $stem['extra'] ?? [],
-                'jobs_queued' => count($jobs),
             ];
 
             if ($pendingAfter > 0) {
-                // Keep current scope at head; siblings stay queued behind it.
-                if ($jobs === []) {
-                    $jobs = [self::stemJobFromOpts([
-                        'day' => $day,
-                        'admin' => $admin,
-                        'record' => $record,
-                        'collect' => $collect,
-                        'publish' => $publish,
-                        'limit' => $limit,
-                    ])];
-                } else {
-                    $jobs[0] = self::stemJobFromOpts([
-                        'day' => $day,
-                        'admin' => $admin,
-                        'record' => $record,
-                        'collect' => $collect,
-                        'publish' => $publish,
-                        'limit' => $limit,
-                    ]);
-                }
-                self::persistStemJobs($jobs);
+                // Keep current scope at head; siblings enqueued during run stay behind it.
+                $queued = self::withStemQueueLock(static function () use ($headJob, $headKey): int {
+                    $fresh = self::stemJobsFromPayload(self::read('stem'));
+                    $fresh = self::upsertStemJobHead($fresh, $headJob, $headKey);
+                    self::persistStemJobs($fresh);
+                    return count($fresh);
+                });
+                $extra['jobs_queued'] = $queued;
                 return [
                     'ok' => true,
                     'processed' => (int)($stem['processed'] ?? 0),
@@ -294,17 +298,20 @@ final class AudioJobQueue
                 }
             }
 
-            if ($jobs !== []) {
-                array_shift($jobs);
-            }
-            self::persistStemJobs($jobs);
-            $extra['remaining_jobs'] = count($jobs);
+            $remaining = self::withStemQueueLock(static function () use ($headKey): int {
+                $fresh = self::stemJobsFromPayload(self::read('stem'));
+                $fresh = self::dropStemJobByKey($fresh, $headKey);
+                self::persistStemJobs($fresh);
+                return count($fresh);
+            });
+            $extra['remaining_jobs'] = $remaining;
+            $extra['jobs_queued'] = $remaining;
 
             return [
                 'ok' => true,
                 'processed' => (int)($stem['processed'] ?? 0),
                 'skipped' => (int)($stem['skipped'] ?? 0),
-                'message' => $jobs === [] ? 'stem_day_done' : 'stem_day_done_more_queued',
+                'message' => $remaining < 1 ? 'stem_day_done' : 'stem_day_done_more_queued',
                 'extra' => $extra,
             ];
         } finally {
@@ -416,6 +423,50 @@ final class AudioJobQueue
         return $job['day'] . '|' . $job['admin'] . '|' . $job['record'];
     }
 
+    /**
+     * Drop the finished scope by key (first match). Keeps siblings enqueued during the run.
+     *
+     * @param list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}> $jobs
+     * @return list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}>
+     */
+    private static function dropStemJobByKey(array $jobs, string $key): array
+    {
+        foreach ($jobs as $i => $existing) {
+            if (self::stemJobKey($existing) === $key) {
+                array_splice($jobs, $i, 1);
+                break;
+            }
+        }
+        return array_values($jobs);
+    }
+
+    /**
+     * Ensure head scope stays first after a partial batch; merge flags with any concurrent upsert.
+     *
+     * @param list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}> $jobs
+     * @param array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int} $headJob
+     * @return list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}>
+     */
+    private static function upsertStemJobHead(array $jobs, array $headJob, string $headKey): array
+    {
+        $jobs = self::upsertStemJob($jobs, $headJob);
+        // Move matching key to index 0 without dropping siblings.
+        $idx = null;
+        foreach ($jobs as $i => $existing) {
+            if (self::stemJobKey($existing) === $headKey) {
+                $idx = $i;
+                break;
+            }
+        }
+        if ($idx === null || $idx === 0) {
+            return $jobs;
+        }
+        $row = $jobs[$idx];
+        array_splice($jobs, $idx, 1);
+        array_unshift($jobs, $row);
+        return array_values($jobs);
+    }
+
     private static function mergeStemLimit(int $a, int $b): int
     {
         // 0 = default batch size (unrestricted vs explicit cap) — keep 0 if either is 0.
@@ -423,6 +474,33 @@ final class AudioJobQueue
             return 0;
         }
         return max($a, $b);
+    }
+
+    /**
+     * Short exclusive flock around stem-queue RMW (not JobLock — runners hold that for minutes).
+     *
+     * @template T
+     * @param callable():T $fn
+     * @return T
+     */
+    private static function withStemQueueLock(callable $fn)
+    {
+        $dir = base_path('var/audio_jobs');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $path = $dir . '/queue_stem.lock';
+        $fp = @fopen($path, 'c+');
+        if ($fp === false) {
+            return $fn();
+        }
+        flock($fp, LOCK_EX);
+        try {
+            return $fn();
+        } finally {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+        }
     }
 
     /**

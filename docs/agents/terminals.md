@@ -4,7 +4,7 @@ Product module `terminals`: device registry (`base_terminals`, `base_bracelets`)
 
 Calendar day/week: chill/rest procedure chips are painted by `calendar.timeline.enrich` in this module (`TerminalsConfig::chillProductId()` + `notice` `chill#…`) — calendar only passes `id_good`/`notice`/`class`, no hardcoded product id.
 
-Live floor shell is **`GET|POST /t`** (frozen query `terminalid`=device CODE, `braceletid`, `token`; optional `category`, `adminId`, `gids`, `getTime`, `braceletNum`, `unlinkClient`, `oldProcedureOff`, `doConfirm`, `loginUser`, `disable1C`, `resetCache`, `flyerOn`). Staff NFC → day claim (`ID_ADMIN` / `DT_ADMIN_VALID`). Guest home: bracelet NUM prompt, **category** matrix (incl. `dop_cat` cross-category rows) with multi-gid cart → continue → slot pick (list grid: first + 15-min + after gap; dense 5-min still validates); procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`, optional spa instance pack (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in the instance pack (`/api_termy.php`).
+Live floor shell is **`GET|POST /t`**. **NFC entry stays GET forever** (Android WebView: `terminalid`=device CODE, `braceletid`; server issues `token` via redirect; staff claim / guest resolve on that GET). Navigation (`category`, `adminId`, `gids`, `getTime=1` slot UI, `doStart=2` cancel-confirm screen, `flyerOn`, `rename`) may stay GET. **Writes after page load are POST + CSRF** (slot commit `getTime`≥1e9, cancel with `doConfirm`, `braceletNum`, rename/phone, `unlinkClient`, `resetCache`). Mutating keys on GET are ignored (soft warn), not executed. Procedures written with **TIME_NET** + optional **chill** product (`chill_product_id`, default 16); cancel disables linked chill. Lead: `lead_sec` for `/t` (default 180), `lead_sec_api` for `/terminals/floor` (default 600) — own ini, not booking. Soft-deps: `booking`, `procedures`, `workweeks`, optional spa instance pack (flyer/promoter discounts + term scans). Termy/legacy HTTP drop-in lives in the instance pack (`/api_termy.php`).
 
 **Staff shift ends:** ini `ignore_staff_shift_windows=1` (default) — `/t` and `/terminals/floor` keep salon `work_hour_*` only and do **not** clip to the masseur’s PRICE_COL window (staff must still be on the day roster). Set to `0` to match site/API clipping. Site, MCP, and legacy API never read this flag.
 
@@ -71,12 +71,12 @@ Smoke (no session): `GET /t/?terminalid=RealMe21V244&braceletid=STAFFUID` (or nu
 
 ## Sync jobs (worker_token)
 
-Header `X-Terminals-Token` or `?token=` (like audio workers).
+Header `X-Terminals-Token` (or POST body `token=`). POST only — no GET, no `?token=`.
 
 ```bash
 curl -sS -X POST -H "X-Terminals-Token: $TOKEN" 'https://example/terminals/jobs/load'
 curl -sS -X POST -H "X-Terminals-Token: $TOKEN" \
-  'https://example/terminals/jobs/tickets?day=2026-10-06'
+  'https://example/terminals/jobs/tickets' -d 'day=2026-10-06'
 ```
 
 - `load` → 1C `club_workload` → `base_termloads` (minute sample)
