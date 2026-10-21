@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "0.2.9",
+    "version": "0.2.10",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -111,7 +111,7 @@
                 "method": "POST",
                 "path": "/calendar/settings",
                 "permission": "calendar.view",
-                "description": "Save event_mode (blocks|visits) and work hours (superadmin capability on route)"
+                "description": "Save event_mode (blocks|visits), compact_chip_minutes (0=off), and work hours (superadmin capability on route)"
             },
             {
                 "id": "calendar.events.delete",

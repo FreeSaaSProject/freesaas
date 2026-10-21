@@ -514,6 +514,12 @@ tr.is-block td { opacity: 0.75; }
 .calendar-tl-chip-proc {
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
 }
+/* Short slots (≤10 min): bg/fg swapped in PHP; drop soft rings so the strip stays crisp. */
+.calendar-tl-chip.is-compact {
+  z-index: 4;
+  box-shadow: none;
+  border-color: currentColor;
+}
 .calendar-tl-chip-block {
   opacity: 0.92;
 }

@@ -7,6 +7,42 @@ final class CalendarConfig
     public const MODE_BLOCKS = 'blocks';
     public const MODE_VISITS = 'visits';
 
+    /** Default minutes for compact (inverted) short chips; 0 in ini disables. */
+    public const DEFAULT_COMPACT_CHIP_MINUTES = 10;
+
+    /** Max allowed threshold (minutes) from settings UI / agent. */
+    public const MAX_COMPACT_CHIP_MINUTES = 120;
+
+    /**
+     * Short-chip highlight threshold in minutes.
+     * Duration ≤ this value gets is-compact (bg/fg swap). 0 = disabled.
+     */
+    public static function compactChipMinutes(): int
+    {
+        $raw = Config::get('calendar', 'compact_chip_minutes', self::DEFAULT_COMPACT_CHIP_MINUTES);
+        if ($raw === '' || $raw === null) {
+            return self::DEFAULT_COMPACT_CHIP_MINUTES;
+        }
+        $n = (int)$raw;
+        if ($n < 0) {
+            return 0;
+        }
+        if ($n > self::MAX_COMPACT_CHIP_MINUTES) {
+            return self::MAX_COMPACT_CHIP_MINUTES;
+        }
+
+        return $n;
+    }
+
+    /** @param int $minutes 0 disables; 1…MAX_COMPACT_CHIP_MINUTES */
+    public static function setCompactChipMinutes(int $minutes): void
+    {
+        if ($minutes < 0 || $minutes > self::MAX_COMPACT_CHIP_MINUTES) {
+            throw new InvalidArgumentException(t('calendar.settings.err.compact_chip_minutes'));
+        }
+        Config::set('calendar', 'compact_chip_minutes', (string)$minutes);
+    }
+
     /** @return self::MODE_BLOCKS|self::MODE_VISITS */
     public static function eventMode(): string
     {

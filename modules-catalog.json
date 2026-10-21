@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-21T09:05:28+00:00",
+    "generated_at": "2026-10-21T09:25:56+00:00",
     "modules": [
         {
             "id": "asr",
@@ -552,7 +552,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.2.9",
+            "version": "0.2.10",
             "type": "product",
             "name": {
                 "en": "Calendar",

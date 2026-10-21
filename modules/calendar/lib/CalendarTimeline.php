@@ -10,7 +10,6 @@ final class CalendarTimeline
     public const PX_PER_HOUR = 56;
     /** Floor only for zero-length quirks — must stay ≤ shortest bookable slot in px. */
     public const MIN_CHIP_PX = 2;
-
     /** @var array{start:?int,end:?int}|null */
     private static $hoursCache = null;
 
@@ -139,6 +138,32 @@ final class CalendarTimeline
         }
 
         return ['top' => $top, 'height' => $height];
+    }
+
+    /**
+     * Attach duration_sec and class is-compact for short bookable chips.
+     * Threshold: CalendarConfig::compactChipMinutes() (0 = off). Compact chips swap bg/fg.
+     *
+     * @param array<string,mixed> $chip
+     * @return array<string,mixed>
+     */
+    public static function withCompactMeta(array $chip, int $dtStart, int $dtEnd): array
+    {
+        $durationSec = ($dtStart > 0 && $dtEnd > $dtStart) ? ($dtEnd - $dtStart) : 0;
+        $chip['duration_sec'] = $durationSec;
+        $thresholdMin = CalendarConfig::compactChipMinutes();
+        if ($thresholdMin > 0 && $durationSec > 0 && $durationSec <= ($thresholdMin * 60)) {
+            $extra = trim((string)($chip['class'] ?? ''));
+            $chip['class'] = $extra === '' ? 'is-compact' : ($extra . ' is-compact');
+            $bg = (string)($chip['bg'] ?? '');
+            $fg = (string)($chip['fg'] ?? '');
+            if ($bg !== '' && $fg !== '') {
+                $chip['bg'] = $fg;
+                $chip['fg'] = $bg;
+            }
+        }
+
+        return $chip;
     }
 
     /**
@@ -308,7 +333,9 @@ final class CalendarTimeline
             if (isset($pr['summ'])) {
                 $info .= '<div><b>' . number_format((float)$pr['summ'], 0, '.', ' ') . '</b></div>';
             }
-            $chips[] = [
+            $dtStart = (int)($pr['dtstart'] ?? 0);
+            $dtEnd = (int)($pr['dtend'] ?? 0);
+            $chips[] = self::withCompactMeta([
                 'kind' => 'proc',
                 'id' => (int)$pr['id'],
                 // Metadata for product modules (e.g. terminals chill paint / poll_invites oral mark).
@@ -324,14 +351,14 @@ final class CalendarTimeline
                 'bg' => $color['bg'],
                 'fg' => $color['fg'],
                 'is_block' => false,
-                'dtstart' => (int)($pr['dtstart'] ?? 0),
-                'dtend' => (int)($pr['dtend'] ?? 0),
+                'dtstart' => $dtStart,
+                'dtend' => $dtEnd,
                 'label' => $label,
                 'title' => $label,
                 'info' => $info,
                 // Optional trusted HTML from calendar.timeline.enrich (merged into info panel).
                 'actions_html' => '',
-            ];
+            ], $dtStart, $dtEnd);
         }
 
         foreach ($events as $ev) {
@@ -385,7 +412,9 @@ final class CalendarTimeline
             if (!empty($ev['descr'])) {
                 $info .= '<div class="muted">' . htmlspecialchars(mb_substr((string)$ev['descr'], 0, 160), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
             }
-            $chips[] = [
+            $dtStart = (int)($ev['dtstart'] ?? 0);
+            $dtEnd = (int)($ev['dtend'] ?? 0);
+            $chip = [
                 'kind' => $isBlock ? 'block' : 'event',
                 'id' => (int)$ev['id'],
                 'href' => $href,
@@ -396,10 +425,14 @@ final class CalendarTimeline
                 'bg' => $color['bg'],
                 'fg' => $color['fg'],
                 'is_block' => $isBlock,
+                'dtstart' => $dtStart,
+                'dtend' => $dtEnd,
                 'label' => $label,
                 'title' => $label,
                 'info' => $info,
             ];
+            // Blocks stay muted — only bookable short slots get is-compact.
+            $chips[] = $isBlock ? $chip : self::withCompactMeta($chip, $dtStart, $dtEnd);
         }
 
         foreach ($orders as $ord) {

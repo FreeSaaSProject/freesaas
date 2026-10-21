@@ -5,9 +5,11 @@ declare(strict_types=1);
 /** @var ?array $row */
 /** @var bool $showHours */
 /** @var string $eventMode */
+/** @var int $compactChipMinutes */
 /** @var string $extraHtml */
 $extraHtml = (string)($extraHtml ?? '');
 $eventMode = (string)($eventMode ?? 'blocks');
+$compactChipMinutes = (int)($compactChipMinutes ?? CalendarConfig::compactChipMinutes());
 ?>
 <section class="page-head">
   <p class="lede"><?= t('calendar.settings.lede') ?></p>

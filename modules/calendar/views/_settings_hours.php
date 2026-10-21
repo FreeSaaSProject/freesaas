@@ -6,6 +6,7 @@ declare(strict_types=1);
  * @var ?array $row
  * @var bool $showHours
  * @var string $eventMode blocks|visits
+ * @var int $compactChipMinutes
  */
 $row = is_array($row ?? null) ? $row : [];
 $showHours = !empty($showHours);
@@ -13,6 +14,7 @@ $eventMode = (string)($eventMode ?? CalendarConfig::MODE_BLOCKS);
 if ($eventMode !== CalendarConfig::MODE_VISITS) {
     $eventMode = CalendarConfig::MODE_BLOCKS;
 }
+$compactChipMinutes = (int)($compactChipMinutes ?? CalendarConfig::compactChipMinutes());
 $start = (int)($row['work_hour_start'] ?? 9);
 $end = (int)($row['work_hour_end'] ?? 22);
 ?>
@@ -41,5 +43,14 @@ $end = (int)($row['work_hour_end'] ?? 22);
   <label class="logo-remove">
     <input type="radio" name="calendar_event_mode" value="visits"<?= $eventMode === 'visits' ? ' checked' : '' ?>>
     <?= te('calendar.settings.event_mode_visits') ?>
+  </label>
+</fieldset>
+
+<fieldset class="form-fieldset">
+  <legend><?= te('calendar.settings.compact_chips') ?></legend>
+  <p class="muted"><?= te('calendar.settings.compact_chips_hint') ?></p>
+  <label><?= te('calendar.settings.field_compact_chip_minutes') ?>
+    <input type="number" min="0" max="<?= (int)CalendarConfig::MAX_COMPACT_CHIP_MINUTES ?>"
+           name="calendar_compact_chip_minutes" value="<?= $compactChipMinutes ?>">
   </label>
 </fieldset>
