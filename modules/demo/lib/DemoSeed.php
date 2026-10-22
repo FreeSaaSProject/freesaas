@@ -36,6 +36,11 @@ final class DemoSeed
                 CalendarConfig::setEventMode(CalendarConfig::MODE_VISITS);
             }
 
+            // Schema-only / partial bootstrap may leave base_system empty; calendar hours need a row.
+            if (class_exists('SystemRepository', false)) {
+                SystemRepository::ensureRow((string)$pack['company']);
+            }
+
             $out = [];
             $unitId = self::ensureUnit($pack['unit']);
             $out['cabinets'] = self::seedCabinets($pack);
@@ -80,12 +85,8 @@ final class DemoSeed
             $out['audio'] = self::seedAudio($locale, $operators, $admins, $clientIds);
             $out['bi'] = self::seedBiAudioRecipe($locale);
 
-            if (Database::tableExists('base_system') && Database::columnExists('base_system', 'company')) {
-                Database::pdo()->exec(
-                    'UPDATE base_system SET company = '
-                    . Database::pdo()->quote((string)$pack['company'])
-                    . ' LIMIT 1'
-                );
+            if (class_exists('SystemRepository', false) && Database::columnExists('base_system', 'company')) {
+                SystemRepository::updateBasics(['company' => (string)$pack['company']]);
             }
 
             $out['categories'] = 1;

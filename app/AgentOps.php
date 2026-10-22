@@ -1685,17 +1685,15 @@ final class AgentOps
             }
         }
 
-        // Seed base_system row if empty
+        // Seed base_system row if empty (schema migrate creates the table only)
         try {
-            if (Database::tableExists('base_system')) {
-                $n = (int)Database::pdo()->query('SELECT COUNT(*) FROM base_system')->fetchColumn();
-                if ($n < 1) {
-                    $brand = (string)Config::get('app', 'name', 'FreeSaaS');
-                    Database::pdo()->prepare(
-                        'INSERT INTO base_system (name, company, title) VALUES (?,?,?)'
-                    )->execute([$brand, $brand, $brand]);
-                    $steps[] = ['step' => 'system_row', 'status' => 'ok'];
-                }
+            if (class_exists('SystemRepository', false)) {
+                $before = SystemRepository::get();
+                SystemRepository::ensureRow((string)Config::get('app', 'name', 'FreeSaaS'));
+                $steps[] = [
+                    'step' => 'system_row',
+                    'status' => $before === null ? 'ok' : 'exists',
+                ];
             }
         } catch (Throwable $e) {
             $steps[] = ['step' => 'system_row', 'status' => 'skip', 'message' => $e->getMessage()];

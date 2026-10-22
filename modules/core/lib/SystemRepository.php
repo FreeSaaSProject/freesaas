@@ -20,6 +20,39 @@ final class SystemRepository
     }
 
     /**
+     * Ensure the singleton base_system row exists.
+     * Schema migrate creates an empty table; bootstrap / demo seed / settings writers need one row.
+     *
+     * @return array<string,mixed>
+     */
+    public static function ensureRow(?string $brand = null): array
+    {
+        $row = self::get();
+        if ($row !== null) {
+            return $row;
+        }
+        if (!Database::tableExists('base_system')) {
+            throw new RuntimeException('base_system table missing — run migrate');
+        }
+        $brand = trim((string)($brand ?? ''));
+        if ($brand === '') {
+            $brand = trim((string)Config::get('app', 'name', 'FreeSaaS'));
+        }
+        if ($brand === '') {
+            $brand = 'FreeSaaS';
+        }
+        Database::pdo()->prepare(
+            'INSERT INTO base_system (name, company, title) VALUES (?,?,?)'
+        )->execute([$brand, $brand, $brand]);
+        self::$companyNameCache = null;
+        $row = self::get();
+        if ($row === null) {
+            throw new RuntimeException('base_system insert failed');
+        }
+        return $row;
+    }
+
+    /**
      * Short company label under the logo and in the browser tab.
      * Prefer base_system.company (Settings); fall back to config app.instance.
      */
@@ -39,10 +72,7 @@ final class SystemRepository
     /** Platform instance label (FreeSaaS /settings). */
     public static function updateBasics(array $data): void
     {
-        $row = self::get();
-        if (!$row) {
-            throw new RuntimeException('base_system is empty — run data migrate');
-        }
+        $row = self::ensureRow(isset($data['company']) ? (string)$data['company'] : null);
         $company = (string)($data['company'] ?? '');
         Database::pdo()->prepare(
             'UPDATE base_system SET company = ? WHERE id = ?'
