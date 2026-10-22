@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-22T15:27:51+00:00",
+    "generated_at": "2026-10-22T15:51:33+00:00",
     "modules": [
         {
             "id": "asr",
@@ -455,7 +455,7 @@
         },
         {
             "id": "booking",
-            "version": "0.1.14",
+            "version": "0.1.15",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -1346,7 +1346,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.30",
+            "version": "0.1.31",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1416,7 +1416,7 @@
         },
         {
             "id": "rates",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "Specialist rates",

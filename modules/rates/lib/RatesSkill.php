@@ -86,6 +86,7 @@ final class RatesSkill
     public static function diagnose(int $operatorId, int $typeId = 0, int $productId = 0, int $dayStart = 0): array
     {
         $dayStart = $dayStart > 0 ? $dayStart : (int)mktime(0, 0, 0);
+        $asOf = RatesRepository::asOfForDay($dayStart);
         if ($typeId < 1 && $productId > 0 && class_exists(ProductsRepository::class, false)) {
             $p = ProductsRepository::find($productId);
             $typeId = $p ? max(0, (int)($p['type_id'] ?? 0)) : 0;
@@ -100,7 +101,7 @@ final class RatesSkill
 
         $row = null;
         if (class_exists(RatesRepository::class, false)) {
-            $row = RatesRepository::latestForOperator($operatorId, $dayStart);
+            $row = RatesRepository::latestForOperator($operatorId, $asOf);
         }
         $pct = null;
         $bannedBooking = false;
@@ -173,19 +174,22 @@ final class RatesSkill
 
         $typeNames = ProcedureTypesRepository::names();
         $typeLabel = $typeNames[$typeId] ?? ('#' . $typeId);
-        $dayStart = time();
 
-        $row = RatesRepository::latestForOperator($operatorId, $dayStart);
+        $row = RatesRepository::latestForOperator($operatorId, time());
         $content = (is_array($row) && is_array($row['content'] ?? null)) ? $row['content'] : [];
         $banBooking = (is_array($row) && is_array($row['ban_booking'] ?? null)) ? $row['ban_booking'] : [];
         $banOnline = (is_array($row) && is_array($row['ban_online'] ?? null)) ? $row['ban_online'] : [];
+        $banProcs = (is_array($row) && is_array($row['ban_procs'] ?? null)) ? $row['ban_procs'] : [];
         $existingPct = null;
         $rawExisting = $content[$typeId] ?? $content[(string)$typeId] ?? null;
         if ($rawExisting !== null && is_numeric($rawExisting) && (float)$rawExisting > 0) {
             $existingPct = (float)$rawExisting;
         }
+        $procBanned = $goodId > 0
+            && (!empty($banProcs[$goodId]) || !empty($banProcs[(string)$goodId]));
         $wasBanned = !empty($banBooking[$typeId]) || !empty($banBooking[(string)$typeId])
-            || ($clearOnline && (!empty($banOnline[$typeId]) || !empty($banOnline[(string)$typeId])));
+            || ($clearOnline && (!empty($banOnline[$typeId]) || !empty($banOnline[(string)$typeId])))
+            || $procBanned;
 
         $source = '';
         $pct = $explicitPct;
@@ -224,6 +228,7 @@ final class RatesSkill
                 'message' => $message,
                 'operator_id' => $operatorId,
                 'type_id' => $typeId,
+                'product_id' => $goodId,
                 'percent' => $pct,
                 'source' => $source,
                 'dry_run' => $dryRun,
@@ -231,10 +236,15 @@ final class RatesSkill
         }
 
         if ($existingPct !== null && $wasBanned && ($explicitPct === null || abs($explicitPct - $existingPct) < 0.0001)) {
-            $message = t('rates.grant.was_banned', [
-                'type' => $typeLabel,
-                'pct' => self::fmtPct($existingPct),
-            ]);
+            $message = $procBanned && $goodId > 0
+                ? t('rates.grant.was_banned_product', [
+                    'type' => $typeLabel,
+                    'pct' => self::fmtPct($existingPct),
+                ])
+                : t('rates.grant.was_banned', [
+                    'type' => $typeLabel,
+                    'pct' => self::fmtPct($existingPct),
+                ]);
             $pct = $existingPct;
             $source = 'existing';
         } else {
@@ -252,17 +262,19 @@ final class RatesSkill
                 'message' => $message,
                 'operator_id' => $operatorId,
                 'type_id' => $typeId,
+                'product_id' => $goodId,
                 'percent' => $pct,
                 'source' => $source,
                 'dry_run' => true,
                 'would_clear_ban_booking' => true,
                 'would_clear_ban_online' => $clearOnline,
+                'would_clear_ban_proc' => $goodId > 0,
             ];
         }
 
         $data = self::buildGrantRow($operatorId, $row, $typeId, $pct, $clearOnline, $goodId);
-        // DT = start of today so BookingOperatorGate (DT <= dayStart midnight) sees it immediately.
-        $data['dt'] = (int)mktime(0, 0, 0);
+        // DT = now so same-day later rows win; gate uses asOfForDay (end of day).
+        $data['dt'] = time();
         $data['descr'] = self::grantDescr($typeLabel, $pct);
         $newId = RatesRepository::create($data);
 
@@ -315,8 +327,7 @@ final class RatesSkill
             $productLabel = $p ? trim((string)($p['name'] ?? '')) : ('#' . $goodId);
         }
 
-        $dayStart = time();
-        $row = RatesRepository::latestForOperator($operatorId, $dayStart);
+        $row = RatesRepository::latestForOperator($operatorId, time());
         $banBooking = (is_array($row) && is_array($row['ban_booking'] ?? null)) ? $row['ban_booking'] : [];
         $banOnlineMap = (is_array($row) && is_array($row['ban_online'] ?? null)) ? $row['ban_online'] : [];
         $banProcs = (is_array($row) && is_array($row['ban_procs'] ?? null)) ? $row['ban_procs'] : [];
@@ -370,7 +381,7 @@ final class RatesSkill
         }
 
         $data = self::buildRevokeRow($operatorId, $row, $typeId, $goodId, $mode, $banOnline);
-        $data['dt'] = (int)mktime(0, 0, 0);
+        $data['dt'] = time();
         $short = $mode === 'product'
             ? ($productLabel !== '' ? $productLabel : ('#' . $goodId))
             : ($typeLabel !== '' ? explode(' — ', $typeLabel)[0] : ('#' . $typeId));
@@ -487,7 +498,7 @@ final class RatesSkill
         $typeLabel = ProcedureTypesRepository::names()[$typeId] ?? ('#' . $typeId);
         return [
             'operator_id' => $operatorId,
-            'dt' => (int)mktime(0, 0, 0),
+            'dt' => time(),
             'descr' => self::grantDescr($typeLabel, $pct),
             'content' => $maps['content'],
             'content_sales' => $maps['content_sales'],
@@ -542,7 +553,7 @@ final class RatesSkill
 
         return [
             'operator_id' => $operatorId,
-            'dt' => (int)mktime(0, 0, 0),
+            'dt' => time(),
             'descr' => 'revoke',
             'content' => $maps['content'],
             'content_sales' => $maps['content_sales'],

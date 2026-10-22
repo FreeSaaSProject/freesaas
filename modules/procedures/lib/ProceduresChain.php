@@ -60,6 +60,26 @@ final class ProceduresChain
     }
 
     /**
+     * Parent procedure id from notice `chill#{id}` (optional trailing text).
+     * Uses integer parse so chill#12 does not match chill#123.
+     */
+    public static function chillParentId(string $notice): int
+    {
+        if (strncmp($notice, 'chill#', 6) !== 0) {
+            return 0;
+        }
+        $id = (int)substr($notice, 6);
+
+        return $id > 0 ? $id : 0;
+    }
+
+    /** Whether notice marks a chill/rest owned by $procId. */
+    public static function isChillFor(int $procId, string $notice): bool
+    {
+        return $procId > 0 && self::chillParentId($notice) === $procId;
+    }
+
+    /**
      * Ordered contiguous block containing $procId (same operator + client, DTEND=DTSTART).
      *
      * @return list<array<string,mixed>>
@@ -165,7 +185,6 @@ final class ProceduresChain
         if ($op < 1 || $dayStart < 1) {
             return [$anchor];
         }
-        $prefix = 'chill#' . $procId;
         $out = [$anchor];
         foreach (ProceduresRepository::listForDayRange($dayStart, $dayStart + 86400, $op) as $r) {
             $rid = (int)($r['id'] ?? 0);
@@ -175,10 +194,7 @@ final class ProceduresChain
             if (isset($r['enabled']) && (int)$r['enabled'] === 0) {
                 continue;
             }
-            $notice = (string)($r['notice'] ?? '');
-            if ($notice === $prefix
-                || strncmp($notice, $prefix, strlen($prefix)) === 0
-            ) {
+            if (self::isChillFor($procId, (string)($r['notice'] ?? ''))) {
                 $out[] = $r;
             }
         }

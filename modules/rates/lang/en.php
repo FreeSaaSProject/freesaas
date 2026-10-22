@@ -38,6 +38,7 @@ return [
     'rates.grant.needs_percent' => 'Cannot enable type #{type}: no % on this staff or peers. Pass percent=…',
     'rates.grant.enabled_with_percent' => 'Enabling {type} and setting {pct}% ({source})',
     'rates.grant.was_banned' => '{type} had a ban with % already set — clearing ban (keeping {pct}%)',
+    'rates.grant.was_banned_product' => '{type}: clearing product ban (keeping {pct}%)',
     'rates.grant.already_on' => '{type} already enabled at {pct}%',
     'rates.grant.source.explicit' => 'explicit',
     'rates.grant.source.existing' => 'existing row',

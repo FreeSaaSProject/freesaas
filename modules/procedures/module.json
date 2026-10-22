@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "0.1.30",
+    "version": "0.1.31",
     "type": "product",
     "runtime": "both",
     "requires": {

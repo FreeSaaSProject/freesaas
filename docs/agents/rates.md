@@ -28,7 +28,8 @@ Permissions: `rates.view`, `rates.edit`, `rates.delete`.
 - Product ban: `ban_procs[product_id]` blocks that product even when the type is enabled.
 - **Zero %** (except SPEC/break type, default 38): saving a rates row auto-sets `ban_booking` + `ban_online` for that type.
 - UI: `/rates/{id}/edit` — Skills section = % + type bans + per-product bans under enabled types.
-- Live gate (`BookingOperatorGate`) reads rates only; legacy `RESTRICT_*` is ignored after migrator.
+- Live gate (`BookingOperatorGate`) reads rates only (fail closed if rates table missing); legacy `RESTRICT_*` ignored after migrator.
+- Gate / diagnose as-of = **end of day** (`RatesRepository::asOfForDay`); agent grant/revoke write `DT=now` so they win over same-day earlier rows.
 - Category `executors` no longer gates `/t`.
 
 ### Migrator
@@ -36,9 +37,10 @@ Permissions: `rates.view`, `rates.edit`, `rates.delete`.
 ```bash
 php bin/freesaas.php migrate run --module=rates
 php bin/data-migrate.php --module=rates --id=restrict_to_bans
+# shared hosting: POST /agent/db/data-migrate/run?module=rates&id=restrict_to_bans
 ```
 
-Creates a new midnight rates row per operator:
+Creates a new rates row per operator (effective from midnight of run day; later same-day edits/grants override via DT):
 
 | Source | Target |
 |--------|--------|

@@ -104,6 +104,25 @@ final class RatesRepository
      * Latest rates for operator effective at or before $ts.
      * @return array<string,mixed>|null
      */
+    /**
+     * As-of timestamp for skill/booking on a calendar day: end of that day
+     * so same-day grant/revoke/UI rows (DT=10:00…) beat older midnight rows.
+     */
+    public static function asOfForDay(int $dayStart): int
+    {
+        if ($dayStart < 1) {
+            return time();
+        }
+        return (int)mktime(
+            23,
+            59,
+            59,
+            (int)date('n', $dayStart),
+            (int)date('j', $dayStart),
+            (int)date('Y', $dayStart)
+        );
+    }
+
     public static function latestForOperator(int $operatorId, int $ts): ?array
     {
         if ($operatorId < 1 || !Database::tableExists('base_procent_history')) {

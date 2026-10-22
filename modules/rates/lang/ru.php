@@ -38,6 +38,7 @@ return [
     'rates.grant.needs_percent' => 'Нельзя включить тип #{type}: нет % у сотрудника и у коллег. Передайте percent=…',
     'rates.grant.enabled_with_percent' => 'Включаю {type} и ставлю {pct}% ({source})',
     'rates.grant.was_banned' => '{type} была выключена при живом % — снимаю запрет (оставляю {pct}%)',
+    'rates.grant.was_banned_product' => '{type}: снимаю запрет услуги (оставляю {pct}%)',
     'rates.grant.already_on' => '{type} уже включена при {pct}%',
     'rates.grant.source.explicit' => 'задано явно',
     'rates.grant.source.existing' => 'уже в ставках',

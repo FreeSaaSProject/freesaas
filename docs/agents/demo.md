@@ -29,6 +29,13 @@ Banner notice and CLI `demo seed` / `demo provision` require the module enabled.
 - `demo provision` / `demo seed` **refuse** unless `demo_readonly=1` and `demo=1`.
 - Never set these flags on customer instances.
 
+## What readonly blocks
+
+- **HTTP:** `POST|PUT|PATCH|DELETE` except `/login`, `/logout`, `/locale` (`DemoMode::denyUnsafeIfReadonly`).
+- **GET side effects:** shared writes from page views must call `DemoMode::blocksHttpSideEffects()` and no-op (e.g. `NewsRepository::markViewed` — otherwise every guest flips unread for the shared `demo` user). Session/cookie-only changes are fine.
+- **Does not** grant `SUPERADMIN_ACCESS`. Demo Viewer is provisioned without it; calendar review chips are an intentional demo exception (`DemoMode::readonly()`), not a privilege escalation.
+- **CLI** seed/provision still write while `demo_readonly=1` (`blocksHttpSideEffects` is false under `cli`).
+
 ## Provision guest
 
 ```bash

@@ -93,7 +93,7 @@ final class ServiceAccessParity
     }
 
     /**
-     * New model: rates % + ban_booking / ban_online. No RESTRICT_*, no category executors.
+     * New model: rates % + ban_booking / ban_online / ban_procs. Fail closed if rates missing.
      *
      * @param list<array{id:int,type_id:int,category?:int}> $products
      * @return array{ok:bool,blockers:list<string>}
@@ -105,11 +105,23 @@ final class ServiceAccessParity
             return ['ok' => false, 'blockers' => $blockers];
         }
 
-        $rates = self::ratesRow($operatorId, $dayStart);
-        $useRates = class_exists(RatesRepository::class, false)
+        $ratesAvailable = class_exists(RatesRepository::class, false)
             && Database::tableExists('base_procent_history');
-        if ($useRates && $rates === null) {
-            // Same as live gate: empty matrix → cannot do typed services
+        if (!$ratesAvailable) {
+            foreach ($products as $p) {
+                $typeId = (int)($p['type_id'] ?? 0);
+                $gid = (int)($p['id'] ?? 0);
+                if (self::skipRatesMatrix($gid, $typeId)) {
+                    continue;
+                }
+                $blockers[] = 'rates_unavailable';
+            }
+            $blockers = array_values(array_unique($blockers));
+            return ['ok' => $blockers === [], 'blockers' => $blockers];
+        }
+
+        $rates = self::ratesRow($operatorId, $dayStart);
+        if ($rates === null) {
             foreach ($products as $p) {
                 $typeId = (int)($p['type_id'] ?? 0);
                 $gid = (int)($p['id'] ?? 0);
@@ -136,9 +148,6 @@ final class ServiceAccessParity
             $typeId = (int)($p['type_id'] ?? 0);
 
             if (self::skipRatesMatrix($gid, $typeId)) {
-                continue;
-            }
-            if (!$useRates) {
                 continue;
             }
             if ($typeId < 1) {
@@ -334,7 +343,8 @@ final class ServiceAccessParity
         if (array_key_exists($key, self::$ratesCache)) {
             return self::$ratesCache[$key];
         }
-        $row = RatesRepository::latestForOperator($operatorId, $dayStart > 0 ? $dayStart : time());
+        $asOf = RatesRepository::asOfForDay($dayStart);
+        $row = RatesRepository::latestForOperator($operatorId, $asOf);
         self::$ratesCache[$key] = $row;
         return $row;
     }

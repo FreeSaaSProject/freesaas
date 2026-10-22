@@ -929,6 +929,10 @@ final class NewsRepository
 
     public static function markViewed(int $newsId, int $userId): void
     {
+        // Demo readonly: GET /news/{id} must not flip shared read state for all guests.
+        if (class_exists('DemoMode', false) && DemoMode::blocksHttpSideEffects()) {
+            return;
+        }
         self::ensureViewRow($newsId, $userId, 'base_news');
     }
 

@@ -58,6 +58,16 @@ final class DemoMode
     }
 
     /**
+     * Skip shared DB writes from HTTP GET (and similar) under demo_readonly.
+     * Router already denies POST|PUT|PATCH|DELETE; this covers GET side effects
+     * (e.g. news mark-as-read). CLI seed/provision still write while the flag is on.
+     */
+    public static function blocksHttpSideEffects(): bool
+    {
+        return self::readonly() && PHP_SAPI !== 'cli';
+    }
+
+    /**
      * If demo_auto_login and no session: establish demo user session.
      * No-op when flags off, CLI, already logged in, or user missing/disabled.
      */

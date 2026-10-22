@@ -4,9 +4,9 @@ declare(strict_types=1);
 /**
  * Who may perform cart services for booking slots:
  * enabled, on-shift (caller), SHOW_IN_LOADS, not assist_team,
- * rates matrix content[type]>0, rates ban_booking / ban_online / ban_procs.
- * Legacy user RESTRICT_* is ignored here (migrated into rates bans);
- * compare with bin/check-service-access-parity.php if needed.
+ * rates matrix content[type]>0, rates ban_booking / ban_online / ban_procs
+ * (SoT; fail closed if rates table missing). Legacy RESTRICT_* ignored
+ * (migrated into rates bans). See bin/check-service-access-parity.php.
  *
  * IS_HIDDEN does NOT block booking — those staff are only excluded from payroll
  * / load charts elsewhere; if they are enabled and scheduled, they are bookable.
@@ -58,15 +58,14 @@ final class BookingOperatorGate
         }
 
         $ratesRow = self::ratesRow($operatorId, $dayStart);
-        $useRates = $ratesRow !== null;
+        // null = rates SoT unavailable → fail closed for typed services
+        $ratesMissing = $ratesRow === null;
         $content = [];
         $banBooking = [];
         $banOnline = [];
         $banProcs = [];
-        if ($useRates) {
-            if ($ratesRow === []) {
-                $content = [];
-            } else {
+        if (!$ratesMissing) {
+            if ($ratesRow !== []) {
                 $content = is_array($ratesRow['content'] ?? null) ? $ratesRow['content'] : [];
                 $banBooking = self::banTypeSet($ratesRow['ban_booking'] ?? null);
                 $banOnline = self::banTypeSet($ratesRow['ban_online'] ?? null);
@@ -77,34 +76,36 @@ final class BookingOperatorGate
         foreach ($products as $p) {
             $gid = (int)($p['id'] ?? 0);
             $typeId = (int)($p['type_id'] ?? 0);
-            if ($useRates) {
-                if (class_exists('ProceduresChain', false) && ProceduresChain::isBreakProductTypeId($typeId)) {
-                    continue;
-                }
-                if (
-                    $gid > 0
-                    && class_exists('TerminalsConfig', false)
-                    && TerminalsConfig::chillProductId() === $gid
-                ) {
-                    continue;
-                }
-                if ($typeId < 1) {
-                    $blockers[] = 'type_id_missing';
-                    continue;
-                }
-                $val = $content[$typeId] ?? $content[(string)$typeId] ?? null;
-                if ($val === null || (string)$val === '2' || !((float)$val > 0)) {
-                    $blockers[] = 'no_percent:' . $typeId;
-                }
-                if (isset($banBooking[$typeId])) {
-                    $blockers[] = 'ban_booking:' . $typeId;
-                }
-                if ($online && isset($banOnline[$typeId])) {
-                    $blockers[] = 'ban_online:' . $typeId;
-                }
-                if ($gid > 0 && isset($banProcs[$gid])) {
-                    $blockers[] = 'ban_proc:' . $gid;
-                }
+            if (class_exists('ProceduresChain', false) && ProceduresChain::isBreakProductTypeId($typeId)) {
+                continue;
+            }
+            if (
+                $gid > 0
+                && class_exists('TerminalsConfig', false)
+                && TerminalsConfig::chillProductId() === $gid
+            ) {
+                continue;
+            }
+            if ($ratesMissing) {
+                $blockers[] = 'rates_unavailable';
+                continue;
+            }
+            if ($typeId < 1) {
+                $blockers[] = 'type_id_missing';
+                continue;
+            }
+            $val = $content[$typeId] ?? $content[(string)$typeId] ?? null;
+            if ($val === null || (string)$val === '2' || !((float)$val > 0)) {
+                $blockers[] = 'no_percent:' . $typeId;
+            }
+            if (isset($banBooking[$typeId])) {
+                $blockers[] = 'ban_booking:' . $typeId;
+            }
+            if ($online && isset($banOnline[$typeId])) {
+                $blockers[] = 'ban_online:' . $typeId;
+            }
+            if ($gid > 0 && isset($banProcs[$gid])) {
+                $blockers[] = 'ban_proc:' . $gid;
             }
         }
 
@@ -151,7 +152,10 @@ final class BookingOperatorGate
             $hit = self::$ratesRowCache[$cacheKey];
             return $hit === false ? [] : $hit;
         }
-        $row = RatesRepository::latestForOperator($operatorId, $dayStart > 0 ? $dayStart : time());
+        $asOf = class_exists(RatesRepository::class, false)
+            ? RatesRepository::asOfForDay($dayStart)
+            : ($dayStart > 0 ? $dayStart : time());
+        $row = RatesRepository::latestForOperator($operatorId, $asOf);
         if ($row === null) {
             self::$ratesRowCache[$cacheKey] = false;
             return [];

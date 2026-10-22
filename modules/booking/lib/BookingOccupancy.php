@@ -98,11 +98,13 @@ final class BookingOccupancy
                 }
                 if ($excludeParents !== []) {
                     $notice = (string)($pr['notice'] ?? '');
+                    // Parse id as int — strncmp('chill#12', …) wrongly matches chill#123.
+                    $chillOf = class_exists('ProceduresChain', false)
+                        ? ProceduresChain::chillParentId($notice)
+                        : ((strncmp($notice, 'chill#', 6) === 0) ? (int)substr($notice, 6) : 0);
                     $skip = false;
                     foreach ($excludeParents as $exId => $meta) {
-                        if ($notice === 'chill#' . $exId
-                            || strncmp($notice, 'chill#' . $exId, strlen('chill#' . $exId)) === 0
-                        ) {
+                        if ($chillOf > 0 && $chillOf === (int)$exId) {
                             $skip = true;
                             break;
                         }
