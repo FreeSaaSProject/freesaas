@@ -395,6 +395,12 @@ final class TerminalFloor
                 $book = TerminalBooking::book($bookIn);
                 $results[] = $book;
                 if (empty($book['ok'])) {
+                    $bookErr = (string)($book['error'] ?? '');
+                    if ($bookErr === 'token already used') {
+                        $bookErr = t('terminals.t.scan_again');
+                    } elseif ($bookErr === '') {
+                        $bookErr = t('terminals.t.err.book');
+                    }
                     return self::withHomeExtras([
                         'ok' => false,
                         'mode' => 'book',
@@ -402,7 +408,7 @@ final class TerminalFloor
                         'guest' => $guest,
                         'client_id' => $clientId,
                         'admin_id' => $claimedAdminId,
-                        'error' => (string)($book['error'] ?? t('terminals.t.err.book')),
+                        'error' => $bookErr,
                         'query' => $q,
                         'results' => $results,
                         'onec_stub' => $disable1c,

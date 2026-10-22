@@ -129,18 +129,55 @@ final class TerminalBooking
             $onecProduct = TerminalsConfig::string('1c_uid', '');
         }
 
-        // Token gate before any 1C sale — retry must not charge then unsale a pre-paid document_id.
+        // Token gate before any 1C sale — retry must not charge again.
+        // Same scan/commit token already in base_procedures → idempotent OK (double GET/refresh
+        // after a slow 1C+lock used to show "token already used" while the first write succeeded).
         $token = substr(trim((string)($input['token'] ?? '')), 0, 32);
         if ($token === '') {
             $token = bin2hex(random_bytes(16));
-        } elseif (self::tokenUsed($token)) {
-            return [
-                'ok' => false,
-                'error' => 'token already used',
-                'product_name' => $productName,
-                'price' => $price,
-                'stack' => $stack,
-            ];
+        } else {
+            $existing = self::findEnabledByToken($token);
+            if ($existing !== null) {
+                $existingGood = (int)($existing['id_good'] ?? $existing['ID_GOOD'] ?? 0);
+                $procId = (int)($existing['id'] ?? $existing['ID'] ?? 0);
+                if ($procId > 0 && ($existingGood === 0 || $existingGood === $productId)) {
+                    $dtEndExisting = (int)($existing['dtend'] ?? $existing['DTEND'] ?? 0);
+                    $saleExisting = trim((string)($existing['onec_id'] ?? $existing['1c_id'] ?? ''));
+                    $stack[] = [
+                        'key' => 'procedure',
+                        'ok' => true,
+                        'procedure_id' => $procId,
+                        'idempotent' => true,
+                        'dt_end' => $dtEndExisting > 0 ? $dtEndExisting : $dtEnd,
+                        'product_name' => $productName,
+                    ];
+                    $stack[] = [
+                        'key' => 'admin',
+                        'ok' => true,
+                        'procedure_id' => $procId,
+                        'idempotent' => true,
+                    ];
+                    $out = [
+                        'ok' => true,
+                        'procedure_id' => $procId,
+                        'sale_id' => $saleExisting,
+                        'product_name' => $productName,
+                        'price' => isset($existing['summ']) || isset($existing['SUMM'])
+                            ? (float)($existing['summ'] ?? $existing['SUMM'] ?? $price)
+                            : $price,
+                        'dt_end' => $dtEndExisting > 0 ? $dtEndExisting : $dtEnd,
+                        'stack' => $stack,
+                    ];
+                    return $out;
+                }
+                return [
+                    'ok' => false,
+                    'error' => 'token already used',
+                    'product_name' => $productName,
+                    'price' => $price,
+                    'stack' => $stack,
+                ];
+            }
         }
 
         $onecClient = trim((string)($input['onec_client_id'] ?? ''));
@@ -627,14 +664,22 @@ final class TerminalBooking
 
     private static function tokenUsed(string $token): bool
     {
-        if (!Database::tableExists('base_procedures')) {
-            return false;
+        return self::findEnabledByToken($token) !== null;
+    }
+
+    /** @return array<string,mixed>|null */
+    private static function findEnabledByToken(string $token): ?array
+    {
+        $token = substr(trim($token), 0, 32);
+        if ($token === '' || !Database::tableExists('base_procedures')) {
+            return null;
         }
         $st = Database::pdo()->prepare(
-            'SELECT ID FROM base_procedures WHERE TOKEN = ? AND ENABLED = 1 LIMIT 1'
+            'SELECT * FROM base_procedures WHERE TOKEN = ? AND ENABLED = 1 ORDER BY ID DESC LIMIT 1'
         );
         $st->execute([$token]);
-        return (bool)$st->fetchColumn();
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
     }
 
     /**
