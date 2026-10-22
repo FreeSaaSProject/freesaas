@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-22T13:59:18+00:00",
+    "generated_at": "2026-10-22T15:27:51+00:00",
     "modules": [
         {
             "id": "asr",
@@ -832,7 +832,7 @@
         },
         {
             "id": "demo",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -849,15 +849,26 @@
             "requires": {
                 "core": ">=0.3.0"
             },
-            "optionalRequires": [],
+            "optionalRequires": {
+                "audio": ">=0.1.0",
+                "audio_dicts": ">=0.1.0",
+                "bi": ">=0.1.0",
+                "bonuses": ">=0.1.0",
+                "docs": ">=0.1.0",
+                "funds": ">=0.1.0",
+                "ledger": ">=0.1.0",
+                "orders": ">=0.1.0",
+                "procents": ">=0.1.0",
+                "rates": ">=0.1.0",
+                "stocks": ">=0.1.0"
+            },
             "catalog": {
                 "categories": [
                     "platform"
                 ],
                 "maturity": "beta",
                 "tags": [
-                    "demo",
-                    "seed"
+                    "settings"
                 ]
             }
         },
