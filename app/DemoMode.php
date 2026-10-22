@@ -1,0 +1,138 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * Demo stand guards (single monorepo; enabled only when cfg says so).
+ *
+ * Default off: absent / 0 / false / off / no → production behaviour unchanged.
+ * When on: block unsafe HTTP mutations; optional auto-login; Config::moduleEnabled
+ * treats missing [modules] keys as disabled (fail-closed).
+ */
+final class DemoMode
+{
+    /** Paths allowed to POST/PUT/PATCH/DELETE while demo_readonly is on. */
+    private const MUTATION_ALLOW = [
+        '/login',
+        '/logout',
+        '/locale',
+    ];
+
+    public static function readonly(): bool
+    {
+        if (!class_exists('Config', false)) {
+            return false;
+        }
+        return self::flag((string)Config::get('app', 'demo_readonly', '0'));
+    }
+
+    public static function autoLogin(): bool
+    {
+        if (!self::readonly()) {
+            return false;
+        }
+        return self::flag((string)Config::get('app', 'demo_auto_login', '0'));
+    }
+
+    public static function autoLoginUser(): string
+    {
+        $u = trim((string)Config::get('app', 'demo_auto_login_user', 'demo'));
+        return $u !== '' ? $u : 'demo';
+    }
+
+    /**
+     * Missing [modules] key: normally enabled; under demo_readonly → disabled.
+     * core is never affected (caller checks core first).
+     */
+    public static function missingModuleDefaultsOff(): bool
+    {
+        return self::readonly();
+    }
+
+    public static function mutationAllowed(string $path): bool
+    {
+        $path = '/' . ltrim($path, '/');
+        if ($path !== '/' && substr($path, -1) === '/') {
+            $path = rtrim($path, '/');
+        }
+        return in_array($path, self::MUTATION_ALLOW, true);
+    }
+
+    /**
+     * If demo_auto_login and no session: establish demo user session.
+     * No-op when flags off, CLI, already logged in, or user missing/disabled.
+     */
+    public static function maybeAutoLogin(): void
+    {
+        if (!self::autoLogin()) {
+            return;
+        }
+        if (PHP_SAPI === 'cli') {
+            return;
+        }
+        if (!class_exists('Auth', false) || Auth::check(false)) {
+            return;
+        }
+        if (!class_exists('UsersRepository', false) || !class_exists('Database', false)) {
+            return;
+        }
+        try {
+            if (!Database::tableExists('base_users')) {
+                return;
+            }
+        } catch (Throwable $e) {
+            return;
+        }
+        $login = self::autoLoginUser();
+        $row = UsersRepository::findByLogin($login);
+        if ($row === null || (string)($row['enabled'] ?? '') !== '1') {
+            return;
+        }
+        // establishSession expects password-login shaped row (id, login, name, status, …).
+        Auth::establishSession($row, true);
+    }
+
+    /**
+     * Block unsafe methods under demo_readonly (after auth/CSRF).
+     * @return bool true if request was denied (caller must return)
+     */
+    public static function denyUnsafeIfReadonly(string $path, string $method, bool $wantJson): bool
+    {
+        if (!self::readonly()) {
+            return false;
+        }
+        $method = strtoupper($method);
+        if (!in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+            return false;
+        }
+        if (self::mutationAllowed($path)) {
+            return false;
+        }
+        $msg = class_exists('I18n', false)
+            ? t('app.demo.readonly_deny')
+            : 'Demo is read-only';
+        if ($wantJson && class_exists('AgentHttp', false)) {
+            AgentHttp::error($msg, 403, ['error_code' => 'demo_readonly']);
+            return true;
+        }
+        http_response_code(403);
+        if (class_exists('View', false)) {
+            View::render('error', [
+                'title' => class_exists('I18n', false) ? t('app.demo.readonly_title') : 'Read-only',
+                'message' => $msg,
+                'hint' => '',
+            ]);
+        } else {
+            echo $msg;
+        }
+        return true;
+    }
+
+    private static function flag(string $value): bool
+    {
+        $v = strtolower(trim($value));
+        if ($v === '' || in_array($v, ['0', 'false', 'off', 'no'], true)) {
+            return false;
+        }
+        return true;
+    }
+}

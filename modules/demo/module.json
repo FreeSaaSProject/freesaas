@@ -1,0 +1,53 @@
+{
+    "id": "demo",
+    "name": "demo.module.name",
+    "description": "demo.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "catalog": {
+        "categories": [
+            "platform"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "demo",
+            "seed"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=0.3.0"
+    },
+    "optionalRequires": [],
+    "provides": [
+        "demo.seed"
+    ],
+    "uninstall": {
+        "strategy": "leave_tables"
+    },
+    "permissions": [
+        {
+            "id": "demo.manage",
+            "label": "demo.perm.manage"
+        }
+    ],
+    "routes": {
+        "pages": []
+    },
+    "agent": {
+        "docs": "docs/agents/demo.md",
+        "ops": []
+    },
+    "jobs": [],
+    "menu": [],
+    "configSchema": [],
+    "tables": [],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.notices.collect"
+        ],
+        "publish": []
+    },
+    "bulkActions": []
+}

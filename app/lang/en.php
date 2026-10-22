@@ -57,4 +57,8 @@ return [
     'core.entity.agent_delete_denied' => 'Agent delete is disabled in Settings. Turn on «Allow agents to delete» or use the staff UI.',
     'core.entity.err.not_found' => 'Record not found.',
     'core.entity.err.delete_failed' => 'Could not delete this record.',
+    'app.demo.readonly_title' => 'Read-only demo',
+    'app.demo.readonly_deny' => 'This demo stand is read-only. Changes are not saved.',
+    'app.demo.notice_short' => 'Demo · read-only',
+    'app.demo.notice_title' => 'Public demo: browsing only. Mutations are blocked; data may reset nightly.',
 ];

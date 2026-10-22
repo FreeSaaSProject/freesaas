@@ -25,6 +25,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [localization.md](localization.md) | New locale |
 | [remote-api.md](remote-api.md) | Shared hosting: HTTPS `/agent/*` + token |
 | [update.md](update.md) | Self-update: core + private module zips (`cfg/updates.ini`) |
+| [demo.md](demo.md) | Public demo stands: `demo_readonly`, provision, update CLI, nightly restore |
 | [module-agent-api.md](module-agent-api.md) | Product JSON ops (`module.json` → `agent.ops` on all modules; session auth) |
 | [assistant.md](assistant.md) | In-system LLM harness (UI + bot, tools, confirm writes) |
 | [assistant-groups.md](assistant-groups.md) | Max group channel: mention → draft → manager confirm |

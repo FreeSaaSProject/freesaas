@@ -27,6 +27,7 @@ declare(strict_types=1);
  * @var string $shiftFlash
  * @var string $reparseFlash
  * @var bool $canReviewAdmin
+ * @var bool $canReviewMutate
  * @var int $pendingReviewTotal
  * @var string $reviewFlash
  * @var string $reviewOrphansFlash
@@ -44,6 +45,7 @@ $calRet = (string)($calRet ?? '/audio/calendar');
 $shiftFlash = (string)($shiftFlash ?? '');
 $reparseFlash = (string)($reparseFlash ?? '');
 $canReviewAdmin = !empty($canReviewAdmin);
+$canReviewMutate = !empty($canReviewMutate);
 $pendingReviewTotal = (int)($pendingReviewTotal ?? 0);
 $reviewFlash = (string)($reviewFlash ?? '');
 $reviewOrphansFlash = (string)($reviewOrphansFlash ?? '');
@@ -392,6 +394,7 @@ if ($inboxCount > 0) {
     <p class="ar-cal-review-admin-actions">
       <a class="btn-secondary" href="<?= e(NavContext::withReturn('/audio?review=pending&year=0&month=0&day=0')) ?>"
          target="_blank" rel="noopener"><?= te('audio_reports.calendar.review_admin_open') ?></a>
+      <?php if ($canReviewMutate): ?>
       <form method="post" action="/audio/calendar" class="inline-form"
             onsubmit="return confirm(<?= tj('audio_reports.calendar.review_all_confirm', ['n' => $pendingReviewTotal]) ?>);">
         <?= NavContext::hiddenField() ?>
@@ -413,6 +416,7 @@ if ($inboxCount > 0) {
         <?php if ($positionFilter > 0): ?><input type="hidden" name="position" value="<?= (int)$positionFilter ?>"><?php endif; ?>
         <button type="submit" class="btn-secondary"><?= te('audio_reports.calendar.review_clean_orphans') ?></button>
       </form>
+      <?php endif; ?>
     </p>
   </section>
 <?php endif; ?>

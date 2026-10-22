@@ -80,7 +80,11 @@ final class Config
         }
         $mods = self::section('modules');
         if (!array_key_exists($moduleId, $mods)) {
-            return true; // default on
+            // Production: absent = enabled. Demo readonly: fail-closed (new modules stay off).
+            if (class_exists('DemoMode', false) && DemoMode::missingModuleDefaultsOff()) {
+                return false;
+            }
+            return true;
         }
         return self::truthyFlag($mods[$moduleId]);
     }

@@ -170,7 +170,9 @@ if ($dictsOn) {
 }
 
 // Always prepare play/download URLs; transcripts: eager (preload) or lazy slots.
-if ($result['items']) {
+// Demo stands: no playback (files are not shipped; avoid broken player shells).
+$demoNoPlay = class_exists('DemoMode', false) && DemoMode::readonly();
+if ($result['items'] && !$demoNoPlay) {
     foreach ($result['items'] as $r) {
         $rid = (int)$r['id'];
         $rel = RecordsRepository::playbackRelativePath($r);

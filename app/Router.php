@@ -257,6 +257,13 @@ final class Router
             }
         }
 
+        // Demo stand: block mutations after auth/CSRF (allowlist: login/logout/locale).
+        if (class_exists('DemoMode', false)
+            && DemoMode::denyUnsafeIfReadonly($path, $method, $wantJson)
+        ) {
+            return;
+        }
+
         $handler = $route['handler'];
         StageTiming::mark('Route match & auth');
         $handler();

@@ -21,7 +21,9 @@ if (AgentHttp::wantsJson() && $dayJson !== '' && preg_match('/^\d{4}-\d{2}-\d{2}
         'badge' => $badgeFilter,
         'position' => $positionFilter,
     ];
-    if (!Auth::capability('SUPERADMIN_ACCESS')) {
+    // Demo stands: show all staff (guest is not on a cabin position).
+    $demoOpen = class_exists('DemoMode', false) && DemoMode::readonly();
+    if (!Auth::capability('SUPERADMIN_ACCESS') && !$demoOpen) {
         $scope = SummariesRepository::equivalentAudioPositionIds(Auth::statusId());
         if ($scope === []) {
             $own = Auth::statusId();
@@ -60,10 +62,14 @@ if (AgentHttp::wantsJson() && $dayJson !== '' && preg_match('/^\d{4}-\d{2}-\d{2}
     ]);
 }
 
-$canReviewAdmin = Auth::capability('SUPERADMIN_ACCESS');
+// Prod: review chips / queue admin = SUPERADMIN only (strict).
+// Demo stands: guest Demo Viewer has no SUPERADMIN — still show the tour UI.
+$canReviewAdmin = Auth::capability('SUPERADMIN_ACCESS')
+    || (class_exists('DemoMode', false) && DemoMode::readonly());
+$canReviewMutate = Auth::capability('SUPERADMIN_ACCESS');
 $reviewFlash = '';
 $reviewOrphansFlash = '';
-if ($canReviewAdmin && RecordsReviewsRepository::tableExists()) {
+if ($canReviewMutate && RecordsReviewsRepository::tableExists()) {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('audio_reports.edit')) {
         $reviewAction = (string)($_POST['review_action'] ?? '');
         if ($reviewAction === 'mark_all') {
@@ -89,8 +95,10 @@ $badgeFilter = max(0, (int)($_GET['badge'] ?? 0));
 $positionFilter = max(0, (int)($_GET['position'] ?? 0));
 
 // Non-super: peers of the same audio position only (SHOW_ADMINISTRATOR_DATA ignored).
+// Demo stands: open calendar for the guest viewer (not on a cabin position).
 $scopePositions = null;
-if (!Auth::capability('SUPERADMIN_ACCESS')) {
+$demoOpen = class_exists('DemoMode', false) && DemoMode::readonly();
+if (!Auth::capability('SUPERADMIN_ACCESS') && !$demoOpen) {
     $scopePositions = SummariesRepository::equivalentAudioPositionIds(Auth::statusId());
     if ($scopePositions === []) {
         $own = Auth::statusId();
@@ -824,6 +832,7 @@ View::render('calendar', [
     'shiftFlash' => !empty($_GET['shift_ok']) ? t('workweeks.msg.saved') : '',
     'reparseFlash' => $reparseFlash,
     'canReviewAdmin' => $canReviewAdmin,
+    'canReviewMutate' => $canReviewMutate,
     'pendingReviewTotal' => $pendingReviewTotal,
     'reviewFlash' => $reviewFlash,
     'reviewOrphansFlash' => $reviewOrphansFlash,

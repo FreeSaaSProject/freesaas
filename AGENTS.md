@@ -164,6 +164,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | id | Role |
 |----|------|
 | `core` | Auth, home, users, statuses, news/tickets, settings, modules UI, migrate |
+| `demo` | Public demo seed/provision (`php bin/freesaas.php demo …`); enable only with `app.demo_readonly=1` — thin guards stay in `app/DemoMode.php` |
 | `comments` | Comment thread on news items; no own menu routes |
 | `contracts` | Offers/contracts; depends on `core` + `comments` |
 | `clients` | Client CRM (`base_clients`) + client statuses; login identity = phone |

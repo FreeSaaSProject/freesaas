@@ -42,7 +42,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && Auth::can('audio.edit')) {
 
 $storage = FileStorage::fromSettings();
 $rel = RecordsRepository::playbackRelativePath($row);
-$playUrl = $rel !== '' ? $storage->getPlaybackUrl($rel) : '';
+$playUrl = '';
+if (!(class_exists('DemoMode', false) && DemoMode::readonly()) && $rel !== '') {
+    $playUrl = $storage->getPlaybackUrl($rel);
+}
 
 $instances = RecordsRepository::instancesForRecords([$id]);
 $trash = RecordsRepository::trashPhrases();

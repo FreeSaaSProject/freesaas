@@ -129,7 +129,7 @@ return [
     'audio.filter.review_pending' => 'Треб. осмотра',
     'audio.filter.review_marked' => 'Помеченные',
     'audio.filter.review_favorites' => 'Избранные',
-    'audio.review.pending_short' => 'осм.',
+    'audio.review.pending_short' => 'тр.осм.',
     'audio.review.pending_badge' => 'Требует осмотра',
     'audio.review.favorite_badge' => 'В избранном',
     'audio.notice.review_short' => 'Осмотр:{n}',

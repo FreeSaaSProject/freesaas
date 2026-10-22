@@ -84,6 +84,9 @@ try {
         case 'user':
             freesaas_cmd_user($sub, $args, $opts);
             break;
+        case 'demo':
+            freesaas_cmd_demo($sub, $args, $opts);
+            break;
         case 'bot':
             freesaas_cmd_bot($sub, $args, $opts);
             break;
@@ -124,11 +127,63 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   user login-link <login> [--ttl=15] [--format=json]
   user logout-all <login> [--format=json]
   user hash-audit [--format=json]
+  demo provision [--login=demo] [--password=demodemo] [--name=…] [--format=json]
+  demo seed [--locale=ru|en] [--reset] [--format=json]
   bot unlink <login|client:<id>> [--platform=telegram|max] [--format=json]
   bot link-code <login|client:<id>> [--ttl=600] [--format=json]
   bot subscribe --audience=staff|client --platform=telegram|max [--url=https://…] [--format=json]
   assistant eval [--live=0|1] [--format=json]
 TXT;
+}
+
+/**
+ * Demo stand ops (module `demo` + app.demo_readonly=1).
+ *
+ * @param array<int,string> $args
+ * @param array<string, string|bool> $opts
+ */
+function freesaas_cmd_demo(string $sub, array $args, array $opts): void
+{
+    if ($sub !== 'seed' && $sub !== 'provision') {
+        Cli::usage(
+            "Usage:\n  demo provision [--login=demo] [--password=demodemo] [--name=Demo] [--format=json]\n"
+            . '  demo seed [--locale=ru|en] [--reset] [--format=json]'
+        );
+    }
+    if (!class_exists('DemoMode', false) || !DemoMode::readonly()) {
+        Cli::fail(
+            'demo ' . $sub . ' refused: set app.demo_readonly=1 in cfg/config.ini first (see docs/agents/demo.md)',
+            Cli::EXIT_FAIL
+        );
+    }
+    if (!ModuleManager::isEnabled('demo')) {
+        Cli::fail(
+            'demo ' . $sub . ' refused: enable module demo=1 in cfg/config.ini (modules/demo)',
+            Cli::EXIT_FAIL
+        );
+    }
+    try {
+        if ($sub === 'seed') {
+            if (!class_exists('DemoSeed', false)) {
+                require_once base_path('modules/demo/lib/DemoSeed.php');
+            }
+            freesaas_emit_ops(DemoSeed::run([
+                'locale' => isset($opts['locale']) ? (string)$opts['locale'] : I18n::locale(),
+                'reset' => !empty($opts['reset']),
+            ]));
+            return;
+        }
+        if (!class_exists('DemoProvision', false)) {
+            require_once base_path('modules/demo/lib/DemoProvision.php');
+        }
+        freesaas_emit_ops(DemoProvision::run([
+            'login' => (string)($opts['login'] ?? 'demo'),
+            'password' => (string)($opts['password'] ?? 'demodemo'),
+            'name' => isset($opts['name']) ? (string)$opts['name'] : '',
+        ]));
+    } catch (Throwable $e) {
+        Cli::fail($e->getMessage(), Cli::EXIT_FAIL);
+    }
 }
 
 /**
