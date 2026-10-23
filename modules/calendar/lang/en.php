@@ -177,5 +177,10 @@ return [
     'calendar.assistant.preview.will' => 'Will be: {v}',
     'calendar.assistant.preview.create' => 'Create: {v}',
     'calendar.assistant.preview.delete' => 'Delete this event',
+    'calendar.events_list.err.staff' => 'staff (staff user id) is required',
+    'calendar.relation.absence_events' => 'Client events of an absent staff member: for each related.items CALL workweeks.day(date), pick someone on shift who performs the event services (rates.skill.diagnose with date = event day, can_perform=true) and reassign via calendar.events.update {id, id_operator}. If the server refuses (cannot perform the service) or nobody fits — leave the event and list it in the reply. Remove blocks (is_block=1) with calendar.events.delete. Never delete or cancel client events.',
+    'calendar.relation.absence_events.notice' => 'Calendar events of this staff member: {n} — need reassignment.',
+    'calendar.relation.shift_reassigned_events' => 'Shift handed to another staff member: move the previous person’s events that day (related.items) to the new one — calendar.events.update {id, id_operator = the shift’s new id_operator}. If the server refuses — list the event in the reply. Remove the previous person’s blocks with calendar.events.delete.',
+    'calendar.relation.shift_reassigned_events.notice' => 'Events of the previous staff member that day: {n} — move to the new one.',
     'calendar.assistant.hint_block' => '«Block» / «put a block» = a calendar event with is_block (calendar.events.create), not a workweeks shift swap. CALL calendar.day for the date first (and workweeks.day if you need who is on shift). Resolve people in events[] via operator_name / operator_acronym (МСА, ДВМ). To delete: find events[].id with is_block=1 and matching operator/time → calendar.events.delete. Do not ask the user for id when calendar.day already returned it.',
 ];

@@ -52,6 +52,11 @@ $groupChats[] = ['chat_id' => '', 'title' => '', 'description' => ''];
       <?= te('assistant_groups.settings.auto_add_groups') ?>
     </label>
     <p class="muted"><?= te('assistant_groups.settings.auto_add_groups_hint') ?></p>
+    <label class="check">
+      <input type="checkbox" name="group_read_unrestricted" value="1"<?= !empty($settings['group_read_unrestricted']) ? ' checked' : '' ?>>
+      <?= te('assistant_groups.settings.read_unrestricted') ?>
+    </label>
+    <p class="muted"><?= te('assistant_groups.settings.read_unrestricted_hint') ?></p>
   </fieldset>
 
   <fieldset class="form-fieldset">

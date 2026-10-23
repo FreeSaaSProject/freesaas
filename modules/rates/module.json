@@ -2,7 +2,7 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -81,7 +81,7 @@
                 "method": "GET",
                 "path": "/rates/skill",
                 "permission": "rates.edit",
-                "description": "Why staff cannot perform a type/good: blockers[], percent, bans (booking/online/proc). Query: operator_id, type_id|good_id"
+                "description": "Can staff perform a type/good: can_perform / can_perform_online + blockers[], percent, bans (booking/online/proc). Query: operator_id, type_id|good_id, date=YYYY-MM-DD (rates as of that day; default today — pass the event day). Use before reassigning a client event to another staff member"
             },
             {
                 "id": "rates.skill.grant",

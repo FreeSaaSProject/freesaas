@@ -906,6 +906,16 @@ final class AgentOps
             $warnings[] = 'agent_token_unconfigured';
             $hints[] = 'Optional: set app.agent_token for HTTP /agent/* (CLI does not need it).';
         }
+        $cronOk = AgentAuth::isCronTokenConfigured();
+        $sections['cron_token'] = [
+            'ok' => true,
+            'configured' => $cronOk,
+            'status' => $cronOk ? 'ok' : 'skipped',
+            'error_code' => $cronOk ? null : 'cron_token_unconfigured',
+        ];
+        if (!$cronOk && !self::isVirginInstall()) {
+            $hints[] = 'Optional: set app.cron_token (scoped to /cron/tick) so host cron does not need agent_token.';
+        }
 
         $migrate = ['ok' => true, 'pending_total' => 0, 'skipped' => false];
         if (($system['database'] ?? '') === 'ok') {
@@ -1699,6 +1709,19 @@ final class AgentOps
             $steps[] = ['step' => 'system_row', 'status' => 'skip', 'message' => $e->getMessage()];
         }
 
+        // Scoped host-cron secret (only /cron/tick + /cron/status); shown once.
+        $cronTokenNew = null;
+        if (!AgentAuth::isCronTokenConfigured()) {
+            try {
+                $cronTokenNew = AgentAuth::generateToken();
+                Config::set('app', 'cron_token', $cronTokenNew);
+                $steps[] = ['step' => 'cron_token', 'status' => 'ok', 'message' => 'app.cron_token generated'];
+            } catch (Throwable $e) {
+                $cronTokenNew = null;
+                $steps[] = ['step' => 'cron_token', 'status' => 'skip', 'message' => $e->getMessage()];
+            }
+        }
+
         if (SetupKey::exists()) {
             SetupKey::clear();
             $steps[] = ['step' => 'setup_key', 'status' => 'cleared'];
@@ -1721,6 +1744,11 @@ final class AgentOps
             ],
             'steps' => $steps,
             'migrations' => $migrateReport,
+            'cron_token' => $cronTokenNew,
+            'cron_tick_example' => $cronTokenNew !== null
+                ? '*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: ' . $cronTokenNew
+                    . '" "https://YOUR_HOST/cron/tick" >/dev/null'
+                : null,
             'http' => 200,
             'message' => $createdUser
                 ? 'Bootstrap complete — sign in at /login with the provided credentials'

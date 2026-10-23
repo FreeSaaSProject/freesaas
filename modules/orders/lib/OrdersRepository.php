@@ -461,6 +461,59 @@ final class OrdersRepository
     }
 
     /**
+     * Agent JSON update = patch: only posted fields change (update() keeps the rest from $prev).
+     * `staff` is accepted as an alias of id_cosmetolog.
+     *
+     * @param array<string,mixed> $post
+     * @param array<string,mixed> $prev
+     * @return array<string,mixed>
+     */
+    public static function patchDataFromPost(array $post, array $prev): array
+    {
+        if (!array_key_exists('id_cosmetolog', $post) && array_key_exists('staff', $post)) {
+            $post['id_cosmetolog'] = $post['staff'];
+        }
+        $data = [];
+        if (array_key_exists('status', $post) && (string)$post['status'] !== '') {
+            $data['status'] = (string)$post['status'];
+        }
+        foreach (['id_cosmetolog', 'id_user', 'id_promocode'] as $k) {
+            if (array_key_exists($k, $post) && (string)$post[$k] !== '') {
+                $data[$k] = max(0, (int)$post[$k]);
+            }
+        }
+        foreach (['phone', 'comment', 'text_promocode'] as $k) {
+            if (array_key_exists($k, $post)) {
+                $data[$k] = (string)$post[$k];
+            }
+        }
+        foreach (['summ', 'summ_real'] as $k) {
+            if (array_key_exists($k, $post) && (string)$post[$k] !== '') {
+                $data[$k] = (float)str_replace(',', '.', (string)$post[$k]);
+            }
+        }
+        // update() does not fall back for these two.
+        $data['mail'] = array_key_exists('mail', $post) ? trim((string)$post['mail']) : (string)($prev['mail'] ?? '');
+        $data['free_ticket'] = array_key_exists('free_ticket', $post)
+            ? (!empty($post['free_ticket']) ? 1 : 0)
+            : (int)($prev['free_ticket'] ?? 0);
+        if (isset($post['dt_event']) || isset($post['dt_event_date'])) {
+            $dt = self::parseDtEvent(
+                (string)($post['dt_event'] ?? ''),
+                (string)($post['dt_event_date'] ?? ''),
+                (string)($post['dt_event_time'] ?? '')
+            );
+            if ($dt > 0) {
+                $data['dt_event'] = $dt;
+            }
+        }
+        if (isset($post['cart_id']) || isset($post['cart_add_id'])) {
+            $data['cart_lines'] = self::cartLinesFromPost($post);
+        }
+        return $data;
+    }
+
+    /**
      * @param array<string,mixed> $post
      * @return list<array{id:int,name:string,price:float,price_original:float}>
      */
@@ -1028,6 +1081,25 @@ final class OrdersRepository
         if ($idUser > 0) {
             $parts[] = 'o.ID_USER = ?';
             $params[] = $idUser;
+        }
+
+        $staff = (int)($opts['staff'] ?? 0);
+        if ($staff > 0) {
+            $parts[] = 'o.ID_COSMETOLOG = ?';
+            $params[] = $staff;
+        }
+        $from = (int)($opts['dt_from'] ?? 0);
+        if ($from > 0) {
+            $parts[] = 'o.DT_EVENT_NEW >= ?';
+            $params[] = $from;
+        }
+        $to = (int)($opts['dt_to'] ?? 0);
+        if ($to > 0) {
+            $parts[] = 'o.DT_EVENT_NEW < ?';
+            $params[] = $to;
+        }
+        if (!empty($opts['active'])) {
+            $parts[] = 'o.STATUS NOT IN (\'userCancelPay\', \'complete\', \'deletedByAdmin\')';
         }
 
         $promo = (int)($opts['id_promocode'] ?? 0);

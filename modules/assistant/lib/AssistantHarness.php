@@ -100,6 +100,22 @@ final class AssistantHarness
         $groupChatId = trim((string)($opts['group_chat_id'] ?? ''));
         $groupPlatform = trim((string)($opts['group_platform'] ?? 'max'));
         $useProvidedOps = isset($opts['ops']) && is_array($opts['ops']);
+        $readUnrestricted = !empty($opts['read_unrestricted']);
+        $invokeRead = static function (string $readOpId, array $readArgs) use ($useProvidedOps, &$ops, $readUnrestricted): array {
+            $call = static function () use ($useProvidedOps, &$ops, $readOpId, $readArgs): array {
+                return $useProvidedOps
+                    ? AssistantTools::invokeFromOps($readOpId, $readArgs, $ops)
+                    : AssistantTools::invoke($readOpId, $readArgs);
+            };
+            return $readUnrestricted ? AgentHttp::withUnrestrictedRead($call) : $call();
+        };
+        // Every write queued in this turn is one step of the same plan (single Confirm).
+        $planId = bin2hex(random_bytes(8));
+        $planStep = 0;
+        $followupRounds = 0;
+        $followupActive = false;
+        $followupReadRounds = 0;
+        $relatedSeen = [];
 
         $norm = [];
         $norm[] = ['role' => 'system', 'content' => $system];
@@ -222,6 +238,8 @@ final class AssistantHarness
                 'tool_calls' => $toolCalls,
             ];
             $norm[] = $assistantMsg;
+            $needsFollowup = false;
+            $pendingAtRoundStart = count($pending);
 
             foreach ($toolCalls as $tc) {
                 if (!is_array($tc)) {
@@ -398,12 +416,23 @@ final class AssistantHarness
                         continue;
                     }
                     $preview = self::writePreview($opId, $args, $desc);
+                    $catalogIds = [];
+                    foreach ($ops as $o) {
+                        $catalogIds[(string)($o['id'] ?? '')] = true;
+                    }
+                    $related = AssistantRelations::inspect($opId, $args, $invokeRead, $catalogIds, $relatedSeen);
+                    foreach (AssistantRelations::previewLines($related) as $line) {
+                        $preview['lines'][] = $line;
+                        $preview['summary'] .= "\n" . $line;
+                    }
                     $reqPerm = (string)($op['permission'] ?? '');
                     $row = PendingActionsRepository::create($userId, $opId, $args, $preview['summary'], [
                         'confirm_mode' => $confirmMode,
                         'required_permission' => $reqPerm,
                         'group_chat_id' => $groupChatId,
                         'group_platform' => $groupPlatform,
+                        'plan_id' => $planId,
+                        'plan_step' => $planStep + 1,
                     ]);
                     if ($row === null) {
                         $payload = ['ok' => false, 'error' => 'Could not create pending confirmation'];
@@ -428,18 +457,32 @@ final class AssistantHarness
                             $preview,
                             (int)$row['expires_at']
                         );
+                        $planStep++;
                         $pendingItem['required_permission'] = $reqPerm;
                         $pendingItem['confirm_mode'] = $confirmMode;
+                        $pendingItem['plan_id'] = (string)($row['plan_id'] ?? '');
+                        $pendingItem['plan_step'] = $planStep;
                         $pending[] = $pendingItem;
                         $payload = [
                             'ok' => true,
                             'pending' => true,
                             'token' => $row['token'],
-                            'message' => 'Write queued. UI shows Confirm/Cancel buttons. Reply with ONE short sentence; do not invent Confirm text; do not claim it ran.',
+                            'plan_step' => $planStep,
+                            'message' => 'Write queued as plan step ' . $planStep
+                                . '. UI shows one Confirm/Cancel for the whole plan. Reply with ONE short sentence; do not invent Confirm text; do not claim it ran.',
                             'summary' => $preview['summary'],
                             'headline' => $preview['headline'],
                             'lines' => $preview['lines'],
                         ];
+                        if ($related !== []) {
+                            $payload['related'] = $related;
+                            if (AssistantRelations::needsFollowup($related)) {
+                                $needsFollowup = true;
+                                $payload['message'] = 'Write queued as plan step ' . $planStep
+                                    . '. `related` lists affected rows in other modules. CALL the suggested write tools now'
+                                    . ' for each affected row (they join the same plan, one Confirm). Do not queue this step again.';
+                            }
+                        }
                         $trace[] = [
                             'op_id' => $opId,
                             'label' => self::humanOpTitle($opId),
@@ -465,9 +508,7 @@ final class AssistantHarness
                     continue;
                 }
 
-                $inv = $useProvidedOps
-                    ? AssistantTools::invokeFromOps($opId, $args, $ops)
-                    : AssistantTools::invoke($opId, $args);
+                $inv = $invokeRead($opId, $args);
                 $payload = $inv['ok']
                     ? ($inv['data'] ?? ['ok' => true])
                     : ['ok' => false, 'error' => $inv['error']];
@@ -494,6 +535,17 @@ final class AssistantHarness
                 ];
             }
 
+            // Related rows found — one more round so the model can add plan steps.
+            if ($needsFollowup && $followupRounds < 2) {
+                $followupRounds++;
+                $followupActive = true;
+                continue;
+            }
+            // While completing a plan the model may still be reading (who is on shift, event basket).
+            if ($followupActive && count($pending) === $pendingAtRoundStart && $followupReadRounds < 3) {
+                $followupReadRounds++;
+                continue;
+            }
             // Write already queued — show Confirm buttons now; skip extra LLM rounds.
             if ($pending !== []) {
                 return self::okResult(
@@ -821,17 +873,39 @@ final class AssistantHarness
             if ($ca !== $cb) {
                 return $ca <=> $cb;
             }
+            $sa = (int)($a['PLAN_STEP'] ?? 0);
+            $sb = (int)($b['PLAN_STEP'] ?? 0);
+            if ($sa !== $sb) {
+                return $sa <=> $sb;
+            }
             return ((int)($a['ID'] ?? 0)) <=> ((int)($b['ID'] ?? 0));
         });
+        $live = array_values(array_filter($rows, static function (array $r): bool {
+            return strtolower((string)($r['STATUS'] ?? '')) === 'pending';
+        }));
+        if ($live === [] && $rows !== []) {
+            // Only stale tokens — surface the precise reason (already done / expired).
+            $one = self::resolvePending((string)($rows[0]['TOKEN'] ?? ''), $action, $userId);
+            return array_merge($one, ['done' => 0, 'failed' => 1, 'skipped' => 0, 'results' => [$one]]);
+        }
 
         $done = 0;
         $failed = 0;
+        $skipped = 0;
         $results = [];
         $lastOk = null;
         $lastError = '';
-        foreach ($rows as $row) {
+        $forbidden = null;
+        $stop = false;
+        foreach ($live as $row) {
             $token = (string)($row['TOKEN'] ?? '');
             if ($token === '') {
+                continue;
+            }
+            if ($stop) {
+                // A previous step failed — later steps may depend on it; do not run them.
+                PendingActionsRepository::mark($token, 'cancelled', ['skipped' => true]);
+                $skipped++;
                 continue;
             }
             $one = self::resolvePending($token, $action, $userId);
@@ -842,6 +916,12 @@ final class AssistantHarness
             } else {
                 $failed++;
                 $lastError = (string)($one['error'] ?? '');
+                if (!empty($one['forbidden_capability']) && $forbidden === null) {
+                    $forbidden = (string)($one['required_permission'] ?? '');
+                }
+                if ($action === 'confirm' && empty($one['forbidden_capability'])) {
+                    $stop = true;
+                }
             }
         }
 
@@ -853,19 +933,124 @@ final class AssistantHarness
                 'error' => t('assistant.confirm.not_found'),
                 'done' => 0,
                 'failed' => 0,
+                'skipped' => $skipped,
                 'results' => $results,
             ];
         }
 
-        return [
+        $out = [
             'ok' => $done > 0,
             'action' => $action,
             'result' => $lastOk,
             'error' => $done > 0 ? '' : $lastError,
+            'last_error' => $lastError,
             'done' => $done,
             'failed' => $failed,
+            'skipped' => $skipped,
             'results' => $results,
         ];
+        if ($done < 1 && $forbidden !== null) {
+            $out['required_permission'] = $forbidden;
+            $out['forbidden_capability'] = true;
+        }
+        return $out;
+    }
+
+    /**
+     * Confirm/cancel the whole plan the token belongs to (falls back to a single pending).
+     * Capability mode: the confirmer must hold every step's permission before anything runs.
+     *
+     * @return array<string,mixed>
+     */
+    public static function resolvePlan(string $token, string $action, int $userId): array
+    {
+        $row = PendingActionsRepository::findByToken($token);
+        $planId = $row !== null ? trim((string)($row['PLAN_ID'] ?? '')) : '';
+        if ($row === null || $planId === '') {
+            return self::resolvePending($token, $action, $userId);
+        }
+        $live = array_values(array_filter(
+            PendingActionsRepository::listByPlan($planId),
+            static function (array $r): bool {
+                return strtolower((string)($r['STATUS'] ?? '')) === 'pending';
+            }
+        ));
+        if (count($live) < 2) {
+            $one = $live !== [] ? (string)($live[0]['TOKEN'] ?? $token) : $token;
+            return self::resolvePending($one, $action, $userId);
+        }
+        if (strtolower(trim($action)) === 'confirm') {
+            $missing = [];
+            foreach ($live as $r) {
+                if (strtolower((string)($r['CONFIRM_MODE'] ?? 'self')) !== 'capability') {
+                    continue;
+                }
+                $perm = self::permissionForPendingRow($r);
+                if ($perm !== '' && !Auth::can($perm)) {
+                    $missing[$perm] = true;
+                }
+            }
+            if ($missing !== []) {
+                $perms = implode(', ', array_keys($missing));
+                return [
+                    'ok' => false,
+                    'action' => 'confirm',
+                    'result' => null,
+                    'error' => t('assistant_groups.bot.no_permission', ['perm' => $perms]),
+                    'required_permission' => $perms,
+                    'forbidden_capability' => true,
+                    'done' => 0,
+                    'failed' => 0,
+                    'skipped' => 0,
+                    'results' => [],
+                ];
+            }
+        }
+        $tokens = [];
+        foreach ($live as $r) {
+            $tokens[] = (string)($r['TOKEN'] ?? '');
+        }
+        $batch = self::resolvePendingBatch($tokens, $action, $userId);
+        $batch['plan_id'] = $planId;
+        $batch['plan_steps'] = count($live);
+        return $batch;
+    }
+
+    /**
+     * Distinct permissions needed to confirm a set of pending payloads (plan preview).
+     *
+     * @param list<array<string,mixed>> $pending pending_actions from run()
+     * @return list<string>
+     */
+    public static function planPermissions(array $pending): array
+    {
+        $perms = [];
+        foreach ($pending as $p) {
+            if (!is_array($p)) {
+                continue;
+            }
+            $perm = trim((string)($p['required_permission'] ?? ''));
+            if ($perm !== '') {
+                $perms[$perm] = true;
+            }
+        }
+        return array_keys($perms);
+    }
+
+    /** @param array<string,mixed> $row */
+    private static function permissionForPendingRow(array $row): string
+    {
+        $perm = trim((string)($row['REQUIRED_PERMISSION'] ?? ''));
+        if ($perm !== '') {
+            return $perm;
+        }
+        $opId = (string)($row['OP_ID'] ?? '');
+        foreach (AgentHttp::allOps() as $op) {
+            if ((string)($op['id'] ?? '') === $opId) {
+                return (string)($op['permission'] ?? '');
+            }
+        }
+        return '';
     }
 
     /** Human reply after single or batch confirm. */
@@ -888,10 +1073,14 @@ final class AssistantHarness
         }
         if ($failed > 0) {
             $text .= "\n" . t('assistant.confirm.failed_n', ['n' => (string)$failed]);
-            $err = trim((string)($batch['error'] ?? ''));
+            $err = trim((string)($batch['last_error'] ?? $batch['error'] ?? ''));
             if ($err !== '') {
                 $text .= ': ' . $err;
             }
+        }
+        $skipped = (int)($batch['skipped'] ?? 0);
+        if ($skipped > 0) {
+            $text .= "\n" . t('assistant.confirm.skipped_n', ['n' => (string)$skipped]);
         }
         return $text;
     }
@@ -1729,7 +1918,9 @@ final class AssistantHarness
         $yesterday = date('Y-m-d', strtotime('-1 day') ?: time());
         $tomorrow = date('Y-m-d', strtotime('+1 day') ?: time());
         $system .= "\nToday is {$today}. Yesterday is {$yesterday}. Tomorrow is {$tomorrow}.";
-        $system .= "\nCall several read tools in one step when useful. After a write is queued for confirmation, stop — do not keep searching.";
+        $system .= "\nCall several read tools in one step when useful."
+            . "\nMulti-step tasks: first read everything you need, then queue EVERY write the task requires in the same turn — each becomes a numbered step of one plan under a single Confirm."
+            . " If a queued write returns `related`, add the suggested steps for the affected rows. Once the plan is complete, stop — do not keep searching.";
         $system .= "\n" . t('assistant.system_prompt.totals');
         $system .= self::scopedHintsForOps($ops, $groupMode);
         if (class_exists('AssistantLinks', false)) {
@@ -1778,6 +1969,9 @@ final class AssistantHarness
             if ($s !== '') {
                 $lines[] = $s;
             }
+        }
+        foreach (AssistantRelations::promptHints($ids) as $line) {
+            $lines[] = $line;
         }
         if ($lines === []) {
             return '';

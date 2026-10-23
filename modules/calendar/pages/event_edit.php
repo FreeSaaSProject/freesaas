@@ -141,6 +141,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (!$canModify) {
                 throw new RuntimeException(t('calendar.event.err.no_modify'));
             }
+            if (!$isNew && $wantsJson) {
+                $_POST = EventsRepository::patchPost($_POST, $row);
+            }
             $data = EventsRepository::dataFromPost($_POST);
             $saved = EventBus::emit('calendar.event.save', [
                 'post' => $_POST,

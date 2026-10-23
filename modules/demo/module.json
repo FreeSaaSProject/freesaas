@@ -2,7 +2,7 @@
     "id": "demo",
     "name": "demo.module.name",
     "description": "demo.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -22,13 +22,20 @@
         "audio_dicts": ">=0.1.0",
         "bi": ">=0.1.0",
         "bonuses": ">=0.1.0",
+        "cabinets": ">=0.1.0",
+        "calendar": ">=0.1.0",
+        "catalog": ">=0.1.0",
+        "clients": ">=0.1.0",
         "docs": ">=0.1.0",
         "funds": ">=0.1.0",
         "ledger": ">=0.1.0",
         "orders": ">=0.1.0",
+        "procedures": ">=0.1.0",
         "procents": ">=0.1.0",
         "rates": ">=0.1.0",
-        "stocks": ">=0.1.0"
+        "stocks": ">=0.1.0",
+        "units": ">=0.1.0",
+        "workweeks": ">=0.1.0"
     },
     "provides": [
         "demo.seed"
@@ -49,10 +56,14 @@
         "docs": "docs/agents/demo.md",
         "ops": []
     },
-    "jobs": [],
+    "jobs": [
+        "platform Cron::register demo.update|demo.reseed|demo.version_check → /cron/tick (only when app.demo_readonly=1; schedule in cfg/modules/demo.ini)"
+    ],
     "menu": [],
     "configSchema": [],
-    "tables": [],
+    "tables": [
+        "base_demo_stand"
+    ],
     "migrators": [],
     "hooks": {
         "subscribe": [

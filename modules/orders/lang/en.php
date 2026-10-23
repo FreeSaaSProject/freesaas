@@ -147,4 +147,8 @@ return [
     'orders.module.summary' => 'Enable for site order list and day feed into calendar. Requires clients. Soft catalog/procedures/bots (Max-group notify). Required by calendar. Use when the public site posts orders into FreeSaaS.',
     'orders.perm.delete' => 'Delete orders',
     'orders.err.delete_has_event' => 'Order is linked to a calendar event — unlink first',
+    'orders.relation.absence_orders' => 'Website orders of an absent master: for each related.items CALL workweeks.day(dt_event_date), pick a master on shift and reassign via orders.update {id, id_cosmetolog}. If nobody fits or the server refuses — leave the order and list it in the reply. Never cancel orders.',
+    'orders.relation.absence_orders.notice' => 'Website orders for this master: {n} — need reassignment.',
+    'orders.relation.shift_reassigned_orders' => 'Shift handed to another staff member: move the previous master’s orders that day (related.items) to the new one — orders.update {id, id_cosmetolog = the shift’s new id_operator}. If the server refuses — list the order in the reply.',
+    'orders.relation.shift_reassigned_orders.notice' => 'Orders of the previous master that day: {n} — move to the new one.',
 ];

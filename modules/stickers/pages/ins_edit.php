@@ -38,6 +38,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 ]);
                 return;
             }
+            if ($preAct > 0) {
+                redirect('/stickers/receipts/' . (int)$data['id_act'] . '/edit?saved=1');
+                return;
+            }
             redirect($first > 0
                 ? '/stickers/ins/' . $first . '/edit?saved=1'
                 : '/stickers/ins?id_act=' . (int)$data['id_act']);

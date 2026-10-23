@@ -6,6 +6,44 @@ require_once __DIR__ . '/lib/VacationsBiContrib.php';
 
 EventBus::on('bi.datasets', [VacationsBiContrib::class, 'onDatasets']);
 
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $opId = (string)($payload['op_id'] ?? '');
+    if ($opId !== 'vacations.update' && $opId !== 'vacations.create') {
+        return $payload;
+    }
+    $args = is_array($payload['args'] ?? null) ? $payload['args'] : [];
+    $row = $opId === 'vacations.update' ? VacationsRepository::find((int)($args['id'] ?? 0)) : null;
+    $fmt = static function ($raw): string {
+        $raw = trim((string)$raw);
+        if ($raw === '') {
+            return '';
+        }
+        $ts = ctype_digit($raw) ? (int)$raw : strtotime($raw);
+        return $ts ? date('d.m.Y', $ts) : $raw;
+    };
+    $userId = (int)($args['user_id'] ?? ($row['user_id'] ?? 0));
+    $lines = is_array($payload['lines'] ?? null) ? $payload['lines'] : [];
+    if ($userId > 0) {
+        $lines[] = t('vacations.assistant.preview.user', ['v' => UsersRepository::nameById($userId)]);
+    }
+    $newStart = $fmt($args['dt_start'] ?? ($row['dt_start'] ?? ''));
+    $newEnd = $fmt($args['dt_end'] ?? ($row['dt_end'] ?? ''));
+    if ($row !== null) {
+        $lines[] = t('vacations.assistant.preview.was', [
+            'v' => $fmt($row['dt_start']) . ' – ' . $fmt($row['dt_end']),
+        ]);
+    }
+    if ($newStart !== '' || $newEnd !== '') {
+        $lines[] = t('vacations.assistant.preview.will', ['v' => $newStart . ' – ' . $newEnd]);
+    }
+    $payload['lines'] = $lines;
+    $payload['handled'] = true;
+    return $payload;
+});
+
 $pages = [
     '/vacations' => ['permission' => 'vacations.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/vacations/new' => ['permission' => 'vacations.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],

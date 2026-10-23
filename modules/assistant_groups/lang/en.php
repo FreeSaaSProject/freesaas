@@ -18,6 +18,8 @@ return [
     'assistant_groups.settings.require_mention' => 'Only when the bot is mentioned (@username)',
     'assistant_groups.settings.auto_add_groups' => 'Auto-add new groups to the allowlist',
     'assistant_groups.settings.auto_add_groups_hint' => 'On bot_added (and first message) the chat_id is appended without manual confirm. Otherwise use the «Discovered» block below.',
+    'assistant_groups.settings.read_unrestricted' => 'Group reads ignore the author’s role scope',
+    'assistant_groups.settings.read_unrestricted_hint' => 'Drafts can see data hidden by the author’s role (e.g. other staff vacations). Read-only: changes still need a manager with the permission to confirm.',
     'assistant_groups.settings.sec.chats' => 'Chats',
     'assistant_groups.settings.chats_intro' => 'Max does not list a bot’s groups. An id appears only when the bot is added (bot_added) or when someone posts while webhook/poll is live.',
     'assistant_groups.settings.chats_meta_hint' => 'Title and description help the bot know which group it is in and why it exists — also shown when picking a recipient.',
@@ -86,6 +88,7 @@ return [
     'assistant_groups.bot.system_extra' => "You are in a staff group. This chat’s history is one conversation: keep names, date, and intent.\nFollow-ups without a new @ continue the same task.\nWrite tools only queue a manager confirm; never claim it is already applied.\nOutside tools — private chat only.\n«What can you do» — only tools in this request; do not list modules that are not in the tool list.\nClear/reset context requests → CALL assistant_groups.dialog.clear (do not refuse or ask to create a new chat).",
     'assistant_groups.bot.system_chat_context' => 'Current chat: {title} (id {chat_id}). Group description: {description}. Use this group’s purpose when answering and choosing actions.',
     'assistant_groups.bot.system_chat_id' => 'Current Max chat id {chat_id} (no title/description in settings).',
+    'assistant_groups.bot.plan_header' => 'Plan ({n} steps), one Confirm runs all:',
     'assistant_groups.bot.user_prefix' => '{name}: ',
     'assistant_groups.bot.reply_prefix' => '[reply to the previous assistant message] ',
 ];

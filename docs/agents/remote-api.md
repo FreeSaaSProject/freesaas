@@ -150,15 +150,15 @@ JSON shape matches CLI `--format=json` (via shared `AgentOps`). HTTP status: 200
 
 Module repair paths are still Surface A (same token) — not a fourth auth layer. See [agent-surfaces.md](agent-surfaces.md).
 
-## Background cron (same agent token, not under `/agent/*`)
+## Background cron (scoped cron token, not under `/agent/*`)
 
-Platform job registry uses the **same** `X-FreeSaaS-Agent-Token`, but lives on product routes (like habits reminders). See [cron.md](cron.md).
+Platform job registry uses the same header `X-FreeSaaS-Agent-Token`, but expects **`app.cron_token`** (accepted only on `/cron/*`; `agent_token` still works there as legacy fallback). See [cron.md](cron.md).
 
 ```bash
-curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+curl -sS -H "X-FreeSaaS-Agent-Token: $CRON_TOKEN" \
   "https://example.com/cron/status"
 
-curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $TOKEN" \
+curl -sS -X POST -H "X-FreeSaaS-Agent-Token: $CRON_TOKEN" \
   "https://example.com/cron/tick"
 # optional: ?job=habits.reminders&force=1
 ```
@@ -174,7 +174,7 @@ CLI twin: `php bin/freesaas.php cron tick` — there is no `/agent/cron/*` alias
 | Code deploy | `update apply` or FTP/git/CI | `POST /agent/update/apply` or FTP/git/CI |
 | First admin | `freesaas.php bootstrap` | `POST /agent/bootstrap` |
 | Public `/health` | — | Minimal probe **without** token |
-| Cron tick / status | `cron tick` | `POST /cron/tick`, `GET /cron/status` (agent token) |
+| Cron tick / status | `cron tick` | `POST /cron/tick`, `GET /cron/status` (cron token) |
 
 Self-update (HTTPS zip + token): see [update.md](update.md). Or upload files manually, then enable/migrate/validate/health via Agent API or CLI.
 

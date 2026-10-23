@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-22T15:51:33+00:00",
+    "generated_at": "2026-10-23T12:42:59+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.68",
+            "version": "0.1.71",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -73,7 +73,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "0.1.14",
+            "version": "0.1.16",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -422,7 +422,7 @@
         },
         {
             "id": "bonuses",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
@@ -554,7 +554,7 @@
         },
         {
             "id": "calendar",
-            "version": "0.2.10",
+            "version": "0.2.12",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -832,7 +832,7 @@
         },
         {
             "id": "demo",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -843,8 +843,8 @@
                 "ru": "Сид и провижининг публичного демо (только при app.demo_readonly=1)."
             },
             "summary": {
-                "en": "Enable only on public demo hosts with app.demo_readonly=1. Provides CLI seed/provision and the read-only banner. Keep =0 in production.",
-                "ru": "Включайте только на публичных демо-хостах вместе с app.demo_readonly=1. Даёт CLI seed/provision и баннер «только просмотр». На проде держите =0."
+                "en": "Enable only on public demo hosts with app.demo_readonly=1. Provides CLI seed/provision, the read-only banner, a link to the other-language stand and self-update / reseed cron jobs (cfg/modules/demo.ini). Keep =0 in production.",
+                "ru": "Включайте только на публичных демо-хостах вместе с app.demo_readonly=1. Даёт CLI seed/provision, баннер «только просмотр», ссылку на стенд другого языка и cron-задачи самообновления и пересева (cfg/modules/demo.ini). На проде держите =0."
             },
             "requires": {
                 "core": ">=0.3.0"
@@ -854,13 +854,20 @@
                 "audio_dicts": ">=0.1.0",
                 "bi": ">=0.1.0",
                 "bonuses": ">=0.1.0",
+                "cabinets": ">=0.1.0",
+                "calendar": ">=0.1.0",
+                "catalog": ">=0.1.0",
+                "clients": ">=0.1.0",
                 "docs": ">=0.1.0",
                 "funds": ">=0.1.0",
                 "ledger": ">=0.1.0",
                 "orders": ">=0.1.0",
+                "procedures": ">=0.1.0",
                 "procents": ">=0.1.0",
                 "rates": ">=0.1.0",
-                "stocks": ">=0.1.0"
+                "stocks": ">=0.1.0",
+                "units": ">=0.1.0",
+                "workweeks": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1209,7 +1216,7 @@
         },
         {
             "id": "orders",
-            "version": "0.1.12",
+            "version": "0.1.13",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1416,7 +1423,7 @@
         },
         {
             "id": "rates",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "Specialist rates",
@@ -1771,7 +1778,7 @@
         },
         {
             "id": "vacations",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Vacations",
@@ -1897,7 +1904,7 @@
         },
         {
             "id": "workweeks",
-            "version": "0.2.29",
+            "version": "0.2.31",
             "type": "product",
             "name": {
                 "en": "Shifts",

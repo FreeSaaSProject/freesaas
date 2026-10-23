@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.123",
+    "version": "0.3.125",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -154,7 +154,7 @@
                 "permission": "",
                 "side_effect": "read",
                 "assistant": false,
-                "description": "Cron registry + recent runs + stale_hint. Auth: X-FreeSaaS-Agent-Token."
+                "description": "Cron registry + recent runs + stale_hint. Auth: X-FreeSaaS-Agent-Token = app.cron_token (or legacy agent_token)."
             },
             {
                 "id": "core.cron.tick",
@@ -163,7 +163,7 @@
                 "permission": "",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "Platform cron tick: run due Cron::register jobs. Auth: X-FreeSaaS-Agent-Token. Optional job=id, force=1. Prefer this over per-module worker curls."
+                "description": "Platform cron tick: run due Cron::register jobs. Auth: X-FreeSaaS-Agent-Token = app.cron_token (scoped; or legacy agent_token). Optional job=id, force=1. Prefer this over per-module worker curls."
             },
             {
                 "id": "core.cron.ui",

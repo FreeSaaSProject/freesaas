@@ -210,7 +210,7 @@ final class AssistantGroupsBotHandler
     ): void {
         try {
             $result = Auth::runAs($actorId, static function () use ($pendingToken, $action, $actorId) {
-                return AssistantHarness::resolvePending($pendingToken, $action, $actorId);
+                return AssistantHarness::resolvePlan($pendingToken, $action, $actorId);
             });
         } catch (Throwable $e) {
             error_log('[assistant_groups] resolve: ' . $e->getMessage());
@@ -228,9 +228,9 @@ final class AssistantGroupsBotHandler
 
         if (!empty($result['ok']) && $action === 'confirm') {
             $name = trim((string)($user['name'] ?? $user['login'] ?? ('#' . $actorId)));
-            $done = class_exists('AssistantHarness', false)
-                ? AssistantHarness::formatConfirmDone($result['result'] ?? null)
-                : 'OK';
+            $done = isset($result['done'])
+                ? AssistantHarness::formatConfirmBatchDone($result)
+                : AssistantHarness::formatConfirmDone($result['result'] ?? null);
             self::reply($apiToken, $chatId, t('assistant_groups.bot.confirmed', [
                 'name' => $name,
                 'done' => $done,
@@ -238,7 +238,9 @@ final class AssistantGroupsBotHandler
             return;
         }
         if (!empty($result['ok']) && $action === 'cancel') {
-            self::reply($apiToken, $chatId, t('assistant.confirm.cancelled'));
+            self::reply($apiToken, $chatId, isset($result['done'])
+                ? AssistantHarness::formatConfirmBatchDone($result)
+                : t('assistant.confirm.cancelled'));
             return;
         }
 
@@ -314,6 +316,7 @@ final class AssistantGroupsBotHandler
                     'group_chat_id' => $chatId,
                     'group_platform' => 'max',
                     'confirm_mode' => 'capability',
+                    'read_unrestricted' => AssistantGroupsConfig::readUnrestricted(),
                     'system_extra' => $systemExtra,
                     'tool_stubs' => $toolStubs,
                 ]);
@@ -351,23 +354,38 @@ final class AssistantGroupsBotHandler
         if ($replyText !== '') {
             $lines[] = $replyText;
         }
+        $steps = [];
+        $perms = [];
         foreach ($pending as $p) {
             if (!is_array($p)) {
                 continue;
             }
             $sum = trim((string)($p['summary'] ?? ''));
-            if ($sum !== '') {
-                $lines[] = $sum;
+            if ($sum === '') {
+                $sum = (string)($p['op_id'] ?? '');
             }
+            $steps[] = $sum;
             $perm = trim((string)($p['required_permission'] ?? ''));
             if ($perm === '') {
-                $opId = (string)($p['op_id'] ?? '');
-                $perm = self::permissionForOp($opId, $ops);
+                $perm = self::permissionForOp((string)($p['op_id'] ?? ''), $ops);
             }
-            $lines[] = t('assistant_groups.bot.need_manager', [
-                'perm' => $perm !== '' ? $perm : '…',
-            ]);
+            if ($perm !== '') {
+                $perms[$perm] = true;
+            }
         }
+        if (count($steps) > 1) {
+            $numbered = [];
+            foreach ($steps as $i => $s) {
+                $numbered[] = ($i + 1) . '. ' . $s;
+            }
+            $lines[] = t('assistant_groups.bot.plan_header', ['n' => (string)count($steps)])
+                . "\n" . implode("\n", $numbered);
+        } elseif ($steps !== []) {
+            $lines[] = $steps[0];
+        }
+        $lines[] = t('assistant_groups.bot.need_manager', [
+            'perm' => $perms !== [] ? implode(' + ', array_keys($perms)) : '…',
+        ]);
         $out = implode("\n\n", $lines);
         $firstToken = (string)($pending[0]['token'] ?? '');
         // Ensure only this confirm message keeps buttons.

@@ -31,6 +31,47 @@ final class AgentAuth
         return $t !== '' && $t !== 'CHANGE_ME';
     }
 
+    /** Scoped token for /cron/tick + /cron/status only (app.cron_token). */
+    public static function configuredCronToken(): string
+    {
+        return trim((string)Config::get('app', 'cron_token', ''));
+    }
+
+    public static function isCronTokenConfigured(): bool
+    {
+        $t = self::configuredCronToken();
+        return $t !== '' && $t !== 'CHANGE_ME';
+    }
+
+    /** Random secret for agent_token / cron_token (hex, 48 chars). */
+    public static function generateToken(): string
+    {
+        return bin2hex(random_bytes(24));
+    }
+
+    /**
+     * Gate for /cron/tick and /cron/status: app.cron_token, or legacy app.agent_token
+     * (host crontabs created before cron_token keep working).
+     */
+    public static function assertCronToken(): void
+    {
+        $cron = self::isCronTokenConfigured() ? self::configuredCronToken() : '';
+        $agent = self::isConfigured() ? self::configuredToken() : '';
+        if ($cron === '' && $agent === '') {
+            self::deny(503, 'cron_token not configured (set app.cron_token in cfg/config.ini)');
+        }
+        $got = self::providedToken();
+        if ($got !== '') {
+            if ($cron !== '' && hash_equals($cron, $got)) {
+                return;
+            }
+            if ($agent !== '' && hash_equals($agent, $got)) {
+                return;
+            }
+        }
+        self::deny(401, 'unauthorized');
+    }
+
     /**
      * Read token from header only (X-FreeSaaS-Agent-Token or Authorization: Bearer).
      * Query/body ?token= is intentionally ignored (leaks into logs / Referer).

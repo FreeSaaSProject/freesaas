@@ -52,6 +52,10 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` �
 
 Event payload includes `items[]` (`good_id`, `price`, `qty`, `pos`), `real_summ` (derived), `event_mode`.
 
+- `calendar.events.list` — `GET /calendar/events?staff=&date_from=&date_to=` (inclusive, max 62 days): one staff member's events over a range.
+- `calendar.events.update` over JSON is a patch: `{id, id_operator}` reassigns; omitted times/client/basket/bonus settings keep stored values; moving `dtstart` keeps the duration.
+- Assistant relations (`agent.relations`): vacation / removed or reassigned shift / disabled staff → that person's events are offered for reassignment (blocks for deletion).
+
 ## Notes
 
 - Procedures may exist with `ID_EVENT_PARENT=0` (floor / instance pack). Mode does not force linking.

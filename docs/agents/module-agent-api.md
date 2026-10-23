@@ -72,6 +72,50 @@ Platform install/ops (`/agent/db*`, token) remain separate — see [remote-api.m
 
 **Storefront diagnose example:** `sites.status` → `GET /sites/status?format=json` (hosts, soft deps, booking, `issues[]`; product overlays via EventBus `sites.diagnose`). Runbook: [sites.md](sites.md).
 
+## Update ops are patches
+
+`*.update` over JSON must keep fields the client did not send (checkboxes included) — the assistant passes only what changed. Merge the stored row under `$_POST` before validation (see `VacationsRepository::patchPost`, `workweeks.update`).
+
+## Relations (multi-step plans)
+
+Every write the assistant queues in one turn becomes a numbered step of **one plan** (`base_assistant_pending.PLAN_ID`); one Confirm runs all steps in order, stops at the first failure and cancels the rest. In capability mode (Max groups) the confirmer must hold every step’s permission before anything runs.
+
+Cross-module consequences are declared by the **dependent** module under `agent.relations[]` — no per-case code:
+
+```json
+"relations": [
+  {
+    "id": "workweeks.vacation_shifts",
+    "when": ["vacations.create", "vacations.update"],
+    "from": "vacations.get",
+    "check": "workweeks.list",
+    "args": { "user_id": "{user_id}", "date_from": "{dt_start|date}", "date_to": "{dt_end|date}", "page": "all" },
+    "suggest": ["workweeks.delete"],
+    "hint": "workweeks.relation.vacation_shifts"
+  }
+]
+```
+
+| Field | Notes |
+|-------|-------|
+| `when` | Write op ids that trigger the check when they are queued |
+| `if` | Optional conditions on write args: literal (`{"enabled": "0"}`), `"present"`, or `"changed"` (differs from the `from` row) |
+| `from` | Optional read op (called with the write args) whose `from_key` (default `item`) fills missing placeholders — e.g. `user_id` of an updated row. Old values stay reachable as `{from.field}` |
+| `check` | Read op run with rendered `args`: `{var}`, `{from.var}`, `{today}`, filter `\|date` (→ `YYYY-MM-DD`) |
+| `suggest` | Write ops the model should add as plan steps for affected rows |
+| `fields` | Optional row keys shown to the model (`id` always kept) |
+| `max_rows` | Above this (default 15) rows are only warned about — no extra plan steps |
+| `hint` | i18n key appended to the system prompt and the tool result |
+| `notice` | i18n key (`{n}` = rows) added to the plan preview so humans see the consequence |
+
+The harness (`AssistantRelations`) runs checks **before** the step is stored, adds `notice` lines (and «not checked» notes) to the step preview, attaches `related` (count, slim rows, available/unavailable suggestions) to the tool result and gives the model one more round to add steps. Rows already reported in the same turn are not repeated (vacation → shift → events chains).
+
+Disabled modules never break a plan: relations of a disabled module are not loaded; a `check` / `suggest` op outside the channel catalog becomes a note («not checked — check manually»); a placeholder without a value (e.g. `from` op not allowed in the channel) becomes a `check_skipped` note instead of a silent skip. `ModuleValidator` checks relation op ids against every module on disk (disabled is fine, typos warn). Tests: `bin/check-assistant-relations.php`.
+
+Absence family shipped: `workweeks.vacation_shifts`, `workweeks.user_disabled_shifts`, `calendar.{vacation,shift_removed,shift_reassigned,user_disabled}_events`, `orders.{vacation,shift_removed,shift_reassigned,user_disabled}_orders` — client events/orders are reassigned to someone on shift or listed for manual handling, never cancelled.
+
+Role-scoped reads may also honor `AgentHttp::readScopeUnrestricted()` (true only inside `AgentHttp::withUnrestrictedRead()` on GET) — used by group drafts when `assistant_groups.group_read_unrestricted=1`. Never apply it to writes.
+
 ## Delete ops
 
 Product delete (edit `action=delete` or BulkActions `delete`) requires:
@@ -84,4 +128,4 @@ Declare delete ops with `permission: module.delete`, `side_effect: write`, and `
 
 ## Helper
 
-[`app/AgentHttp.php`](../../app/AgentHttp.php) — `wantsJson()`, `allowsDelete()`, `emit()`, `error()`, `opsForModule()`, `normalizeOp()`.
+[`app/AgentHttp.php`](../../app/AgentHttp.php) — `wantsJson()`, `allowsDelete()`, `emit()`, `error()`, `opsForModule()`, `normalizeOp()`, `withUnrestrictedRead()` / `readScopeUnrestricted()`.

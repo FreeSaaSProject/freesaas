@@ -166,6 +166,15 @@ final class AssistantGroupsConfig
         return (int)Config::get('assistant_groups', 'webhook_subscribed', '0') === 1;
     }
 
+    /**
+     * Drafts may read beyond the author's role scope (e.g. other staff vacations).
+     * Writes still need a manager with the op permission to confirm.
+     */
+    public static function readUnrestricted(): bool
+    {
+        return (int)Config::get('assistant_groups', 'group_read_unrestricted', '0') === 1;
+    }
+
     /** Auto-append chat_id to allowlist on bot_added / first sight. */
     public static function autoAddDiscovered(): bool
     {
@@ -180,6 +189,7 @@ final class AssistantGroupsConfig
         $enabled = !empty($post['group_enabled']) ? '1' : '0';
         $mention = !empty($post['group_require_mention']) ? '1' : '0';
         $autoAdd = !empty($post['auto_add_groups']) ? '1' : '0';
+        $readAll = !empty($post['group_read_unrestricted']) ? '1' : '0';
         $parsed = self::parseChatsFromPost($post);
         $chats = implode(',', $parsed['ids']);
         if (isset($post['group_ops_catalog']) || isset($post['group_ops_id']) || isset($post['group_ops_module'])) {
@@ -190,6 +200,7 @@ final class AssistantGroupsConfig
         Config::set('assistant_groups', 'group_enabled', $enabled);
         Config::set('assistant_groups', 'group_require_mention', $mention);
         Config::set('assistant_groups', 'auto_add_groups', $autoAdd);
+        Config::set('assistant_groups', 'group_read_unrestricted', $readAll);
         Config::set('assistant_groups', 'group_chat_ids', $chats);
         Config::set('assistant_groups', 'group_chat_meta', self::encodeMeta($parsed['meta']));
         Config::set('assistant_groups', 'group_ops', $ops);

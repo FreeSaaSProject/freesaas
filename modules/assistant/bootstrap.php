@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/AssistantDialog.php';
 require_once __DIR__ . '/lib/AssistantAccess.php';
 require_once __DIR__ . '/lib/AssistantLinks.php';
 require_once __DIR__ . '/lib/AssistantTools.php';
+require_once __DIR__ . '/lib/AssistantRelations.php';
 require_once __DIR__ . '/lib/AssistantUiActions.php';
 require_once __DIR__ . '/lib/AssistantHarness.php';
 require_once __DIR__ . '/lib/AssistantEval.php';

@@ -17,9 +17,11 @@ final class PendingActionsRepository
      *   confirm_mode?:string,
      *   required_permission?:string,
      *   group_chat_id?:string,
-     *   group_platform?:string
+     *   group_platform?:string,
+     *   plan_id?:string,
+     *   plan_step?:int
      * } $meta
-     * @return array{token:string,op_id:string,summary:string,expires_at:int,confirm_mode:string,required_permission:string}|null
+     * @return array{token:string,op_id:string,summary:string,expires_at:int,confirm_mode:string,required_permission:string,plan_id:string,plan_step:int}|null
      */
     public static function create(int $userId, string $opId, array $args, string $summary, array $meta = []): ?array
     {
@@ -46,8 +48,22 @@ final class PendingActionsRepository
         $reqPerm = trim((string)($meta['required_permission'] ?? ''));
         $groupChat = trim((string)($meta['group_chat_id'] ?? ''));
         $groupPlatform = trim((string)($meta['group_platform'] ?? ''));
+        $planId = substr(trim((string)($meta['plan_id'] ?? '')), 0, 32);
+        $planStep = max(0, (int)($meta['plan_step'] ?? 0));
         $hasGroupCols = Database::columnExists('base_assistant_pending', 'CONFIRM_MODE');
-        if ($hasGroupCols) {
+        $hasPlanCols = $hasGroupCols && Database::columnExists('base_assistant_pending', 'PLAN_ID');
+        if ($hasPlanCols) {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_assistant_pending
+                 (TOKEN, ID_USER, OP_ID, ARGS_JSON, SUMMARY, STATUS, CREATED_AT, EXPIRES_AT,
+                  CONFIRM_MODE, REQUIRED_PERMISSION, GROUP_CHAT_ID, GROUP_PLATFORM, PLAN_ID, PLAN_STEP)
+                 VALUES (?, ?, ?, ?, ?, \'pending\', ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+            $st->execute([
+                $token, $userId, $opId, $argsJson, $summary, $now, $expires,
+                $confirmMode, $reqPerm, $groupChat, $groupPlatform, $planId, $planStep,
+            ]);
+        } elseif ($hasGroupCols) {
             $st = Database::pdo()->prepare(
                 'INSERT INTO base_assistant_pending
                  (TOKEN, ID_USER, OP_ID, ARGS_JSON, SUMMARY, STATUS, CREATED_AT, EXPIRES_AT,
@@ -73,7 +89,33 @@ final class PendingActionsRepository
             'expires_at' => $expires,
             'confirm_mode' => $confirmMode,
             'required_permission' => $reqPerm,
+            'plan_id' => $hasPlanCols ? $planId : '',
+            'plan_step' => $hasPlanCols ? $planStep : 0,
         ];
+    }
+
+    /**
+     * All rows of one plan in step order (any status).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function listByPlan(string $planId): array
+    {
+        $planId = trim($planId);
+        if ($planId === '' || !self::tableReady()
+            || !Database::columnExists('base_assistant_pending', 'PLAN_ID')
+        ) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT * FROM base_assistant_pending
+             WHERE PLAN_ID = ?
+             ORDER BY PLAN_STEP ASC, CREATED_AT ASC, ID ASC
+             LIMIT 50'
+        );
+        $st->execute([$planId]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+        return is_array($rows) ? $rows : [];
     }
 
     /** @return array<string,mixed>|null */

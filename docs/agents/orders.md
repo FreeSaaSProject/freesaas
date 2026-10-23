@@ -89,4 +89,7 @@ curl -sS -b jar.txt 'https://example/orders/settings?format=json'
 ## Notes
 
 - Table `base_orders` shared with site/booking.
+- `orders.list` filters for agents: `staff`, `date_from`/`date_to` (visit date, inclusive), `active=1`; items carry `dt_event_date`/`dt_event_time`.
+- `orders.update` over JSON is a patch: `{id, id_cosmetolog}` (alias `staff`) reassigns the master; cart, sums, status and mail stay as stored.
+- Assistant relations: vacation / removed or reassigned shift / disabled staff → that master's active orders are offered for reassignment.
 - Do not list as exclusive owner of foreign tables you only ALTER.

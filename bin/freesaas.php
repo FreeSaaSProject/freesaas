@@ -129,6 +129,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   user hash-audit [--format=json]
   demo provision [--login=demo] [--password=demodemo] [--name=…] [--format=json]
   demo seed [--locale=ru|en] [--reset] [--format=json]
+  demo claim [--existing] [--format=json]
+  demo status [--format=json]
   bot unlink <login|client:<id>> [--platform=telegram|max] [--format=json]
   bot link-code <login|client:<id>> [--ttl=600] [--format=json]
   bot subscribe --audience=staff|client --platform=telegram|max [--url=https://…] [--format=json]
@@ -144,10 +146,12 @@ TXT;
  */
 function freesaas_cmd_demo(string $sub, array $args, array $opts): void
 {
-    if ($sub !== 'seed' && $sub !== 'provision') {
+    if (!in_array($sub, ['seed', 'provision', 'claim', 'status'], true)) {
         Cli::usage(
             "Usage:\n  demo provision [--login=demo] [--password=demodemo] [--name=Demo] [--format=json]\n"
-            . '  demo seed [--locale=ru|en] [--reset] [--format=json]'
+            . "  demo seed [--locale=ru|en] [--reset] [--format=json]\n"
+            . "  demo claim [--existing] [--format=json]\n"
+            . '  demo status [--format=json]'
         );
     }
     if (!class_exists('DemoMode', false) || !DemoMode::readonly()) {
@@ -163,18 +167,33 @@ function freesaas_cmd_demo(string $sub, array $args, array $opts): void
         );
     }
     try {
+        if ($sub === 'claim') {
+            freesaas_emit_ops(DemoStand::claim(
+                I18n::normalize((string)Config::get('app', 'locale', 'ru')) ?? 'ru',
+                !empty($opts['existing'])
+            ));
+            return;
+        }
+        if ($sub === 'status') {
+            $schedule = DemoSchedule::load();
+            freesaas_emit_ops([
+                'ok' => true,
+                'stand_id' => DemoStand::configuredId(),
+                'marker' => DemoStand::get(),
+                'module_version' => DemoStand::moduleVersion(),
+                'domain_counts' => DemoStand::domainCounts(),
+                'preflight' => DemoSeed::preflight(),
+                'schedule' => $schedule,
+                'cron_token_configured' => AgentAuth::isCronTokenConfigured(),
+            ]);
+            return;
+        }
         if ($sub === 'seed') {
-            if (!class_exists('DemoSeed', false)) {
-                require_once base_path('modules/demo/lib/DemoSeed.php');
-            }
             freesaas_emit_ops(DemoSeed::run([
                 'locale' => isset($opts['locale']) ? (string)$opts['locale'] : I18n::locale(),
                 'reset' => !empty($opts['reset']),
             ]));
             return;
-        }
-        if (!class_exists('DemoProvision', false)) {
-            require_once base_path('modules/demo/lib/DemoProvision.php');
         }
         freesaas_emit_ops(DemoProvision::run([
             'login' => (string)($opts['login'] ?? 'demo'),

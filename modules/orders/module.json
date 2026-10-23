@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.12",
+    "version": "0.1.13",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -52,7 +52,7 @@
                 "method": "GET",
                 "path": "/orders",
                 "permission": "orders.view",
-                "description": "List website orders; filters: q, status, id_user, id_promocode, free_ticket"
+                "description": "List website orders; filters: q, status, id_user, id_promocode, free_ticket, staff (assigned master id), date_from/date_to (visit date, inclusive), active=1 (skip cancelled/complete/deleted), page=all. Items include dt_event_date/dt_event_time"
             },
             {
                 "id": "orders.get",
@@ -73,7 +73,18 @@
                 "method": "POST",
                 "path": "/orders/{id}/edit",
                 "permission": "orders.edit",
-                "description": "Update order: status, staff, dt_event, client, cart lines, sums, promo, free_ticket, comment"
+                "description": "Update order (patch): required id; send only changed fields — omitted status, cart, sums, client, date keep stored values. Reassign master = {id, id_cosmetolog} (alias staff). Other fields: status, dt_event (Y-m-d H:i), id_user, phone, mail, comment, summ, summ_real, id_promocode, text_promocode, free_ticket, cart_id[]/cart_price[]",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "integer" },
+                        "id_cosmetolog": { "type": "integer", "description": "Assigned master (staff user id)" },
+                        "status": { "type": "string" },
+                        "dt_event": { "type": "string", "description": "Y-m-d H:i" },
+                        "comment": { "type": "string" }
+                    },
+                    "required": ["id"]
+                }
             },
             {
                 "id": "orders.delete",
@@ -82,6 +93,53 @@
                 "permission": "orders.delete",
                 "side_effect": "write",
                 "description": "Delete order; POST action=delete if not linked via ID_EVENT_USE"
+            }
+        ],
+        "relations": [
+            {
+                "id": "orders.vacation_orders",
+                "when": ["vacations.create", "vacations.update"],
+                "from": "vacations.get",
+                "check": "orders.list",
+                "args": { "staff": "{user_id}", "date_from": "{dt_start|date}", "date_to": "{dt_end|date}", "active": "1", "page": "all" },
+                "suggest": ["orders.update"],
+                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "hint": "orders.relation.absence_orders",
+                "notice": "orders.relation.absence_orders.notice"
+            },
+            {
+                "id": "orders.shift_removed_orders",
+                "when": ["workweeks.delete"],
+                "from": "workweeks.get",
+                "check": "orders.list",
+                "args": { "staff": "{from.id_operator}", "date_from": "{from.date}", "date_to": "{from.date}", "active": "1", "page": "all" },
+                "suggest": ["orders.update"],
+                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "hint": "orders.relation.absence_orders",
+                "notice": "orders.relation.absence_orders.notice"
+            },
+            {
+                "id": "orders.shift_reassigned_orders",
+                "when": ["workweeks.update"],
+                "if": { "id_operator": "changed" },
+                "from": "workweeks.get",
+                "check": "orders.list",
+                "args": { "staff": "{from.id_operator}", "date_from": "{from.date}", "date_to": "{from.date}", "active": "1", "page": "all" },
+                "suggest": ["orders.update"],
+                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "hint": "orders.relation.shift_reassigned_orders",
+                "notice": "orders.relation.shift_reassigned_orders.notice"
+            },
+            {
+                "id": "orders.user_disabled_orders",
+                "when": ["core.users.update"],
+                "if": { "enabled": "0" },
+                "check": "orders.list",
+                "args": { "staff": "{id}", "date_from": "{today}", "active": "1", "page": "all" },
+                "suggest": ["orders.update"],
+                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "hint": "orders.relation.absence_orders",
+                "notice": "orders.relation.absence_orders.notice"
             }
         ]
     },

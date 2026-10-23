@@ -5,7 +5,7 @@ Hard tick only (no soft-cron on page hits). Modules register jobs in `bootstrap.
 ## Host setup
 
 ```cron
-*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: YOUR_TOKEN" "https://example.com/cron/tick" >/dev/null
+*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: YOUR_CRON_TOKEN" "https://example.com/cron/tick" >/dev/null
 ```
 
 CLI twin:
@@ -15,12 +15,16 @@ php bin/freesaas.php cron tick --format=json
 php bin/freesaas.php cron tick --job=habits.reminders --force --format=json
 ```
 
-Auth: same `app.agent_token` as `/agent/*` (not an `/agent/cron/*` alias).
+Auth: **`app.cron_token`** in `cfg/config.ini` `[app]` — a scoped secret accepted **only** by `/cron/tick` and `/cron/status` (same header `X-FreeSaaS-Agent-Token` / `Bearer`; `?token=` is ignored). `app.agent_token` is still accepted there as a legacy fallback, so old crontabs keep working.
+
+- New installs: `bootstrap` generates `cron_token` and returns it once (`cron_token`, `cron_tick_example`).
+- Existing installs: core migration `022_cron_token_from_agent` copies `agent_token` → `cron_token` once (on `update apply` / `migrate run`); if `cfg/` is not writable it only logs. Afterwards rotate either secret independently (edit `cfg/config.ini`, update the host cron line).
+- `cron_token` gets 401 on `/agent/*` — giving it to a hosting panel does not expose the agent API.
 
 | Surface | Auth | Role |
 |---------|------|------|
-| `GET /cron/status` | agent token | registry + recent runs JSON (`assistant: false`) |
-| `POST /cron/tick` | agent token | run due / forced jobs |
+| `GET /cron/status` | cron token (or agent token) | registry + recent runs JSON (`assistant: false`) |
+| `POST /cron/tick` | cron token (or agent token) | run due / forced jobs |
 | `GET/POST /cron` | session + SUPERADMIN | human UI + session JSON |
 | `php bin/freesaas.php cron tick` | CLI | twin of tick |
 

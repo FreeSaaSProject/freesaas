@@ -147,4 +147,8 @@ return [
     'orders.module.summary' => 'Включайте для заказов сайта и дневной ленты в календарь. Требует clients. Мягко catalog/procedures/bots (Max-группа). Нужен calendar. Когда сайт пишет заказы в FreeSaaS.',
     'orders.perm.delete' => 'Удаление заказов',
     'orders.err.delete_has_event' => 'Заказ привязан к событию календаря — сначала отвяжите',
+    'orders.relation.absence_orders' => 'Заказы с сайта на отсутствующего мастера: для каждого из related.items CALL workweeks.day(dt_event_date), выбери мастера на смене и переназначь orders.update {id, id_cosmetolog}. Если подходящего нет или сервер отказал — заказ не трогай и перечисли его в ответе. Заказы не отменяй.',
+    'orders.relation.absence_orders.notice' => 'Заказов с сайта на этого мастера: {n} — нужно переназначить.',
+    'orders.relation.shift_reassigned_orders' => 'Смена передана другому сотруднику: заказы прежнего мастера в этот день (related.items) переведи на нового — orders.update {id, id_cosmetolog = новый id_operator смены}. Если сервер отказал — перечисли заказ в ответе.',
+    'orders.relation.shift_reassigned_orders.notice' => 'Заказов у прежнего мастера в этот день: {n} — перевести на нового.',
 ];

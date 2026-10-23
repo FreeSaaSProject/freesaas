@@ -29,9 +29,19 @@ if ($method === 'GET') {
         ]);
         return;
     }
-    $report = RatesSkill::diagnose($operatorId, $typeId, $goodId);
+    $date = trim((string)($_GET['date'] ?? ''));
+    $dayStart = preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) ? (int)strtotime($date . ' 00:00:00') : 0;
+    $report = RatesSkill::diagnose($operatorId, $typeId, $goodId, $dayStart);
     if ($wantsJson) {
-        AgentHttp::emit(array_merge(['ok' => true], $report));
+        // Envelope ok = request succeeded; the skill verdict lives in can_perform*.
+        $verdict = !empty($report['ok']);
+        $verdictOnline = !empty($report['ok_online']);
+        unset($report['ok'], $report['ok_online']);
+        AgentHttp::emit(array_merge($report, [
+            'ok' => true,
+            'can_perform' => $verdict,
+            'can_perform_online' => $verdictOnline,
+        ]));
         return;
     }
     http_response_code(400);

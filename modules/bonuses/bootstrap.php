@@ -115,7 +115,12 @@ EventBus::on('calendar.event.save', static function ($payload) {
     $canBonusFields = Auth::capability('EVT_BONUS') || Auth::capability('SUPERADMIN_ACCESS');
     $bonusUse = 0;
     $bonusDiscount = 0.0;
-    if ($canBonusFields && Auth::can('bonuses.view')) {
+    if ($eventId > 0 && AgentHttp::wantsJson() && !array_key_exists('bonus_use', $post)) {
+        // Agent patch (e.g. reassign staff) without bonus fields keeps the stored settlement intent.
+        $stored = EventBonusRepository::get($eventId);
+        $bonusUse = (int)$stored['bonus_use'];
+        $bonusDiscount = (float)$stored['bonus_discount'];
+    } elseif ($canBonusFields && Auth::can('bonuses.view')) {
         $bonusUse = !empty($post['bonus_use']) ? 1 : 0;
         $bonusDiscount = max(0.0, (float)($post['bonus_discount'] ?? 0));
         if ($bonusUse < 1) {

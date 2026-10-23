@@ -3,10 +3,32 @@ declare(strict_types=1);
 
 /**
  * Sample domain data for public demo stands (relative to "today").
- * Lives in modules/demo; requires app.demo_readonly=1 and module demo enabled.
+ * Lives in modules/demo; requires app.demo_readonly=1, module demo enabled and
+ * a matching base_demo_stand marker (DemoStand). New module APIs used here must be
+ * reflected in module.json requires/optionalRequires (checked by preflight()).
  */
 final class DemoSeed
 {
+    /** Domain tables cleared on --reset (and dumped before every seed). */
+    private const WIPE_TABLES = [
+        'base_doc_field_index', 'base_doc_proposals', 'base_doc_instances',
+        'base_doc_def_versions', 'base_doc_defs',
+        'base_records_reviews', 'base_records_balances', 'base_badge_assignments',
+        'base_records_instances', 'base_records', 'base_records_keys_tags_links',
+        'base_records_keys', 'base_records_keys_tags', 'base_records_scripts',
+        'base_records_dictonarys', 'base_records_trashes', 'base_records_badges',
+        'base_account_moves', 'base_account_reconciliations', 'base_accounts',
+        'base_account_move_types', 'base_fund_movements', 'base_funds',
+        'base_bi_family_defs',
+        'base_orders', 'base_payments', 'base_procent_history', 'base_bonus_moves',
+        'base_procedures', 'base_procedure_types',
+        'base_event_items', 'base_event_bonus', 'base_events', 'base_workweeks',
+        'base_client_tag_links', 'base_clients', 'base_products', 'base_product_relations',
+        'base_categories', 'base_cabinets', 'base_stocks', 'base_suppliers',
+        'base_comments', 'base_likes', 'base_views', 'base_news_checklist',
+        'base_news_logs', 'base_news',
+    ];
+
     /**
      * @param array{reset?:bool,locale?:string} $opts
      * @return array<string,mixed>
@@ -27,7 +49,145 @@ final class DemoSeed
         $pack = self::pack($locale);
         $reset = !empty($opts['reset']);
 
-        $counts = self::asAdmin(static function () use ($pack, $reset, $locale): array {
+        // Second lock (DB marker) + version preflight — both before any wipe.
+        DemoStand::assertSeedable($locale);
+        $problems = self::preflight();
+        if ($problems !== []) {
+            throw new RuntimeException('demo seed refused (preflight, data kept): ' . implode('; ', $problems));
+        }
+        $dump = self::snapshot();
+
+        try {
+            $counts = self::seedAll($pack, $reset, $locale);
+        } catch (Throwable $e) {
+            if ($dump === null) {
+                throw $e;
+            }
+            try {
+                DbTools::restore($dump, self::snapshotTables());
+                Database::clearSchemaCache();
+            } catch (Throwable $re) {
+                throw new RuntimeException(
+                    'demo seed failed: ' . $e->getMessage() . '; restore of ' . $dump . ' also failed: ' . $re->getMessage(),
+                    0,
+                    $e
+                );
+            }
+            throw new RuntimeException(
+                'demo seed failed, previous data restored from ' . $dump . ': ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+
+        $version = DemoStand::moduleVersion();
+        DemoStand::recordSeed($version, $locale, self::pruneDumps($dump));
+
+        return [
+            'ok' => true,
+            'locale' => $locale,
+            'reset' => $reset,
+            'stand_id' => DemoStand::configuredId(),
+            'seed_version' => $version,
+            'dump' => $dump,
+            'anchor_day' => date('Y-m-d'),
+            'week_monday' => date('Y-m-d', self::mondayTs()),
+            'counts' => $counts,
+        ];
+    }
+
+    /**
+     * Installed module versions must satisfy demo module.json requires / optionalRequires
+     * (optional ones only when that module is enabled). Empty list = OK.
+     *
+     * @return list<string>
+     */
+    public static function preflight(): array
+    {
+        $meta = ModuleManager::get('demo') ?? [];
+        $problems = [];
+        $groups = [
+            'requires' => is_array($meta['requires'] ?? null) ? $meta['requires'] : [],
+            'optionalRequires' => is_array($meta['optionalRequires'] ?? null) ? $meta['optionalRequires'] : [],
+        ];
+        foreach ($groups as $kind => $deps) {
+            foreach ($deps as $id => $constraint) {
+                $id = (string)$id;
+                $dep = ModuleManager::get($id);
+                if ($kind === 'optionalRequires' && ($dep === null || !ModuleManager::isEnabled($id))) {
+                    continue;
+                }
+                if ($dep === null) {
+                    $problems[] = $id . ' missing (required ' . $constraint . ')';
+                    continue;
+                }
+                $installed = trim((string)($dep['version'] ?? ''));
+                if (!ModuleManager::satisfiesConstraint($installed, (string)$constraint)) {
+                    $problems[] = $id . ' ' . $installed . ' does not satisfy ' . $constraint . ' — set [demo] update_target=all';
+                }
+            }
+        }
+        foreach (['base_users', 'base_admin_statuses', 'base_system'] as $t) {
+            if (!Database::tableExists($t)) {
+                $problems[] = $t . ' missing — run migrate';
+            }
+        }
+        return $problems;
+    }
+
+    /** Tables restored from the pre-seed dump when the seed throws. @return list<string> */
+    private static function snapshotTables(): array
+    {
+        $out = [];
+        foreach (array_merge(self::WIPE_TABLES, ['base_users', 'base_admin_statuses', 'base_system']) as $t) {
+            if (Database::tableExists($t)) {
+                $out[] = $t;
+            }
+        }
+        return $out;
+    }
+
+    /** Dump seed-touched tables before wiping; null when nothing to dump. */
+    private static function snapshot(): ?string
+    {
+        $tables = self::snapshotTables();
+        if ($tables === []) {
+            return null;
+        }
+        $res = DbTools::dump($tables, 'demo_preseed');
+        $file = (string)($res['file'] ?? '');
+        if ($file === '') {
+            throw new RuntimeException('demo seed refused: pre-seed dump failed (data kept)');
+        }
+        return $file;
+    }
+
+    /** Keep the newest [demo] keep_dumps pre-seed dumps. @return list<string> */
+    private static function pruneDumps(?string $newDump): array
+    {
+        $keep = DemoSchedule::load()['keep_dumps'];
+        $list = DemoStand::dumps();
+        if ($newDump !== null) {
+            array_unshift($list, $newDump);
+        }
+        $list = array_values(array_unique($list));
+        foreach (array_slice($list, $keep) as $old) {
+            try {
+                DbTools::deleteDump($old);
+            } catch (Throwable $e) {
+                // already gone
+            }
+        }
+        return array_slice($list, 0, $keep);
+    }
+
+    /**
+     * @param array<string,mixed> $pack
+     * @return array<string,mixed>
+     */
+    private static function seedAll(array $pack, bool $reset, string $locale): array
+    {
+        return self::asAdmin(static function () use ($pack, $reset, $locale): array {
             if ($reset) {
                 self::wipeDomain();
             }
@@ -93,15 +253,6 @@ final class DemoSeed
             $out['unit_id'] = $unitId;
             return $out;
         });
-
-        return [
-            'ok' => true,
-            'locale' => $locale,
-            'reset' => $reset,
-            'anchor_day' => date('Y-m-d'),
-            'week_monday' => date('Y-m-d', self::mondayTs()),
-            'counts' => $counts,
-        ];
     }
 
     /** @template T @param callable():T $fn @return T */
@@ -148,25 +299,7 @@ final class DemoSeed
     private static function wipeDomain(): void
     {
         $pdo = Database::pdo();
-        $tables = [
-            'base_doc_field_index', 'base_doc_proposals', 'base_doc_instances',
-            'base_doc_def_versions', 'base_doc_defs',
-            'base_records_reviews', 'base_records_balances', 'base_badge_assignments',
-            'base_records_instances', 'base_records', 'base_records_keys_tags_links',
-            'base_records_keys', 'base_records_keys_tags', 'base_records_scripts',
-            'base_records_dictonarys', 'base_records_trashes', 'base_records_badges',
-            'base_account_moves', 'base_account_reconciliations', 'base_accounts',
-            'base_account_move_types', 'base_fund_movements', 'base_funds',
-            'base_bi_family_defs',
-            'base_orders', 'base_payments', 'base_procent_history', 'base_bonus_moves',
-            'base_procedures', 'base_procedure_types',
-            'base_event_items', 'base_event_bonus', 'base_events', 'base_workweeks',
-            'base_client_tag_links', 'base_clients', 'base_products', 'base_product_relations',
-            'base_categories', 'base_cabinets', 'base_stocks', 'base_suppliers',
-            'base_comments', 'base_likes', 'base_views', 'base_news_checklist',
-            'base_news_logs', 'base_news',
-        ];
-        foreach ($tables as $t) {
+        foreach (self::WIPE_TABLES as $t) {
             if (!Database::tableExists($t)) {
                 continue;
             }

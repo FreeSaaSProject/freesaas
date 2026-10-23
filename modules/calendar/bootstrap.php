@@ -62,6 +62,7 @@ $pages = [
     '/calendar' => ['permission' => 'calendar.view', 'methods' => ['GET', 'POST'], 'file' => 'week.php'],
     '/calendar/week/{date}' => ['permission' => 'calendar.view', 'methods' => ['GET', 'POST'], 'file' => 'week.php'],
     '/calendar/day/{date}' => ['permission' => 'calendar.view', 'methods' => ['GET', 'POST'], 'file' => 'day.php'],
+    '/calendar/events' => ['permission' => 'calendar.view', 'methods' => ['GET'], 'file' => 'events_list.php'],
     '/calendar/events/new' => ['permission' => 'calendar.edit', 'methods' => ['GET', 'POST'], 'file' => 'event_edit.php'],
     '/calendar/events/{id}/edit' => ['permission' => 'calendar.edit', 'methods' => ['GET', 'POST'], 'file' => 'event_edit.php'],
     '/calendar/clients' => ['permission' => 'calendar.edit', 'methods' => ['GET'], 'file' => 'clients.php'],

@@ -12,7 +12,7 @@ Thin guards stay in core (`app/DemoMode.php`: readonly Router, fail-closed modul
 | `demo_auto_login` | off | After bootstrap, if no session → `Auth::establishSession` for `demo_auto_login_user` |
 | `demo_auto_login_user` | `demo` | Login used by auto-login |
 
-Leave `agent_token` empty/`CHANGE_ME` (blocks `/agent/*` and `/cron/tick` over HTTP).
+Leave `agent_token` empty/`CHANGE_ME` (blocks `/agent/*`). Set **only** `cron_token` (scoped to `/cron/tick` + `/cron/status`) so the host can wake the self-maintenance jobs below.
 
 ## Module
 
@@ -23,11 +23,17 @@ demo=1
 
 Banner notice and CLI `demo seed` / `demo provision` require the module enabled. On production keep `demo=0`.
 
-## Prod safety
+## Prod safety (two independent locks)
 
-- Absent or `0` → `DemoMode::readonly()` is false; `Config::moduleEnabled` keeps historic **absent = on**.
-- `demo provision` / `demo seed` **refuse** unless `demo_readonly=1` and `demo=1`.
-- Never set these flags on customer instances.
+1. **cfg flags:** `demo provision` / `demo seed` / demo cron jobs **refuse** unless `demo_readonly=1` and `demo=1`. Absent or `0` → `DemoMode::readonly()` is false; `Config::moduleEnabled` keeps historic **absent = on**. Never set these flags on customer instances.
+2. **DB marker:** table `base_demo_stand` (owned by `demo`, one row). Seed and wipe run only when its `STAND_ID` equals `[demo] stand_id` in `cfg/modules/demo.ini`.
+   - A **fresh** DB (0 rows in `base_clients`, `base_events`, `base_news`) is claimed automatically on the first seed.
+   - A DB with data is never claimed implicitly: `demo claim` refuses. For a known demo copy only: `php bin/freesaas.php demo claim --existing`.
+   - So flags copied onto production, or a production dump loaded into a demo DB, still cannot `DELETE` anything.
+
+Each seed also: checks installed module versions against `modules/demo/module.json` `requires` / `optionalRequires` **before** wiping (preflight; mismatch → refuse, data kept), and dumps the touched tables first (`var/db_dumps`, last `keep_dumps` kept). If the seed throws, that dump is restored — the stand shows the previous data, never an empty one.
+
+**Rule when enriching the seed:** if the seed starts using new API/columns of module X, bump X (`module bump X`) and raise `optionalRequires.X` in `modules/demo/module.json` to that version.
 
 ## What readonly blocks
 
@@ -45,9 +51,30 @@ php bin/freesaas.php demo provision --login=demo --password=demodemo --format=js
 
 Creates/updates role **Demo Viewer** (no `SUPERADMIN_ACCESS`) and user with `core.home`, `*.view`, `core.news`, plus demo ACL flags (`SHOW_ADMINISTRATOR_DATA`, `CAN_SEE_SUM_OTHERS`, …). Mutations still blocked by Router.
 
-## Update code
+## Self-maintenance without CLI (cron)
 
-Same UpdateEngine as other instances — **CLI only** on the demo host (no HTTP agent token):
+The seed is code (`modules/demo/lib/DemoSeed.php`), so "update the seed" = "ship a new `demo` module version". Three jobs are registered **only** when `demo_readonly=1` (production never lists them). Host wakes them with one line:
+
+```cron
+*/5 * * * * curl -sS -H "X-FreeSaaS-Agent-Token: CRON_TOKEN" "https://demoru.example.com/cron/tick" >/dev/null
+# or, if the panel runs commands: php /path/bin/freesaas.php cron tick
+```
+
+| Job | When | Does |
+|-----|------|------|
+| `demo.update` | `update_at` or `update_every_min` | `UpdateEngine` check + apply (`update_enabled=1`, needs `cfg/updates.ini`) |
+| `demo.reseed` | `reseed_at` or `reseed_every_min` | `demo seed --reset` with `app.locale` (dates stay "today") |
+| `demo.version_check` | every `version_check_every_min` | reseed when `modules/demo` version ≠ last seeded (`reseed_on_version=1`) |
+
+Schedule lives in `cfg/modules/demo.ini` (copy `modules/demo/config.example.ini`); read on every request, so edits apply from the next tick. `*_every_min > 0` overrides `*_at`; invalid values fall back to defaults and are reported in the job message. Precision = host tick step. Journal + schedule: `/cron` (admin) or `GET /cron/status` (cron token).
+
+`update_target`: `all` (default — whole code, versions consistent) or `demo` (seed only). With `demo`, the job still checks every module and **escalates to `all`** when any module listed in demo `requires` / `optionalRequires` has an update. Reseed after an update happens in the next tick (`demo.version_check`) — the updating process still holds the old seed class.
+
+Seed enrichment workflow: edit `DemoSeed.php` → seed local stands → `php bin/freesaas.php module bump demo` → push `main` → stands update at `update_at` and reseed via `demo.version_check`.
+
+Status: `php bin/freesaas.php demo status --format=json` (marker, versions, preflight, effective schedule).
+
+## Update code manually (CLI)
 
 ```bash
 php bin/freesaas.php update check --format=json
@@ -56,26 +83,17 @@ php bin/freesaas.php update apply --target=all --format=json
 
 Overlay never writes `cfg/`, `var/`, uploads. After apply: confirm new `modules/<id>` stay `=0` unless intentionally enabled (including keeping `demo=1` on the stand).
 
-## Sample data (relative to today)
+## Sample data manually (relative to today)
 
 ```bash
+php bin/freesaas.php migrate run --module=demo --format=json   # base_demo_stand
 php bin/freesaas.php demo seed --locale=ru --reset --format=json
 php bin/freesaas.php demo seed --locale=en --reset --format=json
 ```
 
 Fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. `--reset` clears prior demo domain rows (keeps `admin` / `demo` users and schema). Ensures `base_system` singleton via `SystemRepository::ensureRow` (needed after schema-only migrate / bootstrap that skipped the row — calendar work hours write there).
 
-## Nightly refresh
-
-Prefer **re-seed** (dates stay “today”) over a frozen mysqldump:
-
-```bash
-# copy bin/demo-restore.example.sh → host path, chmod +x
-15 3 * * * /usr/local/bin/freesaas-demo-restore.sh demoru
-20 3 * * * /usr/local/bin/freesaas-demo-restore.sh demoen
-```
-
-Does not touch `cfg/`. Do **not** use HTTP `/cron/tick` for this (keep `agent_token` empty).
+`bin/demo-restore.example.sh` (host crontab calling `demo seed`) remains as a CLI fallback; with `cron_token` + `demo.reseed` it is not needed.
 
 ## Suggested `[modules]` on demo
 
@@ -88,3 +106,5 @@ List **every** discovered module explicitly (`=0`/`=1`) so absent-key fail-close
 ## Two locales
 
 Two deploys of the same release: e.g. `demoru` / `demoen` with `app.locale=ru|en` and separate DBs/seeds. UI chrome follows locale; DB `NAME`/UGC does not — use language-matched golden data.
+
+Cross-link the stands from the demo banner: `[demo] switch_url_ru` / `switch_url_en` in `cfg/modules/demo.ini` (the link to the *other* language is shown). One host serving two DBs is intentionally not supported.

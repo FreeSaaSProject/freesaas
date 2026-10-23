@@ -17,7 +17,29 @@ final class VacationsRepository
 
     public static function canSeeOthers(): bool
     {
-        return Auth::capability('CAN_SEE_SUM_OTHERS');
+        return Auth::capability('CAN_SEE_SUM_OTHERS') || AgentHttp::readScopeUnrestricted();
+    }
+
+    /**
+     * Agent JSON update = patch: omitted fields keep the stored row (checkboxes included).
+     *
+     * @param array<string,mixed> $post
+     * @param array<string,mixed> $row
+     * @return array<string,mixed>
+     */
+    public static function patchPost(array $post, array $row): array
+    {
+        foreach (['user_id', 'id_type', 'dt_start', 'dt_end', 'descr', 'direction', 'days_paid', 'days_unpaid'] as $k) {
+            if (!array_key_exists($k, $post) || $post[$k] === null || $post[$k] === '') {
+                $post[$k] = (string)($row[$k] ?? '');
+            }
+        }
+        foreach (['show_user', 'sign_req'] as $k) {
+            if (!array_key_exists($k, $post)) {
+                $post[$k] = !empty($row[$k]) ? '1' : '';
+            }
+        }
+        return $post;
     }
 
     /**

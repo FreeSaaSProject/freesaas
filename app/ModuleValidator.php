@@ -286,6 +286,9 @@ final class ModuleValidator
                         }
                     }
                 }
+                if (array_key_exists('relations', $meta['agent'])) {
+                    self::validateRelations($meta['agent']['relations'], $errors, $warnings);
+                }
             }
         }
 
@@ -480,6 +483,73 @@ final class ModuleValidator
     {
         // dotted tokens, optional leading namespace segments; no spaces
         return (bool)preg_match('/^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$/i', $ev);
+    }
+
+    /**
+     * agent.relations[] (assistant plan consequences). Op ids are checked against every module
+     * on disk — a disabled module is fine, a typo is not.
+     *
+     * @param mixed $relations
+     * @param list<string> $errors
+     * @param list<string> $warnings
+     */
+    private static function validateRelations($relations, array &$errors, array &$warnings): void
+    {
+        if (!is_array($relations)) {
+            $errors[] = 'agent.relations must be an array';
+            return;
+        }
+        $known = [];
+        foreach (ModuleManager::all() as $meta) {
+            foreach ((array)($meta['agent']['ops'] ?? []) as $op) {
+                if (is_array($op) && isset($op['id']) && is_string($op['id'])) {
+                    $known[$op['id']] = true;
+                }
+            }
+        }
+        foreach ($relations as $i => $rel) {
+            $label = 'agent.relations[' . $i . ']';
+            if (!is_array($rel)) {
+                $errors[] = $label . ' must be an object';
+                continue;
+            }
+            $when = $rel['when'] ?? null;
+            $check = $rel['check'] ?? null;
+            if (!is_array($when) || $when === [] || !is_string($check) || trim($check) === '') {
+                $errors[] = $label . ' needs when[] and check';
+                continue;
+            }
+            $refs = array_merge($when, [$check], (array)($rel['suggest'] ?? []));
+            $from = isset($rel['from']) && is_string($rel['from']) ? trim($rel['from']) : '';
+            if ($from !== '') {
+                $refs[] = $from;
+            }
+            foreach ($refs as $ref) {
+                if (!is_string($ref) || !isset($known[$ref])) {
+                    $warnings[] = $label . ' unknown op: ' . (is_string($ref) ? $ref : json_encode($ref));
+                }
+            }
+            $usesFrom = false;
+            foreach ((array)($rel['args'] ?? []) as $tpl) {
+                if (is_string($tpl) && strpos($tpl, '{from.') === 0) {
+                    $usesFrom = true;
+                }
+            }
+            foreach ((array)($rel['if'] ?? []) as $cond) {
+                if ($cond === 'changed') {
+                    $usesFrom = true;
+                }
+            }
+            if ($usesFrom && $from === '') {
+                $warnings[] = $label . ' uses {from.*} / "changed" without from';
+            }
+            foreach (['hint', 'notice'] as $k) {
+                $key = isset($rel[$k]) && is_string($rel[$k]) ? trim($rel[$k]) : '';
+                if ($key !== '' && !self::catalogHasKey($key)) {
+                    $warnings[] = $label . ' ' . $k . ' key missing in lang: ' . $key;
+                }
+            }
+        }
     }
 
     private static function catalogHasKey(string $key): bool

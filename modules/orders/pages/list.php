@@ -15,6 +15,13 @@ $freeTicket = (string)($_GET['free_ticket'] ?? '');
 if (!in_array($freeTicket, ['', '0', '1'], true)) {
     $freeTicket = '';
 }
+$staff = (int)($_GET['staff'] ?? 0);
+$active = !empty($_GET['active']);
+$dateFrom = trim((string)($_GET['date_from'] ?? ''));
+$dateTo = trim((string)($_GET['date_to'] ?? ''));
+$dtFrom = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom) ? (int)strtotime($dateFrom . ' 00:00:00') : 0;
+// date_to is inclusive (whole day).
+$dtTo = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo) ? (int)strtotime($dateTo . ' 00:00:00') + 86400 : 0;
 
 $lq = ListQuery::resolve([
     'list_id' => 'orders',
@@ -43,6 +50,10 @@ $result = OrdersRepository::list([
     'id_user' => $idUser > 0 ? $idUser : null,
     'id_promocode' => $idPromocode > 0 ? $idPromocode : null,
     'free_ticket' => $freeTicket === '' ? null : $freeTicket,
+    'staff' => $staff,
+    'dt_from' => $dtFrom,
+    'dt_to' => $dtTo,
+    'active' => $active,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
@@ -64,16 +75,27 @@ $ordersCrumb = $hasListState
     : ['label' => t('orders.menu.list'), 'current' => true];
 
 if ($wantsJson) {
+    $agentItems = [];
+    foreach ($result['items'] as $it) {
+        $dt = (int)($it['dt_event'] ?? 0);
+        $it['dt_event_date'] = $dt > 0 ? date('Y-m-d', $dt) : '';
+        $it['dt_event_time'] = $dt > 0 ? date('H:i', $dt) : '';
+        $agentItems[] = $it;
+    }
     AgentHttp::emit([
         'ok' => true,
         'total' => $result['total'],
-        'items' => $result['items'],
+        'items' => $agentItems,
         'filters' => [
             'q' => $q,
             'status' => $status,
             'id_user' => $idUser > 0 ? $idUser : null,
             'id_promocode' => $idPromocode > 0 ? $idPromocode : null,
             'free_ticket' => $freeTicket === '' ? null : $freeTicket,
+            'staff' => $staff > 0 ? $staff : null,
+            'date_from' => $dtFrom > 0 ? $dateFrom : null,
+            'date_to' => $dtTo > 0 ? $dateTo : null,
+            'active' => $active ? 1 : null,
         ],
         'page' => $lq['page'],
         'per_page' => $lq['per_page'],

@@ -2,7 +2,7 @@
     "id": "vacations",
     "name": "vacations.module.name",
     "description": "vacations.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "requires": {
         "core": ">=0.3.0"
@@ -43,7 +43,7 @@
                 "method": "GET",
                 "path": "/vacations",
                 "permission": "vacations.view",
-                "description": "List leave records; filters: q, user_id, sign, id_type, direction, year, month (scoped to self when not privileged)"
+                "description": "List leave records; filters: q (description), user_id (resolve staff via core.users.list first), sign, id_type, direction, year, month (year=all for every year). Dates dt_start/dt_end are unix seconds. Scoped to self when not privileged"
             },
             {
                 "id": "vacations.get",
@@ -64,7 +64,18 @@
                 "method": "POST",
                 "path": "/vacations/{id}/edit",
                 "permission": "vacations.edit",
-                "description": "Update leave request"
+                "description": "Update leave (patch): required id; pass only changed fields, e.g. dt_start/dt_end as YYYY-MM-DD (end inclusive). Omitted fields keep current values. Move a vacation = update its dates, not delete+create",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "id": { "type": "integer", "description": "Vacation id from vacations.list" },
+                        "dt_start": { "type": "string", "description": "New start YYYY-MM-DD" },
+                        "dt_end": { "type": "string", "description": "New end YYYY-MM-DD (inclusive)" },
+                        "descr": { "type": "string" },
+                        "id_type": { "type": "integer", "description": "1 paid, 2 unpaid, 3 working period" }
+                    },
+                    "required": ["id"]
+                }
             }
         ]
     },
@@ -85,7 +96,8 @@
     "hooks": {
         "subscribe": [
             "core.notices.collect",
-            "bi.datasets"
+            "bi.datasets",
+            "assistant.write.preview"
         ],
         "publish": []
     },

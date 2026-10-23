@@ -22,6 +22,37 @@ final class AgentHttp
     /** @var int */
     private static $capturedHttp = 200;
 
+    /** @var int */
+    private static $unrestrictedReadDepth = 0;
+
+    /**
+     * Run $fn with role-based read scoping lifted for GET handlers (group assistant drafts).
+     * Writes are never affected: pages must only honor readScopeUnrestricted() on GET.
+     *
+     * @template T
+     * @param callable():T $fn
+     * @return T
+     */
+    public static function withUnrestrictedRead(callable $fn)
+    {
+        self::$unrestrictedReadDepth++;
+        try {
+            return $fn();
+        } finally {
+            self::$unrestrictedReadDepth--;
+        }
+    }
+
+    /** True inside withUnrestrictedRead() for a GET request only. */
+    public static function readScopeUnrestricted(): bool
+    {
+        if (self::$unrestrictedReadDepth < 1) {
+            return false;
+        }
+        $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+        return $method === 'GET' || $method === 'HEAD';
+    }
+
     /**
      * Platform kill-switch for product delete ops over JSON (AgentHttp / MCP / assistant).
      * Staff HTML UI with *.delete is unaffected. Default: off.

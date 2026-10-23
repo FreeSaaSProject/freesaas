@@ -173,6 +173,56 @@ final class EventsRepository
      * @param array<string,mixed> $post
      * @return array<string,mixed>
      */
+    /**
+     * Agent JSON update = patch: the stored event fills fields the client did not send
+     * (times, client, basket with prices/qty). Reassign = {id, id_operator}.
+     *
+     * @param array<string,mixed> $post
+     * @param array<string,mixed> $row stored event (find())
+     * @return array<string,mixed>
+     */
+    public static function patchPost(array $post, array $row): array
+    {
+        $id = (int)($row['id'] ?? 0);
+        $oldStart = (int)($row['dtstart'] ?? 0);
+        $oldEnd = (int)($row['dtend'] ?? 0);
+        $has = static function (string $k) use ($post): bool {
+            return array_key_exists($k, $post) && $post[$k] !== null && $post[$k] !== '';
+        };
+        if (!$has('dtstart')) {
+            $post['dtstart'] = self::tsToLocal($oldStart);
+        }
+        if (!$has('dtend')) {
+            $newStart = self::localToTs((string)$post['dtstart']);
+            // Moving the start keeps the stored duration.
+            $post['dtend'] = self::tsToLocal($newStart > 0 && $oldEnd > $oldStart ? $newStart + ($oldEnd - $oldStart) : $oldEnd);
+        }
+        foreach (['id_operator', 'id_user'] as $k) {
+            if (!$has($k)) {
+                $post[$k] = (string)(int)($row[$k] ?? 0);
+            }
+        }
+        foreach (['phone', 'name', 'descr'] as $k) {
+            if (!array_key_exists($k, $post)) {
+                $post[$k] = (string)($row[$k] ?? '');
+            }
+        }
+        if (!array_key_exists('is_block', $post)) {
+            $post['is_block'] = !empty($row['is_block']) ? '1' : '';
+        }
+        $basketPosted = array_key_exists('content', $post);
+        if (!$basketPosted && $id > 0 && class_exists('EventItemsRepository', false)) {
+            $post['content'] = EventItemsRepository::goodIds($id);
+            $post['content_price'] = EventItemsRepository::priceMap($id);
+            $post['content_qty'] = EventItemsRepository::qtyMap($id);
+        }
+        if (!array_key_exists('auto_duration', $post) && !$basketPosted) {
+            // Same basket → keep stored times instead of re-deriving the visit length.
+            $post['auto_duration'] = '0';
+        }
+        return $post;
+    }
+
     public static function dataFromPost(array $post): array
     {
         $dtStart = self::localToTs((string)($post['dtstart'] ?? ''));

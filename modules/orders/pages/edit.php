@@ -81,7 +81,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 ? t('orders.edit.blocked_online')
                 : t('orders.edit.client_status_saved');
         } else {
-            $data = OrdersRepository::dataFromPost($_POST);
+            $data = $wantsJson
+                ? OrdersRepository::patchDataFromPost($_POST, $order)
+                : OrdersRepository::dataFromPost($_POST);
             OrdersRepository::update($id, $data);
             $order = OrdersRepository::find($id) ?: $order;
             if ($wantsJson) {

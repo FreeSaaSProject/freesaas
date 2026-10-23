@@ -18,6 +18,8 @@ return [
     'assistant_groups.settings.require_mention' => 'Только при упоминании бота (@username)',
     'assistant_groups.settings.auto_add_groups' => 'Сразу добавлять новые группы в allowlist',
     'assistant_groups.settings.auto_add_groups_hint' => 'При bot_added (и первом сообщении) chat_id попадает в список без ручного подтверждения. Иначе — блок «Пойманные» ниже.',
+    'assistant_groups.settings.read_unrestricted' => 'Чтение в группе без ограничений роли автора',
+    'assistant_groups.settings.read_unrestricted_hint' => 'Черновик видит данные, скрытые ролью автора (например чужие отпуска). Только чтение: изменения всё равно подтверждает менеджер с правом.',
     'assistant_groups.settings.sec.chats' => 'Чаты',
     'assistant_groups.settings.chats_intro' => 'Max не отдаёт список групп бота. Id появляется только в момент добавления (bot_added) или когда в чате пишут при живом webhook/poll.',
     'assistant_groups.settings.chats_meta_hint' => 'Название и описание — для бота и для выбора получателя: в какой группе он пишет и зачем она нужна.',
@@ -86,6 +88,7 @@ return [
     'assistant_groups.bot.system_extra' => "Ты в рабочей группе. История этого чата — один разговор: держи имена, дату и смысл.\nУточнения без нового @ — продолжение той же задачи.\nWrite-tools только черновик на подтверждение менеджером; не утверждай, что уже применено.\nВне tools — только в личке.\n«Что умеешь» — только tools из этого запроса, без перечня отсутствующих модулей.\nПросьба очистить/сбросить контекст → CALL assistant_groups.dialog.clear (не отказывайся и не проси создать новый чат).",
     'assistant_groups.bot.system_chat_context' => 'Текущий чат: {title} (id {chat_id}). Описание группы: {description}. Учитывай назначение этой группы, когда отвечаешь и выбираешь действия.',
     'assistant_groups.bot.system_chat_id' => 'Текущий чат Max id {chat_id} (название/описание в настройках не заданы).',
+    'assistant_groups.bot.plan_header' => 'План, шагов: {n}. Подтверждается одной кнопкой:',
     'assistant_groups.bot.user_prefix' => '{name}: ',
     'assistant_groups.bot.reply_prefix' => '[ответ на предыдущее сообщение ассистента] ',
 ];

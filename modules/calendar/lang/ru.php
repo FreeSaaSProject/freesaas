@@ -177,5 +177,10 @@ return [
     'calendar.assistant.preview.will' => 'Будет: {v}',
     'calendar.assistant.preview.create' => 'Создать: {v}',
     'calendar.assistant.preview.delete' => 'Удалить это событие',
+    'calendar.events_list.err.staff' => 'Нужен staff — id сотрудника',
+    'calendar.relation.absence_events' => 'Записи клиентов отсутствующего сотрудника: для каждой из related.items CALL workweeks.day(date), выбери сотрудника на смене, который делает услуги записи (rates.skill.diagnose с date = день записи, can_perform=true), и переназначь calendar.events.update {id, id_operator}. Если сервер отказал (не делает услугу) или подходящего нет — запись не трогай и перечисли её в ответе. Блоки (is_block=1) снимай calendar.events.delete. Записи клиентов не удаляй и не отменяй.',
+    'calendar.relation.absence_events.notice' => 'Записей в календаре у сотрудника: {n} — нужно переназначить.',
+    'calendar.relation.shift_reassigned_events' => 'Смена передана другому сотруднику: записи прежнего в этот день (related.items) переведи на нового — calendar.events.update {id, id_operator = новый id_operator смены}. Если сервер отказал — перечисли запись в ответе. Блоки прежнего сотрудника снимай calendar.events.delete.',
+    'calendar.relation.shift_reassigned_events.notice' => 'Записей у прежнего сотрудника в этот день: {n} — перевести на нового.',
     'calendar.assistant.hint_block' => '«Блок» / «поставь блок» = событие календаря с is_block (calendar.events.create), не смена/замена в workweeks. Сначала CALL calendar.day для даты (и workweeks.day, если нужны люди в смене). Людей в events[] резолви по operator_name / operator_acronym (МСА, ДВМ). Удаление: найди events[].id где is_block=1 и нужный operator/время → calendar.events.delete. Не проси id у пользователя, если он уже есть в ответе calendar.day.',
 ];

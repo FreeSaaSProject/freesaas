@@ -64,6 +64,9 @@ if (!$isNew && EntityDelete::tryHandle('vacations', $id, '/vacations', [
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
+        if (!$isNew && $wantsJson) {
+            $_POST = VacationsRepository::patchPost($_POST, $row);
+        }
         if (!$canSeeOthers) {
             $_POST['user_id'] = (string)Auth::userId();
         }

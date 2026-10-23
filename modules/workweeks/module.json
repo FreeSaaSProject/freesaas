@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.29",
+    "version": "0.2.31",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -155,6 +155,37 @@
                         "log_table_changes": { "type": "string" }
                     }
                 }
+            }
+        ],
+        "relations": [
+            {
+                "id": "workweeks.vacation_shifts",
+                "when": ["vacations.create", "vacations.update"],
+                "from": "vacations.get",
+                "check": "workweeks.list",
+                "args": {
+                    "user_id": "{user_id}",
+                    "date_from": "{dt_start|date}",
+                    "date_to": "{dt_end|date}",
+                    "page": "all"
+                },
+                "suggest": ["workweeks.delete"],
+                "fields": ["date", "operator_name", "price_col"],
+                "max_rows": 31,
+                "hint": "workweeks.relation.vacation_shifts",
+                "notice": "workweeks.relation.vacation_shifts.notice"
+            },
+            {
+                "id": "workweeks.user_disabled_shifts",
+                "when": ["core.users.update"],
+                "if": { "enabled": "0" },
+                "check": "workweeks.list",
+                "args": { "user_id": "{id}", "date_from": "{today}", "page": "all" },
+                "suggest": ["workweeks.delete"],
+                "fields": ["date", "operator_name", "price_col"],
+                "max_rows": 31,
+                "hint": "workweeks.relation.user_disabled_shifts",
+                "notice": "workweeks.relation.user_disabled_shifts.notice"
             }
         ]
     },
