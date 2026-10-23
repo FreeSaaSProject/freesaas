@@ -49,14 +49,44 @@ final class UpdateEngine
         return UpdateCatalog::fetchRemoteCatalog($force);
     }
 
-    public static function availableToInstall(bool $forceRefresh = false): array
+    public static function availableToInstall(bool $forceRefresh = false, bool $includeDismissed = false): array
     {
-        return UpdateCatalog::availableToInstall($forceRefresh);
+        return UpdateCatalog::availableToInstall($forceRefresh, $includeDismissed);
+    }
+
+    public static function dismissedToInstall(): array
+    {
+        return UpdateCatalog::dismissedToInstall();
+    }
+
+    public static function dismissAvailable(string $id): array
+    {
+        return UpdateCatalog::dismissAvailable($id);
+    }
+
+    public static function restoreAvailable(string $id): array
+    {
+        return UpdateCatalog::restoreAvailable($id);
     }
 
     public static function installModule(string $id): array
     {
         return UpdateCatalog::installModule($id);
+    }
+
+    public static function frozenModules(): array
+    {
+        return UpdateConfig::frozenModules();
+    }
+
+    public static function conflicts(): array
+    {
+        return UpdateConflicts::listAll();
+    }
+
+    public static function resolveConflict(?string $path, string $take, bool $all = false): array
+    {
+        return UpdateConflicts::resolve($path, $take, $all);
     }
 
     public static function versionJsonPath(string $target): string

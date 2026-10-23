@@ -94,16 +94,18 @@ final class UpdateCatalog
 
     /**
      * Modules present in remote catalog but not on local disk.
+     * Hidden ("dismissed") modules are excluded unless $includeDismissed.
      *
      * @return list<array<string,mixed>>
      */
-    public static function availableToInstall(bool $forceRefresh = false): array
+    public static function availableToInstall(bool $forceRefresh = false, bool $includeDismissed = false): array
     {
         $cat = UpdateCatalog::fetchRemoteCatalog($forceRefresh);
         if (empty($cat['ok']) && ($cat['modules'] ?? []) === []) {
             return [];
         }
         $private = array_fill_keys(UpdateConfig::privateModuleIds(), true);
+        $dismissed = array_fill_keys(UpdateCatalog::dismissedIds(), true);
         $ref = (string)($cat['ref'] ?? '');
         $out = [];
         foreach ($cat['modules'] as $row) {
@@ -120,6 +122,10 @@ final class UpdateCatalog
             if (is_dir(base_path('modules/' . $id))) {
                 continue;
             }
+            $row['dismissed'] = isset($dismissed[$id]);
+            if ($row['dismissed'] && !$includeDismissed) {
+                continue;
+            }
             $row['ref'] = $ref;
             $out[] = $row;
         }
@@ -129,9 +135,68 @@ final class UpdateCatalog
         return $out;
     }
 
+    /** @return list<array<string,mixed>> installable modules the admin chose to hide */
+    public static function dismissedToInstall(): array
+    {
+        $out = [];
+        foreach (UpdateCatalog::availableToInstall(false, true) as $row) {
+            if (!empty($row['dismissed'])) {
+                $out[] = $row;
+            }
+        }
+        return $out;
+    }
+
+    /** @return list<string> */
+    public static function dismissedIds(): array
+    {
+        $state = UpdateFs::readState();
+        $ids = is_array($state['dismissed_available'] ?? null) ? $state['dismissed_available'] : [];
+        $out = [];
+        foreach ($ids as $id) {
+            if (is_string($id) && preg_match('/^[a-z][a-z0-9_]*$/', $id)) {
+                $out[$id] = true;
+            }
+        }
+        return array_keys($out);
+    }
+
+    /** @return array{ok:bool,id:string,dismissed:list<string>,error?:string,http:int} */
+    public static function dismissAvailable(string $id): array
+    {
+        return UpdateCatalog::setDismissed($id, true);
+    }
+
+    /** @return array{ok:bool,id:string,dismissed:list<string>,error?:string,http:int} */
+    public static function restoreAvailable(string $id): array
+    {
+        return UpdateCatalog::setDismissed($id, false);
+    }
+
+    /** @return array{ok:bool,id:string,dismissed:list<string>,error?:string,http:int} */
+    private static function setDismissed(string $id, bool $dismissed): array
+    {
+        $id = strtolower(trim($id));
+        if (!preg_match('/^[a-z][a-z0-9_]*$/', $id) || $id === 'core') {
+            return ['ok' => false, 'id' => $id, 'dismissed' => [], 'error' => 'Bad module id', 'http' => 400];
+        }
+        $ids = array_fill_keys(UpdateCatalog::dismissedIds(), true);
+        if ($dismissed) {
+            $ids[$id] = true;
+        } else {
+            unset($ids[$id]);
+        }
+        $list = array_keys($ids);
+        sort($list);
+        $state = UpdateFs::readState();
+        $state['dismissed_available'] = $list;
+        UpdateFs::writeState($state);
+        return ['ok' => true, 'id' => $id, 'dismissed' => $list, 'http' => 200];
+    }
+
     /**
      * Download monorepo archive and overlay modules/<id>/ for a package not yet on disk.
-     * Leaves module disabled — enable via ModulesAdmin / module enable.
+     * Writes [modules] <id>=0 first so the new module stays disabled (missing key means enabled).
      *
      * @return array{ok:bool,id:string,version?:string,files_copied?:int,error?:string,http:int}
      */
@@ -149,7 +214,7 @@ final class UpdateCatalog
             return ['ok' => false, 'id' => $id, 'error' => 'Module already on disk: ' . $id, 'http' => 409];
         }
 
-        $avail = UpdateCatalog::availableToInstall(true);
+        $avail = UpdateCatalog::availableToInstall(true, true);
         $found = null;
         foreach ($avail as $row) {
             if ((string)($row['id'] ?? '') === $id) {
@@ -193,6 +258,7 @@ final class UpdateCatalog
             return ['ok' => false, 'id' => $id, 'error' => 'Update already in progress (lock)', 'http' => 409];
         }
         try {
+            Config::setModuleEnabled($id, false);
             $cache = [];
             $one = UpdateApply::applyOne($pkg, false, $cache);
             if (empty($one['ok'])) {
@@ -222,9 +288,11 @@ final class UpdateCatalog
                 $state['remote_catalog']['modules'] = $kept;
                 UpdateFs::writeState($state);
             }
+            UpdateCatalog::restoreAvailable($id);
             return [
                 'ok' => true,
                 'id' => $id,
+                'enabled' => false,
                 'version' => (string)($one['version'] ?? $found['version'] ?? ''),
                 'files_copied' => (int)($one['files_copied'] ?? 0),
                 'http' => 200,

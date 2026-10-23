@@ -81,7 +81,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         }
         $dl = trim((string)($_POST['DT_DEADLINE'] ?? ''));
         if ($dl !== '') {
-            $ts = strtotime($dl . ' 23:59:59');
+            $ts = NewsRepository::deadlineFromDate($dl, (int)($row['DT_DEADLINE'] ?? 0));
             if ($ts) {
                 $payload['DT_DEADLINE'] = $ts;
             }

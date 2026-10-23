@@ -44,6 +44,17 @@ Session JSON (`?format=json` / `Accept: application/json`). See `modules/sticker
 | `stickers.print.preview` | GET | `/stickers/ins/print` |
 | `stickers.print.run` | POST | `/stickers/ins/print` |
 
+## Activation mode
+
+Activation = `DT_PRINT` set; only activated stickers can be written off. `cfg/modules/stickers.ini` `[stickers] activation_mode` (UI `/stickers/settings`):
+
+| Mode | Behavior |
+|------|----------|
+| `scan` (default) | Only QR scan on the stuck item activates (`STOCK_REVISION`). `activate` on `/stickers/ins/*` is ignored; CRM/bot writeoff of a non-activated sticker is refused. |
+| `manual` | "Activate" checkbox on receipt allowed; CRM/bot writeoff soft-activates. |
+
+New stickers from an act (`/stickers/ins/new?id_act=`) keep the act fixed; product picker = consumables (`is_material=1`, fallback all) with `good_q` name search → `id_good`.
+
 ## Ins list filters / bulk
 
 `/stickers/ins` compact filters: year, month, material name (`good_q` → `is_material`), stock, supplier, act/good id, activated, revision, QQR piece/multi, weighable, used.
@@ -57,7 +68,7 @@ Stock-wide (filter `id_stock` required): revision on/off (off = SUPERADMIN), mov
 Staff:
 
 - Menu **Print stickers** → `/stickers/ins/print` (all pending; multi-page).
-- Bulk action **Print selected** on `/stickers/ins` → `/stickers/ins/print?ids=…`.
+- Bulk action **Print selected** on `/stickers/ins` → `/stickers/ins/print?ids=…` (any selected sticker with remaining qty, activated or not).
 - Grid **5×13 = 65** labels per A4 page; CSS page breaks for more.
 - Does **not** set `DT_PRINT` (activation is on QR scan). QR via LGPL phpqrcode.
 

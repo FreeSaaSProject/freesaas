@@ -55,15 +55,23 @@ final class UpdateOverlay
     }
 
     /**
-     * Destination relative paths (and source abs paths) that overlay would write.
+     * Files an overlay may write. Full-tree overlays skip private ([module.x]), frozen,
+     * and not-yet-installed modules (new modules arrive only via install).
      *
-     * @return list<array{rel:string,from:string}>
+     * @return array{files:list<array{rel:string,from:string}>,skipped_frozen:list<string>,skipped_new_modules:list<string>}
      */
     public static function collectOverlayFiles(string $fromDir, string $kind, string $id, string $bundle = ''): array
     {
         unset($bundle);
         $private = array_fill_keys(UpdateConfig::privateModuleIds(), true);
-        $out = [];
+        $frozen = array_fill_keys(UpdateConfig::frozenModules(), true);
+        $out = ['files' => [], 'skipped_frozen' => [], 'skipped_new_modules' => []];
+        if ($kind === 'module' && isset($frozen[$id])) {
+            $out['skipped_frozen'][] = $id;
+            return $out;
+        }
+        $skippedFrozen = [];
+        $skippedNew = [];
         $iterator = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator($fromDir, FilesystemIterator::SKIP_DOTS)
         );
@@ -82,7 +90,16 @@ final class UpdateOverlay
             } else {
                 $destRel = $rel;
                 if (preg_match('#^modules/([a-z][a-z0-9_]*)(/|$)#', $destRel, $m)) {
-                    if (isset($private[$m[1]])) {
+                    $mid = $m[1];
+                    if (isset($private[$mid])) {
+                        continue;
+                    }
+                    if (isset($frozen[$mid])) {
+                        $skippedFrozen[$mid] = true;
+                        continue;
+                    }
+                    if ($mid !== 'core' && !is_dir(base_path('modules/' . $mid))) {
+                        $skippedNew[$mid] = true;
                         continue;
                     }
                 }
@@ -90,34 +107,147 @@ final class UpdateOverlay
             if (UpdateOverlay::isDenied($destRel)) {
                 continue;
             }
-            $out[] = ['rel' => $destRel, 'from' => $full];
+            $out['files'][] = ['rel' => $destRel, 'from' => $full];
+        }
+        $out['skipped_frozen'] = array_keys($skippedFrozen);
+        $out['skipped_new_modules'] = array_keys($skippedNew);
+        sort($out['skipped_frozen']);
+        sort($out['skipped_new_modules']);
+        return $out;
+    }
+
+    /**
+     * Classify every file before touching disk:
+     *  write    — local missing, unmodified vs baseline, or no baseline (unverified)
+     *  same     — local already equals upstream
+     *  kept     — instance edited the file, upstream did not change it → keep local silently
+     *  conflict — instance edited and upstream changed → keep local, park upstream
+     *
+     * @param array<string,mixed> $source package (for git-tree baseline bootstrap)
+     * @return array{files:list<array{rel:string,from:string,action:string,hash:string,unverified:bool}>,skipped_frozen:list<string>,skipped_new_modules:list<string>}
+     */
+    public static function plan(string $fromDir, string $kind, string $id, string $bundle, array $source): array
+    {
+        $collected = self::collectOverlayFiles($fromDir, $kind, $id, $bundle);
+        $manifest = UpdateManifest::load();
+        $tree = null;
+        $treeLoaded = false;
+        $base = rtrim(base_path(''), '/');
+        $files = [];
+        foreach ($collected['files'] as $row) {
+            $rel = $row['rel'];
+            $from = $row['from'];
+            $abs = $base . '/' . $rel;
+            $up = (string)sha1_file($from);
+            $action = 'write';
+            $unverified = false;
+            if (is_file($abs)) {
+                $local = (string)sha1_file($abs);
+                if ($local === $up) {
+                    $action = 'same';
+                } elseif (isset($manifest[$rel])) {
+                    $baseline = $manifest[$rel];
+                    if ($local === $baseline) {
+                        $action = 'write';
+                    } elseif ($up === $baseline) {
+                        $action = 'kept';
+                    } else {
+                        $action = 'conflict';
+                    }
+                } else {
+                    if (!$treeLoaded) {
+                        $tree = UpdateManifest::installedTree($source);
+                        $treeLoaded = true;
+                    }
+                    if (is_array($tree) && isset($tree[$rel])) {
+                        $baseline = $tree[$rel];
+                        if (UpdateManifest::gitBlobSha($abs) === $baseline) {
+                            $action = 'write';
+                        } elseif (UpdateManifest::gitBlobSha($from) === $baseline) {
+                            $action = 'kept';
+                        } else {
+                            $action = 'conflict';
+                        }
+                    } else {
+                        $unverified = true;
+                    }
+                }
+            }
+            $files[] = [
+                'rel' => $rel,
+                'from' => $from,
+                'action' => $action,
+                'hash' => $up,
+                'unverified' => $unverified,
+            ];
+        }
+        return [
+            'files' => $files,
+            'skipped_frozen' => $collected['skipped_frozen'],
+            'skipped_new_modules' => $collected['skipped_new_modules'],
+        ];
+    }
+
+    /**
+     * @param array{files:list<array<string,mixed>>} $plan
+     * @return list<string> paths overlay will overwrite or create
+     */
+    public static function writePaths(array $plan): array
+    {
+        $out = [];
+        foreach ($plan['files'] as $row) {
+            if (($row['action'] ?? '') === 'write') {
+                $out[] = (string)$row['rel'];
+            }
         }
         return $out;
     }
 
     /**
-     * @return list<string> destination relative paths
+     * Execute a plan: write files, park conflicts, update the baseline manifest.
+     *
+     * @param array{files:list<array<string,mixed>>,skipped_frozen:list<string>,skipped_new_modules:list<string>} $plan
+     * @return array{copied:int,unverified:int,conflicts:list<string>,kept:list<string>,skipped_frozen:list<string>,skipped_new_modules:list<string>}
      */
-    public static function collectOverlayPaths(string $fromDir, string $kind, string $id, string $bundle = ''): array
-    {
-        $rels = [];
-        foreach (self::collectOverlayFiles($fromDir, $kind, $id, $bundle) as $row) {
-            $rels[] = $row['rel'];
-        }
-        return $rels;
-    }
-
-    /**
-     * @return int files copied
-     */
-    public static function overlay(string $fromDir, string $kind, string $id, string $bundle = ''): int
+    public static function execute(array $plan, string $package, string $version): array
     {
         $base = rtrim(base_path(''), '/');
+        $manifest = UpdateManifest::load();
+        $index = UpdateConflicts::load();
         $copied = 0;
-        foreach (self::collectOverlayFiles($fromDir, $kind, $id, $bundle) as $row) {
-            $copied += UpdateOverlay::copyOne($row['from'], $base . '/' . $row['rel']) ? 1 : 0;
+        $unverified = 0;
+        $conflicts = [];
+        $kept = [];
+        foreach ($plan['files'] as $row) {
+            $rel = (string)$row['rel'];
+            $action = (string)$row['action'];
+            if ($action === 'write') {
+                UpdateOverlay::copyOne((string)$row['from'], $base . '/' . $rel);
+                $copied++;
+                if (!empty($row['unverified'])) {
+                    $unverified++;
+                }
+                unset($index[$rel]);
+            } elseif ($action === 'same') {
+                unset($index[$rel]);
+            } elseif ($action === 'kept') {
+                $kept[] = $rel;
+            } elseif ($action === 'conflict') {
+                UpdateConflicts::park($index, $rel, (string)$row['from'], $package, $version);
+                $conflicts[] = $rel;
+            }
+            $manifest[$rel] = (string)$row['hash'];
         }
-        return $copied;
+        UpdateManifest::save($manifest);
+        UpdateConflicts::save($index);
+        return [
+            'copied' => $copied,
+            'unverified' => $unverified,
+            'conflicts' => $conflicts,
+            'kept' => $kept,
+            'skipped_frozen' => $plan['skipped_frozen'],
+            'skipped_new_modules' => $plan['skipped_new_modules'],
+        ];
     }
 
     public static function copyOne(string $from, string $to): bool

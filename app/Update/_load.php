@@ -7,6 +7,8 @@ foreach ([
     'UpdateVersions.php',
     'UpdateGithub.php',
     'UpdateOverlay.php',
+    'UpdateManifest.php',
+    'UpdateConflicts.php',
     'UpdateRollback.php',
     'UpdateCatalog.php',
     'UpdateCheck.php',

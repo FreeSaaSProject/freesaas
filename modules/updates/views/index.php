@@ -10,6 +10,8 @@ declare(strict_types=1);
 /** @var int $updateAvailableCount */
 /** @var list<array<string,mixed>> $updateAvailable */
 /** @var int $installableCount */
+/** @var list<array{path:string,package:string,version:string,detected_at:string}> $conflicts */
+$conflicts = is_array($conflicts ?? null) ? $conflicts : [];
 $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $updateConfigured = !empty($updateConfigured);
@@ -155,6 +157,59 @@ $jobI18n = [
 </div>
 <?php endif; ?>
 
+<?php if ($conflicts !== []): ?>
+<section class="calendar-section upd-conflicts">
+  <h2 class="subhead"><?= te('updates.conflicts.title', ['n' => (string)count($conflicts)]) ?></h2>
+  <p class="muted"><?= te('updates.conflicts.lede') ?></p>
+  <?php if ($updateCanApply): ?>
+  <div class="actions">
+    <form method="post" action="/updates" class="inline-form"
+          onsubmit="return confirm(<?= tj('updates.conflicts.confirm_all_ours') ?>);">
+      <input type="hidden" name="action" value="conflict_resolve">
+      <input type="hidden" name="take" value="ours">
+      <input type="hidden" name="all" value="1">
+      <button type="submit" class="btn-secondary btn-sm"><?= te('updates.conflicts.btn_all_ours') ?></button>
+    </form>
+    <form method="post" action="/updates" class="inline-form">
+      <input type="hidden" name="action" value="conflict_resolve">
+      <input type="hidden" name="take" value="mine">
+      <input type="hidden" name="all" value="1">
+      <button type="submit" class="btn-secondary btn-sm"><?= te('updates.conflicts.btn_all_mine') ?></button>
+    </form>
+  </div>
+  <?php endif; ?>
+  <ul class="upd-conflicts-list">
+    <?php foreach ($conflicts as $cf):
+        $cfPath = (string)($cf['path'] ?? '');
+        ?>
+    <li>
+      <div>
+        <code><?= e($cfPath) ?></code>
+        <span class="muted"> · <?= e((string)($cf['package'] ?? '')) ?> <?= e((string)($cf['version'] ?? '')) ?></span>
+      </div>
+      <?php if ($updateCanApply): ?>
+      <div class="actions">
+        <form method="post" action="/updates" class="inline-form"
+              onsubmit="return confirm(<?= tj('updates.conflicts.confirm_ours', ['path' => $cfPath]) ?>);">
+          <input type="hidden" name="action" value="conflict_resolve">
+          <input type="hidden" name="take" value="ours">
+          <input type="hidden" name="path" value="<?= e($cfPath) ?>">
+          <button type="submit" class="btn-secondary btn-sm"><?= te('updates.conflicts.btn_ours') ?></button>
+        </form>
+        <form method="post" action="/updates" class="inline-form">
+          <input type="hidden" name="action" value="conflict_resolve">
+          <input type="hidden" name="take" value="mine">
+          <input type="hidden" name="path" value="<?= e($cfPath) ?>">
+          <button type="submit" class="btn-secondary btn-sm"><?= te('updates.conflicts.btn_mine') ?></button>
+        </form>
+      </div>
+      <?php endif; ?>
+    </li>
+    <?php endforeach; ?>
+  </ul>
+</section>
+<?php endif; ?>
+
 <section class="calendar-section">
   <h2 class="subhead"><?= te('updates.section_configured') ?></h2>
   <p class="muted"><?= e($lastCheckLabel) ?></p>
@@ -185,11 +240,15 @@ $jobI18n = [
             $checked = $remoteVer !== '';
             $remoteMissing = !empty($src['remote_missing']);
             $checkError = trim((string)($src['check_error'] ?? ''));
+            $frozen = !empty($src['frozen']);
             $rowRepo = (string)($src['repo'] ?? '');
             $rowBundle = (string)($src['bundle'] ?? '');
             $showSrc = ($rowRepo !== '' && $defaultRepo !== '' && $rowRepo !== $defaultRepo)
                 || ($rowBundle === 'external');
-            if ($remoteMissing || ($checkError !== '' && !$checked)) {
+            if ($frozen) {
+                $stHtml = '<span class="upd-status upd-status--frozen" title="' . e(t('updates.status_frozen_hint')) . '">'
+                    . e(t('updates.status_frozen')) . '</span>';
+            } elseif ($remoteMissing || ($checkError !== '' && !$checked)) {
                 $stHtml = '<span class="upd-status upd-status--unk" title="' . e($checkError) . '">'
                     . e(t($remoteMissing ? 'updates.status_local_only' : 'updates.status_check_error'))
                     . '</span>';

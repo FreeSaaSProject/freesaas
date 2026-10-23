@@ -2,7 +2,7 @@
     "id": "catalog",
     "name": "catalog.module.name",
     "description": "catalog.module.description",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "runtime": "both",
     "requires": {

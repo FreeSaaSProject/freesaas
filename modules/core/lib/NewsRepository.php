@@ -263,6 +263,24 @@ final class NewsRepository
         return $chain;
     }
 
+    /**
+     * Ticket deadline from a Y-m-d form value: start of that day, so the ticket is
+     * overdue on the deadline day itself (oper stored day start, not 23:59:59).
+     * Keeps $current when it already falls on the same date.
+     */
+    public static function deadlineFromDate(string $ymd, int $current = 0): int
+    {
+        $ymd = trim($ymd);
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $ymd, $m)) {
+            return 0;
+        }
+        if ($current > 0 && date('Y-m-d', $current) === $ymd) {
+            return $current;
+        }
+        $ts = mktime(0, 0, 0, (int)$m[2], (int)$m[3], (int)$m[1]);
+        return $ts !== false ? (int)$ts : 0;
+    }
+
     /** Parse USERS_RESP "#1#,#2#" → user ids. */
     public static function parseUserList(string $raw): array
     {

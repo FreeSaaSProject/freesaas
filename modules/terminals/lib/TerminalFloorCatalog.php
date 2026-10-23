@@ -353,6 +353,30 @@ final class TerminalFloorCatalog
             ];
         }
 
+        // Drop staff who cannot perform any row here (skill SoT = rates; replaces category executors).
+        if ($rows !== []) {
+            $keep = [];
+            foreach ($columns as $i => $col) {
+                if ($filterOperatorId > 0 && (int)$col['id'] === $filterOperatorId) {
+                    $keep[$i] = true;
+                    continue;
+                }
+                foreach ($rows as $row) {
+                    if (($row['cells'][$i]['kind'] ?? 'none') !== 'none') {
+                        $keep[$i] = true;
+                        break;
+                    }
+                }
+            }
+            if (count($keep) !== count($columns)) {
+                $columns = array_values(array_intersect_key($columns, $keep));
+                foreach ($rows as &$row) {
+                    $row['cells'] = array_values(array_intersect_key($row['cells'], $keep));
+                }
+                unset($row);
+            }
+        }
+
         // Selected rows first (order table), then the rest.
         usort($rows, static function (array $a, array $b): int {
             $as = !empty($a['selected']) ? 0 : 1;

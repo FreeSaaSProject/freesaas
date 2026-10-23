@@ -238,7 +238,22 @@ function agent_api_dispatch(string $path, string $method, string $id): array
         } elseif (isset($_POST['migrate'])) {
             $migrate = !in_array(strtolower((string)$_POST['migrate']), ['0', 'false', 'no'], true);
         }
-        return AgentOps::updateApply($target, $migrate);
+        $dbBackup = !empty($body['db_backup']) || !empty($_GET['db_backup']) || !empty($_POST['db_backup']);
+        return AgentOps::updateApply($target, $migrate, $dbBackup);
+    }
+    if ($path === '/agent/update/conflicts' && $method === 'GET') {
+        return AgentOps::updateConflicts();
+    }
+    if ($path === '/agent/update/resolve' && $method === 'POST') {
+        $body = agent_api_json_body();
+        $pick = static function (string $key) use ($body): string {
+            if (array_key_exists($key, $body)) {
+                return is_bool($body[$key]) ? ($body[$key] ? '1' : '') : (string)$body[$key];
+            }
+            return (string)($_POST[$key] ?? $_GET[$key] ?? '');
+        };
+        $all = in_array(strtolower($pick('all')), ['1', 'true', 'yes'], true);
+        return AgentOps::updateResolve($pick('path'), $pick('take'), $all);
     }
 
     if ($id !== '' && strpos($path, '/agent/modules/') === 0) {

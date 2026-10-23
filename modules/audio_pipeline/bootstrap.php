@@ -19,7 +19,7 @@ require_once __DIR__ . '/lib/AudioCoverageProfiles.php';
  * Shared worker token + messenger voice queue live in module `asr`.
  * Enqueue (fast 202): GET /audio/jobs/ingest|stem?token=…
  * Sync processors: /audio/jobs/ingest/run, /audio/jobs/stem/run
- * Drain: Cron every 5 min + nightly 02:00 force (audio_pipeline.ingest|stem + *_nightly).
+ * Drain: Cron every 5 min + ingest_nightly 02:00 + stem_nightly 07:00 sweep (yesterday + pending lookback days).
  */
 
 $asrRoutes = [
@@ -106,10 +106,11 @@ Cron::register('audio_pipeline.stem', [
     },
 ]);
 
+// 07:00, not 02:00: badge uploads often finish only by morning; yesterday is published after them.
 Cron::register('audio_pipeline.stem_nightly', [
     'module' => 'audio_pipeline',
     'label' => 'audio_pipeline.cron.stem_nightly',
-    'daily_at' => '02:00',
+    'daily_at' => '07:00',
     'handler' => static function (): array {
         $out = AudioJobQueue::drainStem(true);
         return [

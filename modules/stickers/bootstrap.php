@@ -18,6 +18,7 @@ require_once __DIR__ . '/lib/Acts2InDps.php';
 require_once __DIR__ . '/lib/Acts2OutRepository.php';
 require_once __DIR__ . '/lib/StickerInsRepository.php';
 require_once __DIR__ . '/lib/StickerInsOps.php';
+require_once __DIR__ . '/lib/StickerActivation.php';
 require_once __DIR__ . '/lib/StickerOutsRepository.php';
 require_once __DIR__ . '/lib/StickerWriteoff.php';
 require_once __DIR__ . '/lib/WriteoffBotPlugin.php';

@@ -9,7 +9,7 @@ return [
     'audio_pipeline.cron.ingest' => 'Audio inbox ingest drain (every 5 min)',
     'audio_pipeline.cron.ingest_nightly' => 'Audio inbox ingest force (nightly 02:00)',
     'audio_pipeline.cron.stem' => 'Stem/day parse drain (every 5 min)',
-    'audio_pipeline.cron.stem_nightly' => 'Stem/day parse force (nightly 02:00)',
+    'audio_pipeline.cron.stem_nightly' => 'Stem/day: yesterday + days with pending (morning 07:00)',
     'audio_pipeline.settings.coverage' => 'Record coverage (disable idle)',
     'audio_pipeline.settings.coverage_hint' => 'Global defaults. Per-role / per-staff overrides below (optional). When not using spa procedure matching, leave match off for plain ® analytics.',
     'audio_pipeline.settings.disable_outside' => 'Disable records outside coverage after collect',

@@ -150,6 +150,19 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
           <button class="btn-primary btn-sm" type="submit"><?= te('core.modules.btn_install') ?></button>
         </form>
       <?php endif; ?>
+      <?php if (!empty($canInstall)):
+          $isDismissed = !empty($card['dismissed']);
+          ?>
+        <form method="post" class="inline-form" action="/modules">
+          <input type="hidden" name="module" value="<?= e($id) ?>">
+          <input type="hidden" name="action" value="<?= $isDismissed ? 'restore_available' : 'dismiss_available' ?>">
+          <input type="hidden" name="ret" value="<?= e($listPath) ?>">
+          <button class="btn-secondary btn-sm" type="submit"
+                  title="<?= $isDismissed ? te('core.modules.btn_restore_hint') : te('core.modules.btn_dismiss_hint') ?>">
+            <?= $isDismissed ? te('core.modules.btn_restore') : te('core.modules.btn_dismiss') ?>
+          </button>
+        </form>
+      <?php endif; ?>
     <?php else: ?>
     <?php if (!empty($card['can_enable'])): ?>
       <?php

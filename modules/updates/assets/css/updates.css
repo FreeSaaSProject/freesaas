@@ -114,6 +114,25 @@ body.upd-job-busy { overflow: hidden; }
 .upd-status--ok { color: #1a7f37; font-weight: 600; }
 .upd-status--avail { color: #9a6700; font-weight: 600; }
 .upd-status--unk { color: var(--muted, #666); }
+.upd-status--frozen { color: #4a5aa8; font-weight: 600; }
+.upd-freeze-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: 0.25rem 1rem;
+  max-height: 18rem;
+  overflow: auto;
+}
+.upd-conflicts-list { margin: 0.5rem 0 0; padding: 0; list-style: none; }
+.upd-conflicts-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+}
+.upd-conflicts-list code { word-break: break-all; }
 .upd-check {
   display: inline-flex;
   align-items: center;

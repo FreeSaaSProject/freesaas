@@ -114,6 +114,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   module create <id> [--title=…]
   module add-migration <id> <slug>
   module bump <id> [--patch|--minor|--major|--set=x.y.z]
+  module dismiss|undismiss <id>   hide/restore a module in "available to install"
   migrate status|run [--module=id] [--format=json]
   db status|dumps|dump|restore|delete-dump|check|repair|optimize [--file=…] [--label=…] [--format=json]
   locale list|validate [--locale=xx] [--format=json]
@@ -121,6 +122,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   doctor [--format=json] [--issue-body]
   i18n check [--locale=xx] [--format=json]
   update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--db-backup] [--format=json]
+  update conflicts [--format=json]
+  update resolve --take=ours|mine (--path=rel/path | --all) [--format=json]
   core habits-reminders [--simulate] [--format=json]
   cron tick [--job=id] [--force] [--format=json]
   user unlock <login> [--format=json]
@@ -523,7 +526,21 @@ function freesaas_cmd_update(string $sub, array $opts): void
         freesaas_emit_ops(AgentOps::updateApply($target, $migrate, $dbBackup));
         return;
     }
-    Cli::usage('Usage: update status|check|apply [--target=core|moduleId|all] [--no-migrate] [--db-backup] [--format=json]');
+    if ($sub === 'conflicts') {
+        freesaas_emit_ops(AgentOps::updateConflicts());
+        return;
+    }
+    if ($sub === 'resolve') {
+        $take = isset($opts['take']) ? (string)$opts['take'] : '';
+        $all = !empty($opts['all']);
+        $path = isset($opts['path']) ? (string)$opts['path'] : null;
+        if ($take === '' || (!$all && ($path === null || $path === ''))) {
+            Cli::usage('Usage: update resolve --take=ours|mine (--path=rel/path | --all)');
+        }
+        freesaas_emit_ops(AgentOps::updateResolve($path, $take, $all));
+        return;
+    }
+    Cli::usage('Usage: update status|check|apply|conflicts|resolve [--target=core|moduleId|all] [--no-migrate] [--db-backup] [--take=ours|mine --path=…|--all] [--format=json]');
 }
 
 /** @param array<string,mixed> $r */
@@ -656,6 +673,13 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         $id = $args[2] ?? '';
         freesaas_emit_ops(AgentOps::moduleValidate($id !== '' ? $id : null));
     }
+    if ($sub === 'dismiss' || $sub === 'undismiss') {
+        $id = $args[2] ?? '';
+        if ($id === '') {
+            Cli::usage("Usage: module {$sub} <id>");
+        }
+        freesaas_emit_ops(AgentOps::moduleDismiss($id, $sub === 'dismiss'));
+    }
     if ($sub === 'bump') {
         $id = $args[2] ?? '';
         if ($id === '') {
@@ -691,7 +715,7 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         }
         freesaas_emit_ops(AgentOps::moduleAddMigration($id, $slug));
     }
-    Cli::usage('Usage: module list|inspect|install|uninstall --confirm|enable|disable|validate|bump|create|add-migration …');
+    Cli::usage('Usage: module list|inspect|install|uninstall --confirm|enable|disable|validate|bump|dismiss|undismiss|create|add-migration …');
 }
 
 /** @param array<string, string|bool> $opts */

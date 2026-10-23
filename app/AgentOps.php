@@ -511,7 +511,7 @@ final class AgentOps
     }
 
     /**
-     * Download a remote module not yet on disk (UpdateEngine overlay). Stays disabled.
+     * Download a remote module not yet on disk (UpdateEngine overlay). Writes [modules] id=0 so it stays disabled.
      *
      * @return array<string,mixed>
      */
@@ -519,9 +519,15 @@ final class AgentOps
     {
         $r = UpdateEngine::installModule($id);
         if (!empty($r['ok'])) {
-            $r['hint'] = 'Module downloaded to modules/' . $id . '; enable via module enable (accept_risk if alpha/beta)';
+            $r['hint'] = 'Module downloaded to modules/' . $id . ' and left disabled ([modules] ' . $id . '=0); enable via module enable (accept_risk if alpha/beta)';
         }
         return $r;
+    }
+
+    /** Hide (dismiss=true) or restore an installable module in the "available to install" list. */
+    public static function moduleDismiss(string $id, bool $dismiss = true): array
+    {
+        return $dismiss ? UpdateEngine::dismissAvailable($id) : UpdateEngine::restoreAvailable($id);
     }
 
     /**
@@ -1202,7 +1208,21 @@ final class AgentOps
                     'op' => 'update.apply',
                     'query' => ['target', 'migrate', 'db_backup'],
                     'body' => ['target', 'migrate', 'db_backup'],
-                    'description' => 'Snapshot files → overlay → migrate → health (ok). Optional db_backup. target=core|moduleId|all.',
+                    'description' => 'Snapshot files → overlay → migrate → health (ok). Locally edited files are kept (conflicts[]); frozen and not-installed modules are skipped. Optional db_backup. target=core|moduleId|all.',
+                ],
+                [
+                    'method' => 'GET',
+                    'path' => '/agent/update/conflicts',
+                    'op' => 'update.conflicts',
+                    'description' => 'Files edited on this instance that an update also changed; upstream copies parked in var/updates/conflicts/.',
+                ],
+                [
+                    'method' => 'POST',
+                    'path' => '/agent/update/resolve',
+                    'op' => 'update.resolve',
+                    'query' => ['path', 'take', 'all'],
+                    'body' => ['path', 'take', 'all'],
+                    'description' => 'Resolve a conflict: take=ours (overwrite with upstream) | take=mine (keep instance file). all=1 for every conflict.',
                 ],
             ],
             'cli' => 'php bin/freesaas.php … --format=json',
@@ -1231,6 +1251,19 @@ final class AgentOps
     public static function updateApply(?string $target = null, bool $migrate = true, bool $dbBackup = false): array
     {
         return UpdateEngine::apply($target, $migrate, $dbBackup);
+    }
+
+    /** Files the instance edited that an update also changed (local kept, upstream parked). */
+    public static function updateConflicts(): array
+    {
+        $list = UpdateEngine::conflicts();
+        return ['ok' => true, 'conflicts' => $list, 'count' => count($list), 'http' => 200];
+    }
+
+    /** take=ours overwrites with the parked upstream copy; take=mine keeps the instance file. */
+    public static function updateResolve(?string $path, string $take, bool $all = false): array
+    {
+        return UpdateEngine::resolveConflict($path, $take, $all);
     }
 
     /**

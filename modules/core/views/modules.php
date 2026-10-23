@@ -14,6 +14,8 @@ declare(strict_types=1);
 /** @var string $error */
 
 $installable = is_array($installable ?? null) ? $installable : [];
+/** @var list<array<string,mixed>> $dismissedInstallable */
+$dismissedInstallable = is_array($dismissedInstallable ?? null) ? $dismissedInstallable : [];
 $updatesConfigured = !empty($updatesConfigured);
 $canInstall = !empty($canInstall);
 
@@ -132,6 +134,21 @@ $showNav = count($sections) > 1 || $installable !== [];
       endforeach; ?>
     </div>
   </section>
+<?php endif; ?>
+
+<?php if ($dismissedInstallable !== []): ?>
+  <details class="modules-section modules-section--dismissed" id="mod-dismissed">
+    <summary class="modules-section-head">
+      <span class="modules-section-title"><?= te('core.modules.section_dismissed', ['n' => count($dismissedInstallable)]) ?></span>
+    </summary>
+    <p class="muted modules-section-lede"><?= te('core.modules.section_dismissed_help') ?></p>
+    <div class="modules-grid">
+      <?php foreach ($dismissedInstallable as $card):
+          $sectionCategory = '';
+          require base_path('modules/core/views/partials/modules_card.php');
+      endforeach; ?>
+    </div>
+  </details>
 <?php endif; ?>
 
 <?php if ($sections === [] && $installable === []): ?>

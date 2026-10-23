@@ -103,19 +103,60 @@ final class UpdateConfig
         return null;
     }
 
-    /** Opt-in full DB dump before migrate (slow on large tables). Default off. */
-    public static function dbBackupBeforeMigrate(): bool
+    /** @return array<string,string> [updates] section of cfg/updates.ini */
+    private static function updatesSection(): array
     {
         $path = UpdateConfig::updatesIniPath();
         if (!is_file($path)) {
-            return false;
+            return [];
         }
         $parsed = @parse_ini_file($path, true, INI_SCANNER_RAW);
         if (!is_array($parsed) || !isset($parsed['updates']) || !is_array($parsed['updates'])) {
-            return false;
+            return [];
         }
-        $v = strtolower(trim((string)($parsed['updates']['db_backup_before_migrate'] ?? '0')));
+        return $parsed['updates'];
+    }
+
+    /** Opt-in full DB dump before migrate (slow on large tables). Default off. */
+    public static function dbBackupBeforeMigrate(): bool
+    {
+        $v = strtolower(trim((string)(self::updatesSection()['db_backup_before_migrate'] ?? '0')));
         return in_array($v, ['1', 'true', 'yes', 'on'], true);
+    }
+
+    /**
+     * Modules the instance froze: updates never write their files.
+     *
+     * @return list<string>
+     */
+    public static function frozenModules(): array
+    {
+        return self::parseModuleList((string)(self::updatesSection()['frozen_modules'] ?? ''));
+    }
+
+    public static function isFrozen(string $id): bool
+    {
+        return in_array($id, self::frozenModules(), true);
+    }
+
+    /**
+     * @param string|list<mixed> $raw comma-separated string or list of ids
+     * @return list<string>
+     */
+    private static function parseModuleList($raw): array
+    {
+        $items = is_array($raw) ? $raw : explode(',', (string)$raw);
+        $out = [];
+        foreach ($items as $id) {
+            if (!is_scalar($id)) {
+                continue;
+            }
+            $id = strtolower(trim((string)$id));
+            if ($id !== '' && $id !== 'core' && preg_match('/^[a-z][a-z0-9_]*$/', $id)) {
+                $out[$id] = true;
+            }
+        }
+        return array_keys($out);
     }
 
     /**
@@ -141,6 +182,7 @@ final class UpdateConfig
             'token_set' => !empty($core['token_set']),
             'configured' => is_file(UpdateConfig::updatesIniPath()),
             'db_backup_before_migrate' => UpdateConfig::dbBackupBeforeMigrate(),
+            'frozen_modules' => UpdateConfig::frozenModules(),
         ];
     }
 
@@ -204,11 +246,16 @@ final class UpdateConfig
             $parsed['updates'] = [];
         }
         $parsed['updates']['db_backup_before_migrate'] = $dbBackup ? '1' : '0';
+        if (array_key_exists('frozen_modules', $in)) {
+            $frozen = is_array($in['frozen_modules']) ? $in['frozen_modules'] : (string)$in['frozen_modules'];
+            $parsed['updates']['frozen_modules'] = implode(',', self::parseModuleList($frozen));
+        }
 
         $lines = [
             '; FreeSaaS self-update (written by Updates settings UI). Do not commit.',
             '; Check: modules/<id>/module.json on git ref. Apply: zipball or full release zip.',
             '; db_backup_before_migrate=1 dumps all owned tables before migrate (slow on large DBs).',
+            '; frozen_modules=a,b — updates never write files of these modules.',
             '',
         ];
         foreach ($parsed as $section => $rows) {

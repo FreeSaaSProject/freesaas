@@ -70,6 +70,7 @@ final class UpdateApply
             $remote = isset($source['_remote']) && is_array($source['_remote'])
                 ? $source['_remote']
                 : UpdateGithub::resolveRemoteMeta($source);
+            $remote = UpdateGithub::pinCommit($source, $remote);
 
             $cacheKey = ((string)($source['bundle'] ?? '')) . '|' . ((string)($source['repo'] ?? '')) . '|' . ((string)($remote['ref'] ?? '')) . '|' . ((string)($remote['url'] ?? ''));
             if (!isset($archiveCache[$cacheKey])) {
@@ -97,12 +98,13 @@ final class UpdateApply
             );
             $kind = (string)$source['kind'];
             $bundle = (string)($source['bundle'] ?? '');
-            $paths = UpdateOverlay::collectOverlayPaths($payloadRoot, $kind, $id, $bundle);
-            $snap = UpdateRollback::snapshotBeforeOverlay($paths, $id);
+            $plan = UpdateOverlay::plan($payloadRoot, $kind, $id, $bundle, $source);
+            $snap = UpdateRollback::snapshotBeforeOverlay(UpdateOverlay::writePaths($plan), $id);
             $snapshotId = (string)$snap['id'];
 
             $failPhase = 'overlay';
-            $copied = UpdateOverlay::overlay($payloadRoot, $kind, $id, $bundle);
+            $overlay = UpdateOverlay::execute($plan, $id, (string)$remote['version']);
+            $copied = $overlay['copied'];
 
             if ($migrate && $dbBackup) {
                 $dump = AgentOps::dbDump('update-pre-' . $id);
@@ -134,22 +136,7 @@ final class UpdateApply
                 throw new RuntimeException((string)($health['error'] ?? 'Health check failed after update'));
             }
 
-            $state = UpdateFs::readState();
-            $entry = [
-                'version' => (string)$remote['version'],
-                'applied_at' => gmdate('c'),
-                'ok' => true,
-                'ref' => $remote['ref'] ?? null,
-            ];
-            if ($kind === 'core') {
-                $state['core'] = $entry;
-            } else {
-                if (!isset($state['modules']) || !is_array($state['modules'])) {
-                    $state['modules'] = [];
-                }
-                $state['modules'][$id] = $entry;
-            }
-            UpdateFs::writeState($state);
+            self::recordApplied($id, $kind, $remote);
             UpdateCheck::refreshCheckAfterApply($id, $kind, $bundle);
 
             return [
@@ -163,10 +150,47 @@ final class UpdateApply
                 'snapshot_id' => $snapshotId,
                 'db_backup' => $dbBackup,
                 'dump' => $dumpFile !== '' ? $dumpFile : null,
-            ];
+            ] + self::overlayReport($overlay);
         } catch (Throwable $e) {
             return self::failApply($id, (string)($source['kind'] ?? 'module'), $e->getMessage(), $snapshotId, $dumpFile, $failPhase, $dbBackup);
         }
+    }
+
+    /** @param array<string,mixed> $remote */
+    private static function recordApplied(string $id, string $kind, array $remote): void
+    {
+        $state = UpdateFs::readState();
+        $entry = [
+            'version' => (string)($remote['version'] ?? ''),
+            'applied_at' => gmdate('c'),
+            'ok' => true,
+            'ref' => $remote['ref'] ?? null,
+            'commit' => $remote['commit'] ?? null,
+        ];
+        if ($kind === 'core') {
+            $state['core'] = $entry;
+        } else {
+            if (!isset($state['modules']) || !is_array($state['modules'])) {
+                $state['modules'] = [];
+            }
+            $state['modules'][$id] = $entry;
+        }
+        UpdateFs::writeState($state);
+    }
+
+    /**
+     * @param array<string,mixed> $overlay from UpdateOverlay::execute
+     * @return array<string,mixed>
+     */
+    private static function overlayReport(array $overlay): array
+    {
+        return [
+            'conflicts' => array_values((array)($overlay['conflicts'] ?? [])),
+            'kept_local' => count((array)($overlay['kept'] ?? [])),
+            'unverified_count' => (int)($overlay['unverified'] ?? 0),
+            'skipped_frozen' => array_values((array)($overlay['skipped_frozen'] ?? [])),
+            'skipped_new_modules' => array_values((array)($overlay['skipped_new_modules'] ?? [])),
+        ];
     }
 
     /**
@@ -290,8 +314,12 @@ final class UpdateApply
         $cur = $targets[$ti] ?? null;
         $curId = is_array($cur) ? (string)($cur['id'] ?? '') : '';
         $found = [];
+        $conflicts = 0;
         $results = is_array($job['results'] ?? null) ? $job['results'] : [];
         foreach ($results as $row) {
+            if (is_array($row)) {
+                $conflicts += count((array)($row['conflicts'] ?? []));
+            }
             if (!is_array($row) || empty($row['update_available'])) {
                 continue;
             }
@@ -321,6 +349,7 @@ final class UpdateApply
             'last_check' => $job['last_check'] ?? null,
             'rolled_back' => !empty($job['rolled_back']),
             'needs_manual_db_review' => !empty($job['needs_manual_db_review']),
+            'conflicts_count' => $conflicts,
         ];
     }
 
@@ -373,7 +402,7 @@ final class UpdateApply
 
             if ($step === 'resolve') {
                 $job['message'] = t('updates.job.step_resolve', ['id' => $sid]);
-                $remote = UpdateGithub::resolveRemoteMeta($source);
+                $remote = UpdateGithub::pinCommit($source, UpdateGithub::resolveRemoteMeta($source));
                 $cacheKey = ((string)($source['bundle'] ?? '')) . '|' . ((string)($source['repo'] ?? '')) . '|' . ((string)($remote['ref'] ?? '')) . '|' . ((string)$remote['url']);
                 $work = ['remote' => $remote, 'cache_key' => $cacheKey, 'copied' => 0, 'fail_phase' => ''];
                 $job['work'] = $work;
@@ -418,23 +447,21 @@ final class UpdateApply
                     (string)$source['kind'],
                     $sid
                 );
-                $paths = UpdateOverlay::collectOverlayPaths(
+                $plan = UpdateOverlay::plan(
                     $payloadRoot,
                     (string)$source['kind'],
                     $sid,
-                    (string)($source['bundle'] ?? '')
+                    (string)($source['bundle'] ?? ''),
+                    $source
                 );
-                $snap = UpdateRollback::snapshotBeforeOverlay($paths, $sid);
+                $snap = UpdateRollback::snapshotBeforeOverlay(UpdateOverlay::writePaths($plan), $sid);
                 $work['snapshot_id'] = (string)$snap['id'];
                 $work['fail_phase'] = 'overlay';
                 // Persist before overlay — catch uses $job['work'], not local $work.
                 $job['work'] = $work;
-                $work['copied'] = UpdateOverlay::overlay(
-                    $payloadRoot,
-                    (string)$source['kind'],
-                    $sid,
-                    (string)($source['bundle'] ?? '')
-                );
+                $overlay = UpdateOverlay::execute($plan, $sid, (string)($work['remote']['version'] ?? ''));
+                $work['copied'] = $overlay['copied'];
+                $work['overlay'] = self::overlayReport($overlay);
                 $job['work'] = $work;
                 if (!empty($job['migrate']) && $dbBackup) {
                     $job['step'] = 'migrate'; // dump happens at start of migrate step
@@ -482,22 +509,7 @@ final class UpdateApply
                 $remote = is_array($work['remote'] ?? null) ? $work['remote'] : [];
                 $mig = $work['migrate'] ?? ['ok' => true, 'skipped' => true];
                 $health = $work['health'] ?? ['ok' => true, 'skipped' => true];
-                $state = UpdateFs::readState();
-                $entry = [
-                    'version' => (string)($remote['version'] ?? ''),
-                    'applied_at' => gmdate('c'),
-                    'ok' => true,
-                    'ref' => $remote['ref'] ?? null,
-                ];
-                if ($source['kind'] === 'core') {
-                    $state['core'] = $entry;
-                } else {
-                    if (!isset($state['modules']) || !is_array($state['modules'])) {
-                        $state['modules'] = [];
-                    }
-                    $state['modules'][$sid] = $entry;
-                }
-                UpdateFs::writeState($state);
+                self::recordApplied($sid, (string)($source['kind'] ?? 'module'), $remote);
                 UpdateCheck::refreshCheckAfterApply(
                     $sid,
                     (string)($source['kind'] ?? 'module'),
@@ -513,7 +525,7 @@ final class UpdateApply
                     'health' => $health,
                     'snapshot_id' => $work['snapshot_id'] ?? null,
                     'db_backup' => $dbBackup,
-                ];
+                ] + (is_array($work['overlay'] ?? null) ? $work['overlay'] : []);
                 $job['work'] = null;
                 $job['target_index'] = $ti + 1;
                 $job['step'] = 'resolve';

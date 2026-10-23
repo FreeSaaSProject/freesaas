@@ -155,6 +155,23 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'targets' => $updateCheckRows,
                 ]);
             }
+        } elseif ($action === 'conflict_resolve') {
+            if (!$canApply) {
+                throw new RuntimeException(t('updates.err_superadmin'));
+            }
+            $all = !empty($_POST['all']);
+            $take = (string)($_POST['take'] ?? '');
+            $report = AgentOps::updateResolve($all ? null : (string)($_POST['path'] ?? ''), $take, $all);
+            if (empty($report['ok'])) {
+                throw new RuntimeException((string)($report['error'] ?? t('updates.conflicts.err')));
+            }
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'action' => 'conflict_resolve'] + $report);
+            }
+            flash_set('ok', t($take === 'ours' ? 'updates.conflicts.msg_ours' : 'updates.conflicts.msg_mine', [
+                'n' => (string)count($report['resolved'] ?? []),
+            ]));
+            redirect('/updates');
         } elseif ($wantsJson) {
             AgentHttp::error('Unknown action', 400);
         }
@@ -228,4 +245,5 @@ View::render('index', [
     'updateAvailableCount' => $updateAvailableCount,
     'updateAvailable' => $updateAvailable,
     'installableCount' => (int)($updateStatus['installable_count'] ?? 0),
+    'conflicts' => is_array($updateStatus['conflicts'] ?? null) ? $updateStatus['conflicts'] : [],
 ], 'layout', 'updates');

@@ -11,7 +11,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (!$canSave) {
             throw new RuntimeException(t('updates.err_superadmin'));
         }
-        UpdateEngine::saveCoreSettings([
+        $in = [
             'provider' => (string)($_POST['provider'] ?? 'github'),
             'repo' => (string)($_POST['repo'] ?? ''),
             'channel' => (string)($_POST['channel'] ?? 'main'),
@@ -20,7 +20,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'token' => (string)($_POST['token'] ?? ''),
             'clear_token' => !empty($_POST['clear_token']),
             'db_backup_before_migrate' => !empty($_POST['db_backup_before_migrate']),
-        ]);
+        ];
+        // Unchecked boxes send nothing: the marker tells "form had the list" from "field omitted".
+        if (isset($_POST['frozen_modules']) || !empty($_POST['frozen_modules_present'])) {
+            $in['frozen_modules'] = $_POST['frozen_modules'] ?? [];
+        }
+        UpdateEngine::saveCoreSettings($in);
         $message = t('core.common.saved');
         if ($wantsJson) {
             AgentHttp::emit([
@@ -38,6 +43,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 }
 
 $cfg = UpdateEngine::coreSettings();
+
+$freezeOptions = [];
+foreach (ModuleManager::all() as $mid => $meta) {
+    $mid = (string)$mid;
+    if ($mid === 'core') {
+        continue;
+    }
+    $freezeOptions[] = ['id' => $mid, 'label' => UpdateEngine::packageLabel($mid)];
+}
+usort($freezeOptions, static function (array $a, array $b): int {
+    return strcasecmp($a['label'], $b['label']);
+});
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
     AgentHttp::emit([
@@ -58,4 +75,5 @@ View::render('settings', [
     'error' => $error,
     'cfg' => $cfg,
     'canSave' => $canSave,
+    'freezeOptions' => $freezeOptions,
 ], 'layout', 'updates');

@@ -72,7 +72,7 @@ curl -sS -b jar.txt 'https://example/audio/asr/chunk-claim?format=json'
 | `audio_pipeline.ingest` | every 5 min | `AudioJobQueue::drainIngest` — one batch; requeues if inbox still has files |
 | `audio_pipeline.ingest_nightly` | 02:00 | force drain even without flag if inbox dirty |
 | `audio_pipeline.stem` | every 5 min | `drainStem` — one stem batch; when day pending=0 → collect + `reparse.after` publish; requeues while pending>0 |
-| `audio_pipeline.stem_nightly` | 02:00 | force drain for today (or yesterday if today empty) |
+| `audio_pipeline.stem_nightly` | 07:00 | morning sweep (uploads often finish only by morning): enqueue yesterday (always — same-day publish is refused while it is today) + every day within `StemRunner::LOOKBACK_DAYS` (10) with pending records, immediately; then drain head |
 
 Host still needs `*/5` → `/cron/tick` — see [cron.md](cron.md).
 
@@ -113,6 +113,8 @@ Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 
 - Claim response: **plain text** filename or `None`. Optional `?format=json` → `{"ok":true,"claim":"…"}`.
 - Result POST fields: `file_name`, `result`; optional `PLAYTIME`, `VOLUME`.
+- Result save for a **past** day (`DT_RECORDED` before today, within `LOOKBACK_DAYS`) enqueues that day with `not_before = now + late_stem_delay_sec` (`cfg/modules/audio.ini` `[audio]`, default 3600); diag line shows `STEM_QUEUED=YYYY-MM-DD`. Further results for the same day merge into the same job and do **not** postpone it (earliest `not_before` wins). Why deferred: when a day drains, collect for all staff of the day + staff report publish (quality per employee, reward contract, gratitude board, optional cyclic LLM) run — too heavy to repeat every 5 min while uploads trickle in. Today's records are left to the Whisper idle ping; older than lookback: calendar Re-®.
+- Queue jobs carry `not_before` (0 = next tick). `drainStem` takes the first **due** job in order; if only deferred jobs remain the cron journal shows `stem_deferred`.
 - ASR claim/result are **not** part of `/cron/tick` — the Whisper worker polls FreeSaaS itself.
 
 ### After ASR (instead of `recordParser3.php`)

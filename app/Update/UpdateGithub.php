@@ -194,6 +194,47 @@ final class UpdateGithub
         throw new RuntimeException('Unexpected contents payload for ' . $path);
     }
 
+    public static function commitSha(string $repo, string $ref, string $token): string
+    {
+        $api = 'https://api.github.com/repos/' . $repo . '/commits/' . rawurlencode($ref);
+        $data = json_decode(UpdateGithub::httpGet($api, $token), true);
+        $sha = is_array($data) ? (string)($data['sha'] ?? '') : '';
+        return preg_match('/^[0-9a-f]{40}$/i', $sha) ? strtolower($sha) : '';
+    }
+
+    /**
+     * Resolve the commit behind a moving ref and download that exact commit, so the
+     * installed tree can later serve as a baseline for local-edit detection.
+     *
+     * @param array<string,mixed> $pkg
+     * @param array<string,mixed> $remote
+     * @return array<string,mixed>
+     */
+    public static function pinCommit(array $pkg, array $remote): array
+    {
+        if ((string)($pkg['provider'] ?? 'github') !== 'github' || !empty($remote['commit'])) {
+            return $remote;
+        }
+        $repo = (string)($pkg['repo'] ?? '');
+        $ref = (string)($remote['ref'] ?? '');
+        if ($repo === '' || $ref === '') {
+            return $remote;
+        }
+        try {
+            $sha = UpdateGithub::commitSha($repo, $ref, (string)($pkg['token'] ?? ''));
+        } catch (Throwable $e) {
+            return $remote;
+        }
+        if ($sha === '') {
+            return $remote;
+        }
+        $remote['commit'] = $sha;
+        if (strpos((string)($remote['artifact'] ?? ''), 'zipball:') === 0) {
+            $remote['url'] = UpdateGithub::githubArchiveUrl($repo, $sha);
+        }
+        return $remote;
+    }
+
     /** @param array<string,mixed> $asset */
     public static function githubAssetDownloadUrl(array $asset): string
     {
@@ -276,6 +317,9 @@ final class UpdateGithub
         $ref = trim($ref);
         if ($ref === '') {
             $ref = 'main';
+        }
+        if (preg_match('/^[0-9a-f]{40}$/i', $ref)) {
+            return 'https://codeload.github.com/' . $repo . '/zip/' . $ref;
         }
         // API zipball resolves branch vs tag; keep as fallback path via downloadAcceptForUrl.
         // Codeload is more reliable when we know it's a branch name used as channel.

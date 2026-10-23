@@ -84,6 +84,21 @@ final class UpdateCheck
     public static function resolvePackages(?string $target = null, bool $onlyNewer = false): array
     {
         $all = UpdateCheck::discoverPackages($target);
+        $frozen = array_fill_keys(UpdateConfig::frozenModules(), true);
+        if ($frozen !== []) {
+            $explicit = $target !== null && trim($target) !== '' && strtolower(trim($target)) !== 'all';
+            $kept = [];
+            foreach ($all as $p) {
+                if (isset($frozen[(string)$p['id']])) {
+                    if ($explicit) {
+                        throw new InvalidArgumentException(t('updates.err_frozen', ['id' => (string)$p['id']]));
+                    }
+                    continue;
+                }
+                $kept[] = $p;
+            }
+            $all = $kept;
+        }
         if (!$onlyNewer) {
             return $all;
         }
@@ -132,6 +147,10 @@ final class UpdateCheck
         $id = (string)($row['id'] ?? '');
         $row['label'] = UpdateVersions::packageLabel($id);
         $row['enabled'] = ($id === 'core') || ModuleManager::isEnabled($id);
+        $row['frozen'] = $id !== 'core' && UpdateConfig::isFrozen($id);
+        if ($row['frozen']) {
+            $row['update_available'] = false;
+        }
         return $row;
     }
 
@@ -272,6 +291,9 @@ final class UpdateCheck
                 'asset' => (string)($coreSrc['asset'] ?? ''),
             ] : null,
             'settings' => UpdateConfig::coreSettings(),
+            'frozen_modules' => UpdateConfig::frozenModules(),
+            'conflicts' => UpdateConflicts::listAll(),
+            'conflicts_count' => UpdateConflicts::count(),
             'state' => $state,
             'http' => 200,
         ];
@@ -540,7 +562,7 @@ final class UpdateCheck
             $remote = (string)($row['remote_version'] ?? '');
             $targets[$i]['local_version'] = $local;
             $targets[$i]['update_available'] = ($remote !== '' && UpdateVersions::isNewer($remote, $local));
-            $targets[$i]['label'] = UpdateVersions::packageLabel($tid);
+            $targets[$i] = UpdateCheck::enrichStatusRow($targets[$i]);
             $changed = true;
         }
         if (!$changed) {

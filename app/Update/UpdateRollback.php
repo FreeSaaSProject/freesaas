@@ -21,6 +21,7 @@ final class UpdateRollback
      */
     public static function snapshotBeforeOverlay(array $destRels, string $label = ''): array
     {
+        $metaFiles = [UpdateManifest::path(), UpdateConflicts::indexPath()];
         $id = gmdate('YmdHis') . '-' . bin2hex(random_bytes(4));
         if ($label !== '') {
             $id .= '-' . preg_replace('/[^a-zA-Z0-9_-]+/', '', $label);
@@ -53,11 +54,28 @@ final class UpdateRollback
             }
         }
 
+        // Updater bookkeeping under var/ (not part of overlay paths).
+        $meta = [];
+        $metaDir = $dir . '/meta';
+        UpdateFs::ensureDir($metaDir);
+        foreach ($metaFiles as $abs) {
+            $name = basename($abs);
+            if (is_file($abs)) {
+                if (!@copy($abs, $metaDir . '/' . $name)) {
+                    throw new RuntimeException('Cannot snapshot ' . $name);
+                }
+                $meta[$name] = ['path' => $abs, 'existed' => true];
+            } else {
+                $meta[$name] = ['path' => $abs, 'existed' => false];
+            }
+        }
+
         $manifest = [
             'id' => $id,
             'created_at' => gmdate('c'),
             'saved' => $saved,
             'created' => $created,
+            'meta' => $meta,
         ];
         $json = json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         if ($json === false || @file_put_contents($dir . '/manifest.json', $json . "\n") === false) {
@@ -119,6 +137,17 @@ final class UpdateRollback
             $abs = $base . '/' . $rel;
             if (is_file($abs) && @unlink($abs)) {
                 $removed++;
+            }
+        }
+        foreach ((array)($manifest['meta'] ?? []) as $name => $info) {
+            if (!is_array($info) || empty($info['path'])) {
+                continue;
+            }
+            $target = (string)$info['path'];
+            if (!empty($info['existed'])) {
+                @copy($dir . '/meta/' . basename((string)$name), $target);
+            } elseif (is_file($target)) {
+                @unlink($target);
             }
         }
         return ['ok' => true, 'restored' => $restored, 'removed' => $removed];

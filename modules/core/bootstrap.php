@@ -102,6 +102,8 @@ $pages = [
     '/agent/update' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/update/check' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/update/apply' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/update/conflicts' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
+    '/agent/update/resolve' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/news' => ['permission' => 'core.news', 'methods' => ['GET'], 'file' => 'news.php'],
     '/news/new' => ['permission' => 'core.news', 'methods' => ['GET', 'POST'], 'file' => 'news_edit.php'],
     '/news-statuses' => ['permission' => 'core.news_statuses', 'methods' => ['GET'], 'file' => 'news_statuses.php'],
@@ -600,7 +602,7 @@ EventBus::on('comments.prepare_add', static function ($payload) {
         }
         $dl = trim((string)($post['ticket_deadline'] ?? ''));
         if ($dl !== '') {
-            $ts = strtotime($dl . ' 23:59:59');
+            $ts = NewsRepository::deadlineFromDate($dl, (int)$row['DT_DEADLINE']);
             if ($ts && $ts !== (int)$row['DT_DEADLINE']) {
                 $updates['DT_DEADLINE'] = $ts;
                 $statusUp = true;

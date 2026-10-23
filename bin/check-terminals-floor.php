@@ -8,8 +8,9 @@ declare(strict_types=1);
  * Covers: claimStaffDay (one staff → one terminal), stub bracelet, procedure
  * book + cancel via TerminalBooking. Not a browser UI test (categories/buttons).
  *
- * Requires: modules terminals + procedures enabled; at least one terminal and
- * one staff user; optional product (first bookable or --product=ID).
+ * Requires: modules terminals + procedures enabled; at least one terminal. Staff/product:
+ * someone on today's shift with a service they may perform and a free floor slot
+ * (bin/lib/BookingSmokeFixtures.php), or --admin= / --product=; otherwise SKIP with the reason.
  *
  * Usage:
  *   php bin/check-terminals-floor.php
@@ -66,29 +67,27 @@ if ($terminalId < 1) {
 }
 $term = $terminalId > 0 ? TerminalsRepository::find($terminalId, false) : null;
 
-$adminId = (int)($opts['admin'] ?? TerminalsConfig::string('booking_admin_id', '0'));
-if ($adminId < 1 && class_exists(UsersRepository::class, false)) {
-    $staff = UsersRepository::listEnabledStaff();
-    $adminId = (int)(($staff[0]['id'] ?? 0));
-}
+require_once __DIR__ . '/lib/BookingSmokeFixtures.php';
 
-$productId = (int)($opts['product'] ?? 0);
-if ($productId < 1 && class_exists(BookingCatalog::class, false)) {
-    $services = BookingCatalog::listServices(20);
-    $productId = (int)(($services[0]['id'] ?? 0));
-}
-if ($productId < 1 && class_exists(ProductsRepository::class, false)) {
-    $list = ProductsRepository::list(['enabled' => '1', 'is_material' => '0', 'limit' => 1, 'offset' => 0]);
-    $productId = (int)(($list['items'][0]['id'] ?? 0));
-}
+// Book as someone on today's shift who may perform the service (booking_admin_id may be off shift).
+$floorLead = TerminalsConfig::leadSec();
+$floorSlotOpts = TerminalsConfig::bookingSlotOpts();
+$pair = BookingSmokeFixtures::pickPair((int)mktime(0, 0, 0), [
+    'operator' => (int)($opts['admin'] ?? 0),
+    'product' => (int)($opts['product'] ?? 0),
+    'lead' => $floorLead,
+    'slot_opts' => $floorSlotOpts,
+]);
+$adminId = $pair['operator'];
+$productId = $pair['product'];
 
 if ($term === null || $adminId < 1 || $productId < 1) {
-    echo "SKIP floor DB scenario (need terminal + staff + product; got terminal="
-        . $terminalId . ' admin=' . $adminId . ' product=' . $productId . ")\n";
+    echo 'SKIP floor DB scenario (terminal=' . $terminalId . '; ' . $pair['reason'] . ")\n";
     echo "OK\n";
     exit(0);
 }
 $assert(true, 'fixtures terminal=' . $terminalId . ' admin=' . $adminId . ' product=' . $productId);
+$floorSlots = BookingSmokeFixtures::slots(date('Y-m-d'), $productId, $adminId, $floorLead, $floorSlotOpts);
 
 if ($term !== null && $adminId > 0) {
     $claim = TerminalsRepository::claimStaffDay($terminalId, $adminId);
@@ -128,8 +127,7 @@ if ($term !== null && $adminId > 0) {
     }
 }
 
-$dtStart = time() + 3600;
-$dtStart -= $dtStart % 300;
+$dtStart = BookingSmokeFixtures::firstSlotFrom($floorSlots, time() + $floorLead);
 
 $smokeClientId = 0;
 if (class_exists(ClientsRepository::class, false) && Database::tableExists('base_clients')) {
@@ -185,7 +183,7 @@ if (class_exists(TerminalDiscount::class, false)) {
         'operator_id' => $adminId,
         'admin_id' => $adminId,
         'terminal_id' => $terminalId,
-        'dt_start' => time() + 7200,
+        'dt_start' => BookingSmokeFixtures::firstSlotFrom($floorSlots, $dtStart + 1) ?: $dtStart,
         'client_id' => $smokeClientId,
         'onec_client_id' => 'stub-check-floor-disc',
         'onec_bracelet' => 'DEADBEEF',

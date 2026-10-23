@@ -67,26 +67,79 @@ if (isset($_GET['saved']) && $message === '') {
     $message = t('core.common.saved');
 }
 
-$acts = Acts2InRepository::list(['limit' => 200, 'order' => 'ID DESC'])['items'];
-$products = class_exists('ProductsRepository', false) ? ProductsRepository::names(true) : [];
+$currentActId = (int)($row['id_act'] ?? 0);
+$currentAct = $currentActId > 0 ? Acts2InRepository::find($currentActId) : null;
+$actFixed = $currentAct !== null && (!$isNew || $preAct > 0);
+$acts = [];
+if (!$actFixed) {
+    $canSigned = Auth::capability('SUPERADMIN_ACCESS');
+    foreach (Acts2InRepository::list(['limit' => 200, 'order' => 'a.ID DESC'])['items'] as $a) {
+        if ($canSigned || empty($a['is_signed'])) {
+            $acts[] = $a;
+        }
+    }
+}
+$stocks = class_exists('StocksRepository', false) ? StocksRepository::names() : [];
+
+$products = [];
+if (class_exists('ProductsRepository', false)) {
+    $products = ProductsRepository::materialNames();
+    if ($products === []) {
+        // Legacy: many consumables lack is_material — offer all enabled products.
+        $products = ProductsRepository::names(true);
+    }
+    $curGood = (int)($row['id_good'] ?? 0);
+    if ($curGood > 0 && !isset($products[$curGood])) {
+        $p = ProductsRepository::find($curGood);
+        if ($p) {
+            $products[$curGood] = (string)$p['name'];
+        }
+    }
+}
+$goodQ = trim((string)($row['good_q'] ?? ''));
+if ($goodQ === '' && (int)($row['id_good'] ?? 0) > 0) {
+    $goodQ = $products[(int)$row['id_good']] ?? '';
+}
+$manualActivation = StickerActivation::manualAllowed();
 
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'is_new' => $isNew,
         'item' => $row,
-        'receipt_acts' => $acts,
+        'act' => $currentAct,
+        'receipt_acts' => $actFixed ? [] : $acts,
         'products' => $products,
+        'activation_mode' => StickerActivation::mode(),
     ]);
     return;
 }
 
+$backUrl = $actFixed ? '/stickers/receipts/' . $currentActId . '/edit' : '/stickers/ins';
+$title = $isNew ? t('stickers.ins.edit_new') : t('stickers.ins.edit', ['id' => $id]);
+$crumbs = $actFixed
+    ? [
+        ['label' => t('stickers.menu.receipts'), 'href' => '/stickers/receipts'],
+        ['label' => 'П-' . $currentActId, 'href' => $backUrl],
+        ['label' => $title, 'current' => true],
+    ]
+    : [
+        ['label' => t('stickers.menu.ins'), 'href' => '/stickers/ins'],
+        ['label' => $title, 'current' => true],
+    ];
+
 View::render('ins_edit', [
-    'title' => $isNew ? t('stickers.ins.edit_new') : t('stickers.ins.edit', ['id' => $id]),
+    'title' => $title,
+    'breadcrumbs' => Breadcrumbs::withHome($crumbs),
     'isNew' => $isNew,
     'row' => $row,
     'acts' => $acts,
+    'act' => $actFixed ? $currentAct : null,
+    'stocks' => $stocks,
     'products' => $products,
+    'goodQ' => $goodQ,
+    'manualActivation' => $manualActivation,
+    'backUrl' => $backUrl,
     'canWriteoff' => Auth::can('stickers.writeoff') && !$isNew,
     'message' => $message,
     'error' => $error,

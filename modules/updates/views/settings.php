@@ -4,8 +4,11 @@ declare(strict_types=1);
 /** @var bool $canSave */
 /** @var string $message */
 /** @var string $error */
+/** @var list<array{id:string,label:string}> $freezeOptions */
 $cfg = is_array($cfg ?? null) ? $cfg : [];
 $canSave = !empty($canSave);
+$freezeOptions = is_array($freezeOptions ?? null) ? $freezeOptions : [];
+$frozenSet = array_fill_keys(is_array($cfg['frozen_modules'] ?? null) ? $cfg['frozen_modules'] : [], true);
 $message = (string)($message ?? '');
 $error = (string)($error ?? '');
 $channel = (string)($cfg['channel'] ?? 'main');
@@ -56,6 +59,21 @@ $channel = (string)($cfg['channel'] ?? 'main');
     <?= te('updates.settings.db_backup') ?>
   </label>
   <p class="muted form-hint"><?= te('updates.settings.db_backup_help') ?></p>
+  <fieldset class="form-fieldset upd-freeze">
+    <legend><?= te('updates.settings.frozen') ?></legend>
+    <p class="muted form-hint"><?= te('updates.settings.frozen_help') ?></p>
+    <input type="hidden" name="frozen_modules_present" value="1">
+    <div class="upd-freeze-grid">
+      <?php foreach ($freezeOptions as $opt): ?>
+      <label class="check">
+        <input type="checkbox" name="frozen_modules[]" value="<?= e($opt['id']) ?>"
+          <?= isset($frozenSet[$opt['id']]) ? ' checked' : '' ?>
+          <?= $canSave ? '' : 'disabled' ?>>
+        <?= e($opt['label']) ?> <code class="muted"><?= e($opt['id']) ?></code>
+      </label>
+      <?php endforeach; ?>
+    </div>
+  </fieldset>
   <input type="hidden" name="provider" value="github">
   <div class="page-actions">
     <?php if ($canSave): ?>

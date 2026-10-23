@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-23T12:42:59+00:00",
+    "generated_at": "2026-10-23T13:45:25+00:00",
     "modules": [
         {
             "id": "asr",
@@ -250,7 +250,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.29",
+            "version": "0.3.30",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -595,7 +595,7 @@
         },
         {
             "id": "catalog",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Catalog",
@@ -1518,7 +1518,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "0.1.22",
+            "version": "0.1.23",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1556,7 +1556,7 @@
         },
         {
             "id": "stickers",
-            "version": "0.1.18",
+            "version": "0.1.19",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1684,7 +1684,7 @@
         },
         {
             "id": "terminals",
-            "version": "0.1.45",
+            "version": "0.1.46",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1747,7 +1747,7 @@
         },
         {
             "id": "updates",
-            "version": "0.3.17",
+            "version": "0.3.18",
             "type": "product",
             "name": {
                 "en": "Updates",

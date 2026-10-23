@@ -10,7 +10,7 @@ require_once __DIR__ . '/CollectRunner.php';
  */
 final class StemRunner
 {
-    private const LOOKBACK_DAYS = 10;
+    public const LOOKBACK_DAYS = 10;
     private const MAX_BATCH = 700;
 
     /**

@@ -127,7 +127,7 @@ Result POST must be acked: HTTP 2xx **and** first body line JSON `true` (`/audio
 
 Enqueue returns **HTTP 202** (`stem_queued`); Cron `audio_pipeline.stem` (every 5 min) + nightly force do the work. Sync/reset: `/audio/jobs/stem/run`.
 
-Client always appends `day=today`. Treat 202 like success. HTTP 409 on `/run` = lock busy (do not burn idle quota).
+Client always appends `day=today`. Treat 202 like success. HTTP 409 on `/run` = lock busy (do not burn idle quota). Past days are not the client's job: `/audio/asr/result` enqueues the record's own past day (deferred by `late_stem_delay_sec`, default 1 h), and `stem_nightly` at 07:00 sweeps yesterday + pending lookback days.
 
 ## Loop behaviour
 

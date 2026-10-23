@@ -9,7 +9,7 @@ return [
     'audio_pipeline.cron.ingest' => 'Разбор inbox аудио (каждые 5 мин)',
     'audio_pipeline.cron.ingest_nightly' => 'Разбор inbox аудио (форс ночью в 02:00)',
     'audio_pipeline.cron.stem' => 'Stem/день (каждые 5 мин)',
-    'audio_pipeline.cron.stem_nightly' => 'Stem/день (форс ночью в 02:00)',
+    'audio_pipeline.cron.stem_nightly' => 'Stem/день: вчера + дни с хвостами (утром в 07:00)',
     'audio_pipeline.settings.coverage' => 'Покрытие записей (отключение простоя)',
     'audio_pipeline.settings.coverage_hint' => 'Глобальные значения. Ниже — опциональные оверрайды по роли / сотруднику. Без сопоставления процедур оставляйте match выключенным.',
     'audio_pipeline.settings.disable_outside' => 'Отключать записи вне покрытия после collect',

@@ -37,8 +37,12 @@ final class StickerWriteoff
             $out['message'] = t('stickers.err.sticker_not_found', ['id' => $stickerId]);
             return $out;
         }
-        // Soft activate for CRM UI if never printed (oper requires DT_PRINT)
         if ((int)$row['dt_print'] < 1) {
+            if (!StickerActivation::manualAllowed()) {
+                $out['message'] = t('stickers.writeoff.err.not_activated');
+                return $out;
+            }
+            // Manual mode: soft activate for CRM UI if never printed (oper requires DT_PRINT)
             Database::pdo()->prepare(
                 'UPDATE base_good_sticker_ins SET DT_PRINT = ? WHERE ID = ? AND DT_PRINT = 0'
             )->execute([time(), $stickerId]);

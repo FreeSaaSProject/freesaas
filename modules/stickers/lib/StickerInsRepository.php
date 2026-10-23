@@ -519,7 +519,7 @@ final class StickerInsRepository
     }
 
     /**
-     * Pending-print rows restricted to selected ids (bulk print from list).
+     * Printable rows (remaining qty) for explicitly selected ids, activated or not.
      *
      * @param list<int> $ids
      * @return list<array<string,mixed>>
@@ -552,7 +552,7 @@ final class StickerInsRepository
                     DT_REPRINT AS dt_reprint
              FROM base_good_sticker_ins
              WHERE ID IN ($placeholders)
-               AND (DT_PRINT = 0 OR DT_REPRINT > 0) AND QTYU_IN > QTYU_OUT
+               AND QTYU_IN > QTYU_OUT
              ORDER BY ID_GOOD ASC, DT_CREATE ASC, ID ASC"
         );
         $st->execute($clean);
@@ -615,6 +615,11 @@ final class StickerInsRepository
     {
         $idAct = (int)($post['id_act'] ?? 0);
         $idGood = (int)($post['id_good'] ?? 0);
+        $goodQ = trim((string)($post['good_q'] ?? ''));
+        if ($idGood < 1 && $goodQ !== '') {
+            $hit = self::resolveGoodQuery($goodQ);
+            $idGood = $hit !== null ? (int)$hit['id'] : 0;
+        }
         if ($idAct < 1) {
             throw new InvalidArgumentException(t('stickers.err.act_required'));
         }
@@ -647,7 +652,7 @@ final class StickerInsRepository
             'descr_stock' => mb_substr(trim((string)($post['descr_stock'] ?? '')), 0, 255),
             'dt_expire' => max(0, (int)($post['dt_expire'] ?? 0)),
             'weight_start' => (float)str_replace(',', '.', (string)($post['weight_start'] ?? '0')),
-            'activate' => !empty($post['activate']),
+            'activate' => !empty($post['activate']) && StickerActivation::manualAllowed(),
         ];
     }
 

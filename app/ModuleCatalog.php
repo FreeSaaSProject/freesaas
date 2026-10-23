@@ -106,6 +106,26 @@ final class ModuleCatalog
     }
 
     /**
+     * Installable modules the admin hid from the list.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public static function dismissedInstallableList(): array
+    {
+        $out = [];
+        try {
+            foreach (UpdateEngine::dismissedToInstall() as $row) {
+                $card = self::installableCard($row);
+                $card['dismissed'] = true;
+                $out[] = $card;
+            }
+        } catch (Throwable $e) {
+            return [];
+        }
+        return $out;
+    }
+
+    /**
      * @param array<string,mixed> $row from UpdateEngine::availableToInstall
      * @return array<string,mixed>
      */

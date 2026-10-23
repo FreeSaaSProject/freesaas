@@ -158,6 +158,20 @@ final class ProductsRepository
         return $out;
     }
 
+    /** @return array<int,string> enabled consumables (is_material=1) */
+    public static function materialNames(): array
+    {
+        if (!Database::tableExists('base_products')) {
+            return [];
+        }
+        $out = [];
+        $sql = 'SELECT id, name FROM base_products WHERE enabled = 1 AND is_material = 1 ORDER BY name ASC';
+        foreach (Database::pdo()->query($sql)->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
+            $out[(int)$r['id']] = (string)$r['name'];
+        }
+        return $out;
+    }
+
     /** @return array<int,float> id => price */
     public static function priceMap(bool $enabledOnly = true): array
     {

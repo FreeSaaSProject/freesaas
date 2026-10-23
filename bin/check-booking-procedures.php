@@ -12,6 +12,9 @@ declare(strict_types=1);
  *  - Procedure edit: BookingValidate + excludeProcedureId
  *  - api / api_termy: BookingBook with Likespa lead_sec_* (advance orders)
  *
+ * Fixtures (live DB): an operator on today's shift + a service they may perform with a free
+ * slot (bin/lib/BookingSmokeFixtures.php); SKIP with the reason when none fits.
+ *
  * Usage:
  *   php bin/check-booking-procedures.php
  *   php bin/check-booking-procedures.php --product=1 --operator=58 --client=1
@@ -44,41 +47,19 @@ foreach ($need as $mid) {
     }
 }
 
-$productId = (int)($opts['product'] ?? 0);
-if ($productId < 1 && class_exists(BookingCatalog::class, false)) {
-    foreach (BookingCatalog::listServices(50) as $svc) {
-        $pid = (int)($svc['id'] ?? 0);
-        if ($pid < 1) {
-            continue;
-        }
-        $full = ProductsRepository::find($pid);
-        $net = max(0, (int)($full['time_net'] ?? 0));
-        $sec = max(0, (int)($full['time_sec'] ?? 0));
-        // Prefer product with chill (time_sec > time_net)
-        if ($sec > $net && $net > 0) {
-            $productId = $pid;
-            break;
-        }
-        if ($productId < 1) {
-            $productId = $pid;
-        }
-    }
-}
+require_once __DIR__ . '/lib/BookingSmokeFixtures.php';
 
-$operatorId = (int)($opts['operator'] ?? 0);
 $dayStart = (int)mktime(0, 0, 0);
-if ($operatorId < 1 && class_exists(WorkweeksRepository::class, false)) {
-    foreach (WorkweeksRepository::listForDay($dayStart) as $shift) {
-        if (!empty($shift['assist_team'])) {
-            continue;
-        }
-        $oid = (int)($shift['id_operator'] ?? 0);
-        if ($oid > 0) {
-            $operatorId = $oid;
-            break;
-        }
-    }
-}
+// Live DBs: pick an on-shift operator who may perform the service and still has a free slot
+// (first staff / first service fails on real rates bans). Prefer a service with chill.
+$pair = BookingSmokeFixtures::pickPair($dayStart, [
+    'operator' => (int)($opts['operator'] ?? 0),
+    'product' => (int)($opts['product'] ?? 0),
+    'prefer_chill' => true,
+    'lead' => ModuleManager::isEnabled('terminals') ? TerminalsConfig::leadSec() : BookingSlots::defaultLeadSec(),
+]);
+$productId = $pair['product'];
+$operatorId = $pair['operator'];
 
 $clientId = (int)($opts['client'] ?? 0);
 $clientPhone = '';
@@ -107,7 +88,7 @@ if (ModuleManager::isEnabled('terminals') && class_exists(TerminalsRepository::c
 // Virgin / CI trees often have no catalog products or day shifts — skip domain book
 // probes rather than failing smoke (pass --product= / --operator= to force).
 if ($productId < 1 || $operatorId < 1) {
-    echo 'SKIP no fixtures product_id=' . $productId . ' operator_id=' . $operatorId
+    echo 'SKIP no fixtures: ' . $pair['reason']
         . " (seed catalog + workweek or pass --product= --operator=)\n";
     echo "OK\n";
     exit(0);
@@ -181,21 +162,15 @@ try {
 $createdProcIds = [];
 $chillId = 0;
 if (ModuleManager::isEnabled('terminals') && class_exists(TerminalBooking::class, false)) {
+    // Same grid as the floor (TerminalsConfig::bookingSlotOpts, e.g. 15-min interval) — a 5-min
+    // dense slot would be floored into the past by assertSlot.
+    $floorSlots = BookingSmokeFixtures::slots($dateYmd, $productId, $operatorId, $leadFloor, TerminalsConfig::bookingSlotOpts());
+    $dtStart = BookingSmokeFixtures::firstSlotFrom($floorSlots, time() + $leadFloor);
     if ($clientId < 1) {
         $assert(true, 'skip /t TerminalBooking (no client for procedure identity)');
+    } elseif ($dtStart < 1) {
+        $assert(true, 'skip /t TerminalBooking (no free floor slot left today)');
     } else {
-    $dtStart = time() + max(600, $leadFloor + 120);
-    $dtStart -= $dtStart % 300;
-    // Prefer a free dense slot if any
-    if ($dense !== []) {
-        foreach ($dense as $ts) {
-            if ($ts >= time() + $leadFloor) {
-                $dtStart = $ts;
-                break;
-            }
-        }
-    }
-
     $book = TerminalBooking::book([
         'product_id' => $productId,
         'operator_id' => $operatorId,

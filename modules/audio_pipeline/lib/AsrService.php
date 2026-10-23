@@ -87,7 +87,7 @@ final class AsrService
             return ['ok' => false, 'diag' => 'missing_filename'];
         }
         $st = Database::pdo()->prepare(
-            'SELECT ID, DT_TRANSCRIBED FROM base_records WHERE FILENAME = ? LIMIT 1'
+            'SELECT ID, DT_TRANSCRIBED, DT_RECORDED FROM base_records WHERE FILENAME = ? LIMIT 1'
         );
         $st->execute([$fileName]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
@@ -147,7 +147,49 @@ final class AsrService
         $diag .= ' PLAYTIME=' . (($playtime !== null && $playtime !== '') ? (int)$playtime : 'NO');
         $diag .= ' VOLUME=' . (($volume !== null && $volume !== '') ? $volume : 'NO');
         $diag .= $diagChunk;
+        if ($ok && $dtTrans !== 1) {
+            $queuedDay = self::enqueueStemForRecordDay((int)($row['DT_RECORDED'] ?? 0));
+            if ($queuedDay !== '') {
+                $diag .= ' STEM_QUEUED=' . $queuedDay;
+            }
+        }
         return ['ok' => $ok, 'diag' => $diag];
+    }
+
+    /** Delay before a late past-day result triggers that day's collect + publish. */
+    public static function lateStemDelaySec(): int
+    {
+        $n = (int)Config::get('audio', 'late_stem_delay_sec', 3600);
+        return max(300, min(86400, $n > 0 ? $n : 3600));
+    }
+
+    /**
+     * Late records for a past day must re-run that day's stem/collect/publish.
+     * Today is covered by the Whisper idle ping; older than lookback → manual Re-®.
+     * Deferred by lateStemDelaySec(): a stream of uploads yields one collect+publish, not one per tick.
+     */
+    private static function enqueueStemForRecordDay(int $dtRecorded): string
+    {
+        if ($dtRecorded < 1 || !class_exists('AudioJobQueue', false) || !class_exists('StemRunner', false)) {
+            return '';
+        }
+        $dayStart = (int)mktime(0, 0, 0, (int)date('n', $dtRecorded), (int)date('j', $dtRecorded), (int)date('Y', $dtRecorded));
+        $today = (int)mktime(0, 0, 0, (int)date('n'), (int)date('j'), (int)date('Y'));
+        $oldest = (int)mktime(0, 0, 0, (int)date('n'), (int)date('j') - StemRunner::LOOKBACK_DAYS, (int)date('Y'));
+        if ($dayStart < $oldest || $dayStart >= $today) {
+            return '';
+        }
+        $day = date('Y-m-d', $dayStart);
+        try {
+            AudioJobQueue::requestStem([
+                'day' => $day,
+                'not_before' => time() + self::lateStemDelaySec(),
+            ]);
+        } catch (Throwable $e) {
+            error_log('[audio/asr/result] stem enqueue: ' . $e->getMessage());
+            return '';
+        }
+        return $day;
     }
 
     /** Claim next chunk path under audiochunks/ or "None". */

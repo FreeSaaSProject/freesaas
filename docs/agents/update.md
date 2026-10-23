@@ -31,6 +31,17 @@ Or `[modules] updates=1` in `cfg/config.ini`.
 5. **Health** — required for `ok` (UI job and sync apply).
 6. On failure: restore files from snapshot; restore DB dump only if migrate failed **and** a dump was taken. Health failure after a successful migrate does not auto-restore DB (`needs_manual_db_review`). Sync multi-package stops on the first failure.
 
+### Local edits on the instance
+
+Overlay compares hashes before writing, so files a client changed are not silently overwritten.
+
+- **Baseline:** `var/updates/installed-manifest.json` stores the sha1 of each file as the updater last wrote it. Apply pins branch refs to a commit (`commit` in `cfg/updates.state.json`), so the very first run after this feature can also use the GitHub tree of an installed tag/commit as baseline. No baseline at all → file is written and counted in `unverified_count`.
+- **Per file:** local missing → write; local = new → nothing; local = baseline → write; local edited but upstream unchanged → keep local silently (`kept_local`); local edited **and** upstream changed → **conflict**: local kept, upstream parked in `var/updates/conflicts/<path>`, listed in `var/updates/conflicts.json`.
+- Conflicts do not fail apply (`ok` still = migrate + health). Result fields: `conflicts[]`, `kept_local`, `unverified_count`, `skipped_frozen[]`, `skipped_new_modules[]`.
+- **Resolve:** `/updates` → «Local changes» (take new / keep mine, one or all); CLI `update conflicts`, `update resolve --take=ours|mine --path=… | --all`; agent `GET /agent/update/conflicts`, `POST /agent/update/resolve`.
+- **Freeze:** `[updates] frozen_modules = a,b` (or checkboxes in `/updates/settings`) — overlay never writes those modules; Check shows them as «frozen» and excludes them from apply-all; an explicit `--target=<frozen>` is refused. Prefer this over abusing `[module.x]`.
+- Rollback restores the manifest and conflict index together with files.
+
 ## How it works
 
 ### Check (many small GETs — OK)
@@ -56,11 +67,12 @@ On a full check, UpdateEngine also refreshes **`modules-catalog.json`** from the
 Updates are for versions of code already on the instance. A package that is not on disk yet is an **install**:
 
 1. Repo ships `modules-catalog.json` (build: `php bin/build-modules-catalog.php`; also attached as `freesaas-catalog.json` on releases).
-2. **`/modules`** section **Available to install** — cards with **Install**.
-3. Install → `UpdateEngine::installModule` downloads the monorepo archive and overlays only `modules/<id>/`. Module stays **disabled**; enable + migrate as usual.
-4. `/updates` only shows a banner («N new modules → modules»).
+2. **`/modules`** section **Available to install** — cards with **Install** and **Hide**. Hidden modules move to a collapsed **Hidden** list (restorable) and stop counting in the `/updates` banner. State: `dismissed_available` in `cfg/updates.state.json`.
+3. Install → `UpdateEngine::installModule` writes `[modules] <id>=0` first (a missing key means *enabled*), then downloads the monorepo archive and overlays only `modules/<id>/`. Module stays **disabled**; enable + migrate as usual.
+4. A full apply (`core` / `all`) **never creates** `modules/<id>/` for modules absent on this instance; they are reported in `skipped_new_modules[]`.
+5. `/updates` only shows a banner («N new modules → modules»).
 
-CLI / agent: `php bin/freesaas.php module install <id>` · `POST /agent/modules/{id}/install`.
+CLI / agent: `php bin/freesaas.php module install|dismiss|undismiss <id>` · `POST /agent/modules/{id}/install`.
 
 ### Apply (one archive for the monorepo)
 
@@ -80,7 +92,7 @@ Product modules are **not** shipped as separate zips from this monorepo. If a mo
 4. Optional: `[module.x]` for a module in another repo.
 5. Writable `var/updates/`; PHP needs `curl` + `ZipArchive`.
 
-Disabled modules are omitted from check/UI (they still receive files when a full core zip is applied).
+Disabled modules are omitted from check/UI (they still receive files when a full core zip is applied, unless frozen). Modules not present on disk receive nothing — install them from `/modules`.
 
 Optional public hint in `module.json` (candidates table only — not enough for apply):
 
@@ -120,6 +132,9 @@ php bin/freesaas.php update apply --target=core --format=json
 php bin/freesaas.php update apply --target=all --format=json
 php bin/freesaas.php update apply --target=core --no-migrate --format=json
 php bin/freesaas.php update apply --target=core --db-backup --format=json
+php bin/freesaas.php update conflicts --format=json
+php bin/freesaas.php update resolve --take=ours --path=modules/orders/views/edit.php --format=json
+php bin/freesaas.php update resolve --take=mine --all --format=json
 ```
 
 ## HTTP platform (`app.agent_token`)

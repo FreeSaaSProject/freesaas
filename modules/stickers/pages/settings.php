@@ -18,6 +18,7 @@ $buildSettings = static function (): array {
         'public_host' => $publicHost,
         'admin_host' => $adminHost,
         'public_print_url' => StickerPrint::publicPrintUrl(),
+        'activation_mode' => StickerActivation::mode(),
     ];
 };
 
@@ -32,6 +33,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         if (array_key_exists('public_print_enabled', $_POST) || array_key_exists('public_print_present', $_POST)) {
             $on = !empty($_POST['public_print_enabled']);
             StickerPrint::setPublicPrintEnabled($on);
+        }
+        if (array_key_exists('activation_mode', $_POST)) {
+            StickerActivation::setMode((string)$_POST['activation_mode']);
         }
         $message = t('core.common.saved');
         if ($wantsJson) {

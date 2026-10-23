@@ -194,6 +194,8 @@ final class TicketWriter
                 return ['comment_id' => $existing, 'changed' => false];
             }
             CommentsRepository::updateText($existing, $stored);
+            // updateText (unlike add) keeps base_views — staff would not see the recalculated day.
+            NewsRepository::clearViewMarks($ticketId, true, false);
             return ['comment_id' => $existing, 'changed' => true];
         }
         $id = CommentsRepository::add($ticketId, $authorId, $stored);

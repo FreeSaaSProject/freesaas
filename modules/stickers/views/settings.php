@@ -9,6 +9,7 @@ $adminHost = (string)($settings['admin_host'] ?? '');
 $publicHost = (string)($settings['public_host'] ?? '');
 $publicPrint = !empty($settings['public_print_enabled']);
 $publicPrintUrl = (string)($settings['public_print_url'] ?? '');
+$activationMode = (string)($settings['activation_mode'] ?? StickerActivation::MODE_SCAN);
 ?>
 <section class="page-head">
   <h1><?= te('stickers.settings.title') ?></h1>
@@ -20,6 +21,21 @@ $publicPrintUrl = (string)($settings['public_print_url'] ?? '');
 
 <form method="post" class="form-grid" style="max-width:40rem">
   <?= Csrf::field() ?>
+
+  <fieldset class="form-fieldset">
+    <legend><?= te('stickers.settings.sec.activation') ?></legend>
+    <p class="muted"><?= te('stickers.settings.activation_intro') ?></p>
+    <label class="check">
+      <input type="radio" name="activation_mode" value="<?= e(StickerActivation::MODE_SCAN) ?>"<?= $activationMode !== StickerActivation::MODE_MANUAL ? ' checked' : '' ?>>
+      <?= te('stickers.settings.activation_scan') ?>
+    </label>
+    <p class="muted"><?= te('stickers.settings.activation_scan_hint') ?></p>
+    <label class="check">
+      <input type="radio" name="activation_mode" value="<?= e(StickerActivation::MODE_MANUAL) ?>"<?= $activationMode === StickerActivation::MODE_MANUAL ? ' checked' : '' ?>>
+      <?= te('stickers.settings.activation_manual') ?>
+    </label>
+    <p class="muted"><?= te('stickers.settings.activation_manual_hint') ?></p>
+  </fieldset>
 
   <fieldset class="form-fieldset">
     <legend><?= te('stickers.settings.sec.session') ?></legend>

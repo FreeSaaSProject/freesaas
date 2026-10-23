@@ -55,6 +55,24 @@ final class ModulesAdmin
                 ]))];
             }
 
+            if ($action === 'dismiss_available' || $action === 'restore_available') {
+                if (!Auth::capability('SUPERADMIN_ACCESS')) {
+                    throw new RuntimeException(t('core.modules.err.superadmin'));
+                }
+                if ($moduleId === '' || !preg_match('/^[a-z][a-z0-9_]*$/', $moduleId)) {
+                    throw new RuntimeException(t('core.modules.err.no_module'));
+                }
+                $dismiss = $action === 'dismiss_available';
+                $report = AgentOps::moduleDismiss($moduleId, $dismiss);
+                if (empty($report['ok'])) {
+                    throw new RuntimeException((string)($report['error'] ?? t('core.modules.err.no_module')));
+                }
+                return ['redirect' => self::withQuery($ret, 'msg', t(
+                    $dismiss ? 'core.modules.msg.dismissed' : 'core.modules.msg.restored',
+                    ['module' => $moduleId]
+                ))];
+            }
+
             if ($action === 'uninstall') {
                 if (!Auth::capability('SUPERADMIN_ACCESS')) {
                     throw new RuntimeException(t('core.modules.err.superadmin'));

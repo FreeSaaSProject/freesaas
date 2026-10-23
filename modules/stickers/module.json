@@ -2,7 +2,7 @@
     "id": "stickers",
     "name": "stickers.module.name",
     "description": "stickers.module.description",
-    "version": "0.1.18",
+    "version": "0.1.19",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -193,7 +193,7 @@
                 "path": "/stickers/settings",
                 "permission": "",
                 "side_effect": "read",
-                "description": "Stickers settings: session_cookie_domain (app.ini), public_print_enabled; SUPERADMIN_ACCESS"
+                "description": "Stickers settings: activation_mode (scan|manual), session_cookie_domain (app.ini), public_print_enabled; SUPERADMIN_ACCESS"
             },
             {
                 "id": "stickers.settings.update",
@@ -201,7 +201,7 @@
                 "path": "/stickers/settings",
                 "permission": "",
                 "side_effect": "write",
-                "description": "Save session_cookie_domain + public_print_enabled; SUPERADMIN_ACCESS; staff must re-login after cookie domain change"
+                "description": "Save activation_mode (scan|manual) + session_cookie_domain + public_print_enabled; SUPERADMIN_ACCESS; staff must re-login after cookie domain change"
             },
             {
                 "id": "stickers.qr.scan",

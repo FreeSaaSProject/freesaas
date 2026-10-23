@@ -28,7 +28,10 @@ final class AudioJobQueue
     }
 
     /**
-     * @param array{day?:string,admin?:int,record?:int,collect?:bool,publish?:bool,limit?:int} $opts
+     * not_before: unix ts the scope may start (0 = next cron tick). Merging keeps the earliest,
+     * so repeat late results never push an already scheduled day further away.
+     *
+     * @param array{day?:string,admin?:int,record?:int,collect?:bool,publish?:bool,limit?:int,not_before?:int} $opts
      */
     public static function requestStem(array $opts = []): array
     {
@@ -42,6 +45,14 @@ final class AudioJobQueue
             self::persistStemJobs($jobs);
             return $jobs;
         });
+        $key = self::stemJobKey($job);
+        $notBefore = $job['not_before'];
+        foreach ($jobs as $j) {
+            if (self::stemJobKey($j) === $key) {
+                $notBefore = (int)$j['not_before'];
+                break;
+            }
+        }
 
         return [
             'ok' => true,
@@ -50,6 +61,7 @@ final class AudioJobQueue
             'merged' => $before > 0 && count($jobs) === $before,
             'message' => 'stem_queued',
             'day' => $job['day'],
+            'not_before' => $notBefore,
             'days' => array_values(array_unique(array_map(
                 static fn (array $j): string => (string)$j['day'],
                 $jobs
@@ -126,8 +138,11 @@ final class AudioJobQueue
      */
     public static function drainStem(bool $force = false): array
     {
+        $sweep = $force ? self::enqueueNightlySweep() : [];
         $req = self::read('stem');
-        $jobs = self::stemJobsFromPayload($req);
+        $allJobs = self::stemJobsFromPayload($req);
+        $job = self::firstDueStemJob($allJobs, time());
+        $deferred = count($allJobs) - ($job !== null ? 1 : 0);
 
         $day = '';
         $admin = 0;
@@ -135,38 +150,41 @@ final class AudioJobQueue
         $collect = true;
         $publish = true;
         $limit = 0;
+        $notBefore = 0;
 
-        if ($jobs !== []) {
-            $job = $jobs[0];
+        if ($job !== null) {
             $day = (string)$job['day'];
             $admin = (int)$job['admin'];
             $record = (int)$job['record'];
             $collect = !empty($job['collect']);
             $publish = !empty($job['publish']);
             $limit = (int)$job['limit'];
+            $notBefore = (int)$job['not_before'];
         } else {
             $day = date('Y-m-d');
         }
 
         $pending = StemRunner::countPendingForDay($day);
-        if ($jobs === [] && !$force && $pending < 1) {
-            return ['ok' => true, 'processed' => 0, 'skipped' => 1, 'message' => 'nothing_to_do'];
-        }
-        if ($jobs === [] && $force && $pending < 1) {
-            // Nightly: try today; if empty, try yesterday
-            $yday = date('Y-m-d', time() - 86400);
-            $yPending = StemRunner::countPendingForDay($yday);
-            if ($yPending > 0) {
-                $day = $yday;
-                $pending = $yPending;
-            } else {
-                return ['ok' => true, 'processed' => 0, 'skipped' => 1, 'message' => 'nothing_to_do'];
+        if ($job === null && $pending < 1) {
+            $idleExtra = [];
+            if ($sweep !== []) {
+                $idleExtra['sweep'] = $sweep;
             }
+            if ($deferred > 0) {
+                $idleExtra['deferred_jobs'] = $deferred;
+            }
+            return [
+                'ok' => true,
+                'processed' => 0,
+                'skipped' => 1,
+                'message' => $deferred > 0 ? 'stem_deferred' : 'nothing_to_do',
+                'extra' => $idleExtra,
+            ];
         }
 
         $lock = JobLock::tryAcquire('stem');
         if ($lock === null) {
-            if ($jobs === []) {
+            if ($job === null) {
                 self::requestStem([
                     'day' => $day,
                     'admin' => $admin,
@@ -186,6 +204,7 @@ final class AudioJobQueue
             'collect' => $collect,
             'publish' => $publish,
             'limit' => $limit,
+            'not_before' => $notBefore,
         ]);
         $headKey = self::stemJobKey($headJob);
 
@@ -226,7 +245,7 @@ final class AudioJobQueue
                     'processed' => (int)($stem['processed'] ?? 0),
                     'skipped' => (int)($stem['skipped'] ?? 0),
                     'message' => 'stem_libs_unavailable',
-                    'extra' => ['day' => $day, 'jobs' => count($jobs)],
+                    'extra' => ['day' => $day, 'jobs' => count($allJobs)],
                 ];
             }
 
@@ -236,6 +255,9 @@ final class AudioJobQueue
                 'pending' => $pendingAfter,
                 'stem' => $stem['extra'] ?? [],
             ];
+            if ($sweep !== []) {
+                $extra['sweep'] = $sweep;
+            }
 
             if ($pendingAfter > 0) {
                 // Keep current scope at head; siblings enqueued during run stay behind it.
@@ -319,6 +341,31 @@ final class AudioJobQueue
         }
     }
 
+    /**
+     * Morning (07:00) safety net: yesterday always (same-day publish was refused while it was today),
+     * plus every lookback day that still has transcribed-but-unparsed records. Runs immediately.
+     *
+     * @return list<string> days enqueued
+     */
+    private static function enqueueNightlySweep(): array
+    {
+        $days = [];
+        $today = (int)mktime(0, 0, 0, (int)date('n'), (int)date('j'), (int)date('Y'));
+        for ($i = StemRunner::LOOKBACK_DAYS; $i >= 1; $i--) {
+            $day = date('Y-m-d', (int)mktime(0, 0, 0, (int)date('n', $today), (int)date('j', $today) - $i, (int)date('Y', $today)));
+            if ($i === 1 || StemRunner::countPendingForDay($day) > 0) {
+                $days[] = $day;
+            }
+        }
+        if (StemRunner::countPendingForDay(date('Y-m-d', $today)) > 0) {
+            $days[] = date('Y-m-d', $today);
+        }
+        foreach ($days as $day) {
+            self::requestStem(['day' => $day]);
+        }
+        return $days;
+    }
+
     public static function inboxHasFiles(): bool
     {
         require_once base_path('modules/audio/lib/AudioSettingsRepository.php');
@@ -341,8 +388,8 @@ final class AudioJobQueue
     }
 
     /**
-     * @param array{day?:string,admin?:int,record?:int,collect?:bool,publish?:bool,limit?:int} $opts
-     * @return array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int}
+     * @param array{day?:string,admin?:int,record?:int,collect?:bool,publish?:bool,limit?:int,not_before?:int} $opts
+     * @return array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int,not_before:int}
      */
     private static function stemJobFromOpts(array $opts): array
     {
@@ -357,7 +404,24 @@ final class AudioJobQueue
             'collect' => !isset($opts['collect']) || $opts['collect'] !== false,
             'publish' => !isset($opts['publish']) || $opts['publish'] !== false,
             'limit' => max(0, (int)($opts['limit'] ?? 0)),
+            'not_before' => max(0, (int)($opts['not_before'] ?? 0)),
         ];
+    }
+
+    /**
+     * First scope whose not_before has passed, in queue order.
+     *
+     * @param list<array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int,not_before:int}> $jobs
+     * @return array{day:string,admin:int,record:int,collect:bool,publish:bool,limit:int,not_before:int}|null
+     */
+    private static function firstDueStemJob(array $jobs, int $now): ?array
+    {
+        foreach ($jobs as $job) {
+            if ((int)$job['not_before'] <= $now) {
+                return $job;
+            }
+        }
+        return null;
     }
 
     /**
@@ -409,6 +473,8 @@ final class AudioJobQueue
                     'collect' => !empty($existing['collect']) || !empty($job['collect']),
                     'publish' => !empty($existing['publish']) || !empty($job['publish']),
                     'limit' => self::mergeStemLimit((int)$existing['limit'], (int)$job['limit']),
+                    // Earliest start wins: immediate pings run now, repeat late results don't postpone.
+                    'not_before' => min((int)$existing['not_before'], (int)$job['not_before']),
                 ];
                 return $jobs;
             }

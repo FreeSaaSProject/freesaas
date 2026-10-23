@@ -57,4 +57,5 @@ curl -sS -b jar.txt 'https://example/staff-reports/day?format=json'
 ## Notes
 
 - Requires audio + audio_dicts + comments + procedures.
+- Re-publish of a day (late records, Cron day drain, Re-®) updates the existing day comment in place. When the text actually changes, ticket read marks (`base_views` `base_news`) are cleared so the employee and curator see it as unread again; unchanged text keeps read state.
 - Day-bonus amounts and traffic lights come from scripts (`DAY_BONUS` / part `GATE_*` / root `DAY_GATES` for hours/starts). Unique bracelet scans are a script part (`COND_TYPE=term_scan_unique`); gone when term_scans off. Not the removed calendar BONUS TIME path.
