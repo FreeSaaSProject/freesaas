@@ -2,14 +2,14 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "0.2.21",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "asr": ">=0.1.0",
-        "bots": ">=0.1.0"
+        "asr": ">=1.0.0",
+        "bots": ">=1.0.0"
     },
     "provides": [
         "wellness.calendar"
@@ -1141,7 +1141,7 @@
         "categories": [
             "wellness"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

@@ -344,34 +344,14 @@ final class WorkweeksRepository
     }
 
     /**
-     * Target news/ticket for schedule-change comments.
-     * Stored in cfg/modules/workweeks.ini; one-time seed from legacy base_system.NEWS_SCHEDULE_ID.
+     * Target news/ticket for schedule-change comments (cfg/modules/workweeks.ini schedule_news_id).
      */
     public static function scheduleNewsId(): int
     {
         if (!self::commentsLoggingAvailable()) {
             return 0;
         }
-        $configured = Config::get('workweeks', 'schedule_news_id', null);
-        if ($configured !== null && $configured !== '') {
-            return max(0, (int)$configured);
-        }
-        // Legacy oper value — copy into module ini once so core stays free of product keys.
-        $legacy = 0;
-        if (Database::tableExists('base_system')
-            && Database::columnExists('base_system', 'NEWS_SCHEDULE_ID')
-        ) {
-            $row = Database::pdo()->query(
-                'SELECT NEWS_SCHEDULE_ID FROM base_system ORDER BY id ASC LIMIT 1'
-            )->fetch(PDO::FETCH_ASSOC);
-            $legacy = max(0, (int)($row['NEWS_SCHEDULE_ID'] ?? 0));
-        }
-        try {
-            Config::set('workweeks', 'schedule_news_id', (string)$legacy);
-        } catch (Throwable $e) {
-            // Read-only env — still return legacy for this request.
-        }
-        return $legacy;
+        return max(0, (int)Config::get('workweeks', 'schedule_news_id', 0));
     }
 
     public static function setScheduleNewsId(int $newsId): void

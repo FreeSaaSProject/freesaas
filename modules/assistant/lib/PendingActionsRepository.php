@@ -95,6 +95,27 @@ final class PendingActionsRepository
     }
 
     /**
+     * Earlier steps of a plan that have not completed (pending / executing / failed).
+     * Statuses only move forward, so reading "confirmed" means that step really finished.
+     */
+    public static function earlierStepsUnfinished(string $planId, int $planStep): int
+    {
+        $planId = trim($planId);
+        if ($planId === '' || $planStep < 2 || !self::tableReady()
+            || !Database::columnExists('base_assistant_pending', 'PLAN_ID')
+        ) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT COUNT(*) FROM base_assistant_pending
+             WHERE PLAN_ID = ? AND PLAN_STEP > 0 AND PLAN_STEP < ?
+               AND STATUS IN ('pending', 'executing', 'failed')"
+        );
+        $st->execute([$planId, $planStep]);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
      * All rows of one plan in step order (any status).
      *
      * @return list<array<string,mixed>>

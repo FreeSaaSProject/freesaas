@@ -2,13 +2,13 @@
     "id": "asr",
     "name": "asr.module.name",
     "description": "asr.module.description",
-    "version": "0.1.2",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "bots": ">=0.1.0"
+        "bots": ">=1.0.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -55,7 +55,7 @@
         "categories": [
             "audio"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [
             "integration",
             "jobs"

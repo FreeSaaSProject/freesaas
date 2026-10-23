@@ -2,11 +2,11 @@
     "id": "norms",
     "name": "norms.module.name",
     "description": "norms.module.description",
-    "version": "0.1.2",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "catalog": ">=0.1.0"
+        "core": ">=1.0.0",
+        "catalog": ">=1.0.0"
     },
     "optionalRequires": [],
     "provides": [
@@ -91,7 +91,7 @@
         "categories": [
             "warehouse"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

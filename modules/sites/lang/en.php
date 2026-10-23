@@ -364,7 +364,7 @@ return [
     'sites.seo.field_tel' => 'Phone (fallback)',
     'sites.seo.field_tel_hint' => 'Used when the host phone is empty',
     'sites.seo.field_title' => 'Page title (fallback)',
-    'sites.seo.lede' => 'Global fallback from <code>base_system</code>. Home META and storefront phone live on the host / promo.',
+    'sites.seo.lede' => 'Global fallback (sites module settings). Home META and storefront phone live on the host / promo.',
     'sites.seo.hosts_hint' => 'Public domains, theme and phone:',
     'sites.settings.field_admin_host' => 'Admin host',
     'sites.settings.field_admin_host_hint' => 'Without https:// — storefront /login redirects here',

@@ -2,17 +2,17 @@
     "id": "procents",
     "name": "procents.module.name",
     "description": "procents.module.description",
-    "version": "0.1.14",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0",
-        "rates": ">=0.1.2",
-        "procedures": ">=0.1.0",
-        "workweeks": ">=0.1.0"
+        "core": ">=1.0.0",
+        "rates": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "workweeks": ">=1.0.0"
     },
     "optionalRequires": {
-        "payments": ">=0.1.0"
+        "payments": ">=1.0.0"
     },
     "provides": [
         "procents.report"
@@ -77,7 +77,7 @@
         "categories": [
             "accounting"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

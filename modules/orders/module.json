@@ -2,19 +2,19 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "0.1.13",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0",
-        "clients": ">=0.1.0"
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0"
     },
     "optionalRequires": {
-        "catalog": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "sites": ">=0.1.0",
-        "booking": ">=0.1.0",
-        "bots": ">=0.2.0"
+        "catalog": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "sites": ">=1.0.0",
+        "booking": ">=1.0.0",
+        "bots": ">=1.0.0"
     },
     "provides": [
         "orders.list",
@@ -180,10 +180,10 @@
     },
     "catalog": {
         "categories": [
-            "site",
-            "crm"
+            "booking",
+            "site"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

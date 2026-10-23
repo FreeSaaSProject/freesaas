@@ -9,8 +9,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         LikespaConfig::saveFromPost($_POST);
         SystemFlyerPromo::saveFromPost($_POST);
-        if (Database::columnExists('base_system', 'FREE_TICKET')) {
-            FreeTicket::saveThreshold((int)($_POST['free_ticket_threshold'] ?? 0));
+        if (array_key_exists('free_ticket_threshold', $_POST)) {
+            FreeTicket::saveThreshold((int)$_POST['free_ticket_threshold']);
         }
         if ($wantsJson) {
             AgentHttp::emit([
@@ -41,12 +41,6 @@ if ($wantsJson) {
         'cfg' => $cfg,
         'flyer_promo' => $flyerPromo,
         'free_ticket_threshold' => FreeTicket::threshold(),
-        'has_free_ticket_col' => Database::columnExists('base_system', 'FREE_TICKET'),
-        'has_flyer_cols' => Database::columnExists('base_system', 'flyerEnabled')
-            && Database::columnExists('base_system', 'flyerDiscount'),
-        'has_promo_cols' => Database::columnExists('base_system', 'PROMO_POSITION_ID')
-            && Database::columnExists('base_system', 'PROMO_DISCOUNTS'),
-        'has_discounts_types_col' => Database::columnExists('base_system', 'DISCOUNTS_TYPES'),
     ]);
     return;
 }
@@ -58,14 +52,8 @@ View::render('settings', [
     'cfg' => $cfg,
     'flyerPromo' => $flyerPromo,
     'freeTicketThreshold' => FreeTicket::threshold(),
-    'hasFreeTicketCol' => Database::columnExists('base_system', 'FREE_TICKET'),
     'statusOptions' => SystemFlyerPromo::statusOptions(),
     'procedureTypeOptions' => SystemFlyerPromo::procedureTypeOptions(),
-    'hasFlyerCols' => Database::columnExists('base_system', 'flyerEnabled')
-        && Database::columnExists('base_system', 'flyerDiscount'),
-    'hasPromoCols' => Database::columnExists('base_system', 'PROMO_POSITION_ID')
-        && Database::columnExists('base_system', 'PROMO_DISCOUNTS'),
-    'hasDiscountsTypesCol' => Database::columnExists('base_system', 'DISCOUNTS_TYPES'),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('likespa.menu.settings'), 'current' => true],
     ]),

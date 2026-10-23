@@ -21,7 +21,7 @@ Each row:
 | `theme` | `themes/<id>/` |
 | `promo_id` | Home `/` content + META |
 | `catalog_root_ids` | Shop folders + descendants (JSON list; empty = entire catalog). `catalog_root_id` kept as first id for BC. |
-| `tel` / `name` | Storefront phone / brand (fallback: `base_system`) |
+| `tel` / `name` | Storefront phone / brand (fallback: `[sites]` `tel` / `seo_name`) |
 | `is_default` | Used when Host is unknown |
 
 Articles (`base_page_categories.site_host_id`) and redirects (`base_redirects.site_host_id`): `0` = all hosts; otherwise only that host. Migration assigns existing rows to the default host.
@@ -153,7 +153,7 @@ UI twin: **Sites → Diagnostics** (`/sites/status`).
 | `sites.hosts.create` | `POST /sites/hosts/new` | Create host |
 | `sites.hosts.update` | `POST /sites/hosts/{id}/edit` | Update host |
 | `sites.settings.get` / `.save` | `/sites/settings` | `admin_host` |
-| `sites.seo.get` / `.save` | `/sites/seo` | Fallback `base_system` name/title/keywords/tel |
+| `sites.seo.get` / `.save` | `/sites/seo` | Fallback name/title/keywords/tel in `cfg/modules/sites.ini` (`seo_name`, `seo_title`, `seo_keywords`, `tel`) |
 | `sites.promopages.list` | `GET /sites/promopages` | Promo LPs |
 | `sites.pages.list` | `GET /sites/pages` | CMS articles; `site_host_id` |
 | `sites.redirects.list` | `GET /sites/redirects` | Redirects; `site_host_id` |

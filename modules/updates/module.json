@@ -2,13 +2,13 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "0.3.18",
+    "version": "1.0.0",
     "type": "product",
     "catalog": {
         "categories": [
             "platform"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [
             "settings",
             "jobs"
@@ -16,7 +16,7 @@
         "screenshots": []
     },
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": [],
     "provides": [

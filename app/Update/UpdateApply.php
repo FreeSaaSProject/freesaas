@@ -99,7 +99,11 @@ final class UpdateApply
             $kind = (string)$source['kind'];
             $bundle = (string)($source['bundle'] ?? '');
             $plan = UpdateOverlay::plan($payloadRoot, $kind, $id, $bundle, $source);
-            $snap = UpdateRollback::snapshotBeforeOverlay(UpdateOverlay::writePaths($plan), $id);
+            $snap = UpdateRollback::snapshotBeforeOverlay(
+                UpdateOverlay::writePaths($plan),
+                $id,
+                UpdateOverlay::conflictPaths($plan)
+            );
             $snapshotId = (string)$snap['id'];
 
             $failPhase = 'overlay';
@@ -454,7 +458,11 @@ final class UpdateApply
                     (string)($source['bundle'] ?? ''),
                     $source
                 );
-                $snap = UpdateRollback::snapshotBeforeOverlay(UpdateOverlay::writePaths($plan), $sid);
+                $snap = UpdateRollback::snapshotBeforeOverlay(
+                    UpdateOverlay::writePaths($plan),
+                    $sid,
+                    UpdateOverlay::conflictPaths($plan)
+                );
                 $work['snapshot_id'] = (string)$snap['id'];
                 $work['fail_phase'] = 'overlay';
                 // Persist before overlay — catch uses $job['work'], not local $work.

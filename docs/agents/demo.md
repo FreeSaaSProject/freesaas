@@ -91,7 +91,7 @@ php bin/freesaas.php demo seed --locale=ru --reset --format=json
 php bin/freesaas.php demo seed --locale=en --reset --format=json
 ```
 
-Fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. `--reset` clears prior demo domain rows (keeps `admin` / `demo` users and schema). Ensures `base_system` singleton via `SystemRepository::ensureRow` (needed after schema-only migrate / bootstrap that skipped the row — calendar work hours write there).
+Fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. `--reset` clears prior demo domain rows (keeps `admin` / `demo` users and schema). Writes company label (`app.instance`) and calendar work hours into ini.
 
 `bin/demo-restore.example.sh` (host crontab calling `demo seed`) remains as a CLI fallback; with `cron_token` + `demo.reseed` it is not needed.
 

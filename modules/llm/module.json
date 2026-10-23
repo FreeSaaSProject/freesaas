@@ -2,13 +2,13 @@
     "id": "llm",
     "name": "llm.module.name",
     "description": "llm.module.description",
-    "version": "0.2.8",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "assistant": ">=0.1.0"
+        "assistant": ">=1.0.0"
     },
     "provides": [
         "llm.client",
@@ -124,7 +124,7 @@
         "categories": [
             "integrations"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

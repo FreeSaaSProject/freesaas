@@ -2,18 +2,18 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.9",
+    "version": "0.1.10",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
+        "core": ">=1.0.0",
         "polls": ">=0.1.0"
     },
     "optionalRequires": {
-        "clients": ">=0.1.0",
-        "bonuses": ">=0.1.0",
-        "calendar": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "bi": ">=0.3.0"
+        "clients": ">=1.0.0",
+        "bonuses": ">=1.0.0",
+        "calendar": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "bi": ">=1.0.0"
     },
     "provides": [
         "poll_invites.instances"

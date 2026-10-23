@@ -896,16 +896,20 @@ final class AssistantHarness
         $lastOk = null;
         $lastError = '';
         $forbidden = null;
-        $stop = false;
+        $stoppedPlans = [];
         foreach ($live as $row) {
             $token = (string)($row['TOKEN'] ?? '');
             if ($token === '') {
                 continue;
             }
-            if ($stop) {
-                // A previous step failed — later steps may depend on it; do not run them.
-                PendingActionsRepository::mark($token, 'cancelled', ['skipped' => true]);
-                $skipped++;
+            $rowPlan = trim((string)($row['PLAN_ID'] ?? ''));
+            if ($rowPlan !== '' && isset($stoppedPlans[$rowPlan])) {
+                // An earlier step of this plan failed to execute — later steps may depend on it.
+                if (self::canCancelRow($row, $userId)
+                    && PendingActionsRepository::mark($token, 'cancelled', ['skipped' => true])
+                ) {
+                    $skipped++;
+                }
                 continue;
             }
             $one = self::resolvePending($token, $action, $userId);
@@ -919,8 +923,9 @@ final class AssistantHarness
                 if (!empty($one['forbidden_capability']) && $forbidden === null) {
                     $forbidden = (string)($one['required_permission'] ?? '');
                 }
-                if ($action === 'confirm' && empty($one['forbidden_capability'])) {
-                    $stop = true;
+                // Only a real execution failure stops the rest of its plan (not forbidden / already done).
+                if ($action === 'confirm' && $rowPlan !== '' && !empty($one['execution_failed'])) {
+                    $stoppedPlans[$rowPlan] = true;
                 }
             }
         }
@@ -969,12 +974,37 @@ final class AssistantHarness
         if ($row === null || $planId === '') {
             return self::resolvePending($token, $action, $userId);
         }
-        $live = array_values(array_filter(
-            PendingActionsRepository::listByPlan($planId),
-            static function (array $r): bool {
-                return strtolower((string)($r['STATUS'] ?? '')) === 'pending';
+        $running = [
+            'ok' => false,
+            'action' => strtolower(trim($action)),
+            'result' => null,
+            'error' => t('assistant.confirm.plan_running'),
+            'done' => 0,
+            'failed' => 0,
+            'skipped' => 0,
+            'results' => [],
+        ];
+        $locked = self::withPlanLock($planId, static function () use ($planId, $token, $action, $userId, $running): array {
+            return self::resolvePlanLocked($planId, $token, $action, $userId, $running);
+        });
+        return $locked ?? $running;
+    }
+
+    /**
+     * @param array<string,mixed> $running reply when a step is still executing
+     * @return array<string,mixed>
+     */
+    private static function resolvePlanLocked(string $planId, string $token, string $action, int $userId, array $running): array
+    {
+        $rows = PendingActionsRepository::listByPlan($planId);
+        foreach ($rows as $r) {
+            if (strtolower((string)($r['STATUS'] ?? '')) === 'executing') {
+                return $running;
             }
-        ));
+        }
+        $live = array_values(array_filter($rows, static function (array $r): bool {
+            return strtolower((string)($r['STATUS'] ?? '')) === 'pending';
+        }));
         if (count($live) < 2) {
             $one = $live !== [] ? (string)($live[0]['TOKEN'] ?? $token) : $token;
             return self::resolvePending($one, $action, $userId);
@@ -1035,6 +1065,45 @@ final class AssistantHarness
             }
         }
         return array_keys($perms);
+    }
+
+    /** Same cancel rule as resolvePending: self → only the owner; capability → any linked staff. */
+    private static function canCancelRow(array $row, int $userId): bool
+    {
+        if (strtolower(trim((string)($row['CONFIRM_MODE'] ?? 'self'))) === 'capability') {
+            return $userId > 0;
+        }
+        return $userId > 0 && (int)($row['ID_USER'] ?? 0) === $userId;
+    }
+
+    /**
+     * One confirmer per plan at a time (MySQL named lock, non-blocking).
+     *
+     * @param callable():array<string,mixed> $fn
+     * @return array<string,mixed>|null null when another confirmer holds the plan
+     */
+    private static function withPlanLock(string $planId, callable $fn): ?array
+    {
+        $name = 'assistant_plan_' . $planId;
+        $pdo = Database::pdo();
+        $got = false;
+        try {
+            $st = $pdo->prepare('SELECT GET_LOCK(?, 0)');
+            $st->execute([$name]);
+            $got = (int)$st->fetchColumn() === 1;
+            if (!$got) {
+                return null;
+            }
+            return $fn();
+        } finally {
+            if ($got) {
+                try {
+                    $pdo->prepare('SELECT RELEASE_LOCK(?)')->execute([$name]);
+                } catch (Throwable $e) {
+                    // ignore unlock errors
+                }
+            }
+        }
     }
 
     /** @param array<string,mixed> $row */
@@ -1173,6 +1242,18 @@ final class AssistantHarness
             ];
         }
 
+        $planId = trim((string)($row['PLAN_ID'] ?? ''));
+        $planStep = (int)($row['PLAN_STEP'] ?? 0);
+        if ($planId !== '' && PendingActionsRepository::earlierStepsUnfinished($planId, $planStep) > 0) {
+            return [
+                'ok' => false,
+                'action' => 'confirm',
+                'result' => null,
+                'error' => t('assistant.confirm.plan_order'),
+                'plan_blocked' => true,
+            ];
+        }
+
         // Claim before invoke so a second confirmer cannot run the same write.
         $claimed = PendingActionsRepository::claimForExecution($token, $userId);
         if ($claimed === null) {
@@ -1233,7 +1314,13 @@ final class AssistantHarness
         }
         if (!$inv['ok']) {
             PendingActionsRepository::finalizeExecution($token, 'failed', ['error' => $inv['error']]);
-            return ['ok' => false, 'action' => 'confirm', 'result' => null, 'error' => $inv['error']];
+            return [
+                'ok' => false,
+                'action' => 'confirm',
+                'result' => null,
+                'error' => $inv['error'],
+                'execution_failed' => true,
+            ];
         }
         PendingActionsRepository::finalizeExecution($token, 'confirmed', $inv['data']);
         return [

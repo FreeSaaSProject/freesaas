@@ -2,24 +2,24 @@
     "id": "finance",
     "name": "finance.module.name",
     "description": "finance.module.description",
-    "version": "0.1.3",
+    "version": "1.0.0",
     "type": "product",
     "catalog": {
         "categories": [
             "finance"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [
             "report"
         ],
         "screenshots": []
     },
     "requires": {
-        "core": ">=0.3.0",
-        "ledger": ">=0.1.0"
+        "core": ">=1.0.0",
+        "ledger": ">=1.0.0"
     },
     "optionalRequires": {
-        "funds": ">=0.1.0"
+        "funds": ">=1.0.0"
     },
     "provides": [
         "finance.balance"

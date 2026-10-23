@@ -127,7 +127,7 @@ final class DemoSeed
                 }
             }
         }
-        foreach (['base_users', 'base_admin_statuses', 'base_system'] as $t) {
+        foreach (['base_users', 'base_admin_statuses'] as $t) {
             if (!Database::tableExists($t)) {
                 $problems[] = $t . ' missing — run migrate';
             }
@@ -139,7 +139,7 @@ final class DemoSeed
     private static function snapshotTables(): array
     {
         $out = [];
-        foreach (array_merge(self::WIPE_TABLES, ['base_users', 'base_admin_statuses', 'base_system']) as $t) {
+        foreach (array_merge(self::WIPE_TABLES, ['base_users', 'base_admin_statuses']) as $t) {
             if (Database::tableExists($t)) {
                 $out[] = $t;
             }
@@ -196,11 +196,6 @@ final class DemoSeed
                 CalendarConfig::setEventMode(CalendarConfig::MODE_VISITS);
             }
 
-            // Schema-only / partial bootstrap may leave base_system empty; calendar hours need a row.
-            if (class_exists('SystemRepository', false)) {
-                SystemRepository::ensureRow((string)$pack['company']);
-            }
-
             $out = [];
             $unitId = self::ensureUnit($pack['unit']);
             $out['cabinets'] = self::seedCabinets($pack);
@@ -245,7 +240,7 @@ final class DemoSeed
             $out['audio'] = self::seedAudio($locale, $operators, $admins, $clientIds);
             $out['bi'] = self::seedBiAudioRecipe($locale);
 
-            if (class_exists('SystemRepository', false) && Database::columnExists('base_system', 'company')) {
+            if (class_exists('SystemRepository', false)) {
                 SystemRepository::updateBasics(['company' => (string)$pack['company']]);
             }
 
@@ -447,6 +442,10 @@ final class DemoSeed
         ];
         if (Database::columnExists('base_admin_statuses', 'CAN_BE_ASSIGNED')) {
             $data['CAN_BE_ASSIGNED'] = $canBeAssigned ? 1 : 0;
+        }
+        // Service performers: load charts + booking gate (BookingOperatorGate / ServiceAccessParity).
+        if (Database::columnExists('base_admin_statuses', 'SHOW_IN_LOADS')) {
+            $data['SHOW_IN_LOADS'] = $canBeAssigned ? 1 : 0;
         }
         if (Database::columnExists('base_admin_statuses', 'SHOW_NEWS')) {
             $data['SHOW_NEWS'] = 1;

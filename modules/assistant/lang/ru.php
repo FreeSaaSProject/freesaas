@@ -167,6 +167,8 @@ return [
     'assistant.confirm.cancelled' => 'Отменено.',
     'assistant.confirm.cancelled_n' => 'Отменено: {n}',
     'assistant.confirm.failed_n' => 'ошибок: {n}',
+    'assistant.confirm.plan_order' => 'Сначала должны выполниться предыдущие шаги плана.',
+    'assistant.confirm.plan_running' => 'План уже выполняется — дождитесь результата.',
     'assistant.confirm.skipped_n' => 'не выполнено после ошибки (отменено): {n}',
     'assistant.relations.prompt' => 'Связь: после {when} проверяется {check}; затронутые строки снимай/правь через {suggest} в том же плане. {hint}',
     'assistant.relations.check_unavailable' => 'Связанные данные ({op}) не проверены: недоступны в этом канале — проверьте вручную.',

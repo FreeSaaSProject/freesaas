@@ -357,7 +357,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET'
 $pending = SchemaMigrator::pendingList();
 $setup = SchemaMigrator::setupStatus();
 $hasUsers = Database::tableExists('base_users');
-$hasSystem = Database::tableExists('base_system');
 $userCount = $hasUsers
     ? (int)Database::pdo()->query('SELECT COUNT(*) FROM base_users')->fetchColumn()
     : 0;
@@ -412,7 +411,6 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'schema_needed' => !empty($setup['needed']),
         'tables' => [
             'base_users' => $hasUsers,
-            'base_system' => $hasSystem,
             'base_users_count' => $userCount,
             'owned' => $ownedTables,
             'owned_count' => count($ownedTables),
@@ -448,7 +446,6 @@ View::render('db', [
     'pendingCount' => (int)($setup['pending'] ?? count($pending)),
     'schemaNeeded' => !empty($setup['needed']),
     'hasUsers' => $hasUsers,
-    'hasSystem' => $hasSystem,
     'userCount' => $userCount,
     'canDb' => $canDb,
     'mode' => $mode,

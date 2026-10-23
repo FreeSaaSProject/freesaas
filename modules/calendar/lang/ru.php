@@ -146,7 +146,7 @@ return [
     'calendar.day.order_unassigned' => 'Специалист не назначен',
     'calendar.settings.lede' => 'Календарь, заказы, онлайн-запись и шаг таймслотов по каналам — в одном месте (секции orders/booking/instance pack/terminals/sites появляются при включённых модулях). Только для суперадминистратора.',
     'calendar.settings.work_hours' => 'Рабочие часы календаря',
-    'calendar.settings.work_hours_hint' => 'Ось времени в календаре (включительно). Источник: base_system.work_hour_start / work_hour_end.',
+    'calendar.settings.work_hours_hint' => 'Ось времени в календаре (включительно). Эти же часы использует онлайн-запись.',
     'calendar.settings.field_hour_start' => 'Час начала',
     'calendar.settings.field_hour_end' => 'Час окончания',
     'calendar.settings.event_mode' => 'Режим событий',

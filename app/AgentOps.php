@@ -1728,18 +1728,16 @@ final class AgentOps
             }
         }
 
-        // Seed base_system row if empty (schema migrate creates the table only)
+        // Company label for chrome (cfg/config.ini [app] instance).
         try {
-            if (class_exists('SystemRepository', false)) {
-                $before = SystemRepository::get();
-                SystemRepository::ensureRow((string)Config::get('app', 'name', 'FreeSaaS'));
-                $steps[] = [
-                    'step' => 'system_row',
-                    'status' => $before === null ? 'ok' : 'exists',
-                ];
+            if (trim((string)Config::get('app', 'instance', '')) === '') {
+                Config::set('app', 'instance', (string)Config::get('app', 'name', 'FreeSaaS'));
+                $steps[] = ['step' => 'instance_label', 'status' => 'ok'];
+            } else {
+                $steps[] = ['step' => 'instance_label', 'status' => 'exists'];
             }
         } catch (Throwable $e) {
-            $steps[] = ['step' => 'system_row', 'status' => 'skip', 'message' => $e->getMessage()];
+            $steps[] = ['step' => 'instance_label', 'status' => 'skip', 'message' => $e->getMessage()];
         }
 
         // Scoped host-cron secret (only /cron/tick + /cron/status); shown once.

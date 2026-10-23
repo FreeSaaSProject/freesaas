@@ -17,9 +17,10 @@ final class UpdateRollback
      * Snapshot existing files that overlay will touch; track paths that will be created.
      *
      * @param list<string> $destRels relative to base_path
+     * @param list<string> $parkRels conflict paths whose parked upstream copy will be replaced
      * @return array{id:string,dir:string,manifest:array<string,mixed>}
      */
-    public static function snapshotBeforeOverlay(array $destRels, string $label = ''): array
+    public static function snapshotBeforeOverlay(array $destRels, string $label = '', array $parkRels = []): array
     {
         $metaFiles = [UpdateManifest::path(), UpdateConflicts::indexPath()];
         $id = gmdate('YmdHis') . '-' . bin2hex(random_bytes(4));
@@ -70,12 +71,37 @@ final class UpdateRollback
             }
         }
 
+        // Parked upstream copies must roll back together with conflicts.json.
+        $parked = [];
+        $parkedDir = $dir . '/parked';
+        foreach ($parkRels as $rel) {
+            $rel = ltrim(str_replace('\\', '/', (string)$rel), '/');
+            if ($rel === '' || strpos($rel, '..') !== false) {
+                continue;
+            }
+            $abs = UpdateConflicts::filesDir() . '/' . $rel;
+            if (is_file($abs)) {
+                $dest = $parkedDir . '/' . $rel;
+                $parent = dirname($dest);
+                if (!is_dir($parent) && !@mkdir($parent, 0755, true) && !is_dir($parent)) {
+                    throw new RuntimeException('Cannot create rollback dir for parked ' . $rel);
+                }
+                if (!@copy($abs, $dest)) {
+                    throw new RuntimeException('Cannot snapshot parked file: ' . $rel);
+                }
+                $parked[$rel] = true;
+            } else {
+                $parked[$rel] = false;
+            }
+        }
+
         $manifest = [
             'id' => $id,
             'created_at' => gmdate('c'),
             'saved' => $saved,
             'created' => $created,
             'meta' => $meta,
+            'parked' => $parked,
         ];
         $json = json_encode($manifest, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT);
         if ($json === false || @file_put_contents($dir . '/manifest.json', $json . "\n") === false) {
@@ -146,6 +172,27 @@ final class UpdateRollback
             $target = (string)$info['path'];
             if (!empty($info['existed'])) {
                 @copy($dir . '/meta/' . basename((string)$name), $target);
+            } elseif (is_file($target)) {
+                @unlink($target);
+            }
+        }
+        foreach ((array)($manifest['parked'] ?? []) as $rel => $existed) {
+            $rel = ltrim(str_replace('\\', '/', (string)$rel), '/');
+            if ($rel === '' || strpos($rel, '..') !== false) {
+                continue;
+            }
+            $target = UpdateConflicts::filesDir() . '/' . $rel;
+            if ($existed) {
+                try {
+                    UpdateOverlay::copyOne($dir . '/parked/' . $rel, $target);
+                } catch (Throwable $e) {
+                    return [
+                        'ok' => false,
+                        'restored' => $restored,
+                        'removed' => $removed,
+                        'error' => $e->getMessage(),
+                    ];
+                }
             } elseif (is_file($target)) {
                 @unlink($target);
             }

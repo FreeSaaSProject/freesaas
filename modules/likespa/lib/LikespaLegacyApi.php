@@ -403,7 +403,7 @@ final class LikespaLegacyApi
         $payload = [
             'services' => $services === [] ? new stdClass() : $services,
             'date' => $date,
-            // Salon calendar window (base_system). Slot engine uses this — NOT workweeks PRICE_COL / shift I 15:30.
+            // Salon calendar window (calendar settings). Slot engine uses this — NOT workweeks PRICE_COL / shift I 15:30.
             'work_hours' => self::salonWorkHours(),
         ];
         if ($eligibility !== null) {

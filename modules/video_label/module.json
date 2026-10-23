@@ -2,10 +2,10 @@
     "id": "video_label",
     "name": "video_label.module.name",
     "description": "video_label.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
+        "core": ">=1.0.0",
         "video": ">=0.1.0"
     },
     "optionalRequires": [],

@@ -1,11 +1,11 @@
 # Health & fitness
 
-Product module `wellness`: Enable for wellness-specific screens beyond spa procedures. Depends only on core. Turn on when the tenant runs health/fitness features from this pack. Catalog maturity: `beta`.
+Product module `wellness`: personal food, workout and health diary. Can be enabled inside a corporate instance — all data stays personal: every query is scoped to the current user (`WellnessOwner`), with no `SUPERADMIN_ACCESS` bypass. Catalog maturity: `release`.
 
 ## Enable
 
 ```bash
-php bin/freesaas.php module enable wellness --accept-risk --format=json
+php bin/freesaas.php module enable wellness --format=json
 ```
 
 Or `[modules] wellness=1` in `cfg/config.ini`.
@@ -14,8 +14,8 @@ Permissions: `wellness.view`, `wellness.edit`.
 
 ## Dependencies
 
-- Requires: `core` >=0.3.0
-- Soft: `asr` >=0.1.0, `bots` >=0.1.0
+- Requires: `core` >=1.0.0
+- Soft: `asr` >=1.0.0, `bots` >=1.0.0
 
 ## Tables
 

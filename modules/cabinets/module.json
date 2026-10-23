@@ -2,10 +2,10 @@
     "id": "cabinets",
     "name": "cabinets.module.name",
     "description": "cabinets.module.description",
-    "version": "0.1.2",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": [],
     "provides": [
@@ -94,7 +94,7 @@
         "categories": [
             "dictionaries"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

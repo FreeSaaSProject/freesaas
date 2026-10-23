@@ -2,13 +2,13 @@
     "id": "vacations",
     "name": "vacations.module.name",
     "description": "vacations.module.description",
-    "version": "0.1.6",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "bi": ">=0.3.0"
+        "bi": ">=1.0.0"
     },
     "provides": [
         "vacations.list"
@@ -115,7 +115,7 @@
         "categories": [
             "team"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

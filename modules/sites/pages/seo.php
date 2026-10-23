@@ -4,7 +4,7 @@ declare(strict_types=1);
 $wantsJson = AgentHttp::wantsJson();
 $message = '';
 $error = '';
-$row = SystemRepository::get() ?: [];
+$row = SystemSite::load();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
@@ -14,7 +14,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'keywords' => (string)($_POST['keywords'] ?? ''),
             'tel' => (string)($_POST['tel'] ?? ''),
         ]);
-        $row = SystemRepository::get() ?: $row;
+        $row = SystemSite::load();
         if ($wantsJson) {
             AgentHttp::emit(['ok' => true, 'seo' => $row, 'saved' => true]);
             return;
@@ -33,7 +33,7 @@ if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'seo' => $row,
-        'has_keywords' => Database::columnExists('base_system', 'keywords'),
+        'has_keywords' => true,
     ]);
     return;
 }
@@ -41,7 +41,7 @@ if ($wantsJson) {
 View::render('seo', [
     'title' => t('sites.menu.seo'),
     'row' => $row,
-    'hasKeywords' => Database::columnExists('base_system', 'keywords'),
+    'hasKeywords' => true,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

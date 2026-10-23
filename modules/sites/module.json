@@ -2,18 +2,18 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "0.2.10",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "catalog": ">=0.1.0",
-        "orders": ">=0.1.0",
-        "clients": ">=0.1.0",
-        "booking": ">=0.1.0",
-        "procedures": ">=0.1.0"
+        "catalog": ">=1.0.0",
+        "orders": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "booking": ">=1.0.0",
+        "procedures": ">=1.0.0"
     },
     "provides": [
         "sites.storefront",
@@ -150,14 +150,14 @@
                 "method": "GET",
                 "path": "/sites/seo",
                 "permission": "sites.view",
-                "description": "Fallback SEO/contacts from base_system"
+                "description": "Fallback SEO/contacts (cfg/modules/sites.ini [sites] seo_name/seo_title/seo_keywords/tel)"
             },
             {
                 "id": "sites.seo.save",
                 "method": "POST",
                 "path": "/sites/seo",
                 "permission": "sites.edit",
-                "description": "Save base_system name/title/keywords/tel"
+                "description": "Save fallback SEO name/title/keywords/tel to sites.ini"
             },
             {
                 "id": "sites.promopages.list",
@@ -295,7 +295,7 @@
         "categories": [
             "site"
         ],
-        "maturity": "alpha",
+        "maturity": "release",
         "tags": [
             "embed"
         ],

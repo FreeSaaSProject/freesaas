@@ -2,15 +2,15 @@
     "id": "rates",
     "name": "rates.module.name",
     "description": "rates.module.description",
-    "version": "0.2.5",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0",
-        "procedures": ">=0.1.0"
+        "core": ">=1.0.0",
+        "procedures": ">=1.0.0"
     },
     "optionalRequires": {
-        "audio": ">=0.1.0"
+        "audio": ">=1.0.0"
     },
     "provides": [
         "rates.list"
@@ -169,7 +169,7 @@
         "categories": [
             "accounting"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

@@ -2,18 +2,18 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "0.1.20",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "ledger": ">=0.1.0",
-        "bots": ">=0.1.0",
-        "procents": ">=0.1.5",
-        "procedures": ">=0.1.0",
-        "contracts": ">=0.1.0",
-        "assistant": ">=0.1.0"
+        "ledger": ">=1.0.0",
+        "bots": ">=1.0.0",
+        "procents": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "contracts": ">=1.0.0",
+        "assistant": ">=1.0.0"
     },
     "provides": [
         "payments.list"
@@ -159,7 +159,7 @@
         "categories": [
             "accounting"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

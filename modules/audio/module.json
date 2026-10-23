@@ -2,20 +2,20 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "0.2.26",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "workweeks": ">=0.1.0",
-        "clients": ">=0.1.0",
-        "audio_dicts": ">=0.1.0",
-        "audio_pipeline": ">=0.1.0",
+        "workweeks": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "audio_dicts": ">=1.0.0",
+        "audio_pipeline": ">=1.0.0",
         "audio_llm": ">=0.1.0",
-        "audio_reports": ">=0.1.0",
-        "bots": ">=0.1.0",
-        "bi": ">=0.3.0"
+        "audio_reports": ">=1.0.0",
+        "bots": ">=1.0.0",
+        "bi": ">=1.0.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -274,7 +274,7 @@
         "categories": [
             "audio"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

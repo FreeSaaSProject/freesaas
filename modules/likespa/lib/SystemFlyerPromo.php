@@ -2,8 +2,9 @@
 declare(strict_types=1);
 
 /**
- * Flyer + promoter terminal discounts stored in base_system
- * (oper show_site_sets: flyerEnabled, flyerDiscount, PROMO_POSITION_ID, PROMO_DISCOUNTS).
+ * Flyer + promoter terminal discounts in cfg/modules/likespa.ini [likespa]:
+ * flyer_enabled, flyer_discount, promo_position_ids (3,5), promo_discounts / discount_types (typeId:pct,…).
+ * Legacy base_system encodings are decoded only by the copy migration.
  */
 final class SystemFlyerPromo
 {
@@ -30,15 +31,12 @@ final class SystemFlyerPromo
         if (self::$loadCache !== null) {
             return self::$loadCache;
         }
-        $row = SystemRepository::get() ?: [];
         self::$loadCache = [
-            'flyer_enabled' => (int)($row['flyerEnabled'] ?? 0),
-            'flyer_discount' => (int)($row['flyerDiscount'] ?? 0),
-            'promo_position_ids' => self::decodePositionIds((string)($row['PROMO_POSITION_ID'] ?? '')),
-            'promo_discounts' => self::decodeDiscounts((string)($row['PROMO_DISCOUNTS'] ?? '')),
-            'discount_types' => Database::columnExists('base_system', 'DISCOUNTS_TYPES')
-                ? self::decodeDiscounts((string)($row['DISCOUNTS_TYPES'] ?? ''))
-                : [],
+            'flyer_enabled' => (int)Config::get('likespa', 'flyer_enabled', 0) > 0 ? 1 : 0,
+            'flyer_discount' => max(0, min(100, (int)Config::get('likespa', 'flyer_discount', 0))),
+            'promo_position_ids' => self::parseIdList((string)Config::get('likespa', 'promo_position_ids', '')),
+            'promo_discounts' => self::parsePctMap((string)Config::get('likespa', 'promo_discounts', '')),
+            'discount_types' => self::parsePctMap((string)Config::get('likespa', 'discount_types', '')),
         ];
         return self::$loadCache;
     }
@@ -69,25 +67,75 @@ final class SystemFlyerPromo
                 }
             }
         }
-        $positionIds = array_values(array_unique($positionIds));
-        sort($positionIds);
+        Config::set('likespa', 'flyer_enabled', (string)$flyerEnabled);
+        Config::set('likespa', 'flyer_discount', (string)$flyerDiscount);
+        Config::set('likespa', 'promo_position_ids', self::formatIdList($positionIds));
 
-        $payload = [
-            'flyerEnabled' => $flyerEnabled,
-            'flyerDiscount' => $flyerDiscount,
-            'PROMO_POSITION_ID' => self::encodePositionIds($positionIds),
-        ];
-
-        // Only rewrite PROMO_DISCOUNTS when the type grid was submitted (avoid wipe if procedures offline).
+        // Only rewrite the type grids when submitted (avoid wipe if procedures offline).
         if (isset($post['promo_discounts']) && is_array($post['promo_discounts'])) {
-            $payload['PROMO_DISCOUNTS'] = self::encodeDiscounts(self::parseTypePctGrid($post['promo_discounts']));
+            Config::set('likespa', 'promo_discounts', self::formatPctMap(self::parseTypePctGrid($post['promo_discounts'])));
         }
         if (isset($post['discount_types']) && is_array($post['discount_types'])) {
-            $payload['DISCOUNTS_TYPES'] = self::encodeDiscounts(self::parseTypePctGrid($post['discount_types']));
+            Config::set('likespa', 'discount_types', self::formatPctMap(self::parseTypePctGrid($post['discount_types'])));
         }
-
-        self::persist($payload);
         self::resetLoadCache();
+    }
+
+    /** @return list<int> "3,5" → [3,5] */
+    public static function parseIdList(string $raw): array
+    {
+        $ids = [];
+        foreach (explode(',', $raw) as $part) {
+            $id = (int)trim($part);
+            if ($id > 0) {
+                $ids[$id] = true;
+            }
+        }
+        $out = array_keys($ids);
+        sort($out);
+        return $out;
+    }
+
+    /** @param list<int> $ids */
+    public static function formatIdList(array $ids): string
+    {
+        return implode(',', self::parseIdList(implode(',', array_map('strval', $ids))));
+    }
+
+    /** @return array<int,int|string> "3:10,5:" → [3=>10, 5=>''] (empty = off) */
+    public static function parsePctMap(string $raw): array
+    {
+        $out = [];
+        foreach (explode(',', $raw) as $part) {
+            $part = trim($part);
+            if ($part === '' || strpos($part, ':') === false) {
+                continue;
+            }
+            [$typeId, $pct] = array_map('trim', explode(':', $part, 2));
+            $typeId = (int)$typeId;
+            if ($typeId < 1) {
+                continue;
+            }
+            $out[$typeId] = ($pct === '' || (int)$pct === 0) ? '' : max(0, min(100, (int)$pct));
+        }
+        ksort($out);
+        return $out;
+    }
+
+    /** @param array<int,int|string> $map */
+    public static function formatPctMap(array $map): string
+    {
+        $parts = [];
+        ksort($map);
+        foreach ($map as $typeId => $pct) {
+            $typeId = (int)$typeId;
+            if ($typeId < 1) {
+                continue;
+            }
+            $pctStr = trim((string)$pct);
+            $parts[] = $typeId . ':' . (($pctStr === '' || (int)$pctStr === 0) ? '' : (string)max(0, min(100, (int)$pctStr)));
+        }
+        return implode(',', $parts);
     }
 
     /**
@@ -114,50 +162,10 @@ final class SystemFlyerPromo
     }
 
     /**
-     * @param array{
-     *   flyerEnabled?:int,
-     *   flyerDiscount?:int,
-     *   PROMO_POSITION_ID?:string,
-     *   PROMO_DISCOUNTS?:string,
-     *   DISCOUNTS_TYPES?:string
-     * } $data
+     * Legacy base_system.PROMO_POSITION_ID ("#3#,#5#" or "3") — copy migration only.
+     *
+     * @return list<int>
      */
-    private static function persist(array $data): void
-    {
-        $row = SystemRepository::get();
-        if (!$row) {
-            throw new RuntimeException('base_system is empty — run data migrate');
-        }
-        $cols = [];
-        $params = [];
-        $map = [
-            'flyerEnabled' => 'flyerEnabled',
-            'flyerDiscount' => 'flyerDiscount',
-            'PROMO_POSITION_ID' => 'PROMO_POSITION_ID',
-            'PROMO_DISCOUNTS' => 'PROMO_DISCOUNTS',
-            'DISCOUNTS_TYPES' => 'DISCOUNTS_TYPES',
-        ];
-        foreach ($map as $key => $col) {
-            if (!array_key_exists($key, $data) || !Database::columnExists('base_system', $col)) {
-                continue;
-            }
-            $cols[] = '`' . $col . '` = ?';
-            if ($col === 'flyerEnabled' || $col === 'flyerDiscount') {
-                $params[] = (int)$data[$key];
-            } else {
-                $params[] = (string)$data[$key];
-            }
-        }
-        if ($cols === []) {
-            return;
-        }
-        $params[] = (int)$row['id'];
-        Database::pdo()->prepare(
-            'UPDATE base_system SET ' . implode(', ', $cols) . ' WHERE id = ?'
-        )->execute($params);
-    }
-
-    /** @return list<int> */
     public static function decodePositionIds(string $raw): array
     {
         $raw = trim($raw);
@@ -178,22 +186,11 @@ final class SystemFlyerPromo
         return [];
     }
 
-    /** @param list<int> $ids */
-    public static function encodePositionIds(array $ids): string
-    {
-        $ids = array_values(array_unique(array_filter(array_map('intval', $ids))));
-        sort($ids);
-        if ($ids === []) {
-            return '';
-        }
-        $parts = [];
-        foreach ($ids as $id) {
-            $parts[] = '#' . $id . '#';
-        }
-        return implode(',', $parts);
-    }
-
-    /** @return array<int,int|string> typeId => percent (0/empty = off) */
+    /**
+     * Legacy base_system base64(serialize) discount map — copy migration only.
+     *
+     * @return array<int,int|string> typeId => percent (0/empty = off)
+     */
     public static function decodeDiscounts(string $raw): array
     {
         $raw = trim($raw);
@@ -221,29 +218,6 @@ final class SystemFlyerPromo
             $out[$typeId] = max(0, min(100, (int)$pctStr));
         }
         return $out;
-    }
-
-    /**
-     * Keep oper-compatible base64(serialize) payload (string percents / empty).
-     *
-     * @param array<int,string|int> $map
-     */
-    public static function encodeDiscounts(array $map): string
-    {
-        $stored = [];
-        foreach ($map as $typeId => $pct) {
-            $typeId = (int)$typeId;
-            if ($typeId < 1) {
-                continue;
-            }
-            $pctStr = trim((string)$pct);
-            if ($pctStr === '' || (int)$pctStr === 0) {
-                $stored[$typeId] = '';
-            } else {
-                $stored[$typeId] = (string)max(0, min(100, (int)$pctStr));
-            }
-        }
-        return base64_encode(serialize($stored));
     }
 
     /** @return array<int,string> id => name */

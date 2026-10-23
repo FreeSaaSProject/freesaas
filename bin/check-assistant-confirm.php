@@ -47,11 +47,12 @@ $row = PendingActionsRepository::findByToken($token);
 $assert(strtolower((string)($row['STATUS'] ?? '')) === 'cancelled', 'status cancelled');
 
 if (Database::columnExists('base_assistant_pending', 'PLAN_ID')) {
-    $mkPlan = static function (int $n, array $meta) use ($ownerId): array {
+    $mkPlan = static function (int $n, array $meta, int $owner = 0) use ($ownerId): array {
+        $owner = $owner > 0 ? $owner : $ownerId;
         $planId = bin2hex(random_bytes(8));
         $tokens = [];
         for ($i = 1; $i <= $n; $i++) {
-            $r = PendingActionsRepository::create($ownerId, 'test.noop', ['step' => $i], 'plan step ' . $i,
+            $r = PendingActionsRepository::create($owner, 'test.noop', ['step' => $i], 'plan step ' . $i,
                 array_merge($meta, ['plan_id' => $planId, 'plan_step' => $i]));
             $tokens[] = (string)($r['token'] ?? '');
         }
@@ -78,6 +79,27 @@ if (Database::columnExists('base_assistant_pending', 'PLAN_ID')) {
     $assert(!empty($res['forbidden_capability']), 'plan preflight denies missing permission');
     $assert($status($plan[0]) === 'pending' && $status($plan[1]) === 'pending', 'plan untouched after deny');
     AssistantHarness::resolvePlan($plan[0], 'cancel', $otherId);
+
+    // Order: while step 1 is executing, a second confirm must not start step 2.
+    $plan = $mkPlan(2, ['confirm_mode' => 'self']);
+    PendingActionsRepository::claimForExecution($plan[0], $ownerId);
+    $res = AssistantHarness::resolvePlan($plan[1], 'confirm', $ownerId);
+    $assert(empty($res['ok']) && $status($plan[1]) === 'pending', 'second confirm while step 1 executing does not run step 2');
+    $res = AssistantHarness::resolvePending($plan[1], 'confirm', $ownerId);
+    $assert(!empty($res['plan_blocked']) && $status($plan[1]) === 'pending', 'direct confirm of step 2 blocked while step 1 executing');
+    PendingActionsRepository::finalizeExecution($plan[0], 'failed', ['error' => 'test']);
+    $res = AssistantHarness::resolvePending($plan[1], 'confirm', $ownerId);
+    $assert(!empty($res['plan_blocked']) && $status($plan[1]) === 'pending', 'step 2 blocked after step 1 failed');
+    PendingActionsRepository::mark($plan[1], 'cancelled');
+
+    // Ownership: a failed batch must not cancel someone else's self pendings.
+    $victim = $mkPlan(2, ['confirm_mode' => 'self'], $ownerId);
+    AssistantHarness::resolvePendingBatch($victim, 'confirm', $otherId);
+    $assert($status($victim[0]) === 'pending' && $status($victim[1]) === 'pending', 'foreign tokens in batch: not run, not cancelled');
+    $own = $mkPlan(1, ['confirm_mode' => 'self'], $otherId);
+    AssistantHarness::resolvePendingBatch([$own[0], $victim[0]], 'confirm', $otherId);
+    $assert($status($own[0]) === 'failed' && $status($victim[0]) === 'pending', 'own step failure does not cancel a foreign plan');
+    AssistantHarness::resolvePendingBatch($victim, 'cancel', $ownerId);
 }
 
 if ($failed > 0) {

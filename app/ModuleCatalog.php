@@ -14,6 +14,7 @@ final class ModuleCatalog
         'accounting',
         'warehouse',
         'dictionaries',
+        'booking',
         'team',
         'audio',
         'crm',

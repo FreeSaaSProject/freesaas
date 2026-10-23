@@ -2,10 +2,22 @@
 declare(strict_types=1);
 
 /**
- * Legacy day-bound windows on base_system for rating / recording.
+ * Day-bound windows for rating / recording, stored in cfg/modules/audio_reports.ini [audio_reports].
  */
 final class AudioDayBounds
 {
+    /** Public field → ini key. */
+    public const KEYS = [
+        'hourStartOffRate' => 'hour_start_off_rate',
+        'minStartOffRate' => 'min_start_off_rate',
+        'hourEndOffRate' => 'hour_end_off_rate',
+        'minEndOffRate' => 'min_end_off_rate',
+        'hourStartOffRecord' => 'hour_start_off_record',
+        'minStartOffRecord' => 'min_start_off_record',
+        'hourEndOffRecord' => 'hour_end_off_record',
+        'minEndOffRecord' => 'min_end_off_record',
+    ];
+
     /** @return array<string,int> */
     public static function defaults(): array
     {
@@ -25,19 +37,10 @@ final class AudioDayBounds
     public static function read(): array
     {
         $out = self::defaults();
-        if (!Database::tableExists('base_system')) {
-            return $out;
-        }
-        $row = Database::pdo()->query('SELECT * FROM base_system ORDER BY id ASC LIMIT 1')->fetch();
-        if (!$row) {
-            return $out;
-        }
         foreach ($out as $key => $default) {
-            if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
-                $out[$key] = max(0, min(59, (int)$row[$key]));
-                if (strpos($key, 'hour') === 0) {
-                    $out[$key] = max(0, min(23, (int)$row[$key]));
-                }
+            $raw = Config::get('audio_reports', self::KEYS[$key], null);
+            if ($raw !== null && $raw !== '') {
+                $out[$key] = self::clamp($key, (int)$raw);
             }
         }
         return $out;
@@ -46,37 +49,13 @@ final class AudioDayBounds
     /** @param array<string,int> $data */
     public static function save(array $data): void
     {
-        if (!Database::tableExists('base_system')) {
-            throw new RuntimeException('base_system missing');
+        foreach (self::defaults() as $key => $default) {
+            Config::set('audio_reports', self::KEYS[$key], (string)self::clamp($key, (int)($data[$key] ?? $default)));
         }
-        $defaults = self::defaults();
-        $vals = [];
-        foreach ($defaults as $key => $default) {
-            $v = (int)($data[$key] ?? $default);
-            if (strpos($key, 'hour') === 0) {
-                $v = max(0, min(23, $v));
-            } else {
-                $v = max(0, min(59, $v));
-            }
-            $vals[$key] = $v;
-        }
-        foreach ($vals as $col => $_) {
-            if (!Database::columnExists('base_system', $col)) {
-                throw new RuntimeException('Missing column base_system.' . $col . ' — run audio_reports migrations');
-            }
-        }
-        $row = Database::pdo()->query('SELECT id FROM base_system ORDER BY id ASC LIMIT 1')->fetch();
-        if (!$row) {
-            throw new RuntimeException('base_system empty');
-        }
-        $sql = 'UPDATE base_system SET
-            hourStartOffRate = ?, minStartOffRate = ?, hourEndOffRate = ?, minEndOffRate = ?,
-            hourStartOffRecord = ?, minStartOffRecord = ?, hourEndOffRecord = ?, minEndOffRecord = ?
-            WHERE id = ?';
-        Database::pdo()->prepare($sql)->execute([
-            $vals['hourStartOffRate'], $vals['minStartOffRate'], $vals['hourEndOffRate'], $vals['minEndOffRate'],
-            $vals['hourStartOffRecord'], $vals['minStartOffRecord'], $vals['hourEndOffRecord'], $vals['minEndOffRecord'],
-            (int)$row['id'],
-        ]);
+    }
+
+    private static function clamp(string $key, int $v): int
+    {
+        return strpos($key, 'hour') === 0 ? max(0, min(23, $v)) : max(0, min(59, $v));
     }
 }

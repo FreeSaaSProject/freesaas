@@ -2,7 +2,7 @@
     "id": "yclients",
     "name": "yclients.module.name",
     "description": "yclients.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "catalog": {
         "categories": [
@@ -19,13 +19,13 @@
         "screenshots": []
     },
     "requires": {
-        "core": ">=0.3.0",
-        "clients": ">=0.1.0"
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0"
     },
     "optionalRequires": {
-        "calendar": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "workweeks": ">=0.1.0"
+        "calendar": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "workweeks": ">=1.0.0"
     },
     "provides": [
         "yclients.pull"

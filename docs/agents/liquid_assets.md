@@ -1,11 +1,11 @@
 # Liquid assets
 
-Product module `liquid_assets`: Enable for a liquid-assets snapshot (cash, deposits, broker) and T-Invest account sync into the report. Requires ledger. Soft funds for REVAL. Use when management tracks liquidity beyond plain ДПС; needs broker API credentials in module ini when syncing T-Invest. Catalog maturity: `beta`.
+Product module `liquid_assets`: personal assets tracking for instances deployed for personal use — deposits, current accounts and a T-Invest (T-Bank only) broker portfolio in one monthly report. Not intended for corporate use: no per-user separation, everyone with module permissions sees the same report and accounts. T-Invest tokens are stored per account in `base_tinvest_accounts` (masked in UI/JSON). Catalog maturity: `release`.
 
 ## Enable
 
 ```bash
-php bin/freesaas.php module enable liquid_assets --accept-risk --format=json
+php bin/freesaas.php module enable liquid_assets --format=json
 ```
 
 Or `[modules] liquid_assets=1` in `cfg/config.ini`.
@@ -14,8 +14,8 @@ Permissions: `liquid_assets.view`, `liquid_assets.edit`.
 
 ## Dependencies
 
-- Requires: `core` >=0.3.0, `ledger` >=0.1.0
-- Soft: `funds` >=0.1.0
+- Requires: `core` >=1.0.0, `ledger` >=1.0.0
+- Soft: `funds` >=1.0.0
 
 ## Tables
 

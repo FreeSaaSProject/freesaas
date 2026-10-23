@@ -2,21 +2,21 @@
     "id": "assistant_groups",
     "name": "assistant_groups.module.name",
     "description": "assistant_groups.module.description",
-    "version": "0.1.16",
+    "version": "1.0.0",
     "type": "product",
     "catalog": {
         "categories": ["integrations", "communications"],
-        "maturity": "alpha",
+        "maturity": "release",
         "tags": ["llm", "transport", "settings"]
     },
     "requires": {
-        "core": ">=0.3.0",
-        "assistant": ">=0.1.0",
-        "bots": ">=0.1.0"
+        "core": ">=1.0.0",
+        "assistant": ">=1.0.0",
+        "bots": ">=1.0.0"
     },
     "optionalRequires": {
-        "llm": ">=0.1.0",
-        "workweeks": ">=0.1.0"
+        "llm": ">=1.0.0",
+        "workweeks": ">=1.0.0"
     },
     "provides": [
         "assistant_groups.channel"

@@ -1,10 +1,10 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-23T13:45:25+00:00",
+    "generated_at": "2026-10-23T14:49:40+00:00",
     "modules": [
         {
             "id": "asr",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "ASR / speech recognition",
@@ -19,16 +19,16 @@
                 "ru": "Включайте для расшифровки голоса (боты / внешний Whisper). Только core. Мягко bots. Не тянет audio/workweeks."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "bots": ">=0.1.0"
+                "bots": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "audio"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "integration",
                     "jobs"
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "0.1.71",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -52,28 +52,28 @@
                 "ru": "Базовая функция: чат ассистента доступен всем вошедшим сотрудникам. Требует llm. Мягко bots/procedures/staff_reports/audio_reports/terminals/updates для tools. Права llm.manage — только настройки токенов/OAuth. Имя персоны — на /settings."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "llm": ">=0.1.0"
+                "core": ">=1.0.0",
+                "llm": ">=1.0.0"
             },
             "optionalRequires": {
-                "bots": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "staff_reports": ">=0.1.0",
-                "audio_reports": ">=0.2.0",
-                "terminals": ">=0.1.0",
-                "updates": ">=0.3.0"
+                "bots": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "staff_reports": ">=1.0.0",
+                "audio_reports": ">=1.0.0",
+                "terminals": ">=1.0.0",
+                "updates": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "integrations"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "assistant_groups",
-            "version": "0.1.16",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -88,20 +88,20 @@
                 "ru": "Включите, когда нужен ассистент в рабочей Max-группе. Нужны bots + assistant, бот-админ с read_all_messages и write, привязка сотрудников в base_bot_links."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "assistant": ">=0.1.0",
-                "bots": ">=0.1.0"
+                "core": ">=1.0.0",
+                "assistant": ">=1.0.0",
+                "bots": ">=1.0.0"
             },
             "optionalRequires": {
-                "llm": ">=0.1.0",
-                "workweeks": ">=0.1.0"
+                "llm": ">=1.0.0",
+                "workweeks": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "integrations",
                     "communications"
                 ],
-                "maturity": "alpha",
+                "maturity": "release",
                 "tags": [
                     "llm",
                     "transport",
@@ -111,7 +111,7 @@
         },
         {
             "id": "audio",
-            "version": "0.2.26",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -126,29 +126,29 @@
                 "ru": "Включайте для записей в кабинете. Мягко workweeks/clients/audio_dicts. Нужен audio_dicts, pipeline, reports. Основа cabin audio-стека (не ASR для ботов — модуль asr)."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "workweeks": ">=0.1.0",
-                "clients": ">=0.1.0",
-                "audio_dicts": ">=0.1.0",
-                "audio_pipeline": ">=0.1.0",
+                "workweeks": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "audio_dicts": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0",
                 "audio_llm": ">=0.1.0",
-                "audio_reports": ">=0.1.0",
-                "bots": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "audio_reports": ">=1.0.0",
+                "bots": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "audio"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "audio_dicts",
-            "version": "0.1.38",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -163,23 +163,23 @@
                 "ru": "Включайте для словарей и скриптов ASR. Требует audio. Нужен pipeline, reports, audio_llm, staff_reports. Настройте до воркеров."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "audio": ">=0.1.0"
+                "core": ">=1.0.0",
+                "audio": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio_reports": ">=0.2.0"
+                "audio_reports": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "audio"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "audio_llm",
-            "version": "0.1.7",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -194,16 +194,16 @@
                 "ru": "Включайте для AI-разбора записей. Требует llm + audio + audio_dicts. Мягко staff_reports/comments/procedures/contracts. После ключей llm и словарей audio."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "llm": ">=0.1.0",
-                "audio": ">=0.1.0",
-                "audio_dicts": ">=0.1.0"
+                "core": ">=1.0.0",
+                "llm": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0"
             },
             "optionalRequires": {
-                "staff_reports": ">=0.1.0",
-                "comments": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "contracts": ">=0.1.0"
+                "staff_reports": ">=1.0.0",
+                "comments": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "contracts": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -215,7 +215,7 @@
         },
         {
             "id": "audio_phrases",
-            "version": "0.1.19",
+            "version": "0.1.20",
             "type": "product",
             "name": {
                 "en": "Top phrases",
@@ -230,13 +230,13 @@
                 "ru": "Включайте для ежедневного извлечения устойчивых N-грамм из записей. Нужны audio, audio_dicts, audio_pipeline. Alpha: ожидайте доработок."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "audio": ">=0.1.0",
-                "audio_dicts": ">=0.1.0",
-                "audio_pipeline": ">=0.1.0"
+                "core": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio_reports": ">=0.1.0"
+                "audio_reports": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -250,7 +250,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "0.3.30",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -265,25 +265,25 @@
                 "ru": "Включайте для фоновой обработки записей кабинета. Требует asr + audio + audio_dicts. Мягко procedures. Голосовые боты — в модуле asr."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "asr": ">=0.1.0",
-                "audio": ">=0.1.0",
-                "audio_dicts": ">=0.1.0"
+                "core": ">=1.0.0",
+                "asr": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0"
             },
             "optionalRequires": {
-                "procedures": ">=0.1.0"
+                "procedures": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "audio"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "audio_reports",
-            "version": "0.2.34",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -298,27 +298,27 @@
                 "ru": "Включайте для календаря прослушивания и сводок. Требует audio + audio_dicts + workweeks. Мягко procedures/pipeline. Мягко — spa instance pack и staff_reports."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "audio": ">=0.1.0",
-                "audio_dicts": ">=0.1.0",
-                "workweeks": ">=0.1.0"
+                "core": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0",
+                "workweeks": ">=1.0.0"
             },
             "optionalRequires": {
-                "procedures": ">=0.1.0",
-                "audio_pipeline": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "procedures": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "audio"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "audio_script_coach",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Script coach",
@@ -333,14 +333,14 @@
                 "ru": "Включать при готовых audio_dicts + llm. Кнопка у суперadmin на отчёте ®. Преемник топ-фраз для обогащения скриптов; audio_phrases пока не удаляем."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "audio": ">=0.1.0",
-                "audio_dicts": ">=0.1.0",
-                "llm": ">=0.1.0"
+                "core": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0",
+                "llm": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio_reports": ">=0.1.0",
-                "audio_pipeline": ">=0.1.0"
+                "audio_reports": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -354,7 +354,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -369,11 +369,11 @@
                 "ru": "Включайте, чтобы подключить Альфа (ЮЛ/ФЛ) или Точку по OAuth, привязать удалённые счета к счетам ledger и забирать выписки в ДПС. Требует ledger. Опциональный llm улучшает классификацию типов движений. Нужен, когда выписки важнее ручного ввода ДПС."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "ledger": ">=0.1.0"
+                "core": ">=1.0.0",
+                "ledger": ">=1.0.0"
             },
             "optionalRequires": {
-                "llm": ">=0.1.0"
+                "llm": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -391,7 +391,7 @@
         },
         {
             "id": "bi",
-            "version": "0.3.0",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "BI reports",
@@ -406,7 +406,7 @@
                 "ru": "Движок BI на JSON-рецептах с шарингом. Датасеты, доменные derive и shipped-рецепты приносят включённые модули через EventBus."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
@@ -414,7 +414,7 @@
                     "team",
                     "finance"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "report"
                 ]
@@ -422,7 +422,7 @@
         },
         {
             "id": "bonuses",
-            "version": "0.2.5",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
@@ -437,25 +437,25 @@
                 "ru": "Включайте для бонусных баллов клиентов. Нужны clients + catalog + procedures. Мягкая связь с calendar (EventBus на форме события). Мягко используется poll_invites. Когда нужно начислять/списывать баллы за визиты."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0",
-                "catalog": ">=0.1.0",
-                "procedures": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "procedures": ">=1.0.0"
             },
             "optionalRequires": {
-                "calendar": ">=0.1.0"
+                "calendar": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "crm"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "booking",
-            "version": "0.1.15",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -470,23 +470,23 @@
                 "ru": "Включать для API слотов, staff /booking/new и wizard в /cart. Нужны catalog, clients, workweeks, calendar; soft orders + procedures для занятости. Alpha — /t ещё позже."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "catalog": ">=0.1.0",
-                "clients": ">=0.1.0",
-                "workweeks": ">=0.1.0",
-                "calendar": ">=0.1.0"
+                "core": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "workweeks": ">=1.0.0",
+                "calendar": ">=1.0.0"
             },
             "optionalRequires": {
-                "orders": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "rates": ">=0.1.0"
+                "orders": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "rates": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
-                    "site",
-                    "team"
+                    "booking",
+                    "site"
                 ],
-                "maturity": "alpha",
+                "maturity": "release",
                 "tags": [
                     "journal"
                 ]
@@ -494,7 +494,7 @@
         },
         {
             "id": "bots",
-            "version": "0.2.22",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -509,24 +509,24 @@
                 "ru": "Включайте для доставки в мессенджеры и входящих webhooks. Мягко clients. Мягко — поля staff в core и procedures. Токены — cfg/modules/bots.ini. Адаптеры — BotPlugins / bots.send."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "clients": ">=0.1.0",
-                "assistant_groups": ">=0.1.0",
-                "orders": ">=0.1.0"
+                "clients": ">=1.0.0",
+                "assistant_groups": ">=1.0.0",
+                "orders": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "communications"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "cabinets",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Rooms",
@@ -541,20 +541,20 @@
                 "ru": "Включайте, когда складам или календарю нужны кабинеты. Мягко — stocks, calendar, workweeks. Без модуля часть ID_CABINET уходит в дефолты."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "dictionaries"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "calendar",
-            "version": "0.2.12",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -569,33 +569,33 @@
                 "ru": "Включайте для операционного дня. Требует clients, catalog, procedures, orders, workweeks. Мягко cabinets/tables. Мягко — bonuses/clientics. Центр смены — после workweeks + procedures."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0",
-                "catalog": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "orders": ">=0.1.0",
-                "workweeks": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "workweeks": ">=1.0.0"
             },
             "optionalRequires": {
-                "cabinets": ">=0.1.0",
-                "tables": ">=0.1.0",
-                "audio": ">=0.1.0",
-                "booking": ">=0.1.0",
-                "bonuses": ">=0.1.0",
-                "assistant": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "cabinets": ">=1.0.0",
+                "tables": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "booking": ">=1.0.0",
+                "bonuses": ">=1.0.0",
+                "assistant": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
-                    "team"
+                    "booking"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "catalog",
-            "version": "0.1.5",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Catalog",
@@ -610,26 +610,26 @@
                 "ru": "Включайте для дерева товаров, нужных procedures, stickers, norms, bonuses. Мягко units/suppliers/procedures. Базовый товарный справочник — рано, вместе со складом."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "units": ">=0.1.0",
-                "suppliers": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "assistant": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "units": ">=1.0.0",
+                "suppliers": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "assistant": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "dictionaries"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "certificates",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Certificates",
@@ -644,28 +644,28 @@
                 "ru": "Включать для предоплаченных сертификатов (деньги / абон). Нужны clients, catalog, procedures. Мягко: calendar, sites, orders."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0",
-                "catalog": ">=0.1.0",
-                "procedures": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "procedures": ">=1.0.0"
             },
             "optionalRequires": {
-                "calendar": ">=0.1.0",
-                "sites": ">=0.1.0",
-                "orders": ">=0.1.0",
-                "bonuses": ">=0.1.0"
+                "calendar": ">=1.0.0",
+                "sites": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "bonuses": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "crm"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "client_mcp",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Client MCP",
@@ -680,14 +680,14 @@
                 "ru": "Включите, чтобы любой агент с поддержкой MCP (Claude, ChatGPT, Cursor…) мог записать клиента через https://<домен>/mcp без плагинов. Нужны sites + clients; инструменты записи — при включённых booking, catalog, orders. Другие модули добавляют инструменты через EventBus client_mcp.tools. Каждый домен включается отдельно. Alpha."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "sites": ">=0.2.0",
-                "clients": ">=0.1.0"
+                "core": ">=1.0.0",
+                "sites": ">=1.0.0",
+                "clients": ">=1.0.0"
             },
             "optionalRequires": {
-                "booking": ">=0.1.0",
-                "catalog": ">=0.1.0",
-                "orders": ">=0.1.0"
+                "booking": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "orders": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -703,7 +703,7 @@
         },
         {
             "id": "clientics",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Clientics",
@@ -718,13 +718,13 @@
                 "ru": "Включайте для импорта клиентов из Клиентикс. Требует clients. Мягко calendar/procedures/workweeks для дневных выгрузок. Токены — cfg/modules/clientics.ini. Beta: при сбоях импорта диагностируйте локально."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0"
             },
             "optionalRequires": {
-                "calendar": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "workweeks": ">=0.1.0"
+                "calendar": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "workweeks": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -742,7 +742,7 @@
         },
         {
             "id": "clients",
-            "version": "0.1.5",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Clients",
@@ -757,23 +757,23 @@
                 "ru": "Включайте для базы клиентов и статусов. Мягко — bots для messenger-связок. Нужен clientics, yclients, bonuses, calendar, orders, procedures и др. Базовый CRM-блок — включайте рано."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "bots": ">=0.1.0",
-                "assistant": ">=0.1.0"
+                "bots": ">=1.0.0",
+                "assistant": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "crm"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "comments",
-            "version": "0.1.5",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Comments",
@@ -788,20 +788,20 @@
                 "ru": "Включайте, когда на новостях/заявках нужны обсуждения. Своего меню нет — встраивается в карточки core. Нужен contracts. Мягко используется workweeks, staff_reports, audio_llm. Не выключайте, пока есть зависимые."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "communications"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "contracts",
-            "version": "0.1.8",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -816,23 +816,23 @@
                 "ru": "Включайте для офферов/контрактов поверх comments. Жёстко требует comments. Мягко — payments (CTA оплаты), staff_reports/audio_llm. Нужен, когда офферы ведутся в кабинете."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "comments": ">=0.1.0"
+                "core": ">=1.0.0",
+                "comments": ">=1.0.0"
             },
             "optionalRequires": {
-                "payments": ">=0.1.10"
+                "payments": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "accounting"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "demo",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -847,33 +847,33 @@
                 "ru": "Включайте только на публичных демо-хостах вместе с app.demo_readonly=1. Даёт CLI seed/provision, баннер «только просмотр», ссылку на стенд другого языка и cron-задачи самообновления и пересева (cfg/modules/demo.ini). На проде держите =0."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio": ">=0.1.0",
-                "audio_dicts": ">=0.1.0",
-                "bi": ">=0.1.0",
-                "bonuses": ">=0.1.0",
-                "cabinets": ">=0.1.0",
-                "calendar": ">=0.1.0",
-                "catalog": ">=0.1.0",
-                "clients": ">=0.1.0",
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0",
+                "bi": ">=1.0.0",
+                "bonuses": ">=1.0.0",
+                "cabinets": ">=1.0.0",
+                "calendar": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "clients": ">=1.0.0",
                 "docs": ">=0.1.0",
-                "funds": ">=0.1.0",
-                "ledger": ">=0.1.0",
-                "orders": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "procents": ">=0.1.0",
-                "rates": ">=0.1.0",
-                "stocks": ">=0.1.0",
-                "units": ">=0.1.0",
-                "workweeks": ">=0.1.0"
+                "funds": ">=1.0.0",
+                "ledger": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "procents": ">=1.0.0",
+                "rates": ">=1.0.0",
+                "stocks": ">=1.0.0",
+                "units": ">=1.0.0",
+                "workweeks": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "platform"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "settings"
                 ]
@@ -881,7 +881,7 @@
         },
         {
             "id": "docs",
-            "version": "0.2.3",
+            "version": "0.2.4",
             "type": "product",
             "name": {
                 "en": "Documents & medical cards",
@@ -896,28 +896,28 @@
                 "ru": "Включать для печати согласий и ведения медкарт. Нужен clients; мягко: calendar (визиты), procedures (мед. процедуры), audio/audio_llm (автозаполнение), stickers (QR-библиотека). Альфа."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0"
             },
             "optionalRequires": {
-                "calendar": ">=0.2.0",
-                "procedures": ">=0.1.0",
-                "catalog": ">=0.1.0",
-                "audio": ">=0.1.0",
+                "calendar": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "audio": ">=1.0.0",
                 "audio_llm": ">=0.1.0",
-                "stickers": ">=0.1.0"
+                "stickers": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "crm"
                 ],
-                "maturity": "alpha",
+                "maturity": "beta",
                 "tags": []
             }
         },
         {
             "id": "finance",
-            "version": "0.1.3",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Financial reports",
@@ -932,17 +932,17 @@
                 "ru": "Включайте для управленческих фин.отчётов (баланс, ОДДС/ОПиУ) на основе ДПС ledger. Требует ledger. Мягко зависит от funds для строк FUND_MATRIX. Только отчётность — не заменяет ledger или banks."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "ledger": ">=0.1.0"
+                "core": ">=1.0.0",
+                "ledger": ">=1.0.0"
             },
             "optionalRequires": {
-                "funds": ">=0.1.0"
+                "funds": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "finance"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "report"
                 ]
@@ -950,7 +950,7 @@
         },
         {
             "id": "funds",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Funds",
@@ -965,15 +965,15 @@
                 "ru": "Включайте после ledger, когда нужны внутренние фонды (дерево) и движения CAPUSE/REFUND. Жёстко требует ledger. Мягко используется отчётами finance и liquid_assets (FUND_MATRIX / REVAL). Без настроенных счетов ledger пользы мало."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "ledger": ">=0.1.0"
+                "core": ">=1.0.0",
+                "ledger": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "finance"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "journal"
                 ]
@@ -981,7 +981,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.7",
+            "version": "0.1.8",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -996,11 +996,11 @@
                 "ru": "Включайте для проброса TYPE=2 заявок в Google Calendar. Нужен OAuth приложения Google и подключение сотрудников."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "bots": ">=0.2.0",
-                "comments": ">=0.1.0"
+                "bots": ">=1.0.0",
+                "comments": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -1016,7 +1016,7 @@
         },
         {
             "id": "laundry",
-            "version": "0.1.1",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Laundry",
@@ -1031,20 +1031,20 @@
                 "ru": "Включайте для нового учёта стирки. Сдачи/приёмки с типами (простыни, майки…). Старый модуль sheets не используется. Заявка №78 может быть оболочкой."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "warehouse"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "ledger",
-            "version": "0.1.10",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -1059,21 +1059,21 @@
                 "ru": "Включайте, когда нужна кассовая книга: счета компании, типы движений, ежедневные ДПС, сверки и обещанные платежи. Мягко связан с payments (авто-ДПС), suppliers, stickers и funds. Модули banks, funds, finance и liquid_assets требуют ledger. Выключайте только после отключения зависимых."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "payments": ">=0.1.0",
-                "suppliers": ">=0.1.0",
-                "stickers": ">=0.1.0",
-                "funds": ">=0.1.0",
+                "payments": ">=1.0.0",
+                "suppliers": ">=1.0.0",
+                "stickers": ">=1.0.0",
+                "funds": ">=1.0.0",
                 "banks": ">=0.1.0",
-                "assistant": ">=0.1.0"
+                "assistant": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "finance"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "journal",
                     "payments"
@@ -1082,7 +1082,7 @@
         },
         {
             "id": "likespa",
-            "version": "0.3.27",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -1097,57 +1097,57 @@
                 "ru": "Пакет инстанса спа. CMS (статьи/промо/редиректы/SEO) — в модуле sites. Мягкие зависимости: audio_reports, procedures, payments, terminals, comments."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio_reports": ">=0.2.0",
-                "audio": ">=0.1.0",
-                "workweeks": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "payments": ">=0.1.0",
-                "sites": ">=0.2.0",
-                "booking": ">=0.1.0",
-                "clients": ">=0.1.0",
-                "terminals": ">=0.1.0",
-                "comments": ">=0.1.0"
+                "audio_reports": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "workweeks": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "payments": ">=1.0.0",
+                "sites": ">=1.0.0",
+                "booking": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "terminals": ">=1.0.0",
+                "comments": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "site"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "liquid_assets",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Liquid assets",
                 "ru": "Ликвидные активы"
             },
             "description": {
-                "en": "Liquid assets monthly report plus T-Invest broker accounts and portfolio sync.",
-                "ru": "Ежемесячный отчёт по ликвидным активам и счетам T-Invest с синхронизацией портфеля."
+                "en": "Personal assets tracking: deposits, current accounts and a T-Invest broker portfolio in one monthly report. For personal use, not for corporate use.",
+                "ru": "Учёт личных активов: депозиты, текущие счета и брокерский портфель T-Invest в одном месячном отчёте. Для личного использования, не для корпоративного."
             },
             "summary": {
-                "en": "Enable for a liquid-assets snapshot (cash, deposits, broker) and T-Invest account sync into the report. Requires ledger. Soft funds for REVAL. Use when management tracks liquidity beyond plain ДПС; needs broker API credentials in module ini when syncing T-Invest.",
-                "ru": "Включайте для снимка ликвидности (касса, депозиты, брокер) и синхронизации счетов T-Invest в отчёт. Требует ledger. Мягко — funds для REVAL. Нужен, когда ликвидность смотрят шире обычных ДПС; для синка T-Invest — ключи в cfg/modules/liquid_assets.ini."
+                "en": "Enable when the system is deployed for personal use and you want all liquid assets in one view. Not intended for corporate use: the report and broker accounts are shared by everyone with the module permissions (no per-user data separation; tokens are masked in the UI). Features: monthly report with month navigation — deposits (terms from a [депо:…] tag in moves of «…ДЕПО» accounts: opening sum, income, rate, term), current account balances, broker portfolio and total; month flows (income, non-investment and investment spending, internal transfers excluded); portfolio import via API from T-Bank only (T-Invest Open API, token per account) into monthly snapshots with positions; with funds — revaluation of the linked fund (REVAL/DEVAL) and change history. Past months are viewed from saved snapshots: the API returns only the current portfolio. Requires ledger; soft funds.",
+                "ru": "Включайте, когда система развёрнута для личного пользования и нужно видеть все ликвидные активы вместе. Не предназначен для корпоративного использования: отчёт и брокерские счета общие для всех, у кого есть права модуля (личного разделения данных нет, токены в интерфейсе маскируются). Функции: месячный отчёт с навигацией по месяцам — депозиты (условия из тега [депо:…] в ДПС счетов «…ДЕПО»: сумма открытия, доход, ставка, срок), остатки текущих счетов, брокерский портфель и итог; движения за месяц (поступления, неинвестиционные и инвестиционные расходы без внутренних переводов); загрузка портфеля по API только из Т-Банка (T-Invest Open API, токен на счёт) в ежемесячные снимки с позициями; с модулем funds — переоценка привязанного фонда (REVAL/DEVAL) и история изменений. Прошлые месяцы смотрятся по сохранённым снимкам: API отдаёт только текущий портфель. Требует ledger; мягко funds."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "ledger": ">=0.1.0"
+                "core": ">=1.0.0",
+                "ledger": ">=1.0.0"
             },
             "optionalRequires": {
-                "funds": ">=0.1.0"
+                "funds": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "finance",
                     "integrations"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "report",
                     "integration",
@@ -1157,7 +1157,7 @@
         },
         {
             "id": "llm",
-            "version": "0.2.8",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "LLM",
@@ -1172,22 +1172,22 @@
                 "ru": "Общий LLM-транспорт для assistant, audio_llm, banks classify, bots. Мягко assistant. Ключи только в cfg/modules/llm.ini. Право llm.manage — только настройки; чат ассистента доступен всем сотрудникам."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "assistant": ">=0.1.0"
+                "assistant": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "integrations"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "norms",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Consumption norms",
@@ -1202,21 +1202,21 @@
                 "ru": "Включайте для норм расхода на товарах. Требует catalog. Мягко — логика остатков stocks. Полезно, когда списаниям/процедурам нужны дефолтные нормы."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "catalog": ">=0.1.0"
+                "core": ">=1.0.0",
+                "catalog": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "warehouse"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "orders",
-            "version": "0.1.13",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1231,28 +1231,28 @@
                 "ru": "Включайте для заказов сайта и дневной ленты в календарь. Требует clients. Мягко catalog/procedures/bots (Max-группа). Нужен calendar. Когда сайт пишет заказы в FreeSaaS."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0"
             },
             "optionalRequires": {
-                "catalog": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "sites": ">=0.1.0",
-                "booking": ">=0.1.0",
-                "bots": ">=0.2.0"
+                "catalog": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "sites": ">=1.0.0",
+                "booking": ">=1.0.0",
+                "bots": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
-                    "site",
-                    "crm"
+                    "booking",
+                    "site"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "payments",
-            "version": "0.1.20",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1267,27 +1267,27 @@
                 "ru": "Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС), spa instance pack, procents (авто % МЕСЯЦ или поденные начисления). С contracts — CTA оплаты."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "ledger": ">=0.1.0",
-                "bots": ">=0.1.0",
-                "procents": ">=0.1.5",
-                "procedures": ">=0.1.0",
-                "contracts": ">=0.1.0",
-                "assistant": ">=0.1.0"
+                "ledger": ">=1.0.0",
+                "bots": ">=1.0.0",
+                "procents": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "contracts": ">=1.0.0",
+                "assistant": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "accounting"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "poll_invites",
-            "version": "0.1.9",
+            "version": "0.1.10",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1302,15 +1302,15 @@
                 "ru": "Включайте для рассылки/заполнения опросов. Требует polls. Мягко clients/bonuses/calendar/procedures. Кнопка «собран отзыв» на чипах календаря. Публикует poll_invites.* для bots и сайта."
             },
             "requires": {
-                "core": ">=0.3.0",
+                "core": ">=1.0.0",
                 "polls": ">=0.1.0"
             },
             "optionalRequires": {
-                "clients": ">=0.1.0",
-                "bonuses": ">=0.1.0",
-                "calendar": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "clients": ">=1.0.0",
+                "bonuses": ">=1.0.0",
+                "calendar": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -1322,7 +1322,7 @@
         },
         {
             "id": "polls",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Polls",
@@ -1337,11 +1337,11 @@
                 "ru": "Включайте для определений опросов. Мягко procedures/catalog. Нужен poll_invites. /polls/settings — хаб настроек (oral poll и др.). Универсальный; для заполнения — с poll_invites."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "procedures": ">=0.1.0",
-                "catalog": ">=0.1.0"
+                "procedures": ">=1.0.0",
+                "catalog": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -1353,7 +1353,7 @@
         },
         {
             "id": "procedures",
-            "version": "0.1.31",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Procedures",
@@ -1368,29 +1368,29 @@
                 "ru": "Включайте для типов и журнала процедур. Требует clients + catalog. Мягко tables/bots. Нужен calendar, rates, procents, bonuses, staff_reports. Базовый spa-домен — до calendar/rates."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0",
-                "catalog": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "catalog": ">=1.0.0"
             },
             "optionalRequires": {
-                "tables": ">=0.1.0",
-                "bots": ">=0.1.0",
-                "procents": ">=0.1.0",
-                "workweeks": ">=0.1.0",
-                "assistant": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "tables": ">=1.0.0",
+                "bots": ">=1.0.0",
+                "procents": ">=1.0.0",
+                "workweeks": ">=1.0.0",
+                "assistant": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
-                    "wellness"
+                    "booking"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "procents",
-            "version": "0.1.14",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1405,25 +1405,25 @@
                 "ru": "Включайте для отчёта начислений. Требует rates + procedures + workweeks. Soft payments: при открытии одного сотрудника пишет итог текущего месяца в расчётный лист (% МЕСЯЦ YYYY). Фикс за смену; soft audio. Без редактирования — только отчёт."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "rates": ">=0.1.2",
-                "procedures": ">=0.1.0",
-                "workweeks": ">=0.1.0"
+                "core": ">=1.0.0",
+                "rates": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "workweeks": ">=1.0.0"
             },
             "optionalRequires": {
-                "payments": ">=0.1.0"
+                "payments": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "accounting"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "rates",
-            "version": "0.2.5",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Specialist rates",
@@ -1438,23 +1438,23 @@
                 "ru": "Включайте для ставок % по специалистам/процедурам. Требует procedures. Нужен procents. При audio — ставки за час аудио и балл скрипта. Ставки — до отчёта начислений."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "procedures": ">=0.1.0"
+                "core": ">=1.0.0",
+                "procedures": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio": ">=0.1.0"
+                "audio": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "accounting"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "sheets",
-            "version": "0.1.3",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Sheets",
@@ -1469,20 +1469,20 @@
                 "ru": "Legacy учёт простынок. Для новых инстансов предпочтителен модуль laundry. Только если сайт ещё ведёт base_sheet_* отдельно от stickers."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "warehouse"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "sites",
-            "version": "0.2.10",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Sites",
@@ -1497,20 +1497,20 @@
                 "ru": "Включайте на хосте публичного сайта (site.php) и для CMS в админке. Мягкие зависимости: catalog, orders, clients, booking (wizard записи в корзине). Тема в themes/. Та же БД."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "catalog": ">=0.1.0",
-                "orders": ">=0.1.0",
-                "clients": ">=0.1.0",
-                "booking": ">=0.1.0",
-                "procedures": ">=0.1.0"
+                "catalog": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "booking": ">=1.0.0",
+                "procedures": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "site"
                 ],
-                "maturity": "alpha",
+                "maturity": "release",
                 "tags": [
                     "embed"
                 ]
@@ -1518,7 +1518,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "0.1.23",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1533,16 +1533,16 @@
                 "ru": "Publisher quality-отчётов в заявки + маркеры на календаре. Гейты и бонус — на скриптах (DAY_BONUS/GATE_*). Публикация после Re-®. Настройки publisher на /audio/settings."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "audio": ">=0.1.0",
-                "audio_dicts": ">=0.1.0",
-                "comments": ">=0.1.0",
-                "procedures": ">=0.1.0"
+                "core": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "audio_dicts": ">=1.0.0",
+                "comments": ">=1.0.0",
+                "procedures": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio_reports": ">=0.2.0",
-                "audio_pipeline": ">=0.1.0",
-                "contracts": ">=0.1.0",
+                "audio_reports": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0",
+                "contracts": ">=1.0.0",
                 "audio_llm": ">=0.1.0"
             },
             "catalog": {
@@ -1550,13 +1550,13 @@
                     "team",
                     "audio"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "stickers",
-            "version": "0.1.19",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1571,28 +1571,28 @@
                 "ru": "Включайте для складских актов движения. Требует stocks + catalog. Мягко suppliers/units. Мягко используется ledger. Когда товары ходят по документам прихода/списания."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "stocks": ">=0.1.0",
-                "catalog": ">=0.1.0"
+                "core": ">=1.0.0",
+                "stocks": ">=1.0.0",
+                "catalog": ">=1.0.0"
             },
             "optionalRequires": {
-                "suppliers": ">=0.1.0",
-                "units": ">=0.1.0",
-                "bots": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "ledger": ">=0.1.0"
+                "suppliers": ">=1.0.0",
+                "units": ">=1.0.0",
+                "bots": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "ledger": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "warehouse"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "stocks",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Warehouses",
@@ -1607,26 +1607,26 @@
                 "ru": "Включайте для складов и остатков. Мягко cabinets/stickers/catalog/norms. Нужен stickers. Когда локации склада важнее одного неявного склада."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "cabinets": ">=0.1.0",
-                "stickers": ">=0.1.0",
-                "catalog": ">=0.1.0",
-                "norms": ">=0.1.0"
+                "cabinets": ">=1.0.0",
+                "stickers": ">=1.0.0",
+                "catalog": ">=1.0.0",
+                "norms": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "warehouse",
                     "dictionaries"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "suppliers",
-            "version": "0.1.3",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Suppliers",
@@ -1641,20 +1641,20 @@
                 "ru": "Включайте для карточек поставщиков в catalog и приходных стикерах. Мягко — ledger и stickers. Справочник — включайте вместе со складом/каталогом."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "dictionaries"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "tables",
-            "version": "0.1.3",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Massage tables",
@@ -1669,22 +1669,22 @@
                 "ru": "Включайте для выбора стола в процедурах/календаре. Мягко — procedures, calendar, workweeks. Опционально — можно жить с дефолтным столом 1."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "procedures": ">=0.1.0"
+                "procedures": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "dictionaries"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "terminals",
-            "version": "0.1.46",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1699,27 +1699,27 @@
                 "ru": "Включайте для терминалов терм и браслетов. Мягко catalog/clients/booking/procedures; оверлей загрузки [N]/ГN на календаре через EventBus. Токены синка — cfg/modules/terminals.ini. Отключаемый — только где есть железо/1C."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "catalog": ">=0.1.0",
-                "clients": ">=0.1.0",
-                "booking": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "orders": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "catalog": ">=1.0.0",
+                "clients": ">=1.0.0",
+                "booking": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "orders": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "integrations"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "units",
-            "version": "0.1.2",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Units of measure",
@@ -1734,20 +1734,20 @@
                 "ru": "Включайте для единиц на товарах и складских документах. Мягко — catalog и stickers. Лёгкий справочник — включайте вместе с catalog/stocks."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "dictionaries"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "updates",
-            "version": "0.3.18",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Updates",
@@ -1762,14 +1762,14 @@
                 "ru": "Самообновление из GitHub-монорепо (Contents API + один zip). Настройки: /updates/settings. Секреты в cfg/updates.ini."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": [],
             "catalog": {
                 "categories": [
                     "platform"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": [
                     "settings",
                     "jobs"
@@ -1778,7 +1778,7 @@
         },
         {
             "id": "vacations",
-            "version": "0.1.6",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Vacations",
@@ -1793,22 +1793,22 @@
                 "ru": "Включайте для реестра отпусков и согласований. Только core. В меню Команда рядом со сменами; независимо от бронирований календаря."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "bi": ">=0.3.0"
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "team"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "video",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Video analytics",
@@ -1823,10 +1823,10 @@
                 "ru": "Включайте для RTSP-мониторинга и инференса YOLO через исходящий Mac worker. Мягко зависит от bots (алерты) и video_label (датасеты)."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "bots": ">=0.1.0",
+                "bots": ">=1.0.0",
                 "video_label": ">=0.1.0"
             },
             "catalog": {
@@ -1842,7 +1842,7 @@
         },
         {
             "id": "video_label",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Video labeling",
@@ -1857,7 +1857,7 @@
                 "ru": "Требует модуль video для хранилища и infer/train jobs. Веб-порт workspace LabelForge."
             },
             "requires": {
-                "core": ">=0.3.0",
+                "core": ">=1.0.0",
                 "video": ">=0.1.0"
             },
             "optionalRequires": [],
@@ -1873,38 +1873,38 @@
         },
         {
             "id": "wellness",
-            "version": "0.2.21",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Health & fitness",
                 "ru": "Здоровье и фитнес"
             },
             "description": {
-                "en": "Health & fitness product module (wellness domain UI and data).",
-                "ru": "Модуль здоровья и фитнеса (домен wellness: UI и данные)."
+                "en": "Personal food, workout and health diary. Entries are visible only to their author — not to managers and not even to the superadmin.",
+                "ru": "Личный дневник питания, тренировок и здоровья. Записи видит только их автор — доступа нет ни у руководителя, ни у суперадмина."
             },
             "summary": {
-                "en": "Enable for wellness-specific screens beyond spa procedures. Depends only on core. Turn on when the tenant runs health/fitness features from this pack.",
-                "ru": "Включайте для wellness-экранов сверх обычных процедур. Только core. Когда на тенанте нужны health/fitness функции этого пакета."
+                "en": "Enable to give staff a personal health diary inside the corporate system. Data is strictly personal: everyone sees only their own entries and there is no SUPERADMIN_ACCESS bypass, so personal data stays personal. Features: food diary with calories/macros and the daily remainder against your own fitness targets (workout burn included); your own food tables and recipes with per-portion macros; workouts; weight; wellbeing diary with symptom and medicine lists; doctor prescriptions; monthly calendar overview. Quick add right from the diary, food entry via the «Food & sport» bot (soft bots, voice via asr) and via the assistant. Requires core only.",
+                "ru": "Включайте, чтобы дать сотрудникам личный дневник здоровья внутри корпоративной системы. Данные строго личные: каждый видит только свои записи, обхода для SUPERADMIN_ACCESS нет, поэтому личные данные остаются личными. Функции: дневник еды с КБЖУ и остатком дневной нормы по своим фитнес-целям (с учётом сожжённого на тренировках); свои таблицы продуктов и рецепты с пересчётом на порцию; тренировки; вес; дневник самочувствия со справочниками состояний и лекарств; рецепты врачей; месячный календарь-обзор. Быстрое добавление прямо из дневника, ввод еды через бота «Еда и спорт» (мягко bots, голосом — asr) и через ассистента. Требует только core."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "asr": ">=0.1.0",
-                "bots": ">=0.1.0"
+                "asr": ">=1.0.0",
+                "bots": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "wellness"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "workweeks",
-            "version": "0.2.31",
+            "version": "1.0.0",
             "type": "product",
             "name": {
                 "en": "Shifts",
@@ -1919,28 +1919,28 @@
                 "ru": "Включайте для смен сотрудников. Мягко comments/cabinets/tables. Нужен calendar, audio, audio_reports, procents. Основа расписания и дневных начислений — до calendar/audio."
             },
             "requires": {
-                "core": ">=0.3.0"
+                "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "comments": ">=0.1.0",
-                "cabinets": ">=0.1.0",
-                "tables": ">=0.1.0",
-                "audio": ">=0.1.0",
-                "bots": ">=0.1.0",
-                "assistant": ">=0.1.0",
-                "bi": ">=0.3.0"
+                "comments": ">=1.0.0",
+                "cabinets": ">=1.0.0",
+                "tables": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "bots": ">=1.0.0",
+                "assistant": ">=1.0.0",
+                "bi": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
                     "team"
                 ],
-                "maturity": "beta",
+                "maturity": "release",
                 "tags": []
             }
         },
         {
             "id": "yclients",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "YClients",
@@ -1955,13 +1955,13 @@
                 "ru": "Включайте для синхронизации клиентов из YClients. Требует clients. Мягко calendar/procedures/workweeks. Ключи — cfg/modules/yclients.ini. Beta: проверьте матчинг телефонов до опоры на прод-дни."
             },
             "requires": {
-                "core": ">=0.3.0",
-                "clients": ">=0.1.0"
+                "core": ">=1.0.0",
+                "clients": ">=1.0.0"
             },
             "optionalRequires": {
-                "calendar": ">=0.1.0",
-                "procedures": ">=0.1.0",
-                "workweeks": ">=0.1.0"
+                "calendar": ">=1.0.0",
+                "procedures": ">=1.0.0",
+                "workweeks": ">=1.0.0"
             },
             "catalog": {
                 "categories": [

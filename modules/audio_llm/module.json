@@ -2,19 +2,19 @@
     "id": "audio_llm",
     "name": "audio_llm.module.name",
     "description": "audio_llm.module.description",
-    "version": "0.1.7",
+    "version": "0.1.8",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "llm": ">=0.1.0",
-        "audio": ">=0.1.0",
-        "audio_dicts": ">=0.1.0"
+        "core": ">=1.0.0",
+        "llm": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "audio_dicts": ">=1.0.0"
     },
     "optionalRequires": {
-        "staff_reports": ">=0.1.0",
-        "comments": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "contracts": ">=0.1.0"
+        "staff_reports": ">=1.0.0",
+        "comments": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "contracts": ">=1.0.0"
     },
     "provides": [
         "audio_llm.studies"

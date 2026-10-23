@@ -8,7 +8,6 @@ declare(strict_types=1);
 /** @var int $pendingCount */
 /** @var bool $schemaNeeded */
 /** @var bool $hasUsers */
-/** @var bool $hasSystem */
 /** @var int $userCount */
 /** @var bool $canDb */
 /** @var string $mode */
@@ -108,7 +107,6 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
 
 <div class="status-row">
   <div class="stat<?= $hasUsers ? ' ok' : '' ?>">base_users <?= $hasUsers ? '✓' : '✗' ?> (<?= (int)$userCount ?>)</div>
-  <div class="stat<?= $hasSystem ? ' ok' : '' ?>">base_system <?= $hasSystem ? '✓' : '✗' ?></div>
   <div class="stat<?= $pendingCount === 0 ? ' ok' : '' ?>">
     <?= te('core.db.pending_stat', ['n' => (string)$pendingCount]) ?>
   </div>

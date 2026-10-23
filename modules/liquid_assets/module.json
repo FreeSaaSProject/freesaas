@@ -2,14 +2,14 @@
     "id": "liquid_assets",
     "name": "liquid_assets.module.name",
     "description": "liquid_assets.module.description",
-    "version": "0.1.2",
+    "version": "1.0.0",
     "type": "product",
     "catalog": {
         "categories": [
             "finance",
             "integrations"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [
             "report",
             "integration",
@@ -18,11 +18,11 @@
         "screenshots": []
     },
     "requires": {
-        "core": ">=0.3.0",
-        "ledger": ">=0.1.0"
+        "core": ">=1.0.0",
+        "ledger": ">=1.0.0"
     },
     "optionalRequires": {
-        "funds": ">=0.1.0"
+        "funds": ">=1.0.0"
     },
     "provides": [
         "liquid_assets.report"

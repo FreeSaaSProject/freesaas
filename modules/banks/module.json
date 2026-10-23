@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -19,11 +19,11 @@
         "screenshots": []
     },
     "requires": {
-        "core": ">=0.3.0",
-        "ledger": ">=0.1.0"
+        "core": ">=1.0.0",
+        "ledger": ">=1.0.0"
     },
     "optionalRequires": {
-        "llm": ">=0.1.0"
+        "llm": ">=1.0.0"
     },
     "provides": [
         "banks.connections",

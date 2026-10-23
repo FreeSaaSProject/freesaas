@@ -6,10 +6,6 @@ declare(strict_types=1);
 /** @var array{flyer_enabled:int,flyer_discount:int,promo_position_ids:list<int>,promo_discounts:array<int,int|string>,discount_types?:array<int,int|string>} $flyerPromo */
 /** @var array<int,string> $statusOptions */
 /** @var array<int,string> $procedureTypeOptions */
-/** @var bool $hasFlyerCols */
-/** @var bool $hasPromoCols */
-/** @var bool $hasDiscountsTypesCol */
-/** @var bool $hasFreeTicketCol */
 /** @var int $freeTicketThreshold */
 $c = static function (string $key, string $fallback = '') use ($cfg): string {
     return (string)($cfg[$key] ?? $fallback);
@@ -68,7 +64,6 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
     <p><a href="/likespa/legacy-api/status"><?= te('likespa.legacy_api.status_title') ?></a></p>
   </fieldset>
 
-  <?php if (!empty($hasFreeTicketCol)): ?>
   <fieldset>
     <legend><?= te('likespa.settings.sec.free_ticket') ?></legend>
     <label><?= te('likespa.settings.free_ticket_threshold') ?>
@@ -77,9 +72,7 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
       <span class="muted"><?= te('likespa.settings.free_ticket_threshold_hint') ?></span>
     </label>
   </fieldset>
-  <?php endif; ?>
 
-  <?php if (!empty($hasFlyerCols)): ?>
   <fieldset>
     <legend><?= te('likespa.settings.sec.flyer') ?></legend>
     <label class="check"><input type="checkbox" name="flyer_enabled" value="1"<?= !empty($flyerPromo['flyer_enabled']) ? ' checked' : '' ?>> <?= te('likespa.settings.flyer_enabled') ?></label>
@@ -88,9 +81,7 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
       <span class="muted"><?= te('likespa.settings.flyer_discount_hint') ?></span>
     </label>
   </fieldset>
-  <?php endif; ?>
 
-  <?php if (!empty($hasPromoCols)): ?>
   <fieldset>
     <legend><?= te('likespa.settings.sec.promo_discounts') ?></legend>
     <p class="muted"><?= te('likespa.settings.promo_positions_hint') ?></p>
@@ -142,9 +133,7 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
       </div>
     <?php endif; ?>
   </fieldset>
-  <?php endif; ?>
 
-  <?php if (!empty($hasDiscountsTypesCol)): ?>
   <fieldset>
     <legend><?= te('likespa.settings.sec.discount_types') ?></legend>
     <p class="muted"><?= te('likespa.settings.discount_types_hint') ?></p>
@@ -182,7 +171,6 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
       </div>
     <?php endif; ?>
   </fieldset>
-  <?php endif; ?>
 
   <fieldset>
     <legend><?= te('likespa.settings.sec.promo') ?></legend>

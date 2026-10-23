@@ -179,11 +179,55 @@ final class Config
                     if (strlen($v) >= 2 && (($v[0] === '"' && substr($v, -1) === '"') || ($v[0] === "'" && substr($v, -1) === "'"))) {
                         $v = substr($v, 1, -1);
                     }
-                    $parsed[$section][$k] = $v;
+                    $parsed[$section][$k] = self::decodeValue($v);
                 }
             }
         }
         return $parsed;
+    }
+
+    private const B64_PREFIX = 'b64:';
+
+    /**
+     * INI cannot hold `;`, `"`, newlines or edge quotes/spaces in a raw value; such values
+     * (SEO titles, phones, free text) are stored as b64:<base64> and decoded on load.
+     */
+    private static function encodeValue(string $value): string
+    {
+        $unsafe = $value !== trim($value)
+            || preg_match('/[;"\r\n\\\\]/', $value)
+            || ($value !== '' && ($value[0] === "'" || $value[0] === '#'))
+            || strncmp($value, self::B64_PREFIX, strlen(self::B64_PREFIX)) === 0;
+        return $unsafe ? self::B64_PREFIX . base64_encode($value) : $value;
+    }
+
+    private static function decodeValue(string $value): string
+    {
+        if (strncmp($value, self::B64_PREFIX, strlen(self::B64_PREFIX)) !== 0) {
+            return $value;
+        }
+        $bin = base64_decode(substr($value, strlen(self::B64_PREFIX)), true);
+        return is_string($bin) ? $bin : $value;
+    }
+
+    /** Write via temp file + rename so a crash never leaves a half-written ini. */
+    private static function writeAtomic(string $filePath, string $content): void
+    {
+        $tmp = $filePath . '.tmp-' . bin2hex(random_bytes(4));
+        if (file_put_contents($tmp, $content, LOCK_EX) === false) {
+            @unlink($tmp);
+            throw new RuntimeException(t('app.config.err.write'));
+        }
+        if (is_file($filePath)) {
+            $perms = @fileperms($filePath);
+            if (is_int($perms)) {
+                @chmod($tmp, $perms & 0777);
+            }
+        }
+        if (!@rename($tmp, $filePath)) {
+            @unlink($tmp);
+            throw new RuntimeException(t('app.config.err.write'));
+        }
     }
 
     private static function truthyFlag($value): bool
@@ -204,13 +248,25 @@ final class Config
         $inSection = false;
         $sectionFound = false;
         $keyWritten = false;
-        $assignment = $key . '=' . $value;
+        $assignment = $key . '=' . self::encodeValue($value);
         $secLower = strtolower($section);
+
+        $appendToSection = static function (array &$out, string $assignment): void {
+            $trailing = 0;
+            while ($out && end($out) === '') {
+                array_pop($out);
+                $trailing++;
+            }
+            $out[] = $assignment;
+            for ($i = 0; $i < $trailing; $i++) {
+                $out[] = '';
+            }
+        };
 
         foreach ($lines as $line) {
             if (preg_match('/^\s*\[([^\]]+)\]\s*$/', $line, $m)) {
                 if ($inSection && !$keyWritten) {
-                    $out[] = $assignment;
+                    $appendToSection($out, $assignment);
                     $keyWritten = true;
                 }
                 $inSection = strtolower(trim($m[1])) === $secLower;
@@ -230,7 +286,7 @@ final class Config
             $out[] = $line;
         }
         if ($inSection && !$keyWritten) {
-            $out[] = $assignment;
+            $appendToSection($out, $assignment);
             $keyWritten = true;
         }
         if (!$sectionFound) {
@@ -246,9 +302,7 @@ final class Config
         while ($out && end($out) === '') {
             array_pop($out);
         }
-        if (file_put_contents($filePath, implode("\n", $out) . "\n") === false) {
-            throw new RuntimeException(t('app.config.err.write'));
-        }
+        self::writeAtomic($filePath, implode("\n", $out) . "\n");
     }
 
     private static function persistModulesSection(): void
@@ -293,9 +347,7 @@ final class Config
         while ($out && end($out) === '') {
             array_pop($out);
         }
-        if (file_put_contents(self::$path, implode("\n", $out) . "\n") === false) {
-            throw new RuntimeException(t('app.config.err.write'));
-        }
+        self::writeAtomic(self::$path, implode("\n", $out) . "\n");
     }
 
     /** @return list<string> */

@@ -97,7 +97,7 @@ Superadmin: `/likespa/settings` (`likespa.settings.get` / `.save`).
 
 | Field | Effect |
 |-------|--------|
-| `free_ticket_threshold` | `base_system.FREE_TICKET`; `0` = off storefront-wide |
+| `free_ticket_threshold` | `cfg/modules/likespa.ini` `free_ticket`; `0` = off storefront-wide |
 | flyer / promo fields | Flyer + promoter discount blob |
 
 Per-domain enable: POST `free_ticket=1` on host save (likespa injects the checkbox on `/sites/hosts/{id}/edit`). Cart eligibility: sum ≥ threshold, not today, host flag on.

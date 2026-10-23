@@ -2,20 +2,20 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "0.2.31",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "comments": ">=0.1.0",
-        "cabinets": ">=0.1.0",
-        "tables": ">=0.1.0",
-        "audio": ">=0.1.0",
-        "bots": ">=0.1.0",
-        "assistant": ">=0.1.0",
-        "bi": ">=0.3.0"
+        "comments": ">=1.0.0",
+        "cabinets": ">=1.0.0",
+        "tables": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "bots": ">=1.0.0",
+        "assistant": ">=1.0.0",
+        "bi": ">=1.0.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -308,7 +308,7 @@
         "categories": [
             "team"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

@@ -2,10 +2,10 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "0.3.0",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {},
     "provides": [
@@ -373,7 +373,7 @@
             "team",
             "finance"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [
             "report"
         ],

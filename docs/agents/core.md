@@ -17,7 +17,6 @@ Permissions: `core.home`, `core.modules`, `core.db`, `core.users`, `core.statuse
 | Table | Role |
 |-------|------|
 | `base_users` | Owned by `core` |
-| `base_system` | Owned by `core` |
 | `base_modules` | Owned by `core` |
 | `base_schema_migrations` | Owned by `core` |
 | `base_news` | Owned by `core` |

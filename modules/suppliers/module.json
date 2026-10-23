@@ -2,10 +2,10 @@
     "id": "suppliers",
     "name": "suppliers.module.name",
     "description": "suppliers.module.description",
-    "version": "0.1.3",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": [],
     "provides": [
@@ -94,7 +94,7 @@
         "categories": [
             "dictionaries"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

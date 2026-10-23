@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-/** @var ?array $row */
+/** @var array{company:string} $row */
 /** @var string $message */
 /** @var string $error */
 /** @var ?string $logoUrl */
@@ -52,9 +52,6 @@ foreach ($timezoneOptions as $opt) {
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
-<?php if (!$row): ?>
-  <div class="flash flash-warn"><?= te('core.settings.empty') ?></div>
-<?php else: ?>
 <form method="post" class="form-grid" enctype="multipart/form-data">
   <label><?= te('core.settings.field_company') ?>
     <input name="company" value="<?= e((string)($row['company'] ?? '')) ?>">
@@ -146,7 +143,6 @@ foreach ($timezoneOptions as $opt) {
     <?= te($agentTokenConfigured ? 'core.settings.agent_token.btn_regen' : 'core.settings.agent_token.btn_generate') ?>
   </button>
 </form>
-<?php endif; ?>
 
 <script>
 (function () {

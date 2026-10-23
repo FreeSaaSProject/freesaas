@@ -2,14 +2,14 @@
     "id": "contracts",
     "name": "contracts.module.name",
     "description": "contracts.module.description",
-    "version": "0.1.8",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "comments": ">=0.1.0"
+        "core": ">=1.0.0",
+        "comments": ">=1.0.0"
     },
     "optionalRequires": {
-        "payments": ">=0.1.10"
+        "payments": ">=1.0.0"
     },
     "provides": [
         "contracts.offer",
@@ -106,7 +106,7 @@
         "categories": [
             "accounting"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

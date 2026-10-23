@@ -2,16 +2,16 @@
     "id": "stocks",
     "name": "stocks.module.name",
     "description": "stocks.module.description",
-    "version": "0.1.2",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "cabinets": ">=0.1.0",
-        "stickers": ">=0.1.0",
-        "catalog": ">=0.1.0",
-        "norms": ">=0.1.0"
+        "cabinets": ">=1.0.0",
+        "stickers": ">=1.0.0",
+        "catalog": ">=1.0.0",
+        "norms": ">=1.0.0"
     },
     "provides": [
         "stocks.list",
@@ -119,7 +119,7 @@
             "warehouse",
             "dictionaries"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

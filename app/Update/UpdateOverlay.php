@@ -204,6 +204,21 @@ final class UpdateOverlay
     }
 
     /**
+     * @param array{files:list<array<string,mixed>>} $plan
+     * @return list<string> conflict paths whose upstream copy execute() will park
+     */
+    public static function conflictPaths(array $plan): array
+    {
+        $out = [];
+        foreach ($plan['files'] as $row) {
+            if (($row['action'] ?? '') === 'conflict') {
+                $out[] = (string)$row['rel'];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Execute a plan: write files, park conflicts, update the baseline manifest.
      *
      * @param array{files:list<array<string,mixed>>,skipped_frozen:list<string>,skipped_new_modules:list<string>} $plan

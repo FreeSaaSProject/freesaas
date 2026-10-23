@@ -2,19 +2,19 @@
     "id": "staff_reports",
     "name": "staff_reports.module.name",
     "description": "staff_reports.module.description",
-    "version": "0.1.23",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "audio": ">=0.1.0",
-        "audio_dicts": ">=0.1.0",
-        "comments": ">=0.1.0",
-        "procedures": ">=0.1.0"
+        "core": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "audio_dicts": ">=1.0.0",
+        "comments": ">=1.0.0",
+        "procedures": ">=1.0.0"
     },
     "optionalRequires": {
-        "audio_reports": ">=0.2.0",
-        "audio_pipeline": ">=0.1.0",
-        "contracts": ">=0.1.0",
+        "audio_reports": ">=1.0.0",
+        "audio_pipeline": ">=1.0.0",
+        "contracts": ">=1.0.0",
         "audio_llm": ">=0.1.0"
     },
     "provides": [
@@ -149,7 +149,7 @@
             "team",
             "audio"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

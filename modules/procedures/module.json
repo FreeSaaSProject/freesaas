@@ -2,21 +2,21 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "0.1.31",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0",
-        "clients": ">=0.1.0",
-        "catalog": ">=0.1.0"
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "catalog": ">=1.0.0"
     },
     "optionalRequires": {
-        "tables": ">=0.1.0",
-        "bots": ">=0.1.0",
-        "procents": ">=0.1.0",
-        "workweeks": ">=0.1.0",
-        "assistant": ">=0.1.0",
-        "bi": ">=0.3.0"
+        "tables": ">=1.0.0",
+        "bots": ">=1.0.0",
+        "procents": ">=1.0.0",
+        "workweeks": ">=1.0.0",
+        "assistant": ">=1.0.0",
+        "bi": ">=1.0.0"
     },
     "provides": [
         "procedures.list",
@@ -247,9 +247,9 @@
     ],
     "catalog": {
         "categories": [
-            "wellness"
+            "booking"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

@@ -2,7 +2,8 @@
 declare(strict_types=1);
 
 /**
- * Core schema: base_users, base_system, module registry, schema ledger.
+ * Core schema: base_users, module registry, schema ledger.
+ * Instance settings live in cfg/*.ini; legacy base_system is no longer owned by core.
  */
 return static function (PDO $pdo): void {
     $pdo->exec(
@@ -44,16 +45,6 @@ return static function (PDO $pdo): void {
         $pdo->exec('ALTER TABLE `base_users` ADD COLUMN `num` INT NOT NULL DEFAULT 0');
         Database::clearSchemaCache();
     }
-
-    $pdo->exec(
-        "CREATE TABLE IF NOT EXISTS base_system (
-            id INT NOT NULL AUTO_INCREMENT,
-            name MEDIUMTEXT NULL,
-            company MEDIUMTEXT NULL,
-            title VARCHAR(255) NOT NULL DEFAULT '',
-            PRIMARY KEY (id)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4"
-    );
 
     $pdo->exec(
         "CREATE TABLE IF NOT EXISTS base_modules (

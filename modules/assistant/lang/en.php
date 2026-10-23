@@ -167,6 +167,8 @@ return [
     'assistant.confirm.cancelled' => 'Cancelled.',
     'assistant.confirm.cancelled_n' => 'Cancelled: {n}',
     'assistant.confirm.failed_n' => 'failed: {n}',
+    'assistant.confirm.plan_order' => 'Earlier plan steps must complete first.',
+    'assistant.confirm.plan_running' => 'The plan is already running — wait for the result.',
     'assistant.confirm.skipped_n' => 'not run after a failure (cancelled): {n}',
     'assistant.relations.prompt' => 'Relation: after {when}, {check} is checked; remove/fix affected rows via {suggest} in the same plan. {hint}',
     'assistant.relations.check_unavailable' => 'Related data ({op}) not checked: unavailable in this channel — check manually.',

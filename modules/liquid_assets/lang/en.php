@@ -3,8 +3,8 @@ declare(strict_types=1);
 
 return [
     'liquid_assets.module.name' => 'Liquid assets',
-    'liquid_assets.module.description' => 'Liquid assets monthly report plus T-Invest broker accounts and portfolio sync.',
-    'liquid_assets.module.summary' => 'Enable for a liquid-assets snapshot (cash, deposits, broker) and T-Invest account sync into the report. Requires ledger. Soft funds for REVAL. Use when management tracks liquidity beyond plain ДПС; needs broker API credentials in module ini when syncing T-Invest.',
+    'liquid_assets.module.description' => 'Personal assets tracking: deposits, current accounts and a T-Invest broker portfolio in one monthly report. For personal use, not for corporate use.',
+    'liquid_assets.module.summary' => 'Enable when the system is deployed for personal use and you want all liquid assets in one view. Not intended for corporate use: the report and broker accounts are shared by everyone with the module permissions (no per-user data separation; tokens are masked in the UI). Features: monthly report with month navigation — deposits (terms from a [депо:…] tag in moves of «…ДЕПО» accounts: opening sum, income, rate, term), current account balances, broker portfolio and total; month flows (income, non-investment and investment spending, internal transfers excluded); portfolio import via API from T-Bank only (T-Invest Open API, token per account) into monthly snapshots with positions; with funds — revaluation of the linked fund (REVAL/DEVAL) and change history. Past months are viewed from saved snapshots: the API returns only the current portfolio. Requires ledger; soft funds.',
     'liquid_assets.menu.report' => 'Liquid assets',
     'liquid_assets.menu.accounts' => 'T-Invest accounts',
     'liquid_assets.perm.view' => 'Liquid assets (view)',

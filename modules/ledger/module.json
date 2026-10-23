@@ -1,14 +1,14 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "0.1.10",
+    "version": "1.0.0",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
         "categories": [
             "finance"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [
             "journal",
             "payments"
@@ -16,15 +16,15 @@
         "screenshots": []
     },
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "payments": ">=0.1.0",
-        "suppliers": ">=0.1.0",
-        "stickers": ">=0.1.0",
-        "funds": ">=0.1.0",
+        "payments": ">=1.0.0",
+        "suppliers": ">=1.0.0",
+        "stickers": ">=1.0.0",
+        "funds": ">=1.0.0",
         "banks": ">=0.1.0",
-        "assistant": ">=0.1.0"
+        "assistant": ">=1.0.0"
     },
     "provides": [
         "ledger.accounts",

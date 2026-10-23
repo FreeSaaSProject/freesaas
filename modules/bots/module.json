@@ -2,15 +2,15 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "0.2.22",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "clients": ">=0.1.0",
-        "assistant_groups": ">=0.1.0",
-        "orders": ">=0.1.0"
+        "clients": ">=1.0.0",
+        "assistant_groups": ">=1.0.0",
+        "orders": ">=1.0.0"
     },
     "provides": [
         "bots.transport"
@@ -190,7 +190,7 @@
         "categories": [
             "communications"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

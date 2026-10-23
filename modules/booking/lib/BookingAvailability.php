@@ -280,41 +280,26 @@ final class BookingAvailability
         return $out;
     }
 
-    /** @return array{0:int,1:int} hour, minute */
+    /**
+     * Salon window from cfg/modules/calendar.ini [calendar] (calendar settings UI); read via
+     * Config so booking works even when the calendar module is disabled.
+     *
+     * @return array{0:int,1:int} hour, minute
+     */
     public static function workDayStart(): array
     {
-        $hour = 10;
-        $minute = 0;
-        if (class_exists(SystemRepository::class, false)) {
-            $row = SystemRepository::get();
-            if (is_array($row)) {
-                if (isset($row['work_hour_start'])) {
-                    $hour = max(0, min(23, (int)$row['work_hour_start']));
-                }
-                if (isset($row['work_minute_start'])) {
-                    $minute = max(0, min(59, (int)$row['work_minute_start']));
-                }
-            }
-        }
-        return [$hour, $minute];
+        return [
+            max(0, min(23, (int)Config::get('calendar', 'hour_start', 10))),
+            max(0, min(59, (int)Config::get('calendar', 'minute_start', 0))),
+        ];
     }
 
     /** @return array{0:int,1:int} hour, minute */
     public static function workDayEnd(): array
     {
-        $hour = 22;
-        $minute = 0;
-        if (class_exists(SystemRepository::class, false)) {
-            $row = SystemRepository::get();
-            if (is_array($row)) {
-                if (isset($row['work_hour_end'])) {
-                    $hour = max(0, min(23, (int)$row['work_hour_end']));
-                }
-                if (isset($row['work_minute_end'])) {
-                    $minute = max(0, min(59, (int)$row['work_minute_end']));
-                }
-            }
-        }
-        return [$hour, $minute];
+        return [
+            max(0, min(23, (int)Config::get('calendar', 'hour_end', 22))),
+            max(0, min(59, (int)Config::get('calendar', 'minute_end', 0))),
+        ];
     }
 }

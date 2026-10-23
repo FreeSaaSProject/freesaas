@@ -63,7 +63,7 @@ Occupancy for slots merges:
 - `base_procedures` (journal)
 - `base_orders` in `OrdersRepository::NEW_STATUSES`
 
-Workday hours: `base_system.work_hour_start` / `work_hour_end`.
+Workday hours: `cfg/modules/calendar.ini` `[calendar]` `hour_start` / `hour_end` / `minute_start` / `minute_end` (UI `/calendar/settings`).
 
 **Staff shift windows:** when `workweeks` is on, `BookingAvailability::forDay` (default `respect_staff_shift=true`) clips each operator to **PRICE_COL lane ∩ salon hours**. Site, MCP, legacy API, `/booking/*`, and order/procedure validates use that. Terminals may pass `respect_staff_shift=false` via `terminals.ignore_staff_shift_windows`. Breaks/chill still may end after salon/shift close (`allow_past_work_end` / `allow_past_shift_end`).
 

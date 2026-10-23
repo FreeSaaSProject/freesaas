@@ -2,18 +2,18 @@
     "id": "catalog",
     "name": "catalog.module.name",
     "description": "catalog.module.description",
-    "version": "0.1.5",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "units": ">=0.1.0",
-        "suppliers": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "assistant": ">=0.1.0",
-        "bi": ">=0.3.0"
+        "units": ">=1.0.0",
+        "suppliers": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "assistant": ">=1.0.0",
+        "bi": ">=1.0.0"
     },
     "provides": [
         "catalog.products",
@@ -161,7 +161,7 @@
         "categories": [
             "dictionaries"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

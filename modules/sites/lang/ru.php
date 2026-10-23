@@ -364,7 +364,7 @@ return [
     'sites.seo.field_tel' => 'Телефон (fallback)',
     'sites.seo.field_tel_hint' => 'Если у хоста пустой телефон — берётся отсюда',
     'sites.seo.field_title' => 'Заголовок страницы (title, fallback)',
-    'sites.seo.lede' => 'Глобальный fallback из <code>base_system</code>. META главной и телефон витрины задаются у хоста / промо.',
+    'sites.seo.lede' => 'Глобальный fallback (настройки модуля sites). META главной и телефон витрины задаются у хоста / промо.',
     'sites.seo.hosts_hint' => 'Публичные домены, тема и телефон:',
     'sites.settings.field_admin_host' => 'Хост админки',
     'sites.settings.field_admin_host_hint' => 'Без https:// — с витрины /login уходит сюда',

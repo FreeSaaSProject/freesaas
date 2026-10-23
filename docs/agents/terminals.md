@@ -10,7 +10,7 @@ Live floor shell is **`GET|POST /t`**. **NFC entry stays GET forever** (Android 
 
 ### Discounts on `/t` (soft spa instance pack)
 
-Settings: `/likespa/settings` → `base_system` (`flyerEnabled` / `flyerDiscount`, `PROMO_POSITION_ID`, `PROMO_DISCOUNTS`, `DISCOUNTS_TYPES`). Per-terminal flyer button: `IS_TERMINAL_FLYER_DISCOUNT`.
+Settings: `/likespa/settings` → `cfg/modules/likespa.ini` (`flyer_enabled` / `flyer_discount`, `promo_position_ids`, `promo_discounts`, `discount_types` as `typeId:pct,…`). Per-terminal flyer button: `IS_TERMINAL_FLYER_DISCOUNT`.
 
 | Mechanism | Behavior |
 |-----------|----------|

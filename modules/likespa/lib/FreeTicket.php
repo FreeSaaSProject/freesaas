@@ -2,34 +2,20 @@
 declare(strict_types=1);
 
 /**
- * LikeSpa FREE_TICKET overlay: threshold from base_system.FREE_TICKET.
+ * LikeSpa free ticket overlay: threshold in cfg/modules/likespa.ini [likespa] free_ticket.
  * Not today; sum must reach the threshold (legacy cartProcessFull).
  */
 final class FreeTicket
 {
     public static function threshold(): int
     {
-        // Storefront does not boot core/bootstrap — do not rely on SystemRepository being loaded.
-        if (!Database::tableExists('base_system') || !Database::columnExists('base_system', 'FREE_TICKET')) {
-            return 0;
-        }
-        $v = Database::pdo()->query('SELECT FREE_TICKET FROM base_system ORDER BY id ASC LIMIT 1')->fetchColumn();
-        return max(0, (int)$v);
+        return max(0, (int)Config::get('likespa', 'free_ticket', 0));
     }
 
-    /** Persist storefront threshold (0 = feature off). Column base_system.FREE_TICKET. */
+    /** Persist storefront threshold (0 = feature off). */
     public static function saveThreshold(int $value): void
     {
-        $value = max(0, $value);
-        if (!Database::tableExists('base_system') || !Database::columnExists('base_system', 'FREE_TICKET')) {
-            throw new RuntimeException('base_system.FREE_TICKET missing');
-        }
-        $id = (int)Database::pdo()->query('SELECT id FROM base_system ORDER BY id ASC LIMIT 1')->fetchColumn();
-        if ($id < 1) {
-            throw new RuntimeException('base_system is empty');
-        }
-        Database::pdo()->prepare('UPDATE base_system SET FREE_TICKET = ? WHERE id = ?')
-            ->execute([$value, $id]);
+        Config::set('likespa', 'free_ticket', (string)max(0, $value));
     }
 
     public static function eligible(float $sum): bool
@@ -137,8 +123,7 @@ final class FreeTicket
         $th = self::threshold();
         $payload['free_ticket'] = [
             'module' => 'likespa',
-            'column' => Database::tableExists('base_system')
-                && Database::columnExists('base_system', 'FREE_TICKET'),
+            'config' => 'likespa.free_ticket',
             'threshold' => $th,
             'hosts_with_flag' => $hostsWithFlag,
             'settings_op' => 'likespa.settings.get',

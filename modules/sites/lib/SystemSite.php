@@ -2,32 +2,30 @@
 declare(strict_types=1);
 
 /**
- * Public site SEO / contact fields on shared base_system (UI: /sites/seo).
+ * Fallback public site SEO / contact fields (UI: /sites/seo). Stored in cfg/modules/sites.ini [sites].
+ * Per-host name/tel live on base_site_hosts.
  */
 final class SystemSite
 {
+    /** @return array{name:string,title:string,keywords:string,tel:string} */
+    public static function load(): array
+    {
+        return [
+            'name' => (string)Config::get('sites', 'seo_name', ''),
+            'title' => (string)Config::get('sites', 'seo_title', ''),
+            'keywords' => (string)Config::get('sites', 'seo_keywords', ''),
+            'tel' => (string)Config::get('sites', 'tel', ''),
+        ];
+    }
+
     /**
      * @param array{name?:string,title?:string,keywords?:string,tel?:string} $data
      */
     public static function updateBasics(array $data): void
     {
-        $row = SystemRepository::get();
-        if (!$row) {
-            throw new RuntimeException('base_system is empty — run data migrate');
-        }
-        $cols = ['name = ?', 'title = ?', 'tel = ?'];
-        $params = [
-            (string)($data['name'] ?? ''),
-            (string)($data['title'] ?? ''),
-            (string)($data['tel'] ?? ''),
-        ];
-        if (Database::columnExists('base_system', 'keywords')) {
-            $cols[] = 'keywords = ?';
-            $params[] = (string)($data['keywords'] ?? '');
-        }
-        $params[] = (int)$row['id'];
-        Database::pdo()->prepare(
-            'UPDATE base_system SET ' . implode(', ', $cols) . ' WHERE id = ?'
-        )->execute($params);
+        Config::set('sites', 'seo_name', trim((string)($data['name'] ?? '')));
+        Config::set('sites', 'seo_title', trim((string)($data['title'] ?? '')));
+        Config::set('sites', 'seo_keywords', trim((string)($data['keywords'] ?? '')));
+        Config::set('sites', 'tel', trim((string)($data['tel'] ?? '')));
     }
 }

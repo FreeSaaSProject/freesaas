@@ -2,15 +2,15 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "0.3.127",
+    "version": "1.0.0",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
-        "bots": ">=0.1.0",
-        "contracts": ">=0.1.0",
+        "bots": ">=1.0.0",
+        "contracts": ">=1.0.0",
         "gcal": ">=0.1.0",
-        "stocks": ">=0.1.0",
-        "assistant": ">=0.1.0"
+        "stocks": ">=1.0.0",
+        "assistant": ">=1.0.0"
     },
     "provides": [
         "core.auth",
@@ -1046,7 +1046,6 @@
     },
     "tables": [
         "base_users",
-        "base_system",
         "base_modules",
         "base_schema_migrations",
         "base_news",
@@ -1118,7 +1117,7 @@
         "categories": [
             "platform"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

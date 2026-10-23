@@ -2,16 +2,16 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "0.3.30",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "asr": ">=0.1.0",
-        "audio": ">=0.1.0",
-        "audio_dicts": ">=0.1.0"
+        "core": ">=1.0.0",
+        "asr": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "audio_dicts": ">=1.0.0"
     },
     "optionalRequires": {
-        "procedures": ">=0.1.0"
+        "procedures": ">=1.0.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -142,7 +142,7 @@
         "categories": [
             "audio"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

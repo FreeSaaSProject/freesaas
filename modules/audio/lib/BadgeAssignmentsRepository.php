@@ -32,9 +32,9 @@ final class BadgeAssignmentsRepository
     public static function withinWorkHours(?int $now = null): bool
     {
         $now = $now ?? time();
-        $row = SystemRepository::get();
-        $start = isset($row['work_hour_start']) ? (int)$row['work_hour_start'] : 0;
-        $end = isset($row['work_hour_end']) ? (int)$row['work_hour_end'] : 24;
+        // Salon hours from calendar settings (cfg/modules/calendar.ini); absent → whole day.
+        $start = (int)Config::get('calendar', 'hour_start', 0);
+        $end = (int)Config::get('calendar', 'hour_end', 24);
         if ($end <= 0) {
             $end = 24;
         }

@@ -58,19 +58,16 @@ final class SitesFront
         $keywords = '';
         $tel = '';
         $metaDescr = '';
-        if (class_exists('SystemRepository', false)) {
-            $row = SystemRepository::get();
-            if (is_array($row)) {
-                if (trim((string)($row['name'] ?? '')) !== '') {
-                    $name = (string)$row['name'];
-                }
-                if (trim((string)($row['title'] ?? '')) !== '') {
-                    $title = (string)$row['title'];
-                }
-                $keywords = (string)($row['keywords'] ?? '');
-                $tel = (string)($row['tel'] ?? '');
-            }
+        $seoName = trim((string)Config::get('sites', 'seo_name', ''));
+        if ($seoName !== '') {
+            $name = $seoName;
         }
+        $seoTitle = trim((string)Config::get('sites', 'seo_title', ''));
+        if ($seoTitle !== '') {
+            $title = $seoTitle;
+        }
+        $keywords = (string)Config::get('sites', 'seo_keywords', '');
+        $tel = (string)Config::get('sites', 'tel', '');
         if (class_exists(SitesHostContext::class)) {
             $hn = trim(SitesHostContext::name());
             if ($hn !== '') {

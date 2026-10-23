@@ -12,7 +12,7 @@ return [
     'audio_reports.perm.edit' => 'Аудио-отчёты (правка)',
     'audio_reports.err.bad_day' => 'Нужен параметр day=YYYY-MM-DD',
     'audio_reports.settings.day_bounds' => 'Окна аудио-дня',
-    'audio_reports.settings.day_bounds_hint' => 'Рабочие окна рейтинга (OffRate) и записи (OffRecord). Хранятся в base_system.',
+    'audio_reports.settings.day_bounds_hint' => 'Рабочие окна рейтинга (OffRate) и записи (OffRecord). Хранятся в настройках модуля.',
     'audio_reports.settings.rate_start' => 'Начало рейтинга',
     'audio_reports.settings.rate_end' => 'Конец рейтинга',
     'audio_reports.settings.record_start' => 'Начало записи',

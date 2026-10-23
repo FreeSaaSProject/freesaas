@@ -2,17 +2,17 @@
     "id": "audio_script_coach",
     "name": "audio_script_coach.module.name",
     "description": "audio_script_coach.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "audio": ">=0.1.0",
-        "audio_dicts": ">=0.1.0",
-        "llm": ">=0.1.0"
+        "core": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "audio_dicts": ">=1.0.0",
+        "llm": ">=1.0.0"
     },
     "optionalRequires": {
-        "audio_reports": ">=0.1.0",
-        "audio_pipeline": ">=0.1.0"
+        "audio_reports": ">=1.0.0",
+        "audio_pipeline": ">=1.0.0"
     },
     "provides": [],
     "migrations": "migrations/",

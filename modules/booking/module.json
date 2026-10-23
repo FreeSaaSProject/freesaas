@@ -2,20 +2,20 @@
     "id": "booking",
     "name": "booking.module.name",
     "description": "booking.module.description",
-    "version": "0.1.15",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0",
-        "catalog": ">=0.1.0",
-        "clients": ">=0.1.0",
-        "workweeks": ">=0.1.0",
-        "calendar": ">=0.1.0"
+        "core": ">=1.0.0",
+        "catalog": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "workweeks": ">=1.0.0",
+        "calendar": ">=1.0.0"
     },
     "optionalRequires": {
-        "orders": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "rates": ">=0.1.0"
+        "orders": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "rates": ">=1.0.0"
     },
     "provides": [
         "booking.slots",
@@ -172,10 +172,10 @@
     },
     "catalog": {
         "categories": [
-            "site",
-            "team"
+            "booking",
+            "site"
         ],
-        "maturity": "alpha",
+        "maturity": "release",
         "tags": [
             "journal"
         ],

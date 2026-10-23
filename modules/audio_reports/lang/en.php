@@ -12,7 +12,7 @@ return [
     'audio_reports.perm.edit' => 'Audio reports (edit)',
     'audio_reports.err.bad_day' => 'day=YYYY-MM-DD is required',
     'audio_reports.settings.day_bounds' => 'Audio day windows',
-    'audio_reports.settings.day_bounds_hint' => 'Working windows for rating (OffRate) and recording (OffRecord). Stored on base_system.',
+    'audio_reports.settings.day_bounds_hint' => 'Working windows for rating (OffRate) and recording (OffRecord). Stored in the module settings.',
     'audio_reports.settings.rate_start' => 'Rating start',
     'audio_reports.settings.rate_end' => 'Rating end',
     'audio_reports.settings.record_start' => 'Recording start',

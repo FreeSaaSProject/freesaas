@@ -2,13 +2,13 @@
     "id": "video",
     "name": "video.module.name",
     "description": "video.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "bots": ">=0.1.0",
+        "bots": ">=1.0.0",
         "video_label": ">=0.1.0"
     },
     "provides": [

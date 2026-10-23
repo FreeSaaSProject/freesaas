@@ -809,8 +809,7 @@ final class TerminalFloor
             try {
                 $flyerPromo = SystemFlyerPromo::load();
                 $promoPositions = ($flyerPromo['promo_position_ids'] ?? []) !== [];
-                $discountsTypesLoaded = Database::columnExists('base_system', 'DISCOUNTS_TYPES')
-                    && is_array($flyerPromo['discount_types'] ?? null);
+                $discountsTypesLoaded = is_array($flyerPromo['discount_types'] ?? null);
             } catch (Throwable $e) {
                 $flyerPromo = null;
             }

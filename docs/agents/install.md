@@ -55,7 +55,7 @@ Effects:
 2. Runs schema migrations (enabled modules + any listed in `modules`)
 3. Ensures a Superadmin role (`SUPERADMIN_ACCESS`; shift flags `EVT_ASSIGN` / `CAN_BE_ASSIGNED` when present)
 4. Creates the first staff user with all discovered permissions
-5. Seeds `base_system` if empty
+5. Sets the company label `app.instance` if empty
 6. Clears `var/setup.key` if present; returns health summary
 
 Then sign in at `/login`. Further ops:

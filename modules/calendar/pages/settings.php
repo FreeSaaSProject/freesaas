@@ -1,21 +1,27 @@
 <?php
 declare(strict_types=1);
 
-require_once base_path('modules/core/lib/SystemRepository.php');
-
 $wantsJson = AgentHttp::wantsJson();
 
 $message = '';
 $error = '';
-$row = SystemRepository::get();
+
+/** @return array{work_hour_start:int,work_hour_end:int} */
+$hoursRow = static function (): array {
+    return [
+        'work_hour_start' => CalendarTimeline::hourStart(),
+        'work_hour_end' => CalendarTimeline::hourEnd(),
+    ];
+};
+$row = $hoursRow();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
         $post = $_POST;
         if (array_key_exists('work_hour_start', $post) || array_key_exists('work_hour_end', $post)) {
             CalendarTimeline::updateWorkHours(
-                (int)($post['work_hour_start'] ?? 9),
-                (int)($post['work_hour_end'] ?? 22)
+                (int)($post['work_hour_start'] ?? $row['work_hour_start']),
+                (int)($post['work_hour_end'] ?? $row['work_hour_end'])
             );
         }
         if (isset($post['calendar_event_mode'])) {
@@ -31,7 +37,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             'post' => $post,
         ]);
         $message = t('core.common.saved');
-        $row = SystemRepository::get();
+        $row = $hoursRow();
         if ($wantsJson) {
             AgentHttp::emit([
                 'ok' => true,
@@ -39,8 +45,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 'event_mode' => CalendarConfig::eventMode(),
                 'manual_create' => CalendarConfig::isVisitsMode(),
                 'compact_chip_minutes' => CalendarConfig::compactChipMinutes(),
-                'work_hour_start' => (int)($row['work_hour_start'] ?? Config::get('calendar', 'hour_start', 9)),
-                'work_hour_end' => (int)($row['work_hour_end'] ?? Config::get('calendar', 'hour_end', 21)),
+                'work_hour_start' => $row['work_hour_start'],
+                'work_hour_end' => $row['work_hour_end'],
             ]);
             return;
         }
@@ -50,13 +56,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
         $error = $e->getMessage();
-        $row = SystemRepository::get();
+        $row = $hoursRow();
     }
 }
-
-$showHours = Database::tableExists('base_system')
-    && Database::columnExists('base_system', 'work_hour_start')
-    && Database::columnExists('base_system', 'work_hour_end');
 
 $sections = EventBus::emit('calendar.settings.sections', [
     'html' => '',
@@ -71,9 +73,9 @@ if ($wantsJson) {
         'event_mode' => $eventMode,
         'manual_create' => $eventMode === CalendarConfig::MODE_VISITS,
         'compact_chip_minutes' => $compactChipMinutes,
-        'work_hour_start' => (int)($row['work_hour_start'] ?? Config::get('calendar', 'hour_start', 9)),
-        'work_hour_end' => (int)($row['work_hour_end'] ?? Config::get('calendar', 'hour_end', 21)),
-        'show_hours' => $showHours,
+        'work_hour_start' => $row['work_hour_start'],
+        'work_hour_end' => $row['work_hour_end'],
+        'show_hours' => true,
     ]);
     return;
 }
@@ -83,7 +85,7 @@ View::render('settings', [
     'message' => $message,
     'error' => $error,
     'row' => $row,
-    'showHours' => $showHours,
+    'showHours' => true,
     'eventMode' => $eventMode,
     'compactChipMinutes' => $compactChipMinutes,
     'extraHtml' => $extraHtml,

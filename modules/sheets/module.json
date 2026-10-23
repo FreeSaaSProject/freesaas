@@ -2,10 +2,10 @@
     "id": "sheets",
     "name": "sheets.module.name",
     "description": "sheets.module.description",
-    "version": "0.1.3",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": [],
     "provides": [
@@ -165,7 +165,7 @@
         "categories": [
             "warehouse"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

@@ -91,6 +91,12 @@ return static function (PDO $pdo): void {
             }
         }
     }
+    if ($tel === '') {
+        $tel = mb_substr(trim((string)Config::get('sites', 'tel', '')), 0, 64, 'UTF-8');
+    }
+    if ($name === '') {
+        $name = mb_substr(trim((string)Config::get('sites', 'seo_name', '')), 0, 255, 'UTF-8');
+    }
     if ($name === '') {
         $name = mb_substr(trim((string)Config::get('connect', 'sitename', '')), 0, 255, 'UTF-8');
     }

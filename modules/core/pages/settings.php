@@ -67,7 +67,7 @@ $coreTimezoneOptions = static function (string $current) use ($coreTimezoneIds):
 $wantsJson = AgentHttp::wantsJson();
 $message = '';
 $error = '';
-$row = SystemRepository::get();
+$row = SystemRepository::basics();
 $agentTokenPlain = '';
 $agentTokenJustGenerated = false;
 $timezone = (string)Config::get('app', 'timezone', 'UTC');
@@ -145,11 +145,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             EventBus::emit('core.settings.save', [
                 'post' => $_POST,
                 'files' => $_FILES,
-                'row' => SystemRepository::get(),
+                'row' => SystemRepository::basics(),
             ]);
 
             $message = t('core.common.saved');
-            $row = SystemRepository::get();
+            $row = SystemRepository::basics();
             if ($wantsJson) {
                 AgentHttp::emit([
                     'ok' => true,
@@ -164,7 +164,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } catch (Throwable $e) {
         $error = $e->getMessage();
         $agentTokenJustGenerated = false;
-        $row = SystemRepository::get();
+        $row = SystemRepository::basics();
         $timezone = (string)Config::get('app', 'timezone', 'UTC');
         if ($wantsJson) {
             AgentHttp::error($error, 400);

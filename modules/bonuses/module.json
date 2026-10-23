@@ -2,16 +2,16 @@
     "id": "bonuses",
     "name": "bonuses.module.name",
     "description": "bonuses.module.description",
-    "version": "0.2.5",
+    "version": "1.0.0",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "clients": ">=0.1.0",
-        "catalog": ">=0.1.0",
-        "procedures": ">=0.1.0"
+        "core": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "catalog": ">=1.0.0",
+        "procedures": ">=1.0.0"
     },
     "optionalRequires": {
-        "calendar": ">=0.1.0"
+        "calendar": ">=1.0.0"
     },
     "provides": [
         "bonuses.ledger",
@@ -119,7 +119,7 @@
         "categories": [
             "crm"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

@@ -3,18 +3,18 @@
     "name": "client_mcp.module.name",
     "description": "client_mcp.module.description",
     "summary": "client_mcp.module.summary",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0",
-        "sites": ">=0.2.0",
-        "clients": ">=0.1.0"
+        "core": ">=1.0.0",
+        "sites": ">=1.0.0",
+        "clients": ">=1.0.0"
     },
     "optionalRequires": {
-        "booking": ">=0.1.0",
-        "catalog": ">=0.1.0",
-        "orders": ">=0.1.0"
+        "booking": ">=1.0.0",
+        "catalog": ">=1.0.0",
+        "orders": ">=1.0.0"
     },
     "provides": [
         "client_mcp.server",

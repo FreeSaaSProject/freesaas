@@ -2,19 +2,19 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "0.1.71",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
-        "core": ">=0.3.0",
-        "llm": ">=0.1.0"
+        "core": ">=1.0.0",
+        "llm": ">=1.0.0"
     },
     "optionalRequires": {
-        "bots": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "staff_reports": ">=0.1.0",
-        "audio_reports": ">=0.2.0",
-        "terminals": ">=0.1.0",
-        "updates": ">=0.3.0"
+        "bots": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "staff_reports": ">=1.0.0",
+        "audio_reports": ">=1.0.0",
+        "terminals": ">=1.0.0",
+        "updates": ">=1.0.0"
     },
     "provides": [
         "assistant.harness"
@@ -126,7 +126,7 @@
         "categories": [
             "integrations"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }

@@ -2,81 +2,30 @@
 declare(strict_types=1);
 
 /**
- * Platform row in base_system (company / instance chrome).
- * Product columns (site SEO, flyer/promo, calendar hours) are written by owning modules.
+ * Platform instance chrome (company label). Stored in cfg/config.ini [app] instance.
+ * Product settings live in their modules' ini sections (sites, calendar, likespa, audio_reports).
  */
 final class SystemRepository
 {
-    /** @var string|null */
-    private static $companyNameCache = null;
-
-    public static function get(): ?array
-    {
-        if (!Database::tableExists('base_system')) {
-            return null;
-        }
-        $row = Database::pdo()->query('SELECT * FROM base_system ORDER BY id ASC LIMIT 1')->fetch();
-        return $row ?: null;
-    }
-
-    /**
-     * Ensure the singleton base_system row exists.
-     * Schema migrate creates an empty table; bootstrap / demo seed / settings writers need one row.
-     *
-     * @return array<string,mixed>
-     */
-    public static function ensureRow(?string $brand = null): array
-    {
-        $row = self::get();
-        if ($row !== null) {
-            return $row;
-        }
-        if (!Database::tableExists('base_system')) {
-            throw new RuntimeException('base_system table missing — run migrate');
-        }
-        $brand = trim((string)($brand ?? ''));
-        if ($brand === '') {
-            $brand = trim((string)Config::get('app', 'name', 'FreeSaaS'));
-        }
-        if ($brand === '') {
-            $brand = 'FreeSaaS';
-        }
-        Database::pdo()->prepare(
-            'INSERT INTO base_system (name, company, title) VALUES (?,?,?)'
-        )->execute([$brand, $brand, $brand]);
-        self::$companyNameCache = null;
-        $row = self::get();
-        if ($row === null) {
-            throw new RuntimeException('base_system insert failed');
-        }
-        return $row;
-    }
-
     /**
      * Short company label under the logo and in the browser tab.
-     * Prefer base_system.company (Settings); fall back to config app.instance.
      */
     public static function companyName(): string
     {
-        if (self::$companyNameCache !== null) {
-            return self::$companyNameCache;
-        }
-        $row = self::get();
-        $fromDb = trim((string)($row['company'] ?? ''));
-        if ($fromDb !== '') {
-            return self::$companyNameCache = $fromDb;
-        }
-        return self::$companyNameCache = trim((string)Config::get('app', 'instance', ''));
+        return trim((string)Config::get('app', 'instance', ''));
+    }
+
+    /** @return array{company:string} */
+    public static function basics(): array
+    {
+        return ['company' => self::companyName()];
     }
 
     /** Platform instance label (FreeSaaS /settings). */
     public static function updateBasics(array $data): void
     {
-        $row = self::ensureRow(isset($data['company']) ? (string)$data['company'] : null);
-        $company = (string)($data['company'] ?? '');
-        Database::pdo()->prepare(
-            'UPDATE base_system SET company = ? WHERE id = ?'
-        )->execute([$company, (int)$row['id']]);
-        self::$companyNameCache = null;
+        if (array_key_exists('company', $data)) {
+            Config::set('app', 'instance', trim((string)$data['company']));
+        }
     }
 }

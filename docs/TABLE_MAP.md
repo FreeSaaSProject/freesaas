@@ -4,7 +4,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 
 | Table(s) | Owner module | Notes |
 |---|---|---|
-| `base_users`, `base_system`, `base_admin_statuses`, `base_modules`, `base_schema_migrations`, `base_news*`, `base_views`, `base_user_prefs` | core | Auth, registry, news/tickets, prefs |
+| `base_users`, `base_admin_statuses`, `base_modules`, `base_schema_migrations`, `base_news*`, `base_views`, `base_user_prefs` | core | Auth, registry, news/tickets, prefs |
 | `base_comments` | comments | Comment threads on news items |
 | `base_comments` / `base_users` / `base_news` (usage) | contracts (indexes/columns + UI) | No owned tables; offer workflow over comments/news; `IS_ACCEPTOR` on users; indexes on comments. Uninstall must not DROP news/comments |
 | `base_users` site/tips (`photo`, `site_descr`, `link_ok`) | likespa (columns + UI) | Added by likespa migration; staff edit via `core.user_edit.*` |
@@ -25,9 +25,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_promopages` | sites | Public promo / LP pages (home content via `base_site_hosts.promo_id`) |
 | `base_page_categories` | sites | Site articles tree; `site_host_id` (0 = all hosts) |
 | `base_redirects` | sites | Site URL redirects; `site_host_id` (0 = all hosts) |
-| `base_system` site fields (`name`, `title`, `keywords`, `tel`) | sites (write) / core (table) | Fallback SEO/contacts UI `/sites/seo`; per-host name/tel on `base_site_hosts` |
-| `base_system` flyer / promo (`flyerEnabled`, `flyerDiscount`, `PROMO_*`) | likespa (write) / core (table) | `SystemFlyerPromo`; UI `/likespa/settings` |
-| `base_system` work hours (`work_hour_start`, `work_hour_end`) | calendar (write) / core (table) | `CalendarTimeline::updateWorkHours`; UI `/calendar/settings` |
+| ~~`base_system`~~ (legacy) | — | Settings moved to ini: company → `[app] instance`; SEO/tel → `[sites]`; work hours → `[calendar]`; flyer/promo/free ticket → `[likespa]`; day bounds → `[audio_reports]`. Copied by `*_from_base_system` migrations; the table is no longer owned by any module — drop it as a foreign table in `/db` after migrate |
 | `base_terminals`, `base_bracelets`, `base_terminals_activations` | terminals | Device registry + locker bracelet UIDs (disableable) |
 | `base_termloads`, `base_fullstats` | terminals | Therm occupancy / ticket visits |
 | `base_term_orders` | terminals (legacy) | Old Volga Termy feed; table may remain, UI/import removed |

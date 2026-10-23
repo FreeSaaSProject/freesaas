@@ -13,26 +13,19 @@ final class CalendarTimeline
     /** @var array{start:?int,end:?int}|null */
     private static $hoursCache = null;
 
-    /** Persist calendar working hours on shared base_system (UI: /calendar/settings). */
+    /**
+     * Persist salon working hours (UI: /calendar/settings) into cfg/modules/calendar.ini [calendar].
+     * Booking and badges read the same keys.
+     */
     public static function updateWorkHours(int $start, int $end): void
     {
-        $row = SystemRepository::get();
-        if (!$row) {
-            throw new RuntimeException('base_system is empty — run data migrate');
-        }
-        if (!Database::columnExists('base_system', 'work_hour_start')
-            || !Database::columnExists('base_system', 'work_hour_end')
-        ) {
-            return;
-        }
         $start = max(0, min(23, $start));
         $end = max(0, min(23, $end));
         if ($end < $start) {
             $end = $start;
         }
-        Database::pdo()->prepare(
-            'UPDATE base_system SET work_hour_start = ?, work_hour_end = ? WHERE id = ?'
-        )->execute([$start, $end, (int)$row['id']]);
+        Config::set('calendar', 'hour_start', (string)$start);
+        Config::set('calendar', 'hour_end', (string)$end);
         self::$hoursCache = null;
     }
 
@@ -47,26 +40,8 @@ final class CalendarTimeline
                 'end' => (int)self::$hoursCache['end'],
             ];
         }
-        $start = null;
-        $end = null;
-        if (Database::tableExists('base_system')
-            && Database::columnExists('base_system', 'work_hour_start')
-            && Database::columnExists('base_system', 'work_hour_end')
-        ) {
-            $row = Database::pdo()->query(
-                'SELECT work_hour_start, work_hour_end FROM base_system ORDER BY id ASC LIMIT 1'
-            )->fetch(PDO::FETCH_ASSOC);
-            if ($row) {
-                $start = (int)$row['work_hour_start'];
-                $end = (int)$row['work_hour_end'];
-            }
-        }
-        if ($start === null) {
-            $start = (int)Config::get('calendar', 'hour_start', 9);
-        }
-        if ($end === null) {
-            $end = (int)Config::get('calendar', 'hour_end', 22);
-        }
+        $start = (int)Config::get('calendar', 'hour_start', 9);
+        $end = (int)Config::get('calendar', 'hour_end', 22);
         $start = max(0, min(23, $start));
         $end = max(0, min(23, $end));
         if ($end < $start) {

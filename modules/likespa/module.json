@@ -2,23 +2,23 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "0.3.27",
+    "version": "1.0.0",
     "type": "product",
     "runtime": "both",
     "requires": {
-        "core": ">=0.3.0"
+        "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "audio_reports": ">=0.2.0",
-        "audio": ">=0.1.0",
-        "workweeks": ">=0.1.0",
-        "procedures": ">=0.1.0",
-        "payments": ">=0.1.0",
-        "sites": ">=0.2.0",
-        "booking": ">=0.1.0",
-        "clients": ">=0.1.0",
-        "terminals": ">=0.1.0",
-        "comments": ">=0.1.0"
+        "audio_reports": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "workweeks": ">=1.0.0",
+        "procedures": ">=1.0.0",
+        "payments": ">=1.0.0",
+        "sites": ">=1.0.0",
+        "booking": ">=1.0.0",
+        "clients": ">=1.0.0",
+        "terminals": ">=1.0.0",
+        "comments": ">=1.0.0"
     },
     "provides": [
         "likespa.term_scans",
@@ -208,7 +208,7 @@
         "categories": [
             "site"
         ],
-        "maturity": "beta",
+        "maturity": "release",
         "tags": [],
         "screenshots": []
     }
