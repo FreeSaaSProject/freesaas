@@ -1,7 +1,7 @@
 {
   "v": 1,
   "id": "masseur_shifts",
-  "title": "Смены массажистов",
+  "title": "bi.recipe.masseur_shifts",
   "requires": [
     "workweeks",
     "users_staff",

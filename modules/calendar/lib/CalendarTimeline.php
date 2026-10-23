@@ -382,7 +382,9 @@ final class CalendarTimeline
                 $info .= self::eventBasketInfoHtml($ev);
             }
             if (!$isBlock && isset($ev['real_summ']) && (float)$ev['real_summ'] > 0) {
-                $info .= '<div><b>' . number_format((float)$ev['real_summ'], 0, '.', ' ') . ' ₽</b></div>';
+                $sym = class_exists('I18n', false) ? I18n::currencySymbol() : '₽';
+                $info .= '<div><b>' . number_format((float)$ev['real_summ'], 0, '.', ' ')
+                    . ' ' . htmlspecialchars($sym, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</b></div>';
             }
             if (!empty($ev['descr'])) {
                 $info .= '<div class="muted">' . htmlspecialchars(mb_substr((string)$ev['descr'], 0, 160), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
@@ -627,7 +629,9 @@ final class CalendarTimeline
                 $line .= ' ×' . $qty;
             }
             if ($price > 0) {
-                $line .= ' · ' . number_format($price * $qty, 0, '.', ' ') . ' ₽';
+                $sym = class_exists('I18n', false) ? I18n::currencySymbol() : '₽';
+                $line .= ' · ' . number_format($price * $qty, 0, '.', ' ')
+                    . ' ' . htmlspecialchars($sym, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             }
             $html .= '<li>' . $line . '</li>';
             $n++;

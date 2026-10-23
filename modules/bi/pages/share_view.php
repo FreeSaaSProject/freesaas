@@ -111,7 +111,7 @@ if ($action === 'run' || ($doRun && ($wantsJson || !empty($req['stream'])))) {
 $params = ReportParams::mergeWithConstraints($req, is_array($share['params'] ?? null) ? $share['params'] : []);
 
 View::render('share_view', [
-    'title' => t($family->titleKey()),
+    'title' => ReportRegistry::displayTitle((string)$family->titleKey()),
     'family' => $family,
     'familyId' => $familyId,
     'params' => $params,

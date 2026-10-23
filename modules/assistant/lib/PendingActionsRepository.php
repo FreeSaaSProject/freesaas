@@ -95,24 +95,34 @@ final class PendingActionsRepository
     }
 
     /**
-     * Earlier steps of a plan that have not completed (pending / executing / failed).
-     * Statuses only move forward, so reading "confirmed" means that step really finished.
+     * Earlier plan steps that are not successfully done. A step may run only when every
+     * predecessor is "confirmed" (statuses only move forward, so that read is final).
+     * open   = still may succeed (pending not expired, executing) → wait;
+     * broken = will never succeed (cancelled, expired, failed, pending past expiry) → plan aborted.
+     *
+     * @return array{open:int,broken:int}
      */
-    public static function earlierStepsUnfinished(string $planId, int $planStep): int
+    public static function earlierStepsState(string $planId, int $planStep): array
     {
         $planId = trim($planId);
         if ($planId === '' || $planStep < 2 || !self::tableReady()
             || !Database::columnExists('base_assistant_pending', 'PLAN_ID')
         ) {
-            return 0;
+            return ['open' => 0, 'broken' => 0];
         }
+        $now = time();
         $st = Database::pdo()->prepare(
-            "SELECT COUNT(*) FROM base_assistant_pending
-             WHERE PLAN_ID = ? AND PLAN_STEP > 0 AND PLAN_STEP < ?
-               AND STATUS IN ('pending', 'executing', 'failed')"
+            "SELECT
+                COALESCE(SUM(STATUS <> 'confirmed'), 0) AS not_done,
+                COALESCE(SUM(STATUS = 'executing' OR (STATUS = 'pending' AND EXPIRES_AT > ?)), 0) AS open_n
+             FROM base_assistant_pending
+             WHERE PLAN_ID = ? AND PLAN_STEP > 0 AND PLAN_STEP < ?"
         );
-        $st->execute([$planId, $planStep]);
-        return (int)$st->fetchColumn();
+        $st->execute([$now, $planId, $planStep]);
+        $row = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+        $notDone = (int)($row['not_done'] ?? 0);
+        $open = (int)($row['open_n'] ?? 0);
+        return ['open' => $open, 'broken' => max(0, $notDone - $open)];
     }
 
     /**

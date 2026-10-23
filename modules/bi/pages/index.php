@@ -23,7 +23,7 @@ if ($canManage) {
         $noteKey = $family->readyNoteKey();
         $catalog[] = [
             'id' => $familyId,
-            'title' => (string)$family->titleKey(),
+            'title' => ReportRegistry::displayTitle((string)$family->titleKey()),
             'ready' => $family->isReady(),
             'ready_note' => $noteKey !== '' ? t($noteKey) : '',
             'custom' => false,

@@ -13,7 +13,7 @@ $products = $products ?? BiFilterOptions::products();
 ?>
 <div class="bi-share-shell">
   <header class="bi-share-head">
-    <h1><?= e(t($family->titleKey())) ?></h1>
+    <h1><?= e(ReportRegistry::displayTitle((string)$family->titleKey())) ?></h1>
     <?php if (!empty($share['LABEL'])): ?>
       <p class="muted"><?= e((string)$share['LABEL']) ?></p>
     <?php endif; ?>

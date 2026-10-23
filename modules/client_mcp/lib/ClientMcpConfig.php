@@ -55,8 +55,15 @@ final class ClientMcpConfig
 
     public static function currency(): string
     {
-        $c = strtoupper(trim((string)Config::get(self::SECTION, 'currency', 'RUB')));
-        return preg_match('/^[A-Z]{3}$/', $c) ? $c : 'RUB';
+        // Prefer platform [app] currency; module ini remains an explicit override when set.
+        $mod = strtoupper(trim((string)Config::get(self::SECTION, 'currency', '')));
+        if ($mod !== '' && preg_match('/^[A-Z]{3}$/', $mod)) {
+            return $mod;
+        }
+        if (class_exists('I18n', false)) {
+            return I18n::currencyCode();
+        }
+        return 'RUB';
     }
 
     public static function sessionsPerIpHour(): int

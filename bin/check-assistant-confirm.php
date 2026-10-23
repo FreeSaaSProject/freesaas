@@ -92,6 +92,30 @@ if (Database::columnExists('base_assistant_pending', 'PLAN_ID')) {
     $assert(!empty($res['plan_blocked']) && $status($plan[1]) === 'pending', 'step 2 blocked after step 1 failed');
     PendingActionsRepository::mark($plan[1], 'cancelled');
 
+    // Predecessors must succeed: cancelled / expired step 1 aborts the plan, step 2 never runs.
+    foreach (['cancelled', 'expired_status', 'expired_ttl'] as $how) {
+        $plan = $mkPlan(2, ['confirm_mode' => 'self']);
+        if ($how === 'cancelled') {
+            PendingActionsRepository::mark($plan[0], 'cancelled');
+        } elseif ($how === 'expired_status') {
+            PendingActionsRepository::mark($plan[0], 'expired');
+        } else {
+            Database::pdo()->prepare('UPDATE base_assistant_pending SET EXPIRES_AT = ? WHERE TOKEN = ?')
+                ->execute([time() - 5, $plan[0]]);
+        }
+        $res = AssistantHarness::resolvePending($plan[1], 'confirm', $ownerId);
+        $assert(!empty($res['plan_broken']) && $status($plan[1]) === 'pending', "step 1 {$how} → direct step 2 refused (plan_broken)");
+        $res = AssistantHarness::resolvePlan($plan[1], 'confirm', $ownerId);
+        $assert(empty($res['ok']) && $status($plan[1]) === 'cancelled', "step 1 {$how} → plan confirm cancels step 2, nothing runs");
+    }
+
+    // Successful predecessor lets the next step run (test.noop then fails on invoke → status failed).
+    $plan = $mkPlan(2, ['confirm_mode' => 'self']);
+    PendingActionsRepository::claimForExecution($plan[0], $ownerId);
+    PendingActionsRepository::finalizeExecution($plan[0], 'confirmed', ['ok' => true]);
+    AssistantHarness::resolvePending($plan[1], 'confirm', $ownerId);
+    $assert($status($plan[1]) === 'failed', 'step 1 confirmed → step 2 is executed');
+
     // Ownership: a failed batch must not cancel someone else's self pendings.
     $victim = $mkPlan(2, ['confirm_mode' => 'self'], $ownerId);
     AssistantHarness::resolvePendingBatch($victim, 'confirm', $otherId);

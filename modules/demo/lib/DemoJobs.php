@@ -11,6 +11,7 @@ final class DemoJobs
     public static function reseed(): array
     {
         $s = DemoSchedule::load();
+        self::ensureGuest();
         $r = DemoSeed::run(['reset' => true, 'locale' => self::locale()]);
         return [
             'ok' => true,
@@ -32,6 +33,7 @@ final class DemoJobs
         if ($row !== null && $seeded === $current) {
             return ['ok' => true, 'skipped' => 1, 'message' => self::withWarnings('seed v' . $current . ' up to date', $s['warnings'])];
         }
+        self::ensureGuest();
         DemoSeed::run(['reset' => true, 'locale' => self::locale()]);
         return [
             'ok' => true,
@@ -41,6 +43,16 @@ final class DemoJobs
                 $s['warnings']
             ),
         ];
+    }
+
+    /** Ensure Demo Viewer + auto-login user exist before seed (shared hosting has no CLI). */
+    private static function ensureGuest(): void
+    {
+        $login = class_exists('DemoMode', false) ? DemoMode::autoLoginUser() : 'demo';
+        DemoProvision::run([
+            'login' => $login,
+            'password' => 'demodemo',
+        ]);
     }
 
     /**

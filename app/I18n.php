@@ -447,7 +447,8 @@ final class I18n
             return $loc === 'en' ? date('Y-m-d H:i', $ts) : date('d.m.Y H:i', $ts);
         }
         if ($style === 'daymonth') {
-            return $loc === 'en' ? date('M j', $ts) : date('d.m', $ts);
+            // EN includes year so compact chips (Due + created) stay one format, not "Oct 26 2026-10-23".
+            return $loc === 'en' ? date('M j, Y', $ts) : date('d.m', $ts);
         }
         return $loc === 'en' ? date('Y-m-d', $ts) : date('d.m.Y', $ts);
     }
@@ -512,5 +513,42 @@ final class I18n
             }
         }
         return self::$localeFileCache[$locale] = $out;
+    }
+
+    /**
+     * ISO 4217 code from [app] currency (default RUB). Unknown / empty → RUB.
+     */
+    public static function currencyCode(): string
+    {
+        $raw = 'RUB';
+        if (class_exists('Config', false)) {
+            $raw = strtoupper(trim((string)Config::get('app', 'currency', 'RUB')));
+        }
+        if ($raw === '' || !preg_match('/^[A-Z]{3}$/', $raw)) {
+            return 'RUB';
+        }
+        return $raw;
+    }
+
+    /** Display symbol for app.currency (RUB→₽, USD→$; else the code itself). */
+    public static function currencySymbol(?string $code = null): string
+    {
+        $code = $code !== null ? strtoupper(trim($code)) : self::currencyCode();
+        static $map = [
+            'RUB' => '₽',
+            'USD' => '$',
+            'EUR' => '€',
+            'GBP' => '£',
+            'KZT' => '₸',
+            'BYN' => 'Br',
+            'UAH' => '₴',
+        ];
+        return $map[$code] ?? $code;
+    }
+
+    /** Allowlist for Settings UI (extend as needed). @return list<string> */
+    public static function currencyChoices(): array
+    {
+        return ['RUB', 'USD', 'EUR', 'GBP', 'KZT', 'BYN', 'UAH'];
     }
 }

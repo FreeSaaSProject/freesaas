@@ -6,7 +6,7 @@ return [
     'audio_dicts.menu.dicts' => 'Dictionaries',
     'audio_dicts.menu.keys' => 'Keys',
     'audio_dicts.menu.scripts' => 'Scripts',
-    'audio_dicts.menu.trashes' => 'Trash phrases',
+    'audio_dicts.menu.trashes' => 'Filler phrases',
     'audio_dicts.menu.tags' => 'Key tags',
     'audio_dicts.perm.view' => 'Audio dictionaries (view)',
     'audio_dicts.perm.edit' => 'Audio dictionaries (edit)',

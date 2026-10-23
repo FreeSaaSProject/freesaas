@@ -8,11 +8,12 @@ Thin guards stay in core (`app/DemoMode.php`: readonly Router, fail-closed modul
 
 | Key | Default | Effect when `1` |
 |-----|---------|-----------------|
-| `demo_readonly` | off | Deny `POST\|PUT\|PATCH\|DELETE` except `/login`, `/logout`, `/locale`. Missing `[modules]` keys → **disabled** (fail-closed). |
+| `demo_readonly` | off | Deny `POST\|PUT\|PATCH\|DELETE` except `/login`, `/logout`, `/locale`, `/cron/*`, `/agent/*`. Missing `[modules]` keys → **disabled** (fail-closed). `noindex`. |
 | `demo_auto_login` | off | After bootstrap, if no session → `Auth::establishSession` for `demo_auto_login_user` |
 | `demo_auto_login_user` | `demo` | Login used by auto-login |
+| `currency` | `RUB` | Platform ISO 4217 (Settings). demoru=`RUB`, demoen=`USD`. |
 
-Leave `agent_token` empty/`CHANGE_ME` (blocks `/agent/*`). Set **only** `cron_token` (scoped to `/cron/tick` + `/cron/status`) so the host can wake the self-maintenance jobs below.
+Leave `agent_token` empty/`CHANGE_ME` on public stands if you do not need `/agent/*` after bootstrap; keep `cron_token` for `/cron/tick`. Mutation audit: [`docs/demo-audit.md`](../demo-audit.md) (`php bin/check-demo-mutations.php`).
 
 ## Module
 
@@ -21,7 +22,7 @@ Leave `agent_token` empty/`CHANGE_ME` (blocks `/agent/*`). Set **only** `cron_to
 demo=1
 ```
 
-Banner notice and CLI `demo seed` / `demo provision` require the module enabled. On production keep `demo=0`.
+Banner strip (CTA / home / tips) + CLI `demo seed` / `demo provision` require the module enabled. Ini: `cta_url`, `home_url`, `tips_base_url`, `switch_url_*`, `reseed_at=03:00,15:00`, `cors_origin`. CTA UTM **before** `#` (`…/?utm_…#start`); EN stand → `freesaas.ru/en/…`. Public `GET /demo-modules.json` (CORS) for marketing tiles. On production keep `demo=0`.
 
 ## Prod safety (two independent locks)
 

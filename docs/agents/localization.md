@@ -27,4 +27,5 @@ php bin/freesaas.php i18n check --format=json
 - UI chrome via `t` / `te` / `tj` only.
 - `module.json` `name`, `menu.*.title|group`, `permissions.*.label` = i18n keys.
 - Do not translate UGC or DB `NAME` fields.
-- Plurals / currency formatting: not fully platform-supported yet (see agent-native-audit).
+- Plurals: not fully platform-supported yet (see agent-native-audit).
+- **Currency:** `[app] currency=` ISO 4217 (`RUB` default). Settings → Currency. Symbol via `I18n::currencySymbol()` / `money_signed_html()`. Display only — no FX conversion. Demo stands: demoru=`RUB`, demoen=`USD`.

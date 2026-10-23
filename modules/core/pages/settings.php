@@ -74,6 +74,8 @@ $timezone = (string)Config::get('app', 'timezone', 'UTC');
 if ($timezone === '') {
     $timezone = 'UTC';
 }
+$currency = I18n::currencyCode();
+$currencyChoices = I18n::currencyChoices();
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $raw = file_get_contents('php://input');
@@ -120,6 +122,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 $timezone = $tz;
             }
 
+            if (!$wantsJson || array_key_exists('currency', $_POST)) {
+                $cur = strtoupper(trim((string)($_POST['currency'] ?? '')));
+                if ($cur === '' || !in_array($cur, I18n::currencyChoices(), true)) {
+                    throw new RuntimeException(t('core.settings.currency.invalid'));
+                }
+                Config::set('app', 'currency', $cur);
+                $currency = $cur;
+            }
+
             // HTML always posts company; JSON may omit to keep current.
             if (!$wantsJson || array_key_exists('company', $_POST)) {
                 SystemRepository::updateBasics([
@@ -157,6 +168,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'message' => $message,
                     'company' => (string)($row['company'] ?? ''),
                     'timezone' => $timezone,
+                    'currency' => $currency,
+                    'currency_symbol' => I18n::currencySymbol($currency),
                     'agent_allow_delete' => AgentHttp::allowsDelete(),
                 ]);
             }
@@ -166,6 +179,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $agentTokenJustGenerated = false;
         $row = SystemRepository::basics();
         $timezone = (string)Config::get('app', 'timezone', 'UTC');
+        $currency = I18n::currencyCode();
         if ($wantsJson) {
             AgentHttp::error($error, 400);
         }
@@ -178,6 +192,9 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'action' => 'status',
         'company' => (string)($row['company'] ?? ''),
         'timezone' => $timezone,
+        'currency' => $currency,
+        'currency_symbol' => I18n::currencySymbol($currency),
+        'currencies' => $currencyChoices,
         'timezones' => $coreTimezoneIds(),
         'has_logo' => SystemLogo::has(),
         'agent_token_configured' => AgentAuth::isConfigured(),
@@ -216,6 +233,8 @@ View::render('settings', [
     'agentHtml' => $agentHtml,
     'timezone' => $timezone,
     'timezoneOptions' => $coreTimezoneOptions($timezone),
+    'currency' => $currency,
+    'currencyChoices' => $currencyChoices,
     'agentTokenConfigured' => $agentConfigured,
     'agentTokenMasked' => $agentTokenMasked,
     'agentTokenPlain' => $agentTokenPlain,

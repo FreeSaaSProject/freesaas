@@ -272,7 +272,7 @@ window.FINANCE_YOY_CHART = <?= json_encode([
     'labelA' => $yoyLabelA,
     'labelB' => $yoyLabelB,
     'view' => $yoyChartView,
-    'currency' => t('finance.yoy.currency'),
+    'currency' => I18n::currencySymbol(),
     'reloadBase' => $chartReload,
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?>;
 </script>

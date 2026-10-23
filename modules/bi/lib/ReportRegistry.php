@@ -84,8 +84,8 @@ final class ReportRegistry
         foreach (self::all() as $f) {
             $noteKey = $f->readyNoteKey();
             $id = $f->id();
-            // Recipe titles are plain constructor text (not i18n keys).
-            $title = (string)$f->titleKey();
+            // Shipped recipes may use i18n keys (bi.recipe.*); customs stay plain text.
+            $title = self::displayTitle((string)$f->titleKey());
             $shipped = self::isShippedId($id);
             $hasDb = isset($customMeta[$id]);
             $out[] = [
@@ -121,12 +121,29 @@ final class ReportRegistry
         $result['family'] = $family->id();
         $result['params'] = $norm;
         if (!isset($result['title'])) {
-            $tk = $family->titleKey();
-            $result['title'] = (strpos($tk, '.') !== false) ? t($tk) : $tk;
-        } elseif (is_string($result['title']) && strpos($result['title'], '.') !== false && strpos($result['title'], ' ') === false) {
-            $result['title'] = t($result['title']);
+            $result['title'] = self::displayTitle((string)$family->titleKey());
+        } elseif (is_string($result['title'])) {
+            $result['title'] = self::displayTitle((string)$result['title']);
         }
         return $result;
+    }
+
+    /**
+     * Resolve recipe title: i18n key (contains '.' and no spaces) → t(), else plain text.
+     */
+    public static function displayTitle(string $raw): string
+    {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        if (strpos($raw, '.') !== false && strpos($raw, ' ') === false) {
+            $translated = t($raw);
+            if ($translated !== $raw) {
+                return $translated;
+            }
+        }
+        return $raw;
     }
 
     private static function loadAll(): void

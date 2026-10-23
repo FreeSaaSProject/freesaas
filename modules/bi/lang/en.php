@@ -149,4 +149,9 @@ return [
     'bi.perm.delete' => 'Delete BI families',
     'bi.assistant.hint' => 'BI reports: CALL bi.families.list; link only open_url values (/bi/run?family=…).',
     'bi.assistant.hint_no_shares' => 'The share-admin page (/bi/shares) is not a report link — do not offer it to staff.',
+
+    'bi.recipe.demo_counts' => 'Demo counters',
+    'bi.recipe.staff_kpi' => 'Staff metrics',
+    'bi.recipe.masseur_shifts' => 'Specialist shifts',
+    'bi.recipe.audio_desk_month' => 'Audio desk (month)',
 ];

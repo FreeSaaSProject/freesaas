@@ -30,6 +30,10 @@ final class HomeSplash
         if ($userId < 1) {
             return false;
         }
+        // Readonly demo cannot persist /splash/ack → would replay forever.
+        if (class_exists('DemoMode', false) && DemoMode::readonly()) {
+            return false;
+        }
         return self::seenVersion($userId) !== self::currentVersion();
     }
 

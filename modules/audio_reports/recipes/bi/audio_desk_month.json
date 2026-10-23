@@ -1,7 +1,7 @@
 {
   "v": 1,
   "id": "audio_desk_month",
-  "title": "Audio desk (month)",
+  "title": "bi.recipe.audio_desk_month",
   "requires": ["records", "users_staff"],
   "queries": [
     {

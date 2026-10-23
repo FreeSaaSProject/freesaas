@@ -246,6 +246,14 @@ final class Router
             return;
         }
 
+        // Demo stand: block mutations before CSRF so probes get 403 (not CSRF 422).
+        // Allowlist: login/logout/locale + /cron/* + /agent/* (see DemoMode).
+        if (class_exists('DemoMode', false)
+            && DemoMode::denyUnsafeIfReadonly($path, $method, $wantJson)
+        ) {
+            return;
+        }
+
         // CSRF + same-site for unsafe methods (cookie session). Token-auth paths exempt.
         $csrfOff = array_key_exists('csrf', $route) && $route['csrf'] === false;
         if ($unsafe && !$csrfOff && !Csrf::isExemptPath($path)) {
@@ -255,13 +263,6 @@ final class Router
             if (!Csrf::verify()) {
                 Csrf::deny('csrf');
             }
-        }
-
-        // Demo stand: block mutations after auth/CSRF (allowlist: login/logout/locale).
-        if (class_exists('DemoMode', false)
-            && DemoMode::denyUnsafeIfReadonly($path, $method, $wantJson)
-        ) {
-            return;
         }
 
         $handler = $route['handler'];

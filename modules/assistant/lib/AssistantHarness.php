@@ -923,9 +923,16 @@ final class AssistantHarness
                 if (!empty($one['forbidden_capability']) && $forbidden === null) {
                     $forbidden = (string)($one['required_permission'] ?? '');
                 }
-                // Only a real execution failure stops the rest of its plan (not forbidden / already done).
-                if ($action === 'confirm' && $rowPlan !== '' && !empty($one['execution_failed'])) {
+                // Execution failure or an aborted predecessor stops the rest of its plan
+                // (not forbidden / already done / predecessor still pending elsewhere).
+                if ($action === 'confirm' && $rowPlan !== ''
+                    && (!empty($one['execution_failed']) || !empty($one['plan_broken']))
+                ) {
                     $stoppedPlans[$rowPlan] = true;
+                    // This step can never run now; reported once as the failure above.
+                    if (!empty($one['plan_broken']) && self::canCancelRow($row, $userId)) {
+                        PendingActionsRepository::mark($token, 'cancelled', ['skipped' => true]);
+                    }
                 }
             }
         }
@@ -1005,9 +1012,8 @@ final class AssistantHarness
         $live = array_values(array_filter($rows, static function (array $r): bool {
             return strtolower((string)($r['STATUS'] ?? '')) === 'pending';
         }));
-        if (count($live) < 2) {
-            $one = $live !== [] ? (string)($live[0]['TOKEN'] ?? $token) : $token;
-            return self::resolvePending($one, $action, $userId);
+        if ($live === []) {
+            return self::resolvePending($token, $action, $userId);
         }
         if (strtolower(trim($action)) === 'confirm') {
             $missing = [];
@@ -1244,14 +1250,18 @@ final class AssistantHarness
 
         $planId = trim((string)($row['PLAN_ID'] ?? ''));
         $planStep = (int)($row['PLAN_STEP'] ?? 0);
-        if ($planId !== '' && PendingActionsRepository::earlierStepsUnfinished($planId, $planStep) > 0) {
-            return [
-                'ok' => false,
-                'action' => 'confirm',
-                'result' => null,
-                'error' => t('assistant.confirm.plan_order'),
-                'plan_blocked' => true,
-            ];
+        if ($planId !== '') {
+            $prev = PendingActionsRepository::earlierStepsState($planId, $planStep);
+            if ($prev['broken'] > 0 || $prev['open'] > 0) {
+                return [
+                    'ok' => false,
+                    'action' => 'confirm',
+                    'result' => null,
+                    'error' => t($prev['broken'] > 0 ? 'assistant.confirm.plan_broken' : 'assistant.confirm.plan_order'),
+                    'plan_blocked' => true,
+                    'plan_broken' => $prev['broken'] > 0,
+                ];
+            }
         }
 
         // Claim before invoke so a second confirmer cannot run the same write.

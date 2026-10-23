@@ -45,7 +45,7 @@ $feedChips = $feedChips ?? [];
         <?php if ((int)$n['TYPE'] === 2 && (int)$n['DT_DEADLINE'] > 0): ?>
           <?= deadline_chip((int)$n['DT_DEADLINE'], true) ?>
         <?php endif; ?>
-        <span class="muted"><?= e(I18n::formatDate((int)$n['DT'], 'date')) ?></span>
+        <span class="muted"><?= e(I18n::formatDate((int)$n['DT'], 'daymonth')) ?></span>
         <?php if ($cc > 0): ?><span class="muted" title="<?= te('core.feed.comments') ?>">💬 <?= $cc ?></span><?php endif; ?>
         <?php if ($vc > 0): ?><span class="muted" title="<?= te('core.feed.viewers') ?>">👁 <?= $vc ?></span><?php endif; ?>
         <?php if (!empty($feedChips[$nid])): ?><?= $feedChips[$nid] ?><?php endif; ?>

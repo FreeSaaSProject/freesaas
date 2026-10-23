@@ -1,7 +1,7 @@
 {
   "v": 1,
   "id": "demo_counts",
-  "title": "Демо-счётчики",
+  "title": "bi.recipe.demo_counts",
   "requires": [],
   "queries": [
     {

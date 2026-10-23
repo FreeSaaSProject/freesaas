@@ -223,7 +223,10 @@ final class DemoSeed
             $out['work_hours'] = self::ensureWorkSchedule();
             $out['shifts'] = self::seedShifts($operatorIds, $monday);
             $eventIds = self::seedWeekEvents($pack, $operatorIds, $clientIds, $productIds, $monday);
+            $near = self::ensureNearTermEvents($pack, $operatorIds, $clientIds, $productIds, $eventIds);
+            $eventIds = array_merge($eventIds, $near);
             $out['events'] = count($eventIds);
+            $out['events_near_48h'] = count($near);
             $out['procedures'] = self::seedProcedures($eventIds);
             $out['rates'] = self::seedRates(array_merge($operators, $admins), $locale);
             $out['procents'] = self::seedProcentsAccrual(array_merge($operators, $admins));
@@ -713,6 +716,112 @@ final class DemoSeed
             }
         }
         return $eventIds;
+    }
+
+    /**
+     * Guarantee visits in [now, now+48h] so the home «Today» widget is never empty
+     * (week seed alone can leave evenings/gaps empty).
+     *
+     * @param array<string,mixed> $pack
+     * @param list<int> $operatorIds
+     * @param list<int> $clientIds
+     * @param list<int> $productIds
+     * @param list<int> $existingIds
+     * @return list<int> newly created event ids
+     */
+    private static function ensureNearTermEvents(
+        array $pack,
+        array $operatorIds,
+        array $clientIds,
+        array $productIds,
+        array $existingIds
+    ): array {
+        if ($operatorIds === [] || $clientIds === [] || $productIds === []) {
+            return [];
+        }
+        $now = time();
+        $horizon = $now + (48 * 3600);
+        $covered = 0;
+        if (Database::tableExists('base_events') && $existingIds !== []) {
+            try {
+                $in = implode(',', array_map('intval', $existingIds));
+                $st = Database::pdo()->query(
+                    "SELECT COUNT(*) FROM base_events WHERE ID IN ($in)
+                     AND DTSTART >= " . (int)$now . ' AND DTSTART < ' . (int)$horizon
+                    . ' AND (DTEND = 0 OR DTEND > ' . (int)$now . ')'
+                );
+                $covered = $st ? (int)$st->fetchColumn() : 0;
+            } catch (Throwable $e) {
+                $covered = 0;
+            }
+        }
+        $need = max(0, 4 - $covered);
+        if ($need < 1) {
+            return [];
+        }
+        $products = array_values($pack['products']);
+        $newIds = [];
+        $slot = $now + 1800; // +30 min
+        $dayEndHour = 20;
+        $dayStartHour = 9;
+        $i = 0;
+        while (count($newIds) < $need && $i < 24) {
+            $i++;
+            if ($slot >= $horizon) {
+                break;
+            }
+            $day = strtotime('today', $slot) ?: $slot;
+            $dayStart = $day + ($dayStartHour * 3600);
+            $dayEnd = $day + ($dayEndHour * 3600);
+            if ($slot < $dayStart) {
+                $slot = $dayStart;
+            }
+            if ($slot + 3600 > $dayEnd) {
+                $slot = $day + 86400 + ($dayStartHour * 3600);
+                continue;
+            }
+            $opId = (int)$operatorIds[$i % count($operatorIds)];
+            if (class_exists('WorkweeksRepository', false)
+                && !WorkweeksRepository::findByDayOperator($day, $opId)
+            ) {
+                $slot += 3600;
+                continue;
+            }
+            $pi = $i % max(1, count($products));
+            $product = $products[$pi];
+            $clientId = (int)$clientIds[$i % count($clientIds)];
+            $clientRow = class_exists('ClientsRepository', false) ? ClientsRepository::find($clientId) : null;
+            $clientName = is_array($clientRow) ? trim((string)($clientRow['name'] ?? '')) : '';
+            if ($clientName === '') {
+                $clientName = 'Client #' . $clientId;
+            }
+            $clientTel = is_array($clientRow)
+                ? (string)($clientRow['tel'] ?? $clientRow['phone'] ?? '')
+                : '';
+            $durMin = (int)(($product['time_sec'] ?? 3600) / 60);
+            if ($durMin < 45) {
+                $durMin = 60;
+            }
+            $start = $slot;
+            $end = $start + ($durMin * 60);
+            $newIds[] = EventsRepository::create([
+                'id_operator' => $opId,
+                'id_user' => $clientId,
+                'dtstart' => $start,
+                'dtend' => $end,
+                'name' => $clientName,
+                'phone' => $clientTel,
+                'descr' => (string)($pack['event_descr'] ?? ''),
+                'is_block' => 0,
+                'items' => [[
+                    'id_good' => $productIds[$pi % count($productIds)],
+                    'price' => (float)$product['price'],
+                    'qty' => 1,
+                ]],
+            ]);
+            $slot = $end + (45 * 60);
+        }
+        return $newIds;
     }
 
     /** @return list<int> */

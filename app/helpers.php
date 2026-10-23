@@ -59,17 +59,21 @@ function money_parse(string $value): float
 /**
  * Signed amount HTML: green "+N" for direction>0, red "-N" for direction<0 (oper show_account_moves).
  */
-function money_signed_html($amount, int $direction = 0): string
+function money_signed_html($amount, int $direction = 0, bool $withCurrency = true): string
 {
     $n = round((float)$amount, 2);
     $formatted = number_format(abs($n), 2, '.', ' ');
+    $sym = '';
+    if ($withCurrency && class_exists('I18n', false)) {
+        $sym = ' ' . I18n::currencySymbol();
+    }
     if ($direction > 0) {
-        return '<strong class="money-signed money-in">+' . e($formatted) . '</strong>';
+        return '<strong class="money-signed money-in">+' . e($formatted) . e($sym) . '</strong>';
     }
     if ($direction < 0) {
-        return '<strong class="money-signed money-out">−' . e($formatted) . '</strong>';
+        return '<strong class="money-signed money-out">−' . e($formatted) . e($sym) . '</strong>';
     }
-    return '<strong class="money-signed">' . e(number_format($n, 2, '.', ' ')) . '</strong>';
+    return '<strong class="money-signed">' . e(number_format($n, 2, '.', ' ')) . e($sym) . '</strong>';
 }
 
 /** Short label for long URLs (mobile-friendly). */
@@ -430,6 +434,9 @@ function security_headers_send(): void
     );
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: strict-origin-when-cross-origin');
+    if (class_exists('DemoMode', false) && DemoMode::readonly()) {
+        header('X-Robots-Tag: noindex, nofollow');
+    }
 }
 
 /**

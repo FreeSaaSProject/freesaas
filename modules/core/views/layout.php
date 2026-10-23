@@ -59,12 +59,15 @@ $jsI18n = I18n::jsDict([
     'core.widget.likes.marked',
     'core.widget.likes.mark_error',
 ]);
+$jsI18n['app.currency_symbol'] = I18n::currencySymbol();
 
 $layoutGate = [
     'blocked' => false,
     'html' => '',
     'chrome' => '',
     'floating' => '',
+    'main_prefix' => '',
+    'demo_banner' => '',
     'js_i18n' => [],
     'page_title' => isset($title) && is_string($title) ? $title : '',
     'page_context_json' => '',
@@ -92,7 +95,13 @@ if ($gateChrome === '') {
     $gateChrome = (string)($layoutGate['topbar'] ?? '');
 }
 $gateFloating = (string)($layoutGate['floating'] ?? '');
+$gateMainPrefix = (string)($layoutGate['main_prefix'] ?? '');
+$gateDemoBanner = (string)($layoutGate['demo_banner'] ?? '');
 $pageContextJson = (string)($layoutGate['page_context_json'] ?? '');
+$demoNoIndex = class_exists('DemoMode', false) && DemoMode::readonly();
+$showTimingPanel = $timingHtml !== ''
+    && !(class_exists('DemoMode', false) && DemoMode::readonly())
+    && Auth::capability('SUPERADMIN_ACCESS');
 
 $schemaSetup = ['needed' => false, 'pending' => 0, 'legacy_users' => false, 'ledger' => true];
 if (Auth::check() && class_exists('SchemaMigrator', false)) {
@@ -114,6 +123,9 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <?php if (!empty($demoNoIndex)): ?>
+  <meta name="robots" content="noindex, nofollow">
+  <?php endif; ?>
   <?= class_exists('Csrf', false) ? Csrf::metaTag() : '' ?>
   <title><?= e($title ?? t('core.menu.home')) ?> · <?= e($titleSuffix) ?></title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
@@ -349,6 +361,9 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
   </aside>
   <button type="button" class="rail-expand" id="rail-expand" title="<?= te('core.layout.show_menu') ?>" aria-label="<?= te('core.layout.show_menu') ?>" hidden>›</button>
   <div class="workspace">
+    <?php if ($gateDemoBanner !== ''): ?>
+      <?= $gateDemoBanner ?>
+    <?php endif; ?>
     <?php if ($notices): ?>
       <nav class="notices-bar" aria-label="<?= te('core.layout.notices_aria') ?>">
         <?php foreach ($notices as $n): ?>
@@ -360,6 +375,9 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
     <?php endif; ?>
     <main class="main<?= !empty($main_flush) ? ' main-flush' : '' ?>">
       <?php Breadcrumbs::renderInLayout(isset($title) && is_string($title) ? $title : ''); ?>
+      <?php if ($gateMainPrefix !== ''): ?>
+        <?= $gateMainPrefix ?>
+      <?php endif; ?>
       <?= $content ?>
     </main>
     <footer class="app-footer">
@@ -376,10 +394,12 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
           <a href="/users/<?= (int)$userId ?>/edit"><?= te('core.layout.sa_bypass_link') ?></a>.
         </div>
       <?php endif; ?>
+      <?php if ($showTimingPanel): ?>
       <details class="timing-panel">
         <summary><?= e(t('core.layout.timings', ['sec' => sprintf('%.3f', $timingTotal)])) ?></summary>
         <?= $timingHtml ?>
       </details>
+      <?php endif; ?>
     </footer>
   </div>
 <?php endif; ?>

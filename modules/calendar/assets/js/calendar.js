@@ -380,7 +380,8 @@
         btn.type = 'button';
         btn.className = 'btn-secondary btn-sm';
         var mins = Math.round((item.time_sec || 0) / 60);
-        btn.textContent = (item.name || '') + ' · ' + Math.round(item.price || 0) + ' ₽'
+        var sym = (window.FREESAAS_I18N && window.FREESAAS_I18N['app.currency_symbol']) || '₽';
+        btn.textContent = (item.name || '') + ' · ' + Math.round(item.price || 0) + ' ' + sym;
           + (mins > 0 ? (' · ' + mins + '′') : '');
         btn.addEventListener('click', function () { addItem(item); });
         li.appendChild(btn);

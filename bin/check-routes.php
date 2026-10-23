@@ -68,6 +68,9 @@ $allowed = [
     // Cron / hard ticks (agent_token in handler)
     '/cron/tick' => ['methods' => ['POST', 'GET'], 'why' => 'platform cron tick'],
     '/cron/status' => ['methods' => ['GET'], 'why' => 'cron registry status'],
+
+    // Demo stand public catalog for marketing site (only when demo_readonly)
+    '/demo-modules.json' => ['methods' => ['GET', 'OPTIONS'], 'why' => 'demo module flags JSON (CORS freesaas.ru)'],
     '/core/jobs/habits-reminders' => ['methods' => ['POST', 'GET'], 'why' => 'habits reminder worker'],
 
     // Storefront (sites)

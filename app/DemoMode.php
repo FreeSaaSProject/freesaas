@@ -15,6 +15,9 @@ final class DemoMode
         '/login',
         '/logout',
         '/locale',
+        // Token-auth ops (agent_token / cron_token) — shared-hosting bootstrap + /cron/tick.
+        '/cron/tick',
+        '/cron/status',
     ];
 
     public static function readonly(): bool
@@ -54,7 +57,11 @@ final class DemoMode
         if ($path !== '/' && substr($path, -1) === '/') {
             $path = rtrim($path, '/');
         }
-        return in_array($path, self::MUTATION_ALLOW, true);
+        if (in_array($path, self::MUTATION_ALLOW, true)) {
+            return true;
+        }
+        // Entire Surface A (/agent, /agent/…) — token gate, not session CSRF.
+        return $path === '/agent' || strpos($path, '/agent/') === 0;
     }
 
     /**
@@ -78,6 +85,15 @@ final class DemoMode
         }
         if (PHP_SAPI === 'cli') {
             return;
+        }
+        // Token surfaces must not inherit the guest session (breaks demo provision on /cron/tick).
+        if (function_exists('request_path')) {
+            $p = '/' . ltrim((string)request_path(), '/');
+            if ($p === '/cron' || strpos($p, '/cron/') === 0
+                || $p === '/agent' || strpos($p, '/agent/') === 0
+            ) {
+                return;
+            }
         }
         if (!class_exists('Auth', false) || Auth::check(false)) {
             return;

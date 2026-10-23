@@ -1,7 +1,7 @@
 {
   "v": 1,
   "id": "staff_kpi",
-  "title": "Метрики сотрудников",
+  "title": "bi.recipe.staff_kpi",
   "requires": [
     "procedures"
   ],

@@ -42,7 +42,7 @@ if ($autoRun && AgentHttp::wantsJson()) {
     redirect($q);
 }
 
-$familyTitle = (string)$family->titleKey();
+$familyTitle = ReportRegistry::displayTitle((string)$family->titleKey());
 View::render('run', [
     'title' => $familyTitle,
     'breadcrumbs' => Breadcrumbs::withHome([

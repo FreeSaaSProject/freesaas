@@ -149,4 +149,9 @@ return [
     'bi.perm.delete' => 'Удаление семейств отчётов',
     'bi.assistant.hint' => 'Отчёты BI: CALL bi.families.list; ссылки только из open_url (/bi/run?family=…).',
     'bi.assistant.hint_no_shares' => 'Страница управления шарингом (/bi/shares) — не ссылка на отчёт; для staff не предлагай её.',
+
+    'bi.recipe.demo_counts' => 'Демо-счётчики',
+    'bi.recipe.staff_kpi' => 'Метрики сотрудников',
+    'bi.recipe.masseur_shifts' => 'Смены массажистов',
+    'bi.recipe.audio_desk_month' => 'Аудио-стол (месяц)',
 ];

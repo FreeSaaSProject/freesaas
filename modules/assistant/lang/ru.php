@@ -168,6 +168,7 @@ return [
     'assistant.confirm.cancelled_n' => 'Отменено: {n}',
     'assistant.confirm.failed_n' => 'ошибок: {n}',
     'assistant.confirm.plan_order' => 'Сначала должны выполниться предыдущие шаги плана.',
+    'assistant.confirm.plan_broken' => 'План прерван: предыдущий шаг не выполнен (отменён, истёк или завершился ошибкой) — зависимые шаги не выполняются.',
     'assistant.confirm.plan_running' => 'План уже выполняется — дождитесь результата.',
     'assistant.confirm.skipped_n' => 'не выполнено после ошибки (отменено): {n}',
     'assistant.relations.prompt' => 'Связь: после {when} проверяется {check}; затронутые строки снимай/правь через {suggest} в том же плане. {hint}',

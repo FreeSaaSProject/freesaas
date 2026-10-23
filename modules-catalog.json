@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-23T14:49:40+00:00",
+    "generated_at": "2026-10-23T17:31:42+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -148,7 +148,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -283,7 +283,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -391,7 +391,7 @@
         },
         {
             "id": "bi",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "BI reports",
@@ -554,7 +554,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -665,7 +665,7 @@
         },
         {
             "id": "client_mcp",
-            "version": "0.1.2",
+            "version": "0.1.3",
             "type": "product",
             "name": {
                 "en": "Client MCP",
@@ -832,7 +832,7 @@
         },
         {
             "id": "demo",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -917,7 +917,7 @@
         },
         {
             "id": "finance",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Financial reports",
@@ -1187,7 +1187,7 @@
         },
         {
             "id": "norms",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Consumption norms",
@@ -1216,7 +1216,7 @@
         },
         {
             "id": "orders",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1353,10 +1353,10 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
-                "en": "Procedures",
+                "en": "Treatments",
                 "ru": "Процедуры"
             },
             "description": {
@@ -1556,7 +1556,7 @@
         },
         {
             "id": "stickers",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1592,7 +1592,7 @@
         },
         {
             "id": "stocks",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Warehouses",
@@ -1904,7 +1904,7 @@
         },
         {
             "id": "workweeks",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Shifts",

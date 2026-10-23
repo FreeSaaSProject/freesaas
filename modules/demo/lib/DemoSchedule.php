@@ -5,11 +5,13 @@ declare(strict_types=1);
  * Demo stand schedule from cfg/modules/demo.ini [demo] (read on every request,
  * so ini edits apply from the next cron tick). Invalid values fall back to
  * defaults and are reported in warnings (surfaced in cron job messages).
+ *
+ * reseed_at accepts one or more HH:MM values (comma/space-separated), e.g. "03:00,15:00".
  */
 final class DemoSchedule
 {
     public const UPDATE_AT = '03:00';
-    public const RESEED_AT = '03:15';
+    public const RESEED_AT = '03:00,15:00';
     public const UPDATE_EVERY_MIN = 15;
     public const RESEED_EVERY_MIN = 30;
     public const VERSION_CHECK_DEFAULT = 15;
@@ -21,7 +23,7 @@ final class DemoSchedule
      *   update_enabled:bool,
      *   update_target:string,
      *   update:array{daily_at?:string,every?:int},
-     *   reseed:array{daily_at?:string,every?:int},
+     *   reseeds:list<array{daily_at?:string,every?:int}>,
      *   reseed_on_version:bool,
      *   version_check:array{every:int},
      *   keep_dumps:int,
@@ -36,19 +38,32 @@ final class DemoSchedule
             $w[] = 'update_target=' . $target . ' invalid → all';
             $target = 'all';
         }
-        $updateAt = self::time('update_at', self::UPDATE_AT, $w);
+        $updateAt = self::timeOne('update_at', self::UPDATE_AT, $w);
         $updateEvery = self::interval('update_every_min', 0, self::UPDATE_EVERY_MIN, $w);
-        $reseedAt = self::time('reseed_at', self::RESEED_AT, $w);
         $reseedEvery = self::interval('reseed_every_min', 0, self::RESEED_EVERY_MIN, $w);
+        $reseedTimes = self::timeMany('reseed_at', self::RESEED_AT, $w);
         $check = self::interval('version_check_every_min', self::VERSION_CHECK_DEFAULT, self::VERSION_CHECK_MIN, $w);
         if ($check < 1) {
             $check = self::VERSION_CHECK_DEFAULT;
         }
+
+        $reseeds = [];
+        if ($reseedEvery > 0) {
+            $reseeds[] = ['every' => $reseedEvery];
+        } else {
+            foreach ($reseedTimes as $t) {
+                $reseeds[] = ['daily_at' => $t];
+            }
+        }
+        if ($reseeds === []) {
+            $reseeds[] = ['daily_at' => '03:00'];
+        }
+
         return [
             'update_enabled' => self::flag('update_enabled', false),
             'update_target' => $target,
             'update' => $updateEvery > 0 ? ['every' => $updateEvery] : ['daily_at' => $updateAt],
-            'reseed' => $reseedEvery > 0 ? ['every' => $reseedEvery] : ['daily_at' => $reseedAt],
+            'reseeds' => $reseeds,
             'reseed_on_version' => self::flag('reseed_on_version', true),
             'version_check' => ['every' => $check],
             'keep_dumps' => max(1, min(20, (int)self::get('keep_dumps', '3'))),
@@ -72,15 +87,39 @@ final class DemoSchedule
     }
 
     /** @param list<string> $w */
-    private static function time(string $key, string $default, array &$w): string
+    private static function timeOne(string $key, string $default, array &$w): string
+    {
+        $list = self::timeMany($key, $default, $w);
+        return $list[0] ?? '03:00';
+    }
+
+    /**
+     * @param list<string> $w
+     * @return list<string>
+     */
+    private static function timeMany(string $key, string $default, array &$w): array
     {
         $raw = trim((string)self::get($key, $default));
-        $norm = self::normalizeTime($raw);
-        if ($norm === null) {
-            $w[] = $key . '=' . $raw . ' invalid → ' . $default;
-            return $default;
+        $parts = preg_split('/[\s,;]+/', $raw) ?: [];
+        $out = [];
+        foreach ($parts as $part) {
+            $part = trim((string)$part);
+            if ($part === '') {
+                continue;
+            }
+            $norm = self::normalizeTime($part);
+            if ($norm === null) {
+                $w[] = $key . '=' . $part . ' invalid (skipped)';
+                continue;
+            }
+            $out[$norm] = true;
         }
-        return $norm;
+        if ($out === []) {
+            $fallback = self::normalizeTime(explode(',', $default)[0]) ?? '03:00';
+            $w[] = $key . '=' . $raw . ' empty/invalid → ' . $fallback;
+            return [$fallback];
+        }
+        return array_keys($out);
     }
 
     /**

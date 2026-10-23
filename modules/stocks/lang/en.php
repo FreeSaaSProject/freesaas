@@ -4,7 +4,7 @@ declare(strict_types=1);
 return [
     'stocks.module.name' => 'Warehouses',
     'stocks.menu.list' => 'Warehouses',
-    'stocks.menu.leftovers' => 'Leftovers',
+    'stocks.menu.leftovers' => 'Stock levels',
     'stocks.perm.view' => 'Warehouses (view)',
     'stocks.perm.edit' => 'Warehouses (edit)',
     'stocks.list.search_placeholder' => 'Search: code, description, id',
@@ -32,7 +32,7 @@ return [
     'stocks.err.autocontrol_needs_vrt' => 'Autocontrol requires a virtual warehouse',
     'stocks.err.vrt_invalid' => 'Select an existing virtual warehouse',
     'stocks.err.vrt_in_use' => 'This virtual warehouse is already linked',
-    'stocks.leftovers.title' => 'Leftovers',
+    'stocks.leftovers.title' => 'Stock levels',
     'stocks.leftovers.empty' => 'No sticker data (enable stickers and create receipts)',
     'stocks.leftovers.show_all' => 'Show zero rows',
     'stocks.leftovers.col.good' => 'Product',

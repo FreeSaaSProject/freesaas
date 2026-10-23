@@ -4,6 +4,10 @@
 
 Modular PHP platform: enable CRM, shifts, finance, booking, banks, audio analytics, and more as filesystem modules. Agents install, configure, verify, and extend the system via CLI, `/agent/*`, and MCP — without browser automation.
 
+- **Website:** [freesaas.ru](https://freesaas.ru) ([English](https://freesaas.ru/en/))
+- **Live demo:** [demoru.freesaas.ru](https://demoru.freesaas.ru) (Russian) · [demoen.freesaas.ru](https://demoen.freesaas.ru) (English) — opens already signed in, read-only, demo data is reset regularly
+- **Contacts:** [msms2003@mail.ru](mailto:msms2003@mail.ru) · Telegram [@starcomm](https://t.me/starcomm) · bugs and feature requests — [GitHub Issues](https://github.com/FreeSaaSProject/freesaas/issues/new/choose)
+
 Human architecture guide: [docs/GUIDE.md](docs/GUIDE.md).  
 Agent rules: [AGENTS.md](AGENTS.md). Quick path: [docs/agents/QUICKSTART.md](docs/agents/QUICKSTART.md).
 
@@ -54,6 +58,16 @@ php bin/smoke.php --format=json
 
 - Runtime tables: `base_*` only.
 - Modules live in `modules/<id>/` with `module.json`.
+
+## Contacts
+
+| Topic | Channel |
+|-------|---------|
+| General questions, partnership | [msms2003@mail.ru](mailto:msms2003@mail.ru) |
+| Implementation | [msms2003@mail.ru](mailto:msms2003@mail.ru) or Telegram [@starcomm](https://t.me/starcomm) |
+| Bugs and feature requests | [GitHub Issues](https://github.com/FreeSaaSProject/freesaas/issues/new/choose) |
+
+More: [freesaas.ru/contacts](https://freesaas.ru/contacts/).
 
 ## Licensing
 

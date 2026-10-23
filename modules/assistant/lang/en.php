@@ -168,6 +168,7 @@ return [
     'assistant.confirm.cancelled_n' => 'Cancelled: {n}',
     'assistant.confirm.failed_n' => 'failed: {n}',
     'assistant.confirm.plan_order' => 'Earlier plan steps must complete first.',
+    'assistant.confirm.plan_broken' => 'Plan aborted: an earlier step did not succeed (cancelled, expired or failed) — dependent steps will not run.',
     'assistant.confirm.plan_running' => 'The plan is already running — wait for the result.',
     'assistant.confirm.skipped_n' => 'not run after a failure (cancelled): {n}',
     'assistant.relations.prompt' => 'Relation: after {when}, {check} is checked; remove/fix affected rows via {suggest} in the same plan. {hint}',

@@ -74,7 +74,7 @@ curl -sS -b jar.txt -H 'Accept: application/json' 'https://example/bi/shares'
 
 ### Editing rules for agents
 
-- **Titles, column labels, metric labels, `text.body`** = plain constructor text (UTF-8). Not module i18n keys.
+- **Titles:** shipped recipe `title` may be an i18n key (`bi.recipe.*`, no spaces) — resolved via `ReportRegistry::displayTitle()` / locale. Custom DB recipes stay plain UTF-8 text. Column/metric labels and `text.body` remain plain constructor text.
 - **`type: text`** bodies are validated (`BiText`): no HTML/PHP/event handlers/template injection; rendered with `e_nl`.
 - **Expr `acronym`** = plain shortName text. **Expr `badge`** = safe token → colored `UsersRepository::badgeHtml` at render (also column `format: user_badge` + `user_field`).
 - Ship overrides: save with a **shipped** `family_id` → DB override; `action=delete` + `def_id` restores the file from owning module.

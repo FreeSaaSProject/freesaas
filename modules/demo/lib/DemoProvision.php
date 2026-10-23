@@ -45,6 +45,8 @@ final class DemoProvision
                 }
             }
         }
+        // Guest must not open Updates UI (route 403, not empty page).
+        unset($perms['updates.view'], $perms['updates.apply']);
         if (isset(ModuleManager::all()['core'])) {
             $perms['core.news'] = 1;
             $perms['core.users'] = 1;
