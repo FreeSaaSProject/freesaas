@@ -72,7 +72,7 @@ More: [freesaas.ru/contacts](https://freesaas.ru/contacts/).
 
 ## Licensing
 
-FreeSaaS is dual-licensed:
+FreeSaaS is dual-licensed (see also [NOTICE](NOTICE)):
 
 - **Open source:** [GNU Affero General Public License v3 or later](LICENSE) (`AGPL-3.0-or-later`).
 - **Commercial:** optional license from the copyright holder for use, modification, integration, or distribution without AGPL obligations — see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).

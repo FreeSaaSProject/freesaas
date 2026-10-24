@@ -1,0 +1,10 @@
+Copyright (C) 2026 Ilya Kleshnin
+
+FreeSaaS is dual-licensed:
+
+1. GNU Affero General Public License v3 or later — see [`LICENSE`](LICENSE)
+   (`AGPL-3.0-or-later`).
+2. Optional commercial license from the copyright holder — see
+   [`COMMERCIAL-LICENSE.md`](COMMERCIAL-LICENSE.md).
+
+Third-party components are listed in [`THIRD_PARTY.md`](THIRD_PARTY.md).
