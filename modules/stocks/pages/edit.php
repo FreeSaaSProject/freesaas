@@ -70,10 +70,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $row = array_merge($row, [
             'name' => (string)($_POST['name'] ?? ''),
             'descr' => (string)($_POST['descr'] ?? ''),
-            'type' => (int)($_POST['type'] ?? 1),
             'operative' => !empty($_POST['operative']) ? 1 : 0,
-            'autocontrol_req' => !empty($_POST['autocontrol_req']) ? 1 : 0,
-            'vrt_stock_id' => (int)($_POST['vrt_stock_id'] ?? 0),
             'id_cabinet' => (int)($_POST['id_cabinet'] ?? 0),
         ]);
     }
@@ -89,10 +86,6 @@ if (class_exists('CabinetsRepository', false) && ModuleManager::isEnabled('cabin
         $cabinets[(int)$c['id']] = (string)$c['name'];
     }
 }
-$virtualStocks = StocksRepository::names(StocksRepository::TYPE_VIRTUAL);
-if (!$isNew) {
-    unset($virtualStocks[$id]);
-}
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -100,7 +93,7 @@ if ($wantsJson) {
         'is_new' => $isNew,
         'item' => $row,
         'cabinets' => $cabinets,
-        'virtual_stocks' => $virtualStocks,
+        'default_stock_id' => StocksRepository::defaultForStaff(),
     ]);
     return;
 }
@@ -112,7 +105,6 @@ View::render('edit', [
     'isNew' => $isNew,
     'row' => $row,
     'cabinets' => $cabinets,
-    'virtualStocks' => $virtualStocks,
     'message' => $message,
     'error' => $error,
 ], 'layout', 'stocks');

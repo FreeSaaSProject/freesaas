@@ -32,39 +32,18 @@ final class CoachWindows
             if ($sid < 1) {
                 continue;
             }
-            if (!empty($sf['silent']) || !empty($sf['trigger_gap']) || !empty($sf['weak_start'])) {
-                // Head of day records — missing / incomplete start phrasing
-                $kind = !empty($sf['weak_start']) ? 'weak_start' : 'trigger_gap';
-                $n = 0;
-                foreach ($recordIds as $rid) {
-                    if (count($windows) >= self::MAX_WINDOWS) {
-                        break;
-                    }
-                    $rid = (int)$rid;
-                    $lines = self::recordHeadLines($rid, self::HEAD_LINES);
-                    if ($lines === []) {
-                        continue;
-                    }
-                    $windows[] = [
-                        'kind' => $kind,
-                        'script_id' => $sid,
-                        'script_name' => (string)($sf['name'] ?? ''),
-                        'record_id' => $rid,
-                        'part_ids' => array_map(
-                            static fn ($tp) => (int)($tp['part_id'] ?? 0),
-                            is_array($sf['trigger_parts'] ?? null) ? $sf['trigger_parts'] : []
-                        ),
-                        'lines' => $lines,
-                        'hint' => $kind === 'weak_start'
-                            ? 'Trigger dict keys already hit often, but few script collections started. Propose synonyms so BOTH start-gate parts can meet diversity/min in the same talk.'
-                            : 'Start-gate phrases may be missing from speech.',
-                    ];
-                    $n++;
-                    if ($n >= 4) {
-                        break;
-                    }
-                }
-            }
+            $triggerPartIds = array_map(
+                static fn ($tp) => (int)($tp['part_id'] ?? 0),
+                is_array($sf['trigger_parts'] ?? null) ? $sf['trigger_parts'] : []
+            );
+
+            // Prefer evidence-rich session windows first (incomplete / stage_gaps),
+            // then procedure missed_starts, then generic day-head trigger fillers.
+            // Old order filled MAX_WINDOWS with trigger_gap and starved stage_gaps.
+            $missedUsed = [];
+            $hasSessionWork = (is_array($sf['incomplete'] ?? null) && $sf['incomplete'] !== [])
+                || (is_array($sf['stage_gaps'] ?? null) && $sf['stage_gaps'] !== [])
+                || !empty($sf['force_enrich']);
 
             foreach (is_array($sf['incomplete'] ?? null) ? $sf['incomplete'] : [] as $inc) {
                 if (count($windows) >= self::MAX_WINDOWS) {
@@ -74,31 +53,193 @@ final class CoachWindows
                 if ($missIds === []) {
                     continue;
                 }
-                $dtStart = (int)($inc['dt_start'] ?? 0);
-                $dtEnd = (int)($inc['dt_end'] ?? 0);
-                if ($dtEnd < 1) {
-                    $dtEnd = $dtStart + 600;
-                }
-                $lines = self::linesAroundTime(
+                $sessionWin = self::sessionWindow(
                     (int)($facts['admin_id'] ?? 0),
-                    $dtStart - 30,
-                    $dtEnd + 30
+                    $inc,
+                    $sid,
+                    (string)($sf['name'] ?? ''),
+                    'incomplete',
+                    array_values(array_map('intval', $missIds)),
+                    ''
                 );
-                if ($lines === []) {
+                if ($sessionWin !== null) {
+                    $windows[] = $sessionWin;
+                }
+            }
+
+            // Hard: finished episodes that still miss mid/late stages.
+            foreach (is_array($sf['stage_gaps'] ?? null) ? $sf['stage_gaps'] : [] as $gap) {
+                if (count($windows) >= self::MAX_WINDOWS) {
+                    break 2;
+                }
+                $missIds = is_array($gap['miss_part_ids'] ?? null) ? $gap['miss_part_ids'] : [];
+                if ($missIds === []) {
                     continue;
                 }
-                $windows[] = [
-                    'kind' => 'incomplete',
-                    'script_id' => $sid,
-                    'script_name' => (string)($sf['name'] ?? ''),
-                    'collection_id' => (int)($inc['collection_id'] ?? 0),
-                    'part_ids' => array_values(array_map('intval', $missIds)),
-                    'lines' => $lines,
-                ];
+                $sessionWin = self::sessionWindow(
+                    (int)($facts['admin_id'] ?? 0),
+                    $gap,
+                    $sid,
+                    (string)($sf['name'] ?? ''),
+                    'stage_gap',
+                    array_values(array_map('intval', $missIds)),
+                    'Finished session still missing these stages. Mine ASR forms that match '
+                        . 'sample_keys for the missed parts.'
+                );
+                if ($sessionWin !== null) {
+                    $windows[] = $sessionWin;
+                }
+            }
+
+            // Hard + fully covered day: still sample finished sessions for every enrichable part.
+            if (!empty($sf['force_enrich'])) {
+                $allPartIds = is_array($sf['enrichable_part_ids'] ?? null)
+                    ? array_values(array_map('intval', $sf['enrichable_part_ids']))
+                    : [];
+                $nForce = 0;
+                foreach (is_array($sf['force_sessions'] ?? null) ? $sf['force_sessions'] : [] as $fs) {
+                    if (count($windows) >= self::MAX_WINDOWS || $nForce >= 4) {
+                        break;
+                    }
+                    if ($allPartIds === []) {
+                        break;
+                    }
+                    $sessionWin = self::sessionWindow(
+                        (int)($facts['admin_id'] ?? 0),
+                        $fs,
+                        $sid,
+                        (string)($sf['name'] ?? ''),
+                        'stage_enrich',
+                        $allPartIds,
+                        'Day looks covered (starts/finishes OK). Still look for ASR variants '
+                            . 'that could strengthen each stage dictionary — compare lines to sample_keys.'
+                    );
+                    if ($sessionWin === null) {
+                        continue;
+                    }
+                    $windows[] = $sessionWin;
+                    $nForce++;
+                }
+            }
+
+            // Procedure gaps without start-gate hits (likely ASR ≠ dictionary samples).
+            foreach (is_array($sf['missed_starts'] ?? null) ? $sf['missed_starts'] : [] as $ms) {
+                if (count($windows) >= self::MAX_WINDOWS) {
+                    break;
+                }
+                $msRecords = is_array($ms['record_ids'] ?? null) ? $ms['record_ids'] : [];
+                $added = 0;
+                foreach ($msRecords as $rid) {
+                    if (count($windows) >= self::MAX_WINDOWS || $added >= 2) {
+                        break;
+                    }
+                    $rid = (int)$rid;
+                    if ($rid < 1 || isset($missedUsed[$rid])) {
+                        continue;
+                    }
+                    $lines = self::recordHeadLines($rid, self::HEAD_LINES);
+                    if ($lines === []) {
+                        continue;
+                    }
+                    $missedUsed[$rid] = true;
+                    $added++;
+                    $windows[] = [
+                        'kind' => 'missed_start',
+                        'script_id' => $sid,
+                        'script_name' => (string)($sf['name'] ?? ''),
+                        'record_id' => $rid,
+                        'procedure_id' => (int)($ms['procedure_id'] ?? 0),
+                        'procedure_name' => (string)($ms['procedure_name'] ?? ''),
+                        'part_ids' => $triggerPartIds,
+                        'lines' => $lines,
+                        'hint' => 'Paid procedure without a script session: no start-gate hits near the start. '
+                            . 'Compare these lines to trigger dictionary sample_keys; propose ASR forms '
+                            . 'that match sample intent but were not detected.',
+                    ];
+                }
+            }
+
+            $needGenericStart = !empty($sf['silent']) || !empty($sf['weak_start'])
+                || (!empty($sf['trigger_gap']) && $missedUsed === []);
+            if ($needGenericStart) {
+                // Head of day records — missing / incomplete start phrasing.
+                // Cap lower when we already have session windows so soft stage work fits.
+                $kind = !empty($sf['weak_start']) ? 'weak_start' : 'trigger_gap';
+                $startCap = $hasSessionWork ? 2 : 4;
+                $n = 0;
+                foreach ($recordIds as $rid) {
+                    if (count($windows) >= self::MAX_WINDOWS) {
+                        break;
+                    }
+                    $rid = (int)$rid;
+                    if (isset($missedUsed[$rid])) {
+                        continue;
+                    }
+                    $lines = self::recordHeadLines($rid, self::HEAD_LINES);
+                    if ($lines === []) {
+                        continue;
+                    }
+                    $windows[] = [
+                        'kind' => $kind,
+                        'script_id' => $sid,
+                        'script_name' => (string)($sf['name'] ?? ''),
+                        'record_id' => $rid,
+                        'part_ids' => $triggerPartIds,
+                        'lines' => $lines,
+                        'hint' => $kind === 'weak_start'
+                            ? 'Trigger dict keys already hit often, but few script collections started. Propose synonyms so BOTH start-gate parts can meet diversity/min in the same talk.'
+                            : 'Start-gate phrases may be missing from speech.',
+                    ];
+                    $n++;
+                    if ($n >= $startCap) {
+                        break;
+                    }
+                }
             }
         }
 
         return ['windows' => $windows];
+    }
+
+    /**
+     * @param array<string,mixed> $session
+     * @param list<int> $partIds
+     * @return array<string,mixed>|null
+     */
+    private static function sessionWindow(
+        int $adminId,
+        array $session,
+        int $scriptId,
+        string $scriptName,
+        string $kind,
+        array $partIds,
+        string $hint
+    ): ?array {
+        if ($partIds === []) {
+            return null;
+        }
+        $dtStart = (int)($session['dt_start'] ?? 0);
+        $dtEnd = (int)($session['dt_end'] ?? 0);
+        if ($dtEnd < 1) {
+            $dtEnd = $dtStart + 600;
+        }
+        $lines = self::linesAroundTime($adminId, $dtStart - 30, $dtEnd + 30);
+        if ($lines === []) {
+            return null;
+        }
+        $out = [
+            'kind' => $kind,
+            'script_id' => $scriptId,
+            'script_name' => $scriptName,
+            'collection_id' => (int)($session['collection_id'] ?? 0),
+            'part_ids' => $partIds,
+            'lines' => $lines,
+        ];
+        if ($hint !== '') {
+            $out['hint'] = $hint;
+        }
+
+        return $out;
     }
 
     /**

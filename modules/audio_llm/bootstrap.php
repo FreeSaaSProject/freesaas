@@ -51,10 +51,22 @@ EventBus::on('audio.settings.sections', static function ($payload) {
     if (!Auth::capability('SUPERADMIN_ACCESS')) {
         return $payload;
     }
-    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_moderation', [
-        'systemPrompt' => ReviewModerationConfig::storedSystemPrompt(),
-        'userPrompt' => ReviewModerationConfig::storedUserPrompt(),
-    ], 'audio_llm');
+    if (!isset($payload['sections']) || !is_array($payload['sections'])) {
+        $payload['sections'] = [];
+    }
+    $payload['sections'][] = [
+        'id' => 'moderation',
+        'title' => 'audio_llm.moderation.settings.legend',
+        'weight' => 20,
+        'html' => View::capture('_settings_moderation', [
+            'systemPrompt' => ReviewModerationConfig::systemPrompt(),
+            'userPrompt' => ReviewModerationConfig::userPrompt(),
+            'systemIsDefault' => trim(ReviewModerationConfig::storedSystemPrompt()) === '',
+            'userIsDefault' => trim(ReviewModerationConfig::storedUserPrompt()) === '',
+            'defaultSystemPrompt' => ReviewModerationConfig::defaultSystemPrompt(),
+            'defaultUserPrompt' => ReviewModerationConfig::defaultUserPrompt(),
+        ], 'audio_llm'),
+    ];
     return $payload;
 });
 
@@ -64,6 +76,10 @@ EventBus::on('audio.settings.save', static function ($payload) {
     }
     $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
     if (!isset($post['audio_llm_moderation_save'])) {
+        return $payload;
+    }
+    if (!empty($post['audio_llm_moderation_reset'])) {
+        ReviewModerationConfig::save('', '');
         return $payload;
     }
     ReviewModerationConfig::save(

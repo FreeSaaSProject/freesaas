@@ -44,11 +44,19 @@ final class DbJobs
             $willGzip = function_exists('gzopen');
             // Plain .sql during dump (fast, seekable). Single-member gzip at end (level 5).
             // Do NOT stream gzopen('ab') across ticks — multi-member gzip breaks restore offsets (1062).
-            $basenameSql = $stamp . '.sql';
+            $label = DbFs::sanitizeDumpLabel((string)($opts['label'] ?? ''));
+            $base = $stamp . ($label !== '' ? '-' . $label : '');
+            $basenameSql = $base . '.sql';
             $pathSql = $dir . '/' . $basenameSql;
+            if (is_file($pathSql) || is_file($pathSql . '.gz') || is_file($dir . '/' . $base . '.sql.gz')) {
+                $base .= '-' . substr(bin2hex(random_bytes(3)), 0, 6);
+                $basenameSql = $base . '.sql';
+                $pathSql = $dir . '/' . $basenameSql;
+            }
             $header = "-- FreeSaaS DB dump\n"
                 . '-- Generated: ' . date('c') . "\n"
                 . '-- Database: ' . (string)Config::get('connect', 'dbase', '') . "\n"
+                . ($label !== '' ? ('-- Label: ' . $label . "\n") : '')
                 . '-- Tables: ' . implode(', ', $tables) . "\n"
                 . '-- Compression: ' . ($willGzip ? ('gzip level ' . DbDump::GZIP_LEVEL . ' (single-member finalize)') : 'none') . "\n"
                 . "-- Statement end: TAB+semicolon (Sypex-compatible)\n\n"
@@ -60,7 +68,8 @@ final class DbJobs
             $rowEst = array_sum($tableRows);
             $job['tables'] = $tables;
             $job['tables_total'] = count($tables);
-            $job['file'] = $willGzip ? ($stamp . '.sql.gz') : $basenameSql;
+            $job['label'] = $label;
+            $job['file'] = $willGzip ? ($base . '.sql.gz') : $basenameSql;
             $job['path'] = $pathSql;
             $job['sql_path'] = $pathSql;
             $job['gzip'] = false;

@@ -30,9 +30,9 @@ final class CalendarWidgets
      */
     public static function proceduresTodayActive(?int $staffId = null): array
     {
-        $dayStart = strtotime('today 00:00:00') ?: time();
+        $dayStart = DemoMode::dayStart();
         $dayEnd = $dayStart + 86400;
-        $now = time();
+        $now = DemoMode::now();
         $all = ProceduresRepository::listForDayRange($dayStart, $dayEnd, $staffId);
         $out = [];
         foreach ($all as $row) {
@@ -55,9 +55,9 @@ final class CalendarWidgets
      */
     public static function eventsTodayActive(?int $staffId = null, bool $includeBlocks = false): array
     {
-        $dayStart = strtotime('today 00:00:00') ?: time();
+        $dayStart = DemoMode::dayStart();
         $dayEnd = $dayStart + 86400;
-        $now = time();
+        $now = DemoMode::now();
         $all = EventsRepository::listForDayRange($dayStart, $dayEnd, $staffId);
         $out = [];
         foreach ($all as $row) {
@@ -83,6 +83,7 @@ final class CalendarWidgets
      */
     public static function todayFeed(?int $staffId, int $limit): array
     {
+        $now = DemoMode::now();
         $items = [];
         foreach (self::proceduresTodayActive($staffId) as $pr) {
             $items[] = [
@@ -92,7 +93,7 @@ final class CalendarWidgets
                 'dtend' => (int)($pr['dtend'] ?? 0),
                 'label' => self::procedureLabel($pr),
                 'operator_name' => (string)($pr['operator_name'] ?? ''),
-                'ongoing' => (int)($pr['dtstart'] ?? 0) <= time() && (int)($pr['dtend'] ?? 0) > time(),
+                'ongoing' => (int)($pr['dtstart'] ?? 0) <= $now && (int)($pr['dtend'] ?? 0) > $now,
                 'href' => '/procedures/' . (int)($pr['id'] ?? 0) . '/edit',
             ];
         }
@@ -108,7 +109,7 @@ final class CalendarWidgets
                 'dtend' => (int)($ev['dtend'] ?? 0),
                 'label' => $label,
                 'operator_name' => (string)($ev['operator_name'] ?? ''),
-                'ongoing' => (int)($ev['dtstart'] ?? 0) <= time() && (int)($ev['dtend'] ?? 0) > time(),
+                'ongoing' => (int)($ev['dtstart'] ?? 0) <= $now && (int)($ev['dtend'] ?? 0) > $now,
                 'href' => Auth::can('calendar.edit') && $id > 0
                     ? '/calendar/events/' . $id . '/edit'
                     : EventsRepository::dayUrl((int)($ev['dtstart'] ?? 0)),

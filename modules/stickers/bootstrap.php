@@ -213,3 +213,96 @@ EventBus::on('bots.ready', static function ($payload) use ($registerStickersBots
     $registerStickersBots();
     return is_array($payload) ? $payload : [];
 });
+
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $ids = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    if (isset($ids['stickers.receipts.create']) || isset($ids['stickers.ins.create'])) {
+        $hints[] = t('stickers.assistant.hint.receipt');
+    }
+    $payload['hints'] = $hints;
+    return $payload;
+});
+
+EventBus::on('assistant.write.preview', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $opId = (string)($payload['op_id'] ?? '');
+    if ($opId !== 'stickers.receipts.create' && $opId !== 'stickers.ins.create') {
+        return $payload;
+    }
+    $args = is_array($payload['args'] ?? null) ? $payload['args'] : [];
+    $lines = is_array($payload['lines'] ?? null) ? $payload['lines'] : [];
+    if ($opId === 'stickers.receipts.create') {
+        $stockId = (int)($args['id_stock'] ?? 0);
+        $supplierId = (int)($args['id_supplier'] ?? 0);
+        $stockName = '';
+        if ($stockId > 0 && class_exists('StocksRepository', false)) {
+            $names = StocksRepository::names();
+            $stockName = (string)($names[$stockId] ?? '');
+        }
+        $supplierName = '';
+        if ($supplierId > 0 && class_exists('SuppliersRepository', false)) {
+            $names = SuppliersRepository::names(true);
+            $supplierName = (string)($names[$supplierId] ?? '');
+        }
+        $descr = trim((string)($args['descr'] ?? ''));
+        $lines[] = t('stickers.assistant.preview.receipt_header', [
+            'stock' => $stockName !== '' ? $stockName : ('#' . $stockId),
+            'supplier' => $supplierName !== '' ? $supplierName : ($supplierId > 0 ? ('#' . $supplierId) : '—'),
+            'descr' => $descr !== '' ? $descr : '—',
+        ]);
+        $lineRows = Acts2InRepository::linesFromPost($args);
+        foreach ($lineRows as $i => $line) {
+            if (!is_array($line)) {
+                continue;
+            }
+            $goodQ = trim((string)($line['good_q'] ?? ''));
+            $goodId = (int)($line['id_good'] ?? 0);
+            $goodLabel = $goodQ;
+            if ($goodLabel === '' && $goodId > 0 && class_exists('ProductsRepository', false)) {
+                $pr = ProductsRepository::find($goodId);
+                $goodLabel = is_array($pr) ? (string)($pr['name'] ?? '') : '';
+            }
+            if ($goodLabel === '') {
+                $goodLabel = $goodId > 0 ? ('#' . $goodId) : '?';
+            }
+            $qty = max(1, (int)($line['qty'] ?? 1));
+            $price = (float)str_replace(',', '.', (string)($line['price'] ?? '0'));
+            $lines[] = t('stickers.assistant.preview.receipt_line', [
+                'n' => $i + 1,
+                'good' => $goodLabel,
+                'qty' => $qty,
+                'price' => rtrim(rtrim(number_format($price, 2, '.', ''), '0'), '.') ?: '0',
+                'sum' => rtrim(rtrim(number_format($price * $qty, 2, '.', ''), '0'), '.') ?: '0',
+            ]);
+        }
+        if ($lineRows === []) {
+            $lines[] = t('stickers.assistant.preview.receipt_no_lines');
+        }
+    } else {
+        $actId = (int)($args['id_act'] ?? 0);
+        $goodQ = trim((string)($args['good_q'] ?? ''));
+        $goodId = (int)($args['id_good'] ?? 0);
+        $goodLabel = $goodQ;
+        if ($goodLabel === '' && $goodId > 0 && class_exists('ProductsRepository', false)) {
+            $pr = ProductsRepository::find($goodId);
+            $goodLabel = is_array($pr) ? (string)($pr['name'] ?? '') : '';
+        }
+        $qty = max(1, (int)($args['qty'] ?? 1));
+        $price = (float)str_replace(',', '.', (string)($args['price'] ?? '0'));
+        $lines[] = t('stickers.assistant.preview.ins_line', [
+            'act' => $actId > 0 ? ('#' . $actId) : (string)($args['id_act'] ?? '?'),
+            'good' => $goodLabel !== '' ? $goodLabel : ($goodId > 0 ? ('#' . $goodId) : '?'),
+            'qty' => $qty,
+            'price' => rtrim(rtrim(number_format($price, 2, '.', ''), '0'), '.') ?: '0',
+        ]);
+    }
+    $payload['lines'] = $lines;
+    $payload['handled'] = true;
+    return $payload;
+});

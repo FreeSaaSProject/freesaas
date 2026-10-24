@@ -26,6 +26,13 @@ ModuleManager::registerMenuGroup('procedures.menu.group', 300, '/procedures');
 $pages = [
     '/procedures' => ['permission' => 'procedures.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/procedures/day-stats' => ['permission' => 'procedures.view', 'methods' => ['GET'], 'file' => 'day_stats.php'],
+    '/procedures/set-admin' => [
+        // SUPERADMIN always passes Auth::capability; partners / partner-candidates
+        // get PARTNER_STA via secondary status (ID_STATUS2).
+        'capability' => 'PARTNER_STA',
+        'methods' => ['POST'],
+        'file' => 'set_admin.php',
+    ],
     '/procedures/new' => ['permission' => 'procedures.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/procedures/{id}' => ['permission' => 'procedures.edit', 'methods' => ['GET'], 'file' => 'edit_redirect.php'],
     '/procedures/{id}/edit' => ['permission' => 'procedures.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
@@ -36,15 +43,33 @@ $pages = [
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'procedures',
         'methods' => $def['methods'],
-        'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/procedures/pages/' . $file);
         },
-    ]);
+    ];
+    if (!empty($def['capability'])) {
+        $route['capability'] = (string)$def['capability'];
+    } else {
+        $route['permission'] = (string)($def['permission'] ?? '');
+    }
+    ModuleManager::registerRoute($path, $route);
 }
+
+EventBus::on('assistant.system.hints', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    $ids = is_array($payload['op_ids'] ?? null) ? $payload['op_ids'] : [];
+    $hints = is_array($payload['hints'] ?? null) ? $payload['hints'] : [];
+    if (isset($ids['procedures.set_admin'])) {
+        $hints[] = t('procedures.assistant.hint.set_admin');
+    }
+    $payload['hints'] = $hints;
+    return $payload;
+});
 
 BulkActions::register('procedures', 'delete', [
     'label' => 'core.bulk.delete',
@@ -57,7 +82,7 @@ BulkActions::register('procedures', 'delete', [
 
 BulkActions::register('procedures', 'set_admin', [
     'label' => 'procedures.bulk.set_admin',
-    'capability' => 'SUPERADMIN_ACCESS',
+    'capability' => 'PARTNER_STA',
     'fields' => [
         [
             'name' => 'admin_id',

@@ -103,15 +103,23 @@ EventBus::on('audio.settings.sections', static function ($payload) {
     if (!Auth::capability('SUPERADMIN_ACCESS')) {
         return $payload;
     }
-    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_phrases', [
-        'withReparse' => AudioPhrasesConfig::withReparse(),
-        'cronEnabled' => AudioPhrasesConfig::cronEnabled(),
-        'words' => AudioPhrasesConfig::words(),
-        'minInstances' => AudioPhrasesConfig::minInstances(),
-        'deltaSurround' => AudioPhrasesConfig::deltaSurround(),
-        'dailyAt' => AudioPhrasesConfig::dailyAt(),
-        'backfillDays' => AudioPhrasesConfig::backfillDays(),
-    ], 'audio_phrases');
+    if (!isset($payload['sections']) || !is_array($payload['sections'])) {
+        $payload['sections'] = [];
+    }
+    $payload['sections'][] = [
+        'id' => 'phrases',
+        'title' => 'audio_phrases.settings.legend',
+        'weight' => 30,
+        'html' => View::capture('_settings_phrases', [
+            'withReparse' => AudioPhrasesConfig::withReparse(),
+            'cronEnabled' => AudioPhrasesConfig::cronEnabled(),
+            'words' => AudioPhrasesConfig::words(),
+            'minInstances' => AudioPhrasesConfig::minInstances(),
+            'deltaSurround' => AudioPhrasesConfig::deltaSurround(),
+            'dailyAt' => AudioPhrasesConfig::dailyAt(),
+            'backfillDays' => AudioPhrasesConfig::backfillDays(),
+        ], 'audio_phrases'),
+    ];
     return $payload;
 });
 

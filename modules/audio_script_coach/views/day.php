@@ -24,6 +24,19 @@ declare(strict_types=1);
     <input type="hidden" name="action" value="start">
     <input type="hidden" name="admin" value="<?= (int)$adminId ?>">
     <input type="hidden" name="date" value="<?= e($date) ?>">
+    <fieldset class="asc-depth">
+      <legend><?= te('audio_script_coach.depth.label') ?></legend>
+      <label class="asc-depth-opt">
+        <input type="radio" name="depth" value="normal" checked>
+        <span><?= te('audio_script_coach.depth.normal') ?></span>
+        <span class="muted"><?= te('audio_script_coach.depth.normal_hint') ?></span>
+      </label>
+      <label class="asc-depth-opt">
+        <input type="radio" name="depth" value="hard">
+        <span><?= te('audio_script_coach.depth.hard') ?></span>
+        <span class="muted"><?= te('audio_script_coach.depth.hard_hint') ?></span>
+      </label>
+    </fieldset>
     <button type="submit" class="btn"><?= te('audio_script_coach.day.start') ?></button>
   </form>
 <?php else: ?>
@@ -38,6 +51,7 @@ declare(strict_types=1);
         <?= te('audio_script_coach.day.open_run', ['id' => (string)(int)$latest['id']]) ?>
       </a>
       · <?= te('audio_script_coach.status.' . (int)$latest['status']) ?>
+      · <?= te('audio_script_coach.depth.' . CoachRunsRepository::normalizeDepth((string)($latest['depth'] ?? 'normal'))) ?>
       · <?= e((string)($latest['phase'] ?? '')) ?>
     </p>
   </section>

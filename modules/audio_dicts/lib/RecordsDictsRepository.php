@@ -3,10 +3,18 @@ declare(strict_types=1);
 
 final class RecordsDictsRepository
 {
+    /** Intent / notes field length (independent of llm). */
+    public const DESCR_MAX = 200;
+
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
-        return ['id' => 'ID', 'name' => 'NAME', 'disabled' => 'DISABLED'];
+        $map = ['id' => 'd.ID', 'name' => 'd.NAME', 'disabled' => 'd.DISABLED'];
+        if (Database::tableExists('base_records_keys')) {
+            $map['keys'] = 'key_count';
+        }
+
+        return $map;
     }
 
     /**
@@ -23,7 +31,7 @@ final class RecordsDictsRepository
         $params = [];
         $q = trim((string)($opts['q'] ?? ''));
         if ($q !== '') {
-            $where[] = '(NAME LIKE ? OR DESCR LIKE ? OR TRACKING_CODE LIKE ? OR CAST(ID AS CHAR) = ?)';
+            $where[] = '(d.NAME LIKE ? OR d.DESCR LIKE ? OR d.TRACKING_CODE LIKE ? OR CAST(d.ID AS CHAR) = ?)';
             $like = '%' . $q . '%';
             $params[] = $like;
             $params[] = $like;
@@ -31,22 +39,41 @@ final class RecordsDictsRepository
             $params[] = $q;
         }
         $sqlWhere = implode(' AND ', $where);
-        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_records_dictonarys WHERE $sqlWhere");
+        $stc = $pdo->prepare("SELECT COUNT(*) FROM base_records_dictonarys d WHERE $sqlWhere");
         $stc->execute($params);
         $total = (int)$stc->fetchColumn();
-        $order = trim((string)($opts['order'] ?? '')) ?: 'ID ASC';
+        $order = trim((string)($opts['order'] ?? '')) ?: 'd.ID ASC';
+        // Qualify bare columns only (do not touch already-aliased d.ID → d.d.ID).
+        $order = preg_replace('/(?<![.\w])ID\b/', 'd.ID', $order) ?? $order;
+        $order = preg_replace('/(?<![.\w])NAME\b/', 'd.NAME', $order) ?? $order;
+        $order = preg_replace('/(?<![.\w])DISABLED\b/', 'd.DISABLED', $order) ?? $order;
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
-        $sql = "SELECT ID AS id, DT_CREATE AS dt_create, NAME AS name, DESCR AS descr,
-                       COLOR AS color, COLOR_BACKGROUND AS color_background,
-                       DISABLED AS disabled, IS_REVIEW_REQ AS is_review_req,
-                       TRACKING_CODE AS tracking_code
-                FROM base_records_dictonarys WHERE $sqlWhere ORDER BY $order";
+        $keysJoin = '';
+        $keysSelect = ', 0 AS key_count';
+        if (Database::tableExists('base_records_keys')) {
+            $keysJoin = ' LEFT JOIN (
+                SELECT ID_DICTONARY AS dict_id, COUNT(*) AS cnt
+                FROM base_records_keys
+                GROUP BY ID_DICTONARY
+             ) kc ON kc.dict_id = d.ID';
+            $keysSelect = ', COALESCE(kc.cnt, 0) AS key_count';
+        }
+        $sql = "SELECT d.ID AS id, d.DT_CREATE AS dt_create, d.NAME AS name, d.DESCR AS descr,
+                       d.COLOR AS color, d.COLOR_BACKGROUND AS color_background,
+                       d.DISABLED AS disabled, d.IS_REVIEW_REQ AS is_review_req,
+                       d.TRACKING_CODE AS tracking_code
+                       {$keysSelect}
+                FROM base_records_dictonarys d
+                {$keysJoin}
+                WHERE $sqlWhere
+                ORDER BY $order";
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
         }
         $st = $pdo->prepare($sql);
         $st->execute($params);
+
         return ['items' => $st->fetchAll(PDO::FETCH_ASSOC) ?: [], 'total' => $total];
     }
 
@@ -259,7 +286,7 @@ final class RecordsDictsRepository
         }
         return [
             'name' => mb_substr($name, 0, 50),
-            'descr' => mb_substr(trim((string)($post['descr'] ?? '')), 0, 100),
+            'descr' => mb_substr(trim((string)($post['descr'] ?? '')), 0, self::DESCR_MAX),
             'color' => mb_substr(trim((string)($post['color'] ?? '')), 0, 10),
             'color_background' => mb_substr(trim((string)($post['color_background'] ?? '')), 0, 10),
             'disabled' => !empty($post['disabled']) ? 1 : 0,
@@ -297,6 +324,17 @@ final class RecordsDictsRepository
             $data['name'], $data['descr'], $data['color'], $data['color_background'],
             $data['disabled'], $data['is_review_req'], $data['id_position'], $data['tracking_code'], $id,
         ]);
+        EventBus::emit('audio_dicts.changed', ['entity' => 'dicts', 'id' => $id]);
+    }
+
+    public static function updateDescr(int $id, string $descr): void
+    {
+        if ($id < 1 || !Database::tableExists('base_records_dictonarys')) {
+            return;
+        }
+        $descr = mb_substr(trim($descr), 0, self::DESCR_MAX);
+        $st = Database::pdo()->prepare('UPDATE base_records_dictonarys SET DESCR=? WHERE ID=?');
+        $st->execute([$descr, $id]);
         EventBus::emit('audio_dicts.changed', ['entity' => 'dicts', 'id' => $id]);
     }
 

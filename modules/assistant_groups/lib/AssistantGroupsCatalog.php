@@ -8,15 +8,18 @@ declare(strict_types=1);
 final class AssistantGroupsCatalog
 {
     public const OP_CLEAR = 'assistant_groups.dialog.clear';
+    public const OP_CONFIRM = 'assistant_groups.pending.confirm';
+    public const OP_CANCEL = 'assistant_groups.pending.cancel';
 
     /**
-     * Always includes dialog.clear (local stub); product ops from group_ops allowlist.
+     * Always includes dialog.clear + pending confirm/cancel (local stubs);
+     * product ops from group_ops allowlist.
      *
      * @return list<array<string,mixed>>
      */
     public static function opsForGroup(): array
     {
-        $out = [self::clearDialogOp()];
+        $out = [self::clearDialogOp(), self::confirmPendingOp(), self::cancelPendingOp()];
         $patterns = AssistantGroupsConfig::groupOpsPatterns();
         if ($patterns === []) {
             return $out;
@@ -44,7 +47,7 @@ final class AssistantGroupsCatalog
             if ($side === 'write') {
                 $desc .= ' [CALL NOW to queue; manager must Confirm — do not claim it ran]';
             }
-            $out[] = [
+            $item = [
                 'id' => $id,
                 'method' => (string)$op['method'],
                 'path' => (string)$op['path'],
@@ -56,16 +59,28 @@ final class AssistantGroupsCatalog
                 'module' => (string)($op['module'] ?? ''),
                 'group_draft' => true,
             ];
+            $cap = trim((string)($op['capability'] ?? ''));
+            if ($cap !== '') {
+                $item['capability'] = $cap;
+            }
+            $out[] = $item;
         }
         usort($out, static function (array $a, array $b): int {
-            // Keep clear first so the model sees it; then alpha.
-            if ($a['id'] === self::OP_CLEAR) {
-                return -1;
+            $rank = static function (string $id): int {
+                if ($id === self::OP_CLEAR) {
+                    return 0;
+                }
+                if ($id === self::OP_CONFIRM || $id === self::OP_CANCEL) {
+                    return 1;
+                }
+                return 2;
+            };
+            $ra = $rank((string)$a['id']);
+            $rb = $rank((string)$b['id']);
+            if ($ra !== $rb) {
+                return $ra <=> $rb;
             }
-            if ($b['id'] === self::OP_CLEAR) {
-                return 1;
-            }
-            return strcmp($a['id'], $b['id']);
+            return strcmp((string)$a['id'], (string)$b['id']);
         });
         return $out;
     }
@@ -77,12 +92,32 @@ final class AssistantGroupsCatalog
      */
     public static function clearDialogOp(): array
     {
+        return self::localOp(self::OP_CLEAR, t('assistant_groups.tool.clear'));
+    }
+
+    /** Apply the live confirm draft in this chat (manager with op permission). */
+    public static function confirmPendingOp(): array
+    {
+        return self::localOp(self::OP_CONFIRM, t('assistant_groups.tool.confirm'));
+    }
+
+    /** Cancel the live confirm draft in this chat. */
+    public static function cancelPendingOp(): array
+    {
+        return self::localOp(self::OP_CANCEL, t('assistant_groups.tool.cancel'));
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private static function localOp(string $id, string $description): array
+    {
         return [
-            'id' => self::OP_CLEAR,
+            'id' => $id,
             'method' => 'POST',
             'path' => '',
             'permission' => '',
-            'description' => t('assistant_groups.tool.clear'),
+            'description' => $description,
             'side_effect' => 'read',
             'parameters' => [
                 'type' => 'object',
@@ -90,8 +125,8 @@ final class AssistantGroupsCatalog
                 'additionalProperties' => false,
             ],
             'function_name' => class_exists('AssistantTools', false)
-                ? AssistantTools::opIdToFunctionName(self::OP_CLEAR)
-                : 'assistant_groups__dialog__clear',
+                ? AssistantTools::opIdToFunctionName($id)
+                : str_replace('.', '__', $id),
             'module' => 'assistant_groups',
             'group_draft' => true,
             'local' => true,

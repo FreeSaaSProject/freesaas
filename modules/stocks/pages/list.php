@@ -4,10 +4,6 @@ declare(strict_types=1);
 $wantsJson = AgentHttp::wantsJson();
 
 $q = trim((string)($_GET['q'] ?? ''));
-$type = (string)($_GET['type'] ?? '');
-if (!in_array($type, ['', '1', '2'], true)) {
-    $type = '';
-}
 
 $lq = ListQuery::resolve([
     'list_id' => 'stocks',
@@ -19,7 +15,6 @@ $lq = ListQuery::resolve([
 
 $filters = array_merge([
     'q' => $q,
-    'type' => $type,
 ], $lq['query']);
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
@@ -29,7 +24,6 @@ BulkActions::tryHandle('stocks', '/stocks', $filters);
 
 $result = StocksRepository::list([
     'q' => $q,
-    'type' => $type === '' ? null : $type,
     'limit' => ListQuery::sqlLimit($lq),
     'offset' => $lq['offset'],
     'order' => $lq['order_sql'],
@@ -52,10 +46,10 @@ if ($wantsJson) {
         'items' => $result['items'],
         'filters' => [
             'q' => $q,
-            'type' => $type === '' ? null : $type,
         ],
         'cabinets' => $cabinets,
         'stock_names' => $stockNames,
+        'default_stock_id' => StocksRepository::defaultForStaff(),
         'page' => $lq['page'],
         'per_page' => $lq['per_page'],
         'show_all' => $lq['show_all'],
@@ -68,9 +62,7 @@ View::render('list', [
     'items' => $result['items'],
     'total' => $result['total'],
     'q' => $q,
-    'type' => $type,
     'cabinets' => $cabinets,
-    'stockNames' => $stockNames,
     'canEdit' => Auth::can('stocks.edit'),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],

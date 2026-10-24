@@ -49,7 +49,7 @@ final class CalendarTimelineEnrich
                 'is_super' => Auth::capability('SUPERADMIN_ACCESS'),
                 'show_admin_data' => Auth::capability('SHOW_ADMINISTRATOR_DATA')
                     || Auth::capability('SUPERADMIN_ACCESS'),
-                'now' => time(),
+                'now' => DemoMode::now(),
             ],
         ]);
 

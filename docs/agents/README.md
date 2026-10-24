@@ -46,6 +46,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [whisper-worker.md](whisper-worker.md) | Mac/GPU Whisper cabin pull client (`workers/whisper/`) |
 | [core.md](core.md) | Platform core: users, news, modules, help (`core.help.*`) |
 | [cases/](cases/) | Reproducible agent scenario benchmarks |
+| [showcase/](showcase/) | Real staff asks to Max (warehouse, shifts, vacation, calendar) |
 | [../skills/](../skills/) | Short agent skills (create-module, diagnose, …) |
 
 ### Product modules (`module.json` → `agent.docs`)

@@ -131,6 +131,11 @@ $pages = [
         'methods' => ['GET', 'POST'],
         'file' => 'cron.php',
     ],
+    '/ops/access-extend' => [
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'access_extend.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {

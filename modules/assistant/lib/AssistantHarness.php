@@ -425,7 +425,7 @@ final class AssistantHarness
                         $preview['lines'][] = $line;
                         $preview['summary'] .= "\n" . $line;
                     }
-                    $reqPerm = (string)($op['permission'] ?? '');
+                    $reqPerm = self::requirementForOp($op);
                     $row = PendingActionsRepository::create($userId, $opId, $args, $preview['summary'], [
                         'confirm_mode' => $confirmMode,
                         'required_permission' => $reqPerm,
@@ -468,8 +468,10 @@ final class AssistantHarness
                             'pending' => true,
                             'token' => $row['token'],
                             'plan_step' => $planStep,
+                            'plan_ref_id' => '{plan.' . $planStep . '.id}',
                             'message' => 'Write queued as plan step ' . $planStep
-                                . '. UI shows one Confirm/Cancel for the whole plan. Reply with ONE short sentence; do not invent Confirm text; do not claim it ran.',
+                                . '. UI shows one Confirm/Cancel for the whole plan. Reply with ONE short sentence; do not invent Confirm text; do not claim it ran.'
+                                . ' Dependent writes may use id={plan.' . $planStep . '.id} (resolved on confirm).',
                             'summary' => $preview['summary'],
                             'headline' => $preview['headline'],
                             'lines' => $preview['lines'],
@@ -775,7 +777,12 @@ final class AssistantHarness
         if ($lower === '' || (function_exists('mb_strlen') ? mb_strlen($lower) : strlen($lower)) > 40) {
             return null;
         }
-        if (preg_match('/^(confirm|подтверд(ить|аю|ждаю)?|ок|ok|готово|делай|оформляй|записывай|согласен)$/iu', $lower)) {
+        // RU: подтвердить (perf) vs подтверждаю (imperf) — stem is «подтвер», not «подтверд».
+        if (preg_match(
+            '/^(confirm|ok|ок|готово|делай|оформляй|записывай|согласен'
+            . '|подтвер(дить|ди|ждаю|ждает|жаем|жаете|дите))$/iu',
+            $lower
+        )) {
             return 'confirm';
         }
         if (preg_match('/^(cancel|отмена|отменить|отменяю|не надо)$/iu', $lower)) {
@@ -1022,8 +1029,8 @@ final class AssistantHarness
                     continue;
                 }
                 $perm = self::permissionForPendingRow($r);
-                if ($perm !== '' && !Auth::can($perm)) {
-                    $missing[$perm] = true;
+                if ($perm !== '' && !self::staffMayConfirm($perm)) {
+                    $missing[self::requirementLabel($perm)] = true;
                 }
             }
             if ($missing !== []) {
@@ -1122,10 +1129,58 @@ final class AssistantHarness
         $opId = (string)($row['OP_ID'] ?? '');
         foreach (AgentHttp::allOps() as $op) {
             if ((string)($op['id'] ?? '') === $opId) {
-                return (string)($op['permission'] ?? '');
+                return self::requirementForOp($op);
             }
         }
         return '';
+    }
+
+    /**
+     * Confirm gate for a write op: capability wins over permission when both are set.
+     * Encoded as "cap:FLAG" in REQUIRED_PERMISSION (no schema change).
+     *
+     * @param array<string,mixed> $op
+     */
+    public static function requirementForOp(array $op): string
+    {
+        $cap = trim((string)($op['capability'] ?? ''));
+        if ($cap !== '') {
+            return 'cap:' . $cap;
+        }
+        return trim((string)($op['permission'] ?? ''));
+    }
+
+    public static function staffMayConfirm(string $requirement): bool
+    {
+        $requirement = trim($requirement);
+        if ($requirement === '') {
+            return true;
+        }
+        if (stripos($requirement, 'cap:') === 0) {
+            $cap = trim(substr($requirement, 4));
+            return $cap === '' || Auth::capability($cap);
+        }
+        return Auth::can($requirement);
+    }
+
+    public static function requirementLabel(string $requirement): string
+    {
+        $requirement = trim($requirement);
+        if (stripos($requirement, 'cap:') === 0) {
+            $cap = trim(substr($requirement, 4));
+            if ($cap === '') {
+                return $requirement;
+            }
+            $key = 'assistant_groups.bot.cap.' . $cap;
+            if (function_exists('t')) {
+                $tr = t($key);
+                if ($tr !== '' && $tr !== $key) {
+                    return $tr;
+                }
+            }
+            return $cap;
+        }
+        return $requirement;
     }
 
     /** Human reply after single or batch confirm. */
@@ -1191,24 +1246,25 @@ final class AssistantHarness
                 return ['ok' => false, 'action' => $action, 'result' => null, 'error' => t('assistant.confirm.forbidden')];
             }
         } else {
-            // capability: any linked staff may cancel; confirm requires Auth::can(required_permission).
+            // capability: any linked staff may cancel; confirm requires permission or cap:FLAG.
             if ($action === 'confirm') {
                 if ($reqPerm === '') {
-                    // Fall back to op permission from catalog.
+                    // Fall back to op permission/capability from catalog.
                     foreach (AgentHttp::allOps() as $op) {
                         if ((string)($op['id'] ?? '') === (string)($row['OP_ID'] ?? '')) {
-                            $reqPerm = (string)($op['permission'] ?? '');
+                            $reqPerm = self::requirementForOp($op);
                             break;
                         }
                     }
                 }
-                if ($reqPerm !== '' && !Auth::can($reqPerm)) {
+                if ($reqPerm !== '' && !self::staffMayConfirm($reqPerm)) {
+                    $label = self::requirementLabel($reqPerm);
                     return [
                         'ok' => false,
                         'action' => $action,
                         'result' => null,
-                        'error' => t('assistant_groups.bot.no_permission', ['perm' => $reqPerm]),
-                        'required_permission' => $reqPerm,
+                        'error' => t('assistant_groups.bot.no_permission', ['perm' => $label]),
+                        'required_permission' => $label,
                         'forbidden_capability' => true,
                     ];
                 }
@@ -1296,6 +1352,9 @@ final class AssistantHarness
 
         $opId = (string)($claimed['OP_ID'] ?? '');
         $args = PendingActionsRepository::decodeArgs($claimed);
+        if ($planId !== '' && $planStep > 1) {
+            $args = PendingActionsRepository::rewritePlanPlaceholders($args, $planId, $planStep);
+        }
         // Execute as the confirmer (already Auth::runAs in bot/UI callers).
         $inv = AssistantTools::invoke($opId, $args);
         if (!$inv['ok'] && $confirmMode === 'capability') {

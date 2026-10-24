@@ -75,6 +75,56 @@ final class DemoMode
     }
 
     /**
+     * Business "now" for seed + today-widgets. Uses [demo] frozen_at when
+     * demo_readonly is on; otherwise real wall clock. Auth/Cron keep time().
+     */
+    public static function now(): int
+    {
+        $frozen = self::frozenAtTs();
+        return $frozen !== null ? $frozen : time();
+    }
+
+    public static function isFrozen(): bool
+    {
+        return self::frozenAtTs() !== null;
+    }
+
+    /** Start of the business day (00:00:00) for DemoMode::now(). */
+    public static function dayStart(): int
+    {
+        $ts = self::now();
+        return (int)mktime(0, 0, 0, (int)date('n', $ts), (int)date('j', $ts), (int)date('Y', $ts));
+    }
+
+    /** End of the business day (23:59:59) for DemoMode::now(). */
+    public static function dayEnd(): int
+    {
+        $ts = self::now();
+        return (int)mktime(23, 59, 59, (int)date('n', $ts), (int)date('j', $ts), (int)date('Y', $ts));
+    }
+
+    /**
+     * Parsed [demo] frozen_at unix ts, or null when unset / not readonly / invalid.
+     * Accepts "Y-m-d H:i:s", "Y-m-d H:i", or unix integer string.
+     */
+    public static function frozenAtTs(): ?int
+    {
+        if (!self::readonly() || !class_exists('Config', false)) {
+            return null;
+        }
+        $raw = trim((string)Config::get('demo', 'frozen_at', ''));
+        if ($raw === '' || $raw === '0') {
+            return null;
+        }
+        if (ctype_digit($raw)) {
+            $ts = (int)$raw;
+            return $ts > 0 ? $ts : null;
+        }
+        $ts = strtotime($raw);
+        return ($ts !== false && $ts > 0) ? $ts : null;
+    }
+
+    /**
      * If demo_auto_login and no session: establish demo user session.
      * No-op when flags off, CLI, already logged in, or user missing/disabled.
      */

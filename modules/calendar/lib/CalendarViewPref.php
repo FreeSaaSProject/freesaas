@@ -28,7 +28,7 @@ final class CalendarViewPref
         }
         $date = trim((string)($data['date'] ?? ''));
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            $date = date('Y-m-d');
+            $date = date('Y-m-d', DemoMode::now());
         }
         return ['mode' => $mode, 'date' => $date];
     }
@@ -40,7 +40,7 @@ final class CalendarViewPref
         }
         $date = trim($date);
         if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            $date = date('Y-m-d');
+            $date = date('Y-m-d', DemoMode::now());
         }
         $payload = json_encode(['mode' => $mode, 'date' => $date], JSON_UNESCAPED_UNICODE);
         if ($payload === false) {
@@ -62,7 +62,7 @@ final class CalendarViewPref
     {
         $pref = self::get();
         if ($pref === null || $pref['mode'] === 'week') {
-            $date = $pref['date'] ?? date('Y-m-d');
+            $date = $pref['date'] ?? date('Y-m-d', DemoMode::now());
             return '/calendar/week/' . rawurlencode($date);
         }
         return '/calendar/day/' . rawurlencode($pref['date']);

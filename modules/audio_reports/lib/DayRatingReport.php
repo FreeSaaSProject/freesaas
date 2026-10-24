@@ -458,15 +458,20 @@ final class DayRatingReport
         }
         unset($sessInit);
 
-        // Greedy 1:1: for each procedure pick best unused overlapping session.
+        // Greedy 1:1: for each procedure pick best unused session.
+        // Prefer real overlap with the procedure window; buffer only as soft
+        // eligibility so a large buffer cannot steal a neighbour's episode.
         $usedSessions = [];
         $slots = [];
         $matchedSlots = 0;
         foreach ($candidates as $cand) {
-            $ps = (int)$cand['dt_start'] - $procBuffer;
-            $pe = (int)$cand['dt_end'] + $procBuffer;
+            $ps = (int)$cand['dt_start'];
+            $pe = (int)$cand['dt_end'];
+            $psSoft = $ps - $procBuffer;
+            $peSoft = $pe + $procBuffer;
             $bestIdx = null;
-            $bestOverlap = 0;
+            $bestScore = 0;
+            $bestHard = 0;
             foreach ($sessions as $idx => $sess) {
                 if (isset($usedSessions[$idx])) {
                     continue;
@@ -476,31 +481,45 @@ final class DayRatingReport
                 if ($ce < 1) {
                     $ce = $cs;
                 }
-                $overlap = min($ce, $pe) - max($cs, $ps);
-                if ($overlap > $bestOverlap) {
-                    $bestOverlap = $overlap;
+                $hard = min($ce, $pe) - max($cs, $ps);
+                $soft = min($ce, $peSoft) - max($cs, $psSoft);
+                if ($soft <= 0) {
+                    continue;
+                }
+                // Hard overlap outranks any soft-only match; then longer overlap wins.
+                $score = $hard > 0 ? (1_000_000 + $hard) : $soft;
+                if ($score > $bestScore) {
+                    $bestScore = $score;
+                    $bestHard = max(0, $hard);
                     $bestIdx = $idx;
                 }
             }
             $orphan = true;
-            if ($bestIdx !== null && $bestOverlap > 0) {
+            if ($bestIdx !== null && $bestScore > 0) {
                 $usedSessions[$bestIdx] = true;
                 $orphan = false;
                 $matchedSlots++;
+                $sess = $sessions[$bestIdx];
+                $cs = (int)$sess['dt_start'];
+                $ce = (int)$sess['dt_end'];
+                if ($ce < 1) {
+                    $ce = $cs;
+                }
+                $softOv = min($ce, $peSoft) - max($cs, $psSoft);
                 $sessions[$bestIdx]['procedure'] = [
                     'id' => (int)$cand['id'],
                     'name' => (string)$cand['name'],
-                    'dt_start' => (int)$cand['dt_start'],
-                    'dt_end' => (int)$cand['dt_end'],
+                    'dt_start' => $ps,
+                    'dt_end' => $pe,
                     'summ' => (float)$cand['summ'],
-                    'overlap_sec' => $bestOverlap,
+                    'overlap_sec' => $bestHard > 0 ? $bestHard : max(0, $softOv),
                 ];
             }
             $slots[] = [
                 'id' => (int)$cand['id'],
                 'name' => (string)$cand['name'],
-                'dt_start' => (int)$cand['dt_start'],
-                'dt_end' => (int)$cand['dt_end'],
+                'dt_start' => $ps,
+                'dt_end' => $pe,
                 'duration' => (int)$cand['duration'],
                 'summ' => (float)$cand['summ'],
                 'orphan' => $orphan,

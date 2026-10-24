@@ -103,9 +103,12 @@ final class AssistantGroupsBotHandler
             return $payload;
         }
 
-        if (self::looksLikeConfirmPhrase($clean)) {
-            self::handleTextConfirm($token, $chatId, $uid, $user);
-            return $payload;
+        if (class_exists('AssistantHarness', false)) {
+            $confirmIntent = AssistantHarness::detectConfirmIntent($clean);
+            if ($confirmIntent === 'confirm' || $confirmIntent === 'cancel') {
+                self::handleTextConfirm($token, $chatId, $uid, $user, $confirmIntent);
+                return $payload;
+            }
         }
 
         $speaker = trim((string)($user['name'] ?? $user['login'] ?? ''));
@@ -133,13 +136,81 @@ final class AssistantGroupsBotHandler
             }
             try {
                 Auth::runAs($actorId, static function () use ($pendingToken, $actorId) {
-                    return AssistantHarness::resolvePending($pendingToken, 'cancel', $actorId);
+                    return AssistantHarness::resolvePlan($pendingToken, 'cancel', $actorId);
                 });
             } catch (Throwable $e) {
                 error_log('[assistant_groups] clear pending: ' . $e->getMessage());
                 return;
             }
         }
+    }
+
+    /**
+     * Local stub for pending.confirm / pending.cancel — runs the real plan resolve.
+     *
+     * @return array<string,mixed>
+     */
+    private static function stubResolvePending(
+        string $apiToken,
+        string $chatId,
+        int $uid,
+        string $action
+    ): array {
+        $action = $action === 'cancel' ? 'cancel' : 'confirm';
+        $row = PendingActionsRepository::findLatestPendingForGroup($chatId, 'max');
+        if ($row === null) {
+            return [
+                'ok' => false,
+                'error' => t('assistant_groups.bot.no_pending'),
+                'action' => $action,
+            ];
+        }
+        $pendingToken = (string)($row['TOKEN'] ?? '');
+        if ($pendingToken === '' || !class_exists('AssistantHarness', false)) {
+            return [
+                'ok' => false,
+                'error' => t('assistant_groups.bot.no_pending'),
+                'action' => $action,
+            ];
+        }
+        try {
+            $result = Auth::runAs($uid, static function () use ($pendingToken, $action, $uid) {
+                return AssistantHarness::resolvePlan($pendingToken, $action, $uid);
+            });
+        } catch (Throwable $e) {
+            error_log('[assistant_groups] stub resolve: ' . $e->getMessage());
+            return ['ok' => false, 'error' => t('assistant.chat.error'), 'action' => $action];
+        }
+        $needPerm = (string)($result['required_permission'] ?? '');
+        if (!empty($result['forbidden_capability']) && $needPerm !== '') {
+            return [
+                'ok' => false,
+                'error' => t('assistant_groups.bot.no_permission', ['perm' => $needPerm]),
+                'required_permission' => $needPerm,
+                'action' => $action,
+            ];
+        }
+        if (empty($result['ok'])) {
+            return [
+                'ok' => false,
+                'error' => (string)($result['error'] ?? t('assistant.chat.error')),
+                'action' => $action,
+            ];
+        }
+        self::stripKeyboards($apiToken, $chatId);
+        $done = isset($result['done'])
+            ? AssistantHarness::formatConfirmBatchDone($result)
+            : ($action === 'cancel'
+                ? t('assistant.confirm.cancelled')
+                : AssistantHarness::formatConfirmDone($result['result'] ?? null));
+        return [
+            'ok' => true,
+            'action' => $action,
+            'applied' => $action === 'confirm',
+            'cancelled' => $action === 'cancel',
+            'message' => $done,
+            'done' => (int)($result['done'] ?? ($action === 'confirm' ? 1 : 1)),
+        ];
     }
 
     /**
@@ -184,16 +255,24 @@ final class AssistantGroupsBotHandler
     /**
      * @param array<string,mixed> $user
      */
-    private static function handleTextConfirm(string $token, string $chatId, int $uid, array $user): void
-    {
+    private static function handleTextConfirm(
+        string $token,
+        string $chatId,
+        int $uid,
+        array $user,
+        string $action = 'confirm'
+    ): void {
+        $action = strtolower(trim($action)) === 'cancel' ? 'cancel' : 'confirm';
         $row = PendingActionsRepository::findLatestPendingForGroup($chatId, 'max');
         if ($row === null) {
             self::stripKeyboards($token, $chatId);
-            self::reply($token, $chatId, t('assistant_groups.bot.no_pending'));
+            $msg = t('assistant_groups.bot.no_pending');
+            $mid = self::reply($token, $chatId, $msg);
+            self::appendDialogNote($chatId, $msg, $mid);
             return;
         }
         $pendingToken = (string)($row['TOKEN'] ?? '');
-        self::resolveAndAnnounce($token, $chatId, $pendingToken, 'confirm', $uid, $user);
+        self::resolveAndAnnounce($token, $chatId, $pendingToken, $action, $uid, $user);
     }
 
     /**
@@ -231,16 +310,20 @@ final class AssistantGroupsBotHandler
             $done = isset($result['done'])
                 ? AssistantHarness::formatConfirmBatchDone($result)
                 : AssistantHarness::formatConfirmDone($result['result'] ?? null);
-            self::reply($apiToken, $chatId, t('assistant_groups.bot.confirmed', [
+            $msg = t('assistant_groups.bot.confirmed', [
                 'name' => $name,
                 'done' => $done,
-            ]));
+            ]);
+            $mid = self::reply($apiToken, $chatId, $msg);
+            self::appendDialogNote($chatId, $msg, $mid);
             return;
         }
         if (!empty($result['ok']) && $action === 'cancel') {
-            self::reply($apiToken, $chatId, isset($result['done'])
+            $msg = isset($result['done'])
                 ? AssistantHarness::formatConfirmBatchDone($result)
-                : t('assistant.confirm.cancelled'));
+                : t('assistant.confirm.cancelled');
+            $mid = self::reply($apiToken, $chatId, $msg);
+            self::appendDialogNote($chatId, $msg, $mid);
             return;
         }
 
@@ -250,10 +333,25 @@ final class AssistantGroupsBotHandler
             // Replace old keyboards with a fresh prompt for someone with rights.
             self::stripKeyboards($apiToken, $chatId);
             $kb = self::confirmKeyboard($pendingToken);
-            self::reply($apiToken, $chatId, $err, $kb);
+            $mid = self::reply($apiToken, $chatId, $err, $kb);
+            self::appendDialogNote($chatId, $err, $mid);
             return;
         }
-        self::reply($apiToken, $chatId, $err);
+        $mid = self::reply($apiToken, $chatId, $err);
+        self::appendDialogNote($chatId, $err, $mid);
+    }
+
+    /** Record confirm/cancel outcome in group history so the next draft does not invent a live queue. */
+    private static function appendDialogNote(string $chatId, string $text, ?string $mid): void
+    {
+        $text = trim($text);
+        if ($text === '') {
+            return;
+        }
+        $history = AssistantGroupsDialog::getHistory($chatId);
+        AssistantGroupsDialog::saveHistory($chatId, array_merge($history, [
+            ['role' => 'assistant', 'content' => $text],
+        ]), $mid);
     }
 
     /**
@@ -273,6 +371,10 @@ final class AssistantGroupsBotHandler
         // New @mention / task — remove stale Confirm buttons from older bot messages.
         self::stripKeyboards($apiToken, $chatId);
 
+        $livePending = class_exists('PendingActionsRepository', false)
+            ? PendingActionsRepository::findLatestPendingForGroup($chatId, 'max')
+            : null;
+
         $name = class_exists('AssistantConfig', false) ? AssistantConfig::displayName() : 'Assistant';
         self::reply($apiToken, $chatId, t('assistant_groups.bot.working', ['name' => $name]));
 
@@ -282,6 +384,14 @@ final class AssistantGroupsBotHandler
         }
         $history[] = ['role' => 'user', 'content' => $text];
         $systemExtra = t('assistant_groups.bot.system_extra');
+        $speakerName = trim((string)($user['name'] ?? $user['login'] ?? ''));
+        if ($speakerName === '') {
+            $speakerName = '#' . $uid;
+        }
+        $systemExtra .= "\n" . t('assistant_groups.bot.system_speaker', [
+            'id' => (string)$uid,
+            'name' => $speakerName,
+        ]);
         $chatMeta = AssistantGroupsConfig::metaForChat($chatId);
         $chatTitle = trim((string)($chatMeta['title'] ?? ''));
         $chatDescr = trim((string)($chatMeta['description'] ?? ''));
@@ -294,6 +404,14 @@ final class AssistantGroupsBotHandler
         } else {
             $systemExtra .= "\n" . t('assistant_groups.bot.system_chat_id', ['chat_id' => $chatId]);
         }
+        if ($livePending !== null) {
+            $systemExtra .= "\n" . t('assistant_groups.bot.system_live_pending', [
+                'op' => (string)($livePending['OP_ID'] ?? ''),
+                'summary' => trim((string)($livePending['SUMMARY'] ?? '')),
+            ]);
+        } else {
+            $systemExtra .= "\n" . t('assistant_groups.bot.system_no_pending');
+        }
         $toolStubs = [
             AssistantGroupsCatalog::OP_CLEAR => static function () use ($apiToken, $chatId, $uid): array {
                 self::stripKeyboards($apiToken, $chatId);
@@ -304,6 +422,12 @@ final class AssistantGroupsBotHandler
                     'cleared' => true,
                     'message' => t('assistant_groups.bot.cleared'),
                 ];
+            },
+            AssistantGroupsCatalog::OP_CONFIRM => static function () use ($apiToken, $chatId, $uid): array {
+                return self::stubResolvePending($apiToken, $chatId, $uid, 'confirm');
+            },
+            AssistantGroupsCatalog::OP_CANCEL => static function () use ($apiToken, $chatId, $uid): array {
+                return self::stubResolvePending($apiToken, $chatId, $uid, 'cancel');
             },
         ];
 
@@ -340,6 +464,25 @@ final class AssistantGroupsBotHandler
         $replyText = trim((string)($result['text'] ?? ''));
 
         if ($pending === []) {
+            // Re-check after stubs (confirm/cancel may have resolved the draft this turn).
+            $liveNow = PendingActionsRepository::findLatestPendingForGroup($chatId, 'max');
+            // Model may claim «already queued» from history while buttons were stripped —
+            // if a live pending still exists, re-attach Confirm instead of a dead-end reply.
+            if ($liveNow !== null && !$cleared) {
+                $tok = (string)($liveNow['TOKEN'] ?? '');
+                $sum = trim((string)($liveNow['SUMMARY'] ?? ''));
+                $out = t('assistant_groups.bot.resent_pending', [
+                    'summary' => $sum !== '' ? $sum : (string)($liveNow['OP_ID'] ?? ''),
+                ]);
+                if ($replyText !== '') {
+                    $out = $replyText . "\n\n" . $out;
+                }
+                self::stripKeyboards($apiToken, $chatId);
+                $kb = $tok !== '' ? self::confirmKeyboard($tok) : null;
+                $mid = self::reply($apiToken, $chatId, $out, $kb);
+                self::persistHistory($chatId, $history, $out, $mid, false);
+                return;
+            }
             if ($replyText === '') {
                 $replyText = $cleared
                     ? t('assistant_groups.bot.cleared')
@@ -348,6 +491,30 @@ final class AssistantGroupsBotHandler
             $mid = self::reply($apiToken, $chatId, $replyText);
             self::persistHistory($chatId, $history, $replyText, $mid, $cleared);
             return;
+        }
+
+        // New draft replaces any previous live pending in this chat (one Confirm at a time).
+        // Cancel only the pre-existing token — do not sweep the just-queued plan.
+        if ($livePending !== null) {
+            $oldTok = (string)($livePending['TOKEN'] ?? '');
+            $newToks = [];
+            foreach ($pending as $p) {
+                if (is_array($p)) {
+                    $t = (string)($p['token'] ?? '');
+                    if ($t !== '') {
+                        $newToks[$t] = true;
+                    }
+                }
+            }
+            if ($oldTok !== '' && !isset($newToks[$oldTok])) {
+                try {
+                    Auth::runAs($uid, static function () use ($oldTok, $uid) {
+                        return AssistantHarness::resolvePlan($oldTok, 'cancel', $uid);
+                    });
+                } catch (Throwable $e) {
+                    error_log('[assistant_groups] replace pending: ' . $e->getMessage());
+                }
+            }
         }
 
         $lines = [];
@@ -370,7 +537,10 @@ final class AssistantGroupsBotHandler
                 $perm = self::permissionForOp((string)($p['op_id'] ?? ''), $ops);
             }
             if ($perm !== '') {
-                $perms[$perm] = true;
+                $label = class_exists('AssistantHarness', false)
+                    ? AssistantHarness::requirementLabel($perm)
+                    : $perm;
+                $perms[$label] = true;
             }
         }
         if (count($steps) > 1) {
@@ -441,6 +611,13 @@ final class AssistantGroupsBotHandler
     {
         foreach ($ops as $op) {
             if ((string)($op['id'] ?? '') === $opId) {
+                if (class_exists('AssistantHarness', false)) {
+                    return AssistantHarness::requirementForOp($op);
+                }
+                $cap = trim((string)($op['capability'] ?? ''));
+                if ($cap !== '') {
+                    return 'cap:' . $cap;
+                }
                 return (string)($op['permission'] ?? '');
             }
         }
@@ -613,16 +790,6 @@ final class AssistantGroupsBotHandler
             $text = preg_replace('/@' . $uid . '\b[,:]?\s*/u', '', $text) ?? $text;
         }
         return trim($text);
-    }
-
-    private static function looksLikeConfirmPhrase(string $text): bool
-    {
-        $lower = function_exists('mb_strtolower') ? mb_strtolower($text, 'UTF-8') : strtolower($text);
-        $lower = trim($lower);
-        return (bool)preg_match(
-            '/^(confirm|подтверд(ить|аю|ждаю)?|ок|ok|готово|делай|оформляй|записывай|согласен)$/iu',
-            $lower
-        );
     }
 
 }

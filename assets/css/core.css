@@ -659,8 +659,12 @@ body.rail-mega .rail-group {
 body.rail-mega .rail-group .rail-group-body {
   display: flex;
 }
-body.rail-mega .rail-group-toggle {
+body.rail-mega .rail-group-toggle:not(.rail-group-toggle-full) {
   display: none;
+}
+body.rail-mega .rail-group-toggle-full {
+  pointer-events: none;
+  cursor: default;
 }
 body.rail-mega .rail-group-chevron {
   display: none;
@@ -3377,6 +3381,59 @@ table.data tr.is-bulk-selected.is-disabled td {
   cursor: pointer;
   font-weight: 600;
 }
+.db-fold > summary.subhead {
+  cursor: pointer;
+  list-style: none;
+  display: list-item;
+}
+.db-fold > summary.subhead::-webkit-details-marker { display: none; }
+.db-fold > summary.subhead::before {
+  content: "▸ ";
+  font-weight: 400;
+  color: var(--muted, #666);
+}
+.db-fold[open] > summary.subhead::before { content: "▾ "; }
+.db-fold-meta {
+  margin-left: 0.5rem;
+  font-weight: 400;
+  font-size: 0.9em;
+}
+.db-help {
+  display: inline;
+  position: relative;
+  margin-left: 0.35rem;
+  font-weight: 400;
+  vertical-align: middle;
+}
+.db-help > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 50%;
+  border: 1px solid var(--border, #ccc);
+  cursor: pointer;
+  list-style: none;
+  color: var(--muted, #666);
+  font-size: 0.75rem;
+  line-height: 1;
+  vertical-align: middle;
+}
+.db-help > summary::-webkit-details-marker { display: none; }
+.db-help-body {
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 4px;
+  background: var(--surface-2, #f7f7f7);
+  font-weight: 400;
+  font-size: 0.9rem;
+}
+.db-help-body p { margin: 0 0 0.4rem; }
+.db-help-body p:last-child { margin-bottom: 0; }
+h2.subhead .db-help,
+.subhead .db-help { font-size: 1rem; }
 .db-table-need {
   background: color-mix(in srgb, var(--warn, #c90) 12%, transparent);
   border-radius: 3px;

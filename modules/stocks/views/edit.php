@@ -3,10 +3,8 @@ declare(strict_types=1);
 /** @var bool $isNew */
 /** @var array<string,mixed> $row */
 /** @var array<int,string> $cabinets */
-/** @var array<int,string> $virtualStocks */
 /** @var string $message */
 /** @var string $error */
-$type = (int)($row['type'] ?? StocksRepository::TYPE_REAL);
 ?>
 <section class="page-head">
   <h1><?= $isNew ? te('stocks.edit.heading_new') : e((string)($row['name'] ?? '')) ?></h1>
@@ -24,12 +22,6 @@ $type = (int)($row['type'] ?? StocksRepository::TYPE_REAL);
     <label><?= te('stocks.col.descr') ?>
       <input name="descr" maxlength="255" value="<?= e((string)($row['descr'] ?? '')) ?>" required>
     </label>
-    <label><?= te('stocks.col.type') ?>
-      <select name="type" id="stock-type">
-        <option value="1"<?= $type === 1 ? ' selected' : '' ?>><?= te('stocks.type.real') ?></option>
-        <option value="2"<?= $type === 2 ? ' selected' : '' ?>><?= te('stocks.type.virtual') ?></option>
-      </select>
-    </label>
     <label><?= te('stocks.col.cabinet') ?>
       <select name="id_cabinet">
         <option value="0">—</option>
@@ -38,22 +30,11 @@ $type = (int)($row['type'] ?? StocksRepository::TYPE_REAL);
         <?php endforeach; ?>
       </select>
     </label>
-    <label class="check" data-real-only>
+    <label class="check">
       <input type="checkbox" name="operative" value="1"<?= !isset($row['operative']) || !empty($row['operative']) ? ' checked' : '' ?>>
       <?= te('stocks.col.operative') ?>
     </label>
-    <label class="check" data-real-only>
-      <input type="checkbox" name="autocontrol_req" value="1"<?= !empty($row['autocontrol_req']) ? ' checked' : '' ?>>
-      <?= te('stocks.col.autocontrol') ?>
-    </label>
-    <label data-real-only><?= te('stocks.col.vrt_stock') ?>
-      <select name="vrt_stock_id">
-        <option value="0">—</option>
-        <?php foreach ($virtualStocks as $vid => $vname): ?>
-          <option value="<?= (int)$vid ?>"<?= (int)($row['vrt_stock_id'] ?? 0) === (int)$vid ? ' selected' : '' ?>><?= e($vname) ?></option>
-        <?php endforeach; ?>
-      </select>
-    </label>
+    <p class="muted"><?= te('stocks.edit.operative_hint') ?></p>
   </fieldset>
 
   <div class="page-actions">
@@ -65,18 +46,3 @@ $type = (int)($row['type'] ?? StocksRepository::TYPE_REAL);
 <?php if (empty($isNew) && empty($is_new)): ?>
 <?= EntityDelete::form('stocks', (int)($row['id'] ?? 0)) ?>
 <?php endif; ?>
-
-<script>
-(function () {
-  var sel = document.getElementById('stock-type');
-  if (!sel) return;
-  function sync() {
-    var real = sel.value === '1';
-    document.querySelectorAll('[data-real-only]').forEach(function (el) {
-      el.style.display = real ? '' : 'none';
-    });
-  }
-  sel.addEventListener('change', sync);
-  sync();
-})();
-</script>

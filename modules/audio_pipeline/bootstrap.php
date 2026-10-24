@@ -158,15 +158,47 @@ EventBus::on('audio.settings.sections', static function ($payload) {
     }
     $editPositionId = max(0, (int)($_GET['cov_position_id'] ?? $_POST['cov_position_id'] ?? 0));
     $editAdminId = max(0, (int)($_GET['cov_admin_id'] ?? $_POST['cov_admin_id'] ?? 0));
-    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_coverage', [
+    // Editing one scope at a time — prefer explicit GET for the editor.
+    if ($editAdminId > 0 && !isset($_GET['cov_position_id'])) {
+        $editPositionId = 0;
+    }
+    if ($editPositionId > 0 && !isset($_GET['cov_admin_id']) && isset($_GET['cov_position_id'])) {
+        $editAdminId = 0;
+    }
+    $editPosition = $editPositionId > 0 ? AudioCoverageProfiles::findByPosition($editPositionId) : null;
+    $editAdmin = $editAdminId > 0 ? AudioCoverageProfiles::findByAdmin($editAdminId) : null;
+    $editAdminFlagOk = false;
+    if ($editAdminId > 0) {
+        $flagPos = (int)($editAdmin['position_id'] ?? 0);
+        if ($flagPos < 1 && Database::tableExists('base_users')) {
+            $st = Database::pdo()->prepare('SELECT ID_STATUS FROM base_users WHERE id = ? LIMIT 1');
+            $st->execute([$editAdminId]);
+            $flagPos = (int)$st->fetchColumn();
+        }
+        $editAdminFlagOk = AudioCoverageProfiles::positionHasDisableFlag($flagPos);
+    }
+    $html = View::capture('_settings_coverage', [
         'coverage' => AudioCoverageConfig::read(),
         'statuses' => $statuses,
         'staff' => $staff,
+        'profiles' => AudioCoverageProfiles::listAll(),
         'editPositionId' => $editPositionId,
         'editAdminId' => $editAdminId,
-        'editPosition' => $editPositionId > 0 ? AudioCoverageProfiles::findByPosition($editPositionId) : null,
-        'editAdmin' => $editAdminId > 0 ? AudioCoverageProfiles::findByAdmin($editAdminId) : null,
+        'editPosition' => $editPosition,
+        'editAdmin' => $editAdmin,
+        'editPositionFlagOk' => $editPositionId > 0
+            && AudioCoverageProfiles::positionHasDisableFlag($editPositionId),
+        'editAdminFlagOk' => $editAdminFlagOk,
     ], 'audio_pipeline');
+    if (!isset($payload['sections']) || !is_array($payload['sections'])) {
+        $payload['sections'] = [];
+    }
+    $payload['sections'][] = [
+        'id' => 'coverage',
+        'title' => 'audio_pipeline.settings.coverage',
+        'weight' => 40,
+        'html' => $html,
+    ];
     return $payload;
 });
 
@@ -175,6 +207,16 @@ EventBus::on('audio.settings.save', static function ($payload) {
         return $payload;
     }
     $post = is_array($payload['post'] ?? null) ? $payload['post'] : [];
+    $warnings = is_array($payload['warnings'] ?? null) ? $payload['warnings'] : [];
+
+    $deleteId = max(0, (int)($post['audio_coverage_delete_id'] ?? 0));
+    if ($deleteId > 0) {
+        AudioCoverageProfiles::delete($deleteId);
+        $payload['warnings'] = $warnings;
+
+        return $payload;
+    }
+
     if (!empty($post['audio_coverage_save'])) {
         AudioCoverageConfig::save([
             'disable_outside_coverage' => !empty($post['disable_outside_coverage']),
@@ -186,25 +228,38 @@ EventBus::on('audio.settings.save', static function ($payload) {
     if (!empty($post['audio_coverage_position_save'])) {
         $pid = max(0, (int)($post['cov_position_id'] ?? 0));
         if ($pid > 0) {
-            AudioCoverageProfiles::savePosition($pid, !empty($post['cov_pos_enabled']), [
+            $enabled = !empty($post['cov_pos_enabled']);
+            $disableOutside = !empty($post['cov_pos_disable_outside']);
+            AudioCoverageProfiles::savePosition($pid, $enabled, [
                 'match_procedures' => !empty($post['cov_pos_match_procedures']),
-                'disable_outside_coverage' => !empty($post['cov_pos_disable_outside']),
+                'disable_outside_coverage' => $disableOutside,
                 'procedure_buffer_sec' => (int)($post['cov_pos_buffer'] ?? 1600),
                 'min_procedure_sec' => (int)($post['cov_pos_min'] ?? 360),
             ]);
+            if ($enabled && $disableOutside && !AudioCoverageProfiles::positionHasDisableFlag($pid)) {
+                $warnings[] = t('audio_pipeline.settings.flag_warn_position');
+            }
         }
     }
     if (!empty($post['audio_coverage_admin_save'])) {
         $aid = max(0, (int)($post['cov_admin_id'] ?? 0));
         if ($aid > 0) {
-            AudioCoverageProfiles::saveAdmin($aid, !empty($post['cov_adm_enabled']), [
+            $enabled = !empty($post['cov_adm_enabled']);
+            $disableOutside = !empty($post['cov_adm_disable_outside']);
+            $saved = AudioCoverageProfiles::saveAdmin($aid, $enabled, [
                 'match_procedures' => !empty($post['cov_adm_match_procedures']),
-                'disable_outside_coverage' => !empty($post['cov_adm_disable_outside']),
+                'disable_outside_coverage' => $disableOutside,
                 'procedure_buffer_sec' => (int)($post['cov_adm_buffer'] ?? 1600),
                 'min_procedure_sec' => (int)($post['cov_adm_min'] ?? 360),
             ]);
+            $flagPos = (int)($saved['position_id'] ?? 0);
+            if ($enabled && $disableOutside && !AudioCoverageProfiles::positionHasDisableFlag($flagPos)) {
+                $warnings[] = t('audio_pipeline.settings.flag_warn_admin');
+            }
         }
     }
+    $payload['warnings'] = $warnings;
+
     return $payload;
 });
 

@@ -1,0 +1,44 @@
+{
+  "comment": "Inbound receipt: Wildberries + СУВОРОВА + СЗ Трусы-бикини жен. Writes stub_pending. Used by live.stickers_receipt_inbound.",
+  "day": {},
+  "ops": {
+    "stocks.list": {
+      "ok": true,
+      "items": [
+        {"id": 3, "name": "СУВОРОВА", "type": 1},
+        {"id": 1, "name": "БУЯНОВА", "type": 1}
+      ],
+      "total": 2
+    },
+    "suppliers.list": {
+      "ok": true,
+      "items": [
+        {"id": 52, "name": "Wildberries", "enabled": 1}
+      ],
+      "total": 1
+    },
+    "catalog.browse": {
+      "ok": true,
+      "folder_id": 0,
+      "search_global": true,
+      "items": [
+        {"id": 48, "name": "СЗ Трусы-бикини жен", "enabled": 1, "is_material": 1}
+      ],
+      "total": 1
+    },
+    "stickers.receipts.create": {
+      "stub_pending": true
+    },
+    "stickers.ins.create": {
+      "stub_pending": true
+    },
+    "core.help.search": {
+      "ok": true,
+      "items": []
+    },
+    "core.help.get": {
+      "ok": true,
+      "item": null
+    }
+  }
+}

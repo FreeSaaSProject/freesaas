@@ -407,6 +407,99 @@ final class AssistantEval
     }
 
     /**
+     * Shared grader: inbound receipt — resolve stock/supplier/product, queue receipts.create
+     * (prefer with lines + non-zero price) or act+ins.
+     *
+     * @param array<string,mixed> $result harness result
+     * @return array{status:string,detail:string,excerpt?:string}
+     */
+    public static function gradeStickersReceiptInbound(array $result): array
+    {
+        $text = (string)($result['text'] ?? '');
+        $calledStock = self::traceHasOp($result, 'stocks.list');
+        $calledSupplier = self::traceHasOp($result, 'suppliers.list');
+        $calledCatalog = self::traceHasOp($result, 'catalog.browse')
+            || self::traceHasOp($result, 'catalog.browse.folder');
+        $queuedReceipt = false;
+        $queuedIns = false;
+        $hasLines = false;
+        $priceOk = false;
+        $trace = is_array($result['tool_trace'] ?? null) ? $result['tool_trace'] : [];
+        foreach ($trace as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $op = (string)($row['op_id'] ?? $row['id'] ?? '');
+            $args = is_array($row['args'] ?? null) ? $row['args'] : [];
+            if ($op === 'stickers.receipts.create') {
+                $queuedReceipt = true;
+                $lines = $args['lines'] ?? null;
+                if (is_string($lines) && $lines !== '') {
+                    $decoded = json_decode($lines, true);
+                    $lines = is_array($decoded) ? $decoded : null;
+                }
+                if (is_array($lines) && $lines !== []) {
+                    $hasLines = true;
+                    foreach ($lines as $line) {
+                        if (!is_array($line)) {
+                            continue;
+                        }
+                        $price = (float)str_replace(',', '.', (string)($line['price'] ?? '0'));
+                        $qty = max(1, (int)($line['qty'] ?? 1));
+                        if ($price > 0 && abs(($price * $qty) - 6576.0) < 1.0) {
+                            $priceOk = true;
+                        } elseif ($price > 0) {
+                            $priceOk = true;
+                        }
+                    }
+                }
+            }
+            if ($op === 'stickers.ins.create') {
+                $queuedIns = true;
+                $price = (float)str_replace(',', '.', (string)($args['price'] ?? '0'));
+                if ($price > 0) {
+                    $priceOk = true;
+                }
+            }
+        }
+        if (!$calledStock && !$calledSupplier && !$calledCatalog && !$queuedReceipt) {
+            return [
+                'status' => 'fail',
+                'detail' => t('assistant.eval.grade.live_stickers_no_tools'),
+                'excerpt' => $text,
+            ];
+        }
+        if (!$queuedReceipt && !$queuedIns) {
+            return [
+                'status' => 'fail',
+                'detail' => t('assistant.eval.grade.live_stickers_no_write'),
+                'excerpt' => $text,
+            ];
+        }
+        if ($queuedReceipt && !$hasLines && !$queuedIns) {
+            return [
+                'status' => 'fail',
+                'detail' => t('assistant.eval.grade.live_stickers_header_only'),
+                'excerpt' => $text,
+            ];
+        }
+        if (!$priceOk) {
+            return [
+                'status' => 'fail',
+                'detail' => t('assistant.eval.grade.live_stickers_price_zero'),
+                'excerpt' => $text,
+            ];
+        }
+        $parts = [t('assistant.eval.grade.live_stickers_ok')];
+        if ($hasLines) {
+            $parts[] = t('assistant.eval.grade.live_stickers_with_lines');
+        } elseif ($queuedIns) {
+            $parts[] = t('assistant.eval.grade.live_stickers_act_plus_ins');
+        }
+        return ['status' => 'pass', 'detail' => implode(' · ', $parts)];
+    }
+
+    /**
      * Shared grader: must CALL workweeks.day|list before asking surname/ID.
      *
      * @param array<string,mixed> $result harness result

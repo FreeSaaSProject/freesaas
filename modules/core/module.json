@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -141,7 +141,8 @@
             "/core/jobs/habits-reminders",
             "/cron",
             "/cron/tick",
-            "/cron/status"
+            "/cron/status",
+            "/ops/access-extend"
         ]
     },
     "agent": {
@@ -987,6 +988,14 @@
             "num": 3,
             "path": "/news-statuses",
             "title": "core.menu.news_statuses"
+        },
+        {
+            "group": "core.menu.group.desktop",
+            "kind": "settings",
+            "num": 99,
+            "path": "/ops/access-extend",
+            "title": "core.menu.access_extend",
+            "capability": "SUPERADMIN_ACCESS"
         },
         {
             "group": "core.menu.group.team",

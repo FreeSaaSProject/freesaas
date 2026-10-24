@@ -10,6 +10,7 @@ return [
     'demo.notice_title' => 'Public demo: browsing only. Mutations are blocked; data may reset.',
     'demo.banner.aria' => 'Demo stand banner',
     'demo.banner.text' => 'Demo · read-only · AI assistant is disabled in this demo',
+    'demo.banner.frozen' => 'Clock frozen for demo: {when}',
     'demo.banner.cta' => 'Get this for your business →',
     'demo.banner.home' => '← freesaas.ru',
     'demo.switch_to_en' => 'English demo →',

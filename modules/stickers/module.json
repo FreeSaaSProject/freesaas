@@ -2,7 +2,7 @@
     "id": "stickers",
     "name": "stickers.module.name",
     "description": "stickers.module.description",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -86,7 +86,7 @@
                 "method": "POST",
                 "path": "/stickers/receipts/new",
                 "permission": "stickers.edit",
-                "description": "Create receipt act"
+                "description": "Create receipt act: descr required; id_stock optional (staff default warehouse); id_supplier optional. Prefer one call with lines[{id_good|good_q,qty,price}] (price = total/qty per sticker)"
             },
             {
                 "id": "stickers.receipts.update",
@@ -114,7 +114,7 @@
                 "method": "POST",
                 "path": "/stickers/ins/new",
                 "permission": "stickers.edit",
-                "description": "Create sticker in batch (may return multiple ids)"
+                "description": "Create sticker in batch: id_act, id_good|good_q, qty, price (per sticker). Prefer lines on stickers.receipts.create instead"
             },
             {
                 "id": "stickers.ins.update",

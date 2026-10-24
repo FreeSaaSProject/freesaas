@@ -48,14 +48,17 @@ final class DemoSchedule
         }
 
         $reseeds = [];
-        if ($reseedEvery > 0) {
+        // Frozen clock: daily reseed is unnecessary (seed + widgets share DemoMode::now()).
+        if (class_exists('DemoMode', false) && DemoMode::isFrozen()) {
+            $reseeds = [];
+        } elseif ($reseedEvery > 0) {
             $reseeds[] = ['every' => $reseedEvery];
         } else {
             foreach ($reseedTimes as $t) {
                 $reseeds[] = ['daily_at' => $t];
             }
         }
-        if ($reseeds === []) {
+        if ($reseeds === [] && !(class_exists('DemoMode', false) && DemoMode::isFrozen())) {
             $reseeds[] = ['daily_at' => '03:00'];
         }
 

@@ -60,9 +60,17 @@ EventBus::on('audio.settings.sections', static function ($payload) {
     if (!Auth::capability('SUPERADMIN_ACCESS')) {
         return $payload;
     }
-    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_publisher', [
-        'publisher' => StaffReportPublisherConfig::read(),
-    ], 'staff_reports');
+    if (!isset($payload['sections']) || !is_array($payload['sections'])) {
+        $payload['sections'] = [];
+    }
+    $payload['sections'][] = [
+        'id' => 'quality',
+        'title' => 'staff_reports.settings.publisher',
+        'weight' => 60,
+        'html' => View::capture('_settings_publisher', [
+            'publisher' => StaffReportPublisherConfig::read(),
+        ], 'staff_reports'),
+    ];
     return $payload;
 });
 

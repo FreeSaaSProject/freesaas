@@ -13,6 +13,8 @@ Thin guards stay in core (`app/DemoMode.php`: readonly Router, fail-closed modul
 | `demo_auto_login_user` | `demo` | Login used by auto-login |
 | `currency` | `RUB` | Platform ISO 4217 (Settings). demoru=`RUB`, demoen=`USD`. |
 
+Module ini (`cfg/modules/demo.ini` `[demo]`): optional `frozen_at` — see below.
+
 Leave `agent_token` empty/`CHANGE_ME` on public stands if you do not need `/agent/*` after bootstrap; keep `cron_token` for `/cron/tick`. Mutation audit: [`docs/demo-audit.md`](../demo-audit.md) (`php bin/check-demo-mutations.php`).
 
 ## Module
@@ -22,7 +24,16 @@ Leave `agent_token` empty/`CHANGE_ME` on public stands if you do not need `/agen
 demo=1
 ```
 
-Banner strip (CTA / home / tips) + CLI `demo seed` / `demo provision` require the module enabled. Ini: `cta_url`, `home_url`, `tips_base_url`, `switch_url_*`, `reseed_at=03:00,15:00`, `cors_origin`. CTA UTM **before** `#` (`…/?utm_…#start`); EN stand → `freesaas.ru/en/…`. Public `GET /demo-modules.json` (CORS) for marketing tiles. On production keep `demo=0`.
+Banner strip (CTA / home / tips) + CLI `demo seed` / `demo provision` require the module enabled. Ini: `cta_url`, `home_url`, `tips_base_url`, `switch_url_*`, `frozen_at`, `reseed_at`, `cors_origin`. CTA UTM **before** `#` (`…/?utm_…#start`); EN stand → `freesaas.ru/en/…`. Public `GET /demo-modules.json` (CORS) for marketing tiles. On production keep `demo=0`.
+
+### Frozen business clock (`frozen_at`)
+
+Optional. When set (and `demo_readonly=1`), `DemoMode::now()` / `dayStart()` / `dayEnd()` return that instant (parsed in `app.timezone`) for **seed + “today” widgets** (calendar home, orders notices). Auth, Cron, and sessions keep real `time()`.
+
+- Example: `frozen_at = "2026-10-22 14:00:00"` (mid-week afternoon keeps home widgets filled).
+- Banner appends a localized “clock frozen” note with the formatted datetime.
+- Daily `demo.reseed` jobs are **not registered** while frozen (calendar drift no longer applies). Keep `reseed_on_version=1` so a code bump of module `demo` still reseeds once.
+- Empty / unset → live wall clock + scheduled reseed as before.
 
 ## Prod safety (two independent locks)
 
@@ -64,7 +75,7 @@ The seed is code (`modules/demo/lib/DemoSeed.php`), so "update the seed" = "ship
 | Job | When | Does |
 |-----|------|------|
 | `demo.update` | `update_at` or `update_every_min` | `UpdateEngine` check + apply (`update_enabled=1`, needs `cfg/updates.ini`) |
-| `demo.reseed` | `reseed_at` or `reseed_every_min` | `demo seed --reset` with `app.locale` (dates stay "today") |
+| `demo.reseed` | `reseed_at` or `reseed_every_min` | `demo seed --reset` with `app.locale` (dates stay "today"). **Skipped when `frozen_at` is set.** |
 | `demo.version_check` | every `version_check_every_min` | reseed when `modules/demo` version ≠ last seeded (`reseed_on_version=1`) |
 
 Schedule lives in `cfg/modules/demo.ini` (copy `modules/demo/config.example.ini`); read on every request, so edits apply from the next tick. `*_every_min > 0` overrides `*_at`; invalid values fall back to defaults and are reported in the job message. Precision = host tick step. Journal + schedule: `/cron` (admin) or `GET /cron/status` (cron token).
@@ -84,7 +95,7 @@ php bin/freesaas.php update apply --target=all --format=json
 
 Overlay never writes `cfg/`, `var/`, uploads. After apply: confirm new `modules/<id>` stay `=0` unless intentionally enabled (including keeping `demo=1` on the stand).
 
-## Sample data manually (relative to today)
+## Sample data manually (relative to today / frozen_at)
 
 ```bash
 php bin/freesaas.php migrate run --module=demo --format=json   # base_demo_stand
@@ -92,7 +103,7 @@ php bin/freesaas.php demo seed --locale=ru --reset --format=json
 php bin/freesaas.php demo seed --locale=en --reset --format=json
 ```
 
-Fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. `--reset` clears prior demo domain rows (keeps `admin` / `demo` users and schema). Writes company label (`app.instance`) and calendar work hours into ini.
+Fills cabinets, catalog, clients, staff, calendar, ledger/finance, audio demo, rates/procents, etc. `--reset` clears prior demo domain rows (keeps `admin` / `demo` users and schema). Writes company label (`app.instance`) and calendar work hours into ini. Domain dates follow `DemoMode::now()` (wall clock, or `frozen_at` when set).
 
 `bin/demo-restore.example.sh` (host crontab calling `demo seed`) remains as a CLI fallback; with `cron_token` + `demo.reseed` it is not needed.
 

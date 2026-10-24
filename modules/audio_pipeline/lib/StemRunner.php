@@ -170,6 +170,68 @@ final class StemRunner
     }
 
     /**
+     * Reset + stem + collect one record (e.g. after adding a key from the list popover).
+     *
+     * @return array{ok:bool,message:string,score?:int,reset?:array,stem?:array}
+     */
+    public static function reparseRecord(int $recordId): array
+    {
+        $recordId = max(0, $recordId);
+        if ($recordId < 1 || !Database::tableExists('base_records')) {
+            return ['ok' => false, 'message' => 'bad_record'];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID, ID_ADMIN, DT_RECORDED FROM base_records WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$recordId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return ['ok' => false, 'message' => 'not_found'];
+        }
+        $adminId = (int)($row['ID_ADMIN'] ?? 0);
+        $dt = (int)($row['DT_RECORDED'] ?? 0);
+        $day = $dt > 0 ? date('Y-m-d', $dt) : '';
+
+        self::invalidateCaches();
+        $reset = self::resetDay(0, 0, 0, $recordId);
+        $stemOpts = [
+            'record' => $recordId,
+            'limit' => 1,
+            'collect' => true,
+            'time_budget_sec' => 90,
+            'collect_time_budget_sec' => 60,
+        ];
+        if ($day !== '') {
+            $stemOpts['day'] = $day;
+        }
+        if ($adminId > 0) {
+            $stemOpts['admin'] = $adminId;
+        }
+        $stem = self::run($stemOpts);
+
+        $score = null;
+        $stScore = Database::pdo()->prepare('SELECT SCORE FROM base_records WHERE ID = ? LIMIT 1');
+        $stScore->execute([$recordId]);
+        $scoreRaw = $stScore->fetchColumn();
+        if ($scoreRaw !== false) {
+            $score = (int)$scoreRaw;
+        }
+
+        return [
+            'ok' => !empty($stem['ok']),
+            'message' => (string)($stem['message'] ?? 'reparsed'),
+            'score' => $score ?? 0,
+            'reset' => $reset,
+            'stem' => [
+                'processed' => (int)($stem['processed'] ?? 0),
+                'skipped' => (int)($stem['skipped'] ?? 0),
+                'message' => (string)($stem['message'] ?? ''),
+                'extra' => is_array($stem['extra'] ?? null) ? $stem['extra'] : [],
+            ],
+        ];
+    }
+
+    /**
      * Does not touch base_records_reviews (inspected / favorites survive reparse).
      *
      * @return array{records:int,instances:int,collections:int,collections_datas:int,reviews:int,balances:int}
@@ -471,7 +533,9 @@ final class StemRunner
         $window = ['time_budget_sec' => $budget];
         if ($dayRange !== null) {
             $dayKey = date('Y-m-d', $dayRange['start']);
-            $onlyAdmins = self::adminIdsForDay($dayKey);
+            $onlyAdmins = $adminFilter > 0
+                ? [$adminFilter]
+                : self::adminIdsForDay($dayKey);
             $window['start'] = $dayRange['start'];
             $window['end'] = $dayRange['end'];
         } elseif ($adminFilter > 0) {
@@ -1385,12 +1449,13 @@ final class StemRunner
      */
     private static function findPhraseOccurrences(array $keyArrayEncoded, array $records, int $maxLength, array $refs): array
     {
+        // Same lemma bag → same hash. Keep ALL key ids (not just the first): a reception
+        // key may share lemmas with a massage farewell; position filter must try each.
+        /** @var array<string, list<int>> $keyHashes */
         $keyHashes = [];
         foreach ($keyArrayEncoded as $keyId => $phrase) {
             $hash = self::createHash($phrase);
-            if (!isset($keyHashes[$hash])) {
-                $keyHashes[$hash] = (int)$keyId;
-            }
+            $keyHashes[$hash][] = (int)$keyId;
         }
 
         $instnances = [];
@@ -1402,6 +1467,14 @@ final class StemRunner
 
         foreach ($records['encoded'] ?? [] as $recordId => $record) {
             $offers[(int)$recordId] = 0;
+            $recordAdminId = (int)($records['Admins'][$recordId] ?? 0);
+            $recordAllowedPositions = null;
+            if ($recordAdminId > 0) {
+                $recordPositionId = (int)($refs['operators'][$recordAdminId]['ID_STATUS'] ?? 0);
+                $recordAllowedPositions = self::getEquivalentAudioPositions($recordPositionId, $refs['statuses']);
+                $recordAllowedPositions[] = 0;
+            }
+
             foreach ($record as $lineNumber => $line) {
                 $lineIds = array_values($line);
                 $i = 0;
@@ -1417,40 +1490,50 @@ final class StemRunner
                         if (!isset($keyHashes[$hash])) {
                             continue;
                         }
-                        $phraseKey = (int)$keyHashes[$hash];
-                        $keyMeta = $refs['keys'][$phraseKey] ?? null;
-                        if ($keyMeta === null) {
-                            continue;
-                        }
-                        $dictId = (int)($keyMeta['ID_DICTONARY'] ?? 0);
-                        $dictRow = $refs['dicts'][$dictId] ?? null;
-                        $dictonaryPositionValue = (string)($dictRow['ID_POSITION'] ?? '0');
-                        $canBeAddedByPosition = self::isRecordPositionGlobal($dictonaryPositionValue);
-                        $recordAdminId = (int)($records['Admins'][$recordId] ?? 0);
-                        if (!$canBeAddedByPosition && $recordAdminId > 0) {
-                            $recordPositionId = (int)($refs['operators'][$recordAdminId]['ID_STATUS'] ?? 0);
-                            $recordAllowedPositions = self::getEquivalentAudioPositions($recordPositionId, $refs['statuses']);
-                            $recordAllowedPositions[] = 0;
-                            if (self::isRecordPositionAllowed($dictonaryPositionValue, $recordAllowedPositions)) {
-                                $canBeAddedByPosition = true;
-                            }
-                        }
 
-                        if ($canBeAddedByPosition) {
-                            if ($dictId > 0) {
-                                if (!isset($keysByTypeArray[$recordId][$dictId])) {
-                                    $keysByTypeArray[$recordId][$dictId] = [];
-                                }
-                                if (!isset($keysByTypeArray[$recordId][$dictId][$phraseKey])) {
-                                    $keysByTypeArray[$recordId][$dictId][$phraseKey] = 0;
-                                }
-                                $keysByTypeArray[$recordId][$dictId][$phraseKey]++;
+                        $phraseKey = 0;
+                        $dictId = 0;
+                        foreach ($keyHashes[$hash] as $candidateKey) {
+                            $keyMeta = $refs['keys'][$candidateKey] ?? null;
+                            if ($keyMeta === null) {
+                                continue;
                             }
-                            $instnances[$recordId][$lineNumber][$phraseKey][] = range($i, $i + $length - 1);
-                            $founds++;
-                        } else {
+                            $candDictId = (int)($keyMeta['ID_DICTONARY'] ?? 0);
+                            $dictRow = $refs['dicts'][$candDictId] ?? null;
+                            $dictonaryPositionValue = (string)($dictRow['ID_POSITION'] ?? '0');
+                            $canBeAddedByPosition = self::isRecordPositionGlobal($dictonaryPositionValue);
+                            if (!$canBeAddedByPosition && $recordAllowedPositions !== null) {
+                                $canBeAddedByPosition = self::isRecordPositionAllowed(
+                                    $dictonaryPositionValue,
+                                    $recordAllowedPositions
+                                );
+                            }
+
+                            if ($canBeAddedByPosition) {
+                                $phraseKey = $candidateKey;
+                                $dictId = $candDictId;
+                                break;
+                            }
                             $statsKeysTimeSkip++;
                         }
+
+                        if ($phraseKey < 1) {
+                            // All candidates blocked by position — do not consume the window;
+                            // a longer span may still match an allowed key.
+                            continue;
+                        }
+
+                        if ($dictId > 0) {
+                            if (!isset($keysByTypeArray[$recordId][$dictId])) {
+                                $keysByTypeArray[$recordId][$dictId] = [];
+                            }
+                            if (!isset($keysByTypeArray[$recordId][$dictId][$phraseKey])) {
+                                $keysByTypeArray[$recordId][$dictId][$phraseKey] = 0;
+                            }
+                            $keysByTypeArray[$recordId][$dictId][$phraseKey]++;
+                        }
+                        $instnances[$recordId][$lineNumber][$phraseKey][] = range($i, $i + $length - 1);
+                        $founds++;
 
                         $found = true;
                         $i += $length;

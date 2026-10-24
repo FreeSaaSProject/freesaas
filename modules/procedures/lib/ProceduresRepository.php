@@ -736,6 +736,43 @@ final class ProceduresRepository
     }
 
     /**
+     * Procedure ids with ID_ADMIN=$adminId whose DTSTART falls on $date (Y-m-d, app TZ).
+     *
+     * @return list<int>
+     */
+    public static function idsByAdminOnDate(int $adminId, string $date, int $limit = 500): array
+    {
+        $adminId = max(0, $adminId);
+        $date = trim($date);
+        $limit = max(1, min(2000, $limit));
+        if ($adminId < 1 || $date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)
+            || !Database::tableExists('base_procedures')
+        ) {
+            return [];
+        }
+        $from = strtotime($date . ' 00:00:00');
+        $to = strtotime($date . ' 23:59:59');
+        if ($from === false || $to === false) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_procedures
+             WHERE ID_ADMIN = ? AND DTSTART >= ? AND DTSTART <= ?
+             ORDER BY ID ASC
+             LIMIT ' . $limit
+        );
+        $st->execute([$adminId, (int)$from, (int)$to]);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) ?: [] as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $out[] = $id;
+            }
+        }
+        return $out;
+    }
+
+    /**
      * @param list<int> $ids
      * @return int updated count
      */

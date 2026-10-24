@@ -471,6 +471,29 @@
   align-items: center;
 }
 
+.add-key-overlap-actions a.add-key-btn {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.add-key-existing {
+  margin: 0 0 0.4rem;
+  line-height: 1.4;
+  color: #333;
+}
+
+.add-key-existing a {
+  color: #1565c0;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.add-key-existing a:hover { text-decoration: underline; }
+
+.add-key-existing p { margin: 0.2rem 0; }
+
 .add-key-error {
   border-color: #c62828;
 }
@@ -649,4 +672,105 @@
 .audio-badge-chip--pick {
   background: #fef3c7;
   border-color: #fcd34d;
+}
+
+/* /audio/settings — section tabs */
+.audio-settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+.audio-settings-tab {
+  display: inline-block;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+.audio-settings-tab:hover {
+  border-color: var(--accent, #4f6bed);
+}
+.audio-settings-tab.is-active {
+  background: var(--accent, #4f6bed);
+  border-color: var(--accent, #4f6bed);
+  color: #fff;
+  font-weight: 600;
+}
+.audio-settings-panel[hidden],
+.audio-settings-worker-extra[hidden] {
+  display: none !important;
+}
+
+/* Coverage overrides table on /audio/settings */
+.cov-profiles-table .cov-col-mark {
+  text-align: center;
+  width: 3.2rem;
+  white-space: nowrap;
+}
+.cov-profiles-table .cov-col-actions {
+  width: 4.5rem;
+  white-space: nowrap;
+  text-align: right;
+}
+.cov-mark {
+  display: inline-block;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+}
+.cov-mark--on { color: #2e7d32; }
+.cov-mark--off { color: #9aa3b2; }
+.cov-scope-link {
+  color: inherit;
+  text-decoration: none;
+}
+.cov-scope-link:hover strong {
+  text-decoration: underline;
+}
+.cov-row--off td {
+  color: var(--muted, #667085);
+}
+.cov-row--editing {
+  background: rgba(79, 107, 237, 0.08);
+}
+.cov-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  margin-left: 0.15rem;
+  padding: 0;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 5px;
+  background: var(--surface, #fff);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.95rem;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.cov-icon-btn:hover {
+  border-color: var(--accent, #4f6bed);
+}
+.cov-icon-btn--danger:hover {
+  border-color: #c62828;
+  color: #c62828;
+}
+.cov-editor {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #e4e7ec);
+}
+.cov-flag-readonly {
+  opacity: 0.85;
+}
+.cov-flag-readonly input[disabled] {
+  cursor: default;
 }

@@ -321,6 +321,108 @@ final class PendingActionsRepository
         return is_array($decoded) ? $decoded : [];
     }
 
+    /**
+     * Replace `{plan.N.field}` placeholders with values from confirmed earlier plan steps.
+     * Used when step 2+ needs the id created by step 1 (e.g. stickers.ins.create id_act).
+     *
+     * @param array<string,mixed> $args
+     * @return array<string,mixed>
+     */
+    public static function rewritePlanPlaceholders(array $args, string $planId, int $planStep): array
+    {
+        $planId = trim($planId);
+        if ($planId === '' || $planStep < 2 || !self::tableReady()
+            || !Database::columnExists('base_assistant_pending', 'PLAN_ID')
+        ) {
+            return $args;
+        }
+        $json = json_encode($args, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        if ($json === false || strpos($json, '{plan.') === false) {
+            return $args;
+        }
+        if (!preg_match_all('/\{plan\.(\d+)\.([a-zA-Z0-9_]+)\}/', $json, $m, PREG_SET_ORDER)) {
+            return $args;
+        }
+        $needed = [];
+        foreach ($m as $hit) {
+            $step = (int)$hit[1];
+            if ($step > 0 && $step < $planStep) {
+                $needed[$step] = true;
+            }
+        }
+        if ($needed === []) {
+            return $args;
+        }
+        $st = Database::pdo()->prepare(
+            "SELECT PLAN_STEP, RESULT_JSON FROM base_assistant_pending
+             WHERE PLAN_ID = ? AND STATUS = 'confirmed' AND PLAN_STEP > 0 AND PLAN_STEP < ?"
+        );
+        $st->execute([$planId, $planStep]);
+        $byStep = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $step = (int)($row['PLAN_STEP'] ?? 0);
+            $decoded = json_decode((string)($row['RESULT_JSON'] ?? ''), true);
+            if ($step > 0 && is_array($decoded)) {
+                $byStep[$step] = $decoded;
+            }
+        }
+        foreach ($m as $hit) {
+            $full = $hit[0];
+            $step = (int)$hit[1];
+            $field = $hit[2];
+            $val = self::resultField($byStep[$step] ?? null, $field);
+            if ($val === null) {
+                continue;
+            }
+            $json = str_replace($full, self::jsonScalar($val), $json);
+        }
+        $out = json_decode($json, true);
+        return is_array($out) ? $out : $args;
+    }
+
+    /**
+     * @param array<string,mixed>|null $result
+     * @return mixed
+     */
+    private static function resultField(?array $result, string $field)
+    {
+        if ($result === null || $field === '') {
+            return null;
+        }
+        if (array_key_exists($field, $result)) {
+            return $result[$field];
+        }
+        $item = is_array($result['item'] ?? null) ? $result['item'] : null;
+        if ($item !== null && array_key_exists($field, $item)) {
+            return $item[$field];
+        }
+        // Common create envelope: id at top level under ok.
+        if ($field === 'id' && isset($result['id'])) {
+            return $result['id'];
+        }
+        return null;
+    }
+
+    /**
+     * Value inserted in place of `{plan.N.field}` inside JSON that already quotes string args
+     * (e.g. `"id_act":"{plan.1.id}"` → `"id_act":"450"`).
+     *
+     * @param mixed $val
+     */
+    private static function jsonScalar($val): string
+    {
+        if (is_int($val) || is_float($val)) {
+            return (string)$val;
+        }
+        if (is_bool($val)) {
+            return $val ? '1' : '0';
+        }
+        if ($val === null) {
+            return '';
+        }
+        return str_replace(['\\', '"'], ['\\\\', '\\"'], (string)$val);
+    }
+
     /** Latest pending write bound to a Max/Telegram group chat. */
     public static function findLatestPendingForGroup(string $groupChatId, string $platform = 'max'): ?array
     {

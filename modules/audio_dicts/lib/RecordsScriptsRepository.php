@@ -135,11 +135,13 @@ final class RecordsScriptsRepository
         $gateCol = Database::columnExists('base_records_scripts', 'GATE_RED_MAX')
             ? ', GATE_RED_MAX AS gate_red_max, GATE_YELLOW_MAX AS gate_yellow_max'
             : ', 0 AS gate_red_max, 0 AS gate_yellow_max';
+        $closerCol = Database::columnExists('base_records_scripts', 'CLOSER')
+            ? ', CLOSER AS closer' : ', 0 AS closer';
         $st = Database::pdo()->prepare(
             "SELECT ID AS id, PID AS pid, NAME AS name, NUM AS num,
                     IS_REQ AS is_req, FINISH AS finish, `BREAK` AS break_flag,
                     COLLECTION_KILLER AS collection_killer, SCORE AS score
-                    {$rateCol}{$kpiCol}{$timeoutCol}{$extendCol}{$gateCol}
+                    {$rateCol}{$kpiCol}{$timeoutCol}{$extendCol}{$gateCol}{$closerCol}
              FROM base_records_scripts
              WHERE PID IN ($in)
              ORDER BY PID ASC, NUM ASC, ID ASC"
@@ -157,7 +159,8 @@ final class RecordsScriptsRepository
                     (int)$row['is_req'],
                     (int)$row['finish'],
                     (int)$row['break_flag'],
-                    (int)$row['collection_killer']
+                    (int)$row['collection_killer'],
+                    (int)($row['closer'] ?? 0)
                 ),
                 'score' => (int)$row['score'],
                 'score_rate' => (int)($row['score_rate'] ?? 0),
@@ -460,7 +463,8 @@ final class RecordsScriptsRepository
                     (int)($p['is_req'] ?? 0),
                     (int)($p['finish'] ?? 0),
                     (int)($p['break_flag'] ?? 0),
-                    (int)($p['collection_killer'] ?? 0)
+                    (int)($p['collection_killer'] ?? 0),
+                    (int)($p['closer'] ?? 0)
                 ),
                 'collection_killer' => (int)$p['collection_killer'],
                 'id_position' => (string)($p['id_position'] ?? ''),
@@ -800,7 +804,7 @@ final class RecordsScriptsRepository
 
     /**
      * @param array<string,mixed> $part
-     * @return array{is_req:int,finish:int,break:int,killer:int}
+     * @return array{is_req:int,finish:int,closer:int,break:int,killer:int}
      */
     public static function flagsFromPart(array $part): array
     {
@@ -809,12 +813,15 @@ final class RecordsScriptsRepository
             $single = self::normalizeRole((string)($part['role'] ?? ''));
             if ($single !== '' && $single !== 'ordinary') {
                 $roles = [$single];
-            } elseif (isset($part['is_req']) || isset($part['finish']) || isset($part['break_flag']) || isset($part['break']) || isset($part['collection_killer'])) {
+            } elseif (isset($part['is_req']) || isset($part['finish']) || isset($part['closer'])
+                || isset($part['break_flag']) || isset($part['break']) || isset($part['collection_killer'])
+            ) {
                 $roles = self::rolesFromFlags(
                     (int)($part['is_req'] ?? 0),
                     (int)($part['finish'] ?? 0),
                     (int)($part['break_flag'] ?? $part['break'] ?? 0),
-                    (int)($part['collection_killer'] ?? $part['killer'] ?? 0)
+                    (int)($part['collection_killer'] ?? $part['killer'] ?? 0),
+                    (int)($part['closer'] ?? 0)
                 );
             } else {
                 $roles = ['ordinary'];
@@ -824,6 +831,7 @@ final class RecordsScriptsRepository
         return [
             'is_req' => in_array('trigger', $roles, true) ? 1 : 0,
             'finish' => in_array('conversion', $roles, true) ? 1 : 0,
+            'closer' => in_array('closer', $roles, true) ? 1 : 0,
             'break' => in_array('breaker', $roles, true) ? 1 : 0,
             'killer' => in_array('killer', $roles, true) ? 1 : 0,
         ];
@@ -832,14 +840,22 @@ final class RecordsScriptsRepository
     /**
      * @return list<string>
      */
-    public static function rolesFromFlags(int $isReq, int $finish, int $break, int $killer = 0): array
-    {
+    public static function rolesFromFlags(
+        int $isReq,
+        int $finish,
+        int $break,
+        int $killer = 0,
+        int $closer = 0
+    ): array {
         $roles = [];
         if ($isReq > 0) {
             $roles[] = 'trigger';
         }
         if ($finish > 0) {
             $roles[] = 'conversion';
+        }
+        if ($closer > 0) {
+            $roles[] = 'closer';
         }
         if ($break > 0) {
             $roles[] = 'breaker';
@@ -853,14 +869,14 @@ final class RecordsScriptsRepository
     /** @deprecated use rolesFromFlags */
     public static function roleFromFlags(int $isReq, int $finish, int $break): string
     {
-        $roles = self::rolesFromFlags($isReq, $finish, $break, 0);
+        $roles = self::rolesFromFlags($isReq, $finish, $break, 0, 0);
         return $roles[0] ?? 'ordinary';
     }
 
     public static function normalizeRole(string $role): string
     {
         $role = strtolower(trim($role));
-        $allowed = ['ordinary', 'trigger', 'conversion', 'breaker', 'killer'];
+        $allowed = ['ordinary', 'trigger', 'conversion', 'closer', 'breaker', 'killer'];
         return in_array($role, $allowed, true) ? $role : 'ordinary';
     }
 
@@ -870,7 +886,7 @@ final class RecordsScriptsRepository
      */
     public static function normalizeRoles(array $roles): array
     {
-        $allowed = ['trigger', 'conversion', 'breaker', 'killer'];
+        $allowed = ['trigger', 'conversion', 'closer', 'breaker', 'killer'];
         $out = [];
         foreach ($roles as $r) {
             $r = self::normalizeRole((string)$r);
@@ -1047,6 +1063,11 @@ final class RecordsScriptsRepository
         } else {
             $cols .= ', 1 AS extend_timeout';
         }
+        if (Database::columnExists('base_records_scripts', 'BREAK_GAP')) {
+            $cols .= ', BREAK_GAP AS break_gap';
+        } else {
+            $cols .= ', 120 AS break_gap';
+        }
         if (Database::columnExists('base_records_scripts', 'DAY_BONUS')) {
             $cols .= ', DAY_BONUS AS day_bonus, DAY_BONUS_SUM AS day_bonus_sum, PROC_RATIO_MIN AS proc_ratio_min';
         } else {
@@ -1066,6 +1087,11 @@ final class RecordsScriptsRepository
             $cols .= ', HIDE_FROM_REPORTS AS hide_from_reports';
         } else {
             $cols .= ', 0 AS hide_from_reports';
+        }
+        if (Database::columnExists('base_records_scripts', 'CLOSER')) {
+            $cols .= ', CLOSER AS closer';
+        } else {
+            $cols .= ', 0 AS closer';
         }
         return $cols;
     }
@@ -1142,10 +1168,11 @@ final class RecordsScriptsRepository
     {
         $isReq = (int)($row['is_req'] ?? 0);
         $finish = (int)($row['finish'] ?? 0);
+        $closer = (int)($row['closer'] ?? 0);
         $break = (int)($row['break_flag'] ?? $row['break'] ?? 0);
         $killer = (int)($row['collection_killer'] ?? 0);
         $dictIds = self::parseIds((string)($row['ids_dictonarys'] ?? ''));
-        $roles = self::rolesFromFlags($isReq, $finish, $break, $killer);
+        $roles = self::rolesFromFlags($isReq, $finish, $break, $killer, $closer);
         return [
             'id' => (int)$row['id'],
             'pid' => (int)$row['pid'],
@@ -1157,6 +1184,7 @@ final class RecordsScriptsRepository
             'disabled' => (int)($row['disabled'] ?? 0),
             'is_req' => $isReq,
             'finish' => $finish,
+            'closer' => $closer,
             'break_flag' => $break,
             'ids_dictonarys' => (string)($row['ids_dictonarys'] ?? ''),
             'dict_ids' => $dictIds,
@@ -1170,6 +1198,7 @@ final class RecordsScriptsRepository
                 ? ((int)$row['extend_timeout'] > 0 ? 1 : 0)
                 : 1,
             'timeout' => (int)($row['timeout'] ?? 0),
+            'break_gap' => max(0, (int)($row['break_gap'] ?? 120)),
             'diversity' => (int)($row['diversity'] ?? 0),
             'instances_min' => (int)($row['instances_min'] ?? 0),
             'gate_red_max' => max(0.0, (float)($row['gate_red_max'] ?? 0)),
@@ -1182,9 +1211,18 @@ final class RecordsScriptsRepository
         ];
     }
 
+    private static function applyCloserFlag(PDO $pdo, int $partId, int $closer): void
+    {
+        if ($partId < 1 || !Database::columnExists('base_records_scripts', 'CLOSER')) {
+            return;
+        }
+        $st = $pdo->prepare('UPDATE base_records_scripts SET CLOSER=? WHERE ID=? AND PID > 0');
+        $st->execute([$closer > 0 ? 1 : 0, $partId]);
+    }
+
     /**
      * @param array<string,mixed> $part
-     * @param array{is_req:int,finish:int,break:int,killer:int} $flags
+     * @param array{is_req:int,finish:int,closer?:int,break:int,killer:int} $flags
      */
     private static function updatePartRow(
         PDO $pdo,
@@ -1198,6 +1236,7 @@ final class RecordsScriptsRepository
         if (Database::columnExists('base_records_scripts', 'SCORE_RATE')) {
             $hasGate = Database::columnExists('base_records_scripts', 'START_GATE');
             $hasExtend = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
+            $hasBreakGap = Database::columnExists('base_records_scripts', 'BREAK_GAP');
             $hasQuality = Database::columnExists('base_records_scripts', 'GATE_RED_MAX');
             $hasHide = Database::columnExists('base_records_scripts', 'HIDE_FROM_REPORTS');
             $upd = $pdo->prepare(
@@ -1208,6 +1247,7 @@ final class RecordsScriptsRepository
                  SCORE_RATE=?, KPI=?, COND_TYPE=?, COND_VALUE=?'
                 . ($hasGate ? ', START_GATE=?' : '')
                 . ($hasExtend ? ', EXTEND_TIMEOUT=?' : '')
+                . ($hasBreakGap ? ', BREAK_GAP=?' : '')
                 . ($hasQuality ? ', GATE_RED_MAX=?, GATE_YELLOW_MAX=?' : '')
                 . ($hasHide ? ', HIDE_FROM_REPORTS=?' : '')
                 . ' WHERE ID=? AND PID=?'
@@ -1239,6 +1279,9 @@ final class RecordsScriptsRepository
                     ? (!empty($part['extend_timeout']) ? 1 : 0)
                     : 1;
             }
+            if ($hasBreakGap) {
+                $params[] = max(0, (int)($part['break_gap'] ?? 120));
+            }
             if ($hasQuality) {
                 $params[] = max(0.0, (float)($part['gate_red_max'] ?? 0));
                 $params[] = max(0.0, (float)($part['gate_yellow_max'] ?? 0));
@@ -1249,6 +1292,7 @@ final class RecordsScriptsRepository
             $params[] = $partId;
             $params[] = $rootId;
             $upd->execute($params);
+            self::applyCloserFlag($pdo, $partId, (int)($flags['closer'] ?? 0));
             return;
         }
         $upd = $pdo->prepare(
@@ -1275,11 +1319,12 @@ final class RecordsScriptsRepository
             $partId,
             $rootId,
         ]);
+        self::applyCloserFlag($pdo, $partId, (int)($flags['closer'] ?? 0));
     }
 
     /**
      * @param array<string,mixed> $part
-     * @param array{is_req:int,finish:int,break:int,killer:int} $flags
+     * @param array{is_req:int,finish:int,closer?:int,break:int,killer:int} $flags
      */
     private static function insertPartRow(
         PDO $pdo,
@@ -1292,6 +1337,7 @@ final class RecordsScriptsRepository
         if (Database::columnExists('base_records_scripts', 'SCORE_RATE')) {
             $hasGate = Database::columnExists('base_records_scripts', 'START_GATE');
             $hasExtend = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
+            $hasBreakGap = Database::columnExists('base_records_scripts', 'BREAK_GAP');
             $hasQuality = Database::columnExists('base_records_scripts', 'GATE_RED_MAX');
             $hasHide = Database::columnExists('base_records_scripts', 'HIDE_FROM_REPORTS');
             $ins = $pdo->prepare(
@@ -1301,12 +1347,14 @@ final class RecordsScriptsRepository
                   COLLECTION_KILLER, ID_POSITION, SCORE_RATE, KPI, COND_TYPE, COND_VALUE'
                 . ($hasGate ? ', START_GATE' : '')
                 . ($hasExtend ? ', EXTEND_TIMEOUT' : '')
+                . ($hasBreakGap ? ', BREAK_GAP' : '')
                 . ($hasQuality ? ', GATE_RED_MAX, GATE_YELLOW_MAX' : '')
                 . ($hasHide ? ', HIDE_FROM_REPORTS' : '')
                 . ')
                  VALUES (?, 0, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?'
                 . ($hasGate ? ', ?' : '')
                 . ($hasExtend ? ', ?' : '')
+                . ($hasBreakGap ? ', ?' : '')
                 . ($hasQuality ? ', ?, ?' : '')
                 . ($hasHide ? ', ?' : '')
                 . ')'
@@ -1339,6 +1387,9 @@ final class RecordsScriptsRepository
                 $params[] = array_key_exists('extend_timeout', $part)
                     ? (!empty($part['extend_timeout']) ? 1 : 0)
                     : 1;
+            }
+            if ($hasBreakGap) {
+                $params[] = max(0, (int)($part['break_gap'] ?? 120));
             }
             if ($hasQuality) {
                 $params[] = max(0.0, (float)($part['gate_red_max'] ?? 0));
@@ -1374,7 +1425,10 @@ final class RecordsScriptsRepository
                 (string)($part['id_position'] ?? ''),
             ]);
         }
-        return (int)$pdo->lastInsertId();
+        $newId = (int)$pdo->lastInsertId();
+        self::applyCloserFlag($pdo, $newId, (int)($flags['closer'] ?? 0));
+
+        return $newId;
     }
 
     /**

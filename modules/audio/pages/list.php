@@ -163,9 +163,12 @@ $trashAdded = 0;
 
 $dictsOn = ModuleManager::isEnabled('audio_dicts');
 $keyDictOptions = [];
+/** @var array<int,array<int,string>> $keyDictsByAdmin */
+$keyDictsByAdmin = [];
 if ($dictsOn) {
     require_once base_path('modules/audio_dicts/lib/RecordsDictsRepository.php');
     require_once base_path('modules/audio_dicts/lib/RecordsTrashesRepository.php');
+    // Fallback when record has no admin; popover prefers per-admin map.
     $keyDictOptions = RecordsDictsRepository::options(false);
 }
 
@@ -253,6 +256,16 @@ if ($day > 0) {
     ];
 }
 
+if ($dictsOn && !empty($result['items'])) {
+    foreach ($result['items'] as $row) {
+        $aid = (int)($row['id_admin'] ?? 0);
+        if ($aid < 1 || isset($keyDictsByAdmin[$aid])) {
+            continue;
+        }
+        $keyDictsByAdmin[$aid] = RecordsDictsRepository::optionsForAdmin($aid, false);
+    }
+}
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -318,6 +331,7 @@ View::render('list', [
     'downloadUrlById' => $downloadUrlById,
     'badgeOptions' => $badgeOptions,
     'keyDictOptions' => $keyDictOptions,
+    'keyDictsByAdmin' => $keyDictsByAdmin,
     'dictsOn' => $dictsOn,
     'trashAdded' => $trashAdded,
     'dayNav' => $dayNav,

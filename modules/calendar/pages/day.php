@@ -6,17 +6,17 @@ $wantsJson = AgentHttp::wantsJson();
 $dateParam = (string)(Router::param('date') ?? ($_GET['date'] ?? ''));
 $dateParam = trim($dateParam);
 if ($dateParam === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateParam)) {
-    $dateParam = date('Y-m-d');
+    $dateParam = date('Y-m-d', DemoMode::now());
 }
 $dayStart = strtotime($dateParam . ' 00:00:00');
 if ($dayStart === false) {
-    $dateParam = date('Y-m-d');
-    $dayStart = strtotime($dateParam . ' 00:00:00') ?: time();
+    $dateParam = date('Y-m-d', DemoMode::now());
+    $dayStart = strtotime($dateParam . ' 00:00:00') ?: DemoMode::now();
 }
 $dayEnd = $dayStart + 86400;
 $prevDate = date('Y-m-d', $dayStart - 86400);
 $nextDate = date('Y-m-d', $dayEnd);
-$today = date('Y-m-d');
+$today = date('Y-m-d', DemoMode::now());
 
 if (!$wantsJson) {
     CalendarViewPref::remember('day', $dateParam);

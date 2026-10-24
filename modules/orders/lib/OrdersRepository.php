@@ -1012,7 +1012,7 @@ final class OrdersRepository
             return [];
         }
         $out = [];
-        $endToday = (int)mktime(23, 59, 59);
+        $endToday = DemoMode::dayEnd();
         $in = self::newStatusInSql();
 
         $today = self::countRaw(
@@ -1066,7 +1066,7 @@ final class OrdersRepository
             $parts[] = 'o.STATUS IN (' . self::newStatusInSql() . ')';
         } elseif ($status === 'newToday') {
             $parts[] = 'o.STATUS IN (' . self::newStatusInSql() . ') AND o.DT_EVENT_NEW < ?';
-            $params[] = (int)mktime(23, 59, 59);
+            $params[] = DemoMode::dayEnd();
         } elseif ($status === '0') {
             $parts[] = '(o.STATUS = \'\' OR o.STATUS = \'0\')';
         } elseif ($status === '1') {

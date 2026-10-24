@@ -329,6 +329,169 @@ final class NewsRepository
         return strpos($raw, '#' . $id . '#') !== false;
     }
 
+    /** Allowed ACCESS_* columns for SUPERADMIN grant tool. @return list<string> */
+    public static function accessGrantFields(): array
+    {
+        return ['ACCESS_GROUP', 'ACCESS_GROUP2', 'ACCESS_USER'];
+    }
+
+    /** Normalize form field name → column, or null. */
+    public static function normalizeAccessGrantField(string $field): ?string
+    {
+        $map = [
+            'ACCESS_GROUP' => 'ACCESS_GROUP',
+            'access_group' => 'ACCESS_GROUP',
+            'ACCESS_GROUP2' => 'ACCESS_GROUP2',
+            'access_group2' => 'ACCESS_GROUP2',
+            'ACCESS_USER' => 'ACCESS_USER',
+            'access_user' => 'ACCESS_USER',
+        ];
+        $key = trim($field);
+        return $map[$key] ?? null;
+    }
+
+    /**
+     * If $findId is in the list, return list with $addId appended (idempotent).
+     * Null when $findId is absent (open / other restriction).
+     *
+     * @return array{changed:bool, value:string}|null
+     */
+    public static function accessListWithGrant(string $raw, int $findId, int $addId): ?array
+    {
+        if ($findId < 1 || $addId < 1 || $findId === $addId) {
+            return null;
+        }
+        if (!self::idInAccessList($raw, $findId)) {
+            return null;
+        }
+        $ids = self::parseUserList($raw);
+        if (in_array($addId, $ids, true)) {
+            return ['changed' => false, 'value' => self::encodeIdList($ids)];
+        }
+        $ids[] = $addId;
+        return ['changed' => true, 'value' => self::encodeIdList($ids)];
+    }
+
+    /**
+     * Preview rows that would gain $addId on $field when $findId is already listed.
+     *
+     * @return array{
+     *   field:string,
+     *   find_id:int,
+     *   add_id:int,
+     *   total:int,
+     *   already:int,
+     *   samples:list<array{id:int,type:int,name:string,disabled:int,before:string,after:string,already:bool}>
+     * }
+     */
+    public static function previewAccessGrant(string $field, int $findId, int $addId, int $limit = 50): array
+    {
+        $col = self::normalizeAccessGrantField($field);
+        $out = [
+            'field' => $col ?? '',
+            'find_id' => $findId,
+            'add_id' => $addId,
+            'total' => 0,
+            'already' => 0,
+            'samples' => [],
+        ];
+        if ($col === null || $findId < 1 || $addId < 1 || $findId === $addId
+            || !Database::tableExists('base_news')
+            || !Database::columnExists('base_news', $col)
+        ) {
+            return $out;
+        }
+        if ($limit < 1) {
+            $limit = 50;
+        }
+        if ($limit > 200) {
+            $limit = 200;
+        }
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            "SELECT ID, TYPE, NAME, DISABLED, `{$col}` AS access_raw
+             FROM base_news
+             WHERE `{$col}` IS NOT NULL AND `{$col}` <> '' AND `{$col}` <> '0'
+               AND (`{$col}` = ? OR `{$col}` LIKE ?)
+             ORDER BY ID DESC"
+        );
+        $st->execute([(string)$findId, '%#' . $findId . '#%']);
+        $samples = [];
+        foreach ($st->fetchAll() as $row) {
+            $raw = (string)($row['access_raw'] ?? '');
+            $grant = self::accessListWithGrant($raw, $findId, $addId);
+            if ($grant === null) {
+                continue;
+            }
+            $out['total']++;
+            if (!$grant['changed']) {
+                // Y already present — count only; do not clutter preview with no-ops.
+                $out['already']++;
+                continue;
+            }
+            if (count($samples) < $limit) {
+                $samples[] = [
+                    'id' => (int)$row['ID'],
+                    'type' => (int)$row['TYPE'],
+                    'name' => (string)($row['NAME'] ?? ''),
+                    'disabled' => (int)($row['DISABLED'] ?? 0),
+                    'before' => $raw,
+                    'after' => $grant['value'],
+                    'already' => false,
+                ];
+            }
+        }
+        $out['samples'] = $samples;
+        return $out;
+    }
+
+    /**
+     * Apply grant: append $addId wherever $findId is already in $field.
+     *
+     * @return array{updated:int, skipped_already:int, total:int}
+     */
+    public static function applyAccessGrant(string $field, int $findId, int $addId): array
+    {
+        $col = self::normalizeAccessGrantField($field);
+        $result = ['updated' => 0, 'skipped_already' => 0, 'total' => 0];
+        if ($col === null || $findId < 1 || $addId < 1 || $findId === $addId
+            || !Database::tableExists('base_news')
+            || !Database::columnExists('base_news', $col)
+        ) {
+            return $result;
+        }
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            "SELECT ID, `{$col}` AS access_raw
+             FROM base_news
+             WHERE `{$col}` IS NOT NULL AND `{$col}` <> '' AND `{$col}` <> '0'
+               AND (`{$col}` = ? OR `{$col}` LIKE ?)
+             ORDER BY ID ASC"
+        );
+        $st->execute([(string)$findId, '%#' . $findId . '#%']);
+        $upd = $pdo->prepare("UPDATE base_news SET `{$col}` = ? WHERE ID = ? AND `{$col}` = ?");
+        foreach ($st->fetchAll() as $row) {
+            $raw = (string)($row['access_raw'] ?? '');
+            $grant = self::accessListWithGrant($raw, $findId, $addId);
+            if ($grant === null) {
+                continue;
+            }
+            $result['total']++;
+            if (!$grant['changed']) {
+                $result['skipped_already']++;
+                continue;
+            }
+            $upd->execute([$grant['value'], (int)$row['ID'], $raw]);
+            if ($upd->rowCount() > 0) {
+                $result['updated']++;
+            } else {
+                // Concurrent change or already equal after race — recount as skip.
+                $result['skipped_already']++;
+            }
+        }
+        return $result;
+    }
+
     public static function canView(array $row, int $userId): bool
     {
         if (!self::canViewRowAcl($row, $userId)) {

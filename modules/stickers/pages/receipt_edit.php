@@ -33,9 +33,17 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     } else {
         try {
             $data = Acts2InRepository::dataFromPost($_POST);
-            $newId = Acts2InRepository::create($data, Auth::userId());
+            $lines = Acts2InRepository::linesFromPost($_POST);
+            $created = Acts2InRepository::createWithLines($data, $lines, Auth::userId());
+            $newId = (int)$created['id'];
             if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'id' => $newId, 'item' => Acts2InRepository::find($newId)]);
+                AgentHttp::emit([
+                    'ok' => true,
+                    'id' => $newId,
+                    'item' => Acts2InRepository::find($newId),
+                    'sticker_ids' => $created['sticker_ids'],
+                    'lines_count' => count($created['sticker_ids']),
+                ]);
                 return;
             }
             redirect('/stickers/receipts/' . $newId . '/edit?saved=1');
@@ -55,6 +63,10 @@ if (isset($_GET['saved']) && $message === '') {
 }
 
 $stocks = class_exists('StocksRepository', false) ? StocksRepository::names() : [];
+$defaultStockId = class_exists('StocksRepository', false) ? StocksRepository::defaultForStaff() : null;
+if ($isNew && empty($row['id_stock']) && $defaultStockId !== null) {
+    $row['id_stock'] = $defaultStockId;
+}
 $suppliers = [];
 if (class_exists('SuppliersRepository', false)) {
     $suppliers = SuppliersRepository::names(true);
@@ -93,6 +105,7 @@ if ($wantsJson) {
         'dps' => $dpsMoves,
         'grouped' => true,
         'stocks' => $stocks,
+        'default_stock_id' => $defaultStockId,
         'suppliers' => $suppliers,
         'products' => $products,
         'product_units' => $productUnits,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 /**
  * JSON endpoints for list UX: add key / add trash phrase.
  * Requires audio.edit; dicts tables when audio_dicts is enabled.
+ * After add_key with record_id: optional single-record stem+collect (SCORE refresh).
  */
 header('Content-Type: application/json; charset=utf-8');
 
@@ -28,6 +29,7 @@ if ($text === '') {
 }
 $text = mb_substr($text, 0, 255);
 $force = !empty($_POST['force']) || !empty($_POST['confirm']);
+$recordId = max(0, (int)($_POST['record_id'] ?? 0));
 
 $dictsOn = ModuleManager::isEnabled('audio_dicts');
 if (!$dictsOn) {
@@ -59,15 +61,66 @@ $labelOverlaps = static function (array $hits): array {
     return $out;
 };
 
+/**
+ * @return array{ok:bool,score?:int,message?:string}|null
+ */
+$reparseRecordIfPossible = static function (int $rid): ?array {
+    if ($rid < 1 || !ModuleManager::isEnabled('audio_pipeline')) {
+        return null;
+    }
+    $stemLib = base_path('modules/audio_pipeline/lib/StemRunner.php');
+    if (!is_file($stemLib)) {
+        return null;
+    }
+    require_once base_path('modules/audio_pipeline/lib/JobRunner.php');
+    require_once $stemLib;
+    if (!class_exists('StemRunner', false)) {
+        return null;
+    }
+    try {
+        $out = StemRunner::reparseRecord($rid);
+
+        return [
+            'ok' => !empty($out['ok']),
+            'score' => (int)($out['score'] ?? 0),
+            'message' => (string)($out['message'] ?? ''),
+        ];
+    } catch (Throwable $e) {
+        return [
+            'ok' => false,
+            'message' => $e->getMessage(),
+        ];
+    }
+};
+
 try {
     if ($action === 'add_key') {
         $existing = RecordsKeysRepository::findByName($text);
         if ($existing) {
+            $keyId = (int)$existing['id'];
+            $dictId = (int)($existing['id_dictonary'] ?? 0);
+            $dictName = '';
+            if ($dictId > 0) {
+                $dictRow = RecordsDictsRepository::find($dictId);
+                if (is_array($dictRow)) {
+                    $dictName = (string)($dictRow['name'] ?? '');
+                }
+            }
             echo json_encode([
                 'success' => true,
-                'keyId' => (int)$existing['id'],
+                'keyId' => $keyId,
                 'created' => false,
+                'already_exists' => true,
                 'message' => t('audio.api.key_exists'),
+                'key' => [
+                    'id' => $keyId,
+                    'name' => (string)($existing['name'] ?? $text),
+                    'disabled' => (int)($existing['disabled'] ?? 0) > 0,
+                    'dict_id' => $dictId,
+                    'dict_name' => $dictName,
+                    'edit_url' => '/audio/keys/' . $keyId . '/edit',
+                    'dict_edit_url' => $dictId > 0 ? '/audio/dicts/' . $dictId . '/edit' : '',
+                ],
             ]);
             return;
         }
@@ -85,9 +138,30 @@ try {
         }
 
         $dictId = max(0, (int)($_POST['dict_id'] ?? 0));
+        $adminId = max(0, (int)($_POST['admin_id'] ?? 0));
+        $dicts = $adminId > 0
+            ? RecordsDictsRepository::optionsForAdmin($adminId, false)
+            : RecordsDictsRepository::options(false);
         if ($dictId < 1) {
-            $dicts = RecordsDictsRepository::options(false);
             $dictId = $dicts ? (int)array_key_first($dicts) : 0;
+        }
+        if ($dictId < 1) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => t('audio.api.dict_required')]);
+            return;
+        }
+        if ($adminId > 0 && !RecordsDictsRepository::isDictAllowedForAdmin($dictId, $adminId)) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'error' => t('audio.api.dict_not_for_position')]);
+            return;
+        }
+        if ($adminId < 1 && !isset($dicts[$dictId])) {
+            $all = RecordsDictsRepository::options(false);
+            if (!isset($all[$dictId])) {
+                http_response_code(400);
+                echo json_encode(['success' => false, 'error' => t('audio.api.dict_required')]);
+                return;
+            }
         }
         $looklike = 0;
         if ($overlaps !== []) {
@@ -99,14 +173,26 @@ try {
             'id_dictonary' => $dictId,
             'id_looklike' => $looklike,
         ]);
-        echo json_encode([
+        $payload = [
             'success' => true,
             'keyId' => $id,
             'created' => true,
             'message' => t('audio.api.key_added'),
             'overlaps' => $labelOverlaps($overlaps),
             'id_looklike' => $looklike,
-        ]);
+        ];
+        $re = $reparseRecordIfPossible($recordId);
+        if ($re !== null) {
+            $payload['reparsed'] = $re;
+            if (!empty($re['ok'])) {
+                $payload['message'] = t('audio.api.key_added_reparsed', [
+                    'score' => (string)(int)($re['score'] ?? 0),
+                ]);
+            } else {
+                $payload['message'] = t('audio.api.key_added_reparse_failed');
+            }
+        }
+        echo json_encode($payload);
         return;
     }
 

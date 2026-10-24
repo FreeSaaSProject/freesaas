@@ -2,7 +2,7 @@
     "id": "stocks",
     "name": "stocks.module.name",
     "description": "stocks.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -11,7 +11,8 @@
         "cabinets": ">=1.0.0",
         "stickers": ">=1.0.0",
         "catalog": ">=1.0.0",
-        "norms": ">=1.0.0"
+        "norms": ">=1.0.0",
+        "calendar": ">=1.0.0"
     },
     "provides": [
         "stocks.list",
@@ -48,7 +49,7 @@
                 "method": "GET",
                 "path": "/stocks",
                 "permission": "stocks.view",
-                "description": "List warehouses/stocks; filters: q, type (1 physical, 2 virtual)"
+                "description": "List warehouses; filters: q. Response includes default_stock_id for receipts"
             },
             {
                 "id": "stocks.get_edit",
@@ -62,7 +63,7 @@
                 "method": "POST",
                 "path": "/stocks/new",
                 "permission": "stocks.edit",
-                "description": "Create stock/warehouse"
+                "description": "Create stock/warehouse (operative=1 = default for receipts)"
             },
             {
                 "id": "stocks.update",
@@ -76,23 +77,24 @@
                 "method": "GET",
                 "path": "/stocks/leftovers",
                 "permission": "stocks.view",
-                "description": "Leftover quantities report; id_good filter, show_all=1 for zero rows"
+                "description": "Stock levels: id_good, show_all, months (0-12), show_cat; need_future from events×norms"
             }
         ]
     },
     "jobs": [],
     "menu": [
         {
-            "group": "core.menu.group.dictionaries",
-            "num": 5,
-            "path": "/stocks",
-            "title": "stocks.menu.list"
-        },
-        {
             "group": "core.menu.group.warehouse",
             "num": 1,
             "path": "/stocks/leftovers",
             "title": "stocks.menu.leftovers"
+        },
+        {
+            "group": "core.menu.group.warehouse",
+            "num": 2,
+            "path": "/stocks",
+            "title": "stocks.menu.list",
+            "kind": "settings"
         }
     ],
     "configSchema": [],
@@ -116,8 +118,7 @@
     ],
     "catalog": {
         "categories": [
-            "warehouse",
-            "dictionaries"
+            "warehouse"
         ],
         "maturity": "release",
         "tags": [],

@@ -25,8 +25,29 @@ $action = trim((string)($_POST['action'] ?? ''));
 $linkPart = !empty($_POST['link_part']) || !empty($proposal['link_part']);
 $force = !empty($_POST['force']);
 
-if ($action === 'accept') {
-    $res = CoachApply::accept($proposal, $adminId, Auth::userId(), $linkPart, $force);
+if ($action === 'accept' || $action === 'accept_all') {
+    $only = null;
+    if ($action === 'accept') {
+        $raw = $_POST['phrases'] ?? [];
+        if (!is_array($raw)) {
+            $raw = $raw !== '' && $raw !== null ? [(string)$raw] : [];
+        }
+        $only = [];
+        foreach ($raw as $ph) {
+            $ph = trim((string)$ph);
+            if ($ph !== '') {
+                $only[] = $ph;
+            }
+        }
+        if ($only === []) {
+            if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
+                AgentHttp::error(t('audio_script_coach.err.no_phrases_selected'), 400);
+            }
+            flash_set('error', t('audio_script_coach.err.no_phrases_selected'));
+            redirect('/audio/script-coach/run/' . (int)$proposal['id_run']);
+        }
+    }
+    $res = CoachApply::accept($proposal, $adminId, Auth::userId(), $linkPart, $force, $only);
     if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
         AgentHttp::emit($res);
     }
@@ -40,7 +61,7 @@ if ($action === 'accept') {
                 }
             }
         }
-        if ($skipped > 0) {
+        if ($skipped > 0 && $err === t('audio_script_coach.err.all_overlap')) {
             flash_set('error', t('audio_script_coach.flash.accept_partial_overlap', [
                 'n' => (string)$skipped,
             ]));
@@ -49,20 +70,16 @@ if ($action === 'accept') {
         }
     } else {
         $created = (int)($res['meta']['created'] ?? 0);
-        $skipped = (int)($res['meta']['skipped'] ?? 0);
-        if ($created < 1) {
-            foreach (is_array($res['meta']['keys'] ?? null) ? $res['meta']['keys'] : [] as $k) {
-                if ((int)($k['id'] ?? 0) > 0 && empty($k['skipped'])) {
-                    $created++;
-                } elseif (!empty($k['skipped'])) {
-                    $skipped++;
-                }
-            }
-        }
-        if ($skipped > 0) {
+        $remaining = (int)($res['remaining'] ?? 0);
+        if ($remaining > 0) {
+            flash_set('ok', t('audio_script_coach.flash.accepted_phrases', [
+                'created' => (string)$created,
+                'left' => (string)$remaining,
+            ]));
+        } elseif ((int)($res['meta']['skipped'] ?? 0) > 0) {
             flash_set('ok', t('audio_script_coach.flash.accepted_partial', [
                 'created' => (string)$created,
-                'skipped' => (string)$skipped,
+                'skipped' => (string)(int)$res['meta']['skipped'],
             ]));
         } else {
             flash_set('ok', t('audio_script_coach.flash.accepted', ['created' => (string)$created]));

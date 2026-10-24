@@ -2,14 +2,15 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.1",
+    "version": "1.0.8",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
         "audio": ">=1.0.0"
     },
     "optionalRequires": {
-        "audio_reports": ">=1.0.0"
+        "audio_reports": ">=1.0.0",
+        "llm": ">=1.0.0"
     },
     "migrations": "migrations/",
     "permissions": [
@@ -31,6 +32,7 @@
             "/audio/dicts",
             "/audio/dicts/new",
             "/audio/dicts/{id}/edit",
+            "/audio/dicts/{id}/suggest-descr",
             "/audio/keys",
             "/audio/keys/new",
             "/audio/keys/{id}/edit",
@@ -79,6 +81,13 @@
                 "path": "/audio/dicts/{id}/edit",
                 "permission": "audio_dicts.edit",
                 "description": "Update dictionary"
+            },
+            {
+                "id": "audio_dicts.dicts.suggest_descr",
+                "method": "POST",
+                "path": "/audio/dicts/{id}/suggest-descr",
+                "permission": "audio_dicts.edit",
+                "description": "LLM draft DESCR from keys; ?save=1 to persist; Accept: application/json"
             },
             {
                 "id": "audio_dicts.keys.list",

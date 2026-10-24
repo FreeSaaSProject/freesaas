@@ -203,8 +203,8 @@ final class AgentHttp
      *
      * @param mixed $row
      * @return array{
-     *   id:string,method:string,path:string,permission:string,description:string,
-     *   side_effect:string,parameters:?array,assistant:bool
+     *   id:string,method:string,path:string,permission:string,capability:string,
+     *   description:string,side_effect:string,parameters:?array,assistant:bool
      * }|null
      */
     public static function normalizeOp($row): ?array
@@ -216,6 +216,7 @@ final class AgentHttp
         $path = trim((string)($row['path'] ?? ''));
         $method = strtoupper(trim((string)($row['method'] ?? 'GET')));
         $permission = trim((string)($row['permission'] ?? ''));
+        $capability = trim((string)($row['capability'] ?? ''));
         $description = trim((string)($row['description'] ?? ''));
         if ($id === '' || $path === '' || $path[0] !== '/') {
             return null;
@@ -241,6 +242,7 @@ final class AgentHttp
             'method' => $method,
             'path' => $path,
             'permission' => $permission,
+            'capability' => $capability,
             'description' => $description,
             'side_effect' => $side,
             'parameters' => $parameters,

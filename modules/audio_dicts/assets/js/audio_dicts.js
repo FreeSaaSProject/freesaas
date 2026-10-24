@@ -30,6 +30,9 @@
     if (part.finish) {
       if (out.indexOf('conversion') < 0) out.push('conversion');
     }
+    if (part.closer) {
+      if (out.indexOf('closer') < 0) out.push('closer');
+    }
     if (part.break_flag || part.break) {
       if (out.indexOf('breaker') < 0) out.push('breaker');
     }
@@ -91,11 +94,11 @@
     return html;
   }
 
-  /** Checkbox table: trigger/conversion/breaker can combine; killer is exclusive. */
+  /** Checkbox table: trigger/conversion/closer/breaker can combine; killer is exclusive. */
   function roleTableHtml(part, roles, hints, i18n, canEdit) {
     var list = partRoles(part);
     var hasKiller = list.indexOf('killer') >= 0;
-    var order = ['trigger', 'conversion', 'breaker', 'killer'];
+    var order = ['trigger', 'conversion', 'closer', 'breaker', 'killer'];
     var html = '<table class="scripts-roles-table"><thead><tr>' +
       '<th></th><th>' + esc(i18n.roleCol || i18n.role || 'Role') + '</th>' +
       '<th>' + esc(i18n.roleHintCol || '') + '</th></tr></thead><tbody>';
@@ -150,6 +153,11 @@
     part.start_gate = Math.max(0, Math.min(2, parseInt(part.start_gate, 10) || 0));
     part.extend_timeout = part.extend_timeout === 0 || part.extend_timeout === '0' ? 0 : 1;
     part.timeout = parseInt(part.timeout, 10) || 0;
+    if (part.break_gap === undefined || part.break_gap === null || part.break_gap === '') {
+      part.break_gap = 120;
+    } else {
+      part.break_gap = Math.max(0, parseInt(part.break_gap, 10) || 0);
+    }
     part.diversity = parseInt(part.diversity, 10) || 0;
     part.instances_min = parseInt(part.instances_min, 10) || 0;
     part.gate_red_max = parseFloat(part.gate_red_max) || 0;
@@ -543,6 +551,11 @@
           '<p class="scripts-field-hint">' + esc(i18n.scoreHint || '') + '</p>' +
           '<label>' + esc(i18n.timeout) + '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"></label>' +
           '<p class="scripts-field-hint">' + esc(i18n.timeoutHint || '') + '</p>' +
+          (hasRole(part, 'breaker')
+            ? '<label>' + esc(i18n.breakGap || 'BREAK gap') +
+              '<input type="number" min="0" data-field="break_gap" value="' + esc(part.break_gap != null ? part.break_gap : 120) + '"></label>' +
+              '<p class="scripts-field-hint">' + esc(i18n.breakGapHint || '') + '</p>'
+            : '') +
           '<label>' + esc(i18n.diversity) + '<input type="number" min="0" data-field="diversity" value="' + esc(part.diversity || 0) + '"></label>' +
           '<p class="scripts-field-hint">' + esc(i18n.diversityHint || '') + '</p>' +
           '<label>' + esc(i18n.instMin) + '<input type="number" min="0" data-field="instances_min" value="' + esc(part.instances_min || 0) + '"></label>' +
@@ -833,6 +846,12 @@
         '<p class="scripts-field-hint">' + esc(isDayQualityMetric
           ? (i18n.scanWindowHint || i18n.condTermScanConversionHint || i18n.timeoutHint || '')
           : (i18n.timeoutHint || '')) + '</p>' +
+        (hasRole(part, 'breaker')
+          ? '<div data-break-gap-wrap>' +
+            '<label>' + esc(i18n.breakGap || 'BREAK gap') +
+            '<input type="number" min="0" data-field="break_gap" value="' + esc(part.break_gap != null ? part.break_gap : 120) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(i18n.breakGapHint || '') + '</p></div>'
+          : '') +
         '<label>' + esc(i18n.kpi || 'KPI') + '<input type="number" min="0" data-field="kpi" value="' + esc(part.kpi || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
         '<p class="scripts-field-hint">' + esc(i18n.kpiHint || '') + '</p>' +
         '<label class="checkbox"><input type="checkbox" data-field="extend_timeout" value="1"' + ((part.extend_timeout === 0) ? '' : ' checked') + (canEdit ? '' : ' disabled') + '> ' + esc(i18n.extendTimeout || 'EXTEND_TIMEOUT') + '</label>' +
@@ -1019,6 +1038,7 @@
           start_gate: 0,
           extend_timeout: 1,
           timeout: 0,
+          break_gap: 120,
           diversity: 0,
           instances_min: 0,
           gate_red_max: 0,
@@ -1253,11 +1273,319 @@
     });
   }
 
+  /** Bulk LLM descr: progressive overlay (one dict per request) — same idea as db-job / calendar reparse. */
+  function initSuggestBulk() {
+    var overlay = document.getElementById('audio-dicts-suggest-overlay');
+    if (!overlay) return;
+    var i18n = parseJson(overlay, 'data-i18n', {});
+    var msgEl = document.getElementById('audio-dicts-suggest-msg');
+    var logEl = document.getElementById('audio-dicts-suggest-log');
+    var fillEl = document.getElementById('audio-dicts-suggest-fill');
+    var barEl = document.getElementById('audio-dicts-suggest-bar');
+    var pctEl = document.getElementById('audio-dicts-suggest-pct');
+    var metaEl = document.getElementById('audio-dicts-suggest-meta');
+    var titleEl = document.getElementById('audio-dicts-suggest-title');
+    var abortBtn = document.getElementById('audio-dicts-suggest-abort');
+    var okBtn = document.getElementById('audio-dicts-suggest-ok');
+    var busy = false;
+    var abort = false;
+
+    function tpl(s, vars) {
+      var out = String(s || '');
+      Object.keys(vars || {}).forEach(function (k) {
+        out = out.split('{' + k + '}').join(String(vars[k]));
+      });
+      return out;
+    }
+
+    function addLog(text, cls) {
+      if (!logEl) return;
+      var row = document.createElement('div');
+      if (cls) row.className = cls;
+      var t = new Date().toLocaleTimeString();
+      row.textContent = '[' + t + '] ' + text;
+      logEl.appendChild(row);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setProgress(done, total) {
+      var pct = total > 0 ? Math.round((done / total) * 100) : 0;
+      if (fillEl) fillEl.style.width = pct + '%';
+      if (barEl) barEl.setAttribute('aria-valuenow', String(pct));
+      if (pctEl) pctEl.textContent = pct + '%';
+      if (metaEl) metaEl.textContent = done + ' / ' + total;
+    }
+
+    function csrfToken(form) {
+      var inp = form.querySelector('input[name="csrf"], input[name="_csrf"], input[name="csrf_token"]');
+      if (inp && inp.value) return { name: inp.name, value: inp.value };
+      var meta = document.querySelector('meta[name="csrf-token"]');
+      if (meta && meta.getAttribute('content')) {
+        return { name: 'csrf', value: meta.getAttribute('content') };
+      }
+      return null;
+    }
+
+    function finish(summary) {
+      busy = false;
+      if (titleEl) titleEl.textContent = i18n.doneTitle || 'Done';
+      if (msgEl) msgEl.textContent = summary || '';
+      if (abortBtn) abortBtn.hidden = true;
+      if (okBtn) {
+        okBtn.hidden = false;
+        okBtn.disabled = false;
+      }
+    }
+
+    function closeOverlay() {
+      overlay.hidden = true;
+      if (okBtn) {
+        okBtn.hidden = true;
+        okBtn.disabled = true;
+      }
+      if (abortBtn) abortBtn.hidden = false;
+      window.location.reload();
+    }
+
+    if (okBtn) {
+      okBtn.addEventListener('click', closeOverlay);
+    }
+    if (abortBtn) {
+      abortBtn.addEventListener('click', function () {
+        if (!busy) return;
+        abort = true;
+        if (msgEl) msgEl.textContent = i18n.aborted || 'Stopped';
+      });
+    }
+
+    function postOne(id, overwrite, csrf) {
+      var body = new FormData();
+      body.append('save', '1');
+      if (overwrite) body.append('overwrite', '1');
+      if (csrf) body.append(csrf.name, csrf.value);
+      return fetch('/audio/dicts/' + id + '/suggest-descr', {
+        method: 'POST',
+        body: body,
+        credentials: 'same-origin',
+        headers: {
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      }).then(function (res) {
+        return res.text().then(function (txt) {
+          var data = null;
+          try { data = JSON.parse(txt); } catch (e) { data = null; }
+          return { http: res.status, data: data, raw: txt };
+        });
+      });
+    }
+
+    function run(ids, overwrite, csrf) {
+      busy = true;
+      abort = false;
+      if (logEl) logEl.innerHTML = '';
+      if (titleEl) titleEl.textContent = i18n.title || 'Generate descriptions';
+      if (msgEl) msgEl.textContent = i18n.running || 'Processing…';
+      if (abortBtn) abortBtn.hidden = false;
+      if (okBtn) {
+        okBtn.hidden = true;
+        okBtn.disabled = true;
+      }
+      overlay.hidden = false;
+      setProgress(0, ids.length);
+
+      var done = 0;
+      var skipped = 0;
+      var idx = 0;
+
+      function next() {
+        if (abort) {
+          addLog(i18n.aborted || 'Stopped', 'is-warn');
+          finish(tpl(i18n.summary || 'Done: {done}, skipped: {skip}', { done: done, skip: skipped }));
+          return;
+        }
+        if (idx >= ids.length) {
+          finish(tpl(i18n.summary || 'Done: {done}, skipped: {skip}', { done: done, skip: skipped }));
+          return;
+        }
+        var id = ids[idx++];
+        setProgress(idx - 1, ids.length);
+        postOne(id, overwrite, csrf).then(function (res) {
+          var data = res.data || {};
+          if (data.ok && data.saved) {
+            done++;
+            addLog(tpl(i18n.itemOk || '#{id}: saved', { id: id }), 'is-ok');
+          } else if (data.skipped) {
+            skipped++;
+            addLog(tpl(i18n.itemSkip || '#{id}: {reason}', {
+              id: id,
+              reason: data.skipped
+            }), 'is-warn');
+          } else {
+            skipped++;
+            var reason = (data && data.error) ? data.error
+              : tpl(i18n.http || 'HTTP {status}', { status: res.http });
+            addLog(tpl(i18n.itemErr || '#{id}: error — {reason}', {
+              id: id,
+              reason: reason
+            }), 'is-err');
+          }
+          setProgress(idx, ids.length);
+          next();
+        }).catch(function (err) {
+          skipped++;
+          addLog(tpl(i18n.itemErr || '#{id}: error — {reason}', {
+            id: id,
+            reason: (err && err.message) ? err.message : 'network'
+          }), 'is-err');
+          setProgress(idx, ids.length);
+          next();
+        });
+      }
+
+      next();
+    }
+
+    document.querySelectorAll('[data-bulk-form]').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        var actionSel = form.querySelector('[data-bulk-action]');
+        if (!actionSel || String(actionSel.value || '') !== 'suggest_descr') return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        if (busy) {
+          alert(i18n.busy || 'Busy');
+          return;
+        }
+        var confirmMsg = i18n.confirm || '';
+        var opt = actionSel.options[actionSel.selectedIndex];
+        if (opt && opt.getAttribute('data-confirm')) {
+          confirmMsg = opt.getAttribute('data-confirm');
+        }
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+
+        var ids = Array.prototype.slice.call(form.querySelectorAll('[data-bulk-id]'))
+          .filter(function (c) { return c.checked; })
+          .map(function (c) { return parseInt(c.value, 10) || 0; })
+          .filter(function (id) { return id > 0; });
+        if (!ids.length) {
+          alert(i18n.empty || 'Empty');
+          return;
+        }
+        var overwriteField = form.querySelector('[data-bulk-field-for="suggest_descr"] input[name="overwrite"]');
+        var overwrite = !!(overwriteField && overwriteField.checked && !overwriteField.disabled);
+        var csrf = csrfToken(form);
+        run(ids, overwrite, csrf);
+      }, true);
+    });
+  }
+
+  /** Keys edit: live overlap probe (same rules as list add-key / api_dict). */
+  function initKeyOverlapForm() {
+    var form = document.getElementById('audio-key-form');
+    if (!form) return;
+    var nameInp = document.getElementById('key-name');
+    var lookInp = document.getElementById('key-looklike');
+    var panel = document.getElementById('key-overlap-panel');
+    var list = document.getElementById('key-overlap-list');
+    var status = document.getElementById('key-overlap-status');
+    var forceWrap = document.getElementById('key-force-wrap');
+    var url = form.getAttribute('data-overlap-url') || '/audio/keys/check-overlap';
+    var exclude = parseInt(form.getAttribute('data-exclude') || '0', 10) || 0;
+    var i18n = parseJson(form, 'data-i18n', {});
+    var timer = null;
+    var seq = 0;
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    /** Soft "contains" only — existing key is wider; save allowed without force. */
+    function softContainsOnly(overlaps) {
+      if (!overlaps || !overlaps.length) return true;
+      for (var i = 0; i < overlaps.length; i++) {
+        if (String(overlaps[i].relation || '') !== 'contains') return false;
+      }
+      return true;
+    }
+
+    function render(overlaps) {
+      if (!panel || !list) return;
+      list.innerHTML = '';
+      if (!overlaps || !overlaps.length) {
+        panel.hidden = true;
+        if (forceWrap) forceWrap.hidden = true;
+        if (status) status.textContent = i18n.none || '';
+        return;
+      }
+      panel.hidden = false;
+      var needForce = !softContainsOnly(overlaps);
+      if (forceWrap) forceWrap.hidden = !needForce;
+      overlaps.forEach(function (o) {
+        var li = document.createElement('li');
+        var id = parseInt(o.id, 10) || 0;
+        var rel = o.relation_label || o.relation || '';
+        var dict = o.dict_name
+          ? ' <span class="muted">[' + esc(o.dict_name) + ']</span>'
+          : '';
+        li.innerHTML =
+          '<a href="/audio/keys/' + id + '/edit" target="_blank" rel="noopener">#' + id +
+          ' «' + esc(o.name || '') + '»</a>' + dict +
+          '<span class="audio-key-overlap-rel">— ' + esc(rel) + '</span>';
+        list.appendChild(li);
+      });
+      if (status) {
+        status.textContent = needForce ? '' : (i18n.softOnly || '');
+      }
+      if (lookInp && (!lookInp.value || lookInp.value === '0') && overlaps[0]) {
+        lookInp.value = String(parseInt(overlaps[0].id, 10) || 0);
+      }
+    }
+
+    function check() {
+      var name = String(nameInp && nameInp.value || '').trim();
+      if (name.length < 2) {
+        render([]);
+        return;
+      }
+      var my = ++seq;
+      if (status) status.textContent = i18n.checking || '…';
+      var q = url + '?name=' + encodeURIComponent(name) + '&exclude=' + exclude;
+      fetch(q, {
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+      }).then(function (r) { return r.json(); }).then(function (data) {
+        if (my !== seq) return;
+        render((data && data.overlaps) || []);
+      }).catch(function () {
+        if (my !== seq) return;
+        if (status) status.textContent = '';
+      });
+    }
+
+    if (nameInp) {
+      nameInp.addEventListener('input', function () {
+        if (timer) clearTimeout(timer);
+        timer = setTimeout(check, 350);
+      });
+      nameInp.addEventListener('change', check);
+      if (String(nameInp.value || '').trim().length >= 2) {
+        check();
+      }
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     var wizard = document.getElementById('scripts-wizard');
     if (wizard) initWizard(wizard);
     var canvas = document.getElementById('scripts-canvas');
     if (canvas) initCanvas(canvas);
     initScriptImport();
+    initSuggestBulk();
+    initKeyOverlapForm();
   });
 })();

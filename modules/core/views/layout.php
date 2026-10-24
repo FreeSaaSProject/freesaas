@@ -156,8 +156,11 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
 </head>
 <?php
   $railPeek = false;
+  $railGroupHome = false;
   if (Auth::check() && class_exists('UserPrefsRepository', false)) {
-      $railPeek = UserPrefsRepository::get(Auth::userId(), 'rail.peek') === '1';
+      $uid = Auth::userId();
+      $railPeek = UserPrefsRepository::get($uid, 'rail.peek') === '1';
+      $railGroupHome = UserPrefsRepository::get($uid, 'rail.group_home') === '1';
   }
 ?>
 <body class="app-shell<?= $gateBlocked ? ' is-layout-gate' : '' ?>" data-rail="ready" data-rail-peek="<?= $railPeek ? '1' : '0' ?>">
@@ -277,22 +280,28 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
             $isOpen = ($openIndex !== null && $i === $openIndex);
             $homeHref = null;
             $homeActive = false;
-            $homeCandidate = ModuleManager::menuGroupHome((string)$g['key']);
-            if ($homeCandidate !== null && $homeCandidate !== '') {
-                $homePath = parse_url($homeCandidate, PHP_URL_PATH);
-                $homePath = is_string($homePath) && $homePath !== '' ? $homePath : $homeCandidate;
-                $homePath = rtrim($homePath, '/') ?: '/';
-                foreach ($g['items'] as $link) {
-                    if ((string)$link['path_key'] === $homePath) {
-                        $homeHref = (string)$link['path'];
-                        // Section title is active only on the home screen itself.
-                        $homeActive = !empty($link['active']);
-                        break;
+            if ($railGroupHome) {
+                $homeCandidate = ModuleManager::menuGroupHome((string)$g['key']);
+                if ($homeCandidate !== null && $homeCandidate !== '') {
+                    $homePath = parse_url($homeCandidate, PHP_URL_PATH);
+                    $homePath = is_string($homePath) && $homePath !== '' ? $homePath : $homeCandidate;
+                    $homePath = rtrim($homePath, '/') ?: '/';
+                    foreach ($g['items'] as $link) {
+                        if ((string)$link['path_key'] === $homePath) {
+                            $homeHref = (string)$link['path'];
+                            // Section title is active only on the home screen itself.
+                            $homeActive = !empty($link['active']);
+                            break;
+                        }
                     }
                 }
-            }
-            // Fallback when preferred home is missing (e.g. updates disabled).
-            if ($homeHref === null && $g['items'] !== []) {
+                // Fallback when preferred home is missing (e.g. updates disabled).
+                if ($homeHref === null && $g['items'] !== []) {
+                    $homeHref = (string)$g['items'][0]['path'];
+                    $homeActive = !empty($g['items'][0]['active']);
+                }
+            } elseif (count($g['items']) === 1) {
+                // Expand-only mode: sole visible item — title navigates there.
                 $homeHref = (string)$g['items'][0]['path'];
                 $homeActive = !empty($g['items'][0]['active']);
             }

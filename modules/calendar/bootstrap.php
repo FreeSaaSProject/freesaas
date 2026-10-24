@@ -128,7 +128,7 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
     $staffId = CalendarWidgets::staffFilter();
     $myOnly = CalendarWidgets::myOnly();
     $staffForLinks = $myOnly ? Auth::userId() : 0;
-    $now = time();
+    $now = DemoMode::now();
     $dayHref = EventsRepository::dayUrl($now, $staffForLinks);
     $weekHref = EventsRepository::weekUrl($now, $staffForLinks);
 
@@ -155,7 +155,7 @@ EventBus::on('core.dashboard.widgets', static function ($widgets) {
 
     if (DashboardWidgets::isEnabled('calendar.today_board')) {
         Assets::need('calendar');
-        $dayStart = strtotime('today 00:00:00') ?: $now;
+        $dayStart = DemoMode::dayStart();
         $dayEnd = $dayStart + 86400;
         $events = CalendarWidgets::eventsTodayActive($staffId, false);
         // Board also shows earlier-today finished? User asked ongoing + future — use active filter.

@@ -58,8 +58,15 @@ final class DemoChrome
         if ($home === '') {
             $home = self::defaultHomeUrl();
         }
+        $text = t('demo.banner.text');
+        if (DemoMode::isFrozen()) {
+            $when = class_exists('I18n', false)
+                ? I18n::formatDate(DemoMode::now(), 'datetime')
+                : date('Y-m-d H:i', DemoMode::now());
+            $text .= ' · ' . t('demo.banner.frozen', ['when' => $when]);
+        }
         return '<div class="demo-banner" role="region" aria-label="' . te('demo.banner.aria') . '">'
-            . '<p class="demo-banner-text">' . te('demo.banner.text') . '</p>'
+            . '<p class="demo-banner-text">' . e($text) . '</p>'
             . '<div class="demo-banner-actions">'
             . '<a class="demo-banner-cta" href="' . e($cta) . '" rel="noopener">' . te('demo.banner.cta') . '</a>'
             . '<a class="demo-banner-home" href="' . e($home) . '" rel="noopener">' . te('demo.banner.home') . '</a>'

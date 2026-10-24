@@ -53,9 +53,12 @@ final class CoachRunsRepository
         $total = (int)$stc->fetchColumn();
         $limit = max(1, min(100, (int)($opts['limit'] ?? 50)));
         $offset = max(0, (int)($opts['offset'] ?? 0));
+        $depthCol = Database::columnExists('base_script_coach_runs', 'DEPTH')
+            ? ', r.DEPTH AS depth' : ", 'normal' AS depth";
         $sql = "SELECT r.ID AS id, r.ID_ADMIN AS id_admin, r.DAY AS day, r.STATUS AS status,
                        r.PHASE AS phase, r.ERROR_TEXT AS error_text, r.ID_CREATED_BY AS id_created_by,
-                       r.DT_CREATE AS dt_create, r.DT_UPDATE AS dt_update,
+                       r.DT_CREATE AS dt_create, r.DT_UPDATE AS dt_update
+                       {$depthCol},
                        u.name AS admin_name
                 FROM base_script_coach_runs r
                 LEFT JOIN base_users u ON u.id = r.ID_ADMIN
@@ -75,19 +78,44 @@ final class CoachRunsRepository
         if ($id < 1 || !self::tablesReady()) {
             return null;
         }
+        $depthCol = Database::columnExists('base_script_coach_runs', 'DEPTH')
+            ? ', r.DEPTH AS depth' : ", 'normal' AS depth";
         $st = Database::pdo()->prepare(
-            'SELECT r.ID AS id, r.ID_ADMIN AS id_admin, r.DAY AS day, r.STATUS AS status,
+            "SELECT r.ID AS id, r.ID_ADMIN AS id_admin, r.DAY AS day, r.STATUS AS status,
                     r.PHASE AS phase, r.ERROR_TEXT AS error_text, r.ID_CREATED_BY AS id_created_by,
-                    r.DT_CREATE AS dt_create, r.DT_UPDATE AS dt_update,
+                    r.DT_CREATE AS dt_create, r.DT_UPDATE AS dt_update
+                    {$depthCol},
                     u.name AS admin_name
              FROM base_script_coach_runs r
              LEFT JOIN base_users u ON u.id = r.ID_ADMIN
-             WHERE r.ID = ? LIMIT 1'
+             WHERE r.ID = ? LIMIT 1"
         );
         $st->execute([$id]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
+        if (!$row) {
+            return null;
+        }
+        $row['depth'] = self::normalizeDepth((string)($row['depth'] ?? 'normal'));
 
-        return $row ?: null;
+        return $row;
+    }
+
+    public static function normalizeDepth(string $depth): string
+    {
+        $depth = strtolower(trim($depth));
+
+        return $depth === 'hard' ? 'hard' : 'normal';
+    }
+
+    public static function setDepth(int $runId, string $depth): void
+    {
+        if ($runId < 1 || !Database::columnExists('base_script_coach_runs', 'DEPTH')) {
+            return;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_script_coach_runs SET DEPTH=?, DT_UPDATE=? WHERE ID=?'
+        );
+        $st->execute([self::normalizeDepth($depth), time(), $runId]);
     }
 
     /** @return array<string,mixed>|null */
@@ -107,27 +135,47 @@ final class CoachRunsRepository
         return $id > 0 ? self::find($id) : null;
     }
 
-    public static function create(int $adminId, string $day, int $createdBy): int
+    public static function create(int $adminId, string $day, int $createdBy, string $depth = 'normal'): int
     {
         if (!self::tablesReady()) {
             throw new RuntimeException(t('audio_script_coach.err.tables'));
         }
+        $depth = self::normalizeDepth($depth);
         $now = time();
-        $st = Database::pdo()->prepare(
-            'INSERT INTO base_script_coach_runs
-             (ID_ADMIN, DAY, STATUS, PHASE, ERROR_TEXT, ID_CREATED_BY, DT_CREATE, DT_UPDATE)
-             VALUES (?,?,?,?,?,?,?,?)'
-        );
-        $st->execute([
-            $adminId,
-            $day,
-            self::STATUS_PENDING,
-            '',
-            '',
-            $createdBy,
-            $now,
-            $now,
-        ]);
+        if (Database::columnExists('base_script_coach_runs', 'DEPTH')) {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_script_coach_runs
+                 (ID_ADMIN, DAY, STATUS, PHASE, DEPTH, ERROR_TEXT, ID_CREATED_BY, DT_CREATE, DT_UPDATE)
+                 VALUES (?,?,?,?,?,?,?,?,?)'
+            );
+            $st->execute([
+                $adminId,
+                $day,
+                self::STATUS_PENDING,
+                '',
+                $depth,
+                '',
+                $createdBy,
+                $now,
+                $now,
+            ]);
+        } else {
+            $st = Database::pdo()->prepare(
+                'INSERT INTO base_script_coach_runs
+                 (ID_ADMIN, DAY, STATUS, PHASE, ERROR_TEXT, ID_CREATED_BY, DT_CREATE, DT_UPDATE)
+                 VALUES (?,?,?,?,?,?,?,?)'
+            );
+            $st->execute([
+                $adminId,
+                $day,
+                self::STATUS_PENDING,
+                '',
+                '',
+                $createdBy,
+                $now,
+                $now,
+            ]);
+        }
 
         return (int)Database::pdo()->lastInsertId();
     }
@@ -233,6 +281,32 @@ final class CoachRunsRepository
         $st->execute([$runId]);
     }
 
+    /** Drop phase artifacts so the run can be rebuilt from catalog. */
+    public static function clearArtifacts(int $runId): void
+    {
+        if ($runId < 1 || !self::tablesReady()) {
+            return;
+        }
+        $st = Database::pdo()->prepare('DELETE FROM base_script_coach_artifacts WHERE ID_RUN=?');
+        $st->execute([$runId]);
+    }
+
+    /** Reset a finished/errored run to pending (artifacts + pending proposals cleared). */
+    public static function resetForRebuild(int $runId): void
+    {
+        if ($runId < 1 || !self::tablesReady()) {
+            return;
+        }
+        self::clearArtifacts($runId);
+        self::clearProposals($runId);
+        $st = Database::pdo()->prepare(
+            'UPDATE base_script_coach_runs
+             SET STATUS=?, PHASE=?, ERROR_TEXT=?, DT_UPDATE=?
+             WHERE ID=?'
+        );
+        $st->execute([self::STATUS_PENDING, '', '', time(), $runId]);
+    }
+
     /**
      * @return list<array<string,mixed>>
      */
@@ -304,6 +378,31 @@ final class CoachRunsRepository
             $userId,
             time(),
             $applyMeta !== null ? (string)json_encode($applyMeta, JSON_UNESCAPED_UNICODE) : null,
+            $id,
+            self::PROP_PENDING,
+        ]);
+    }
+
+    /**
+     * Keep proposal pending after a partial phrase accept.
+     *
+     * @param list<string> $remainingPhrases
+     * @param array<string,mixed> $applyMeta
+     */
+    public static function updateProposalProgress(int $id, array $remainingPhrases, array $applyMeta): void
+    {
+        $phrases = array_values(array_filter(array_map(
+            static fn ($p) => mb_substr(trim((string)$p), 0, 255),
+            $remainingPhrases
+        ), static fn ($p) => $p !== ''));
+        $st = Database::pdo()->prepare(
+            'UPDATE base_script_coach_proposals
+             SET PHRASES_JSON=?, APPLY_META_JSON=?
+             WHERE ID=? AND STATUS=?'
+        );
+        $st->execute([
+            (string)json_encode($phrases, JSON_UNESCAPED_UNICODE),
+            (string)json_encode($applyMeta, JSON_UNESCAPED_UNICODE),
             $id,
             self::PROP_PENDING,
         ]);

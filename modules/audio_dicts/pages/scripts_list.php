@@ -103,6 +103,7 @@ View::render('scripts_list', [
         'ordinary' => t('audio_dicts.scripts.role.ordinary'),
         'trigger' => t('audio_dicts.scripts.role.trigger'),
         'conversion' => t('audio_dicts.scripts.role.conversion'),
+        'closer' => t('audio_dicts.scripts.role.closer'),
         'breaker' => t('audio_dicts.scripts.role.breaker'),
         'killer' => t('audio_dicts.scripts.role.killer'),
     ],

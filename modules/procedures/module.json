@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "1.0.1",
+    "version": "1.0.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -49,6 +49,7 @@
         "pages": [
             "/procedures",
             "/procedures/day-stats",
+            "/procedures/set-admin",
             "/procedures/new",
             "/procedures/{id}",
             "/procedures/{id}/edit",
@@ -91,6 +92,35 @@
                 "permission": "procedures.edit",
                 "side_effect": "write",
                 "description": "Update procedure journal row; returns {ok,id,item}"
+            },
+            {
+                "id": "procedures.set_admin",
+                "method": "POST",
+                "path": "/procedures/set-admin",
+                "capability": "PARTNER_STA",
+                "side_effect": "write",
+                "description": "Reassign procedure desk admin (ID_ADMIN) for today only unless date set. Prefer: id_admin + from_id_admin (server resolves today’s ids). Or explicit ids. «все процедуры от X на Y» → from_id_admin=X, id_admin=Y, omit ids (never invent ids). «на меня» → id_admin=speaker. Names via core.users.list. Confirm: PARTNER_STA",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "ids": {
+                            "description": "Optional when from_id_admin set. Procedure id(s): 2222 or [2222,2223]"
+                        },
+                        "id_admin": {
+                            "type": "integer",
+                            "description": "New admin staff user id"
+                        },
+                        "from_id_admin": {
+                            "type": "integer",
+                            "description": "Current desk admin; with empty ids → all their procedures on date (default today)"
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "Y-m-d day filter for from_id_admin; default today. Do not expand to other days unless user asked."
+                        }
+                    },
+                    "required": ["id_admin"]
+                }
             },
             {
                 "id": "procedures.types.list",
@@ -222,6 +252,7 @@
             "core.user_edit.sections",
             "core.user_edit.save",
             "assistant.write.preview",
+            "assistant.system.hints",
             "bi.datasets",
             "bi.recipes"
         ],

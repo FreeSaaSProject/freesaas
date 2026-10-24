@@ -36,8 +36,17 @@ final class ReviewModerationConfig
 
     public static function save(string $system, string $user): void
     {
-        Config::set('audio_llm', 'moderation_system_prompt', self::encode(trim($system)));
-        Config::set('audio_llm', 'moderation_user_prompt', self::encode(trim($user)));
+        $system = trim($system);
+        $user = trim($user);
+        // Exact default text → store empty so future built-in updates apply.
+        if ($system === '' || $system === self::defaultSystemPrompt()) {
+            $system = '';
+        }
+        if ($user === '' || $user === self::defaultUserPrompt()) {
+            $user = '';
+        }
+        Config::set('audio_llm', 'moderation_system_prompt', self::encode($system));
+        Config::set('audio_llm', 'moderation_user_prompt', self::encode($user));
     }
 
     /**

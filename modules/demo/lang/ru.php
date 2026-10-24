@@ -10,6 +10,7 @@ return [
     'demo.notice_title' => 'Публичное демо: только просмотр. Запись заблокирована; данные могут сбрасываться.',
     'demo.banner.aria' => 'Баннер демостенда',
     'demo.banner.text' => 'Демо · только просмотр · ИИ-ассистент в этом стенде отключён',
+    'demo.banner.frozen' => 'Время зафиксировано для демо: {when}',
     'demo.banner.cta' => 'Хочу так же →',
     'demo.banner.home' => '← freesaas.ru',
     'demo.switch_to_en' => 'English demo →',

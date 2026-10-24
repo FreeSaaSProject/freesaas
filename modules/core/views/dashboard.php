@@ -3,10 +3,12 @@ declare(strict_types=1);
 /** @var list<array{id:string,title:string,module:string,enabled:bool,settings:array,settings_schema:array}> $layout */
 /** @var list<array{path:string,title:string,group:string}> $menuLayout */
 /** @var bool $railPeek */
+/** @var bool $railGroupHome */
 /** @var string $message */
 /** @var string $error */
 $menuLayout = $menuLayout ?? [];
 $railPeek = !empty($railPeek);
+$railGroupHome = !empty($railGroupHome);
 ?>
 <section class="page-head">
   <p class="lede"><?= te('core.dashboard.lede') ?></p>
@@ -68,6 +70,12 @@ $railPeek = !empty($railPeek);
     <span><?= te('core.dashboard.rail_peek') ?></span>
   </label>
   <p class="muted dashboard-hint"><?= te('core.dashboard.rail_peek_hint') ?></p>
+
+  <label class="dashboard-rail-peek">
+    <input type="checkbox" name="rail_group_home" value="1"<?= $railGroupHome ? ' checked' : '' ?>>
+    <span><?= te('core.dashboard.rail_group_home') ?></span>
+  </label>
+  <p class="muted dashboard-hint"><?= te('core.dashboard.rail_group_home_hint') ?></p>
 
   <?php if (!$menuLayout): ?>
     <div class="flash flash-warn"><?= te('core.dashboard.no_menu') ?></div>

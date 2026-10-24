@@ -30,7 +30,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash_set('error', t('audio_script_coach.err.forbidden'));
             redirect('/audio/script-coach/day?' . http_build_query(['admin' => $adminId, 'date' => $date]));
         }
-        $res = CoachRunner::start($adminId, $date, Auth::userId());
+        $depth = CoachRunsRepository::normalizeDepth((string)($_POST['depth'] ?? 'normal'));
+        $res = CoachRunner::start($adminId, $date, Auth::userId(), $depth);
         if (!$res['ok']) {
             if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
                 AgentHttp::error((string)$res['error'], 400);

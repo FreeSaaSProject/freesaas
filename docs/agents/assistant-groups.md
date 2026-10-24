@@ -21,7 +21,7 @@ UI: **Assistant groups** (`/assistant-groups/settings`, SUPERADMIN).
 | `group_require_mention` | Ignore messages without `@botusername` |
 | `group_chat_ids` | Comma-separated negative chat ids (allowlist) |
 | `auto_add_groups` | `1` = on `bot_added` append chat_id automatically |
-| `group_ops` | Allowlisted `agent.ops` (exact or `module.*`); else «only in private» |
+| `group_ops` | Allowlisted `agent.ops` (exact or `module.*`); else «only in private». Include `stickers.receipts.*`,`stickers.ins.*`,`stocks.list`,`suppliers.list`,`catalog.browse` for warehouse inbound («заприходуй»). Include `procedures.set_admin` (+ `procedures.list`/`procedures.get_edit`, `core.users.list`) to reassign procedure desk admin («перекинь процедуры … на меня/ФИО/акроним»); confirm requires `PARTNER_STA` (`cap:…` in pending — SUPERADMIN always, or partner / partner-candidate via `ID_STATUS2`). |
 | `max_token` | Dedicated bot token (`cfg/modules/assistant_groups.ini`, gitignored) |
 
 **New groups:** Max does not list chats the bot is in. Keep webhook/poll live → add bot to the group → `bot_added` is stored under **Discovered** on settings → «Add to allowlist» (or enable `auto_add_groups`).
@@ -49,8 +49,8 @@ Spike shape (proven):
 
 ## Confirm model
 
-- Pending: `CONFIRM_MODE=capability`, `REQUIRED_PERMISSION` from the op, `GROUP_CHAT_ID` bound.
-- Author prepares the draft; **any** linked staff with `Auth::can(permission)` may confirm; invoke runs as the confirmer.
+- Pending: `CONFIRM_MODE=capability`, `REQUIRED_PERMISSION` from the op (`permission`, or `cap:FLAG` when the op declares `capability`), `GROUP_CHAT_ID` bound.
+- Author prepares the draft; linked staff who satisfy the requirement may confirm (`Auth::can` or `Auth::capability`); invoke runs as the confirmer.
 - Wrong clicker → localized «no rights…» + buttons again.
 - Fallback: mention + confirm phrase → latest pending for that group.
 

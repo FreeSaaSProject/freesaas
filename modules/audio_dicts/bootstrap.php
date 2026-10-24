@@ -7,6 +7,7 @@ require_once __DIR__ . '/lib/RecordsKeysRepository.php';
 require_once __DIR__ . '/lib/RecordsTagsRepository.php';
 require_once __DIR__ . '/lib/RecordsScriptsRepository.php';
 require_once __DIR__ . '/lib/ScriptPack.php';
+require_once __DIR__ . '/lib/DictDescrSuggest.php';
 
 Assets::register('audio_dicts', [
     'css' => ['audio_dicts.css'],
@@ -81,6 +82,57 @@ foreach ($entities as $entity => $meta) {
         },
     ]);
 }
+
+// Soft: only when llm is enabled in config (profile check happens at run time).
+if (ModuleManager::isEnabled('llm')) {
+    // LLM per row is slow — UI runs progressive overlay (one id JSON call).
+    // Sync POST must not call LLM (timeout / Internal Server Error / hung workers).
+    BulkActions::register('audio_dicts', 'suggest_descr', [
+        'label' => 'audio_dicts.bulk.suggest_descr',
+        'permission' => 'audio_dicts.edit',
+        'confirm' => 'audio_dicts.bulk.suggest_descr_confirm',
+        'max_selection' => 80,
+        'fields' => [
+            [
+                'name' => 'overwrite',
+                'type' => 'checkbox',
+                'label' => 'audio_dicts.bulk.suggest_overwrite',
+            ],
+        ],
+        'run' => static function (array $ids, array $params): array {
+            unset($params);
+            // Safety net if the progressive JS overlay did not intercept the form.
+            $reason = t('audio_dicts.bulk.suggest_need_progress');
+            $skipped = [];
+            foreach ($ids as $id) {
+                $id = (int)$id;
+                if ($id > 0) {
+                    $skipped[] = ['id' => $id, 'reason' => $reason];
+                }
+            }
+
+            return ['done' => 0, 'skipped' => $skipped];
+        },
+    ]);
+}
+
+ModuleManager::registerRoute('/audio/dicts/{id}/suggest-descr', [
+    'module' => 'audio_dicts',
+    'methods' => ['POST'],
+    'permission' => 'audio_dicts.edit',
+    'handler' => static function (): void {
+        require base_path('modules/audio_dicts/pages/dicts_suggest_descr.php');
+    },
+]);
+
+ModuleManager::registerRoute('/audio/keys/check-overlap', [
+    'module' => 'audio_dicts',
+    'methods' => ['GET', 'POST'],
+    'permission' => 'audio_dicts.edit',
+    'handler' => static function (): void {
+        require base_path('modules/audio_dicts/pages/keys_check_overlap.php');
+    },
+]);
 
 ModuleManager::registerRoute('/audio/scripts', [
     'module' => 'audio_dicts',

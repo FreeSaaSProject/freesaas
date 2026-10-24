@@ -180,6 +180,8 @@ final class CollectRunner
         $hasCond = Database::columnExists('base_records_scripts', 'COND_TYPE');
         $hasStartGate = Database::columnExists('base_records_scripts', 'START_GATE');
         $hasExtendTimeout = Database::columnExists('base_records_scripts', 'EXTEND_TIMEOUT');
+        $hasBreakGap = Database::columnExists('base_records_scripts', 'BREAK_GAP');
+        $hasCloser = Database::columnExists('base_records_scripts', 'CLOSER');
 
         $hasPosition = Database::columnExists('base_records_scripts', 'ID_POSITION');
         $extra = '';
@@ -201,6 +203,12 @@ final class CollectRunner
         if ($hasExtendTimeout) {
             $extra .= ', EXTEND_TIMEOUT';
         }
+        if ($hasBreakGap) {
+            $extra .= ', BREAK_GAP';
+        }
+        if ($hasCloser) {
+            $extra .= ', CLOSER';
+        }
         if ($hasPosition) {
             $extra .= ', ID_POSITION';
         }
@@ -221,6 +229,7 @@ final class CollectRunner
                 'name' => (string)($row['NAME'] ?? ''),
                 'is_req' => (int)$row['IS_REQ'],
                 'finish' => (int)$row['FINISH'],
+                'closer' => $hasCloser ? (int)($row['CLOSER'] ?? 0) : 0,
                 'score' => (int)$row['SCORE'],
                 'score_rate' => $hasScoreRate ? (int)$row['SCORE_RATE'] : 0,
                 'break' => (int)$row['BREAK'],
@@ -234,6 +243,8 @@ final class CollectRunner
                 'start_gate' => $hasStartGate ? max(0, min(2, (int)($row['START_GATE'] ?? 0))) : 0,
                 // Missing column → legacy: every hit extends timeout.
                 'extend_timeout' => $hasExtendTimeout ? ((int)($row['EXTEND_TIMEOUT'] ?? 1) > 0 ? 1 : 0) : 1,
+                // Missing column → 120s coalesce; 0 on part = immediate mid reopen.
+                'break_gap' => $hasBreakGap ? max(0, (int)($row['BREAK_GAP'] ?? 120)) : 120,
                 'ids_dictonarys' => (string)($row['IDS_DICTONARYS'] ?? ''),
                 'id_position' => $hasPosition ? (string)($row['ID_POSITION'] ?? '') : '',
                 'rating_enabled' => $hasRating ? (int)($row['RATING_ENABLED'] ?? 0) : 0,
@@ -471,7 +482,7 @@ final class CollectRunner
                     // BREAK reopen: new reception after mid content / repeat greeting.
                     // Do NOT reopen while still gathering primary START_GATE=1 parts
                     // (должность + представиться must share one collection).
-                    if (self::shouldBreakReopen($scriptId, $open[$scriptId], $partMeta, $scripts)) {
+                    if (self::shouldBreakReopen($scriptId, $open[$scriptId], $partMeta, $scripts, $dtStart)) {
                         $flushed = self::flushOpen($adminId, $scriptId, $open[$scriptId], $scripts);
                         $saved += $flushed['saved'];
                         $offersTotal += $flushed['offers'];
@@ -529,7 +540,7 @@ final class CollectRunner
                     $open[$scriptId]['offers']++;
                 }
 
-                // FINISH always saves when limits met.
+                // CONVERSION (FINISH): marks session convertible / saveable — does not close.
                 if (!empty($partMeta['finish'])
                     && self::partLimitsMet($partMeta, $open[$scriptId]['parts'][$partId] ?? [])
                 ) {
@@ -537,6 +548,27 @@ final class CollectRunner
                     $open[$scriptId]['save'] = 1;
                 } else {
                     $open[$scriptId]['save'] = self::evaluateSaveGate($scriptId, $open[$scriptId], $scripts);
+                }
+
+                // CLOSER: after thresholds, include hit and flush+close the collection.
+                // Distinct from BREAK (reopen on repeat greeting) and KILLER (drop without save).
+                // Eligibility = start gates met (ignore conversion short-circuit on finish).
+                if (!empty($partMeta['closer'])
+                    && self::partLimitsMet($partMeta, $open[$scriptId]['parts'][$partId] ?? [])
+                ) {
+                    $probe = $open[$scriptId];
+                    $probe['finish'] = 0;
+                    if (self::evaluateSaveGate($scriptId, $probe, $scripts) > 0) {
+                        $open[$scriptId]['save'] = 1;
+                        $flushed = self::flushOpen($adminId, $scriptId, $open[$scriptId], $scripts);
+                        $saved += $flushed['saved'];
+                        $offersTotal += $flushed['offers'];
+                        unset($open[$scriptId]);
+                        continue;
+                    }
+                    // Closer without a started reception: drop open, do not persist.
+                    unset($open[$scriptId]);
+                    continue;
                 }
             }
         }
@@ -592,61 +624,55 @@ final class CollectRunner
     /**
      * Whether a BREAK part should flush the open collection before recording the hit.
      *
-     * Reopen when:
-     * - this same part already present (repeat greeting → new session), or
-     * - open already has non-primary (START_GATE≠1) parts (mid/finish), or
-     * - all primary START_GATE=1 parts are already met (session started; new greeting → new), or
-     * - script has no primary gates (legacy: any parts → reopen).
+     * Start phase (open only has START_GATE 1/2 parts): never reopen — accumulate
+     * repeats of the same greeting / alt starts in one reception.
      *
-     * Stay open when only other primary-start parts are present (dual-start AND).
+     * After mid content (hasNonStart): reopen only if idle since state.last exceeds
+     * this part's break_gap (0 = immediate, legacy). Coalesces false mid-session
+     * greetings within a short pause.
+     *
+     * No start gates at all + mid content: same break_gap rule. No start gates and
+     * still start-only bag: treat as start phase (no reopen).
      *
      * @param array{save:int,finish:int,timeout:int,last:int,kpi_last?:int,parts:array,offers?:int} $state
      * @param array<string,mixed> $partMeta
      * @param array{by_id:array} $scripts
      */
-    private static function shouldBreakReopen(int $scriptId, array $state, array $partMeta, array $scripts): bool
-    {
+    private static function shouldBreakReopen(
+        int $scriptId,
+        array $state,
+        array $partMeta,
+        array $scripts,
+        int $dtStart = 0
+    ): bool {
         if (empty($partMeta['break']) || empty($state['parts'])) {
             return false;
         }
-        $partId = (int)($partMeta['id'] ?? 0);
-        if ($partId > 0 && isset($state['parts'][$partId])) {
-            return true;
-        }
         $byId = $scripts['by_id'] ?? [];
-        $primaryIds = [];
-        foreach ($byId as $p) {
-            if ((int)($p['pid'] ?? 0) !== $scriptId) {
-                continue;
-            }
-            if ((int)($p['start_gate'] ?? 0) === 1) {
-                $primaryIds[] = (int)$p['id'];
-            }
-        }
-        $hasNonPrimary = false;
+        $hasNonStart = false;
         foreach ($state['parts'] as $pid => $_) {
             $meta = $byId[(int)$pid] ?? null;
             $gate = $meta !== null ? (int)($meta['start_gate'] ?? 0) : 0;
-            if ($gate !== 1) {
-                $hasNonPrimary = true;
+            if ($gate !== 1 && $gate !== 2) {
+                $hasNonStart = true;
                 break;
             }
         }
-        if ($hasNonPrimary) {
+        // Start-only: coalesce all BREAK hits into the open collection.
+        if (!$hasNonStart) {
+            return false;
+        }
+        // After mid: require idle > break_gap (0 → reopen immediately).
+        $gap = max(0, (int)($partMeta['break_gap'] ?? 120));
+        if ($gap < 1) {
             return true;
         }
-        if ($primaryIds === []) {
+        $last = (int)($state['last'] ?? 0);
+        if ($last < 1 || $dtStart < 1) {
             return true;
         }
-        foreach ($primaryIds as $pid) {
-            $meta = $byId[$pid] ?? null;
-            if ($meta === null || !self::partLimitsMet($meta, $state['parts'][$pid] ?? [])) {
-                // Still collecting primary AND — keep open.
-                return false;
-            }
-        }
-        // Primary gate already complete → another BREAK greeting starts a new session.
-        return true;
+
+        return ($dtStart - $last) > $gap;
     }
 
     /**

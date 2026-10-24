@@ -18,7 +18,7 @@ final class CoachRunner
     /**
      * @return array{ok:bool,run_id:int,error:string}
      */
-    public static function start(int $adminId, string $day, int $createdBy): array
+    public static function start(int $adminId, string $day, int $createdBy, string $depth = 'normal'): array
     {
         $out = ['ok' => false, 'run_id' => 0, 'error' => ''];
         if ($adminId < 1 || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
@@ -32,7 +32,7 @@ final class CoachRunner
             return $out;
         }
         try {
-            $id = CoachRunsRepository::create($adminId, $day, $createdBy);
+            $id = CoachRunsRepository::create($adminId, $day, $createdBy, $depth);
             $out['ok'] = true;
             $out['run_id'] = $id;
         } catch (Throwable $e) {
@@ -40,6 +40,33 @@ final class CoachRunner
         }
 
         return $out;
+    }
+
+    /**
+     * Clear artifacts/proposals and re-run all phases (e.g. after collect/script fixes).
+     *
+     * @return array{ok:bool,run_id:int,phase:string,status:int,done:bool,error:string,proposals:int}
+     */
+    public static function rebuild(int $runId, ?string $depth = null): array
+    {
+        $run = CoachRunsRepository::find($runId);
+        if ($run === null) {
+            return [
+                'ok' => false,
+                'run_id' => $runId,
+                'phase' => '',
+                'status' => 0,
+                'done' => false,
+                'error' => t('audio_script_coach.err.run_not_found', ['id' => (string)$runId]),
+                'proposals' => 0,
+            ];
+        }
+        if ($depth !== null) {
+            CoachRunsRepository::setDepth($runId, $depth);
+        }
+        CoachRunsRepository::resetForRebuild($runId);
+
+        return self::processNext($runId, true);
     }
 
     /**
@@ -155,7 +182,9 @@ final class CoachRunner
             if ($catalog === null) {
                 throw new RuntimeException('catalog missing');
             }
-            $payload = CoachFacts::build($adminId, $day, $catalog);
+            $run = CoachRunsRepository::find($runId);
+            $depth = is_array($run) ? (string)($run['depth'] ?? 'normal') : 'normal';
+            $payload = CoachFacts::build($adminId, $day, $catalog, $depth);
             CoachRunsRepository::saveArtifact($runId, 'facts', $payload);
 
             return;
@@ -183,6 +212,7 @@ final class CoachRunner
                 'errors' => $payload['errors'],
                 'raw_count' => count($payload['raw']),
                 'proposal_count' => count($payload['proposals']),
+                'filter' => is_array($payload['filter'] ?? null) ? $payload['filter'] : [],
             ]);
             CoachRunsRepository::clearProposals($runId);
             foreach ($payload['proposals'] as $p) {

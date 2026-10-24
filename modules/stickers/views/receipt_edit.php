@@ -55,7 +55,7 @@ $ledgerOn = !empty($ledgerOn);
       <input name="descr" maxlength="255" value="<?= e((string)($row['descr'] ?? '')) ?>" required<?= $ro ?>>
     </label>
     <label><?= te('stickers.col.stock') ?>
-      <select name="id_stock" required<?= $dis ?>>
+      <select name="id_stock"<?= empty($row['id_stock']) ? '' : ' required' ?><?= $dis ?>>
         <option value="">—</option>
         <?php foreach ($stocks as $sid => $sname): ?>
           <option value="<?= (int)$sid ?>"<?= (int)($row['id_stock'] ?? 0) === (int)$sid ? ' selected' : '' ?>><?= e($sname) ?></option>

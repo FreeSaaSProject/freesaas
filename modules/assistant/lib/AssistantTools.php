@@ -26,6 +26,10 @@ final class AssistantTools
             if ($perm !== '' && !Auth::can($perm)) {
                 continue;
             }
+            $cap = trim((string)($op['capability'] ?? ''));
+            if ($cap !== '' && !Auth::capability($cap)) {
+                continue;
+            }
             if (!isset(ModuleManager::routes()[(string)$op['path']])) {
                 continue;
             }
@@ -41,7 +45,7 @@ final class AssistantTools
                 // instead of calling the tool (UI buttons appear after the call).
                 $desc .= ' [CALL NOW to queue; UI shows Confirm/Cancel — do not wait for the user to type Confirm]';
             }
-            $out[] = [
+            $item = [
                 'id' => (string)$op['id'],
                 'method' => (string)$op['method'],
                 'path' => (string)$op['path'],
@@ -52,6 +56,10 @@ final class AssistantTools
                 'function_name' => self::opIdToFunctionName((string)$op['id']),
                 'module' => (string)($op['module'] ?? ''),
             ];
+            if ($cap !== '') {
+                $item['capability'] = $cap;
+            }
+            $out[] = $item;
         }
         usort($out, static function (array $a, array $b): int {
             return strcmp($a['id'], $b['id']);

@@ -10,7 +10,7 @@ final class CalendarWeek
     public static function mondayOf(int $ts): int
     {
         if ($ts <= 0) {
-            $ts = time();
+            $ts = DemoMode::now();
         }
         $local = strtotime(date('Y-m-d 00:00:00', $ts));
         if ($local === false) {
@@ -25,7 +25,7 @@ final class CalendarWeek
      */
     public static function days(int $monday): array
     {
-        $today = date('Y-m-d');
+        $today = date('Y-m-d', DemoMode::now());
         $out = [];
         for ($i = 0; $i < 7; $i++) {
             $ts = $monday + ($i * 86400);
@@ -90,7 +90,7 @@ final class CalendarWeek
      */
     public static function weekOptions(int $anchorMonday, int $past = 26, int $future = 26): array
     {
-        $thisMonday = date('Y-m-d', self::mondayOf(time()));
+        $thisMonday = date('Y-m-d', self::mondayOf(DemoMode::now()));
         $out = [];
         for ($i = -$past; $i <= $future; $i++) {
             $m = $anchorMonday + ($i * 7 * 86400);
@@ -125,13 +125,13 @@ final class CalendarWeek
     public static function dayOptions(int $anchorTs, int $past = 14, int $future = 14): array
     {
         if ($anchorTs <= 0) {
-            $anchorTs = time();
+            $anchorTs = DemoMode::now();
         }
         $anchorMid = strtotime(date('Y-m-d 00:00:00', $anchorTs));
         if ($anchorMid === false) {
             $anchorMid = $anchorTs;
         }
-        $today = date('Y-m-d');
+        $today = date('Y-m-d', DemoMode::now());
         $past = max(0, $past);
         $future = max(0, $future);
         $out = [];

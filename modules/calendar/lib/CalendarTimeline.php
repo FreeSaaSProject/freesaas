@@ -214,7 +214,7 @@ final class CalendarTimeline
      */
     public static function passedOverlay(int $dayStart, ?int $now = null): ?array
     {
-        $now = $now ?? time();
+        $now = $now ?? DemoMode::now();
         $hStart = self::hourStart();
         $hEnd = self::hourEnd();
         $gridStart = $dayStart + $hStart * 3600;

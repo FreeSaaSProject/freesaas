@@ -29,12 +29,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         redirect('/audio/script-coach/run/' . $runId);
     }
+    if ($action === 'rebuild') {
+        $depthRaw = trim((string)($_POST['depth'] ?? ''));
+        $depth = $depthRaw !== '' ? CoachRunsRepository::normalizeDepth($depthRaw) : null;
+        $proc = CoachRunner::rebuild($runId, $depth);
+        if (!$proc['ok'] && ($proc['error'] ?? '') !== '') {
+            flash_set('error', (string)$proc['error']);
+        } else {
+            flash_set('ok', t('audio_script_coach.flash.rebuilt', [
+                'n' => (string)(int)($proc['proposals'] ?? 0),
+            ]));
+        }
+        redirect('/audio/script-coach/run/' . $runId);
+    }
 }
 
 $proposals = CoachRunsRepository::proposalsForRun($runId);
+$closedIdle = false;
+foreach ($proposals as $prop) {
+    if (CoachApply::closeIfNothingLeft($prop, Auth::userId())) {
+        $closedIdle = true;
+    }
+}
+if ($closedIdle) {
+    $proposals = CoachRunsRepository::proposalsForRun($runId);
+}
 $artifacts = CoachRunsRepository::artifactPhases($runId);
 $catalog = CoachRunsRepository::artifact($runId, 'catalog');
 $facts = CoachRunsRepository::artifact($runId, 'facts');
+$windows = CoachRunsRepository::artifact($runId, 'windows');
+$llmMeta = CoachRunsRepository::artifact($runId, 'llm');
 $scriptNames = [];
 if (is_array($catalog['scripts'] ?? null)) {
     foreach ($catalog['scripts'] as $s) {
@@ -58,6 +82,118 @@ if (is_array($catalog['scripts'] ?? null)) {
     }
 }
 
+$artifactPhaseIds = [];
+foreach ($artifacts as $a) {
+    $artifactPhaseIds[] = (string)($a['phase'] ?? '');
+}
+$hasLlmPhase = in_array('llm', $artifactPhaseIds, true);
+$llmErrors = [];
+if (is_array($llmMeta) && is_array($llmMeta['errors'] ?? null)) {
+    foreach ($llmMeta['errors'] as $err) {
+        $msg = trim((string)$err);
+        if ($msg !== '') {
+            $llmErrors[] = $msg;
+        }
+    }
+}
+$llmFilter = null;
+if (is_array($llmMeta) && is_array($llmMeta['filter'] ?? null)) {
+    $f = $llmMeta['filter'];
+    $phraseDrop = is_array($f['phrases_dropped'] ?? null) ? $f['phrases_dropped'] : [];
+    $propDrop = is_array($f['proposals_dropped'] ?? null) ? $f['proposals_dropped'] : [];
+    $phraseDropRows = [];
+    foreach ($phraseDrop as $reason => $n) {
+        $n = (int)$n;
+        if ($n < 1) {
+            continue;
+        }
+        $phraseDropRows[] = [
+            'reason' => (string)$reason,
+            'n' => $n,
+            'label' => t('audio_script_coach.filter.phrase.' . (string)$reason),
+        ];
+    }
+    $propDropRows = [];
+    foreach ($propDrop as $reason => $n) {
+        $n = (int)$n;
+        if ($n < 1) {
+            continue;
+        }
+        $propDropRows[] = [
+            'reason' => (string)$reason,
+            'n' => $n,
+            'label' => t('audio_script_coach.filter.proposal.' . (string)$reason),
+        ];
+    }
+    $llmFilter = [
+        'phrases_raw' => (int)($f['phrases_raw'] ?? 0),
+        'phrases_kept' => (int)($f['phrases_kept'] ?? 0),
+        'phrases_dropped_total' => array_sum(array_map('intval', $phraseDrop)),
+        'phrases_dropped' => $phraseDropRows,
+        'proposals_raw' => (int)($f['proposals_raw'] ?? 0),
+        'proposals_kept' => (int)($f['proposals_kept'] ?? 0),
+        'proposals_dropped_total' => array_sum(array_map('intval', $propDrop)),
+        'proposals_dropped' => $propDropRows,
+        'skip_reason' => trim((string)($f['skip_reason'] ?? '')),
+        'scripts_needing_work' => (int)($f['scripts_needing_work'] ?? 0),
+        'scripts_missing_windows' => (int)($f['scripts_missing_windows'] ?? 0),
+        'scripts_sent_to_llm' => (int)($f['scripts_sent_to_llm'] ?? 0),
+    ];
+}
+$needsWork = false;
+if (is_array($facts) && is_array($facts['scripts'] ?? null)) {
+    foreach ($facts['scripts'] as $sf) {
+        if (!is_array($sf)) {
+            continue;
+        }
+        if (!empty($sf['silent']) || !empty($sf['trigger_gap']) || !empty($sf['weak_start'])
+            || (is_array($sf['missed_starts'] ?? null) && $sf['missed_starts'] !== [])
+            || (is_array($sf['incomplete'] ?? null) && $sf['incomplete'] !== [])
+            || (is_array($sf['stage_gaps'] ?? null) && $sf['stage_gaps'] !== [])
+            || !empty($sf['force_enrich'])
+        ) {
+            $needsWork = true;
+            break;
+        }
+    }
+}
+$windowCount = (is_array($windows) && is_array($windows['windows'] ?? null))
+    ? count($windows['windows'])
+    : 0;
+
+$proposalsEmptyReason = null;
+if ($proposals === []) {
+    if (!$hasLlmPhase) {
+        $proposalsEmptyReason = 'need_llm';
+    } elseif ($llmErrors !== []) {
+        $proposalsEmptyReason = 'llm_errors';
+    } elseif (!$needsWork) {
+        $proposalsEmptyReason = 'nothing_to_enrich';
+    } elseif ($windowCount < 1) {
+        $proposalsEmptyReason = 'no_windows';
+    } else {
+        $proposalsEmptyReason = 'empty';
+    }
+}
+
+$showReparseHint = false;
+foreach ($proposals as $prop) {
+    $pst = (int)($prop['status'] ?? -1);
+    if ($pst === 1) {
+        $showReparseHint = true;
+        break;
+    }
+    if ($pst === 0) {
+        $meta = is_array($prop['apply_meta'] ?? null) ? $prop['apply_meta'] : [];
+        foreach (is_array($meta['keys'] ?? null) ? $meta['keys'] : [] as $k) {
+            if ((int)($k['id'] ?? 0) > 0 && empty($k['skipped'])) {
+                $showReparseHint = true;
+                break 2;
+            }
+        }
+    }
+}
+
 $y = (int)substr((string)$run['day'], 0, 4);
 $m = (int)substr((string)$run['day'], 5, 2);
 $reparseHint = '/audio/calendar?' . http_build_query(['year' => $y, 'month' => $m]);
@@ -73,6 +209,9 @@ if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
         'artifacts' => $artifacts,
         'facts' => $facts,
         'proposals' => $proposals,
+        'llm_errors' => $llmErrors,
+        'llm_filter' => $llmFilter,
+        'proposals_empty_reason' => $proposalsEmptyReason,
     ]);
 }
 
@@ -89,6 +228,10 @@ View::render('run', [
     'canEdit' => $canEdit,
     'dayHref' => $dayHref,
     'reparseHint' => $reparseHint,
+    'llmErrors' => $llmErrors,
+    'llmFilter' => $llmFilter,
+    'proposalsEmptyReason' => $proposalsEmptyReason,
+    'showReparseHint' => $showReparseHint,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('audio_script_coach.menu.list'), 'href' => '/audio/script-coach'],
         ['label' => $title, 'current' => true],

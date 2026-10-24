@@ -3,23 +3,19 @@ declare(strict_types=1);
 
 final class StocksRepository
 {
-    public const TYPE_REAL = 1;
-    public const TYPE_VIRTUAL = 2;
-
     /** @return array<string,string> */
     public static function listSortMap(): array
     {
         return [
             'id' => 'ID',
             'name' => 'NAME',
-            'type' => 'TYPE',
             'operative' => 'OPERATIVE',
             'id_cabinet' => 'ID_CABINET',
         ];
     }
 
     /**
-     * @param array{q?:string,type?:string|null,order?:string,limit?:int,offset?:int} $opts
+     * @param array{q?:string,order?:string,limit?:int,offset?:int} $opts
      * @return array{items:list<array<string,mixed>>,total:int}
      */
     public static function list(array $opts = []): array
@@ -38,10 +34,6 @@ final class StocksRepository
             $params[] = $like;
             $params[] = $q;
         }
-        if (array_key_exists('type', $opts) && $opts['type'] !== null && $opts['type'] !== '') {
-            $where[] = 'TYPE = ?';
-            $params[] = (int)$opts['type'];
-        }
         $sqlWhere = implode(' AND ', $where);
         $stc = $pdo->prepare("SELECT COUNT(*) FROM base_stocks WHERE $sqlWhere");
         $stc->execute($params);
@@ -54,8 +46,7 @@ final class StocksRepository
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
         $sql = "SELECT ID AS id, NAME AS name, DESCR AS descr, OPERATIVE AS operative,
-                       ID_CABINET AS id_cabinet, DT AS dt, TYPE AS type,
-                       AUTOCONTROL_REQ AS autocontrol_req, VRT_STOCK_ID AS vrt_stock_id
+                       ID_CABINET AS id_cabinet, DT AS dt
                 FROM base_stocks WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
@@ -66,20 +57,12 @@ final class StocksRepository
     }
 
     /** @return array<int,string> */
-    public static function names(?int $type = null): array
+    public static function names(): array
     {
         if (!Database::tableExists('base_stocks')) {
             return [];
         }
-        $sql = 'SELECT ID, NAME FROM base_stocks';
-        $params = [];
-        if ($type !== null) {
-            $sql .= ' WHERE TYPE = ?';
-            $params[] = $type;
-        }
-        $sql .= ' ORDER BY NAME ASC';
-        $st = Database::pdo()->prepare($sql);
-        $st->execute($params);
+        $st = Database::pdo()->query('SELECT ID, NAME FROM base_stocks ORDER BY NAME ASC');
         $out = [];
         foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $r) {
             $out[(int)$r['ID']] = (string)$r['NAME'];
@@ -94,8 +77,7 @@ final class StocksRepository
         }
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, NAME AS name, DESCR AS descr, OPERATIVE AS operative,
-                    ID_CABINET AS id_cabinet, DT AS dt, TYPE AS type,
-                    AUTOCONTROL_REQ AS autocontrol_req, VRT_STOCK_ID AS vrt_stock_id
+                    ID_CABINET AS id_cabinet, DT AS dt
              FROM base_stocks WHERE ID = ? LIMIT 1'
         );
         $st->execute([$id]);
@@ -104,11 +86,52 @@ final class StocksRepository
     }
 
     /**
+     * Default warehouse for receipts when id_stock omitted.
+     * 1) OPERATIVE=1 linked to staff skin cabinet(s); 2) single site-wide OPERATIVE=1.
+     */
+    public static function defaultForStaff(?int $userId = null): ?int
+    {
+        if (!Database::tableExists('base_stocks')) {
+            return null;
+        }
+        $pdo = Database::pdo();
+        $uid = $userId !== null && $userId > 0 ? $userId : Auth::userId();
+        $cabinetIds = [];
+        if ($uid > 0 && class_exists('UsersRepository', false)) {
+            $user = UsersRepository::find($uid);
+            if ($user) {
+                $cabinetIds = UsersRepository::parseHashIds((string)($user['skin'] ?? ''));
+            }
+        }
+        foreach ($cabinetIds as $cabId) {
+            $cabId = (int)$cabId;
+            if ($cabId < 1) {
+                continue;
+            }
+            $st = $pdo->prepare(
+                'SELECT ID FROM base_stocks WHERE OPERATIVE = 1 AND ID_CABINET = ? ORDER BY ID ASC LIMIT 1'
+            );
+            $st->execute([$cabId]);
+            $id = (int)$st->fetchColumn();
+            if ($id > 0) {
+                return $id;
+            }
+        }
+
+        $ids = $pdo->query('SELECT ID FROM base_stocks WHERE OPERATIVE = 1 ORDER BY ID ASC')->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        if (count($ids) === 1) {
+            return (int)$ids[0];
+        }
+        return null;
+    }
+
+    /**
      * @param array<string,mixed> $post
      * @return array<string,mixed>
      */
     public static function dataFromPost(array $post, int $excludeId = 0): array
     {
+        unset($excludeId);
         $name = trim((string)($post['name'] ?? ''));
         if ($name === '') {
             throw new InvalidArgumentException(t('stocks.err.name_required'));
@@ -120,59 +143,15 @@ final class StocksRepository
         if ($descr === '') {
             throw new InvalidArgumentException(t('stocks.err.descr_required'));
         }
-        $type = (int)($post['type'] ?? self::TYPE_REAL);
-        if ($type !== self::TYPE_REAL && $type !== self::TYPE_VIRTUAL) {
-            $type = self::TYPE_REAL;
-        }
         $operative = !empty($post['operative']) ? 1 : 0;
-        $autocontrol = !empty($post['autocontrol_req']) ? 1 : 0;
-        $vrtStockId = max(0, (int)($post['vrt_stock_id'] ?? 0));
         $idCabinet = max(0, (int)($post['id_cabinet'] ?? 0));
-
-        if ($type === self::TYPE_VIRTUAL) {
-            $operative = 0;
-            $autocontrol = 0;
-            $vrtStockId = 0;
-        }
-
-        if ($autocontrol === 1 && $vrtStockId < 1) {
-            throw new InvalidArgumentException(t('stocks.err.autocontrol_needs_vrt'));
-        }
-        if ($vrtStockId > 0) {
-            $vrt = self::find($vrtStockId);
-            if (!$vrt || (int)$vrt['type'] !== self::TYPE_VIRTUAL) {
-                throw new InvalidArgumentException(t('stocks.err.vrt_invalid'));
-            }
-            if (self::vrtStockInUse($vrtStockId, $excludeId)) {
-                throw new InvalidArgumentException(t('stocks.err.vrt_in_use'));
-            }
-        }
 
         return [
             'name' => $name,
             'descr' => mb_substr($descr, 0, 255),
             'operative' => $operative,
             'id_cabinet' => $idCabinet,
-            'type' => $type,
-            'autocontrol_req' => $autocontrol,
-            'vrt_stock_id' => $vrtStockId,
         ];
-    }
-
-    public static function vrtStockInUse(int $vrtStockId, int $excludeId = 0): bool
-    {
-        if ($vrtStockId < 1 || !Database::tableExists('base_stocks')) {
-            return false;
-        }
-        $sql = 'SELECT COUNT(*) FROM base_stocks WHERE VRT_STOCK_ID = ?';
-        $params = [$vrtStockId];
-        if ($excludeId > 0) {
-            $sql .= ' AND ID != ?';
-            $params[] = $excludeId;
-        }
-        $st = Database::pdo()->prepare($sql);
-        $st->execute($params);
-        return (int)$st->fetchColumn() > 0;
     }
 
     /** @param array<string,mixed> $data */
@@ -180,8 +159,8 @@ final class StocksRepository
     {
         $st = Database::pdo()->prepare(
             'INSERT INTO base_stocks
-             (NAME, DESCR, OPERATIVE, ID_CABINET, DT, TYPE, AUTOCONTROL_REQ, VRT_STOCK_ID)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+             (NAME, DESCR, OPERATIVE, ID_CABINET, DT)
+             VALUES (?, ?, ?, ?, ?)'
         );
         $st->execute([
             $data['name'],
@@ -189,9 +168,6 @@ final class StocksRepository
             $data['operative'],
             $data['id_cabinet'],
             time(),
-            $data['type'],
-            $data['autocontrol_req'],
-            $data['vrt_stock_id'],
         ]);
         return (int)Database::pdo()->lastInsertId();
     }
@@ -204,8 +180,7 @@ final class StocksRepository
         }
         $st = Database::pdo()->prepare(
             'UPDATE base_stocks SET
-             NAME = ?, DESCR = ?, OPERATIVE = ?, ID_CABINET = ?,
-             TYPE = ?, AUTOCONTROL_REQ = ?, VRT_STOCK_ID = ?
+             NAME = ?, DESCR = ?, OPERATIVE = ?, ID_CABINET = ?
              WHERE ID = ?'
         );
         $st->execute([
@@ -213,9 +188,6 @@ final class StocksRepository
             $data['descr'],
             $data['operative'],
             $data['id_cabinet'],
-            $data['type'],
-            $data['autocontrol_req'],
-            $data['vrt_stock_id'],
             $id,
         ]);
     }

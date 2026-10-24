@@ -15,8 +15,8 @@ final class CalendarDayStats
     public static function collect(array $days, ?int $staffFilter, string $view = 'week'): array
     {
         $dayPayload = [];
-        $today = date('Y-m-d');
-        $now = time();
+        $today = date('Y-m-d', DemoMode::now());
+        $now = DemoMode::now();
         foreach ($days as $day) {
             $date = (string)($day['date'] ?? '');
             $ts = (int)($day['ts'] ?? 0);

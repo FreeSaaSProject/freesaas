@@ -16,6 +16,23 @@ final class DbFs
         return $dir;
     }
 
+    /**
+     * Safe filename fragment for dump labels (uninstall-*, upload-*, …). Empty if unusable.
+     */
+    public static function sanitizeDumpLabel(string $label): string
+    {
+        $label = trim($label);
+        $label = (string)preg_replace('/[^A-Za-z0-9._-]+/', '-', $label);
+        $label = trim($label, '.-_');
+        if ($label === '') {
+            return '';
+        }
+        if (strlen($label) > 80) {
+            $label = rtrim(substr($label, 0, 80), '.-_');
+        }
+        return $label;
+    }
+
     public static function jobsDir(): string
     {
         $dir = base_path('var/db_jobs');
@@ -184,14 +201,9 @@ final class DbFs
             }
         }
 
-        $label = (string)preg_replace('/\.sql(\.gz)?$/i', '', $orig);
-        $label = (string)preg_replace('/[^A-Za-z0-9._-]+/', '-', $label);
-        $label = trim($label, '.-_');
+        $label = self::sanitizeDumpLabel((string)preg_replace('/\.sql(\.gz)?$/i', '', $orig));
         if ($label === '') {
             $label = 'local';
-        }
-        if (strlen($label) > 80) {
-            $label = substr($label, 0, 80);
         }
 
         $basename = date('Y-m-d_H-i-s') . '-upload-' . $label . $ext;

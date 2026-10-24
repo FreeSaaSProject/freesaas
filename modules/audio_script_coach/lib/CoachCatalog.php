@@ -54,8 +54,10 @@ final class CoachCatalog
                 $role = 'ordinary';
                 if ($startGate > 0 || !empty($part['is_req']) || !empty($part['break_flag'])) {
                     $role = 'trigger';
+                    } elseif (!empty($part['closer'])) {
+                    $role = 'closer';
                 } elseif (!empty($part['finish'])) {
-                    $role = 'finish';
+                    $role = 'conversion';
                 } elseif (!empty($part['collection_killer'])) {
                     $role = 'killer';
                 }
@@ -65,6 +67,7 @@ final class CoachCatalog
                     'role' => $role,
                     'start_gate' => $startGate,
                     'finish' => !empty($part['finish']) ? 1 : 0,
+                    'closer' => !empty($part['closer']) ? 1 : 0,
                     'break' => !empty($part['break_flag']) ? 1 : 0,
                     'killer' => !empty($part['collection_killer']) ? 1 : 0,
                     'dict_ids' => $dictIds,
@@ -131,7 +134,7 @@ final class CoachCatalog
 
     /**
      * @param list<int> $dictIds
-     * @return array<string,array{id:int,name:string,sample_keys:list<string>,key_count:int}>
+     * @return array<string,array{id:int,name:string,descr:string,sample_keys:list<string>,key_count:int}>
      */
     private static function loadDictSamples(array $dictIds): array
     {
@@ -142,7 +145,7 @@ final class CoachCatalog
         }
         $in = implode(',', $dictIds);
         $rows = Database::pdo()->query(
-            "SELECT ID AS id, NAME AS name FROM base_records_dictonarys WHERE ID IN ($in)"
+            "SELECT ID AS id, NAME AS name, DESCR AS descr FROM base_records_dictonarys WHERE ID IN ($in)"
         )->fetchAll(PDO::FETCH_ASSOC) ?: [];
         foreach ($rows as $row) {
             $did = (int)$row['id'];
@@ -167,6 +170,7 @@ final class CoachCatalog
             $out[(string)$did] = [
                 'id' => $did,
                 'name' => (string)$row['name'],
+                'descr' => trim((string)($row['descr'] ?? '')),
                 'sample_keys' => $samples,
                 'key_count' => $count,
             ];

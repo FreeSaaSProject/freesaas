@@ -40,10 +40,29 @@ $diagNeedCount = (int)($diagNeedCount ?? 0);
 $diagRan = !empty($diagRan);
 $diagAt = (int)($diagAt ?? 0);
 $ownedSet = array_fill_keys($ownedTables, true);
+$hasUsers = !empty($hasUsers);
+$userCount = (int)($userCount ?? 0);
 $diagByTable = [];
 foreach ($diag as $drow) {
     $diagByTable[(string)($drow['table'] ?? '')] = $drow;
 }
+
+/** Inline «?» help next to a heading/label (native details, no JS). */
+$helpTip = static function (string ...$paragraphKeys): void {
+    if ($paragraphKeys === []) {
+        return;
+    }
+    ?>
+  <details class="db-help">
+    <summary title="<?= te('core.db.help_aria') ?>" aria-label="<?= te('core.db.help_aria') ?>">?</summary>
+    <div class="db-help-body">
+      <?php foreach ($paragraphKeys as $key): ?>
+        <p><?= te($key) ?></p>
+      <?php endforeach; ?>
+    </div>
+  </details>
+    <?php
+};
 
 $formatBytes = static function (int $bytes): string {
     if ($bytes >= 1048576) {
@@ -73,24 +92,15 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   <p class="lede"><?= te('core.db.lede') ?></p>
 </section>
 
-<?php if ($canDb): ?>
+<?php if ($canDb && !$isExpert): ?>
   <div class="actions" style="margin-bottom:1rem">
-    <?php if ($isExpert): ?>
-      <form method="post" style="display:inline">
-        <input type="hidden" name="action" value="mode">
-        <input type="hidden" name="mode" value="normal">
-        <button class="btn-secondary" type="submit"><?= te('core.db.mode.to_normal') ?></button>
-      </form>
-      <span class="muted"><?= te('core.db.mode.expert_badge') ?></span>
-    <?php else: ?>
-      <form method="post" style="display:inline"
-            onsubmit="return confirm(<?= tj('core.db.mode.confirm_expert') ?>);">
-        <input type="hidden" name="action" value="mode">
-        <input type="hidden" name="mode" value="expert">
-        <button class="btn-secondary" type="submit"><?= te('core.db.mode.to_expert') ?></button>
-      </form>
-      <span class="muted"><?= te('core.db.mode.normal_badge') ?></span>
-    <?php endif; ?>
+    <form method="post" style="display:inline"
+          onsubmit="return confirm(<?= tj('core.db.mode.confirm_expert') ?>);">
+      <input type="hidden" name="action" value="mode">
+      <input type="hidden" name="mode" value="expert">
+      <button class="btn-secondary" type="submit"><?= te('core.db.mode.to_expert') ?></button>
+    </form>
+    <span class="muted"><?= te('core.db.mode.normal_badge') ?></span>
   </div>
 <?php endif; ?>
 
@@ -105,15 +115,9 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   </div>
 <?php endif; ?>
 
-<div class="status-row">
-  <div class="stat<?= $hasUsers ? ' ok' : '' ?>">base_users <?= $hasUsers ? '✓' : '✗' ?> (<?= (int)$userCount ?>)</div>
-  <div class="stat<?= $pendingCount === 0 ? ' ok' : '' ?>">
-    <?= te('core.db.pending_stat', ['n' => (string)$pendingCount]) ?>
-  </div>
-  <div class="stat">
-    <?= te('core.db.owned_stat', ['n' => (string)count($ownedTables)]) ?>
-  </div>
-</div>
+<?php if (!$hasUsers): ?>
+  <div class="flash flash-warn"><?= te('core.db.warn_no_users', ['n' => (string)$userCount]) ?></div>
+<?php endif; ?>
 
 <?php if ($message !== ''): ?>
   <div class="flash flash-ok"><?= e($message) ?></div>
@@ -122,39 +126,38 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
   <div class="flash flash-warn"><?= e($error) ?></div>
 <?php endif; ?>
 
+<?php if ($pendingCount > 0 || $schemaNeeded): ?>
 <section class="calendar-section">
   <h2 class="subhead"><?= te('core.db.schema_heading') ?></h2>
   <p class="muted"><?= te('core.db.schema_help') ?></p>
-
   <?php if ($pending): ?>
     <ul class="report">
       <?php foreach ($pending as $row): ?>
         <li class="pending"><?= e($row['module'] . '/' . $row['id']) ?> — <?= te('core.modules.mig_pending') ?></li>
       <?php endforeach; ?>
     </ul>
-  <?php elseif (!$schemaNeeded): ?>
-    <p class="muted"><?= te('core.db.schema_up_to_date') ?></p>
   <?php endif; ?>
-
   <div class="actions">
     <form method="post">
       <input type="hidden" name="action" value="schema">
-      <button class="btn-primary" type="submit"<?= $pendingCount < 1 && !$schemaNeeded ? ' disabled' : '' ?>>
+      <button class="btn-primary" type="submit">
         <?= te('core.db.btn_schema') ?>
         <?php if ($pendingCount > 0): ?> (<?= (int)$pendingCount ?>)<?php endif; ?>
       </button>
     </form>
-    <?php if (!$schemaNeeded && $pendingCount < 1): ?>
-      <a class="btn-secondary" href="/"><?= te('core.menu.home') ?></a>
-    <?php endif; ?>
   </div>
 </section>
+<?php endif; ?>
 
 <?php if ($canDb): ?>
 <section class="calendar-section">
-  <h2 class="subhead"><?= te('core.db.backups_heading') ?></h2>
-  <p class="muted"><?= te($isExpert ? 'core.db.backups_help_expert' : 'core.db.backups_help') ?></p>
-  <p class="muted"><?= te('core.db.dump_name_hint') ?></p>
+  <h2 class="subhead">
+    <?= te('core.db.backups_heading') ?>
+    <?php $helpTip(
+        $isExpert ? 'core.db.backups_help_expert' : 'core.db.backups_help',
+        'core.db.dump_name_hint'
+    ); ?>
+  </h2>
 
   <form method="post" id="db-dump-form" class="db-job-form" data-db-job="dump">
     <input type="hidden" name="action" value="db_dump">
@@ -182,21 +185,16 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     </div>
   </form>
 
-  <h3 class="subhead"><?= te('core.db.dumps_available') ?></h3>
-  <p class="muted"><?= te('core.db.dumps_available_help') ?></p>
-  <?php if (!$agentTokenOk): ?>
-    <p class="muted"><?= te('core.db.fetch_token_missing') ?>
-      <a href="/settings"><?= te('core.menu.settings') ?></a>
-    </p>
-  <?php endif; ?>
-
+  <h3 class="subhead"><?= te('core.db.upload_heading') ?></h3>
   <form method="post" enctype="multipart/form-data" class="db-upload-form" id="db-upload-form">
     <input type="hidden" name="action" value="db_upload">
     <label class="field">
-      <span><?= te('core.db.upload_label') ?></span>
+      <span>
+        <?= te('core.db.upload_label') ?>
+        <?php $helpTip('core.db.upload_help'); ?>
+      </span>
       <input type="file" name="dump" required accept=".sql,.sql.gz,application/gzip,application/sql,text/plain">
     </label>
-    <p class="muted"><?= te('core.db.upload_help', ['limit' => DbTools::phpUploadLimitLabel()]) ?></p>
     <div class="actions">
       <button class="btn-secondary" type="submit"><?= te('core.db.btn_upload') ?></button>
     </div>
@@ -206,21 +204,30 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     <input type="hidden" name="action" value="db_fetch">
     <input type="hidden" name="op" value="fetch">
     <label class="field">
-      <span><?= te('core.db.fetch_url_label') ?></span>
+      <span>
+        <?= te('core.db.fetch_url_label') ?>
+        <?php $helpTip('core.db.fetch_url_help'); ?>
+      </span>
       <input type="url" name="url" required placeholder="https://prod/agent/db/dump/file?file=NAME.sql.gz&amp;token=…"
              autocomplete="off" spellcheck="false">
     </label>
-    <p class="muted"><?= te('core.db.fetch_url_help') ?></p>
+    <?php if (!$agentTokenOk): ?>
+      <p class="muted"><?= te('core.db.fetch_token_missing') ?>
+        <a href="/settings"><?= te('core.menu.settings') ?></a>
+      </p>
+    <?php endif; ?>
     <div class="actions">
       <button class="btn-secondary" type="submit"><?= te('core.db.btn_fetch') ?></button>
     </div>
   </form>
 
+  <h3 class="subhead"><?= te('core.db.dumps_available') ?></h3>
   <?php if ($dumps): ?>
     <table class="data">
       <thead>
         <tr>
           <th><?= te('core.db.col.stamp') ?></th>
+          <th><?= te('core.db.col.label') ?></th>
           <th><?= te('core.db.col.file') ?></th>
           <th><?= te('core.db.col.size') ?></th>
           <th><?= te('core.db.col.actions') ?></th>
@@ -230,9 +237,11 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
         <?php foreach ($dumps as $d): ?>
           <?php
             $fetchUrl = $agentTokenOk ? DbTools::agentDumpFetchUrl((string)$d['file']) : null;
+            $dumpLabel = trim((string)($d['label'] ?? ''));
           ?>
           <tr>
             <td><?= e(($d['stamp'] ?? '') !== '' ? (string)$d['stamp'] : date('Y-m-d H:i:s', (int)$d['mtime'])) ?></td>
+            <td class="muted"><?= $dumpLabel !== '' ? e($dumpLabel) : '—' ?></td>
             <td><code><?= e($d['file']) ?></code></td>
             <td><?= e($formatBytes((int)$d['bytes'])) ?></td>
             <td class="actions">
@@ -264,7 +273,8 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
 </section>
 
 <section class="calendar-section">
-  <h2 class="subhead"><?= te('core.db.maint_heading') ?></h2>
+  <details class="db-fold">
+  <summary class="subhead"><?= te('core.db.maint_heading') ?></summary>
   <p class="muted"><?= te($isExpert ? 'core.db.maint_help_expert' : 'core.db.maint_help') ?></p>
 
   <div class="actions" style="margin-bottom:.75rem">
@@ -367,11 +377,13 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       </form>
     </div>
   <?php endif; ?>
+  </details>
 </section>
 
 <?php if ($isExpert): ?>
 <section class="calendar-section">
-  <h2 class="subhead"><?= te('core.db.drop_heading') ?></h2>
+  <details class="db-fold">
+  <summary class="subhead"><?= te('core.db.drop_heading') ?></summary>
   <p class="muted"><?= te('core.db.drop_help') ?></p>
   <?php if ($allTables === []): ?>
     <p class="muted"><?= te('core.db.tables_empty') ?></p>
@@ -402,21 +414,28 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       </div>
     </form>
   <?php endif; ?>
+  </details>
 </section>
 <?php endif; ?>
 <?php endif; ?>
 
 <?php if ($schemaReport): ?>
-  <h2 class="subhead"><?= te('core.db.schema_report') ?></h2>
+<section class="calendar-section">
+  <details class="db-fold">
+  <summary class="subhead"><?= te('core.db.schema_report') ?></summary>
   <ul class="report">
     <?php foreach ($schemaReport as $r): ?>
       <li class="<?= e($r['status']) ?>"><?= e($r['module'].'/'.$r['id'].': '.$r['status']) ?><?= !empty($r['message']) ? ' — '.e($r['message']) : '' ?></li>
     <?php endforeach; ?>
   </ul>
+  </details>
+</section>
 <?php endif; ?>
 
 <?php if ($maintReport): ?>
-  <h2 class="subhead"><?= te('core.db.maint_report') ?></h2>
+<section class="calendar-section">
+  <details class="db-fold">
+  <summary class="subhead"><?= te('core.db.maint_report') ?></summary>
   <ul class="report">
     <?php foreach ($maintReport as $r): ?>
       <li class="<?= e((string)($r['status'] ?? 'info')) ?>">
@@ -424,12 +443,22 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       </li>
     <?php endforeach; ?>
   </ul>
+  </details>
+</section>
 <?php endif; ?>
 
 <?php if ($canDb): ?>
 <section class="calendar-section">
-  <h2 class="subhead"><?= te('core.db.inventory_heading') ?></h2>
+  <details class="db-fold">
+  <summary class="subhead">
+    <?= te('core.db.inventory_heading') ?>
+    <span class="muted db-fold-meta"><?= te('core.db.owned_stat', ['n' => (string)count($ownedTables)]) ?></span>
+  </summary>
   <p class="muted"><?= te('core.db.inventory_help') ?></p>
+  <p class="muted"><?= te('core.db.inventory_users_stat', [
+      'ok' => $hasUsers ? '✓' : '✗',
+      'n' => (string)$userCount,
+  ]) ?></p>
   <?php if ($inventory === []): ?>
     <p class="muted"><?= te('core.db.inventory_empty') ?></p>
   <?php else: ?>
@@ -477,6 +506,7 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       </tbody>
     </table>
   <?php endif; ?>
+  </details>
 </section>
 <?php endif; ?>
 

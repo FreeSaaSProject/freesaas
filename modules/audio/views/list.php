@@ -23,6 +23,7 @@ declare(strict_types=1);
 /** @var array<int,string> $downloadUrlById */
 /** @var array<string,string> $badgeOptions */
 /** @var array<int,string> $keyDictOptions */
+/** @var array<int,array<int,string>> $keyDictsByAdmin */
 /** @var bool $dictsOn */
 /** @var int $trashAdded */
 /** @var array<string,mixed>|null $dayNav */
@@ -52,6 +53,7 @@ $downloadUrlById = is_array($downloadUrlById ?? null) ? $downloadUrlById : [];
 $preload = !empty($preload);
 $badgeOptions = is_array($badgeOptions ?? null) ? $badgeOptions : [];
 $keyDictOptions = is_array($keyDictOptions ?? null) ? $keyDictOptions : [];
+$keyDictsByAdmin = is_array($keyDictsByAdmin ?? null) ? $keyDictsByAdmin : [];
 $dayNav = is_array($dayNav ?? null) ? $dayNav : null;
 $canEdit = !empty($canEdit);
 $dictsOn = !empty($dictsOn);
@@ -241,6 +243,7 @@ require __DIR__ . '/_inbox_banner.php';
       ?>
       <tr class="audio-record-card<?= $rowClass ? ' ' . e(implode(' ', $rowClass)) : '' ?>"
           data-record-id="<?= $rid ?>"
+          data-admin-id="<?= (int)($r['id_admin'] ?? 0) ?>"
           <?= $playUrl !== '' ? ' data-play-url="' . e($playUrl) . '"' : '' ?>>
         <?= BulkActions::td($listId, $rid, $review === 'pending') ?>
         <td class="audio-meta-cell">
@@ -465,6 +468,13 @@ window.AudioListI18n = <?= json_encode([
     'error' => t('audio.api.error'),
     'network' => t('audio.api.network'),
     'done' => t('audio.api.done'),
+    'reparsing' => t('audio.api.reparsing'),
+    'keyExists' => t('audio.api.key_exists'),
+    'keyExistsTitle' => t('audio.api.key_exists_title'),
+    'keyExistsHint' => t('audio.api.key_exists_hint'),
+    'inDict' => t('audio.api.key_exists_in_dict'),
+    'openKey' => t('audio.api.key_exists_open'),
+    'disabled' => t('audio.api.key_disabled'),
     'confirmOverlaps' => t('audio.api.confirm_overlaps'),
     'createAnyway' => t('audio.api.create_anyway'),
     'reload' => t('audio.api.reload'),
@@ -474,6 +484,7 @@ window.AudioListI18n = <?= json_encode([
 ], JSON_UNESCAPED_UNICODE) ?>;
 </script>
 <script type="application/json" id="audio-key-dicts"><?= json_encode($keyDictOptions, JSON_UNESCAPED_UNICODE) ?></script>
+<script type="application/json" id="audio-key-dicts-by-admin"><?= json_encode($keyDictsByAdmin, JSON_UNESCAPED_UNICODE) ?></script>
 <?php else: ?>
 <script>
 window.AudioListI18n = <?= json_encode([

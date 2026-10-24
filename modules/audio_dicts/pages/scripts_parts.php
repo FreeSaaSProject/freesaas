@@ -81,6 +81,7 @@ try {
                 ? (!empty($_POST['extend_timeout']) ? 1 : 0)
                 : 1,
             'timeout' => (int)($_POST['timeout'] ?? 0),
+            'break_gap' => max(0, (int)($_POST['break_gap'] ?? 120)),
             'diversity' => (int)($_POST['diversity'] ?? 0),
             'instances_min' => (int)($_POST['instances_min'] ?? 0),
             'gate_red_max' => max(0.0, (float)($_POST['gate_red_max'] ?? 0)),

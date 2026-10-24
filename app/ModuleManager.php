@@ -321,7 +321,7 @@ final class ModuleManager
         $dump = null;
         $dumpSkipped = true;
         try {
-            $dump = DbTools::dumpModule($id, 'uninstall-' . $id);
+            $dump = DbTools::dumpModule($id);
             $dumpSkipped = !empty($dump['skipped']);
         } catch (Throwable $e) {
             // Only abort when exclusive owned tables exist — dumpModule already skips empty/shared.

@@ -9,7 +9,7 @@ $q = trim((string)($_GET['q'] ?? ''));
 $limit = max(1, min(40, (int)($_GET['limit'] ?? 15)));
 $staffId = max(0, (int)($_GET['staff'] ?? 0));
 $dateRaw = trim((string)($_GET['date'] ?? ''));
-$dayStart = (int)strtotime('today');
+$dayStart = DemoMode::dayStart();
 if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateRaw)) {
     $ts = strtotime($dateRaw . ' 00:00:00');
     if ($ts !== false) {

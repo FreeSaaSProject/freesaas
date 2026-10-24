@@ -72,6 +72,128 @@ final class AudioCoverageProfiles
     }
 
     /**
+     * All saved overrides for settings UI.
+     *
+     * @return list<array{
+     *   id:int,position_id:int,admin_id:int,enabled:bool,config:array,
+     *   kind:string,label:string,flag_ok:bool
+     * }>
+     */
+    public static function listAll(): array
+    {
+        if (!self::tableReady()) {
+            return [];
+        }
+        $rows = Database::pdo()->query(
+            'SELECT ID, ID_POSITION, ID_ADMIN, ENABLED, CONFIG
+             FROM base_records_coverage_profiles
+             ORDER BY ID_ADMIN ASC, ID_POSITION ASC, ID ASC'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $statusNames = self::statusNameMap();
+        $staffNames = self::staffNameMap();
+        $out = [];
+        foreach ($rows as $row) {
+            $h = self::hydrate($row);
+            $adminId = $h['admin_id'];
+            $positionId = $h['position_id'];
+            if ($adminId > 0) {
+                $label = $staffNames[$adminId] ?? ('#' . $adminId);
+                $kind = 'admin';
+                $flagPos = $positionId > 0 ? $positionId : self::userStatusId($adminId);
+            } else {
+                $label = $statusNames[$positionId] ?? ('#' . $positionId);
+                $kind = 'position';
+                $flagPos = $positionId;
+            }
+            $out[] = [
+                'id' => $h['id'],
+                'position_id' => $positionId,
+                'admin_id' => $adminId,
+                'enabled' => $h['enabled'],
+                'config' => $h['config'],
+                'kind' => $kind,
+                'label' => $label,
+                'flag_ok' => self::positionHasDisableFlag($flagPos),
+            ];
+        }
+
+        return $out;
+    }
+
+    public static function delete(int $id): bool
+    {
+        if ($id < 1 || !self::tableReady()) {
+            return false;
+        }
+        $st = Database::pdo()->prepare('DELETE FROM base_records_coverage_profiles WHERE ID = ?');
+        $st->execute([$id]);
+
+        return $st->rowCount() > 0;
+    }
+
+    public static function positionHasDisableFlag(int $positionId): bool
+    {
+        if ($positionId < 1
+            || !Database::tableExists('base_admin_statuses')
+            || !Database::columnExists('base_admin_statuses', 'DISABLE_NON_PROCEDURE_TIME')
+        ) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT DISABLE_NON_PROCEDURE_TIME FROM base_admin_statuses WHERE ID = ? LIMIT 1'
+        );
+        $st->execute([$positionId]);
+        $v = $st->fetchColumn();
+
+        return $v !== false && (int)$v === 1;
+    }
+
+    private static function userStatusId(int $adminId): int
+    {
+        if ($adminId < 1 || !Database::tableExists('base_users')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare('SELECT ID_STATUS FROM base_users WHERE id = ? LIMIT 1');
+        $st->execute([$adminId]);
+
+        return (int)$st->fetchColumn();
+    }
+
+    /** @return array<int,string> */
+    private static function statusNameMap(): array
+    {
+        if (!Database::tableExists('base_admin_statuses')) {
+            return [];
+        }
+        $map = [];
+        foreach (Database::pdo()->query(
+            'SELECT ID, NAME FROM base_admin_statuses'
+        )->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $map[(int)$row['ID']] = (string)$row['NAME'];
+        }
+
+        return $map;
+    }
+
+    /** @return array<int,string> */
+    private static function staffNameMap(): array
+    {
+        if (!class_exists('UsersRepository', false)) {
+            return [];
+        }
+        $map = [];
+        foreach (UsersRepository::listEnabledStaff() as $u) {
+            $id = (int)($u['id'] ?? 0);
+            if ($id < 1) {
+                continue;
+            }
+            $map[$id] = trim((string)($u['name'] ?? $u['login'] ?? '')) ?: ('#' . $id);
+        }
+
+        return $map;
+    }
+
+    /**
      * @param array<string,mixed> $config
      * @return array{id:int,position_id:int,admin_id:int,enabled:bool,config:array}
      */

@@ -143,11 +143,33 @@
     });
   }
 
+  function contextForKolonka(kolonkaEl) {
+    var card = kolonkaEl && (kolonkaEl.closest('[data-admin-id]')
+      || kolonkaEl.closest('[data-record-id]')
+      || kolonkaEl.closest('tr.audio-record-card'));
+    var aid = card ? parseInt(card.getAttribute('data-admin-id') || '0', 10) : 0;
+    var rid = card ? parseInt(card.getAttribute('data-record-id') || '0', 10) : 0;
+    if (!rid && kolonkaEl) {
+      rid = parseInt(kolonkaEl.getAttribute('data-record') || '0', 10) || 0;
+    }
+    var byAdmin = parseJsonEl('audio-key-dicts-by-admin');
+    if (byAdmin && aid > 0) {
+      var scoped = byAdmin[aid] || byAdmin[String(aid)];
+      if (scoped && typeof scoped === 'object') {
+        return { dicts: scoped, adminId: aid, recordId: rid };
+      }
+    }
+    return { dicts: parseJsonEl('audio-key-dicts') || {}, adminId: aid, recordId: rid };
+  }
+
   function showAddPopover(kolonkaEl, text) {
     text = String(text || '').trim();
     if (!text) return;
-    var dicts = parseJsonEl('audio-key-dicts');
-    if (!dicts) return;
+    var resolved = contextForKolonka(kolonkaEl);
+    var dicts = resolved.dicts;
+    var adminId = resolved.adminId || 0;
+    var recordId = resolved.recordId || 0;
+    if (!dicts || !Object.keys(dicts).length) return;
 
     var existing = kolonkaEl.querySelector('.add-key-popover');
     if (existing) existing.remove();
@@ -227,6 +249,72 @@
       warn.appendChild(actions);
     }
 
+    function showExistingKeyPanel(warn, key) {
+      warn.hidden = false;
+      warn.innerHTML = '';
+      var title = document.createElement('div');
+      title.className = 'add-key-overlap-title';
+      title.textContent = L.keyExistsTitle || (L.keyExists || 'Key already exists');
+      warn.appendChild(title);
+      var id = parseInt(key && key.id, 10) || 0;
+      var name = (key && key.name) || '';
+      var dictId = parseInt(key && key.dict_id, 10) || 0;
+      var dictName = (key && key.dict_name) || '';
+      var editUrl = (key && key.edit_url) || ('/audio/keys/' + id + '/edit');
+      var dictUrl = (key && key.dict_edit_url) || (dictId > 0 ? ('/audio/dicts/' + dictId + '/edit') : '');
+      var body = document.createElement('div');
+      body.className = 'add-key-existing';
+      var keyLine = document.createElement('p');
+      keyLine.innerHTML =
+        '<a href="' + escapeHtml(editUrl) + '" target="_blank" rel="noopener">#' + id +
+        ' «' + escapeHtml(name) + '»</a>' +
+        (key && key.disabled ? ' <span class="muted">(' + escapeHtml(L.disabled || 'disabled') + ')</span>' : '');
+      body.appendChild(keyLine);
+      if (dictId > 0) {
+        var dictLine = document.createElement('p');
+        dictLine.className = 'muted';
+        if (dictUrl) {
+          dictLine.innerHTML =
+            escapeHtml(L.inDict || 'Dictionary') + ': ' +
+            '<a href="' + escapeHtml(dictUrl) + '" target="_blank" rel="noopener">#' + dictId +
+            (dictName ? ' «' + escapeHtml(dictName) + '»' : '') + '</a>';
+        } else {
+          dictLine.textContent =
+            (L.inDict || 'Dictionary') + ': #' + dictId + (dictName ? ' «' + dictName + '»' : '');
+        }
+        body.appendChild(dictLine);
+      }
+      var hint = document.createElement('p');
+      hint.className = 'muted small';
+      hint.textContent = L.keyExistsHint || '';
+      if (hint.textContent) {
+        body.appendChild(hint);
+      }
+      warn.appendChild(body);
+      var actions = document.createElement('div');
+      actions.className = 'add-key-overlap-actions';
+      var openBtn = document.createElement('a');
+      openBtn.className = 'add-key-btn';
+      openBtn.href = editUrl;
+      openBtn.target = '_blank';
+      openBtn.rel = 'noopener';
+      openBtn.textContent = L.openKey || 'Open key';
+      var closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'add-key-cancel';
+      closeBtn.textContent = L.cancel || 'Close';
+      closeBtn.addEventListener('click', function () { pop.remove(); });
+      var reloadBtn = document.createElement('button');
+      reloadBtn.type = 'button';
+      reloadBtn.className = 'add-key-cancel';
+      reloadBtn.textContent = L.reload || 'Reload page';
+      reloadBtn.addEventListener('click', function () { location.reload(); });
+      actions.appendChild(openBtn);
+      actions.appendChild(closeBtn);
+      actions.appendChild(reloadBtn);
+      warn.appendChild(actions);
+    }
+
     function postAction(action, force) {
       var status = pop.querySelector('.add-key-status');
       var warn = pop.querySelector('.add-key-warnings');
@@ -236,7 +324,9 @@
         warn.textContent = L.textRequired || 'Enter text';
         return;
       }
-      status.textContent = '…';
+      status.textContent = action === 'add_key' && recordId > 0
+        ? (L.reparsing || '…')
+        : '…';
       warn.hidden = true;
       warn.innerHTML = '';
       var body = new URLSearchParams();
@@ -244,6 +334,12 @@
       body.set('text', keyText);
       if (action === 'add_key') {
         body.set('dict_id', dictSel.value || '0');
+      }
+      if (adminId > 0) {
+        body.set('admin_id', String(adminId));
+      }
+      if (recordId > 0) {
+        body.set('record_id', String(recordId));
       }
       if (force) body.set('force', '1');
       fetch('/audio/api/dict', {
@@ -269,8 +365,14 @@
             status.textContent = '';
             return;
           }
+          if (data.already_exists && data.key) {
+            status.textContent = '';
+            showExistingKeyPanel(warn, data.key);
+            return;
+          }
           status.textContent = data.message || (L.done || 'OK');
-          setTimeout(function () { location.reload(); }, 600);
+          var delay = (data.reparsed && data.reparsed.ok) ? 900 : 600;
+          setTimeout(function () { location.reload(); }, delay);
         })
         .catch(function () {
           pop.classList.add('add-key-error');

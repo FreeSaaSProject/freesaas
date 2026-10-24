@@ -69,9 +69,12 @@ final class DbDump
                 'skipped_shared' => $ownership['shared'],
             ];
         }
-        $lab = $label !== null && trim($label) !== ''
-            ? trim($label)
-            : ('uninstall-' . $moduleId);
+        if ($label !== null && trim($label) !== '') {
+            $lab = trim($label);
+        } else {
+            // e.g. uninstall-stickers-3t — readable in var/db_dumps/ listing
+            $lab = 'uninstall-' . $moduleId . '-' . count($existing) . 't';
+        }
         $out = self::dump($existing, $lab);
         $out['skipped'] = false;
         $out['skipped_shared'] = $ownership['shared'];

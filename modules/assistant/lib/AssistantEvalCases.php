@@ -350,6 +350,71 @@ final class AssistantEvalCases
                 },
             ],
             [
+                'id' => 'det.confirm_phrase_podtverzhdaju',
+                'layer' => 'det',
+                'title_key' => 'assistant.eval.case.confirm_phrase',
+                'explain_key' => 'assistant.eval.case.confirm_phrase.explain',
+                'need_modules' => [],
+                'tool_allow' => null,
+                'prompt_key' => '',
+                'grade' => static function (): array {
+                    if (AssistantHarness::detectConfirmIntent('подтверждаю') !== 'confirm') {
+                        return ['status' => 'fail', 'detail' => t('assistant.eval.grade.confirm_phrase_fail')];
+                    }
+                    if (AssistantHarness::detectConfirmIntent('подтвердить') !== 'confirm') {
+                        return ['status' => 'fail', 'detail' => t('assistant.eval.grade.confirm_phrase_fail')];
+                    }
+                    if (AssistantHarness::detectConfirmIntent('отмена') !== 'cancel') {
+                        return ['status' => 'fail', 'detail' => t('assistant.eval.grade.confirm_phrase_cancel_fail')];
+                    }
+                    if (AssistantHarness::detectConfirmIntent('да подтверждаю') !== null) {
+                        return ['status' => 'fail', 'detail' => t('assistant.eval.grade.confirm_phrase_loose')];
+                    }
+                    return ['status' => 'pass', 'detail' => t('assistant.eval.grade.confirm_phrase_ok')];
+                },
+            ],
+            [
+                'id' => 'prompt.stickers_receipt_hint',
+                'layer' => 'det',
+                'title_key' => 'assistant.eval.case.prompt_stickers_receipt_hint',
+                'explain_key' => 'assistant.eval.case.prompt_stickers_receipt_hint.explain',
+                'need_modules' => ['stickers'],
+                'tool_allow' => null,
+                'prompt_key' => '',
+                'grade' => static function (): array {
+                    $with = AssistantHarness::scopedHintsForOps([['id' => 'stickers.receipts.create']]);
+                    $without = AssistantHarness::scopedHintsForOps([['id' => 'payments.list']]);
+                    if (stripos($with, 'receipts.create') === false && stripos($with, 'lines') === false) {
+                        return ['status' => 'fail', 'detail' => t('assistant.eval.grade.stickers_hint_missing')];
+                    }
+                    if (stripos($without, 'receipts.create') !== false || stripos($without, 'заприход') !== false) {
+                        return ['status' => 'fail', 'detail' => t('assistant.eval.grade.stickers_hint_leaked')];
+                    }
+                    return ['status' => 'pass', 'detail' => t('assistant.eval.grade.stickers_hint_ok')];
+                },
+            ],
+            [
+                'id' => 'live.stickers_receipt_inbound',
+                'layer' => 'live',
+                'title_key' => 'assistant.eval.case.live_stickers_receipt_inbound',
+                'explain_key' => 'assistant.eval.case.live_stickers_receipt_inbound.explain',
+                'need_modules' => ['stickers', 'catalog', 'stocks', 'suppliers'],
+                'fixture' => 'stickers_receipt_inbound',
+                'tool_allow' => [
+                    'stocks.list',
+                    'suppliers.list',
+                    'catalog.browse',
+                    'stickers.receipts.create',
+                    'stickers.ins.create',
+                    'core.help.search',
+                    'core.help.get',
+                ],
+                'prompt_key' => 'assistant.eval.prompt.live_stickers_receipt_inbound',
+                'grade' => static function (array $result): array {
+                    return AssistantEval::gradeStickersReceiptInbound($result);
+                },
+            ],
+            [
                 'id' => 'live.workweeks_resolve_names',
                 'layer' => 'live',
                 'title_key' => 'assistant.eval.case.live_workweeks_resolve_names',

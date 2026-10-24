@@ -18,9 +18,9 @@ final class AssistantEvalFixtures
         if ($pack === null) {
             return null;
         }
-        $day = is_array($pack['day'] ?? null) ? $pack['day'] : null;
+        $day = is_array($pack['day'] ?? null) ? $pack['day'] : [];
         $ops = is_array($pack['ops'] ?? null) ? $pack['ops'] : [];
-        if ($day === null || $ops === []) {
+        if ($ops === []) {
             return null;
         }
 

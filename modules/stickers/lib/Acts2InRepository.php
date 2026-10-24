@@ -207,6 +207,9 @@ final class Acts2InRepository
     public static function dataFromPost(array $post): array
     {
         $idStock = (int)($post['id_stock'] ?? 0);
+        if ($idStock < 1 && class_exists('StocksRepository', false)) {
+            $idStock = (int)(StocksRepository::defaultForStaff() ?? 0);
+        }
         if ($idStock < 1) {
             throw new InvalidArgumentException(t('stickers.err.stock_required'));
         }
@@ -221,6 +224,32 @@ final class Acts2InRepository
             'is_signed' => !empty($post['is_signed']) ? 1 : 0,
             'is_sticked' => !empty($post['is_sticked']) ? 1 : 0,
         ];
+    }
+
+    /**
+     * Optional sticker lines for atomic receipt create (assistant / JSON).
+     * Accepts `lines` as list of maps or a JSON string.
+     *
+     * @param array<string,mixed> $post
+     * @return list<array<string,mixed>>
+     */
+    public static function linesFromPost(array $post): array
+    {
+        $raw = $post['lines'] ?? null;
+        if (is_string($raw) && trim($raw) !== '') {
+            $decoded = json_decode($raw, true);
+            $raw = is_array($decoded) ? $decoded : null;
+        }
+        if (!is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach ($raw as $line) {
+            if (is_array($line)) {
+                $out[] = $line;
+            }
+        }
+        return $out;
     }
 
     /** @param array<string,mixed> $data */
@@ -245,6 +274,41 @@ final class Acts2InRepository
             $data['is_signed'],
         ]);
         return (int)Database::pdo()->lastInsertId();
+    }
+
+    /**
+     * Create receipt act and sticker batches in one transaction (one Confirm for inbound).
+     *
+     * @param array<string,mixed> $data from dataFromPost
+     * @param list<array<string,mixed>> $lines raw line posts (id_good|good_q, qty, price, …)
+     * @return array{id:int,sticker_ids:list<int>}
+     */
+    public static function createWithLines(array $data, array $lines, int $userId): array
+    {
+        if ($lines === []) {
+            return ['id' => self::create($data, $userId), 'sticker_ids' => []];
+        }
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $id = self::create($data, $userId);
+            $stickerIds = [];
+            foreach ($lines as $line) {
+                $linePost = $line;
+                $linePost['id_act'] = $id;
+                $batch = StickerInsRepository::dataFromPost($linePost);
+                foreach (StickerInsRepository::createBatch($batch, $userId) as $sid) {
+                    $stickerIds[] = $sid;
+                }
+            }
+            $pdo->commit();
+            return ['id' => $id, 'sticker_ids' => $stickerIds];
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
     }
 
     /** @param array<string,mixed> $data */

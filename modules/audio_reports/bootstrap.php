@@ -77,9 +77,17 @@ EventBus::on('audio.settings.sections', static function ($payload) {
         return $payload;
     }
     $bounds = AudioDayBounds::read();
-    $payload['html'] = (string)($payload['html'] ?? '') . View::capture('_settings_day_bounds', [
-        'bounds' => $bounds,
-    ], 'audio_reports');
+    if (!isset($payload['sections']) || !is_array($payload['sections'])) {
+        $payload['sections'] = [];
+    }
+    $payload['sections'][] = [
+        'id' => 'day_bounds',
+        'title' => 'audio_reports.settings.day_bounds',
+        'weight' => 50,
+        'html' => View::capture('_settings_day_bounds', [
+            'bounds' => $bounds,
+        ], 'audio_reports'),
+    ];
     return $payload;
 });
 

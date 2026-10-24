@@ -48,20 +48,80 @@ $listIdMap = [
 $listId = $listIdMap[$entity] ?? 'audio_dicts';
 
 $error = '';
+$keyOverlaps = [];
+$keyForceChecked = false;
+
 if (!$isNew && EntityDelete::tryHandle($listId, $id, $path, [
     'stay_path' => $path . '/' . $id . '/edit',
 ])) {
     return;
 }
 
+// Prefill new key from coach / deep links: ?name=&dict=&looklike=
+if ($entity === 'keys' && $isNew && $row === null && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
+    $preName = trim((string)($_GET['name'] ?? ''));
+    $preDict = max(0, (int)($_GET['dict'] ?? $_GET['id_dictonary'] ?? 0));
+    $preLook = max(0, (int)($_GET['looklike'] ?? $_GET['id_looklike'] ?? 0));
+    if ($preName !== '' || $preDict > 0 || $preLook > 0) {
+        $row = [
+            'name' => mb_substr($preName, 0, 255),
+            'id_dictonary' => $preDict,
+            'id_looklike' => $preLook,
+            'disabled' => 0,
+        ];
+        if ($preName !== '') {
+            $keyOverlaps = RecordsKeysRepository::findOverlaps($preName, 0, 12);
+            if ($preLook < 1 && $keyOverlaps !== []) {
+                $row['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
+            }
+        }
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
         $data = $repo::dataFromPost($_POST);
+        if ($entity === 'keys') {
+            $keyForceChecked = !empty($_POST['force']);
+            $keyOverlaps = RecordsKeysRepository::findOverlaps(
+                (string)$data['name'],
+                $isNew ? 0 : $id,
+                12
+            );
+            $hasExact = false;
+            foreach ($keyOverlaps as $ov) {
+                if ((string)($ov['relation'] ?? '') === 'exact') {
+                    $hasExact = true;
+                    break;
+                }
+            }
+            if ($hasExact) {
+                throw new InvalidArgumentException(t('audio_dicts.keys.err_exact'));
+            }
+            // Soft "contains" (existing key is wider) — allow without force, same as coach apply.
+            $softOnly = RecordsKeysRepository::isSoftContainsOnly($keyOverlaps);
+            if ($keyOverlaps !== [] && !$softOnly && !$keyForceChecked) {
+                if ((int)($data['id_looklike'] ?? 0) < 1) {
+                    $data['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
+                }
+                throw new InvalidArgumentException(t('audio_dicts.keys.err_overlap'));
+            }
+            if ($keyOverlaps !== [] && ($keyForceChecked || $softOnly) && (int)($data['id_looklike'] ?? 0) < 1) {
+                $data['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
+            }
+        }
         if ($isNew) {
             $newId = $repo::create($data);
             if ($wantsJson) {
                 AgentHttp::emit(['ok' => true, 'entity' => $entity, 'id' => $newId, 'item' => $repo::find($newId)]);
                 return;
+            }
+            if ($entity === 'keys') {
+                flash_set('ok', t('audio_dicts.keys.saved'));
+            }
+            // Stay on the new key edit page — do not carry coach ret into the redirect.
+            if (class_exists('NavContext', false)) {
+                NavContext::setReturnUrl('');
             }
             redirect($path . '/' . $newId . '/edit');
         }
@@ -70,6 +130,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             AgentHttp::emit(['ok' => true, 'entity' => $entity, 'id' => $id, 'item' => $repo::find($id)]);
             return;
         }
+        if ($entity === 'keys') {
+            flash_set('ok', t('audio_dicts.keys.saved'));
+            if (class_exists('NavContext', false)) {
+                NavContext::setReturnUrl('');
+            }
+        }
         redirect($path . '/' . $id . '/edit');
     } catch (Throwable $e) {
         if ($wantsJson) {
@@ -77,10 +143,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             return;
         }
         $error = $e->getMessage();
-        $row = array_merge($row ?? [], [
-            'name' => (string)($_POST['name'] ?? ''),
-        ]);
+        if (isset($data) && is_array($data)) {
+            $row = array_merge($row ?? [], $data);
+        } else {
+            $row = array_merge($row ?? [], [
+                'name' => (string)($_POST['name'] ?? ''),
+                'descr' => (string)($_POST['descr'] ?? ''),
+                'color' => (string)($_POST['color'] ?? ''),
+                'color_background' => (string)($_POST['color_background'] ?? ''),
+                'tracking_code' => (string)($_POST['tracking_code'] ?? ''),
+                'disabled' => !empty($_POST['disabled']) ? 1 : 0,
+                'is_review_req' => !empty($_POST['is_review_req']) ? 1 : 0,
+                'id_dictonary' => (int)($_POST['id_dictonary'] ?? 0),
+                'id_looklike' => (int)($_POST['id_looklike'] ?? 0),
+            ]);
+        }
     }
+}
+
+$keyCount = 0;
+if ($entity === 'dicts' && !$isNew && $id > 0 && Database::tableExists('base_records_keys')) {
+    $st = Database::pdo()->prepare(
+        'SELECT COUNT(*) FROM base_records_keys WHERE ID_DICTONARY=?'
+    );
+    $st->execute([$id]);
+    $keyCount = (int)$st->fetchColumn();
 }
 
 $viewData = [
@@ -93,12 +180,26 @@ $viewData = [
     'row' => $row,
     'isNew' => $isNew,
     'error' => $error,
+    'flash' => $entity === 'keys' ? flash_take() : null,
     'path' => $path,
     'id' => $id,
     'listId' => $listId,
+    'keyCount' => $keyCount,
 ];
 if ($entity === 'keys') {
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
+    $viewData['overlaps'] = $keyOverlaps;
+    $viewData['forceChecked'] = $keyForceChecked;
+    $viewData['forceNeeded'] = $keyOverlaps !== []
+        && !RecordsKeysRepository::isSoftContainsOnly($keyOverlaps);
+    if ($isNew) {
+        $viewData['title'] = t('audio_dicts.keys.title_new');
+        $viewData['breadcrumbs'] = Breadcrumbs::withHome([
+            ['label' => t('audio.menu.group'), 'href' => '/audio'],
+            ['label' => t($cfg['title']), 'href' => $path],
+            ['label' => t('audio_dicts.keys.title_new'), 'current' => true],
+        ]);
+    }
 }
 
 if ($wantsJson) {

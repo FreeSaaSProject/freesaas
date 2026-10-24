@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-23T17:31:42+00:00",
+    "generated_at": "2026-10-24T19:33:58+00:00",
     "modules": [
         {
             "id": "asr",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "1.0.2",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -73,7 +73,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "1.0.0",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -111,7 +111,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -148,7 +148,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.1",
+            "version": "1.0.8",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -167,7 +167,8 @@
                 "audio": ">=1.0.0"
             },
             "optionalRequires": {
-                "audio_reports": ">=1.0.0"
+                "audio_reports": ">=1.0.0",
+                "llm": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
@@ -179,7 +180,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.8",
+            "version": "0.1.9",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -250,7 +251,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.0.0",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -283,7 +284,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -318,7 +319,7 @@
         },
         {
             "id": "audio_script_coach",
-            "version": "0.1.1",
+            "version": "0.1.11",
             "type": "product",
             "name": {
                 "en": "Script coach",
@@ -329,16 +330,16 @@
                 "ru": "Исследование смены сотрудника и предложения по обогащению словарей, чтобы скрипты ловили новые формулировки."
             },
             "summary": {
-                "en": "Enable when audio dicts + LLM are ready. Superadmin button on day-report. Successor to top-phrases for script enrichment; keep audio_phrases until this proves out.",
-                "ru": "Включать при готовых audio_dicts + llm. Кнопка у суперadmin на отчёте ®. Преемник топ-фраз для обогащения скриптов; audio_phrases пока не удаляем."
+                "en": "Enable with audio_dicts. LLM is soft: without it, facts/windows still run; proposals need llm configured. Superadmin on day-report. Soft successor to audio_phrases for enrichment.",
+                "ru": "Включать с audio_dicts. LLM мягкая зависимость: без него факты/окна работают, предложения ключей — только с настроенным llm. Кнопка у суперadmin на ®. Мягкий преемник audio_phrases для обогащения."
             },
             "requires": {
                 "core": ">=1.0.0",
                 "audio": ">=1.0.0",
-                "audio_dicts": ">=1.0.0",
-                "llm": ">=1.0.0"
+                "audio_dicts": ">=1.0.0"
             },
             "optionalRequires": {
+                "llm": ">=1.0.0",
                 "audio_reports": ">=1.0.0",
                 "audio_pipeline": ">=1.0.0"
             },
@@ -554,7 +555,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -832,7 +833,7 @@
         },
         {
             "id": "demo",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -1353,7 +1354,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.1",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Treatments",
@@ -1556,7 +1557,7 @@
         },
         {
             "id": "stickers",
-            "version": "1.0.1",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1592,7 +1593,7 @@
         },
         {
             "id": "stocks",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Warehouses",
@@ -1613,12 +1614,12 @@
                 "cabinets": ">=1.0.0",
                 "stickers": ">=1.0.0",
                 "catalog": ">=1.0.0",
-                "norms": ">=1.0.0"
+                "norms": ">=1.0.0",
+                "calendar": ">=1.0.0"
             },
             "catalog": {
                 "categories": [
-                    "warehouse",
-                    "dictionaries"
+                    "warehouse"
                 ],
                 "maturity": "release",
                 "tags": []

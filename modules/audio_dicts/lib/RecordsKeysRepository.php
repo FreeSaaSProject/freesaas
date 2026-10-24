@@ -239,6 +239,27 @@ final class RecordsKeysRepository
         return array_slice(array_merge($exact, $contains, $contained), 0, $limit);
     }
 
+    /**
+     * Soft nesting only: every hit is "contains" (an existing key already covers
+     * this phrase as a substring). Safe to create without force — same rule as
+     * coach apply / ASR short forms. Empty list counts as soft.
+     *
+     * @param list<array{relation?:string}> $overlaps
+     */
+    public static function isSoftContainsOnly(array $overlaps): bool
+    {
+        if ($overlaps === []) {
+            return true;
+        }
+        foreach ($overlaps as $ov) {
+            if ((string)($ov['relation'] ?? '') !== 'contains') {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /** Clear request-local overlap catalog (after create/update). */
     public static function clearOverlapCatalogCache(): void
     {

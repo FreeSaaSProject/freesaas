@@ -90,7 +90,7 @@ final class DemoSeed
             'stand_id' => DemoStand::configuredId(),
             'seed_version' => $version,
             'dump' => $dump,
-            'anchor_day' => date('Y-m-d'),
+            'anchor_day' => date('Y-m-d', self::now()),
             'week_monday' => date('Y-m-d', self::mondayTs()),
             'counts' => $counts,
         ];
@@ -287,9 +287,21 @@ final class DemoSeed
         }
     }
 
+    /** Business clock (honours demo frozen_at). */
+    private static function now(): int
+    {
+        return class_exists('DemoMode', false) ? DemoMode::now() : time();
+    }
+
+    /** Start of business day. */
+    private static function todayTs(): int
+    {
+        return class_exists('DemoMode', false) ? DemoMode::dayStart() : (int)(strtotime('today') ?: time());
+    }
+
     private static function mondayTs(): int
     {
-        $today = strtotime('today') ?: time();
+        $today = self::todayTs();
         $n = (int)date('N', $today); // 1=Mon … 7=Sun
         return $today - (($n - 1) * 86400);
     }
@@ -739,7 +751,7 @@ final class DemoSeed
         if ($operatorIds === [] || $clientIds === [] || $productIds === []) {
             return [];
         }
-        $now = time();
+        $now = self::now();
         $horizon = $now + (48 * 3600);
         $covered = 0;
         if (Database::tableExists('base_events') && $existingIds !== []) {
@@ -916,7 +928,7 @@ final class DemoSeed
             if ($clientId < 1) {
                 continue;
             }
-            $start = (int)($ev['dtstart'] ?? time());
+            $start = (int)($ev['dtstart'] ?? self::now());
             $accrue = (float)(mt_rand(50, 400));
             try {
                 BonusMovesRepository::create([
@@ -1105,7 +1117,7 @@ final class DemoSeed
                 'STATUS' => 1,
                 'ID_CURATOR' => $author,
                 'USERS_RESP' => NewsRepository::encodeIdList([$resp]),
-                'DT_DEADLINE' => (strtotime('today') ?: time()) + 3 * 86400,
+                'DT_DEADLINE' => self::todayTs() + 3 * 86400,
                 'ACCESS_USER' => '',
             ], $author);
             $n++;
@@ -1330,28 +1342,28 @@ final class DemoSeed
         }
         $L = is_array($pack['ledger'] ?? null) ? $pack['ledger'] : [];
         $uid = Auth::userId();
-        $today = strtotime('today') ?: time();
+        $today = self::todayTs();
 
         // Debit operating accounts + one credit line (loans / financing).
         $cash = LedgerAccountsRepository::create([
             'name' => (string)($L['cash'] ?? 'Cash'),
-            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => time(),
+            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => self::now(),
         ]);
         $bank = LedgerAccountsRepository::create([
             'name' => (string)($L['bank'] ?? 'Bank'),
-            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => time(),
+            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => self::now(),
         ]);
         $acq = LedgerAccountsRepository::create([
             'name' => (string)($L['acquiring'] ?? 'Acquiring'),
-            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => time(),
+            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => self::now(),
         ]);
         $petty = LedgerAccountsRepository::create([
             'name' => (string)($L['petty'] ?? 'Petty cash'),
-            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => time(),
+            'descr' => '', 'enabled' => 1, 'id_type' => 2, 'dt' => self::now(),
         ]);
         $creditLine = LedgerAccountsRepository::create([
             'name' => (string)($L['credit'] ?? 'Credit line'),
-            'descr' => '', 'enabled' => 1, 'id_type' => 1, 'dt' => time(),
+            'descr' => '', 'enabled' => 1, 'id_type' => 1, 'dt' => self::now(),
         ]);
         $out['accounts'] = 5;
 
@@ -1427,7 +1439,7 @@ final class DemoSeed
                 'summ' => $sum,
                 'descr' => $descr,
                 'dt' => $today + ($dayOff * 86400) + 3600 * 11,
-                'dt_create' => time(),
+                'dt_create' => self::now(),
                 'user_create' => $uid,
                 'unconfirmed' => 0,
                 'payment_id' => 0,
@@ -1553,7 +1565,7 @@ final class DemoSeed
             'amt_out' => 0,
             'inventory_req' => 0,
             'real_price' => 0,
-            'dt_create' => time(),
+            'dt_create' => self::now(),
             'user_create' => Auth::userId(),
         ]);
         $reserve = FundsRepository::create([
@@ -1563,7 +1575,7 @@ final class DemoSeed
             'amt_out' => 0,
             'inventory_req' => 0,
             'real_price' => 0,
-            'dt_create' => time(),
+            'dt_create' => self::now(),
             'user_create' => Auth::userId(),
         ]);
         $out['funds'] = 2;
@@ -1575,7 +1587,7 @@ final class DemoSeed
         ) {
             return $out;
         }
-        $today = strtotime('today') ?: time();
+        $today = self::todayTs();
         $F = is_array($pack['funds'] ?? null) ? $pack['funds'] : [];
         try {
             $capuse = FundMovementsRepository::create([
@@ -1591,7 +1603,7 @@ final class DemoSeed
                 'descr' => (string)($F['capuse_descr'] ?? ''),
                 'dt_amort_start' => $today - (55 * 86400),
                 'amort_months' => 36,
-                'dt_create' => time(),
+                'dt_create' => self::now(),
                 'user_create' => Auth::userId(),
             ]);
             $out['capuse'] = $capuse;
@@ -1609,7 +1621,7 @@ final class DemoSeed
                 'descr' => '',
                 'dt_amort_start' => $today - (30 * 86400),
                 'amort_months' => 12,
-                'dt_create' => time(),
+                'dt_create' => self::now(),
                 'user_create' => Auth::userId(),
             ]);
             $out['moves']++;
@@ -1630,9 +1642,6 @@ final class DemoSeed
             'descr' => '',
             'operative' => 1,
             'id_cabinet' => max(0, $cabinetId),
-            'type' => 0,
-            'autocontrol_req' => 0,
-            'vrt_stock_id' => 0,
         ]);
         return 1;
     }
@@ -1667,7 +1676,7 @@ final class DemoSeed
                 'source' => 'demo',
                 'id_user' => $clientId,
                 'id_cosmetolog' => $opId,
-                'dt_event' => (strtotime('today') ?: time()) + ((11 + $i) * 3600),
+                'dt_event' => self::todayTs() + ((11 + $i) * 3600),
                 'cart_lines' => [[
                     'id' => $pid,
                     'name' => $p['name'],
@@ -1825,7 +1834,7 @@ final class DemoSeed
             }
         }
 
-        $today = strtotime('today') ?: time();
+        $today = self::todayTs();
         $staffByRole = [
             'specialist' => $operators,
             'admin' => $admins !== [] ? $admins : $operators,
@@ -1910,7 +1919,7 @@ final class DemoSeed
                             'STRINGS_NOK', 'ERROR_TRANS',
                         ];
                         $vals = [
-                            (int)$op['id'], $clientId, 2000 + (int)$op['id'], time(), $start,
+                            (int)$op['id'], $clientId, 2000 + (int)$op['id'], self::now(), $start,
                             $start + $play, $start + $play + 5, 0, '',
                             $transcript, $ru ? 'Демо-запись' : 'Demo recording', $play,
                             0, 0.8, 1, 0, serialize($ix), '', $keyTypes,
@@ -1942,7 +1951,7 @@ final class DemoSeed
                                  VALUES (?, 0, ?, 0, 0)
                                  ON DUPLICATE KEY UPDATE
                                    DT_CREATE = IF(DT_CREATE < 1, VALUES(DT_CREATE), DT_CREATE)'
-                            )->execute([$recordId, time()]);
+                            )->execute([$recordId, self::now()]);
                             $out['reviews']++;
                         }
                     } catch (Throwable $e) {

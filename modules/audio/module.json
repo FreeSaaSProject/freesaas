@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -181,7 +181,8 @@
         },
         {
             "group": "audio.menu.group",
-            "num": 90,
+            "kind": "settings",
+            "num": 999,
             "path": "/audio/settings",
             "title": "audio.menu.settings",
             "permission": "audio.view",

@@ -16,19 +16,19 @@ if (!$wantsJson && request_path() === '/calendar') {
 $dateParam = (string)(Router::param('date') ?? ($_GET['date'] ?? ''));
 $dateParam = trim($dateParam);
 if ($dateParam === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateParam)) {
-    $dateParam = date('Y-m-d');
+    $dateParam = date('Y-m-d', DemoMode::now());
 }
 $anchor = strtotime($dateParam . ' 00:00:00');
 if ($anchor === false) {
-    $dateParam = date('Y-m-d');
-    $anchor = strtotime($dateParam . ' 00:00:00') ?: time();
+    $dateParam = date('Y-m-d', DemoMode::now());
+    $anchor = strtotime($dateParam . ' 00:00:00') ?: DemoMode::now();
 }
 
 $monday = CalendarWeek::mondayOf($anchor);
 $weekEnd = $monday + 7 * 86400;
 $prevWeek = date('Y-m-d', $monday - 7 * 86400);
 $nextWeek = date('Y-m-d', $monday + 7 * 86400);
-$today = date('Y-m-d');
+$today = date('Y-m-d', DemoMode::now());
 $days = CalendarWeek::days($monday);
 $mondayDate = date('Y-m-d', $monday);
 
@@ -296,7 +296,7 @@ View::render('week', [
     'breadcrumbs' => Breadcrumbs::withHome([
         [
             'label' => t('calendar.menu.week'),
-            'href' => '/calendar/week/' . date('Y-m-d', CalendarWeek::mondayOf(strtotime($today . ' 00:00:00') ?: time())),
+            'href' => '/calendar/week/' . date('Y-m-d', CalendarWeek::mondayOf(strtotime($today . ' 00:00:00') ?: DemoMode::now())),
             'current' => true,
         ],
     ]),

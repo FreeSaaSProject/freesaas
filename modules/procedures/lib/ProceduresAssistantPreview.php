@@ -17,6 +17,9 @@ final class ProceduresAssistantPreview
             return $payload;
         }
         $args = is_array($payload['args'] ?? null) ? $payload['args'] : [];
+        if ($opId === 'procedures.set_admin') {
+            return self::previewSetAdmin($payload, $args);
+        }
         if (strpos($opId, 'procedures.types.') === 0) {
             return self::merge($payload, self::linesForType($args));
         }
@@ -142,6 +145,109 @@ final class ProceduresAssistantPreview
             }
         }
         return $lines;
+    }
+
+    /**
+     * @param array<string,mixed> $args
+     * @return list<string>
+     */
+    /**
+     * @param array<string,mixed> $payload
+     * @param array<string,mixed> $args
+     * @return array<string,mixed>
+     */
+    private static function previewSetAdmin(array $payload, array $args): array
+    {
+        $ids = self::normalizeIds($args['ids'] ?? $args['id'] ?? null);
+        $adminId = (int)($args['id_admin'] ?? $args['admin_id'] ?? 0);
+        $fromAdmin = (int)($args['from_id_admin'] ?? $args['from_admin'] ?? 0);
+        $date = trim((string)($args['date'] ?? $args['date_from'] ?? ''));
+        if ($date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $date = date('Y-m-d');
+        }
+        if ($ids === [] && $fromAdmin > 0) {
+            try {
+                $ids = ProceduresRepository::idsByAdminOnDate($fromAdmin, $date);
+            } catch (Throwable $e) {
+                $ids = [];
+            }
+        }
+        $adminLabel = $adminId > 0 ? self::userLabel($adminId) : '';
+        if ($adminLabel === '' && $adminId > 0) {
+            $adminLabel = '#' . $adminId;
+        }
+        $fromLabel = $fromAdmin > 0 ? self::userLabel($fromAdmin) : '';
+        if ($fromLabel === '' && $fromAdmin > 0) {
+            $fromLabel = '#' . $fromAdmin;
+        }
+        if ($ids !== []) {
+            $payload['headline'] = t('procedures.assistant.preview.set_admin_ids', [
+                'ids' => implode(', ', array_map('strval', array_slice($ids, 0, 8)))
+                    . (count($ids) > 8 ? '…' : ''),
+                'n' => (string)count($ids),
+            ]);
+        } elseif ($fromAdmin > 0) {
+            $payload['headline'] = t('procedures.assistant.preview.set_admin_day', [
+                'from' => $fromLabel,
+                'date' => $date,
+                'n' => '0',
+            ]);
+        }
+        $lines = [];
+        if ($fromAdmin > 0) {
+            $lines[] = t('procedures.assistant.preview.set_admin_day', [
+                'from' => $fromLabel,
+                'date' => $date,
+                'n' => (string)count($ids),
+            ]);
+        }
+        foreach (array_slice($ids, 0, 5) as $pid) {
+            try {
+                $row = ProceduresRepository::find($pid);
+            } catch (Throwable $e) {
+                $row = null;
+            }
+            if (!is_array($row)) {
+                continue;
+            }
+            $nowAdmin = self::userLabel((int)($row['id_admin'] ?? 0));
+            $brief = self::formatProcedure($row);
+            if ($brief !== '') {
+                $lines[] = '#' . $pid . ($nowAdmin !== '' ? ' · ' . t('procedures.assistant.preview.set_admin_was', ['v' => $nowAdmin]) : '')
+                    . ' · ' . $brief;
+            }
+        }
+        if ($adminLabel !== '') {
+            $lines[] = t('procedures.assistant.preview.set_admin_to', ['v' => $adminLabel]);
+        }
+        return self::merge($payload, $lines);
+    }
+
+    /**
+     * @param mixed $raw
+     * @return list<int>
+     */
+    private static function normalizeIds($raw): array
+    {
+        $ids = [];
+        if (is_array($raw)) {
+            foreach ($raw as $v) {
+                $ids[] = (int)$v;
+            }
+        } elseif (is_string($raw) || is_int($raw) || is_float($raw)) {
+            foreach (preg_split('/[\s,;]+/', trim((string)$raw)) ?: [] as $part) {
+                if ($part !== '' && ctype_digit($part)) {
+                    $ids[] = (int)$part;
+                }
+            }
+        }
+        $out = [];
+        foreach ($ids as $id) {
+            if ($id > 0) {
+                $out[$id] = $id;
+            }
+        }
+        return array_values($out);
     }
 
     /**
