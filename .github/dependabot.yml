@@ -1,0 +1,16 @@
+# Keep GitHub Actions used by CI/release workflows current.
+# FreeSaaS has no Composer/npm lockfile at the repo root.
+
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: chore
+      include: scope

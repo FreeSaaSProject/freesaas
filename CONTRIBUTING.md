@@ -42,6 +42,7 @@ See [`CLA.md`](CLA.md) (“Maintainer-operated automation and AI”).
 - Runtime SQL only against `base_*` tables; new schema via module migrations.
 - UI chrome via i18n (`t()` / `te()` / `tj()`); ship both `lang/ru.php` and `lang/en.php`.
 - Do not commit secrets (`cfg/config.ini`, `cfg/modules/*.ini` with real passwords).
+- Security vulnerabilities: follow [`SECURITY.md`](SECURITY.md) (private reporting); do not file public Issues for them.
 
 ## License headers for new first-party files
 

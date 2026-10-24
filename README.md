@@ -66,6 +66,7 @@ php bin/smoke.php --format=json
 | General questions, partnership | [msms2003@mail.ru](mailto:msms2003@mail.ru) |
 | Implementation | [msms2003@mail.ru](mailto:msms2003@mail.ru) or Telegram [@starcomm](https://t.me/starcomm) |
 | Bugs and feature requests | [GitHub Issues](https://github.com/FreeSaaSProject/freesaas/issues/new/choose) |
+| Security vulnerabilities | [SECURITY.md](SECURITY.md) — private report or email; not public Issues |
 
 More: [freesaas.ru/contacts](https://freesaas.ru/contacts/).
 
