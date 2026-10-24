@@ -54,6 +54,11 @@ jobs:
           case "$ASSOC" in
             OWNER|MEMBER|COLLABORATOR) echo "OK maintainer association — CLA not required"; exit 0 ;;
           esac
+          # Bots (Dependabot, GitHub Actions) are not human contributors — no CLA.
+          if [ "$AUTHOR" = 'dependabot[bot]' ] || [ "$AUTHOR" = 'github-actions[bot]' ]; then
+            echo "OK bot author — CLA not required"
+            exit 0
+          fi
           # External PRs: maintainer applies label after CLA.md acceptance (email).
           if echo ",$LABELS," | grep -qi ',cla-signed,'; then
             echo "OK label cla-signed present"
