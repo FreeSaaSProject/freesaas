@@ -68,7 +68,7 @@ php bin/smoke.php --format=json
 | Bugs and feature requests | [GitHub Issues](https://github.com/FreeSaaSProject/freesaas/issues/new/choose) |
 | Questions / agent install cases | [GitHub Discussions](https://github.com/FreeSaaSProject/freesaas/discussions) |
 | Security vulnerabilities | [SECURITY.md](SECURITY.md) — private report or email; not public Issues |
-| Sponsor / support | Sponsor button on the repo (see [`.github/FUNDING.yml`](.github/FUNDING.yml)) · commercial license — [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) |
+| Sponsor / support | [Boosty](https://boosty.to/freesaas) · Sponsor button on the repo · commercial license — [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) |
 
 More: [freesaas.ru/contacts](https://freesaas.ru/contacts/).
 
