@@ -66,7 +66,9 @@ php bin/smoke.php --format=json
 | General questions, partnership | [msms2003@mail.ru](mailto:msms2003@mail.ru) |
 | Implementation | [msms2003@mail.ru](mailto:msms2003@mail.ru) or Telegram [@starcomm](https://t.me/starcomm) |
 | Bugs and feature requests | [GitHub Issues](https://github.com/FreeSaaSProject/freesaas/issues/new/choose) |
+| Questions / agent install cases | [GitHub Discussions](https://github.com/FreeSaaSProject/freesaas/discussions) |
 | Security vulnerabilities | [SECURITY.md](SECURITY.md) — private report or email; not public Issues |
+| Sponsor / support | Sponsor button on the repo (see [`.github/FUNDING.yml`](.github/FUNDING.yml)) · commercial license — [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md) |
 
 More: [freesaas.ru/contacts](https://freesaas.ru/contacts/).
 

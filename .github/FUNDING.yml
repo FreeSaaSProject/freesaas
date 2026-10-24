@@ -1,0 +1,19 @@
+# Sponsor button on the repo page. Docs:
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+#
+# GitHub Sponsors (org or user) — uncomment after approval + 2FA:
+# github: [FreeSaaSProject]
+# github: [ilcommm]
+#
+# Built-in platforms (one username each):
+# patreon: USER
+# open_collective: USER
+# ko_fi: USER
+# liberapay: USER
+# buy_me_a_coffee: USER
+# polar: USER
+# thanks_dev: u/gh/USERNAME
+#
+# Up to 4 custom donation / support URLs:
+custom:
+  - "https://freesaas.ru/contacts"

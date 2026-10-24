@@ -1,5 +1,11 @@
 blank_issues_enabled: true
 contact_links:
+  - name: Questions (Discussions Q&A)
+    url: https://github.com/FreeSaaSProject/freesaas/discussions/new?category=q-a
+    about: How-to and support questions — not bug reports
+  - name: Agent install cases
+    url: https://github.com/FreeSaaSProject/freesaas/discussions/new?category=show-and-tell
+    about: Share agent install / case runs (template: agent-install)
   - name: Agent runbooks
     url: https://github.com/FreeSaaSProject/freesaas/blob/main/docs/agents/README.md
     about: Install, repair, MCP, and module authoring guides
