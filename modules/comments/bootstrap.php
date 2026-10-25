@@ -67,9 +67,6 @@ EventBus::on('core.news_item.meta', static function ($payload) {
     ];
     $payload['comment_count'] = $commentCount;
 
-    $payload['html'] = ($payload['html'] ?? '')
-        . '<span class="muted" title="' . te('core.feed.comments') . '">💬 ' . $commentCount . '</span>';
-
     if (!$isFolder) {
         $href = !empty($row['COMMENTS_LOCKED']) ? '#comments' : '#comment-form';
         $payload['actions_html'] = ($payload['actions_html'] ?? '')

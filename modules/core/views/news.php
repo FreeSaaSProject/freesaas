@@ -10,7 +10,6 @@ declare(strict_types=1);
 /** @var bool $unread */
 /** @var bool $unsigned */
 /** @var bool $overdue */
-/** @var string $rootLabel */
 /** @var list<array{label:string, href?:?string, current?:bool}> $breadcrumbs */
 /** @var array $counts */
 /** @var array $tabs */
@@ -84,20 +83,18 @@ $sortLabels = [
     'id' => t('core.news.sort.id'),
 ];
 ?>
+<?php if ($activeTab && !empty($activeTab['add']) && $activeTab['addType']): ?>
 <section class="page-head">
   <div class="page-head-row">
-    <div>
-      <p class="lede"><?= e($rootLabel) ?> · <?= (int)$total ?></p>
-    </div>
+    <div></div>
     <div class="page-actions">
-      <?php if ($activeTab && !empty($activeTab['add']) && $activeTab['addType']): ?>
-        <a class="btn-primary" href="/news/new?type=<?= (int)$activeTab['addType'] ?><?= $pid > 0 ? '&pid=' . (int)$pid : '' ?>">
-          <?= e($activeTab['add']) ?>
-        </a>
-      <?php endif; ?>
+      <a class="btn-primary" href="/news/new?type=<?= (int)$activeTab['addType'] ?><?= $pid > 0 ? '&pid=' . (int)$pid : '' ?>">
+        <?= e($activeTab['add']) ?>
+      </a>
     </div>
   </div>
 </section>
+<?php endif; ?>
 
 <?php if ($visibleTabs): ?>
 <nav class="type-tabs" aria-label="<?= te('core.home.feed_types_aria') ?>">
@@ -179,14 +176,14 @@ $sortLabels = [
         $isArchive = !empty($f['IGNORE_FOLDER']);
       ?>
       <div class="folder-row<?= $isArchive ? ' is-archive' : '' ?>">
-        <a class="folder-item<?= $isArchive ? ' is-archive' : '' ?>" href="<?= e($qsBase(['pid' => $fid, 'type' => (int)$f['TYPE'], 'unread' => '', 'unsigned' => '', 'overdue' => ''])) ?>">
+        <a class="folder-open" href="<?= e($qsBase(['pid' => $fid, 'type' => (int)$f['TYPE'], 'unread' => '', 'unsigned' => '', 'overdue' => ''])) ?>">
           <span class="folder-icon" aria-hidden="true">▸</span>
           <span class="folder-name"><?= e((string)$f['NAME']) ?></span>
           <?php if ($isArchive): ?>
             <span class="folder-archive-badge"><?= te('core.news.folder_archive_badge') ?></span>
           <?php endif; ?>
         </a>
-        <a class="folder-edit" href="/news/<?= $fid ?>/edit"><?= te('core.common.edit') ?></a>
+        <a class="folder-edit" href="/news/<?= $fid ?>/edit" title="<?= te('core.common.edit') ?>" aria-label="<?= te('core.common.edit') ?>">✎</a>
       </div>
     <?php endforeach; ?>
   </div>

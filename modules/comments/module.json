@@ -2,7 +2,7 @@
     "id": "comments",
     "name": "comments.module.name",
     "description": "comments.module.description",
-    "version": "1.0.1",
+    "version": "1.0.7",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -39,6 +39,7 @@
         "publish": [
             "comments.visible",
             "comments.render_actions",
+            "comments.can_delete",
             "comments.form.offer_fields",
             "comments.form.edit_fields",
             "comments.form.ticket_controls",

@@ -818,6 +818,7 @@ return [
     'core.news.err.archive_hidden' => 'Запись в архивной папке недоступна',
     'core.news_item.in_favorites' => 'В избранном',
     'core.news_item.add_favorite' => 'В избранное',
+    'core.news_item.like' => 'Нравится',
     'core.news_item.viewers' => 'Смотрели ({n}):',
     'core.news_item.service_info' => 'Служебная информация',
     'core.news_item.status' => 'Статус',

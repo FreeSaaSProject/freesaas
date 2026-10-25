@@ -818,6 +818,7 @@ return [
     'core.news.err.archive_hidden' => 'This entry is in an archive folder',
     'core.news_item.in_favorites' => 'In favorites',
     'core.news_item.add_favorite' => 'Add to favorites',
+    'core.news_item.like' => 'Like',
     'core.news_item.viewers' => 'Viewed by ({n}):',
     'core.news_item.service_info' => 'Service info',
     'core.news_item.status' => 'Status',

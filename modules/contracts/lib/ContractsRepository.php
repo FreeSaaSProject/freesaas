@@ -9,6 +9,12 @@ final class ContractsRepository
     /** @var int */
     private static $paymentWarnNewsId = 0;
 
+    /** True after warmPaymentMismatch for the current news page. */
+    private static $paymentWarmDone = false;
+
+    /** @var array<int,true> comment ids with DPS (from ID_PAYMENT and/or base_payments batch). */
+    private static $paidOfferIds = [];
+
     /** cfg/modules/contracts.ini → [contracts] deadline_penalty (default on, oper-compatible). */
     public static function deadlinePenaltyEnabled(): bool
     {
@@ -56,6 +62,12 @@ final class ContractsRepository
         if (array_key_exists($commentId, $cache)) {
             return $cache[$commentId];
         }
+        if (self::$paymentWarmDone && isset(self::$paidOfferIds[$commentId])) {
+            return $cache[$commentId] = true;
+        }
+        if (self::$paymentWarmDone) {
+            return $cache[$commentId] = false;
+        }
         if (Database::tableExists('base_payments')) {
             $st = Database::pdo()->prepare('SELECT 1 FROM base_payments WHERE ID_COMMENT = ? LIMIT 1');
             $st->execute([$commentId]);
@@ -67,17 +79,40 @@ final class ContractsRepository
         return $cache[$commentId] = ($c && (int)($c['ID_PAYMENT'] ?? 0) > 0);
     }
 
+    /**
+     * Offer comment linked to a settlement (DPS). Prefer row ID_PAYMENT + page warm —
+     * no per-row SQL when comments.visible already ran warmPaymentMismatch.
+     */
+    public static function offerHasDps(array $comment): bool
+    {
+        if ((int)($comment['PRICE_OFFER'] ?? 0) < 1) {
+            return false;
+        }
+        if ((int)($comment['ID_PAYMENT'] ?? 0) > 0) {
+            return true;
+        }
+        $cid = (int)($comment['ID'] ?? 0);
+        if ($cid < 1) {
+            return false;
+        }
+        if (self::$paymentWarmDone) {
+            return isset(self::$paidOfferIds[$cid]);
+        }
+        return self::hasPayment($cid);
+    }
+
     public static function ticketHasActiveContract(int $newsId): bool
     {
         return self::activeAcceptorOnTicket($newsId) > 0;
     }
 
-    /** @return array{label:string,tone:string} */
+    /** @return array{label:string,tone:string,detail:string} */
     public static function statusInfo(array $comment): array
     {
+        $empty = ['label' => '', 'tone' => '', 'detail' => ''];
         $price = (int)($comment['PRICE_OFFER'] ?? 0);
         if ($price < 1) {
-            return ['label' => '', 'tone' => ''];
+            return $empty;
         }
         $offerAt = (int)($comment['DT_OFFER_ACCEPT'] ?? 0);
         $workAt = (int)($comment['DT_WORK_ACCEPT'] ?? 0);
@@ -85,27 +120,32 @@ final class ContractsRepository
         $dl = (int)($comment['DT_DEADLINE'] ?? 0);
 
         if ($failAt > 0) {
-            return ['label' => t('contracts.status.failed', ['date' => I18n::formatDate($failAt, 'date')]), 'tone' => 'bad'];
+            return [
+                'label' => t('contracts.status.failed', ['date' => I18n::formatDate($failAt, 'date')]),
+                'tone' => 'bad',
+                'detail' => '',
+            ];
         }
         if ($workAt > 0) {
             if ((int)($comment['ID_PAYMENT'] ?? 0) > 0) {
-                return ['label' => t('contracts.status.paid'), 'tone' => 'ok'];
+                return ['label' => t('contracts.status.paid'), 'tone' => 'ok', 'detail' => ''];
             }
-            return ['label' => t('contracts.status.awaiting_payment'), 'tone' => 'warn'];
+            return ['label' => t('contracts.status.awaiting_payment'), 'tone' => 'warn', 'detail' => ''];
         }
         if ($offerAt > 0) {
             $remain = $dl > 0 ? ($dl - time()) : 0;
             $days = round($remain / 86400, 1);
             $tone = $remain > 0 ? 'ok' : 'bad';
-            $extra = $dl > 0 ? (' · ' . t('contracts.status.days_left', ['d' => $days])) : '';
-            return ['label' => t('contracts.status.in_work') . $extra, 'tone' => $tone];
+            $detail = $dl > 0 ? t('contracts.status.days_left', ['d' => $days]) : '';
+            return ['label' => t('contracts.status.in_work'), 'tone' => $tone, 'detail' => $detail];
         }
         if ($dl > 0 && $dl < time()) {
-            return ['label' => t('contracts.status.overdue'), 'tone' => 'bad'];
+            return ['label' => t('contracts.status.overdue'), 'tone' => 'bad', 'detail' => ''];
         }
-        $remain = $dl > 0 ? round(($dl - time()) / 86400, 1) : null;
-        $extra = $remain !== null ? (' · ' . t('contracts.status.days', ['d' => $remain])) : '';
-        return ['label' => t('contracts.status.new_offer') . $extra, 'tone' => 'ok'];
+        $detail = $dl > 0
+            ? t('contracts.status.days', ['d' => round(($dl - time()) / 86400, 1)])
+            : '';
+        return ['label' => t('contracts.status.new_offer'), 'tone' => 'ok', 'detail' => $detail];
     }
 
     /**
@@ -532,12 +572,14 @@ final class ContractsRepository
     {
         self::$paymentWarnNewsId = $newsId;
         self::$paymentWarnByComment = [];
-        if ($newsId < 1 || $comments === [] || !ModuleManager::isEnabled('payments')
-            || !class_exists('PaymentsRepository', false)) {
+        self::$paidOfferIds = [];
+        self::$paymentWarmDone = false;
+        if ($newsId < 1 || $comments === []) {
             return;
         }
         $offerIds = [];
         $payIdByComment = [];
+        $offerById = [];
         foreach ($comments as $c) {
             if (!is_array($c)) {
                 continue;
@@ -548,12 +590,16 @@ final class ContractsRepository
                 continue;
             }
             $offerIds[] = $cid;
+            $offerById[$cid] = $price;
             $pid = (int)($c['ID_PAYMENT'] ?? 0);
             if ($pid > 0) {
                 $payIdByComment[$cid] = $pid;
+                self::$paidOfferIds[$cid] = true;
             }
         }
-        if ($offerIds === []) {
+        self::$paymentWarmDone = true;
+        if ($offerIds === [] || !ModuleManager::isEnabled('payments')
+            || !class_exists('PaymentsRepository', false)) {
             return;
         }
         $sums = PaymentsRepository::sumsByCommentIds($offerIds, $payIdByComment);
@@ -561,14 +607,9 @@ final class ContractsRepository
             if (!isset($sums[$cid])) {
                 continue;
             }
+            self::$paidOfferIds[$cid] = true;
             $paySum = (float)$sums[$cid]['sum'];
-            $offer = 0;
-            foreach ($comments as $c) {
-                if ((int)($c['ID'] ?? 0) === $cid) {
-                    $offer = (int)($c['PRICE_OFFER'] ?? 0);
-                    break;
-                }
-            }
+            $offer = (int)($offerById[$cid] ?? 0);
             // Compare to current offer (not deadline-cut payout): flags stale settlements after Re-®.
             $mismatch = (int)round($paySum) !== $offer;
             self::$paymentWarnByComment[$cid] = [
@@ -580,28 +621,45 @@ final class ContractsRepository
         }
     }
 
-    /** HTML block for comment contract controls. */
-    public static function renderCommentActionsHtml(array $comment, int $newsId, int $uid): string
+    /**
+     * Contract UI for a comment: meta chips (status + curator) for the top row,
+     * and action buttons (refuse confirm carries fail_warn).
+     *
+     * @return array{meta_html:string, html:string}
+     */
+    public static function renderCommentUi(array $comment, int $newsId, int $uid): array
     {
+        $empty = ['meta_html' => '', 'html' => ''];
         $price = (int)($comment['PRICE_OFFER'] ?? 0);
         if ($price < 1) {
-            return '';
+            return $empty;
         }
         $info = self::statusInfo($comment);
         $actions = self::availableActions($comment, $uid);
         $cid = (int)$comment['ID'];
-        $html = '<div class="contract-box">';
+
         $meta = '';
         if ($info['label'] !== '') {
             $tone = $info['tone'] !== '' ? ' is-' . $info['tone'] : '';
-            $meta .= '<span class="contract-status' . $tone . '">' . e($info['label']) . '</span>';
+            $meta .= '<span class="pill status-pill contract-status' . $tone . '">' . e($info['label']) . '</span>';
+            if ($info['detail'] !== '') {
+                $meta .= ' <span class="muted contract-status-detail">' . e($info['detail']) . '</span>';
+            }
         }
+        $acceptor = (int)($comment['ID_ACCEPTOR'] ?? 0);
+        if ($acceptor > 0) {
+            $meta .= '<span class="contract-curator">'
+                . '<span class="muted">' . te('contracts.actions.curator') . '</span> '
+                . UsersRepository::badgeHtml($acceptor, false)
+                . '</span>';
+        }
+
+        $boxInner = '';
         $warn = null;
         if ($newsId === self::$paymentWarnNewsId && isset(self::$paymentWarnByComment[$cid])) {
             $warn = self::$paymentWarnByComment[$cid];
         } elseif (ModuleManager::isEnabled('payments') && class_exists('PaymentsRepository', false)
             && ((int)($comment['ID_PAYMENT'] ?? 0) > 0 || $newsId < 1)) {
-            // Fallback single lookup when tree warm skipped (e.g. isolated render).
             $pidFallback = (int)($comment['ID_PAYMENT'] ?? 0);
             $map = PaymentsRepository::sumsByCommentIds(
                 [$cid],
@@ -618,7 +676,7 @@ final class ContractsRepository
             }
         }
         if (is_array($warn) && !empty($warn['mismatch'])) {
-            $meta .= '<span class="contract-warn" role="alert">'
+            $boxInner .= '<span class="contract-warn" role="alert">'
                 . e(t('contracts.warn.payment_mismatch', [
                     'offer' => (string)$price,
                     'pay' => (string)(int)round((float)$warn['sum']),
@@ -626,16 +684,7 @@ final class ContractsRepository
                 ]))
                 . '</span>';
         }
-        $acceptor = (int)($comment['ID_ACCEPTOR'] ?? 0);
-        if ($acceptor > 0) {
-            $meta .= '<span class="contract-curator">'
-                . '<span class="muted">' . te('contracts.actions.curator') . ':</span> '
-                . UsersRepository::badgeHtml($acceptor, false)
-                . '</span>';
-        }
-        if ($meta !== '') {
-            $html .= '<div class="contract-meta">' . $meta . '</div>';
-        }
+
         $forms = '';
         if (!empty($actions['accept_offer'])) {
             $forms .= self::actionForm($cid, $newsId, 'accept_offer', t('contracts.actions.accept_offer'), 'btn-primary');
@@ -645,21 +694,38 @@ final class ContractsRepository
             $forms .= self::actionForm($cid, $newsId, 'accept_work', t('contracts.actions.accept_work'), 'btn-primary');
         }
         if (!empty($actions['refuse'])) {
-            $forms .= self::actionForm($cid, $newsId, 'refuse', t('contracts.actions.refuse'), 'btn-danger');
-            if (!empty($actions['warn_fail'])) {
-                $forms .= ' <b class="contract-warn">'
-                    . e(t('contracts.actions.fail_warn', ['pct' => (int)$actions['fail_pct']])) . '</b>';
-            }
+            $confirm = !empty($actions['warn_fail'])
+                ? t('contracts.actions.refuse_confirm_fail', ['pct' => (int)$actions['fail_pct']])
+                : t('contracts.actions.refuse_confirm');
+            $forms .= self::actionForm(
+                $cid,
+                $newsId,
+                'refuse',
+                t('contracts.actions.refuse'),
+                'btn-danger',
+                $confirm
+            );
         }
         if (!empty($actions['cancel_work'])) {
             $forms .= self::actionForm($cid, $newsId, 'cancel_work_accept', t('contracts.actions.cancel_accept'), 'btn-secondary');
         }
         $forms .= self::paymentCtaHtml($comment);
         if ($forms !== '') {
-            $html .= '<div class="contract-actions">' . $forms . '</div>';
+            $boxInner .= '<div class="contract-actions">' . $forms . '</div>';
         }
-        $html .= '</div>';
-        return $html;
+
+        $html = '';
+        if ($boxInner !== '') {
+            $html = '<div class="contract-box">' . $boxInner . '</div>';
+        }
+
+        return ['meta_html' => $meta, 'html' => $html];
+    }
+
+    /** @deprecated use renderCommentUi */
+    public static function renderCommentActionsHtml(array $comment, int $newsId, int $uid): string
+    {
+        return self::renderCommentUi($comment, $newsId, $uid)['html'];
     }
 
     /**
@@ -687,9 +753,21 @@ final class ContractsRepository
         return '';
     }
 
-    private static function actionForm(int $cid, int $newsId, string $action, string $label, string $btnClass): string
-    {
-        return '<form method="post" action="/contracts/action" class="inline-form">'
+    private static function actionForm(
+        int $cid,
+        int $newsId,
+        string $action,
+        string $label,
+        string $btnClass,
+        string $confirm = ''
+    ): string {
+        $onsubmit = '';
+        if ($confirm !== '') {
+            $onsubmit = ' onsubmit="return confirm('
+                . e((string)json_encode($confirm, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT))
+                . ');"';
+        }
+        return '<form method="post" action="/contracts/action" class="inline-form"' . $onsubmit . '>'
             . '<input type="hidden" name="action" value="' . e($action) . '">'
             . '<input type="hidden" name="comment_id" value="' . $cid . '">'
             . '<input type="hidden" name="news_id" value="' . $newsId . '">'

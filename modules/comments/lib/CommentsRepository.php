@@ -290,6 +290,16 @@ final class CommentsRepository
         if (!$isSa && (int)$row['DT'] < time() - 4 * 3600) {
             return t('comments.err.delete_too_old');
         }
+        $gate = EventBus::emit('comments.can_delete', [
+            'comment' => $row,
+            'user_id' => $userId,
+            'allowed' => true,
+            'error' => null,
+        ]);
+        if (is_array($gate) && array_key_exists('allowed', $gate) && empty($gate['allowed'])) {
+            $err = trim((string)($gate['error'] ?? ''));
+            return $err !== '' ? $err : t('comments.err.delete_denied');
+        }
         Database::pdo()->prepare('DELETE FROM base_comments WHERE ID = ?')->execute([$id]);
         if (Database::tableExists('base_likes')) {
             Database::pdo()->prepare(

@@ -55,35 +55,20 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
   <div class="page-head-row">
     <div>
       <h1><?= e((string)$row['NAME']) ?></h1>
-      <p class="lede feed-meta-inline">
-        <span class="muted"><?= e(I18n::formatDate((int)$row['DT'], 'datetime')) ?></span>
-        <?php if (!$isTicket): ?>
-          <?= UsersRepository::badgeHtml((int)$row['ID_USER']) ?>
-        <?php endif; ?>
-        <?= $metaHtml ?>
-        <?php if ($viewerCount > 0): ?><span class="muted" title="<?= te('core.feed.viewers') ?>">👁 <?= $viewerCount ?></span><?php endif; ?>
-      </p>
-    </div>
-    <div class="page-actions">
-      <?= $metaActionsHtml ?>
-      <form method="post" class="inline-form">
-        <input type="hidden" name="action" value="favorite">
-        <button class="btn-secondary" type="submit"><?= $isFavorite ? '★ ' . te('core.news_item.in_favorites') : '☆ ' . te('core.news_item.add_favorite') ?></button>
-      </form>
-      <?php if ((int)$row['ID_USER'] !== $uid): ?>
-        <form method="post" class="inline-form">
-          <input type="hidden" name="action" value="like">
-          <input type="hidden" name="like_type" value="base_news">
-          <input type="hidden" name="like_id" value="<?= $nid ?>">
-          <button class="btn-secondary" type="submit"><?= $newsLiked ? '♥' : '♡' ?> <?= (int)$newsLikeCount ?></button>
-        </form>
-      <?php elseif ($newsLikeCount > 0): ?>
-        <span class="muted">♥ <?= (int)$newsLikeCount ?></span>
-      <?php endif; ?>
-      <?php if ($canEdit): ?>
-        <a class="btn-secondary" href="/news/<?= $nid ?>/edit"><?= te('core.common.edit') ?></a>
+      <?php if (!$isTicket || $metaHtml !== ''): ?>
+        <p class="lede feed-meta-inline">
+          <?php if (!$isTicket): ?>
+            <?= UsersRepository::badgeHtml((int)$row['ID_USER']) ?>
+          <?php endif; ?>
+          <?= $metaHtml ?>
+        </p>
       <?php endif; ?>
     </div>
+    <?php if ($metaActionsHtml !== ''): ?>
+      <div class="page-actions">
+        <?= $metaActionsHtml ?>
+      </div>
+    <?php endif; ?>
   </div>
 </section>
 
@@ -98,45 +83,58 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
   </div>
 <?php endif; ?>
 
-<?php if ($viewerCount > 0): ?>
-  <p class="viewers-inline muted"><?= te('core.news_item.viewers', ['n' => $viewerCount]) ?>
-    <?php foreach ($viewers as $vid): ?>
-      <?= UsersRepository::badgeHtml((int)$vid) ?>
-    <?php endforeach; ?>
-  </p>
-<?php endif; ?>
-
-<?php if ($isTicket): ?>
-<section class="ticket-panel widget">
-  <h2><?= te('core.news_item.service_info') ?></h2>
-  <dl class="kv">
-    <dt><?= te('core.news_item.status') ?></dt>
-    <dd><?= status_pill($status, '#' . (int)$row['STATUS']) ?></dd>
+<div class="news-meta-strip" aria-label="<?= te('core.news_item.service_info') ?>">
+  <span class="news-meta-item">
+    <span class="muted"><?= e(I18n::formatDate((int)$row['DT'], 'datetime')) ?></span>
+  </span>
+  <?php if ($isTicket): ?>
+    <span class="news-meta-item">
+      <span class="news-meta-label"><?= te('core.news_item.status') ?></span>
+      <?= status_pill($status, '#' . (int)$row['STATUS']) ?>
+    </span>
     <?php if ($hasDeadline): ?>
-      <dt><?= te('core.news_item.deadline') ?></dt>
-      <dd><?= deadline_chip((int)$row['DT_DEADLINE']) ?></dd>
+      <span class="news-meta-item">
+        <span class="news-meta-label"><?= te('core.news_item.deadline') ?></span>
+        <?= deadline_chip((int)$row['DT_DEADLINE']) ?>
+      </span>
     <?php endif; ?>
-    <dt><?= te('core.news_item.curator') ?></dt>
-    <dd><?= UsersRepository::badgeHtml((int)$row['ID_CURATOR']) ?></dd>
-    <dt><?= te('core.news_item.responsible') ?></dt>
-    <dd class="badge-row">
+    <span class="news-meta-item">
+      <span class="news-meta-label"><?= te('core.news_item.curator') ?></span>
+      <?= UsersRepository::badgeHtml((int)$row['ID_CURATOR']) ?>
+    </span>
+    <span class="news-meta-item">
+      <span class="news-meta-label"><?= te('core.news_item.responsible') ?></span>
       <?php if ($respIds): ?>
         <?php foreach ($respIds as $rid): ?>
           <?= UsersRepository::badgeHtml($rid) ?>
         <?php endforeach; ?>
       <?php else: ?>
-        <span class="muted">—</span>
+        —
       <?php endif; ?>
-    </dd>
-    <dt><?= te('core.news_item.author') ?></dt>
-    <dd><?= UsersRepository::badgeHtml((int)$row['ID_USER']) ?></dd>
-    <dt><?= te('core.news_item.access') ?></dt>
-    <dd class="badge-row"><?= NewsRepository::accessHtml($row) ?></dd>
-  </dl>
-</section>
-<?php else: ?>
-  <p class="access-line muted"><?= te('core.news_item.access') ?>: <?= NewsRepository::accessHtml($row) ?></p>
-<?php endif; ?>
+    </span>
+    <span class="news-meta-item">
+      <span class="news-meta-label"><?= te('core.news_item.author') ?></span>
+      <?= UsersRepository::badgeHtml((int)$row['ID_USER']) ?>
+    </span>
+    <span class="news-meta-item">
+      <span class="news-meta-label"><?= te('core.news_item.access') ?></span>
+      <?= NewsRepository::accessHtml($row) ?>
+    </span>
+  <?php else: ?>
+    <span class="news-meta-item">
+      <span class="news-meta-label"><?= te('core.news_item.access') ?></span>
+      <?= NewsRepository::accessHtml($row) ?>
+    </span>
+  <?php endif; ?>
+  <?php if ($viewerCount > 0): ?>
+    <span class="news-meta-item news-meta-viewers">
+      <span class="muted" title="<?= te('core.feed.viewers') ?>" aria-label="<?= te('core.news_item.viewers', ['n' => $viewerCount]) ?>">👁</span>
+      <?php foreach ($viewers as $vid): ?>
+        <?= UsersRepository::badgeHtml((int)$vid) ?>
+      <?php endforeach; ?>
+    </span>
+  <?php endif; ?>
+</div>
 
 <article class="prose widget">
   <?php if (!empty($row['SHORT'])): ?>
@@ -161,6 +159,25 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
   <?php endif; ?>
   <div class="body-html">
     <?= safe_html($bodyHtml) ?>
+  </div>
+  <div class="comment-actions news-body-actions">
+    <form method="post" class="inline-form">
+      <input type="hidden" name="action" value="favorite">
+      <button type="submit" class="btn-ghost" title="<?= $isFavorite ? te('core.news_item.in_favorites') : te('core.news_item.add_favorite') ?>"><?= $isFavorite ? '★' : '☆' ?></button>
+    </form>
+    <?php if ((int)$row['ID_USER'] !== $uid): ?>
+      <form method="post" class="inline-form">
+        <input type="hidden" name="action" value="like">
+        <input type="hidden" name="like_type" value="base_news">
+        <input type="hidden" name="like_id" value="<?= $nid ?>">
+        <button type="submit" class="btn-ghost" title="<?= te('core.news_item.like') ?>"><?= $newsLiked ? '♥' : '♡' ?><?= $newsLikeCount > 0 ? ' ' . (int)$newsLikeCount : '' ?></button>
+      </form>
+    <?php elseif ($newsLikeCount > 0): ?>
+      <span class="muted">♥ <?= (int)$newsLikeCount ?></span>
+    <?php endif; ?>
+    <?php if ($canEdit): ?>
+      <a class="btn-ghost" href="/news/<?= $nid ?>/edit" title="<?= te('core.common.edit') ?>"><?= te('core.common.edit') ?></a>
+    <?php endif; ?>
   </div>
 </article>
 

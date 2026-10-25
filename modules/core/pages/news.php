@@ -215,7 +215,6 @@ View::render('news', [
     'unread' => $unread,
     'unsigned' => $unsigned,
     'overdue' => $overdue,
-    'rootLabel' => $rootLabel,
     'breadcrumbs' => $breadcrumbs,
     'breadcrumbs_aria' => t('core.news.folder_aria'),
     'counts' => $counts,

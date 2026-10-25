@@ -118,7 +118,10 @@ $sortLabels = [
           </a>
           <span class="pill tone-type"><?= (int)$row['PRICE_OFFER'] ?> ₽</span>
           <?php if ($info['label'] !== ''): ?>
-            <span class="contract-status is-<?= e($info['tone']) ?>"><?= e($info['label']) ?></span>
+            <span class="pill status-pill contract-status is-<?= e($info['tone']) ?>"><?= e($info['label']) ?></span>
+            <?php if ($info['detail'] !== ''): ?>
+              <span class="muted contract-status-detail"><?= e($info['detail']) ?></span>
+            <?php endif; ?>
           <?php endif; ?>
         </div>
         <div class="contract-row-meta muted">

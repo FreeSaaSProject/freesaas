@@ -201,8 +201,22 @@ EventBus::on('comments.render_actions', static function ($payload) {
     }
     $newsId = (int)($payload['news_id'] ?? 0);
     $uid = (int)($payload['uid'] ?? 0);
-    $html = ContractsRepository::renderCommentActionsHtml($comment, $newsId, $uid);
-    $payload['html'] = ($payload['html'] ?? '') . $html;
+    $ui = ContractsRepository::renderCommentUi($comment, $newsId, $uid);
+    $payload['html'] = ($payload['html'] ?? '') . (string)($ui['html'] ?? '');
+    $payload['meta_html'] = ($payload['meta_html'] ?? '') . (string)($ui['meta_html'] ?? '');
+    return $payload;
+});
+
+EventBus::on('comments.can_delete', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $comment = $payload['comment'] ?? null;
+    if (!is_array($comment) || !ContractsRepository::offerHasDps($comment)) {
+        return $payload;
+    }
+    $payload['allowed'] = false;
+    $payload['error'] = t('contracts.err.delete_has_payment');
     return $payload;
 });
 

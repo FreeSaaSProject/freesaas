@@ -76,7 +76,7 @@ $colCount = 4 + ($searchGlobal ? 1 : 0) + count($priceCols) + 1 + ($canEdit ? 1 
     <?php foreach ($folders as $f): ?>
       <?php $isHidden = !empty($f['hidden']); ?>
       <div class="folder-row<?= $isHidden ? ' is-hidden' : '' ?>">
-        <a class="folder-item<?= $isHidden ? ' is-hidden' : '' ?>" href="/catalog/<?= (int)$f['id'] ?>">
+        <a class="folder-open" href="/catalog/<?= (int)$f['id'] ?>">
           <span class="folder-icon" aria-hidden="true">▸</span>
           <span class="folder-name"><?= e((string)$f['name']) ?></span>
           <?php if ($isHidden): ?>
@@ -101,7 +101,7 @@ $colCount = 4 + ($searchGlobal ? 1 : 0) + count($priceCols) + 1 + ($canEdit ? 1 
               <span class="visually-hidden"><?= te('catalog.cat.visible') ?></span>
             </label>
           </form>
-          <a class="folder-edit" href="/categories/<?= (int)$f['id'] ?>/edit"><?= te('core.common.edit') ?></a>
+          <a class="folder-edit" href="/categories/<?= (int)$f['id'] ?>/edit" title="<?= te('core.common.edit') ?>" aria-label="<?= te('core.common.edit') ?>">✎</a>
         <?php endif; ?>
       </div>
     <?php endforeach; ?>

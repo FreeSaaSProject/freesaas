@@ -49,6 +49,15 @@ function render_comment_node(
     $statusParts = !empty($node['STATUS_UPDATE']) ? status_comment_parts($rawText) : ['summary' => '', 'body' => $rawText];
     $displayBody = $statusParts['body'];
     $statusSummary = $statusParts['summary'];
+    $ext = EventBus::emit('comments.render_actions', [
+        'html' => '',
+        'meta_html' => '',
+        'comment' => $node,
+        'news_id' => $newsId,
+        'uid' => $uid,
+    ]);
+    $extHtml = is_array($ext) ? (string)($ext['html'] ?? '') : '';
+    $extMeta = is_array($ext) ? (string)($ext['meta_html'] ?? '') : '';
     ?>
 <article class="comment<?= !empty($node['STATUS_UPDATE']) ? ' is-status' : '' ?><?= $hidden ? ' is-hidden' : '' ?>" id="c<?= $cid ?>" style="--depth:<?= (int)$depth ?>">
   <div class="comment-meta">
@@ -66,6 +75,9 @@ function render_comment_node(
       <span class="pill tone-type"><?= (int)$node['PRICE_OFFER'] ?> ₽</span>
       <?php if ((int)($node['DT_DEADLINE'] ?? 0) > 0): ?>
         <span class="muted"><?= te('comments.until') ?> <?= e(I18n::formatDate((int)$node['DT_DEADLINE'], 'date')) ?></span>
+      <?php endif; ?>
+      <?php if ($extMeta !== ''): ?>
+        <?= $extMeta /* trusted HTML from contracts module */ ?>
       <?php endif; ?>
     <?php endif; ?>
   </div>
@@ -116,6 +128,17 @@ function render_comment_node(
       <?php
         $canDelete = Auth::isSuperAdmin()
           || ($isOwn && empty($node['STATUS_UPDATE']));
+        if ($canDelete) {
+            $delGate = EventBus::emit('comments.can_delete', [
+                'comment' => $node,
+                'user_id' => $uid,
+                'allowed' => true,
+                'error' => null,
+            ]);
+            if (is_array($delGate) && array_key_exists('allowed', $delGate) && empty($delGate['allowed'])) {
+                $canDelete = false;
+            }
+        }
       ?>
       <?php if ($canDelete): ?>
         <form method="post" class="inline-form" onsubmit="return confirm(<?= tj('comments.confirm_delete') ?>);">
@@ -125,17 +148,9 @@ function render_comment_node(
         </form>
       <?php endif; ?>
     <?php endif; ?>
-    <?php
-      $ext = EventBus::emit('comments.render_actions', [
-          'html' => '',
-          'comment' => $node,
-          'news_id' => $newsId,
-          'uid' => $uid,
-      ]);
-      if (is_array($ext) && !empty($ext['html'])) {
-          echo $ext['html'];
-      }
-    ?>
+    <?php if ($extHtml !== ''): ?>
+      <?= $extHtml /* trusted HTML from modules */ ?>
+    <?php endif; ?>
   </div>
 
   <?php if (!empty($node['_children'])): ?>
