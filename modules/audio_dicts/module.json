@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.11",
+    "version": "1.0.12",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",

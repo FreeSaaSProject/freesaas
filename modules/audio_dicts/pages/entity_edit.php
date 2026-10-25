@@ -146,6 +146,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (isset($data) && is_array($data)) {
             $row = array_merge($row ?? [], $data);
         } else {
+            $posRaw = $_POST['positions'] ?? [];
+            $posIds = is_array($posRaw)
+                ? array_values(array_filter(array_map('intval', $posRaw)))
+                : [];
             $row = array_merge($row ?? [], [
                 'name' => (string)($_POST['name'] ?? ''),
                 'descr' => (string)($_POST['descr'] ?? ''),
@@ -156,6 +160,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 'is_review_req' => !empty($_POST['is_review_req']) ? 1 : 0,
                 'id_dictonary' => (int)($_POST['id_dictonary'] ?? 0),
                 'id_looklike' => (int)($_POST['id_looklike'] ?? 0),
+                'position_ids' => $posIds,
+                'id_position' => class_exists('RecordsScriptsRepository', false)
+                    ? RecordsScriptsRepository::joinIds($posIds)
+                    : '',
             ]);
         }
     }
@@ -186,6 +194,11 @@ $viewData = [
     'listId' => $listId,
     'keyCount' => $keyCount,
 ];
+if ($entity === 'dicts') {
+    $viewData['positionOptions'] = class_exists('RecordsScriptsRepository', false)
+        ? RecordsScriptsRepository::positionOptions()
+        : [];
+}
 if ($entity === 'keys') {
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
     $viewData['overlaps'] = $keyOverlaps;

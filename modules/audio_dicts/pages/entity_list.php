@@ -82,6 +82,11 @@ $viewData = [
     'path' => $path,
     'listId' => $listId,
 ];
+if ($entity === 'dicts') {
+    $viewData['positionOptions'] = class_exists('RecordsScriptsRepository', false)
+        ? RecordsScriptsRepository::positionOptions()
+        : [];
+}
 if ($entity === 'keys') {
     $viewData['dict'] = $dict;
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);

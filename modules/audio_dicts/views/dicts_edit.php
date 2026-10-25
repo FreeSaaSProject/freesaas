@@ -87,6 +87,31 @@ $keysHref = $id > 0 ? ('/audio/keys?' . http_build_query(['dict' => $id])) : '';
     <span class="muted small"><?= te('audio_dicts.dicts.tracking_hint') ?></span>
   </label>
 
+  <?php
+    $positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
+    $selectedPos = [];
+    if (isset($row['position_ids']) && is_array($row['position_ids'])) {
+        $selectedPos = array_values(array_filter(array_map('intval', $row['position_ids'])));
+    } elseif (class_exists('RecordsScriptsRepository', false)) {
+        $selectedPos = RecordsScriptsRepository::parseIds((string)($row['id_position'] ?? ''));
+    }
+  ?>
+  <fieldset class="audio-dict-positions">
+    <legend><?= te('audio_dicts.dicts.field.positions') ?></legend>
+    <p class="muted small"><?= te('audio_dicts.dicts.field.positions_hint') ?></p>
+    <?php foreach ($positionOptions as $sid => $sname):
+      $checked = in_array((int)$sid, $selectedPos, true);
+    ?>
+      <label class="logo-remove">
+        <input type="checkbox" name="positions[]" value="<?= (int)$sid ?>"<?= $checked ? ' checked' : '' ?>>
+        <?= e((string)$sname) ?>
+      </label>
+    <?php endforeach; ?>
+    <?php if ($positionOptions === []): ?>
+      <p class="muted"><?= te('audio_dicts.dicts.no_positions') ?></p>
+    <?php endif; ?>
+  </fieldset>
+
   <h2 class="form-section-title"><?= te('audio_dicts.edit.sec_colors') ?></h2>
   <p class="muted audio-dict-hint"><?= te('audio_dicts.dicts.hint_colors') ?></p>
 

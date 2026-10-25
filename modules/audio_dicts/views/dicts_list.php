@@ -13,9 +13,11 @@ declare(strict_types=1);
 /** @var array|null $bulkFlash */
 /** @var string $path */
 /** @var string $listId */
+/** @var array<int,string> $positionOptions */
 $showAll = !empty($showAll);
+$positionOptions = is_array($positionOptions ?? null) ? $positionOptions : [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 7 + BulkActions::colSpanExtra($listId);
+$colSpan = 8 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 ?>
 <section class="page-head">
@@ -36,6 +38,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
   <?= BulkActions::th($listId) ?>
   <?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?>
   <?= ListQuery::sortTh(t('audio_dicts.col.name'), 'name', $sort, $dir, $path, $filters) ?>
+  <th><?= te('audio_dicts.col.positions') ?></th>
   <th><?= te('audio_dicts.col.descr') ?></th>
   <?= ListQuery::sortTh(t('audio_dicts.col.keys'), 'keys', $sort, $dir, $path, $filters) ?>
   <th><?= te('audio_dicts.col.tracking') ?></th>
@@ -67,6 +70,22 @@ $actionUrl = ListQuery::url($path, $filters, []);
       <a href="<?= e($path) ?>/<?= $dictId ?>/edit" class="audio-dict-name-badge"<?= $badgeStyle !== '' ? ' style="' . e($badgeStyle) . '"' : '' ?>><?= e((string)$c['name']) ?></a>
     <?php else: ?>
       <span class="audio-dict-name-badge"<?= $badgeStyle !== '' ? ' style="' . e($badgeStyle) . '"' : '' ?>><?= e((string)$c['name']) ?></span>
+    <?php endif; ?>
+  </td>
+  <td class="scripts-list-positions">
+    <?php
+      $posIds = class_exists('RecordsScriptsRepository', false)
+          ? RecordsScriptsRepository::parseIds((string)($c['id_position'] ?? ''))
+          : [];
+      if ($posIds === []):
+    ?>
+      <span class="muted"><?= te('audio_dicts.dicts.positions_all') ?></span>
+    <?php else: ?>
+      <?php foreach ($posIds as $pid):
+          $pname = $positionOptions[$pid] ?? ('#' . $pid);
+      ?>
+        <span class="scripts-pos-chip"><?= e((string)$pname) ?></span>
+      <?php endforeach; ?>
     <?php endif; ?>
   </td>
   <td><?= e((string)($c['descr'] ?: '—')) ?></td>

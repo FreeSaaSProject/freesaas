@@ -62,7 +62,7 @@ final class RecordsDictsRepository
         $sql = "SELECT d.ID AS id, d.DT_CREATE AS dt_create, d.NAME AS name, d.DESCR AS descr,
                        d.COLOR AS color, d.COLOR_BACKGROUND AS color_background,
                        d.DISABLED AS disabled, d.IS_REVIEW_REQ AS is_review_req,
-                       d.TRACKING_CODE AS tracking_code
+                       d.ID_POSITION AS id_position, d.TRACKING_CODE AS tracking_code
                        {$keysSelect}
                 FROM base_records_dictonarys d
                 {$keysJoin}
@@ -284,6 +284,24 @@ final class RecordsDictsRepository
         if ($name === '') {
             throw new InvalidArgumentException(t('audio_dicts.err.name_required'));
         }
+        // Prefer checkbox list (positions[]) like scripts; fall back to raw id_position.
+        $idPosition = '';
+        if (isset($post['positions']) && is_array($post['positions'])) {
+            $ids = array_values(array_filter(array_map('intval', $post['positions'])));
+            $idPosition = class_exists('RecordsScriptsRepository', false)
+                ? RecordsScriptsRepository::joinIds($ids)
+                : '';
+        } elseif (array_key_exists('id_position', $post)) {
+            $raw = trim((string)$post['id_position']);
+            if ($raw !== '' && $raw !== '0' && class_exists('RecordsScriptsRepository', false)) {
+                $idPosition = RecordsScriptsRepository::joinIds(
+                    RecordsScriptsRepository::parseIds($raw)
+                );
+            } else {
+                $idPosition = ($raw === '0') ? '' : $raw;
+            }
+        }
+
         return [
             'name' => mb_substr($name, 0, 50),
             'descr' => mb_substr(trim((string)($post['descr'] ?? '')), 0, self::DESCR_MAX),
@@ -291,7 +309,7 @@ final class RecordsDictsRepository
             'color_background' => mb_substr(trim((string)($post['color_background'] ?? '')), 0, 10),
             'disabled' => !empty($post['disabled']) ? 1 : 0,
             'is_review_req' => !empty($post['is_review_req']) ? 1 : 0,
-            'id_position' => trim((string)($post['id_position'] ?? '')),
+            'id_position' => $idPosition,
             'tracking_code' => mb_substr(trim((string)($post['tracking_code'] ?? '')), 0, 64),
         ];
     }

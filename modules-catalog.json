@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-25T15:57:56+00:00",
+    "generated_at": "2026-10-25T16:33:28+00:00",
     "modules": [
         {
             "id": "asr",
@@ -148,7 +148,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.11",
+            "version": "1.0.12",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
