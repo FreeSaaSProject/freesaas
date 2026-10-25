@@ -13,6 +13,9 @@ require_once __DIR__ . '/lib/CollectRunner.php';
 require_once __DIR__ . '/lib/RatingAggregates.php';
 require_once __DIR__ . '/lib/AudioCoverageConfig.php';
 require_once __DIR__ . '/lib/AudioCoverageProfiles.php';
+require_once __DIR__ . '/lib/AudioPipelineAgentOps.php';
+
+AudioPipelineAgentOps::register();
 
 /**
  * Cabin audio analytics workers (ingest / base_records ASR / stem / collect).

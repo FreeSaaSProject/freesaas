@@ -41,8 +41,17 @@ Stem writes `base_records.KEY_TYPES` (legacy name) as a dict-hit chip blob — s
 
 Session auth; `?format=json` or `Accept: application/json`. See `module.json` → `agent.ops`.
 
+**Remote script debug (agent_token):** day-diag, records, collections, instances, day-reparse — [`audio-scripts-debug.md`](audio-scripts-debug.md).
+
 | Op | Method | Path |
 |----|--------|------|
+| `audio_pipeline.day_diag` | GET | `/agent/audio_pipeline/day-diag` |
+| `audio_pipeline.day_records` | GET | `/agent/audio_pipeline/day-records` |
+| `audio_pipeline.record_get` | GET | `/agent/audio_pipeline/record` |
+| `audio_pipeline.collections_list` | GET | `/agent/audio_pipeline/collections` |
+| `audio_pipeline.collection_get` | GET | `/agent/audio_pipeline/collection` |
+| `audio_pipeline.instances_list` | GET | `/agent/audio_pipeline/instances` |
+| `audio_pipeline.day_reparse` | POST | `/agent/audio_pipeline/day-reparse` |
 | `audio_pipeline.asr.claim` | GET | `/audio/asr/claim` |
 | `audio_pipeline.asr.result` | POST | `/audio/asr/result` |
 | `audio_pipeline.asr.chunk_claim` | GET | `/audio/asr/chunk-claim` |

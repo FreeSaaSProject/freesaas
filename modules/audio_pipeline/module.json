@@ -2,7 +2,7 @@
     "id": "audio_pipeline",
     "name": "audio_pipeline.module.name",
     "description": "audio_pipeline.module.description",
-    "version": "1.0.5",
+    "version": "1.0.7",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -30,12 +30,76 @@
             "/audio/jobs/ingest/run",
             "/audio/jobs/stem",
             "/audio/jobs/stem/run",
-            "/audio/jobs/collect"
+            "/audio/jobs/collect",
+            "/agent/audio_pipeline/day-diag",
+            "/agent/audio_pipeline/day-records",
+            "/agent/audio_pipeline/record",
+            "/agent/audio_pipeline/collections",
+            "/agent/audio_pipeline/collection",
+            "/agent/audio_pipeline/instances",
+            "/agent/audio_pipeline/day-reparse"
         ]
     },
     "agent": {
         "docs": "docs/agents/audio_pipeline.md",
         "ops": [
+            {
+                "id": "audio_pipeline.day_diag",
+                "method": "GET",
+                "path": "/agent/audio_pipeline/day-diag",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token diagnose: records/instances/collections for admin+date; script fingerprint (see audio-scripts-debug.md)"
+            },
+            {
+                "id": "audio_pipeline.day_records",
+                "method": "GET",
+                "path": "/agent/audio_pipeline/day-records",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: cabin records for admin+date; optional transcription=1"
+            },
+            {
+                "id": "audio_pipeline.record_get",
+                "method": "GET",
+                "path": "/agent/audio_pipeline/record",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: one record + transcription + instances; query id="
+            },
+            {
+                "id": "audio_pipeline.collections_list",
+                "method": "GET",
+                "path": "/agent/audio_pipeline/collections",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: script collections for admin+date; optional script="
+            },
+            {
+                "id": "audio_pipeline.collection_get",
+                "method": "GET",
+                "path": "/agent/audio_pipeline/collection",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: one collection + collections_datas hits; query id="
+            },
+            {
+                "id": "audio_pipeline.instances_list",
+                "method": "GET",
+                "path": "/agent/audio_pipeline/instances",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: key instances (вхождения) for admin+date; optional record=, key=; includes by_key"
+            },
+            {
+                "id": "audio_pipeline.day_reparse",
+                "method": "POST",
+                "path": "/agent/audio_pipeline/day-reparse",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: reset+stem+collect for admin+date; body confirm=1"
+            },
             {
                 "id": "audio_pipeline.asr.claim",
                 "method": "GET",

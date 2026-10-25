@@ -17,6 +17,9 @@ require_once __DIR__ . '/lib/DayQualityMetrics.php';
 require_once __DIR__ . '/lib/DayQualityReport.php';
 require_once __DIR__ . '/lib/ReparseCost.php';
 require_once __DIR__ . '/lib/AudioReportsBiContrib.php';
+require_once __DIR__ . '/lib/AudioReportsAgentOps.php';
+
+AudioReportsAgentOps::register();
 
 EventBus::on('bi.datasets', [AudioReportsBiContrib::class, 'onDatasets']);
 EventBus::on('bi.recipes', [AudioReportsBiContrib::class, 'onRecipes']);

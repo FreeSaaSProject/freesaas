@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-25T07:08:32+00:00",
+    "generated_at": "2026-10-25T07:54:16+00:00",
     "modules": [
         {
             "id": "asr",
@@ -148,7 +148,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.8",
+            "version": "1.0.9",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -251,7 +251,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.0.5",
+            "version": "1.0.7",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -284,7 +284,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.4",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Audio reports",

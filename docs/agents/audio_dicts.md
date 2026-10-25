@@ -52,8 +52,18 @@ Record chip summary lives on `base_records.KEY_TYPES` (legacy name = dict ids) â
 
 Session auth; `?format=json` or `Accept: application/json`. See `module.json` â†’ `agent.ops`.
 
+**Remote script/dict R/W (agent_token):** [`audio-scripts-debug.md`](audio-scripts-debug.md) (`/agent/audio_dicts/*`).
+
 | Op | Method | Path |
 |----|--------|------|
+| `audio_dicts.agent.scripts_list` | GET | `/agent/audio_dicts/scripts` |
+| `audio_dicts.agent.script_get` | GET | `/agent/audio_dicts/script` |
+| `audio_dicts.agent.script_save` | POST | `/agent/audio_dicts/script` |
+| `audio_dicts.agent.script_part_save` | POST | `/agent/audio_dicts/script/part` |
+| `audio_dicts.agent.script_part_delete` | POST | `/agent/audio_dicts/script/part/delete` |
+| `audio_dicts.agent.dicts_list` | GET | `/agent/audio_dicts/dicts` |
+| `audio_dicts.agent.dict_get` | GET | `/agent/audio_dicts/dict` |
+| `audio_dicts.agent.keys_list` | GET | `/agent/audio_dicts/keys` |
 | `audio_dicts.dicts.list` | GET | `/audio/dicts` |
 | `audio_dicts.dicts.get` | GET | `/audio/dicts/{id}/edit` |
 | `audio_dicts.dicts.create` | POST | `/audio/dicts/new` |

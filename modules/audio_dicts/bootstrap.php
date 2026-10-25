@@ -8,6 +8,9 @@ require_once __DIR__ . '/lib/RecordsTagsRepository.php';
 require_once __DIR__ . '/lib/RecordsScriptsRepository.php';
 require_once __DIR__ . '/lib/ScriptPack.php';
 require_once __DIR__ . '/lib/DictDescrSuggest.php';
+require_once __DIR__ . '/lib/AudioDictsAgentOps.php';
+
+AudioDictsAgentOps::register();
 
 Assets::register('audio_dicts', [
     'css' => ['audio_dicts.css'],

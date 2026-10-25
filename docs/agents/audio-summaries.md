@@ -2,6 +2,8 @@
 
 Session-auth product JSON for `audio_reports` summary profiles. Convention: [`module-agent-api.md`](module-agent-api.md). Platform install/ops token API is **not** used here.
 
+Staff day rating without a browser session: `GET /agent/audio_reports/day-report?admin=&date=` (agent_token) — see [`audio-scripts-debug.md`](audio-scripts-debug.md).
+
 ## Routes
 
 | Op | Method | Path | Permission |

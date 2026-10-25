@@ -30,6 +30,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [assistant.md](assistant.md) | In-system LLM harness (UI + bot, tools, confirm writes) |
 | [assistant-groups.md](assistant-groups.md) | Max group channel: mention → draft → manager confirm |
 | [audio-summaries.md](audio-summaries.md) | Audio summary profiles: construct + run via JSON |
+| [audio-scripts-debug.md](audio-scripts-debug.md) | Remote script debug via `/agent/audio_*` (token): scripts, dicts, collections, instances, day-reparse |
 | [llm.md](llm.md) | LLM tokens, OAuth/MCP adapter, chat op, audio studies |
 | [clients.md](clients.md) | Client CRM: list/get/create/update + statuses/tags JSON |
 | [bonuses.md](bonuses.md) | Client loyalty ledger + event apply (JSON) |

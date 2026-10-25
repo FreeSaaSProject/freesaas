@@ -225,7 +225,8 @@ if ($inboxCount > 0) {
                                   <span class="<?= e($missCls) ?>" title="<?= e((string)$miss['title']) ?>"><?= e((string)$miss['label']) ?></span>
                                     <?php endif; ?>
                                 <?php else: ?>
-                                <a class="ar-cal-time" href="<?= e((string)$line['href']) ?>"><?= e((string)$line['playtime_label']) ?></a>
+                                <a class="ar-cal-time" href="<?= e((string)$line['href']) ?>"
+                                   target="_blank" rel="noopener"><?= e((string)$line['playtime_label']) ?></a>
                                 <?php if ($canReviewAdmin && !empty($line['review_pending']) && !empty($line['review_pending_href'])): ?>
                                   <a class="ar-cal-review-pending" href="<?= e((string)$line['review_pending_href']) ?>"
                                      target="_blank" rel="noopener"
@@ -235,6 +236,7 @@ if ($inboxCount > 0) {
                                     $scoreHref = (string)($line['report_href'] ?? $line['href'] ?? '');
                                     ?>
                                   <a class="<?= e($scoreCls) ?>" href="<?= e($scoreHref) ?>"
+                                     target="_blank" rel="noopener"
                                      title="<?= te('audio_reports.calendar.score_hint') ?>"><?= '®' . e((string)$score) ?></a>
                                 <?php endif; ?>
                                 <?php if ($line['keys_pct'] !== null): ?>
@@ -248,7 +250,8 @@ if ($inboxCount > 0) {
                                     $scrHref = (string)($scr['href'] ?? '');
                                     $scrTitle = (string)$scr['name'] . ' — ' . t('audio_reports.calendar.script_hint');
                                     if ($scrHref !== ''): ?>
-                                  <a class="ar-cal-script" href="<?= e($scrHref) ?>" title="<?= e($scrTitle) ?>"><?= e((string)$scr['label']) ?></a>
+                                  <a class="ar-cal-script" href="<?= e($scrHref) ?>" target="_blank" rel="noopener"
+                                     title="<?= e($scrTitle) ?>"><?= e((string)$scr['label']) ?></a>
                                     <?php else: ?>
                                   <span class="ar-cal-script" title="<?= e($scrTitle) ?>"><?= e((string)$scr['label']) ?></span>
                                     <?php endif; ?>
@@ -315,7 +318,7 @@ if ($inboxCount > 0) {
                       ?>
                     <tr>
                       <td><?= $row['badge_html'] ?></td>
-                      <td><a href="<?= e((string)$row['href']) ?>"><?= e((string)$row['hours']) ?></a></td>
+                      <td><a href="<?= e((string)$row['href']) ?>" target="_blank" rel="noopener"><?= e((string)$row['hours']) ?></a></td>
                       <td><?= (int)$row['count'] ?></td>
                       <td><?php if ($sc !== null): ?><span class="ar-cal-rate<?= e($scCls) ?>">®<?= e((string)$sc) ?></span><?php else: ?>—<?php endif; ?></td>
                       <td><?php if ($row['keys_pct'] !== null): ?><span class="ar-cal-keys<?= $row['keys_pct'] >= 24 ? ' is-ok' : ($row['keys_pct'] >= 14 ? ' is-mid' : ' is-low') ?>"><?= (int)$row['keys_pct'] ?>%</span><?php else: ?>—<?php endif; ?></td>
@@ -327,13 +330,13 @@ if ($inboxCount > 0) {
                           $label = $scell ? CalendarAggregates::formatScriptSummary($scell) : '';
                           $scrHref = (string)(($row['script_hrefs'][$scDef['id']] ?? '') ?: '');
                           ?>
-                        <td class="ar-cal-script"><?php if ($label !== '' && $scrHref !== ''): ?><a class="ar-cal-script" href="<?= e($scrHref) ?>" title="<?= e($scDef['name']) ?>"><?= e($label) ?></a><?php else: ?><?= e($label) ?><?php endif; ?></td>
+                        <td class="ar-cal-script"><?php if ($label !== '' && $scrHref !== ''): ?><a class="ar-cal-script" href="<?= e($scrHref) ?>" target="_blank" rel="noopener" title="<?= e($scDef['name']) ?>"><?= e($label) ?></a><?php else: ?><?= e($label) ?><?php endif; ?></td>
                       <?php endforeach; ?>
                       <?php if ($calendarScripts !== []):
                           $scoreVal = (int)($row['script_score'] ?? 0);
                           $scoreHref = (string)($row['script_score_href'] ?? '');
                           ?>
-                        <td class="ar-cal-script"><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
+                        <td class="ar-cal-script"><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" target="_blank" rel="noopener" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
                       <?php endif; ?>
                       <?php
                         $extraCells = is_array($row['extra_cells'] ?? null) ? $row['extra_cells'] : [];
@@ -363,13 +366,13 @@ if ($inboxCount > 0) {
                         $label = $scell ? CalendarAggregates::formatScriptSummary($scell) : '';
                         $scrHref = (string)(($t['script_hrefs'][$scDef['id']] ?? '') ?: '');
                         ?>
-                      <td><?php if ($label !== '' && $scrHref !== ''): ?><a class="ar-cal-script" href="<?= e($scrHref) ?>" title="<?= e($scDef['name']) ?>"><?= e($label) ?></a><?php else: ?><?= e($label) ?><?php endif; ?></td>
+                      <td><?php if ($label !== '' && $scrHref !== ''): ?><a class="ar-cal-script" href="<?= e($scrHref) ?>" target="_blank" rel="noopener" title="<?= e($scDef['name']) ?>"><?= e($label) ?></a><?php else: ?><?= e($label) ?><?php endif; ?></td>
                     <?php endforeach; ?>
                     <?php if ($calendarScripts !== []):
                         $scoreVal = (int)($t['script_score'] ?? 0);
                         $scoreHref = (string)($t['script_score_href'] ?? '');
                         ?>
-                      <td><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
+                      <td><?php if ($scoreVal > 0 && $scoreHref !== ''): ?><a class="ar-cal-script" href="<?= e($scoreHref) ?>" target="_blank" rel="noopener" title="<?= te('audio_reports.calendar.col_script_score') ?>"><?= $scoreVal ?></a><?php else: ?><?= $scoreVal ?: '' ?><?php endif; ?></td>
                     <?php endif; ?>
                     <?php foreach (($block['extra_columns'] ?? []) as $ecol):
                         $cid = (string)($ecol['id'] ?? '');
