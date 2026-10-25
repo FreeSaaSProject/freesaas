@@ -64,6 +64,10 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` â†
 | `audio_dicts.agent.dicts_list` | GET | `/agent/audio_dicts/dicts` |
 | `audio_dicts.agent.dict_get` | GET | `/agent/audio_dicts/dict` |
 | `audio_dicts.agent.keys_list` | GET | `/agent/audio_dicts/keys` |
+| `audio_dicts.agent.key_get` | GET | `/agent/audio_dicts/key` |
+| `audio_dicts.agent.keys_check_overlap` | GET | `/agent/audio_dicts/keys/check-overlap` |
+| `audio_dicts.agent.key_save` | POST | `/agent/audio_dicts/key` |
+| `audio_dicts.agent.key_delete` | POST | `/agent/audio_dicts/key/delete` |
 | `audio_dicts.dicts.list` | GET | `/audio/dicts` |
 | `audio_dicts.dicts.get` | GET | `/audio/dicts/{id}/edit` |
 | `audio_dicts.dicts.create` | POST | `/audio/dicts/new` |

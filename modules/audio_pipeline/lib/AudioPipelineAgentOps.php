@@ -641,7 +641,7 @@ final class AudioPipelineAgentOps
         } catch (Throwable $e) {
             $out = ['ok' => false, 'error' => $e->getMessage(), 'http' => 500];
         } finally {
-            JobLock::release($lock);
+            $lock->release();
         }
         return $out;
     }

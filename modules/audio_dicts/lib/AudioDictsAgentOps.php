@@ -42,6 +42,22 @@ final class AudioDictsAgentOps
                 'description' => 'Keys for a dictionary; query dict=, q=, limit=',
                 'query' => ['dict', 'q', 'limit', 'offset'],
             ]],
+            ['GET', '/agent/audio_dicts/key', 'audio_dicts.agent.key_get', [self::class, 'keyGet'], [
+                'description' => 'One key by id= or exact name=',
+                'query' => ['id', 'name'],
+            ]],
+            ['GET', '/agent/audio_dicts/keys/check-overlap', 'audio_dicts.agent.keys_check_overlap', [self::class, 'keysCheckOverlap'], [
+                'description' => 'Overlap preview; query name=, optional exclude_id=',
+                'query' => ['name', 'exclude_id'],
+            ]],
+            ['POST', '/agent/audio_dicts/key', 'audio_dicts.agent.key_save', [self::class, 'keySave'], [
+                'description' => 'Create/update key; body confirm=1, name, dict (or id_dictonary); id= update; force=1 for hard overlaps',
+                'body' => ['confirm', 'id', 'name', 'dict', 'id_dictonary', 'disabled', 'id_looklike', 'force'],
+            ]],
+            ['POST', '/agent/audio_dicts/key/delete', 'audio_dicts.agent.key_delete', [self::class, 'keyDelete'], [
+                'description' => 'Delete key; body id, confirm=1',
+                'body' => ['id', 'confirm'],
+            ]],
         ];
 
         foreach ($ops as [$method, $path, $opId, $handler, $meta]) {
@@ -56,6 +72,9 @@ final class AudioDictsAgentOps
             '/agent/audio_dicts/dicts' => ['GET'],
             '/agent/audio_dicts/dict' => ['GET'],
             '/agent/audio_dicts/keys' => ['GET'],
+            '/agent/audio_dicts/key' => ['GET', 'POST'],
+            '/agent/audio_dicts/keys/check-overlap' => ['GET'],
+            '/agent/audio_dicts/key/delete' => ['POST'],
         ];
         foreach ($routes as $path => $methods) {
             ModuleManager::registerRoute($path, [
@@ -296,6 +315,175 @@ final class AudioDictsAgentOps
             'dict' => $dict,
             'total' => (int)($result['total'] ?? 0),
             'items' => $result['items'] ?? [],
+            'http' => 200,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function keyGet(): array
+    {
+        $in = AgentOps::requestInput();
+        $id = (int)($in['id'] ?? 0);
+        $name = trim((string)($in['name'] ?? ''));
+        $row = null;
+        if ($id > 0) {
+            $row = RecordsKeysRepository::find($id);
+        } elseif ($name !== '') {
+            $row = RecordsKeysRepository::findByName($name);
+        } else {
+            return ['ok' => false, 'error' => 'id= or name= required', 'http' => 400];
+        }
+        if ($row === null) {
+            return ['ok' => false, 'error' => 'not_found', 'http' => 404];
+        }
+        return ['ok' => true, 'key' => $row, 'http' => 200];
+    }
+
+    /** @return array<string,mixed> */
+    public static function keysCheckOverlap(): array
+    {
+        $in = AgentOps::requestInput();
+        $name = trim((string)($in['name'] ?? ''));
+        if ($name === '') {
+            return ['ok' => false, 'error' => 'name= required', 'http' => 400];
+        }
+        $exclude = (int)($in['exclude_id'] ?? 0);
+        $hits = RecordsKeysRepository::findOverlaps($name, $exclude, 40);
+        $soft = RecordsKeysRepository::isSoftContainsOnly($hits);
+        $hasExact = false;
+        foreach ($hits as $ov) {
+            if ((string)($ov['relation'] ?? '') === 'exact') {
+                $hasExact = true;
+                break;
+            }
+        }
+        return [
+            'ok' => true,
+            'name' => $name,
+            'normalized' => RecordsKeysRepository::normalizeName($name),
+            'overlaps' => $hits,
+            'has_exact' => $hasExact,
+            'soft_contains_only' => $soft,
+            'force_needed' => $hits !== [] && !$soft && !$hasExact,
+            'http' => 200,
+        ];
+    }
+
+    /**
+     * Create or update a key with the same overlap rules as the UI form.
+     *
+     * @return array<string,mixed>
+     */
+    public static function keySave(): array
+    {
+        $in = AgentOps::requestInput();
+        if (!self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required', 'http' => 400];
+        }
+        $id = (int)($in['id'] ?? 0);
+        $isNew = $id < 1;
+        $existing = $isNew ? null : RecordsKeysRepository::find($id);
+        if (!$isNew && $existing === null) {
+            return ['ok' => false, 'error' => 'not_found', 'http' => 404];
+        }
+        try {
+            $data = RecordsKeysRepository::dataFromPost([
+                'name' => $in['name'] ?? ($existing['name'] ?? ''),
+                'disabled' => $in['disabled'] ?? ($existing['disabled'] ?? 0),
+                'id_dictonary' => $in['dict'] ?? $in['id_dictonary']
+                    ?? ($existing['id_dictonary'] ?? 0),
+                'id_looklike' => $in['id_looklike'] ?? ($existing['id_looklike'] ?? 0),
+            ]);
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
+        }
+        if ((int)$data['id_dictonary'] < 1) {
+            return ['ok' => false, 'error' => 'dict (id_dictonary) required', 'http' => 400];
+        }
+        if (RecordsDictsRepository::find((int)$data['id_dictonary']) === null) {
+            return ['ok' => false, 'error' => 'dict_not_found', 'http' => 404];
+        }
+
+        $force = !empty($in['force'])
+            && !in_array(strtolower((string)$in['force']), ['0', 'false', 'no'], true);
+        $overlaps = RecordsKeysRepository::findOverlaps(
+            (string)$data['name'],
+            $isNew ? 0 : $id,
+            40
+        );
+        $hasExact = false;
+        foreach ($overlaps as $ov) {
+            if ((string)($ov['relation'] ?? '') === 'exact') {
+                $hasExact = true;
+                break;
+            }
+        }
+        if ($hasExact) {
+            return [
+                'ok' => false,
+                'error' => 'exact_duplicate',
+                'overlaps' => $overlaps,
+                'http' => 409,
+            ];
+        }
+        $softOnly = RecordsKeysRepository::isSoftContainsOnly($overlaps);
+        if ($overlaps !== [] && !$softOnly && !$force) {
+            if ((int)$data['id_looklike'] < 1) {
+                $data['id_looklike'] = (int)($overlaps[0]['id'] ?? 0);
+            }
+            return [
+                'ok' => false,
+                'error' => 'overlap_force_required',
+                'force_needed' => true,
+                'overlaps' => $overlaps,
+                'hint' => 'Retry with force=1 to create despite nesting; or pick a non-overlapping name',
+                'http' => 409,
+            ];
+        }
+        if ($overlaps !== [] && ($force || $softOnly) && (int)$data['id_looklike'] < 1) {
+            $data['id_looklike'] = (int)($overlaps[0]['id'] ?? 0);
+        }
+
+        try {
+            if ($isNew) {
+                $id = RecordsKeysRepository::create($data);
+            } else {
+                RecordsKeysRepository::update($id, $data);
+            }
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 500];
+        }
+        $row = RecordsKeysRepository::find($id);
+        return [
+            'ok' => true,
+            'message' => $isNew ? 'key_created' : 'key_updated',
+            'id' => $id,
+            'key' => $row,
+            'overlaps' => $overlaps,
+            'forced' => $force && $overlaps !== [] && !$softOnly,
+            'http' => 200,
+        ];
+    }
+
+    /** @return array<string,mixed> */
+    public static function keyDelete(): array
+    {
+        $in = AgentOps::requestInput();
+        if (!self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required', 'http' => 400];
+        }
+        $id = (int)($in['id'] ?? 0);
+        if ($id < 1) {
+            return ['ok' => false, 'error' => 'id required', 'http' => 400];
+        }
+        if (RecordsKeysRepository::find($id) === null) {
+            return ['ok' => false, 'error' => 'not_found', 'http' => 404];
+        }
+        $n = RecordsKeysRepository::deleteByIds([$id]);
+        return [
+            'ok' => true,
+            'message' => 'key_deleted',
+            'deleted' => $n,
             'http' => 200,
         ];
     }

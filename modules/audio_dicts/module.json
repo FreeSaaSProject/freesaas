@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -55,7 +55,10 @@
             "/agent/audio_dicts/script/part/delete",
             "/agent/audio_dicts/dicts",
             "/agent/audio_dicts/dict",
-            "/agent/audio_dicts/keys"
+            "/agent/audio_dicts/keys",
+            "/agent/audio_dicts/key",
+            "/agent/audio_dicts/keys/check-overlap",
+            "/agent/audio_dicts/key/delete"
         ]
     },
     "agent": {
@@ -127,6 +130,40 @@
                 "permission": "public",
                 "assistant": false,
                 "description": "Agent-token: keys for a dictionary; query dict="
+            },
+            {
+                "id": "audio_dicts.agent.key_get",
+                "method": "GET",
+                "path": "/agent/audio_dicts/key",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: one key by id= or name="
+            },
+            {
+                "id": "audio_dicts.agent.keys_check_overlap",
+                "method": "GET",
+                "path": "/agent/audio_dicts/keys/check-overlap",
+                "permission": "public",
+                "assistant": false,
+                "description": "Agent-token: overlap preview before create; query name="
+            },
+            {
+                "id": "audio_dicts.agent.key_save",
+                "method": "POST",
+                "path": "/agent/audio_dicts/key",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: create/update key; confirm=1, name, dict; force=1 for hard overlaps"
+            },
+            {
+                "id": "audio_dicts.agent.key_delete",
+                "method": "POST",
+                "path": "/agent/audio_dicts/key/delete",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: delete key; body id, confirm=1"
             },
             {
                 "id": "audio_dicts.dicts.list",

@@ -43,6 +43,12 @@ Compare `script_probe_hash` / `fingerprint` across hosts. **Different hash ⇒ D
 | GET | `/agent/audio_dicts/dicts` | Dictionaries; `q=`, `include_disabled=1` |
 | GET | `/agent/audio_dicts/dict?id=` | One dict + `keys_total` |
 | GET | `/agent/audio_dicts/keys?dict=` | Keys page; `q=`, `limit=`, `offset=` |
+| GET | `/agent/audio_dicts/key?id=` / `?name=` | One key |
+| GET | `/agent/audio_dicts/keys/check-overlap?name=` | Overlap preview (`force_needed`, `has_exact`) |
+| POST | `/agent/audio_dicts/key` | Create/update: `{confirm:1, name, dict}` (+ `id` to update, `force:1` for hard overlaps) |
+| POST | `/agent/audio_dicts/key/delete` | `{id, confirm:1}` |
+
+Same overlap rules as the UI: **exact** → 409; soft `contains` → allowed; hard nesting → 409 unless `force=1`.
 
 Part payload uses the same fields as UI/normalizePart (`name`, `break_flag`, `timeout`, `break_gap`, `finish`, `start_gate`, `collection_killer`, `dict_ids` / `ids_dictonarys`, `score`, `score_rate`, `kpi`, `cond_type`, `cond_value`, `roles`, …). Prefer **part** upsert over full tree replace unless you intentionally rewrite the script.
 
@@ -51,6 +57,13 @@ Part payload uses the same fields as UI/normalizePart (`name`, `break_flag`, `ti
 curl -sS -X POST "${H[@]}" -H "Content-Type: application/json" \
   "$BASE/agent/audio_dicts/script/part" \
   -d '{"script_id":32,"confirm":1,"part":{"id":123,"timeout":180}}'
+
+# Example: create a key (overlap check first)
+curl -sS "${H[@]}" --get "$BASE/agent/audio_dicts/keys/check-overlap" --data-urlencode "name=ноги приподнимем"
+curl -sS -X POST "${H[@]}" -H "Content-Type: application/json" \
+  "$BASE/agent/audio_dicts/key" \
+  -d '{"confirm":1,"name":"ноги приподнимем","dict":46}'
+# Hard nesting → 409 overlap_force_required; retry with "force":1
 ```
 
 After definition changes, **reparse the day** (below). Stem/collect do not auto-rebuild historical days on `audio_dicts.changed`.
