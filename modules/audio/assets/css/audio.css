@@ -479,6 +479,13 @@
 
 .add-key-actions {
   gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.add-key-btn--soft {
+  background: #eceff1;
+  color: #37474f;
+  border-color: #cfd8dc;
 }
 
 .add-key-status {

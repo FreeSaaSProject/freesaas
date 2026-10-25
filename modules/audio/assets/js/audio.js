@@ -181,6 +181,7 @@
       '<div class="add-key-row"><span class="add-key-lbl" data-lbl="dict"></span><select class="add-key-dict"></select></div>' +
       '<div class="add-key-row add-key-actions">' +
       '<button type="button" class="add-key-btn" data-act="key"></button>' +
+      '<button type="button" class="add-key-btn add-key-btn--soft" data-act="key-noreparse"></button>' +
       '<button type="button" class="add-key-btn-trash" data-act="trash"></button>' +
       '<button type="button" class="add-key-cancel"></button>' +
       '<span class="add-key-status"></span></div>' +
@@ -191,6 +192,11 @@
     var dictLbl = pop.querySelector('[data-lbl="dict"]');
     if (dictLbl) dictLbl.textContent = L.dict || 'Dict';
     pop.querySelector('[data-act="key"]').textContent = L.addKey || 'Add key';
+    var noReBtn = pop.querySelector('[data-act="key-noreparse"]');
+    if (noReBtn) {
+      noReBtn.textContent = L.addKeyNoReparse || 'Key without Re-®';
+      noReBtn.title = L.addKeyNoReparseHint || '';
+    }
     pop.querySelector('[data-act="trash"]').textContent = L.addTrash || 'Add trash';
     pop.querySelector('.add-key-cancel').textContent = L.cancel || 'Cancel';
     pop.querySelector('.add-key-input').value = text;
@@ -315,7 +321,7 @@
       warn.appendChild(actions);
     }
 
-    function postAction(action, force) {
+    function postAction(action, force, skipReparse) {
       var status = pop.querySelector('.add-key-status');
       var warn = pop.querySelector('.add-key-warnings');
       var keyText = String(pop.querySelector('.add-key-input').value || '').trim();
@@ -324,7 +330,8 @@
         warn.textContent = L.textRequired || 'Enter text';
         return;
       }
-      status.textContent = action === 'add_key' && recordId > 0
+      var willReparse = action === 'add_key' && recordId > 0 && !skipReparse;
+      status.textContent = willReparse
         ? (L.reparsing || '…')
         : '…';
       warn.hidden = true;
@@ -334,6 +341,9 @@
       body.set('text', keyText);
       if (action === 'add_key') {
         body.set('dict_id', dictSel.value || '0');
+        if (skipReparse) {
+          body.set('skip_reparse', '1');
+        }
       }
       if (adminId > 0) {
         body.set('admin_id', String(adminId));
@@ -354,7 +364,7 @@
           if (data && data.needs_confirm && !force) {
             status.textContent = '';
             showOverlapPanel(warn, data.overlaps || [], function () {
-              postAction(action, true);
+              postAction(action, true, skipReparse);
             });
             return;
           }
@@ -371,6 +381,14 @@
             return;
           }
           status.textContent = data.message || (L.done || 'OK');
+          // Without Re-®: keep the list open so several keys can be added, then bulk Re-®.
+          if (data.reparse_skipped) {
+            setTimeout(function () {
+              if (window.getSelection) window.getSelection().removeAllRanges();
+              pop.remove();
+            }, 500);
+            return;
+          }
           var delay = (data.reparsed && data.reparsed.ok) ? 900 : 600;
           setTimeout(function () { location.reload(); }, delay);
         })
@@ -382,7 +400,10 @@
         });
     }
 
-    pop.querySelector('[data-act="key"]').addEventListener('click', function () { postAction('add_key'); });
+    pop.querySelector('[data-act="key"]').addEventListener('click', function () { postAction('add_key', false, false); });
+    if (noReBtn) {
+      noReBtn.addEventListener('click', function () { postAction('add_key', false, true); });
+    }
     pop.querySelector('[data-act="trash"]').addEventListener('click', function () { postAction('add_trash'); });
     pop.querySelector('.add-key-cancel').addEventListener('click', function () {
       if (window.getSelection) window.getSelection().removeAllRanges();

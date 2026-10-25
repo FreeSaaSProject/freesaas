@@ -131,7 +131,8 @@ try {
     }
 }
 
-// Changed day report comment must clear ticket read marks; unchanged must keep them.
+// Day report comments: null clearViews → clear only when HTML changed;
+// explicit true/false overrides (reward sum change vs text-only reparse).
 if (ModuleManager::isEnabled('staff_reports')
     && class_exists('TicketWriter', false)
     && class_exists('CommentsRepository', false)
@@ -169,6 +170,14 @@ if (ModuleManager::isEnabled('staff_reports')
         $up3 = TicketWriter::upsertReportComment($ticketId, $userId, $marker, $marker . ' v2');
         $assert(!empty($up3['changed']), 'new text → changed=true');
         $assert($viewCount() === 0, 'new text clears read mark');
+        $markRead();
+        $up4 = TicketWriter::upsertReportComment($ticketId, $userId, $marker, $marker . ' v2', true);
+        $assert(empty($up4['changed']), 'same text + clearViews=true → changed=false');
+        $assert($viewCount() === 0, 'clearViews=true clears even when text same');
+        $markRead();
+        $up5 = TicketWriter::upsertReportComment($ticketId, $userId, $marker, $marker . ' v3', false);
+        $assert(!empty($up5['changed']), 'new text + clearViews=false → changed=true');
+        $assert($viewCount() === 1, 'clearViews=false keeps mark on text-only reparse');
     } finally {
         $cleanup();
     }

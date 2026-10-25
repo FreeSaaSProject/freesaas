@@ -42,15 +42,32 @@
     }
   }
 
-  function logLine(text, isErr) {
+  function logLine(text, isErr, color) {
     if (!logEl) {
       return;
     }
     var line = document.createElement('div');
     line.className = isErr ? 'asc-job-log-err' : '';
+    if (color && !isErr) {
+      line.style.color = color;
+    }
     line.textContent = text;
     logEl.appendChild(line);
     logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function logStages(stages) {
+    if (!Array.isArray(stages) || !stages.length) {
+      return;
+    }
+    stages.forEach(function (s) {
+      if (!s || !s.msg) {
+        return;
+      }
+      var isErr = (s.color || '') === '#fca5a5';
+      var prefix = typeof s.at === 'number' ? ('[' + s.at.toFixed(1) + 's] ') : '';
+      logLine(prefix + s.msg, isErr, s.color || '');
+    });
   }
 
   function showOverlay() {
@@ -133,7 +150,14 @@
           var done = parseInt(data.phases_done || 0, 10) || 0;
           total = parseInt(data.phases_total || total, 10) || total;
           setProgress(done, total);
-          logLine('✓ ' + (data.phase || '—') + ' (' + done + '/' + total + ')');
+          if (Array.isArray(data.stages) && data.stages.length) {
+            logStages(data.stages);
+          } else {
+            logLine('✓ ' + (data.phase || '—') + ' (' + done + '/' + total + ')');
+          }
+          if (msgEl && data.phase) {
+            msgEl.textContent = (data.phase || '') + ' · ' + done + '/' + total;
+          }
           if (data.done) {
             setProgress(total, total);
             finishOverlay(true, root.getAttribute('data-asc-msg-done') || 'Done');

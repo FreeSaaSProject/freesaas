@@ -209,10 +209,14 @@ final class LlmClient
      *
      * @param list<array{role:string,content:string}> $messages
      * @param array{timeout?:int,profile?:string,temperature?:float,max_tokens?:int,json?:bool,model?:string} $opts
-     * @return array{ok:bool,text:string,json:?array,raw:?array,error:string,profile:?string}
+     * @return array{
+     *   ok:bool,text:string,json:?array,raw:?array,error:string,profile:?string,
+     *   usage:array{prompt_tokens:int,completion_tokens:int,total_tokens:int}
+     * }
      */
     public static function complete(array $messages, array $opts = []): array
     {
+        $emptyUsage = ['prompt_tokens' => 0, 'completion_tokens' => 0, 'total_tokens' => 0];
         $body = [
             'messages' => $messages,
             'temperature' => isset($opts['temperature']) ? (float)$opts['temperature'] : 0.2,
@@ -239,10 +243,12 @@ final class LlmClient
                 'raw' => $res['data'],
                 'error' => $res['error'],
                 'profile' => $res['profile'],
+                'usage' => $emptyUsage,
             ];
         }
         $content = $res['data']['choices'][0]['message']['content'] ?? '';
         $text = is_string($content) ? $content : (string)json_encode($content, JSON_UNESCAPED_UNICODE);
+        $usage = self::usageFromResponse($res['data']);
         $parsed = null;
         if (!empty($opts['json'])) {
             $pj = self::parseMessageJson($content);
@@ -256,6 +262,7 @@ final class LlmClient
                     'raw' => $res['data'],
                     'error' => $pj['error'],
                     'profile' => $res['profile'],
+                    'usage' => $usage,
                 ];
             }
         }
@@ -266,6 +273,28 @@ final class LlmClient
             'raw' => $res['data'],
             'error' => '',
             'profile' => $res['profile'],
+            'usage' => $usage,
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $data OpenAI-compatible chat response
+     * @return array{prompt_tokens:int,completion_tokens:int,total_tokens:int}
+     */
+    public static function usageFromResponse(array $data): array
+    {
+        $u = is_array($data['usage'] ?? null) ? $data['usage'] : [];
+        $prompt = (int)($u['prompt_tokens'] ?? $u['input_tokens'] ?? 0);
+        $completion = (int)($u['completion_tokens'] ?? $u['output_tokens'] ?? 0);
+        $total = (int)($u['total_tokens'] ?? 0);
+        if ($total < 1 && ($prompt > 0 || $completion > 0)) {
+            $total = $prompt + $completion;
+        }
+
+        return [
+            'prompt_tokens' => max(0, $prompt),
+            'completion_tokens' => max(0, $completion),
+            'total_tokens' => max(0, $total),
         ];
     }
 

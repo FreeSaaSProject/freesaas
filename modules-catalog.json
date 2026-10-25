@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-25T11:41:02+00:00",
+    "generated_at": "2026-10-25T15:57:56+00:00",
     "modules": [
         {
             "id": "asr",
@@ -73,7 +73,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "1.0.5",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -111,7 +111,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.5",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -319,7 +319,7 @@
         },
         {
             "id": "audio_script_coach",
-            "version": "0.1.13",
+            "version": "0.1.14",
             "type": "product",
             "name": {
                 "en": "Script coach",
@@ -1160,7 +1160,7 @@
         },
         {
             "id": "llm",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "LLM",
@@ -1356,7 +1356,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.5",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Treatments",
@@ -1558,7 +1558,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Staff reports",

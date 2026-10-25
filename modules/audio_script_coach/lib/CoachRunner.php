@@ -222,6 +222,7 @@ final class CoachRunner
     {
         if ($phase === 'catalog') {
             $payload = CoachCatalog::build($adminId);
+            self::noteArtifactSize('catalog', $payload);
             CoachRunsRepository::saveArtifact($runId, 'catalog', $payload);
 
             return;
@@ -234,6 +235,7 @@ final class CoachRunner
             $run = CoachRunsRepository::find($runId);
             $depth = is_array($run) ? (string)($run['depth'] ?? 'normal') : 'normal';
             $payload = CoachFacts::build($adminId, $day, $catalog, $depth);
+            self::noteArtifactSize('facts', $payload);
             CoachRunsRepository::saveArtifact($runId, 'facts', $payload);
 
             return;
@@ -245,6 +247,7 @@ final class CoachRunner
                 throw new RuntimeException('catalog/facts missing');
             }
             $payload = CoachWindows::build($catalog, $facts);
+            self::noteArtifactSize('windows', $payload);
             CoachRunsRepository::saveArtifact($runId, 'windows', $payload);
 
             return;
@@ -255,6 +258,14 @@ final class CoachRunner
             $windows = CoachRunsRepository::artifact($runId, 'windows');
             if ($catalog === null || $facts === null || $windows === null) {
                 throw new RuntimeException('prior artifacts missing');
+            }
+            if (class_exists('CoachProgress', false) && CoachProgress::enabled()) {
+                CoachProgress::note(t('audio_script_coach.progress.llm_load', [
+                    'catalog_kb' => self::jsonKb($catalog),
+                    'facts_kb' => self::jsonKb($facts),
+                    'windows_kb' => self::jsonKb($windows),
+                    'windows_n' => (string)count(is_array($windows['windows'] ?? null) ? $windows['windows'] : []),
+                ]), '#93c5fd');
             }
             $payload = CoachLlm::build($catalog, $facts, $windows);
             CoachRunsRepository::saveArtifact($runId, 'llm', [
@@ -271,5 +282,25 @@ final class CoachRunner
             return;
         }
         throw new InvalidArgumentException('unknown phase: ' . $phase);
+    }
+
+    /** @param array<string,mixed> $payload */
+    private static function noteArtifactSize(string $phase, array $payload): void
+    {
+        if (!class_exists('CoachProgress', false) || !CoachProgress::enabled()) {
+            return;
+        }
+        CoachProgress::note(t('audio_script_coach.progress.artifact_size', [
+            'phase' => $phase,
+            'kb' => self::jsonKb($payload),
+        ]));
+    }
+
+    /** @param array<string,mixed> $payload */
+    private static function jsonKb(array $payload): string
+    {
+        $bytes = strlen((string)json_encode($payload, JSON_UNESCAPED_UNICODE));
+
+        return (string)round($bytes / 1024, 1);
     }
 }

@@ -107,6 +107,7 @@ return [
     'procedures.err.set_admin_missing' => 'Procedures not found: {ids}',
     'procedures.flash.set_admin_done' => 'Procedure admin updated ({n}): {admin}',
     'procedures.assistant.hint.set_admin' => 'Reassign procedure desk admin (ID_ADMIN) for the given day only (default today). «все процедуры от X на Y» → CALL procedures.set_admin with from_id_admin=X, id_admin=Y, omit ids (server resolves today’s ids); do not invent ids or other days. Single procedure → ids + id_admin. «на меня» → id_admin=speaker. Names → core.users.list. Confirm: SUPERADMIN or PARTNER_STA.',
+    'procedures.assistant.hint.move_time' => 'Moving massage/addon/break times uses the procedures journal (base_procedures), NOT calendar.events. First procedures.list (date_from=date_to=day, id_operator=staff), match product+time, then procedures.update with new dtstart (break chain shifts with the procedure). Calendar blocks/visits only via calendar.events.*.',
     'procedures.assistant.preview.set_admin_ids' => 'Procedures ({n}): {ids}',
     'procedures.assistant.preview.set_admin_day' => 'Day {date}: from {from} ({n})',
     'procedures.assistant.preview.set_admin_was' => 'was {v}',

@@ -81,21 +81,61 @@ final class CoachLlm
             $scriptsSentToLlm++;
 
             $payload = self::buildPromptPayload($script, $sf, $scriptWindows, $dicts);
+            $system = self::systemPrompt();
+            $userJson = (string)json_encode($payload, JSON_UNESCAPED_UNICODE);
+            $approxIn = self::approxTokens($system) + self::approxTokens($userJson);
+            if (class_exists('CoachProgress', false) && CoachProgress::enabled()) {
+                CoachProgress::note(t('audio_script_coach.progress.llm_send', [
+                    'id' => (string)$sid,
+                    'name' => (string)($script['name'] ?? ('#' . $sid)),
+                    'chars' => (string)(mb_strlen($system) + mb_strlen($userJson)),
+                    'approx' => (string)$approxIn,
+                    'windows' => (string)count($scriptWindows),
+                ]));
+            }
             $res = LlmClient::complete([
-                ['role' => 'system', 'content' => self::systemPrompt()],
-                ['role' => 'user', 'content' => (string)json_encode($payload, JSON_UNESCAPED_UNICODE)],
+                ['role' => 'system', 'content' => $system],
+                ['role' => 'user', 'content' => $userJson],
             ], [
                 'json' => true,
                 'temperature' => 0.2,
                 'max_tokens' => 8000,
                 'timeout' => 120,
             ]);
+            $usage = is_array($res['usage'] ?? null) ? $res['usage'] : [
+                'prompt_tokens' => 0,
+                'completion_tokens' => 0,
+                'total_tokens' => 0,
+            ];
             $out['raw'][] = [
                 'script_id' => $sid,
                 'ok' => !empty($res['ok']),
                 'error' => (string)($res['error'] ?? ''),
                 'json' => $res['json'] ?? null,
+                'usage' => $usage,
+                'approx_prompt_tokens' => $approxIn,
             ];
+            if (class_exists('CoachProgress', false) && CoachProgress::enabled()) {
+                $pt = (int)($usage['prompt_tokens'] ?? 0);
+                $ct = (int)($usage['completion_tokens'] ?? 0);
+                $tt = (int)($usage['total_tokens'] ?? 0);
+                if ($pt < 1 && $ct < 1) {
+                    CoachProgress::note(t('audio_script_coach.progress.llm_recv_approx', [
+                        'id' => (string)$sid,
+                        'approx_in' => (string)$approxIn,
+                        'out_chars' => (string)mb_strlen((string)($res['text'] ?? '')),
+                        'ok' => !empty($res['ok']) ? '1' : '0',
+                    ]), !empty($res['ok']) ? '#e2e8f0' : '#fca5a5');
+                } else {
+                    CoachProgress::note(t('audio_script_coach.progress.llm_recv', [
+                        'id' => (string)$sid,
+                        'in' => (string)$pt,
+                        'out' => (string)$ct,
+                        'total' => (string)$tt,
+                        'ok' => !empty($res['ok']) ? '1' : '0',
+                    ]), !empty($res['ok']) ? '#86efac' : '#fca5a5');
+                }
+            }
             if (empty($res['ok']) || !is_array($res['json'])) {
                 $out['errors'][] = t('audio_script_coach.err.llm_script', [
                     'id' => (string)$sid,
@@ -440,5 +480,16 @@ final class CoachLlm
             'confidence' => max(0.0, min(1.0, (float)($p['confidence'] ?? 0.5))),
             'link_part' => !empty($p['link_part']) ? 1 : ($action === 'add_dict_with_keys' ? 1 : 0),
         ];
+    }
+
+    /** Rough token estimate (~3 chars/token) when the API omits usage. */
+    private static function approxTokens(string $text): int
+    {
+        $len = mb_strlen($text);
+        if ($len < 1) {
+            return 0;
+        }
+
+        return (int)ceil($len / 3);
     }
 }

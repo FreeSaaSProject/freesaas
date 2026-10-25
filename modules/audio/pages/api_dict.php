@@ -180,16 +180,25 @@ try {
             'message' => t('audio.api.key_added'),
             'overlaps' => $labelOverlaps($overlaps),
             'id_looklike' => $looklike,
+            'reparse_skipped' => false,
         ];
-        $re = $reparseRecordIfPossible($recordId);
-        if ($re !== null) {
-            $payload['reparsed'] = $re;
-            if (!empty($re['ok'])) {
-                $payload['message'] = t('audio.api.key_added_reparsed', [
-                    'score' => (string)(int)($re['score'] ?? 0),
-                ]);
-            } else {
-                $payload['message'] = t('audio.api.key_added_reparse_failed');
+        // skip_reparse=1 — add key only; staff will Re-® the day/block in bulk later.
+        $skipReparse = !empty($_POST['skip_reparse'])
+            || (string)($_POST['reparse'] ?? '1') === '0';
+        if ($skipReparse) {
+            $payload['reparse_skipped'] = true;
+            $payload['message'] = t('audio.api.key_added_no_reparse');
+        } else {
+            $re = $reparseRecordIfPossible($recordId);
+            if ($re !== null) {
+                $payload['reparsed'] = $re;
+                if (!empty($re['ok'])) {
+                    $payload['message'] = t('audio.api.key_added_reparsed', [
+                        'score' => (string)(int)($re['score'] ?? 0),
+                    ]);
+                } else {
+                    $payload['message'] = t('audio.api.key_added_reparse_failed');
+                }
             }
         }
         echo json_encode($payload);

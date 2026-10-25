@@ -67,6 +67,9 @@ EventBus::on('assistant.system.hints', static function ($payload) {
     if (isset($ids['procedures.set_admin'])) {
         $hints[] = t('procedures.assistant.hint.set_admin');
     }
+    if (isset($ids['procedures.update']) || isset($ids['procedures.list'])) {
+        $hints[] = t('procedures.assistant.hint.move_time');
+    }
     $payload['hints'] = $hints;
     return $payload;
 });

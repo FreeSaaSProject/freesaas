@@ -107,6 +107,7 @@ return [
     'procedures.err.set_admin_missing' => 'Процедуры не найдены: {ids}',
     'procedures.flash.set_admin_done' => 'Админ процедур изменён ({n}): {admin}',
     'procedures.assistant.hint.set_admin' => 'Перекинуть админа процедуры (ID_ADMIN), только указанный день (по умолчанию сегодня). «все процедуры от X на Y» → CALL procedures.set_admin с from_id_admin=X, id_admin=Y, без ids (сервер сам найдёт ids за сегодня); не выдумывай ids и не трогай другие дни. Одна процедура → ids+[id_admin]. «на меня» → id_admin=говорящий. ФИО/акроним → core.users.list. Подтверждает SUPERADMIN или партнёр/кандидат (PARTNER_STA).',
+    'procedures.assistant.hint.move_time' => 'Перенос времени массажа/допа/«перерыва» — это журнал процедур (base_procedures), НЕ calendar.events. Сначала procedures.list (date_from=date_to=день, id_operator=сотрудник), найди строку по продукту и времени, затем procedures.update с новым dtstart (цепочка перерыва сдвигается с процедурой). Календарные блоки/визиты — только calendar.events.*.',
     'procedures.assistant.preview.set_admin_ids' => 'Процедуры ({n}): {ids}',
     'procedures.assistant.preview.set_admin_day' => 'День {date}: от {from} ({n} шт.)',
     'procedures.assistant.preview.set_admin_was' => 'сейчас {v}',

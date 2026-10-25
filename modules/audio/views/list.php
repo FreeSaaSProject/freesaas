@@ -477,6 +477,8 @@ window.AudioListI18n = <?= json_encode([
     'key' => t('audio.popover.key'),
     'dict' => t('audio.popover.dict'),
     'addKey' => t('audio.popover.add_key'),
+    'addKeyNoReparse' => t('audio.popover.add_key_no_reparse'),
+    'addKeyNoReparseHint' => t('audio.popover.add_key_no_reparse_hint'),
     'addTrash' => t('audio.popover.add_trash'),
     'cancel' => t('core.common.cancel'),
     'textRequired' => t('audio.api.text_required'),

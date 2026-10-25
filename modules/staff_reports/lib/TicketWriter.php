@@ -166,8 +166,9 @@ final class TicketWriter
     }
 
     /**
-     * @param bool $clearViews When true, wipe ticket read marks (reward sum changed).
-     *                         When false, keep marks even if report HTML changed.
+     * @param bool|null $clearViews null = clear read marks only when HTML changed (legacy);
+     *                              true = always clear (e.g. reward sum changed);
+     *                              false = never clear (e.g. text-only reparse, sum unchanged).
      * @return array{comment_id:int,changed:bool,views_cleared:bool}
      */
     public static function upsertReportComment(
@@ -175,7 +176,7 @@ final class TicketWriter
         int $authorId,
         string $marker,
         string $text,
-        bool $clearViews = true
+        ?bool $clearViews = null
     ): array {
         $text = trim($text);
         if ($ticketId < 1 || $authorId < 1 || $text === '') {
@@ -201,9 +202,9 @@ final class TicketWriter
             if ($textChanged) {
                 CommentsRepository::updateText($existing, $stored);
             }
+            $shouldClear = $clearViews === null ? $textChanged : $clearViews;
             $viewsCleared = false;
-            if ($clearViews) {
-                // Sum change (or legacy default): unread even when HTML is identical.
+            if ($shouldClear) {
                 NewsRepository::clearViewMarks($ticketId, true, false);
                 $viewsCleared = true;
             }
@@ -215,7 +216,7 @@ final class TicketWriter
             ];
         }
         $id = CommentsRepository::add($ticketId, $authorId, $stored);
-        return ['comment_id' => $id, 'changed' => $id > 0, 'views_cleared' => $id > 0];
+        return ['comment_id' => $id, 'changed' => $id > 0, 'views_cleared' => false];
     }
 
     /**
