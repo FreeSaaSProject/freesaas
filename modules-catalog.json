@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-25T16:33:28+00:00",
+    "generated_at": "2026-10-25T20:00:32+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1558,7 +1558,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Staff reports",

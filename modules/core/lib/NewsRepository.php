@@ -883,12 +883,15 @@ final class NewsRepository
         }
         $old = self::find($id);
         if ($old) {
-            NewsLogsRepository::maybeSnapshot($old, $editorId);
-            if (array_key_exists('BIG', $data)
-                && (string)$data['BIG'] !== (string)($old['BIG'] ?? '')
-                && empty($data['keep_signs'])
-            ) {
-                self::clearViewMarks($id, true, true);
+            // Text versions track BIG only — meta edits (status, deadline, …) must not
+            // flood base_news_logs with identical bodies (e.g. staff_reports ensureTicketMeta).
+            $bigChanging = array_key_exists('BIG', $data)
+                && (string)$data['BIG'] !== (string)($old['BIG'] ?? '');
+            if ($bigChanging) {
+                NewsLogsRepository::maybeSnapshot($old, $editorId);
+                if (empty($data['keep_signs'])) {
+                    self::clearViewMarks($id, true, true);
+                }
             }
         }
         $fields[] = 'ID_USER_UPDATE = ?';

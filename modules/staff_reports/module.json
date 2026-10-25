@@ -2,7 +2,7 @@
     "id": "staff_reports",
     "name": "staff_reports.module.name",
     "description": "staff_reports.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",

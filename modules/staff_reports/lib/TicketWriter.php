@@ -136,14 +136,20 @@ final class TicketWriter
         if ($ticketId < 1 || !Database::tableExists('base_news')) {
             return;
         }
+        $row = NewsRepository::find($ticketId);
+        if ($row === null) {
+            return;
+        }
         $statusId = max(0, (int)($config['ticket_status_id'] ?? 4));
         $contractId = max(0, (int)($config['managing_contract_id'] ?? 0));
         $data = [];
-        if ($statusId > 0) {
+        if ($statusId > 0 && (int)($row['STATUS'] ?? 0) !== $statusId) {
             $data['STATUS'] = $statusId;
+        }
+        if ($statusId > 0 && (int)($row['DT_DEADLINE'] ?? 0) !== 0) {
             $data['DT_DEADLINE'] = 0;
         }
-        if ($contractId > 0) {
+        if ($contractId > 0 && (int)($row['PID_CONTRACT'] ?? 0) !== $contractId) {
             $data['PID_CONTRACT'] = $contractId;
         }
         if ($data !== []) {

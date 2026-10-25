@@ -254,7 +254,7 @@ $currentDt = (int)($row['DT_UPDATE'] ?? 0) ?: (int)$row['DT'];
 </details>
 <?php endif; ?>
 
-<?php if ($versionLogs || $currentDt > 0): ?>
+<?php if ($versionLogs): ?>
 <section class="news-versions widget" aria-label="<?= te('core.news_item.versions.aria') ?>">
   <h2><?= te('core.news_item.versions.title') ?></h2>
   <ul class="news-versions-list">

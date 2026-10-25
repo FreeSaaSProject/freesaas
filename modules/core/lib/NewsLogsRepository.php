@@ -3,13 +3,19 @@ declare(strict_types=1);
 
 /**
  * Body version history for base_news (oper base_news_logs).
- * Snapshots previous BIG on edit when another user edits or 4h elapsed.
+ * Call only when BIG is actually changing. Then: snapshot previous body if
+ * another user edits or the same user edits after SNAPSHOT_WINDOW.
  */
 final class NewsLogsRepository
 {
     /** Same-user edits within this window do not create a new log row (oper). */
     public const SNAPSHOT_WINDOW = 14400; // 4 hours
 
+    /**
+     * Store previous BIG before a real body change.
+     * Skips identical CONTENT to the latest log (defensive against callers that
+     * rewrite the same HTML).
+     */
     public static function maybeSnapshot(array $oldRow, int $editorId): void
     {
         if (!Database::tableExists('base_news_logs')) {
@@ -19,6 +25,7 @@ final class NewsLogsRepository
         if ($newsId < 1 || $editorId < 1) {
             return;
         }
+        $content = (string)($oldRow['BIG'] ?? '');
         $prevUser = (int)($oldRow['ID_USER_UPDATE'] ?? 0);
         if ($prevUser < 1) {
             $prevUser = (int)($oldRow['ID_USER'] ?? 0);
@@ -31,7 +38,10 @@ final class NewsLogsRepository
         if ($prevUser === $editorId && $prevDt >= $limit) {
             return;
         }
-        self::insert($newsId, $prevUser, $prevDt, (string)($oldRow['BIG'] ?? ''));
+        if (self::latestContentEquals($newsId, $content)) {
+            return;
+        }
+        self::insert($newsId, $prevUser, $prevDt, $content);
     }
 
     /** Always store current body (e.g. before restore). */
@@ -128,6 +138,20 @@ final class NewsLogsRepository
             'UPDATE base_news SET BIG = ?, ID_USER_UPDATE = ?, DT_UPDATE = ? WHERE ID = ?'
         );
         $st->execute([(string)$log['CONTENT'], $editorId, time(), $newsId]);
+    }
+
+    private static function latestContentEquals(int $newsId, string $content): bool
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT CONTENT FROM base_news_logs WHERE ID_OBJ = ? ORDER BY DT_UPDATE DESC, ID DESC LIMIT 1'
+        );
+        $st->execute([$newsId]);
+        $prev = $st->fetchColumn();
+        if ($prev === false) {
+            return false;
+        }
+
+        return (string)$prev === $content;
     }
 
     private static function insert(int $newsId, int $userId, int $dtUpdate, string $content): void
