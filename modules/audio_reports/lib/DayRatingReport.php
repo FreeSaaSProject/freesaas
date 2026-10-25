@@ -67,7 +67,14 @@ final class DayRatingReport
             }
         }
 
+        $mark = static function (string $label): void {
+            if (class_exists('StageTiming', false)) {
+                StageTiming::mark($label);
+            }
+        };
+
         $header = self::buildHeader($adminId, (int)$dayStart, $dayEnd, $bounds);
+        $mark('DayReport: header');
         $rating = class_exists('RatingAggregates', false)
             ? RatingAggregates::forAdminRange($adminId, (int)$dayStart, $dayEnd, $bounds)
             : [
@@ -78,6 +85,7 @@ final class DayRatingReport
                 'collections' => [],
                 'by_script' => [],
             ];
+        $mark('DayReport: rating');
 
         $header['work_sec'] = (int)($rating['coverage_sec'] ?? 0);
         $header['idle_sec'] = (int)($rating['idle_sec'] ?? 0);
@@ -91,6 +99,10 @@ final class DayRatingReport
         $scripts = self::ratingScriptsForPosition($positionId);
         $byScript = is_array($rating['by_script'] ?? null) ? $rating['by_script'] : [];
         $accounted = max(0, (int)($rating['score_sec'] ?? 0));
+
+        // Warm team window once (peers × TEAM_DAYS) before per-script averages.
+        self::teamWindowCache($positionId, $adminId, (int)$dayStart);
+        $mark('DayReport: team window');
 
         $rows = [];
         foreach ($scripts as $script) {
@@ -125,6 +137,7 @@ final class DayRatingReport
         usort($rows, static function (array $a, array $b): int {
             return ($b['contrib'] <=> $a['contrib']) ?: strcmp((string)$a['name'], (string)$b['name']);
         });
+        $mark('DayReport: script rows');
 
         $sessions = self::buildSessions($adminId, (int)$dayStart, $dayEnd, $scripts);
         $sessSummary = ['finished' => 0, 'interrupted' => 0];
@@ -135,6 +148,7 @@ final class DayRatingReport
                 $sessSummary['interrupted']++;
             }
         }
+        $mark('DayReport: sessions');
 
         $coverage = self::coverageConfigForAdmin($adminId);
         $procedures = null;
@@ -153,14 +167,17 @@ final class DayRatingReport
             }
             unset($sessNoMatch);
         }
+        $mark('DayReport: procedures');
 
         $gated = self::gatedCollections($adminId, (int)$dayStart, $dayEnd);
         $teamDay = self::teamDayAvg($positionId, $adminId, (int)$dayStart);
         $summary = self::buildSummary($rows, $dayScore, $teamDay['avg_score']);
+        $mark('DayReport: gated+teamDay');
 
         $quality = class_exists('DayQualityReport', false)
             ? DayQualityReport::build($adminId, $date, $sessions, $procedures, $coverage)
             : null;
+        $mark('DayReport: quality');
 
         $sections = EventBus::emit('audio_reports.day_report.sections', [
             'admin_id' => $adminId,
@@ -169,6 +186,7 @@ final class DayRatingReport
             'quality' => $quality,
         ]);
         $sectionsHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
+        $mark('DayReport: sections');
 
         return [
             'ok' => true,
@@ -870,7 +888,8 @@ final class DayRatingReport
     }
 
     /**
-     * Cached team window: admin-day → RatingAggregates result.
+     * Cached team window: admin-day → light rating slice.
+     * Batched (2 SQL) instead of peers×TEAM_DAYS calls to RatingAggregates::forAdminRange.
      *
      * @return array<string, array{score_w:float,score_sec:int,by_script:array<int,array{score_rate_w:float}>}>
      */
@@ -891,21 +910,127 @@ final class DayRatingReport
         }
         $bounds = AudioDayBounds::read();
         $from = $dayStart - self::TEAM_DAYS * 86400;
-        foreach ($admins as $aid) {
-            for ($d = 0; $d < self::TEAM_DAYS; $d++) {
-                $ds = $from + $d * 86400;
-                $de = $ds + 86400 - 1;
-                $r = RatingAggregates::forAdminRange($aid, $ds, $de, $bounds);
-                if ((int)($r['score_sec'] ?? 0) < 1) {
+        $to = $dayStart - 1; // past TEAM_DAYS calendar days, exclude report day
+        if ($to < $from) {
+            return $cache[$key] = $out;
+        }
+
+        $pdo = Database::pdo();
+        $ph = implode(',', array_fill(0, count($admins), '?'));
+
+        // score_sec denominator: OffRecord playtime per admin-day (same rules as accountedRecordSeconds).
+        /** @var array<string,int> $recordSecByKey */
+        $recordSecByKey = [];
+        if (Database::tableExists('base_records')) {
+            $hasDesc = Database::columnExists('base_records', 'DESCRIPTION');
+            $sql = 'SELECT ID_ADMIN AS admin_id, DT_RECORDED AS dt, PLAYTIME AS playtime'
+                . ($hasDesc ? ', DESCRIPTION AS description' : '')
+                . " FROM base_records
+                   WHERE ID_ADMIN IN ($ph) AND DT_RECORDED >= ? AND DT_RECORDED <= ?
+                     AND (DISABLED IS NULL OR DISABLED < 1)";
+            $st = $pdo->prepare($sql);
+            $st->execute(array_merge($admins, [$from, $to]));
+            $bonus = 'BONUS TIME';
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                if ($hasDesc && (string)($row['description'] ?? '') === $bonus) {
                     continue;
                 }
-                $out[$aid . ':' . $ds] = [
-                    'score_w' => (float)($r['score_w'] ?? 0),
-                    'score_sec' => (int)$r['score_sec'],
-                    'by_script' => is_array($r['by_script'] ?? null) ? $r['by_script'] : [],
-                ];
+                $dt = (int)$row['dt'];
+                $play = max(0, (int)$row['playtime']);
+                if ($play < 1) {
+                    continue;
+                }
+                if (class_exists('CalendarAggregates', false)
+                    && !CalendarAggregates::isFullyInWindow($dt, $play, $bounds, 'OffRecord')
+                ) {
+                    continue;
+                }
+                $ds = (int)strtotime(date('Y-m-d 00:00:00', $dt));
+                if ($ds < $from || $ds >= $dayStart) {
+                    continue;
+                }
+                $k = (int)$row['admin_id'] . ':' . $ds;
+                $recordSecByKey[$k] = ($recordSecByKey[$k] ?? 0) + $play;
             }
         }
+
+        // Collections → score_w / by_script clipped per calendar day.
+        if (!Database::tableExists('base_records_collections')) {
+            return $cache[$key] = $out;
+        }
+        $hasRated = Database::columnExists('base_records_collections', 'RATED');
+        $hasScoreRate = Database::columnExists('base_records_collections', 'SCORE_RATE');
+        $scoreRateCol = $hasScoreRate ? 'c.SCORE_RATE' : '0';
+        $ratedWhere = $hasRated ? ' AND c.RATED = 1' : '';
+        $st = $pdo->prepare(
+            "SELECT c.ID_ADMIN AS admin_id, c.ID_SCRIPT AS script_id,
+                    c.DT_START AS dt_start, c.DT_END AS dt_end, {$scoreRateCol} AS score_rate
+             FROM base_records_collections c
+             WHERE c.ID_ADMIN IN ($ph)
+               AND c.DT_START <= ?
+               AND (c.DT_END = 0 OR c.DT_END >= ?)
+               {$ratedWhere}"
+        );
+        $st->execute(array_merge($admins, [$to, $from]));
+
+        /** @var array<string, array{score_w:float, by_script:array<int,float>}> $colAgg */
+        $colAgg = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $aid = (int)$row['admin_id'];
+            $dtStart = (int)$row['dt_start'];
+            $dtEnd = (int)$row['dt_end'];
+            if ($dtEnd < $dtStart) {
+                $dtEnd = $dtStart;
+            }
+            if ($dtEnd < 1) {
+                $dtEnd = $dtStart;
+            }
+            $duration = class_exists('RatingAggregates', false)
+                ? RatingAggregates::collectionDurationSec($dtStart, $dtEnd, $aid)
+                : max(1, $dtEnd - $dtStart);
+            $rate = (int)$row['score_rate'];
+            $sid = (int)$row['script_id'];
+            // Spread into each calendar day the collection overlaps inside the team window.
+            $dayCursor = max($from, (int)strtotime(date('Y-m-d 00:00:00', $dtStart)));
+            $lastDay = min($dayStart - 86400, (int)strtotime(date('Y-m-d 00:00:00', $dtEnd > 0 ? $dtEnd : $dtStart)));
+            for ($ds = $dayCursor; $ds <= $lastDay; $ds += 86400) {
+                $de = $ds + 86400 - 1;
+                $clipStart = max($dtStart, $ds);
+                $clipEnd = min($dtEnd > 0 ? $dtEnd : $dtStart + $duration, $de);
+                if ($clipEnd < $clipStart) {
+                    continue;
+                }
+                $clipDur = max(1, $clipEnd - $clipStart);
+                $useDur = min($duration, $clipDur);
+                if ($useDur < 1) {
+                    $useDur = 1;
+                }
+                $contrib = $rate * $useDur;
+                $k = $aid . ':' . $ds;
+                if (!isset($colAgg[$k])) {
+                    $colAgg[$k] = ['score_w' => 0.0, 'by_script' => []];
+                }
+                $colAgg[$k]['score_w'] += $contrib;
+                $colAgg[$k]['by_script'][$sid] = ($colAgg[$k]['by_script'][$sid] ?? 0.0) + $contrib;
+            }
+        }
+
+        foreach ($recordSecByKey as $k => $sec) {
+            if ($sec < 1) {
+                continue;
+            }
+            $agg = $colAgg[$k] ?? ['score_w' => 0.0, 'by_script' => []];
+            $byScript = [];
+            foreach ($agg['by_script'] as $sid => $sw) {
+                $byScript[(int)$sid] = ['score_rate_w' => (float)$sw];
+            }
+            $out[$k] = [
+                'score_w' => (float)$agg['score_w'],
+                'score_sec' => (int)$sec,
+                'by_script' => $byScript,
+            ];
+        }
+
         return $cache[$key] = $out;
     }
 

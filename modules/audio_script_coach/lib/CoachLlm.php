@@ -87,7 +87,7 @@ final class CoachLlm
             ], [
                 'json' => true,
                 'temperature' => 0.2,
-                'max_tokens' => 2500,
+                'max_tokens' => 8000,
                 'timeout' => 120,
             ]);
             $out['raw'][] = [

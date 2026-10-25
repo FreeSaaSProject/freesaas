@@ -14,6 +14,7 @@ require_once __DIR__ . '/lib/CoachPhraseCheck.php';
 require_once __DIR__ . '/lib/CoachLlm.php';
 require_once __DIR__ . '/lib/CoachApply.php';
 require_once __DIR__ . '/lib/CoachRunner.php';
+require_once __DIR__ . '/lib/CoachProgress.php';
 
 Assets::register('audio_script_coach', [
     'css' => ['audio_script_coach.css'],

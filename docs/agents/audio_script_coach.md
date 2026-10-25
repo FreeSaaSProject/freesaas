@@ -18,8 +18,13 @@ Permissions: `audio_script_coach.view`, `audio_script_coach.edit`. Starting a ru
 |------|------|
 | `/audio/script-coach` | List runs |
 | `/audio/script-coach/day?admin=&date=` | Start investigation (superadmin) |
-| `/audio/script-coach/run/{id}` | Facts + proposals; advance phases |
+| `/audio/script-coach/run/{id}` | Facts + proposals; advance / drain phases |
+| `/audio/script-coach/work` | Batch tick (`action=start\|tick\|rebuild`); UI progress overlay |
 | Day-report button | EventBus `audio_reports.day_report.sections` |
+
+## Batched progress
+
+Phases are **not** drained in one HTTP request (that OOM/timeouts the host). Start creates a run and redirects to `/run/{id}?auto=1`; the browser ticks `POST /audio/script-coach/work?format=json` **one phase per request** with a DB-job-style overlay. Drain / rebuild use the same loop. Optional `stream=1` HTML iframe drains with flush marks (agents / fallback).
 
 ## Pipeline
 

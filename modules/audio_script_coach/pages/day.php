@@ -40,21 +40,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirect('/audio/script-coach/day?' . http_build_query(['admin' => $adminId, 'date' => $date]));
         }
         $runId = (int)$res['run_id'];
-        // Drain phases synchronously for small days; work endpoint available for resume.
-        $proc = CoachRunner::processNext($runId, true);
+        // Phases run as batched ticks on the run page (?auto=1) — do not drain here.
         if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
             AgentHttp::emit([
                 'ok' => true,
                 'run_id' => $runId,
-                'process' => $proc,
+                'auto' => true,
+                'process' => CoachRunner::tickMeta($runId, [
+                    'ok' => true,
+                    'done' => false,
+                    'phase' => 'catalog',
+                    'status' => CoachRunsRepository::STATUS_PENDING,
+                ]),
             ]);
         }
-        if (!$proc['ok'] && ($proc['error'] ?? '') !== '') {
-            flash_set('error', (string)$proc['error']);
-        } else {
-            flash_set('ok', t('audio_script_coach.flash.started'));
-        }
-        redirect('/audio/script-coach/run/' . $runId);
+        flash_set('ok', t('audio_script_coach.flash.started'));
+        redirect('/audio/script-coach/run/' . $runId . '?auto=1');
     }
 }
 

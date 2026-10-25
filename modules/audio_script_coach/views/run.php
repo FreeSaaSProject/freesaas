@@ -15,8 +15,14 @@ declare(strict_types=1);
  * @var array<string,mixed>|null $llmFilter
  * @var string|null $proposalsEmptyReason
  * @var bool $showReparseHint
+ * @var bool $autoDrain
+ * @var int $phasesTotal
+ * @var int $phasesDone
  */
 $status = (int)($run['status'] ?? 0);
+$autoDrain = !empty($autoDrain);
+$phasesTotal = max(1, (int)($phasesTotal ?? 4));
+$phasesDone = max(0, (int)($phasesDone ?? 0));
 $llmErrors = is_array($llmErrors ?? null) ? $llmErrors : [];
 $llmFilter = is_array($llmFilter ?? null) ? $llmFilter : null;
 $proposalsEmptyReason = isset($proposalsEmptyReason) ? (string)$proposalsEmptyReason : '';
@@ -50,19 +56,21 @@ $showReparseHint = !empty($showReparseHint);
 <?php endif; ?>
 
 <?php if ($canEdit): ?>
-  <div class="asc-actions">
+  <div class="asc-actions"
+       data-asc-run="<?= (int)$run['id'] ?>"
+       data-asc-auto="<?= $autoDrain ? '1' : '0' ?>"
+       data-asc-phases-done="<?= (int)$phasesDone ?>"
+       data-asc-phases-total="<?= (int)$phasesTotal ?>"
+       data-asc-msg-working="<?= e(t('audio_script_coach.progress.working')) ?>"
+       data-asc-msg-done="<?= e(t('audio_script_coach.progress.done_short')) ?>"
+       data-asc-msg-aborted="<?= e(t('audio_script_coach.progress.aborted')) ?>">
     <?php if ($status !== 2): ?>
       <form method="post" action="/audio/script-coach/run/<?= (int)$run['id'] ?>" class="inline">
         <?= Csrf::field() ?>
         <input type="hidden" name="action" value="advance">
         <button type="submit" class="btn-secondary"><?= te('audio_script_coach.run.advance') ?></button>
       </form>
-      <form method="post" action="/audio/script-coach/run/<?= (int)$run['id'] ?>" class="inline">
-        <?= Csrf::field() ?>
-        <input type="hidden" name="action" value="advance">
-        <input type="hidden" name="until_done" value="1">
-        <button type="submit" class="btn-primary"><?= te('audio_script_coach.run.drain') ?></button>
-      </form>
+      <button type="button" class="btn-primary" data-asc-drain><?= te('audio_script_coach.run.drain') ?></button>
     <?php endif; ?>
     <?php if ($status === 2 || $status === 3): ?>
       <?php $curDepth = CoachRunsRepository::normalizeDepth((string)($run['depth'] ?? 'normal')); ?>
@@ -80,6 +88,25 @@ $showReparseHint = !empty($showReparseHint);
         <button type="submit" class="btn-secondary"><?= te('audio_script_coach.run.rebuild') ?></button>
       </form>
     <?php endif; ?>
+  </div>
+
+  <div id="asc-job-overlay" class="asc-job-overlay" hidden>
+    <div class="asc-job-panel" role="dialog" aria-modal="true" aria-labelledby="asc-job-title">
+      <h3 id="asc-job-title" class="subhead"><?= te('audio_script_coach.progress.title') ?></h3>
+      <p id="asc-job-msg" class="asc-job-msg muted"><?= te('audio_script_coach.progress.working') ?></p>
+      <div class="asc-job-bar-label">
+        <span><?= te('audio_script_coach.progress.bar') ?></span>
+        <span id="asc-job-pct">0%</span>
+      </div>
+      <div class="asc-job-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+        <div id="asc-job-fill" class="asc-job-fill"></div>
+      </div>
+      <div id="asc-job-log" class="asc-job-log" aria-live="polite"></div>
+      <div class="asc-job-actions actions">
+        <button type="button" class="btn-secondary" id="asc-job-abort" hidden><?= te('audio_script_coach.progress.abort') ?></button>
+        <button type="button" class="btn-primary" id="asc-job-ok" hidden><?= te('audio_script_coach.progress.ok') ?></button>
+      </div>
+    </div>
   </div>
 <?php endif; ?>
 

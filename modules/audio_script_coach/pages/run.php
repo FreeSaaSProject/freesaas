@@ -20,8 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $action = trim((string)($_POST['action'] ?? ''));
     if ($action === 'advance') {
-        $untilDone = !empty($_POST['until_done']);
-        $proc = CoachRunner::processNext($runId, $untilDone);
+        // Single phase only (legacy form). Full drain uses JS ticks → /work.
+        $proc = CoachRunner::processNext($runId, false);
         if (!$proc['ok'] && ($proc['error'] ?? '') !== '') {
             flash_set('error', (string)$proc['error']);
         } else {
@@ -35,12 +35,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $proc = CoachRunner::rebuild($runId, $depth);
         if (!$proc['ok'] && ($proc['error'] ?? '') !== '') {
             flash_set('error', (string)$proc['error']);
-        } else {
-            flash_set('ok', t('audio_script_coach.flash.rebuilt', [
-                'n' => (string)(int)($proc['proposals'] ?? 0),
-            ]));
+            redirect('/audio/script-coach/run/' . $runId);
         }
-        redirect('/audio/script-coach/run/' . $runId);
+        flash_set('ok', t('audio_script_coach.flash.rebuild_queued'));
+        redirect('/audio/script-coach/run/' . $runId . '?auto=1');
     }
 }
 
@@ -215,6 +213,13 @@ if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
     ]);
 }
 
+$autoDrain = $canEdit
+    && !empty($_GET['auto'])
+    && in_array((int)$run['status'], [
+        CoachRunsRepository::STATUS_PENDING,
+        CoachRunsRepository::STATUS_RUNNING,
+    ], true);
+
 $title = t('audio_script_coach.run.title', ['id' => (string)$runId]);
 View::render('run', [
     'title' => $title,
@@ -232,6 +237,9 @@ View::render('run', [
     'llmFilter' => $llmFilter,
     'proposalsEmptyReason' => $proposalsEmptyReason,
     'showReparseHint' => $showReparseHint,
+    'autoDrain' => $autoDrain,
+    'phasesTotal' => count(CoachRunner::phases()),
+    'phasesDone' => count($artifactPhaseIds),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('audio_script_coach.menu.list'), 'href' => '/audio/script-coach'],
         ['label' => $title, 'current' => true],

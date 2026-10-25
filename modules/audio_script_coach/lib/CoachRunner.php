@@ -43,40 +43,52 @@ final class CoachRunner
     }
 
     /**
-     * Clear artifacts/proposals and re-run all phases (e.g. after collect/script fixes).
+     * Clear artifacts/proposals so the client can tick phases one-by-one (no sync drain).
      *
-     * @return array{ok:bool,run_id:int,phase:string,status:int,done:bool,error:string,proposals:int}
+     * @return array{ok:bool,run_id:int,phase:string,status:int,done:bool,error:string,proposals:int,phases_done:int,phases_total:int}
      */
     public static function rebuild(int $runId, ?string $depth = null): array
     {
         $run = CoachRunsRepository::find($runId);
         if ($run === null) {
-            return [
+            return self::tickMeta($runId, [
                 'ok' => false,
-                'run_id' => $runId,
-                'phase' => '',
-                'status' => 0,
-                'done' => false,
                 'error' => t('audio_script_coach.err.run_not_found', ['id' => (string)$runId]),
-                'proposals' => 0,
-            ];
+            ]);
         }
         if ($depth !== null) {
             CoachRunsRepository::setDepth($runId, $depth);
         }
         CoachRunsRepository::resetForRebuild($runId);
+        $run = CoachRunsRepository::find($runId);
 
-        return self::processNext($runId, true);
+        return self::tickMeta($runId, [
+            'ok' => true,
+            'phase' => (string)($run['phase'] ?? 'catalog'),
+            'status' => (int)($run['status'] ?? CoachRunsRepository::STATUS_PENDING),
+            'done' => false,
+            'error' => '',
+            'proposals' => 0,
+        ]);
     }
 
     /**
-     * Advance one phase (or all remaining if $untilDone).
+     * Enrich processNext / rebuild result with progress counters for UI ticks.
      *
-     * @return array{ok:bool,run_id:int,phase:string,status:int,done:bool,error:string,proposals:int}
+     * @param array<string,mixed> $partial
+     * @return array{ok:bool,run_id:int,phase:string,status:int,done:bool,error:string,proposals:int,phases_done:int,phases_total:int}
      */
-    public static function processNext(int $runId, bool $untilDone = false): array
+    public static function tickMeta(int $runId, array $partial = []): array
     {
-        $out = [
+        $phases = self::phases();
+        $doneN = 0;
+        foreach (CoachRunsRepository::artifactPhases($runId) as $ap) {
+            $ph = (string)($ap['phase'] ?? '');
+            if (in_array($ph, $phases, true)) {
+                $doneN++;
+            }
+        }
+        $base = [
             'ok' => false,
             'run_id' => $runId,
             'phase' => '',
@@ -84,7 +96,32 @@ final class CoachRunner
             'done' => false,
             'error' => '',
             'proposals' => 0,
+            'phases_done' => $doneN,
+            'phases_total' => count($phases),
         ];
+
+        return array_merge($base, $partial, [
+            'run_id' => $runId,
+            'phases_done' => $doneN,
+            'phases_total' => count($phases),
+        ]);
+    }
+
+    /**
+     * Advance one phase (or all remaining if $untilDone — prefer UI ticks instead).
+     *
+     * @return array{ok:bool,run_id:int,phase:string,status:int,done:bool,error:string,proposals:int,phases_done:int,phases_total:int}
+     */
+    public static function processNext(int $runId, bool $untilDone = false): array
+    {
+        $out = self::tickMeta($runId, [
+            'ok' => false,
+            'phase' => '',
+            'status' => 0,
+            'done' => false,
+            'error' => '',
+            'proposals' => 0,
+        ]);
         $run = CoachRunsRepository::find($runId);
         if ($run === null) {
             $out['error'] = t('audio_script_coach.err.run_not_found', ['id' => (string)$runId]);
@@ -92,19 +129,21 @@ final class CoachRunner
             return $out;
         }
         if ((int)$run['status'] === CoachRunsRepository::STATUS_READY) {
-            $out['ok'] = true;
-            $out['done'] = true;
-            $out['phase'] = (string)$run['phase'];
-            $out['status'] = (int)$run['status'];
-            $out['proposals'] = count(CoachRunsRepository::proposalsForRun($runId));
-
-            return $out;
+            return self::tickMeta($runId, [
+                'ok' => true,
+                'done' => true,
+                'phase' => (string)$run['phase'],
+                'status' => (int)$run['status'],
+                'proposals' => count(CoachRunsRepository::proposalsForRun($runId)),
+            ]);
         }
         if ((int)$run['status'] === CoachRunsRepository::STATUS_ERROR) {
-            $out['error'] = (string)($run['error_text'] ?? 'error');
-            $out['status'] = CoachRunsRepository::STATUS_ERROR;
-
-            return $out;
+            return self::tickMeta($runId, [
+                'ok' => false,
+                'error' => (string)($run['error_text'] ?? 'error'),
+                'status' => CoachRunsRepository::STATUS_ERROR,
+                'phase' => (string)($run['phase'] ?? ''),
+            ]);
         }
 
         $adminId = (int)$run['id_admin'];
@@ -125,13 +164,14 @@ final class CoachRunner
             }
             if ($next === null) {
                 CoachRunsRepository::setPhase($runId, 'done', CoachRunsRepository::STATUS_READY);
-                $out['ok'] = true;
-                $out['done'] = true;
-                $out['phase'] = 'done';
-                $out['status'] = CoachRunsRepository::STATUS_READY;
-                $out['proposals'] = count(CoachRunsRepository::proposalsForRun($runId));
 
-                return $out;
+                return self::tickMeta($runId, [
+                    'ok' => true,
+                    'done' => true,
+                    'phase' => 'done',
+                    'status' => CoachRunsRepository::STATUS_READY,
+                    'proposals' => count(CoachRunsRepository::proposalsForRun($runId)),
+                ]);
             }
 
             CoachRunsRepository::setPhase($runId, $next, CoachRunsRepository::STATUS_RUNNING);
@@ -141,32 +181,41 @@ final class CoachRunner
                 $out['phase'] = $next;
             } catch (Throwable $e) {
                 CoachRunsRepository::setError($runId, $e->getMessage());
-                $out['error'] = $e->getMessage();
-                $out['status'] = CoachRunsRepository::STATUS_ERROR;
-                $out['phase'] = $next;
 
-                return $out;
+                return self::tickMeta($runId, [
+                    'ok' => false,
+                    'error' => $e->getMessage(),
+                    'status' => CoachRunsRepository::STATUS_ERROR,
+                    'phase' => $next,
+                ]);
             }
 
             if ($next === 'llm') {
                 CoachRunsRepository::setPhase($runId, 'done', CoachRunsRepository::STATUS_READY);
-                $out['ok'] = true;
-                $out['done'] = true;
-                $out['phase'] = 'done';
-                $out['status'] = CoachRunsRepository::STATUS_READY;
-                $out['proposals'] = count(CoachRunsRepository::proposalsForRun($runId));
 
-                return $out;
+                return self::tickMeta($runId, [
+                    'ok' => true,
+                    'done' => true,
+                    'phase' => 'done',
+                    'status' => CoachRunsRepository::STATUS_READY,
+                    'proposals' => count(CoachRunsRepository::proposalsForRun($runId)),
+                ]);
+            }
+
+            if (!$untilDone) {
+                break;
             }
         }
 
         $run = CoachRunsRepository::find($runId);
-        $out['ok'] = true;
-        $out['phase'] = (string)($run['phase'] ?? $out['phase']);
-        $out['status'] = (int)($run['status'] ?? CoachRunsRepository::STATUS_RUNNING);
-        $out['done'] = (int)$out['status'] === CoachRunsRepository::STATUS_READY;
 
-        return $out;
+        return self::tickMeta($runId, [
+            'ok' => true,
+            'phase' => (string)($run['phase'] ?? $out['phase']),
+            'status' => (int)($run['status'] ?? CoachRunsRepository::STATUS_RUNNING),
+            'done' => (int)($run['status'] ?? 0) === CoachRunsRepository::STATUS_READY,
+            'proposals' => count(CoachRunsRepository::proposalsForRun($runId)),
+        ]);
     }
 
     private static function runPhase(int $runId, string $phase, int $adminId, string $day): void
