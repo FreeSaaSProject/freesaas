@@ -18,7 +18,7 @@ $showSalary = !empty($showSalary);
 <div class="cal-stat-totals">
   <hr class="cal-stat-hr">
   <?= te('procedures.stats.total') ?>:
-  <?= e(number_format($revenue, 0, '.', ' ')) ?>
+  <?= e(number_format($revenue, 2, '.', '')) ?>
   (<?= (int)$procCount ?><?= te('procedures.stats.proc_short') ?>/<?= (int)$promoCount ?><?= te('procedures.stats.promo_short') ?>)
   <?php if ($restored > 0): ?>
     <strong> <?= te('procedures.stats.restored') ?>:<?= e(number_format($restored, 0, '.', ' ')) ?></strong>

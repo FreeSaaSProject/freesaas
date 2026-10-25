@@ -1,0 +1,117 @@
+{
+    "id": "remittances",
+    "name": "remittances.module.name",
+    "description": "remittances.module.description",
+    "version": "0.1.0",
+    "type": "product",
+    "catalog": {
+        "categories": [
+            "finance"
+        ],
+        "maturity": "beta",
+        "tags": [
+            "journal",
+            "payments"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0",
+        "ledger": ">=1.0.0",
+        "suppliers": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "banks": ">=0.1.0",
+        "procedures": ">=1.0.0",
+        "likespa": ">=1.0.0"
+    },
+    "provides": [
+        "remittances.agreements"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
+    "permissions": [
+        {
+            "id": "remittances.manage",
+            "label": "remittances.perm.manage"
+        },
+        {
+            "id": "remittances.delete",
+            "label": "remittances.perm.delete"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/remittances",
+            "/remittances/new",
+            "/remittances/{id}/edit",
+            "/remittances/moves/{moveId}/action"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/remittances.md",
+        "ops": [
+            {
+                "id": "remittances.list",
+                "method": "GET",
+                "path": "/remittances",
+                "permission": "remittances.manage",
+                "description": "List remittance agreements; filter: q"
+            },
+            {
+                "id": "remittances.get",
+                "method": "GET",
+                "path": "/remittances/{id}/edit",
+                "permission": "remittances.manage",
+                "description": "Agreement edit payload; new at /remittances/new"
+            },
+            {
+                "id": "remittances.save",
+                "method": "POST",
+                "path": "/remittances/new",
+                "permission": "remittances.manage",
+                "description": "Create/update agreement; also POST /remittances/{id}/edit; action=save|dry_run|apply_preset|delete"
+            },
+            {
+                "id": "remittances.move_action",
+                "method": "POST",
+                "path": "/remittances/moves/{moveId}/action",
+                "permission": "ledger.edit",
+                "description": "action=sync|ignore|unignore|post_fee on a ledger move"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.finance",
+            "num": 55,
+            "path": "/remittances",
+            "title": "remittances.menu.list",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_remittance_agreements",
+        "base_remittance_batches"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "ledger.moves.badges",
+            "ledger.moves.edit.sections"
+        ],
+        "publish": [
+            "remittances.day_expected"
+        ]
+    },
+    "bulkActions": [
+        {
+            "list_id": "remittances",
+            "action": "delete"
+        }
+    ]
+}

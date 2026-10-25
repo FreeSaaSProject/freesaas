@@ -24,6 +24,7 @@ return [
     'contracts.err.deny_refuse' => 'You are not allowed to step down as curator',
     'contracts.err.deny_cancel_accept' => 'You are not allowed to cancel the acceptance',
     'contracts.err.paid_no_cancel' => 'Payment exists — can\'t be cancelled',
+    'contracts.warn.payment_mismatch' => 'Settlement #{id} of {pay} does not match offer {offer} — check after Re-®',
     'contracts.status.failed' => 'failed ({date})',
     'contracts.status.paid' => 'paid',
     'contracts.status.awaiting_payment' => 'completed, awaiting payment',

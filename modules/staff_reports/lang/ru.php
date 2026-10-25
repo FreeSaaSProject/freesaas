@@ -26,7 +26,7 @@ return [
     'staff_reports.settings.coverage_min' => 'Мин. покрытие %',
     'staff_reports.settings.require_full_parse' => 'Требовать разбор дня (блокирует только если разобрано 0 записей)',
     'staff_reports.settings.allow_same_day_publish' => 'Разрешить публикацию за сегодня',
-    'staff_reports.settings.allow_same_day_publish_hint' => 'Иначе только прошедшие дни. При повторном Re-® комментарий и контракт обновляются.',
+    'staff_reports.settings.allow_same_day_publish_hint' => 'Иначе только прошедшие дни. При повторном Re-®: сумма бонуса та же — только отчёт (маркер прочтения сохраняется); сумма изменилась — контракт/взаиморасчёт пересобираются, маркер сбрасывается.',
     'staff_reports.settings.reward_sum' => 'Сумма вознаграждения',
     'staff_reports.settings.managing_contract' => 'ID управляющего контракта',
     'staff_reports.settings.ticket_status' => 'ID статуса заявки',

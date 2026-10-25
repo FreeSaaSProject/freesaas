@@ -57,6 +57,7 @@ Runtime code uses **`base_*` tables only** (plus platform probes via `informatio
 | `base_vacations` | vacations | Leave register |
 | `base_fit_*` / `base_healths_*` | wellness | Personal food/workouts/weight/goals + health diaries (strict `ID_USER`) |
 | `base_accounts*` / `base_account_*` | ledger | Accounts, moves, reconciliations |
+| `base_remittance_agreements` / `base_remittance_batches` | remittances | Agency remittance contracts + per-move reconcile batches (UI on `/ledger/moves`) |
 | `base_funds` / `base_fund_movements` | funds | Funds tree + movements |
 | `base_tinvest_accounts` / `base_broker_snapshots` / `base_broker_positions` | liquid_assets | T-Invest bindings + broker portfolio snapshots |
 | `base_bank_connections` / `base_bank_account_links` / `base_bank_tx_map` | banks | Bank OAuth connections, account links, statement→move map |

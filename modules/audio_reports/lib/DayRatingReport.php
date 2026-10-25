@@ -383,9 +383,17 @@ final class DayRatingReport
         return $out;
     }
 
+    /** Minimum hard-overlap seconds required for a hard bind. */
+    private const MIN_HARD_OVERLAP_SEC = 60;
+
     /**
-     * Paid procedures vs rated sessions: greedy 1:1 by max overlap (with buffer).
-     * Attaches matched procedure onto each session (`procedure` key).
+     * Paid procedures vs rated sessions — procedure-first gather.
+     *
+     * Pass 1: each procedure window ± procedure_buffer_sec gathers collections
+     * (1:many). Contested hard overlap goes to the procedure with more hard-sec;
+     * finished collections are scored as ending at the procedure end (early close).
+     * Collections that start slightly before the procedure (within gap) are included.
+     * Pass 2: leftover collections stay unbound (orphan sessions / near-gap on slots).
      *
      * @param list<array<string,mixed>> $sessions
      * @return array<string,mixed>|null
@@ -458,64 +466,193 @@ final class DayRatingReport
         }
         unset($sessInit);
 
-        // Greedy 1:1: for each procedure pick best unused session.
-        // Prefer real overlap with the procedure window; buffer only as soft
-        // eligibility so a large buffer cannot steal a neighbour's episode.
-        $usedSessions = [];
-        $slots = [];
-        $matchedSlots = 0;
-        foreach ($candidates as $cand) {
+        $minHard = self::MIN_HARD_OVERLAP_SEC;
+        $gap = max(0, $procBuffer);
+        $sessionBounds = [];
+        foreach ($sessions as $idx => $sess) {
+            $cs = (int)$sess['dt_start'];
+            $ce = (int)$sess['dt_end'];
+            if ($ce < 1) {
+                $ce = $cs;
+            }
+            $sessionBounds[$idx] = [
+                $cs,
+                $ce,
+                (int)($sess['id'] ?? 0),
+                !empty($sess['finished']),
+            ];
+        }
+
+        // Hard matrix: finished collections scored as ending at procedure end.
+        /** @var array<int, array<int, int>> $hardMat */
+        $hardMat = [];
+        /** @var array<int, array{pi:int, hard:int}> $bestHardBySession */
+        $bestHardBySession = [];
+        foreach ($candidates as $pi => $cand) {
             $ps = (int)$cand['dt_start'];
             $pe = (int)$cand['dt_end'];
-            $psSoft = $ps - $procBuffer;
-            $peSoft = $pe + $procBuffer;
-            $bestIdx = null;
-            $bestScore = 0;
-            $bestHard = 0;
-            foreach ($sessions as $idx => $sess) {
-                if (isset($usedSessions[$idx])) {
+            foreach ($sessionBounds as $si => [$cs, $ce, $_sid, $finished]) {
+                $effCe = $finished ? min($ce, $pe) : $ce;
+                $hard = min($effCe, $pe) - max($cs, $ps);
+                if ($hard < 1) {
                     continue;
                 }
-                $cs = (int)$sess['dt_start'];
-                $ce = (int)$sess['dt_end'];
-                if ($ce < 1) {
-                    $ce = $cs;
-                }
-                $hard = min($ce, $pe) - max($cs, $ps);
-                $soft = min($ce, $peSoft) - max($cs, $psSoft);
-                if ($soft <= 0) {
-                    continue;
-                }
-                // Hard overlap outranks any soft-only match; then longer overlap wins.
-                $score = $hard > 0 ? (1_000_000 + $hard) : $soft;
-                if ($score > $bestScore) {
-                    $bestScore = $score;
-                    $bestHard = max(0, $hard);
-                    $bestIdx = $idx;
+                $hardMat[$pi][$si] = $hard;
+                if ($hard >= $minHard) {
+                    $prev = $bestHardBySession[$si] ?? null;
+                    if ($prev === null
+                        || $hard > $prev['hard']
+                        || ($hard === $prev['hard'] && $pi < $prev['pi'])
+                    ) {
+                        $bestHardBySession[$si] = ['pi' => $pi, 'hard' => $hard];
+                    }
                 }
             }
-            $orphan = true;
-            if ($bestIdx !== null && $bestScore > 0) {
-                $usedSessions[$bestIdx] = true;
-                $orphan = false;
-                $matchedSlots++;
-                $sess = $sessions[$bestIdx];
-                $cs = (int)$sess['dt_start'];
-                $ce = (int)$sess['dt_end'];
-                if ($ce < 1) {
-                    $ce = $cs;
+        }
+
+        /** @var array<int, list<array{session_idx:int, overlap:int, kind:string}>> $bindsByProc */
+        $bindsByProc = [];
+        foreach ($candidates as $pi => $_) {
+            $bindsByProc[$pi] = [];
+        }
+        $usedSessions = [];
+
+        // Pass 1a — hard gathers (procedure owns sessions where it wins hard).
+        foreach ($candidates as $pi => $_) {
+            foreach ($bestHardBySession as $si => $best) {
+                if ((int)$best['pi'] !== $pi || isset($usedSessions[$si])) {
+                    continue;
                 }
-                $softOv = min($ce, $peSoft) - max($cs, $psSoft);
-                $sessions[$bestIdx]['procedure'] = [
+                $usedSessions[$si] = true;
+                $bindsByProc[$pi][] = [
+                    'session_idx' => $si,
+                    'overlap' => (int)$best['hard'],
+                    'kind' => 'hard',
+                ];
+            }
+        }
+
+        // Pass 1b — soft/pre-start gathers: start slightly early, or soft-hit core window.
+        // Do not claim post-only spill past pe (leave for the next procedure / pass 2).
+        foreach ($candidates as $pi => $cand) {
+            $ps = (int)$cand['dt_start'];
+            $pe = (int)$cand['dt_end'];
+            $softLo = $ps - $gap;
+            $extras = [];
+            foreach ($sessionBounds as $si => [$cs, $ce, $_sid, $finished]) {
+                if (isset($usedSessions[$si])) {
+                    continue;
+                }
+                if (isset($bestHardBySession[$si]) && (int)$bestHardBySession[$si]['pi'] !== $pi) {
+                    continue;
+                }
+                $effCe = $finished ? min($ce, $pe) : $ce;
+                $hardHere = (int)($hardMat[$pi][$si] ?? 0);
+                $coreOv = min($effCe, $pe) - max($cs, $ps);
+                $preGap = $ce <= $ps ? ($ps - $ce) : -1;
+                $isPreStart = $cs < $ps && $preGap >= 0 && $preGap <= $gap;
+                $hitsCore = $coreOv > 0;
+                $earlyIntoCore = $cs < $ps && $cs >= $softLo && $effCe > $ps;
+                if (!$isPreStart && !$hitsCore && !$earlyIntoCore) {
+                    continue;
+                }
+                $kind = ($isPreStart || ($earlyIntoCore && $hardHere < $minHard))
+                    ? 'pre_start'
+                    : ($hardHere >= $minHard ? 'hard' : 'soft');
+                if ($hardHere > 0) {
+                    $overlap = $hardHere;
+                } elseif ($coreOv > 0) {
+                    $overlap = $coreOv;
+                } elseif ($isPreStart) {
+                    // Seconds of the episode that sit in [ps−gap, ps].
+                    $overlap = max(1, min($ce, $ps) - max($cs, $softLo));
+                } else {
+                    $overlap = max(1, min($effCe, $pe) - max($cs, $softLo));
+                }
+                $score = ($isPreStart ? 1_000_000 - $preGap : 0) + $overlap;
+                $extras[] = [$score, $si, $overlap, $kind];
+            }
+            usort(
+                $extras,
+                static function (array $a, array $b): int {
+                    if ($a[0] !== $b[0]) {
+                        return $b[0] <=> $a[0];
+                    }
+
+                    return $a[1] <=> $b[1];
+                }
+            );
+            foreach ($extras as [$_score, $si, $overlap, $kind]) {
+                if (isset($usedSessions[$si])) {
+                    continue;
+                }
+                $usedSessions[$si] = true;
+                $bindsByProc[$pi][] = [
+                    'session_idx' => (int)$si,
+                    'overlap' => (int)$overlap,
+                    'kind' => (string)$kind,
+                ];
+            }
+        }
+
+        // Pass 2 — leftover collections: leave unbound; near-gap on orphan slots.
+        $slots = [];
+        $matchedSlots = 0;
+        foreach ($candidates as $pi => $cand) {
+            $ps = (int)$cand['dt_start'];
+            $pe = (int)$cand['dt_end'];
+            $binds = $bindsByProc[$pi];
+            usort(
+                $binds,
+                static function (array $a, array $b): int {
+                    $ka = $a['kind'] === 'hard' ? 2 : ($a['kind'] === 'pre_start' ? 1 : 0);
+                    $kb = $b['kind'] === 'hard' ? 2 : ($b['kind'] === 'pre_start' ? 1 : 0);
+                    if ($ka !== $kb) {
+                        return $kb <=> $ka;
+                    }
+
+                    return $b['overlap'] <=> $a['overlap'];
+                }
+            );
+            $orphan = $binds === [];
+            $sessionIds = [];
+            $bindRows = [];
+            $primaryId = null;
+            $primaryOv = null;
+            $primaryKind = null;
+            foreach ($binds as $bind) {
+                $si = (int)$bind['session_idx'];
+                $ov = (int)$bind['overlap'];
+                $kind = (string)$bind['kind'];
+                [$_cs, $_ce, $sessId] = $sessionBounds[$si];
+                $sid = $sessId > 0 ? $sessId : null;
+                if ($sid !== null) {
+                    $sessionIds[] = $sid;
+                }
+                $bindRows[] = [
+                    'session_id' => $sid,
+                    'overlap_sec' => $ov,
+                    'match_kind' => $kind,
+                ];
+                if ($primaryId === null) {
+                    $primaryId = $sid;
+                    $primaryOv = $ov;
+                    $primaryKind = $kind;
+                }
+                $sessions[$si]['procedure'] = [
                     'id' => (int)$cand['id'],
                     'name' => (string)$cand['name'],
                     'dt_start' => $ps,
                     'dt_end' => $pe,
                     'summ' => (float)$cand['summ'],
-                    'overlap_sec' => $bestHard > 0 ? $bestHard : max(0, $softOv),
+                    'overlap_sec' => $ov,
+                    'match_kind' => $kind,
                 ];
             }
-            $slots[] = [
+            if (!$orphan) {
+                $matchedSlots++;
+            }
+            $slot = [
                 'id' => (int)$cand['id'],
                 'name' => (string)$cand['name'],
                 'dt_start' => $ps,
@@ -523,28 +660,79 @@ final class DayRatingReport
                 'duration' => (int)$cand['duration'],
                 'summ' => (float)$cand['summ'],
                 'orphan' => $orphan,
+                'session_id' => $primaryId,
+                'session_ids' => $sessionIds,
+                'binds' => $bindRows,
+                'overlap_sec' => $primaryOv,
+                'match_kind' => $primaryKind,
+                'near_session_id' => null,
+                'near_gap_sec' => null,
             ];
+            if ($orphan) {
+                $near = self::nearestSessionGap($ps, $pe, $sessionBounds);
+                if ($near !== null) {
+                    $slot['near_session_id'] = $near['session_id'];
+                    $slot['near_gap_sec'] = $near['gap_sec'];
+                }
+            }
+            $slots[] = $slot;
         }
 
         $orphanSlots = count($slots) - $matchedSlots;
-        $orphanSessions = 0;
-        foreach ($sessions as $idx => $_) {
-            if (!isset($usedSessions[$idx])) {
-                $orphanSessions++;
+        $orphanSessionIds = [];
+        foreach ($sessionBounds as $idx => [$_cs, $_ce, $sessId]) {
+            if (!isset($usedSessions[$idx]) && $sessId > 0) {
+                $orphanSessionIds[] = $sessId;
             }
         }
 
         return [
             'enabled' => true,
+            'match_mode' => 'procedure_first',
             'min_procedure_sec' => $minProcSec,
-            'procedure_buffer_sec' => $procBuffer,
+            'min_hard_overlap_sec' => $minHard,
+            'procedure_buffer_sec' => $gap,
             'procedure_count' => count($slots),
             'session_count' => count($sessions),
             'matched_slots' => $matchedSlots,
             'orphan_slots' => $orphanSlots,
-            'orphan_sessions' => $orphanSessions,
+            'orphan_sessions' => count($orphanSessionIds),
+            'orphan_session_ids' => $orphanSessionIds,
             'slots' => $slots,
         ];
+    }
+
+    /**
+     * Closest session by gap (0 = hard overlap below min threshold).
+     *
+     * @param array<int, array{0:int,1:int,2:int,3?:bool}> $sessionBounds
+     * @return array{session_id:int|null, gap_sec:int}|null
+     */
+    private static function nearestSessionGap(int $ps, int $pe, array $sessionBounds): ?array
+    {
+        $bestGap = null;
+        $bestSid = null;
+        foreach ($sessionBounds as $bounds) {
+            $cs = (int)$bounds[0];
+            $ce = (int)$bounds[1];
+            $sessId = (int)$bounds[2];
+            if ($ce < $ps) {
+                $gap = $ps - $ce;
+            } elseif ($cs > $pe) {
+                $gap = $cs - $pe;
+            } else {
+                $gap = 0;
+            }
+            if ($bestGap === null || $gap < $bestGap) {
+                $bestGap = $gap;
+                $bestSid = $sessId > 0 ? $sessId : null;
+            }
+        }
+        if ($bestGap === null) {
+            return null;
+        }
+
+        return ['session_id' => $bestSid, 'gap_sec' => $bestGap];
     }
 
     /**

@@ -207,6 +207,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `bonuses` | Client loyalty ledger (`base_bonus_moves`) + event settle (allocate/apply); EventBus on calendar event edit |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
 | `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |
+| `remittances` | Agency/acquiring remittance agreements; parse ДПС purpose; badges on `/ledger/moves`; expected via EventBus (likespa `spa_ops`); beta |
 | `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 | `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |

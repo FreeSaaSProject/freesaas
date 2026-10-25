@@ -104,6 +104,30 @@ curl -sS -X POST "${H[@]}" -H "Content-Type: application/json" \
 |--------|------|--------|
 | GET | `/agent/audio_reports/day-report?admin=&date=` | Same builder as `/audio/calendar/day-report` (no `sections_html`) |
 
+### Procedure ↔ episode bind
+
+When `match_procedures=1` (coverage settings), day-report attaches paid procedures to rated script episodes:
+
+- **Bind rule:** procedure-first (`match_mode=procedure_first`). Each procedure window ± `procedure_buffer_sec` gathers collections (1:many).
+- **Hard:** intersection ≥60s; contested episode goes to the procedure with more hard-sec. Finished collections are scored as ending at the procedure end (early close).
+- **Pre-start:** episode ending before the procedure start within the gap is still gathered.
+- **Pass 2:** leftover episodes stay unbound (`orphan_session_ids`); orphan procedures keep `near_session_id` + `near_gap_sec`.
+- JSON: `procedures.slots[].binds[]` (`session_id` / `overlap_sec` / `match_kind`), plus primary `session_id` / `session_ids`.
+- **`proc_ratio` ≠ match rate.** Quality gate `proc_ratio` is `rated_sessions / paid_procedures` (count ratio). Episode header coverage is accounted audio vs rated collections. Neither means every procedure is linked.
+
+Orphans with `near_gap_sec=0` usually share a window with an episode already taken by a better-overlap neighbour, or sit inside a long collection with no separate episode. Gaps with records but no collection → collect/script starters (see collection + day-records), not the matcher.
+
+**Collect-gap examples (admin=58, 2026-10-16, after hard bind):**
+
+| Window | Why no / bad episode |
+|--------|----------------------|
+| 15:35–16:05 Спина | Records exist but ASR is mostly subtitle garbage (`Редактор субтитров` / empty). Almost no key instances → no START_GATE hit → no collection. |
+| 20:31–20:32 | Micro-episode: greeting+comfort+farewell keys compressed into ~102s (ASR/rapid talk), then collect closes. |
+| 20:35–20:55 Ноги | Real work + farewell in transcripts, but after the micro-episode no new Alt-start (dict 4/40/41) until ~21:15; comfort/ping alone do not reopen. |
+| 13:40 Шейно | Swallowed inside long episode 12:41–13:52 (no BREAK between guests). |
+
+Follow-ups for script/ASR (not matcher): coach missed-starts on 15:35/20:35; keys for ASR variants (`Робокс-мастер`); whether BREAK should fire after FINISH/прощание before the next guest.
+
 ## Suggested debug loop
 
 1. `day-diag` on **local** and **prod** → compare `module_versions`, `records`, `instances`, `collections_total`, `script_probe_hash`.

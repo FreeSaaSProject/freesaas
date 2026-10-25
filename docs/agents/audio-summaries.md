@@ -4,6 +4,8 @@ Session-auth product JSON for `audio_reports` summary profiles. Convention: [`mo
 
 Staff day rating without a browser session: `GET /agent/audio_reports/day-report?admin=&date=` (agent_token) — see [`audio-scripts-debug.md`](audio-scripts-debug.md).
 
+Procedure bind (when `match_procedures`): procedure-first ± `procedure_buffer_sec` (hard + pre-start; leftovers unbound). `proc_ratio` is sessions÷procedures counts, not temporal match rate. Details in audio-scripts-debug § Procedure ↔ episode bind.
+
 ## Routes
 
 | Op | Method | Path | Permission |

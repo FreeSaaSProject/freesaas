@@ -178,6 +178,28 @@ if (class_exists(TerminalDiscount::class, false)) {
     $assert((int)$p3['pct'] === 5 && abs($p3['price'] - 950.0) < 0.01, 'TerminalDiscount flyer/client base');
     $cap = TerminalDiscount::capFlyerByTypes(40.0, [1, 2], [1 => 25, 2 => 30]);
     $assert(abs($cap - 25.0) < 0.01, 'TerminalDiscount::capFlyerByTypes min limit');
+
+    // Rounding: default 0 (whole rubles, oper). 1234 * 0.85 = 1048.9 → 1049.
+    $prevDecimals = class_exists(LikespaConfig::class, false)
+        ? (string)LikespaConfig::terminalPriceDecimals()
+        : '0';
+    try {
+        if (class_exists(Config::class, false)) {
+            Config::set('likespa', 'terminal_price_decimals', '0');
+        }
+        $r0 = TerminalDiscount::bestPrice(1234.0, 15.0, 1, false, []);
+        $assert(abs($r0['price'] - 1049.0) < 0.01, 'TerminalDiscount decimals=0 → 1049 (not 1048.9)');
+        if (class_exists(Config::class, false)) {
+            Config::set('likespa', 'terminal_price_decimals', '2');
+        }
+        $r2 = TerminalDiscount::bestPrice(1234.0, 15.0, 1, false, []);
+        $assert(abs($r2['price'] - 1048.9) < 0.01, 'TerminalDiscount decimals=2 → 1048.9');
+    } finally {
+        if (class_exists(Config::class, false)) {
+            Config::set('likespa', 'terminal_price_decimals', $prevDecimals);
+        }
+    }
+
     $bookDisc = TerminalBooking::book([
         'product_id' => $productId,
         'operator_id' => $adminId,

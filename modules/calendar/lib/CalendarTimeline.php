@@ -308,6 +308,16 @@ final class CalendarTimeline
             if (isset($pr['summ'])) {
                 $info .= '<div><b>' . number_format((float)$pr['summ'], 0, '.', ' ') . '</b></div>';
             }
+            $summ = (float)($pr['summ'] ?? 0);
+            $summDefault = (float)($pr['summ_default'] ?? 0);
+            $restored = (int)($pr['restored'] ?? 0) > 0;
+            // Oper parity: restored dashed (wins); promo (SUMM≠SUMM_DEFAULT) dotted.
+            $procClass = '';
+            if ($restored && $summ > 0) {
+                $procClass = 'is-restored';
+            } elseif ($summDefault > 0 && abs($summ - $summDefault) > 0.01) {
+                $procClass = 'is-promo';
+            }
             $dtStart = (int)($pr['dtstart'] ?? 0);
             $dtEnd = (int)($pr['dtend'] ?? 0);
             $chips[] = self::withCompactMeta([
@@ -316,8 +326,11 @@ final class CalendarTimeline
                 // Metadata for product modules (e.g. terminals chill paint / poll_invites oral mark).
                 'id_good' => (int)($pr['id_good'] ?? 0),
                 'id_user' => (int)($pr['id_user'] ?? 0),
-                'summ' => (float)($pr['summ'] ?? 0),
+                'summ' => $summ,
+                'summ_default' => $summDefault,
+                'restored' => $restored ? 1 : 0,
                 'notice' => (string)($pr['notice'] ?? ''),
+                'class' => $procClass,
                 'href' => '/procedures/' . (int)$pr['id'] . '/edit',
                 'top' => $pos['top'],
                 'height' => $pos['height'],

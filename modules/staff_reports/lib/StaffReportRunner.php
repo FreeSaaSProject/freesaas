@@ -298,8 +298,23 @@ final class StaffReportRunner
         if ($authorId < 1) {
             $authorId = $employeeId;
         }
-        $up = TicketWriter::upsertReportComment($ticketId, $authorId, $marker, $text);
-        self::log("$name: " . ($rewardGranted ? 'reward' : 'no-reward') . ' comment=' . $up['comment_id']);
+        $newOfferSum = $rewardGranted ? $rewardSum : 0;
+        $prevOffer = DayRewardContract::offerState($ticketId, $bounds['day_text']);
+        $sumChanged = (int)$prevOffer['sum'] !== $newOfferSum;
+        // Read marks: clear only when eligible reward sum changes (not on text-only reparse).
+        $up = TicketWriter::upsertReportComment(
+            $ticketId,
+            $authorId,
+            $marker,
+            $text,
+            $sumChanged
+        );
+        self::log(
+            "$name: " . ($rewardGranted ? 'reward' : 'no-reward')
+            . ' comment=' . $up['comment_id']
+            . ($sumChanged ? ' sum_changed' : ' sum_same')
+            . (!empty($up['views_cleared']) ? ' views_cleared' : '')
+        );
 
         $workingDays = max(0, (int)($config['contract_working_days'] ?? 5));
         $contract = DayRewardContract::sync(
@@ -311,12 +326,21 @@ final class StaffReportRunner
             $rewardSum, // eligible only
             $workingDays
         );
-        if (($contract['action'] ?? '') === 'created') {
+        $cAction = (string)($contract['action'] ?? '');
+        if ($cAction === 'created') {
             self::log("$name: reward contract created #" . (int)$contract['comment_id'] . " sum=$rewardSum");
-        } elseif (($contract['action'] ?? '') === 'updated') {
+        } elseif ($cAction === 'updated') {
             self::log("$name: reward contract updated #" . (int)$contract['comment_id'] . " sum=$rewardSum");
-        } elseif (($contract['action'] ?? '') === 'disabled') {
+        } elseif ($cAction === 'recreated') {
+            $del = is_array($contract['payment_deleted'] ?? null) ? $contract['payment_deleted'] : [];
+            self::log(
+                "$name: reward contract recreated #" . (int)$contract['comment_id']
+                . " sum=$rewardSum payments_deleted=" . implode(',', $del)
+            );
+        } elseif ($cAction === 'disabled') {
             self::log("$name: reward contract disabled #" . (int)$contract['comment_id']);
+        } elseif ($cAction === 'unchanged') {
+            self::log("$name: reward contract unchanged #" . (int)$contract['comment_id']);
         }
 
         // Gratitude board is refreshed once from runDay() after the full employee loop.

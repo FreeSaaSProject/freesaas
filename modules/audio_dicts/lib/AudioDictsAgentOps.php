@@ -447,13 +447,19 @@ final class AudioDictsAgentOps
         try {
             if ($isNew) {
                 $id = RecordsKeysRepository::create($data);
+                // Some PDO/MySQL setups return 0 from lastInsertId — resolve by name.
+                if ($id < 1) {
+                    $byName = RecordsKeysRepository::findByName((string)$data['name']);
+                    $id = (int)($byName['id'] ?? 0);
+                }
             } else {
                 RecordsKeysRepository::update($id, $data);
             }
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'http' => 500];
         }
-        $row = RecordsKeysRepository::find($id);
+        $row = $id > 0 ? RecordsKeysRepository::find($id) : RecordsKeysRepository::findByName((string)$data['name']);
+        $id = (int)($row['id'] ?? $id);
         return [
             'ok' => true,
             'message' => $isNew ? 'key_created' : 'key_updated',

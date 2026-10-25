@@ -291,6 +291,11 @@ $statHint = static function (string $hintKey): void {
                 <span class="ar-day-session-proc-summ">
                   <?= e(number_format((float)$proc['summ'], 0, '.', ' ')) ?>
                 </span>
+                <?php if (isset($proc['overlap_sec'])): ?>
+                  <span class="ar-day-session-proc-ov muted" title="<?= e(t('audio_reports.day_report.overlap_hint')) ?>">
+                    <?= te('audio_reports.day_report.overlap_sec', ['sec' => (string)(int)$proc['overlap_sec']]) ?>
+                  </span>
+                <?php endif; ?>
               </div>
             <?php elseif ($procedures !== null): ?>
               <div class="ar-day-session-proc ar-day-session-proc--none muted">
@@ -433,6 +438,16 @@ $statHint = static function (string $hintKey): void {
         'orphan' => (string)(int)($procedures['orphan_slots'] ?? 0),
         'min' => (string)(int)($procedures['min_procedure_sec'] ?? 300),
     ]) ?>
+    <?php if (($procedures['match_mode'] ?? '') === 'procedure_first'): ?>
+      · <?= te('audio_reports.day_report.procedures_match_mode_first', [
+          'min_hard' => (string)(int)($procedures['min_hard_overlap_sec'] ?? 60),
+          'gap' => (string)(int)($procedures['procedure_buffer_sec'] ?? 0),
+      ]) ?>
+    <?php elseif (($procedures['match_mode'] ?? '') === 'hard_only'): ?>
+      · <?= te('audio_reports.day_report.procedures_match_mode_hard', [
+          'min_hard' => (string)(int)($procedures['min_hard_overlap_sec'] ?? 60),
+      ]) ?>
+    <?php endif; ?>
   </p>
   <?php if (empty($procedures['slots'])): ?>
     <p class="muted"><?= te('audio_reports.day_report.procedures_empty') ?></p>
@@ -445,6 +460,7 @@ $statHint = static function (string $hintKey): void {
           <th><?= te('audio_reports.day_report.col.proc_name') ?></th>
           <th><?= te('audio_reports.day_report.col.proc_time') ?></th>
           <th><?= te('audio_reports.day_report.col.proc_summ') ?></th>
+          <th><?= te('audio_reports.day_report.col.proc_match') ?></th>
         </tr>
       </thead>
       <tbody>
@@ -456,6 +472,46 @@ $statHint = static function (string $hintKey): void {
               <?= e(date('H:i', (int)$slot['dt_start'])) ?>–<?= e(date('H:i', (int)$slot['dt_end'])) ?>
             </td>
             <td class="ar-day-proc-summ"><?= e(number_format((float)$slot['summ'], 0, '.', ' ')) ?></td>
+            <td class="ar-day-proc-match">
+              <?php if (empty($slot['orphan'])): ?>
+                <?php
+                  $bindRows = is_array($slot['binds'] ?? null) ? $slot['binds'] : [];
+                  if ($bindRows === [] && !empty($slot['session_id'])) {
+                      $bindRows = [[
+                          'session_id' => (int)$slot['session_id'],
+                          'overlap_sec' => $slot['overlap_sec'] ?? null,
+                          'match_kind' => $slot['match_kind'] ?? null,
+                      ]];
+                  }
+                ?>
+                <?php foreach ($bindRows as $bi => $bind): ?>
+                  <?php if ($bi > 0): ?>, <?php endif; ?>
+                  <?php if (!empty($bind['session_id'])): ?>
+                    #<?= (int)$bind['session_id'] ?>
+                  <?php endif; ?>
+                  <?php if (isset($bind['overlap_sec'])): ?>
+                    <span class="muted"><?= te('audio_reports.day_report.overlap_sec', ['sec' => (string)(int)$bind['overlap_sec']]) ?></span>
+                  <?php endif; ?>
+                  <?php if (($bind['match_kind'] ?? '') === 'pre_start'): ?>
+                    <span class="muted"><?= te('audio_reports.day_report.match_kind_pre') ?></span>
+                  <?php elseif (($bind['match_kind'] ?? '') === 'soft'): ?>
+                    <span class="muted"><?= te('audio_reports.day_report.match_kind_soft') ?></span>
+                  <?php endif; ?>
+                <?php endforeach; ?>
+              <?php else: ?>
+                <span class="muted"><?= te('audio_reports.day_report.procedures_none') ?></span>
+                <?php if (isset($slot['near_gap_sec'])): ?>
+                  <span class="muted" title="<?= e(t('audio_reports.day_report.near_gap_hint')) ?>">
+                    <?= te('audio_reports.day_report.near_gap', [
+                        'sec' => (string)(int)$slot['near_gap_sec'],
+                        'session' => !empty($slot['near_session_id'])
+                            ? '#' . (int)$slot['near_session_id']
+                            : '—',
+                    ]) ?>
+                  </span>
+                <?php endif; ?>
+              <?php endif; ?>
+            </td>
           </tr>
         <?php endforeach; ?>
       </tbody>

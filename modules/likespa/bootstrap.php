@@ -320,3 +320,37 @@ EventBus::on('calendar.settings.save', static function ($payload) {
     LikespaConfig::saveSlotIntervalsFromPost($post);
     return $payload;
 });
+
+// Remittance expected revenue for spa ops (calendar day footer formula).
+EventBus::on('remittances.day_expected', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if (!class_exists('ProceduresRepository', false) || !ModuleManager::isEnabled('procedures')) {
+        return $payload;
+    }
+    $ymd = trim((string)($payload['date_ymd'] ?? ''));
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $ymd)) {
+        return $payload;
+    }
+    $filter = is_array($payload['channels_filter'] ?? null) ? $payload['channels_filter'] : [];
+    if ($filter !== [] && !in_array('spa_ops', $filter, true)) {
+        return $payload;
+    }
+    $dayStart = strtotime($ymd . ' 00:00:00');
+    if ($dayStart === false) {
+        return $payload;
+    }
+    $stats = ProceduresRepository::dayColumnStats($dayStart, $dayStart + 86400, null);
+    $amount = round((float)($stats['revenue'] ?? 0), 2);
+    if (!isset($payload['channels']) || !is_array($payload['channels'])) {
+        $payload['channels'] = [];
+    }
+    $payload['channels'][] = [
+        'code' => 'spa_ops',
+        'amount' => $amount,
+        'source' => 'procedures',
+    ];
+    $payload['amount'] = round((float)($payload['amount'] ?? 0) + $amount, 2);
+    return $payload;
+});

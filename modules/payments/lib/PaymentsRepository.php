@@ -625,6 +625,142 @@ final class PaymentsRepository
     }
 
     /**
+     * Payment id + sum for offer comments (one query). Prefers ID_COMMENT; falls back to comment.ID_PAYMENT.
+     *
+     * @param list<int> $commentIds
+     * @param array<int,int> $paymentIdByComment comment_id => ID_PAYMENT from comment row
+     * @return array<int, array{payment_id:int, sum:float}>
+     */
+    public static function sumsByCommentIds(array $commentIds, array $paymentIdByComment = []): array
+    {
+        $out = [];
+        if (!Database::tableExists('base_payments')) {
+            return $out;
+        }
+        $commentIds = array_values(array_unique(array_filter(array_map('intval', $commentIds))));
+        $payIds = [];
+        foreach ($paymentIdByComment as $cid => $pid) {
+            $cid = (int)$cid;
+            $pid = (int)$pid;
+            if ($cid > 0 && $pid > 0) {
+                $payIds[$pid] = $cid;
+            }
+        }
+        if ($commentIds === [] && $payIds === []) {
+            return $out;
+        }
+        $pdo = Database::pdo();
+        if ($commentIds !== []) {
+            $ph = implode(',', array_fill(0, count($commentIds), '?'));
+            $st = $pdo->prepare(
+                "SELECT ID AS id, ID_COMMENT AS comment_id, SUM AS sum
+                 FROM base_payments WHERE ID_COMMENT IN ($ph)"
+            );
+            $st->execute($commentIds);
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                $cid = (int)($row['comment_id'] ?? 0);
+                if ($cid < 1) {
+                    continue;
+                }
+                $out[$cid] = [
+                    'payment_id' => (int)$row['id'],
+                    'sum' => (float)$row['sum'],
+                ];
+            }
+        }
+        $missingPayIds = [];
+        foreach ($payIds as $pid => $cid) {
+            if (!isset($out[$cid])) {
+                $missingPayIds[] = $pid;
+            }
+        }
+        if ($missingPayIds !== []) {
+            $ph = implode(',', array_fill(0, count($missingPayIds), '?'));
+            $st = $pdo->prepare(
+                "SELECT ID AS id, SUM AS sum FROM base_payments WHERE ID IN ($ph)"
+            );
+            $st->execute($missingPayIds);
+            while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+                $pid = (int)$row['id'];
+                $cid = (int)($payIds[$pid] ?? 0);
+                if ($cid < 1 || isset($out[$cid])) {
+                    continue;
+                }
+                $out[$cid] = [
+                    'payment_id' => $pid,
+                    'sum' => (float)$row['sum'],
+                ];
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * Hard-delete settlements linked to a contract comment (reward reparse).
+     * Unlinks DPS move links / soft-deletes moves.ID_PAYMENT, then DELETE payment.
+     *
+     * @return list<int> deleted payment ids
+     */
+    public static function forceDeleteLinkedToComment(int $commentId): array
+    {
+        $deleted = [];
+        if ($commentId < 1 || !Database::tableExists('base_payments')) {
+            return $deleted;
+        }
+        $ids = [];
+        $st = Database::pdo()->prepare('SELECT ID FROM base_payments WHERE ID_COMMENT = ?');
+        $st->execute([$commentId]);
+        while ($id = $st->fetchColumn()) {
+            $ids[(int)$id] = true;
+        }
+        if (Database::tableExists('base_comments') && Database::columnExists('base_comments', 'ID_PAYMENT')) {
+            $st = Database::pdo()->prepare('SELECT ID_PAYMENT FROM base_comments WHERE ID = ? LIMIT 1');
+            $st->execute([$commentId]);
+            $pid = (int)$st->fetchColumn();
+            if ($pid > 0) {
+                $ids[$pid] = true;
+            }
+        }
+        foreach (array_keys($ids) as $pid) {
+            self::forceDelete((int)$pid);
+            $deleted[] = (int)$pid;
+        }
+        if (Database::tableExists('base_comments') && Database::columnExists('base_comments', 'ID_PAYMENT')) {
+            Database::pdo()->prepare(
+                'UPDATE base_comments SET ID_PAYMENT = 0 WHERE ID = ?'
+            )->execute([$commentId]);
+        }
+
+        return $deleted;
+    }
+
+    /** System delete (no ACL scope). Used by day-payroll replace and reward-contract reparse. */
+    public static function forceDelete(int $paymentId): void
+    {
+        if ($paymentId < 1 || !Database::tableExists('base_payments')) {
+            return;
+        }
+        $pdo = Database::pdo();
+        if (Database::tableExists('base_payment_move_links')) {
+            $pdo->prepare('DELETE FROM base_payment_move_links WHERE ID_PAYMENT = ?')->execute([$paymentId]);
+        }
+        if (Database::tableExists('base_account_moves') && Database::columnExists('base_account_moves', 'ID_PAYMENT')) {
+            if (Database::columnExists('base_account_moves', 'DELETED')) {
+                $pdo->prepare('UPDATE base_account_moves SET DELETED = 1 WHERE ID_PAYMENT = ?')->execute([$paymentId]);
+            } else {
+                $pdo->prepare('DELETE FROM base_account_moves WHERE ID_PAYMENT = ?')->execute([$paymentId]);
+            }
+        }
+        if (Database::tableExists('base_comments') && Database::columnExists('base_comments', 'ID_PAYMENT')) {
+            $pdo->prepare(
+                'UPDATE base_comments SET ID_PAYMENT = 0 WHERE ID_PAYMENT = ?'
+            )->execute([$paymentId]);
+        }
+        $pdo->prepare('DELETE FROM base_payments WHERE ID = ?')->execute([$paymentId]);
+    }
+
+    /**
      * @param list<int> $ids
      * @return array{done:int,skipped:list<array{id:int,reason:string}>}
      */

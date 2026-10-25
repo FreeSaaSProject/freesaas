@@ -36,6 +36,8 @@ final class LikespaConfig
             'staff_debts_news_id' => 0,
             'staff_debts_comment_user_id' => 0,
             'staff_debts_daily_at' => '08:00',
+            // /t → 1C money: 0 = whole rubles (oper parity), 2 = kopeks.
+            'terminal_price_decimals' => 0,
         ];
     }
 
@@ -69,6 +71,10 @@ final class LikespaConfig
             }
             if ($key === 'staff_debts_daily_at') {
                 $out[$key] = self::staffDebtsDailyAt();
+                continue;
+            }
+            if ($key === 'terminal_price_decimals') {
+                $out[$key] = (string)self::terminalPriceDecimals();
                 continue;
             }
             if (is_float($default)) {
@@ -147,6 +153,12 @@ final class LikespaConfig
         Config::set('likespa', 'staff_debts_news_id', (string)max(0, (int)($post['staff_debts_news_id'] ?? 0)));
         Config::set('likespa', 'staff_debts_comment_user_id', (string)max(0, (int)($post['staff_debts_comment_user_id'] ?? 0)));
         Config::set('likespa', 'staff_debts_daily_at', self::normalizeDailyAt((string)($post['staff_debts_daily_at'] ?? '08:00')));
+
+        Config::set(
+            'likespa',
+            'terminal_price_decimals',
+            (string)self::normalizePriceDecimals((int)($post['terminal_price_decimals'] ?? 0))
+        );
     }
 
     public static function flag(string $key, bool $default = true): bool
@@ -313,6 +325,19 @@ final class LikespaConfig
     public static function staffDebtsDailyAt(): string
     {
         return self::normalizeDailyAt(self::string('staff_debts_daily_at', '08:00'));
+    }
+
+    /**
+     * Decimal places for /t → 1C sale amounts: 0 (whole rubles, oper) or 2 (kopeks).
+     */
+    public static function terminalPriceDecimals(): int
+    {
+        return self::normalizePriceDecimals(self::int('terminal_price_decimals', 0));
+    }
+
+    private static function normalizePriceDecimals(int $n): int
+    {
+        return $n === 2 ? 2 : 0;
     }
 
     /** @return list<int> */

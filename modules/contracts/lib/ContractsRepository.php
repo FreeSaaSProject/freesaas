@@ -3,6 +3,12 @@ declare(strict_types=1);
 
 final class ContractsRepository
 {
+    /** @var array<int, array{payment_id:int, sum:float, offer:int, mismatch:bool}> */
+    private static $paymentWarnByComment = [];
+
+    /** @var int */
+    private static $paymentWarnNewsId = 0;
+
     /** cfg/modules/contracts.ini → [contracts] deadline_penalty (default on, oper-compatible). */
     public static function deadlinePenaltyEnabled(): bool
     {
@@ -517,6 +523,63 @@ final class ContractsRepository
         return self::countRaw($where, $params);
     }
 
+    /**
+     * One batched payment lookup for all PRICE_OFFER comments on a news page.
+     *
+     * @param list<array<string,mixed>> $comments
+     */
+    public static function warmPaymentMismatch(int $newsId, array $comments): void
+    {
+        self::$paymentWarnNewsId = $newsId;
+        self::$paymentWarnByComment = [];
+        if ($newsId < 1 || $comments === [] || !ModuleManager::isEnabled('payments')
+            || !class_exists('PaymentsRepository', false)) {
+            return;
+        }
+        $offerIds = [];
+        $payIdByComment = [];
+        foreach ($comments as $c) {
+            if (!is_array($c)) {
+                continue;
+            }
+            $cid = (int)($c['ID'] ?? 0);
+            $price = (int)($c['PRICE_OFFER'] ?? 0);
+            if ($cid < 1 || $price < 1) {
+                continue;
+            }
+            $offerIds[] = $cid;
+            $pid = (int)($c['ID_PAYMENT'] ?? 0);
+            if ($pid > 0) {
+                $payIdByComment[$cid] = $pid;
+            }
+        }
+        if ($offerIds === []) {
+            return;
+        }
+        $sums = PaymentsRepository::sumsByCommentIds($offerIds, $payIdByComment);
+        foreach ($offerIds as $cid) {
+            if (!isset($sums[$cid])) {
+                continue;
+            }
+            $paySum = (float)$sums[$cid]['sum'];
+            $offer = 0;
+            foreach ($comments as $c) {
+                if ((int)($c['ID'] ?? 0) === $cid) {
+                    $offer = (int)($c['PRICE_OFFER'] ?? 0);
+                    break;
+                }
+            }
+            // Compare to current offer (not deadline-cut payout): flags stale settlements after Re-®.
+            $mismatch = (int)round($paySum) !== $offer;
+            self::$paymentWarnByComment[$cid] = [
+                'payment_id' => (int)$sums[$cid]['payment_id'],
+                'sum' => $paySum,
+                'offer' => $offer,
+                'mismatch' => $mismatch,
+            ];
+        }
+    }
+
     /** HTML block for comment contract controls. */
     public static function renderCommentActionsHtml(array $comment, int $newsId, int $uid): string
     {
@@ -532,6 +595,36 @@ final class ContractsRepository
         if ($info['label'] !== '') {
             $tone = $info['tone'] !== '' ? ' is-' . $info['tone'] : '';
             $meta .= '<span class="contract-status' . $tone . '">' . e($info['label']) . '</span>';
+        }
+        $warn = null;
+        if ($newsId === self::$paymentWarnNewsId && isset(self::$paymentWarnByComment[$cid])) {
+            $warn = self::$paymentWarnByComment[$cid];
+        } elseif (ModuleManager::isEnabled('payments') && class_exists('PaymentsRepository', false)
+            && ((int)($comment['ID_PAYMENT'] ?? 0) > 0 || $newsId < 1)) {
+            // Fallback single lookup when tree warm skipped (e.g. isolated render).
+            $pidFallback = (int)($comment['ID_PAYMENT'] ?? 0);
+            $map = PaymentsRepository::sumsByCommentIds(
+                [$cid],
+                $pidFallback > 0 ? [$cid => $pidFallback] : []
+            );
+            if (isset($map[$cid])) {
+                $paySum = (float)$map[$cid]['sum'];
+                $warn = [
+                    'payment_id' => (int)$map[$cid]['payment_id'],
+                    'sum' => $paySum,
+                    'offer' => $price,
+                    'mismatch' => (int)round($paySum) !== $price,
+                ];
+            }
+        }
+        if (is_array($warn) && !empty($warn['mismatch'])) {
+            $meta .= '<span class="contract-warn" role="alert">'
+                . e(t('contracts.warn.payment_mismatch', [
+                    'offer' => (string)$price,
+                    'pay' => (string)(int)round((float)$warn['sum']),
+                    'id' => (string)(int)$warn['payment_id'],
+                ]))
+                . '</span>';
         }
         $acceptor = (int)($comment['ID_ACCEPTOR'] ?? 0);
         if ($acceptor > 0) {

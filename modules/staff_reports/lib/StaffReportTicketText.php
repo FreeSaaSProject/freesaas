@@ -75,10 +75,27 @@ final class StaffReportTicketText
         return 0;
     }
 
-    public static function findContractCommentId(int $ticketId, string $dayText): int
-    {
+    /**
+     * @param bool $includeDisabled when false, only active (ENABLED) offers; prefers newest
+     */
+    public static function findContractCommentId(
+        int $ticketId,
+        string $dayText,
+        bool $includeDisabled = true
+    ): int {
+        if ($ticketId < 1 || $dayText === '' || !Database::tableExists('base_comments')) {
+            return 0;
+        }
         foreach (self::contractMarkerVariants($dayText) as $marker) {
-            $id = TicketWriter::findCommentId($ticketId, $marker);
+            $sql = 'SELECT ID FROM base_comments
+                    WHERE ID_OBJECT = ? AND TEXT LIKE ?';
+            if (!$includeDisabled) {
+                $sql .= ' AND (DISABLED IS NULL OR DISABLED < 1)';
+            }
+            $sql .= ' ORDER BY ID DESC LIMIT 1';
+            $st = Database::pdo()->prepare($sql);
+            $st->execute([$ticketId, '%' . $marker . '%']);
+            $id = (int)$st->fetchColumn();
             if ($id > 0) {
                 return $id;
             }

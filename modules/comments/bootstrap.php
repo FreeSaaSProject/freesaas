@@ -49,6 +49,12 @@ EventBus::on('core.news_item.meta', static function ($payload) {
     if ($userIdsWarm) {
         UsersRepository::preload($userIdsWarm);
     }
+    // Sibling modules may batch-enrich (e.g. contracts↔payments mismatch) before tree render.
+    EventBus::emit('comments.visible', [
+        'news_id' => $id,
+        'comments' => $visible,
+        'uid' => $uid,
+    ]);
     $commentIds = array_map(static function ($c) {
         return (int)$c['ID'];
     }, $visible);

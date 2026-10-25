@@ -292,7 +292,8 @@ final class ProceduresRepository
             "SELECT p.ID AS id, p.DTSTART AS dtstart, p.DTEND AS dtend,
                     p.ID_OPERATOR AS id_operator, p.ID_ADMIN AS id_admin,
                     p.ID_GOOD AS id_good, p.ID_USER AS id_user, p.TYPE AS type,
-                    p.SUMM AS summ, p.ENABLED AS enabled, p.ID_EVENT_PARENT AS id_event_parent,
+                    p.SUMM AS summ, p.SUMM_DEFAULT AS summ_default, p.RESTORED AS restored,
+                    p.ENABLED AS enabled, p.ID_EVENT_PARENT AS id_event_parent,
                     p.NOTICE AS notice,
                     $extraCols
              FROM base_procedures p

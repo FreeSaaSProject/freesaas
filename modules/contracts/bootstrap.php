@@ -178,6 +178,19 @@ EventBus::on('comments.prepare_add', static function ($payload) {
     return $payload;
 });
 
+EventBus::on('comments.visible', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $comments = $payload['comments'] ?? null;
+    if (!is_array($comments)) {
+        return $payload;
+    }
+    ContractsRepository::warmPaymentMismatch((int)($payload['news_id'] ?? 0), $comments);
+
+    return $payload;
+});
+
 EventBus::on('comments.render_actions', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

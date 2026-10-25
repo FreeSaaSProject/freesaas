@@ -166,13 +166,20 @@ final class TicketWriter
     }
 
     /**
-     * @return array{comment_id:int,changed:bool}
+     * @param bool $clearViews When true, wipe ticket read marks (reward sum changed).
+     *                         When false, keep marks even if report HTML changed.
+     * @return array{comment_id:int,changed:bool,views_cleared:bool}
      */
-    public static function upsertReportComment(int $ticketId, int $authorId, string $marker, string $text): array
-    {
+    public static function upsertReportComment(
+        int $ticketId,
+        int $authorId,
+        string $marker,
+        string $text,
+        bool $clearViews = true
+    ): array {
         $text = trim($text);
         if ($ticketId < 1 || $authorId < 1 || $text === '') {
-            return ['comment_id' => 0, 'changed' => false];
+            return ['comment_id' => 0, 'changed' => false, 'views_cleared' => false];
         }
         // Store with newlines → br for legacy HTML comments.
         $stored = nl2br($text);
@@ -190,16 +197,25 @@ final class TicketWriter
         if ($existing > 0) {
             $row = CommentsRepository::find($existing);
             $cur = $row ? (string)($row['TEXT'] ?? '') : '';
-            if ($cur === $stored) {
-                return ['comment_id' => $existing, 'changed' => false];
+            $textChanged = $cur !== $stored;
+            if ($textChanged) {
+                CommentsRepository::updateText($existing, $stored);
             }
-            CommentsRepository::updateText($existing, $stored);
-            // updateText (unlike add) keeps base_views — staff would not see the recalculated day.
-            NewsRepository::clearViewMarks($ticketId, true, false);
-            return ['comment_id' => $existing, 'changed' => true];
+            $viewsCleared = false;
+            if ($clearViews) {
+                // Sum change (or legacy default): unread even when HTML is identical.
+                NewsRepository::clearViewMarks($ticketId, true, false);
+                $viewsCleared = true;
+            }
+
+            return [
+                'comment_id' => $existing,
+                'changed' => $textChanged,
+                'views_cleared' => $viewsCleared,
+            ];
         }
         $id = CommentsRepository::add($ticketId, $authorId, $stored);
-        return ['comment_id' => $id, 'changed' => $id > 0];
+        return ['comment_id' => $id, 'changed' => $id > 0, 'views_cleared' => $id > 0];
     }
 
     /**

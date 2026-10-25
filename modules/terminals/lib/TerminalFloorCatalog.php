@@ -392,7 +392,7 @@ final class TerminalFloorCatalog
             'rows' => $rows,
             'cart' => [
                 'items' => $cartItems,
-                'sum' => round($cartSum, 2),
+                'sum' => self::roundMoney($cartSum),
             ],
         ];
     }
@@ -425,13 +425,22 @@ final class TerminalFloorCatalog
             return TerminalDiscount::bestPrice($listPrice, $basePct, $typeId, $promoActive, $typeLimits);
         }
         if ($listPrice <= 0 || $basePct <= 0) {
-            return ['price' => round(max(0.0, $listPrice), 2), 'pct' => max(0, (int)$basePct)];
+            return ['price' => self::roundMoney($listPrice), 'pct' => max(0, (int)$basePct)];
         }
         $pct = max(0, min(100, (int)$basePct));
         return [
-            'price' => round($listPrice * (1.0 - $pct / 100.0), 2),
+            'price' => self::roundMoney($listPrice * (1.0 - $pct / 100.0)),
             'pct' => $pct,
         ];
+    }
+
+    /** Whole rubles when likespa off; otherwise likespa terminal_price_decimals. */
+    public static function roundMoney(float $amount): float
+    {
+        if (class_exists(TerminalDiscount::class, false)) {
+            return TerminalDiscount::roundMoney($amount);
+        }
+        return round(max(0.0, $amount), 0);
     }
 
     private static function applyDiscount(float $price, float $pct): float

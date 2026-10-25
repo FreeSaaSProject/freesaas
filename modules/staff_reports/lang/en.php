@@ -26,7 +26,7 @@ return [
     'staff_reports.settings.coverage_min' => 'Coverage min %',
     'staff_reports.settings.require_full_parse' => 'Require day parse (blocks only when zero records are parsed)',
     'staff_reports.settings.allow_same_day_publish' => 'Allow publishing for today',
-    'staff_reports.settings.allow_same_day_publish_hint' => 'Otherwise only past days. On another Re-® the ticket comment and reward contract update.',
+    'staff_reports.settings.allow_same_day_publish_hint' => 'Otherwise only past days. On Re-®: same bonus sum → report only (keep read marks); sum changed → rebuild contract/settlement and clear read marks.',
     'staff_reports.settings.reward_sum' => 'Reward sum',
     'staff_reports.settings.managing_contract' => 'Managing contract ID',
     'staff_reports.settings.ticket_status' => 'Ticket status ID',

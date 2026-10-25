@@ -24,6 +24,7 @@ return [
     'contracts.err.deny_refuse' => 'Нет права отказаться от курирования',
     'contracts.err.deny_cancel_accept' => 'Нет права отменить приёмку',
     'contracts.err.paid_no_cancel' => 'Есть оплата — отмена невозможна',
+    'contracts.warn.payment_mismatch' => 'Взаиморасчёт #{id} на {pay} ₽ не совпадает с оффером {offer} ₽ — проверьте после Re-®',
     'contracts.status.failed' => 'провален ({date})',
     'contracts.status.paid' => 'оплачен',
     'contracts.status.awaiting_payment' => 'исполнен, ждёт оплаты',

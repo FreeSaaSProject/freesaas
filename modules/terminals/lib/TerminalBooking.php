@@ -123,6 +123,17 @@ final class TerminalBooking
         if ($price <= 0) {
             $price = $listPrice;
         }
+        // Configurable decimals (likespa.terminal_price_decimals; default whole rubles).
+        if (class_exists(TerminalDiscount::class, false)) {
+            $listPrice = TerminalDiscount::roundMoney($listPrice);
+            $price = TerminalDiscount::roundMoney($price);
+        } elseif (class_exists(TerminalFloorCatalog::class, false)) {
+            $listPrice = TerminalFloorCatalog::roundMoney($listPrice);
+            $price = TerminalFloorCatalog::roundMoney($price);
+        } else {
+            $listPrice = round(max(0.0, $listPrice), 0);
+            $price = round(max(0.0, $price), 0);
+        }
         $typeId = (int)($product['type'] ?? $product['type_id'] ?? 0);
         $onecProduct = trim((string)($product['onec_id'] ?? ''));
         if ($onecProduct === '') {

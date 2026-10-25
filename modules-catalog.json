@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-25T08:04:43+00:00",
+    "generated_at": "2026-10-25T10:19:11+00:00",
     "modules": [
         {
             "id": "asr",
@@ -148,7 +148,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.10",
+            "version": "1.0.11",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -284,7 +284,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.6",
+            "version": "1.0.8",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -555,7 +555,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -774,7 +774,7 @@
         },
         {
             "id": "comments",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Comments",
@@ -802,7 +802,7 @@
         },
         {
             "id": "contracts",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -1083,7 +1083,7 @@
         },
         {
             "id": "likespa",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -1110,7 +1110,8 @@
                 "booking": ">=1.0.0",
                 "clients": ">=1.0.0",
                 "terminals": ">=1.0.0",
-                "comments": ">=1.0.0"
+                "comments": ">=1.0.0",
+                "remittances": ">=0.1.0"
             },
             "catalog": {
                 "categories": [
@@ -1253,7 +1254,7 @@
         },
         {
             "id": "payments",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1354,7 +1355,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "Treatments",
@@ -1454,6 +1455,43 @@
             }
         },
         {
+            "id": "remittances",
+            "version": "0.1.0",
+            "type": "product",
+            "name": {
+                "en": "Remittances",
+                "ru": "Перечисления и сверка"
+            },
+            "description": {
+                "en": "Remittance agreements (agency/acquiring): parse ledger purpose text and reconcile to daily revenue. Overview lives on the ledger moves list.",
+                "ru": "Договоры перечисления (агент/эквайринг): разбор назначений ДПС и сверка с дневной выручкой. Обзор — в журнале ДПС."
+            },
+            "summary": {
+                "en": "Enable with ledger and suppliers. Reconcile on /ledger/moves; this module only holds agreements and parse templates. Soft: procedures/likespa for spa_ops expected revenue.",
+                "ru": "Включайте вместе с ledger и suppliers. Сверка на /ledger/moves; здесь только договоры и шаблоны разбора. Soft: procedures/likespa для ожидаемой выручки spa_ops."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "ledger": ">=1.0.0",
+                "suppliers": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "banks": ">=0.1.0",
+                "procedures": ">=1.0.0",
+                "likespa": ">=1.0.0"
+            },
+            "catalog": {
+                "categories": [
+                    "finance"
+                ],
+                "maturity": "beta",
+                "tags": [
+                    "journal",
+                    "payments"
+                ]
+            }
+        },
+        {
             "id": "sheets",
             "version": "1.0.0",
             "type": "product",
@@ -1519,7 +1557,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1544,6 +1582,7 @@
                 "audio_reports": ">=1.0.0",
                 "audio_pipeline": ">=1.0.0",
                 "contracts": ">=1.0.0",
+                "payments": ">=1.0.0",
                 "audio_llm": ">=0.1.0"
             },
             "catalog": {
@@ -1685,7 +1724,7 @@
         },
         {
             "id": "terminals",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

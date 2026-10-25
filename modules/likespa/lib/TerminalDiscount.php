@@ -7,6 +7,21 @@ declare(strict_types=1);
  */
 final class TerminalDiscount
 {
+    /** Decimal places for /t money: 0 (whole rubles) or 2 (kopeks). */
+    public static function priceDecimals(): int
+    {
+        if (class_exists(LikespaConfig::class, false)) {
+            return LikespaConfig::terminalPriceDecimals();
+        }
+        return 0;
+    }
+
+    /** Round paid/list amounts for terminal → 1C / procedure SUMM. */
+    public static function roundMoney(float $amount): float
+    {
+        return round(max(0.0, $amount), self::priceDecimals());
+    }
+
     /**
      * @param array<int,int|string> $typeLimits DISCOUNTS_TYPES map typeId => max %
      * @return array{price:float,pct:int}
@@ -32,9 +47,9 @@ final class TerminalDiscount
             }
         }
         if ($listPrice <= 0 || $bestPct <= 0) {
-            return ['price' => round(max(0.0, $listPrice), 2), 'pct' => $bestPct];
+            return ['price' => self::roundMoney($listPrice), 'pct' => $bestPct];
         }
-        $paid = round($listPrice * (100 - $bestPct) / 100, 2);
+        $paid = self::roundMoney($listPrice * (100 - $bestPct) / 100);
         return ['price' => $paid, 'pct' => $bestPct];
     }
 

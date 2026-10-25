@@ -57,5 +57,8 @@ curl -sS -b jar.txt 'https://example/staff-reports/day?format=json'
 ## Notes
 
 - Requires audio + audio_dicts + comments + procedures.
-- Re-publish of a day (late records, Cron day drain, Re-®) updates the existing day comment in place. When the text actually changes, ticket read marks (`base_views` `base_news`) are cleared so the employee and curator see it as unread again; unchanged text keeps read state.
+- Re-publish of a day (late records, Cron day drain, Re-®) updates the existing day comment in place.
+- **Reward sum unchanged:** report text may update; ticket read marks stay; PRICE_OFFER child is left alone.
+- **Reward sum changed:** clear ticket read marks. No settlement → update PRICE_OFFER in place (work accept kept). Settlement exists with a different sum → delete that `base_payments` row (and move links), disable the old offer, create a **new** PRICE_OFFER (needs accept work again). Revoke (sum→0) disables the offer and deletes a linked settlement.
+- On news view, contracts batch-checks linked settlements (`comments.visible` → one payments query); red warning when payment sum ≠ offer.
 - Day-bonus amounts and traffic lights come from scripts (`DAY_BONUS` / part `GATE_*` / root `DAY_GATES` for hours/starts). Unique bracelet scans are a script part (`COND_TYPE=term_scan_unique`); gone when term_scans off. Not the removed calendar BONUS TIME path.

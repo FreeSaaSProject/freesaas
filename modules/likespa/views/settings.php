@@ -80,6 +80,14 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
       <input type="number" name="flyer_discount" min="0" max="100" value="<?= (int)($flyerPromo['flyer_discount'] ?? 0) ?>">
       <span class="muted"><?= te('likespa.settings.flyer_discount_hint') ?></span>
     </label>
+    <?php $priceDec = (int)$c('terminal_price_decimals', '0'); ?>
+    <label><?= te('likespa.settings.terminal_price_decimals') ?>
+      <select name="terminal_price_decimals">
+        <option value="0"<?= $priceDec !== 2 ? ' selected' : '' ?>><?= te('likespa.settings.terminal_price_decimals.0') ?></option>
+        <option value="2"<?= $priceDec === 2 ? ' selected' : '' ?>><?= te('likespa.settings.terminal_price_decimals.2') ?></option>
+      </select>
+      <span class="muted"><?= te('likespa.settings.terminal_price_decimals_hint') ?></span>
+    </label>
   </fieldset>
 
   <fieldset>

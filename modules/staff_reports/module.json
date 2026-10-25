@@ -2,7 +2,7 @@
     "id": "staff_reports",
     "name": "staff_reports.module.name",
     "description": "staff_reports.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -15,6 +15,7 @@
         "audio_reports": ">=1.0.0",
         "audio_pipeline": ">=1.0.0",
         "contracts": ">=1.0.0",
+        "payments": ">=1.0.0",
         "audio_llm": ">=0.1.0"
     },
     "provides": [

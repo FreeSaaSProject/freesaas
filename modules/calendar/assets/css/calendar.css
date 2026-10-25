@@ -514,6 +514,20 @@ tr.is-block td { opacity: 0.75; }
 .calendar-tl-chip-proc {
   box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.25);
 }
+/* Oper parity: promo price (SUMM≠SUMM_DEFAULT) dotted cyan; restored dashed red (wins). */
+.calendar-tl-chip.is-promo {
+  border-style: dotted;
+  border-width: 2px;
+  border-color: #22d3ee;
+  box-shadow: none;
+}
+.calendar-tl-chip.is-restored,
+.calendar-tl-chip.is-restored.is-chill {
+  border-style: dashed;
+  border-width: 2px;
+  border-color: #ef4444;
+  box-shadow: none;
+}
 /* Short slots (≤10 min): bg/fg swapped in PHP; drop soft rings so the strip stays crisp. */
 .calendar-tl-chip.is-compact {
   z-index: 4;

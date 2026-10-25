@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -18,7 +18,8 @@
         "booking": ">=1.0.0",
         "clients": ">=1.0.0",
         "terminals": ">=1.0.0",
-        "comments": ">=1.0.0"
+        "comments": ">=1.0.0",
+        "remittances": ">=0.1.0"
     },
     "provides": [
         "likespa.term_scans",
@@ -194,7 +195,8 @@
             "booking.book.before",
             "procedures.list.row",
             "calendar.settings.sections",
-            "calendar.settings.save"
+            "calendar.settings.save",
+            "remittances.day_expected"
         ],
         "publish": []
     },
