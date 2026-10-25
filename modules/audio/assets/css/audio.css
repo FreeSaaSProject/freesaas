@@ -52,6 +52,55 @@
   font-size: 0.8rem;
 }
 
+.audio-filter-chip {
+  align-self: flex-end;
+  font-size: 0.8rem;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 3px;
+  background: var(--surface-muted, #f5f5f5);
+}
+
+.audio-orphan-hints {
+  margin: 0 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--border, #ccc);
+  border-left: 3px solid #c9782c;
+  background: #fffaf3;
+  font-size: 0.85rem;
+}
+
+.audio-orphan-hints-title {
+  margin: 0 0 0.35rem;
+  font-weight: 600;
+}
+
+.audio-orphan-hints-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.audio-orphan-hints-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.65rem;
+}
+
+.audio-orphan-hints-claim {
+  display: inline;
+  margin: 0;
+}
+
+.audio-orphan-hints-claim .btn-sm {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+}
+
 .audio-day-nav {
   display: flex;
   flex-wrap: wrap;

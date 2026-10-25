@@ -320,7 +320,7 @@ $groupByPosition = static function (array $lines) use ($adminMeta, $positionName
     $groups = [];
     foreach ($lines as $line) {
         $aid = (int)$line['admin_id'];
-        $pid = (int)($adminMeta[$aid]['position_id'] ?? 0);
+        $pid = (int)($line['position_id'] ?? ($adminMeta[$aid]['position_id'] ?? 0));
         if (!isset($groups[$pid])) {
             $groups[$pid] = [];
         }
@@ -331,16 +331,28 @@ $groupByPosition = static function (array $lines) use ($adminMeta, $positionName
     foreach ($groups as $pid => $glines) {
         usort($glines, static function (array $a, array $b): int {
             return ((int)$b['agg']['playtime'] <=> (int)$a['agg']['playtime'])
+                ?: strcmp((string)($a['badge_code'] ?? ''), (string)($b['badge_code'] ?? ''))
                 ?: ((int)$a['admin_id'] <=> (int)$b['admin_id']);
         });
+        if ((int)$pid < 0) {
+            $posName = t('audio_reports.calendar.unassigned');
+        } elseif ((int)$pid > 0) {
+            $posName = (string)($positionNames[$pid] ?? ('#' . $pid));
+        } else {
+            $posName = t('audio_reports.calendar.no_position');
+        }
         $out[] = [
             'position_id' => (int)$pid,
-            'position_name' => $pid > 0
-                ? (string)($positionNames[$pid] ?? ('#' . $pid))
-                : t('audio_reports.calendar.no_position'),
+            'position_name' => $posName,
             'lines' => $glines,
         ];
     }
+    // Oper: unassigned (position_id < 0) always last.
+    usort($out, static function (array $a, array $b): int {
+        $ap = (int)$a['position_id'] < 0 ? 1 : 0;
+        $bp = (int)$b['position_id'] < 0 ? 1 : 0;
+        return ($ap <=> $bp) ?: ((int)$a['position_id'] <=> (int)$b['position_id']);
+    });
     return $out;
 };
 
@@ -373,6 +385,9 @@ foreach ($periodMonths as $period) {
         $staffLines = [];
         foreach ($agg['by_admin_day'] as $aid => $byDay) {
             $aid = (int)$aid;
+            if ($aid < 1) {
+                continue; // unassigned is rendered per badge below
+            }
             if ($adminFilter > 0 && $aid !== $adminFilter) {
                 continue;
             }
@@ -434,6 +449,7 @@ foreach ($periodMonths as $period) {
                     'tracking' => [],
                     'scripts' => [],
                     'script_score' => 0,
+                    'badge_code' => '',
                 ];
             }
             $monthAdminTot[$aid]['count'] += (int)$cellAgg['count'];
@@ -488,6 +504,7 @@ foreach ($periodMonths as $period) {
             $staffLines[] = [
                 'admin_id' => $aid,
                 'position_id' => (int)($adminMeta[$aid]['position_id'] ?? 0),
+                'badge_code' => '',
                 'agg' => $cellAgg,
                 'href' => $cellHref,
                 'report_href' => $reportHref,
@@ -502,6 +519,75 @@ foreach ($periodMonths as $period) {
                 'review_pending' => $reviewPending,
                 'review_pending_href' => $reviewPendingHref,
             ];
+        }
+
+        // Oper: unassigned records at end of cell, one line per badge.
+        if ($adminFilter < 1) {
+            foreach ($agg['by_unassigned_badge_day'] as $badgeCode => $byDay) {
+                $badgeCode = (string)$badgeCode;
+                if ($badgeFilter > 0 && (string)$badgeFilter !== $badgeCode) {
+                    continue;
+                }
+                $cellAgg = $byDay[$date] ?? null;
+                if (!$cellAgg || (int)$cellAgg['count'] < 1) {
+                    continue;
+                }
+                $badgeQ = $badgeCode !== '' && $badgeCode !== '0' ? ('&badge=' . rawurlencode($badgeCode)) : '';
+                $cellHref = NavContext::withReturn(
+                    '/audio?year=' . $y . '&month=' . $m . '&day=' . $d . '&unassigned=1' . $badgeQ
+                );
+                // Badge chip → all records on this badge that day (assigned + unassigned).
+                $badgeDayHref = $badgeQ !== ''
+                    ? NavContext::withReturn(
+                        '/audio?year=' . $y . '&month=' . $m . '&day=' . $d . $badgeQ
+                    )
+                    : $cellHref;
+                $badgeLabel = $badgeCode !== '' && $badgeCode !== '0'
+                    ? t('audio_reports.calendar.unassigned_badge', ['badge' => $badgeCode])
+                    : t('audio_reports.calendar.unassigned');
+                $badgeHtml = '<a class="user-badge is-empty" href="' . e($badgeDayHref) . '"'
+                    . ' title="' . e(t('audio_reports.calendar.badge_day_hint')) . '">'
+                    . e($badgeLabel) . '</a>';
+
+                $totKey = 'u:' . $badgeCode;
+                if (!isset($monthAdminTot[$totKey])) {
+                    $monthAdminTot[$totKey] = [
+                        'count' => 0, 'playtime' => 0, 'score_w' => 0.0, 'score_sec' => 0,
+                        'errors' => 0, 'strings' => 0, 'strings_nok' => 0,
+                        'tracking' => [],
+                        'scripts' => [],
+                        'script_score' => 0,
+                        'badge_code' => $badgeCode,
+                    ];
+                }
+                $monthAdminTot[$totKey]['count'] += (int)$cellAgg['count'];
+                $monthAdminTot[$totKey]['playtime'] += (int)$cellAgg['playtime'];
+                $monthAdminTot[$totKey]['score_w'] += (float)$cellAgg['score_w'];
+                $monthAdminTot[$totKey]['score_sec'] += (int)$cellAgg['score_sec'];
+                $monthAdminTot[$totKey]['errors'] += (int)$cellAgg['errors'];
+                $monthAdminTot[$totKey]['strings'] += (int)($cellAgg['strings'] ?? 0);
+                $monthAdminTot[$totKey]['strings_nok'] += (int)($cellAgg['strings_nok'] ?? 0);
+
+                $avg = CalendarAggregates::avgScore($cellAgg);
+                $staffLines[] = [
+                    'admin_id' => 0,
+                    'position_id' => -1,
+                    'badge_code' => $badgeCode,
+                    'agg' => $cellAgg,
+                    'href' => $cellHref,
+                    'report_href' => '',
+                    'avg_score' => $avg,
+                    'extra_html' => '',
+                    'badge_html' => $badgeHtml,
+                    'playtime_label' => CalendarAggregates::formatPlaytime((int)$cellAgg['playtime']),
+                    'tracking' => [],
+                    'scripts' => [],
+                    'keys_pct' => CalendarAggregates::keysPct($cellAgg),
+                    'missing' => null,
+                    'review_pending' => 0,
+                    'review_pending_href' => '',
+                ];
+            }
         }
 
         // On shift + analytics, but no records that day
@@ -587,25 +673,60 @@ foreach ($periodMonths as $period) {
     }
 
     $summaryGroups = [];
-    foreach ($monthAdminTot as $aid => $tot) {
-        $pid = (int)($adminMeta[$aid]['position_id'] ?? 0);
+    foreach ($monthAdminTot as $totKey => $tot) {
+        $badgeCode = (string)($tot['badge_code'] ?? '');
+        $isUnassigned = is_string($totKey) && strpos((string)$totKey, 'u:') === 0;
+        $aid = $isUnassigned ? 0 : (int)$totKey;
+        $pid = $isUnassigned ? -1 : (int)($adminMeta[$aid]['position_id'] ?? 0);
         if (!isset($summaryGroups[$pid])) {
             $summaryGroups[$pid] = [];
         }
         $avg = CalendarAggregates::avgScore($tot);
         $scriptHrefs = [];
-        foreach ($tot['scripts'] as $sid => $_) {
-            $scriptHrefs[(int)$sid] = $collectionsHref([
+        if (!$isUnassigned) {
+            foreach ($tot['scripts'] as $sid => $_) {
+                $scriptHrefs[(int)$sid] = $collectionsHref([
+                    'year' => $y,
+                    'month' => $m,
+                    'day' => 0,
+                    'admin' => $aid,
+                    'script' => (int)$sid,
+                ]);
+            }
+        }
+        if ($isUnassigned) {
+            $badgeQ = $badgeCode !== '' && $badgeCode !== '0' ? ('&badge=' . rawurlencode($badgeCode)) : '';
+            $badgeLabel = $badgeCode !== '' && $badgeCode !== '0'
+                ? t('audio_reports.calendar.unassigned_badge', ['badge' => $badgeCode])
+                : t('audio_reports.calendar.unassigned');
+            $monthBadgeHref = $badgeQ !== ''
+                ? NavContext::withReturn('/audio?year=' . $y . '&month=' . $m . $badgeQ)
+                : NavContext::withReturn('/audio?year=' . $y . '&month=' . $m . '&unassigned=1');
+            $badgeHtml = '<a class="user-badge is-empty" href="' . e($monthBadgeHref) . '"'
+                . ' title="' . e(t('audio_reports.calendar.badge_day_hint')) . '">'
+                . e($badgeLabel) . '</a>';
+            $rowHref = NavContext::withReturn(
+                '/audio?year=' . $y . '&month=' . $m . '&unassigned=1' . $badgeQ
+            );
+            $scriptScoreHref = '';
+        } else {
+            $badgeHtml = UsersRepository::badgeHtml($aid, false, true);
+            $rowHref = NavContext::withReturn(
+                '/audio?year=' . $y . '&month=' . $m . '&admin=' . $aid
+                . ($badgeFilter > 0 ? '&badge=' . $badgeFilter : '')
+            );
+            $scriptScoreHref = $collectionsHref([
                 'year' => $y,
                 'month' => $m,
                 'day' => 0,
                 'admin' => $aid,
-                'script' => (int)$sid,
             ]);
         }
         $summaryGroups[$pid][] = [
             'admin_id' => $aid,
-            'badge_html' => UsersRepository::badgeHtml($aid, false, true),
+            'tot_key' => $totKey,
+            'badge_code' => $badgeCode,
+            'badge_html' => $badgeHtml,
             'hours' => CalendarAggregates::formatHours((int)$tot['playtime']),
             'playtime' => (int)$tot['playtime'],
             'count' => (int)$tot['count'],
@@ -616,16 +737,8 @@ foreach ($periodMonths as $period) {
             'scripts' => $tot['scripts'],
             'script_hrefs' => $scriptHrefs,
             'script_score' => (int)$tot['script_score'],
-            'script_score_href' => $collectionsHref([
-                'year' => $y,
-                'month' => $m,
-                'day' => 0,
-                'admin' => $aid,
-            ]),
-            'href' => NavContext::withReturn(
-                '/audio?year=' . $y . '&month=' . $m . '&admin=' . $aid
-                . ($badgeFilter > 0 ? '&badge=' . $badgeFilter : '')
-            ),
+            'script_score_href' => $scriptScoreHref,
+            'href' => $rowHref,
         ];
     }
     ksort($summaryGroups);
@@ -633,6 +746,7 @@ foreach ($periodMonths as $period) {
     foreach ($summaryGroups as $pid => $rows) {
         usort($rows, static function (array $a, array $b): int {
             return ((int)$b['playtime'] <=> (int)$a['playtime'])
+                ?: strcmp((string)($a['badge_code'] ?? ''), (string)($b['badge_code'] ?? ''))
                 ?: ((int)$a['admin_id'] <=> (int)$b['admin_id']);
         });
         $totPlay = 0;
@@ -646,8 +760,7 @@ foreach ($periodMonths as $period) {
         $totScriptHrefs = [];
         $totScriptScore = 0;
         foreach ($rows as $r) {
-            $aid = (int)$r['admin_id'];
-            $t = $monthAdminTot[$aid];
+            $t = $monthAdminTot[$r['tot_key']];
             $totPlay += (int)$t['playtime'];
             $totScoreW += (float)$t['score_w'];
             $totScoreSec += (int)$t['score_sec'];
@@ -675,9 +788,11 @@ foreach ($periodMonths as $period) {
         }
         $summaries[] = [
             'position_id' => (int)$pid,
-            'position_name' => $pid > 0
-                ? (string)($positionNames[$pid] ?? ('#' . $pid))
-                : t('audio_reports.calendar.no_position'),
+            'position_name' => (int)$pid < 0
+                ? t('audio_reports.calendar.unassigned')
+                : ($pid > 0
+                    ? (string)($positionNames[$pid] ?? ('#' . $pid))
+                    : t('audio_reports.calendar.no_position')),
             'rows' => $rows,
             'totals' => [
                 'hours' => CalendarAggregates::formatHours($totPlay),
@@ -696,6 +811,12 @@ foreach ($periodMonths as $period) {
             ],
         ];
     }
+    // Oper: unassigned summary block last.
+    usort($summaries, static function (array $a, array $b): int {
+        $ap = (int)$a['position_id'] < 0 ? 1 : 0;
+        $bp = (int)$b['position_id'] < 0 ? 1 : 0;
+        return ($ap <=> $bp) ?: ((int)$a['position_id'] <=> (int)$b['position_id']);
+    });
 
     $enrich = CalendarHooks::emitSummaryEnrich(['year' => $y, 'month' => $m]);
     $extraColumns = is_array($enrich['columns'] ?? null) ? $enrich['columns'] : [];

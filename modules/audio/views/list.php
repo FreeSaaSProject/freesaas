@@ -5,6 +5,7 @@ declare(strict_types=1);
 /** @var string $q */
 /** @var string $search */
 /** @var int $admin */
+/** @var int $unassigned */
 /** @var int $badge */
 /** @var int $year */
 /** @var int $month */
@@ -94,6 +95,16 @@ require __DIR__ . '/_inbox_banner.php';
 <?php if (!empty($bulkFlash)): ?>
   <?= BulkActions::flashHtml($bulkFlash) ?>
 <?php endif; ?>
+<?php
+$pageFlash = is_array($pageFlash ?? null) ? $pageFlash : null;
+if ($pageFlash && trim((string)($pageFlash['message'] ?? '')) !== ''):
+    $pfType = (string)($pageFlash['type'] ?? 'ok');
+    ?>
+  <p class="flash<?= $pfType === 'warn' || $pfType === 'error' ? ' flash-warn' : '' ?>"><?= e((string)$pageFlash['message']) ?></p>
+<?php endif; ?>
+<?php if (!empty($orphanHints)): ?>
+  <?php require __DIR__ . '/_orphan_badge_hints.php'; ?>
+<?php endif; ?>
 <?php if ($rangeFrom > 0 || $rangeTo > 0): ?>
   <p class="flash audio-range-flash">
     <?= te('audio.range.active', [
@@ -156,8 +167,12 @@ require __DIR__ . '/_inbox_banner.php';
   <input type="search" name="q" value="<?= e($q) ?>" placeholder="<?= te('audio.search_placeholder') ?>" data-filter-debounce>
   <input type="search" name="search" value="<?= e($search) ?>" placeholder="<?= te('audio.filter.search_transcript') ?>" data-filter-debounce>
   <label><?= te('audio.col.admin') ?>
-    <input type="number" name="admin" min="0" value="<?= $admin > 0 ? (int)$admin : '' ?>" placeholder="ID" data-filter-change>
+    <input type="number" name="admin" min="0" value="<?= !empty($unassigned) ? '' : ($admin > 0 ? (int)$admin : '') ?>" placeholder="ID" data-filter-change<?= !empty($unassigned) ? ' disabled' : '' ?>>
   </label>
+  <?php if (!empty($unassigned)): ?>
+    <input type="hidden" name="unassigned" value="1">
+    <span class="audio-filter-chip"><?= te('audio.filter.unassigned') ?></span>
+  <?php endif; ?>
   <label><?= te('audio.col.badge') ?>
     <select name="badge">
       <option value="0"><?= te('audio.filter.all_badges') ?></option>

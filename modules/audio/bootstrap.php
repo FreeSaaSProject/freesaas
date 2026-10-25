@@ -6,6 +6,7 @@ require_once __DIR__ . '/lib/FileStorage.php';
 require_once __DIR__ . '/lib/InboxFiles.php';
 require_once __DIR__ . '/lib/BadgesRepository.php';
 require_once __DIR__ . '/lib/BadgeAssignmentsRepository.php';
+require_once __DIR__ . '/lib/BadgeOrphanHints.php';
 require_once __DIR__ . '/lib/BadgeBotPlugin.php';
 require_once __DIR__ . '/lib/ModerationBotPlugin.php';
 require_once __DIR__ . '/lib/RecordsRepository.php';

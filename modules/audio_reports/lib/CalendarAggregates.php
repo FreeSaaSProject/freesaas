@@ -22,12 +22,21 @@ final class CalendarAggregates
      *   by_day: array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>,
      *   by_admin_day: array<int, array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>>,
      *   by_admin: array<int, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>,
+     *   by_unassigned_badge_day: array<string, array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>>,
+     *   by_unassigned_badge: array<string, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}>,
      *   admins: list<int>
      * }
      */
     public static function forRange(int $fromTs, int $toTs, array $filters = []): array
     {
-        $empty = ['by_day' => [], 'by_admin_day' => [], 'by_admin' => [], 'admins' => []];
+        $empty = [
+            'by_day' => [],
+            'by_admin_day' => [],
+            'by_admin' => [],
+            'by_unassigned_badge_day' => [],
+            'by_unassigned_badge' => [],
+            'admins' => [],
+        ];
         if ($fromTs < 1 || $toTs < $fromTs || !Database::tableExists('base_records')) {
             return $empty;
         }
@@ -54,30 +63,33 @@ final class CalendarAggregates
 
         $pdo = Database::pdo();
         $hasDesc = Database::columnExists('base_records', 'DESCRIPTION');
-        $sql = 'SELECT r.ID_ADMIN AS id_admin, r.DT_RECORDED AS dt, r.PLAYTIME AS playtime,
-                       r.SCORE AS score, r.ERROR_TRANS AS error_trans, r.QUALITY AS quality,
-                       r.STRINGS AS strings, r.STRINGS_NOK AS strings_nok'
+        $sql = 'SELECT r.ID_ADMIN AS id_admin, r.ID_DICTOPHONE AS id_dictophone, r.DT_RECORDED AS dt,
+                       r.PLAYTIME AS playtime, r.SCORE AS score, r.ERROR_TRANS AS error_trans,
+                       r.QUALITY AS quality, r.STRINGS AS strings, r.STRINGS_NOK AS strings_nok'
             . ($hasDesc ? ', r.DESCRIPTION AS description' : '')
             . ' FROM base_records r';
         $params = [];
         $needUsersJoin = ($positionFilter > 0 || $positionsScope !== []) && Database::tableExists('base_users');
         if ($needUsersJoin) {
-            $sql .= ' INNER JOIN base_users u ON u.id = r.ID_ADMIN';
-            if ($positionFilter > 0) {
-                $sql .= ' AND u.ID_STATUS = ?';
-                $params[] = $positionFilter;
-            } elseif ($positionsScope !== []) {
-                $ph = implode(',', array_fill(0, count($positionsScope), '?'));
-                $sql .= " AND u.ID_STATUS IN ($ph)";
-                foreach ($positionsScope as $pid) {
-                    $params[] = $pid;
-                }
-            }
+            // LEFT JOIN so ID_ADMIN=0 (unassigned) still appears; filter assigned by position.
+            $sql .= ' LEFT JOIN base_users u ON u.id = r.ID_ADMIN';
         }
         $sql .= ' WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ?
                   AND (r.DISABLED IS NULL OR r.DISABLED < 1)';
         $params[] = $fromTs;
         $params[] = $toTs;
+        if ($needUsersJoin) {
+            if ($positionFilter > 0) {
+                $sql .= ' AND (r.ID_ADMIN < 1 OR u.ID_STATUS = ?)';
+                $params[] = $positionFilter;
+            } elseif ($positionsScope !== []) {
+                $ph = implode(',', array_fill(0, count($positionsScope), '?'));
+                $sql .= " AND (r.ID_ADMIN < 1 OR u.ID_STATUS IN ($ph))";
+                foreach ($positionsScope as $pid) {
+                    $params[] = $pid;
+                }
+            }
+        }
         if ($adminFilter > 0) {
             $sql .= ' AND r.ID_ADMIN = ?';
             $params[] = $adminFilter;
@@ -92,6 +104,8 @@ final class CalendarAggregates
         $byDay = [];
         $byAdminDay = [];
         $byAdmin = [];
+        $byUnassignedBadgeDay = [];
+        $byUnassignedBadge = [];
         $admins = [];
         /** @var array<int, array<string, int>> $recordSec OffRecord non-bonus playtime for ® overlay */
         $recordSec = [];
@@ -103,6 +117,10 @@ final class CalendarAggregates
             }
             $dayKey = date('Y-m-d', $dt);
             $adminId = (int)($row['id_admin'] ?? 0);
+            $badgeCode = trim((string)($row['id_dictophone'] ?? ''));
+            if ($badgeCode === '' || $badgeCode === '0') {
+                $badgeCode = '0';
+            }
             $play = max(0, (int)($row['playtime'] ?? 0));
             $score = max(0.0, (float)($row['score'] ?? 0));
             $strings = max(0, (int)($row['strings'] ?? 0));
@@ -135,6 +153,13 @@ final class CalendarAggregates
                 }
                 self::bump($byAdminDay[$adminId], $dayKey, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
                 self::bumpAdmin($byAdmin, $adminId, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
+            } elseif ($adminFilter < 1) {
+                // Oper: unassigned rows split by badge (different badges ≈ different people).
+                if (!isset($byUnassignedBadgeDay[$badgeCode])) {
+                    $byUnassignedBadgeDay[$badgeCode] = [];
+                }
+                self::bump($byUnassignedBadgeDay[$badgeCode], $dayKey, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
+                self::bumpAdmin($byUnassignedBadge, $badgeCode, $play, $scoreW, $scoreSec, $isErr, $outside, $strings, $stringsNok);
             }
         }
         if (class_exists('StageTiming', false)) {
@@ -143,15 +168,28 @@ final class CalendarAggregates
 
         // Prefer collection-based ® when rated collections exist; otherwise keep legacy SCORE above.
         self::overlayCollectionRating($byDay, $byAdminDay, $byAdmin, $bounds, $recordSec);
+        // Overlay rebuilds day ® from staff only — put unassigned legacy scores back.
+        foreach ($byUnassignedBadgeDay as $badgeDays) {
+            foreach ($badgeDays as $dayKey => $cell) {
+                if (!isset($byDay[$dayKey])) {
+                    continue;
+                }
+                $byDay[$dayKey]['score_w'] += (float)($cell['score_w'] ?? 0);
+                $byDay[$dayKey]['score_sec'] += (int)($cell['score_sec'] ?? 0);
+            }
+        }
         if (class_exists('StageTiming', false)) {
             StageTiming::mark('CalendarAgg: rating overlay');
         }
 
         ksort($admins);
+        ksort($byUnassignedBadgeDay, SORT_NATURAL);
         return [
             'by_day' => $byDay,
             'by_admin_day' => $byAdminDay,
             'by_admin' => $byAdmin,
+            'by_unassigned_badge_day' => $byUnassignedBadgeDay,
+            'by_unassigned_badge' => $byUnassignedBadge,
             'admins' => array_map('intval', array_keys($admins)),
         ];
     }
@@ -920,9 +958,10 @@ final class CalendarAggregates
     /**
      * @param array<int, array{count:int,playtime:int,score_w:float,score_sec:int,errors:int,outside:int,strings:int,strings_nok:int}> $bucket
      */
+    /** @param int|string $adminId Staff id or unassigned badge code. */
     private static function bumpAdmin(
         array &$bucket,
-        int $adminId,
+        $adminId,
         int $play,
         float $scoreW,
         int $scoreSec,

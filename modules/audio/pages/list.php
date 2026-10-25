@@ -14,6 +14,7 @@ $todayD = (int)date('j');
 $q = trim((string)($_GET['q'] ?? ''));
 $search = trim((string)($_GET['search'] ?? ''));
 $admin = (int)($_GET['admin'] ?? 0);
+$unassigned = !empty($_GET['unassigned']) ? 1 : 0;
 $badge = (int)($_GET['badge'] ?? 0);
 
 $reviewRaw = trim((string)($_GET['review'] ?? ''));
@@ -81,7 +82,9 @@ if ($day > 0) {
 } else {
     $filters['day'] = '0';
 }
-if ($admin > 0) {
+if ($unassigned) {
+    $filters['unassigned'] = '1';
+} elseif ($admin > 0) {
     $filters['admin'] = (string)$admin;
 }
 if ($badge > 0) {
@@ -123,10 +126,43 @@ if (!empty($lq['show_all'])) {
 BulkActions::tryHandle('audio_records', '/audio', $filters);
 $bulkFlash = BulkActions::consumeFlash();
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST'
+    && Auth::can('audio.edit')
+    && (string)($_POST['action'] ?? '') === 'claim_badge_orphans'
+) {
+    $claimAdmin = (int)($_POST['claim_admin'] ?? 0);
+    $claimBadge = trim((string)($_POST['claim_badge'] ?? ''));
+    $claimFrom = (int)($_POST['claim_from'] ?? 0);
+    $claimTo = (int)($_POST['claim_to'] ?? 0);
+    $claimed = RecordsRepository::claimUnassignedByBadge($claimAdmin, $claimBadge, $claimFrom, $claimTo);
+    flash_set(
+        $claimed > 0 ? 'ok' : 'warn',
+        $claimed > 0
+            ? t('audio.orphan_hints.claimed', ['n' => $claimed])
+            : t('audio.orphan_hints.claimed_none')
+    );
+    redirect(ListQuery::url('/audio', $filters));
+}
+
+$orphanHints = null;
+if ($unassigned && $badge > 0) {
+    $hintWindow = BadgeOrphanHints::windowFromFilters([
+        'year' => $year,
+        'month' => $month,
+        'day' => $day,
+        'range_from' => $rangeFrom,
+        'range_to' => $rangeTo,
+    ]);
+    if ($hintWindow !== null) {
+        $orphanHints = BadgeOrphanHints::analyze((string)$badge, $hintWindow[0], $hintWindow[1]);
+    }
+}
+
 $result = RecordsRepository::list([
     'q' => $q,
     'search' => $search,
-    'admin' => $admin,
+    'admin' => $unassigned ? 0 : $admin,
+    'unassigned' => $unassigned,
     'badge' => $badge,
     'year' => $year,
     'month' => $month,
@@ -312,7 +348,8 @@ View::render('list', [
     'total' => $result['total'],
     'q' => $q,
     'search' => $search,
-    'admin' => $admin,
+    'admin' => $unassigned ? 0 : $admin,
+    'unassigned' => $unassigned,
     'badge' => $badge,
     'year' => $year,
     'month' => $month,
@@ -340,6 +377,9 @@ View::render('list', [
     'inboxPath' => InboxFiles::relativeDir(),
     'canIngest' => Auth::can('audio.edit') && ModuleManager::isEnabled('audio_pipeline'),
     'bulkFlash' => $bulkFlash,
+    'orphanHints' => $orphanHints,
+    'listFilters' => $filters,
+    'pageFlash' => flash_take(),
     'sort' => $lq['sort'],
     'dir' => $lq['dir'],
     'page' => $lq['page'],

@@ -177,16 +177,16 @@ final class BadgeAssignmentsRepository
     }
 
     /**
-     * @return array{success:bool,message:string,badge_id:?string}
+     * @return array{success:bool,message:string,badge_id:?string,claimed:int}
      */
     public static function save(int $userId, string $badgeId, ?int $now = null): array
     {
         $userId = (int)$userId;
         if ($userId < 1) {
-            return ['success' => false, 'message' => t('audio.badge.err.auth'), 'badge_id' => null];
+            return ['success' => false, 'message' => t('audio.badge.err.auth'), 'badge_id' => null, 'claimed' => 0];
         }
         if (!Database::tableExists('base_badge_assignments')) {
-            return ['success' => false, 'message' => t('audio.badge.err.table'), 'badge_id' => null];
+            return ['success' => false, 'message' => t('audio.badge.err.table'), 'badge_id' => null, 'claimed' => 0];
         }
         $badgeId = trim($badgeId);
         $now = $now ?? time();
@@ -204,11 +204,16 @@ final class BadgeAssignmentsRepository
             $st->execute([$userId, '0', $now, $todayEnd, $now, $userId]);
             $_SESSION[self::SESSION_OFF] = $todayEnd;
             unset($_SESSION[self::SESSION_BADGE]);
-            return ['success' => true, 'message' => t('audio.badge.msg.not_on_shift'), 'badge_id' => 'not_on_shift'];
+            return [
+                'success' => true,
+                'message' => t('audio.badge.msg.not_on_shift'),
+                'badge_id' => 'not_on_shift',
+                'claimed' => 0,
+            ];
         }
 
         if (!preg_match('/^[a-zA-Z0-9_-]+$/', $badgeId) || in_array($badgeId, self::EXCLUDE_CODES, true)) {
-            return ['success' => false, 'message' => t('audio.badge.err.invalid'), 'badge_id' => null];
+            return ['success' => false, 'message' => t('audio.badge.err.invalid'), 'badge_id' => null, 'claimed' => 0];
         }
 
         $stHas = $pdo->prepare(
@@ -218,6 +223,9 @@ final class BadgeAssignmentsRepository
         );
         $stHas->execute([$userId, $todayStart, $todayEnd]);
         $assignStart = $stHas->fetchColumn() ? $now : $todayStart;
+        if ($assignStart === $now) {
+            $assignStart = self::resumeSameBadgeGapStart($userId, $badgeId, $todayStart, $now);
+        }
 
         // Free this badge from others for the overlapping window.
         $pdo->prepare(
@@ -249,7 +257,11 @@ final class BadgeAssignmentsRepository
         $_SESSION[self::SESSION_BADGE] = $badgeId;
         BadgesRepository::upsertFromCode($badgeId, $now);
 
-        return ['success' => true, 'message' => t('audio.badge.msg.saved'), 'badge_id' => $badgeId];
+        $claimed = self::claimUnassignedForWindow($userId, $badgeId, $assignStart, $todayEnd);
+        $msg = $claimed > 0
+            ? t('audio.badge.msg.saved_claimed', ['n' => $claimed])
+            : t('audio.badge.msg.saved');
+        return ['success' => true, 'message' => $msg, 'badge_id' => $badgeId, 'claimed' => $claimed];
     }
 
     /**
@@ -339,7 +351,7 @@ final class BadgeAssignmentsRepository
             );
             $stHas->execute([$operatorId, $dayStart, $dayEnd]);
             if ($stHas->fetchColumn()) {
-                $assignStart = $now;
+                $assignStart = self::resumeSameBadgeGapStart($operatorId, $badgeId, $dayStart, $now);
             }
         }
 
@@ -369,6 +381,7 @@ final class BadgeAssignmentsRepository
         if (class_exists('BadgesRepository', false)) {
             BadgesRepository::upsertFromCode($badgeId, $now);
         }
+        self::claimUnassignedForWindow($operatorId, $badgeId, $assignStart, $dayEnd);
         return true;
     }
 
@@ -587,6 +600,12 @@ final class BadgeAssignmentsRepository
         $badge = (string)$data['badge'];
         if ($badge !== '' && $badge !== '0') {
             BadgesRepository::upsertFromCode($badge, $now);
+            self::claimUnassignedForWindow(
+                (int)$data['operator_id'],
+                $badge,
+                (int)$data['dt_start'],
+                (int)$data['dt_end']
+            );
         }
         self::maybeSyncSession((int)$data['operator_id']);
         return $id;
@@ -619,6 +638,12 @@ final class BadgeAssignmentsRepository
         $badge = (string)$data['badge'];
         if ($badge !== '' && $badge !== '0') {
             BadgesRepository::upsertFromCode($badge, time());
+            self::claimUnassignedForWindow(
+                (int)$data['operator_id'],
+                $badge,
+                (int)$data['dt_start'],
+                (int)$data['dt_end']
+            );
         }
         self::maybeSyncSession((int)$prev['operator_id']);
         self::maybeSyncSession((int)$data['operator_id']);
@@ -678,6 +703,59 @@ final class BadgeAssignmentsRepository
         if ($operatorId > 0 && $operatorId === Auth::userId()) {
             self::syncSessionFromDb($operatorId);
         }
+    }
+
+    /**
+     * If the operator already used this badge earlier today and nobody else held it
+     * in the gap, resume from that DT_END so mid-day re-select closes the hole.
+     */
+    private static function resumeSameBadgeGapStart(
+        int $operatorId,
+        string $badgeId,
+        int $dayStart,
+        int $now
+    ): int {
+        if ($operatorId < 1 || $badgeId === '' || $badgeId === '0' || !Database::tableExists('base_badge_assignments')) {
+            return $now;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT DT_END AS dt_end FROM base_badge_assignments
+             WHERE ID_OPERATOR = ? AND ID_BADGE = ? AND DT_START >= ? AND DT_START <= ?
+             ORDER BY DT_END DESC LIMIT 1'
+        );
+        $st->execute([$operatorId, $badgeId, $dayStart, $now]);
+        $prevEnd = (int)($st->fetchColumn() ?: 0);
+        if ($prevEnd < 1 || $prevEnd >= $now) {
+            return $now;
+        }
+        // Another operator held this badge in the gap → do not steal their window.
+        $stOther = Database::pdo()->prepare(
+            'SELECT 1 FROM base_badge_assignments
+             WHERE ID_BADGE = ? AND ID_OPERATOR != ? AND ID_BADGE != \'0\'
+               AND DT_START < ? AND DT_END > ?
+             LIMIT 1'
+        );
+        $stOther->execute([$badgeId, $operatorId, $now, $prevEnd]);
+        if ($stOther->fetchColumn()) {
+            return $now;
+        }
+        return $prevEnd;
+    }
+
+    /** Claim orphan records for the new assignment window. */
+    private static function claimUnassignedForWindow(
+        int $operatorId,
+        string $badgeId,
+        int $fromTs,
+        int $toTs
+    ): int {
+        if ($operatorId < 1 || $badgeId === '' || $badgeId === '0') {
+            return 0;
+        }
+        if (!class_exists('RecordsRepository', false)) {
+            return 0;
+        }
+        return RecordsRepository::claimUnassignedByBadge($operatorId, $badgeId, $fromTs, $toTs);
     }
 
     private static function operatorShortName(int $userId): string

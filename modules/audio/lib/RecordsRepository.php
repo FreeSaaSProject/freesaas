@@ -89,7 +89,9 @@ final class RecordsRepository
         }
 
         $admin = (int)($opts['admin'] ?? 0);
-        if ($admin > 0) {
+        if (!empty($opts['unassigned'])) {
+            $where[] = 'ID_ADMIN < 1';
+        } elseif ($admin > 0) {
             $where[] = 'ID_ADMIN = ?';
             $params[] = $admin;
         }
@@ -372,6 +374,34 @@ final class RecordsRepository
         $st = Database::pdo()->prepare("UPDATE base_records SET ID_ADMIN = ? WHERE ID IN ($in)");
         $st->execute($params);
         return $st->rowCount();
+    }
+
+    /**
+     * Attach orphan cabin records (ID_ADMIN < 1) for a badge inside [fromTs, toTs] to an operator.
+     * Clears stem instances so the next stem/collect rebuilds under the new admin.
+     */
+    public static function claimUnassignedByBadge(int $adminId, string $badgeCode, int $fromTs, int $toTs): int
+    {
+        $adminId = (int)$adminId;
+        $badgeCode = trim($badgeCode);
+        if ($adminId < 1 || $badgeCode === '' || $badgeCode === '0' || $fromTs < 1 || $toTs < $fromTs) {
+            return 0;
+        }
+        if (!Database::tableExists('base_records')) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_records
+             WHERE ID_ADMIN < 1 AND CAST(ID_DICTOPHONE AS CHAR) = ?
+               AND DT_RECORDED >= ? AND DT_RECORDED <= ?
+               AND (DISABLED IS NULL OR DISABLED < 1)'
+        );
+        $st->execute([$badgeCode, $fromTs, $toTs]);
+        $ids = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $ids[] = (int)$row['ID'];
+        }
+        return self::setAdminByIds($ids, $adminId);
     }
 
     /** @param list<int> $ids */
