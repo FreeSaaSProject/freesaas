@@ -987,7 +987,9 @@ final class LikespaLegacyApi
         if ($bookingId < 1 || !class_exists(TerminalBooking::class, false)) {
             return ['error' => 'booking_id required', 'cancelled' => 0];
         }
-        $res = TerminalBooking::cancel($bookingId, false, !empty($_GET['disable1C']));
+        // Unsale in 1C (same as /t). Legacy oper cancel_booking skipped 1C; that left
+        // charged sales in remittances after local cancel → restore asymmetry.
+        $res = TerminalBooking::cancel($bookingId, true, !empty($_GET['disable1C']));
         return [
             'cancelled' => !empty($res['ok']) ? 1 : 0,
             'error' => empty($res['ok']) ? (string)($res['error'] ?? '') : '',

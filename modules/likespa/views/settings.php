@@ -74,12 +74,7 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
   </fieldset>
 
   <fieldset>
-    <legend><?= te('likespa.settings.sec.flyer') ?></legend>
-    <label class="check"><input type="checkbox" name="flyer_enabled" value="1"<?= !empty($flyerPromo['flyer_enabled']) ? ' checked' : '' ?>> <?= te('likespa.settings.flyer_enabled') ?></label>
-    <label><?= te('likespa.settings.flyer_discount') ?>
-      <input type="number" name="flyer_discount" min="0" max="100" value="<?= (int)($flyerPromo['flyer_discount'] ?? 0) ?>">
-      <span class="muted"><?= te('likespa.settings.flyer_discount_hint') ?></span>
-    </label>
+    <legend><?= te('likespa.settings.sec.terminal_price') ?></legend>
     <?php $priceDec = (int)$c('terminal_price_decimals', '0'); ?>
     <label><?= te('likespa.settings.terminal_price_decimals') ?>
       <select name="terminal_price_decimals">
@@ -87,6 +82,15 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
         <option value="2"<?= $priceDec === 2 ? ' selected' : '' ?>><?= te('likespa.settings.terminal_price_decimals.2') ?></option>
       </select>
       <span class="muted"><?= te('likespa.settings.terminal_price_decimals_hint') ?></span>
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend><?= te('likespa.settings.sec.flyer') ?></legend>
+    <label class="check"><input type="checkbox" name="flyer_enabled" value="1"<?= !empty($flyerPromo['flyer_enabled']) ? ' checked' : '' ?>> <?= te('likespa.settings.flyer_enabled') ?></label>
+    <label><?= te('likespa.settings.flyer_discount') ?>
+      <input type="number" name="flyer_discount" min="0" max="100" value="<?= (int)($flyerPromo['flyer_discount'] ?? 0) ?>">
+      <span class="muted"><?= te('likespa.settings.flyer_discount_hint') ?></span>
     </label>
   </fieldset>
 
