@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.6",
+    "version": "0.1.19",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -50,8 +50,12 @@
     "routes": {
         "pages": [
             "/banks",
+            "/banks/integrations/{id}",
+            "/banks/setup/{provider}",
             "/banks/settings",
             "/banks/settings/certs",
+            "/banks/settings/csr",
+            "/banks/settings/probe",
             "/banks/oauth/{provider}/start",
             "/banks/oauth/{provider}/callback",
             "/banks/connections/{id}",
@@ -60,7 +64,13 @@
             "/banks/jobs/sync",
             "/agent/banks/status",
             "/agent/banks/settings",
-            "/agent/banks/certs"
+            "/agent/banks/certs",
+            "/agent/banks/probe",
+            "/agent/banks/csr",
+            "/agent/banks/setup",
+            "/agent/banks/integrations",
+            "/agent/banks/integrations/connect",
+            "/agent/banks/integrations/probe-scopes"
         ]
     },
     "agent": {
@@ -75,12 +85,28 @@
                 "description": "List bank OAuth connections (tokens masked)"
             },
             {
+                "id": "banks.setup.get",
+                "method": "GET",
+                "path": "/banks/setup/{provider}",
+                "permission": "SUPERADMIN_ACCESS",
+                "side_effect": "read",
+                "description": "Per-provider setup wizard snapshot (steps with ask_user, agent_can, browser). Twin: GET /agent/banks/setup?provider="
+            },
+            {
+                "id": "banks.setup.action",
+                "method": "POST",
+                "path": "/banks/setup/{provider}",
+                "permission": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Wizard POST: wizard_action=done|skip|save_step|csr_generate. Twin: POST /agent/banks/setup action=mark_done|skip|save|csr_generate"
+            },
+            {
                 "id": "banks.settings.get",
                 "method": "GET",
                 "path": "/banks/settings",
                 "permission": "SUPERADMIN_ACCESS",
                 "side_effect": "read",
-                "description": "Bank provider settings (secrets masked)"
+                "description": "Bank provider settings JSON (HTML GET redirects to /banks hub). Prefer /banks/setup/{provider}."
             },
             {
                 "id": "banks.settings.save",
@@ -89,6 +115,60 @@
                 "permission": "SUPERADMIN_ACCESS",
                 "side_effect": "write",
                 "description": "Save bank provider credentials into cfg/modules/banks.ini. Optional multipart files alfa_ul_mtls_{cert,key,ca}_file or JSON base64 fields alfa_ul_mtls_*_base64 (+ *_filename)."
+            },
+            {
+                "id": "banks.agent.setup.get",
+                "method": "GET",
+                "path": "/agent/banks/setup",
+                "permission": "public",
+                "side_effect": "read",
+                "assistant": false,
+                "description": "Agent-token wizard: ask_user_now / agent_can_now / browser_now + agent_can_ops map. Query provider= optional."
+            },
+            {
+                "id": "banks.agent.setup.action",
+                "method": "POST",
+                "path": "/agent/banks/setup",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Agent-token wizard action mark_done|skip|save|csr_generate"
+            },
+            {
+                "id": "banks.probe",
+                "method": "POST",
+                "path": "/banks/settings/probe",
+                "permission": "SUPERADMIN_ACCESS",
+                "side_effect": "read",
+                "description": "Probe Alfa UL client_id/secret against token URL (dummy code). Session twin of /agent/banks/probe.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "provider": {
+                            "type": "string",
+                            "default": "alfa_ul"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "banks.csr.generate",
+                "method": "POST",
+                "path": "/banks/settings/csr",
+                "permission": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Generate Alfa UL prod TLS key+CSR (organization, inn). Download: GET /banks/settings/csr?action=download. Twin: POST /agent/banks/csr.",
+                "parameters": {
+                    "type": "object",
+                    "required": ["organization", "inn"],
+                    "properties": {
+                        "organization": {"type": "string"},
+                        "inn": {"type": "string"},
+                        "common_name": {"type": "string"},
+                        "email": {"type": "string"},
+                        "force": {"type": "boolean"}
+                    }
+                }
             },
             {
                 "id": "banks.certs.upload",
@@ -163,7 +243,7 @@
                 "path": "/banks/connections/{id}",
                 "permission": "banks.connect",
                 "side_effect": "write",
-                "description": "Link remote bank account to base_accounts or refresh remote list. Body: action=link|unlink|refresh|create_ledger; external_account_id; account_id",
+                "description": "Link remote bank account to base_accounts, refresh, or delete connection (links+tx_map only; keeps certs/ledger). Body: action=link|unlink|refresh|create_ledger|delete; external_account_id; account_id",
                 "parameters": {
                     "type": "object",
                     "required": [
@@ -176,7 +256,8 @@
                                 "link",
                                 "unlink",
                                 "refresh",
-                                "create_ledger"
+                                "create_ledger",
+                                "delete"
                             ]
                         },
                         "external_account_id": {
@@ -270,19 +351,12 @@
             "path": "/banks",
             "permission": "banks.view",
             "kind": "work"
-        },
-        {
-            "group": "core.menu.group.finance",
-            "num": 26,
-            "title": "banks.menu.settings",
-            "path": "/banks/settings",
-            "capability": "SUPERADMIN_ACCESS",
-            "kind": "settings"
         }
     ],
     "tables": [
         "base_bank_connections",
         "base_bank_account_links",
-        "base_bank_tx_map"
+        "base_bank_tx_map",
+        "base_bank_integrations"
     ]
 }

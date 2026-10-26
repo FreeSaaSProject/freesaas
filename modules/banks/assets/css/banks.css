@@ -1,3 +1,41 @@
+/* /banks/settings — section tabs (same idea as /audio/settings) */
+.banks-settings-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+.banks-settings-tab {
+  display: inline-block;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.9rem;
+  line-height: 1.3;
+}
+.banks-settings-tab:hover {
+  border-color: var(--accent, #4f6bed);
+}
+.banks-settings-tab.is-active {
+  background: var(--accent, #4f6bed);
+  border-color: var(--accent, #4f6bed);
+  color: #fff;
+  font-weight: 600;
+}
+.banks-provider-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+.banks-provider-status .bank-chip {
+  margin-left: 0;
+  text-decoration: none;
+}
+
 .bank-chip {
   display: inline-block;
   margin-left: 0.35rem;
@@ -164,4 +202,88 @@ input.banks-redirect-uri {
   padding-left: 1.2rem;
   font-size: 0.9rem;
   word-break: break-word;
+}
+
+/* Hub common sync defaults */
+.banks-hub-common {
+  margin: 0 0 1.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #ccc) 80%, transparent);
+  border-radius: 0.35rem;
+}
+.banks-hub-common h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+.banks-hub-common-form {
+  margin-top: 0.75rem;
+}
+.banks-setup-chip {
+  margin: 0.35rem 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* Setup wizard */
+.banks-wizard-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+}
+.banks-wizard-step {
+  display: inline-block;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border, #d0d5dd);
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.85rem;
+  line-height: 1.3;
+}
+.banks-wizard-step:hover {
+  border-color: var(--accent, #4f6bed);
+}
+.banks-wizard-step.is-active {
+  background: var(--accent, #4f6bed);
+  border-color: var(--accent, #4f6bed);
+  color: #fff;
+  font-weight: 600;
+}
+.banks-wizard-step.is-done {
+  border-color: color-mix(in srgb, var(--accent-2, #0a7) 50%, var(--border, #ccc));
+}
+.banks-wizard-step.is-skipped {
+  opacity: 0.65;
+  text-decoration: line-through;
+}
+.banks-wizard-panel {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid color-mix(in srgb, var(--border, #ccc) 80%, transparent);
+  border-radius: 0.35rem;
+}
+.banks-wizard-panel h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.05rem;
+}
+.banks-wizard-links {
+  margin: 0.5rem 0 0.75rem;
+  padding-left: 1.2rem;
+}
+.banks-wizard-ask {
+  margin: 0.75rem 0;
+  padding: 0.55rem 0.75rem;
+  border-left: 3px solid var(--accent, #4f6bed);
+  background: color-mix(in srgb, var(--accent, #4f6bed) 8%, transparent);
+}
+.banks-wizard-checklist {
+  margin: 0.5rem 0 1rem;
+  padding-left: 1.25rem;
+}
+.banks-wizard-skip {
+  margin-top: 1rem;
+}
+.banks-redirect-code {
+  word-break: break-all;
 }

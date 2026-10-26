@@ -34,4 +34,4 @@ try {
     flash_set('error', $e->getMessage());
 }
 
-redirect('/banks/settings#alfa_ul');
+redirect('/banks/settings?tab=alfa_ul');

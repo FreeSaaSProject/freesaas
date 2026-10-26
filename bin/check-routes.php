@@ -143,6 +143,12 @@ $allowed = [
     '/agent/banks/status' => ['methods' => ['GET'], 'why' => 'agent_token banks status'],
     '/agent/banks/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token banks settings'],
     '/agent/banks/certs' => ['methods' => ['POST'], 'why' => 'agent_token banks mTLS upload'],
+    '/agent/banks/probe' => ['methods' => ['POST'], 'why' => 'agent_token banks OAuth probe'],
+    '/agent/banks/csr' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token banks Alfa CSR'],
+    '/agent/banks/setup' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token banks setup wizard'],
+    '/agent/banks/integrations' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token banks integrations'],
+    '/agent/banks/integrations/connect' => ['methods' => ['POST'], 'why' => 'agent_token banks integration connect'],
+    '/agent/banks/integrations/probe-scopes' => ['methods' => ['POST'], 'why' => 'agent_token banks scope probe'],
 
     // OAuth / MCP (llm)
     '/oauth/authorize' => ['methods' => ['GET', 'POST'], 'why' => 'OAuth authorize'],

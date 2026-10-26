@@ -103,9 +103,10 @@ final class BanksConfig
 
         if ($p === 'alfa_ul' || $p === 'alfa_fl') {
             $prefix = $p;
-            $sandbox = $p === 'alfa_ul' && (int)self::get('alfa_ul_sandbox', 0) === 1;
+            $sandbox = ($p === 'alfa_ul' && (int)self::get('alfa_ul_sandbox', 0) === 1)
+                || ($p === 'alfa_fl' && (int)self::get('alfa_fl_sandbox', 0) === 1);
             $defaultScope = $p === 'alfa_fl'
-                ? 'openid obru_accounts_pe'
+                ? 'openid accounts operations-history'
                 : 'openid customer transactions profile email';
             if ($sandbox) {
                 $authBase = 'https://id-sandbox.alfabank.ru';
@@ -200,9 +201,14 @@ final class BanksConfig
         if ($p === 'tochka' && (int)self::get('tochka_sandbox', 0) === 1) {
             return true;
         }
-        if ($p === 'alfa_ul' && (int)self::get('alfa_ul_sandbox', 0) === 1) {
-            $c = self::providerCreds($p);
-            return $c['client_id'] !== '' && $c['client_secret'] !== '' && $c['redirect_uri'] !== '';
+        if ($p === 'alfa_ul') {
+            if (trim((string)self::get('alfa_ul_api_key', '')) !== '') {
+                return true;
+            }
+            if ((int)self::get('alfa_ul_sandbox', 0) === 1) {
+                $c = self::providerCreds($p);
+                return $c['client_id'] !== '' && $c['client_secret'] !== '' && $c['redirect_uri'] !== '';
+            }
         }
         if ($p === 'tbank_ul' && trim((string)self::get('tbank_ul_access_token', '')) !== '') {
             return true;
@@ -374,13 +380,16 @@ final class BanksConfig
             'alfa_ul_sandbox',
             'alfa_ul_client_id',
             'alfa_ul_client_secret',
+            'alfa_ul_api_key',
             'alfa_ul_redirect_uri',
             'alfa_ul_scope',
             // mTLS file paths are set only via BanksCertStorage upload (not blanked from form).
             'alfa_ul_mtls_pass',
+            'alfa_fl_sandbox',
             'alfa_fl_client_id',
             'alfa_fl_client_secret',
             'alfa_fl_redirect_uri',
+            'alfa_fl_scope',
             'tbank_ul_access_token',
             'tbank_ul_client_id',
             'tbank_ul_client_secret',
@@ -407,6 +416,7 @@ final class BanksConfig
             'worker_token',
             'tochka_client_secret',
             'alfa_ul_client_secret',
+            'alfa_ul_api_key',
             'alfa_ul_mtls_pass',
             'alfa_fl_client_secret',
             'tbank_ul_access_token',
@@ -430,7 +440,7 @@ final class BanksConfig
                 $out[$key] = (string)self::autoSyncLookbackDays();
                 continue;
             }
-            if ($key === 'tochka_sandbox' || $key === 'alfa_ul_sandbox') {
+            if ($key === 'tochka_sandbox' || $key === 'alfa_ul_sandbox' || $key === 'alfa_fl_sandbox') {
                 $out[$key] = (int)self::get($key, 0) === 1 ? '1' : '0';
                 continue;
             }
@@ -462,9 +472,106 @@ final class BanksConfig
         return $out;
     }
 
-    public static function saveFromPost(array $post): void
+    /** @return list<string> */
+    public static function settingsTabIds(): array
     {
-        foreach (self::settingsKeys() as $key) {
+        return array_merge(['common'], self::PROVIDERS);
+    }
+
+    /** Resolve ?tab= / POST banks_settings_tab; empty → common. */
+    public static function resolveSettingsTab(?string $tab = null): string
+    {
+        $raw = strtolower(trim((string)($tab ?? '')));
+        if ($raw === '' || $raw === 'common') {
+            return 'common';
+        }
+        $p = self::normalizeProvider($raw);
+        return $p !== '' ? $p : 'common';
+    }
+
+    /** @return list<string> */
+    public static function settingsKeysForTab(string $tab): array
+    {
+        $tab = self::resolveSettingsTab($tab);
+        if ($tab === 'common') {
+            return [
+                'default_move_type_id',
+                'auto_sync_enabled',
+                'auto_sync_lookback_days',
+                'worker_token',
+            ];
+        }
+        $all = self::settingsKeys();
+        $prefix = $tab . '_';
+        $out = [];
+        foreach ($all as $key) {
+            if (strpos($key, $prefix) === 0) {
+                $out[] = $key;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param array<string,mixed> $post
+     * @param bool $partial When true (agent JSON), only keys present in $post are written —
+     *                      avoids wiping client_id/scope on a narrow patch.
+     * @param string|null $tab When set (UI tab save), only that tab's keys are written;
+     *                         checkboxes in the tab treat missing as off.
+     */
+    /**
+     * Copy partner app client_id/secret from Alfa UL into alfa_fl (same selfservice app).
+     * Does not change UL scopes; sets FL scope to PP defaults if empty.
+     */
+    public static function reuseAlfaUlAppForFl(): void
+    {
+        $clientId = trim((string)self::get('alfa_ul_client_id', ''));
+        $secret = trim((string)self::get('alfa_ul_client_secret', ''));
+        if ($clientId === '' || $secret === '') {
+            // Fall back to prod integration row
+            if (class_exists('BanksIntegrationRepository', false) && BanksIntegrationRepository::ready()) {
+                $prod = BanksIntegrationRepository::findByProviderEnv('alfa_ul', 'prod', true);
+                if ($prod) {
+                    if ($clientId === '') {
+                        $clientId = trim((string)($prod['client_id'] ?? ''));
+                    }
+                    if ($secret === '') {
+                        $secret = trim((string)($prod['client_secret'] ?? ''));
+                    }
+                }
+            }
+        }
+        if ($clientId === '') {
+            throw new RuntimeException('alfa_ul client_id empty — cannot reuse for alfa_fl');
+        }
+        Config::set('banks', 'alfa_fl_client_id', $clientId);
+        if ($secret !== '') {
+            Config::set('banks', 'alfa_fl_client_secret', $secret);
+        }
+        $scope = trim((string)self::get('alfa_fl_scope', ''));
+        if ($scope === '' || $scope === 'openid obru_accounts_pe') {
+            Config::set('banks', 'alfa_fl_scope', 'openid accounts operations-history');
+        }
+        $redir = trim((string)self::get('alfa_fl_redirect_uri', ''));
+        if ($redir === '') {
+            Config::set('banks', 'alfa_fl_redirect_uri', self::oauthRedirectUri('alfa_fl'));
+        }
+    }
+
+    public static function saveFromPost(array $post, bool $partial = false, ?string $tab = null): void
+    {
+        if (!empty($post['alfa_fl_reuse_ul_app']) || !empty($post['reuse_ul_app'])) {
+            self::reuseAlfaUlAppForFl();
+        }
+        $keys = self::settingsKeys();
+        if ($tab !== null && $tab !== '') {
+            $keys = self::settingsKeysForTab($tab);
+            $partial = false; // tab form: write all tab keys; secrets still keep-if-empty
+        }
+        foreach ($keys as $key) {
+            if ($partial && !array_key_exists($key, $post)) {
+                continue;
+            }
             if (in_array($key, self::secretKeys(), true)) {
                 $incoming = trim((string)($post[$key] ?? ''));
                 if ($incoming !== '') {
@@ -472,7 +579,7 @@ final class BanksConfig
                 }
                 continue;
             }
-            if ($key === 'tochka_sandbox' || $key === 'alfa_ul_sandbox' || $key === 'auto_sync_enabled') {
+            if ($key === 'tochka_sandbox' || $key === 'alfa_ul_sandbox' || $key === 'alfa_fl_sandbox' || $key === 'auto_sync_enabled') {
                 Config::set('banks', $key, !empty($post[$key]) ? '1' : '0');
                 continue;
             }

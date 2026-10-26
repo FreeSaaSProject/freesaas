@@ -2,7 +2,7 @@
     "id": "video_label",
     "name": "video_label.module.name",
     "description": "video_label.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -40,11 +40,96 @@
         "docs": "docs/agents/video-label.md",
         "ops": [
             {
-                "id": "video_label.projects",
+                "id": "video_label.projects.list",
                 "method": "GET",
                 "path": "/video-label",
                 "permission": "video_label.view",
+                "side_effect": "read",
                 "description": "List labeling projects"
+            },
+            {
+                "id": "video_label.projects.get",
+                "method": "GET",
+                "path": "/video-label/{id}/edit",
+                "permission": "video_label.edit",
+                "side_effect": "read",
+                "description": "Project edit payload + available models"
+            },
+            {
+                "id": "video_label.projects.create",
+                "method": "POST",
+                "path": "/video-label/new",
+                "permission": "video_label.edit",
+                "side_effect": "write",
+                "description": "Create project; name, classes (newline), model_id, conf_threshold, iou_threshold",
+                "parameters": {
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": { "type": "string" },
+                        "classes": { "type": "string" },
+                        "model_id": { "type": "integer" },
+                        "conf_threshold": { "type": "number" },
+                        "iou_threshold": { "type": "number" }
+                    }
+                }
+            },
+            {
+                "id": "video_label.projects.update",
+                "method": "POST",
+                "path": "/video-label/{id}/edit",
+                "permission": "video_label.edit",
+                "side_effect": "write",
+                "description": "Update project (same fields as create)"
+            },
+            {
+                "id": "video_label.projects.delete",
+                "method": "POST",
+                "path": "/video-label/{id}/edit",
+                "permission": "video_label.edit",
+                "side_effect": "write",
+                "description": "Delete project; POST action=delete"
+            },
+            {
+                "id": "video_label.workspace.get",
+                "method": "GET",
+                "path": "/video-label/{id}/workspace",
+                "permission": "video_label.edit",
+                "side_effect": "read",
+                "description": "Workspace JSON: project, images with labels/predictions URLs, current_id"
+            },
+            {
+                "id": "video_label.workspace.infer",
+                "method": "POST",
+                "path": "/video-label/{id}/workspace",
+                "permission": "video_label.edit",
+                "side_effect": "write",
+                "description": "Enqueue infer; action=infer image_id= optional batch=1 promote=1",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action": { "type": "string", "const": "infer" },
+                        "image_id": { "type": "integer" },
+                        "batch": { "type": "boolean" },
+                        "promote": { "type": "boolean" }
+                    }
+                }
+            },
+            {
+                "id": "video_label.workspace.export",
+                "method": "POST",
+                "path": "/video-label/{id}/workspace",
+                "permission": "video_label.edit",
+                "side_effect": "write",
+                "description": "Export YOLO under var/video/exports/{id}/; action=export"
+            },
+            {
+                "id": "video_label.workspace.save_labels",
+                "method": "POST",
+                "path": "/video-label/{id}/workspace",
+                "permission": "video_label.edit",
+                "side_effect": "write",
+                "description": "Save boxes; action=save_labels image_id= labels_json= (YOLO-normalized JSON array)"
             }
         ]
     },

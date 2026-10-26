@@ -2,6 +2,8 @@
 declare(strict_types=1);
 /** @var array<string,mixed> $conn */
 /** @var list<array<string,mixed>> $links */
+/** @var array{remote:int,linked:int,syncing:int} $linkCounts */
+/** @var int $siblingCount */
 /** @var array<int,string> $ledgerAccounts */
 /** @var array<string,mixed>|null $lastSync */
 /** @var bool $canConnect */
@@ -9,6 +11,9 @@ declare(strict_types=1);
 $id = (int)$conn['id'];
 $flash = flash_take();
 $lastSync = $lastSync ?? null;
+$linkCounts = is_array($linkCounts ?? null) ? $linkCounts : ['remote' => 0, 'linked' => 0, 'syncing' => 0];
+$siblingCount = (int)($siblingCount ?? 1);
+$label = trim((string)($conn['label'] ?? ''));
 ?>
 <?php if ($flash): ?>
   <div class="flash flash-<?= e($flash['type'] === 'ok' ? 'ok' : 'warn') ?>"><?= e_nl((string)$flash['message']) ?></div>
@@ -16,15 +21,32 @@ $lastSync = $lastSync ?? null;
 <section class="page-head">
   <div class="page-head-row">
     <div>
+      <h1><?= te('banks.conn.title') ?> #<?= $id ?></h1>
+      <?php if ($label !== ''): ?>
+        <p><?= e($label) ?></p>
+      <?php endif; ?>
       <p class="muted"><?= e(t('banks.status.' . (string)$conn['status'])) ?>
         <?php if (!empty($conn['token_mask'])): ?> · <?= e((string)$conn['token_mask']) ?><?php endif; ?>
+        · <?= e(t('banks.conn.counts', [
+            'linked' => (int)$linkCounts['linked'],
+            'syncing' => (int)$linkCounts['syncing'],
+        ])) ?>
       </p>
+      <p class="muted"><?= te('banks.conn.sync_model') ?></p>
+      <?php if ($siblingCount > 1): ?>
+        <p class="muted"><?= e(t('banks.conn.siblings', ['n' => $siblingCount])) ?></p>
+      <?php endif; ?>
     </div>
     <div class="page-actions">
       <?php if ($canConnect): ?>
       <form method="post" action="/banks/connections/<?= $id ?>" style="display:inline">
         <input type="hidden" name="action" value="refresh">
         <button type="submit" class="btn-secondary"><?= te('banks.conn.refresh') ?></button>
+      </form>
+      <form method="post" action="/banks/connections/<?= $id ?>" style="display:inline"
+            onsubmit="return confirm(<?= tj('banks.conn.delete_confirm') ?>);">
+        <input type="hidden" name="action" value="delete">
+        <button type="submit" class="btn-secondary"><?= te('banks.conn.delete') ?></button>
       </form>
       <?php endif; ?>
     </div>

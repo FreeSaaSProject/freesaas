@@ -159,17 +159,32 @@ final class BankAccountLinksRepository
             ]);
             return (int)$existing['id'];
         }
+        // Sandbox integrations: sync off by default (unlock scopes only; no DPS pollution).
+        $syncDefault = 1;
+        $conn = BankConnectionsRepository::find($connectionId, true);
+        if ($conn) {
+            $iid = (int)($conn['integration_id'] ?? 0);
+            if ($iid > 0) {
+                $int = BanksIntegrationRepository::find($iid, true);
+                if ($int && BanksIntegrationRepository::isSandbox($int)) {
+                    $syncDefault = 0;
+                }
+            } elseif (stripos((string)($conn['consent_id'] ?? ''), 'sandbox') !== false) {
+                $syncDefault = 0;
+            }
+        }
         Database::pdo()->prepare(
             'INSERT INTO base_bank_account_links
              (ID_CONNECTION, EXTERNAL_ACCOUNT_ID, ACCOUNT_NUMBER, CURRENCY, REMOTE_NAME,
               ID_ACCOUNT, SYNC_ENABLED, META, DT_CREATE, DT_UPDATE)
-             VALUES (?, ?, ?, ?, ?, 0, 1, ?, ?, ?)'
+             VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)'
         )->execute([
             $connectionId,
             $ext,
             (string)($remote['account_number'] ?? ''),
             (string)($remote['currency'] ?? 'RUB'),
             (string)($remote['remote_name'] ?? ''),
+            $syncDefault,
             $meta,
             $now,
             $now,
@@ -195,6 +210,29 @@ final class BankAccountLinksRepository
         Database::pdo()->prepare(
             'UPDATE base_bank_account_links SET ID_ACCOUNT = 0, DT_UPDATE = ? WHERE ID = ?'
         )->execute([time(), $linkId]);
+    }
+
+    /** @return array{remote:int,linked:int,syncing:int} */
+    public static function countsForConnection(int $connectionId): array
+    {
+        $out = ['remote' => 0, 'linked' => 0, 'syncing' => 0];
+        if ($connectionId < 1 || !self::ready()) {
+            return $out;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT
+                COUNT(*) AS remote,
+                SUM(CASE WHEN ID_ACCOUNT > 0 THEN 1 ELSE 0 END) AS linked,
+                SUM(CASE WHEN ID_ACCOUNT > 0 AND SYNC_ENABLED = 1 THEN 1 ELSE 0 END) AS syncing
+             FROM base_bank_account_links WHERE ID_CONNECTION = ?'
+        );
+        $st->execute([$connectionId]);
+        $row = $st->fetch(PDO::FETCH_ASSOC) ?: [];
+        return [
+            'remote' => (int)($row['remote'] ?? 0),
+            'linked' => (int)($row['linked'] ?? 0),
+            'syncing' => (int)($row['syncing'] ?? 0),
+        ];
     }
 
     public static function markSynced(int $linkId, string $cursor = ''): void

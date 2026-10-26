@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-26T06:55:25+00:00",
+    "generated_at": "2026-10-26T09:55:51+00:00",
     "modules": [
         {
             "id": "asr",
@@ -356,18 +356,18 @@
         },
         {
             "id": "banks",
-            "version": "0.1.6",
+            "version": "0.1.19",
             "type": "product",
             "name": {
                 "en": "Banks",
                 "ru": "Банки"
             },
             "description": {
-                "en": "Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL): link accounts to ledger and sync statements into ДПС.",
+                "en": "Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL): link accounts to ledger and sync statements into account moves.",
                 "ru": "OAuth/token-подключения банков (Точка, Альфа, Т-Банк, Сбер — ЮЛ/ФЛ): связь со счетами ledger и синхронизация выписок в ДПС."
             },
             "summary": {
-                "en": "Enable to connect Alfa (business/personal) or Tochka via OAuth, map remote accounts to ledger accounts, and sync statements into account moves. Requires ledger. Optional llm improves move-type classification. Use when staff need bank statement import instead of manual ДПС entry.",
+                "en": "Enable to connect Alfa (business/personal) or Tochka via OAuth, map remote accounts to ledger accounts, and sync statements into account moves. Requires ledger. Optional llm improves move-type classification. Use when staff need bank statement import instead of manual ledger entry.",
                 "ru": "Включайте, чтобы подключить Альфа (ЮЛ/ФЛ) или Точку по OAuth, привязать удалённые счета к счетам ledger и забирать выписки в ДПС. Требует ledger. Опциональный llm улучшает классификацию типов движений. Нужен, когда выписки важнее ручного ввода ДПС."
             },
             "requires": {
@@ -1849,7 +1849,7 @@
         },
         {
             "id": "video",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Video analytics",
@@ -1883,7 +1883,7 @@
         },
         {
             "id": "video_label",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Video labeling",

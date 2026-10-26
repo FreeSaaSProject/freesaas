@@ -16,6 +16,7 @@ require_once __DIR__ . '/lib/VideoModelsRepository.php';
 require_once __DIR__ . '/lib/VideoAlertsRepository.php';
 require_once __DIR__ . '/lib/VideoDetectionsRepository.php';
 require_once __DIR__ . '/lib/VideoPurge.php';
+require_once __DIR__ . '/lib/VideoDiagnose.php';
 
 Assets::register('video', [
     'css' => ['assets/css/video.css'],
@@ -26,6 +27,7 @@ ModuleManager::registerMenuGroup('video.menu.group', 520, '/video');
 
 $staffPages = [
     '/video' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'dashboard.php'],
+    '/video/status' => ['permission' => 'video.view', 'methods' => ['GET'], 'file' => 'status.php'],
     '/video/cameras' => ['permission' => 'video.view', 'methods' => ['GET', 'POST'], 'file' => 'cameras.php'],
     '/video/cameras/new' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'camera_edit.php'],
     '/video/cameras/{id}/edit' => ['permission' => 'video.edit', 'methods' => ['GET', 'POST'], 'file' => 'camera_edit.php'],

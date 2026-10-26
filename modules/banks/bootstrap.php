@@ -5,6 +5,7 @@ require_once __DIR__ . '/lib/BanksConfig.php';
 require_once __DIR__ . '/lib/JobsAuth.php';
 require_once __DIR__ . '/lib/BankHttp.php';
 require_once __DIR__ . '/lib/BankConnectionsRepository.php';
+require_once __DIR__ . '/lib/BanksIntegrationRepository.php';
 require_once __DIR__ . '/lib/BankAccountLinksRepository.php';
 require_once __DIR__ . '/lib/BankTxMapRepository.php';
 require_once __DIR__ . '/lib/providers/TochkaClient.php';
@@ -20,6 +21,9 @@ require_once __DIR__ . '/lib/BankSyncService.php';
 require_once __DIR__ . '/lib/BankBadges.php';
 require_once __DIR__ . '/lib/BankLedgerSyncUi.php';
 require_once __DIR__ . '/lib/BanksCertStorage.php';
+require_once __DIR__ . '/lib/BanksAlfaCsr.php';
+require_once __DIR__ . '/lib/BanksEgressIp.php';
+require_once __DIR__ . '/lib/BanksSetupWizard.php';
 require_once __DIR__ . '/lib/BanksAgentOps.php';
 
 Assets::register('banks', [
@@ -29,9 +33,13 @@ Assets::register('banks', [
 BanksAgentOps::register();
 
 $pages = [
-    '/banks' => ['permission' => 'banks.view', 'methods' => ['GET'], 'file' => 'list.php'],
+    '/banks' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
+    '/banks/integrations/{id}' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'integration.php'],
+    '/banks/setup/{provider}' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'setup.php'],
     '/banks/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/banks/settings/certs' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['POST'], 'file' => 'certs_upload.php'],
+    '/banks/settings/csr' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'csr.php'],
+    '/banks/settings/probe' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['POST', 'GET'], 'file' => 'probe.php'],
     '/banks/oauth/{provider}/start' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_start.php'],
     '/banks/oauth/{provider}/callback' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_callback.php'],
     '/banks/connections/{id}' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'connection.php'],

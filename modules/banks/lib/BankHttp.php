@@ -83,9 +83,10 @@ final class BankHttp
             curl_setopt($ch, CURLOPT_SSLCERTPASSWD, $pass);
             curl_setopt($ch, CURLOPT_SSLKEYPASSWD, $pass);
         }
-        $ca = trim((string)($opts['mtls_ca'] ?? ''));
-        if ($ca !== '' && is_readable($ca)) {
-            curl_setopt($ch, CURLOPT_CAINFO, $ca);
-        }
+        // Do not set CURLOPT_CAINFO from mtls_ca: that replaces the OS trust store.
+        // Alfa sandbox hosts are signed by the Russian Trusted CA; the email
+        // alfa-bank_st_ca_*.cer chain is not the server issuer and causes
+        // "self signed certificate in certificate chain". Client auth is cert+key only.
+        // Host must trust Russian Trusted CA in the system store (or php curl cainfo).
     }
 }

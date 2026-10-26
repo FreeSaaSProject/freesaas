@@ -6,16 +6,99 @@ final class AlfaUlClient
 {
     public const PROVIDER = 'alfa_ul';
 
-    /** @return array{client_id:string,client_secret:string,redirect_uri:string,scope:string,auth_base:string,token_url:string,api_base:string,sandbox:bool} */
+    /** @var int Active integration id (0 = legacy ini creds) */
+    private static $integrationId = 0;
+
+    public static function useIntegration(int $integrationId): void
+    {
+        self::$integrationId = max(0, $integrationId);
+    }
+
+    public static function currentIntegrationId(): int
+    {
+        return self::$integrationId;
+    }
+
+    /**
+     * Scopes we can probe in sandbox to unlock on prod portal.
+     * @return list<array{scope:string,path:string,query?:array<string,string>}>
+     */
+    public static function scopeProbeCatalog(): array
+    {
+        return [
+            ['scope' => 'customer', 'path' => '/api/jp/v2/customer-info'],
+            [
+                'scope' => 'transactions',
+                'path' => '/api/jp/v1/statement/transactions',
+                'query' => [
+                    'accountNumber' => '40702810102300000001',
+                    'statementDate' => date('Y-m-d', strtotime('-1 day')),
+                    'page' => '1',
+                ],
+            ],
+        ];
+    }
+
+    /** @return array{client_id:string,client_secret:string,redirect_uri:string,scope:string,auth_base:string,token_url:string,api_base:string,sandbox:bool,api_key?:string} */
     private static function creds(): array
     {
-        return BanksConfig::providerCreds(self::PROVIDER);
+        if (self::$integrationId > 0) {
+            $row = BanksIntegrationRepository::find(self::$integrationId, true);
+            if ($row) {
+                return BanksIntegrationRepository::credsFrom($row);
+            }
+        }
+        $c = BanksConfig::providerCreds(self::PROVIDER);
+        $c['api_key'] = trim((string)BanksConfig::get('alfa_ul_api_key', ''));
+        return $c;
     }
 
     /** @return array{mtls_cert?:string,mtls_key?:string,mtls_pass?:string,mtls_ca?:string} */
     private static function mtls(): array
     {
+        if (self::$integrationId > 0) {
+            $row = BanksIntegrationRepository::find(self::$integrationId, true);
+            if ($row) {
+                $m = BanksIntegrationRepository::mtlsFrom($row);
+                if ($m !== []) {
+                    return $m;
+                }
+            }
+        }
         return BanksConfig::mtlsOpts(self::PROVIDER);
+    }
+
+    /** H2H sandbox/prod ApiKey from integration or legacy ini. */
+    public static function apiKey(): string
+    {
+        $c = self::creds();
+        return trim((string)($c['api_key'] ?? ''));
+    }
+
+    public static function isApiKeyToken(string $token): bool
+    {
+        $t = trim($token);
+        if ($t === '') {
+            return false;
+        }
+        if (strncasecmp($t, 'ApiKey ', 7) === 0) {
+            return true;
+        }
+        // Alfa portal keys: akytnps_… (sandbox) / similar prefixes
+        return (bool)preg_match('/^aky[a-z0-9]*_/i', $t);
+    }
+
+    /** @return list<string> */
+    private static function authHeaders(string $accessToken): array
+    {
+        $t = trim($accessToken);
+        if (self::isApiKeyToken($t)) {
+            if (strncasecmp($t, 'ApiKey ', 7) === 0) {
+                $t = trim(substr($t, 7));
+            }
+            return ['Authorization: ApiKey ' . $t, 'Accept: application/json'];
+        }
+        return ['Authorization: Bearer ' . $t, 'Accept: application/json'];
     }
 
     /** @return array{url:string,consent_id:string,state:string} */
@@ -92,14 +175,16 @@ final class AlfaUlClient
         $paths = [
             '/api/pp/v1/accounts',
             '/api/jp/v2/customer-info',
-            '/api/statement/accounts',
+            '/api/statement/transactions/accounts',
+            '/api/statement/v1/accounts',
+            '/api/sbns/v1/accounts',
         ];
         $lastErr = '';
         foreach ($paths as $path) {
             $res = BankHttp::request(
                 'GET',
                 $c['api_base'] . $path,
-                ['Authorization: Bearer ' . $accessToken, 'Accept: application/json'],
+                self::authHeaders($accessToken),
                 null,
                 false,
                 self::mtls()
@@ -133,7 +218,9 @@ final class AlfaUlClient
             $ymd = $d->format('Y-m-d');
             $page = 1;
             do {
-                $url = $c['api_base'] . '/api/statement/transactions?'
+                // Official H2H path: GET /api/jp/v1/statement/transactions (scope=transactions).
+                // Older /api/statement/transactions is not the documented UL endpoint.
+                $url = $c['api_base'] . '/api/jp/v1/statement/transactions?'
                     . http_build_query([
                         'accountNumber' => $accountId,
                         'statementDate' => $ymd,
@@ -142,7 +229,7 @@ final class AlfaUlClient
                 $res = BankHttp::request(
                     'GET',
                     $url,
-                    ['Authorization: Bearer ' . $accessToken, 'Accept: application/json'],
+                    self::authHeaders($accessToken),
                     null,
                     false,
                     self::mtls()
@@ -152,7 +239,14 @@ final class AlfaUlClient
                     if ($res['http'] === 404) {
                         break;
                     }
-                    throw new RuntimeException('Alfa UL txs: ' . $res['error'] . ' ' . mb_substr($res['raw'], 0, 200));
+                    $hint = '';
+                    $raw = (string)($res['raw'] ?? '');
+                    if ($res['http'] === 403 && stripos($raw, 'insufficient_scope') !== false) {
+                        $hint = ' — need scope/product «transactions» on ApiKey or OAuth (reconnect / re-issue key)';
+                    }
+                    throw new RuntimeException(
+                        'Alfa UL txs: ' . $res['error'] . ' ' . mb_substr($raw, 0, 200) . $hint
+                    );
                 }
                 $txs = self::extractTxList($res['data']);
                 foreach ($txs as $tx) {
@@ -288,6 +382,206 @@ final class AlfaUlClient
             'counterparty_inn' => trim($cpInn),
             'raw' => $tx,
         ];
+    }
+
+    /**
+     * Probe client_id/secret against token endpoint without a real user login.
+     * Sends a dummy authorization_code; Alfa should reject with invalid_grant
+     * (credentials accepted) vs invalid_client (wrong id/secret).
+     *
+     * @return array{
+     *   ok:bool,credentials_ok:bool,authorize_url:string,token_url:string,
+     *   redirect_uri:string,sandbox:bool,http:int,error_code:string,message:string,raw:string
+     * }
+     */
+    public static function probeCredentials(): array
+    {
+        $c = self::creds();
+        $auth = self::beginAuthorize('probe-' . bin2hex(random_bytes(8)));
+        $out = [
+            'ok' => false,
+            'credentials_ok' => false,
+            'authorize_url' => (string)$auth['url'],
+            'token_url' => (string)$c['token_url'],
+            'redirect_uri' => (string)$c['redirect_uri'],
+            'sandbox' => !empty($c['sandbox']),
+            'http' => 0,
+            'error_code' => '',
+            'message' => '',
+            'raw' => '',
+            'auth_mode' => 'oauth',
+        ];
+        $apiKey = self::apiKey();
+        if ($apiKey !== '') {
+            return self::probeApiKey($apiKey, $out);
+        }
+        if ($c['client_id'] === '' || $c['client_secret'] === '' || $c['redirect_uri'] === '') {
+            $out['error_code'] = 'not_configured';
+            $out['message'] = t('banks.err.not_configured');
+            return $out;
+        }
+        $res = BankHttp::request(
+            'POST',
+            $c['token_url'],
+            ['Accept: application/json'],
+            [
+                'grant_type' => 'authorization_code',
+                'code' => 'freesaas-probe-invalid-code',
+                'client_id' => $c['client_id'],
+                'client_secret' => $c['client_secret'],
+                'redirect_uri' => $c['redirect_uri'],
+            ],
+            true,
+            self::mtls()
+        );
+        $out['http'] = (int)$res['http'];
+        $out['raw'] = mb_substr((string)$res['raw'], 0, 400);
+        $data = is_array($res['data']) ? $res['data'] : [];
+        $errCode = strtolower((string)($data['error'] ?? ''));
+        $errDesc = (string)($data['error_description'] ?? $data['error_message'] ?? $res['error'] ?? '');
+        $out['error_code'] = $errCode !== '' ? $errCode : ($res['ok'] ? 'unexpected_ok' : 'http_error');
+        // Client accepted: OAuth server understood the client, rejected the fake code.
+        if (in_array($errCode, ['invalid_grant', 'invalid_request', 'unsupported_grant_type'], true)
+            || ($out['http'] === 400 && $errCode !== 'invalid_client')) {
+            $out['ok'] = true;
+            $out['credentials_ok'] = true;
+            $out['message'] = t('banks.probe.credentials_ok');
+            return $out;
+        }
+        if ($errCode === 'invalid_client' || $out['http'] === 401) {
+            $out['message'] = t('banks.probe.credentials_bad') . ($errDesc !== '' ? ': ' . $errDesc : '');
+            return $out;
+        }
+        if ($out['http'] === 0 || ($res['error'] !== '' && $out['http'] < 100)) {
+            $out['message'] = t('banks.probe.network', ['error' => $res['error'] !== '' ? $res['error'] : 'curl']);
+            return $out;
+        }
+        $out['message'] = t('banks.probe.unclear', [
+            'http' => (string)$out['http'],
+            'error' => $out['error_code'] !== '' ? $out['error_code'] : $errDesc,
+        ]);
+        return $out;
+    }
+
+    /**
+     * @param array{
+     *   ok:bool,credentials_ok:bool,authorize_url:string,token_url:string,
+     *   redirect_uri:string,sandbox:bool,http:int,error_code:string,message:string,raw:string,auth_mode?:string
+     * } $out
+     * @return array{
+     *   ok:bool,credentials_ok:bool,authorize_url:string,token_url:string,
+     *   redirect_uri:string,sandbox:bool,http:int,error_code:string,message:string,raw:string,
+     *   auth_mode:string,accounts?:int
+     * }
+     */
+    private static function probeApiKey(string $apiKey, array $out): array
+    {
+        $out['auth_mode'] = 'api_key';
+        $c = self::creds();
+        $paths = [
+            '/api/pp/v1/accounts',
+            '/api/jp/v2/customer-info',
+            '/api/statement/transactions/accounts',
+            '/api/statement/v1/accounts',
+        ];
+        $lastHttp = 0;
+        $lastRaw = '';
+        $lastErr = '';
+        foreach ($paths as $path) {
+            $res = BankHttp::request(
+                'GET',
+                $c['api_base'] . $path,
+                self::authHeaders($apiKey),
+                null,
+                false,
+                self::mtls()
+            );
+            $lastHttp = (int)$res['http'];
+            $lastRaw = mb_substr((string)$res['raw'], 0, 400);
+            $lastErr = (string)$res['error'];
+            if ($res['ok']) {
+                $parsed = self::parseAccountsPayload($res['data']);
+                $out['ok'] = true;
+                $out['credentials_ok'] = true;
+                $out['http'] = $lastHttp;
+                $out['raw'] = $lastRaw;
+                $out['accounts'] = count($parsed);
+                $out['error_code'] = 'ok';
+                $out['message'] = t('banks.probe.api_key_ok', ['count' => (string)count($parsed)]);
+                return $out;
+            }
+            // 403/401 often = wrong IP allowlist on the key, not a bad key format
+            if (in_array($lastHttp, [401, 403], true)) {
+                $out['http'] = $lastHttp;
+                $out['raw'] = $lastRaw;
+                $out['error_code'] = 'api_key_rejected';
+                $out['message'] = t('banks.probe.api_key_rejected', [
+                    'http' => (string)$lastHttp,
+                    'error' => $lastRaw !== '' ? $lastRaw : $lastErr,
+                ]);
+                return $out;
+            }
+        }
+        $out['http'] = $lastHttp;
+        $out['raw'] = $lastRaw;
+        if ($lastHttp === 0) {
+            $out['error_code'] = 'http_error';
+            $out['message'] = t('banks.probe.network', ['error' => $lastErr !== '' ? $lastErr : 'curl']);
+            return $out;
+        }
+        $out['error_code'] = 'api_key_unclear';
+        $out['message'] = t('banks.probe.unclear', [
+            'http' => (string)$lastHttp,
+            'error' => $lastRaw !== '' ? $lastRaw : $lastErr,
+        ]);
+        return $out;
+    }
+
+    /**
+     * Hit one minimal endpoint per scope (sandbox) so the portal unlocks them for prod.
+     *
+     * @return list<array{scope:string,ok:bool,http:int,path:string,error:string}>
+     */
+    public static function probeScopes(string $accessToken, ?array $onlyScopes = null): array
+    {
+        $c = self::creds();
+        $wanted = null;
+        if ($onlyScopes !== null) {
+            $wanted = [];
+            foreach ($onlyScopes as $s) {
+                $wanted[strtolower(trim((string)$s))] = true;
+            }
+        }
+        $out = [];
+        foreach (self::scopeProbeCatalog() as $item) {
+            $scope = (string)$item['scope'];
+            if ($wanted !== null && empty($wanted[strtolower($scope)])) {
+                continue;
+            }
+            $path = (string)$item['path'];
+            $url = $c['api_base'] . $path;
+            if (!empty($item['query']) && is_array($item['query'])) {
+                $url .= '?' . http_build_query($item['query']);
+            }
+            $res = BankHttp::request(
+                'GET',
+                $url,
+                self::authHeaders($accessToken),
+                null,
+                false,
+                self::mtls()
+            );
+            $ok = !empty($res['ok']) || (int)$res['http'] === 404;
+            // 404 on statement day still counts as authenticated scope hit
+            $out[] = [
+                'scope' => $scope,
+                'ok' => $ok,
+                'http' => (int)$res['http'],
+                'path' => $path,
+                'error' => $ok ? '' : mb_substr((string)($res['raw'] !== '' ? $res['raw'] : $res['error']), 0, 200),
+            ];
+        }
+        return $out;
     }
 
     /**

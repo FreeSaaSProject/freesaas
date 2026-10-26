@@ -65,6 +65,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ]);
             BankAccountLinksRepository::linkToLedger((int)$link['id'], $accountId);
             $flash = ['ok' => true, 'action' => 'create_ledger', 'account_id' => $accountId, 'link_id' => (int)$link['id']];
+        } elseif ($action === 'delete') {
+            BankConnectionsRepository::deleteWithDeps($id);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'action' => 'delete', 'connection_id' => $id]);
+            }
+            flash_set('ok', t('banks.conn.deleted'));
+            redirect('/banks');
         } else {
             throw new InvalidArgumentException(t('banks.err.link'));
         }
@@ -83,7 +90,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $links = BankAccountLinksRepository::forConnection($id);
+$linkCounts = BankAccountLinksRepository::countsForConnection($id);
 $ledgerAccounts = LedgerAccountsRepository::names(true);
+$siblingCount = 0;
+$prov = (string)($conn['provider'] ?? '');
+foreach (BankConnectionsRepository::listAll() as $row) {
+    if ((string)($row['provider'] ?? '') === $prov) {
+        $siblingCount++;
+    }
+}
 $lastSync = null;
 $metaRaw = $conn['meta'] ?? null;
 $meta = [];
@@ -104,10 +119,13 @@ if ($wantsJson) {
         'ok' => true,
         'connection' => $conn,
         'links' => $links,
+        'link_counts' => $linkCounts,
+        'sibling_count' => $siblingCount,
         'ledger_accounts' => $ledgerAccounts,
         'last_sync' => $lastSync,
         'can_connect' => $canConnect,
         'can_sync' => $canSync,
+        'sync_model' => 'per_link',
     ]);
 }
 
@@ -115,6 +133,8 @@ View::render('connection', [
     'title' => t('banks.conn.title') . ' · ' . BanksConfig::providerLabel((string)$conn['provider']),
     'conn' => $conn,
     'links' => $links,
+    'linkCounts' => $linkCounts,
+    'siblingCount' => $siblingCount,
     'ledgerAccounts' => $ledgerAccounts,
     'lastSync' => $lastSync,
     'canConnect' => $canConnect,

@@ -6,13 +6,14 @@ $message = '';
 $error = '';
 $newToken = '';
 
+$purgeOut = null;
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     try {
         if (!empty($_POST['run_purge'])) {
-            $out = VideoPurge::run();
+            $purgeOut = VideoPurge::run();
             $message = t('video.settings.purge_done', [
-                'files' => (string)$out['files'],
-                'bytes' => (string)$out['bytes'],
+                'files' => (string)$purgeOut['files'],
+                'bytes' => (string)$purgeOut['bytes'],
             ]);
         } else {
             VideoConfig::saveFromPost($_POST);
@@ -35,7 +36,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $cfg = VideoConfig::formValues();
 
 if ($wantsJson) {
-    AgentHttp::emit(['ok' => true, 'settings' => $cfg, 'new_token' => $newToken !== '' ? $newToken : null]);
+    $payload = ['ok' => true, 'settings' => $cfg, 'new_token' => $newToken !== '' ? $newToken : null];
+    if ($purgeOut !== null) {
+        $payload['purge'] = $purgeOut;
+        $payload['message'] = $message;
+    } elseif ($message !== '') {
+        $payload['message'] = $message;
+    }
+    AgentHttp::emit($payload);
     return;
 }
 
