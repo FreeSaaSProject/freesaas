@@ -127,20 +127,20 @@ final class VideoDiagnose
         foreach ($issues as $i) {
             $code = (string)($i['code'] ?? '');
             if ($code === 'worker_token_missing') {
-                $steps[] = 'POST /video/settings?format=json with regenerate_token=1 (superadmin); copy new_token into Mac local.json';
+                $steps[] = 'POST /agent/video/setup with regenerate_token=1 (or POST /agent/video/settings); copy new_token into Mac local.json';
             }
             if ($code === 'no_models') {
-                $steps[] = 'POST /video/models action=save name=… weights_path=/path/on/mac/best.pt';
+                $steps[] = 'POST /agent/video/setup with model_name + weights_path (+ classes[])';
             }
             if ($code === 'no_cameras') {
-                $steps[] = 'POST /video/cameras/new with name, rtsp_url, model_id, enabled=1';
+                $steps[] = 'POST /agent/video/setup with camera_name + rtsp_url (+ model_id)';
             }
             if ($code === 'no_worker_online') {
-                $steps[] = 'On Mac: cd workers/video && python video_worker.py -c configs/local.json';
+                $steps[] = 'On Mac Studio: ~/video-worker — VPN up, then .venv/bin/python video_worker.py -c configs/local.json (see docs/agents/video-worker.md)';
             }
         }
         if ($online > 0 && $enabledCams > 0 && $models > 0) {
-            $steps[] = 'POST /video/cameras action=enqueue_ondemand id={camera_id} then GET /video/cameras/{id}/live?format=json';
+            $steps[] = 'POST /agent/video/enqueue {"camera_id":N,"type":"ondemand"} then open /video/cameras/{id}/live';
         }
 
         return $steps;

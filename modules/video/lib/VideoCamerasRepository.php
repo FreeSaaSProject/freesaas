@@ -44,6 +44,35 @@ final class VideoCamerasRepository
         return $rows ?: [];
     }
 
+    /**
+     * Payload for monitor_tick / on_demand jobs (includes class colors for worker draw).
+     *
+     * @param array<string, mixed> $cam
+     * @return array<string, mixed>
+     */
+    public static function jobPayload(array $cam): array
+    {
+        $modelId = (int)($cam['MODEL_ID'] ?? 0);
+        $classes = [];
+        if ($modelId > 0) {
+            $m = VideoModelsRepository::find($modelId);
+            if ($m) {
+                $classes = VideoModelsRepository::classesOf($m);
+            }
+        }
+
+        return [
+            'camera_id' => (int)($cam['ID'] ?? 0),
+            'rtsp_url' => (string)($cam['RTSP_URL'] ?? ''),
+            'model_id' => $modelId,
+            'classes' => $classes,
+            'conf_threshold' => (float)($cam['CONF_THRESHOLD'] ?? 0.25),
+            'iou_threshold' => (float)($cam['IOU_THRESHOLD'] ?? 0.45),
+            'mode' => (string)($cam['MODE'] ?? 'monitoring'),
+            'settings' => json_decode((string)($cam['SETTINGS_JSON'] ?? ''), true) ?: [],
+        ];
+    }
+
     /** @param array<string, mixed> $data */
     public static function save(int $id, array $data): int
     {

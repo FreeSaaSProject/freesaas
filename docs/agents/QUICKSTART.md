@@ -48,6 +48,7 @@ No token in ini yet? Upload `var/setup.key` and use `X-FreeSaaS-Setup-Key` — f
 | Ledger chart empty after enable | Interview + seed — [ledger-chart.md](ledger-chart.md) |
 | Product CRM tools / MCP | [agent-surfaces.md](agent-surfaces.md), [connect-mcp.md](connect-mcp.md) |
 | BI reports (JSON recipes) | [bi.md](bi.md) — list → legend → validate/save → run |
+| Video / YOLO Mac worker | [video.md](video.md), [video-worker.md](video-worker.md) — `/agent/video/*` then Studio worker |
 | New module | [create-module.md](create-module.md) or `module create` |
 | Broken install | [repair.md](repair.md), [debugging.md](debugging.md) |
 | Scenario benchmarks | [cases/](cases/) |

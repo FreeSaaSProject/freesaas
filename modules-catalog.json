@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-26T11:04:54+00:00",
+    "generated_at": "2026-10-26T11:18:22+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1850,7 +1850,7 @@
         },
         {
             "id": "video",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Video analytics",

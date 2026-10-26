@@ -17,6 +17,7 @@ require_once __DIR__ . '/lib/VideoAlertsRepository.php';
 require_once __DIR__ . '/lib/VideoDetectionsRepository.php';
 require_once __DIR__ . '/lib/VideoPurge.php';
 require_once __DIR__ . '/lib/VideoDiagnose.php';
+require_once __DIR__ . '/lib/VideoColors.php';
 require_once __DIR__ . '/lib/VideoAgentOps.php';
 
 VideoAgentOps::register();
@@ -119,15 +120,10 @@ Cron::register('video.monitor_enqueue', [
             if ((int)$st->fetchColumn() > 0) {
                 continue;
             }
-            VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_MONITOR_TICK, [
-                'camera_id' => (int)$cam['ID'],
-                'rtsp_url' => (string)$cam['RTSP_URL'],
-                'model_id' => (int)$cam['MODEL_ID'],
-                'conf_threshold' => (float)$cam['CONF_THRESHOLD'],
-                'iou_threshold' => (float)$cam['IOU_THRESHOLD'],
-                'mode' => (string)$cam['MODE'],
-                'settings' => json_decode((string)($cam['SETTINGS_JSON'] ?? ''), true) ?: [],
-            ]);
+            VideoJobsRepository::enqueue(
+                VideoJobsRepository::TYPE_MONITOR_TICK,
+                VideoCamerasRepository::jobPayload($cam)
+            );
             $n++;
         }
 

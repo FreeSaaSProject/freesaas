@@ -162,6 +162,47 @@ def resolve_weights(model_id: int, payload: dict) -> str:
     return str(MODELS.get("default_weights") or "yolo11n.pt")
 
 
+# Same order as modules/video/lib/VideoColors.php / video_label defaults
+CLASS_PALETTE_HEX = (
+    "#e6194b",
+    "#3cb44b",
+    "#ffe119",
+    "#4363d8",
+    "#f58231",
+    "#911eb4",
+    "#46f0f0",
+    "#f032e6",
+)
+
+
+def hex_to_bgr(hex_color: str) -> Tuple[int, int, int]:
+    h = hex_color.strip().lstrip("#")
+    if len(h) != 6:
+        return (0, 200, 255)
+    try:
+        r = int(h[0:2], 16)
+        g = int(h[2:4], 16)
+        b = int(h[4:6], 16)
+        return (b, g, r)
+    except ValueError:
+        return (0, 200, 255)
+
+
+def class_bgr(class_id: int, classes_meta: Optional[List[dict]] = None) -> Tuple[int, int, int]:
+    if classes_meta:
+        for c in classes_meta:
+            if int(c.get("id", -1)) == int(class_id):
+                col = str(c.get("color") or "").strip()
+                if col:
+                    return hex_to_bgr(col)
+        # fall through by index into meta list
+        if 0 <= class_id < len(classes_meta):
+            col = str(classes_meta[class_id].get("color") or "").strip()
+            if col:
+                return hex_to_bgr(col)
+    return hex_to_bgr(CLASS_PALETTE_HEX[class_id % len(CLASS_PALETTE_HEX)])
+
+
 def load_yolo(weights: str):
     from ultralytics import YOLO
 
@@ -173,7 +214,13 @@ def load_yolo(weights: str):
     return YOLO(str(path))
 
 
-def run_infer_bytes(weights: str, image_bytes: bytes, conf: float, iou: float) -> Tuple[List[dict], bytes]:
+def run_infer_bytes(
+    weights: str,
+    image_bytes: bytes,
+    conf: float,
+    iou: float,
+    classes_meta: Optional[List[dict]] = None,
+) -> Tuple[List[dict], bytes]:
     import cv2
     import numpy as np
 
@@ -199,12 +246,20 @@ def run_infer_bytes(weights: str, image_bytes: bytes, conf: float, iou: float) -
                 bh = max(0.0, y2 - y1)
                 cx = x1 + bw / 2
                 cy = y1 + bh / 2
+                cname = names.get(cls_id, str(cls_id))
+                if classes_meta:
+                    for c in classes_meta:
+                        if int(c.get("id", -1)) == cls_id and c.get("name"):
+                            cname = str(c["name"])
+                            break
+                color = class_bgr(cls_id, classes_meta)
                 boxes.append(
                     {
                         "class_id": cls_id,
-                        "class_name": names.get(cls_id, str(cls_id)),
+                        "class_name": cname,
                         "confidence": conf_v,
                         "conf": conf_v,
+                        "color": "#{:02x}{:02x}{:02x}".format(color[2], color[1], color[0]),
                         "x": cx / w,
                         "y": cy / h,
                         "w": bw / w,
@@ -212,15 +267,24 @@ def run_infer_bytes(weights: str, image_bytes: bytes, conf: float, iou: float) -
                         "bbox": [x1 / w, y1 / h, x2 / w, y2 / h],
                     }
                 )
-                cv2.rectangle(annotated, (int(x1), int(y1)), (int(x2), int(y2)), (0, 200, 255), 2)
-                label = f"{names.get(cls_id, cls_id)} {conf_v:.2f}"
+                cv2.rectangle(annotated, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                label = f"{cname} {conf_v:.2f}"
+                ty = max(15, int(y1) - 5)
+                (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+                cv2.rectangle(
+                    annotated,
+                    (int(x1), ty - th - 4),
+                    (int(x1) + tw + 4, ty + 2),
+                    color,
+                    -1,
+                )
                 cv2.putText(
                     annotated,
                     label,
-                    (int(x1), max(15, int(y1) - 5)),
+                    (int(x1) + 2, ty),
                     cv2.FONT_HERSHEY_SIMPLEX,
                     0.5,
-                    (0, 200, 255),
+                    (255, 255, 255),
                     1,
                     cv2.LINE_AA,
                 )
@@ -303,8 +367,9 @@ def handle_infer_image(job: dict) -> None:
     weights = resolve_weights(int(payload.get("model_id") or 0), payload)
     conf = float(payload.get("conf_threshold") or 0.25)
     iou = float(payload.get("iou_threshold") or 0.45)
+    classes_meta = payload.get("classes") if isinstance(payload.get("classes"), list) else None
     raw = download_rel(rel)
-    boxes, ann = run_infer_bytes(weights, raw, conf, iou)
+    boxes, ann = run_infer_bytes(weights, raw, conf, iou, classes_meta)
     result = {
         "predictions": [
             {
@@ -328,13 +393,14 @@ def handle_infer_batch(job: dict) -> None:
     weights = resolve_weights(int(payload.get("model_id") or 0), payload)
     conf = float(payload.get("conf_threshold") or 0.25)
     iou = float(payload.get("iou_threshold") or 0.45)
+    classes_meta = payload.get("classes") if isinstance(payload.get("classes"), list) else None
     preds = []
     for item in payload.get("images") or []:
         rel = str(item.get("image_rel") or "")
         if not rel:
             continue
         raw = download_rel(rel)
-        boxes, _ = run_infer_bytes(weights, raw, conf, iou)
+        boxes, _ = run_infer_bytes(weights, raw, conf, iou, classes_meta)
         preds.append(
             {
                 "image_id": int(item.get("image_id") or 0),
@@ -356,9 +422,10 @@ def handle_camera_job(job: dict, *, on_demand: bool = False) -> None:
     weights = resolve_weights(int(payload.get("model_id") or 0), payload)
     conf = float(payload.get("conf_threshold") or 0.25)
     iou = float(payload.get("iou_threshold") or 0.45)
+    classes_meta = payload.get("classes") if isinstance(payload.get("classes"), list) else None
     try:
         frame = grab_rtsp_jpeg(rtsp)
-        boxes, ann = run_infer_bytes(weights, frame, conf, iou)
+        boxes, ann = run_infer_bytes(weights, frame, conf, iou, classes_meta)
     except Exception as e:  # noqa: BLE001
         post_result(job_id, {"camera_id": camera_id}, error=str(e))
         return
@@ -475,8 +542,9 @@ def push_live_frame(camera: dict) -> None:
     weights = resolve_weights(int(camera.get("model_id") or 0), {})
     conf = float(camera.get("conf_threshold") or 0.25)
     iou = float(camera.get("iou_threshold") or 0.45)
+    classes_meta = camera.get("classes") if isinstance(camera.get("classes"), list) else None
     frame = grab_rtsp_jpeg(rtsp)
-    boxes, ann = run_infer_bytes(weights, frame, conf, iou)
+    boxes, ann = run_infer_bytes(weights, frame, conf, iou, classes_meta)
     requests.post(
         url("frame", "/video/worker/frame"),
         headers=headers(),

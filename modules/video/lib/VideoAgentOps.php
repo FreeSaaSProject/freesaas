@@ -113,13 +113,12 @@ final class VideoAgentOps
             }
             $classesRaw = $body['classes'] ?? ['guest', 'admin'];
             if (is_string($classesRaw)) {
-                $classes = preg_split('/[\r\n,]+/', $classesRaw) ?: [];
+                $classes = VideoColors::fromTextarea($classesRaw);
             } elseif (is_array($classesRaw)) {
-                $classes = $classesRaw;
+                $classes = VideoColors::normalizeClasses($classesRaw);
             } else {
-                $classes = ['guest', 'admin'];
+                $classes = VideoColors::normalizeClasses(['guest', 'admin']);
             }
-            $classes = array_values(array_filter(array_map(static fn ($c) => trim((string)$c), $classes)));
             if ($modelId <= 0 && $weights !== '') {
                 foreach (VideoModelsRepository::listAll() as $m) {
                     if ((string)($m['WEIGHTS_PATH'] ?? '') === $weights) {
@@ -196,18 +195,11 @@ final class VideoAgentOps
             return ['ok' => false, 'error' => 'camera not found'];
         }
         $type = strtolower(trim((string)($body['type'] ?? 'ondemand')));
-        $payload = [
-            'camera_id' => (int)$cam['ID'],
-            'rtsp_url' => (string)$cam['RTSP_URL'],
-            'model_id' => (int)$cam['MODEL_ID'],
-            'conf_threshold' => (float)$cam['CONF_THRESHOLD'],
-            'iou_threshold' => (float)$cam['IOU_THRESHOLD'],
-            'mode' => (string)$cam['MODE'],
-            'settings' => json_decode((string)($cam['SETTINGS_JSON'] ?? ''), true) ?: [],
-        ];
+        $payload = VideoCamerasRepository::jobPayload($cam);
         if ($type === 'monitor' || $type === 'monitor_tick') {
             $jobId = VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_MONITOR_TICK, $payload);
         } else {
+            $payload['annotate'] = true;
             $jobId = VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_ON_DEMAND, $payload);
         }
 

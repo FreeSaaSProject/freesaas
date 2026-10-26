@@ -2,10 +2,166 @@
   max-width: 100%;
   height: auto;
   border: 1px solid var(--border, #ccc);
+  display: block;
 }
 .video-dash .table {
   margin-bottom: 1.5rem;
 }
+.video-dash-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  margin: 0.75rem 0 1rem;
+}
+.video-dash-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+.video-ok { color: #15803d; }
+.video-warn { color: #b45309; }
+.video-next {
+  border: 1px solid var(--border, #ddd);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: var(--surface-muted, #fafafa);
+}
+.video-next ul, .video-next ol {
+  margin: 0.35rem 0 0.75rem 1.25rem;
+}
+.video-issue-error { color: #b91c1c; }
+.video-issue-warn { color: #b45309; }
+
+.video-cam-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.video-cam-card {
+  border: 1px solid var(--border, #ddd);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.video-cam-thumb {
+  display: block;
+  aspect-ratio: 16 / 9;
+  background: #1a1a1a;
+  overflow: hidden;
+}
+.video-cam-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.video-cam-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #aaa;
+  font-size: 0.85rem;
+  padding: 0.5rem;
+  text-align: center;
+}
+.video-cam-body {
+  padding: 0.65rem 0.75rem 0.85rem;
+}
+.video-cam-body h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+.video-cam-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0.5rem 0 0;
+}
+.video-badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border, #ccc);
+}
+.video-badge.is-ok {
+  border-color: #86efac;
+  color: #166534;
+  background: #f0fdf4;
+}
+.video-badge.is-stale {
+  border-color: #fcd34d;
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.video-legend {
+  list-style: none;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+.video-legend-compact {
+  margin: 0;
+  gap: 0.35rem 0.75rem;
+}
+.video-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+.video-swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  display: inline-block;
+  border: 1px solid rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+.video-live-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.video-live-frame-wrap {
+  margin: 0.75rem 0 1rem;
+  max-width: 960px;
+}
+.video-list-thumb img {
+  width: 72px;
+  height: 40px;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--border, #ccc);
+}
+.field-help {
+  margin: -0.35rem 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--muted, #666);
+}
+.video-purge-form {
+  margin-top: 1.25rem;
+}
+form.inline {
+  display: inline;
+}
+.video-settings fieldset {
+  margin-bottom: 1.25rem;
+}
+
+/* Label workspace (also used when video CSS is loaded with label) */
 .video-label-canvas-wrap {
   position: relative;
   overflow: auto;

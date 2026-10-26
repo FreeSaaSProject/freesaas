@@ -10,15 +10,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
         $cam = VideoCamerasRepository::find($id);
         if ($cam) {
-            VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_MONITOR_TICK, [
-                'camera_id' => $id,
-                'rtsp_url' => (string)$cam['RTSP_URL'],
-                'model_id' => (int)$cam['MODEL_ID'],
-                'conf_threshold' => (float)$cam['CONF_THRESHOLD'],
-                'iou_threshold' => (float)$cam['IOU_THRESHOLD'],
-                'mode' => (string)$cam['MODE'],
-                'settings' => json_decode((string)($cam['SETTINGS_JSON'] ?? ''), true) ?: [],
-            ]);
+            VideoJobsRepository::enqueue(
+                VideoJobsRepository::TYPE_MONITOR_TICK,
+                VideoCamerasRepository::jobPayload($cam)
+            );
             if ($wantsJson) {
                 AgentHttp::emit(['ok' => true, 'enqueued' => true]);
                 return;
@@ -31,14 +26,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $id = (int)($_POST['id'] ?? 0);
         $cam = VideoCamerasRepository::find($id);
         if ($cam) {
-            $jobId = VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_ON_DEMAND, [
-                'camera_id' => $id,
-                'rtsp_url' => (string)$cam['RTSP_URL'],
-                'model_id' => (int)$cam['MODEL_ID'],
-                'conf_threshold' => (float)$cam['CONF_THRESHOLD'],
-                'iou_threshold' => (float)$cam['IOU_THRESHOLD'],
-                'annotate' => true,
-            ]);
+            $payload = VideoCamerasRepository::jobPayload($cam);
+            $payload['annotate'] = true;
+            $jobId = VideoJobsRepository::enqueue(VideoJobsRepository::TYPE_ON_DEMAND, $payload);
             if ($wantsJson) {
                 AgentHttp::emit(['ok' => true, 'job_id' => $jobId]);
                 return;

@@ -7,8 +7,12 @@
     <input type="hidden" name="action" value="save">
     <label><?= te('video.col.name') ?> <input name="name" required></label>
     <label><?= te('video.models.weights_path') ?> <input name="weights_path" placeholder="models/best.pt or worker local path"></label>
+    <p class="field-help"><?= te('video.models.weights_path.help') ?></p>
     <label><?= te('video.models.weights_file') ?> <input type="file" name="weights_file" accept=".pt"></label>
-    <label><?= te('video.models.classes') ?> <textarea name="classes" rows="3" placeholder="admin&#10;guest&#10;staff"></textarea></label>
+    <label><?= te('video.models.classes') ?>
+      <textarea name="classes" rows="4" placeholder="guest&#10;admin #3cb44b"></textarea>
+    </label>
+    <p class="field-help"><?= te('video.models.classes.help') ?></p>
     <label><?= te('video.models.notes') ?> <input name="notes"></label>
     <button type="submit"><?= te('core.common.save') ?></button>
   </form>
@@ -37,16 +41,32 @@
       <th>ID</th>
       <th><?= te('video.col.name') ?></th>
       <th><?= te('video.models.weights_path') ?></th>
+      <th><?= te('video.models.classes') ?></th>
       <th></th>
     </tr></thead>
     <tbody>
-    <?php foreach ($rows as $m): ?>
+    <?php foreach ($rows as $m):
+      $cls = VideoModelsRepository::classesOf($m);
+      ?>
       <tr>
         <td><?= (int)$m['ID'] ?></td>
         <td><?= e((string)$m['NAME']) ?></td>
         <td class="muted"><?= e((string)$m['WEIGHTS_PATH']) ?></td>
         <td>
-          <form method="post" style="display:inline" onsubmit="return confirm(<?= tj('core.bulk.confirm_delete') ?>)">
+          <ul class="video-legend video-legend-compact">
+            <?php foreach ($cls as $cl): ?>
+              <li>
+                <span class="video-swatch" style="background:<?= e((string)$cl['color']) ?>"></span>
+                <?= e((string)$cl['name']) ?>
+              </li>
+            <?php endforeach; ?>
+            <?php if ($cls === []): ?>
+              <li class="muted">—</li>
+            <?php endif; ?>
+          </ul>
+        </td>
+        <td>
+          <form method="post" class="inline" onsubmit="return confirm(<?= tj('core.bulk.confirm_delete') ?>)">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="id" value="<?= (int)$m['ID'] ?>">
             <button type="submit"><?= te('core.common.delete') ?></button>
@@ -55,7 +75,7 @@
       </tr>
     <?php endforeach; ?>
     <?php if ($rows === []): ?>
-      <tr><td colspan="4" class="muted"><?= te('video.empty.models') ?></td></tr>
+      <tr><td colspan="5" class="muted"><?= te('video.empty.models') ?></td></tr>
     <?php endif; ?>
     </tbody>
   </table>

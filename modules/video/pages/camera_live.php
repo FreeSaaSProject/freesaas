@@ -10,18 +10,35 @@ if ($row === null) {
 }
 
 $public = VideoCamerasRepository::forPublicView($row);
+$classes = [];
+$modelId = (int)$row['MODEL_ID'];
+if ($modelId > 0) {
+    $model = VideoModelsRepository::find($modelId);
+    if ($model) {
+        $classes = VideoModelsRepository::classesOf($model);
+    }
+}
+$detWrap = json_decode((string)($public['LAST_DETECT_JSON'] ?? ''), true) ?: [];
+$detections = [];
+if (isset($detWrap['detections']) && is_array($detWrap['detections'])) {
+    $detections = $detWrap['detections'];
+} elseif (is_array($detWrap) && isset($detWrap[0])) {
+    $detections = $detWrap;
+}
 $wantsJson = AgentHttp::wantsJson();
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'camera' => $public,
+        'classes' => $classes,
         'annotated_url' => $public['LAST_ANNOTATED_PATH'] !== ''
-            ? '/video/media?rel=' . rawurlencode((string)$public['LAST_ANNOTATED_PATH'])
+            ? '/video/media?rel=' . rawurlencode((string)$public['LAST_ANNOTATED_PATH']) . '&t=' . (int)$public['LAST_SEEN']
             : null,
         'frame_url' => $public['LAST_FRAME_PATH'] !== ''
-            ? '/video/media?rel=' . rawurlencode((string)$public['LAST_FRAME_PATH'])
+            ? '/video/media?rel=' . rawurlencode((string)$public['LAST_FRAME_PATH']) . '&t=' . (int)$public['LAST_SEEN']
             : null,
-        'detections' => json_decode((string)($public['LAST_DETECT_JSON'] ?? ''), true) ?: [],
+        'detections' => $detections,
+        'last_seen' => (int)$public['LAST_SEEN'],
     ]);
     return;
 }
@@ -34,4 +51,5 @@ View::render('camera_live', [
         ['label' => t('video.live.crumb'), 'current' => true],
     ]),
     'row' => $public,
+    'classes' => $classes,
 ], 'layout', 'video');

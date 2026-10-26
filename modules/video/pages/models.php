@@ -77,7 +77,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         $name = trim((string)($_POST['name'] ?? ''));
         $weights = trim((string)($_POST['weights_path'] ?? ''));
         $classesRaw = trim((string)($_POST['classes'] ?? ''));
-        $classes = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $classesRaw) ?: [])));
+        $classes = VideoColors::fromTextarea($classesRaw);
         if ($name === '' || $weights === '') {
             $error = t('video.models.err_required');
             if ($wantsJson) {

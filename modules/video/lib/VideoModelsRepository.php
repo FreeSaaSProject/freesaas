@@ -25,11 +25,20 @@ final class VideoModelsRepository
         return $row ?: null;
     }
 
-    /** @param list<string>|array<string, mixed> $classes */
+    /**
+     * @return list<array{id:int,name:string,color:string}>
+     */
+    public static function classesOf(array $row): array
+    {
+        return VideoColors::fromJson(isset($row['CLASSES_JSON']) ? (string)$row['CLASSES_JSON'] : null);
+    }
+
+    /** @param list<string>|list<array<string, mixed>>|array<string, mixed> $classes */
     public static function save(int $id, string $name, string $weightsPath, array $classes, string $notes = '', bool $enabled = true): int
     {
         $pdo = Database::pdo();
-        $classesJson = json_encode($classes, JSON_UNESCAPED_UNICODE);
+        $norm = VideoColors::normalizeClasses($classes);
+        $classesJson = json_encode($norm, JSON_UNESCAPED_UNICODE);
         $en = $enabled ? 1 : 0;
         if ($id > 0) {
             $st = $pdo->prepare(

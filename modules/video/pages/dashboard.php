@@ -7,6 +7,7 @@ $cameras = VideoCamerasRepository::listForPublicView();
 $jobs = VideoJobsRepository::recent(30);
 $alerts = VideoAlertsRepository::recent(20);
 $online = VideoWorkersRepository::onlineCount();
+$diagnose = VideoDiagnose::report();
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -17,6 +18,7 @@ if ($wantsJson) {
         'jobs' => $jobs,
         'alerts' => $alerts,
         'storage_bytes' => VideoStorage::monitoringBytes(),
+        'diagnose' => $diagnose,
     ]);
     return;
 }
@@ -32,4 +34,5 @@ View::render('dashboard', [
     'alerts' => $alerts,
     'online' => $online,
     'storageBytes' => VideoStorage::monitoringBytes(),
+    'diagnose' => $diagnose,
 ], 'layout', 'video');
