@@ -1,5 +1,7 @@
 Options -Indexes
 DirectorySlash Off
+# Worker frame uploads (base64 JSON) can exceed default tiny SSL/body caps.
+LimitRequestBody 16777216
 <IfModule mod_rewrite.c>
   RewriteEngine On
 

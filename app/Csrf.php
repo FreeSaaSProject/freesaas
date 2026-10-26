@@ -119,6 +119,7 @@ final class Csrf
             '/audio/jobs/',
             '/audio/asr/',
             '/audio/voice-transcribe/',
+            '/video/worker/',
             '/terminals/jobs/',
             '/banks/jobs/',
             '/yclients/jobs/',

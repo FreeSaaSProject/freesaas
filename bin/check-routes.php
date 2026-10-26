@@ -150,6 +150,11 @@ $allowed = [
     '/agent/banks/integrations/connect' => ['methods' => ['POST'], 'why' => 'agent_token banks integration connect'],
     '/agent/banks/integrations/probe-scopes' => ['methods' => ['POST'], 'why' => 'agent_token banks scope probe'],
 
+    '/agent/video/status' => ['methods' => ['GET'], 'why' => 'agent_token video status'],
+    '/agent/video/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video settings'],
+    '/agent/video/setup' => ['methods' => ['POST'], 'why' => 'agent_token video setup'],
+    '/agent/video/enqueue' => ['methods' => ['POST'], 'why' => 'agent_token video enqueue'],
+
     // OAuth / MCP (llm)
     '/oauth/authorize' => ['methods' => ['GET', 'POST'], 'why' => 'OAuth authorize'],
     '/oauth/token' => ['methods' => ['POST', 'OPTIONS'], 'why' => 'OAuth token'],

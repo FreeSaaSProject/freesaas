@@ -2,7 +2,7 @@
     "id": "video",
     "name": "video.module.name",
     "description": "video.module.description",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -46,7 +46,11 @@
             "/video/worker/claim",
             "/video/worker/result",
             "/video/worker/file",
-            "/video/worker/frame"
+            "/video/worker/frame",
+            "/agent/video/status",
+            "/agent/video/settings",
+            "/agent/video/setup",
+            "/agent/video/enqueue"
         ]
     },
     "agent": {

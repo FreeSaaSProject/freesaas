@@ -17,6 +17,9 @@ require_once __DIR__ . '/lib/VideoAlertsRepository.php';
 require_once __DIR__ . '/lib/VideoDetectionsRepository.php';
 require_once __DIR__ . '/lib/VideoPurge.php';
 require_once __DIR__ . '/lib/VideoDiagnose.php';
+require_once __DIR__ . '/lib/VideoAgentOps.php';
+
+VideoAgentOps::register();
 
 Assets::register('video', [
     'css' => ['assets/css/video.css'],
@@ -72,6 +75,7 @@ foreach ($workerPages as $path => $file) {
         'module' => 'video',
         'methods' => ['GET', 'POST'],
         'public' => true,
+        'csrf' => false,
         'handler' => static function () use ($file): void {
             require base_path('modules/video/pages/' . $file);
         },

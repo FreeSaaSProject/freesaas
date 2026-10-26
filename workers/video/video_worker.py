@@ -25,6 +25,8 @@ DEFAULT_CONFIG = CLIENT_ROOT / "configs" / "local.json"
 SERVER = ""
 WORKER_TOKEN = ""
 WORKER_KEY = "default"
+VERIFY_SSL = True
+HOST_HEADER = ""
 EP: Dict[str, str] = {}
 MODELS: Dict[str, Any] = {}
 LOOP: Dict[str, Any] = {}
@@ -36,18 +38,30 @@ log = logging.getLogger("video_worker")
 
 
 def headers() -> Dict[str, str]:
-    if not WORKER_TOKEN:
-        return {}
-    return {"X-Video-Token": WORKER_TOKEN}
+    h: Dict[str, str] = {}
+    if WORKER_TOKEN:
+        h["X-Video-Token"] = WORKER_TOKEN
+    if HOST_HEADER:
+        h["Host"] = HOST_HEADER
+    return h
+
+
+def req_kwargs(**extra: Any) -> Dict[str, Any]:
+    kw: Dict[str, Any] = {"timeout": 30, "verify": VERIFY_SSL}
+    kw.update(extra)
+    return kw
 
 
 def load_config(path: Path) -> None:
-    global SERVER, WORKER_TOKEN, WORKER_KEY, EP, MODELS, LOOP, FFMPEG, TUNNEL, LIVE
+    global SERVER, WORKER_TOKEN, WORKER_KEY, VERIFY_SSL, HOST_HEADER
+    global EP, MODELS, LOOP, FFMPEG, TUNNEL, LIVE
     with open(path, "r", encoding="utf-8") as f:
         cfg = json.load(f)
     SERVER = str(cfg["server"]).rstrip("/")
     WORKER_TOKEN = str(cfg.get("worker_token") or "").strip()
     WORKER_KEY = str(cfg.get("worker_key") or "default").strip()
+    VERIFY_SSL = bool(cfg.get("verify_ssl", True))
+    HOST_HEADER = str(cfg.get("host_header") or "").strip()
     EP = dict(cfg.get("endpoints") or {})
     MODELS = dict(cfg.get("models") or {})
     LOOP = dict(cfg.get("loop") or {})
@@ -92,7 +106,7 @@ def hello(cameras_out: Optional[List[dict]] = None) -> dict:
             "hostname": socket.gethostname(),
             "meta": meta,
         },
-        timeout=30,
+        **req_kwargs(timeout=30),
     )
     r.raise_for_status()
     data = r.json()
@@ -107,7 +121,7 @@ def claim() -> Optional[dict]:
         url("claim", "/video/worker/claim"),
         headers=headers(),
         params={"worker_key": WORKER_KEY},
-        timeout=60,
+        **req_kwargs(timeout=60),
     )
     r.raise_for_status()
     data = r.json()
@@ -123,7 +137,7 @@ def post_result(job_id: int, result: dict, error: Optional[str] = None, **extra:
         url("result", "/video/worker/result"),
         headers=headers(),
         json=body,
-        timeout=300,
+        **req_kwargs(timeout=300),
     )
     r.raise_for_status()
 
@@ -133,7 +147,7 @@ def download_rel(rel: str) -> bytes:
         url("file", "/video/worker/file"),
         headers=headers(),
         params={"rel": rel},
-        timeout=120,
+        **req_kwargs(timeout=120),
     )
     r.raise_for_status()
     return r.content
@@ -216,6 +230,32 @@ def run_infer_bytes(weights: str, image_bytes: bytes, conf: float, iou: float) -
     return boxes, enc.tobytes()
 
 
+def jpeg_for_upload(raw: bytes, max_side: int = 960, quality: int = 55) -> bytes:
+    """Downscale/recompress for POST (MAMP OpenSSL often 413 above ~128KB SSLReneg buffer)."""
+    import cv2
+    import numpy as np
+
+    arr = np.frombuffer(raw, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        return raw
+    h, w = img.shape[:2]
+    side = max(h, w)
+    if side > max_side:
+        scale = max_side / float(side)
+        img = cv2.resize(img, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+    q = int(quality)
+    for _ in range(4):
+        ok, enc = cv2.imencode(".jpg", img, [int(cv2.IMWRITE_JPEG_QUALITY), q])
+        if not ok:
+            return raw
+        data = enc.tobytes()
+        if len(data) <= 70_000 or q <= 30:
+            return data
+        q = max(30, q - 10)
+    return data
+
+
 def grab_rtsp_jpeg(rtsp: str) -> bytes:
     bin_ = str(FFMPEG.get("bin") or "ffmpeg")
     transport = str(FFMPEG.get("rtsp_transport") or "tcp")
@@ -233,8 +273,10 @@ def grab_rtsp_jpeg(rtsp: str) -> bytes:
         rtsp,
         "-frames:v",
         "1",
+        "-vf",
+        "scale='min(1280,iw)':-2",
         "-q:v",
-        "2",
+        "5",
         "-y",
         out,
     ]
@@ -337,11 +379,13 @@ def handle_camera_job(job: dict, *, on_demand: bool = False) -> None:
     if payload.get("mode") == "dataset" and settings.get("dataset_project_id"):
         result["dataset_project_id"] = int(settings["dataset_project_id"])
 
+    frame_up = jpeg_for_upload(frame)
+    ann_up = jpeg_for_upload(ann)
     post_result(
         job_id,
         result,
-        frame_b64=base64.b64encode(frame).decode("ascii"),
-        annotated_b64=base64.b64encode(ann).decode("ascii"),
+        frame_b64=base64.b64encode(frame_up).decode("ascii"),
+        annotated_b64=base64.b64encode(ann_up).decode("ascii"),
     )
 
 
@@ -438,11 +482,11 @@ def push_live_frame(camera: dict) -> None:
         headers=headers(),
         json={
             "camera_id": camera_id,
-            "annotated_b64": base64.b64encode(ann).decode("ascii"),
-            "frame_b64": base64.b64encode(frame).decode("ascii"),
+            "annotated_b64": base64.b64encode(jpeg_for_upload(ann)).decode("ascii"),
+            "frame_b64": base64.b64encode(jpeg_for_upload(frame)).decode("ascii"),
             "detections": boxes,
         },
-        timeout=60,
+        **req_kwargs(timeout=60),
     ).raise_for_status()
 
 
