@@ -71,9 +71,10 @@ final class VideoAgentOps
         ];
     }
 
-    /** @param array<string, mixed> $body */
-    public static function settingsSave(array $body): array
+    /** @return array<string, mixed> */
+    public static function settingsSave(): array
     {
+        $body = AgentOps::requestInput();
         $had = VideoWorkerAuth::configuredToken();
         VideoConfig::saveFromPost($body);
         $token = VideoWorkerAuth::configuredToken();
@@ -89,9 +90,10 @@ final class VideoAgentOps
         return $out;
     }
 
-    /** @param array<string, mixed> $body */
-    public static function setup(array $body): array
+    /** @return array<string, mixed> */
+    public static function setup(): array
     {
+        $body = AgentOps::requestInput();
         $tokenOut = null;
         if (!empty($body['regenerate_token']) || !VideoWorkerAuth::isConfigured()) {
             $tokenOut = !empty($body['regenerate_token'])
@@ -184,9 +186,10 @@ final class VideoAgentOps
         return $out;
     }
 
-    /** @param array<string, mixed> $body */
-    public static function enqueue(array $body): array
+    /** @return array<string, mixed> */
+    public static function enqueue(): array
     {
+        $body = AgentOps::requestInput();
         $cameraId = (int)($body['camera_id'] ?? 0);
         $cam = $cameraId > 0 ? VideoCamerasRepository::find($cameraId) : null;
         if ($cam === null) {
