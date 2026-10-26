@@ -378,8 +378,6 @@ final class BankOAuth
                 return TochkaClient::class;
             case 'alfa_ul':
                 return AlfaUlClient::class;
-            case 'alfa_fl':
-                return AlfaFlClient::class;
             case 'tbank_ul':
                 return TbankUlClient::class;
             case 'tbank_fl':

@@ -158,6 +158,8 @@ return [
     'banks.provider.tochka' => 'Точка',
     'banks.provider.alfa_ul' => 'Альфа (ЮЛ)',
     'banks.provider.alfa_fl' => 'Альфа (ФЛ)',
+    'banks.list.unverified' => 'не проверено',
+    'banks.list.unverified_hint' => 'Интеграция есть в коде, но на проде ещё не прогоняли end-to-end. Альфа ФЛ убрана: банк пока не открывает доступ к счетам физлиц.',
     'banks.provider.tbank_ul' => 'Т-Банк (ЮЛ)',
     'banks.provider.tbank_fl' => 'Т-Банк (ФЛ)',
     'banks.provider.sber_ul' => 'Сбер (ЮЛ)',

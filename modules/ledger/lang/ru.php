@@ -92,6 +92,8 @@ return [
     'ledger.moves.type_pick_hint' => 'Выберите тип движения — появятся поля, нужные для этого типа',
     'ledger.moves.prev_mark' => '(по пред. значению)',
     'ledger.moves.supplier_none' => 'без контрагента',
+    'ledger.moves.supplier_missing' => 'контрагент!',
+    'ledger.moves.supplier_missing_hint' => 'У типа движения включён контрагент, но в ДПС он не указан',
     'ledger.moves.user_payment_line' => 'Сотрудник:',
     'ledger.moves.date_acc' => 'У',
     'ledger.moves.date_create' => 'С',

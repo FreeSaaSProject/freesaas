@@ -16,6 +16,8 @@ declare(strict_types=1);
 /** @var array<int,string> $accounts */
 /** @var array<int,string> $types */
 /** @var array<int,bool> $typeActIn */
+/** @var array<int,bool> $typeSupplier */
+/** @var array<int,string> $suppliersAll */
 /** @var bool $stickersEnabled */
 /** @var array<int,string> $suppliers */
 /** @var float|null $balance */
@@ -52,6 +54,8 @@ $sysBalance = $balance !== null ? round((float)$balance, 2) : null;
 $todayYmd = date('Y-m-d');
 $reconForms = [];
 $typeActIn = is_array($typeActIn ?? null) ? $typeActIn : [];
+$typeSupplier = is_array($typeSupplier ?? null) ? $typeSupplier : [];
+$suppliersAll = is_array($suppliersAll ?? null) ? $suppliersAll : (is_array($suppliers ?? null) ? $suppliers : []);
 $stickersEnabled = !empty($stickersEnabled);
 $dateSortKeys = ['dt', 'dt_create', 'dt_update'];
 $dateSortLabels = [
@@ -241,6 +245,20 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
   <td><?= e((string)($accounts[(int)$r['account_id']] ?? ('#' . (int)$r['account_id']))) ?></td>
   <td><?= e((string)($types[(int)$r['type_id']] ?? ('#' . (int)$r['type_id']))) ?></td>
   <td><?= e(LedgerMovesRepository::descrForList((string)$r['descr'])) ?><?= $moveBadges[$mid] ?? '' ?>
+    <?php
+      $sid = (int)($r['supplier_id'] ?? 0);
+      $needsSupplier = !empty($typeSupplier[(int)($r['type_id'] ?? 0)]);
+      if ($sid > 0):
+        $sName = (string)($suppliersAll[$sid] ?? ('#' . $sid));
+    ?>
+      <div class="ledger-supplier-line">
+        <a class="ledger-supplier-badge" href="/suppliers/<?= $sid ?>/edit" title="<?= e($sName) ?>"><?= e($sName) ?></a>
+      </div>
+    <?php elseif ($needsSupplier): ?>
+      <div class="ledger-supplier-line">
+        <span class="ledger-supplier-badge is-missing" title="<?= te('ledger.moves.supplier_missing_hint') ?>"><?= te('ledger.moves.supplier_missing') ?></span>
+      </div>
+    <?php endif; ?>
     <?php if ($userPayId > 0): ?>
       <div class="ledger-user-pay"><?= te('ledger.moves.user_payment_line') ?> <?= UsersRepository::badgeHtml($userPayId, true, true) ?></div>
     <?php endif; ?>

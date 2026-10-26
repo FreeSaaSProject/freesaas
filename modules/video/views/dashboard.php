@@ -42,59 +42,64 @@ $staleSec = 120;
   <?php endif; ?>
 
   <p class="video-dash-nav">
+    <a class="btn" href="/video/posts"><?= te('video.menu.posts') ?></a>
+    <a class="btn" href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
+    <a class="btn" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
     <a class="btn" href="/video/cameras"><?= te('video.menu.cameras') ?></a>
     <a class="btn" href="/video/models"><?= te('video.menu.models') ?></a>
     <a class="btn" href="/video/alerts"><?= te('video.menu.alerts') ?></a>
     <a class="btn" href="/video/settings"><?= te('video.menu.settings') ?></a>
   </p>
 
-  <h2><?= te('video.dashboard.cameras') ?></h2>
+  <h2><?= te('video.dashboard.posts') ?></h2>
   <div class="video-cam-grid">
-    <?php foreach ($cameras as $c):
-      $id = (int)$c['ID'];
-      $seen = (int)($c['LAST_SEEN'] ?? 0);
+    <?php foreach ($posts as $card):
+      $seen = (int)($card['LAST_SEEN'] ?? 0);
       $fresh = $seen > 0 && ($now - $seen) <= $staleSec;
-      $ann = (string)($c['LAST_ANNOTATED_PATH'] ?? '');
-      $raw = (string)($c['LAST_FRAME_PATH'] ?? '');
-      $thumb = $ann !== '' ? $ann : $raw;
-      $det = json_decode((string)($c['LAST_DETECT_JSON'] ?? ''), true) ?: [];
-      $boxes = is_array($det['detections'] ?? null) ? $det['detections'] : (is_array($det) && isset($det[0]) ? $det : []);
-      $nDet = is_array($boxes) ? count($boxes) : 0;
       ?>
-      <article class="video-cam-card">
-        <a class="video-cam-thumb" href="/video/cameras/<?= $id ?>/live">
-          <?php if ($thumb !== ''): ?>
-            <img src="/video/media?rel=<?= e(rawurlencode($thumb)) ?>" alt="">
-          <?php else: ?>
-            <span class="video-cam-placeholder"><?= te('video.live.empty') ?></span>
-          <?php endif; ?>
-        </a>
+      <article class="video-cam-card video-post-card">
         <div class="video-cam-body">
           <h3>
-            <a href="/video/cameras/<?= $id ?>/edit"><?= e((string)$c['NAME']) ?></a>
+            <a href="/video/posts/<?= (int)$card['ID'] ?>"><?= e((string)$card['NAME']) ?></a>
             <span class="video-badge <?= $fresh ? 'is-ok' : 'is-stale' ?>">
               <?= $fresh ? te('video.badge.fresh') : te('video.badge.stale') ?>
             </span>
           </h3>
           <p class="muted">
-            <?= e((string)($c['MODE'] ?? '')) ?>
-            <?php if (!empty($c['MODEL_NAME'])): ?> · <?= e((string)$c['MODEL_NAME']) ?><?php endif; ?>
-            · <?= te('video.live.detections_n', ['n' => (string)$nDet]) ?>
+            <?= te('video.posts.cameras_n', ['n' => (string)(int)$card['CAMERA_COUNT']]) ?>
+            <?php if ($card['MODEL_NAME'] !== ''): ?> · <?= e((string)$card['MODEL_NAME']) ?><?php endif; ?>
           </p>
-          <p class="muted"><?= $seen > 0 ? e(date('Y-m-d H:i:s', $seen)) : '—' ?></p>
+          <?php if (!empty($card['class_counts'])): ?>
+            <p class="video-counts">
+              <?php foreach ($card['class_counts'] as $name => $cnt): ?>
+                <span><?= e((string)$name) ?>: <strong><?= (int)$cnt ?></strong></span>
+              <?php endforeach; ?>
+            </p>
+          <?php endif; ?>
+          <div class="video-post-thumbs">
+            <?php foreach (array_slice($card['cameras'], 0, 4) as $c):
+              $thumb = (string)(($c['LAST_ANNOTATED_PATH'] ?? '') ?: ($c['LAST_FRAME_PATH'] ?? ''));
+              ?>
+              <a href="/video/cameras/<?= (int)$c['ID'] ?>/live" class="video-mini-thumb">
+                <?php if ($thumb !== ''): ?>
+                  <img src="/video/media?rel=<?= e(rawurlencode($thumb)) ?>" alt="">
+                <?php else: ?>
+                  <span><?= e((string)$c['NAME']) ?></span>
+                <?php endif; ?>
+              </a>
+            <?php endforeach; ?>
+          </div>
           <p class="video-cam-actions">
-            <a href="/video/cameras/<?= $id ?>/live"><?= te('video.live.crumb') ?></a>
-            <form method="post" action="/video/cameras" class="inline">
-              <input type="hidden" name="action" value="enqueue_ondemand">
-              <input type="hidden" name="id" value="<?= $id ?>">
-              <button type="submit"><?= te('video.cameras.run_ondemand') ?></button>
-            </form>
+            <a href="/video/posts/<?= (int)$card['ID'] ?>"><?= te('video.posts.open') ?></a>
+            <a href="/video/posts/<?= (int)$card['ID'] ?>/edit"><?= te('core.common.edit') ?></a>
           </p>
         </div>
       </article>
     <?php endforeach; ?>
-    <?php if ($cameras === []): ?>
-      <p class="muted"><?= te('video.empty.cameras') ?></p>
+    <?php if ($posts === []): ?>
+      <p class="muted"><?= te('video.empty.posts') ?>
+        — <a href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
+      </p>
     <?php endif; ?>
   </div>
 

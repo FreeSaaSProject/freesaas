@@ -92,6 +92,8 @@ return [
     'ledger.moves.type_pick_hint' => 'Select a move type — fields for that type will appear',
     'ledger.moves.prev_mark' => '(from previous)',
     'ledger.moves.supplier_none' => 'no counterparty',
+    'ledger.moves.supplier_missing' => 'counterparty!',
+    'ledger.moves.supplier_missing_hint' => 'This move type requires a counterparty, but none is set',
     'ledger.moves.user_payment_line' => 'Staff:',
     'ledger.moves.date_acc' => 'P',
     'ledger.moves.date_create' => 'C',

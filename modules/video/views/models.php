@@ -10,7 +10,7 @@
     <p class="field-help"><?= te('video.models.weights_path.help') ?></p>
     <label><?= te('video.models.weights_file') ?> <input type="file" name="weights_file" accept=".pt"></label>
     <label><?= te('video.models.classes') ?>
-      <textarea name="classes" rows="4" placeholder="guest&#10;admin #3cb44b"></textarea>
+      <textarea name="classes" rows="4" placeholder="staff|сотрудник #e6194b&#10;guest|гость #3cb44b"></textarea>
     </label>
     <p class="field-help"><?= te('video.models.classes.help') ?></p>
     <label><?= te('video.models.notes') ?> <input name="notes"></label>
@@ -57,7 +57,10 @@
             <?php foreach ($cls as $cl): ?>
               <li>
                 <span class="video-swatch" style="background:<?= e((string)$cl['color']) ?>"></span>
-                <?= e((string)$cl['name']) ?>
+                <?= e(VideoColors::displayName($cl)) ?>
+                <?php if (($cl['label'] ?? '') !== '' && ($cl['label'] ?? '') !== ($cl['name'] ?? '')): ?>
+                  <span class="muted">(<?= e((string)$cl['name']) ?>)</span>
+                <?php endif; ?>
               </li>
             <?php endforeach; ?>
             <?php if ($cls === []): ?>

@@ -42,21 +42,31 @@ final class VideoLabelProjectsRepository
     }
 
     /**
-     * @param list<array{id?:int,name:string,color?:string}>|list<string> $classes
+     * @param list<array{id?:int,name:string,label?:string,color?:string}>|list<string> $classes
      * @param array<string, mixed> $settings
      */
     public static function save(int $id, string $name, array $classes, array $settings = [], int $modelId = 0, float $conf = 0.25, float $iou = 0.45): int
     {
-        $norm = [];
-        foreach ($classes as $i => $c) {
-            if (is_string($c)) {
-                $norm[] = ['id' => $i, 'name' => $c, 'color' => self::defaultColor($i)];
-            } elseif (is_array($c)) {
-                $norm[] = [
-                    'id' => (int)($c['id'] ?? $i),
-                    'name' => (string)($c['name'] ?? ('class_' . $i)),
-                    'color' => (string)($c['color'] ?? self::defaultColor($i)),
-                ];
+        if (class_exists(VideoColors::class, false)) {
+            $norm = VideoColors::normalizeClasses($classes);
+        } else {
+            $norm = [];
+            foreach ($classes as $i => $c) {
+                if (is_string($c)) {
+                    $norm[] = ['id' => $i, 'name' => $c, 'label' => $c, 'color' => self::defaultColor($i)];
+                } elseif (is_array($c)) {
+                    $cname = (string)($c['name'] ?? ('class_' . $i));
+                    $label = trim((string)($c['label'] ?? ''));
+                    if ($label === '') {
+                        $label = $cname;
+                    }
+                    $norm[] = [
+                        'id' => (int)($c['id'] ?? $i),
+                        'name' => $cname,
+                        'label' => $label,
+                        'color' => (string)($c['color'] ?? self::defaultColor($i)),
+                    ];
+                }
             }
         }
         $pdo = Database::pdo();
@@ -105,6 +115,22 @@ final class VideoLabelProjectsRepository
         $rel = VideoStorage::putBytes('labels/' . $projectId, $fn, $bytes);
 
         return VideoLabelImagesRepository::add($projectId, $fn, $rel);
+    }
+
+    /**
+     * Ingest frame + optional YOLO-normalized labels (interactive train).
+     *
+     * @param list<array<string, mixed>> $labels
+     */
+    public static function ingestLabeledFrame(int $projectId, string $absSource, array $labels = []): ?int
+    {
+        $id = self::ingestMonitoringFrame($projectId, $absSource);
+        if ($id !== null && $labels !== []) {
+            VideoLabelImagesRepository::setLabels($id, $labels);
+            VideoLabelImagesRepository::setPredictions($id, $labels);
+        }
+
+        return $id;
     }
 
     /** @param array<string, mixed> $result from worker infer */

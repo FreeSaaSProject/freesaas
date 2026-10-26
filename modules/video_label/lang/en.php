@@ -29,6 +29,7 @@ return [
     'video_label.col.name' => 'Name',
     'video_label.col.images' => 'Images',
     'video_label.col.classes' => 'Classes',
+    'video_label.col.classes.help' => 'One per line: key|display label #rrggbb. Key is stable (Latin); label is shown on boxes (e.g. Russian).',
     'video_label.col.model' => 'Assist model',
     'video_label.col.conf' => 'Confidence',
     'video_label.col.iou' => 'IoU',

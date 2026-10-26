@@ -158,6 +158,8 @@ return [
     'banks.provider.tochka' => 'Tochka',
     'banks.provider.alfa_ul' => 'Alfa (business)',
     'banks.provider.alfa_fl' => 'Alfa (personal)',
+    'banks.list.unverified' => 'not verified',
+    'banks.list.unverified_hint' => 'Wired in code but not proven end-to-end on prod yet. Alfa personal was removed: the bank does not grant FL account scopes for now.',
     'banks.provider.tbank_ul' => 'T-Bank (business)',
     'banks.provider.tbank_fl' => 'T-Bank (personal)',
     'banks.provider.sber_ul' => 'Sber (business)',

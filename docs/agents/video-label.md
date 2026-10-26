@@ -16,7 +16,7 @@ php bin/freesaas.php module enable video_label --accept-risk --format=json
 | Op | Method | Path |
 |----|--------|------|
 | List projects | GET | `/video-label?format=json` |
-| Create | POST | `/video-label/new` `name=` `classes=` `model_id=` |
+| Create | POST | `/video-label/new` `name=` `classes=` (lines `key\|label #hex`) `model_id=` |
 | Get / update / delete | GET/POST | `/video-label/{id}/edit` (`action=delete`) |
 | Workspace | GET | `/video-label/{id}/workspace?format=json` |
 | Infer | POST | workspace `action=infer` `image_id=` or `batch=1` |
@@ -33,6 +33,10 @@ After export, train from video: `POST /video/models` `action=enqueue_train&proje
 | `/video-label/{id}/workspace` | Canvas: Box / Drag / Null, undo, assist |
 
 **Drag hover-peek:** predictions below project confidence stay hidden until the cursor is over them; click promotes into stored labels.
+
+## Classes
+
+`CLASSES_JSON`: `{id, name, label?, color}`. Textarea: `staff|сотрудник #e6194b`. `name` is the YOLO/export key; `label` is UI/box display (Russian OK). Interactive train remaps person → target class into this project via `ingestLabeledFrame`.
 
 ## Tables
 

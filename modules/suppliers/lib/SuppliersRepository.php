@@ -83,6 +83,47 @@ final class SuppliersRepository
         return $out;
     }
 
+    /**
+     * Match counterparty by INN digits (10 or 12). Prefers ENABLED=1.
+     * Returns 0 if none or ambiguous (multiple distinct ids).
+     */
+    public static function findIdByInn(string $inn): int
+    {
+        if (!Database::tableExists('base_suppliers')) {
+            return 0;
+        }
+        $digits = preg_replace('/\D+/', '', trim($inn)) ?? '';
+        if (strlen($digits) !== 10 && strlen($digits) !== 12) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, ENABLED AS enabled
+             FROM base_suppliers
+             WHERE REPLACE(REPLACE(REPLACE(INN, \' \', \'\'), \'-\', \'\'), \'\t\', \'\') = ?
+             ORDER BY ENABLED DESC, ID ASC
+             LIMIT 5'
+        );
+        $st->execute([$digits]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($rows === []) {
+            return 0;
+        }
+        $enabled = [];
+        foreach ($rows as $r) {
+            if ((int)($r['enabled'] ?? 0) === 1) {
+                $enabled[] = (int)$r['id'];
+            }
+        }
+        if (count($enabled) === 1) {
+            return $enabled[0];
+        }
+        if (count($enabled) > 1) {
+            return 0; // ambiguous
+        }
+        // only disabled rows
+        return count($rows) === 1 ? (int)$rows[0]['id'] : 0;
+    }
+
     public static function find(int $id): ?array
     {
         if ($id < 1 || !Database::tableExists('base_suppliers')) {

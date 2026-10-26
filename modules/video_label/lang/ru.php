@@ -29,6 +29,7 @@ return [
     'video_label.col.name' => 'Имя',
     'video_label.col.images' => 'Изображения',
     'video_label.col.classes' => 'Классы',
+    'video_label.col.classes.help' => 'По одной строке: ключ|подпись #rrggbb. Ключ стабильный (латиница); подпись на боксах (например по-русски).',
     'video_label.col.model' => 'Модель assist',
     'video_label.col.conf' => 'Confidence',
     'video_label.col.iou' => 'IoU',

@@ -2,7 +2,7 @@
     "id": "video",
     "name": "video.module.name",
     "description": "video.module.description",
-    "version": "0.1.5",
+    "version": "0.3.0",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -34,6 +34,10 @@
         "pages": [
             "/video",
             "/video/status",
+            "/video/posts",
+            "/video/posts/new",
+            "/video/posts/{id}",
+            "/video/posts/{id}/edit",
             "/video/cameras",
             "/video/cameras/new",
             "/video/cameras/{id}/edit",
@@ -41,6 +45,10 @@
             "/video/models",
             "/video/alerts",
             "/video/media",
+            "/video/train",
+            "/video/train/{id}",
+            "/video/wizard/setup",
+            "/video/wizard/train",
             "/video/settings",
             "/video/worker/hello",
             "/video/worker/claim",
@@ -50,7 +58,8 @@
             "/agent/video/status",
             "/agent/video/settings",
             "/agent/video/setup",
-            "/agent/video/enqueue"
+            "/agent/video/enqueue",
+            "/agent/video/session"
         ]
     },
     "agent": {
@@ -70,7 +79,47 @@
                 "path": "/video",
                 "permission": "video.view",
                 "side_effect": "read",
-                "description": "Dashboard: workers, cameras (no RTSP), jobs, alerts, storage_bytes"
+                "description": "Dashboard: posts cards, workers, cameras (no RTSP), jobs, alerts, storage_bytes"
+            },
+            {
+                "id": "video.posts.list",
+                "method": "GET",
+                "path": "/video/posts",
+                "permission": "video.view",
+                "side_effect": "read",
+                "description": "List posts with camera thumbs and class_counts"
+            },
+            {
+                "id": "video.posts.get",
+                "method": "GET",
+                "path": "/video/posts/{id}",
+                "permission": "video.view",
+                "side_effect": "read",
+                "description": "Post card + cameras"
+            },
+            {
+                "id": "video.train.list",
+                "method": "GET",
+                "path": "/video/train",
+                "permission": "video.edit",
+                "side_effect": "read",
+                "description": "List interactive train sessions"
+            },
+            {
+                "id": "video.train.get",
+                "method": "GET",
+                "path": "/video/train/{id}",
+                "permission": "video.edit",
+                "side_effect": "read",
+                "description": "Session status, coverage heatmap JSON, latest frame URLs"
+            },
+            {
+                "id": "video.train.start",
+                "method": "POST",
+                "path": "/video/train",
+                "permission": "video.edit",
+                "side_effect": "write",
+                "description": "Start session; action=create camera_id= project_id= target_class_id= interval_ms= source_model=stock_yolo"
             },
             {
                 "id": "video.cameras.list",
@@ -94,13 +143,14 @@
                 "path": "/video/cameras/new",
                 "permission": "video.edit",
                 "side_effect": "write",
-                "description": "Create camera; fields: name, rtsp_url, mode, model_id, enabled, conf_threshold, iou_threshold, interval_sec, crop_height_pct, rotate_deg, dataset_project_id",
+                "description": "Create camera; fields: name, rtsp_url, post_id, mode, model_id, enabled, conf_threshold, iou_threshold, interval_sec, schedule_*, crop_height_pct, rotate_deg, dataset_project_id",
                 "parameters": {
                     "type": "object",
                     "required": ["name", "rtsp_url"],
                     "properties": {
                         "name": { "type": "string" },
                         "rtsp_url": { "type": "string" },
+                        "post_id": { "type": "integer" },
                         "mode": { "type": "string", "description": "monitoring|dataset" },
                         "model_id": { "type": "integer" },
                         "enabled": { "type": "boolean" },
@@ -279,23 +329,37 @@
         {
             "group": "video.menu.group",
             "num": 2,
-            "path": "/video/cameras",
-            "title": "video.menu.cameras",
+            "path": "/video/posts",
+            "title": "video.menu.posts",
             "kind": "work"
         },
         {
             "group": "video.menu.group",
             "num": 3,
+            "path": "/video/cameras",
+            "title": "video.menu.cameras",
+            "kind": "crud"
+        },
+        {
+            "group": "video.menu.group",
+            "num": 4,
             "path": "/video/alerts",
             "title": "video.menu.alerts",
             "kind": "work"
         },
         {
             "group": "video.menu.group",
-            "num": 4,
+            "num": 5,
             "path": "/video/models",
             "title": "video.menu.models",
             "kind": "crud"
+        },
+        {
+            "group": "video.menu.group",
+            "num": 6,
+            "path": "/video/train",
+            "title": "video.menu.train",
+            "kind": "work"
         },
         {
             "group": "video.menu.group",
@@ -309,10 +373,12 @@
     "tables": [
         "base_video_workers",
         "base_video_models",
+        "base_video_posts",
         "base_video_cameras",
         "base_video_jobs",
         "base_video_alerts",
-        "base_video_detections"
+        "base_video_detections",
+        "base_video_train_sessions"
     ],
     "migrators": [],
     "hooks": {

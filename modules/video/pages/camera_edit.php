@@ -28,20 +28,25 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         redirect('/video/cameras');
     }
     try {
+        $settings = [
+            'crop_height_pct' => (float)($_POST['crop_height_pct'] ?? 0),
+            'rotate_deg' => (int)($_POST['rotate_deg'] ?? 0),
+            'dataset_project_id' => (int)($_POST['dataset_project_id'] ?? 0),
+        ];
+        $existing = json_decode((string)(($row['SETTINGS_JSON'] ?? '') ?: ''), true) ?: [];
+        $settings = array_merge(is_array($existing) ? $existing : [], $settings);
+        $settings = VideoSchedule::mergeFromPost($_POST, $settings);
         $savedId = VideoCamerasRepository::save($id, [
             'name' => $_POST['name'] ?? '',
             'rtsp_url' => $_POST['rtsp_url'] ?? '',
             'mode' => $_POST['mode'] ?? 'monitoring',
             'model_id' => (int)($_POST['model_id'] ?? 0),
+            'post_id' => (int)($_POST['post_id'] ?? 0),
             'enabled' => !empty($_POST['enabled']),
             'conf_threshold' => (float)($_POST['conf_threshold'] ?? 0.25),
             'iou_threshold' => (float)($_POST['iou_threshold'] ?? 0.45),
             'interval_sec' => (int)($_POST['interval_sec'] ?? 30),
-            'settings' => [
-                'crop_height_pct' => (float)($_POST['crop_height_pct'] ?? 0),
-                'rotate_deg' => (int)($_POST['rotate_deg'] ?? 0),
-                'dataset_project_id' => (int)($_POST['dataset_project_id'] ?? 0),
-            ],
+            'settings' => $settings,
         ]);
         if ($wantsJson) {
             AgentHttp::emit(['ok' => true, 'id' => $savedId]);
@@ -60,25 +65,37 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             'RTSP_URL' => (string)($_POST['rtsp_url'] ?? ''),
             'MODE' => (string)($_POST['mode'] ?? 'monitoring'),
             'MODEL_ID' => (int)($_POST['model_id'] ?? 0),
+            'POST_ID' => (int)($_POST['post_id'] ?? 0),
             'ENABLED' => !empty($_POST['enabled']) ? 1 : 0,
             'CONF_THRESHOLD' => (float)($_POST['conf_threshold'] ?? 0.25),
             'IOU_THRESHOLD' => (float)($_POST['iou_threshold'] ?? 0.45),
             'INTERVAL_SEC' => (int)($_POST['interval_sec'] ?? 30),
-            'SETTINGS_JSON' => json_encode([
-                'crop_height_pct' => (float)($_POST['crop_height_pct'] ?? 0),
-                'rotate_deg' => (int)($_POST['rotate_deg'] ?? 0),
-                'dataset_project_id' => (int)($_POST['dataset_project_id'] ?? 0),
-            ], JSON_UNESCAPED_UNICODE),
+            'SETTINGS_JSON' => '{}',
         ];
-        $settings = json_decode((string)($row['SETTINGS_JSON'] ?? ''), true) ?: [];
     }
 }
 
 $models = VideoModelsRepository::listAll();
+$posts = VideoPostsRepository::listAll();
+if ($isNew) {
+    $row = is_array($row) ? $row : [
+        'NAME' => '',
+        'RTSP_URL' => '',
+        'MODE' => 'monitoring',
+        'MODEL_ID' => 0,
+        'POST_ID' => (int)($_GET['post_id'] ?? 0),
+        'ENABLED' => 1,
+        'CONF_THRESHOLD' => 0.25,
+        'IOU_THRESHOLD' => 0.45,
+        'INTERVAL_SEC' => 30,
+        'SETTINGS_JSON' => '',
+    ];
+}
 $settings = json_decode((string)($row['SETTINGS_JSON'] ?? ''), true) ?: [];
+$sched = $settings['schedule'] ?? ['mode' => 'always'];
 
 if ($wantsJson) {
-    AgentHttp::emit(['ok' => true, 'camera' => $row, 'models' => $models]);
+    AgentHttp::emit(['ok' => true, 'camera' => $row, 'models' => $models, 'posts' => $posts]);
     return;
 }
 
@@ -90,7 +107,9 @@ View::render('camera_edit', [
     ]),
     'row' => $row,
     'models' => $models,
+    'posts' => $posts,
     'settings' => $settings,
-    'error' => $error,
+    'sched' => $sched,
     'isNew' => $isNew,
+    'error' => $error,
 ], 'layout', 'video');

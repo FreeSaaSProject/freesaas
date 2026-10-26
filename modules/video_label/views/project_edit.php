@@ -8,8 +8,9 @@ $r = $row ?? [];
       <input name="name" required value="<?= e((string)($r['NAME'] ?? '')) ?>">
     </label>
     <label><?= te('video_label.col.classes') ?>
-      <textarea name="classes" rows="5" placeholder="admin&#10;guest&#10;staff"><?= e((string)$classText) ?></textarea>
+      <textarea name="classes" rows="5" placeholder="staff|сотрудник #e6194b&#10;guest|гость #3cb44b"><?= e((string)$classText) ?></textarea>
     </label>
+    <p class="field-help"><?= te('video_label.col.classes.help') ?></p>
     <label><?= te('video_label.col.model') ?>
       <select name="model_id">
         <option value="0">—</option>

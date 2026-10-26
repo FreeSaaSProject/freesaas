@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-26T11:18:22+00:00",
+    "generated_at": "2026-10-26T14:40:22+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1850,7 +1850,7 @@
         },
         {
             "id": "video",
-            "version": "0.1.5",
+            "version": "0.3.0",
             "type": "product",
             "name": {
                 "en": "Video analytics",
@@ -1884,7 +1884,7 @@
         },
         {
             "id": "video_label",
-            "version": "0.1.2",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Video labeling",

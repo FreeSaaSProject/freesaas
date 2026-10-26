@@ -8,6 +8,16 @@ $s = $settings ?? [];
     <label><?= te('video.col.name') ?>
       <input name="name" required value="<?= e((string)($r['NAME'] ?? '')) ?>">
     </label>
+    <label><?= te('video.col.post') ?>
+      <select name="post_id">
+        <option value="0">—</option>
+        <?php foreach ($posts as $p): ?>
+          <option value="<?= (int)$p['ID'] ?>" <?= ((int)($r['POST_ID'] ?? 0) === (int)$p['ID']) ? 'selected' : '' ?>>
+            <?= e((string)$p['NAME']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
+    </label>
     <label>RTSP URL
       <input name="rtsp_url" class="wide" value="<?= e((string)($r['RTSP_URL'] ?? '')) ?>" placeholder="rtsp://…">
     </label>
@@ -47,6 +57,10 @@ $s = $settings ?? [];
     <label><?= te('video.col.dataset_project') ?>
       <input type="number" name="dataset_project_id" value="<?= e((string)($s['dataset_project_id'] ?? '0')) ?>">
     </label>
+    <?php
+    $sched = $sched ?? ['mode' => 'always'];
+    require __DIR__ . '/_schedule_fields.php';
+    ?>
     <p>
       <button type="submit"><?= te('core.common.save') ?></button>
       <?php if (empty($isNew) && Auth::can('video.delete')): ?>

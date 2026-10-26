@@ -44,6 +44,19 @@ final class VideoCamerasRepository
         return $rows ?: [];
     }
 
+    /** @return list<array<string, mixed>> */
+    public static function listByPost(int $postId): array
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT c.*, m.NAME AS MODEL_NAME FROM base_video_cameras c
+             LEFT JOIN base_video_models m ON m.ID = c.MODEL_ID
+             WHERE c.POST_ID = ? ORDER BY c.ID ASC'
+        );
+        $st->execute([$postId]);
+
+        return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     /**
      * Payload for monitor_tick / on_demand jobs (includes class colors for worker draw).
      *
@@ -83,6 +96,7 @@ final class VideoCamerasRepository
             $mode = 'monitoring';
         }
         $modelId = (int)($data['model_id'] ?? 0);
+        $postId = (int)($data['post_id'] ?? 0);
         $enabled = !empty($data['enabled']) ? 1 : 0;
         $conf = (float)($data['conf_threshold'] ?? 0.25);
         $iou = (float)($data['iou_threshold'] ?? 0.45);
@@ -95,17 +109,17 @@ final class VideoCamerasRepository
         $pdo = Database::pdo();
         if ($id > 0) {
             $st = $pdo->prepare(
-                'UPDATE base_video_cameras SET NAME=?, RTSP_URL=?, MODE=?, MODEL_ID=?, ENABLED=?, CONF_THRESHOLD=?, IOU_THRESHOLD=?, INTERVAL_SEC=?, SETTINGS_JSON=? WHERE ID=?'
+                'UPDATE base_video_cameras SET POST_ID=?, NAME=?, RTSP_URL=?, MODE=?, MODEL_ID=?, ENABLED=?, CONF_THRESHOLD=?, IOU_THRESHOLD=?, INTERVAL_SEC=?, SETTINGS_JSON=? WHERE ID=?'
             );
-            $st->execute([$name, $rtsp, $mode, $modelId, $enabled, $conf, $iou, $interval, $settingsJson, $id]);
+            $st->execute([$postId, $name, $rtsp, $mode, $modelId, $enabled, $conf, $iou, $interval, $settingsJson, $id]);
 
             return $id;
         }
         $st = $pdo->prepare(
-            'INSERT INTO base_video_cameras (NAME, RTSP_URL, MODE, MODEL_ID, ENABLED, CONF_THRESHOLD, IOU_THRESHOLD, INTERVAL_SEC, SETTINGS_JSON)
-             VALUES (?,?,?,?,?,?,?,?,?)'
+            'INSERT INTO base_video_cameras (POST_ID, NAME, RTSP_URL, MODE, MODEL_ID, ENABLED, CONF_THRESHOLD, IOU_THRESHOLD, INTERVAL_SEC, SETTINGS_JSON)
+             VALUES (?,?,?,?,?,?,?,?,?,?)'
         );
-        $st->execute([$name, $rtsp, $mode, $modelId, $enabled, $conf, $iou, $interval, $settingsJson]);
+        $st->execute([$postId, $name, $rtsp, $mode, $modelId, $enabled, $conf, $iou, $interval, $settingsJson]);
 
         return (int)$pdo->lastInsertId();
     }
@@ -150,6 +164,7 @@ final class VideoCamerasRepository
 
         return [
             'ID' => (int)($row['ID'] ?? 0),
+            'POST_ID' => (int)($row['POST_ID'] ?? 0),
             'NAME' => (string)($row['NAME'] ?? ''),
             'MODE' => (string)($row['MODE'] ?? ''),
             'MODEL_ID' => (int)($row['MODEL_ID'] ?? 0),

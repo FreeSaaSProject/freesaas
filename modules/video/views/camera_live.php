@@ -29,7 +29,10 @@ $frameRel = $ann !== '' ? $ann : $raw;
       <?php foreach ($classes as $cl): ?>
         <li>
           <span class="video-swatch" style="background:<?= e((string)$cl['color']) ?>"></span>
-          <?= e((string)$cl['name']) ?>
+          <?= e(VideoColors::displayName($cl)) ?>
+          <?php if (($cl['label'] ?? '') !== '' && ($cl['label'] ?? '') !== ($cl['name'] ?? '')): ?>
+            <span class="muted">(<?= e((string)$cl['name']) ?>)</span>
+          <?php endif; ?>
         </li>
       <?php endforeach; ?>
     </ul>

@@ -6,6 +6,7 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  *
  * Class palette shared with video_label defaults (same hex order).
+ * Class shape: {id, name, label?, color} — label is display (e.g. Russian).
  */
 final class VideoColors
 {
@@ -26,11 +27,19 @@ final class VideoColors
         return self::PALETTE[$i % count(self::PALETTE)];
     }
 
+    public static function displayName(array $class): string
+    {
+        $label = trim((string)($class['label'] ?? ''));
+        if ($label !== '') {
+            return $label;
+        }
+
+        return trim((string)($class['name'] ?? ''));
+    }
+
     /**
-     * Normalize class list to [{id,name,color}, …]. Accepts strings or objects.
-     *
      * @param list<mixed>|array<string, mixed> $classes
-     * @return list<array{id:int,name:string,color:string}>
+     * @return list<array{id:int,name:string,label:string,color:string}>
      */
     public static function normalizeClasses(array $classes): array
     {
@@ -38,16 +47,11 @@ final class VideoColors
         $i = 0;
         foreach ($classes as $c) {
             if (is_string($c)) {
-                $name = trim($c);
-                if ($name === '') {
-                    continue;
+                $parsed = self::parseLine($c, $i);
+                if ($parsed !== null) {
+                    $norm[] = $parsed;
+                    $i++;
                 }
-                $norm[] = [
-                    'id' => $i,
-                    'name' => $name,
-                    'color' => self::defaultColor($i),
-                ];
-                $i++;
                 continue;
             }
             if (!is_array($c)) {
@@ -58,6 +62,10 @@ final class VideoColors
                 continue;
             }
             $id = isset($c['id']) ? (int)$c['id'] : $i;
+            $label = trim((string)($c['label'] ?? ''));
+            if ($label === '') {
+                $label = $name;
+            }
             $color = trim((string)($c['color'] ?? ''));
             if ($color === '' || !preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) {
                 $color = self::defaultColor($id >= 0 ? $id : $i);
@@ -65,6 +73,7 @@ final class VideoColors
             $norm[] = [
                 'id' => $id,
                 'name' => $name,
+                'label' => $label,
                 'color' => strtolower($color),
             ];
             $i++;
@@ -74,7 +83,7 @@ final class VideoColors
     }
 
     /**
-     * @return list<array{id:int,name:string,color:string}>
+     * @return list<array{id:int,name:string,label:string,color:string}>
      */
     public static function fromJson(?string $json): array
     {
@@ -90,9 +99,9 @@ final class VideoColors
     }
 
     /**
-     * Parse textarea: "name" or "name #rrggbb" per line / comma-separated names.
+     * Lines: "name", "name #rrggbb", "name|label", "name|label #rrggbb"
      *
-     * @return list<array{id:int,name:string,color:string}>
+     * @return list<array{id:int,name:string,label:string,color:string}>
      */
     public static function fromTextarea(string $raw): array
     {
@@ -104,31 +113,54 @@ final class VideoColors
             if ($line === '') {
                 continue;
             }
-            $color = '';
-            $name = $line;
-            if (preg_match('/^(.+?)\s+(#[0-9A-Fa-f]{6})$/', $line, $m)) {
-                $name = trim($m[1]);
-                $color = strtolower($m[2]);
-            } elseif (strpos($line, ',') !== false && !preg_match('/^#/', $line)) {
-                // comma list on one line without colors
+            if (strpos($line, ',') !== false && strpos($line, '|') === false && !preg_match('/#/', $line)) {
                 foreach (preg_split('/\s*,\s*/', $line) ?: [] as $part) {
-                    $part = trim($part);
-                    if ($part === '') {
-                        continue;
+                    $p = self::parseLine(trim($part), $i);
+                    if ($p !== null) {
+                        $items[] = $p;
+                        $i++;
                     }
-                    $items[] = ['id' => $i, 'name' => $part, 'color' => self::defaultColor($i)];
-                    $i++;
                 }
                 continue;
             }
-            $items[] = [
-                'id' => $i,
-                'name' => $name,
-                'color' => $color !== '' ? $color : self::defaultColor($i),
-            ];
-            $i++;
+            $p = self::parseLine($line, $i);
+            if ($p !== null) {
+                $items[] = $p;
+                $i++;
+            }
         }
 
         return self::normalizeClasses($items);
+    }
+
+    /** @return array{id:int,name:string,label:string,color:string}|null */
+    private static function parseLine(string $line, int $i): ?array
+    {
+        if ($line === '') {
+            return null;
+        }
+        $color = '';
+        if (preg_match('/^(.*)\s+(#[0-9A-Fa-f]{6})$/', $line, $m)) {
+            $line = trim($m[1]);
+            $color = strtolower($m[2]);
+        }
+        $name = $line;
+        $label = '';
+        if (strpos($line, '|') !== false) {
+            [$name, $label] = array_map('trim', explode('|', $line, 2));
+        }
+        if ($name === '') {
+            return null;
+        }
+        if ($label === '') {
+            $label = $name;
+        }
+
+        return [
+            'id' => $i,
+            'name' => $name,
+            'label' => $label,
+            'color' => $color !== '' ? $color : self::defaultColor($i),
+        ];
     }
 }

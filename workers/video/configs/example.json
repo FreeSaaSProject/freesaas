@@ -11,6 +11,7 @@
   },
   "models": {
     "default_weights": "models/best.pt",
+    "stock_weights": "yolo11n.pt",
     "by_id": {}
   },
   "loop": {

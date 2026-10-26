@@ -392,19 +392,17 @@ final class BanksAgentOps
     {
         $in = AgentOps::requestInput();
         $provider = BanksConfig::normalizeProvider((string)($in['provider'] ?? 'alfa_ul'));
-        if ($provider !== 'alfa_ul' && $provider !== 'alfa_fl') {
-            return ['ok' => false, 'error' => 'probe supported for alfa_ul|alfa_fl', 'http' => 400];
+        if ($provider !== 'alfa_ul') {
+            return ['ok' => false, 'error' => 'probe supported for alfa_ul only', 'http' => 400];
         }
         try {
             BanksEgressIp::assertUsableOrThrow();
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'http' => 400];
         }
-        $result = $provider === 'alfa_fl'
-            ? AlfaFlClient::probeCredentials()
-            : AlfaUlClient::probeCredentials();
-        $result['provider'] = $provider;
-        $result['http'] = !empty($result['credentials_ok']) || !empty($result['ok']) ? 200 : 400;
+        $result = AlfaUlClient::probeCredentials();
+        $result['provider'] = 'alfa_ul';
+        $result['http'] = !empty($result['credentials_ok']) ? 200 : 400;
         return $result;
     }
 

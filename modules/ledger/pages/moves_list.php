@@ -128,9 +128,11 @@ $accounts = LedgerAccountsRepository::names();
 $typeMeta = AccountMoveTypesRepository::leafMeta();
 $types = [];
 $typeActIn = [];
+$typeSupplier = [];
 foreach ($typeMeta as $tid => $meta) {
     $types[(int)$tid] = (string)$meta['name'];
     $typeActIn[(int)$tid] = !empty($meta['act_in_enabled']);
+    $typeSupplier[(int)$tid] = !empty($meta['supplier_enabled']);
 }
 foreach ($result['items'] as $it) {
     $tid = (int)($it['type_id'] ?? 0);
@@ -141,12 +143,15 @@ foreach ($result['items'] as $it) {
     if ($t) {
         $types[$tid] = (string)$t['name'];
         $typeActIn[$tid] = !empty($t['act_in_enabled']);
+        $typeSupplier[$tid] = !empty($t['supplier_enabled']);
     }
 }
 $stickersEnabled = ModuleManager::isEnabled('stickers') && class_exists('Acts2InRepository');
 $suppliers = [];
+$suppliersAll = [];
 if (class_exists('SuppliersRepository')) {
     $suppliers = SuppliersRepository::names(true);
+    $suppliersAll = SuppliersRepository::names(false);
 }
 
 // Balance-after column always (oper totalSummsArray over current filters).
@@ -296,8 +301,10 @@ View::render('moves_list', [
     'accounts' => $accounts,
     'types' => $types,
     'typeActIn' => $typeActIn,
+    'typeSupplier' => $typeSupplier,
     'stickersEnabled' => $stickersEnabled,
     'suppliers' => $suppliers,
+    'suppliersAll' => $suppliersAll,
     'balance' => $balance,
     'runningBalances' => $runningBalances,
     'showBalanceCol' => $showBalanceCol,

@@ -24,7 +24,6 @@ final class BanksSetupWizard
                 return self::stepsSimple('tochka', true);
             case 'tbank_ul':
                 return self::stepsTbankUl();
-            case 'alfa_fl':
             case 'tbank_fl':
             case 'sber_ul':
                 return self::stepsSimple($p, false);

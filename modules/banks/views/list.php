@@ -135,6 +135,9 @@ $showSetupNeeded = !$anyConfigured && !$hasConnections;
       ?>
       <div class="banks-connect-card<?= $connId > 0 ? ' is-connected' : '' ?>">
         <div class="banks-connect-card-title"><?= e((string)$p['label']) ?></div>
+        <?php if (empty($p['verified'])): ?>
+          <p class="banks-unverified-chip" title="<?= te('banks.list.unverified_hint') ?>"><?= te('banks.list.unverified') ?></p>
+        <?php endif; ?>
         <?= BanksConfig::portalLinksHtml((string)$p['id']) ?>
         <p class="muted banks-setup-chip"><?= e(t('banks.list.setup_status', ['status' => $setupStatus])) ?></p>
         <?php if ($nConn > 0): ?>

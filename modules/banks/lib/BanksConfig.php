@@ -7,7 +7,14 @@ final class BanksConfig
     public const PROVIDERS = [
         'tochka',
         'alfa_ul',
-        'alfa_fl',
+        'tbank_ul',
+        'tbank_fl',
+        'sber_ul',
+        'sber_fl',
+    ];
+
+    /** Shown in hub but not production-proven yet (UI chip). */
+    public const UNVERIFIED_PROVIDERS = [
         'tbank_ul',
         'tbank_fl',
         'sber_ul',
@@ -234,7 +241,28 @@ final class BanksConfig
     public static function providerLabel(string $provider): string
     {
         $p = self::normalizeProvider($provider);
-        return $p !== '' ? t('banks.provider.' . $p) : $provider;
+        if ($p !== '') {
+            return t('banks.provider.' . $p);
+        }
+        // Legacy / removed ids still stored on connections (e.g. alfa_fl)
+        $raw = strtolower(trim($provider));
+        if ($raw !== '') {
+            $key = 'banks.provider.' . $raw;
+            $label = t($key);
+            if ($label !== $key) {
+                return $label;
+            }
+        }
+        return $provider;
+    }
+
+    public static function providerVerified(string $provider): bool
+    {
+        $p = self::normalizeProvider($provider);
+        if ($p === '') {
+            return true;
+        }
+        return !in_array($p, self::UNVERIFIED_PROVIDERS, true);
     }
 
     /**
@@ -253,9 +281,6 @@ final class BanksConfig
             'alfa_ul' => [
                 ['url' => 'https://developers.alfabank.ru/', 'label_key' => 'banks.portal.alfa_dev'],
                 ['url' => 'https://alfabank.ru/sme/alfaapi/', 'label_key' => 'banks.portal.alfa_api'],
-            ],
-            'alfa_fl' => [
-                ['url' => 'https://developers.alfabank.ru/', 'label_key' => 'banks.portal.alfa_dev'],
             ],
             'tbank_ul' => [
                 ['url' => 'https://business.tbank.ru/', 'label_key' => 'banks.portal.tbank_cabinet'],

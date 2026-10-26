@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.19",
+    "version": "0.1.20",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -23,7 +23,8 @@
         "ledger": ">=1.0.0"
     },
     "optionalRequires": {
-        "llm": ">=1.0.0"
+        "llm": ">=1.0.0",
+        "suppliers": ">=1.0.0"
     },
     "provides": [
         "banks.connections",
@@ -218,7 +219,7 @@
                 "path": "/banks/oauth/{provider}/start",
                 "permission": "banks.connect",
                 "side_effect": "write",
-                "description": "Start OAuth (or T-Bank self-service token) for provider=tochka|alfa_ul|alfa_fl|tbank_ul|tbank_fl|sber_ul|sber_fl; HTML redirects, JSON returns authorize_url",
+                "description": "Start OAuth (or T-Bank self-service token) for provider=tochka|alfa_ul|tbank_ul|tbank_fl|sber_ul|sber_fl; HTML redirects, JSON returns authorize_url",
                 "parameters": {
                     "type": "object",
                     "properties": {
@@ -227,7 +228,6 @@
                             "enum": [
                                 "tochka",
                                 "alfa_ul",
-                                "alfa_fl",
                                 "tbank_ul",
                                 "tbank_fl",
                                 "sber_ul",

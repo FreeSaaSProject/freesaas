@@ -13,6 +13,7 @@ final class VideoJobsRepository
     public const TYPE_CAPTURE_FRAME = 'capture_frame';
     public const TYPE_MONITOR_TICK = 'monitor_tick';
     public const TYPE_ON_DEMAND = 'on_demand';
+    public const TYPE_TRAIN_SESSION_TICK = 'train_session_tick';
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_CLAIMED = 'claimed';

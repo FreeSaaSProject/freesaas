@@ -25,16 +25,25 @@ final class VideoAgentOps
             ],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/video/setup', 'video.setup', [self::class, 'setup'], [
-            'description' => 'Ensure worker_token + upsert model + camera. Body: model_name, weights_path, classes[], camera_name, rtsp_url, enabled, interval_sec, conf_threshold, iou_threshold, regenerate_token',
+            'description' => 'Ensure worker_token + upsert post/model/camera. Body: post_name, post_id, model_name, weights_path, classes[], camera_name, rtsp_url, schedule, enabled, interval_sec, …',
             'body' => [
                 'model_name', 'weights_path', 'classes', 'camera_name', 'rtsp_url',
                 'enabled', 'interval_sec', 'conf_threshold', 'iou_threshold', 'model_id', 'camera_id',
-                'regenerate_token', 'mode',
+                'post_id', 'post_name', 'regenerate_token', 'mode',
+                'schedule_mode', 'schedule_start_hour', 'schedule_start_minute',
+                'schedule_end_hour', 'schedule_end_minute',
             ],
         ]);
         AgentOps::registerModuleOp('POST', '/agent/video/enqueue', 'video.enqueue', [self::class, 'enqueue'], [
             'description' => 'Enqueue monitor_tick or on_demand. Body: camera_id, type=ondemand|monitor',
             'body' => ['camera_id', 'type'],
+        ]);
+        AgentOps::registerModuleOp('POST', '/agent/video/session', 'video.session', [self::class, 'session'], [
+            'description' => 'Interactive train: action=start|pause|resume|status|finish. start needs camera_id, project_id, target_class_id',
+            'body' => [
+                'action', 'session_id', 'camera_id', 'project_id', 'post_id',
+                'target_class_id', 'interval_ms', 'source_model', 'person_class', 'phase',
+            ],
         ]);
 
         $routes = [
@@ -42,6 +51,7 @@ final class VideoAgentOps
             '/agent/video/settings' => ['GET', 'POST'],
             '/agent/video/setup' => ['POST'],
             '/agent/video/enqueue' => ['POST'],
+            '/agent/video/session' => ['POST'],
         ];
         foreach ($routes as $path => $methods) {
             ModuleManager::registerRoute($path, [
@@ -104,6 +114,24 @@ final class VideoAgentOps
             }
         }
 
+        $postId = (int)($body['post_id'] ?? 0);
+        $postName = trim((string)($body['post_name'] ?? ''));
+        if ($postName !== '' || $postId > 0) {
+            $existing = $postId > 0 ? VideoPostsRepository::find($postId) : null;
+            $settings = $existing
+                ? (json_decode((string)($existing['SETTINGS_JSON'] ?? ''), true) ?: [])
+                : [];
+            if (isset($body['schedule_mode'])) {
+                $settings = VideoSchedule::mergeFromPost($body, $settings);
+            }
+            $postId = VideoPostsRepository::save($postId, [
+                'name' => $postName !== '' ? $postName : (string)($existing['NAME'] ?? 'Post'),
+                'enabled' => !isset($body['enabled']) || !empty($body['enabled']),
+                'model_id' => (int)($body['model_id'] ?? ($existing['MODEL_ID'] ?? 0)),
+                'settings' => $settings,
+            ]);
+        }
+
         $weights = trim((string)($body['weights_path'] ?? ''));
         $modelId = (int)($body['model_id'] ?? 0);
         if ($weights !== '' || $modelId > 0) {
@@ -135,6 +163,17 @@ final class VideoAgentOps
                 return ['ok' => false, 'error' => 'weights_path required for model'];
             }
             $modelId = VideoModelsRepository::save($modelId, $name, $weights, $classes, '', true);
+            if ($postId > 0) {
+                $post = VideoPostsRepository::find($postId);
+                if ($post) {
+                    VideoPostsRepository::save($postId, [
+                        'name' => (string)$post['NAME'],
+                        'enabled' => !empty($post['ENABLED']),
+                        'model_id' => $modelId,
+                        'settings' => json_decode((string)($post['SETTINGS_JSON'] ?? ''), true) ?: [],
+                    ]);
+                }
+            }
         }
 
         $rtsp = trim((string)($body['rtsp_url'] ?? ''));
@@ -159,20 +198,30 @@ final class VideoAgentOps
                     }
                 }
             }
+            $camExisting = $cameraId > 0 ? VideoCamerasRepository::find($cameraId) : null;
+            $settings = $camExisting
+                ? (json_decode((string)($camExisting['SETTINGS_JSON'] ?? ''), true) ?: [])
+                : [];
+            if (isset($body['schedule_mode'])) {
+                $settings = VideoSchedule::mergeFromPost($body, $settings);
+            }
             $cameraId = VideoCamerasRepository::save($cameraId, [
                 'name' => trim((string)($body['camera_name'] ?? 'Cam')) ?: 'Cam',
                 'rtsp_url' => $rtsp,
                 'mode' => (string)($body['mode'] ?? 'monitoring'),
                 'model_id' => $modelId,
+                'post_id' => $postId > 0 ? $postId : (int)($camExisting['POST_ID'] ?? 0),
                 'enabled' => !isset($body['enabled']) || !empty($body['enabled']),
                 'conf_threshold' => (float)($body['conf_threshold'] ?? 0.25),
                 'iou_threshold' => (float)($body['iou_threshold'] ?? 0.45),
                 'interval_sec' => (int)($body['interval_sec'] ?? 30),
+                'settings' => $settings,
             ]);
         }
 
         $out = [
             'ok' => true,
+            'post_id' => $postId,
             'model_id' => $modelId,
             'camera_id' => $cameraId,
             'status' => VideoDiagnose::report(),
@@ -204,5 +253,82 @@ final class VideoAgentOps
         }
 
         return ['ok' => true, 'job_id' => $jobId, 'type' => $type];
+    }
+
+    /** @return array<string, mixed> */
+    public static function session(): array
+    {
+        $body = AgentOps::requestInput();
+        $action = strtolower(trim((string)($body['action'] ?? 'status')));
+        $sessionId = (int)($body['session_id'] ?? 0);
+
+        if ($action === 'start') {
+            $cameraId = (int)($body['camera_id'] ?? 0);
+            $projectId = (int)($body['project_id'] ?? 0);
+            if ($cameraId <= 0 || $projectId <= 0) {
+                return ['ok' => false, 'error' => 'camera_id and project_id required'];
+            }
+            $cam = VideoCamerasRepository::find($cameraId);
+            $postId = (int)($body['post_id'] ?? ($cam['POST_ID'] ?? 0));
+            $sessionId = VideoTrainSessionsRepository::create([
+                'post_id' => $postId,
+                'camera_id' => $cameraId,
+                'project_id' => $projectId,
+                'phase' => (string)($body['phase'] ?? VideoTrainSessionsRepository::PHASE_SOLO),
+                'target_class_id' => (int)($body['target_class_id'] ?? 0),
+                'source_model' => (string)($body['source_model'] ?? 'stock_yolo'),
+                'person_class' => (string)($body['person_class'] ?? 'person'),
+                'interval_ms' => (int)($body['interval_ms'] ?? 500),
+            ]);
+
+            return [
+                'ok' => true,
+                'session_id' => $sessionId,
+                'note' => 'Ask staff to walk the zone for coverage; poll status for COVERAGE_JSON poor cells.',
+            ];
+        }
+
+        $row = $sessionId > 0 ? VideoTrainSessionsRepository::find($sessionId) : null;
+        if ($row === null) {
+            return ['ok' => false, 'error' => 'session not found'];
+        }
+
+        if ($action === 'pause') {
+            VideoTrainSessionsRepository::setStatus($sessionId, VideoTrainSessionsRepository::STATUS_PAUSED);
+        } elseif ($action === 'resume') {
+            VideoTrainSessionsRepository::setStatus($sessionId, VideoTrainSessionsRepository::STATUS_RUNNING);
+        } elseif ($action === 'finish') {
+            VideoTrainSessionsRepository::setPhase($sessionId, VideoTrainSessionsRepository::PHASE_DONE);
+            VideoTrainSessionsRepository::setStatus($sessionId, VideoTrainSessionsRepository::STATUS_FINISHED);
+        } elseif ($action === 'phase_other') {
+            VideoTrainSessionsRepository::setPhase(
+                $sessionId,
+                VideoTrainSessionsRepository::PHASE_OTHER,
+                isset($body['target_class_id']) ? (int)$body['target_class_id'] : null
+            );
+            VideoTrainSessionsRepository::setStatus($sessionId, VideoTrainSessionsRepository::STATUS_RUNNING);
+        }
+
+        $row = VideoTrainSessionsRepository::find($sessionId) ?: $row;
+        $coverage = json_decode((string)($row['COVERAGE_JSON'] ?? ''), true) ?: [];
+        $cells = $coverage['cells'] ?? [];
+        $poor = [];
+        if (is_array($cells)) {
+            foreach ($cells as $i => $v) {
+                if ((int)$v === 0) {
+                    $poor[] = (int)$i;
+                }
+            }
+        }
+
+        return [
+            'ok' => true,
+            'session' => $row,
+            'coverage' => $coverage,
+            'poor_cells' => $poor,
+            'agent_user_hint' => $poor !== []
+                ? 'Ask the employee to walk uncovered zones (poor_cells indices on NxN grid).'
+                : 'Coverage looks filled; proceed to other_class phase or finish.',
+        ];
     }
 }

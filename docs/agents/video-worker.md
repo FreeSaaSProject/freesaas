@@ -72,11 +72,13 @@ CSRF must exempt `/video/worker/` (platform `Csrf` + route `csrf=>false`).
 
 ## Job types
 
-`infer_image`, `infer_batch`, `monitor_tick`, `capture_frame`, `on_demand`, `train`.
+`infer_image`, `infer_batch`, `monitor_tick`, `capture_frame`, `on_demand`, `train`, `train_session_tick`.
 
-Camera jobs include `classes: [{id,name,color}]` so annotated JPEGs use per-class colors (same palette as labeling).
+Camera jobs include `classes: [{id,name,label?,color}]` — worker draws **label** (fallback name) in class color.
 
 **Train:** server ships `export_zip_rel`; worker downloads zip via `/video/worker/file`. Never pass PHP absolute paths to the Mac.
+
+**Interactive train (`train_session_tick`):** uses `models.stock_weights` (default `yolo11n.pt`, Ultralytics auto-download). Detects COCO `person`, remaps boxes to `target_class_*` from payload, posts frames+labels for `video_label` ingest + coverage update.
 
 ## Troubleshooting
 

@@ -24,12 +24,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         redirect('/video-label');
     }
     $classesRaw = trim((string)($_POST['classes'] ?? ''));
-    $classNames = array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $classesRaw) ?: [])));
+    $classes = class_exists(VideoColors::class, false)
+        ? VideoColors::fromTextarea($classesRaw)
+        : array_values(array_filter(array_map('trim', preg_split('/[\r\n,]+/', $classesRaw) ?: [])));
     try {
         $newId = VideoLabelProjectsRepository::save(
             $id,
             trim((string)($_POST['name'] ?? '')),
-            $classNames,
+            $classes,
             [],
             (int)($_POST['model_id'] ?? 0),
             (float)($_POST['conf_threshold'] ?? 0.25),
@@ -53,7 +55,24 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
 $models = class_exists(VideoModelsRepository::class, false) ? VideoModelsRepository::listAll() : [];
 $classText = '';
 if ($row && !empty($row['classes'])) {
-    $classText = implode("\n", array_map(static fn ($c) => (string)($c['name'] ?? ''), $row['classes']));
+    $lines = [];
+    foreach ($row['classes'] as $c) {
+        if (!is_array($c)) {
+            $lines[] = (string)$c;
+            continue;
+        }
+        $line = (string)($c['name'] ?? '');
+        $label = trim((string)($c['label'] ?? ''));
+        if ($label !== '' && $label !== $line) {
+            $line .= '|' . $label;
+        }
+        $color = trim((string)($c['color'] ?? ''));
+        if ($color !== '') {
+            $line .= ' ' . $color;
+        }
+        $lines[] = $line;
+    }
+    $classText = implode("\n", $lines);
 }
 
 if ($wantsJson) {

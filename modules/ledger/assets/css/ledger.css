@@ -295,6 +295,36 @@
   padding-left: 1.25rem;
 }
 
+.ledger-supplier-line {
+  margin-top: 0.25rem;
+}
+
+.ledger-supplier-badge {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0.1rem 0.45rem;
+  border-radius: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-decoration: none;
+  color: #1e3a5f;
+  background: #e2e8f0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+a.ledger-supplier-badge:hover {
+  background: #cbd5e1;
+}
+
+.ledger-supplier-badge.is-missing {
+  color: #fff;
+  background: #dc2626;
+}
+
 .ledger-user-pay .user-badge {
   font-size: 0.85em;
 }

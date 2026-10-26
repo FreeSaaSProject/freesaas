@@ -330,31 +330,6 @@ $redirectField = static function (string $provider) use ($cfg): void {
   </fieldset>
 </form>
 
-<?php elseif ($activeTab === 'alfa_fl'): ?>
-<form method="post" class="form-grid form-wide banks-settings-form" action="/banks/settings?tab=alfa_fl">
-  <input type="hidden" name="banks_settings_tab" value="alfa_fl">
-  <fieldset>
-    <legend><?= te('banks.provider.alfa_fl') ?></legend>
-    <?= BanksConfig::portalLinksHtml('alfa_fl') ?>
-    <label><?= te('banks.settings.client_id') ?>
-      <input name="alfa_fl_client_id" value="<?= e((string)($cfg['alfa_fl_client_id'] ?? '')) ?>">
-    </label>
-    <label><?= te('banks.settings.client_secret') ?>
-      <input type="password" name="alfa_fl_client_secret" value="" autocomplete="new-password">
-      <span class="muted"><?= e($secretLabel('alfa_fl_client_secret')) ?></span>
-    </label>
-    <?php $redirectField('alfa_fl'); ?>
-    <label><?= te('banks.settings.scope') ?>
-      <input name="alfa_fl_scope" value="<?= e((string)($cfg['alfa_fl_scope'] ?? 'openid accounts operations-history')) ?>">
-      <span class="muted"><?= te('banks.settings.alfa_fl_scope_hint') ?></span>
-    </label>
-  </fieldset>
-  <div class="page-actions">
-    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
-    <a class="btn-secondary" href="/banks"><?= te('core.common.cancel') ?></a>
-  </div>
-</form>
-
 <?php elseif ($activeTab === 'sber_ul'): ?>
 <form method="post" class="form-grid form-wide banks-settings-form" action="/banks/settings?tab=sber_ul">
   <input type="hidden" name="banks_settings_tab" value="sber_ul">

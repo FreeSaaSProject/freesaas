@@ -235,6 +235,7 @@ final class BankSyncService
                     throw new RuntimeException(t('banks.err.no_default_type'));
                 }
                 $descr = self::buildDescr($tx);
+                $supplierId = self::resolveSupplierId($tx, $typeId);
                 $moveId = LedgerMovesRepository::create([
                     'account_id' => $accountId,
                     'type_id' => $typeId,
@@ -246,7 +247,7 @@ final class BankSyncService
                     'user_create' => $userId,
                     'unconfirmed' => 0,
                     'payment_id' => 0,
-                    'supplier_id' => 0,
+                    'supplier_id' => $supplierId,
                     'user_payment' => 0,
                     'fund_movement_id' => 0,
                     'linked_id' => 0,
@@ -277,5 +278,27 @@ final class BankSyncService
             $parts[] = $purpose;
         }
         return $parts !== [] ? implode(' — ', $parts) : 'bank';
+    }
+
+    /**
+     * Auto-link supplier by bank INN when move type allows counterparties
+     * and exactly one matching supplier exists in the system.
+     *
+     * @param array{counterparty_inn?:string} $tx
+     */
+    private static function resolveSupplierId(array $tx, int $typeId): int
+    {
+        if ($typeId < 1 || !class_exists('SuppliersRepository', false)) {
+            return 0;
+        }
+        $type = AccountMoveTypesRepository::find($typeId);
+        if (!$type || empty($type['supplier_enabled'])) {
+            return 0;
+        }
+        $inn = trim((string)($tx['counterparty_inn'] ?? ''));
+        if ($inn === '') {
+            return 0;
+        }
+        return SuppliersRepository::findIdByInn($inn);
     }
 }

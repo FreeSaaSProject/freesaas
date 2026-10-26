@@ -97,9 +97,7 @@ OAuth start with JSON returns `{authorize_url}` (no redirect). Shortcuts without
 |----------|--------|
 | `alfa_ul` | Full wizard: sandbox TLS → creds → connect → prod H2H → CSR → prod cert → connect |
 | `tochka` | Short: egress → sandbox/OAuth → connect |
-| `tbank_ul` | Egress → token/OAuth → connect |
-| `alfa_fl` / `tbank_fl` / `sber_ul` | Egress → OAuth → connect |
-| `sber_fl` | Egress → bases + OAuth → connect |
+| `tbank_ul` / `tbank_fl` / `sber_ul` / `sber_fl` | In hub as **not verified** (code present; not proven on prod). `alfa_fl` removed — bank does not grant FL PP scopes yet |
 
 ### Alfa UL (H2H) — sandbox → prod
 

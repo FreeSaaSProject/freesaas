@@ -69,6 +69,7 @@ foreach (BanksConfig::PROVIDERS as $p) {
         'id' => $p,
         'label' => BanksConfig::providerLabel($p),
         'configured' => $configured,
+        'verified' => BanksConfig::providerVerified($p),
         'connection_id' => $connId,
         'connections_count' => (int)($connCountByProvider[$p] ?? 0),
         'setup_status' => (string)($setup['status'] ?? 'not_started'),

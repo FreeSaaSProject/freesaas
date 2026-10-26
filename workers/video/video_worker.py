@@ -249,8 +249,8 @@ def run_infer_bytes(
                 cname = names.get(cls_id, str(cls_id))
                 if classes_meta:
                     for c in classes_meta:
-                        if int(c.get("id", -1)) == cls_id and c.get("name"):
-                            cname = str(c["name"])
+                        if int(c.get("id", -1)) == cls_id:
+                            cname = str(c.get("label") or c.get("name") or cname)
                             break
                 color = class_bgr(cls_id, classes_meta)
                 boxes.append(
@@ -558,6 +558,91 @@ def push_live_frame(camera: dict) -> None:
     ).raise_for_status()
 
 
+def handle_train_session_tick(job: dict) -> None:
+    """High-rate interactive train: stock YOLO person → remap to target class."""
+    payload = job.get("payload") or {}
+    job_id = int(job["id"])
+    rtsp = str(payload.get("rtsp_url") or "")
+    session_id = int(payload.get("session_id") or 0)
+    if not rtsp or session_id <= 0:
+        post_result(job_id, {}, error="session rtsp/session_id missing")
+        return
+    source = str(payload.get("source_model") or "stock_yolo")
+    if source == "stock_yolo" or source.startswith("stock"):
+        weights = str(MODELS.get("stock_weights") or "yolo11n.pt")
+    else:
+        try:
+            mid = int(source)
+        except ValueError:
+            mid = int(payload.get("model_id") or 0)
+        weights = resolve_weights(mid, payload)
+    conf = float(payload.get("conf_threshold") or 0.25)
+    iou = float(payload.get("iou_threshold") or 0.45)
+    person_name = str(payload.get("person_class") or "person").lower()
+    target_id = int(payload.get("target_class_id") or 0)
+    target_name = str(payload.get("target_class_name") or target_id)
+    target_label = str(payload.get("target_class_label") or target_name)
+    target_color = str(payload.get("target_class_color") or "")
+    classes_meta = [
+        {
+            "id": target_id,
+            "name": target_name,
+            "label": target_label,
+            "color": target_color or CLASS_PALETTE_HEX[target_id % len(CLASS_PALETTE_HEX)],
+        }
+    ]
+    remapped: List[dict] = []
+    ann = b""
+    try:
+        frame = grab_rtsp_jpeg(rtsp)
+        raw_boxes, _ = run_infer_bytes(weights, frame, conf, iou, None)
+        for b in raw_boxes:
+            cname = str(b.get("class_name") or "").lower()
+            if cname != person_name and person_name not in cname:
+                if not (person_name == "person" and int(b.get("class_id") or -1) == 0):
+                    continue
+            nb = dict(b)
+            nb["class_id"] = target_id
+            nb["class_name"] = target_label
+            nb["color"] = classes_meta[0]["color"]
+            remapped.append(nb)
+        import cv2
+        import numpy as np
+
+        arr = np.frombuffer(frame, dtype=np.uint8)
+        img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if img is None:
+            raise RuntimeError("decode failed")
+        h, w = img.shape[:2]
+        for b in remapped:
+            bb = b.get("bbox") or [0, 0, 0, 0]
+            x1, y1, x2, y2 = int(bb[0] * w), int(bb[1] * h), int(bb[2] * w), int(bb[3] * h)
+            color = hex_to_bgr(str(b.get("color") or classes_meta[0]["color"]))
+            cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+            lab = f"{target_label} {float(b.get('conf') or 0):.2f}"
+            cv2.putText(img, lab, (x1, max(15, y1 - 5)), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1, cv2.LINE_AA)
+        ok, enc = cv2.imencode(".jpg", img)
+        if not ok:
+            raise RuntimeError("encode failed")
+        ann = enc.tobytes()
+    except Exception as e:  # noqa: BLE001
+        post_result(job_id, {"session_id": session_id}, error=str(e))
+        return
+    post_result(
+        job_id,
+        {
+            "session_id": session_id,
+            "camera_id": int(payload.get("camera_id") or 0),
+            "project_id": int(payload.get("project_id") or 0),
+            "detections": remapped,
+            "labels": remapped,
+            "train_session": True,
+        },
+        frame_b64=base64.b64encode(jpeg_for_upload(frame)).decode("ascii"),
+        annotated_b64=base64.b64encode(jpeg_for_upload(ann)).decode("ascii"),
+    )
+
+
 def process_job(job: dict) -> None:
     typ = str(job.get("type") or "")
     log.info("job %s type=%s", job.get("id"), typ)
@@ -569,6 +654,8 @@ def process_job(job: dict) -> None:
         handle_camera_job(job, on_demand=False)
     elif typ == "on_demand":
         handle_camera_job(job, on_demand=True)
+    elif typ == "train_session_tick":
+        handle_train_session_tick(job)
     elif typ == "train":
         handle_train(job)
     else:

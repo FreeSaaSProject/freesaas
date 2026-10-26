@@ -108,6 +108,45 @@ if ($type === VideoJobsRepository::TYPE_MONITOR_TICK || $type === VideoJobsRepos
     }
 }
 
+if ($type === VideoJobsRepository::TYPE_TRAIN_SESSION_TICK) {
+    $sessionId = (int)($result['session_id'] ?? $job['payload']['session_id'] ?? 0);
+    $detections = $result['detections'] ?? $result['labels'] ?? [];
+    if (!is_array($detections)) {
+        $detections = [];
+    }
+    if ($sessionId > 0) {
+        VideoTrainSessionsRepository::applyTick($sessionId, $detections, $frameRel, $annotatedRel);
+    }
+    $projectId = (int)($result['project_id'] ?? $job['payload']['project_id'] ?? 0);
+    if ($projectId > 0 && $frameRel !== '' && class_exists(VideoLabelProjectsRepository::class, false)) {
+        $labels = [];
+        foreach ($detections as $d) {
+            if (!is_array($d)) {
+                continue;
+            }
+            $labels[] = [
+                'class_id' => (int)($d['class_id'] ?? 0),
+                'x' => (float)($d['x'] ?? 0),
+                'y' => (float)($d['y'] ?? 0),
+                'w' => (float)($d['w'] ?? 0),
+                'h' => (float)($d['h'] ?? 0),
+            ];
+        }
+        VideoLabelProjectsRepository::ingestLabeledFrame(
+            $projectId,
+            VideoStorage::abs($frameRel),
+            $labels
+        );
+    }
+    $cameraId = (int)($result['camera_id'] ?? $job['payload']['camera_id'] ?? 0);
+    if ($cameraId > 0) {
+        VideoCamerasRepository::updateLastFrame($cameraId, $frameRel, $annotatedRel, [
+            'detections' => $detections,
+            'session_id' => $sessionId,
+        ]);
+    }
+}
+
 if ($type === VideoJobsRepository::TYPE_INFER_IMAGE || $type === VideoJobsRepository::TYPE_INFER_BATCH) {
     if (class_exists(VideoLabelProjectsRepository::class, false) && !empty($result['predictions'])) {
         VideoLabelProjectsRepository::applyPredictions($result);
