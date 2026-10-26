@@ -266,6 +266,36 @@ final class RecordsKeysRepository
         self::$overlapCatalog = null;
     }
 
+    public static function setDisabled(int $id, bool $disabled): void
+    {
+        if ($id < 1 || !Database::tableExists('base_records_keys')) {
+            return;
+        }
+        $st = Database::pdo()->prepare('UPDATE base_records_keys SET DISABLED = ? WHERE ID = ?');
+        $st->execute([$disabled ? 1 : 0, $id]);
+        self::clearOverlapCatalogCache();
+        EventBus::emit('audio_dicts.changed', ['entity' => 'keys', 'id' => $id]);
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    public static function setDisabledByIds(array $ids, bool $disabled): int
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids), static fn ($i) => $i > 0));
+        if ($ids === [] || !Database::tableExists('base_records_keys')) {
+            return 0;
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge([$disabled ? 1 : 0], $ids);
+        $st = Database::pdo()->prepare("UPDATE base_records_keys SET DISABLED = ? WHERE ID IN ($in)");
+        $st->execute($params);
+        self::clearOverlapCatalogCache();
+        EventBus::emit('audio_dicts.changed', ['entity' => 'keys']);
+
+        return $st->rowCount();
+    }
+
     /** @param list<int> $ids */
     public static function deleteByIds(array $ids): int
     {

@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.4",
+    "version": "0.1.6",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -51,11 +51,16 @@
         "pages": [
             "/banks",
             "/banks/settings",
+            "/banks/settings/certs",
             "/banks/oauth/{provider}/start",
             "/banks/oauth/{provider}/callback",
             "/banks/connections/{id}",
             "/banks/connections/{id}/sync",
-            "/banks/jobs/sync"
+            "/banks/sync-account",
+            "/banks/jobs/sync",
+            "/agent/banks/status",
+            "/agent/banks/settings",
+            "/agent/banks/certs"
         ]
     },
     "agent": {
@@ -83,7 +88,41 @@
                 "path": "/banks/settings",
                 "permission": "SUPERADMIN_ACCESS",
                 "side_effect": "write",
-                "description": "Save bank provider credentials into cfg/modules/banks.ini"
+                "description": "Save bank provider credentials into cfg/modules/banks.ini. Optional multipart files alfa_ul_mtls_{cert,key,ca}_file or JSON base64 fields alfa_ul_mtls_*_base64 (+ *_filename)."
+            },
+            {
+                "id": "banks.certs.upload",
+                "method": "POST",
+                "path": "/banks/settings/certs",
+                "permission": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "description": "Upload one mTLS file. Multipart field file + provider + kind=cert|key|ca; or JSON content_base64 + filename.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "kind"
+                    ],
+                    "properties": {
+                        "provider": {
+                            "type": "string",
+                            "default": "alfa_ul"
+                        },
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "cert",
+                                "key",
+                                "ca"
+                            ]
+                        },
+                        "content_base64": {
+                            "type": "string"
+                        },
+                        "filename": {
+                            "type": "string"
+                        }
+                    }
+                }
             },
             {
                 "id": "banks.connections.get",
@@ -175,6 +214,31 @@
                 }
             },
             {
+                "id": "banks.sync.account",
+                "method": "POST",
+                "path": "/banks/sync-account",
+                "permission": "banks.sync",
+                "side_effect": "write",
+                "description": "Sync statements for one ledger account (all sync-enabled bank links). Body: account_id, date_from, date_to (Y-m-d). Used from /ledger/moves toolbar.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "account_id"
+                    ],
+                    "properties": {
+                        "account_id": {
+                            "type": "integer"
+                        },
+                        "date_from": {
+                            "type": "string"
+                        },
+                        "date_to": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            {
                 "id": "banks.jobs.sync",
                 "method": "POST",
                 "path": "/banks/jobs/sync",
@@ -193,7 +257,9 @@
         "publish": [],
         "subscribe": [
             "ledger.accounts.badges",
-            "ledger.moves.badges"
+            "ledger.moves.badges",
+            "ledger.moves.list.toolbar",
+            "core.notices.collect"
         ]
     },
     "menu": [

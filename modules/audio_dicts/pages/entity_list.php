@@ -40,6 +40,26 @@ if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
 }
 
+if ($entity === 'keys'
+    && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST'
+    && Auth::can('audio_dicts.edit')
+) {
+    $action = trim((string)($_POST['action'] ?? ''));
+    if ($action === 'toggle_disabled') {
+        $id = (int)($_POST['id'] ?? 0);
+        // checked switch = enabled → DISABLED=0
+        $disabled = empty($_POST['enabled']);
+        try {
+            RecordsKeysRepository::setDisabled($id, $disabled);
+        } catch (Throwable $e) {
+            // fall through
+        }
+        $qs = $_SERVER['QUERY_STRING'] ?? '';
+        redirect($path . ($qs !== '' ? '?' . $qs : ''));
+        return;
+    }
+}
+
 BulkActions::tryHandle($listId, $path, $filters);
 
 $listOpts = [

@@ -13,6 +13,16 @@ $promise = (int)($_GET['promise'] ?? 0);
 if (!in_array($promise, [0, 1, 2, 3], true)) {
     $promise = 0;
 }
+$bankReview = (int)($_GET['bank_review'] ?? 0);
+if ($bankReview !== 1) {
+    $bankReview = 0;
+}
+$banksModuleOn = ModuleManager::isEnabled('banks') && class_exists('BanksConfig', false);
+$banksFilterAvailable = $banksModuleOn && BanksConfig::defaultMoveTypeId() > 0;
+$bankReviewCount = 0;
+if ($banksFilterAvailable && class_exists('BankTxMapRepository', false)) {
+    $bankReviewCount = BankTxMapRepository::countUnclassified();
+}
 
 $lq = ListQuery::resolve([
     'list_id' => 'ledger_moves',
@@ -30,6 +40,7 @@ $filters = array_merge([
     'payment_id' => $paymentId > 0 ? (string)$paymentId : '',
     'supplier_id' => $supplierId > 0 ? (string)$supplierId : '',
     'promise' => $promise > 0 ? (string)$promise : '',
+    'bank_review' => $bankReview > 0 ? (string)$bankReview : '',
 ], $lq['query']);
 if (!empty($lq['show_all'])) {
     $filters['page'] = 'all';
@@ -104,6 +115,7 @@ $listOpts = [
     'payment_id' => $paymentId,
     'supplier_id' => $supplierId,
     'promise' => $promise,
+    'bank_review' => $bankReview,
 ];
 $orderDir = strtoupper((string)$lq['dir']) === 'ASC' ? 'ASC' : 'DESC';
 $result = LedgerMovesRepository::list($listOpts + [
@@ -222,6 +234,17 @@ if ($moveBadges !== [] && ModuleManager::isEnabled('banks')) {
     Assets::need('banks');
 }
 
+$listToolbarHtml = '';
+if ($accountId > 0) {
+    $toolbarPayload = EventBus::emit('ledger.moves.list.toolbar', [
+        'account_id' => $accountId,
+        'filters' => $filters,
+        'html' => [],
+    ]);
+    $chunks = is_array($toolbarPayload['html'] ?? null) ? $toolbarPayload['html'] : [];
+    $listToolbarHtml = implode('', array_map('strval', $chunks));
+}
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
@@ -236,6 +259,7 @@ if ($wantsJson) {
             'payment_id' => $paymentId,
             'supplier_id' => $supplierId,
             'promise' => $promise,
+            'bank_review' => $bankReview,
         ],
         'balance' => $balance,
         'running_balances' => $runningBalances,
@@ -246,9 +270,12 @@ if ($wantsJson) {
         'can_recon' => Auth::can('ledger.reconcile'),
         'can_edit' => Auth::can('ledger.edit'),
         'badges' => $moveBadges,
+        'toolbar' => $listToolbarHtml !== '',
     ]);
     return;
 }
+
+$pageFlash = flash_take();
 
 View::render('moves_list', [
     'title' => t('ledger.menu.moves'),
@@ -263,6 +290,9 @@ View::render('moves_list', [
     'paymentId' => $paymentId,
     'supplierId' => $supplierId,
     'promise' => $promise,
+    'bankReview' => $bankReview,
+    'banksFilterAvailable' => $banksFilterAvailable,
+    'bankReviewCount' => $bankReviewCount,
     'accounts' => $accounts,
     'types' => $types,
     'typeActIn' => $typeActIn,
@@ -289,4 +319,6 @@ View::render('moves_list', [
     'bulkFlash' => BulkActions::consumeFlash(),
     'reconError' => $reconError,
     'moveBadges' => $moveBadges,
+    'listToolbarHtml' => $listToolbarHtml,
+    'pageFlash' => $pageFlash,
 ], 'layout', 'ledger');

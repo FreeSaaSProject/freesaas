@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-25T20:35:00+00:00",
+    "generated_at": "2026-10-26T06:55:25+00:00",
     "modules": [
         {
             "id": "asr",
@@ -148,7 +148,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.12",
+            "version": "1.0.14",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -356,7 +356,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.4",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -1046,7 +1046,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Account ledger",

@@ -24,6 +24,45 @@ final class BanksConfig
         return max(0, (int)self::get('default_move_type_id', 0));
     }
 
+    /** Cron banks.sync: when false, handler no-ops. */
+    public static function autoSyncEnabled(): bool
+    {
+        $raw = strtolower(trim((string)self::get('auto_sync_enabled', '1')));
+        return !in_array($raw, ['0', 'false', 'off', 'no', ''], true);
+    }
+
+    /** Days back for cron date_from (inclusive window ending today). */
+    public static function autoSyncLookbackDays(): int
+    {
+        return max(1, min(90, (int)self::get('auto_sync_lookback_days', 2)));
+    }
+
+    /**
+     * Last cron state for banks.sync (for UI).
+     *
+     * @return array{job_id:string,enabled:int,last_status:string,last_message:string,last_finished_at:int,every:?int}|null
+     */
+    public static function autoSyncCronStatus(): ?array
+    {
+        if (!class_exists('Cron', false) || !Cron::tablesReady()) {
+            return null;
+        }
+        foreach (Cron::catalogWithState() as $row) {
+            if ((string)($row['job_id'] ?? '') !== 'banks.sync') {
+                continue;
+            }
+            return [
+                'job_id' => 'banks.sync',
+                'enabled' => (int)($row['enabled'] ?? 1),
+                'last_status' => (string)($row['last_status'] ?? ''),
+                'last_message' => (string)($row['last_message'] ?? ''),
+                'last_finished_at' => (int)($row['last_finished_at'] ?? 0),
+                'every' => isset($row['every']) ? (int)$row['every'] : null,
+            ];
+        }
+        return null;
+    }
+
     public static function workerTokenConfigured(): bool
     {
         $t = trim((string)self::get('worker_token', ''));
@@ -64,18 +103,31 @@ final class BanksConfig
 
         if ($p === 'alfa_ul' || $p === 'alfa_fl') {
             $prefix = $p;
+            $sandbox = $p === 'alfa_ul' && (int)self::get('alfa_ul_sandbox', 0) === 1;
+            $defaultScope = $p === 'alfa_fl'
+                ? 'openid obru_accounts_pe'
+                : 'openid customer transactions profile email';
+            if ($sandbox) {
+                $authBase = 'https://id-sandbox.alfabank.ru';
+                $tokenUrl = 'https://sandbox.alfabank.ru/oidc/token';
+                $apiBase = 'https://sandbox.alfabank.ru';
+            } else {
+                $authBase = rtrim(trim((string)self::get($prefix . '_auth_base', 'https://id.alfabank.ru')), '/')
+                    ?: 'https://id.alfabank.ru';
+                $tokenUrl = trim((string)self::get($prefix . '_token_url', 'https://baas.alfabank.ru/oidc/token'))
+                    ?: 'https://baas.alfabank.ru/oidc/token';
+                $apiBase = rtrim(trim((string)self::get($prefix . '_api_base', 'https://baas.alfabank.ru')), '/')
+                    ?: 'https://baas.alfabank.ru';
+            }
             return self::withAutoRedirect($p, [
                 'client_id' => trim((string)self::get($prefix . '_client_id', '')),
                 'client_secret' => trim((string)self::get($prefix . '_client_secret', '')),
                 'redirect_uri' => trim((string)self::get($prefix . '_redirect_uri', '')),
-                'scope' => trim((string)self::get(
-                    $prefix . '_scope',
-                    $p === 'alfa_fl' ? 'openid obru_accounts_pe' : 'openid profile email'
-                )),
-                'auth_base' => rtrim(trim((string)self::get($prefix . '_auth_base', 'https://id.alfabank.ru')), '/'),
-                'token_url' => trim((string)self::get($prefix . '_token_url', 'https://baas.alfabank.ru/oidc/token')),
-                'api_base' => rtrim(trim((string)self::get($prefix . '_api_base', 'https://baas.alfabank.ru')), '/'),
-                'sandbox' => false,
+                'scope' => trim((string)self::get($prefix . '_scope', $defaultScope)),
+                'auth_base' => $authBase,
+                'token_url' => $tokenUrl,
+                'api_base' => $apiBase,
+                'sandbox' => $sandbox,
             ]);
         }
 
@@ -147,6 +199,10 @@ final class BanksConfig
         }
         if ($p === 'tochka' && (int)self::get('tochka_sandbox', 0) === 1) {
             return true;
+        }
+        if ($p === 'alfa_ul' && (int)self::get('alfa_ul_sandbox', 0) === 1) {
+            $c = self::providerCreds($p);
+            return $c['client_id'] !== '' && $c['client_secret'] !== '' && $c['redirect_uri'] !== '';
         }
         if ($p === 'tbank_ul' && trim((string)self::get('tbank_ul_access_token', '')) !== '') {
             return true;
@@ -272,19 +328,56 @@ final class BanksConfig
         return self::oauthRedirectUri($p);
     }
 
+    /**
+     * Optional client TLS for Alfa sandbox / H2H (paths on disk, outside web root).
+     *
+     * @return array{mtls_cert?:string,mtls_key?:string,mtls_pass?:string,mtls_ca?:string}
+     */
+    public static function mtlsOpts(string $provider): array
+    {
+        $p = self::normalizeProvider($provider);
+        if ($p === '') {
+            return [];
+        }
+        $cert = trim((string)self::get($p . '_mtls_cert', ''));
+        if ($cert === '') {
+            return [];
+        }
+        $out = ['mtls_cert' => $cert];
+        $key = trim((string)self::get($p . '_mtls_key', ''));
+        if ($key !== '') {
+            $out['mtls_key'] = $key;
+        }
+        $pass = trim((string)self::get($p . '_mtls_pass', ''));
+        if ($pass !== '') {
+            $out['mtls_pass'] = $pass;
+        }
+        $ca = trim((string)self::get($p . '_mtls_ca', ''));
+        if ($ca !== '') {
+            $out['mtls_ca'] = $ca;
+        }
+        return $out;
+    }
+
     /** Keys editable on /banks/settings (secrets kept if post empty). */
     public static function settingsKeys(): array
     {
         return [
             'default_move_type_id',
+            'auto_sync_enabled',
+            'auto_sync_lookback_days',
             'worker_token',
             'tochka_sandbox',
             'tochka_client_id',
             'tochka_client_secret',
             'tochka_redirect_uri',
+            'alfa_ul_sandbox',
             'alfa_ul_client_id',
             'alfa_ul_client_secret',
             'alfa_ul_redirect_uri',
+            'alfa_ul_scope',
+            // mTLS file paths are set only via BanksCertStorage upload (not blanked from form).
+            'alfa_ul_mtls_pass',
             'alfa_fl_client_id',
             'alfa_fl_client_secret',
             'alfa_fl_redirect_uri',
@@ -314,6 +407,7 @@ final class BanksConfig
             'worker_token',
             'tochka_client_secret',
             'alfa_ul_client_secret',
+            'alfa_ul_mtls_pass',
             'alfa_fl_client_secret',
             'tbank_ul_access_token',
             'tbank_ul_client_secret',
@@ -328,7 +422,19 @@ final class BanksConfig
     {
         $out = [];
         foreach (self::settingsKeys() as $key) {
-            $val = (string)self::get($key, $key === 'tochka_sandbox' ? '0' : '');
+            if ($key === 'auto_sync_enabled') {
+                $out[$key] = self::autoSyncEnabled() ? '1' : '0';
+                continue;
+            }
+            if ($key === 'auto_sync_lookback_days') {
+                $out[$key] = (string)self::autoSyncLookbackDays();
+                continue;
+            }
+            if ($key === 'tochka_sandbox' || $key === 'alfa_ul_sandbox') {
+                $out[$key] = (int)self::get($key, 0) === 1 ? '1' : '0';
+                continue;
+            }
+            $val = (string)self::get($key, '');
             if (in_array($key, self::secretKeys(), true)) {
                 $out[$key] = '';
                 $out[$key . '_masked'] = self::maskSecret($val);
@@ -336,6 +442,10 @@ final class BanksConfig
             } else {
                 $out[$key] = $val;
             }
+        }
+        // Expose mTLS paths for agents (read-only; write via cert upload).
+        foreach (['alfa_ul_mtls_cert', 'alfa_ul_mtls_key', 'alfa_ul_mtls_ca'] as $mk) {
+            $out[$mk] = (string)self::get($mk, '');
         }
         // Prefill empty redirect URIs from current instance host (HTTPS on prod).
         foreach (self::PROVIDERS as $p) {
@@ -362,12 +472,16 @@ final class BanksConfig
                 }
                 continue;
             }
-            if ($key === 'tochka_sandbox') {
+            if ($key === 'tochka_sandbox' || $key === 'alfa_ul_sandbox' || $key === 'auto_sync_enabled') {
                 Config::set('banks', $key, !empty($post[$key]) ? '1' : '0');
                 continue;
             }
             if ($key === 'default_move_type_id') {
                 Config::set('banks', $key, (string)max(0, (int)($post[$key] ?? 0)));
+                continue;
+            }
+            if ($key === 'auto_sync_lookback_days') {
+                Config::set('banks', $key, (string)max(1, min(90, (int)($post[$key] ?? 2))));
                 continue;
             }
             $val = trim((string)($post[$key] ?? ''));

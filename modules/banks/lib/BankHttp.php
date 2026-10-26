@@ -1,12 +1,15 @@
 <?php
 declare(strict_types=1);
 
-/** Small curl helper for bank APIs. */
+/** Small curl helper for bank APIs (optional mTLS). */
 final class BankHttp
 {
     /**
      * @param array<string,string> $headers
      * @param array<string,mixed>|string|null $body
+     * @param array{
+     *   mtls_cert?:string,mtls_key?:string,mtls_pass?:string,mtls_ca?:string
+     * } $opts
      * @return array{ok:bool,http:int,data:mixed,raw:string,error:string}
      */
     public static function request(
@@ -14,7 +17,8 @@ final class BankHttp
         string $url,
         array $headers = [],
         $body = null,
-        bool $form = false
+        bool $form = false,
+        array $opts = []
     ): array {
         $ch = curl_init($url);
         $method = strtoupper($method);
@@ -35,6 +39,7 @@ final class BankHttp
         if ($hdrs !== []) {
             curl_setopt($ch, CURLOPT_HTTPHEADER, $hdrs);
         }
+        self::applyMtls($ch, $opts);
         $raw = (string)curl_exec($ch);
         $errno = curl_errno($ch);
         $err = $errno ? (string)curl_error($ch) : '';
@@ -56,5 +61,31 @@ final class BankHttp
             'raw' => $raw,
             'error' => $ok ? '' : ('HTTP ' . $http),
         ];
+    }
+
+    /**
+     * @param resource|\CurlHandle $ch
+     * @param array{mtls_cert?:string,mtls_key?:string,mtls_pass?:string,mtls_ca?:string} $opts
+     */
+    private static function applyMtls($ch, array $opts): void
+    {
+        $cert = trim((string)($opts['mtls_cert'] ?? ''));
+        if ($cert === '' || !is_readable($cert)) {
+            return;
+        }
+        curl_setopt($ch, CURLOPT_SSLCERT, $cert);
+        $key = trim((string)($opts['mtls_key'] ?? ''));
+        if ($key !== '' && is_readable($key)) {
+            curl_setopt($ch, CURLOPT_SSLKEY, $key);
+        }
+        $pass = (string)($opts['mtls_pass'] ?? '');
+        if ($pass !== '') {
+            curl_setopt($ch, CURLOPT_SSLCERTPASSWD, $pass);
+            curl_setopt($ch, CURLOPT_SSLKEYPASSWD, $pass);
+        }
+        $ca = trim((string)($opts['mtls_ca'] ?? ''));
+        if ($ca !== '' && is_readable($ca)) {
+            curl_setopt($ch, CURLOPT_CAINFO, $ca);
+        }
     }
 }

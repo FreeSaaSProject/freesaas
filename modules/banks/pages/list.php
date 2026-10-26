@@ -22,11 +22,17 @@ foreach (BanksConfig::PROVIDERS as $p) {
     ];
 }
 
+$cronStatus = BanksConfig::autoSyncCronStatus();
+$autoSyncOn = BanksConfig::autoSyncEnabled();
+
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'items' => $items,
         'providers' => $providers,
+        'auto_sync_enabled' => $autoSyncOn,
+        'auto_sync_lookback_days' => BanksConfig::autoSyncLookbackDays(),
+        'cron' => $cronStatus,
     ]);
 }
 
@@ -36,6 +42,8 @@ View::render('list', [
     'providers' => $providers,
     'canConnect' => Auth::can('banks.connect'),
     'canSettings' => Auth::capability('SUPERADMIN_ACCESS'),
+    'autoSyncOn' => $autoSyncOn,
+    'cronStatus' => $cronStatus,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('banks.menu.list'), 'current' => true],
     ]),

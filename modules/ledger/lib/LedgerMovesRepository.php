@@ -285,6 +285,24 @@ final class LedgerMovesRepository
             $where[] = 'm.DT_PROMISED > 0 AND m.DT_PROMISED < ? AND m.PROMISE_EXECUTED = 0';
             $params[] = time();
         }
+        // Bank moves on default type (same criterion as banks «Не разобрано» badge)
+        $bankReview = (int)($opts['bank_review'] ?? 0);
+        if ($bankReview === 1) {
+            $defaultType = 0;
+            if (ModuleManager::isEnabled('banks')
+                && class_exists('BanksConfig', false)
+                && Database::tableExists('base_bank_tx_map')) {
+                $defaultType = BanksConfig::defaultMoveTypeId();
+            }
+            if ($defaultType < 1) {
+                $where[] = '0=1';
+            } else {
+                $where[] = 'm.ID_TYPE = ? AND EXISTS (
+                    SELECT 1 FROM base_bank_tx_map t WHERE t.ID_MOVE = m.ID
+                )';
+                $params[] = $defaultType;
+            }
+        }
         return ['where' => implode(' AND ', $where), 'params' => $params];
     }
 

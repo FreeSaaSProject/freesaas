@@ -126,6 +126,37 @@ final class BankSyncService
     }
 
     /**
+     * Sync all sync-enabled bank links mapped to one ledger account.
+     *
+     * @return array{created:int,linked:int,skipped:int,errors:int,messages:list<string>}
+     */
+    public static function syncLedgerAccount(int $accountId, string $dateFrom, string $dateTo): array
+    {
+        $stats = ['created' => 0, 'linked' => 0, 'skipped' => 0, 'errors' => 0, 'messages' => []];
+        $links = BankAccountLinksRepository::forLedgerAccount($accountId);
+        if ($links === []) {
+            $stats['messages'][] = t('banks.sync.nothing_to_sync');
+            return $stats;
+        }
+        foreach ($links as $link) {
+            $part = self::syncConnection(
+                (int)$link['connection_id'],
+                $dateFrom,
+                $dateTo,
+                (int)$link['id']
+            );
+            $stats['created'] += $part['created'];
+            $stats['linked'] += $part['linked'];
+            $stats['skipped'] += $part['skipped'];
+            $stats['errors'] += $part['errors'];
+            foreach ($part['messages'] as $m) {
+                $stats['messages'][] = $m;
+            }
+        }
+        return $stats;
+    }
+
+    /**
      * @param array<string,mixed> $link
      * @return array{created:int,linked:int,skipped:int,errors:int,messages:list<string>}
      */

@@ -92,6 +92,7 @@ POST `/ledger/moves` with `recon_action`:
 | Module | Effect |
 |--------|--------|
 | `payments` | Payment ID + multi-allocation (`base_payment_move_links`) via `ledger.moves.edit.sections`; links cleared on `ledger.moves.deleted`; auto-DPS (`ledger.from_payment`) still available |
+| `banks` | Statement sync toolbar on `/ledger/moves` when account is linked (`ledger.moves.list.toolbar` → `/banks/sync-account`); badges; filter `bank_review=1` for unclassified bank moves |
 | `suppliers` | Counterparty field |
 | `stickers` | Act-in attach |
 | `funds` | Fund movement id |

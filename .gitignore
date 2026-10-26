@@ -1,6 +1,7 @@
 cfg/config.ini
 cfg/modules/*.ini
 !cfg/modules/.gitkeep
+cfg/modules/banks-certs/
 cfg/updates.ini
 cfg/updates.state.json
 log/*.log

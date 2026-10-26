@@ -83,31 +83,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = $repo::dataFromPost($_POST);
         if ($entity === 'keys') {
             $keyForceChecked = !empty($_POST['force']);
-            $keyOverlaps = RecordsKeysRepository::findOverlaps(
-                (string)$data['name'],
-                $isNew ? 0 : $id,
-                12
-            );
-            $hasExact = false;
-            foreach ($keyOverlaps as $ov) {
-                if ((string)($ov['relation'] ?? '') === 'exact') {
-                    $hasExact = true;
-                    break;
+            // Phrase unchanged → skip overlap gate (dict/flags/looklike-only edits).
+            $prevName = !$isNew && is_array($row) ? trim((string)($row['name'] ?? '')) : '';
+            $nameChanged = $isNew
+                || mb_strtolower((string)$data['name']) !== mb_strtolower($prevName);
+            if ($nameChanged) {
+                $keyOverlaps = RecordsKeysRepository::findOverlaps(
+                    (string)$data['name'],
+                    $isNew ? 0 : $id,
+                    12
+                );
+                $hasExact = false;
+                foreach ($keyOverlaps as $ov) {
+                    if ((string)($ov['relation'] ?? '') === 'exact') {
+                        $hasExact = true;
+                        break;
+                    }
                 }
-            }
-            if ($hasExact) {
-                throw new InvalidArgumentException(t('audio_dicts.keys.err_exact'));
-            }
-            // Soft "contains" (existing key is wider) — allow without force, same as coach apply.
-            $softOnly = RecordsKeysRepository::isSoftContainsOnly($keyOverlaps);
-            if ($keyOverlaps !== [] && !$softOnly && !$keyForceChecked) {
-                if ((int)($data['id_looklike'] ?? 0) < 1) {
+                if ($hasExact) {
+                    throw new InvalidArgumentException(t('audio_dicts.keys.err_exact'));
+                }
+                // Soft "contains" (existing key is wider) — allow without force, same as coach apply.
+                $softOnly = RecordsKeysRepository::isSoftContainsOnly($keyOverlaps);
+                if ($keyOverlaps !== [] && !$softOnly && !$keyForceChecked) {
+                    if ((int)($data['id_looklike'] ?? 0) < 1) {
+                        $data['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
+                    }
+                    throw new InvalidArgumentException(t('audio_dicts.keys.err_overlap'));
+                }
+                if ($keyOverlaps !== [] && ($keyForceChecked || $softOnly) && (int)($data['id_looklike'] ?? 0) < 1) {
                     $data['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
                 }
-                throw new InvalidArgumentException(t('audio_dicts.keys.err_overlap'));
-            }
-            if ($keyOverlaps !== [] && ($keyForceChecked || $softOnly) && (int)($data['id_looklike'] ?? 0) < 1) {
-                $data['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
             }
         }
         if ($isNew) {
@@ -142,7 +148,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             AgentHttp::error($e->getMessage(), 400);
             return;
         }
-        $error = $e->getMessage();
+        // Keys: make clear that DB was not updated (form still shows the attempted draft).
+        $error = $entity === 'keys'
+            ? (t('audio_dicts.keys.not_saved') . ' ' . $e->getMessage())
+            : $e->getMessage();
         if (isset($data) && is_array($data)) {
             $row = array_merge($row ?? [], $data);
         } else {

@@ -10,6 +10,9 @@ declare(strict_types=1);
 /** @var int $paymentId */
 /** @var int $supplierId */
 /** @var int $promise */
+/** @var int $bankReview */
+/** @var bool $banksFilterAvailable */
+/** @var int $bankReviewCount */
 /** @var array<int,string> $accounts */
 /** @var array<int,string> $types */
 /** @var array<int,bool> $typeActIn */
@@ -36,9 +39,13 @@ declare(strict_types=1);
 /** @var array|null $bulkFlash */
 /** @var string $reconError */
 /** @var array<int,string> $moveBadges */
+/** @var string $listToolbarHtml */
+/** @var array{type:string,message:string}|null $pageFlash */
 $path = '/ledger/moves';
 $listId = 'ledger_moves';
 $moveBadges = is_array($moveBadges ?? null) ? $moveBadges : [];
+$listToolbarHtml = (string)($listToolbarHtml ?? '');
+$pageFlash = is_array($pageFlash ?? null) ? $pageFlash : null;
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, !empty($showAll));
 $colSpan = 6 + ($showBalanceCol ? 1 : 0) + BulkActions::colSpanExtra($listId);
 $sysBalance = $balance !== null ? round((float)$balance, 2) : null;
@@ -80,6 +87,9 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
   <?php endif; ?>
 </section>
 <?php if (!empty($bulkFlash)): ?><?= BulkActions::flashHtml($bulkFlash) ?><?php endif; ?>
+<?php if ($pageFlash): ?>
+  <div class="flash flash-<?= e(($pageFlash['type'] ?? '') === 'ok' ? 'ok' : 'warn') ?>"><?= e_nl((string)($pageFlash['message'] ?? '')) ?></div>
+<?php endif; ?>
 <?php if ($reconError !== ''): ?><div class="flash flash-warn"><?= e($reconError) ?></div><?php endif; ?>
 
 <form class="filters" method="get" action="<?= e($path) ?>" data-auto-filter>
@@ -139,7 +149,29 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
       <option value="3"<?= (int)$promise === 3 ? ' selected' : '' ?>><?= te('ledger.moves.filter_promise_overdue') ?></option>
     </select>
   </label>
+  <?php if (!empty($banksFilterAvailable)):
+    $bankReviewCount = (int)($bankReviewCount ?? 0);
+    $bankReview = (int)($bankReview ?? 0);
+    ?>
+  <label><?= te('ledger.moves.filter_bank_review') ?>
+    <?php if ($bankReviewCount > 0): ?>
+    <select name="bank_review">
+      <option value="0"><?= te('ledger.moves.filter_bank_review_all') ?></option>
+      <option value="1"<?= $bankReview === 1 ? ' selected' : '' ?>>
+        <?= e(t('ledger.moves.filter_bank_review_need_n', ['n' => $bankReviewCount])) ?>
+      </option>
+    </select>
+    <?php else: ?>
+    <input type="hidden" name="bank_review" value="0">
+    <span class="muted ledger-bank-review-empty"><?= te('ledger.moves.filter_bank_review_none') ?></span>
+    <?php endif; ?>
+  </label>
+  <?php endif; ?>
 </form>
+
+<?php if ($listToolbarHtml !== ''): ?>
+  <?= $listToolbarHtml ?>
+<?php endif; ?>
 
 <?php if ($showRecon && $sysBalance !== null): ?>
   <p class="ledger-account-balance">

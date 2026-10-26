@@ -2,9 +2,11 @@
 declare(strict_types=1);
 /** @var array<string,string> $cfg */
 /** @var array<int,string> $moveTypes */
-/** @var list<array{id:string,label:string,configured:bool}> $providers */
+/** @var list<array{id:string,label:string,configured:bool,connected?:bool}> $providers */
+/** @var array<string,array{path:string,exists:bool,readable:bool,bytes:int}> $mtlsAlfa */
 /** @var string $message */
 /** @var string $error */
+$mtlsAlfa = is_array($mtlsAlfa ?? null) ? $mtlsAlfa : BanksCertStorage::statusForProvider('alfa_ul');
 $secretLabel = static function (string $key) use ($cfg): string {
     $masked = (string)($cfg[$key . '_masked'] ?? '—');
     return t('banks.settings.secret_keep') . ' — ' . t('banks.settings.current', ['masked' => $masked]);
@@ -37,16 +39,29 @@ $redirectField = static function (string $provider) use ($cfg): void {
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
+<p class="muted"><?= te('banks.settings.status_hint') ?></p>
 <p class="banks-provider-status">
-  <?php foreach ($providers as $p): ?>
-    <span class="bank-chip<?= empty($p['configured']) ? ' bank-chip-warn' : '' ?>" id="<?= e((string)$p['id']) ?>">
-      <?= e((string)$p['label']) ?>:
-      <?= !empty($p['configured']) ? te('banks.settings.ready') : te('banks.settings.not_ready') ?>
+  <?php foreach ($providers as $p):
+    $configured = !empty($p['configured']);
+    $connected = !empty($p['connected']);
+    $warn = !$configured && !$connected;
+    if ($configured && $connected) {
+        $status = t('banks.settings.status_ready_connected');
+    } elseif ($configured) {
+        $status = t('banks.settings.status_keys_only');
+    } elseif ($connected) {
+        $status = t('banks.settings.status_connected_no_keys');
+    } else {
+        $status = t('banks.settings.not_ready');
+    }
+    ?>
+    <span class="bank-chip<?= $warn ? ' bank-chip-warn' : '' ?>" id="<?= e((string)$p['id']) ?>">
+      <?= e((string)$p['label']) ?>: <?= e($status) ?>
     </span>
   <?php endforeach; ?>
 </p>
 
-<form method="post" class="form-grid form-wide">
+<form method="post" class="form-grid form-wide" enctype="multipart/form-data">
   <fieldset>
     <legend><?= te('banks.settings.common') ?></legend>
     <label><?= te('banks.settings.default_move_type_id') ?>
@@ -56,6 +71,14 @@ $redirectField = static function (string $provider) use ($cfg): void {
           <option value="<?= (int)$tid ?>"<?= (int)($cfg['default_move_type_id'] ?? 0) === (int)$tid ? ' selected' : '' ?>><?= e($tname) ?></option>
         <?php endforeach; ?>
       </select>
+    </label>
+    <label class="check">
+      <input type="checkbox" name="auto_sync_enabled" value="1"<?= ($cfg['auto_sync_enabled'] ?? '1') === '1' ? ' checked' : '' ?>>
+      <?= te('banks.settings.auto_sync_enabled') ?>
+    </label>
+    <p class="muted"><?= te('banks.settings.auto_sync_hint') ?></p>
+    <label><?= te('banks.settings.auto_sync_lookback_days') ?>
+      <input type="number" name="auto_sync_lookback_days" min="1" max="90" value="<?= e((string)($cfg['auto_sync_lookback_days'] ?? '2')) ?>">
     </label>
     <label><?= te('banks.settings.worker_token') ?>
       <input type="password" name="worker_token" value="" autocomplete="new-password">
@@ -114,6 +137,11 @@ $redirectField = static function (string $provider) use ($cfg): void {
   <fieldset id="alfa_ul">
     <legend><?= te('banks.provider.alfa_ul') ?></legend>
     <?= BanksConfig::portalLinksHtml('alfa_ul') ?>
+    <p class="muted"><?= te('banks.settings.alfa_ul_sandbox_hint') ?></p>
+    <label class="check">
+      <input type="checkbox" name="alfa_ul_sandbox" value="1"<?= ($cfg['alfa_ul_sandbox'] ?? '0') === '1' ? ' checked' : '' ?>>
+      <?= te('banks.settings.alfa_ul_sandbox') ?>
+    </label>
     <label><?= te('banks.settings.client_id') ?>
       <input name="alfa_ul_client_id" value="<?= e((string)($cfg['alfa_ul_client_id'] ?? '')) ?>">
     </label>
@@ -121,7 +149,36 @@ $redirectField = static function (string $provider) use ($cfg): void {
       <input type="password" name="alfa_ul_client_secret" value="" autocomplete="new-password">
       <span class="muted"><?= e($secretLabel('alfa_ul_client_secret')) ?></span>
     </label>
+    <label><?= te('banks.settings.scope') ?>
+      <input name="alfa_ul_scope" value="<?= e((string)($cfg['alfa_ul_scope'] ?? 'openid customer transactions profile email')) ?>">
+      <span class="muted"><?= te('banks.settings.alfa_ul_scope_hint') ?></span>
+    </label>
     <?php $redirectField('alfa_ul'); ?>
+    <p class="muted"><?= te('banks.settings.mtls_hint') ?></p>
+    <?php
+    $mtlsRows = [
+        'cert' => te('banks.settings.mtls_cert'),
+        'key' => te('banks.settings.mtls_key'),
+        'ca' => te('banks.settings.mtls_ca'),
+    ];
+    foreach ($mtlsRows as $kind => $label):
+        $st = $mtlsAlfa[$kind] ?? ['path' => '', 'exists' => false, 'readable' => false, 'bytes' => 0];
+        ?>
+    <label><?= e($label) ?>
+      <input type="file" name="alfa_ul_mtls_<?= e($kind) ?>_file" accept=".cer,.crt,.pem,.key,.p12,.pfx">
+      <?php if (!empty($st['readable'])): ?>
+        <span class="muted"><?= te('banks.settings.mtls_on_disk') ?>:
+          <?= e(basename((string)$st['path'])) ?> (<?= (int)$st['bytes'] ?> <?= te('banks.settings.mtls_bytes') ?>)
+        </span>
+      <?php else: ?>
+        <span class="muted"><?= te('banks.settings.mtls_missing') ?></span>
+      <?php endif; ?>
+    </label>
+    <?php endforeach; ?>
+    <label><?= te('banks.settings.mtls_pass') ?>
+      <input type="password" name="alfa_ul_mtls_pass" value="" autocomplete="new-password">
+      <span class="muted"><?= e($secretLabel('alfa_ul_mtls_pass')) ?></span>
+    </label>
   </fieldset>
 
   <fieldset id="alfa_fl">

@@ -12,7 +12,7 @@ FreeSaaS exposes **two** machine interfaces on purpose (not four). CLI and HTTP 
 | **Auth** | `X-FreeSaaS-Agent-Token` = `app.agent_token` in `cfg/config.ini` (always required for `/agent/*`) |
 | **First install** | HTTP: pre-set `agent_token` **or** `var/setup.key` + `X-FreeSaaS-Setup-Key` — **no** anonymous bootstrap. CLI: `freesaas.php bootstrap` (no HTTP gate). See [install.md](install.md) |
 
-Typical ops: `bootstrap`, `system status`, `module list/inspect/enable/install/disable/validate`, `migrate`, `db *`, `health`, `doctor`, `update *`, plus module-registered repair ops under `/agent/bots/*`, `/agent/gcal/*`, `/agent/llm/*` (`AgentOps::registerModuleOp` from enabled-module bootstrap).
+Typical ops: `bootstrap`, `system status`, `module list/inspect/enable/install/disable/validate`, `migrate`, `db *`, `health`, `doctor`, `update *`, plus module-registered repair ops under `/agent/bots/*`, `/agent/gcal/*`, `/agent/llm/*`, `/agent/banks/*` (`AgentOps::registerModuleOp` from enabled-module bootstrap).
 
 Docs: [remote-api.md](remote-api.md), [install.md](install.md), [QUICKSTART.md](QUICKSTART.md), [bots.md](bots.md), [gcal.md](gcal.md), [llm.md](llm.md).
 

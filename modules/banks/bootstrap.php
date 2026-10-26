@@ -18,18 +18,25 @@ require_once __DIR__ . '/lib/BankOAuth.php';
 require_once __DIR__ . '/lib/BankClassifyService.php';
 require_once __DIR__ . '/lib/BankSyncService.php';
 require_once __DIR__ . '/lib/BankBadges.php';
+require_once __DIR__ . '/lib/BankLedgerSyncUi.php';
+require_once __DIR__ . '/lib/BanksCertStorage.php';
+require_once __DIR__ . '/lib/BanksAgentOps.php';
 
 Assets::register('banks', [
     'css' => ['banks.css'],
 ]);
 
+BanksAgentOps::register();
+
 $pages = [
     '/banks' => ['permission' => 'banks.view', 'methods' => ['GET'], 'file' => 'list.php'],
     '/banks/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
+    '/banks/settings/certs' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['POST'], 'file' => 'certs_upload.php'],
     '/banks/oauth/{provider}/start' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_start.php'],
     '/banks/oauth/{provider}/callback' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_callback.php'],
     '/banks/connections/{id}' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'connection.php'],
     '/banks/connections/{id}/sync' => ['permission' => 'banks.sync', 'methods' => ['POST', 'GET'], 'file' => 'sync.php'],
+    '/banks/sync-account' => ['permission' => 'banks.sync', 'methods' => ['POST', 'GET'], 'file' => 'sync_account.php'],
     '/banks/jobs/sync' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_sync.php'],
 ];
 
@@ -59,7 +66,16 @@ Cron::register('banks.sync', [
     'label' => 'banks.cron.sync',
     'every' => 30,
     'handler' => static function (): array {
-        $dateFrom = date('Y-m-d', strtotime('-2 days'));
+        if (!BanksConfig::autoSyncEnabled()) {
+            return [
+                'ok' => true,
+                'processed' => 0,
+                'skipped' => 0,
+                'message' => 'auto_sync_enabled=0',
+            ];
+        }
+        $days = BanksConfig::autoSyncLookbackDays();
+        $dateFrom = date('Y-m-d', strtotime('-' . $days . ' days'));
         $dateTo = date('Y-m-d');
         try {
             $stats = BankSyncService::syncAllEnabled($dateFrom, $dateTo);
@@ -102,6 +118,55 @@ Health::register('banks.worker_token', 'banks', static function (): array {
     ];
 }, 'Banks job worker token');
 
+Health::register('banks.auto_sync', 'banks', static function (): array {
+    if (!BanksConfig::autoSyncEnabled()) {
+        return ['status' => 'ok', 'message' => 'auto sync disabled'];
+    }
+    $links = BankAccountLinksRepository::syncEnabledLinks();
+    if ($links === []) {
+        return ['status' => 'ok', 'message' => 'no sync-enabled links'];
+    }
+    $blocked = [];
+    $seen = [];
+    foreach ($links as $link) {
+        $cid = (int)($link['connection_id'] ?? 0);
+        if ($cid < 1 || isset($seen[$cid])) {
+            continue;
+        }
+        $seen[$cid] = true;
+        $conn = BankConnectionsRepository::find($cid, true);
+        if (!$conn) {
+            $blocked[] = '#' . $cid . ' missing';
+            continue;
+        }
+        $provider = (string)($conn['provider'] ?? '');
+        $access = trim((string)($conn['access_token'] ?? ''));
+        $refresh = trim((string)($conn['refresh_token'] ?? ''));
+        $expires = (int)($conn['expires_at'] ?? 0);
+        $fresh = $access !== '' && ($expires === 0 || $expires > time() + 30);
+        if ($fresh) {
+            continue;
+        }
+        $canRefresh = $refresh !== '' && BanksConfig::providerConfigured($provider);
+        if (!$canRefresh) {
+            $blocked[] = BanksConfig::providerLabel($provider) . ' #' . $cid;
+        }
+    }
+    if ($blocked !== []) {
+        return [
+            'status' => 'degraded',
+            'message' => 'token expired and cannot refresh (need OAuth keys): ' . implode(', ', $blocked),
+            'meta' => ['hint' => '/banks/settings'],
+        ];
+    }
+    $cron = BanksConfig::autoSyncCronStatus();
+    $msg = 'auto sync on, lookback=' . BanksConfig::autoSyncLookbackDays() . 'd';
+    if (is_array($cron) && ($cron['last_status'] ?? '') !== '') {
+        $msg .= ', last=' . (string)$cron['last_status'];
+    }
+    return ['status' => 'ok', 'message' => $msg];
+}, 'Banks auto sync tokens');
+
 EventBus::on('ledger.accounts.badges', static function ($payload) {
     if (!is_array($payload)) {
         $payload = [];
@@ -132,5 +197,41 @@ EventBus::on('ledger.moves.badges', static function ($payload) {
         is_array($payload['by_id'] ?? null) ? $payload['by_id'] : [],
         $byId
     );
+    return $payload;
+});
+
+EventBus::on('core.notices.collect', static function ($notices) {
+    if (!is_array($notices)) {
+        $notices = [];
+    }
+    if (!Auth::check() || !Auth::can('ledger.view')) {
+        return $notices;
+    }
+    $n = BankTxMapRepository::countUnclassified();
+    if ($n > 0) {
+        $notices[] = [
+            'short' => t('banks.notice.review_action') . ':' . $n,
+            'href' => '/ledger/moves?bank_review=1',
+            'title' => t('banks.notice.review'),
+            'tone' => 'warn',
+        ];
+    }
+    return $notices;
+});
+
+EventBus::on('ledger.moves.list.toolbar', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $accountId = (int)($payload['account_id'] ?? 0);
+    $filters = is_array($payload['filters'] ?? null) ? $payload['filters'] : [];
+    $html = BankLedgerSyncUi::toolbarHtml($accountId, $filters);
+    if ($html !== '') {
+        Assets::need('banks');
+        if (!isset($payload['html']) || !is_array($payload['html'])) {
+            $payload['html'] = [];
+        }
+        $payload['html'][] = $html;
+    }
     return $payload;
 });

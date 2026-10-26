@@ -86,6 +86,29 @@ foreach ($entities as $entity => $meta) {
     ]);
 }
 
+BulkActions::register('audio_keys', 'enable', [
+    'label' => 'core.bulk.enable',
+    'group' => 'audio_dicts.bulk.group.enablers',
+    'permission' => 'audio_dicts.edit',
+    'confirm' => 'audio_dicts.bulk.confirm_enable_keys',
+    'run' => static function (array $ids, array $params): array {
+        unset($params);
+
+        return ['done' => RecordsKeysRepository::setDisabledByIds($ids, false), 'skipped' => []];
+    },
+]);
+BulkActions::register('audio_keys', 'disable', [
+    'label' => 'core.bulk.disable',
+    'group' => 'audio_dicts.bulk.group.enablers',
+    'permission' => 'audio_dicts.edit',
+    'confirm' => 'audio_dicts.bulk.confirm_disable_keys',
+    'run' => static function (array $ids, array $params): array {
+        unset($params);
+
+        return ['done' => RecordsKeysRepository::setDisabledByIds($ids, true), 'skipped' => []];
+    },
+]);
+
 // Soft: only when llm is enabled in config (profile check happens at run time).
 if (ModuleManager::isEnabled('llm')) {
     // LLM per row is slow — UI runs progressive overlay (one id JSON call).

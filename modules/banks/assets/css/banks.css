@@ -128,6 +128,19 @@ input.banks-redirect-uri {
   margin: 1rem 0;
 }
 
+.banks-sync-form--ledger {
+  margin: 0.5rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border, #ccc);
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--bg-elevated, #f6f6f6) 80%, transparent);
+}
+
+.banks-sync-form--ledger .banks-sync-form-label {
+  align-self: center;
+  margin-right: 0.25rem;
+}
+
 .banks-last-sync {
   margin: 0 0 1rem;
   padding: 0.65rem 0.85rem;

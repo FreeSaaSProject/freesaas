@@ -124,6 +124,27 @@ final class BankTxMapRepository
     }
 
     /**
+     * Bank-sourced moves still on default type («неразобрано»).
+     */
+    public static function countUnclassified(): int
+    {
+        if (!self::ready() || !Database::tableExists('base_account_moves')) {
+            return 0;
+        }
+        $defaultType = BanksConfig::defaultMoveTypeId();
+        if ($defaultType < 1) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT COUNT(*) FROM base_account_moves m
+             INNER JOIN base_bank_tx_map t ON t.ID_MOVE = m.ID
+             WHERE m.DELETED = 0 AND m.ID_TYPE = ?'
+        );
+        $st->execute([$defaultType]);
+        return (int)$st->fetchColumn();
+    }
+
+    /**
      * @param list<int> $moveIds
      * @return array<int,array{provider:string,link_id:int}>
      */

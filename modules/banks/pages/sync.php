@@ -54,4 +54,4 @@ try {
     flash_set('error', $e->getMessage());
 }
 
-redirect('/banks/connections/' . $id);
+redirect(NavContext::backOr('/banks/connections/' . $id));

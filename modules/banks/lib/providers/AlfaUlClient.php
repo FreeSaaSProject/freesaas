@@ -12,6 +12,12 @@ final class AlfaUlClient
         return BanksConfig::providerCreds(self::PROVIDER);
     }
 
+    /** @return array{mtls_cert?:string,mtls_key?:string,mtls_pass?:string,mtls_ca?:string} */
+    private static function mtls(): array
+    {
+        return BanksConfig::mtlsOpts(self::PROVIDER);
+    }
+
     /** @return array{url:string,consent_id:string,state:string} */
     public static function beginAuthorize(string $state): array
     {
@@ -45,7 +51,8 @@ final class AlfaUlClient
                 'client_secret' => $c['client_secret'],
                 'redirect_uri' => $c['redirect_uri'],
             ],
-            true
+            true,
+            self::mtls()
         );
         if (!$res['ok']) {
             throw new RuntimeException(t('banks.err.oauth_token') . ': ' . $res['error'] . ' ' . mb_substr($res['raw'], 0, 200));
@@ -67,7 +74,8 @@ final class AlfaUlClient
                 'client_id' => $c['client_id'],
                 'client_secret' => $c['client_secret'],
             ],
-            true
+            true,
+            self::mtls()
         );
         if (!$res['ok']) {
             throw new RuntimeException(t('banks.err.oauth_token') . ': refresh ' . $res['error']);
@@ -91,7 +99,10 @@ final class AlfaUlClient
             $res = BankHttp::request(
                 'GET',
                 $c['api_base'] . $path,
-                ['Authorization: Bearer ' . $accessToken, 'Accept: application/json']
+                ['Authorization: Bearer ' . $accessToken, 'Accept: application/json'],
+                null,
+                false,
+                self::mtls()
             );
             if (!$res['ok']) {
                 $lastErr = $res['error'] . ' ' . mb_substr($res['raw'], 0, 120);
@@ -131,7 +142,10 @@ final class AlfaUlClient
                 $res = BankHttp::request(
                     'GET',
                     $url,
-                    ['Authorization: Bearer ' . $accessToken, 'Accept: application/json']
+                    ['Authorization: Bearer ' . $accessToken, 'Accept: application/json'],
+                    null,
+                    false,
+                    self::mtls()
                 );
                 if (!$res['ok']) {
                     // Some days have no statement — skip soft 404

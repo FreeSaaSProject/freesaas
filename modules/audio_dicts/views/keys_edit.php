@@ -30,7 +30,12 @@ $relLabels = [
 <?php if ($flash !== null && ($flash['message'] ?? '') !== ''): ?>
   <p class="flash flash-<?= e((string)($flash['type'] ?? 'ok')) ?>"><?= e((string)$flash['message']) ?></p>
 <?php endif; ?>
-<?php if ($error !== ''): ?><p class="flash error"><?= e($error) ?></p><?php endif; ?>
+<?php if ($error !== ''): ?>
+  <p class="flash error" role="alert"><?= e($error) ?></p>
+  <?php if (!$isNew): ?>
+    <p class="muted small"><?= te('audio_dicts.keys.not_saved_draft_hint') ?></p>
+  <?php endif; ?>
+<?php endif; ?>
 
 <form method="post" class="form audio-key-form" id="audio-key-form"
       data-nav-no-ret

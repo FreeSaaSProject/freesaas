@@ -49,19 +49,40 @@ $dictOptions = is_array($dictOptions ?? null) ? $dictOptions : [];
   <?= ListQuery::sortTh('ID', 'id', $sort, $dir, $path, $filters) ?>
   <?= ListQuery::sortTh(t('audio_dicts.col.name'), 'name', $sort, $dir, $path, $filters) ?>
   <th><?= te('audio_dicts.col.dict') ?></th>
-  <?= ListQuery::sortTh(t('audio_dicts.col.disabled'), 'disabled', $sort, $dir, $path, $filters) ?>
+  <?= ListQuery::sortTh(t('audio_dicts.col.enabled'), 'disabled', $sort, $dir, $path, $filters) ?>
 </tr></thead>
 <tbody>
-<?php foreach ($items as $c): ?>
-<tr>
+<?php foreach ($items as $c):
+  $enabled = empty($c['disabled']);
+?>
+<tr<?= !$enabled ? ' class="is-disabled"' : '' ?>>
   <?= BulkActions::td($listId, (int)$c['id']) ?>
   <td class="muted"><?php if ($canEdit): ?><a href="<?= e($path) ?>/<?= (int)$c['id'] ?>/edit"><?= (int)$c['id'] ?></a><?php else: ?><?= (int)$c['id'] ?><?php endif; ?></td>
   <td><?= e((string)$c['name']) ?></td>
   <td><?= e((string)($c['dict_name'] ?: '—')) ?></td>
-  <td><?= !empty($c['disabled']) ? te('core.common.on') : te('core.common.off') ?></td>
+  <td>
+    <?php if ($canEdit): ?>
+    <label class="switch scripts-enabled-switch" title="<?= $enabled ? te('audio_dicts.keys.enabled_on') : te('audio_dicts.keys.enabled_off') ?>">
+      <input type="checkbox" form="key-toggle-<?= (int)$c['id'] ?>" name="enabled" value="1"<?= $enabled ? ' checked' : '' ?> onchange="document.getElementById('key-toggle-<?= (int)$c['id'] ?>').submit()">
+      <span class="switch-slider" aria-hidden="true"></span>
+      <span class="visually-hidden"><?= te('audio_dicts.col.enabled') ?></span>
+    </label>
+    <span class="scripts-enabled-label muted"><?= $enabled ? te('audio_dicts.keys.enabled_on') : te('audio_dicts.keys.enabled_off') ?></span>
+    <?php else: ?>
+      <span class="muted"><?= $enabled ? te('audio_dicts.keys.enabled_on') : te('audio_dicts.keys.enabled_off') ?></span>
+    <?php endif; ?>
+  </td>
 </tr>
 <?php endforeach; ?>
 <?php if (!$items): ?><tr><td colspan="<?= (int)$colSpan ?>" class="muted"><?= te('audio_dicts.empty') ?></td></tr><?php endif; ?>
 </tbody></table></div>
 <?= BulkActions::endForm($listId) ?>
+<?php if ($canEdit): ?>
+  <?php foreach ($items as $c): ?>
+  <form id="key-toggle-<?= (int)$c['id'] ?>" method="post" action="<?= e($actionUrl) ?>" class="visually-hidden" aria-hidden="true">
+    <input type="hidden" name="action" value="toggle_disabled">
+    <input type="hidden" name="id" value="<?= (int)$c['id'] ?>">
+  </form>
+  <?php endforeach; ?>
+<?php endif; ?>
 <?= $pager ?>

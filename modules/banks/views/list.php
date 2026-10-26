@@ -4,6 +4,8 @@ declare(strict_types=1);
 /** @var list<array{id:string,label:string,configured:bool,connection_id:int}> $providers */
 /** @var bool $canConnect */
 /** @var bool $canSettings */
+/** @var bool $autoSyncOn */
+/** @var array{job_id:string,enabled:int,last_status:string,last_message:string,last_finished_at:int,every:?int}|null $cronStatus */
 $flash = flash_take();
 $anyConfigured = false;
 foreach ($providers as $p) {
@@ -12,6 +14,11 @@ foreach ($providers as $p) {
         break;
     }
 }
+// Existing connections (tokens in DB) count as set up even if ini keys were cleared.
+$hasConnections = $items !== [];
+$showSetupNeeded = !$anyConfigured && !$hasConnections;
+$autoSyncOn = !empty($autoSyncOn);
+$cronStatus = is_array($cronStatus ?? null) ? $cronStatus : null;
 ?>
 <?php if ($flash): ?>
   <div class="flash flash-<?= e($flash['type'] === 'ok' ? 'ok' : 'warn') ?>"><?= e((string)$flash['message']) ?></div>
@@ -21,6 +28,25 @@ foreach ($providers as $p) {
   <div class="page-head-row">
     <div>
       <h1><?= te('banks.list.title') ?></h1>
+      <p class="muted banks-cron-status">
+        <?= te('banks.list.cron_status') ?>:
+        <?php if (!$autoSyncOn): ?>
+          <?= te('banks.list.cron_off') ?>
+        <?php elseif ($cronStatus === null || (int)($cronStatus['last_finished_at'] ?? 0) < 1): ?>
+          <?= te('banks.list.cron_never') ?>
+          <?php if ($cronStatus !== null && (int)($cronStatus['every'] ?? 0) > 0): ?>
+            · <?= e(t('banks.list.cron_every', ['n' => (int)$cronStatus['every']])) ?>
+          <?php endif; ?>
+        <?php else: ?>
+          <?= e(t('banks.list.cron_last', [
+              'when' => date('d.m.Y H:i', (int)$cronStatus['last_finished_at']),
+              'status' => (string)($cronStatus['last_status'] !== '' ? $cronStatus['last_status'] : '—'),
+          ])) ?>
+          <?php if ((string)($cronStatus['last_message'] ?? '') !== ''): ?>
+            · <?= e((string)$cronStatus['last_message']) ?>
+          <?php endif; ?>
+        <?php endif; ?>
+      </p>
     </div>
     <div class="page-actions">
       <?php if (!empty($canSettings)): ?>
@@ -30,7 +56,7 @@ foreach ($providers as $p) {
   </div>
 </section>
 
-<?php if (!$anyConfigured): ?>
+<?php if ($showSetupNeeded): ?>
   <div class="flash flash-warn">
     <?= te('banks.list.setup_needed') ?>
     <?php if (!empty($canSettings)): ?>

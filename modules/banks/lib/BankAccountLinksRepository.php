@@ -104,6 +104,32 @@ final class BankAccountLinksRepository
     }
 
     /**
+     * Sync-enabled links for a ledger account on active connections.
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function forLedgerAccount(int $accountId): array
+    {
+        if ($accountId < 1 || !self::ready() || !Database::tableExists('base_bank_connections')) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT l.ID AS id, l.ID_CONNECTION AS connection_id,
+                    l.EXTERNAL_ACCOUNT_ID AS external_account_id,
+                    l.ACCOUNT_NUMBER AS account_number, l.CURRENCY AS currency,
+                    l.REMOTE_NAME AS remote_name, l.ID_ACCOUNT AS account_id,
+                    l.SYNC_ENABLED AS sync_enabled, l.LAST_SYNC_AT AS last_sync_at,
+                    l.CURSOR_VAL AS cursor_val, c.PROVIDER AS provider
+             FROM base_bank_account_links l
+             INNER JOIN base_bank_connections c ON c.ID = l.ID_CONNECTION
+             WHERE l.ID_ACCOUNT = ? AND l.SYNC_ENABLED = 1 AND c.STATUS = ?
+             ORDER BY l.ID ASC'
+        );
+        $st->execute([$accountId, 'active']);
+        return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /**
      * Upsert remote account row; keep existing ledger link.
      * @param array{external_account_id:string,account_number?:string,currency?:string,remote_name?:string,meta?:mixed} $remote
      */
