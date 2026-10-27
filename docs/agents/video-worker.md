@@ -78,9 +78,25 @@ CSRF must exempt `/video/worker/` (platform `Csrf` + route `csrf=>false`).
 
 Camera jobs include `classes: [{id,name,label?,color}]` — worker draws **label** (fallback name) in class color.
 
-**Train:** server ships `export_zip_rel`; worker downloads zip via `/video/worker/file`. Never pass PHP absolute paths to the Mac.
+**Train (fit):** server ships `export_zip_rel`; worker downloads zip via `/video/worker/file`. Never pass PHP absolute paths to the Mac.
 
-**Interactive train (`train_session_tick`):** uses `models.stock_weights` (default `yolo11n.pt`, Ultralytics auto-download). Detects COCO `person`, remaps boxes to `target_class_*` from payload, posts frames+labels for `video_label` ingest + coverage update.
+**Local dataset collect (preferred):** `dataset_collect.py` + Status panel Dataset block.
+
+```bash
+cd ~/video-worker
+# RTSP until Ctrl+C / Stop collect
+.venv/bin/python dataset_collect.py -c configs/local.json rtsp \
+  --slug pool_a --rtsp 'rtsp://…' --interval 2 --target-class-id 0 --classes 'staff,guest'
+# Or cut frames from a file already on the Mac
+.venv/bin/python dataset_collect.py -c configs/local.json video \
+  --slug from_clip --video ~/Movies/walk.mp4 --fps 1 --target-class-id 0
+# Zip + one POST to FreeSaaS (worker token)
+.venv/bin/python dataset_collect.py -c configs/local.json upload --slug pool_a --project-id 3
+```
+
+Layout: `datasets/<slug>/images|labels|classes.txt|coverage.json`. Endpoint: `POST /video/worker/dataset-ingest`.
+
+**Legacy `train_session_tick`:** only if server `train_session_remote_frames=1`. Stock YOLO person → remap → JPEG posts (avoid on shared hosting).
 
 ## Local status UI (Mac)
 

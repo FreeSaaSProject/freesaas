@@ -2,6 +2,7 @@
 __pycache__/
 *.pyc
 logs/
+datasets/
 models/*.pt
 !models/.gitkeep
 configs/local.json

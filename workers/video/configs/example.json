@@ -40,6 +40,12 @@
     "fps": 2,
     "camera_ids": []
   },
+  "datasets": {
+    "root": "datasets",
+    "default_fps": 1,
+    "default_interval_sec": 2,
+    "comment": "Local collect under datasets/<slug>/{images,labels}. Upload zip via status panel → POST /video/worker/dataset-ingest"
+  },
   "tailscale": {
     "comment": "Optional: when Mac is on a tailnet, FreeSaaS can still use poll; on-demand jobs work the same."
   }

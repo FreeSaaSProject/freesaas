@@ -99,8 +99,14 @@ if ($type === VideoJobsRepository::TYPE_MONITOR_TICK || $type === VideoJobsRepos
         ]);
     }
 
-    // Dataset collection mode: copy frame into video_label project if requested
-    if (!empty($result['dataset_project_id']) && $frameRel !== '' && class_exists(VideoLabelProjectsRepository::class, false)) {
+    // Legacy dataset mode → label project (default off; prefer Mac local collect + zip)
+    $datasetRemote = (int)Config::get('video', 'dataset_remote_ingest', 0) === 1;
+    if (
+        $datasetRemote
+        && !empty($result['dataset_project_id'])
+        && $frameRel !== ''
+        && class_exists(VideoLabelProjectsRepository::class, false)
+    ) {
         VideoLabelProjectsRepository::ingestMonitoringFrame(
             (int)$result['dataset_project_id'],
             VideoStorage::abs($frameRel)
@@ -117,8 +123,14 @@ if ($type === VideoJobsRepository::TYPE_TRAIN_SESSION_TICK) {
     if ($sessionId > 0) {
         VideoTrainSessionsRepository::applyTick($sessionId, $detections, $frameRel, $annotatedRel);
     }
+    $remoteTrain = (int)Config::get('video', 'train_session_remote_frames', 0) === 1;
     $projectId = (int)($result['project_id'] ?? $job['payload']['project_id'] ?? 0);
-    if ($projectId > 0 && $frameRel !== '' && class_exists(VideoLabelProjectsRepository::class, false)) {
+    if (
+        $remoteTrain
+        && $projectId > 0
+        && $frameRel !== ''
+        && class_exists(VideoLabelProjectsRepository::class, false)
+    ) {
         $labels = [];
         foreach ($detections as $d) {
             if (!is_array($d)) {

@@ -8,6 +8,12 @@
     <input type="file" name="images[]" accept="image/*" multiple required>
     <button type="submit"><?= te('video_label.workspace.upload') ?></button>
   </form>
+  <form method="post" enctype="multipart/form-data" class="form-inline">
+    <input type="hidden" name="action" value="ingest_zip">
+    <input type="file" name="zip" accept=".zip,application/zip" required>
+    <button type="submit"><?= te('video_label.workspace.ingest_zip') ?></button>
+  </form>
+  <p class="muted"><?= te('video_label.workspace.ingest_zip_help') ?></p>
   <form method="post" class="form-inline">
     <input type="hidden" name="action" value="export">
     <button type="submit"><?= te('video_label.workspace.export') ?></button>

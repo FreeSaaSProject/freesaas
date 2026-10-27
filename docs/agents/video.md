@@ -47,13 +47,21 @@ Stored in camera (or post default) `SETTINGS_JSON.schedule`:
 
 PHP: `VideoSchedule::isActive` gates cron `video.monitor_enqueue` (camera schedule, else post schedule).
 
-## Interactive train
+## Dataset collect (preferred: Mac local)
 
-Sessions in `base_video_train_sessions`: stock YOLO `person` → remap to `TARGET_CLASS_ID`, high-rate ticks (`train_session_tick`), coverage heatmap (`COVERAGE_JSON` NxN). Frames ingest into `video_label` via `ingestLabeledFrame`.
+Realtime JPEG ticks to hosting are **off** by default (`video.train_session_remote_frames=0`, `dataset_remote_ingest=0` in `cfg/modules/video.ini`).
 
-Phases: `solo_class` → `other_class` → `done`. UI `/video/train`, wizard `/video/wizard/train`.
+1. On Studio: Video Worker Status → Dataset → RTSP or video file collect → `~/video-worker/datasets/<slug>/{images,labels}`.
+2. Upload zip once (panel or `python dataset_collect.py upload --slug=… --project-id=…`) → `POST /video/worker/dataset-ingest`.
+3. Refine labels in `/video-label/{id}/workspace`, then enqueue Ultralytics train from Models as before.
 
-**Agent ↔ user during train:** poll `POST /agent/video/session` `action=status`; if `poor_cells` non-empty, ask the employee to walk uncovered zones on the post.
+## Interactive train (legacy remote frames)
+
+Sessions in `base_video_train_sessions` still exist for UI bookkeeping. Enabling `train_session_remote_frames=1` restores cron `train_session_tick` + `ingestLabeledFrame` (not recommended on shared hosting).
+
+Phases: `solo_class` → `other_class` → `done`. UI `/video/train` points staff to Mac collect + labeling.
+
+**Coverage** during local collect is on the Mac panel (`coverage.json`), not the web heatmap, unless remote frames are re-enabled.
 
 ## Agent ↔ user (playbook)
 

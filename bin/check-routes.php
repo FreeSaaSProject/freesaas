@@ -198,6 +198,7 @@ $allowed = [
     '/video/worker/result' => ['methods' => ['GET', 'POST'], 'why' => 'video worker result'],
     '/video/worker/file' => ['methods' => ['GET', 'POST'], 'why' => 'video worker media download'],
     '/video/worker/frame' => ['methods' => ['GET', 'POST'], 'why' => 'video worker live frame push'],
+    '/video/worker/dataset-ingest' => ['methods' => ['GET', 'POST'], 'why' => 'video worker dataset zip ingest'],
 
     // Integration workers / OAuth callbacks
     '/banks/jobs/sync' => ['methods' => ['POST', 'GET'], 'why' => 'banks sync worker'],

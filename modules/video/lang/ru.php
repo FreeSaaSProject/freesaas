@@ -64,6 +64,7 @@ return [
     'video.cameras.advanced' => 'Обрезка / поворот / проект датасета',
     'video.col.rtsp' => 'RTSP URL',
     'video.train.title' => 'Интерактивное обучение',
+    'video.train.local_collect_notice' => 'Сбор датасета — на Mac Studio (локальная папка + upload zip). Realtime JPEG на хостинг выключен (video.train_session_remote_frames=0). Панель Video Worker Status на Mac или «Загрузить YOLO zip» в workspace разметки.',
     'video.train.start' => 'Начать сессию',
     'video.train.recent' => 'Недавние сессии',
     'video.train.session' => 'Сессия #:id',

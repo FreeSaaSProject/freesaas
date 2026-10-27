@@ -2,7 +2,7 @@
     "id": "video_label",
     "name": "video_label.module.name",
     "description": "video_label.module.description",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -130,6 +130,14 @@
                 "permission": "video_label.edit",
                 "side_effect": "write",
                 "description": "Save boxes; action=save_labels image_id= labels_json= (YOLO-normalized JSON array)"
+            },
+            {
+                "id": "video_label.workspace.ingest_zip",
+                "method": "POST",
+                "path": "/video-label/{id}/workspace",
+                "permission": "video_label.edit",
+                "side_effect": "write",
+                "description": "Batch ingest YOLO zip (images/+labels/); multipart action=ingest_zip zip=file. Mac worker twin: POST /video/worker/dataset-ingest"
             }
         ]
     },

@@ -64,6 +64,7 @@ return [
     'video.cameras.advanced' => 'Crop / rotate / dataset project',
     'video.col.rtsp' => 'RTSP URL',
     'video.train.title' => 'Interactive training',
+    'video.train.local_collect_notice' => 'Dataset collection runs on Mac Studio (local folder + zip upload). Remote JPEG ticks are off by default (video.train_session_remote_frames=0). Open Video Worker Status on the Mac, or upload a YOLO zip in Labeling workspace.',
     'video.train.start' => 'Start session',
     'video.train.recent' => 'Recent sessions',
     'video.train.session' => 'Session #:id',

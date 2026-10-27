@@ -12,6 +12,35 @@ if ($proj === null) {
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
     $action = (string)($_POST['action'] ?? '');
+    if ($action === 'ingest_zip' && !empty($_FILES['zip'])) {
+        $file = $_FILES['zip'];
+        if ((int)($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            flash_set('error', t('video_label.flash.zip_failed'));
+            redirect('/video-label/' . $projectId . '/workspace');
+        }
+        $result = VideoLabelZipIngest::fromUpload(
+            $projectId,
+            (string)$file['tmp_name'],
+            (string)($file['name'] ?? 'dataset.zip')
+        );
+        if ($wantsJson) {
+            if (!empty($result['ok'])) {
+                AgentHttp::emit($result);
+            } else {
+                AgentHttp::error((string)($result['error'] ?? 'ingest failed'), 422);
+            }
+            return;
+        }
+        if (!empty($result['ok'])) {
+            flash_set('ok', t('video_label.flash.zip_imported', [
+                'n' => (string)(int)($result['imported'] ?? 0),
+                'labeled' => (string)(int)($result['labeled'] ?? 0),
+            ]));
+        } else {
+            flash_set('error', t('video_label.flash.zip_failed') . ': ' . (string)($result['error'] ?? ''));
+        }
+        redirect('/video-label/' . $projectId . '/workspace');
+    }
     if ($action === 'upload' && !empty($_FILES['images'])) {
         $files = $_FILES['images'];
         $names = $files['name'] ?? [];

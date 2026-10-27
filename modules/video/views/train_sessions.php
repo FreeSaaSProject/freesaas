@@ -2,7 +2,9 @@
 <section>
   <div class="video-toolbar">
     <a class="btn btn-primary" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
+    <a class="btn" href="/video-label"><?= te('video_label.menu.projects') ?></a>
   </div>
+  <p class="muted"><?= te('video.train.local_collect_notice') ?></p>
 
   <h2 class="video-section-title"><?= te('video.train.start') ?></h2>
   <form method="post" class="form video-form">

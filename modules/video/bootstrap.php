@@ -80,6 +80,7 @@ $workerPages = [
     '/video/worker/result' => 'worker_result.php',
     '/video/worker/file' => 'worker_file.php',
     '/video/worker/frame' => 'worker_frame.php',
+    '/video/worker/dataset-ingest' => 'worker_dataset_ingest.php',
 ];
 
 foreach ($workerPages as $path => $file) {
@@ -143,12 +144,20 @@ Cron::register('video.monitor_enqueue', [
     },
 ]);
 
-// Enqueue interactive train ticks frequently while sessions run
+// Legacy remote train ticks (JPEG→hosting). Default OFF — collect datasets locally on Mac.
 Cron::register('video.train_session_enqueue', [
     'module' => 'video',
     'label' => 'video.cron.train_session',
     'every' => 1,
     'handler' => static function (): array {
+        $remote = (int)Config::get('video', 'train_session_remote_frames', 0) === 1;
+        if (!$remote) {
+            return [
+                'ok' => true,
+                'enqueued' => 0,
+                'message' => 'remote train frames disabled — use Mac local dataset collect',
+            ];
+        }
         if (VideoWorkersRepository::onlineCount(180) < 1) {
             return ['ok' => true, 'enqueued' => 0, 'message' => 'no online worker'];
         }

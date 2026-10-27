@@ -8,6 +8,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/lib/VideoLabelProjectsRepository.php';
 require_once __DIR__ . '/lib/VideoLabelImagesRepository.php';
+require_once __DIR__ . '/lib/VideoLabelZipIngest.php';
 
 Assets::register('video_label', [
     'css' => ['assets/css/video_label.css'],

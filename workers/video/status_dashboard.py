@@ -22,12 +22,77 @@ HOST = os.environ.get("VIDEO_STATUS_HOST", "127.0.0.1")
 UP_SH = ROOT / "scripts" / "camera_vpn_up.sh"
 DOWN_SH = ROOT / "scripts" / "camera_vpn_down.sh"
 WORKER_PY = ROOT / "video_worker.py"
+COLLECT_PY = ROOT / "dataset_collect.py"
 VENV_PY = ROOT / ".venv" / "bin" / "python"
 LOG_DIR = ROOT / "logs"
+COLLECT_STATE = LOG_DIR / "dataset_collect.json"
+COLLECT_LOG = LOG_DIR / "dataset_collect.log"
 
 # Throttle optional agent HTTP (page auto-refresh must not hammer FreeSaaS)
 _AGENT_CACHE: Dict[str, Any] = {"at": 0.0, "data": None, "err": ""}
 _AGENT_TTL_SEC = 120.0
+
+
+def python_bin() -> str:
+    return str(VENV_PY if VENV_PY.is_file() else (os.environ.get("PYTHON") or "python3"))
+
+
+def collect_state() -> Dict[str, Any]:
+    return load_json(COLLECT_STATE)
+
+
+def list_local_datasets(cfg: Dict[str, Any]) -> List[Dict[str, Any]]:
+    try:
+        import dataset_collect as dc  # type: ignore
+
+        return dc.list_datasets(cfg)
+    except Exception as e:  # noqa: BLE001
+        return [{"error": str(e)}]
+
+
+def spawn_collect(argv: List[str]) -> str:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    st = collect_state()
+    if st.get("running") and st.get("pid"):
+        try:
+            os.kill(int(st["pid"]), 0)
+            return f"collector already running pid={st['pid']}"
+        except (OSError, ValueError):
+            pass
+    logf = open(COLLECT_LOG, "a", encoding="utf-8")  # noqa: SIM115
+    cmd = [python_bin(), "-u", str(COLLECT_PY), "-c", str(DEFAULT_CONFIG)] + argv
+    proc = subprocess.Popen(
+        cmd,
+        cwd=str(ROOT),
+        stdout=logf,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    )
+    time.sleep(0.4)
+    return f"collector started pid={proc.pid} ({' '.join(argv[:3])}…)"
+
+
+def stop_collect() -> str:
+    st = collect_state()
+    pid = int(st.get("pid") or 0)
+    killed = []
+    if pid > 0:
+        try:
+            os.kill(pid, signal.SIGTERM)
+            killed.append(str(pid))
+        except OSError:
+            pass
+    # also pgrep by script
+    code, out = run_cmd(["pgrep", "-f", str(COLLECT_PY)])
+    for p in (out.split() if code == 0 else []):
+        if p.isdigit():
+            try:
+                os.kill(int(p), signal.SIGTERM)
+                killed.append(p)
+            except OSError:
+                pass
+    time.sleep(0.4)
+    return f"collector stop signal → {','.join(killed) or 'none'}"
 
 
 def load_json(path: Path) -> Dict[str, Any]:
@@ -241,6 +306,7 @@ def collect_snapshot() -> Dict[str, Any]:
                 _AGENT_CACHE.update({"at": now, "data": None, "err": agent_err})
 
     loop = cfg.get("loop") if isinstance(cfg.get("loop"), dict) else {}
+    ds_cfg = cfg.get("datasets") if isinstance(cfg.get("datasets"), dict) else {}
     pids = worker_pids()
     return {
         "now": int(time.time()),
@@ -265,6 +331,12 @@ def collect_snapshot() -> Dict[str, Any]:
             "sleep_seconds_run": loop.get("sleep_seconds_run"),
             "hello_every_sec": loop.get("hello_every_sec"),
         },
+        "datasets_cfg": {
+            "default_fps": ds_cfg.get("default_fps", 1),
+            "default_interval_sec": ds_cfg.get("default_interval_sec", 2),
+        },
+        "collect": collect_state(),
+        "datasets": list_local_datasets(cfg),
         "status": status,
         "agent": agent,
         "agent_error": agent_err,
@@ -373,6 +445,10 @@ def save_loop(form: Dict[str, List[str]]) -> str:
         return f"save failed: {e}"
 
 
+def _form_str(form: Dict[str, List[str]], key: str, default: str = "") -> str:
+    return (form.get(key) or [default])[0].strip() or default
+
+
 def do_action(action: str, form: Optional[Dict[str, List[str]]] = None) -> str:
     action = (action or "").strip()
     form = form or {}
@@ -390,6 +466,77 @@ def do_action(action: str, form: Optional[Dict[str, List[str]]] = None) -> str:
         return f"{a}; {b}"
     if action == "save_loop":
         return save_loop(form)
+    if action == "dataset_stop":
+        return stop_collect()
+    if action == "dataset_start_rtsp":
+        slug = _form_str(form, "slug", "collect")
+        rtsp = _form_str(form, "rtsp")
+        if not rtsp:
+            return "rtsp URL required"
+        interval = _form_str(form, "interval", "2")
+        max_frames = _form_str(form, "max_frames", "0")
+        target = _form_str(form, "target_class_id", "0")
+        classes = _form_str(form, "classes", "")
+        argv = [
+            "rtsp",
+            "--slug",
+            slug,
+            "--rtsp",
+            rtsp,
+            "--interval",
+            interval,
+            "--max-frames",
+            max_frames,
+            "--target-class-id",
+            target,
+        ]
+        if classes:
+            argv += ["--classes", classes]
+        return spawn_collect(argv)
+    if action == "dataset_start_video":
+        slug = _form_str(form, "slug", "from_video")
+        video = _form_str(form, "video")
+        if not video:
+            return "video path required"
+        fps = _form_str(form, "fps", "1")
+        target = _form_str(form, "target_class_id", "0")
+        classes = _form_str(form, "classes", "")
+        argv = [
+            "video",
+            "--slug",
+            slug,
+            "--video",
+            video,
+            "--fps",
+            fps,
+            "--target-class-id",
+            target,
+        ]
+        if classes:
+            argv += ["--classes", classes]
+        return spawn_collect(argv)
+    if action == "dataset_upload":
+        slug = _form_str(form, "slug")
+        project_id = _form_str(form, "project_id", "0")
+        if not slug:
+            return "slug required"
+        try:
+            pid = int(project_id)
+        except ValueError:
+            return "project_id must be int"
+        cfg = load_json(DEFAULT_CONFIG)
+        try:
+            import dataset_collect as dc  # type: ignore
+
+            r = dc.upload_zip(cfg, slug=slug, project_id=pid)
+            if r.get("ok"):
+                return (
+                    f"uploaded {r.get('imported', '?')} images "
+                    f"({r.get('labeled', 0)} labeled) → project {pid}"
+                )
+            return f"upload failed: {r.get('error') or r}"
+        except Exception as e:  # noqa: BLE001
+            return f"upload failed: {e}"
     return f"unknown action: {action}"
 
 
@@ -544,6 +691,83 @@ def render_live(snap: Dict[str, Any]) -> str:
     busy_v = loop.get("sleep_seconds_run") or 5
     hello_v = loop.get("hello_every_sec") or 180
 
+    col = snap.get("collect") or {}
+    col_run = bool(col.get("running"))
+    col_sum = col.get("summary") if isinstance(col.get("summary"), dict) else {}
+    ds_cfg = snap.get("datasets_cfg") or {}
+    ds_rows = ""
+    for d in snap.get("datasets") or []:
+        if not isinstance(d, dict) or d.get("error"):
+            continue
+        s = d.get("summary") if isinstance(d.get("summary"), dict) else {}
+        ds_rows += (
+            "<tr>"
+            f"<td><code>{d.get('slug')}</code></td>"
+            f"<td>{d.get('images', 0)}</td>"
+            f"<td>{s.get('coverage_pct', 0)}% ({s.get('cells_filled', 0)}/{s.get('cells_total', 0)})</td>"
+            "<td>"
+            f'<form method="post" action="/action" data-action="dataset_upload" class="inline">'
+            f'<input type="hidden" name="slug" value="{d.get("slug")}">'
+            '<input name="project_id" type="number" min="1" placeholder="project id" required style="width:5rem">'
+            '<button type="submit" class="okbtn">Upload zip</button></form>'
+            "</td></tr>"
+        )
+    if not ds_rows:
+        ds_rows = '<tr><td colspan="4" class="muted">no local datasets yet</td></tr>'
+
+    default_rtsp = ""
+    cams = snap.get("cameras") or []
+    if cams and isinstance(cams[0], dict) and cams[0].get("host"):
+        # RTSP must be filled by user (secrets not in status); host hint only
+        default_rtsp = ""
+    cam_hint = cams[0].get("host") if cams and isinstance(cams[0], dict) else (snap.get("camera_host") or "")
+
+    collect_btns = ""
+    if col_run:
+        collect_btns = (
+            '<form method="post" action="/action" data-action="dataset_stop">'
+            '<button type="submit" class="danger">Stop collect</button></form>'
+        )
+    else:
+        collect_btns = '<span class="muted">start via forms below</span>'
+
+    dataset_html = f"""
+  <div class="card" style="margin-top:0.55rem">
+    <div class="row"><span class="lbl">Dataset</span> {mark(True) if col_run else '<span class="muted">—</span>'}
+      {"collecting" if col_run else "idle"}
+      · slug <code>{col.get('slug') or '—'}</code>
+      · frames {col_sum.get('frames', col.get('frames', 0))}
+      · cov {col_sum.get('coverage_pct', '—')}%
+      · {collect_btns}
+    </div>
+    <p class="muted tight">Local YOLO folders under datasets/ — no realtime JPEG to FreeSaaS. Upload zip once for labeling.</p>
+    <details id="dataset-panel">
+      <summary>Collect controls</summary>
+      <form method="post" action="/action" data-action="dataset_start_rtsp" class="cfg-form">
+        <label>slug <input name="slug" value="rtsp_collect" required></label>
+        <label>rtsp <input name="rtsp" placeholder="rtsp://…@{cam_hint or 'host'}/…" style="width:16rem" required></label>
+        <label>interval <input name="interval" type="number" step="0.1" min="0.5" value="{ds_cfg.get('default_interval_sec', 2)}"></label>
+        <label>max <input name="max_frames" type="number" min="0" value="0" title="0=until stop"></label>
+        <label>class id <input name="target_class_id" type="number" min="0" value="0"></label>
+        <label>classes <input name="classes" placeholder="staff,guest" style="width:8rem"></label>
+        <button type="submit" class="okbtn" {"disabled" if col_run else ""}>Start RTSP</button>
+      </form>
+      <form method="post" action="/action" data-action="dataset_start_video" class="cfg-form">
+        <label>slug <input name="slug" value="from_video" required></label>
+        <label>video <input name="video" placeholder="/Users/…/clip.mp4" style="width:16rem" required></label>
+        <label>fps <input name="fps" type="number" step="0.1" min="0.1" value="{ds_cfg.get('default_fps', 1)}"></label>
+        <label>class id <input name="target_class_id" type="number" min="0" value="0"></label>
+        <label>classes <input name="classes" placeholder="staff,guest" style="width:8rem"></label>
+        <button type="submit" class="okbtn" {"disabled" if col_run else ""}>Start video</button>
+      </form>
+    </details>
+    <table>
+      <thead><tr><th>slug</th><th>images</th><th>coverage</th><th>upload</th></tr></thead>
+      <tbody>{ds_rows}</tbody>
+    </table>
+  </div>
+"""
+
     return f"""
   <p class="sub" id="clock">localhost:{PORT} · {clock}</p>
   {ft_warn}
@@ -580,6 +804,8 @@ def render_live(snap: Dict[str, Any]) -> str:
       <tbody>{cam_rows}</tbody>
     </table>
   </div>
+
+  {dataset_html}
 """
 
 
@@ -619,6 +845,7 @@ def render_html(snap: Dict[str, Any], flash: str = "") -> str:
     .cfg-form {{ display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.45rem; }}
     .cfg-form label {{ font-size: 0.85rem; color: #444; }}
     .cfg-form input {{ width: 4.5rem; padding: 0.2rem 0.35rem; }}
+    form.inline {{ display: inline-flex; gap: 0.25rem; align-items: center; }}
     table {{ width: 100%; border-collapse: collapse; font-size: 0.85rem; }}
     td, th {{ text-align: left; padding: 0.2rem 0.3rem; border-bottom: 1px solid #eee; white-space: nowrap; }}
     code {{ font-size: 0.82rem; }}
@@ -644,13 +871,14 @@ def render_html(snap: Dict[str, Any], flash: str = "") -> str:
     flash.textContent = msg;
   }}
 
-  function cfgOpen() {{
-    var d = document.getElementById('cfg-panel');
-    return d && d.open;
+  function panelOpen() {{
+    var a = document.getElementById('cfg-panel');
+    var b = document.getElementById('dataset-panel');
+    return (a && a.open) || (b && b.open);
   }}
 
   function refreshLive() {{
-    if (busy || document.hidden || cfgOpen()) return;
+    if (busy || document.hidden || panelOpen()) return;
     fetch('/live', {{ cache: 'no-store', headers: {{ 'Accept': 'text/html' }} }})
       .then(function (r) {{ if (!r.ok) throw new Error('live ' + r.status); return r.text(); }})
       .then(function (html) {{ live.innerHTML = html; }})
