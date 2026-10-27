@@ -1213,6 +1213,70 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Bulk set move type (single-side moves only; transfers skipped).
+     *
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function setTypeByIds(array $ids, int $typeId): array
+    {
+        $done = 0;
+        $skipped = [];
+        $ids = self::sanitizeIds($ids);
+        if ($ids === []) {
+            return ['done' => 0, 'skipped' => []];
+        }
+        if ($typeId < 1) {
+            foreach ($ids as $id) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.bulk.err.type_required')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        $type = AccountMoveTypesRepository::find($typeId);
+        if (!$type || (int)($type['enabled'] ?? 0) < 1) {
+            foreach ($ids as $id) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.type')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        if (!empty($type['linked_enabled'])) {
+            foreach ($ids as $id) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.bulk.err.type_transfer')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        $uid = Auth::userId() ?: 0;
+        $now = time();
+        $st = Database::pdo()->prepare(
+            'UPDATE base_account_moves
+             SET ID_TYPE = ?, ID_USER_UPDATE = ?, DT_UPDATE = ?
+             WHERE ID = ? AND DELETED = 0 AND ID_MOVEMENT_LINKED = 0'
+        );
+        foreach ($ids as $id) {
+            $row = self::find($id);
+            if (!$row || (int)($row['deleted'] ?? 0) > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.not_found', ['id' => $id])];
+                continue;
+            }
+            if (self::isTransferMove($row)) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.use_transfer_form')];
+                continue;
+            }
+            if ((int)($row['type_id'] ?? 0) === $typeId) {
+                $done++;
+                continue;
+            }
+            $st->execute([$typeId, $uid, $now, $id]);
+            if ($st->rowCount() > 0) {
+                $done++;
+            } else {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.use_transfer_form')];
+            }
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
+    /**
      * Soft-delete; cascades to linked twin.
      * @param list<int> $ids
      * @return array{done:int,skipped:list<array{id:int,reason:string}>}

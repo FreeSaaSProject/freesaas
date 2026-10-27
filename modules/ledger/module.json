@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -295,6 +295,10 @@
         {
             "list_id": "ledger_types",
             "action": "delete"
+        },
+        {
+            "list_id": "ledger_moves",
+            "action": "set_type"
         },
         {
             "list_id": "ledger_moves",

@@ -64,6 +64,24 @@ BulkActions::register('ledger_types', 'delete', [
     },
 ]);
 
+BulkActions::register('ledger_moves', 'set_type', [
+    'label' => 'ledger.moves.bulk.set_type',
+    'permission' => 'ledger.edit',
+    'fields' => [
+        [
+            'name' => 'type_id',
+            'type' => 'select',
+            'label' => 'ledger.moves.bulk.type',
+            'options' => static function (): array {
+                return AccountMoveTypesRepository::leafNames();
+            },
+        ],
+    ],
+    'run' => static function (array $ids, array $params): array {
+        return LedgerMovesRepository::setTypeByIds($ids, (int)($params['type_id'] ?? 0));
+    },
+]);
+
 BulkActions::register('ledger_moves', 'confirm', [
     'label' => 'ledger.moves.bulk.confirm',
     'permission' => 'ledger.edit',
