@@ -6,6 +6,7 @@ declare(strict_types=1);
 /** @var array<int,array<string,mixed>> $typeMeta */
 /** @var array{defaults:array,buttons:array} $prevSuggestions */
 /** @var array<string,bool> $prevApplied */
+/** @var list<array{id:int,name:string,cnt:int,total:int}> $supplierSuggestions */
 /** @var array<int,string> $accounts */
 /** @var array<int,string> $staff */
 /** @var array<int,string> $suppliers */
@@ -35,9 +36,11 @@ if ($typeMetaJson === false) {
     $typeMetaJson = '{}';
 }
 $prevButtons = is_array($prevSuggestions['buttons'] ?? null) ? $prevSuggestions['buttons'] : [];
+$supplierSuggestions = is_array($supplierSuggestions ?? null) ? $supplierSuggestions : [];
 $dirRaw = $row['direction'] ?? '';
 $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
 $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
+$supplierRequired = $hasType && !empty($type['supplier_enabled']);
 ?>
 <section class="page-head"><h1><?= $isNew ? te('ledger.moves.edit_new') : e('#' . (int)($row['id'] ?? 0)) ?><?= $moveBadgeHtml ?? '' ?></h1></section>
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e_nl($message) ?></div><?php endif; ?>
@@ -87,16 +90,25 @@ $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
       <?php endforeach; ?>
     </select>
   </label>
-  <label data-ledger-field="supplier"<?= ($hasType && !empty($type['supplier_enabled'])) ? '' : ' hidden' ?>><?= te('ledger.moves.field.supplier') ?><?php if (!empty($prevApplied['supplier_id'])): ?> <span class="muted"><?= te('ledger.moves.prev_mark') ?></span><?php endif; ?>
-    <select name="supplier_id" id="ledger-move-supplier">
-      <option value="0">—</option>
+  <label data-ledger-field="supplier"<?= $supplierRequired ? '' : ' hidden' ?>><?= te('ledger.moves.field.supplier') ?><?php if (!empty($prevApplied['supplier_id'])): ?> <span class="muted"><?= te('ledger.moves.prev_mark') ?></span><?php endif; ?>
+    <select name="supplier_id" id="ledger-move-supplier"<?= $supplierRequired ? ' required' : '' ?> data-ledger-supplier-select>
+      <option value=""><?= te('ledger.moves.supplier_pick') ?></option>
       <?php foreach ($suppliers as $sid => $sname): ?>
         <option value="<?= (int)$sid ?>"<?= (int)($row['supplier_id'] ?? 0) === (int)$sid ? ' selected' : '' ?>><?= e($sname) ?></option>
       <?php endforeach; ?>
     </select>
-    <?php if ($isNew && !empty($prevButtons['supplier_id'])): ?>
+    <?php if ($supplierSuggestions !== []): ?>
+      <span class="ledger-prev-btns ledger-supplier-fingerprint" title="<?= te('ledger.moves.supplier_suggest_hint') ?>">
+        <?php foreach ($supplierSuggestions as $sug): ?>
+          <button type="button" class="btn-secondary" data-ledger-prev-fill="supplier_id" data-val="<?= (int)$sug['id'] ?>">
+            → <?= e((string)$sug['name']) ?><?php if ((int)$sug['total'] > 1): ?> (<?= (int)$sug['cnt'] ?>/<?= (int)$sug['total'] ?>)<?php endif; ?>
+          </button>
+        <?php endforeach; ?>
+      </span>
+    <?php elseif ($isNew && !empty($prevButtons['supplier_id'])): ?>
       <span class="ledger-prev-btns">
         <?php foreach ($prevButtons['supplier_id'] as $btn): ?>
+          <?php if ((int)$btn['val'] < 1) { continue; } ?>
           <button type="button" class="btn-secondary" data-ledger-prev-fill="supplier_id" data-val="<?= e((string)$btn['val']) ?>">
             → <?= e((string)$btn['label']) ?><?php if ((int)$btn['total'] > 1): ?> (<?= (int)$btn['cnt'] ?>/<?= (int)$btn['total'] ?>)<?php endif; ?>
           </button>

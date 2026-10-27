@@ -41,11 +41,13 @@ declare(strict_types=1);
 /** @var array|null $bulkFlash */
 /** @var string $reconError */
 /** @var array<int,string> $moveBadges */
+/** @var array<int,list<array{id:int,name:string,cnt:int,total:int}>> $supplierSuggestByMove */
 /** @var string $listToolbarHtml */
 /** @var array{type:string,message:string}|null $pageFlash */
 $path = '/ledger/moves';
 $listId = 'ledger_moves';
 $moveBadges = is_array($moveBadges ?? null) ? $moveBadges : [];
+$supplierSuggestByMove = is_array($supplierSuggestByMove ?? null) ? $supplierSuggestByMove : [];
 $listToolbarHtml = (string)($listToolbarHtml ?? '');
 $pageFlash = is_array($pageFlash ?? null) ? $pageFlash : null;
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, !empty($showAll));
@@ -53,6 +55,7 @@ $colSpan = 6 + ($showBalanceCol ? 1 : 0) + BulkActions::colSpanExtra($listId);
 $sysBalance = $balance !== null ? round((float)$balance, 2) : null;
 $todayYmd = date('Y-m-d');
 $reconForms = [];
+$supplierForms = [];
 $typeActIn = is_array($typeActIn ?? null) ? $typeActIn : [];
 $typeSupplier = is_array($typeSupplier ?? null) ? $typeSupplier : [];
 $suppliersAll = is_array($suppliersAll ?? null) ? $suppliersAll : (is_array($suppliers ?? null) ? $suppliers : []);
@@ -255,8 +258,36 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
         <a class="ledger-supplier-badge" href="/suppliers/<?= $sid ?>/edit" title="<?= e($sName) ?>"><?= e($sName) ?></a>
       </div>
     <?php elseif ($needsSupplier): ?>
+      <?php $sugList = is_array($supplierSuggestByMove[$mid] ?? null) ? $supplierSuggestByMove[$mid] : []; ?>
       <div class="ledger-supplier-line">
         <span class="ledger-supplier-badge is-missing" title="<?= te('ledger.moves.supplier_missing_hint') ?>"><?= te('ledger.moves.supplier_missing') ?></span>
+        <?php if ($sugList !== []): ?>
+          <span class="ledger-supplier-suggests" title="<?= te('ledger.moves.supplier_suggest_hint') ?>">
+            <?php foreach ($sugList as $sug): ?>
+              <?php
+                $sugId = (int)($sug['id'] ?? 0);
+                if ($sugId < 1) {
+                    continue;
+                }
+                $fidSug = 'ledger-set-sup-' . $mid . '-' . $sugId;
+                if ($canEdit) {
+                    $supplierForms[$fidSug] = ['move_id' => $mid, 'supplier_id' => $sugId];
+                }
+                $cntLabel = ((int)($sug['total'] ?? 0) > 1)
+                    ? ' (' . (int)$sug['cnt'] . '/' . (int)$sug['total'] . ')'
+                    : '';
+              ?>
+              <?php if ($canEdit): ?>
+                <button form="<?= e($fidSug) ?>" type="submit" class="ledger-supplier-suggest"
+                        title="<?= te('ledger.moves.supplier_suggest_apply', ['name' => (string)$sug['name']]) ?>">
+                  → <?= e((string)$sug['name']) ?><?= e($cntLabel) ?>
+                </button>
+              <?php else: ?>
+                <span class="ledger-supplier-suggest is-readonly">→ <?= e((string)$sug['name']) ?><?= e($cntLabel) ?></span>
+              <?php endif; ?>
+            <?php endforeach; ?>
+          </span>
+        <?php endif; ?>
       </div>
     <?php endif; ?>
     <?php if ($userPayId > 0): ?>
@@ -460,6 +491,13 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
   <?php if ((int)$rf['recon_id'] > 0): ?>
   <input type="hidden" name="recon_id" value="<?= (int)$rf['recon_id'] ?>">
   <?php endif; ?>
+</form>
+<?php endforeach; ?>
+
+<?php foreach ($supplierForms as $fid => $sf): ?>
+<form id="<?= e($fid) ?>" method="post" action="<?= e(ListQuery::url($path, $filters, [])) ?>" hidden>
+  <input type="hidden" name="set_supplier_move_id" value="<?= (int)$sf['move_id'] ?>">
+  <input type="hidden" name="set_supplier_id" value="<?= (int)$sf['supplier_id'] ?>">
 </form>
 <?php endforeach; ?>
 

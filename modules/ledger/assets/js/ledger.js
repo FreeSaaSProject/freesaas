@@ -50,7 +50,8 @@
     setHidden(form.querySelector('[data-ledger-field="account"]'), !hasType);
     setHidden(form.querySelector('[data-ledger-field="payment"]'), !(hasType && Number(meta.payment_enabled) > 0));
     setHidden(form.querySelector('[data-ledger-field="user_payment"]'), !(hasType && Number(meta.user_payment_enabled) > 0));
-    setHidden(form.querySelector('[data-ledger-field="supplier"]'), !(hasType && Number(meta.supplier_enabled) > 0));
+    var supplierOn = hasType && Number(meta.supplier_enabled) > 0;
+    setHidden(form.querySelector('[data-ledger-field="supplier"]'), !supplierOn);
     setHidden(form.querySelector('[data-ledger-field="act"]'), !(hasType && Number(meta.act_in_enabled) > 0));
     setHidden(form.querySelector('[data-ledger-field="act_not_req"]'), !(hasType && Number(meta.act_in_enabled) > 0));
     setHidden(form.querySelector('[data-ledger-field="fund"]'), !(hasType && Number(meta.fund_enabled) > 0));
@@ -73,6 +74,14 @@
         if ((!accountSel.value || accountSel.value === '0') && defAcc !== '0') {
           accountSel.value = defAcc;
         }
+      }
+    }
+
+    var supplierSel = form.querySelector('#ledger-move-supplier, [data-ledger-supplier-select]');
+    if (supplierSel) {
+      supplierSel.required = supplierOn;
+      if (!supplierOn) {
+        supplierSel.value = '';
       }
     }
   }

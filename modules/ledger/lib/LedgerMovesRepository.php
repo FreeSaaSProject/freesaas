@@ -90,6 +90,123 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Past moves with same type + account + amount → top suppliers by frequency.
+     *
+     * @return list<array{id:int,name:string,cnt:int,total:int}>
+     */
+    public static function suggestSuppliers(
+        int $typeId,
+        int $accountId,
+        float $summ,
+        int $excludeId = 0,
+        int $limit = 3
+    ): array {
+        if ($typeId < 1 || $accountId < 1 || $summ <= 0.0 || !Database::tableExists('base_account_moves')) {
+            return [];
+        }
+        $summ = round($summ, 2);
+        $limit = max(1, min(10, $limit));
+        $st = Database::pdo()->prepare(
+            'SELECT ID_SUPPLIER AS supplier_id, COUNT(*) AS cnt
+             FROM base_account_moves
+             WHERE ID_TYPE = ? AND ID_ACCOUNT = ? AND DELETED = 0
+               AND ID_SUPPLIER > 0
+               AND ROUND(SUMM, 2) = ?
+               AND ID <> ?
+             GROUP BY ID_SUPPLIER
+             ORDER BY cnt DESC, MAX(DT) DESC, MAX(ID) DESC
+             LIMIT ' . $limit
+        );
+        $st->execute([$typeId, $accountId, $summ, max(0, $excludeId)]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($rows === []) {
+            return [];
+        }
+        $stTot = Database::pdo()->prepare(
+            'SELECT COUNT(*) FROM base_account_moves
+             WHERE ID_TYPE = ? AND ID_ACCOUNT = ? AND DELETED = 0
+               AND ID_SUPPLIER > 0
+               AND ROUND(SUMM, 2) = ?
+               AND ID <> ?'
+        );
+        $stTot->execute([$typeId, $accountId, $summ, max(0, $excludeId)]);
+        $total = (int)$stTot->fetchColumn();
+        $names = class_exists('SuppliersRepository') ? SuppliersRepository::names(false) : [];
+        $out = [];
+        foreach ($rows as $r) {
+            $sid = (int)$r['supplier_id'];
+            if ($sid < 1) {
+                continue;
+            }
+            $out[] = [
+                'id' => $sid,
+                'name' => $names[$sid] ?? (t('ledger.moves.field.supplier') . ' #' . $sid),
+                'cnt' => (int)$r['cnt'],
+                'total' => $total,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Batch fingerprint suggestions for list rows (keyed by move id).
+     *
+     * @param list<array{id:int,type_id:int,account_id:int,summ?:float|int|string}> $items
+     * @return array<int, list<array{id:int,name:string,cnt:int,total:int}>>
+     */
+    public static function suggestSuppliersForMoves(array $items, int $limit = 3): array
+    {
+        $cache = [];
+        $out = [];
+        foreach ($items as $it) {
+            $mid = (int)($it['id'] ?? 0);
+            if ($mid < 1) {
+                continue;
+            }
+            $typeId = (int)($it['type_id'] ?? 0);
+            $accountId = (int)($it['account_id'] ?? 0);
+            $summ = round((float)($it['summ'] ?? 0), 2);
+            $key = $typeId . '|' . $accountId . '|' . number_format($summ, 2, '.', '');
+            if (!isset($cache[$key])) {
+                $cache[$key] = self::suggestSuppliers($typeId, $accountId, $summ, 0, $limit);
+            }
+            $out[$mid] = $cache[$key];
+        }
+        return $out;
+    }
+
+    /** Set counterparty on a move that requires one (list quick-apply). */
+    public static function setSupplierId(int $moveId, int $supplierId): void
+    {
+        if ($moveId < 1) {
+            throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $moveId]));
+        }
+        if ($supplierId < 1) {
+            throw new InvalidArgumentException(t('ledger.moves.err.supplier'));
+        }
+        $row = self::find($moveId);
+        if (!$row || (int)($row['deleted'] ?? 0) > 0) {
+            throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $moveId]));
+        }
+        $type = AccountMoveTypesRepository::find((int)$row['type_id']);
+        if (!$type || empty($type['supplier_enabled'])) {
+            throw new InvalidArgumentException(t('ledger.moves.err.supplier_not_needed'));
+        }
+        if (class_exists('SuppliersRepository')) {
+            $sup = SuppliersRepository::find($supplierId);
+            if (!$sup) {
+                throw new InvalidArgumentException(t('ledger.moves.err.supplier'));
+            }
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_account_moves
+             SET ID_SUPPLIER = ?, ID_USER_UPDATE = ?, DT_UPDATE = ?
+             WHERE ID = ? AND DELETED = 0'
+        );
+        $st->execute([$supplierId, Auth::userId() ?: 0, time(), $moveId]);
+    }
+
+    /**
      * @param list<string> $values
      * @return list<array{val:string,cnt:int,total:int}>
      */
@@ -493,6 +610,9 @@ final class LedgerMovesRepository
         $paymentId = !empty($type['payment_enabled']) ? max(0, (int)($post['payment_id'] ?? 0)) : 0;
         $userPayment = !empty($type['user_payment_enabled']) ? max(0, (int)($post['user_payment'] ?? 0)) : 0;
         $supplierId = !empty($type['supplier_enabled']) ? max(0, (int)($post['supplier_id'] ?? 0)) : 0;
+        if (!empty($type['supplier_enabled']) && $supplierId < 1) {
+            throw new InvalidArgumentException(t('ledger.moves.err.supplier'));
+        }
         $fundMovementId = 0;
         if (!empty($type['fund_enabled']) && Database::tableExists('base_fund_movements')) {
             $fundMovementId = max(0, (int)($post['fund_movement_id'] ?? 0));

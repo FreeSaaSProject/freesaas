@@ -50,6 +50,34 @@ BulkActions::tryHandle('ledger_moves', '/ledger/moves', $filters);
 $reconListUrl = ListQuery::url('/ledger/moves', $filters, []);
 $reconError = '';
 
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (int)($_POST['set_supplier_move_id'] ?? 0) > 0) {
+    if (!Auth::can('ledger.edit')) {
+        if ($wantsJson) {
+            AgentHttp::error(t('ledger.err.forbidden'), 403);
+        }
+        http_response_code(403);
+        View::render('error', ['title' => t('core.common.forbidden'), 'message' => t('ledger.err.forbidden')]);
+        return;
+    }
+    try {
+        $setMoveId = (int)$_POST['set_supplier_move_id'];
+        $setSupplierId = (int)($_POST['set_supplier_id'] ?? 0);
+        LedgerMovesRepository::setSupplierId($setMoveId, $setSupplierId);
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'move_id' => $setMoveId, 'supplier_id' => $setSupplierId]);
+            return;
+        }
+        flash_set('ok', t('ledger.moves.supplier_set_ok'));
+        redirect($reconListUrl);
+    } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+        }
+        flash_set('warn', $e->getMessage());
+        redirect($reconListUrl);
+    }
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (string)($_POST['recon_action'] ?? '') !== '') {
     if (!Auth::can('ledger.reconcile')) {
         if ($wantsJson) {
@@ -239,6 +267,31 @@ if ($moveBadges !== [] && ModuleManager::isEnabled('banks')) {
     Assets::need('banks');
 }
 
+$supplierSuggestByMove = [];
+$needSuggest = [];
+foreach ($result['items'] as $it) {
+    $mid = (int)($it['id'] ?? 0);
+    if ($mid < 1) {
+        continue;
+    }
+    $tid = (int)($it['type_id'] ?? 0);
+    if ((int)($it['supplier_id'] ?? 0) > 0) {
+        continue;
+    }
+    if (empty($typeSupplier[$tid])) {
+        continue;
+    }
+    $needSuggest[] = [
+        'id' => $mid,
+        'type_id' => $tid,
+        'account_id' => (int)($it['account_id'] ?? 0),
+        'summ' => (float)($it['summ'] ?? 0),
+    ];
+}
+if ($needSuggest !== []) {
+    $supplierSuggestByMove = LedgerMovesRepository::suggestSuppliersForMoves($needSuggest, 3);
+}
+
 $listToolbarHtml = '';
 if ($accountId > 0) {
     $toolbarPayload = EventBus::emit('ledger.moves.list.toolbar', [
@@ -275,6 +328,7 @@ if ($wantsJson) {
         'can_recon' => Auth::can('ledger.reconcile'),
         'can_edit' => Auth::can('ledger.edit'),
         'badges' => $moveBadges,
+        'supplier_suggestions' => $supplierSuggestByMove,
         'toolbar' => $listToolbarHtml !== '',
     ]);
     return;
@@ -326,6 +380,7 @@ View::render('moves_list', [
     'bulkFlash' => BulkActions::consumeFlash(),
     'reconError' => $reconError,
     'moveBadges' => $moveBadges,
+    'supplierSuggestByMove' => $supplierSuggestByMove,
     'listToolbarHtml' => $listToolbarHtml,
     'pageFlash' => $pageFlash,
 ], 'layout', 'ledger');

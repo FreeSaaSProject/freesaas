@@ -750,11 +750,64 @@ def handle_train_session_tick(job: dict) -> None:
     )
 
 
+def job_payload(job: dict) -> dict:
+    p = job.get("payload")
+    return p if isinstance(p, dict) else {}
+
+
+def job_model_info(typ: str, job: dict) -> Dict[str, Any]:
+    """Safe model/weights summary for status UI (basename only)."""
+    payload = job_payload(job)
+    mid = int(payload.get("model_id") or job.get("model_id") or 0)
+    camera_id = int(payload.get("camera_id") or job.get("camera_id") or 0)
+    weights = ""
+    inferring = typ in (
+        "infer_image",
+        "infer_batch",
+        "monitor_tick",
+        "capture_frame",
+        "on_demand",
+        "train_session_tick",
+    )
+    try:
+        if typ == "train_session_tick":
+            source = str(payload.get("detect_weights") or "stock")
+            if source == "stock" or not source:
+                weights = str(MODELS.get("stock_weights") or "yolo11n.pt")
+            elif source == "post":
+                weights = resolve_weights(mid, payload)
+            else:
+                try:
+                    mid = int(source)
+                except ValueError:
+                    mid = int(payload.get("model_id") or 0)
+                weights = resolve_weights(mid, payload)
+        elif typ == "train":
+            weights = str(payload.get("weights_path") or MODELS.get("default_weights") or "")
+        elif inferring:
+            weights = resolve_weights(mid, payload)
+    except Exception:  # noqa: BLE001
+        weights = ""
+    base = Path(weights).name if weights else ""
+    return {
+        "inferring": inferring,
+        "model_id": mid or None,
+        "weights": base,
+        "camera_id": camera_id or None,
+    }
+
+
 def process_job(job: dict) -> None:
     typ = str(job.get("type") or "")
     job_id = int(job.get("id") or 0)
     log.info("job %s type=%s", job_id, typ)
-    _STATUS["current_job"] = {"id": job_id, "type": typ, "started_at": int(time.time())}
+    model_info = job_model_info(typ, job)
+    _STATUS["current_job"] = {
+        "id": job_id,
+        "type": typ,
+        "started_at": int(time.time()),
+        **model_info,
+    }
     _status_save()
     t0 = time.time()
     err: Optional[str] = None
@@ -794,6 +847,7 @@ def process_job(job: dict) -> None:
             "ms": ms,
             "error": err or "",
             "at": int(time.time()),
+            **model_info,
         }
         _STATUS["current_job"] = None
         if typ in ("train", "train_session_tick"):
@@ -804,6 +858,7 @@ def process_job(job: dict) -> None:
                 "error": err or "",
                 "at": int(time.time()),
                 "ms": ms,
+                **model_info,
             }
         _status_save()
 

@@ -336,6 +336,40 @@ a.ledger-supplier-badge:hover {
   background: #dc2626;
 }
 
+.ledger-supplier-suggests {
+  display: inline;
+  margin-left: 0.25rem;
+}
+
+.ledger-supplier-suggest {
+  display: inline-block;
+  max-width: 14rem;
+  margin: 0.1rem 0.15rem 0.1rem 0;
+  padding: 0.08rem 0.4rem;
+  border: 1px solid #94a3b8;
+  border-radius: 0.25rem;
+  background: #f8fafc;
+  color: #1e3a5f;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.35;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.ledger-supplier-suggest:hover {
+  background: #e2e8f0;
+}
+
+.ledger-supplier-suggest.is-readonly {
+  cursor: default;
+  border-style: dashed;
+  opacity: 0.85;
+}
+
 .ledger-user-pay .user-badge {
   font-size: 0.85em;
 }

@@ -326,8 +326,56 @@ def vpn_up() -> str:
     return "camera_vpn_up.sh missing"
 
 
-def do_action(action: str) -> str:
+def save_loop(form: Dict[str, List[str]]) -> str:
+    """Update only loop timings in configs/local.json."""
+    if not DEFAULT_CONFIG.is_file():
+        return "missing configs/local.json"
+    try:
+        cfg = json.loads(DEFAULT_CONFIG.read_text(encoding="utf-8"))
+        if not isinstance(cfg, dict):
+            return "invalid local.json"
+        loop = dict(cfg.get("loop") or {}) if isinstance(cfg.get("loop"), dict) else {}
+
+        def _int(key: str, lo: int, hi: int) -> Optional[str]:
+            raw = (form.get(key) or [""])[0].strip()
+            if not raw:
+                return f"{key} required"
+            try:
+                v = int(raw)
+            except ValueError:
+                return f"{key} must be int"
+            if v < lo or v > hi:
+                return f"{key} must be {lo}…{hi}"
+            loop[key] = v
+            return None
+
+        for key, lo, hi in (
+            ("sleep_seconds_idle", 5, 3600),
+            ("sleep_seconds_run", 1, 600),
+            ("hello_every_sec", 30, 3600),
+        ):
+            err = _int(key, lo, hi)
+            if err:
+                return err
+        cfg["loop"] = loop
+        tmp = DEFAULT_CONFIG.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(DEFAULT_CONFIG)
+        note = ""
+        if worker_pids():
+            note = " · restart worker to apply"
+        return (
+            f"saved idle={loop['sleep_seconds_idle']}s "
+            f"busy={loop['sleep_seconds_run']}s "
+            f"hello={loop['hello_every_sec']}s{note}"
+        )
+    except (OSError, json.JSONDecodeError) as e:
+        return f"save failed: {e}"
+
+
+def do_action(action: str, form: Optional[Dict[str, List[str]]] = None) -> str:
     action = (action or "").strip()
+    form = form or {}
     if action == "stop_worker":
         return stop_worker()
     if action == "start_worker":
@@ -340,15 +388,26 @@ def do_action(action: str) -> str:
         a = stop_worker()
         b = vpn_down()
         return f"{a}; {b}"
+    if action == "save_loop":
+        return save_loop(form)
     return f"unknown action: {action}"
 
 
-def badge(ok: Optional[bool], yes: str = "ok", no: str = "fail", unk: str = "—") -> str:
+def badge(ok: Optional[bool], yes: str = "✓", no: str = "✗", unk: str = "—") -> str:
     if ok is True:
-        return f'<span class="ok">{yes}</span>'
+        return f'<span class="ok" title="{yes}">{yes}</span>'
     if ok is False:
-        return f'<span class="bad">{no}</span>'
+        return f'<span class="bad" title="{no}">{no}</span>'
     return f'<span class="muted">{unk}</span>'
+
+
+def mark(ok: Optional[bool]) -> str:
+    """Compact checkmark only."""
+    if ok is True:
+        return '<span class="ok">✓</span>'
+    if ok is False:
+        return '<span class="bad">✗</span>'
+    return '<span class="muted">—</span>'
 
 
 def render_live(snap: Dict[str, Any]) -> str:
@@ -357,44 +416,74 @@ def render_live(snap: Dict[str, Any]) -> str:
     counters = st.get("counters") or {}
     by_type = counters.get("by_type") or {}
     last_job = st.get("last_job") or {}
-    current = st.get("current_job")
+    current = st.get("current_job") if isinstance(st.get("current_job"), dict) else None
     last_train = st.get("last_train") or {}
     agent = snap.get("agent") or {}
     loop = snap.get("loop") or {}
 
-    by_type_rows = "".join(
-        f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in sorted(by_type.items())
-    ) or '<tr><td colspan="2" class="muted">no jobs yet</td></tr>'
+    by_type_bits = " · ".join(f"{k}×{v}" for k, v in sorted(by_type.items())) or "—"
 
-    agent_block = ""
+    agent_line = ""
     if agent:
-        agent_block = f"""
-        <div class="card" style="margin-top:0.75rem">
-          <h2>FreeSaaS (agent)</h2>
-          <p>workers online: <b>{agent.get('workers_online', '—')}</b>
-             · pending jobs: <b>{agent.get('jobs_pending', '—')}</b></p>
-          <p class="muted">cached ≤{_AGENT_TTL_SEC:.0f}s · issues: {', '.join(i.get('code','') for i in (agent.get('issues') or [])) or 'none'}</p>
-        </div>"""
-    elif snap.get("agent_error"):
-        agent_block = (
-            '<div class="card" style="margin-top:0.75rem"><h2>FreeSaaS (agent)</h2>'
-            f'<p class="bad">{snap["agent_error"]}</p>'
-            '<p class="muted">Optional: add agent_token to configs/local.json</p></div>'
+        issues = ", ".join(i.get("code", "") for i in (agent.get("issues") or [])) or "none"
+        agent_line = (
+            f"<div class='row'><span class='lbl'>Agent</span> "
+            f"online <b>{agent.get('workers_online', '—')}</b> · "
+            f"pending <b>{agent.get('jobs_pending', '—')}</b> · "
+            f"<span class='muted'>issues {issues}</span></div>"
         )
+    elif snap.get("agent_error"):
+        agent_line = f"<div class='row'><span class='lbl'>Agent</span> <span class='bad'>{snap['agent_error']}</span></div>"
 
-    current_html = "idle"
+    # Inference / current job
     if current:
-        current_html = (
-            f'#{current.get("id")} {current.get("type")} '
-            f'(since {fmt_age(int(current.get("started_at") or 0))})'
+        mid = current.get("model_id")
+        w = current.get("weights") or ""
+        cam = current.get("camera_id")
+        bits = [
+            mark(True if current.get("inferring") else None),
+            f"<b>{current.get('type')}</b> #{current.get('id')}",
+            fmt_age(int(current.get("started_at") or 0)),
+        ]
+        if current.get("inferring"):
+            bits.insert(1, "<span class='ok'>inference</span>")
+        if mid:
+            bits.append(f"model {mid}")
+        if w:
+            bits.append(f"<code>{w}</code>")
+        if cam:
+            bits.append(f"cam {cam}")
+        infer_html = " · ".join(bits)
+    else:
+        infer_html = "<span class='muted'>— idle</span>"
+
+    last_bits = []
+    if last_job:
+        last_bits = [
+            mark(last_job.get("ok") if "ok" in last_job else None),
+            f"#{last_job.get('id', '—')} {last_job.get('type', '')}",
+            f"{last_job.get('ms', 0)}ms",
+            fmt_age(int(last_job.get("at") or 0)),
+        ]
+        if last_job.get("weights"):
+            last_bits.append(f"<code>{last_job.get('weights')}</code>")
+        if last_job.get("error"):
+            last_bits.append(f"<span class='bad'>{str(last_job.get('error'))[:80]}</span>")
+    last_html = " · ".join(last_bits) if last_bits else "<span class='muted'>—</span>"
+
+    train_html = "<span class='muted'>—</span>"
+    if last_train:
+        train_html = (
+            f"#{last_train.get('id')} {last_train.get('type')} · {last_train.get('status')} · "
+            f"{fmt_age(int(last_train.get('at') or 0))}"
+            + (f" · <code>{last_train.get('weights')}</code>" if last_train.get("weights") else "")
+            + (f" · <span class='bad'>{str(last_train.get('error') or '')[:80]}</span>" if last_train.get("error") else "")
         )
 
     ft_warn = ""
     if snap.get("full_tunnel"):
         ft_warn = (
-            '<p class="bad"><b>FULL TUNNEL:</b> default route is on PPP — all traffic '
-            "(incl. FreeSaaS / browser) goes via therms. Use <b>VPN Down</b> or re-run "
-            "VPN Up (script aborts if split fails).</p>"
+            '<p class="bad tight"><b>FULL TUNNEL</b> — default on PPP; use VPN Down.</p>'
         )
 
     worker_on = bool(snap.get("worker_running"))
@@ -418,12 +507,12 @@ def render_live(snap: Dict[str, Any]) -> str:
     else:
         btns.append(
             '<form method="post" action="/action" data-action="vpn_up">'
-            '<button type="submit">VPN Up (camera-only)</button></form>'
+            '<button type="submit">VPN Up</button></form>'
         )
     if worker_on or vpn_on:
         btns.append(
             '<form method="post" action="/action" data-action="stop_all">'
-            '<button type="submit" class="danger">Stop worker + VPN</button></form>'
+            '<button type="submit" class="danger">Stop all</button></form>'
         )
     controls = "\n    ".join(btns)
 
@@ -431,89 +520,66 @@ def render_live(snap: Dict[str, Any]) -> str:
     for cam in snap.get("cameras") or []:
         if not isinstance(cam, dict):
             continue
+        meta = " · ".join(
+            x for x in (str(cam.get("mode") or ""), f"m{cam.get('model_id')}" if cam.get("model_id") else "") if x
+        )
         cam_rows_parts.append(
             "<tr>"
             f"<td>{cam.get('id') or '—'}</td>"
             f"<td>{cam.get('name') or '—'}"
-            f"<div class='muted'>{cam.get('mode') or ''}{' · model ' + str(cam.get('model_id')) if cam.get('model_id') else ''}</div></td>"
+            f"{(' <span class=muted>' + meta + '</span>') if meta else ''}</td>"
             f"<td><code>{cam.get('host') or '—'}</code></td>"
-            f"<td>{badge(cam.get('ping_ok'), 'ok', 'fail', 'n/a')}</td>"
-            f"<td class='muted'>{(cam.get('route') or '—')[:80]}</td>"
+            f"<td>{mark(cam.get('ping_ok'))}</td>"
+            f"<td class='muted'>{(cam.get('route') or '—')[:60]}</td>"
             "</tr>"
         )
     cam_rows = "".join(cam_rows_parts) or (
-        '<tr><td colspan="5" class="muted">no cameras yet — start worker once for hello, '
-        "or set CAMERA_HOST / CAMERA_HOSTS in vpn.env</td></tr>"
+        '<tr><td colspan="5" class="muted">no cameras — start worker (hello) or CAMERA_HOST in vpn.env</td></tr>'
     )
 
-    clock = time.strftime("%Y-%m-%d %H:%M:%S")
+    hello_ok = bool(st.get("hello_ok")) if st.get("hello_at") else None
+    split_ok = (not snap.get("full_tunnel")) if vpn_on else None
+    clock = time.strftime("%H:%M:%S")
+    idle_v = loop.get("sleep_seconds_idle") or 60
+    busy_v = loop.get("sleep_seconds_run") or 5
+    hello_v = loop.get("hello_every_sec") or 180
+
     return f"""
-  <p class="sub" id="clock">localhost:{PORT} · soft refresh 5s · {clock}</p>
+  <p class="sub" id="clock">localhost:{PORT} · {clock}</p>
   {ft_warn}
 
-  <div class="card controls" style="margin-bottom:0.75rem">
-    <h2>Controls</h2>
-    {controls}
-    <p class="muted" id="poll-cfg" style="margin:0.6rem 0 0">Poll config: idle {loop.get('sleep_seconds_idle') or '—'}s ·
-       busy {loop.get('sleep_seconds_run') or '—'}s · hello every {loop.get('hello_every_sec') or '—'}s</p>
+  <div class="card controls">
+    <div class="row controls-row">{controls}</div>
+    <details id="cfg-panel">
+      <summary>Edit timings · idle {idle_v}s · busy {busy_v}s · hello {hello_v}s</summary>
+      <form method="post" action="/action" data-action="save_loop" class="cfg-form">
+        <label>idle <input name="sleep_seconds_idle" type="number" min="5" max="3600" value="{idle_v}"></label>
+        <label>busy <input name="sleep_seconds_run" type="number" min="1" max="600" value="{busy_v}"></label>
+        <label>hello <input name="hello_every_sec" type="number" min="30" max="3600" value="{hello_v}"></label>
+        <button type="submit" class="okbtn">Save</button>
+        <span class="muted">restart worker to apply</span>
+      </form>
+    </details>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h2>Process</h2>
-      <p>{badge(snap['worker_running'], 'running', 'stopped')}</p>
-      <p>PIDs: <code>{', '.join(snap['worker_pids']) or '—'}</code></p>
-      <p>key: <code>{snap.get('worker_key') or '—'}</code></p>
-      <p>started: {fmt_age(int(st.get('started_at') or 0))} · status.json {fmt_age(int(st.get('updated_at') or 0))}</p>
-    </div>
-    <div class="card">
-      <h2>FreeSaaS hello</h2>
-      <p>{badge(bool(st.get('hello_ok')), f"ok {st.get('hello_ms', 0)} ms", 'fail')}</p>
-      <p>server: <code>{snap.get('server') or '—'}</code></p>
-      <p>last: {fmt_age(int(st.get('hello_at') or 0))}</p>
-      <p class="bad">{(st.get('hello_error') or '')[:200]}</p>
-    </div>
-    <div class="card">
-      <h2>VPN</h2>
-      <p>config tunnel: {badge(snap['tunnel_config_enabled'], 'enabled', 'disabled')}</p>
-      <p>name: <code>{snap.get('vpn_name') or '—'}</code></p>
-      <p>status: {badge(snap['vpn_connected'], snap.get('vpn_status') or 'connected', snap.get('vpn_status') or 'down')}</p>
-      <p>default if: <code>{snap.get('default_if') or '—'}</code>
-         {badge(not snap.get('full_tunnel') if snap.get('vpn_connected') else None, 'split ok', 'FULL TUNNEL', '')}</p>
-    </div>
+  <div class="card compact">
+    <div class="row"><span class="lbl">Worker</span> {mark(worker_on)} {"running" if worker_on else "stopped"} · pid <code>{', '.join(snap['worker_pids']) or '—'}</code> · key <code>{snap.get('worker_key') or '—'}</code> · up {fmt_age(int(st.get('started_at') or 0))}</div>
+    <div class="row"><span class="lbl">Hello</span> {mark(hello_ok)} {f"{st.get('hello_ms', 0)}ms" if hello_ok else "fail"} · {fmt_age(int(st.get('hello_at') or 0))} · <code>{snap.get('server') or '—'}</code>{(' · <span class=bad>' + str(st.get('hello_error') or '')[:120] + '</span>') if st.get('hello_error') else ''}</div>
+    <div class="row"><span class="lbl">VPN</span> {mark(vpn_on)} {snap.get('vpn_status') or '—'} · tunnel {mark(snap['tunnel_config_enabled'])} · <code>{snap.get('vpn_name') or '—'}</code> · default <code>{snap.get('default_if') or '—'}</code> · split {mark(split_ok)}</div>
+    <div class="row"><span class="lbl">Inference</span> {infer_html}</div>
+    <div class="row"><span class="lbl">Jobs</span> ok <b>{counters.get('jobs_ok', 0)}</b> · err <b>{counters.get('jobs_err', 0)}</b> · ↑{fmt_bytes(int(counters.get('bytes_uploaded') or 0))} ↓{fmt_bytes(int(counters.get('bytes_downloaded') or 0))} · {by_type_bits}</div>
+    <div class="row"><span class="lbl">Last</span> {last_html}</div>
+    <div class="row"><span class="lbl">Train</span> {train_html}</div>
+    {agent_line}
   </div>
 
-  <div class="card" style="margin-top:0.75rem">
-    <h2>Cameras ({len(snap.get('cameras') or [])})</h2>
-    <p class="muted">from hello → status.json (+ CAMERA_HOST / CAMERA_HOSTS in vpn.env). Hosts only — no RTSP secrets.</p>
+  <div class="card" style="margin-top:0.55rem">
+    <div class="row" style="margin-bottom:0.25rem"><span class="lbl">Cameras</span> {len(snap.get('cameras') or [])}</div>
     <table>
-      <thead><tr><th>id</th><th>name</th><th>host</th><th>ping</th><th>route</th></tr></thead>
+      <thead><tr><th>id</th><th>name</th><th>host</th><th></th><th>route</th></tr></thead>
       <tbody>{cam_rows}</tbody>
     </table>
   </div>
-
-  <div class="card" style="margin-top:0.75rem">
-    <h2>Jobs / traffic (this worker session)</h2>
-    <p>current: <b>{current_html}</b></p>
-    <p>ok: <b>{counters.get('jobs_ok', 0)}</b> · err: <b>{counters.get('jobs_err', 0)}</b>
-       · up {fmt_bytes(int(counters.get('bytes_uploaded') or 0))}
-       · down {fmt_bytes(int(counters.get('bytes_downloaded') or 0))}</p>
-    <p>last job: #{last_job.get('id', '—')} {last_job.get('type', '')}
-       {badge(last_job.get('ok') if last_job else None, f"ok {last_job.get('ms', 0)}ms", f"fail {last_job.get('error', '')[:80]}")}
-       {fmt_age(int(last_job.get('at') or 0)) if last_job else ''}</p>
-    <table>
-      <thead><tr><th>type</th><th>count</th></tr></thead>
-      <tbody>{by_type_rows}</tbody>
-    </table>
-  </div>
-
-  <div class="card" style="margin-top:0.75rem">
-    <h2>Train</h2>
-    <p>{('#' + str(last_train.get('id')) + ' ' + str(last_train.get('type')) + ' · ' + str(last_train.get('status')) + ' · ' + fmt_age(int(last_train.get('at') or 0))) if last_train else '<span class="muted">no train jobs in this session</span>'}</p>
-    <p class="bad">{(last_train.get('error') or '')[:200]}</p>
-  </div>
-
-  {agent_block}
 """
 
 
@@ -527,29 +593,35 @@ def render_html(snap: Dict[str, Any], flash: str = "") -> str:
   <title>Video Worker Status</title>
   <style>
     :root {{ font-family: -apple-system, system-ui, sans-serif; color: #111; background: #f4f4f5; }}
-    body {{ margin: 0; padding: 1.25rem; max-width: 920px; }}
-    h1 {{ margin: 0 0 0.35rem; font-size: 1.35rem; }}
-    h2 {{ margin: 0 0 0.5rem; font-size: 1.05rem; }}
-    .sub {{ color: #666; margin-bottom: 1rem; font-size: 0.9rem; }}
-    .grid {{ display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }}
-    @media (max-width: 700px) {{ .grid {{ grid-template-columns: 1fr; }} }}
-    .card {{ background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 0.85rem 1rem; }}
+    body {{ margin: 0; padding: 1rem 1.1rem; max-width: 920px; font-size: 0.92rem; }}
+    h1 {{ margin: 0 0 0.25rem; font-size: 1.2rem; }}
+    .sub {{ color: #666; margin: 0 0 0.55rem; font-size: 0.82rem; }}
+    .card {{ background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 0.55rem 0.75rem; margin-bottom: 0.55rem; }}
+    .compact .row {{ margin: 0.2rem 0; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
+    .row {{ margin: 0.15rem 0; }}
+    .lbl {{ display: inline-block; min-width: 4.6rem; color: #666; font-weight: 600; }}
     .ok {{ color: #15803d; font-weight: 600; }}
     .bad {{ color: #b91c1c; font-weight: 600; }}
     .muted {{ color: #666; }}
-    .flash {{ background: #fffbeb; border: 1px solid #f59e0b; padding: 0.6rem 0.75rem; border-radius: 6px; }}
+    .tight {{ margin: 0.35rem 0; }}
+    .flash {{ background: #fffbeb; border: 1px solid #f59e0b; padding: 0.45rem 0.65rem; border-radius: 6px; margin-bottom: 0.55rem; }}
     .controls form {{ display: inline; }}
+    .controls-row {{ display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center; }}
     .controls button {{
-      margin: 0.2rem 0.35rem 0.2rem 0; padding: 0.45rem 0.75rem;
-      border-radius: 6px; border: 1px solid #ccc; background: #fafafa; cursor: pointer; font-size: 0.9rem;
+      margin: 0; padding: 0.35rem 0.65rem;
+      border-radius: 6px; border: 1px solid #ccc; background: #fafafa; cursor: pointer; font-size: 0.85rem;
     }}
     .controls button:disabled {{ opacity: 0.55; cursor: wait; }}
     .controls button.danger {{ border-color: #fca5a5; background: #fef2f2; color: #991b1b; }}
     .controls button.okbtn {{ border-color: #86efac; background: #f0fdf4; color: #166534; }}
-    table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; }}
-    td, th {{ text-align: left; padding: 0.25rem 0.35rem; border-bottom: 1px solid #eee; }}
-    code {{ font-size: 0.85rem; }}
-    pre {{ white-space: pre-wrap; font-size: 0.75rem; background: #fafafa; padding: 0.5rem; border-radius: 4px; max-height: 8rem; overflow: auto; }}
+    details {{ margin-top: 0.4rem; }}
+    details summary {{ cursor: pointer; color: #444; font-size: 0.85rem; }}
+    .cfg-form {{ display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.45rem; }}
+    .cfg-form label {{ font-size: 0.85rem; color: #444; }}
+    .cfg-form input {{ width: 4.5rem; padding: 0.2rem 0.35rem; }}
+    table {{ width: 100%; border-collapse: collapse; font-size: 0.85rem; }}
+    td, th {{ text-align: left; padding: 0.2rem 0.3rem; border-bottom: 1px solid #eee; white-space: nowrap; }}
+    code {{ font-size: 0.82rem; }}
   </style>
 </head>
 <body>
@@ -572,8 +644,13 @@ def render_html(snap: Dict[str, Any], flash: str = "") -> str:
     flash.textContent = msg;
   }}
 
+  function cfgOpen() {{
+    var d = document.getElementById('cfg-panel');
+    return d && d.open;
+  }}
+
   function refreshLive() {{
-    if (busy || document.hidden) return;
+    if (busy || document.hidden || cfgOpen()) return;
     fetch('/live', {{ cache: 'no-store', headers: {{ 'Accept': 'text/html' }} }})
       .then(function (r) {{ if (!r.ok) throw new Error('live ' + r.status); return r.text(); }})
       .then(function (html) {{ live.innerHTML = html; }})
@@ -592,16 +669,17 @@ def render_html(snap: Dict[str, Any], flash: str = "") -> str:
     ev.preventDefault();
     if (busy) return;
     busy = true;
-    var btn = form.querySelector('button');
+    var btn = form.querySelector('button[type=submit], button:not([type])');
     if (btn) btn.disabled = true;
-    var body = 'action=' + encodeURIComponent(form.getAttribute('data-action'));
+    var params = new URLSearchParams(new FormData(form));
+    params.set('action', form.getAttribute('data-action'));
     fetch('/action', {{
       method: 'POST',
       headers: {{
         'Content-Type': 'application/x-www-form-urlencoded',
         'Accept': 'application/json'
       }},
-      body: body,
+      body: params.toString(),
       cache: 'no-store'
     }})
       .then(function (r) {{ return r.json().then(function (j) {{ return {{ ok: r.ok, j: j }}; }}); }})
@@ -672,10 +750,11 @@ class Handler(BaseHTTPRequestHandler):
         raw = self.rfile.read(length).decode("utf-8", errors="replace") if length else ""
         form = urllib.parse.parse_qs(raw)
         action = (form.get("action") or [""])[0]
-        msg = do_action(action)
+        msg = do_action(action, form)
         accept = (self.headers.get("Accept") or "").lower()
         if "application/json" in accept:
-            body = json.dumps({"ok": True, "message": msg, "action": action}, ensure_ascii=False).encode("utf-8")
+            ok = not msg.startswith("unknown") and "failed" not in msg.lower() and "must be" not in msg and "required" not in msg and "missing" not in msg
+            body = json.dumps({"ok": ok, "message": msg, "action": action}, ensure_ascii=False).encode("utf-8")
             self._send(200, body, "application/json; charset=utf-8")
             return
         loc = "/?msg=" + urllib.parse.quote(msg[:400])

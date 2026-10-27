@@ -246,6 +246,29 @@ if (is_numeric($dtPromisedRaw) && (int)$dtPromisedRaw > 0 && (int)date('Y', (int
 }
 $staff = UsersRepository::staffNamesIncluding([(int)($row['user_payment'] ?? 0)]);
 $suppliers = class_exists('SuppliersRepository') ? SuppliersRepository::names(true) : [];
+$supplierSuggestions = [];
+if ($type && !empty($type['supplier_enabled']) && (int)($row['supplier_id'] ?? 0) < 1) {
+    $sugAccount = (int)($row['account_id'] ?? 0);
+    $sugSumm = round((float)($row['summ'] ?? 0), 2);
+    if ($sugAccount > 0 && $sugSumm > 0) {
+        $supplierSuggestions = LedgerMovesRepository::suggestSuppliers(
+            $typeId,
+            $sugAccount,
+            $sugSumm,
+            $isNew ? 0 : $id,
+            3
+        );
+    }
+}
+if ($supplierSuggestions !== [] && class_exists('SuppliersRepository')) {
+    $allSupNames = SuppliersRepository::names(false);
+    foreach ($supplierSuggestions as $sug) {
+        $sid = (int)($sug['id'] ?? 0);
+        if ($sid > 0 && !isset($suppliers[$sid])) {
+            $suppliers[$sid] = $allSupNames[$sid] ?? (string)($sug['name'] ?? ('#' . $sid));
+        }
+    }
+}
 $stickersEnabled = ModuleManager::isEnabled('stickers');
 $actOptions = [];
 if ($stickersEnabled && class_exists('Acts2InRepository')) {
@@ -294,6 +317,7 @@ if ($wantsJson) {
         'type_meta' => $typeMeta,
         'prev_suggestions' => $prevSuggestions,
         'prev_applied' => $prevApplied,
+        'supplier_suggestions' => $supplierSuggestions,
         'accounts' => LedgerAccountsRepository::names(true),
         'staff' => $staff,
         'suppliers' => $suppliers,
@@ -326,6 +350,7 @@ View::render('moves_edit', [
     'typeMeta' => $typeMeta,
     'prevSuggestions' => $prevSuggestions,
     'prevApplied' => $prevApplied,
+    'supplierSuggestions' => $supplierSuggestions,
     'accounts' => LedgerAccountsRepository::names(true),
     'staff' => $staff,
     'suppliers' => $suppliers,
