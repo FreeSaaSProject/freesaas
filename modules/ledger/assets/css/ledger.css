@@ -295,6 +295,17 @@
   padding-left: 1.25rem;
 }
 
+.ledger-convert-transfer {
+  margin: 1.5rem 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border, #e2e8f0);
+}
+
+.ledger-convert-transfer h2 {
+  margin: 0 0 0.35rem;
+  font-size: 1.05rem;
+}
+
 .ledger-supplier-line {
   margin-top: 0.25rem;
 }

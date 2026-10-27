@@ -859,6 +859,93 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Promote a single (non-paired) move into a transfer: keep it as the debit (from) leg,
+     * create the credit (to) leg, set mutual ID_MOVEMENT_LINKED. Bank tx_map on from-id stays.
+     *
+     * @return array{from_id:int,to_id:int}
+     */
+    public static function convertToTransfer(int $moveId, int $typeId, int $accountTo): array
+    {
+        $row = self::find($moveId);
+        if (!$row || (int)($row['deleted'] ?? 0) > 0) {
+            throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $moveId]));
+        }
+        if (self::isTransferMove($row)) {
+            throw new InvalidArgumentException(t('ledger.moves.err.use_transfer_form'));
+        }
+        $accountFrom = (int)($row['account_id'] ?? 0);
+        if ($accountFrom < 1 || $accountTo < 1) {
+            throw new InvalidArgumentException(t('ledger.moves.err.account_to'));
+        }
+        if ($accountFrom === $accountTo) {
+            throw new InvalidArgumentException(t('ledger.moves.err.same_account'));
+        }
+        $summ = abs((float)($row['summ'] ?? 0));
+        if ($summ <= 0) {
+            throw new InvalidArgumentException(t('ledger.moves.err.sum'));
+        }
+        $type = AccountMoveTypesRepository::find($typeId);
+        if (!$type || empty($type['linked_enabled'])) {
+            throw new InvalidArgumentException(t('ledger.moves.err.transfer_type'));
+        }
+        $dt = (int)($row['dt'] ?? 0);
+        if ($dt < 1) {
+            $dt = time();
+        }
+        $descr = (string)($row['descr'] ?? '');
+        $uid = Auth::userId();
+        $now = time();
+
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $toId = self::create([
+                'account_id' => $accountTo,
+                'type_id' => $typeId,
+                'direction' => 1,
+                'summ' => $summ,
+                'descr' => $descr,
+                'dt' => $dt,
+                'dt_create' => $now,
+                'user_create' => $uid,
+                'unconfirmed' => 0,
+                'payment_id' => 0,
+                'supplier_id' => 0,
+                'user_payment' => 0,
+                'fund_movement_id' => 0,
+                'act2_in' => 0,
+                'act2_not_req' => 0,
+                'dt_promised' => 0,
+                'promise_executed' => 0,
+                'linked_id' => $moveId,
+                'account_to' => $accountFrom,
+                'deleted' => 0,
+            ]);
+            $st = $pdo->prepare(
+                'UPDATE base_account_moves SET
+                 ID_TYPE = ?, DIRECTION = -1, SUMM = ?, DESCR = ?, DT = ?,
+                 ID_ACCOUNT_TO = ?, ID_MOVEMENT_LINKED = ?,
+                 UNCONFIRMED = 0, ID_PAYMENT = 0, ID_SUPPLIER = 0, ID_USER_PAYMENT = 0,
+                 ID_FUND_MOVEMENT = 0, ID_ACT2_IN = 0, ACT2_NOT_REQ = 0,
+                 DT_PROMISED = 0, PROMISE_EXECUTED = 0,
+                 ID_USER_UPDATE = ?, DT_UPDATE = ?
+                 WHERE ID = ? AND DELETED = 0 AND ID_MOVEMENT_LINKED = 0'
+            );
+            $st->execute([$typeId, $summ, $descr, $dt, $accountTo, $toId, $uid, $now, $moveId]);
+            if ($st->rowCount() < 1) {
+                throw new RuntimeException(t('ledger.moves.err.convert_race'));
+            }
+            $pdo->commit();
+        } catch (Throwable $e) {
+            $pdo->rollBack();
+            throw $e;
+        }
+        LedgerReconciliationsRepository::refreshTodaySystemBalance($accountFrom);
+        LedgerReconciliationsRepository::refreshTodaySystemBalance($accountTo);
+        return ['from_id' => $moveId, 'to_id' => $toId];
+    }
+
+    /**
      * Auto-DPS from staff payment (oper do=3).
      * @param array<string,mixed> $payment row from PaymentsRepository::find
      * @return int move id or 0 if skipped

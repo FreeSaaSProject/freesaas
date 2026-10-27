@@ -111,6 +111,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             redirect('/ledger/moves/' . $newId . '/edit');
             return;
         }
+        if ($action === 'convert_to_transfer') {
+            if ($isNew) {
+                throw new InvalidArgumentException(t('ledger.moves.err.not_found', ['id' => $id]));
+            }
+            $transferTypeId = (int)($_POST['transfer_type_id'] ?? 0);
+            $accountTo = (int)($_POST['transfer_account_to'] ?? 0);
+            $pair = LedgerMovesRepository::convertToTransfer($id, $transferTypeId, $accountTo);
+            $fromId = (int)$pair['from_id'];
+            if ($wantsJson) {
+                AgentHttp::emit([
+                    'ok' => true,
+                    'action' => 'convert_to_transfer',
+                    'from_id' => $fromId,
+                    'to_id' => (int)$pair['to_id'],
+                    'redirect' => '/ledger/transfers/' . $fromId . '/edit',
+                ]);
+                return;
+            }
+            flash_set('ok', t('ledger.moves.convert_ok'));
+            redirect('/ledger/transfers/' . $fromId . '/edit');
+            return;
+        }
         $data = LedgerMovesRepository::dataFromPost($_POST, $isNew ? null : $row);
         if ($isNew) {
             $newId = LedgerMovesRepository::create($data);
@@ -164,6 +186,16 @@ $typeId = (int)($row['type_id'] ?? 0);
 if ($typeId > 0) {
     $type = AccountMoveTypesRepository::find($typeId) ?: ($typeMeta[$typeId] ?? null);
 }
+$transferTypes = [];
+foreach ($typeMeta as $tid => $meta) {
+    if (!empty($meta['linked_enabled'])) {
+        $transferTypes[(int)$tid] = (string)$meta['name'];
+    }
+}
+$canConvertToTransfer = !$isNew
+    && $transferTypes !== []
+    && (int)($row['deleted'] ?? 0) < 1
+    && (int)($row['linked_id'] ?? 0) < 1;
 
 $prevSuggestions = ['defaults' => [], 'buttons' => []];
 $prevApplied = [];
@@ -276,6 +308,8 @@ if ($wantsJson) {
         'dt_promised_value' => $dtPromisedValue,
         'badge_html' => $moveBadgeHtml,
         'extra_sections_html' => $extraSectionsHtml,
+        'can_convert_to_transfer' => $canConvertToTransfer,
+        'transfer_types' => $transferTypes,
     ]);
     return;
 }
@@ -298,6 +332,8 @@ View::render('moves_edit', [
     'actOptions' => $actOptions,
     'fundsEnabled' => ModuleManager::isEnabled('funds'),
     'stickersEnabled' => $stickersEnabled,
+    'canConvertToTransfer' => $canConvertToTransfer,
+    'transferTypes' => $transferTypes,
     'dtValue' => $dtValue,
     'dtPromisedValue' => $dtPromisedValue,
     'message' => $message,

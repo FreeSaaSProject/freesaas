@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-/** @var list<array<string,mixed>> $cameras */
+/** @var list<array<string,mixed>> $posts */
 /** @var list<array<string,mixed>> $workers */
 /** @var list<array<string,mixed>> $jobs */
 /** @var array<string,mixed> $diagnose */
@@ -41,69 +41,31 @@ $staleSec = 120;
     </div>
   <?php endif; ?>
 
-  <p class="video-dash-nav">
-    <a class="btn" href="/video/posts"><?= te('video.menu.posts') ?></a>
-    <a class="btn" href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
-    <a class="btn" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
-    <a class="btn" href="/video/cameras"><?= te('video.menu.cameras') ?></a>
-    <a class="btn" href="/video/models"><?= te('video.menu.models') ?></a>
-    <a class="btn" href="/video/alerts"><?= te('video.menu.alerts') ?></a>
-    <a class="btn" href="/video/settings"><?= te('video.menu.settings') ?></a>
-  </p>
-
-  <h2><?= te('video.dashboard.posts') ?></h2>
-  <div class="video-cam-grid">
-    <?php foreach ($posts as $card):
-      $seen = (int)($card['LAST_SEEN'] ?? 0);
-      $fresh = $seen > 0 && ($now - $seen) <= $staleSec;
-      ?>
-      <article class="video-cam-card video-post-card">
-        <div class="video-cam-body">
-          <h3>
-            <a href="/video/posts/<?= (int)$card['ID'] ?>"><?= e((string)$card['NAME']) ?></a>
-            <span class="video-badge <?= $fresh ? 'is-ok' : 'is-stale' ?>">
-              <?= $fresh ? te('video.badge.fresh') : te('video.badge.stale') ?>
-            </span>
-          </h3>
-          <p class="muted">
-            <?= te('video.posts.cameras_n', ['n' => (string)(int)$card['CAMERA_COUNT']]) ?>
-            <?php if ($card['MODEL_NAME'] !== ''): ?> · <?= e((string)$card['MODEL_NAME']) ?><?php endif; ?>
-          </p>
-          <?php if (!empty($card['class_counts'])): ?>
-            <p class="video-counts">
-              <?php foreach ($card['class_counts'] as $name => $cnt): ?>
-                <span><?= e((string)$name) ?>: <strong><?= (int)$cnt ?></strong></span>
-              <?php endforeach; ?>
-            </p>
-          <?php endif; ?>
-          <div class="video-post-thumbs">
-            <?php foreach (array_slice($card['cameras'], 0, 4) as $c):
-              $thumb = (string)(($c['LAST_ANNOTATED_PATH'] ?? '') ?: ($c['LAST_FRAME_PATH'] ?? ''));
-              ?>
-              <a href="/video/cameras/<?= (int)$c['ID'] ?>/live" class="video-mini-thumb">
-                <?php if ($thumb !== ''): ?>
-                  <img src="/video/media?rel=<?= e(rawurlencode($thumb)) ?>" alt="">
-                <?php else: ?>
-                  <span><?= e((string)$c['NAME']) ?></span>
-                <?php endif; ?>
-              </a>
-            <?php endforeach; ?>
-          </div>
-          <p class="video-cam-actions">
-            <a href="/video/posts/<?= (int)$card['ID'] ?>"><?= te('video.posts.open') ?></a>
-            <a href="/video/posts/<?= (int)$card['ID'] ?>/edit"><?= te('core.common.edit') ?></a>
-          </p>
-        </div>
-      </article>
-    <?php endforeach; ?>
-    <?php if ($posts === []): ?>
-      <p class="muted"><?= te('video.empty.posts') ?>
-        — <a href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
-      </p>
-    <?php endif; ?>
+  <div class="video-toolbar">
+    <a class="btn btn-primary" href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
+    <a class="btn btn-secondary" href="/video/posts"><?= te('video.menu.posts') ?></a>
+    <a class="btn btn-secondary" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
+    <span class="spacer"></span>
+    <a class="btn btn-ghost btn-sm" href="/video/models"><?= te('video.menu.models') ?></a>
+    <a class="btn btn-ghost btn-sm" href="/video/alerts"><?= te('video.menu.alerts') ?></a>
+    <a class="btn btn-ghost btn-sm" href="/video/settings"><?= te('video.menu.settings') ?></a>
   </div>
 
-  <h2><?= te('video.dashboard.workers') ?></h2>
+  <h2 class="video-section-title"><?= te('video.dashboard.posts') ?></h2>
+  <?php if ($posts === []): ?>
+    <p class="video-empty">
+      <?= te('video.empty.posts') ?>
+      — <a href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
+    </p>
+  <?php else: ?>
+    <div class="video-cam-grid">
+      <?php foreach ($posts as $card):
+        require __DIR__ . '/_post_card.php';
+      endforeach; ?>
+    </div>
+  <?php endif; ?>
+
+  <h2 class="video-section-title"><?= te('video.dashboard.workers') ?></h2>
   <table class="table">
     <thead><tr>
       <th><?= te('video.col.worker') ?></th>
@@ -129,7 +91,7 @@ $staleSec = 120;
     </tbody>
   </table>
 
-  <h2><?= te('video.dashboard.jobs') ?></h2>
+  <h2 class="video-section-title"><?= te('video.dashboard.jobs') ?></h2>
   <table class="table">
     <thead><tr>
       <th>ID</th>

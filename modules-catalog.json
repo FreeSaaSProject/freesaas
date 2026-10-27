@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-26T14:40:22+00:00",
+    "generated_at": "2026-10-27T08:31:00+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1047,7 +1047,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -1850,7 +1850,7 @@
         },
         {
             "id": "video",
-            "version": "0.3.0",
+            "version": "0.3.1",
             "type": "product",
             "name": {
                 "en": "Video analytics",

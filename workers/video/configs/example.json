@@ -1,6 +1,8 @@
 {
   "server": "https://freesaas.example.tld",
   "worker_token": "CHANGE_ME",
+  "agent_token": "",
+  "comment_agent_token": "Optional: app.agent_token for status dashboard GET /agent/video/status (not X-Video-Token)",
   "worker_key": "mac-office",
   "endpoints": {
     "hello": "/video/worker/hello",
@@ -15,9 +17,10 @@
     "by_id": {}
   },
   "loop": {
-    "sleep_seconds_idle": 5,
-    "sleep_seconds_run": 1,
-    "hello_every_sec": 30
+    "sleep_seconds_idle": 60,
+    "sleep_seconds_run": 5,
+    "hello_every_sec": 180,
+    "comment": "Keep polite toward shared hosting WAF: idle claim ≥60s, hello ≥120–180s. Never enable live.push on prod hosting."
   },
   "ffmpeg": {
     "bin": "ffmpeg",

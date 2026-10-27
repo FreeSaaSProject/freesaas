@@ -13,6 +13,7 @@ import tempfile
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import urlparse
 
 import requests
 import urllib3
@@ -35,6 +36,84 @@ TUNNEL: Dict[str, Any] = {}
 LIVE: Dict[str, Any] = {}
 
 log = logging.getLogger("video_worker")
+STATUS_PATH = CLIENT_ROOT / "logs" / "status.json"
+_STATUS: Dict[str, Any] = {
+    "updated_at": 0,
+    "started_at": 0,
+    "pid": 0,
+    "worker_key": "",
+    "server": "",
+    "hello_ok": False,
+    "hello_at": 0,
+    "hello_ms": 0,
+    "hello_error": "",
+    "tunnel_enabled": False,
+    "cameras": [],
+    "current_job": None,
+    "last_job": None,
+    "last_train": None,
+    "counters": {
+        "jobs_ok": 0,
+        "jobs_err": 0,
+        "by_type": {},
+        "bytes_uploaded": 0,
+        "bytes_downloaded": 0,
+    },
+}
+
+
+def rtsp_host(rtsp_url: str) -> str:
+    """Extract hostname from RTSP URL without credentials (for status UI / routes)."""
+    raw = (rtsp_url or "").strip()
+    if not raw:
+        return ""
+    try:
+        if "://" not in raw:
+            raw = "rtsp://" + raw
+        u = urlparse(raw)
+        return (u.hostname or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def cameras_for_status(cams: List[dict]) -> List[dict]:
+    out: List[dict] = []
+    for cam in cams:
+        if not isinstance(cam, dict):
+            continue
+        host = rtsp_host(str(cam.get("rtsp_url") or ""))
+        out.append(
+            {
+                "id": int(cam.get("id") or 0),
+                "name": str(cam.get("name") or ""),
+                "mode": str(cam.get("mode") or ""),
+                "model_id": int(cam.get("model_id") or 0),
+                "host": host,
+                "interval_sec": int(cam.get("interval_sec") or 0),
+            }
+        )
+    return out
+
+
+def _status_save() -> None:
+    _STATUS["updated_at"] = int(time.time())
+    try:
+        STATUS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        tmp = STATUS_PATH.with_suffix(".json.tmp")
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(_STATUS, f, ensure_ascii=False, indent=2)
+        tmp.replace(STATUS_PATH)
+    except OSError as e:
+        log.warning("status.json write failed: %s", e)
+
+
+def status_note_bytes(uploaded: int = 0, downloaded: int = 0) -> None:
+    c = _STATUS["counters"]
+    if uploaded:
+        c["bytes_uploaded"] = int(c.get("bytes_uploaded") or 0) + max(0, uploaded)
+    if downloaded:
+        c["bytes_downloaded"] = int(c.get("bytes_downloaded") or 0) + max(0, downloaded)
+    _status_save()
 
 
 def headers() -> Dict[str, str]:
@@ -98,22 +177,46 @@ def hello(cameras_out: Optional[List[dict]] = None) -> dict:
         "ffmpeg": FFMPEG.get("bin", "ffmpeg"),
         "tunnel": bool(TUNNEL.get("enabled")),
     }
-    r = requests.post(
-        url("hello", "/video/worker/hello"),
-        headers=headers(),
-        json={
-            "worker_key": WORKER_KEY,
-            "hostname": socket.gethostname(),
-            "meta": meta,
-        },
-        **req_kwargs(timeout=30),
-    )
-    r.raise_for_status()
-    data = r.json()
-    if cameras_out is not None and isinstance(data.get("cameras"), list):
-        cameras_out.clear()
-        cameras_out.extend(data["cameras"])
-    return data
+    t0 = time.time()
+    try:
+        r = requests.post(
+            url("hello", "/video/worker/hello"),
+            headers=headers(),
+            json={
+                "worker_key": WORKER_KEY,
+                "hostname": socket.gethostname(),
+                "meta": meta,
+            },
+            **req_kwargs(timeout=30),
+        )
+        r.raise_for_status()
+        data = r.json()
+        _STATUS["hello_ok"] = True
+        _STATUS["hello_error"] = ""
+        _STATUS["hello_at"] = int(time.time())
+        _STATUS["hello_ms"] = int((time.time() - t0) * 1000)
+        try:
+            body = r.request.body if r.request else None
+            if isinstance(body, bytes):
+                status_note_bytes(uploaded=len(body))
+            elif isinstance(body, str):
+                status_note_bytes(uploaded=len(body.encode("utf-8")))
+        except Exception:  # noqa: BLE001
+            pass
+        if cameras_out is not None and isinstance(data.get("cameras"), list):
+            cameras_out.clear()
+            cameras_out.extend(data["cameras"])
+        if isinstance(data.get("cameras"), list):
+            _STATUS["cameras"] = cameras_for_status(data["cameras"])
+        _status_save()
+        return data
+    except Exception as e:  # noqa: BLE001
+        _STATUS["hello_ok"] = False
+        _STATUS["hello_error"] = str(e)
+        _STATUS["hello_at"] = int(time.time())
+        _STATUS["hello_ms"] = int((time.time() - t0) * 1000)
+        _status_save()
+        raise
 
 
 def claim() -> Optional[dict]:
@@ -133,13 +236,15 @@ def post_result(job_id: int, result: dict, error: Optional[str] = None, **extra:
     if error:
         body["error"] = error
     body.update(extra)
+    raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
     r = requests.post(
         url("result", "/video/worker/result"),
-        headers=headers(),
-        json=body,
+        headers={**headers(), "Content-Type": "application/json"},
+        data=raw,
         **req_kwargs(timeout=300),
     )
     r.raise_for_status()
+    status_note_bytes(uploaded=len(raw))
 
 
 def download_rel(rel: str) -> bytes:
@@ -150,7 +255,9 @@ def download_rel(rel: str) -> bytes:
         **req_kwargs(timeout=120),
     )
     r.raise_for_status()
-    return r.content
+    data = r.content
+    status_note_bytes(downloaded=len(data))
+    return data
 
 
 def resolve_weights(model_id: int, payload: dict) -> str:
@@ -645,21 +752,60 @@ def handle_train_session_tick(job: dict) -> None:
 
 def process_job(job: dict) -> None:
     typ = str(job.get("type") or "")
-    log.info("job %s type=%s", job.get("id"), typ)
-    if typ == "infer_image":
-        handle_infer_image(job)
-    elif typ == "infer_batch":
-        handle_infer_batch(job)
-    elif typ in ("monitor_tick", "capture_frame"):
-        handle_camera_job(job, on_demand=False)
-    elif typ == "on_demand":
-        handle_camera_job(job, on_demand=True)
-    elif typ == "train_session_tick":
-        handle_train_session_tick(job)
-    elif typ == "train":
-        handle_train(job)
-    else:
-        post_result(int(job["id"]), {}, error=f"unknown type {typ}")
+    job_id = int(job.get("id") or 0)
+    log.info("job %s type=%s", job_id, typ)
+    _STATUS["current_job"] = {"id": job_id, "type": typ, "started_at": int(time.time())}
+    _status_save()
+    t0 = time.time()
+    err: Optional[str] = None
+    try:
+        if typ == "infer_image":
+            handle_infer_image(job)
+        elif typ == "infer_batch":
+            handle_infer_batch(job)
+        elif typ in ("monitor_tick", "capture_frame"):
+            handle_camera_job(job, on_demand=False)
+        elif typ == "on_demand":
+            handle_camera_job(job, on_demand=True)
+        elif typ == "train_session_tick":
+            handle_train_session_tick(job)
+        elif typ == "train":
+            handle_train(job)
+        else:
+            err = f"unknown type {typ}"
+            post_result(job_id, {}, error=err)
+    except Exception as e:  # noqa: BLE001
+        err = str(e)
+        raise
+    finally:
+        ms = int((time.time() - t0) * 1000)
+        ok = err is None
+        c = _STATUS["counters"]
+        if ok:
+            c["jobs_ok"] = int(c.get("jobs_ok") or 0) + 1
+        else:
+            c["jobs_err"] = int(c.get("jobs_err") or 0) + 1
+        by_type = c.setdefault("by_type", {})
+        by_type[typ] = int(by_type.get(typ) or 0) + 1
+        _STATUS["last_job"] = {
+            "id": job_id,
+            "type": typ,
+            "ok": ok,
+            "ms": ms,
+            "error": err or "",
+            "at": int(time.time()),
+        }
+        _STATUS["current_job"] = None
+        if typ in ("train", "train_session_tick"):
+            _STATUS["last_train"] = {
+                "id": job_id,
+                "type": typ,
+                "status": "ok" if ok else "error",
+                "error": err or "",
+                "at": int(time.time()),
+                "ms": ms,
+            }
+        _status_save()
 
 
 def main() -> int:
@@ -672,6 +818,12 @@ def main() -> int:
         log.error("config missing: %s (copy configs/example.json → configs/local.json)", args.config)
         return 2
     load_config(args.config)
+    _STATUS["started_at"] = int(time.time())
+    _STATUS["pid"] = os.getpid()
+    _STATUS["worker_key"] = WORKER_KEY
+    _STATUS["server"] = SERVER
+    _STATUS["tunnel_enabled"] = bool(TUNNEL.get("enabled"))
+    _status_save()
     tunnel_up()
     cameras: List[dict] = []
     last_hello = 0.0

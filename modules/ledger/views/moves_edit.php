@@ -17,7 +17,12 @@ declare(strict_types=1);
 /** @var bool $fundsEnabled */
 /** @var bool $stickersEnabled */
 /** @var string $extraSectionsHtml */
+/** @var bool $canConvertToTransfer */
+/** @var array<int,string> $transferTypes */
 $hasType = $type !== null;
+$canConvertToTransfer = !empty($canConvertToTransfer);
+$transferTypes = is_array($transferTypes ?? null) ? $transferTypes : [];
+$fromAccountId = (int)($row['account_id'] ?? 0);
 $dtPromisedValue = (string)($dtPromisedValue ?? '');
 $showPromiseExecuted = $dtPromisedValue !== '' && strtotime($dtPromisedValue . ' 00:00:00') !== false
     && strtotime($dtPromisedValue . ' 00:00:00') <= time();
@@ -178,6 +183,37 @@ $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
 </form>
 <?php if (!empty($extraSectionsHtml)): ?>
   <?= $extraSectionsHtml ?>
+<?php endif; ?>
+<?php if ($canConvertToTransfer): ?>
+<section class="ledger-convert-transfer">
+  <h2><?= te('ledger.moves.convert_title') ?></h2>
+  <p class="muted"><?= te('ledger.moves.convert_hint') ?></p>
+  <form method="post" class="form-grid form-wide" onsubmit="return confirm(<?= tj('ledger.moves.convert_confirm') ?>);">
+    <input type="hidden" name="action" value="convert_to_transfer">
+    <label><?= te('ledger.moves.col.type') ?>
+      <select name="transfer_type_id" required>
+        <option value=""><?= te('ledger.moves.type_pick') ?></option>
+        <?php foreach ($transferTypes as $tid => $tname): ?>
+          <option value="<?= (int)$tid ?>"><?= e($tname) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <label><?= te('ledger.moves.field.account_to') ?>
+      <select name="transfer_account_to" required>
+        <option value=""><?= te('ledger.moves.filter_all') ?></option>
+        <?php foreach ($accounts as $aid => $aname): ?>
+          <?php if ((int)$aid === $fromAccountId) {
+              continue;
+          } ?>
+          <option value="<?= (int)$aid ?>"><?= e($aname) ?></option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <div class="page-actions">
+      <button type="submit" class="btn-secondary"><?= te('ledger.moves.convert_submit') ?></button>
+    </div>
+  </form>
+</section>
 <?php endif; ?>
 <?php if (!$isNew): ?>
 <?= EntityDelete::form('ledger_moves', (int)($row['id'] ?? 0), [

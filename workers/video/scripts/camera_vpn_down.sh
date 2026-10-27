@@ -24,4 +24,11 @@ if [[ "$status" == "Connected" || "$status" == "Connecting" ]]; then
   scutil --nc stop "$VPN_NAME" || true
 fi
 
+# If PPP delete left the box without a default, restore LAN gateway
+LAN_GW="${LAN_GW:-${LAN_GW_FALLBACK:-192.168.1.1}}"
+if ! route -n get default >/dev/null 2>&1; then
+  echo "restoring LAN default via $LAN_GW" >&2
+  sudo -n route -n add default "$LAN_GW" 2>/dev/null || true
+fi
+
 echo "VPN '$VPN_NAME' stopped"

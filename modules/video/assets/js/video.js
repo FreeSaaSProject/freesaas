@@ -1,6 +1,25 @@
 (function () {
   'use strict';
 
+  /* —— Schedule mode panels —— */
+  document.querySelectorAll('[data-schedule-root]').forEach(function (root) {
+    var sel = root.querySelector('[data-schedule-mode]');
+    if (!sel) return;
+    function sync() {
+      var mode = sel.value || 'always';
+      root.querySelectorAll('[data-schedule-panel]').forEach(function (panel) {
+        var show = panel.getAttribute('data-schedule-panel') === mode;
+        if (show) {
+          panel.removeAttribute('hidden');
+        } else {
+          panel.setAttribute('hidden', 'hidden');
+        }
+      });
+    }
+    sel.addEventListener('change', sync);
+    sync();
+  });
+
   function esc(s) {
     var d = document.createElement('div');
     d.textContent = s == null ? '' : String(s);
