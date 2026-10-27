@@ -156,6 +156,9 @@ $allowed = [
     '/agent/video/enqueue' => ['methods' => ['POST'], 'why' => 'agent_token video enqueue'],
     '/agent/video/session' => ['methods' => ['POST'], 'why' => 'agent_token video interactive train session'],
 
+    '/agent/video-label/projects' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video_label projects'],
+    '/agent/video-label/project' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video_label project get/update'],
+
     // OAuth / MCP (llm)
     '/oauth/authorize' => ['methods' => ['GET', 'POST'], 'why' => 'OAuth authorize'],
     '/oauth/token' => ['methods' => ['POST', 'OPTIONS'], 'why' => 'OAuth token'],

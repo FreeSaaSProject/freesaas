@@ -2,7 +2,7 @@
     "id": "video_label",
     "name": "video_label.module.name",
     "description": "video_label.module.description",
-    "version": "0.1.5",
+    "version": "0.1.6",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -33,12 +33,46 @@
             "/video-label/new",
             "/video-label/{id}/edit",
             "/video-label/{id}/workspace",
-            "/video-label/media"
+            "/video-label/media",
+            "/agent/video-label/projects",
+            "/agent/video-label/project"
         ]
     },
     "agent": {
         "docs": "docs/agents/video-label.md",
         "ops": [
+            {
+                "id": "video_label.agent.projects.list",
+                "method": "GET",
+                "path": "/agent/video-label/projects",
+                "permission": "public",
+                "side_effect": "read",
+                "description": "Surface A (agent_token): list labeling projects"
+            },
+            {
+                "id": "video_label.agent.projects.create",
+                "method": "POST",
+                "path": "/agent/video-label/projects",
+                "permission": "public",
+                "side_effect": "write",
+                "description": "Surface A (agent_token): create labeling project"
+            },
+            {
+                "id": "video_label.agent.projects.get",
+                "method": "GET",
+                "path": "/agent/video-label/project",
+                "permission": "public",
+                "side_effect": "read",
+                "description": "Surface A (agent_token): get project by ?id="
+            },
+            {
+                "id": "video_label.agent.projects.update",
+                "method": "POST",
+                "path": "/agent/video-label/project",
+                "permission": "public",
+                "side_effect": "write",
+                "description": "Surface A (agent_token): update/delete project"
+            },
             {
                 "id": "video_label.projects.list",
                 "method": "GET",

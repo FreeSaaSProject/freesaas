@@ -163,10 +163,16 @@ def grab_frame_ffmpeg(cfg: Dict[str, Any], source: str, out_jpg: Path, *, is_rts
     timeout = int(ff.get("timeout_sec") or 15)
     cmd = [bin_, "-y", "-hide_banner", "-loglevel", "error"]
     if is_rtsp:
-        cmd += ["-rtsp_transport", transport, "-stimeout", str(timeout * 1000000)]
+        # ffmpeg 5+: -timeout is µs for socket I/O (not legacy -stimeout)
+        cmd += [
+            "-rtsp_transport",
+            transport,
+            "-timeout",
+            str(timeout * 1_000_000),
+        ]
     cmd += ["-i", source, "-frames:v", "1", "-q:v", "3", str(out_jpg)]
     p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 10, check=False)
-    if p.returncode != 0 or not out_jpg.is_file():
+    if p.returncode != 0 or not out_jpg.is_file() or out_jpg.stat().st_size < 100:
         raise RuntimeError((p.stderr or p.stdout or "ffmpeg frame failed").strip()[:300])
 
 

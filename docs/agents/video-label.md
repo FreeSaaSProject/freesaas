@@ -11,6 +11,17 @@ php bin/freesaas.php module enable video --accept-risk
 php bin/freesaas.php module enable video_label --accept-risk --format=json
 ```
 
+## Agent Surface A (platform `X-FreeSaaS-Agent-Token`)
+
+Same auth as `/agent/video/*` — no staff session.
+
+| Op | Method | Path |
+|----|--------|------|
+| List projects | GET | `/agent/video-label/projects` |
+| Create | POST | `/agent/video-label/projects` JSON `name`, `classes` (lines or array), `model_id` |
+| Get | GET | `/agent/video-label/project?id=` |
+| Update / delete | POST | `/agent/video-label/project` JSON `id`, fields… or `action=delete` |
+
 ## Agent ops (session JSON)
 
 | Op | Method | Path |
