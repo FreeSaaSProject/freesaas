@@ -1277,6 +1277,76 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Bulk set counterparty on moves whose type requires one.
+     *
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function setSupplierByIds(array $ids, int $supplierId): array
+    {
+        $done = 0;
+        $skipped = [];
+        $ids = self::sanitizeIds($ids);
+        if ($ids === []) {
+            return ['done' => 0, 'skipped' => []];
+        }
+        if ($supplierId < 1) {
+            foreach ($ids as $id) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.bulk.err.supplier_required')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        if (class_exists('SuppliersRepository')) {
+            $sup = SuppliersRepository::find($supplierId);
+            if (!$sup) {
+                foreach ($ids as $id) {
+                    $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.supplier')];
+                }
+                return ['done' => 0, 'skipped' => $skipped];
+            }
+        }
+        $typeCache = [];
+        $uid = Auth::userId() ?: 0;
+        $now = time();
+        $st = Database::pdo()->prepare(
+            'UPDATE base_account_moves
+             SET ID_SUPPLIER = ?, ID_USER_UPDATE = ?, DT_UPDATE = ?
+             WHERE ID = ? AND DELETED = 0'
+        );
+        foreach ($ids as $id) {
+            $row = self::find($id);
+            if (!$row || (int)($row['deleted'] ?? 0) > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.not_found', ['id' => $id])];
+                continue;
+            }
+            if (self::isTransferMove($row)) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.use_transfer_form')];
+                continue;
+            }
+            $typeId = (int)($row['type_id'] ?? 0);
+            if (!array_key_exists($typeId, $typeCache)) {
+                $typeCache[$typeId] = $typeId > 0 ? AccountMoveTypesRepository::find($typeId) : null;
+            }
+            $type = $typeCache[$typeId];
+            if (!$type || empty($type['supplier_enabled'])) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.supplier_not_needed')];
+                continue;
+            }
+            if ((int)($row['supplier_id'] ?? 0) === $supplierId) {
+                $done++;
+                continue;
+            }
+            $st->execute([$supplierId, $uid, $now, $id]);
+            if ($st->rowCount() > 0) {
+                $done++;
+            } else {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.not_found', ['id' => $id])];
+            }
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
+    /**
      * Soft-delete; cascades to linked twin.
      * @param list<int> $ids
      * @return array{done:int,skipped:list<array{id:int,reason:string}>}

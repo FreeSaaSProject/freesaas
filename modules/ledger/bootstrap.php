@@ -82,6 +82,27 @@ BulkActions::register('ledger_moves', 'set_type', [
     },
 ]);
 
+BulkActions::register('ledger_moves', 'set_supplier', [
+    'label' => 'ledger.moves.bulk.set_supplier',
+    'permission' => 'ledger.edit',
+    'fields' => [
+        [
+            'name' => 'supplier_id',
+            'type' => 'select',
+            'label' => 'ledger.moves.bulk.supplier',
+            'options' => static function (): array {
+                if (!ModuleManager::isEnabled('suppliers') || !class_exists('SuppliersRepository')) {
+                    return [];
+                }
+                return SuppliersRepository::names(true);
+            },
+        ],
+    ],
+    'run' => static function (array $ids, array $params): array {
+        return LedgerMovesRepository::setSupplierByIds($ids, (int)($params['supplier_id'] ?? 0));
+    },
+]);
+
 BulkActions::register('ledger_moves', 'confirm', [
     'label' => 'ledger.moves.bulk.confirm',
     'permission' => 'ledger.edit',
