@@ -76,12 +76,12 @@ $s = $settings ?? [];
     require __DIR__ . '/_schedule_fields.php';
     ?>
     <div class="video-form-actions">
-      <button type="submit" class="btn btn-primary"><?= te('core.common.save') ?></button>
+      <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
       <?php if (empty($isNew)): ?>
-        <a class="btn btn-ghost" href="/video/cameras/<?= (int)($r['ID'] ?? 0) ?>/live"><?= te('video.live.crumb') ?></a>
+        <a class="btn-ghost" href="/video/cameras/<?= (int)($r['ID'] ?? 0) ?>/live"><?= te('video.live.crumb') ?></a>
       <?php endif; ?>
       <?php if (empty($isNew) && Auth::can('video.delete')): ?>
-        <button type="submit" name="action" value="delete" class="btn btn-danger btn-sm" onclick="return confirm(<?= tj('core.bulk.confirm_delete') ?>)"><?= te('core.common.delete') ?></button>
+        <button type="submit" name="action" value="delete" class="btn-danger btn-sm" onclick="return confirm(<?= tj('core.bulk.confirm_delete') ?>)"><?= te('core.common.delete') ?></button>
       <?php endif; ?>
     </div>
   </form>

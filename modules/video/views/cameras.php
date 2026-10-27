@@ -1,11 +1,11 @@
 <?php declare(strict_types=1); ?>
 <section>
-  <p>
-    <a class="btn" href="/video/cameras/new"><?= te('video.cameras.new') ?></a>
+  <p class="actions">
+    <a class="btn-primary" href="/video/cameras/new"><?= te('video.cameras.new') ?></a>
   </p>
-  <form method="get" class="filters">
+  <form method="get" class="filters form-inline">
     <input type="search" name="q" value="<?= e((string)$q) ?>" placeholder="<?= te('video.cameras.search') ?>">
-    <button type="submit"><?= te('video.cameras.filter') ?></button>
+    <button type="submit" class="btn-secondary btn-sm"><?= te('video.cameras.filter') ?></button>
   </form>
   <table class="table">
     <thead><tr>
@@ -48,16 +48,16 @@
         </td>
         <td><?= $seen > 0 ? e(date('Y-m-d H:i:s', $seen)) : '—' ?></td>
         <td class="row-actions">
-          <a href="/video/cameras/<?= (int)$c['ID'] ?>/live"><?= te('video.live.crumb') ?></a>
+          <a class="btn-ghost btn-sm" href="/video/cameras/<?= (int)$c['ID'] ?>/live"><?= te('video.live.crumb') ?></a>
           <form method="post" class="inline">
             <input type="hidden" name="action" value="enqueue_monitor">
             <input type="hidden" name="id" value="<?= (int)$c['ID'] ?>">
-            <button type="submit"><?= te('video.cameras.run_tick') ?></button>
+            <button type="submit" class="btn-secondary btn-sm"><?= te('video.cameras.run_tick') ?></button>
           </form>
           <form method="post" class="inline">
             <input type="hidden" name="action" value="enqueue_ondemand">
             <input type="hidden" name="id" value="<?= (int)$c['ID'] ?>">
-            <button type="submit"><?= te('video.cameras.run_ondemand') ?></button>
+            <button type="submit" class="btn-secondary btn-sm"><?= te('video.cameras.run_ondemand') ?></button>
           </form>
         </td>
       </tr>

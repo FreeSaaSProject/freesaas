@@ -14,7 +14,7 @@
     </label>
     <p class="field-help"><?= te('video.models.classes.help') ?></p>
     <label><?= te('video.models.notes') ?> <input name="notes"></label>
-    <button type="submit"><?= te('core.common.save') ?></button>
+    <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
   </form>
 
   <h2><?= te('video.models.train') ?></h2>
@@ -32,7 +32,7 @@
     <label><?= te('video.col.name') ?> <input name="model_name" value="trained"></label>
     <label>epochs <input type="number" name="epochs" value="50"></label>
     <label>imgsz <input type="number" name="imgsz" value="640"></label>
-    <button type="submit"><?= te('video.models.enqueue_train') ?></button>
+    <button type="submit" class="btn-primary"><?= te('video.models.enqueue_train') ?></button>
   </form>
 
   <h2><?= te('video.models.list') ?></h2>
@@ -72,7 +72,7 @@
           <form method="post" class="inline" onsubmit="return confirm(<?= tj('core.bulk.confirm_delete') ?>)">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="id" value="<?= (int)$m['ID'] ?>">
-            <button type="submit"><?= te('core.common.delete') ?></button>
+            <button type="submit" class="btn-danger btn-sm"><?= te('core.common.delete') ?></button>
           </form>
         </td>
       </tr>

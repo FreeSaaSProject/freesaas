@@ -65,9 +65,9 @@ $id = (int)$card['ID'];
       </div>
     <?php endif; ?>
     <p class="video-cam-actions">
-      <a class="btn btn-sm btn-primary" href="/video/posts/<?= $id ?>"><?= te('video.posts.open') ?></a>
-      <a class="btn btn-sm btn-secondary" href="/video/posts/<?= $id ?>/edit"><?= te('core.common.edit') ?></a>
-      <a class="btn btn-sm btn-ghost" href="/video/cameras/new?post_id=<?= $id ?>"><?= te('video.cameras.new') ?></a>
+      <a class="btn-primary btn-sm" href="/video/posts/<?= $id ?>"><?= te('video.posts.open') ?></a>
+      <a class="btn-secondary btn-sm" href="/video/posts/<?= $id ?>/edit"><?= te('core.common.edit') ?></a>
+      <a class="btn-ghost btn-sm" href="/video/cameras/new?post_id=<?= $id ?>"><?= te('video.cameras.new') ?></a>
     </p>
   </div>
 </article>

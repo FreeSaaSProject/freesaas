@@ -45,11 +45,11 @@
       <p class="field-help"><?= te('video.settings.purge_mode.help') ?></p>
       <p class="muted"><?= te('video.settings.storage_now', ['mb' => number_format((int)($cfg['storage_bytes'] ?? 0) / 1048576, 1)]) ?></p>
     </fieldset>
-    <button type="submit"><?= te('core.common.save') ?></button>
+    <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
   </form>
   <form method="post" class="video-purge-form">
     <input type="hidden" name="run_purge" value="1">
     <p class="field-help"><?= te('video.settings.run_purge.help') ?></p>
-    <button type="submit"><?= te('video.settings.run_purge') ?></button>
+    <button type="submit" class="btn-secondary"><?= te('video.settings.run_purge') ?></button>
   </form>
 </section>

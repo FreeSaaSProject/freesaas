@@ -134,8 +134,8 @@ final class VideoLabelProjectsRepository
     {
         $id = self::ingestMonitoringFrame($projectId, $absSource, $preferredName);
         if ($id !== null && $labels !== []) {
+            // Stored labels only. Predictions come from infer (all boxes incl. low conf).
             VideoLabelImagesRepository::setLabels($id, $labels);
-            VideoLabelImagesRepository::setPredictions($id, $labels);
         }
 
         return $id;
@@ -171,9 +171,54 @@ final class VideoLabelProjectsRepository
             }
             VideoLabelImagesRepository::setPredictions($imageId, $boxes);
             if (!empty($item['promote'])) {
-                VideoLabelImagesRepository::setLabels($imageId, $boxes);
+                $thresh = (float)($item['conf_threshold'] ?? 0.25);
+                $promoted = [];
+                foreach ($boxes as $b) {
+                    if (!is_array($b)) {
+                        continue;
+                    }
+                    $c = $b['conf'] ?? $b['confidence'] ?? null;
+                    if ($c === null || (float)$c >= $thresh) {
+                        $promoted[] = $b;
+                    }
+                }
+                VideoLabelImagesRepository::setLabels($imageId, $promoted);
             }
         }
+    }
+
+    /**
+     * Zip ingest used to copy labels → predictions without confidence.
+     * Those duplicates break hover-peek (every pred draws as solid-threshold dashed).
+     */
+    public static function scrubDuplicatePredictions(int $projectId): int
+    {
+        $n = 0;
+        foreach (VideoLabelImagesRepository::listForProject($projectId) as $img) {
+            $labels = json_decode((string)($img['LABELS_JSON'] ?? ''), true) ?: [];
+            $preds = json_decode((string)($img['PREDICTIONS_JSON'] ?? ''), true) ?: [];
+            if (!is_array($preds) || $preds === []) {
+                continue;
+            }
+            $hasConf = false;
+            foreach ($preds as $p) {
+                if (!is_array($p)) {
+                    continue;
+                }
+                if (isset($p['conf']) || isset($p['confidence'])) {
+                    $hasConf = true;
+                    break;
+                }
+            }
+            if ($hasConf) {
+                continue;
+            }
+            // No confidence → not a real model cache; clear.
+            VideoLabelImagesRepository::setPredictions((int)$img['ID'], []);
+            $n++;
+        }
+
+        return $n;
     }
 
     /** Export YOLO layout under var/video/exports/{projectId}/ */

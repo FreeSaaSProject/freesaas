@@ -1,8 +1,8 @@
 <?php declare(strict_types=1); ?>
 <section>
   <div class="video-toolbar">
-    <a class="btn btn-primary" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
-    <a class="btn" href="/video-label"><?= te('video_label.menu.projects') ?></a>
+    <a class="btn-primary" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
+    <a class="btn-secondary" href="/video-label"><?= te('video_label.menu.projects') ?></a>
   </div>
   <p class="muted"><?= te('video.train.local_collect_notice') ?></p>
 
@@ -50,7 +50,7 @@
       </label>
     </div>
     <div class="video-form-actions">
-      <button type="submit" class="btn btn-primary"><?= te('video.train.start') ?></button>
+      <button type="submit" class="btn-primary"><?= te('video.train.start') ?></button>
     </div>
   </form>
 

@@ -52,7 +52,7 @@ After export, train from video: `POST /video/models` `action=enqueue_train&proje
 | `/video-label` | Projects |
 | `/video-label/{id}/workspace` | Canvas: Box / Drag / Null, undo, assist; upload images or YOLO zip |
 
-**Drag hover-peek:** predictions below project confidence stay hidden until the cursor is over them; click promotes into stored labels.
+**Drag hover-peek:** model infer runs at `detect_conf=0.01` (LabelForge-style) and stores all boxes in `PREDICTIONS_JSON` with confidence. Boxes below project confidence stay hidden until Drag-hover (dashed peek); click promotes into stored labels. Zip ingest writes **labels only** (not a fake prediction cache). Right-click a box → class / delete. Right rail lists stored objects + model cache.
 
 ## Classes
 

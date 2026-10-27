@@ -103,6 +103,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         }
         redirect('/video-label/' . $projectId . '/workspace?image=' . $imageId);
     }
+    if ($action === 'clear_predictions') {
+        $n = VideoLabelProjectsRepository::scrubDuplicatePredictions($projectId);
+        // Also wipe all predictions so a fresh infer can refill (LabelForge cache reset).
+        foreach (VideoLabelImagesRepository::listForProject($projectId) as $img) {
+            VideoLabelImagesRepository::setPredictions((int)$img['ID'], []);
+        }
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'scrubbed_dupes' => $n, 'cleared' => true]);
+            return;
+        }
+        flash_set('ok', t('video_label.flash.predictions_cleared'));
+        redirect('/video-label/' . $projectId . '/workspace');
+    }
     if ($action === 'infer') {
         $imageId = (int)($_POST['image_id'] ?? 0);
         $batch = !empty($_POST['batch']);
@@ -110,6 +123,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
             flash_set('error', t('video_label.flash.need_video'));
             redirect('/video-label/' . $projectId . '/workspace');
         }
+        $classes = is_array($proj['classes'] ?? null) ? $proj['classes'] : [];
         if ($batch) {
             $items = [];
             foreach (VideoLabelImagesRepository::listForProject($projectId) as $img) {
@@ -119,7 +133,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                 'project_id' => $projectId,
                 'model_id' => (int)$proj['MODEL_ID'],
                 'conf_threshold' => (float)$proj['CONF_THRESHOLD'],
+                'detect_conf' => 0.01,
                 'iou_threshold' => (float)$proj['IOU_THRESHOLD'],
+                'classes' => $classes,
                 'images' => $items,
                 'promote' => !empty($_POST['promote']),
             ]);
@@ -130,7 +146,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
                     'project_id' => $projectId,
                     'model_id' => (int)$proj['MODEL_ID'],
                     'conf_threshold' => (float)$proj['CONF_THRESHOLD'],
+                    'detect_conf' => 0.01,
                     'iou_threshold' => (float)$proj['IOU_THRESHOLD'],
+                    'classes' => $classes,
                     'image_id' => $imageId,
                     'image_rel' => (string)$img['PATH'],
                     'promote' => !empty($_POST['promote']),
@@ -166,6 +184,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         redirect('/video-label/' . $projectId . '/workspace');
     }
 }
+
+// One-time heal: zip ingest used to mirror labels into predictions without conf.
+VideoLabelProjectsRepository::scrubDuplicatePredictions($projectId);
 
 $images = VideoLabelImagesRepository::listForProject($projectId);
 $currentId = (int)($_GET['image'] ?? 0);

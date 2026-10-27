@@ -59,7 +59,7 @@
       </div>
       <p class="field-help"><?= te('video.wizard.train.solo_help') ?></p>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.next') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.next') ?></button>
       </div>
 
     <?php elseif ((int)$step === 2): ?>
@@ -87,19 +87,19 @@
       </label>
       <p class="field-help"><?= te('video.wizard.train.other_help') ?></p>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.next') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.next') ?></button>
       </div>
 
     <?php elseif ((int)$step === 3): ?>
       <p><?= te('video.wizard.train.finish_help') ?></p>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.train.finish') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.train.finish') ?></button>
       </div>
 
     <?php else: ?>
       <label><input type="checkbox" name="do_train" value="1" checked> <?= te('video.wizard.train.do_first_train') ?></label>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.finish') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.finish') ?></button>
       </div>
     <?php endif; ?>
   </form>

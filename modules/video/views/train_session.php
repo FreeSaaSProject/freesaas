@@ -24,25 +24,25 @@ $status = (string)$row['STATUS'];
 
   <div class="video-train-actions">
     <?php if ($status === 'running'): ?>
-      <form method="post" class="inline"><input type="hidden" name="action" value="pause"><button type="submit" class="btn btn-secondary"><?= te('video.train.pause') ?></button></form>
+      <form method="post" class="inline"><input type="hidden" name="action" value="pause"><button type="submit" class="btn-secondary"><?= te('video.train.pause') ?></button></form>
     <?php else: ?>
-      <form method="post" class="inline"><input type="hidden" name="action" value="resume"><button type="submit" class="btn btn-primary"><?= te('video.train.resume') ?></button></form>
+      <form method="post" class="inline"><input type="hidden" name="action" value="resume"><button type="submit" class="btn-primary"><?= te('video.train.resume') ?></button></form>
     <?php endif; ?>
     <form method="post" class="inline video-form-row" style="margin:0;align-items:flex-end">
       <input type="hidden" name="action" value="phase_solo">
       <label class="video-field"><?= te('video.train.target_class_id') ?>
         <input type="number" name="target_class_id" value="<?= (int)$row['TARGET_CLASS_ID'] ?>" min="0">
       </label>
-      <button type="submit" class="btn btn-ghost btn-sm"><?= te('video.train.phase_solo') ?></button>
+      <button type="submit" class="btn-ghost btn-sm"><?= te('video.train.phase_solo') ?></button>
     </form>
     <form method="post" class="inline video-form-row" style="margin:0;align-items:flex-end">
       <input type="hidden" name="action" value="phase_other">
       <label class="video-field"><?= te('video.train.other_class_id') ?>
         <input type="number" name="target_class_id" value="<?= (int)$row['TARGET_CLASS_ID'] ?>" min="0">
       </label>
-      <button type="submit" class="btn btn-ghost btn-sm"><?= te('video.train.phase_other') ?></button>
+      <button type="submit" class="btn-ghost btn-sm"><?= te('video.train.phase_other') ?></button>
     </form>
-    <form method="post" class="inline"><input type="hidden" name="action" value="finish"><button type="submit" class="btn btn-danger btn-sm"><?= te('video.train.finish') ?></button></form>
+    <form method="post" class="inline"><input type="hidden" name="action" value="finish"><button type="submit" class="btn-danger btn-sm"><?= te('video.train.finish') ?></button></form>
   </div>
 
   <div class="video-train-layout">
@@ -85,7 +85,7 @@ $status = (string)$row['STATUS'];
         <label class="video-field">epochs
           <input type="number" name="epochs" value="50">
         </label>
-        <button type="submit" class="btn btn-primary"><?= te('video.models.enqueue_train') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.models.enqueue_train') ?></button>
       </form>
       <?php if ($project): ?>
         <p style="margin-top:0.75rem"><a href="/video-label/<?= (int)$project['ID'] ?>/workspace"><?= te('video.train.open_label') ?></a></p>

@@ -42,13 +42,13 @@ $staleSec = 120;
   <?php endif; ?>
 
   <div class="video-toolbar">
-    <a class="btn btn-primary" href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
-    <a class="btn btn-secondary" href="/video/posts"><?= te('video.menu.posts') ?></a>
-    <a class="btn btn-secondary" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
+    <a class="btn-primary" href="/video/wizard/setup"><?= te('video.wizard.setup') ?></a>
+    <a class="btn-secondary" href="/video/posts"><?= te('video.menu.posts') ?></a>
+    <a class="btn-secondary" href="/video/wizard/train"><?= te('video.wizard.train') ?></a>
     <span class="spacer"></span>
-    <a class="btn btn-ghost btn-sm" href="/video/models"><?= te('video.menu.models') ?></a>
-    <a class="btn btn-ghost btn-sm" href="/video/alerts"><?= te('video.menu.alerts') ?></a>
-    <a class="btn btn-ghost btn-sm" href="/video/settings"><?= te('video.menu.settings') ?></a>
+    <a class="btn-ghost btn-sm" href="/video/models"><?= te('video.menu.models') ?></a>
+    <a class="btn-ghost btn-sm" href="/video/alerts"><?= te('video.menu.alerts') ?></a>
+    <a class="btn-ghost btn-sm" href="/video/settings"><?= te('video.menu.settings') ?></a>
   </div>
 
   <h2 class="video-section-title"><?= te('video.dashboard.posts') ?></h2>

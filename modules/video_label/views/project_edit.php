@@ -27,10 +27,10 @@ $r = $row ?? [];
     <label><?= te('video_label.col.iou') ?>
       <input type="number" step="0.01" name="iou_threshold" value="<?= e((string)($r['IOU_THRESHOLD'] ?? '0.45')) ?>">
     </label>
-    <p>
-      <button type="submit"><?= te('core.common.save') ?></button>
+    <p class="actions">
+      <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
       <?php if (empty($isNew)): ?>
-        <button type="submit" name="action" value="delete" onclick="return confirm(<?= tj('core.bulk.confirm_delete') ?>)"><?= te('core.common.delete') ?></button>
+        <button type="submit" name="action" value="delete" class="btn-danger btn-sm" onclick="return confirm(<?= tj('core.bulk.confirm_delete') ?>)"><?= te('core.common.delete') ?></button>
       <?php endif; ?>
     </p>
   </form>

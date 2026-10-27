@@ -472,17 +472,20 @@ def handle_infer_image(job: dict) -> None:
         post_result(job_id, {}, error="image_rel missing")
         return
     weights = resolve_weights(int(payload.get("model_id") or 0), payload)
-    conf = float(payload.get("conf_threshold") or 0.25)
+    # LabelForge-style: pull almost all boxes; UI hides those below project conf until hover-peek.
+    detect_conf = float(payload.get("detect_conf") or 0.01)
+    display_conf = float(payload.get("conf_threshold") or 0.25)
     iou = float(payload.get("iou_threshold") or 0.45)
     classes_meta = payload.get("classes") if isinstance(payload.get("classes"), list) else None
     raw = download_rel(rel)
-    boxes, ann = run_infer_bytes(weights, raw, conf, iou, classes_meta)
+    boxes, ann = run_infer_bytes(weights, raw, detect_conf, iou, classes_meta)
     result = {
         "predictions": [
             {
                 "image_id": int(payload.get("image_id") or 0),
                 "boxes": boxes,
                 "promote": bool(payload.get("promote")),
+                "conf_threshold": display_conf,
             }
         ]
     }
@@ -498,7 +501,8 @@ def handle_infer_batch(job: dict) -> None:
     payload = job.get("payload") or {}
     job_id = int(job["id"])
     weights = resolve_weights(int(payload.get("model_id") or 0), payload)
-    conf = float(payload.get("conf_threshold") or 0.25)
+    detect_conf = float(payload.get("detect_conf") or 0.01)
+    display_conf = float(payload.get("conf_threshold") or 0.25)
     iou = float(payload.get("iou_threshold") or 0.45)
     classes_meta = payload.get("classes") if isinstance(payload.get("classes"), list) else None
     preds = []
@@ -507,12 +511,13 @@ def handle_infer_batch(job: dict) -> None:
         if not rel:
             continue
         raw = download_rel(rel)
-        boxes, _ = run_infer_bytes(weights, raw, conf, iou, classes_meta)
+        boxes, _ = run_infer_bytes(weights, raw, detect_conf, iou, classes_meta)
         preds.append(
             {
                 "image_id": int(item.get("image_id") or 0),
                 "boxes": boxes,
                 "promote": bool(payload.get("promote")),
+                "conf_threshold": display_conf,
             }
         )
     post_result(job_id, {"predictions": preds})

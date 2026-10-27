@@ -25,16 +25,16 @@
     require __DIR__ . '/_schedule_fields.php';
     ?>
     <div class="video-form-actions">
-      <button type="submit" class="btn btn-primary"><?= te('core.common.save') ?></button>
+      <button type="submit" class="btn-primary"><?= te('core.common.save') ?></button>
       <?php if (empty($isNew)): ?>
-        <a class="btn btn-ghost" href="/video/posts/<?= (int)($row['ID'] ?? 0) ?>"><?= te('video.posts.open') ?></a>
+        <a class="btn-ghost" href="/video/posts/<?= (int)($row['ID'] ?? 0) ?>"><?= te('video.posts.open') ?></a>
       <?php endif; ?>
     </div>
   </form>
   <?php if (empty($isNew)): ?>
     <form method="post" class="video-purge-form" onsubmit="return confirm(<?= tj('core.bulk.confirm_delete') ?>)">
       <input type="hidden" name="action" value="delete">
-      <button type="submit" class="btn btn-danger btn-sm"><?= te('core.common.delete') ?></button>
+      <button type="submit" class="btn-danger btn-sm"><?= te('core.common.delete') ?></button>
     </form>
   <?php endif; ?>
 </section>

@@ -31,7 +31,7 @@
       </label>
       <label><input type="checkbox" name="enabled" value="1" checked> <?= te('video.col.enabled') ?></label>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.next') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.next') ?></button>
       </div>
 
     <?php elseif ((int)$step === 2): ?>
@@ -49,7 +49,7 @@
       <label><input type="checkbox" name="enabled" value="1" checked> <?= te('video.col.enabled') ?></label>
       <label><input type="checkbox" name="add_another" value="1"> <?= te('video.wizard.setup.add_camera') ?></label>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.next') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.next') ?></button>
       </div>
 
     <?php elseif ((int)$step === 3): ?>
@@ -87,7 +87,7 @@
       </label>
       <p class="field-help"><?= te('video.models.classes.help') ?></p>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.next') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.next') ?></button>
       </div>
 
     <?php elseif ((int)$step === 4): ?>
@@ -96,13 +96,13 @@
       require __DIR__ . '/_schedule_fields.php';
       ?>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.next') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.next') ?></button>
       </div>
 
     <?php else: ?>
       <p><?= te('video.wizard.setup.smoke_help') ?></p>
       <div class="video-wizard-actions">
-        <button type="submit" class="btn btn-primary"><?= te('video.wizard.setup.smoke') ?></button>
+        <button type="submit" class="btn-primary"><?= te('video.wizard.setup.smoke') ?></button>
       </div>
     <?php endif; ?>
   </form>

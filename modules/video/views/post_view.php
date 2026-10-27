@@ -1,9 +1,9 @@
 <?php declare(strict_types=1); ?>
 <section class="video-post-view">
   <div class="video-toolbar">
-    <a class="btn btn-secondary" href="/video/posts/<?= (int)$card['ID'] ?>/edit"><?= te('core.common.edit') ?></a>
-    <a class="btn btn-primary" href="/video/cameras/new?post_id=<?= (int)$card['ID'] ?>"><?= te('video.cameras.new') ?></a>
-    <a class="btn btn-ghost" href="/video/wizard/train?post_id=<?= (int)$card['ID'] ?>"><?= te('video.wizard.train') ?></a>
+    <a class="btn-secondary" href="/video/posts/<?= (int)$card['ID'] ?>/edit"><?= te('core.common.edit') ?></a>
+    <a class="btn-primary" href="/video/cameras/new?post_id=<?= (int)$card['ID'] ?>"><?= te('video.cameras.new') ?></a>
+    <a class="btn-ghost" href="/video/wizard/train?post_id=<?= (int)$card['ID'] ?>"><?= te('video.wizard.train') ?></a>
   </div>
   <?php if (!empty($card['class_counts'])): ?>
     <p class="video-counts" style="margin-bottom:1rem">
@@ -31,11 +31,11 @@
             <h3><a href="/video/cameras/<?= (int)$c['ID'] ?>/edit"><?= e((string)$c['NAME']) ?></a></h3>
             <p class="muted"><?= e((string)$c['MODE']) ?><?php if (!empty($c['rtsp_hint'])): ?> · <?= e((string)$c['rtsp_hint']) ?><?php endif; ?></p>
             <p class="video-cam-actions">
-              <a class="btn btn-sm btn-primary" href="/video/cameras/<?= (int)$c['ID'] ?>/live"><?= te('video.live.crumb') ?></a>
+              <a class="btn-primary btn-sm" href="/video/cameras/<?= (int)$c['ID'] ?>/live"><?= te('video.live.crumb') ?></a>
               <form method="post" action="/video/cameras" class="inline">
                 <input type="hidden" name="action" value="enqueue_ondemand">
                 <input type="hidden" name="id" value="<?= (int)$c['ID'] ?>">
-                <button type="submit" class="btn btn-sm btn-secondary"><?= te('video.cameras.run_ondemand') ?></button>
+                <button type="submit" class="btn-secondary btn-sm"><?= te('video.cameras.run_ondemand') ?></button>
               </form>
             </p>
           </div>

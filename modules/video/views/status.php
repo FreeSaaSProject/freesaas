@@ -28,5 +28,5 @@ $issues = $report['issues'] ?? [];
       <?php endforeach; ?>
     </ol>
   <?php endif; ?>
-  <p><a href="/video"><?= te('video.menu.dashboard') ?></a></p>
+  <p class="actions"><a class="btn-secondary btn-sm" href="/video"><?= te('video.menu.dashboard') ?></a></p>
 </section>

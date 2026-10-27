@@ -15,13 +15,13 @@ $frameRel = $ann !== '' ? $ann : $raw;
 ?>
 <section class="video-live" data-camera-id="<?= (int)$row['ID'] ?>" data-poll-url="/video/cameras/<?= (int)$row['ID'] ?>/live?format=json">
   <p class="muted"><?= te('video.live.hint') ?></p>
-  <p class="video-live-toolbar">
+  <p class="video-live-toolbar actions">
     <form method="post" action="/video/cameras" class="inline">
       <input type="hidden" name="action" value="enqueue_ondemand">
       <input type="hidden" name="id" value="<?= (int)$row['ID'] ?>">
-      <button type="submit"><?= te('video.cameras.run_ondemand') ?></button>
+      <button type="submit" class="btn-primary btn-sm"><?= te('video.cameras.run_ondemand') ?></button>
     </form>
-    <button type="button" class="video-live-soft-refresh"><?= te('video.live.refresh') ?></button>
+    <button type="button" class="btn-secondary btn-sm video-live-soft-refresh"><?= te('video.live.refresh') ?></button>
   </p>
 
   <?php if ($classes !== []): ?>
