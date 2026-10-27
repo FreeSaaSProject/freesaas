@@ -2,7 +2,7 @@
     "id": "video_label",
     "name": "video_label.module.name",
     "description": "video_label.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -35,7 +35,9 @@
             "/video-label/{id}/workspace",
             "/video-label/media",
             "/agent/video-label/projects",
-            "/agent/video-label/project"
+            "/agent/video-label/project",
+            "/agent/video-label/ingest",
+            "/agent/video-label/images"
         ]
     },
     "agent": {
@@ -72,6 +74,22 @@
                 "permission": "public",
                 "side_effect": "write",
                 "description": "Surface A (agent_token): update/delete project"
+            },
+            {
+                "id": "video_label.agent.ingest",
+                "method": "POST",
+                "path": "/agent/video-label/ingest",
+                "permission": "public",
+                "side_effect": "write",
+                "description": "Surface A (agent_token): ingest YOLO zip (multipart) or JSON frames[]; chunk ≤4MB on shared hosting"
+            },
+            {
+                "id": "video_label.agent.images.list",
+                "method": "GET",
+                "path": "/agent/video-label/images",
+                "permission": "public",
+                "side_effect": "read",
+                "description": "Surface A (agent_token): list project images ?id=&limit=&offset="
             },
             {
                 "id": "video_label.projects.list",

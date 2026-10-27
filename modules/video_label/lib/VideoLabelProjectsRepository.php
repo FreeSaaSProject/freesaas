@@ -101,7 +101,7 @@ final class VideoLabelProjectsRepository
         Database::pdo()->prepare('DELETE FROM base_video_label_projects WHERE ID = ?')->execute([$id]);
     }
 
-    public static function ingestMonitoringFrame(int $projectId, string $absSource): ?int
+    public static function ingestMonitoringFrame(int $projectId, string $absSource, ?string $preferredName = null): ?int
     {
         if ($projectId <= 0 || !is_file($absSource) || !class_exists(VideoStorage::class, false)) {
             return null;
@@ -110,27 +110,47 @@ final class VideoLabelProjectsRepository
         if ($proj === null) {
             return null;
         }
+        $fn = self::safeImageName($preferredName !== null && $preferredName !== '' ? $preferredName : basename($absSource));
+        if ($fn === '') {
+            $fn = 'cam_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.jpg';
+        }
+        $existing = VideoLabelImagesRepository::findByFilename($projectId, $fn);
+        if ($existing !== null) {
+            return (int)$existing['ID'];
+        }
         $bytes = (string)file_get_contents($absSource);
-        $fn = 'cam_' . date('Ymd_His') . '_' . bin2hex(random_bytes(3)) . '.jpg';
         $rel = VideoStorage::putBytes('labels/' . $projectId, $fn, $bytes);
 
         return VideoLabelImagesRepository::add($projectId, $fn, $rel);
     }
 
     /**
-     * Ingest frame + optional YOLO-normalized labels (interactive train).
+     * Ingest frame + optional YOLO-normalized labels (interactive train / zip).
+     * Idempotent by FILENAME when $preferredName (or basename) is stable.
      *
      * @param list<array<string, mixed>> $labels
      */
-    public static function ingestLabeledFrame(int $projectId, string $absSource, array $labels = []): ?int
+    public static function ingestLabeledFrame(int $projectId, string $absSource, array $labels = [], ?string $preferredName = null): ?int
     {
-        $id = self::ingestMonitoringFrame($projectId, $absSource);
+        $id = self::ingestMonitoringFrame($projectId, $absSource, $preferredName);
         if ($id !== null && $labels !== []) {
             VideoLabelImagesRepository::setLabels($id, $labels);
             VideoLabelImagesRepository::setPredictions($id, $labels);
         }
 
         return $id;
+    }
+
+    private static function safeImageName(string $name): string
+    {
+        $base = basename(str_replace('\\', '/', $name));
+        $base = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $base) ?? '';
+        $ext = strtolower(pathinfo($base, PATHINFO_EXTENSION));
+        if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            return '';
+        }
+
+        return substr($base, 0, 180);
     }
 
     /** @param array<string, mixed> $result from worker infer */

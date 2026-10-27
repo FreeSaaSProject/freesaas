@@ -158,6 +158,8 @@ $allowed = [
 
     '/agent/video-label/projects' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video_label projects'],
     '/agent/video-label/project' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token video_label project get/update'],
+    '/agent/video-label/ingest' => ['methods' => ['POST'], 'why' => 'agent_token video_label zip/frames ingest'],
+    '/agent/video-label/images' => ['methods' => ['GET'], 'why' => 'agent_token video_label images list'],
 
     // OAuth / MCP (llm)
     '/oauth/authorize' => ['methods' => ['GET', 'POST'], 'why' => 'OAuth authorize'],

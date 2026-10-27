@@ -21,6 +21,10 @@ Same auth as `/agent/video/*` — no staff session.
 | Create | POST | `/agent/video-label/projects` JSON `name`, `classes` (lines or array), `model_id` |
 | Get | GET | `/agent/video-label/project?id=` |
 | Update / delete | POST | `/agent/video-label/project` JSON `id`, fields… or `action=delete` |
+| Ingest zip / frames | POST | `/agent/video-label/ingest` multipart `project_id`+`zip` **or** JSON `frames[{filename,image_b64,labels}]` |
+| List images | GET | `/agent/video-label/images?id=` (`limit`, `offset`) |
+
+Shared hosting gateways often time out ~60s on large bodies — upload **chunks ≤4 MB** (collector does this automatically). Filenames are idempotent (re-upload skips duplicates).
 
 ## Agent ops (session JSON)
 
@@ -35,7 +39,7 @@ Same auth as `/agent/video/*` — no staff session.
 | Save labels | POST | workspace `action=save_labels` `image_id=` `labels_json=` |
 | Ingest YOLO zip | POST | workspace multipart `action=ingest_zip` `zip=` (images/ + labels/) |
 
-Mac worker twin (no session): `POST /video/worker/dataset-ingest` with `X-Video-Token`, fields `project_id` + `zip` file (max 500 MB).
+Mac worker twin (no session): `POST /video/worker/dataset-ingest` with `X-Video-Token`, fields `project_id` + `zip` file (max 500 MB; prefer chunked). Agent twin: `POST /agent/video-label/ingest` with `X-FreeSaaS-Agent-Token`.
 
 After export, train from video: `POST /video/models` `action=enqueue_train&project_id=` (ships zip to Mac worker).
 

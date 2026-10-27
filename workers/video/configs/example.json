@@ -2,7 +2,7 @@
   "server": "https://freesaas.example.tld",
   "worker_token": "CHANGE_ME",
   "agent_token": "",
-  "comment_agent_token": "Optional: app.agent_token for status dashboard GET /agent/video/status (not X-Video-Token)",
+  "comment_agent_token": "Optional app.agent_token: GET /agent/video/status + POST /agent/video-label/ingest (Surface A). Prefer worker_token for dataset-ingest.",
   "worker_key": "mac-office",
   "endpoints": {
     "hello": "/video/worker/hello",
@@ -44,7 +44,8 @@
     "root": "datasets",
     "default_fps": 1,
     "default_interval_sec": 2,
-    "comment": "Local collect under datasets/<slug>/{images,labels}. Upload zip via status panel → POST /video/worker/dataset-ingest"
+    "comment": "Local collect under datasets/<slug>/{images,labels}. Upload chunks ≤4MB via dataset_collect upload → /video/worker/dataset-ingest (or agent /agent/video-label/ingest)",
+    "upload_chunk_bytes": 3500000
   },
   "tailscale": {
     "comment": "Optional: when Mac is on a tailnet, FreeSaaS can still use poll; on-demand jobs work the same."

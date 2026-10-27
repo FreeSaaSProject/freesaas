@@ -39,6 +39,26 @@ final class VideoLabelImagesRepository
         return (int)Database::pdo()->lastInsertId();
     }
 
+    /** @return array<string, mixed>|null */
+    public static function findByFilename(int $projectId, string $filename): ?array
+    {
+        $st = Database::pdo()->prepare(
+            'SELECT * FROM base_video_label_images WHERE PROJECT_ID = ? AND FILENAME = ? LIMIT 1'
+        );
+        $st->execute([$projectId, $filename]);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
+    }
+
+    public static function countForProject(int $projectId): int
+    {
+        $st = Database::pdo()->prepare('SELECT COUNT(*) FROM base_video_label_images WHERE PROJECT_ID = ?');
+        $st->execute([$projectId]);
+
+        return (int)$st->fetchColumn();
+    }
+
     /** @param list<array<string, mixed>> $labels YOLO-normalized boxes */
     public static function setLabels(int $id, array $labels): void
     {

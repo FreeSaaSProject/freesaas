@@ -90,12 +90,18 @@ final class VideoLabelZipIngest
                     $labels = self::parseYoloTxt((string)file_get_contents($labFile));
                 }
             }
-            $id = VideoLabelProjectsRepository::ingestLabeledFrame($projectId, $abs, $labels);
+            $existing = VideoLabelImagesRepository::findByFilename($projectId, $fn);
+            $wasNew = $existing === null;
+            $id = VideoLabelProjectsRepository::ingestLabeledFrame($projectId, $abs, $labels, $fn);
             if ($id === null) {
                 $skipped++;
                 continue;
             }
-            $imported++;
+            if ($wasNew) {
+                $imported++;
+            } else {
+                $skipped++;
+            }
             if ($labels !== []) {
                 $labeled++;
             }

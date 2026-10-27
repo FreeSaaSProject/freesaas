@@ -526,30 +526,19 @@ def collect_video(
     return {"ok": True, "slug": ds.name, "frames_added": added, "summary": coverage_summary(cov)}
 
 
-def upload_zip(
-    cfg: Dict[str, Any],
+def _post_zip_multipart(
     *,
-    slug: str,
+    server: str,
+    token: str,
     project_id: int,
+    zip_bytes: bytes,
+    filename: str,
+    use_agent: bool,
+    agent_token: str,
 ) -> Dict[str, Any]:
-    server = str(cfg.get("server") or "").rstrip("/")
-    token = str(cfg.get("worker_token") or "").strip()
-    if not server or not token:
-        raise RuntimeError("server and worker_token required in local.json")
-    if project_id <= 0:
-        raise RuntimeError("project_id required")
-    root = datasets_root(cfg)
-    ds = root / slugify(slug)
-    if not ds.is_dir():
-        raise FileNotFoundError(str(ds))
-    zpath = zip_dataset(ds)
-    size = zpath.stat().st_size
-    if size > 500 * 1024 * 1024:
-        raise RuntimeError(f"zip too large: {size} bytes (max 500MB)")
-
-    # multipart without requests dependency for dashboard process
-    boundary = f"----FreeSaaSDataset{int(time.time())}"
+    boundary = f"----FreeSaaSDataset{int(time.time() * 1000)}"
     body = bytearray()
+
     def add_field(name: str, value: str) -> None:
         body.extend(f"--{boundary}\r\n".encode())
         body.extend(f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode())
@@ -558,34 +547,180 @@ def upload_zip(
 
     add_field("project_id", str(project_id))
     body.extend(f"--{boundary}\r\n".encode())
-    body.extend(
-        f'Content-Disposition: form-data; name="zip"; filename="{zpath.name}"\r\n'.encode()
-    )
+    body.extend(f'Content-Disposition: form-data; name="zip"; filename="{filename}"\r\n'.encode())
     body.extend(b"Content-Type: application/zip\r\n\r\n")
-    body.extend(zpath.read_bytes())
+    body.extend(zip_bytes)
     body.extend(b"\r\n")
     body.extend(f"--{boundary}--\r\n".encode())
 
-    url = f"{server}/video/worker/dataset-ingest"
-    req = Request(
-        url,
-        data=bytes(body),
-        headers={
+    if use_agent:
+        url = f"{server}/agent/video-label/ingest"
+        headers = {
+            "X-FreeSaaS-Agent-Token": agent_token,
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+            "Accept": "application/json",
+        }
+    else:
+        url = f"{server}/video/worker/dataset-ingest"
+        headers = {
             "X-Video-Token": token,
             "Content-Type": f"multipart/form-data; boundary={boundary}",
             "Accept": "application/json",
-        },
-        method="POST",
-    )
-    with urlopen(req, timeout=300) as resp:
+        }
+    req = Request(url, data=bytes(body), headers=headers, method="POST")
+    with urlopen(req, timeout=180) as resp:
         raw = resp.read().decode("utf-8", errors="replace")
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
         data = {"ok": False, "error": raw[:300]}
-    data["zip_path"] = str(zpath)
-    data["zip_bytes"] = size
+    data["chunk_bytes"] = len(zip_bytes)
+    data["chunk_file"] = filename
     return data
+
+
+def _iter_image_chunks(ds: Path, max_bytes: int) -> List[List[Path]]:
+    imgs_dir = ds / "images"
+    if not imgs_dir.is_dir():
+        return []
+    files = sorted(
+        p
+        for p in imgs_dir.iterdir()
+        if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")
+    )
+    chunks: List[List[Path]] = []
+    cur: List[Path] = []
+    cur_size = 0
+    for p in files:
+        sz = p.stat().st_size
+        # leave headroom for zip overhead + labels
+        if cur and cur_size + sz > max_bytes:
+            chunks.append(cur)
+            cur = []
+            cur_size = 0
+        cur.append(p)
+        cur_size += sz
+    if cur:
+        chunks.append(cur)
+    return chunks
+
+
+def _build_partial_zip(ds: Path, images: List[Path], out: Path) -> Path:
+    if out.is_file():
+        out.unlink()
+    with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for rel in ("classes.txt",):
+            p = ds / rel
+            if p.is_file():
+                zf.write(p, rel)
+        for img in images:
+            zf.write(img, f"images/{img.name}")
+            lab = ds / "labels" / f"{img.stem}.txt"
+            if lab.is_file():
+                zf.write(lab, f"labels/{lab.name}")
+    return out
+
+
+def upload_zip(
+    cfg: Dict[str, Any],
+    *,
+    slug: str,
+    project_id: int,
+    prefer_agent: bool = False,
+) -> Dict[str, Any]:
+    """Upload dataset as ≤~3.5MB zip chunks (shared hosting gateway ~60s)."""
+    server = str(cfg.get("server") or "").rstrip("/")
+    token = str(cfg.get("worker_token") or "").strip()
+    agent_token = str(cfg.get("agent_token") or "").strip()
+    use_agent = prefer_agent and bool(agent_token)
+    if not server:
+        raise RuntimeError("server required in local.json")
+    if use_agent:
+        if not agent_token:
+            raise RuntimeError("agent_token required for prefer_agent upload")
+    elif not token:
+        raise RuntimeError("worker_token required in local.json")
+    if project_id <= 0:
+        raise RuntimeError("project_id required")
+    root = datasets_root(cfg)
+    ds = root / slugify(slug)
+    if not ds.is_dir():
+        raise FileNotFoundError(str(ds))
+
+    ds_cfg = cfg.get("datasets") if isinstance(cfg.get("datasets"), dict) else {}
+    max_bytes = int(ds_cfg.get("upload_chunk_bytes") or 3_500_000)
+    max_bytes = max(500_000, min(max_bytes, 20_000_000))
+
+    # Always rewrite full zip for archival; upload goes in chunks.
+    full_zip = zip_dataset(ds)
+    chunks = _iter_image_chunks(ds, max_bytes)
+    if not chunks:
+        return {"ok": False, "error": "no images", "zip_path": str(full_zip)}
+
+    imported = 0
+    labeled = 0
+    skipped = 0
+    chunk_results: List[Dict[str, Any]] = []
+    tmp_dir = ds / ".upload_chunks"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        for i, imgs in enumerate(chunks):
+            part = tmp_dir / f"{ds.name}_part{i:03d}.zip"
+            _build_partial_zip(ds, imgs, part)
+            raw = part.read_bytes()
+            log.info("upload chunk %s/%s (%s bytes, %s images)", i + 1, len(chunks), len(raw), len(imgs))
+            try:
+                data = _post_zip_multipart(
+                    server=server,
+                    token=token,
+                    project_id=project_id,
+                    zip_bytes=raw,
+                    filename=part.name,
+                    use_agent=use_agent,
+                    agent_token=agent_token,
+                )
+            except Exception as exc:  # noqa: BLE001 — surface to caller/panel
+                data = {"ok": False, "error": str(exc), "chunk": i}
+            chunk_results.append(data)
+            if not data.get("ok"):
+                return {
+                    "ok": False,
+                    "error": data.get("error") or f"chunk {i} failed",
+                    "imported": imported,
+                    "labeled": labeled,
+                    "skipped": skipped,
+                    "chunks_ok": i,
+                    "chunks_total": len(chunks),
+                    "chunk_results": chunk_results,
+                    "zip_path": str(full_zip),
+                    "zip_bytes": full_zip.stat().st_size,
+                    "via": "agent" if use_agent else "worker",
+                }
+            imported += int(data.get("imported") or 0)
+            labeled += int(data.get("labeled") or 0)
+            skipped += int(data.get("skipped") or 0)
+    finally:
+        for f in tmp_dir.glob("*.zip"):
+            try:
+                f.unlink()
+            except OSError:
+                pass
+        try:
+            tmp_dir.rmdir()
+        except OSError:
+            pass
+
+    return {
+        "ok": True,
+        "imported": imported,
+        "labeled": labeled,
+        "skipped": skipped,
+        "project_id": project_id,
+        "chunks_total": len(chunks),
+        "zip_path": str(full_zip),
+        "zip_bytes": full_zip.stat().st_size,
+        "via": "agent" if use_agent else "worker",
+    }
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -620,9 +755,14 @@ def main(argv: Optional[List[str]] = None) -> int:
     p_zip = sub.add_parser("zip", help="Zip a dataset folder")
     p_zip.add_argument("--slug", required=True)
 
-    p_up = sub.add_parser("upload", help="Zip + POST to FreeSaaS worker dataset-ingest")
+    p_up = sub.add_parser("upload", help="Chunked zip POST to FreeSaaS (≤4MB parts; avoids hosting 504)")
     p_up.add_argument("--slug", required=True)
     p_up.add_argument("--project-id", type=int, required=True)
+    p_up.add_argument(
+        "--via-agent",
+        action="store_true",
+        help="Use X-FreeSaaS-Agent-Token → /agent/video-label/ingest (needs agent_token in config)",
+    )
 
     sub.add_parser("list", help="List local datasets")
     sub.add_parser("status", help="Show collector state JSON")
@@ -645,7 +785,18 @@ def main(argv: Optional[List[str]] = None) -> int:
         print(json.dumps({"ok": True, "zip": str(z), "bytes": z.stat().st_size}))
         return 0
     if args.cmd == "upload":
-        print(json.dumps(upload_zip(cfg, slug=args.slug, project_id=args.project_id), ensure_ascii=False, indent=2))
+        print(
+            json.dumps(
+                upload_zip(
+                    cfg,
+                    slug=args.slug,
+                    project_id=args.project_id,
+                    prefer_agent=bool(getattr(args, "via_agent", False)),
+                ),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
         return 0
 
     classes = [x.strip() for x in str(getattr(args, "classes", "") or "").split(",") if x.strip()]
