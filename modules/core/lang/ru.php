@@ -540,6 +540,7 @@ return [
     'core.modules.err.no_module' => 'Модуль не указан',
     'core.modules.err.unknown_action' => 'Неизвестное действие',
     'core.modules.err.migration' => 'Миграция {module}/{id}: {message}',
+    'core.modules.err.migrate_disabled' => 'Сначала включите модуль; миграции схемы идут при включении (и после обновлений, пока модуль включён).',
     'core.modules.msg.enabled' => 'Модуль «{module}» включён, schema применена.',
     'core.modules.msg.disabled' => 'Модуль «{module}» выключен.',
     'core.modules.msg.migrated' => 'Модуль «{module}»: применено миграций — {n}.',

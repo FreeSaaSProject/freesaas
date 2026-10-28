@@ -211,7 +211,7 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
       </button>
     <?php endif; ?>
 
-    <?php if ($pending > 0): ?>
+    <?php if ($pending > 0 && !empty($card['config_enabled'])): ?>
       <form method="post" class="inline-form" action="/modules">
         <input type="hidden" name="module" value="<?= e($id) ?>">
         <input type="hidden" name="action" value="migrate">

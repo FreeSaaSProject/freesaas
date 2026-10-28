@@ -540,6 +540,7 @@ return [
     'core.modules.err.no_module' => 'No module specified',
     'core.modules.err.unknown_action' => 'Unknown action',
     'core.modules.err.migration' => 'Migration {module}/{id}: {message}',
+    'core.modules.err.migrate_disabled' => 'Enable the module first; schema migrations run on enable (and after updates while enabled).',
     'core.modules.msg.enabled' => 'Module “{module}” enabled, schema applied.',
     'core.modules.msg.disabled' => 'Module “{module}” disabled.',
     'core.modules.msg.migrated' => 'Module “{module}”: migrations applied — {n}.',

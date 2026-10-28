@@ -118,6 +118,9 @@ final class ModulesAdmin
                 return ['redirect' => self::withQuery($ret, 'msg', t('core.modules.msg.disabled', ['module' => $moduleId]))];
             }
             if ($action === 'migrate') {
+                if (!Config::moduleEnabled($moduleId)) {
+                    throw new RuntimeException(t('core.modules.err.migrate_disabled'));
+                }
                 $schemaReport = SchemaMigrator::runModule($moduleId);
                 foreach ($schemaReport as $row) {
                     if (($row['status'] ?? '') === 'error') {
