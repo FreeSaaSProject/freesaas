@@ -441,13 +441,25 @@ final class ModuleManager
             }
         }
 
+        // DROP button only when at least one exclusively owned table exists in DB
+        // (uninstall does not remove code on disk — only dump/DROP tables + ledger).
+        $hasOwnedTables = false;
+        if (!$isCore && $strategy === 'drop_owned') {
+            foreach (self::exclusiveOwnedTables($id)['exclusive'] as $t) {
+                if (Database::tableExists($t)) {
+                    $hasOwnedTables = true;
+                    break;
+                }
+            }
+        }
+
         return [
             'enabled' => $runtimeEnabled,
             'config_enabled' => $configEnabled,
             'can_toggle' => !$isCore,
             'can_enable' => !$isCore && !$configEnabled && $depsOk,
             'can_disable' => !$isCore && $configEnabled && $requiredBy === [],
-            'can_uninstall' => !$isCore && $strategy === 'drop_owned' && $requiredBy === [],
+            'can_uninstall' => !$isCore && $strategy === 'drop_owned' && $requiredBy === [] && $hasOwnedTables,
             'uninstall_strategy' => $strategy,
             'block_reason' => $block,
             'requires' => $requires,

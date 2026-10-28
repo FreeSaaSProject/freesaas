@@ -12,7 +12,7 @@ declare(strict_types=1);
  */
 $activateHref = '/modules/' . rawurlencode($moduleId) . '/activate';
 ?>
-<a class="btn-primary btn-sm" href="<?= e($activateHref) ?>"><?= te('core.modules.btn_activate') ?></a>
+<a class="btn-primary btn-sm" href="<?= e($activateHref) ?>"><?= te('core.modules.btn_enable') ?></a>
 <?php if (!empty($requiresRiskAck)): ?>
   <span class="pill maturity-<?= e((string)($maturity ?? 'beta')) ?>"><?= te('core.modules.maturity.' . (string)($maturity ?? 'beta')) ?></span>
 <?php endif; ?>

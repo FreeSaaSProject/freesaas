@@ -77,9 +77,7 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
             $reqIds[] = $depId;
         }
       ?>
-      <?php if ($reqIds === []): ?>
-        <span class="muted"><?= te('core.modules.col_deps') ?>: —</span>
-      <?php else: ?>
+      <?php if ($reqIds !== []): ?>
         <span class="muted"><?= te('core.modules.col_deps') ?>: <?= e(implode(', ', $reqIds)) ?></span>
       <?php endif; ?>
     <?php else: ?>
@@ -99,9 +97,7 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
           $depsVisible[] = $dep;
       }
     ?>
-    <?php if ($depsVisible === []): ?>
-      <span class="muted"><?= te('core.modules.col_deps') ?>: —</span>
-    <?php elseif (!empty($card['deps_ok'])): ?>
+    <?php if ($depsVisible !== [] && !empty($card['deps_ok'])): ?>
       <?php
         $okNames = [];
         foreach ($depsVisible as $dep) {
@@ -109,7 +105,7 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
         }
       ?>
       <span class="muted"><?= te('core.modules.col_deps') ?>: <?= e(implode(', ', $okNames)) ?></span>
-    <?php else: ?>
+    <?php elseif ($depsVisible !== []): ?>
       <ul class="dep-list">
         <?php foreach ($depsVisible as $dep): ?>
           <?php if (!empty($dep['satisfied'])): ?>
@@ -131,9 +127,6 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
     <?php endif; ?>
     <?php if (!empty($card['block_reason'])): ?>
       <div class="muted"><?= e((string)$card['block_reason']) ?></div>
-    <?php endif; ?>
-    <?php if ($pending > 0): ?>
-      <div class="muted bad-text"><?= te('core.modules.pending', ['n' => $pending]) ?></div>
     <?php endif; ?>
     <?php endif; ?>
     <div class="modules-hint bad-text" data-modules-hint hidden></div>
