@@ -43,6 +43,7 @@ first-party storefront theme.
 | **Ultralytics YOLO** | `workers/plugins/video/requirements.txt` (`ultralytics>=8.4.0`) | **AGPL-3.0** (Ultralytics upstream; confirm current terms at install time) | Optional Mac/GPU worker for video analytics (`docs/agents/workers.md`). **Not** bundled in the PHP app tarball; installed by the operator on the worker host. FreeSaaS public AGPL distribution may use it when Ultralytics AGPL obligations are met on that worker. A FreeSaaS **commercial** license does **not** by itself grant rights to Ultralytics — closed/on-prem deployments that ship or run Ultralytics need a separate Ultralytics commercial license **or** must exclude/disable the video worker integration. |
 | OpenCV (`opencv-python-headless`), Pillow, requests, urllib3 | `workers/plugins/video/requirements.txt` | Apache-2.0 / HPND / Apache-2.0 / MIT (typical) | Supporting libs for the video worker only. |
 | requests, urllib3, psutil | `workers/core/requirements.txt`, `workers/plugins/whisper/requirements.txt` | Apache-2.0 / MIT / BSD (typical) | Workers host + Whisper pull client; not in PHP zip. |
+| pydub, mutagen, tzdata, sounddevice, numpy, requests | `workers/plugins/audioloader/requirements.txt` | MIT / GPL-2+ (mutagen) / Apache-2.0 / MIT / BSD (typical) | Windows badge USB → FTP → ingest (`docs/agents/audioloader.md`). Not in PHP zip; operator installs on the edge host. LAME/FFmpeg are separate binaries — see `workers/plugins/audioloader/THIRD_PARTY.md`. |
 
 ## Intentionally not shipped
 
