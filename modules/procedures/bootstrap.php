@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/ProceduresDayLoad.php';
 require_once __DIR__ . '/lib/ProcedureBotNotify.php';
 require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
 require_once __DIR__ . '/lib/ProceduresAssistantPreview.php';
+require_once __DIR__ . '/lib/ProceduresAssignPreflight.php';
 require_once __DIR__ . '/lib/ProceduresBiContrib.php';
 
 EventBus::on('bi.datasets', [ProceduresBiContrib::class, 'onDatasets']);
@@ -19,6 +20,13 @@ EventBus::on('assistant.write.preview', static function ($payload) {
         return [];
     }
     return ProceduresAssistantPreview::onWritePreview($payload);
+});
+
+EventBus::on('assistant.write.preflight', static function ($payload) {
+    if (!is_array($payload)) {
+        return [];
+    }
+    return ProceduresAssignPreflight::onWritePreflight($payload);
 });
 
 ModuleManager::registerMenuGroup('procedures.menu.group', 300, '/procedures');
@@ -69,6 +77,7 @@ EventBus::on('assistant.system.hints', static function ($payload) {
     }
     if (isset($ids['procedures.update']) || isset($ids['procedures.list'])) {
         $hints[] = t('procedures.assistant.hint.move_time');
+        $hints[] = t('procedures.assistant.hint.reassign_operator');
     }
     $payload['hints'] = $hints;
     return $payload;

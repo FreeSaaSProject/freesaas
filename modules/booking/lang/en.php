@@ -79,4 +79,8 @@ return [
     'booking.new.link_event' => 'Create calendar event instead',
     'booking.new.flash_ok' => 'Order #{id} created',
     'booking.calendar.add_booking' => '+Bk.',
+    'booking.setup.step.availability' => 'Review booking availability and slots.',
+    'booking.setup.step.availability_help' => 'Booking needs workweeks and procedure types.',
+    'booking.setup.ask.availability' => 'Booking needs workweeks and procedure types.',
+    'booking.setup.choice.open' => 'Open booking',
 ];

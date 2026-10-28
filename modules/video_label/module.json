@@ -2,7 +2,7 @@
     "id": "video_label",
     "name": "video_label.module.name",
     "description": "video_label.module.description",
-    "version": "0.1.11",
+    "version": "0.1.12",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -116,13 +116,25 @@
                 "description": "Create project; name, classes (newline), model_id, conf_threshold, iou_threshold",
                 "parameters": {
                     "type": "object",
-                    "required": ["name"],
+                    "required": [
+                        "name"
+                    ],
                     "properties": {
-                        "name": { "type": "string" },
-                        "classes": { "type": "string" },
-                        "model_id": { "type": "integer" },
-                        "conf_threshold": { "type": "number" },
-                        "iou_threshold": { "type": "number" }
+                        "name": {
+                            "type": "string"
+                        },
+                        "classes": {
+                            "type": "string"
+                        },
+                        "model_id": {
+                            "type": "integer"
+                        },
+                        "conf_threshold": {
+                            "type": "number"
+                        },
+                        "iou_threshold": {
+                            "type": "number"
+                        }
                     }
                 }
             },
@@ -160,10 +172,19 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "action": { "type": "string", "const": "infer" },
-                        "image_id": { "type": "integer" },
-                        "batch": { "type": "boolean" },
-                        "promote": { "type": "boolean" }
+                        "action": {
+                            "type": "string",
+                            "const": "infer"
+                        },
+                        "image_id": {
+                            "type": "integer"
+                        },
+                        "batch": {
+                            "type": "boolean"
+                        },
+                        "promote": {
+                            "type": "boolean"
+                        }
                     }
                 }
             },
@@ -222,5 +243,29 @@
             "jobs"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "workspace",
+                "title": "video_label.setup.step.workspace",
+                "description": "video_label.setup.step.workspace_help",
+                "href": "/video-label",
+                "ask_user": "video_label.setup.ask.workspace",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "video_label.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

@@ -16,6 +16,8 @@ require_once __DIR__ . '/lib/UserPrefsRepository.php';
 require_once __DIR__ . '/lib/HomeSplash.php';
 require_once __DIR__ . '/lib/DashboardWidgets.php';
 require_once __DIR__ . '/lib/MenuOrder.php';
+require_once __DIR__ . '/lib/ModulesActivate.php';
+require_once __DIR__ . '/lib/ModulesAdmin.php';
 
 Assets::register('core', [
     'css' => ['home-splash.css'],
@@ -52,6 +54,7 @@ $pages = [
     '/likes/mark-viewed' => ['permission' => 'core.home', 'methods' => ['POST'], 'file' => 'likes_mark_viewed.php'],
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
     '/modules/{id}' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules_detail.php'],
+    '/modules/{id}/activate' => ['permission' => 'core.modules', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'modules_activate.php'],
     '/db' => ['permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
 
     '/users' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'users.php'],
@@ -76,6 +79,7 @@ $pages = [
     '/agent/modules' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/enable' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/modules/{id}/activate' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/install' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/uninstall' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/modules/{id}/disable' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],

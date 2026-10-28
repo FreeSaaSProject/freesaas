@@ -124,11 +124,37 @@ final class ProceduresAssistantPreview
                 // ignore
             }
         }
-        if (isset($next['id_operator']) && empty($next['operator_name']) && class_exists('UsersRepository')) {
-            try {
-                $next['operator_name'] = UsersRepository::nameById((int)$next['id_operator']);
-            } catch (Throwable $e) {
-                // ignore
+        if (isset($next['id_operator']) && (int)$next['id_operator'] > 0) {
+            // Prefer acronym over full FIO left over from the DB row.
+            $next['operator_name'] = self::userLabel((int)$next['id_operator']);
+        }
+
+        if (is_array($current) && array_key_exists('id_operator', $args) && $args['id_operator'] !== '' && $args['id_operator'] !== null) {
+            $fromOp = (int)($current['id_operator'] ?? 0);
+            $toOp = (int)$args['id_operator'];
+            if ($toOp > 0 && $toOp !== $fromOp) {
+                $lines[] = t('procedures.assistant.preview.operator', [
+                    'from' => self::userLabel($fromOp),
+                    'to' => self::userLabel($toOp),
+                ]);
+            }
+        }
+
+        if (is_array($current)) {
+            $fromStart = self::formatLocal($current['dtstart'] ?? '');
+            $toStart = self::formatLocal($next['dtstart'] ?? '');
+            $fromEnd = self::formatLocal($current['dtend'] ?? '');
+            $toEnd = self::formatLocal($next['dtend'] ?? '');
+            if ($toStart !== '' && $fromStart !== '' && $toStart !== $fromStart) {
+                $lines[] = t('procedures.assistant.preview.time', [
+                    'from' => $fromStart,
+                    'to' => $toStart,
+                ]);
+            } elseif ($toEnd !== '' && $fromEnd !== '' && $toEnd !== $fromEnd) {
+                $lines[] = t('procedures.assistant.preview.time_end', [
+                    'from' => $fromEnd,
+                    'to' => $toEnd,
+                ]);
             }
         }
 
@@ -263,9 +289,11 @@ final class ProceduresAssistantPreview
         if ($product === '' && (int)($row['id_good'] ?? 0) > 0) {
             $product = '#' . (int)$row['id_good'];
         }
-        $op = trim((string)($row['operator_name'] ?? ''));
-        if ($op === '' && (int)($row['id_operator'] ?? 0) > 0) {
+        $op = '';
+        if ((int)($row['id_operator'] ?? 0) > 0) {
             $op = self::userLabel((int)$row['id_operator']);
+        } elseif (trim((string)($row['operator_name'] ?? '')) !== '') {
+            $op = trim((string)$row['operator_name']);
         }
         $when = self::formatLocal($row['dtstart'] ?? '');
         $summ = $row['summ'] ?? '';
@@ -298,19 +326,21 @@ final class ProceduresAssistantPreview
         return $ts ? date('Y-m-d H:i', $ts) : $s;
     }
 
+    /** Staff acronym (not full name) — keeps Confirm drafts short in Max. */
     private static function userLabel(int $userId): string
     {
-        if ($userId < 1 || !class_exists('UsersRepository')) {
-            return $userId > 0 ? '#' . $userId : '';
+        if ($userId < 1) {
+            return '';
+        }
+        if (!class_exists('UsersRepository')) {
+            return '#' . $userId;
         }
         try {
-            $name = trim(UsersRepository::nameById($userId));
+            $list = UsersRepository::acronymsList([$userId]);
         } catch (Throwable $e) {
             return '#' . $userId;
         }
-        if ($name === '' || $name === '—' || preg_match('/^#\d+$/', $name) === 1) {
-            return $name !== '' && $name !== '—' ? $name : ('#' . $userId);
-        }
-        return $name . ' (#' . $userId . ')';
+        $list = trim($list);
+        return $list !== '' ? $list : ('#' . $userId);
     }
 }

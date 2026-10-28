@@ -266,34 +266,41 @@ final class AssistantBotPlugin
                         if ($lines !== []) {
                             $display .= "\n" . implode("\n", $lines);
                         }
+                        $confirmable = class_exists('AssistantHarness', false)
+                            ? AssistantHarness::pendingConfirmable($pending)
+                            : true;
                         if ($n === 1) {
                             $tok = $batchTokens[0];
-                            $keyboard = self::kbChrome([[
-                                [
+                            $rowBtns = [];
+                            if ($confirmable) {
+                                $rowBtns[] = [
                                     'text' => t('assistant.confirm.btn'),
                                     'callback_data' => 'assistant:ok:' . $tok,
-                                ],
-                                [
-                                    'text' => t('assistant.confirm.cancel'),
-                                    'callback_data' => 'assistant:no:' . $tok,
-                                ],
-                            ]]);
+                                ];
+                            }
+                            $rowBtns[] = [
+                                'text' => t('assistant.confirm.cancel'),
+                                'callback_data' => 'assistant:no:' . $tok,
+                            ];
+                            $keyboard = self::kbChrome([$rowBtns]);
                             self::setState($ctx, 'await_input', ['user_id' => $uid]);
                         } else {
                             self::setState($ctx, 'await_input', [
                                 'user_id' => $uid,
                                 'pending_batch' => $batchTokens,
                             ]);
-                            $keyboard = self::kbChrome([[
-                                [
+                            $rowBtns = [];
+                            if ($confirmable) {
+                                $rowBtns[] = [
                                     'text' => t('assistant.confirm.btn_all'),
                                     'callback_data' => 'assistant:ok_all',
-                                ],
-                                [
-                                    'text' => t('assistant.confirm.cancel_all'),
-                                    'callback_data' => 'assistant:no_all',
-                                ],
-                            ]]);
+                                ];
+                            }
+                            $rowBtns[] = [
+                                'text' => t('assistant.confirm.cancel_all'),
+                                'callback_data' => 'assistant:no_all',
+                            ];
+                            $keyboard = self::kbChrome([$rowBtns]);
                         }
                     }
                 }

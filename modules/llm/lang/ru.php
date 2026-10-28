@@ -96,4 +96,8 @@ return [
     'llm.health.missing' => 'Нет включённого профиля LLM с API-ключом',
     'llm.module.description' => 'OpenAI-compatible LLM-клиент и UI профилей токенов (cfg/modules/llm.ini). Чат — модуль assistant.',
     'llm.module.summary' => 'Общий LLM-транспорт для assistant, audio_llm, banks classify, bots. Мягко assistant. Ключи только в cfg/modules/llm.ini. Право llm.manage — только настройки; чат ассистента доступен всем сотрудникам.',
+    'llm.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/llm.ini).',
+    'llm.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'llm.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'llm.setup.choice.open' => 'Открыть настройки',
 ];

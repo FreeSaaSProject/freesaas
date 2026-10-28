@@ -33,6 +33,8 @@ final class AssistantGroupsDialog
         $row = self::load($chatId);
         $mids = is_array($row['bot_mids'] ?? null) ? $row['bot_mids'] : [];
         $keyboardMids = is_array($row['keyboard_mids'] ?? null) ? $row['keyboard_mids'] : [];
+        $choices = is_array($row['choices'] ?? null) ? $row['choices'] : [];
+        $softOptions = is_array($row['soft_options'] ?? null) ? $row['soft_options'] : [];
         if ($lastBotMid !== null && $lastBotMid !== '') {
             $mids[] = $lastBotMid;
             $mids = array_values(array_unique(array_filter(array_map('strval', $mids))));
@@ -45,6 +47,9 @@ final class AssistantGroupsDialog
             'messages' => self::trim(self::normalize($history)),
             'bot_mids' => $mids,
             'keyboard_mids' => self::trimMids($keyboardMids),
+            // Preserve button state — saveHistory must not wipe choices / soft picks.
+            'choices' => $choices,
+            'soft_options' => $softOptions,
         ];
         self::write($chatId, $row);
     }
@@ -100,6 +105,190 @@ final class AssistantGroupsDialog
         }
         if (!isset($row['keyboard_mids']) || !is_array($row['keyboard_mids'])) {
             $row['keyboard_mids'] = [];
+        }
+        self::write($chatId, $row);
+    }
+
+    /**
+     * Store validated draft choices for Max buttons (keyed by pending token).
+     *
+     * @param list<array{op_id?:string,args?:array,label?:string}> $choices
+     */
+    public static function setChoices(string $chatId, string $token, array $choices): void
+    {
+        $chatId = trim($chatId);
+        $token = trim($token);
+        if ($chatId === '' || $token === '' || !preg_match('/^[a-f0-9]{16}$/', $token)) {
+            return;
+        }
+        $clean = [];
+        foreach ($choices as $c) {
+            if (!is_array($c)) {
+                continue;
+            }
+            $opId = trim((string)($c['op_id'] ?? ''));
+            $label = trim((string)($c['label'] ?? ''));
+            $args = is_array($c['args'] ?? null) ? $c['args'] : [];
+            if ($opId === '' || $label === '') {
+                continue;
+            }
+            $clean[] = ['op_id' => $opId, 'args' => $args, 'label' => $label];
+            if (count($clean) >= 5) {
+                break;
+            }
+        }
+        $row = self::load($chatId);
+        $map = is_array($row['choices'] ?? null) ? $row['choices'] : [];
+        if ($clean === []) {
+            unset($map[$token]);
+        } else {
+            $map[$token] = $clean;
+        }
+        // Keep only a couple of recent tokens.
+        if (count($map) > 3) {
+            $map = array_slice($map, -3, null, true);
+        }
+        $row['choices'] = $map;
+        $row['updated_at'] = time();
+        if (!isset($row['messages']) || !is_array($row['messages'])) {
+            $row['messages'] = [];
+        }
+        if (!isset($row['bot_mids']) || !is_array($row['bot_mids'])) {
+            $row['bot_mids'] = [];
+        }
+        if (!isset($row['keyboard_mids']) || !is_array($row['keyboard_mids'])) {
+            $row['keyboard_mids'] = [];
+        }
+        self::write($chatId, $row);
+    }
+
+    /**
+     * @return list<array{op_id:string,args:array<string,mixed>,label:string}>
+     */
+    public static function getChoices(string $chatId, string $token): array
+    {
+        $chatId = trim($chatId);
+        $token = trim($token);
+        if ($chatId === '' || $token === '') {
+            return [];
+        }
+        $row = self::load($chatId);
+        $map = is_array($row['choices'] ?? null) ? $row['choices'] : [];
+        $list = is_array($map[$token] ?? null) ? $map[$token] : [];
+        $out = [];
+        foreach ($list as $c) {
+            if (!is_array($c)) {
+                continue;
+            }
+            $opId = trim((string)($c['op_id'] ?? ''));
+            $label = trim((string)($c['label'] ?? ''));
+            if ($opId === '' || $label === '') {
+                continue;
+            }
+            $out[] = [
+                'op_id' => $opId,
+                'args' => is_array($c['args'] ?? null) ? $c['args'] : [],
+                'label' => $label,
+            ];
+        }
+        return $out;
+    }
+
+    public static function clearChoices(string $chatId, string $token = ''): void
+    {
+        $chatId = trim($chatId);
+        if ($chatId === '') {
+            return;
+        }
+        $row = self::load($chatId);
+        if ($token === '') {
+            $row['choices'] = [];
+        } else {
+            $map = is_array($row['choices'] ?? null) ? $row['choices'] : [];
+            unset($map[$token]);
+            $row['choices'] = $map;
+        }
+        $row['updated_at'] = time();
+        if (!isset($row['messages']) || !is_array($row['messages'])) {
+            $row['messages'] = [];
+        }
+        self::write($chatId, $row);
+    }
+
+    /**
+     * Soft 1/2/… labels from an LLM reply that had no pending draft yet.
+     *
+     * @param array<int,string> $options map n => label
+     */
+    public static function setSoftOptions(string $chatId, array $options): void
+    {
+        $chatId = trim($chatId);
+        if ($chatId === '') {
+            return;
+        }
+        $clean = [];
+        foreach ($options as $n => $label) {
+            $n = (int)$n;
+            $label = trim((string)$label);
+            if ($n < 1 || $n > 9 || $label === '') {
+                continue;
+            }
+            $clean[$n] = $label;
+            if (count($clean) >= 5) {
+                break;
+            }
+        }
+        ksort($clean, SORT_NUMERIC);
+        $row = self::load($chatId);
+        $row['soft_options'] = $clean;
+        $row['updated_at'] = time();
+        if (!isset($row['messages']) || !is_array($row['messages'])) {
+            $row['messages'] = [];
+        }
+        if (!isset($row['bot_mids']) || !is_array($row['bot_mids'])) {
+            $row['bot_mids'] = [];
+        }
+        if (!isset($row['keyboard_mids']) || !is_array($row['keyboard_mids'])) {
+            $row['keyboard_mids'] = [];
+        }
+        if (!isset($row['choices']) || !is_array($row['choices'])) {
+            $row['choices'] = [];
+        }
+        self::write($chatId, $row);
+    }
+
+    /** @return array<int,string> */
+    public static function getSoftOptions(string $chatId): array
+    {
+        $chatId = trim($chatId);
+        if ($chatId === '') {
+            return [];
+        }
+        $row = self::load($chatId);
+        $raw = is_array($row['soft_options'] ?? null) ? $row['soft_options'] : [];
+        $out = [];
+        foreach ($raw as $n => $label) {
+            $n = (int)$n;
+            $label = trim((string)$label);
+            if ($n >= 1 && $n <= 9 && $label !== '') {
+                $out[$n] = $label;
+            }
+        }
+        ksort($out, SORT_NUMERIC);
+        return $out;
+    }
+
+    public static function clearSoftOptions(string $chatId): void
+    {
+        $chatId = trim($chatId);
+        if ($chatId === '') {
+            return;
+        }
+        $row = self::load($chatId);
+        $row['soft_options'] = [];
+        $row['updated_at'] = time();
+        if (!isset($row['messages']) || !is_array($row['messages'])) {
+            $row['messages'] = [];
         }
         self::write($chatId, $row);
     }

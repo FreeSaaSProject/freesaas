@@ -5,23 +5,18 @@ return [
     'bi.module.name' => 'БизнесАналитика',
     'bi.module.description' => 'Операционные отчёты БизнесАналитики на JSON-рецептах со live-ссылками',
     'bi.module.summary' => 'Движок BI на JSON-рецептах с шарингом. Датасеты, доменные derive и shipped-рецепты приносят включённые модули через EventBus.',
-
     'bi.perm.manage' => 'Управление отчётами БизнесАналитики и ссылками',
-
     'bi.menu.group' => 'БизнесАналитика',
     'bi.menu.list' => 'Отчёты',
     'bi.menu.shares' => 'Ссылки',
-
     'bi.ready.need_workweeks' => 'Нужны base_workweeks и base_users (включите workweeks).',
     'bi.ready.need_conversion' => 'Нужны procedures, fullstats, workweeks (procedures, terminals, workweeks).',
     'bi.ready.need_procedures' => 'Нужна base_procedures (включите procedures).',
-
     'bi.empty.table' => 'Нет колонок',
     'bi.empty.rows' => 'Нет строк',
     'bi.empty.families' => 'Нет семейств отчётов.',
     'bi.empty.shares' => 'Ссылок пока нет.',
     'bi.empty.shared' => 'Вам пока не расшарили ни одного отчёта.',
-
     'bi.index.lede' => 'Семейства отчётов: открыть по названию, править в конструкторе, выдать ссылку с TTL.',
     'bi.index.shared_lede' => 'Отчёты, которыми с вами поделились. Открывайте по названию; период можно менять.',
     'bi.index.ready' => 'Готов',
@@ -30,7 +25,6 @@ return [
     'bi.index.edit' => 'Править',
     'bi.index.new_family' => 'Новый отчёт',
     'bi.index.shares' => 'Ссылки',
-
     'bi.family.lede' => 'JSON-рецепт. Заголовки, подписи колонок и пояснения — обычный текст в recipe (не переводы). Секции type=text — plain text (без HTML/скриптов). Expr badge(user_id) — цветной акроним сотрудника; acronym — короткий текст без цвета.',
     'bi.family.new_title' => 'Новое семейство',
     'bi.family.edit_title' => 'Правка семейства',
@@ -59,7 +53,6 @@ return [
     'bi.family.err.save' => 'Не удалось сохранить семейство.',
     'bi.family.err.builtin_id' => 'Этот id зарезервирован.',
     'bi.family.err.id_taken' => 'Такой id семейства уже есть.',
-
     'bi.run.title' => 'Запуск отчёта',
     'bi.run.year' => 'Год',
     'bi.run.month' => 'Месяц',
@@ -91,7 +84,6 @@ return [
     'bi.month.10' => 'Октябрь',
     'bi.month.11' => 'Ноябрь',
     'bi.month.12' => 'Декабрь',
-
     'bi.shares.title' => 'Ссылки на отчёты',
     'bi.shares.lede' => 'Live-доступ к семейству. Получатель может менять период. Guest — без логина; staff — сотрудник (по людям и/или должностям). Суперадмин открывает любые staff-ссылки.',
     'bi.shares.create' => 'Создать ссылку',
@@ -130,7 +122,6 @@ return [
     'bi.shares.accept_partial_filters' => 'Разрешить создание, если фильтры покрывают только часть датасетов',
     'bi.shares.warn.partial_filters' => 'Внимание: часть запросов игнорирует зафиксированные фильтры — это не полная граница доступа.',
     'bi.shares.hint.filters' => 'Опциональные зафиксированные фильтры (id_operator / id_admin / id_good) через agent JSON. Ограничивают только датасеты, которые их поддерживают.',
-
     'bi.share.expires' => 'Ссылка действует до',
     'bi.share.expired_title' => 'Ссылка истекла или отозвана',
     'bi.share.expired_body' => 'Эта ссылка больше не действует. Попросите директора выдать новую.',
@@ -139,19 +130,20 @@ return [
     'bi.share.forbidden' => 'Нет доступа для вашего аккаунта',
     'bi.share.rate_limit' => 'Слишком много запусков. Подождите минуту.',
     'bi.share.run' => 'Обновить отчёт',
-
     'bi.err.unknown_family' => 'Неизвестное семейство отчёта.',
     'bi.err.not_ready' => 'Семейство недоступно на этом инстансе.',
     'bi.err.forbidden' => 'Нет доступа',
     'bi.err.run' => 'Ошибка отчёта.',
-
     'bi.cron.expire' => 'Просрочка ссылок БизнесАналитики',
     'bi.perm.delete' => 'Удаление семейств отчётов',
     'bi.assistant.hint' => 'Отчёты BI: CALL bi.families.list; ссылки только из open_url (/bi/run?family=…).',
     'bi.assistant.hint_no_shares' => 'Страница управления шарингом (/bi/shares) — не ссылка на отчёт; для staff не предлагай её.',
-
     'bi.recipe.demo_counts' => 'Демо-счётчики',
     'bi.recipe.staff_kpi' => 'Метрики сотрудников',
     'bi.recipe.masseur_shifts' => 'Смены массажистов',
     'bi.recipe.audio_desk_month' => 'Аудио-стол (месяц)',
+    'bi.setup.step.ready' => 'После включения модуль готов к работе.',
+    'bi.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'bi.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'bi.setup.choice.open' => 'Открыть модуль',
 ];

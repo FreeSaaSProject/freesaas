@@ -953,7 +953,12 @@ final class Auth
             }
         }
 
-        session_regenerate_id(true);
+        // logout()/session_destroy() may have closed the session (e.g. demo
+        // auto-login after idle/guard fail). Restart before regenerate.
+        self::startSession();
+        if (session_status() === PHP_SESSION_ACTIVE && session_id() !== '' && !headers_sent()) {
+            session_regenerate_id(true);
+        }
 
         $_SESSION['user_id'] = (int)$row['id'];
         $_SESSION['login'] = (string)$row['login'];
@@ -980,14 +985,16 @@ final class Auth
             self::touchSessionCookie();
         } else {
             $params = self::cookieParams(0);
-            setcookie(session_name(), session_id(), [
-                'expires' => 0,
-                'path' => $params['path'],
-                'domain' => $params['domain'],
-                'secure' => $params['secure'],
-                'httponly' => $params['httponly'],
-                'samesite' => $params['samesite'],
-            ]);
+            if (!headers_sent()) {
+                setcookie(session_name(), session_id(), [
+                    'expires' => 0,
+                    'path' => $params['path'],
+                    'domain' => $params['domain'],
+                    'secure' => $params['secure'],
+                    'httponly' => $params['httponly'],
+                    'samesite' => $params['samesite'],
+                ]);
+            }
         }
 
         if (class_exists('Csrf', false)) {

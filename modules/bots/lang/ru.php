@@ -166,4 +166,8 @@ return [
     'bots.plugin.my_tasks.line' => '#{id} {name}',
     'bots.plugin.news' => 'Новости',
     'bots.module.summary' => 'Включайте для доставки в мессенджеры и входящих webhooks. Мягко clients. Мягко — поля staff в core и procedures. Токены — cfg/modules/bots.ini. Адаптеры — BotPlugins / bots.send.',
+    'bots.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/bots.ini).',
+    'bots.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'bots.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'bots.setup.choice.open' => 'Открыть настройки',
 ];

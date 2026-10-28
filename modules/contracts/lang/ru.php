@@ -41,7 +41,9 @@ return [
     'contracts.actions.refuse' => 'Отказаться курировать',
     'contracts.actions.fail_warn' => 'Провал: использовано {pct}% срока (>40%).',
     'contracts.actions.refuse_confirm' => 'Отказаться от кураторства?',
-    'contracts.actions.refuse_confirm_fail' => "Отказаться от кураторства?\n\nПровал: использовано {pct}% срока (>40%).",
+    'contracts.actions.refuse_confirm_fail' => 'Отказаться от кураторства?
+
+Провал: использовано {pct}% срока (>40%).',
     'contracts.actions.cancel_accept' => 'Отменить приёмку',
     'contracts.notice.mine_short' => 'КвР:{n}',
     'contracts.notice.mine_title' => 'Мои контракты в работе',
@@ -91,4 +93,8 @@ return [
     'contracts.settings.deadline_penalty_label' => 'Сокращать вознаграждение при просрочке дедлайна',
     'contracts.module.description' => 'Контракты/офферы сотрудников, связанные с комментариями; виджеты, нотисы и CTA оплаты.',
     'contracts.module.summary' => 'Включайте для офферов/контрактов поверх comments. Жёстко требует comments. Мягко — payments (CTA оплаты), staff_reports/audio_llm. Нужен, когда офферы ведутся в кабинете.',
+    'contracts.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/contracts.ini).',
+    'contracts.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'contracts.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'contracts.setup.choice.open' => 'Открыть настройки',
 ];

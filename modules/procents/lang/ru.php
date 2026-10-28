@@ -11,7 +11,6 @@ return [
     'procents.filter.all_months' => 'Все месяцы периода',
     'procents.filter.recent' => 'Недавние (текущий + прошлый)',
     'procents.load_more' => 'Загрузить более ранние',
-
     'procents.empty' => 'Нет данных для расчёта',
     'procents.pick_operator' => 'Выберите сотрудника',
     'procents.rates_set' => 'Набор ставок',
@@ -61,4 +60,8 @@ return [
     'procents.audit.role.sales' => 'Продажи',
     'procents.audit.role.audio' => 'Аудио',
     'procents.audit.role.scripts' => 'Скрипты',
+    'procents.setup.step.ready' => 'После включения модуль готов к работе.',
+    'procents.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'procents.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'procents.setup.choice.open' => 'Открыть модуль',
 ];

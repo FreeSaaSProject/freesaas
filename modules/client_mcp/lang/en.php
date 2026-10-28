@@ -7,14 +7,11 @@ return [
     'client_mcp.module.summary' => 'Enable to let any MCP-capable agent (Claude, ChatGPT, Cursor…) book on behalf of a client at https://<domain>/mcp without plugins. Needs sites + clients; booking tools appear when booking, catalog and orders are on. Other modules add tools via EventBus client_mcp.tools. Each domain is switched on separately. Alpha.',
     'client_mcp.menu.settings' => 'Client MCP',
     'client_mcp.cron.purge' => 'Client MCP: purge expired sessions',
-
     'client_mcp.health.ok' => 'Public MCP is on: {hosts}',
     'client_mcp.health.disabled' => 'Public client MCP is not enabled on any domain',
     'client_mcp.health.table_missing' => 'client_mcp tables are missing — run the module migrations',
     'client_mcp.health.no_tools' => 'MCP is on but no tools are available (check booking/catalog/orders): {hosts}',
-
     'client_mcp.server.description_default' => '{name}: services, free time, booking and cancellation.',
-
     'client_mcp.err.disabled' => 'AI agent access is disabled on this site',
     'client_mcp.err.not_storefront' => 'No client MCP at this address',
     'client_mcp.err.internal' => 'Internal error. Try again later or contact us by phone.',
@@ -34,14 +31,11 @@ return [
     'client_mcp.err.time' => 'Pass date + time (HH:MM) or dt_start',
     'client_mcp.err.token' => 'client_token is missing, expired or issued by another site — call identify_client again',
     'client_mcp.err.consent_url' => 'Consent link must be an absolute URL or a path starting with /',
-
     'client_mcp.hint.no_specialists' => 'No specialists with free time for these services in the booking horizon',
     'client_mcp.hint.rebook' => 'Refresh get_availability and offer the user another time',
-
     'client_mcp.order.comment_tag' => 'Booked via AI agent ({host})',
     'client_mcp.booked' => 'Booking #{id} for {when} is confirmed',
     'client_mcp.payment.on_site' => 'Payment on site on the day of the visit',
-
     'client_mcp.llms.title' => 'AI assistants (MCP)',
     'client_mcp.llms.server' => 'Booking MCP server: {url} (Streamable HTTP, no auth)',
     'client_mcp.llms.card' => 'Server card: {url}',
@@ -53,7 +47,6 @@ return [
     'client_mcp.llms.consent' => 'Before booking the client must accept the terms: {url}',
     'client_mcp.note.default' => 'You can also book via an AI assistant (ChatGPT, Claude, …): connect the MCP server {url} — no auth needed.',
     'client_mcp.note.more' => 'How to connect',
-
     'client_mcp.settings.title' => 'Client MCP',
     'client_mcp.settings.intro' => 'Public MCP for client AI agents — a separate server per storefront domain (own services via catalog roots, own settings and sessions). Anonymous: the agent passes the client phone; bookings land in Orders with source mcp.',
     'client_mcp.settings.site_disabled' => 'Domain is disabled in Sites → Hosts — MCP does not answer there.',
@@ -82,4 +75,8 @@ return [
     'client_mcp.settings.bookings_per_phone_day' => 'Bookings per phone per 24 h',
     'client_mcp.settings.token_ttl_hours' => 'client_token lifetime (hours)',
     'client_mcp.settings.verification_hint' => 'Phone verification: none (the agent-supplied phone is trusted). Modules can add OTP via EventBus client_mcp.identify / client_mcp.verify.',
+    'client_mcp.setup.step.hosts' => 'Configure storefront hosts / MCP for this module.',
+    'client_mcp.setup.step.hosts_help' => 'Without hosts the public surface stays inactive.',
+    'client_mcp.setup.ask.hosts' => 'Without hosts the public surface stays inactive.',
+    'client_mcp.setup.choice.open' => 'Open hosts',
 ];

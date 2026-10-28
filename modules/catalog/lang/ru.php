@@ -125,4 +125,8 @@ return [
     'catalog.assistant.preview.delete' => 'Удалить этот товар',
     'catalog.assistant.preview.category' => 'Категория: {v}',
     'catalog.assistant.preview.category_create' => 'Новая категория: {v}',
+    'catalog.setup.step.ready' => 'После включения модуль готов к работе.',
+    'catalog.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'catalog.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'catalog.setup.choice.open' => 'Открыть модуль',
 ];

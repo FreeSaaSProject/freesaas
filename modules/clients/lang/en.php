@@ -136,4 +136,8 @@ return [
     'clients.assistant.preview.delete' => 'Delete this client',
     'clients.assistant.preview.status' => 'Status: {v}',
     'clients.assistant.preview.tag' => 'Tag: {v}',
+    'clients.setup.step.ready' => 'Module is ready after enable.',
+    'clients.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'clients.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'clients.setup.choice.open' => 'Open module',
 ];

@@ -37,7 +37,7 @@ php bin/freesaas.php bootstrap --login=admin --password='…' --agent-token='…
 
 5. Войти на `/login`. Дальнейшие ops: CLI или `/agent/*` ([`agents/remote-api.md`](agents/remote-api.md)).
 
-Включение/выключение модулей: UI `/modules`, CLI `module enable`, или секция `[modules]` в `cfg/config.ini`.
+Включение/выключение модулей: UI `/modules` → **Activate**, CLI `module activate` / `module enable`, или секция `[modules]` в `cfg/config.ini` (`=1` явно; absent = выключен).
 
 ---
 
@@ -119,7 +119,7 @@ freesaas.likespa.hm/
 
 | Класс | Назначение |
 |-------|------------|
-| **Config** | Main `cfg/config.ini` (platform) + merge `cfg/modules/*.ini`. `moduleEnabled` / `setModuleEnabled`. Product `Config::set('calendar',…)` пишет в `cfg/modules/calendar.ini`. `core` всегда включён. Модуль без ключа в `[modules]` считается включённым. |
+| **Config** | Main `cfg/config.ini` (platform) + merge `cfg/modules/*.ini`. `moduleEnabled` / `setModuleEnabled`. Product `Config::set('calendar',…)` пишет в `cfg/modules/calendar.ini`. `core` всегда включён. Модуль без ключа в `[modules]` = **выключен**. |
 | **Database** | Один PDO (utf8mb4). Кэш `tableExists` / `columnExists`. |
 | **Auth** | Сессия `freesaas`. Права из `base_users.status` (unserialize permissions) + флаги роли из `base_admin_statuses` (`capability`). Superadmin обходит проверки. |
 | **ModuleManager** | Discovery, зависимости semver, boot, маршруты, меню, sync в `base_modules`, UI-статус модуля. |
@@ -391,7 +391,7 @@ return static function (PDO $pdo): void {
 3. Добавить `lang/ru.php` и `lang/en.php` со всеми UI-строками модуля; во views/pages — только `t()` / `te()` / `tj()`.
 4. Добавить `bootstrap.php`: `require` репозиториев, при необходимости `Assets::register` / `registerMenuGroup` / `StatusesRepository::registerFieldGroup` / `core.user_edit.*`, `ModuleManager::registerRoute(...)`, `EventBus::on(...)`.
 5. При необходимости: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `config.example.ini`.
-6. Включить в `cfg/config.ini` `[modules] myfeature=1` или через каталог UI `/modules` (миграции прогонятся при connect). Скопировать config.example → `cfg/modules/` при наличии. Заполнить `description` + `catalog` + `{id}.module.summary` (ru/en), чтобы модуль находился фильтрами и агентами.
+6. Активировать через UI `/modules/{id}/activate` или `module activate` (миграции при enable). Скопировать config.example → `cfg/modules/` при наличии. Заполнить `description` + `catalog` + `{id}.module.summary` + `setup.steps` (ru/en).
 7. Runtime и новые таблицы — только `base_*`; владение таблицами — в `module.json` → `tables`.
 8. Если нужно встроиться в существующий экран — подписаться на hook, а не править чужой page без необходимости.
 
@@ -432,7 +432,9 @@ View::render('index', ['title' => 'My feature', /* ... */], 'layout', 'myfeature
 | `php bin/freesaas.php system status` | PHP/DB/config, локаль, счётчики модулей |
 | `php bin/freesaas.php bootstrap --login=… --password=…` | Первый admin + migrate + `agent_token` (см. [`agents/install.md`](agents/install.md)) |
 | `php bin/freesaas.php module list [--q=] [--category=] [--tag=] [--status=] [--maturity=]` | Каталог модулей (bilocale name/description, filters); `available[]` — ещё не на диске |
-| `php bin/freesaas.php module install <id>` | Скачать модуль с репо обновлений (не на диске); дальше `module enable` |
+| `php bin/freesaas.php module install <id>` | Скачать модуль с репо обновлений (не на диске); дальше `module activate` |
+| `php bin/freesaas.php module activate <id> …` | Snapshot / apply: enable, grant, setup.steps (UI twin `/modules/{id}/activate`) |
+| `php bin/freesaas.php module pin-effective` | Апгрейд: проставить явные `[modules]=1` для absent-ключей (старое absent=on) |
 | `php bin/freesaas.php module uninstall <id> --confirm` | Бэкап owned-таблиц → DROP → ledger clear → disable (`leave_tables` отказ) |
 | `php bin/freesaas.php module enable <id> [--accept-risk]` | Включить; для alpha/beta нужен `--accept-risk` |
 | `php bin/freesaas.php module inspect <id>` | Манифест + routes + `agent_ops` / hooks / bulk / soft_deps / capabilities |

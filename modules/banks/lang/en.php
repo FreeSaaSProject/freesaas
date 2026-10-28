@@ -11,7 +11,6 @@ return [
     'banks.perm.view' => 'View bank connections',
     'banks.perm.connect' => 'Connect banks (OAuth)',
     'banks.perm.sync' => 'Sync bank statements',
-
     'banks.list.title' => 'Bank connections',
     'banks.list.empty' => 'No connections yet. Configure a bank, then click Connect.',
     'banks.list.connect' => 'Connect',
@@ -44,7 +43,6 @@ return [
     'banks.list.role_linked_only' => 'linked, sync off',
     'banks.list.role_idle' => 'no ledger links',
     'banks.list.syncing_n' => '{n} account(s)',
-
     'banks.settings.title' => 'Bank settings',
     'banks.settings.lede' => 'Values are stored in cfg/modules/banks.ini. Empty secret fields keep the current value.',
     'banks.settings.tabs_aria' => 'Bank settings sections',
@@ -140,7 +138,6 @@ return [
     'banks.settings.status_ready_connected' => 'keys set · connected',
     'banks.settings.status_keys_only' => 'keys set · not connected',
     'banks.settings.status_connected_no_keys' => 'connected · OAuth keys empty (refresh will need keys)',
-
     'banks.portal.where' => 'Get credentials:',
     'banks.portal.tochka_oauth_new' => 'Tochka: register OAuth app',
     'banks.portal.tochka_oauth_list' => 'Tochka: my OAuth apps',
@@ -154,7 +151,6 @@ return [
     'banks.portal.sber_api' => 'Sber API',
     'banks.portal.sber_oauth' => 'SberBusiness ID OAuth',
     'banks.portal.sber_id' => 'Sber ID',
-
     'banks.provider.tochka' => 'Tochka',
     'banks.provider.alfa_ul' => 'Alfa (business)',
     'banks.provider.alfa_fl' => 'Alfa (personal)',
@@ -164,12 +160,10 @@ return [
     'banks.provider.tbank_fl' => 'T-Bank (personal)',
     'banks.provider.sber_ul' => 'Sber (business)',
     'banks.provider.sber_fl' => 'Sber (personal)',
-
     'banks.status.pending' => 'Pending',
     'banks.status.active' => 'Active',
     'banks.status.error' => 'Error',
     'banks.status.revoked' => 'Revoked',
-
     'banks.int.alfa_heading' => 'Alfa business — integrations',
     'banks.int.alfa_lede' => 'Sandbox and prod are separate: each has its own keys and mTLS. Probe scopes on sandbox first — Alfa unlocks them on the prod portal only after a successful sandbox call.',
     'banks.int.title' => 'Integration: {label}',
@@ -187,7 +181,6 @@ return [
     'banks.int.connections' => 'Connections for this integration',
     'banks.int.no_connections' => 'No connections yet — click Connect.',
     'banks.int.deleted' => 'Integration deleted',
-
     'banks.conn.title' => 'Connection',
     'banks.conn.sync_model' => 'Manual Sync on this page uses only this connection’s linked accounts. Cron uses every connection with sync-enabled links. Certificates and ini keys are shared and are not deleted with the connection.',
     'banks.conn.siblings' => 'This bank has {n} connections — pick the right ID in the list; deleting one does not remove the others.',
@@ -220,10 +213,8 @@ return [
     'banks.sync.no_ledger_link' => '{n} bank account(s) are not linked to ledger — link them, then sync again.',
     'banks.sync.sync_disabled' => 'Sync is disabled for {n} account(s).',
     'banks.sync.nothing_to_sync' => 'Nothing to sync.',
-
     'banks.err.provider' => 'Unknown provider',
     'banks.err.not_configured' => 'Provider is not configured — open the setup wizard',
-
     'banks.setup.title' => 'Set up {bank}',
     'banks.setup.lede' => 'Follow the steps. Skip only what you truly do not need. White-list this server IP before Connect.',
     'banks.setup.tabs_aria' => 'Setup steps',
@@ -291,11 +282,13 @@ return [
     'banks.err.sync' => 'Sync failed',
     'banks.err.no_default_type' => 'banks.default_move_type_id is not set',
     'banks.err.ledger_account' => 'Ledger account not found',
-
     'banks.badge.bank' => 'Bank',
     'banks.badge.provider' => '{name}',
     'banks.badge.unclassified' => 'Unclassified',
-
     'banks.oauth.callback_ok' => 'Bank connected',
     'banks.oauth.callback_fail' => 'Failed to connect bank',
+    'banks.setup.step.wizard' => 'Complete the module setup wizard.',
+    'banks.setup.step.wizard_help' => 'Walk through the wizard so the module can connect and run.',
+    'banks.setup.ask.wizard' => 'Walk through the wizard so the module can connect and run.',
+    'banks.setup.choice.open' => 'Open wizard',
 ];

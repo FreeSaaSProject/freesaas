@@ -28,7 +28,7 @@ UI: **Assistant groups** (`/assistant-groups/settings`, SUPERADMIN).
 
 **Context:** history is per group chat (`var/assistant_groups/dialogs/`), not personal DM history. A **reply** to the bot’s message (Max `link.type=reply`, sender = bot or known bot mid) continues the task without `@mention`. Mentions still start/continue the same chat thread. Reset via tool `assistant_groups.dialog.clear` (always in the group catalog; LLM calls it on clear/reset wording). Idle TTL 24h.
 
-**Confirm buttons:** mids with keyboards are stored in the dialog file (`keyboard_mids`). Buttons are stripped (message text kept) after confirm/cancel, on stale callback, on dialog clear, and on the next `@mention` / new draft — so old Confirm rows do not linger.
+**Confirm buttons:** mids with keyboards are stored in the dialog file (`keyboard_mids`). Three actions: **Confirm**, **Cancel** (changed mind — no case), **Problem** (`❗`, callback `ag:prob:`) — cancels the draft and appends a JSONL case under `var/assistant_groups/problems/` for later review. Buttons are stripped (message text kept) after confirm/cancel/problem, on stale callback, on dialog clear, and on the next `@mention` / new draft — so old Confirm rows do not linger.
 
 Diagnose: `/assistant-groups/status`.
 

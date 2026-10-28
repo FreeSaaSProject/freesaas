@@ -2,7 +2,7 @@
     "id": "audio",
     "name": "audio.module.name",
     "description": "audio.module.description",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -278,5 +278,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "audio.setup.step.config",
+                "description": "audio.setup.step.config_help",
+                "href": "/audio/settings",
+                "ask_user": "audio.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "audio.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

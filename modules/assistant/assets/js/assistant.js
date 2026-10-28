@@ -504,13 +504,41 @@
     }
     var row = document.createElement('div');
     row.className = 'assistant-chat__pending';
-    var ok = document.createElement('button');
-    ok.type = 'button';
-    ok.className = 'btn-primary';
-    ok.textContent =
-      tokens.length > 1
-        ? t('confirm_all', 'Confirm all')
-        : t('confirm', 'Confirm');
+    var confirmable = true;
+    pending.forEach(function (p) {
+      if (!p || !p.blocked) {
+        return;
+      }
+      var suggest = Array.isArray(p.suggest_ops) ? p.suggest_ops : [];
+      if (!suggest.length) {
+        confirmable = false;
+        return;
+      }
+      var have = {};
+      pending.forEach(function (x) {
+        if (x && x.op_id) {
+          have[String(x.op_id)] = true;
+        }
+      });
+      suggest.forEach(function (sid) {
+        if (!have[String(sid)]) {
+          confirmable = false;
+        }
+      });
+    });
+    if (confirmable) {
+      var ok = document.createElement('button');
+      ok.type = 'button';
+      ok.className = 'btn-primary';
+      ok.textContent =
+        tokens.length > 1
+          ? t('confirm_all', 'Confirm all')
+          : t('confirm', 'Confirm');
+      ok.addEventListener('click', function () {
+        resolvePendingBatch(tokens, 'confirm', wrap);
+      });
+      row.appendChild(ok);
+    }
     var no = document.createElement('button');
     no.type = 'button';
     no.className = 'btn-secondary';
@@ -518,13 +546,9 @@
       tokens.length > 1
         ? t('cancel_all', 'Cancel all')
         : t('cancel', 'Cancel');
-    ok.addEventListener('click', function () {
-      resolvePendingBatch(tokens, 'confirm', wrap);
-    });
     no.addEventListener('click', function () {
       resolvePendingBatch(tokens, 'cancel', wrap);
     });
-    row.appendChild(ok);
     row.appendChild(no);
     // Full chat: optional navigate without leaving until user asks.
     if (!isFab && Array.isArray(uiActionsForShow) && uiActionsForShow.length) {

@@ -373,6 +373,10 @@ final class I18n
         if ($n === null) {
             return;
         }
+        $_COOKIE[self::COOKIE] = $n;
+        if (headers_sent()) {
+            return;
+        }
         $secure = !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off';
         setcookie(self::COOKIE, $n, [
             'expires' => time() + 365 * 86400,
@@ -381,7 +385,6 @@ final class I18n
             'httponly' => false,
             'samesite' => 'Lax',
         ]);
-        $_COOKIE[self::COOKIE] = $n;
     }
 
     public static function applyUserChoice(string $locale, bool $saveToUser = true): void

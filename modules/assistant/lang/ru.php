@@ -192,6 +192,10 @@ return [
     'assistant.confirm.plan_broken' => 'План прерван: предыдущий шаг не выполнен (отменён, истёк или завершился ошибкой) — зависимые шаги не выполняются.',
     'assistant.confirm.plan_running' => 'План уже выполняется — дождитесь результата.',
     'assistant.confirm.skipped_n' => 'не выполнено после ошибки (отменено): {n}',
+    'assistant.preflight.noop' => 'Черновик ничего не меняет — укажите отличающиеся поля (например id_operator) и вызовите write снова.',
+    'assistant.preflight.suggest' => 'В тот же план добавить: {v}',
+    'assistant.preflight.choice' => '{n}. {v}',
+    'assistant.confirm.blocked_choices' => 'Черновик нельзя подтвердить (см. ⚠). Выберите вариант кнопкой или «Отмена» / «Проблема».',
     'assistant.relations.prompt' => 'Связь: после {when} проверяется {check}; затронутые строки снимай/правь через {suggest} в том же плане. {hint}',
     'assistant.relations.check_unavailable' => 'Связанные данные ({op}) не проверены: недоступны в этом канале — проверьте вручную.',
     'assistant.relations.suggest_unavailable' => 'Действия {ops} недоступны в этом канале — затронутые строки нужно поправить вручную.',
@@ -205,12 +209,17 @@ return [
     'assistant.confirm.none' => 'Нет ожидающего действия. Сначала оформите запись через {name} — появятся кнопки Подтвердить/Отмена.',
     'assistant.confirm.not_queued' => '{name} не поставил действие в очередь. Повторите запрос: нужно найти запись и вызвать удаление или сохранение — тогда появятся кнопки Подтвердить/Отмена.',
     'assistant.confirm.press_buttons' => 'Черновик готов — нажмите «Подтвердить» или «Отмена» на кнопках ниже.',
+    'assistant.confirm.blocked_buttons' => 'Черновик нельзя подтвердить — конфликт (см. ⚠). Предложите другой вариант или нажмите «Отмена» / «Проблема».',
+    'assistant.confirm.preflight_blocked' => 'Черновик всё ещё заблокирован проверкой — подтвердить нельзя. Исправьте черновик или нажмите «Отмена» / «Проблема».',
     'assistant.ui.show_on_screen' => 'Показать на экране',
     'assistant.ui.mirror_hint' => 'На экране — черновик полей; запись применится после «Подтвердить».',
     'assistant.err.config' => '{name} не настроен. Добавьте токен в настройках LLM.',
     'assistant.err.tools' => 'Нет доступных инструментов по вашим правам.',
     'assistant.err.loop' => '{name} остановился после слишком многих шагов.',
-    'assistant.harness.link_repair' => "Ты выдумал ссылки, которых нет в доступных tools: {bad}.\nНе повторяй их. Используй только пути/open_url из tools этого диалога:\n{allowed}\nЕсли экрана нет в списке — скажи, что он недоступен (без URL). Перепиши ответ целиком.",
+    'assistant.harness.link_repair' => 'Ты выдумал ссылки, которых нет в доступных tools: {bad}.
+Не повторяй их. Используй только пути/open_url из tools этого диалога:
+{allowed}
+Если экрана нет в списке — скажи, что он недоступен (без URL). Перепиши ответ целиком.',
     'assistant.harness.link_repair_none' => '(в tools нет готовых open_url — не выдумывай URL; скажи, что экран недоступен)',
     'assistant.err.invoke' => 'Ошибка инструмента',
     'assistant.bot.cabinet' => 'Спросить {name}',
@@ -275,4 +284,8 @@ return [
     'assistant.system_prompt.bot_menu_none' => 'Отдельных пунктов меню бота сейчас нет.',
     'assistant.module.description' => 'AI-ассистент в кабинете (чат для всех сотрудников). Имя задаётся в настройках системы (по умолчанию Макс). Настройки токенов — в модуле llm.',
     'assistant.module.summary' => 'Базовая функция: чат ассистента доступен всем вошедшим сотрудникам. Требует llm. Мягко bots/procedures/staff_reports/audio_reports/terminals/updates для tools. Права llm.manage — только настройки токенов/OAuth. Имя персоны — на /settings.',
+    'assistant.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/assistant.ini).',
+    'assistant.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'assistant.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'assistant.setup.choice.open' => 'Открыть настройки',
 ];

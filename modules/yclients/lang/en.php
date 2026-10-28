@@ -48,4 +48,8 @@ return [
     'yclients.settings.secret_empty' => 'not set',
     'yclients.settings.current' => 'current: {masked}',
     'yclients.module.summary' => 'Enable to sync clients from YClients into FreeSaaS. Requires clients. Soft calendar/procedures/workweeks. Credentials in cfg/modules/yclients.ini. Beta integration — verify phone matching before relying on it in production days.',
+    'yclients.setup.step.config' => 'Copy or fill module settings (cfg/modules/yclients.ini).',
+    'yclients.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'yclients.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'yclients.setup.choice.open' => 'Open settings',
 ];

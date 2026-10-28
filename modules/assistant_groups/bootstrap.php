@@ -9,6 +9,9 @@ require_once __DIR__ . '/lib/MaxGroupSpike.php';
 require_once __DIR__ . '/lib/AssistantGroupsInbound.php';
 require_once __DIR__ . '/lib/AssistantGroupsPoller.php';
 require_once __DIR__ . '/lib/AssistantGroupsWebhook.php';
+require_once __DIR__ . '/lib/AssistantGroupsProblemStore.php';
+require_once __DIR__ . '/lib/AssistantGroupsKeyboards.php';
+require_once __DIR__ . '/lib/AssistantGroupsChoices.php';
 require_once __DIR__ . '/lib/AssistantGroupsBotHandler.php';
 
 Assets::register('assistant_groups', [

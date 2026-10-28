@@ -2,7 +2,7 @@
     "id": "vacations",
     "name": "vacations.module.name",
     "description": "vacations.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -68,13 +68,29 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "id": { "type": "integer", "description": "Vacation id from vacations.list" },
-                        "dt_start": { "type": "string", "description": "New start YYYY-MM-DD" },
-                        "dt_end": { "type": "string", "description": "New end YYYY-MM-DD (inclusive)" },
-                        "descr": { "type": "string" },
-                        "id_type": { "type": "integer", "description": "1 paid, 2 unpaid, 3 working period" }
+                        "id": {
+                            "type": "integer",
+                            "description": "Vacation id from vacations.list"
+                        },
+                        "dt_start": {
+                            "type": "string",
+                            "description": "New start YYYY-MM-DD"
+                        },
+                        "dt_end": {
+                            "type": "string",
+                            "description": "New end YYYY-MM-DD (inclusive)"
+                        },
+                        "descr": {
+                            "type": "string"
+                        },
+                        "id_type": {
+                            "type": "integer",
+                            "description": "1 paid, 2 unpaid, 3 working period"
+                        }
                     },
-                    "required": ["id"]
+                    "required": [
+                        "id"
+                    ]
                 }
             }
         ]
@@ -118,5 +134,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "vacations.setup.step.ready",
+                "description": "vacations.setup.step.ready_help",
+                "href": "/vacations",
+                "ask_user": "vacations.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "vacations.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

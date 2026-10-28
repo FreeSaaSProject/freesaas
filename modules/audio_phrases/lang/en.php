@@ -80,4 +80,8 @@ return [
     'audio_phrases.settings.daily_at' => 'Cron time',
     'audio_phrases.settings.backfill_days' => 'Backfill days',
     'audio_phrases.perm.delete' => 'Delete phrases',
+    'audio_phrases.setup.step.config' => 'Copy or fill module settings (cfg/modules/audio_phrases.ini).',
+    'audio_phrases.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio_phrases.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio_phrases.setup.choice.open' => 'Open settings',
 ];

@@ -75,4 +75,8 @@ return [
     'vacations.module.description' => 'Реестр отпусков (base_vacations) с workflow подписания.',
     'vacations.module.summary' => 'Включайте для реестра отпусков и согласований. Только core. В меню Команда рядом со сменами; независимо от бронирований календаря.',
     'vacations.perm.delete' => 'Удаление отпусков',
+    'vacations.setup.step.ready' => 'После включения модуль готов к работе.',
+    'vacations.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'vacations.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'vacations.setup.choice.open' => 'Открыть модуль',
 ];

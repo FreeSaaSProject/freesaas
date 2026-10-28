@@ -340,4 +340,8 @@ return [
     'terminals.floor.title' => 'Запись с пола (agent)',
     'terminals.floor.hint' => 'POST JSON на этот путь для procedure-mode book/cancel. Публичная NFC-оболочка — /t.',
     'terminals.perm.delete' => 'Удаление терминалов / браслетов',
+    'terminals.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/terminals.ini).',
+    'terminals.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'terminals.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'terminals.setup.choice.open' => 'Открыть настройки',
 ];

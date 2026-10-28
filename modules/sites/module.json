@@ -2,7 +2,7 @@
     "id": "sites",
     "name": "sites.module.name",
     "description": "sites.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -300,5 +300,29 @@
             "embed"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "hosts",
+                "title": "sites.setup.step.hosts",
+                "description": "sites.setup.step.hosts_help",
+                "href": "/sites",
+                "ask_user": "sites.setup.ask.hosts",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "sites.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

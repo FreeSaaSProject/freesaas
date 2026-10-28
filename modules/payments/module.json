@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -162,5 +162,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "payments.setup.step.config",
+                "description": "payments.setup.step.config_help",
+                "href": "/payments/settings",
+                "ask_user": "payments.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "payments.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

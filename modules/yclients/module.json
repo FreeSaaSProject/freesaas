@@ -2,7 +2,7 @@
     "id": "yclients",
     "name": "yclients.module.name",
     "description": "yclients.module.description",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "catalog": {
         "categories": [
@@ -244,5 +244,29 @@
         "subscribe": [],
         "publish": []
     },
-    "bulkActions": []
+    "bulkActions": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "yclients.setup.step.config",
+                "description": "yclients.setup.step.config_help",
+                "href": "/yclients/settings",
+                "ask_user": "yclients.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "yclients.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
 }

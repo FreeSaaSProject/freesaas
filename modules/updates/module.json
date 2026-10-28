@@ -2,7 +2,7 @@
     "id": "updates",
     "name": "updates.module.name",
     "description": "updates.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -55,7 +55,7 @@
                 "description": "Cached update board: local/remote versions, last_check, available_count. Prefer updates.check for a fresh remote poll. Needs updates.view.",
                 "parameters": {
                     "type": "object",
-                    "properties": {}
+                    "properties": []
                 }
             },
             {
@@ -67,7 +67,7 @@
                 "description": "Read update source settings (repo/channel/ref/asset, token_set flag — never the raw token). Needs updates.view.",
                 "parameters": {
                     "type": "object",
-                    "properties": {}
+                    "properties": []
                 }
             },
             {
@@ -175,5 +175,29 @@
             "core.notices.collect"
         ],
         "publish": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "source",
+                "title": "updates.setup.step.source",
+                "description": "updates.setup.step.source_help",
+                "href": "/updates/settings",
+                "ask_user": "updates.setup.ask.source",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "updates.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

@@ -148,4 +148,8 @@ return [
     'workweeks.relation.user_disabled_shifts' => 'Сотрудник отключён: его будущие смены снимай workweeks.delete (по одной на каждую смену из related.items).',
     'workweeks.relation.user_disabled_shifts.notice' => 'Будущих смен у сотрудника: {n} — будут сняты.',
     'workweeks.assistant.hint' => 'Смены: при «кто/поменяй/убери/поставь/замени на день» сначала CALL workweeks.day(date) (или list с date_from/date_to). Резолв людей: operator_name, operator_acronym (МСА/ДВМ = инициалы ФИО) или имя «Даша». Если на день один матч — сразу queue. Замена A→B: workweeks.update на смене A с id_operator=B (не create+забыть старую). Убрать со смены: workweeks.delete (action=delete). Поставить нового: create. Фамилию/ID спрашивай только если ≥2 матча. Вне дня: core.users.list(q=МСА) ищет по acronym.',
+    'workweeks.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/workweeks.ini).',
+    'workweeks.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'workweeks.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'workweeks.setup.choice.open' => 'Открыть настройки',
 ];

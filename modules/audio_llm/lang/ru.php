@@ -79,7 +79,6 @@ return [
     'audio_llm.module.description' => 'LLM-исследования по аудио: циклические шаблоны и spawn дневных отчётов.',
     'audio_llm.module.summary' => 'Включайте для AI-разбора записей. Требует llm + audio + audio_dicts. Мягко staff_reports/comments/procedures/contracts. После ключей llm и словарей audio.',
     'audio_llm.perm.delete' => 'Удаление LLM-исследований',
-
     'audio_llm.moderation.title' => 'LLM-модерация',
     'audio_llm.moderation.lede' => 'Краткий скан подборки: только значимые пункты со ссылками на ID записей (удобно глянуть по диагонали).',
     'audio_llm.moderation.btn_run' => 'Отправить на модерацию',
@@ -111,4 +110,8 @@ return [
     'audio_llm.moderation.settings.reset_fields' => 'Подставить дефолт в поля',
     'audio_llm.moderation.settings.reset_save' => 'Сбросить и сохранить дефолт',
     'audio_llm.moderation.settings.reset_confirm' => 'Очистить сохранённые промпты и снова использовать встроенный дефолт?',
+    'audio_llm.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/audio_llm.ini).',
+    'audio_llm.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'audio_llm.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'audio_llm.setup.choice.open' => 'Открыть настройки',
 ];

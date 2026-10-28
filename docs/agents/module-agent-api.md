@@ -68,6 +68,8 @@ All product modules declare `agent.ops` (session JSON on the same routes as the 
 
 Platform install/ops (`/agent/db*`, token) remain separate — see [remote-api.md](remote-api.md), [migrations.md](migrations.md), and [db-backup.md](db-backup.md).
 
+**Module activate (platform):** after `POST /agent/modules/{id}/install` (or code already on disk), call `GET /agent/modules/{id}/activate` for a snapshot (`phase`, `grant_targets`, `setup_steps[]` with `ask_user` / `choices[].recommended` / `agent_can`). Then `POST` with `action=enable|grant|setup_step|setup_defer_all|leave_disabled|finish`. Agents must ask the human when `agent_can` is empty or secrets are needed, offering the recommended choice for a fast confirm. CLI: `module activate <id>`.
+
 **Module catalog for MCP/assistant:** `core.modules.list` (`GET /modules?format=json`) and `core.modules.get` (`GET /modules/{id}?format=json`) — same `ModuleCatalog` data as platform `module.list` / `module.inspect`, but session/`core.modules` auth so they appear in `/llm/mcp` `tools/list`. `get` includes `agent_ops[]` with `mcp_name` for that module’s tools.
 
 **Storefront diagnose example:** `sites.status` → `GET /sites/status?format=json` (hosts, soft deps, booking, `issues[]`; product overlays via EventBus `sites.diagnose`). Runbook: [sites.md](sites.md).
@@ -75,6 +77,18 @@ Platform install/ops (`/agent/db*`, token) remain separate — see [remote-api.m
 ## Update ops are patches
 
 `*.update` over JSON must keep fields the client did not send (checkboxes included) — the assistant passes only what changed. Merge the stored row under `$_POST` before validation (see `VacationsRepository::patchPost`, `workweeks.update`).
+
+## Write preflight (dry-run before pending)
+
+Before a write is stored as pending, the harness emits EventBus `assistant.write.preflight` with `{op_id, args, catalog_ids, blockers:[], suggest:[], noop:false}`. Owning modules append:
+
+| Field | Role |
+|-------|------|
+| `blockers[]` | `{code, message}` — shown as `⚠` in the human preview and as `preflight` on the tool result |
+| `suggest[]` | `{op_id, args, label}` — if those ops are in the channel catalog, the model gets a follow-up round to queue them into the **same plan** (same as relations) |
+| `noop` | `true` → harness **does not** create pending; tool returns an error so the model must send a real patch |
+
+Example: `procedures.update` dry-runs `BookingValidate::assertProcedureWindow`; on `slot_past_shift_end` it suggests `workweeks.update` with a covering `price_col`. No spa wording in the harness itself.
 
 ## Relations (multi-step plans)
 

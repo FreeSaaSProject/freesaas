@@ -80,19 +80,60 @@ cd /path/to/freesaas
 cp workers/host.example.json workers/host.local.json
 # Edit enabled_plugins: ["video"], ["whisper"], or both
 # Edit shared.server to the FreeSaaS base URL (no trailing slash)
+# Set locale (see below) to match the FreeSaaS instance language
 
 ./workers/bin/freesaas-workers install
 # creates workers/.venv, pip (core + enabled plugins), copies plugin configs/example → local.json,
 # attempts model download where url/source allows, runs doctor
 ```
 
+### Locale + ASR language (agent must set)
+
+Two separate knobs:
+
+| Knob | Where | Meaning |
+|------|--------|---------|
+| `locale` | `host.local.json` | Dashboard chrome + worker **log** language (`ru`\|`en`) |
+| `whisper.form_params.language` | `plugins/whisper/configs/local.json` | Whisper.cpp **ASR** speech language |
+
+**How to choose defaults for an instance:**
+
+| FreeSaaS stand / UI | `locale` | ASR `language` |
+|---------------------|----------|----------------|
+| likespa.ru / demoru / Russian UI | `ru` | `ru` |
+| demoen / English UI | `en` | `en` |
+| Unknown | ask operator; example files use `ru` | same as UI unless operator wants otherwise |
+
+Both are editable later from the dashboard header (UI + ASR selects). Changing ASR restarts the whisper plugin. Changing UI locale reloads the page; restart plugins to refresh log language.
+
 Then edit secrets (**chmod 600**):
 
 | File | Fields |
 |------|--------|
-| `workers/host.local.json` | `enabled_plugins`, `dashboard.port`, `shared.server` / `tls` |
+| `workers/host.local.json` | `enabled_plugins`, `locale`, `dashboard.port`, `shared.server` / `tls`, optional `notify` (Max and/or Telegram ops alerts) |
 | `workers/plugins/video/configs/local.json` | `server`, `worker_token`, `worker_key`, `models.*`, `ffmpeg.bin`, optional `tunnel.*`, `agent_token` |
-| `workers/plugins/whisper/configs/local.json` | `server`, `ftp_server`, `worker_token`, `tls.*`, `whisper.*`, optional `max.*` |
+| `workers/plugins/whisper/configs/local.json` | `server`, `ftp_server`, `worker_token`, `tls.*`, `whisper.form_params.language`, `analytics.stem_timeout_sec` (default 90); legacy `max.*` still read as notify fallback |
+
+### Ops notify (Max / Telegram)
+
+Optional alerts from the whisper plugin (server down, recognition summary, novad fallback). **Off by default** on new hosts (`notify.enabled=false`).
+
+Configure in `host.local.json` → `notify` or the dashboard **Notifications** card (master switch, per-event flags, Max and/or Telegram channels). Saving from the dashboard restarts whisper so the worker reloads settings.
+
+```json
+"notify": {
+  "enabled": true,
+  "events": { "whisper_down": true, "recognition_summary": true, "novad_fallback": true },
+  "channels": {
+    "max": { "enabled": true, "token": "…", "chat_id": "…" },
+    "telegram": { "enabled": false, "bot_token": "…", "chat_id": "…" }
+  }
+}
+```
+
+`install` migrates legacy `plugins/whisper/configs/local.json` → `max{}` into `notify.channels.max` when the host channel is empty. Both channels can be on at once.
+
+`edit_last` (default **true**): soft events `recognition_summary` / `novad_fallback` **edit** the previous message in that chat (Max `PUT /messages`, Telegram `editMessageText`) instead of flooding. `whisper_down` always sends a new message. Last message ids live in `workers/var/notify_state.json`.
 
 Whisper launcher:
 
@@ -137,9 +178,12 @@ Dashboard: `http://127.0.0.1:8766/` (localhost only).
 
 | UI | Meaning |
 |----|---------|
-| Plugins table | running, **CPU%**, **RSS MB**, **activity.phase + detail** |
+| Top bar | locale (RU/EN), ASR language (if whisper), host CPU/RAM, Start/Stop all |
+| Plugins table | running, **CPU%**, **RSS MB**, **activity.phase + detail**, **stale** if no status heartbeat past idle+90s |
 | Live log | tail of `workers/var/log/<plugin>.log` (stdout/stderr of supervised process) |
-| Plugin widgets | video: VPN / cameras / jobs / dataset; whisper: server health / pending |
+| Plugin widgets | video: VPN / cameras / jobs; whisper: server health / pending / ASR |
+
+Idle whisper: between claims the client sleeps `loop.sleep_seconds_idle` (default 180) with **heartbeat** every ~15s (`activity` countdown). A multi-minute gap in the log after “waiting Ns” is normal. Stem uses `analytics.stem_timeout_sec` (default **90**, not 600) so a dead host fails fast; inference uses `whisper.inference_timeout_sec` (default 1800).
 
 ### Agent observability (no HTML scraping)
 
@@ -237,9 +281,22 @@ Always start with: `status <plugin>` + `logs <plugin> --tail 80`.
 
 ---
 
-## 10. Follow-ups (not in v1)
+## 10. Autostart (macOS login)
 
-- LaunchAgent/plist auto-start
+LaunchAgent `ru.freesaas.workers` runs `bin/freesaas-workers-boot.sh`: `start` all enabled plugins, then keep **dashboard** in foreground (`KeepAlive`).
+
+```bash
+./workers/bin/freesaas-workers autostart status
+./workers/bin/freesaas-workers autostart on    # install + load LaunchAgent
+./workers/bin/freesaas-workers autostart off    # unload + remove plist
+```
+
+Same toggle in the dashboard **Autostart** card. State also stored in `host.local.json` → `autostart.enabled`. Logs: `var/log/boot.log`, `launchd.*.log`.
+
+---
+
+## 11. Follow-ups
+
 - Working local-LLM plugin
 - Single shared worker token across plugins
 

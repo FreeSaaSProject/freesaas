@@ -167,6 +167,7 @@ final class WorkweeksAssistantPreview
         return implode(' · ', $bits);
     }
 
+    /** Staff acronym (СМС), not full FIO. */
     private static function userLabel(int $userId): string
     {
         if ($userId < 1) {
@@ -176,17 +177,12 @@ final class WorkweeksAssistantPreview
             return '#' . $userId;
         }
         try {
-            $name = trim(UsersRepository::nameById($userId));
+            $list = UsersRepository::acronymsList([$userId]);
         } catch (Throwable $e) {
             return '#' . $userId;
         }
-        if ($name === '' || $name === '—') {
-            return '#' . $userId;
-        }
-        if ($name === '#' . $userId || preg_match('/^#\d+$/', $name) === 1) {
-            return $name;
-        }
-        return $name . ' (#' . $userId . ')';
+        $list = trim($list);
+        return $list !== '' ? $list : ('#' . $userId);
     }
 
     /** @param mixed $raw */

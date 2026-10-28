@@ -15,7 +15,6 @@ return [
     'certificates.statuses.group' => 'Сертификаты',
     'certificates.statuses.field.EVT_SERT' => 'Списание сертификатов на событиях календаря',
     'certificates.cron.expire' => 'Просрочка сертификатов',
-
     'certificates.kind.money' => 'Денежный',
     'certificates.kind.abon' => 'Абонемент',
     'certificates.list.empty' => 'Сертификатов пока нет.',
@@ -35,7 +34,6 @@ return [
     'certificates.list.col_holder' => 'Держатель',
     'certificates.list.col_expire' => 'До',
     'certificates.list.new' => 'Новый сертификат',
-
     'certificates.edit.title_new' => 'Новый сертификат',
     'certificates.edit.title' => 'Сертификат #:id',
     'certificates.edit.heading_new' => 'Новый',
@@ -73,7 +71,6 @@ return [
     'certificates.field.price' => 'Цена ед.',
     'certificates.field.name' => 'Название',
     'certificates.edit.ledger_link' => 'Движения по этому сертификату',
-
     'certificates.ledger.empty' => 'Движений нет.',
     'certificates.ledger.col_cert' => 'Сертификат',
     'certificates.ledger.col_dir' => 'Напр.',
@@ -90,7 +87,6 @@ return [
     'certificates.ledger.expire' => 'Списание просроченного остатка',
     'certificates.ledger.undo' => 'Отмена списания #:id',
     'certificates.ledger.undo_btn' => 'Отменить',
-
     'certificates.event.sec' => 'Сертификат',
     'certificates.event.need_client' => 'Укажите клиента, чтобы списать сертификат.',
     'certificates.event.active' => 'Действующие сертификаты',
@@ -102,11 +98,9 @@ return [
     'certificates.event.applied' => 'Сертификат уже списан на это событие.',
     'certificates.event.no_capability' => 'Нет права EVT_SERT',
     'certificates.event.applied_ok' => 'Сертификат списан (:n).',
-
     'certificates.client.bought' => 'Куплен: :n',
     'certificates.client.active' => 'Действует: :n',
     'certificates.client.link' => 'Сертификаты',
-
     'certificates.cart.title' => 'Сертификат / абонемент',
     'certificates.cart.code' => 'Код',
     'certificates.cart.apply' => 'Применить',
@@ -114,7 +108,6 @@ return [
     'certificates.cart.ok' => 'Сертификат применён.',
     'certificates.cart.cleared' => 'Сертификат сброшен.',
     'certificates.cart.balance' => 'Остаток: :n',
-
     'certificates.err.table' => 'Таблицы сертификатов отсутствуют (запустите миграции).',
     'certificates.err.ledger_table' => 'Таблица журнала сертификатов отсутствует.',
     'certificates.err.not_found' => 'Сертификат #:id не найден',
@@ -145,4 +138,8 @@ return [
     'certificates.err.delete_superadmin' => 'Удалять сертификаты может только директор',
     'certificates.err.insufficient_balance' => 'Недостаточно остатка на сертификате',
     'certificates.perm.delete' => 'Удаление сертификатов',
+    'certificates.setup.step.ready' => 'После включения модуль готов к работе.',
+    'certificates.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'certificates.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'certificates.setup.choice.open' => 'Открыть модуль',
 ];

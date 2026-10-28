@@ -2,12 +2,12 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
     },
-    "optionalRequires": {},
+    "optionalRequires": [],
     "provides": [
         "bi.families",
         "bi.share"
@@ -378,5 +378,31 @@
             "report"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "bi.setup.step.ready",
+                "description": "bi.setup.step.ready_help",
+                "href": "/bi",
+                "ask_user": "bi.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "bi.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

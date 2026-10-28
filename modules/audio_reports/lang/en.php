@@ -486,4 +486,8 @@ return [
     'audio_reports.module.summary' => 'Enable for listening calendar and summaries. Requires audio + audio_dicts + workweeks. Soft procedures/pipeline. Soft-used by the spa instance pack and staff_reports.',
     'audio_reports.perm.delete' => 'Delete collections',
     'audio_reports.perm.summaries_delete' => 'Delete summary profiles',
+    'audio_reports.setup.step.config' => 'Copy or fill module settings (cfg/modules/audio_reports.ini).',
+    'audio_reports.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio_reports.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio_reports.setup.choice.open' => 'Open settings',
 ];

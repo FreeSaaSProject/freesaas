@@ -51,4 +51,8 @@ return [
     'audio_pipeline.settings.flag_ok_hint' => 'Флаг «Запрет времени вне процедур» на роли включён — отключение простоя сможет сработать после collect / Re-®.',
     'audio_pipeline.settings.flag_warn_position' => 'Оверрайд сохранён, но у роли нет флага «Запрет времени вне процедур» (DISABLE_NON_PROCEDURE_TIME). Без него StemRunner не отключит записи.',
     'audio_pipeline.settings.flag_warn_admin' => 'Оверрайд сохранён, но у роли сотрудника нет флага «Запрет времени вне процедур» (DISABLE_NON_PROCEDURE_TIME). Без него StemRunner не отключит записи.',
+    'audio_pipeline.setup.step.ready' => 'После включения модуль готов к работе.',
+    'audio_pipeline.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'audio_pipeline.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'audio_pipeline.setup.choice.open' => 'Открыть модуль',
 ];

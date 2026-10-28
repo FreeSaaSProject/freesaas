@@ -192,6 +192,10 @@ return [
     'assistant.confirm.plan_broken' => 'Plan aborted: an earlier step did not succeed (cancelled, expired or failed) — dependent steps will not run.',
     'assistant.confirm.plan_running' => 'The plan is already running — wait for the result.',
     'assistant.confirm.skipped_n' => 'not run after a failure (cancelled): {n}',
+    'assistant.preflight.noop' => 'Draft changes nothing — set differing fields (e.g. id_operator) and CALL the write again.',
+    'assistant.preflight.suggest' => 'Add to the same plan: {v}',
+    'assistant.preflight.choice' => '{n}. {v}',
+    'assistant.confirm.blocked_choices' => 'Draft cannot be confirmed (see ⚠). Pick an option with a button, or Cancel / Problem.',
     'assistant.relations.prompt' => 'Relation: after {when}, {check} is checked; remove/fix affected rows via {suggest} in the same plan. {hint}',
     'assistant.relations.check_unavailable' => 'Related data ({op}) not checked: unavailable in this channel — check manually.',
     'assistant.relations.suggest_unavailable' => 'Actions {ops} are unavailable in this channel — fix the affected rows manually.',
@@ -205,12 +209,17 @@ return [
     'assistant.confirm.none' => 'No pending action. Have {name} queue a write first — Confirm/Cancel buttons will appear.',
     'assistant.confirm.not_queued' => 'No write was queued. Ask again — {name} must find the row with a tool and call delete/save so Confirm/Cancel buttons appear.',
     'assistant.confirm.press_buttons' => 'Draft ready — press Confirm or Cancel on the buttons below.',
+    'assistant.confirm.blocked_buttons' => 'Draft cannot be confirmed — conflict (see ⚠). Propose another option or press Cancel / Problem.',
+    'assistant.confirm.preflight_blocked' => 'Draft is still blocked by preflight — Confirm will not run. Fix the draft or press Cancel / Problem.',
     'assistant.ui.show_on_screen' => 'Show on screen',
     'assistant.ui.mirror_hint' => 'On-screen fields are a draft preview; the write applies only after Confirm.',
     'assistant.err.config' => '{name} is not configured. Add a token under LLM settings.',
     'assistant.err.tools' => 'No tools available for your permissions.',
     'assistant.err.loop' => '{name} stopped after too many tool steps.',
-    'assistant.harness.link_repair' => "You invented links that are not in the available tools: {bad}.\nDo not repeat them. Use only paths/open_url from tools in this dialog:\n{allowed}\nIf a screen is missing from that list — say it is unavailable (no URL). Rewrite the full reply.",
+    'assistant.harness.link_repair' => 'You invented links that are not in the available tools: {bad}.
+Do not repeat them. Use only paths/open_url from tools in this dialog:
+{allowed}
+If a screen is missing from that list — say it is unavailable (no URL). Rewrite the full reply.',
     'assistant.harness.link_repair_none' => '(no open_url values in tools — do not invent URLs; say the screen is unavailable)',
     'assistant.err.invoke' => 'Tool failed',
     'assistant.bot.cabinet' => 'Ask {name}',
@@ -275,4 +284,8 @@ return [
     'assistant.system_prompt.bot_menu_none' => 'No extra bot cabinet items right now.',
     'assistant.module.description' => 'In-cabin AI assistant (chat for every staff user). Persona name is set under System settings (default Макс). Token settings live in the llm module.',
     'assistant.module.summary' => 'Base feature: assistant chat is available to every signed-in staff user. Requires llm. Soft bots/procedures/staff_reports/audio_reports/terminals/updates for tools. llm.manage gates token/OAuth settings only. Rename the persona under /settings.',
+    'assistant.setup.step.config' => 'Copy or fill module settings (cfg/modules/assistant.ini).',
+    'assistant.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'assistant.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'assistant.setup.choice.open' => 'Open settings',
 ];

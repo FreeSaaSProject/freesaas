@@ -8,7 +8,6 @@ return [
     'audio_script_coach.menu.list' => 'Script coach',
     'audio_script_coach.perm.view' => 'View script coach runs',
     'audio_script_coach.perm.edit' => 'Run coach and accept proposals',
-
     'audio_script_coach.day_report.link' => 'Investigate shift (script coach)',
     'audio_script_coach.day.title' => 'Script coach — {name} / {date}',
     'audio_script_coach.day.hint' => 'Builds a phased analysis of rating scripts for this staffer: silent/trigger gaps and incomplete sessions, then LLM proposals for keys or new dictionaries. Phases run in batches with a progress window (like DB dump) so one request cannot take the server down. Accept applies to audio dicts only after review. Hard depth also mines stage fill when the day already looks covered.',
@@ -17,13 +16,11 @@ return [
     'audio_script_coach.day.open_run' => 'Open run #{id}',
     'audio_script_coach.day.back_report' => 'Day report',
     'audio_script_coach.day.no_super' => 'Only a superadmin can start an investigation.',
-
     'audio_script_coach.depth.label' => 'Depth',
     'audio_script_coach.depth.normal' => 'Normal',
     'audio_script_coach.depth.hard' => 'Hard',
     'audio_script_coach.depth.normal_hint' => 'Only real gaps: silent scripts, weak/missed starts, incomplete sessions.',
     'audio_script_coach.depth.hard_hint' => 'Also mine finished sessions for missing stages; if the day is fully covered, still seek ASR variants per stage.',
-
     'audio_script_coach.list.empty' => 'No coach runs yet.',
     'audio_script_coach.list.col.id' => 'ID',
     'audio_script_coach.list.col.admin' => 'Staff',
@@ -33,12 +30,10 @@ return [
     'audio_script_coach.list.filter_admin' => 'Staff id',
     'audio_script_coach.list.filter_day' => 'Day',
     'audio_script_coach.list.filter' => 'Filter',
-
     'audio_script_coach.status.0' => 'Pending',
     'audio_script_coach.status.1' => 'Running',
     'audio_script_coach.status.2' => 'Ready',
     'audio_script_coach.status.3' => 'Error',
-
     'audio_script_coach.run.title' => 'Coach run #{id}',
     'audio_script_coach.run.meta' => 'Staff #{admin} · {day} · phase {phase}',
     'audio_script_coach.run.advance' => 'Next phase',
@@ -59,7 +54,6 @@ return [
     'audio_script_coach.run.filter_skip_nothing' => 'LLM was not called: facts show nothing to enrich. On Normal this means the day is covered. Rebuild with Hard to mine stage fill / ASR variants anyway.',
     'audio_script_coach.run.filter_skip_no_windows' => 'LLM was not called: script gaps exist, but there are no transcript windows to analyse.',
     'audio_script_coach.run.filter_skip_generic' => 'LLM was not called ({reason}).',
-
     'audio_script_coach.filter.phrase.empty' => 'empty string',
     'audio_script_coach.filter.phrase.too_short' => 'shorter than 2 characters',
     'audio_script_coach.filter.phrase.overlap' => 'overlaps existing key',
@@ -73,7 +67,6 @@ return [
     'audio_script_coach.filter.proposal.no_phrases' => 'no phrases left after filters',
     'audio_script_coach.filter.proposal.bad_dict' => 'dictionary missing / invalid',
     'audio_script_coach.filter.proposal.duplicate' => 'duplicate proposal',
-
     'audio_script_coach.run.artifacts' => 'Phases done',
     'audio_script_coach.run.reparse_hint' => 'After accepting keys, re-parse the day from the audio calendar (Re-®) to re-match.',
     'audio_script_coach.run.open_calendar' => 'Audio calendar',
@@ -88,7 +81,6 @@ return [
     'audio_script_coach.run.finishes' => 'finishes {n}',
     'audio_script_coach.run.incomplete' => 'incomplete {n}',
     'audio_script_coach.run.records' => 'Records with transcript: {n}',
-
     'audio_script_coach.prop.action.add_key' => 'Add keys',
     'audio_script_coach.prop.action.add_dict_with_keys' => 'New dictionary + keys',
     'audio_script_coach.prop.dict' => 'Dictionary',
@@ -125,9 +117,7 @@ return [
     'audio_script_coach.prop.status.0' => 'Pending',
     'audio_script_coach.prop.status.1' => 'Accepted',
     'audio_script_coach.prop.status.2' => 'Rejected',
-
     'audio_script_coach.apply.dict_descr' => 'Created by script coach',
-
     'audio_script_coach.flash.started' => 'Investigation started — phases run in batches.',
     'audio_script_coach.flash.advanced' => 'Phase: {phase}',
     'audio_script_coach.flash.rebuilt' => 'Run rebuilt. Proposals: {n}.',
@@ -154,7 +144,6 @@ return [
     'audio_script_coach.flash.accepted_phrases' => 'Added {created} key(s). Still pending: {left}.',
     'audio_script_coach.flash.rejected' => 'Proposal rejected.',
     'audio_script_coach.flash.accept_partial_overlap' => 'Nothing added — {n} phrase(s) overlap existing keys. Tick Force to add with lookalike link.',
-
     'audio_script_coach.err.tables' => 'Script coach tables missing — run migrations.',
     'audio_script_coach.err.bad_args' => 'Need staff and day (YYYY-MM-DD).',
     'audio_script_coach.err.forbidden' => 'Superadmin required.',
@@ -172,4 +161,8 @@ return [
     'audio_script_coach.err.all_overlap' => 'All phrases overlap existing keys (same checks as manual key create). Tick Force or reject.',
     'audio_script_coach.err.unknown_action' => 'Unknown action',
     'audio_script_coach.err.work_failed' => 'Work failed',
+    'audio_script_coach.setup.step.ready' => 'Module is ready after enable.',
+    'audio_script_coach.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'audio_script_coach.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'audio_script_coach.setup.choice.open' => 'Open module',
 ];

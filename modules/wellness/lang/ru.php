@@ -145,7 +145,6 @@ return [
     'wellness.col.data' => 'Рецепт',
     'wellness.module.description' => 'Личный дневник питания, тренировок и здоровья. Записи видит только их автор — доступа нет ни у руководителя, ни у суперадмина.',
     'wellness.module.summary' => 'Включайте, чтобы дать сотрудникам личный дневник здоровья внутри корпоративной системы. Данные строго личные: каждый видит только свои записи, обхода для SUPERADMIN_ACCESS нет, поэтому личные данные остаются личными. Функции: дневник еды с КБЖУ и остатком дневной нормы по своим фитнес-целям (с учётом сожжённого на тренировках); свои таблицы продуктов и рецепты с пересчётом на порцию; тренировки; вес; дневник самочувствия со справочниками состояний и лекарств; рецепты врачей; месячный календарь-обзор. Быстрое добавление прямо из дневника, ввод еды через бота «Еда и спорт» (мягко bots, голосом — asr) и через ассистента. Требует только core.',
-
     'wellness.bot.title' => 'Еда и спорт',
     'wellness.bot.totals' => 'Итого: К:{c}/Б:{p}/Ж:{f}/У:{u}',
     'wellness.bot.meal_heading' => '{name} — К:{c}/Б:{p}/Ж:{f}/У:{u}',
@@ -158,11 +157,19 @@ return [
     'wellness.bot.health_symptom' => 'состояние',
     'wellness.bot.health_medicine' => 'лекарство',
     'wellness.bot.add_health' => '🩺 Здоровье',
-    'wellness.bot.health_hint' => "Здоровье. Примеры:\nголовная боль 3\nл: ибупрофен\nили: лекарство парацетамол",
+    'wellness.bot.health_hint' => 'Здоровье. Примеры:
+головная боль 3
+л: ибупрофен
+или: лекарство парацетамол',
     'wellness.bot.health_logged' => '✅ здоровье: {name}',
-    'wellness.bot.health_bad' => 'Не понял. Пример: головная боль 3\nили л: ибупрофен',
-    'wellness.bot.input_hint' => "Пришлите еду, например:\nгречка 130г\nили несколько: сырники 5% 161, молоко 3.2 116",
-    'wellness.bot.parse_hint' => "Не понял формат. Пример:\nгречка 130г\nили\nсырники 161, молоко 116",
+    'wellness.bot.health_bad' => 'Не понял. Пример: головная боль 3\\nили л: ибупрофен',
+    'wellness.bot.input_hint' => 'Пришлите еду, например:
+гречка 130г
+или несколько: сырники 5% 161, молоко 3.2 116',
+    'wellness.bot.parse_hint' => 'Не понял формат. Пример:
+гречка 130г
+или
+сырники 161, молоко 116',
     'wellness.bot.no_foods' => 'В каталоге нет подходящих продуктов. Добавьте в Wellness → Продукты.',
     'wellness.bot.pick_food' => 'Выберите продукт:',
     'wellness.bot.pick_food_weight' => '«{q}» {g}г — выберите совпадение:',
@@ -170,7 +177,9 @@ return [
     'wellness.bot.batch_skip' => '⏭ «{q}» — не найден в каталоге',
     'wellness.bot.batch_empty' => 'Ничего не добавлено.',
     'wellness.bot.logged' => '✅ {name} {g}г ({kcal} ккал)',
-    'wellness.bot.save_fail' => "Не удалось сохранить запись.\n\n{error}",
+    'wellness.bot.save_fail' => 'Не удалось сохранить запись.
+
+{error}',
     'wellness.bot.cancel' => 'Отмена',
     'wellness.bot.back' => 'Назад',
     'wellness.bot.back_food' => '⬅️ К еде и спорту',
@@ -178,18 +187,31 @@ return [
     'wellness.bot.edit_btn' => 'Ред.',
     'wellness.bot.delete_btn' => 'Уд.',
     'wellness.bot.empty_day' => 'Сегодня записей еды нет.',
-    'wellness.bot.edit_hint' => "Редактирование. Номер и новый вес:\n1 150\nили несколько: 1 150, 2 200\nМожно только номер — спрошу вес.",
+    'wellness.bot.edit_hint' => 'Редактирование. Номер и новый вес:
+1 150
+или несколько: 1 150, 2 200
+Можно только номер — спрошу вес.',
     'wellness.bot.edit_ask_weight' => 'Новый вес для #{n} «{name}» (г)?',
-    'wellness.bot.edit_bad' => "Не понял. Пример:\n1 150\nили\n1 150, 2 200",
+    'wellness.bot.edit_bad' => 'Не понял. Пример:
+1 150
+или
+1 150, 2 200',
     'wellness.bot.edit_ok' => '✏️ #{n} {name} → {g}г ({kcal} ккал)',
-    'wellness.bot.delete_hint' => "Удаление. Номера позиций:\n1\nили несколько: 1, 3",
-    'wellness.bot.delete_bad' => "Не понял. Пример:\n1\nили\n1, 3",
+    'wellness.bot.delete_hint' => 'Удаление. Номера позиций:
+1
+или несколько: 1, 3',
+    'wellness.bot.delete_bad' => 'Не понял. Пример:
+1
+или
+1, 3',
     'wellness.bot.delete_ok' => '🗑 Удалено: {list}',
     'wellness.bot.delete_none' => 'Ничего не удалено.',
     'wellness.bot.bad_num' => '⏭ нет позиции #{n}',
-    'wellness.bot.sport_hint' => 'Спорт: название минуты [ккал]\nПример: бег 30 250',
+    'wellness.bot.sport_hint' => 'Спорт: название минуты [ккал]\\nПример: бег 30 250',
     'wellness.bot.recipe_menu_btn' => '📖 Свои рецепты',
-    'wellness.bot.recipe_menu' => "Свои рецепты\n\nСостав из продуктов и вес готового — как в админке.",
+    'wellness.bot.recipe_menu' => 'Свои рецепты
+
+Состав из продуктов и вес готового — как в админке.',
     'wellness.bot.recipe_log' => '📝 В дневник (мой рецепт)',
     'wellness.bot.recipe_new' => '➕ Новый рецепт',
     'wellness.bot.recipe_edit' => '✏️ Изменить состав',
@@ -200,7 +222,8 @@ return [
     'wellness.bot.recipe_ask_cooked' => 'Вес готового блюда целиком (граммы)?',
     'wellness.bot.recipe_ask_ingredient' => 'Ингредиент: название продукта из вашего каталога.',
     'wellness.bot.recipe_ask_ing_grams' => '«{name}» — сколько грамм в рецепте?',
-    'wellness.bot.recipe_ask_grams' => "Рецепт: «{name}»\nСколько граммов готового блюда съели?",
+    'wellness.bot.recipe_ask_grams' => 'Рецепт: «{name}»
+Сколько граммов готового блюда съели?',
     'wellness.bot.recipe_bad_grams' => 'Введите граммы числом > 0.',
     'wellness.bot.recipe_ing_added' => 'Ингредиент добавлен ({n}). Следующее название или «Сохранить состав».',
     'wellness.bot.recipe_done_ings' => 'Сохранить состав',
@@ -215,4 +238,8 @@ return [
     'wellness.bot.voice_asr_err' => 'Ошибка распознавания голосового: {error}',
     'wellness.perm.delete' => 'Удаление записей wellness',
     'wellness.assistant.hint' => 'Еда: wellness.foods.list(q) → wellness.food_diary.create(food_id, weight) по одному на позицию (пачкой в одном шаге OK).',
+    'wellness.setup.step.ready' => 'После включения модуль готов к работе.',
+    'wellness.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'wellness.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'wellness.setup.choice.open' => 'Открыть модуль',
 ];

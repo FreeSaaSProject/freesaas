@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.20",
+    "version": "0.1.21",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -161,13 +161,26 @@
                 "description": "Generate Alfa UL prod TLS key+CSR (organization, inn). Download: GET /banks/settings/csr?action=download. Twin: POST /agent/banks/csr.",
                 "parameters": {
                     "type": "object",
-                    "required": ["organization", "inn"],
+                    "required": [
+                        "organization",
+                        "inn"
+                    ],
                     "properties": {
-                        "organization": {"type": "string"},
-                        "inn": {"type": "string"},
-                        "common_name": {"type": "string"},
-                        "email": {"type": "string"},
-                        "force": {"type": "boolean"}
+                        "organization": {
+                            "type": "string"
+                        },
+                        "inn": {
+                            "type": "string"
+                        },
+                        "common_name": {
+                            "type": "string"
+                        },
+                        "email": {
+                            "type": "string"
+                        },
+                        "force": {
+                            "type": "boolean"
+                        }
                     }
                 }
             },
@@ -358,5 +371,29 @@
         "base_bank_account_links",
         "base_bank_tx_map",
         "base_bank_integrations"
-    ]
+    ],
+    "setup": {
+        "steps": [
+            {
+                "id": "wizard",
+                "title": "banks.setup.step.wizard",
+                "description": "banks.setup.step.wizard_help",
+                "href": "/banks",
+                "ask_user": "banks.setup.ask.wizard",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "banks.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
 }

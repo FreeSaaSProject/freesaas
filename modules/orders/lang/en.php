@@ -151,4 +151,8 @@ return [
     'orders.relation.absence_orders.notice' => 'Website orders for this master: {n} — need reassignment.',
     'orders.relation.shift_reassigned_orders' => 'Shift handed to another staff member: move the previous master’s orders that day (related.items) to the new one — orders.update {id, id_cosmetolog = the shift’s new id_operator}. If the server refuses — list the order in the reply.',
     'orders.relation.shift_reassigned_orders.notice' => 'Orders of the previous master that day: {n} — move to the new one.',
+    'orders.setup.step.config' => 'Copy or fill module settings (cfg/modules/orders.ini).',
+    'orders.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'orders.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'orders.setup.choice.open' => 'Open settings',
 ];

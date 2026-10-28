@@ -1,10 +1,10 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-27T11:39:35+00:00",
+    "generated_at": "2026-10-28T19:58:50+00:00",
     "modules": [
         {
             "id": "asr",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "ASR / speech recognition",
@@ -37,7 +37,7 @@
         },
         {
             "id": "assistant",
-            "version": "1.0.6",
+            "version": "1.0.12",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -73,7 +73,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "1.0.6",
+            "version": "1.0.18",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",
@@ -111,7 +111,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.6",
+            "version": "1.0.7",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -148,7 +148,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.14",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -180,7 +180,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.9",
+            "version": "0.1.10",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -216,7 +216,7 @@
         },
         {
             "id": "audio_phrases",
-            "version": "0.1.20",
+            "version": "0.1.21",
             "type": "product",
             "name": {
                 "en": "Top phrases",
@@ -251,7 +251,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.0.8",
+            "version": "1.0.9",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -284,7 +284,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -319,7 +319,7 @@
         },
         {
             "id": "audio_script_coach",
-            "version": "0.1.14",
+            "version": "0.1.15",
             "type": "product",
             "name": {
                 "en": "Script coach",
@@ -356,7 +356,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.20",
+            "version": "0.1.21",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -394,7 +394,7 @@
         },
         {
             "id": "bi",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "BI reports",
@@ -425,7 +425,7 @@
         },
         {
             "id": "bonuses",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Client bonuses",
@@ -458,7 +458,7 @@
         },
         {
             "id": "booking",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Booking",
@@ -497,7 +497,7 @@
         },
         {
             "id": "bots",
-            "version": "1.0.0",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -529,7 +529,7 @@
         },
         {
             "id": "cabinets",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Rooms",
@@ -557,7 +557,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Calendar",
@@ -598,7 +598,7 @@
         },
         {
             "id": "catalog",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Catalog",
@@ -632,7 +632,7 @@
         },
         {
             "id": "certificates",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Certificates",
@@ -668,7 +668,7 @@
         },
         {
             "id": "client_mcp",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Client MCP",
@@ -706,7 +706,7 @@
         },
         {
             "id": "clientics",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "Clientics",
@@ -745,7 +745,7 @@
         },
         {
             "id": "clients",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Clients",
@@ -776,7 +776,7 @@
         },
         {
             "id": "comments",
-            "version": "1.0.7",
+            "version": "1.0.8",
             "type": "product",
             "name": {
                 "en": "Comments",
@@ -804,7 +804,7 @@
         },
         {
             "id": "contracts",
-            "version": "1.0.5",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Contracts",
@@ -835,7 +835,7 @@
         },
         {
             "id": "demo",
-            "version": "1.0.2",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Demo stand",
@@ -884,7 +884,7 @@
         },
         {
             "id": "docs",
-            "version": "0.2.4",
+            "version": "0.2.5",
             "type": "product",
             "name": {
                 "en": "Documents & medical cards",
@@ -920,7 +920,7 @@
         },
         {
             "id": "finance",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Financial reports",
@@ -953,7 +953,7 @@
         },
         {
             "id": "funds",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Funds",
@@ -984,7 +984,7 @@
         },
         {
             "id": "gcal",
-            "version": "0.1.8",
+            "version": "0.1.9",
             "type": "product",
             "name": {
                 "en": "Google Calendar",
@@ -1019,7 +1019,7 @@
         },
         {
             "id": "laundry",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Laundry",
@@ -1047,7 +1047,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.6",
+            "version": "1.0.7",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -1085,7 +1085,7 @@
         },
         {
             "id": "likespa",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -1125,7 +1125,7 @@
         },
         {
             "id": "liquid_assets",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Liquid assets",
@@ -1161,7 +1161,7 @@
         },
         {
             "id": "llm",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "LLM",
@@ -1191,7 +1191,7 @@
         },
         {
             "id": "norms",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Consumption norms",
@@ -1220,7 +1220,7 @@
         },
         {
             "id": "orders",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Orders",
@@ -1256,7 +1256,7 @@
         },
         {
             "id": "payments",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Settlements",
@@ -1291,7 +1291,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.1.10",
+            "version": "0.1.11",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1326,7 +1326,7 @@
         },
         {
             "id": "polls",
-            "version": "0.1.4",
+            "version": "0.1.5",
             "type": "product",
             "name": {
                 "en": "Polls",
@@ -1357,7 +1357,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.6",
+            "version": "1.0.15",
             "type": "product",
             "name": {
                 "en": "Treatments",
@@ -1394,7 +1394,7 @@
         },
         {
             "id": "procents",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1427,7 +1427,7 @@
         },
         {
             "id": "rates",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Specialist rates",
@@ -1458,7 +1458,7 @@
         },
         {
             "id": "remittances",
-            "version": "0.1.0",
+            "version": "0.1.1",
             "type": "product",
             "name": {
                 "en": "Remittances",
@@ -1495,7 +1495,7 @@
         },
         {
             "id": "sheets",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Sheets",
@@ -1523,7 +1523,7 @@
         },
         {
             "id": "sites",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Sites",
@@ -1559,7 +1559,7 @@
         },
         {
             "id": "staff_reports",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Staff reports",
@@ -1598,7 +1598,7 @@
         },
         {
             "id": "stickers",
-            "version": "1.0.3",
+            "version": "1.0.8",
             "type": "product",
             "name": {
                 "en": "Stickers",
@@ -1634,7 +1634,7 @@
         },
         {
             "id": "stocks",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Warehouses",
@@ -1668,7 +1668,7 @@
         },
         {
             "id": "suppliers",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Suppliers",
@@ -1696,7 +1696,7 @@
         },
         {
             "id": "tables",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Massage tables",
@@ -1726,7 +1726,7 @@
         },
         {
             "id": "terminals",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",
@@ -1761,7 +1761,7 @@
         },
         {
             "id": "units",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Units of measure",
@@ -1789,7 +1789,7 @@
         },
         {
             "id": "updates",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Updates",
@@ -1820,7 +1820,7 @@
         },
         {
             "id": "vacations",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Vacations",
@@ -1850,7 +1850,7 @@
         },
         {
             "id": "video",
-            "version": "0.3.6",
+            "version": "0.3.7",
             "type": "product",
             "name": {
                 "en": "Video analytics",
@@ -1884,7 +1884,7 @@
         },
         {
             "id": "video_label",
-            "version": "0.1.11",
+            "version": "0.1.12",
             "type": "product",
             "name": {
                 "en": "Video labeling",
@@ -1915,7 +1915,7 @@
         },
         {
             "id": "wellness",
-            "version": "1.0.0",
+            "version": "1.0.1",
             "type": "product",
             "name": {
                 "en": "Health & fitness",
@@ -1946,7 +1946,7 @@
         },
         {
             "id": "workweeks",
-            "version": "1.0.1",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Shifts",
@@ -1982,7 +1982,7 @@
         },
         {
             "id": "yclients",
-            "version": "0.1.3",
+            "version": "0.1.4",
             "type": "product",
             "name": {
                 "en": "YClients",

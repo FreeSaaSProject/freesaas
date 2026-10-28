@@ -45,4 +45,8 @@ return [
     'gcal.health.app_ok' => 'GCal OAuth app configured; queue pending: {n}',
     'gcal.health.app_missing' => 'GCal client_id/client_secret not set',
     'gcal.health.app_disabled' => 'GCal credentials set but sync disabled',
+    'gcal.setup.step.config' => 'Copy or fill module settings (cfg/modules/gcal.ini).',
+    'gcal.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'gcal.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'gcal.setup.choice.open' => 'Open settings',
 ];

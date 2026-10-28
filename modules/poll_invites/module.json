@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.10",
+    "version": "0.1.11",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -117,5 +117,29 @@
         "maturity": "beta",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "poll_invites.setup.step.config",
+                "description": "poll_invites.setup.step.config_help",
+                "href": "/poll_invites/settings",
+                "ask_user": "poll_invites.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "poll_invites.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

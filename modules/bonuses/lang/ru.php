@@ -9,7 +9,6 @@ return [
     'bonuses.perm.view' => 'Бонусы (просмотр)',
     'bonuses.perm.edit' => 'Бонусы (редактирование)',
     'bonuses.perm.apply' => 'Бонусы (начисление на событии)',
-
     'bonuses.list.search_placeholder' => 'Поиск: заметка, id, id клиента',
     'bonuses.list.empty' => 'Движений не найдено',
     'bonuses.list.filter_client' => 'ID клиента',
@@ -17,7 +16,6 @@ return [
     'bonuses.list.dir_all' => 'Все',
     'bonuses.list.dir_in' => 'Начисление',
     'bonuses.list.dir_out' => 'Списание',
-
     'bonuses.col.id' => 'ID',
     'bonuses.col.client' => 'Клиент',
     'bonuses.col.created_at' => 'Создано',
@@ -29,33 +27,26 @@ return [
     'bonuses.col.ref_type' => 'Тип ссылки',
     'bonuses.col.ref_id' => 'ID ссылки',
     'bonuses.col.dismissed' => 'Списан',
-
     'bonuses.dir.credit' => 'Начисление',
     'bonuses.dir.debit' => 'Списание',
     'bonuses.dir.none' => 'Нет',
-
     'bonuses.kind.manual' => 'Вручную',
     'bonuses.kind.event_accrue' => 'Начисление по событию',
     'bonuses.kind.event_spend' => 'Списание по событию',
-
     'bonuses.ref.none' => '—',
     'bonuses.ref.event' => 'Событие',
     'bonuses.ref.order' => 'Заказ',
-
     'bonuses.note.event_spend' => 'Списание по событию #{event} (контент {sum})',
     'bonuses.note.event_accrue' => 'Начисление по событию #{event} (оплачено {pay}, {pct}%)',
-
     'bonuses.edit.title_new' => 'Новое движение бонусов',
     'bonuses.edit.title' => 'Бонус #{id}',
     'bonuses.edit.heading_new' => 'Новое движение бонусов',
     'bonuses.edit.sec_main' => 'Движение',
-
     'bonuses.client.title' => 'Бонусы: {name}',
     'bonuses.client.balance' => 'Баланс',
     'bonuses.client.history' => 'История',
     'bonuses.client.open_client' => 'Карточка клиента',
     'bonuses.client.not_found' => 'Клиент #{id} не найден',
-
     'bonuses.event.sec' => 'Бонусы клиента',
     'bonuses.event.balance' => 'Баланс: {n}',
     'bonuses.event.use' => 'Списать бонусы на событие',
@@ -69,11 +60,9 @@ return [
     'bonuses.event.apply_hint' => 'Сначала сохраните событие, затем примените. Создаются записи в журнале и обновляются скидка / сумма к оплате.',
     'bonuses.event.need_client' => 'Укажите клиента, чтобы работать с бонусами',
     'bonuses.event.no_capability' => 'Нет права EVT_BONUS',
-
     'bonuses.flash.applied' => 'Бонусы применены: списано {spend}, начислено {accrue}',
     'bonuses.flash.created' => 'Движение создано',
     'bonuses.flash.deleted' => 'Удалено',
-
     'bonuses.err.not_found' => 'Движение #{id} не найдено',
     'bonuses.err.client_required' => 'Укажите клиента',
     'bonuses.err.sum_required' => 'Сумма должна быть больше нуля',
@@ -85,4 +74,8 @@ return [
     'bonuses.err.apply_failed' => 'Не удалось применить бонусы',
     'bonuses.err.table' => 'Таблица бонусного журнала отсутствует',
     'bonuses.perm.delete' => 'Удаление бонусных движений',
+    'bonuses.setup.step.ready' => 'После включения модуль готов к работе.',
+    'bonuses.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'bonuses.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'bonuses.setup.choice.open' => 'Открыть модуль',
 ];

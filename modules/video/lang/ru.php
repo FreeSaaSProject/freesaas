@@ -219,4 +219,8 @@ return [
     'video.empty.jobs' => 'Заданий пока нет',
     'video.empty.models' => 'Модели не зарегистрированы',
     'video.empty.alerts' => 'Алертов пока нет',
+    'video.setup.step.wizard' => 'Пройдите мастер настройки модуля.',
+    'video.setup.step.wizard_help' => 'Мастер нужен, чтобы подключить сервис и начать работу.',
+    'video.setup.ask.wizard' => 'Мастер нужен, чтобы подключить сервис и начать работу.',
+    'video.setup.choice.open' => 'Открыть мастер',
 ];

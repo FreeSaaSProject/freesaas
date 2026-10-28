@@ -8,7 +8,6 @@ return [
     'audio_script_coach.menu.list' => 'Дообучение скриптов',
     'audio_script_coach.perm.view' => 'Смотреть исследования дообучения',
     'audio_script_coach.perm.edit' => 'Запускать и принимать предложения',
-
     'audio_script_coach.day_report.link' => 'Исследовать смену (дообучение)',
     'audio_script_coach.day.title' => 'Дообучение — {name} / {date}',
     'audio_script_coach.day.hint' => 'Поэтапный разбор рейтинговых скриптов: тихие/триггерные дыры и незакрытые сессии, затем LLM-предложения ключей или новых словарей. Фазы идут пакетами с окном прогресса (как дамп БД), чтобы не ронять сервер. В словари пишется только после accept. Глубина Hard дополнительно ищет наполнение ступеней, даже если день уже «закрыт».',
@@ -17,13 +16,11 @@ return [
     'audio_script_coach.day.open_run' => 'Открыть прогон №{id}',
     'audio_script_coach.day.back_report' => 'Отчёт ®',
     'audio_script_coach.day.no_super' => 'Запускать исследование может только суперпользователь.',
-
     'audio_script_coach.depth.label' => 'Глубина',
     'audio_script_coach.depth.normal' => 'Обычная',
     'audio_script_coach.depth.hard' => 'Hard',
     'audio_script_coach.depth.normal_hint' => 'Только реальные дыры: тихие скрипты, слабый/пропущенный старт, незакрытые сессии.',
     'audio_script_coach.depth.hard_hint' => 'Плюс добивка ступеней в уже закрытых эпизодах; если день полностью покрыт — всё равно искать ASR-варианты по ступеням.',
-
     'audio_script_coach.list.empty' => 'Прогонов пока нет.',
     'audio_script_coach.list.col.id' => 'ID',
     'audio_script_coach.list.col.admin' => 'Сотрудник',
@@ -33,12 +30,10 @@ return [
     'audio_script_coach.list.filter_admin' => 'ID сотрудника',
     'audio_script_coach.list.filter_day' => 'День',
     'audio_script_coach.list.filter' => 'Фильтр',
-
     'audio_script_coach.status.0' => 'Ожидание',
     'audio_script_coach.status.1' => 'В работе',
     'audio_script_coach.status.2' => 'Готово',
     'audio_script_coach.status.3' => 'Ошибка',
-
     'audio_script_coach.run.title' => 'Прогон №{id}',
     'audio_script_coach.run.meta' => 'Сотрудник №{admin} · {day} · фаза {phase}',
     'audio_script_coach.run.advance' => 'Следующая фаза',
@@ -59,7 +54,6 @@ return [
     'audio_script_coach.run.filter_skip_nothing' => 'LLM не вызывался: по фактам нечего обогащать. На Normal это значит, что день покрыт. Пересоберите с Hard, чтобы всё же искать наполнение ступеней / ASR-варианты.',
     'audio_script_coach.run.filter_skip_no_windows' => 'LLM не вызывался: дыры в скриптах есть, но нет окон транскрипта для анализа.',
     'audio_script_coach.run.filter_skip_generic' => 'LLM не вызывался ({reason}).',
-
     'audio_script_coach.filter.phrase.empty' => 'пустая строка',
     'audio_script_coach.filter.phrase.too_short' => 'короче 2 символов',
     'audio_script_coach.filter.phrase.overlap' => 'пересечение с существующим ключом',
@@ -73,7 +67,6 @@ return [
     'audio_script_coach.filter.proposal.no_phrases' => 'не осталось фраз после фильтров',
     'audio_script_coach.filter.proposal.bad_dict' => 'словарь не найден / не задан',
     'audio_script_coach.filter.proposal.duplicate' => 'дубликат предложения',
-
     'audio_script_coach.run.artifacts' => 'Готовые фазы',
     'audio_script_coach.run.reparse_hint' => 'После принятия ключей пересчитайте день в календаре записей (Re-®).',
     'audio_script_coach.run.open_calendar' => 'Календарь записей',
@@ -88,7 +81,6 @@ return [
     'audio_script_coach.run.finishes' => 'финишей {n}',
     'audio_script_coach.run.incomplete' => 'незакрытых {n}',
     'audio_script_coach.run.records' => 'Записей с транскриптом: {n}',
-
     'audio_script_coach.prop.action.add_key' => 'Добавить ключи',
     'audio_script_coach.prop.action.add_dict_with_keys' => 'Новый словарь + ключи',
     'audio_script_coach.prop.dict' => 'Словарь',
@@ -125,9 +117,7 @@ return [
     'audio_script_coach.prop.status.0' => 'Ожидает',
     'audio_script_coach.prop.status.1' => 'Принято',
     'audio_script_coach.prop.status.2' => 'Отклонено',
-
     'audio_script_coach.apply.dict_descr' => 'Создано дообучением скриптов',
-
     'audio_script_coach.flash.started' => 'Исследование запущено — фазы идут пакетами.',
     'audio_script_coach.flash.advanced' => 'Фаза: {phase}',
     'audio_script_coach.flash.rebuilt' => 'Прогон пересобран. Предложений: {n}.',
@@ -154,7 +144,6 @@ return [
     'audio_script_coach.flash.accepted_phrases' => 'Добавлено ключей: {created}. Ещё ждут: {left}.',
     'audio_script_coach.flash.rejected' => 'Предложение отклонено.',
     'audio_script_coach.flash.accept_partial_overlap' => 'Ничего не добавлено — {n} фраз(ы) пересекаются с ключами. Включите «Принудительно», чтобы добавить с ID_LOOKLIKE.',
-
     'audio_script_coach.err.tables' => 'Нет таблиц дообучения — выполните миграции.',
     'audio_script_coach.err.bad_args' => 'Нужны сотрудник и день (YYYY-MM-DD).',
     'audio_script_coach.err.forbidden' => 'Нужны права суперпользователя.',
@@ -172,4 +161,8 @@ return [
     'audio_script_coach.err.all_overlap' => 'Все фразы пересекаются с существующими ключами (те же проверки, что при ручном добавлении). Включите «Принудительно» или отклоните.',
     'audio_script_coach.err.unknown_action' => 'Неизвестное действие',
     'audio_script_coach.err.work_failed' => 'Сбой обработки',
+    'audio_script_coach.setup.step.ready' => 'После включения модуль готов к работе.',
+    'audio_script_coach.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'audio_script_coach.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'audio_script_coach.setup.choice.open' => 'Открыть модуль',
 ];

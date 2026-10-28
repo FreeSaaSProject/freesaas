@@ -96,4 +96,8 @@ return [
     'llm.health.missing' => 'No enabled LLM profile with API key',
     'llm.module.description' => 'OpenAI-compatible LLM client and token profiles UI (cfg/modules/llm.ini). Chat UI lives in the assistant module.',
     'llm.module.summary' => 'Shared LLM transport for assistant, audio_llm, banks classify, bots. Soft assistant. Keys only in cfg/modules/llm.ini. llm.manage gates settings only; assistant chat is available to every staff user.',
+    'llm.setup.step.config' => 'Copy or fill module settings (cfg/modules/llm.ini).',
+    'llm.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'llm.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'llm.setup.choice.open' => 'Open settings',
 ];

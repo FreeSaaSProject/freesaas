@@ -2,7 +2,7 @@
     "id": "remittances",
     "name": "remittances.module.name",
     "description": "remittances.module.description",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -113,5 +113,31 @@
             "list_id": "remittances",
             "action": "delete"
         }
-    ]
+    ],
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "remittances.setup.step.ready",
+                "description": "remittances.setup.step.ready_help",
+                "href": "/remittances",
+                "ask_user": "remittances.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "remittances.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
+    }
 }

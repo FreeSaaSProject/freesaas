@@ -41,7 +41,9 @@ return [
     'contracts.actions.refuse' => 'Step down as curator',
     'contracts.actions.fail_warn' => 'Failure: {pct}% of the time used (>40%).',
     'contracts.actions.refuse_confirm' => 'Step down as curator?',
-    'contracts.actions.refuse_confirm_fail' => "Step down as curator?\n\nFailure: {pct}% of the time used (>40%).",
+    'contracts.actions.refuse_confirm_fail' => 'Step down as curator?
+
+Failure: {pct}% of the time used (>40%).',
     'contracts.actions.cancel_accept' => 'Cancel acceptance',
     'contracts.notice.mine_short' => 'C-WIP:{n}',
     'contracts.notice.mine_title' => 'My contracts in progress',
@@ -91,4 +93,8 @@ return [
     'contracts.settings.deadline_penalty_label' => 'Reduce payout when the deadline is overrun',
     'contracts.module.description' => 'Staff contracts/offers linked to comments, with widgets, notices, and payment CTAs.',
     'contracts.module.summary' => 'Enable for offer/contract workflow on top of comments. Hard-requires comments. Soft-used by payments (pay CTA) and staff_reports/audio_llm. Use when HR/ops track signed offers in the cabin.',
+    'contracts.setup.step.config' => 'Copy or fill module settings (cfg/modules/contracts.ini).',
+    'contracts.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'contracts.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'contracts.setup.choice.open' => 'Open settings',
 ];

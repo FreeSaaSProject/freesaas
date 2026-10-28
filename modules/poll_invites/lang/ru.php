@@ -92,4 +92,8 @@ return [
     'poll_invites.module.description' => 'Инстансы приглашений на опросы и заполнение сотрудниками; хуки для bots/site.',
     'poll_invites.module.summary' => 'Включайте для рассылки/заполнения опросов. Требует polls. Мягко clients/bonuses/calendar/procedures. Кнопка «собран отзыв» на чипах календаря. Публикует poll_invites.* для bots и сайта.',
     'poll_invites.perm.delete' => 'Удаление приглашений',
+    'poll_invites.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/poll_invites.ini).',
+    'poll_invites.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'poll_invites.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'poll_invites.setup.choice.open' => 'Открыть настройки',
 ];

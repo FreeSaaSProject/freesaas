@@ -5,12 +5,9 @@ return [
     'assistant_groups.module.name' => 'Ассистент в группах',
     'assistant_groups.module.description' => 'Max-группы: упоминание бота → черновик задания → подтверждение менеджером с правом.',
     'assistant_groups.module.summary' => 'Включите, когда нужен ассистент в рабочей Max-группе. Нужны bots + assistant, бот-админ с read_all_messages и write, привязка сотрудников в base_bot_links.',
-
     'assistant_groups.menu.settings' => 'Группы ассистента',
     'assistant_groups.menu.status' => 'Статус групп Max',
-
     'assistant_groups.cron.max_poll' => 'Опрос Max (отдельный бот групп)',
-
     'assistant_groups.settings.title' => 'Ассистент в группах Max',
     'assistant_groups.settings.lede' => 'Отдельный канал: упоминание бота в allowlist-чатах, черновики write с подтверждением менеджера.',
     'assistant_groups.settings.sec.general' => 'Режим',
@@ -60,7 +57,6 @@ return [
     'assistant_groups.settings.unsubscribe' => 'Снять подписки',
     'assistant_groups.settings.subscribed' => 'Webhook подписан: {url}',
     'assistant_groups.settings.unsubscribed' => 'Подписки Max сняты.',
-
     'assistant_groups.status.title' => 'Статус групп Max',
     'assistant_groups.status.lede' => 'Проверка токена, прав бота в чатах и настроек allowlist.',
     'assistant_groups.status.no_token' => 'Токен не задан (ни в assistant_groups, ни в bots staff_max).',
@@ -71,19 +67,35 @@ return [
     'assistant_groups.status.chat_fail' => 'Чат {id}: ошибка — {error}',
     'assistant_groups.status.back' => 'К настройкам',
     'assistant_groups.status.refresh' => 'Обновить',
-
     'assistant_groups.bot.need_link' => 'Сначала привяжите Max к учётке сотрудника (личный диалог с ботом / код привязки).',
     'assistant_groups.bot.empty_after_mention' => 'Напишите задачу после упоминания.',
     'assistant_groups.bot.working' => '{name} готовит черновик…',
+    'assistant_groups.bot.problem_btn' => '❗ Проблема',
+    'assistant_groups.bot.problem_filed' => 'Кейс записан ({id}). Черновик отменён — разберём отдельно.',
+    'assistant_groups.bot.problem_filed_fail' => 'Черновик отменён, но кейс сохранить не удалось. Напишите задачу ещё раз или сообщите администратору.',
     'assistant_groups.bot.need_manager' => 'Подтвердить может сотрудник с правом «{perm}». Нажмите кнопку или напишите «@бот, подтверждаю».',
+    'assistant_groups.bot.blocked_footer' => 'Подтвердить нельзя, пока есть ⚠. Выберите вариант кнопкой или «Отмена» / «Проблема». Право на правки: «{perm}».',
+    'assistant_groups.bot.choice_applied' => 'Вариант {n}: {v}',
+    'assistant_groups.bot.choice_picked' => 'Выбран вариант {n}: {v}',
+    'assistant_groups.bot.choice_missing' => 'Этот вариант уже недоступен. Напишите задачу снова.',
+    'assistant_groups.bot.resent_blocked' => 'Черновик ещё открыт, но подтвердить нельзя (конфликт):
+{summary}
+
+Напишите другой вариант или нажмите «Отмена» / «Проблема».',
+    'assistant_groups.bot.plan_header_blocked' => 'План, шагов: {n}. Подтвердить нельзя, пока есть конфликт:',
     'assistant_groups.bot.no_permission' => 'У вас нет прав. Подтвердить может только сотрудник с правом «{perm}».',
     'assistant_groups.bot.cap.PARTNER_STA' => 'партнёр / кандидат в партнёры',
     'assistant_groups.bot.cap.SUPERADMIN_ACCESS' => 'суперadmin',
     'assistant_groups.bot.confirmed' => '{name} подтвердил(а). {done}',
     'assistant_groups.bot.no_pending' => 'Нет черновика для подтверждения в этом чате. Если нужна та же замена — напишите задачу снова (@бот …), придёт новый черновик с кнопками.',
+    'assistant_groups.bot.fake_draft' => 'Черновик на подтверждение не создан (кнопки появляются только после реального write). Выберите вариант ещё раз или напишите задачу (@бот …) — вызову tool и покажу «Подтвердить».',
+    'assistant_groups.bot.system_soft_pick' => 'Пользователь выбрал вариант {n}: {label}. Сейчас ОБЯЗАТЕЛЬНО CALL write-tool(s), чтобы поставить реальный pending-черновик с этим планом. Не выдумывай текст «Черновик готов / нажмите Подтвердить» без успешного вызова write. Не переспрашивай номер — выполняй выбранный вариант.',
     'assistant_groups.bot.system_live_pending' => 'В этом чате УЖЕ есть черновик на подтверждение ({op}): {summary}. Не утверждай, что применено. Согласие пользователя → CALL assistant_groups.pending.confirm. Отмена → CALL assistant_groups.pending.cancel. Другая задача → CALL write-tools заново (старый черновик заменится).',
     'assistant_groups.bot.system_no_pending' => 'Сейчас в этом чате НЕТ живого черновика (отменён или не создавался). Не пиши «уже в очереди» / «нажмите Подтвердить». Согласие без черновика → сначала CALL write-tools. pending.confirm без черновика вернёт ошибку.',
-    'assistant_groups.bot.resent_pending' => "Черновик ещё ждёт подтверждения:\n{summary}\n\nНажмите «Подтвердить» или «Отмена» на кнопках ниже.",
+    'assistant_groups.bot.resent_pending' => 'Черновик ещё ждёт подтверждения:
+{summary}
+
+Нажмите «Подтвердить» или «Отмена» на кнопках ниже.',
     'assistant_groups.bot.no_ops' => 'В настройках групп не задан allowlist команд (group_ops).',
     'assistant_groups.bot.dm_only' => 'С этим я могу помочь только в личке.',
     'assistant_groups.bot.cleared' => 'Контекст группы сброшен. Можно начинать новую задачу.',
@@ -92,11 +104,24 @@ return [
     'assistant_groups.tool.cancel' => 'Отменить живой черновик в этом чате без применения. Вызывай при: отмена, не надо, отменить.',
     'assistant_groups.assistant.tool_title' => 'Группа',
     'assistant_groups.assistant.area.dialog' => 'Диалог',
-    'assistant_groups.bot.system_extra' => "Ты в рабочей группе. История этого чата — один разговор: держи имена, дату и смысл.\nУточнения без нового @ — продолжение той же задачи.\nWrite-tools только черновик на подтверждение менеджером; не утверждай, что уже применено.\nСогласие применить черновик → CALL assistant_groups.pending.confirm (не выдумывай успех).\nОтмена черновика → CALL assistant_groups.pending.cancel.\nВне tools — только в личке.\n«Что умеешь» — только tools из этого запроса, без перечня отсутствующих модулей.\nПросьба очистить/сбросить контекст → CALL assistant_groups.dialog.clear (не отказывайся и не проси создать новый чат).",
+    'assistant_groups.bot.system_extra' => 'Ты в рабочей группе. История этого чата — один разговор: держи имена, дату и смысл.
+Уточнения без нового @ — продолжение той же задачи.
+Write-tools только черновик на подтверждение менеджером; не утверждай, что уже применено.
+Перенос/замена → сначала CALL write (не спрашивай «какой вариант 1/2» до черновика; кнопки вариантов даёт UI).
+Не предлагай «отменить» отдельным нумерованным пунктом — есть кнопка Отмена.
+Согласие применить черновик → CALL assistant_groups.pending.confirm (не выдумывай успех).
+Отмена черновика → CALL assistant_groups.pending.cancel.
+Вне tools — только в личке.
+«Что умеешь» — только tools из этого запроса, без перечня отсутствующих модулей.
+Просьба очистить/сбросить контекст → CALL assistant_groups.dialog.clear (не отказывайся и не проси создать новый чат).',
     'assistant_groups.bot.system_speaker' => 'Говорящий сотрудник: user_id={id} ({name}). «на меня»/«на себя» в procedures.set_admin → id_admin={id}. Другие ФИО/акронимы — через core.users.list.',
     'assistant_groups.bot.system_chat_context' => 'Текущий чат: {title} (id {chat_id}). Описание группы: {description}. Учитывай назначение этой группы, когда отвечаешь и выбираешь действия.',
     'assistant_groups.bot.system_chat_id' => 'Текущий чат Max id {chat_id} (название/описание в настройках не заданы).',
     'assistant_groups.bot.plan_header' => 'План, шагов: {n}. Подтверждается одной кнопкой:',
     'assistant_groups.bot.user_prefix' => '{name}: ',
     'assistant_groups.bot.reply_prefix' => '[ответ на предыдущее сообщение ассистента] ',
+    'assistant_groups.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/assistant_groups.ini).',
+    'assistant_groups.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'assistant_groups.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'assistant_groups.setup.choice.open' => 'Открыть настройки',
 ];

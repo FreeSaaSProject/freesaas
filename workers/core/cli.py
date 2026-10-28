@@ -118,6 +118,23 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     return run_dashboard(host=host, port=port, open_browser=open_browser)
 
 
+def cmd_autostart(args: argparse.Namespace) -> int:
+    from . import autostart as auto
+
+    action = (args.action or "status").strip().lower()
+    if action in ("status", "show"):
+        _print_json(auto.status())
+        return 0
+    if action in ("on", "enable", "install"):
+        _print_json(auto.enable())
+        return 0 if auto.is_loaded() or auto.is_plist_installed() else 1
+    if action in ("off", "disable", "uninstall"):
+        _print_json(auto.disable())
+        return 0
+    print(f"unknown autostart action: {action}", file=sys.stderr)
+    return 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="workers.core",
@@ -163,6 +180,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--port", type=int, default=0)
     s.add_argument("--open", action="store_true", help="open browser")
     s.set_defaults(func=cmd_dashboard)
+
+    s = sub.add_parser("autostart", help="macOS LaunchAgent on login (plugins + dashboard)")
+    s.add_argument(
+        "action",
+        nargs="?",
+        default="status",
+        help="status | on | off",
+    )
+    s.set_defaults(func=cmd_autostart)
 
     return p
 

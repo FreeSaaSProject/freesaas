@@ -2,7 +2,7 @@
     "id": "workweeks",
     "name": "workweeks.module.name",
     "description": "workweeks.module.description",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -70,13 +70,32 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "nazop_action": { "type": "string", "const": "save" },
-                        "ops": { "type": "array", "items": { "type": "integer" } },
-                        "checked": { "type": "object", "description": "checked[YYYY-MM-DD][opId]=1" },
-                        "op_price": { "type": "object", "description": "op_price[YYYY-MM-DD][opId]=PRICE_COL lane id" },
-                        "mas_max": { "type": "object" }
+                        "nazop_action": {
+                            "type": "string",
+                            "const": "save"
+                        },
+                        "ops": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        },
+                        "checked": {
+                            "type": "object",
+                            "description": "checked[YYYY-MM-DD][opId]=1"
+                        },
+                        "op_price": {
+                            "type": "object",
+                            "description": "op_price[YYYY-MM-DD][opId]=PRICE_COL lane id"
+                        },
+                        "mas_max": {
+                            "type": "object"
+                        }
                     },
-                    "required": ["nazop_action", "ops"]
+                    "required": [
+                        "nazop_action",
+                        "ops"
+                    ]
                 }
             },
             {
@@ -145,14 +164,21 @@
                         },
                         "shift_action": {
                             "type": "string",
-                            "enum": ["save", "add"]
+                            "enum": [
+                                "save",
+                                "add"
+                            ]
                         },
                         "shift_delete": {
                             "type": "integer",
                             "description": "Lane id to remove (keep ≥1)"
                         },
-                        "news_schedule_id": { "type": "integer" },
-                        "log_table_changes": { "type": "string" }
+                        "news_schedule_id": {
+                            "type": "integer"
+                        },
+                        "log_table_changes": {
+                            "type": "string"
+                        }
                     }
                 }
             }
@@ -160,7 +186,10 @@
         "relations": [
             {
                 "id": "workweeks.vacation_shifts",
-                "when": ["vacations.create", "vacations.update"],
+                "when": [
+                    "vacations.create",
+                    "vacations.update"
+                ],
                 "from": "vacations.get",
                 "check": "workweeks.list",
                 "args": {
@@ -169,20 +198,40 @@
                     "date_to": "{dt_end|date}",
                     "page": "all"
                 },
-                "suggest": ["workweeks.delete"],
-                "fields": ["date", "operator_name", "price_col"],
+                "suggest": [
+                    "workweeks.delete"
+                ],
+                "fields": [
+                    "date",
+                    "operator_name",
+                    "price_col"
+                ],
                 "max_rows": 31,
                 "hint": "workweeks.relation.vacation_shifts",
                 "notice": "workweeks.relation.vacation_shifts.notice"
             },
             {
                 "id": "workweeks.user_disabled_shifts",
-                "when": ["core.users.update"],
-                "if": { "enabled": "0" },
+                "when": [
+                    "core.users.update"
+                ],
+                "if": {
+                    "enabled": "0"
+                },
                 "check": "workweeks.list",
-                "args": { "user_id": "{id}", "date_from": "{today}", "page": "all" },
-                "suggest": ["workweeks.delete"],
-                "fields": ["date", "operator_name", "price_col"],
+                "args": {
+                    "user_id": "{id}",
+                    "date_from": "{today}",
+                    "page": "all"
+                },
+                "suggest": [
+                    "workweeks.delete"
+                ],
+                "fields": [
+                    "date",
+                    "operator_name",
+                    "price_col"
+                ],
                 "max_rows": 31,
                 "hint": "workweeks.relation.user_disabled_shifts",
                 "notice": "workweeks.relation.user_disabled_shifts.notice"
@@ -311,5 +360,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "workweeks.setup.step.config",
+                "description": "workweeks.setup.step.config_help",
+                "href": "/workweeks/settings",
+                "ask_user": "workweeks.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "workweeks.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

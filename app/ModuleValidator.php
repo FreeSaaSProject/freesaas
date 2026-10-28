@@ -136,6 +136,64 @@ final class ModuleValidator
             }
         }
 
+        // setup.steps — required on product modules (may be empty []); core exempt
+        if ($moduleId !== 'core') {
+            if (!isset($meta['setup'])) {
+                $warnings[] = 'manifest missing setup (expected object with steps[])';
+            } elseif (!is_array($meta['setup'])) {
+                $errors[] = 'setup must be an object';
+            } else {
+                $steps = $meta['setup']['steps'] ?? null;
+                if (!is_array($steps)) {
+                    $errors[] = 'setup.steps must be an array';
+                } else {
+                    foreach ($steps as $i => $step) {
+                        if (!is_array($step)) {
+                            $errors[] = 'setup.steps[' . $i . '] must be an object';
+                            continue;
+                        }
+                        $sid = trim((string)($step['id'] ?? ''));
+                        if ($sid === '') {
+                            $errors[] = 'setup.steps[' . $i . '].id required';
+                        }
+                        foreach (['title', 'description', 'ask_user'] as $fk) {
+                            $v = trim((string)($step[$fk] ?? ''));
+                            if ($v === '') {
+                                continue;
+                            }
+                            if (strpos($v, '.') === false) {
+                                $errors[] = "setup.steps.{$sid}.{$fk} must be i18n key";
+                            } elseif (!self::catalogHasKey($v) || !self::catalogHasKeyIn('en', $v)) {
+                                $errors[] = "setup.steps.{$sid}.{$fk} missing in catalogs: {$v}";
+                            }
+                        }
+                        $choices = $step['choices'] ?? null;
+                        if (is_array($choices)) {
+                            $hasRec = false;
+                            foreach ($choices as $c) {
+                                if (!is_array($c)) {
+                                    continue;
+                                }
+                                if (!empty($c['recommended'])) {
+                                    $hasRec = true;
+                                }
+                                $cl = trim((string)($c['label'] ?? ''));
+                                if ($cl !== '' && strpos($cl, '.') !== false
+                                    && $cl !== 'core.modules.setup.choice.defer'
+                                    && (!self::catalogHasKey($cl) || !self::catalogHasKeyIn('en', $cl))
+                                ) {
+                                    $errors[] = "setup.steps.{$sid} choice label missing: {$cl}";
+                                }
+                            }
+                            if ($choices !== [] && !$hasRec) {
+                                $warnings[] = "setup.steps.{$sid} has no recommended choice";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // catalog block: categories[] / tags / screenshots
         if (!isset($meta['catalog'])) {
             $warnings[] = 'manifest missing catalog (categories/tags recommended)';

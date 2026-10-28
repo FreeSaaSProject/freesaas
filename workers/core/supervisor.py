@@ -79,11 +79,50 @@ def stop_plugin(plugin_id: str, *, timeout: float = 8.0) -> str:
     return f"{plugin_id}: killed pid={pid}"
 
 
+def _kill_orphan_workers(spec: PluginSpec, *, keep_pid: int = 0) -> List[str]:
+    """Terminate leftover plugin workers not tracked by the pid file (avoids double notify)."""
+    msgs: List[str] = []
+    entry = str(spec.entrypoint_path.resolve())
+    needle = f"plugins/{spec.id}/"
+    try:
+        import psutil
+    except ImportError:
+        return msgs
+    for proc in psutil.process_iter(["pid", "cmdline"]):
+        try:
+            pid = int(proc.info.get("pid") or 0)
+            if pid <= 0 or pid == keep_pid or pid == os.getpid():
+                continue
+            cmd = " ".join(str(x) for x in (proc.info.get("cmdline") or []))
+            if not cmd:
+                continue
+            if entry not in cmd and needle not in cmd:
+                continue
+            if "worker.py" not in cmd and str(spec.entrypoint_path.name) not in cmd:
+                continue
+            proc.terminate()
+            try:
+                proc.wait(timeout=3)
+            except Exception:  # noqa: BLE001
+                proc.kill()
+            msgs.append(f"{spec.id}: killed orphan pid={pid}")
+        except (psutil.Error, OSError, ValueError):
+            continue
+    return msgs
+
+
 def start_plugin(spec: PluginSpec, *, extra_args: Optional[List[str]] = None) -> str:
     ensure_var_dirs()
     existing = read_pid(spec.id)
     if existing and is_running(existing):
-        return f"{spec.id}: already running pid={existing}"
+        orphans = _kill_orphan_workers(spec, keep_pid=existing)
+        extra = ("; " + "; ".join(orphans)) if orphans else ""
+        return f"{spec.id}: already running pid={existing}{extra}"
+
+    if existing and not is_running(existing):
+        clear_pid(spec.id)
+
+    orphan_msgs = _kill_orphan_workers(spec, keep_pid=0)
 
     entry = spec.entrypoint_path
     if not entry.is_file():
@@ -104,6 +143,12 @@ def start_plugin(spec: PluginSpec, *, extra_args: Optional[List[str]] = None) ->
     env["PYTHONPATH"] = repo_root + (os.pathsep + prev if prev else "")
     env["FREESAAS_WORKERS_ROOT"] = str(WORKERS_ROOT)
     env["FREESAAS_PLUGIN_ID"] = spec.id
+    try:
+        from .i18n import get_locale
+
+        env["FREESAAS_WORKERS_LOCALE"] = get_locale()
+    except Exception:  # noqa: BLE001
+        env.setdefault("FREESAAS_WORKERS_LOCALE", "ru")
 
     cmd = [python_bin(), "-u", str(entry), "-c", str(cfg)]
     if extra_args:
@@ -121,11 +166,12 @@ def start_plugin(spec: PluginSpec, *, extra_args: Optional[List[str]] = None) ->
         start_new_session=True,
     )
     write_pid(spec.id, int(proc.pid))
+    prefix = ("; ".join(orphan_msgs) + "; ") if orphan_msgs else ""
     time.sleep(0.35)
     if proc.poll() is not None:
         clear_pid(spec.id)
-        return f"{spec.id}: exited immediately code={proc.returncode} (see {log_file})"
-    return f"{spec.id}: started pid={proc.pid}"
+        return f"{prefix}{spec.id}: exited immediately code={proc.returncode} (see {log_file})"
+    return f"{prefix}{spec.id}: started pid={proc.pid}"
 
 
 def plugin_runtime(spec: PluginSpec, *, sample_cpu: bool = True) -> Dict[str, Any]:

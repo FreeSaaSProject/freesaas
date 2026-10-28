@@ -2,7 +2,7 @@
     "id": "contracts",
     "name": "contracts.module.name",
     "description": "contracts.module.description",
-    "version": "1.0.5",
+    "version": "1.0.6",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -111,5 +111,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "contracts.setup.step.config",
+                "description": "contracts.setup.step.config_help",
+                "href": "/contracts/settings",
+                "ask_user": "contracts.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "contracts.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

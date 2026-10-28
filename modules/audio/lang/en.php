@@ -311,8 +311,10 @@ return [
     'audio.bot.mod.denied' => 'Audio moderation is temporarily limited to the superadministrator.',
     'audio.bot.mod.empty' => 'No recordings pending review.',
     'audio.bot.mod.queue_title' => '🧠 Review queue — pick a day and employee:',
-    'audio.bot.mod.day_header' => "{name} · {date}\nPending recordings: {n}",
-    'audio.bot.mod.working' => "⏳ Working on: {name} · {date} ({n})\nThinking over transcripts…",
+    'audio.bot.mod.day_header' => '{name} · {date}
+Pending recordings: {n}',
+    'audio.bot.mod.working' => '⏳ Working on: {name} · {date} ({n})
+Thinking over transcripts…',
     'audio.bot.mod.day_empty' => 'Nothing left to review for that day.',
     'audio.bot.mod.bad_day' => 'Invalid date.',
     'audio.bot.mod.llm_unavailable' => 'LLM is not configured — you can still browse key hits or confirm the review.',
@@ -331,4 +333,8 @@ return [
     'audio.bot.mod.back_summary' => '← Back to summary',
     'audio.bot.mod.back_list' => 'Back to queue',
     'audio.perm.delete' => 'Delete cabin records',
+    'audio.setup.step.config' => 'Copy or fill module settings (cfg/modules/audio.ini).',
+    'audio.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio.setup.choice.open' => 'Open settings',
 ];

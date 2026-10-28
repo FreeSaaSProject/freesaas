@@ -74,6 +74,7 @@ def ensure_configs(specs: List[PluginSpec]) -> List[str]:
             HOST_LOCAL,
             {
                 "enabled_plugins": ["video", "whisper"],
+                "locale": "ru",
                 "dashboard": {"host": "127.0.0.1", "port": 8766},
                 "shared": {"server": "https://freesaas.example.tld", "tls": {"verify": True}},
             },
@@ -86,6 +87,13 @@ def ensure_configs(specs: List[PluginSpec]) -> List[str]:
             msgs.append(f"{s.id}: wrote configs/local.json from example — edit tokens")
         elif not s.config_local.is_file():
             msgs.append(f"{s.id}: no example.json to copy")
+    try:
+        from .notify import migrate_legacy_max_into_host
+
+        if migrate_legacy_max_into_host(force_enable=True):
+            msgs.append("notify: migrated whisper max{} → host.local.json notify.channels.max")
+    except Exception as e:  # noqa: BLE001
+        msgs.append(f"notify migrate skip: {e}")
     return msgs
 
 

@@ -55,4 +55,8 @@ return [
     'demo.tip.audio.p1' => 'Who follows the script best?',
     'demo.tip.audio.p2' => 'Find recordings without upsell',
     'demo.tip.audio.p3' => 'Cabin summary for the day',
+    'demo.setup.step.readonly' => 'Module is ready after enable.',
+    'demo.setup.step.readonly_help' => 'No secrets required — open the list and create first records if needed.',
+    'demo.setup.ask.readonly' => 'No secrets required — open the list and create first records if needed.',
+    'demo.setup.choice.open' => 'Open module',
 ];

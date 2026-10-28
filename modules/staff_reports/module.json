@@ -2,7 +2,7 @@
     "id": "staff_reports",
     "name": "staff_reports.module.name",
     "description": "staff_reports.module.description",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -153,5 +153,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "staff_reports.setup.step.config",
+                "description": "staff_reports.setup.step.config_help",
+                "href": "/staff_reports/settings",
+                "ask_user": "staff_reports.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "staff_reports.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

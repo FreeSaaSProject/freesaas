@@ -75,4 +75,8 @@ return [
     'vacations.module.description' => 'Leave register (base_vacations) with sign workflow.',
     'vacations.module.summary' => 'Enable for staff vacation register and approvals. Depends only on core. Team/HR module — lives next to shifts in the rail, independent of calendar booking.',
     'vacations.perm.delete' => 'Delete vacations',
+    'vacations.setup.step.ready' => 'Module is ready after enable.',
+    'vacations.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'vacations.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'vacations.setup.choice.open' => 'Open module',
 ];

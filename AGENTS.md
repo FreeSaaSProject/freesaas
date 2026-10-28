@@ -69,7 +69,7 @@ Create `modules/<id>/` with:
 2. **i18n (required):** `lang/ru.php` + `lang/en.php` with all UI chrome strings. `module.json` `name`, `description`, `menu[].title|group`, and `permissions[].label` must be translation **keys** (e.g. `myid.menu.list`), not hardcoded language text. Also ship `{id}.module.summary` (when to enable / deps in words) for the modules catalog and agents. Views/pages/bootstrap/lib labels use `t()` / `te()` / `tj()` — never hardcode Russian or English UI copy.
 3. `bootstrap.php` — `require_once` libs; `Assets::register` if CSS/JS; `ModuleManager::registerMenuGroup` if own rail group; `StatusesRepository::registerFieldGroup` if role flags; register routes; subscribe EventBus (incl. `core.user_edit.*` when adding staff fields).
 4. Optional: `pages/`, `views/`, `lib/`, `migrations/`, `assets/{css,js}/`, `assets/catalog/` screenshots, `config.example.ini`.
-5. Enable: `[modules] <id>=1` or Modules catalog UI `/modules` (runs schema migrations on enable). Copy module config example → `cfg/modules/<id>.ini` if the module needs ini settings.
+5. Activate: UI `/modules/{id}/activate` or `module activate` (enable + grants + `setup.steps`; absent `[modules]` key = off). Copy module config example → `cfg/modules/<id>.ini` if the module needs ini settings. Declare `setup.steps` in `module.json` (may be `[]`).
 6. New product module in the monorepo: regenerate and commit `modules-catalog.json` (`php bin/build-modules-catalog.php`) so other instances can see it under **Modules → Available to install** (UpdateEngine).
 
 Do **not** translate UGC or DB reference `NAME` fields; only chrome (buttons, flashes, menu, column headers, empty states, JS prompts).

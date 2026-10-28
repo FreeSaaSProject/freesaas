@@ -205,4 +205,8 @@ return [
     'ledger.assistant.preview.account' => 'Счёт: {v}',
     'ledger.assistant.preview.account_delete' => 'Удалить счёт: {v}',
     'ledger.assistant.preview.type' => 'Тип: {v}',
+    'ledger.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/ledger.ini).',
+    'ledger.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'ledger.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'ledger.setup.choice.open' => 'Открыть настройки',
 ];

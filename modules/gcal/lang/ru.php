@@ -45,4 +45,8 @@ return [
     'gcal.health.app_ok' => 'OAuth-приложение GCal задано; в очереди: {n}',
     'gcal.health.app_missing' => 'Не заданы client_id/client_secret GCal',
     'gcal.health.app_disabled' => 'Учётные данные GCal заданы, но синхронизация выключена',
+    'gcal.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/gcal.ini).',
+    'gcal.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'gcal.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'gcal.setup.choice.open' => 'Открыть настройки',
 ];

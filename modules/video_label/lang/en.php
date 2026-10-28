@@ -70,4 +70,8 @@ return [
     'video_label.flash.predictions_cleared' => 'Model cache cleared. Run “Infer all” for peeks.',
     'video_label.flash.deleted' => 'Deleted.',
     'video_label.empty.projects' => 'No projects yet',
+    'video_label.setup.step.workspace' => 'Open the labeling workspace and create a project.',
+    'video_label.setup.step.workspace_help' => 'Projects and classes are required before training.',
+    'video_label.setup.ask.workspace' => 'Projects and classes are required before training.',
+    'video_label.setup.choice.open' => 'Open workspace',
 ];

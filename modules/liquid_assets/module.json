@@ -2,7 +2,7 @@
     "id": "liquid_assets",
     "name": "liquid_assets.module.name",
     "description": "liquid_assets.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -193,5 +193,31 @@
     "hooks": {
         "subscribe": [],
         "publish": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "liquid_assets.setup.step.ready",
+                "description": "liquid_assets.setup.step.ready_help",
+                "href": "/liquid_assets",
+                "ask_user": "liquid_assets.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "liquid_assets.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

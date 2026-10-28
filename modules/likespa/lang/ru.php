@@ -241,4 +241,8 @@ return [
     'likespa.procedures.link_terminal' => '[Терминал!]',
     'likespa.procedures.link_folio' => 'фолио',
     'likespa.perm.restores_delete' => 'Удаление восстановлений процедур',
+    'likespa.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/likespa.ini).',
+    'likespa.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'likespa.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'likespa.setup.choice.open' => 'Открыть настройки',
 ];

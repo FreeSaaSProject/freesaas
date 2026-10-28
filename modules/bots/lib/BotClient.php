@@ -886,12 +886,24 @@ final class BotClient
                 if ($text === '') {
                     continue;
                 }
-                $payload = (string)($btn['callback_data'] ?? $btn['url'] ?? '');
+                $url = trim((string)($btn['url'] ?? ''));
+                if ($url !== '') {
+                    // link button — do not send empty url (Max may drop the whole keyboard).
+                    $line[] = [
+                        'type' => 'link',
+                        'text' => $text,
+                        'url' => $url,
+                    ];
+                    continue;
+                }
+                $payload = trim((string)($btn['callback_data'] ?? ''));
+                if ($payload === '') {
+                    continue;
+                }
                 $line[] = [
-                    'type' => isset($btn['url']) ? 'link' : 'callback',
+                    'type' => 'callback',
                     'text' => $text,
                     'payload' => $payload,
-                    'url' => (string)($btn['url'] ?? ''),
                 ];
             }
             if ($line !== []) {

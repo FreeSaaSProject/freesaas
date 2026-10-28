@@ -47,4 +47,8 @@ return [
     'stocks.module.description' => 'Склады (base_stocks) и отчёт остатков.',
     'stocks.module.summary' => 'Включайте для складов и остатков. Мягко cabinets/stickers/catalog/norms. Нужен stickers. Когда локации склада важнее одного неявного склада.',
     'stocks.perm.delete' => 'Удаление складов',
+    'stocks.setup.step.ready' => 'После включения модуль готов к работе.',
+    'stocks.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'stocks.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'stocks.setup.choice.open' => 'Открыть модуль',
 ];

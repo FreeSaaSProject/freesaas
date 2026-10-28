@@ -5,16 +5,12 @@ return [
     'remittances.module.name' => 'Перечисления и сверка',
     'remittances.module.description' => 'Договоры перечисления (агент/эквайринг): разбор назначений ДПС и сверка с дневной выручкой. Обзор — в журнале ДПС.',
     'remittances.module.summary' => 'Включайте вместе с ledger и suppliers. Сверка на /ledger/moves; здесь только договоры и шаблоны разбора. Soft: procedures/likespa для ожидаемой выручки spa_ops.',
-
     'remittances.perm.manage' => 'Договоры перечисления (настройки)',
     'remittances.perm.delete' => 'Удаление договоров перечисления',
-
     'remittances.menu.list' => 'Перечисления',
-
     'remittances.list.hint' => 'Настройки договоров. Сверка и бейджи — в журнале ДПС (/ledger/moves).',
     'remittances.list.search_ph' => 'Имя, контрагент, ИНН…',
     'remittances.list.empty' => 'Договоров пока нет',
-
     'remittances.col.id' => 'ID',
     'remittances.col.name' => 'Название',
     'remittances.col.supplier' => 'Контрагент',
@@ -32,11 +28,9 @@ return [
     'remittances.col.move' => 'ДПС',
     'remittances.col.parsed' => 'Разбор',
     'remittances.col.descr' => 'Назначение',
-
     'remittances.edit.title_new' => 'Новый договор перечисления',
     'remittances.edit.title' => 'Договор #{id}',
     'remittances.edit.sec_parser' => 'Разбор назначения платежа',
-
     'remittances.field.name' => 'Название',
     'remittances.field.name_ph' => 'Пусто = имя контрагента',
     'remittances.field.enabled' => 'Договор активен',
@@ -62,37 +56,29 @@ return [
     'remittances.field.pattern_gross' => 'Regex: сумма до комиссии (группа 1)',
     'remittances.field.pattern_fee' => 'Regex: комиссия (группа 1)',
     'remittances.field.pattern_hint' => 'PCRE с одной capture-группой. Сначала «Применить пресет», затем правьте при смене формулировки банка.',
-
     'remittances.fee_posting.none' => 'Только сверка (без ДПС комиссии)',
     'remittances.fee_posting.expense_move' => 'Создавать расход ДПС на комиссию',
-
     'remittances.preset.volga_termy_v1' => 'Волжские Термы — агентский договор v1',
-
     'remittances.action.apply_preset' => 'Применить пресет к слотам',
     'remittances.action.dry_run' => 'Проверить на последних ДПС',
     'remittances.action.sync' => 'Пересчитать',
     'remittances.action.ignore' => 'Игнорировать',
     'remittances.action.unignore' => 'Вернуть в сверку',
     'remittances.action.post_fee' => 'Создать ДПС комиссии',
-
     'remittances.dry_run.title' => 'Проверка разбора',
     'remittances.confirm.delete' => 'Удалить договор и связанные сверки?',
-
     'remittances.badge.short' => 'ВТ',
     'remittances.badge.ignored_short' => 'ВТ·ign',
     'remittances.badge.unparsed_short' => 'ВТ?',
     'remittances.badge.ignored' => 'Перечисление: игнорируется',
     'remittances.badge.unparsed' => 'Перечисление: не разобрано назначение',
     'remittances.badge.title' => 'Период {period}; gross {gross}; fee {fee}; ждём {expected}; Δ {delta}',
-
     'remittances.move.section_title' => 'Сверка перечисления',
     'remittances.move.ignored_hint' => 'Это поступление исключено из сверки.',
     'remittances.move.unparsed' => 'Не удалось разобрать назначение ({err}). Проверьте шаблоны в договоре.',
     'remittances.move.by_day' => 'Ожидание по дням',
     'remittances.move.settings_link' => 'Настройки договоров перечисления',
-
     'remittances.fee.descr' => 'Комиссия перечисления по ДПС #{move} ({period})',
-
     'remittances.flash.saved' => 'Договор сохранён',
     'remittances.flash.deleted' => 'Договор удалён',
     'remittances.flash.dry_run' => 'Проверка разбора (без сохранения)',
@@ -100,7 +86,6 @@ return [
     'remittances.flash.ignored' => 'Поступление исключено из сверки',
     'remittances.flash.unignored' => 'Поступление снова в сверке',
     'remittances.flash.fee_posted' => 'Создан ДПС комиссии #{id}',
-
     'remittances.err.not_found' => 'Договор #{id} не найден',
     'remittances.err.forbidden' => 'Недостаточно прав',
     'remittances.err.bad_request' => 'Некорректный запрос',
@@ -114,4 +99,8 @@ return [
     'remittances.err.fee_fee_posting_off' => 'В договоре выключено создание ДПС комиссии',
     'remittances.err.fee_no_fee' => 'Сумма комиссии пуста',
     'remittances.err.fee_no_fee_type' => 'Укажите тип расхода комиссии в договоре',
+    'remittances.setup.step.ready' => 'После включения модуль готов к работе.',
+    'remittances.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'remittances.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'remittances.setup.choice.open' => 'Открыть модуль',
 ];

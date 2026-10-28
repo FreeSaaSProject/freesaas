@@ -5,16 +5,12 @@ return [
     'remittances.module.name' => 'Remittances',
     'remittances.module.description' => 'Remittance agreements (agency/acquiring): parse ledger purpose text and reconcile to daily revenue. Overview lives on the ledger moves list.',
     'remittances.module.summary' => 'Enable with ledger and suppliers. Reconcile on /ledger/moves; this module only holds agreements and parse templates. Soft: procedures/likespa for spa_ops expected revenue.',
-
     'remittances.perm.manage' => 'Remittance agreements (settings)',
     'remittances.perm.delete' => 'Delete remittance agreements',
-
     'remittances.menu.list' => 'Remittances',
-
     'remittances.list.hint' => 'Agreement settings. Badges and detail live on /ledger/moves.',
     'remittances.list.search_ph' => 'Name, counterparty, TIN…',
     'remittances.list.empty' => 'No agreements yet',
-
     'remittances.col.id' => 'ID',
     'remittances.col.name' => 'Name',
     'remittances.col.supplier' => 'Counterparty',
@@ -32,11 +28,9 @@ return [
     'remittances.col.move' => 'Move',
     'remittances.col.parsed' => 'Parsed',
     'remittances.col.descr' => 'Purpose',
-
     'remittances.edit.title_new' => 'New remittance agreement',
     'remittances.edit.title' => 'Agreement #{id}',
     'remittances.edit.sec_parser' => 'Payment purpose parser',
-
     'remittances.field.name' => 'Name',
     'remittances.field.name_ph' => 'Empty = counterparty name',
     'remittances.field.enabled' => 'Agreement enabled',
@@ -62,37 +56,29 @@ return [
     'remittances.field.pattern_gross' => 'Regex: gross before fee (group 1)',
     'remittances.field.pattern_fee' => 'Regex: fee (group 1)',
     'remittances.field.pattern_hint' => 'PCRE with one capture group. Apply a preset first, then tweak if the bank wording changes.',
-
     'remittances.fee_posting.none' => 'Reconcile only (no fee ledger move)',
     'remittances.fee_posting.expense_move' => 'Post fee as expense move',
-
     'remittances.preset.volga_termy_v1' => 'Volga Termy — agency contract v1',
-
     'remittances.action.apply_preset' => 'Apply preset to slots',
     'remittances.action.dry_run' => 'Test on recent moves',
     'remittances.action.sync' => 'Recalculate',
     'remittances.action.ignore' => 'Ignore',
     'remittances.action.unignore' => 'Restore to reconcile',
     'remittances.action.post_fee' => 'Create fee move',
-
     'remittances.dry_run.title' => 'Parse dry-run',
     'remittances.confirm.delete' => 'Delete agreement and its batch rows?',
-
     'remittances.badge.short' => 'RM',
     'remittances.badge.ignored_short' => 'RM·ign',
     'remittances.badge.unparsed_short' => 'RM?',
     'remittances.badge.ignored' => 'Remittance: ignored',
     'remittances.badge.unparsed' => 'Remittance: purpose not parsed',
     'remittances.badge.title' => 'Period {period}; gross {gross}; fee {fee}; expected {expected}; Δ {delta}',
-
     'remittances.move.section_title' => 'Remittance reconcile',
     'remittances.move.ignored_hint' => 'This inflow is excluded from reconcile.',
     'remittances.move.unparsed' => 'Could not parse purpose ({err}). Check agreement patterns.',
     'remittances.move.by_day' => 'Expected by day',
     'remittances.move.settings_link' => 'Remittance agreement settings',
-
     'remittances.fee.descr' => 'Remittance fee for move #{move} ({period})',
-
     'remittances.flash.saved' => 'Agreement saved',
     'remittances.flash.deleted' => 'Agreement deleted',
     'remittances.flash.dry_run' => 'Parse dry-run (not saved)',
@@ -100,7 +86,6 @@ return [
     'remittances.flash.ignored' => 'Move ignored for remittance',
     'remittances.flash.unignored' => 'Move restored to remittance',
     'remittances.flash.fee_posted' => 'Fee move #{id} created',
-
     'remittances.err.not_found' => 'Agreement #{id} not found',
     'remittances.err.forbidden' => 'Forbidden',
     'remittances.err.bad_request' => 'Bad request',
@@ -114,4 +99,8 @@ return [
     'remittances.err.fee_fee_posting_off' => 'Fee posting is off on the agreement',
     'remittances.err.fee_no_fee' => 'Fee amount is empty',
     'remittances.err.fee_no_fee_type' => 'Set fee expense type on the agreement',
+    'remittances.setup.step.ready' => 'Module is ready after enable.',
+    'remittances.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'remittances.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'remittances.setup.choice.open' => 'Open module',
 ];

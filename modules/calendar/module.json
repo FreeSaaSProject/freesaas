@@ -2,7 +2,7 @@
     "id": "calendar",
     "name": "calendar.module.name",
     "description": "calendar.module.description",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -88,12 +88,29 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "staff": { "type": "integer", "description": "Operator (staff) user id" },
-                        "date_from": { "type": "string", "description": "YYYY-MM-DD" },
-                        "date_to": { "type": "string", "description": "YYYY-MM-DD inclusive" },
-                        "include_blocks": { "type": "string", "enum": ["0", "1"] }
+                        "staff": {
+                            "type": "integer",
+                            "description": "Operator (staff) user id"
+                        },
+                        "date_from": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD"
+                        },
+                        "date_to": {
+                            "type": "string",
+                            "description": "YYYY-MM-DD inclusive"
+                        },
+                        "include_blocks": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ]
+                        }
                     },
-                    "required": ["staff"]
+                    "required": [
+                        "staff"
+                    ]
                 }
             },
             {
@@ -157,46 +174,117 @@
         "relations": [
             {
                 "id": "calendar.vacation_events",
-                "when": ["vacations.create", "vacations.update"],
+                "when": [
+                    "vacations.create",
+                    "vacations.update"
+                ],
                 "from": "vacations.get",
                 "check": "calendar.events.list",
-                "args": { "staff": "{user_id}", "date_from": "{dt_start|date}", "date_to": "{dt_end|date}" },
-                "suggest": ["calendar.events.update", "calendar.events.delete"],
-                "fields": ["date", "dtstart_iso", "dtend_iso", "client_name", "name", "content_brief", "is_block"],
+                "args": {
+                    "staff": "{user_id}",
+                    "date_from": "{dt_start|date}",
+                    "date_to": "{dt_end|date}"
+                },
+                "suggest": [
+                    "calendar.events.update",
+                    "calendar.events.delete"
+                ],
+                "fields": [
+                    "date",
+                    "dtstart_iso",
+                    "dtend_iso",
+                    "client_name",
+                    "name",
+                    "content_brief",
+                    "is_block"
+                ],
                 "hint": "calendar.relation.absence_events",
                 "notice": "calendar.relation.absence_events.notice"
             },
             {
                 "id": "calendar.shift_removed_events",
-                "when": ["workweeks.delete"],
+                "when": [
+                    "workweeks.delete"
+                ],
                 "from": "workweeks.get",
                 "check": "calendar.events.list",
-                "args": { "staff": "{from.id_operator}", "date_from": "{from.date}", "date_to": "{from.date}" },
-                "suggest": ["calendar.events.update", "calendar.events.delete"],
-                "fields": ["date", "dtstart_iso", "dtend_iso", "client_name", "name", "content_brief", "is_block"],
+                "args": {
+                    "staff": "{from.id_operator}",
+                    "date_from": "{from.date}",
+                    "date_to": "{from.date}"
+                },
+                "suggest": [
+                    "calendar.events.update",
+                    "calendar.events.delete"
+                ],
+                "fields": [
+                    "date",
+                    "dtstart_iso",
+                    "dtend_iso",
+                    "client_name",
+                    "name",
+                    "content_brief",
+                    "is_block"
+                ],
                 "hint": "calendar.relation.absence_events",
                 "notice": "calendar.relation.absence_events.notice"
             },
             {
                 "id": "calendar.shift_reassigned_events",
-                "when": ["workweeks.update"],
-                "if": { "id_operator": "changed" },
+                "when": [
+                    "workweeks.update"
+                ],
+                "if": {
+                    "id_operator": "changed"
+                },
                 "from": "workweeks.get",
                 "check": "calendar.events.list",
-                "args": { "staff": "{from.id_operator}", "date_from": "{from.date}", "date_to": "{from.date}" },
-                "suggest": ["calendar.events.update"],
-                "fields": ["date", "dtstart_iso", "dtend_iso", "client_name", "name", "content_brief", "is_block"],
+                "args": {
+                    "staff": "{from.id_operator}",
+                    "date_from": "{from.date}",
+                    "date_to": "{from.date}"
+                },
+                "suggest": [
+                    "calendar.events.update"
+                ],
+                "fields": [
+                    "date",
+                    "dtstart_iso",
+                    "dtend_iso",
+                    "client_name",
+                    "name",
+                    "content_brief",
+                    "is_block"
+                ],
                 "hint": "calendar.relation.shift_reassigned_events",
                 "notice": "calendar.relation.shift_reassigned_events.notice"
             },
             {
                 "id": "calendar.user_disabled_events",
-                "when": ["core.users.update"],
-                "if": { "enabled": "0" },
+                "when": [
+                    "core.users.update"
+                ],
+                "if": {
+                    "enabled": "0"
+                },
                 "check": "calendar.events.list",
-                "args": { "staff": "{id}", "date_from": "{today}" },
-                "suggest": ["calendar.events.update", "calendar.events.delete"],
-                "fields": ["date", "dtstart_iso", "dtend_iso", "client_name", "name", "content_brief", "is_block"],
+                "args": {
+                    "staff": "{id}",
+                    "date_from": "{today}"
+                },
+                "suggest": [
+                    "calendar.events.update",
+                    "calendar.events.delete"
+                ],
+                "fields": [
+                    "date",
+                    "dtstart_iso",
+                    "dtend_iso",
+                    "client_name",
+                    "name",
+                    "content_brief",
+                    "is_block"
+                ],
                 "hint": "calendar.relation.absence_events",
                 "notice": "calendar.relation.absence_events.notice"
             }
@@ -265,5 +353,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "calendar.setup.step.config",
+                "description": "calendar.setup.step.config_help",
+                "href": "/calendar/settings",
+                "ask_user": "calendar.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "calendar.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

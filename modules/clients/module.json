@@ -2,7 +2,7 @@
     "id": "clients",
     "name": "clients.module.name",
     "description": "clients.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -284,5 +284,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "clients.setup.step.ready",
+                "description": "clients.setup.step.ready_help",
+                "href": "/clients",
+                "ask_user": "clients.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "clients.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

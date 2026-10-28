@@ -151,4 +151,8 @@ return [
     'orders.relation.absence_orders.notice' => 'Заказов с сайта на этого мастера: {n} — нужно переназначить.',
     'orders.relation.shift_reassigned_orders' => 'Смена передана другому сотруднику: заказы прежнего мастера в этот день (related.items) переведи на нового — orders.update {id, id_cosmetolog = новый id_operator смены}. Если сервер отказал — перечисли заказ в ответе.',
     'orders.relation.shift_reassigned_orders.notice' => 'Заказов у прежнего мастера в этот день: {n} — перевести на нового.',
+    'orders.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/orders.ini).',
+    'orders.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'orders.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'orders.setup.choice.open' => 'Открыть настройки',
 ];

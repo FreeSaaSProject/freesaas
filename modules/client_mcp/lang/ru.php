@@ -7,14 +7,11 @@ return [
     'client_mcp.module.summary' => 'Включите, чтобы любой агент с поддержкой MCP (Claude, ChatGPT, Cursor…) мог записать клиента через https://<домен>/mcp без плагинов. Нужны sites + clients; инструменты записи — при включённых booking, catalog, orders. Другие модули добавляют инструменты через EventBus client_mcp.tools. Каждый домен включается отдельно. Alpha.',
     'client_mcp.menu.settings' => 'Клиентский MCP',
     'client_mcp.cron.purge' => 'Клиентский MCP: очистка истёкших сессий',
-
     'client_mcp.health.ok' => 'Публичный MCP включён: {hosts}',
     'client_mcp.health.disabled' => 'Публичный клиентский MCP не включён ни на одном домене',
     'client_mcp.health.table_missing' => 'Нет таблиц client_mcp — запустите миграции модуля',
     'client_mcp.health.no_tools' => 'MCP включён, но нет доступных инструментов (проверьте booking/catalog/orders): {hosts}',
-
     'client_mcp.server.description_default' => '{name}: услуги, свободное время, запись и отмена.',
-
     'client_mcp.err.disabled' => 'Обслуживание через ИИ-агентов на этом сайте отключено',
     'client_mcp.err.not_storefront' => 'На этом адресе нет клиентского MCP',
     'client_mcp.err.internal' => 'Внутренняя ошибка. Попробуйте позже или свяжитесь с нами по телефону.',
@@ -34,14 +31,11 @@ return [
     'client_mcp.err.time' => 'Передайте date + time (HH:MM) или dt_start',
     'client_mcp.err.token' => 'client_token отсутствует, истёк или выдан другим сайтом — вызовите identify_client заново',
     'client_mcp.err.consent_url' => 'Ссылка на согласие — абсолютный URL или путь, начинающийся с /',
-
     'client_mcp.hint.no_specialists' => 'Нет специалистов со свободным временем на эти услуги в горизонте записи',
     'client_mcp.hint.rebook' => 'Обновите get_availability и предложите клиенту другое время',
-
     'client_mcp.order.comment_tag' => 'Запись через ИИ-агента ({host})',
     'client_mcp.booked' => 'Запись №{id} на {when} подтверждена',
     'client_mcp.payment.on_site' => 'Оплата на месте в день визита',
-
     'client_mcp.llms.title' => 'ИИ-ассистенты (MCP)',
     'client_mcp.llms.server' => 'MCP-сервер для записи: {url} (Streamable HTTP, без авторизации)',
     'client_mcp.llms.card' => 'Карточка сервера: {url}',
@@ -53,7 +47,6 @@ return [
     'client_mcp.llms.consent' => 'Перед записью клиент должен принять условия: {url}',
     'client_mcp.note.default' => 'Записаться можно и через ИИ-ассистента (ChatGPT, Claude и др.): подключите MCP-сервер {url} — без авторизации.',
     'client_mcp.note.more' => 'Как подключить',
-
     'client_mcp.settings.title' => 'Клиентский MCP',
     'client_mcp.settings.intro' => 'Публичный MCP для ИИ-агентов клиентов — отдельный сервер на каждый домен витрины (свои услуги по корням каталога, свои настройки и сессии). Анонимный: агент передаёт телефон клиента; записи попадают в Заказы с источником mcp.',
     'client_mcp.settings.site_disabled' => 'Домен выключен в «Сайты → Хосты» — MCP на нём не отвечает.',
@@ -82,4 +75,8 @@ return [
     'client_mcp.settings.bookings_per_phone_day' => 'Записей на один телефон за 24 ч',
     'client_mcp.settings.token_ttl_hours' => 'Срок жизни client_token (часы)',
     'client_mcp.settings.verification_hint' => 'Проверка телефона: нет (телефону от агента доверяем). Модули могут добавить OTP через EventBus client_mcp.identify / client_mcp.verify.',
+    'client_mcp.setup.step.hosts' => 'Настройте хосты витрины / MCP для модуля.',
+    'client_mcp.setup.step.hosts_help' => 'Без хостов публичная поверхность неактивна.',
+    'client_mcp.setup.ask.hosts' => 'Без хостов публичная поверхность неактивна.',
+    'client_mcp.setup.choice.open' => 'Открыть хосты',
 ];

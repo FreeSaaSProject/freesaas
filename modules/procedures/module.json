@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "1.0.6",
+    "version": "1.0.15",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -119,7 +119,9 @@
                             "description": "Y-m-d day filter for from_id_admin; default today. Do not expand to other days unless user asked."
                         }
                     },
-                    "required": ["id_admin"]
+                    "required": [
+                        "id_admin"
+                    ]
                 }
             },
             {
@@ -252,6 +254,7 @@
             "core.user_edit.sections",
             "core.user_edit.save",
             "assistant.write.preview",
+            "assistant.write.preflight",
             "assistant.system.hints",
             "bi.datasets",
             "bi.recipes"
@@ -283,5 +286,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "procedures.setup.step.config",
+                "description": "procedures.setup.step.config_help",
+                "href": "/procedures/settings",
+                "ask_user": "procedures.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "procedures.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

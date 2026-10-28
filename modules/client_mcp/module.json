@@ -3,7 +3,7 @@
     "name": "client_mcp.module.name",
     "description": "client_mcp.module.description",
     "summary": "client_mcp.module.summary",
-    "version": "0.1.3",
+    "version": "0.1.4",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -100,5 +100,29 @@
             "llm"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "hosts",
+                "title": "client_mcp.setup.step.hosts",
+                "description": "client_mcp.setup.step.hosts_help",
+                "href": "/sites",
+                "ask_user": "client_mcp.setup.ask.hosts",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "client_mcp.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

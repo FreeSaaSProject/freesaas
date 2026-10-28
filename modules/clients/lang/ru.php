@@ -136,4 +136,8 @@ return [
     'clients.assistant.preview.delete' => 'Удалить этого клиента',
     'clients.assistant.preview.status' => 'Статус: {v}',
     'clients.assistant.preview.tag' => 'Тег: {v}',
+    'clients.setup.step.ready' => 'После включения модуль готов к работе.',
+    'clients.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'clients.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'clients.setup.choice.open' => 'Открыть модуль',
 ];

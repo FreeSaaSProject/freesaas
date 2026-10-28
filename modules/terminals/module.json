@@ -2,7 +2,7 @@
     "id": "terminals",
     "name": "terminals.module.name",
     "description": "terminals.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -256,13 +256,24 @@
                     "properties": {
                         "ignore_staff_shift_windows": {
                             "type": "string",
-                            "enum": ["0", "1"],
+                            "enum": [
+                                "0",
+                                "1"
+                            ],
                             "description": "1 (default): /t uses salon hours only; 0: clip like site/API"
                         },
-                        "lead_sec": { "type": "integer" },
-                        "lead_sec_api": { "type": "integer" },
-                        "chill_product_id": { "type": "integer" },
-                        "1c_enabled": { "type": "string" }
+                        "lead_sec": {
+                            "type": "integer"
+                        },
+                        "lead_sec_api": {
+                            "type": "integer"
+                        },
+                        "chill_product_id": {
+                            "type": "integer"
+                        },
+                        "1c_enabled": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -379,5 +390,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "terminals.setup.step.config",
+                "description": "terminals.setup.step.config_help",
+                "href": "/terminals",
+                "ask_user": "terminals.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "terminals.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

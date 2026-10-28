@@ -79,4 +79,8 @@ return [
     'booking.new.link_event' => 'Вместо этого — событие календаря',
     'booking.new.flash_ok' => 'Заказ №{id} создан',
     'booking.calendar.add_booking' => '+Зап.',
+    'booking.setup.step.availability' => 'Проверьте доступность слотов записи.',
+    'booking.setup.step.availability_help' => 'Нужны смены и типы процедур.',
+    'booking.setup.ask.availability' => 'Нужны смены и типы процедур.',
+    'booking.setup.choice.open' => 'Открыть запись',
 ];

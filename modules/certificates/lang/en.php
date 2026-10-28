@@ -15,7 +15,6 @@ return [
     'certificates.statuses.group' => 'Certificates',
     'certificates.statuses.field.EVT_SERT' => 'Apply certificates on calendar events',
     'certificates.cron.expire' => 'Expire overdue certificates',
-
     'certificates.kind.money' => 'Money',
     'certificates.kind.abon' => 'Abonnement',
     'certificates.list.empty' => 'No certificates yet.',
@@ -35,7 +34,6 @@ return [
     'certificates.list.col_holder' => 'Holder',
     'certificates.list.col_expire' => 'Use until',
     'certificates.list.new' => 'New certificate',
-
     'certificates.edit.title_new' => 'New certificate',
     'certificates.edit.title' => 'Certificate #:id',
     'certificates.edit.heading_new' => 'New',
@@ -73,7 +71,6 @@ return [
     'certificates.field.price' => 'Unit price',
     'certificates.field.name' => 'Name',
     'certificates.edit.ledger_link' => 'Ledger for this certificate',
-
     'certificates.ledger.empty' => 'No ledger rows.',
     'certificates.ledger.col_cert' => 'Certificate',
     'certificates.ledger.col_dir' => 'Dir',
@@ -90,7 +87,6 @@ return [
     'certificates.ledger.expire' => 'Expired remainder written off',
     'certificates.ledger.undo' => 'Undo spend #:id',
     'certificates.ledger.undo_btn' => 'Undo',
-
     'certificates.event.sec' => 'Certificate',
     'certificates.event.need_client' => 'Pick a client to use a certificate.',
     'certificates.event.active' => 'Active certificates',
@@ -102,11 +98,9 @@ return [
     'certificates.event.applied' => 'Certificate already applied on this event.',
     'certificates.event.no_capability' => 'No EVT_SERT capability',
     'certificates.event.applied_ok' => 'Certificate applied (:n).',
-
     'certificates.client.bought' => 'Bought: :n',
     'certificates.client.active' => 'Active: :n',
     'certificates.client.link' => 'Certificates',
-
     'certificates.cart.title' => 'Certificate / abonnement',
     'certificates.cart.code' => 'Code',
     'certificates.cart.apply' => 'Apply',
@@ -114,7 +108,6 @@ return [
     'certificates.cart.ok' => 'Certificate applied.',
     'certificates.cart.cleared' => 'Certificate cleared.',
     'certificates.cart.balance' => 'Balance: :n',
-
     'certificates.err.table' => 'Certificates tables are missing (run migrations).',
     'certificates.err.ledger_table' => 'Certificate ledger table is missing.',
     'certificates.err.not_found' => 'Certificate #:id not found',
@@ -145,4 +138,8 @@ return [
     'certificates.err.delete_superadmin' => 'Only a director can delete certificates',
     'certificates.err.insufficient_balance' => 'Insufficient certificate balance',
     'certificates.perm.delete' => 'Delete certificates',
+    'certificates.setup.step.ready' => 'Module is ready after enable.',
+    'certificates.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'certificates.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'certificates.setup.choice.open' => 'Open module',
 ];

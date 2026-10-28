@@ -39,7 +39,7 @@ Optional. When set (and `demo_readonly=1`), `DemoMode::now()` / `dayStart()` / `
 
 ## Prod safety (two independent locks)
 
-1. **cfg flags:** `demo provision` / `demo seed` / demo cron jobs **refuse** unless `demo_readonly=1` and `demo=1`. Absent or `0` → `DemoMode::readonly()` is false; `Config::moduleEnabled` keeps historic **absent = on**. Never set these flags on customer instances.
+1. **cfg flags:** `demo provision` / `demo seed` / demo cron jobs **refuse** unless `demo_readonly=1` and `demo=1`. Absent or `0` → `DemoMode::readonly()` is false. `Config::moduleEnabled` treats **absent `[modules]` keys as off** everywhere (not demo-only). Never set demo flags on customer instances.
 2. **DB marker:** table `base_demo_stand` (owned by `demo`, one row). Seed and wipe run only when its `STAND_ID` equals `[demo] stand_id` in `cfg/modules/demo.ini`.
    - A **fresh** DB (0 rows in `base_clients`, `base_events`, `base_news`) is claimed automatically on the first seed.
    - A DB with data is never claimed implicitly: `demo claim` refuses. For a known demo copy only: `php bin/freesaas.php demo claim --existing`.

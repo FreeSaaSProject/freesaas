@@ -10,7 +10,10 @@ require_once __DIR__ . '/lib/AssistantAccess.php';
 require_once __DIR__ . '/lib/AssistantLinks.php';
 require_once __DIR__ . '/lib/AssistantTools.php';
 require_once __DIR__ . '/lib/AssistantRelations.php';
+require_once __DIR__ . '/lib/AssistantWritePreflight.php';
 require_once __DIR__ . '/lib/AssistantUiActions.php';
+require_once __DIR__ . '/lib/AssistantPending.php';
+require_once __DIR__ . '/lib/AssistantToolPayload.php';
 require_once __DIR__ . '/lib/AssistantHarness.php';
 require_once __DIR__ . '/lib/AssistantEval.php';
 require_once __DIR__ . '/lib/AssistantEvalCases.php';
@@ -82,7 +85,7 @@ EventBus::on('bots.ready', static function ($payload) {
 });
 AssistantBotPlugin::register();
 
-// Rail chat title = configured persona name (default Макс).
+// Rail chat title = configured persona name (default Max).
 EventBus::on('core.menu.items', static function ($payload) {
     if (!is_array($payload) || !isset($payload['items']) || !is_array($payload['items'])) {
         return $payload;

@@ -25,6 +25,7 @@ Requires a ready LLM profile (`/llm/tokens`, `llm.manage` + SUPERADMIN). Assista
 - **Invoke** runs the same page handler in-process with `format=json` / `AgentHttp::capture` (no HTTP loopback).
 - **Read tools** run immediately inside `AssistantHarness`.
 - **Write tools** never auto-run: harness stores `base_assistant_pending` and returns `pending_actions[]`. UI buttons or bot callbacks confirm/cancel (TTL 15 minutes). Draft detail (who/what changes) comes from EventBus `assistant.write.preview` — owning modules append `lines` / set `handled` (`*AssistantPreview` in workweeks, calendar, payments, clients, ledger, catalog, procedures); harness only formats a generic args fallback.
+- **Write preflight:** EventBus `assistant.write.preflight` runs before pending is stored (`AssistantWritePreflight`). Modules may set `blockers` / `suggest` / `noop` (see [module-agent-api.md](module-agent-api.md)). Suggest ops join the same plan via the relations-style follow-up round.
 - **System prompt hints** for product tools: EventBus `assistant.system.hints` (`op_ids`, `group_mode`, append to `hints[]`). Owning modules (finance, bi, payments, workweeks, calendar, wellness, …) register their own copy — assistant does not hardcode other modules’ domain rules.
 - **Tool progress titles** (`humanOpTitle`): place from owning module — `{mod}.assistant.area.{area}` → `{mod}.assistant.tool_title` → `{mod}.module.name`. Generic action verbs stay in `assistant.tool.act.*`.
 

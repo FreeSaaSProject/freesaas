@@ -2,7 +2,7 @@
     "id": "sheets",
     "name": "sheets.module.name",
     "description": "sheets.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -168,5 +168,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "sheets.setup.step.config",
+                "description": "sheets.setup.step.config_help",
+                "href": "/sheets/settings",
+                "ask_user": "sheets.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "sheets.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

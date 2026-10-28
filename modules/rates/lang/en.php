@@ -69,4 +69,8 @@ return [
     'rates.module.description' => 'Specialist commission rates history (base_procent_history).',
     'rates.module.summary' => 'Enable to maintain commission % by specialist/procedure. Requires procedures. Required by procents. With audio — rates for audio hours and script score points. Set rates before expecting accrual reports.',
     'rates.perm.delete' => 'Delete rates',
+    'rates.setup.step.ready' => 'Module is ready after enable.',
+    'rates.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'rates.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'rates.setup.choice.open' => 'Open module',
 ];

@@ -1,4 +1,4 @@
-"""Video plugin widgets: VPN, cameras, jobs, dataset collect."""
+"""Video plugin widgets: VPN, cameras, jobs, dataset collect (compact)."""
 from __future__ import annotations
 
 import json
@@ -88,30 +88,21 @@ def snapshot(ctx: Dict[str, Any]) -> Dict[str, Any]:
         vpn_line = "no VPN_NAME"
         vpn_connected = False
     dif = _default_if()
-    full_tunnel = vpn_connected and dif.startswith("ppp")
     cameras = []
     for cam in st.get("cameras") or []:
         if not isinstance(cam, dict):
             continue
         host = str(cam.get("host") or "")
-        cameras.append(
-            {
-                **cam,
-                "ping_ok": _ping_host(host) if host else None,
-            }
-        )
-    collect = _load_json(COLLECT_STATE)
+        cameras.append({**cam, "ping_ok": _ping_host(host) if host else None})
     return {
         "status": st,
-        "loop": (cfg.get("loop") if isinstance(cfg.get("loop"), dict) else {}),
         "vpn_name": vpn_name,
         "vpn_line": vpn_line,
         "vpn_connected": vpn_connected,
-        "full_tunnel": full_tunnel,
+        "full_tunnel": vpn_connected and dif.startswith("ppp"),
         "default_if": dif,
         "cameras": cameras,
-        "collect": collect,
-        "runtime": ctx.get("runtime") or {},
+        "collect": _load_json(COLLECT_STATE),
     }
 
 
@@ -128,56 +119,30 @@ def _esc(s: Any) -> str:
 def render_html(snap: Dict[str, Any], ctx: Dict[str, Any]) -> str:
     st = snap.get("status") or {}
     cams = snap.get("cameras") or []
-    collect = snap.get("collect") or {}
     ft = (
-        '<p class="bad"><b>FULL TUNNEL</b> — default route on PPP; use VPN Down.</p>'
+        '<span class="bad"><b>FULL TUNNEL</b></span> · '
         if snap.get("full_tunnel")
         else ""
     )
-    cam_rows = ""
-    for c in cams:
+    cam_bits = []
+    for c in cams[:8]:
         ping = c.get("ping_ok")
-        mark = "✓" if ping is True else ("✗" if ping is False else "—")
-        cam_rows += (
-            f"<tr><td>{_esc(c.get('name'))}</td><td>{_esc(c.get('host'))}</td>"
-            f"<td>{mark}</td><td>{_esc(c.get('mode'))}</td></tr>"
-        )
-    if not cam_rows:
-        cam_rows = "<tr><td colspan='4' class='muted'>No cameras in status yet (wait for hello)</td></tr>"
-
+        mark = "✓" if ping is True else ("✗" if ping is False else "·")
+        cam_bits.append(f"{mark}{_esc(c.get('name') or c.get('host'))}")
+    cam_line = " · ".join(cam_bits) if cam_bits else "<span class='muted'>no cameras yet</span>"
     last = st.get("last_job") or {}
     cur = st.get("current_job") or {}
     counters = st.get("counters") or {}
-
     return f"""
-{ft}
-<div class="row">
-  <div>
-    <div class="muted">VPN {_esc(snap.get('vpn_name') or '—')}</div>
-    <div>{_esc(snap.get('vpn_line'))} · if {_esc(snap.get('default_if'))}</div>
-    <div class="toolbar" style="margin-top:8px">
-      <button type="button" data-act="vpn_up" data-plugin="video">VPN Up</button>
-      <button type="button" data-act="vpn_down" data-plugin="video">VPN Down</button>
-    </div>
-  </div>
-  <div>
-    <div class="muted">Jobs</div>
-    <div>hello {'ok' if st.get('hello_ok') else '—'} · ok {counters.get('jobs_ok', 0)} / err {counters.get('jobs_err', 0)}</div>
-    <div class="muted">current: {_esc(cur.get('type') or 'idle')} #{_esc(cur.get('id') or '')}</div>
-    <div class="muted">last: {_esc(last.get('type') or '—')} #{_esc(last.get('id') or '')} {_esc(last.get('ms') or '')}ms</div>
-  </div>
+<div class="muted" style="margin-bottom:4px">{ft}VPN {_esc(snap.get('vpn_name') or '—')}: {_esc(snap.get('vpn_line'))}
+  <button type="button" data-act="vpn_up" data-plugin="video">Up</button>
+  <button type="button" data-act="vpn_down" data-plugin="video">Down</button>
 </div>
-<h3 style="margin:14px 0 6px;font-size:13px">Cameras</h3>
-<table><thead><tr><th>Name</th><th>Host</th><th>Ping</th><th>Mode</th></tr></thead>
-<tbody>{cam_rows}</tbody></table>
-<h3 style="margin:14px 0 6px;font-size:13px">Dataset collect</h3>
-<div class="muted">state: {_esc(json.dumps(collect)[:180] if collect else 'idle')}</div>
-<div class="toolbar" style="margin-top:8px">
-  <button type="button" data-act="dataset_stop" data-plugin="video">Stop collect</button>
-</div>
-<p class="muted">Start RTSP/video collect via CLI:
-<code>python dataset_collect.py -c configs/local.json rtsp --slug …</code>
-or POST action <code>dataset_start_rtsp</code> with slug/rtsp fields.</p>
+<div class="muted">jobs ok {counters.get('jobs_ok', 0)}/err {counters.get('jobs_err', 0)}
+  · cur {_esc(cur.get('type') or 'idle')} · last {_esc(last.get('type') or '—')} {_esc(last.get('ms') or '')}ms</div>
+<div style="margin-top:4px">{cam_line}</div>
+<div class="muted" style="margin-top:4px">collect: {_esc(json.dumps(snap.get('collect') or {})[:100])}
+  <button type="button" data-act="dataset_stop" data-plugin="video">Stop collect</button></div>
 """
 
 
@@ -196,63 +161,35 @@ def handle_action(action: str, payload: Dict[str, Any], ctx: Dict[str, Any]) -> 
     if action == "dataset_stop":
         st = _load_json(COLLECT_STATE)
         pid = int(st.get("pid") or 0)
-        killed = []
         if pid > 0:
             try:
                 os.kill(pid, signal.SIGTERM)
-                killed.append(str(pid))
+                return f"collector stop → {pid}"
             except OSError:
                 pass
-        return f"collector stop → {','.join(killed) or 'none'}"
+        return "collector stop → none"
     if action in ("dataset_start_rtsp", "dataset_start_video"):
-        # payload may nest fields
         fields = payload.get("fields") if isinstance(payload.get("fields"), dict) else payload
         slug = str(fields.get("slug") or "collect")
         if action == "dataset_start_rtsp":
             rtsp = str(fields.get("rtsp") or "")
             if not rtsp:
                 return "rtsp required"
-            argv = [
-                "rtsp",
-                "--slug",
-                slug,
-                "--rtsp",
-                rtsp,
-                "--interval",
-                str(fields.get("interval") or "2"),
-                "--max-frames",
-                str(fields.get("max_frames") or "0"),
-                "--target-class-id",
-                str(fields.get("target_class_id") or "0"),
-            ]
+            argv = ["rtsp", "--slug", slug, "--rtsp", rtsp, "--interval", str(fields.get("interval") or "2"),
+                    "--max-frames", str(fields.get("max_frames") or "0"), "--target-class-id", str(fields.get("target_class_id") or "0")]
         else:
             video = str(fields.get("video") or "")
             if not video:
                 return "video path required"
-            argv = [
-                "video",
-                "--slug",
-                slug,
-                "--video",
-                video,
-                "--fps",
-                str(fields.get("fps") or "1"),
-                "--target-class-id",
-                str(fields.get("target_class_id") or "0"),
-            ]
+            argv = ["video", "--slug", slug, "--video", video, "--fps", str(fields.get("fps") or "1"),
+                    "--target-class-id", str(fields.get("target_class_id") or "0")]
         classes = str(fields.get("classes") or "")
         if classes:
             argv += ["--classes", classes]
         COLLECT_LOG.parent.mkdir(parents=True, exist_ok=True)
         logf = open(COLLECT_LOG, "a", encoding="utf-8")  # noqa: SIM115
         cmd = [_python_bin(), "-u", str(COLLECT_PY), "-c", str(DEFAULT_CONFIG)] + argv
-        proc = subprocess.Popen(
-            cmd,
-            cwd=str(ROOT),
-            stdout=logf,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
+        proc = subprocess.Popen(cmd, cwd=str(ROOT), stdout=logf, stderr=subprocess.STDOUT, start_new_session=True)
         time.sleep(0.3)
         return f"collector started pid={proc.pid}"
     if action == "dataset_upload":
@@ -264,11 +201,8 @@ def handle_action(action: str, payload: Dict[str, Any], ctx: Dict[str, Any]) -> 
         try:
             import dataset_collect as dc  # type: ignore
 
-            cfg = _load_json(DEFAULT_CONFIG)
-            r = dc.upload_zip(cfg, slug=slug, project_id=project_id)
-            if r.get("ok"):
-                return f"uploaded {r.get('imported')} images → project {project_id}"
-            return f"upload failed: {r}"
+            r = dc.upload_zip(_load_json(DEFAULT_CONFIG), slug=slug, project_id=project_id)
+            return f"uploaded {r.get('imported')} → project {project_id}" if r.get("ok") else f"upload failed: {r}"
         except Exception as e:  # noqa: BLE001
             return f"upload failed: {e}"
     if action == "save_loop":
@@ -279,8 +213,9 @@ def handle_action(action: str, payload: Dict[str, Any], ctx: Dict[str, Any]) -> 
             if key in fields and str(fields[key]).strip():
                 loop[key] = int(fields[key])
         cfg["loop"] = loop
-        tmp = DEFAULT_CONFIG.with_suffix(".json.tmp")
+        save = DEFAULT_CONFIG
+        tmp = save.with_suffix(".json.tmp")
         tmp.write_text(json.dumps(cfg, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        tmp.replace(DEFAULT_CONFIG)
+        tmp.replace(save)
         return f"saved loop {loop}"
     return f"unknown video action: {action}"

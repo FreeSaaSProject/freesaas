@@ -94,4 +94,8 @@ return [
     'laundry.type.tees' => 'Майки',
     'laundry.type.shorts' => 'Шорты',
     'laundry.type.curtains' => 'Шторы',
+    'laundry.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/laundry.ini).',
+    'laundry.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'laundry.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'laundry.setup.choice.open' => 'Открыть настройки',
 ];

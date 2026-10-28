@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "1.0.18",
+    "version": "1.0.19",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -84,6 +84,7 @@
             "/logout",
             "/modules",
             "/modules/{id}",
+            "/modules/{id}/activate",
             "/db",
             "/users",
             "/users/new",
@@ -112,6 +113,7 @@
             "/agent/modules",
             "/agent/modules/{id}",
             "/agent/modules/{id}/enable",
+            "/agent/modules/{id}/activate",
             "/agent/modules/{id}/install",
             "/agent/modules/{id}/uninstall",
             "/agent/modules/{id}/disable",
@@ -295,6 +297,22 @@
                             "type": "string",
                             "description": "Module id, e.g. banks"
                         }
+                    }
+                }
+            },
+            {
+                "id": "core.modules.activate",
+                "method": "GET",
+                "path": "/modules/{id}/activate",
+                "permission": "core.modules",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "read",
+                "description": "Activate wizard UI. Prefer platform GET /agent/modules/{id}/activate for JSON snapshot (enable/grant/setup.steps with recommended choices).",
+                "parameters": {
+                    "type": "object",
+                    "required": ["id"],
+                    "properties": {
+                        "id": {"type": "string"}
                     }
                 }
             },

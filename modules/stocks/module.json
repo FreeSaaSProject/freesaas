@@ -2,7 +2,7 @@
     "id": "stocks",
     "name": "stocks.module.name",
     "description": "stocks.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -123,5 +123,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "stocks.setup.step.ready",
+                "description": "stocks.setup.step.ready_help",
+                "href": "/stocks",
+                "ask_user": "stocks.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "stocks.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

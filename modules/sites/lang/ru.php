@@ -442,4 +442,8 @@ return [
     'sites.llms.shop_note' => 'услуги и цены',
     'sites.llms.cart' => 'Корзина и запись',
     'sites.llms.cart_note' => 'онлайн-запись для человека в браузере',
+    'sites.setup.step.hosts' => 'Настройте хосты витрины / MCP для модуля.',
+    'sites.setup.step.hosts_help' => 'Без хостов публичная поверхность неактивна.',
+    'sites.setup.ask.hosts' => 'Без хостов публичная поверхность неактивна.',
+    'sites.setup.choice.open' => 'Открыть хосты',
 ];

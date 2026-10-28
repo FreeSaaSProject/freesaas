@@ -5,12 +5,9 @@ return [
     'assistant_groups.module.name' => 'Assistant in groups',
     'assistant_groups.module.description' => 'Max groups: mention the bot → draft write → manager confirm with permission.',
     'assistant_groups.module.summary' => 'Enable when the assistant should work in a Max staff group. Needs bots + assistant, bot admin with read_all_messages and write, staff linked in base_bot_links.',
-
     'assistant_groups.menu.settings' => 'Assistant groups',
     'assistant_groups.menu.status' => 'Max groups status',
-
     'assistant_groups.cron.max_poll' => 'Max poll (dedicated group bot)',
-
     'assistant_groups.settings.title' => 'Assistant in Max groups',
     'assistant_groups.settings.lede' => 'Separate channel: bot mention in allowlisted chats, write drafts confirmed by a manager.',
     'assistant_groups.settings.sec.general' => 'Mode',
@@ -60,7 +57,6 @@ return [
     'assistant_groups.settings.unsubscribe' => 'Remove subscriptions',
     'assistant_groups.settings.subscribed' => 'Webhook subscribed: {url}',
     'assistant_groups.settings.unsubscribed' => 'Max subscriptions removed.',
-
     'assistant_groups.status.title' => 'Max groups status',
     'assistant_groups.status.lede' => 'Check token, bot rights in chats, and allowlist settings.',
     'assistant_groups.status.no_token' => 'No token (neither assistant_groups nor bots staff_max).',
@@ -71,19 +67,35 @@ return [
     'assistant_groups.status.chat_fail' => 'Chat {id}: error — {error}',
     'assistant_groups.status.back' => 'Back to settings',
     'assistant_groups.status.refresh' => 'Refresh',
-
     'assistant_groups.bot.need_link' => 'Link Max to your staff account first (private bot dialog / link code).',
     'assistant_groups.bot.empty_after_mention' => 'Write the task after the mention.',
     'assistant_groups.bot.working' => '{name} is preparing a draft…',
+    'assistant_groups.bot.problem_btn' => '❗ Problem',
+    'assistant_groups.bot.problem_filed' => 'Case filed ({id}). Draft cancelled — we will review separately.',
+    'assistant_groups.bot.problem_filed_fail' => 'Draft cancelled, but the case could not be saved. Ask again or tell an administrator.',
     'assistant_groups.bot.need_manager' => 'Only staff with permission “{perm}” can confirm. Press the button or write “@bot, confirm”.',
+    'assistant_groups.bot.blocked_footer' => 'Confirm is disabled while ⚠ remains. Pick an option button or Cancel / Problem. Permission: “{perm}”.',
+    'assistant_groups.bot.choice_applied' => 'Option {n}: {v}',
+    'assistant_groups.bot.choice_picked' => 'Chose option {n}: {v}',
+    'assistant_groups.bot.choice_missing' => 'That option is no longer available. Ask again.',
+    'assistant_groups.bot.resent_blocked' => 'Draft still open but cannot be confirmed (conflict):
+{summary}
+
+Propose another option or press Cancel / Problem.',
+    'assistant_groups.bot.plan_header_blocked' => 'Plan ({n} steps). Confirm disabled while conflict remains:',
     'assistant_groups.bot.no_permission' => 'You do not have rights. Only staff with permission “{perm}” can confirm.',
     'assistant_groups.bot.cap.PARTNER_STA' => 'partner / partner-candidate',
     'assistant_groups.bot.cap.SUPERADMIN_ACCESS' => 'superadmin',
     'assistant_groups.bot.confirmed' => '{name} confirmed. {done}',
     'assistant_groups.bot.no_pending' => 'No draft to confirm in this chat. To redo the same change, @mention the task again — a new draft with buttons will appear.',
+    'assistant_groups.bot.fake_draft' => 'No confirm draft was queued (buttons would appear only after a real write). Pick the option again or @mention the task — I will call the write tool and show Confirm.',
+    'assistant_groups.bot.system_soft_pick' => 'User selected option {n}: {label}. You MUST CALL the write tool(s) now to queue a real pending confirm with that plan. Never invent “Draft ready / press Confirm” text without a successful write-tool call. Do not ask again which option — execute the pick.',
     'assistant_groups.bot.system_live_pending' => 'This chat ALREADY has a live confirm draft ({op}): {summary}. Never claim it is applied. User agrees → CALL assistant_groups.pending.confirm. Cancel → CALL assistant_groups.pending.cancel. Different task → CALL write tools again (old draft is replaced).',
     'assistant_groups.bot.system_no_pending' => 'There is NO live confirm draft (cancelled or never created). Do not say «already queued» / «press Confirm». Agreement without a draft → CALL write tools first. pending.confirm with no draft returns an error.',
-    'assistant_groups.bot.resent_pending' => "Draft still waiting for confirm:\n{summary}\n\nPress Confirm or Cancel on the buttons below.",
+    'assistant_groups.bot.resent_pending' => 'Draft still waiting for confirm:
+{summary}
+
+Press Confirm or Cancel on the buttons below.',
     'assistant_groups.bot.no_ops' => 'Group command allowlist (group_ops) is empty in settings.',
     'assistant_groups.bot.dm_only' => 'I can only help with this in a private chat.',
     'assistant_groups.bot.cleared' => 'Group context cleared. Start a new task.',
@@ -92,11 +104,24 @@ return [
     'assistant_groups.tool.cancel' => 'Cancel the live draft in this chat without applying. Call on cancel / never mind / discard.',
     'assistant_groups.assistant.tool_title' => 'Group',
     'assistant_groups.assistant.area.dialog' => 'Dialog',
-    'assistant_groups.bot.system_extra' => "You are in a staff group. This chat’s history is one conversation: keep names, date, and intent.\nFollow-ups without a new @ continue the same task.\nWrite tools only queue a manager confirm; never claim it is already applied.\nUser agrees to apply the draft → CALL assistant_groups.pending.confirm (do not invent success).\nCancel the draft → CALL assistant_groups.pending.cancel.\nOutside tools — private chat only.\n«What can you do» — only tools in this request; do not list modules that are not in the tool list.\nClear/reset context requests → CALL assistant_groups.dialog.clear (do not refuse or ask to create a new chat).",
+    'assistant_groups.bot.system_extra' => 'You are in a staff group. This chat’s history is one conversation: keep names, date, and intent.
+Follow-ups without a new @ continue the same task.
+Write tools only queue a manager confirm; never claim it is already applied.
+Reassign/move → CALL write first (do not ask “option 1/2?” before a draft; the UI adds choice buttons).
+Do not list Cancel as a numbered option — Cancel is a separate button.
+User agrees to apply the draft → CALL assistant_groups.pending.confirm (do not invent success).
+Cancel the draft → CALL assistant_groups.pending.cancel.
+Outside tools — private chat only.
+«What can you do» — only tools in this request; do not list modules that are not in the tool list.
+Clear/reset context requests → CALL assistant_groups.dialog.clear (do not refuse or ask to create a new chat).',
     'assistant_groups.bot.system_speaker' => 'Speaker staff: user_id={id} ({name}). «на меня»/to me for procedures.set_admin → id_admin={id}. Other names/acronyms → core.users.list.',
     'assistant_groups.bot.system_chat_context' => 'Current chat: {title} (id {chat_id}). Group description: {description}. Use this group’s purpose when answering and choosing actions.',
     'assistant_groups.bot.system_chat_id' => 'Current Max chat id {chat_id} (no title/description in settings).',
     'assistant_groups.bot.plan_header' => 'Plan ({n} steps), one Confirm runs all:',
     'assistant_groups.bot.user_prefix' => '{name}: ',
     'assistant_groups.bot.reply_prefix' => '[reply to the previous assistant message] ',
+    'assistant_groups.setup.step.config' => 'Copy or fill module settings (cfg/modules/assistant_groups.ini).',
+    'assistant_groups.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'assistant_groups.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'assistant_groups.setup.choice.open' => 'Open settings',
 ];

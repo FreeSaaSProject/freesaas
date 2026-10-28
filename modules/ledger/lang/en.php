@@ -205,4 +205,8 @@ return [
     'ledger.assistant.preview.account' => 'Account: {v}',
     'ledger.assistant.preview.account_delete' => 'Delete account: {v}',
     'ledger.assistant.preview.type' => 'Type: {v}',
+    'ledger.setup.step.config' => 'Copy or fill module settings (cfg/modules/ledger.ini).',
+    'ledger.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'ledger.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'ledger.setup.choice.open' => 'Open settings',
 ];

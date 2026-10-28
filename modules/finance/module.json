@@ -2,7 +2,7 @@
     "id": "finance",
     "name": "finance.module.name",
     "description": "finance.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -65,5 +65,31 @@
             "assistant.system.hints"
         ],
         "publish": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "finance.setup.step.ready",
+                "description": "finance.setup.step.ready_help",
+                "href": "/finance",
+                "ask_user": "finance.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "finance.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

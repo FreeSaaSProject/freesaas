@@ -16,7 +16,6 @@ return [
     'docs.perm.manage' => 'Document templates (builder)',
     'docs.perm.sign' => 'Archive sign (QR)',
     'docs.confirm_delete' => 'Delete selected documents? Printed ones cannot be deleted — only voided.',
-
     'docs.kind.consent' => 'Consent / notice',
     'docs.kind.contract' => 'Contract',
     'docs.kind.check' => 'Check / blank',
@@ -54,7 +53,6 @@ return [
     'docs.orientation.landscape' => 'landscape',
     'docs.value.yes' => 'yes',
     'docs.value.no' => 'no',
-
     'docs.field.kind' => 'Kind',
     'docs.field.status' => 'Status',
     'docs.field.client' => 'Client',
@@ -62,11 +60,9 @@ return [
     'docs.field.def' => 'Document',
     'docs.field.dt_create' => 'Created',
     'docs.field.dt_print' => 'Printed',
-
     'docs.list.new' => 'Create',
     'docs.list.any' => 'Any',
     'docs.list.empty' => 'No documents',
-
     'docs.edit.title_new' => 'New: {name}',
     'docs.edit.title' => '{name} #{id}',
     'docs.edit.version' => 'template v{n}',
@@ -85,14 +81,12 @@ return [
     'docs.edit.revise' => 'New revision',
     'docs.edit.void' => 'Void',
     'docs.edit.void_confirm' => 'Void this document?',
-
     'docs.msg.voided' => 'Document voided',
     'docs.msg.accepted' => 'Value accepted',
     'docs.msg.rejected' => 'Proposal rejected',
     'docs.msg.segments_proposed' => 'Intervals proposed: {n}',
     'docs.msg.segments_none' => 'No recordings found in the visit window',
     'docs.msg.no_changes' => 'No changes',
-
     'docs.err.not_found' => 'Document #{id} not found',
     'docs.err.no_medical' => 'No access to medical cards',
     'docs.err.no_version' => 'Template {code} has no version',
@@ -108,21 +102,17 @@ return [
     'docs.err.proposal_not_found' => 'Proposal not found or already decided',
     'docs.err.proposal_mismatch' => 'Proposal does not belong to this document',
     'docs.err.proposal_field' => 'Field {id} is not in the document template',
-
     'docs.proposals.title' => 'Autofill proposals ({n})',
     'docs.proposals.current' => 'Now',
     'docs.proposals.proposed' => 'Proposed',
     'docs.proposals.accept' => 'Accept',
     'docs.proposals.reject' => 'Reject',
-
     'docs.segments.note' => 'Comment',
     'docs.segments.remove' => 'Remove',
     'docs.segments.add' => 'Add interval',
-
     'docs.client.dossier' => 'Print medical card',
     'docs.client.profile' => 'Medical card (profile)',
     'docs.client.docs' => 'Documents: {n}',
-
     'docs.print.qr_caption' => 'Document #{id} — archive check',
     'docs.print.dossier_profile' => 'Anamnesis and objective status',
     'docs.print.dossier_visit' => 'Visit {date}',
@@ -137,7 +127,6 @@ return [
     'docs.print.frozen' => 'Frozen {date}',
     'docs.print.freeze' => 'Freeze and print',
     'docs.print.preview_hint' => 'Preview. After freezing the document cannot be changed.',
-
     'docs.qr.not_found' => 'Document not found in the archive',
     'docs.qr.signed_ok' => 'Document signed in the archive',
     'docs.qr.title' => 'Document check',
@@ -149,7 +138,6 @@ return [
     'docs.qr.not_signed' => 'not signed',
     'docs.qr.sign' => 'Sign as archivist',
     'docs.qr.open' => 'Open document',
-
     'docs.defs.new' => 'New template',
     'docs.defs.empty' => 'No templates',
     'docs.def.title' => 'Template: {name}',
@@ -181,7 +169,8 @@ return [
     'docs.def.f_label' => 'Label',
     'docs.def.f_type' => 'Type',
     'docs.def.f_options' => 'Options (value=label, one per line)',
-    'docs.def.f_options_ph' => "a=Option A\nb=Option B",
+    'docs.def.f_options_ph' => 'a=Option A
+b=Option B',
     'docs.def.f_add' => 'Add field',
     'docs.def.schema_json' => 'Schema JSON',
     'docs.def.sec_template' => 'Print template',
@@ -202,12 +191,10 @@ return [
     'docs.def.err.code_taken' => 'Code {code} is already used',
     'docs.def.err.kind' => 'Unknown document kind',
     'docs.def.err.name' => 'Name is required',
-
     'docs.settings.sec_qr' => 'QR archive',
     'docs.settings.qr_archive' => 'Print an archive QR code on documents',
     'docs.settings.qr_hint' => 'The QR opens a check page (no personal data); staff with the sign permission mark the document in the archive. When off, no QR is printed and the check page is unavailable.',
     'docs.settings.qr_no_lib' => 'QR library not found (shipped with the stickers module) — no code will be printed.',
-
     'docs.event.sec' => 'Documents',
     'docs.event.medcard_blocking' => 'The medical visit sheet is not filled — documents with that condition will not print.',
     'docs.event.empty' => 'No documents for this visit',
@@ -215,11 +202,9 @@ return [
     'docs.procedure.sec' => 'Medical visit sheet',
     'docs.procedure.create' => 'Create visit sheet',
     'docs.procedure.empty' => 'No visit sheet',
-
     'docs.def.export' => 'Download file',
     'docs.def.gender_f' => 'female',
     'docs.def.gender_m' => 'male',
-
     'docs.import.title' => 'Import templates',
     'docs.import.library' => 'Template library',
     'docs.import.library_hint' => 'Ready templates ship as files in the module and reach the DB only when imported. The previous company requisites are replaced with {org.*} placeholders — fill them in documents settings.',
@@ -242,7 +227,6 @@ return [
     'docs.import.err.file' => 'Choose a template file (up to 5 MB)',
     'docs.import.err.format' => 'The file is not a FreeSaaS document template',
     'docs.import.err.nothing' => 'No templates selected',
-
     'docs.sample.open' => 'Sample',
     'docs.sample.title' => 'Sample: {name}',
     'docs.sample.hint' => 'Sample with demo data — nothing is stored. Requisites come from settings; empty ones are examples.',
@@ -288,7 +272,6 @@ return [
     'docs.sample.org.corr_account' => '30101810000000000000',
     'docs.sample.org.bik' => '044500000',
     'docs.sample.org.signature' => '/path/to/signature.png',
-
     'docs.settings.sec_org' => 'Organization requisites',
     'docs.settings.org_hint' => 'Filled into templates as {org.*}. Imported templates use them instead of the previous company data.',
     'docs.org.name' => 'Full legal name',
@@ -319,7 +302,6 @@ return [
     'docs.org.corr_account' => 'Correspondent account',
     'docs.org.bik' => 'BIK',
     'docs.org.signature' => 'Signature facsimile (image URL)',
-
     'docs.seed.name.medcard_profile' => 'Medical card: anamnesis',
     'docs.seed.name.medcard_visit' => 'Visit sheet',
     'docs.seed.name.medcard_dossier' => 'Medical card',
@@ -534,4 +516,8 @@ return [
     'docs.seed.tpl.consent_body' => 'The goals, methods, possible risks and alternatives have been explained to me; I could ask questions and received answers.',
     'docs.seed.tpl.sign_client' => 'Patient signature',
     'docs.seed.tpl.valid_until' => 'Valid until',
+    'docs.setup.step.config' => 'Copy or fill module settings (cfg/modules/docs.ini).',
+    'docs.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'docs.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'docs.setup.choice.open' => 'Open settings',
 ];

@@ -28,13 +28,18 @@ def save_json(path: Path, data: Dict[str, Any]) -> None:
 
 
 def default_host() -> Dict[str, Any]:
+    from .notify import default_notify_dict
+
     return {
         "enabled_plugins": ["video", "whisper"],
+        "locale": "ru",
         "dashboard": {"host": "127.0.0.1", "port": 8766},
+        "autostart": {"enabled": False, "label": "ru.freesaas.workers"},
         "shared": {
             "server": "https://freesaas.example.tld",
             "tls": {"verify": True, "ca_bundle": ""},
         },
+        "notify": default_notify_dict(),
     }
 
 
@@ -53,6 +58,11 @@ def load_host(path: Optional[Path] = None) -> Dict[str, Any]:
     }
     if not isinstance(data.get("shared"), dict):
         data["shared"] = deepcopy(default_host()["shared"])
+    # Do not inject default notify{} here — empty means legacy whisper max{} can still apply.
+    if "notify" in data and not isinstance(data.get("notify"), dict):
+        data.pop("notify", None)
+    loc = str(data.get("locale") or "ru").strip().lower()
+    data["locale"] = "en" if loc.startswith("en") else "ru"
     return data
 
 

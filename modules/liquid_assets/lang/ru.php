@@ -9,7 +9,6 @@ return [
     'liquid_assets.menu.accounts' => 'T-Invest счета',
     'liquid_assets.perm.view' => 'Ликвидные активы (просмотр)',
     'liquid_assets.perm.edit' => 'Ликвидные активы (редактирование)',
-
     'liquid_assets.report.title' => 'Ликвидные активы',
     'liquid_assets.report.prev' => '← пред.',
     'liquid_assets.report.next' => 'след. →',
@@ -97,7 +96,6 @@ return [
     'liquid_assets.report.month.10' => 'октябрь',
     'liquid_assets.report.month.11' => 'ноябрь',
     'liquid_assets.report.month.12' => 'декабрь',
-
     'liquid_assets.sync.past_only' => 'Актуализация доступна только для текущего месяца: T-Invest API не отдаёт состав портфеля на прошлую дату.',
     'liquid_assets.sync.no_rows' => 'Нет строк в T-Invest счетах.',
     'liquid_assets.sync.snapshots' => 'Снимки портфеля',
@@ -109,7 +107,6 @@ return [
     'liquid_assets.sync.has_reval' => 'есть переоценка за месяц #{id}',
     'liquid_assets.sync.no_reval' => 'новой переоценки за месяц ещё нет',
     'liquid_assets.sync.funds_off' => 'Модуль funds выключен — переоценка фонда недоступна.',
-
     'liquid_assets.accounts.title' => 'T-Invest счета',
     'liquid_assets.accounts.add' => 'Добавить T-Invest счёт',
     'liquid_assets.accounts.to_report' => 'Отчёт: ликвидные активы',
@@ -132,4 +129,8 @@ return [
     'liquid_assets.accounts.err.not_found' => 'T-Invest счёт #{id} не найден',
     'liquid_assets.err.forbidden' => 'Нет доступа',
     'liquid_assets.perm.delete' => 'Удаление брокерских счетов',
+    'liquid_assets.setup.step.ready' => 'После включения модуль готов к работе.',
+    'liquid_assets.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'liquid_assets.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'liquid_assets.setup.choice.open' => 'Открыть модуль',
 ];

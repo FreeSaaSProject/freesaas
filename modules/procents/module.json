@@ -2,7 +2,7 @@
     "id": "procents",
     "name": "procents.module.name",
     "description": "procents.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -80,5 +80,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "procents.setup.step.ready",
+                "description": "procents.setup.step.ready_help",
+                "href": "/procents",
+                "ask_user": "procents.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "procents.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

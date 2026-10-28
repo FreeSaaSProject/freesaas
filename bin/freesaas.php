@@ -111,6 +111,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   rescue --login=… --password=… [--name=…] [--clear-setup-key] [--no-migrate] [--format=json]
   module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
   module inspect|install|uninstall --confirm|enable [--accept-risk]|disable|validate|bump|create|add-migration …
+  module activate <id> [--action=enable|grant|setup_step|…] [--accept-risk] [--access=view|full] …
+  module pin-effective   pin absent [modules] keys to =1 (upgrade helper)
   module create <id> [--title=…]
   module add-migration <id> <slug>
   module bump <id> [--patch|--minor|--major|--set=x.y.z]
@@ -668,6 +670,34 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
         }
         $acceptRisk = !empty($opts['accept-risk']) || !empty($opts['accept_risk']);
         freesaas_emit_ops(AgentOps::moduleSetEnabled($id, $sub === 'enable', $acceptRisk));
+    }
+    if ($sub === 'activate') {
+        $id = $args[2] ?? '';
+        if ($id === '') {
+            Cli::usage('Usage: module activate <id> [--action=enable|grant|setup_step|setup_defer_all|leave_disabled|finish] [--accept-risk] [--access=view|full] [--status-ids=1,2] [--user-ids=1] [--step-id=…] [--choice=…]');
+        }
+        $action = isset($opts['action']) ? trim((string)$opts['action']) : '';
+        if ($action === '') {
+            freesaas_emit_ops(AgentOps::moduleActivateSnapshot($id));
+        }
+        $payload = [
+            'accept_risk' => !empty($opts['accept-risk']) || !empty($opts['accept_risk']),
+            'access' => isset($opts['access']) ? (string)$opts['access'] : 'full',
+            'step_id' => isset($opts['step-id']) ? (string)$opts['step-id'] : (isset($opts['step_id']) ? (string)$opts['step_id'] : ''),
+            'choice' => isset($opts['choice']) ? (string)$opts['choice'] : 'defer',
+        ];
+        if (isset($opts['status-ids']) || isset($opts['status_ids'])) {
+            $raw = (string)($opts['status-ids'] ?? $opts['status_ids'] ?? '');
+            $payload['status_ids'] = array_values(array_filter(array_map('intval', preg_split('/[\s,;]+/', $raw) ?: [])));
+        }
+        if (isset($opts['user-ids']) || isset($opts['user_ids'])) {
+            $raw = (string)($opts['user-ids'] ?? $opts['user_ids'] ?? '');
+            $payload['user_ids'] = array_values(array_filter(array_map('intval', preg_split('/[\s,;]+/', $raw) ?: [])));
+        }
+        freesaas_emit_ops(AgentOps::moduleActivateApply($id, $action, $payload));
+    }
+    if ($sub === 'pin-effective') {
+        freesaas_emit_ops(AgentOps::modulePinEffective());
     }
     if ($sub === 'validate') {
         $id = $args[2] ?? '';

@@ -19,14 +19,17 @@ php bin/freesaas.php module add-migration equipment add_serial --format=json   #
 Or clone [`modules/units/`](../../modules/units/) by hand for a richer CRUD dictionary.
 
 3. **Edit generated files**
-   - `module.json` — adjust `catalog`, `requires`, `permissions`, `menu`, `tables`, `hooks` (dotted EventBus names only), `agent.ops` ([module-agent-api.md](module-agent-api.md)). Until hardened, prefer `maturity: beta` (enable requires risk ack for alpha/beta).
+   - `module.json` — adjust `catalog`, `requires`, `permissions`, `menu`, `tables`, `hooks` (dotted EventBus names only), `agent.ops` ([module-agent-api.md](module-agent-api.md)), and **`setup.steps`** (first-run checklist; may be `[]` for pure dictionaries). Until hardened, prefer `maturity: beta` (activate requires risk ack for alpha/beta).
+   - Scaffold pins `[modules] <id>=0` (absent keys are disabled).
    - After adding a new product module to the monorepo, regenerate the remote install index: `php bin/build-modules-catalog.php` (commit `modules-catalog.json`). Instances with UpdateEngine configured will show it under **Modules → Available to install**.
-   - `lang/ru.php` + `lang/en.php` — keep `{id}.module.description` and `{id}.module.summary`
+   - `lang/ru.php` + `lang/en.php` — keep `{id}.module.description`, `{id}.module.summary`, and `{id}.setup.*` keys used by `setup.steps`
    - `bootstrap.php` / `lib/*Repository.php` / `pages/` / `views/` / migrations
-4. **Enable**
+4. **Activate** (UI `/modules/{id}/activate` or agent snapshot/apply — not a blind enable)
 
 ```bash
-php bin/freesaas.php module enable <id> --format=json
+php bin/freesaas.php module activate <id> --format=json
+php bin/freesaas.php module activate <id> --action=enable --accept-risk --format=json
+# then grant / setup_step with recommended choices from the snapshot
 ```
 
 5. **Accept**

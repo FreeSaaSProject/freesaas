@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.14",
+    "version": "1.0.15",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -405,5 +405,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "audio_dicts.setup.step.ready",
+                "description": "audio_dicts.setup.step.ready_help",
+                "href": "/audio_dicts",
+                "ask_user": "audio_dicts.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "audio_dicts.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

@@ -5,23 +5,18 @@ return [
     'bi.module.name' => 'BI reports',
     'bi.module.description' => 'JSON-recipe operational BI reports with live share links',
     'bi.module.summary' => 'JSON-recipe BI engine with shares. Datasets, domain derive steps and shipped recipes are contributed by enabled product modules via EventBus.',
-
     'bi.perm.manage' => 'Manage BI reports and share links',
-
     'bi.menu.group' => 'BI',
     'bi.menu.list' => 'Reports',
     'bi.menu.shares' => 'Share links',
-
     'bi.ready.need_workweeks' => 'Need base_workweeks and base_users (enable workweeks).',
     'bi.ready.need_conversion' => 'Need procedures, fullstats, workweeks (procedures, terminals, workweeks).',
     'bi.ready.need_procedures' => 'Need base_procedures (enable procedures).',
-
     'bi.empty.table' => 'No columns',
     'bi.empty.rows' => 'No rows',
     'bi.empty.families' => 'No report families registered.',
     'bi.empty.shares' => 'No share links yet.',
     'bi.empty.shared' => 'No reports have been shared with you yet.',
-
     'bi.index.lede' => 'Report families: open by title, edit in the constructor, or create a time-limited share link.',
     'bi.index.shared_lede' => 'Reports shared with you. Open by title; you can change the period.',
     'bi.index.ready' => 'Ready',
@@ -30,7 +25,6 @@ return [
     'bi.index.edit' => 'Edit',
     'bi.index.new_family' => 'New report',
     'bi.index.shares' => 'Share links',
-
     'bi.family.lede' => 'JSON recipe. Titles, column labels and notes are plain text in the recipe (not i18n). text sections = plain text (no HTML/scripts). Expr badge(user_id) = colored staff acronym; acronym = plain shortName.',
     'bi.family.new_title' => 'New BI family',
     'bi.family.edit_title' => 'Edit BI family',
@@ -59,7 +53,6 @@ return [
     'bi.family.err.save' => 'Could not save family.',
     'bi.family.err.builtin_id' => 'This id is reserved.',
     'bi.family.err.id_taken' => 'This family id already exists.',
-
     'bi.run.title' => 'Run report',
     'bi.run.year' => 'Year',
     'bi.run.month' => 'Month',
@@ -91,7 +84,6 @@ return [
     'bi.month.10' => 'October',
     'bi.month.11' => 'November',
     'bi.month.12' => 'December',
-
     'bi.shares.title' => 'Report share links',
     'bi.shares.lede' => 'Live family access. Recipient can change period. Guest = no login; staff = logged-in staff (people and/or roles). Superadmin can open any staff link.',
     'bi.shares.create' => 'Create link',
@@ -130,7 +122,6 @@ return [
     'bi.shares.accept_partial_filters' => 'Allow create when locked filters cover only some datasets',
     'bi.shares.warn.partial_filters' => 'Warning: some queries ignore locked filters — not a full access boundary.',
     'bi.shares.hint.filters' => 'Optional locked filters (id_operator / id_admin / id_good) via agent JSON. Only datasets that support them are constrained.',
-
     'bi.share.expires' => 'Link valid until',
     'bi.share.expired_title' => 'Link expired or revoked',
     'bi.share.expired_body' => 'This link no longer works. Ask a director for a new one.',
@@ -139,19 +130,20 @@ return [
     'bi.share.forbidden' => 'Your account cannot open this link',
     'bi.share.rate_limit' => 'Too many runs. Wait a minute.',
     'bi.share.run' => 'Refresh report',
-
     'bi.err.unknown_family' => 'Unknown report family.',
     'bi.err.not_ready' => 'Family is unavailable on this instance.',
     'bi.err.forbidden' => 'Forbidden',
     'bi.err.run' => 'Report error.',
-
     'bi.cron.expire' => 'Expire BI share links',
     'bi.perm.delete' => 'Delete BI families',
     'bi.assistant.hint' => 'BI reports: CALL bi.families.list; link only open_url values (/bi/run?family=…).',
     'bi.assistant.hint_no_shares' => 'The share-admin page (/bi/shares) is not a report link — do not offer it to staff.',
-
     'bi.recipe.demo_counts' => 'Demo counters',
     'bi.recipe.staff_kpi' => 'Staff metrics',
     'bi.recipe.masseur_shifts' => 'Specialist shifts',
     'bi.recipe.audio_desk_month' => 'Audio desk (month)',
+    'bi.setup.step.ready' => 'Module is ready after enable.',
+    'bi.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'bi.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'bi.setup.choice.open' => 'Open module',
 ];

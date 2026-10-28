@@ -124,7 +124,6 @@ return [
     'payments.err.descr_required' => 'Укажите описание',
     'payments.err.forbidden' => 'Недостаточно прав для просмотра чужих платежей',
     'payments.err.delete_linked' => 'Удаление запрещено: есть движения по счетам',
-
     'payments.alloc.title' => 'Взаиморасчёты (привязка к ДПС)',
     'payments.alloc.hint' => 'Можно привязать несколько висящих списаний к одному ДПС (например реестр зарплаты). Создание ДПС из карточки платежа по-прежнему доступно.',
     'payments.alloc.move_sum' => 'Сумма ДПС',
@@ -151,14 +150,12 @@ return [
     'payments.contract.paid' => 'Оплачен',
     'payments.module.description' => 'Взаиморасчёты сотрудников (base_payments); CTA оплаты контрактов; авто-ДПС с ledger.',
     'payments.module.summary' => 'Включайте для выплат специалистам и документов расчётов. Мягко — ledger (авто-ДПС), spa instance pack, procents (авто % МЕСЯЦ или поденные начисления). С contracts — CTA оплаты.',
-
     'payments.bot.day_pay.unavailable' => 'Возможность запроса финансов недоступна — обратитесь к директору.',
     'payments.bot.day_pay.after_shift' => 'Возможность назначить вывод суммы появится сегодня после смены.',
     'payments.bot.day_pay.only_daily' => 'Доступно только сотрудникам с поденным расчётом зарплаты.',
     'payments.bot.day_pay.pending_exists' => 'Уже есть незакрытый запрос на выдачу.',
     'payments.bot.day_pay.busy' => 'Другая операция с выплатой уже выполняется — повторите через секунду.',
     'payments.bot.day_pay.lock_failed' => 'Не удалось заблокировать строку выплаты — повторите. Для выдач нужен InnoDB.',
-
     'payments.bot.day_pay.low_balance' => 'Недостаточный баланс для запроса (нужно не меньше 100 ₽).',
     'payments.bot.day_pay.bad_date' => 'Выбранная дата недоступна.',
     'payments.bot.day_pay.bad_issuer' => 'Выбранный кассир недоступен на эту дату.',
@@ -199,4 +196,8 @@ return [
     'payments.assistant.preview.dir_in' => 'начисление',
     'payments.assistant.preview.dir_out' => 'списание',
     'payments.assistant.hint_fot' => '«ФОТ» = фонд оплаты труда / зарплата (tool payments.*), никогда не «фото».',
+    'payments.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/payments.ini).',
+    'payments.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'payments.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'payments.setup.choice.open' => 'Открыть настройки',
 ];

@@ -486,4 +486,8 @@ return [
     'audio_reports.module.summary' => 'Включайте для календаря прослушивания и сводок. Требует audio + audio_dicts + workweeks. Мягко procedures/pipeline. Мягко — spa instance pack и staff_reports.',
     'audio_reports.perm.delete' => 'Удаление коллекций',
     'audio_reports.perm.summaries_delete' => 'Удаление профилей сводок',
+    'audio_reports.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/audio_reports.ini).',
+    'audio_reports.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'audio_reports.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'audio_reports.setup.choice.open' => 'Открыть настройки',
 ];

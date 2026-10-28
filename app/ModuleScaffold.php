@@ -121,6 +121,9 @@ final class ModuleScaffold
                 ],
             ],
             'configSchema' => [],
+            'setup' => [
+                'steps' => [],
+            ],
             'tables' => [$table],
             'migrators' => [],
             'hooks' => ['subscribe' => [], 'publish' => []],
@@ -149,14 +152,21 @@ final class ModuleScaffold
             self::migrationCreatePhp($table)
         );
 
+        try {
+            Config::setModuleEnabled($id, false);
+        } catch (Throwable $e) {
+            // Config may be unavailable in odd CLI contexts; discover still treats absent as off.
+        }
+
         return [
             'ok' => true,
             'id' => $id,
             'path' => 'modules/' . $id,
             'files' => $files,
             'http' => 200,
+            'enabled' => false,
             'next' => [
-                'php bin/freesaas.php module enable ' . $id . ' --accept-risk --format=json',
+                'php bin/freesaas.php module activate ' . $id . ' --format=json',
                 'php bin/freesaas.php module validate ' . $id . ' --format=json',
                 'php bin/freesaas.php health --module=' . $id . ' --format=json',
                 'php bin/build-modules-catalog.php  # if shipping in monorepo',

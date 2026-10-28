@@ -1,8 +1,13 @@
 {
   "enabled_plugins": ["video", "whisper"],
+  "locale": "ru",
   "dashboard": {
     "host": "127.0.0.1",
     "port": 8766
+  },
+  "autostart": {
+    "enabled": false,
+    "label": "ru.freesaas.workers"
   },
   "shared": {
     "server": "https://freesaas.example.tld",
@@ -11,5 +16,26 @@
       "ca_bundle": ""
     }
   },
-  "comment": "Copy to host.local.json (gitignored). Secrets stay in plugins/<id>/configs/local.json."
+  "notify": {
+    "enabled": false,
+    "edit_last": true,
+    "events": {
+      "whisper_down": true,
+      "recognition_summary": true,
+      "novad_fallback": true
+    },
+    "channels": {
+      "max": {
+        "enabled": false,
+        "token": "",
+        "chat_id": ""
+      },
+      "telegram": {
+        "enabled": false,
+        "bot_token": "",
+        "chat_id": ""
+      }
+    }
+  },
+  "comment": "Copy to host.local.json. Set locale (ru|en) to match FreeSaaS instance. ASR language is plugins/whisper/configs/local.json → whisper.form_params.language. Ops alerts: notify (Max and/or Telegram) — editable from dashboard; off by default."
 }

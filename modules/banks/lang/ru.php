@@ -11,7 +11,6 @@ return [
     'banks.perm.view' => 'Просмотр банковских подключений',
     'banks.perm.connect' => 'Подключение банков (OAuth)',
     'banks.perm.sync' => 'Синхронизация выписок',
-
     'banks.list.title' => 'Банковские подключения',
     'banks.list.empty' => 'Нет подключений. Сначала настройте банк, затем нажмите «Подключить».',
     'banks.list.connect' => 'Подключить',
@@ -44,7 +43,6 @@ return [
     'banks.list.role_linked_only' => 'привязано, sync выкл.',
     'banks.list.role_idle' => 'нет привязок к ledger',
     'banks.list.syncing_n' => 'счетов: {n}',
-
     'banks.settings.title' => 'Настройки банков',
     'banks.settings.lede' => 'Ключи пишутся в cfg/modules/banks.ini. Пустой секрет при сохранении не затирает текущий.',
     'banks.settings.tabs_aria' => 'Разделы настроек банков',
@@ -140,7 +138,6 @@ return [
     'banks.settings.status_ready_connected' => 'ключи есть · подключено',
     'banks.settings.status_keys_only' => 'ключи есть · не подключено',
     'banks.settings.status_connected_no_keys' => 'подключено · ключи OAuth пусты (refresh потребует ключи)',
-
     'banks.portal.where' => 'Где взять:',
     'banks.portal.tochka_oauth_new' => 'Точка: зарегистрировать OAuth-приложение',
     'banks.portal.tochka_oauth_list' => 'Точка: мои OAuth-приложения',
@@ -154,7 +151,6 @@ return [
     'banks.portal.sber_api' => 'Sber API',
     'banks.portal.sber_oauth' => 'OAuth СберБизнес ID',
     'banks.portal.sber_id' => 'Сбер ID',
-
     'banks.provider.tochka' => 'Точка',
     'banks.provider.alfa_ul' => 'Альфа (ЮЛ)',
     'banks.provider.alfa_fl' => 'Альфа (ФЛ)',
@@ -164,12 +160,10 @@ return [
     'banks.provider.tbank_fl' => 'Т-Банк (ФЛ)',
     'banks.provider.sber_ul' => 'Сбер (ЮЛ)',
     'banks.provider.sber_fl' => 'Сбер (ФЛ)',
-
     'banks.status.pending' => 'Ожидает',
     'banks.status.active' => 'Активно',
     'banks.status.error' => 'Ошибка',
     'banks.status.revoked' => 'Отозвано',
-
     'banks.int.alfa_heading' => 'Альфа ЮЛ — интеграции',
     'banks.int.alfa_lede' => 'Песочница и прод — раздельно: у каждой свои ключи и mTLS. Сначала probe scopes в sandbox — Альфа открывает их на проде только после успешного вызова в песке.',
     'banks.int.title' => 'Интеграция: {label}',
@@ -187,7 +181,6 @@ return [
     'banks.int.connections' => 'Подключения этой интеграции',
     'banks.int.no_connections' => 'Пока нет подключений — нажмите Connect.',
     'banks.int.deleted' => 'Интеграция удалена',
-
     'banks.conn.title' => 'Подключение',
     'banks.conn.sync_model' => 'Кнопка «Синхронизировать» на этой странице тянет только счета этого подключения. Cron — все подключения с sync-enabled привязками. Сертификаты и ключи в ini общие и при удалении подключения не трогаются.',
     'banks.conn.siblings' => 'У этого банка уже {n} подключений — смотрите нужный ID в списке; удаление одного не удаляет остальные.',
@@ -220,10 +213,8 @@ return [
     'banks.sync.no_ledger_link' => 'Счета банка есть ({n}), но не привязаны к ledger — привяжите счёт, затем синхронизируйте снова.',
     'banks.sync.sync_disabled' => 'У {n} счёт(ов) выключена синхронизация.',
     'banks.sync.nothing_to_sync' => 'Нечего синхронизировать.',
-
     'banks.err.provider' => 'Неизвестный провайдер',
     'banks.err.not_configured' => 'Провайдер не настроен — откройте мастер настройки',
-
     'banks.setup.title' => 'Настройка: {bank}',
     'banks.setup.lede' => 'Идите по шагам. Пропускайте только то, что точно не нужно. Перед Connect внесите IP сервера в белый список банка.',
     'banks.setup.tabs_aria' => 'Шаги настройки',
@@ -291,11 +282,13 @@ return [
     'banks.err.sync' => 'Ошибка синхронизации',
     'banks.err.no_default_type' => 'Не задан banks.default_move_type_id',
     'banks.err.ledger_account' => 'Счёт ledger не найден',
-
     'banks.badge.bank' => 'Банк',
     'banks.badge.provider' => '{name}',
     'banks.badge.unclassified' => 'Не разобрано',
-
     'banks.oauth.callback_ok' => 'Банк подключён',
     'banks.oauth.callback_fail' => 'Не удалось подключить банк',
+    'banks.setup.step.wizard' => 'Пройдите мастер настройки модуля.',
+    'banks.setup.step.wizard_help' => 'Мастер нужен, чтобы подключить сервис и начать работу.',
+    'banks.setup.ask.wizard' => 'Мастер нужен, чтобы подключить сервис и начать работу.',
+    'banks.setup.choice.open' => 'Открыть мастер',
 ];

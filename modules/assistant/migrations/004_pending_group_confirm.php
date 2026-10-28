@@ -21,7 +21,7 @@ return static function (PDO $pdo): void {
         }
         $pdo->exec('ALTER TABLE base_assistant_pending ADD COLUMN `' . $col . '` ' . $ddl);
     }
-    // Helpful lookup for «@бот, подтверждаю» in a group.
+    // Helpful lookup for "@bot, confirm" style phrases in a group.
     $idx = $pdo->query(
         "SELECT COUNT(*) FROM information_schema.STATISTICS
          WHERE TABLE_SCHEMA = DATABASE()

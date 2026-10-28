@@ -2,7 +2,7 @@
     "id": "catalog",
     "name": "catalog.module.name",
     "description": "catalog.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -164,5 +164,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "catalog.setup.step.ready",
+                "description": "catalog.setup.step.ready_help",
+                "href": "/catalog",
+                "ask_user": "catalog.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "catalog.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

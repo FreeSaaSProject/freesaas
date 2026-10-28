@@ -2,7 +2,7 @@
     "id": "docs",
     "name": "docs.module.name",
     "description": "docs.module.description",
-    "version": "0.2.4",
+    "version": "0.2.5",
     "type": "product",
     "runtime": "admin",
     "requires": {
@@ -140,17 +140,66 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "code": {"type": "string", "description": "Latin code [a-z0-9_-], unique"},
-                        "name": {"type": "string"},
-                        "kind": {"type": "string", "enum": ["consent", "contract", "check", "medcard_profile", "medcard_visit", "medcard_dossier"]},
-                        "scope": {"type": "string", "enum": ["client", "event"]},
-                        "trigger_mode": {"type": "string", "enum": ["manual", "every", "medical", "non_medical", "types", "procs"]},
-                        "expire_days": {"type": "integer"},
-                        "enabled": {"type": "integer", "enum": [0, 1]},
-                        "schema_json": {"type": "object", "description": "{\"sections\":[{\"id\",\"title\",\"fields\":[{\"id\",\"type\",\"label\",\"required\",\"index\"}]}]}"},
-                        "print_html": {"type": "string", "description": "HTML with {placeholders}, e.g. {client.name} {fields} {org.name} {qr} {g:female|male|}"}
+                        "code": {
+                            "type": "string",
+                            "description": "Latin code [a-z0-9_-], unique"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "kind": {
+                            "type": "string",
+                            "enum": [
+                                "consent",
+                                "contract",
+                                "check",
+                                "medcard_profile",
+                                "medcard_visit",
+                                "medcard_dossier"
+                            ]
+                        },
+                        "scope": {
+                            "type": "string",
+                            "enum": [
+                                "client",
+                                "event"
+                            ]
+                        },
+                        "trigger_mode": {
+                            "type": "string",
+                            "enum": [
+                                "manual",
+                                "every",
+                                "medical",
+                                "non_medical",
+                                "types",
+                                "procs"
+                            ]
+                        },
+                        "expire_days": {
+                            "type": "integer"
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        },
+                        "schema_json": {
+                            "type": "object",
+                            "description": "{\"sections\":[{\"id\",\"title\",\"fields\":[{\"id\",\"type\",\"label\",\"required\",\"index\"}]}]}"
+                        },
+                        "print_html": {
+                            "type": "string",
+                            "description": "HTML with {placeholders}, e.g. {client.name} {fields} {org.name} {qr} {g:female|male|}"
+                        }
                     },
-                    "required": ["code", "name", "kind"],
+                    "required": [
+                        "code",
+                        "name",
+                        "kind"
+                    ],
                     "additionalProperties": true
                 }
             },
@@ -164,16 +213,60 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "name": {"type": "string"},
-                        "enabled": {"type": "integer", "enum": [0, 1]},
-                        "trigger_mode": {"type": "string", "enum": ["manual", "every", "medical", "non_medical", "types", "procs"]},
-                        "expire_days": {"type": "integer"},
-                        "require_medcard": {"type": "integer", "enum": [0, 1]},
-                        "schema_json": {"type": "object"},
-                        "print_html": {"type": "string"},
-                        "orientation": {"type": "string", "enum": ["portrait", "landscape"]},
-                        "format": {"type": "string", "enum": ["A4", "A5"]},
-                        "copies": {"type": "integer"}
+                        "name": {
+                            "type": "string"
+                        },
+                        "enabled": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        },
+                        "trigger_mode": {
+                            "type": "string",
+                            "enum": [
+                                "manual",
+                                "every",
+                                "medical",
+                                "non_medical",
+                                "types",
+                                "procs"
+                            ]
+                        },
+                        "expire_days": {
+                            "type": "integer"
+                        },
+                        "require_medcard": {
+                            "type": "integer",
+                            "enum": [
+                                0,
+                                1
+                            ]
+                        },
+                        "schema_json": {
+                            "type": "object"
+                        },
+                        "print_html": {
+                            "type": "string"
+                        },
+                        "orientation": {
+                            "type": "string",
+                            "enum": [
+                                "portrait",
+                                "landscape"
+                            ]
+                        },
+                        "format": {
+                            "type": "string",
+                            "enum": [
+                                "A4",
+                                "A5"
+                            ]
+                        },
+                        "copies": {
+                            "type": "integer"
+                        }
                     },
                     "additionalProperties": true
                 }
@@ -297,5 +390,29 @@
     },
     "uninstall": {
         "strategy": "drop_owned"
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "docs.setup.step.config",
+                "description": "docs.setup.step.config_help",
+                "href": "/docs/settings",
+                "ask_user": "docs.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "docs.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

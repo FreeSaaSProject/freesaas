@@ -267,6 +267,29 @@ function agent_api_dispatch(string $path, string $method, string $id): array
                 || !empty($body['accept_risk']);
             return AgentOps::moduleSetEnabled($id, true, (bool)$accept);
         }
+        if ($path === '/agent/modules/' . $id . '/activate') {
+            if ($method === 'GET') {
+                return AgentOps::moduleActivateSnapshot($id);
+            }
+            if ($method === 'POST') {
+                $body = agent_api_json_body();
+                $action = trim((string)($body['action'] ?? $_POST['action'] ?? ''));
+                $opts = $body;
+                if (!empty($_POST['accept_risk']) || !empty($body['accept_risk'])) {
+                    $opts['accept_risk'] = true;
+                }
+                if (isset($_POST['access'])) {
+                    $opts['access'] = (string)$_POST['access'];
+                }
+                if (isset($_POST['step_id'])) {
+                    $opts['step_id'] = (string)$_POST['step_id'];
+                }
+                if (isset($_POST['choice'])) {
+                    $opts['choice'] = (string)$_POST['choice'];
+                }
+                return AgentOps::moduleActivateApply($id, $action, $opts);
+            }
+        }
         if ($path === '/agent/modules/' . $id . '/install' && $method === 'POST') {
             return AgentOps::moduleInstall($id);
         }

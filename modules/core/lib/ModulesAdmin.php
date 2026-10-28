@@ -49,7 +49,8 @@ final class ModulesAdmin
                 if (empty($report['ok'])) {
                     throw new RuntimeException((string)($report['error'] ?? t('core.modules.err.install')));
                 }
-                return ['redirect' => self::withQuery($ret, 'msg', t('core.modules.msg.installed', [
+                $activate = '/modules/' . rawurlencode($moduleId) . '/activate';
+                return ['redirect' => self::withQuery($activate, 'msg', t('core.modules.msg.installed', [
                     'module' => $moduleId,
                     'version' => (string)($report['version'] ?? ''),
                 ]))];

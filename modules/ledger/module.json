@@ -1,7 +1,7 @@
 {
     "id": "ledger",
     "name": "ledger.module.name",
-    "version": "1.0.6",
+    "version": "1.0.7",
     "type": "product",
     "description": "ledger.module.description",
     "catalog": {
@@ -320,5 +320,29 @@
             "list_id": "ledger_moves",
             "action": "copy_enter"
         }
-    ]
+    ],
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "ledger.setup.step.config",
+                "description": "ledger.setup.step.config_help",
+                "href": "/ledger/settings",
+                "ask_user": "ledger.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "ledger.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
 }

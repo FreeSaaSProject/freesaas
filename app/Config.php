@@ -80,13 +80,44 @@ final class Config
         }
         $mods = self::section('modules');
         if (!array_key_exists($moduleId, $mods)) {
-            // Production: absent = enabled. Demo readonly: fail-closed (new modules stay off).
-            if (class_exists('DemoMode', false) && DemoMode::missingModuleDefaultsOff()) {
-                return false;
-            }
-            return true;
+            // Absent key = disabled (fail-closed). New overlays / git-dropped packs stay off until activate.
+            return false;
         }
         return self::truthyFlag($mods[$moduleId]);
+    }
+
+    /**
+     * One-shot upgrade helper: pin every on-disk product module to an explicit [modules] 0|1
+     * using the legacy rule (absent or truthy → on). Call before relying on absent=off so
+     * existing installs do not go dark. Idempotent when all ids already have keys.
+     *
+     * @return array{pinned:array<string,int>,skipped:list<string>}
+     */
+    public static function pinEffectiveModules(): array
+    {
+        $mods = self::section('modules');
+        $pinned = [];
+        $skipped = [];
+        $root = base_path('modules');
+        if (!is_dir($root)) {
+            return ['pinned' => [], 'skipped' => []];
+        }
+        foreach (scandir($root) ?: [] as $id) {
+            if ($id === '.' || $id === '..' || $id === 'core') {
+                continue;
+            }
+            if (!is_file($root . '/' . $id . '/module.json')) {
+                continue;
+            }
+            if (array_key_exists($id, $mods)) {
+                $skipped[] = $id;
+                continue;
+            }
+            // Legacy absent = enabled → pin on so the flip to absent=off keeps the instance working.
+            self::setModuleEnabled($id, true);
+            $pinned[$id] = 1;
+        }
+        return ['pinned' => $pinned, 'skipped' => $skipped];
     }
 
     /**
@@ -355,7 +386,7 @@ final class Config
     {
         $lines = [
             '[modules]',
-            '; id=0 disables a module; absent or 1 = enabled',
+            '; id=0 or absent = disabled; id=1 = enabled (pin every module you want on)',
         ];
         $mods = self::section('modules');
         ksort($mods);

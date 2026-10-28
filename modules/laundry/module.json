@@ -2,7 +2,7 @@
     "id": "laundry",
     "name": "laundry.module.name",
     "description": "laundry.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -161,5 +161,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "laundry.setup.step.config",
+                "description": "laundry.setup.step.config_help",
+                "href": "/laundry/settings",
+                "ask_user": "laundry.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "laundry.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

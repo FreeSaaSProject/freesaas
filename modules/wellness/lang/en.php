@@ -145,7 +145,6 @@ return [
     'wellness.col.data' => 'Prescription',
     'wellness.module.description' => 'Personal food, workout and health diary. Entries are visible only to their author — not to managers and not even to the superadmin.',
     'wellness.module.summary' => 'Enable to give staff a personal health diary inside the corporate system. Data is strictly personal: everyone sees only their own entries and there is no SUPERADMIN_ACCESS bypass, so personal data stays personal. Features: food diary with calories/macros and the daily remainder against your own fitness targets (workout burn included); your own food tables and recipes with per-portion macros; workouts; weight; wellbeing diary with symptom and medicine lists; doctor prescriptions; monthly calendar overview. Quick add right from the diary, food entry via the «Food & sport» bot (soft bots, voice via asr) and via the assistant. Requires core only.',
-
     'wellness.bot.title' => 'Food & sport',
     'wellness.bot.totals' => 'Total: C:{c}/P:{p}/F:{f}/Cb:{u}',
     'wellness.bot.meal_heading' => '{name} — C:{c}/P:{p}/F:{f}/Cb:{u}',
@@ -158,11 +157,19 @@ return [
     'wellness.bot.health_symptom' => 'condition',
     'wellness.bot.health_medicine' => 'medicine',
     'wellness.bot.add_health' => '🩺 Health',
-    'wellness.bot.health_hint' => "Health. Examples:\nheadache 3\nm: ibuprofen\nor: medicine paracetamol",
+    'wellness.bot.health_hint' => 'Health. Examples:
+headache 3
+m: ibuprofen
+or: medicine paracetamol',
     'wellness.bot.health_logged' => '✅ health: {name}',
-    'wellness.bot.health_bad' => 'Not understood. Example: headache 3\nor m: ibuprofen',
-    'wellness.bot.input_hint' => "Send food, e.g.\nbuckwheat 130g\nor several: cheesecakes 161, milk 116",
-    'wellness.bot.parse_hint' => "Format not recognized. Example:\nbuckwheat 130g\nor\ncheesecakes 161, milk 116",
+    'wellness.bot.health_bad' => 'Not understood. Example: headache 3\\nor m: ibuprofen',
+    'wellness.bot.input_hint' => 'Send food, e.g.
+buckwheat 130g
+or several: cheesecakes 161, milk 116',
+    'wellness.bot.parse_hint' => 'Format not recognized. Example:
+buckwheat 130g
+or
+cheesecakes 161, milk 116',
     'wellness.bot.no_foods' => 'No matching foods in your catalog. Add them in Wellness → Foods.',
     'wellness.bot.pick_food' => 'Pick a food:',
     'wellness.bot.pick_food_weight' => '«{q}» {g}g — pick a match:',
@@ -170,7 +177,9 @@ return [
     'wellness.bot.batch_skip' => '⏭ «{q}» — not found in catalog',
     'wellness.bot.batch_empty' => 'Nothing was logged.',
     'wellness.bot.logged' => '✅ {name} {g}g ({kcal} kcal)',
-    'wellness.bot.save_fail' => "Could not save the entry.\n\n{error}",
+    'wellness.bot.save_fail' => 'Could not save the entry.
+
+{error}',
     'wellness.bot.cancel' => 'Cancel',
     'wellness.bot.back' => 'Back',
     'wellness.bot.back_food' => '⬅️ Food & sport',
@@ -178,18 +187,31 @@ return [
     'wellness.bot.edit_btn' => 'Edit',
     'wellness.bot.delete_btn' => 'Del.',
     'wellness.bot.empty_day' => 'No food logged today.',
-    'wellness.bot.edit_hint' => "Edit. Number and new weight:\n1 150\nor several: 1 150, 2 200\nNumber only — I will ask for weight.",
+    'wellness.bot.edit_hint' => 'Edit. Number and new weight:
+1 150
+or several: 1 150, 2 200
+Number only — I will ask for weight.',
     'wellness.bot.edit_ask_weight' => 'New weight for #{n} «{name}» (g)?',
-    'wellness.bot.edit_bad' => "Format not recognized. Example:\n1 150\nor\n1 150, 2 200",
+    'wellness.bot.edit_bad' => 'Format not recognized. Example:
+1 150
+or
+1 150, 2 200',
     'wellness.bot.edit_ok' => '✏️ #{n} {name} → {g}g ({kcal} kcal)',
-    'wellness.bot.delete_hint' => "Delete. Entry numbers:\n1\nor several: 1, 3",
-    'wellness.bot.delete_bad' => "Format not recognized. Example:\n1\nor\n1, 3",
+    'wellness.bot.delete_hint' => 'Delete. Entry numbers:
+1
+or several: 1, 3',
+    'wellness.bot.delete_bad' => 'Format not recognized. Example:
+1
+or
+1, 3',
     'wellness.bot.delete_ok' => '🗑 Deleted: {list}',
     'wellness.bot.delete_none' => 'Nothing deleted.',
     'wellness.bot.bad_num' => '⏭ no entry #{n}',
-    'wellness.bot.sport_hint' => 'Sport: name minutes [kcal]\nExample: run 30 250',
+    'wellness.bot.sport_hint' => 'Sport: name minutes [kcal]\\nExample: run 30 250',
     'wellness.bot.recipe_menu_btn' => '📖 My recipes',
-    'wellness.bot.recipe_menu' => "My recipes\n\nComposition from catalog foods + cooked weight — same as admin.",
+    'wellness.bot.recipe_menu' => 'My recipes
+
+Composition from catalog foods + cooked weight — same as admin.',
     'wellness.bot.recipe_log' => '📝 Log recipe to diary',
     'wellness.bot.recipe_new' => '➕ New recipe',
     'wellness.bot.recipe_edit' => '✏️ Edit composition',
@@ -200,7 +222,7 @@ return [
     'wellness.bot.recipe_ask_cooked' => 'Cooked weight of the whole dish (grams)?',
     'wellness.bot.recipe_ask_ingredient' => 'Ingredient: type a food name from your catalog.',
     'wellness.bot.recipe_ask_ing_grams' => '«{name}» — grams in the recipe?',
-    'wellness.bot.recipe_ask_grams' => 'Recipe «{name}»\nHow many grams of the cooked dish did you eat?',
+    'wellness.bot.recipe_ask_grams' => 'Recipe «{name}»\\nHow many grams of the cooked dish did you eat?',
     'wellness.bot.recipe_bad_grams' => 'Enter grams as a number > 0.',
     'wellness.bot.recipe_ing_added' => 'Ingredient added ({n}). Next food name, or «Save composition».',
     'wellness.bot.recipe_done_ings' => 'Save composition',
@@ -215,4 +237,8 @@ return [
     'wellness.bot.voice_asr_err' => 'Voice recognition error: {error}',
     'wellness.perm.delete' => 'Delete wellness records',
     'wellness.assistant.hint' => 'Food: wellness.foods.list(q) → wellness.food_diary.create(food_id, weight) once per item (batch in one step OK).',
+    'wellness.setup.step.ready' => 'Module is ready after enable.',
+    'wellness.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'wellness.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'wellness.setup.choice.open' => 'Open module',
 ];

@@ -196,7 +196,7 @@ final class UpdateCatalog
 
     /**
      * Download monorepo archive and overlay modules/<id>/ for a package not yet on disk.
-     * Writes [modules] <id>=0 first so the new module stays disabled (missing key means enabled).
+     * Writes [modules] <id>=0 first so the new module stays disabled (absent key also means disabled).
      *
      * @return array{ok:bool,id:string,version?:string,files_copied?:int,error?:string,http:int}
      */

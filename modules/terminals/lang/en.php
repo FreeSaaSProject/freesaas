@@ -340,4 +340,8 @@ return [
     'terminals.floor.title' => 'Floor book (agent)',
     'terminals.floor.hint' => 'POST JSON to this path for procedure-mode book/cancel. Public NFC shell is /t.',
     'terminals.perm.delete' => 'Delete terminals / bracelets',
+    'terminals.setup.step.config' => 'Copy or fill module settings (cfg/modules/terminals.ini).',
+    'terminals.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'terminals.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'terminals.setup.choice.open' => 'Open settings',
 ];

@@ -2,7 +2,7 @@
     "id": "bonuses",
     "name": "bonuses.module.name",
     "description": "bonuses.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -122,5 +122,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "bonuses.setup.step.ready",
+                "description": "bonuses.setup.step.ready_help",
+                "href": "/bonuses",
+                "ask_user": "bonuses.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "bonuses.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

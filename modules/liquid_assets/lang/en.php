@@ -9,7 +9,6 @@ return [
     'liquid_assets.menu.accounts' => 'T-Invest accounts',
     'liquid_assets.perm.view' => 'Liquid assets (view)',
     'liquid_assets.perm.edit' => 'Liquid assets (edit)',
-
     'liquid_assets.report.title' => 'Liquid assets',
     'liquid_assets.report.prev' => '← prev',
     'liquid_assets.report.next' => 'next →',
@@ -97,7 +96,6 @@ return [
     'liquid_assets.report.month.10' => 'October',
     'liquid_assets.report.month.11' => 'November',
     'liquid_assets.report.month.12' => 'December',
-
     'liquid_assets.sync.past_only' => 'Refresh is only available for the current month: T-Invest API does not return portfolio as of a past date.',
     'liquid_assets.sync.no_rows' => 'No T-Invest account rows.',
     'liquid_assets.sync.snapshots' => 'Portfolio snapshots',
@@ -109,7 +107,6 @@ return [
     'liquid_assets.sync.has_reval' => 'month reval exists #{id}',
     'liquid_assets.sync.no_reval' => 'no month reval yet',
     'liquid_assets.sync.funds_off' => 'Funds module is off — fund revaluation is unavailable.',
-
     'liquid_assets.accounts.title' => 'T-Invest accounts',
     'liquid_assets.accounts.add' => 'Add T-Invest account',
     'liquid_assets.accounts.to_report' => 'Report: liquid assets',
@@ -132,4 +129,8 @@ return [
     'liquid_assets.accounts.err.not_found' => 'T-Invest account #{id} not found',
     'liquid_assets.err.forbidden' => 'Forbidden',
     'liquid_assets.perm.delete' => 'Delete broker accounts',
+    'liquid_assets.setup.step.ready' => 'Module is ready after enable.',
+    'liquid_assets.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'liquid_assets.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'liquid_assets.setup.choice.open' => 'Open module',
 ];

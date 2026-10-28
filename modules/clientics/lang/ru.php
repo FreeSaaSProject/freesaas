@@ -52,4 +52,8 @@ return [
     'clientics.settings.secret_empty' => 'не задан',
     'clientics.settings.current' => 'сейчас: {masked}',
     'clientics.module.summary' => 'Включайте для импорта клиентов из Клиентикс. Требует clients. Мягко calendar/procedures/workweeks для дневных выгрузок. Токены — cfg/modules/clientics.ini. Beta: при сбоях импорта диагностируйте локально.',
+    'clientics.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/clientics.ini).',
+    'clientics.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'clientics.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'clientics.setup.choice.open' => 'Открыть настройки',
 ];

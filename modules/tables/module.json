@@ -2,7 +2,7 @@
     "id": "tables",
     "name": "tables.module.name",
     "description": "tables.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -93,5 +93,8 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": []
     }
 }

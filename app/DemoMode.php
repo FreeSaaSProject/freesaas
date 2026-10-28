@@ -5,8 +5,8 @@ declare(strict_types=1);
  * Demo stand guards (single monorepo; enabled only when cfg says so).
  *
  * Default off: absent / 0 / false / off / no → production behaviour unchanged.
- * When on: block unsafe HTTP mutations; optional auto-login; Config::moduleEnabled
- * treats missing [modules] keys as disabled (fail-closed).
+ * When on: block unsafe HTTP mutations; optional auto-login.
+ * Module absent-key policy is always fail-closed (see Config::moduleEnabled).
  */
 final class DemoMode
 {
@@ -43,12 +43,11 @@ final class DemoMode
     }
 
     /**
-     * Missing [modules] key: normally enabled; under demo_readonly → disabled.
-     * core is never affected (caller checks core first).
+     * @deprecated Absent [modules] keys are always off (Config::moduleEnabled). Kept for callers.
      */
     public static function missingModuleDefaultsOff(): bool
     {
-        return self::readonly();
+        return true;
     }
 
     public static function mutationAllowed(string $path): bool

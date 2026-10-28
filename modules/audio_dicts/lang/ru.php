@@ -302,4 +302,8 @@ return [
     'audio_dicts.module.description' => 'Словари, ключи, скрипты и корзина для ASR.',
     'audio_dicts.module.summary' => 'Включайте для словарей и скриптов ASR. Требует audio. Нужен pipeline, reports, audio_llm, staff_reports. Настройте до воркеров.',
     'audio_dicts.perm.delete' => 'Удаление словарей / ключей / скриптов',
+    'audio_dicts.setup.step.ready' => 'После включения модуль готов к работе.',
+    'audio_dicts.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'audio_dicts.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'audio_dicts.setup.choice.open' => 'Открыть модуль',
 ];

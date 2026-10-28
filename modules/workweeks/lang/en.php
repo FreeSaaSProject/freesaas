@@ -148,4 +148,8 @@ return [
     'workweeks.relation.user_disabled_shifts' => 'Staff disabled: remove their future shifts with workweeks.delete (one per shift in related.items).',
     'workweeks.relation.user_disabled_shifts.notice' => 'Future shifts of this staff member: {n} — will be removed.',
     'workweeks.assistant.hint' => 'Shifts: for who/swap/remove/assign/replace on a day — CALL workweeks.day(date) first (or list with date_from/date_to). Resolve people via operator_name, operator_acronym (МСА/ДВМ = ФИО initials), or first name. One match → queue immediately. Replace A→B: workweeks.update on A’s shift with id_operator=B (do not create and leave the old row). Remove: workweeks.delete (action=delete). Assign new: create. Ask surname/id only if ≥2 matches. Off-roster: core.users.list(q=МСА) matches acronym.',
+    'workweeks.setup.step.config' => 'Copy or fill module settings (cfg/modules/workweeks.ini).',
+    'workweeks.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'workweeks.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'workweeks.setup.choice.open' => 'Open settings',
 ];

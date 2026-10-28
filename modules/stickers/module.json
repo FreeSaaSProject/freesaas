@@ -2,7 +2,7 @@
     "id": "stickers",
     "name": "stickers.module.name",
     "description": "stickers.module.description",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -366,5 +366,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "stickers.setup.step.config",
+                "description": "stickers.setup.step.config_help",
+                "href": "/stickers/settings",
+                "ask_user": "stickers.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "stickers.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

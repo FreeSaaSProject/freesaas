@@ -2,7 +2,7 @@
     "id": "video",
     "name": "video.module.name",
     "description": "video.module.description",
-    "version": "0.3.6",
+    "version": "0.3.7",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -147,17 +147,39 @@
                 "description": "Create camera; fields: name, rtsp_url, post_id, mode, model_id, enabled, conf_threshold, iou_threshold, interval_sec, schedule_*, crop_height_pct, rotate_deg, dataset_project_id",
                 "parameters": {
                     "type": "object",
-                    "required": ["name", "rtsp_url"],
+                    "required": [
+                        "name",
+                        "rtsp_url"
+                    ],
                     "properties": {
-                        "name": { "type": "string" },
-                        "rtsp_url": { "type": "string" },
-                        "post_id": { "type": "integer" },
-                        "mode": { "type": "string", "description": "monitoring|dataset" },
-                        "model_id": { "type": "integer" },
-                        "enabled": { "type": "boolean" },
-                        "conf_threshold": { "type": "number" },
-                        "iou_threshold": { "type": "number" },
-                        "interval_sec": { "type": "integer" }
+                        "name": {
+                            "type": "string"
+                        },
+                        "rtsp_url": {
+                            "type": "string"
+                        },
+                        "post_id": {
+                            "type": "integer"
+                        },
+                        "mode": {
+                            "type": "string",
+                            "description": "monitoring|dataset"
+                        },
+                        "model_id": {
+                            "type": "integer"
+                        },
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "conf_threshold": {
+                            "type": "number"
+                        },
+                        "iou_threshold": {
+                            "type": "number"
+                        },
+                        "interval_sec": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -186,10 +208,17 @@
                 "description": "Enqueue monitor_tick for camera; POST action=enqueue_monitor&id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["id"],
+                    "required": [
+                        "id"
+                    ],
                     "properties": {
-                        "action": { "type": "string", "const": "enqueue_monitor" },
-                        "id": { "type": "integer" }
+                        "action": {
+                            "type": "string",
+                            "const": "enqueue_monitor"
+                        },
+                        "id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -202,10 +231,17 @@
                 "description": "Enqueue on_demand infer; POST action=enqueue_ondemand&id=",
                 "parameters": {
                     "type": "object",
-                    "required": ["id"],
+                    "required": [
+                        "id"
+                    ],
                     "properties": {
-                        "action": { "type": "string", "const": "enqueue_ondemand" },
-                        "id": { "type": "integer" }
+                        "action": {
+                            "type": "string",
+                            "const": "enqueue_ondemand"
+                        },
+                        "id": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -234,13 +270,28 @@
                 "description": "Register model; action=save name= weights_path= (path on Mac worker) classes= notes=",
                 "parameters": {
                     "type": "object",
-                    "required": ["name", "weights_path"],
+                    "required": [
+                        "name",
+                        "weights_path"
+                    ],
                     "properties": {
-                        "action": { "type": "string", "const": "save" },
-                        "name": { "type": "string" },
-                        "weights_path": { "type": "string" },
-                        "classes": { "type": "string", "description": "Newline or comma separated" },
-                        "notes": { "type": "string" }
+                        "action": {
+                            "type": "string",
+                            "const": "save"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "weights_path": {
+                            "type": "string"
+                        },
+                        "classes": {
+                            "type": "string",
+                            "description": "Newline or comma separated"
+                        },
+                        "notes": {
+                            "type": "string"
+                        }
                     }
                 }
             },
@@ -261,14 +312,29 @@
                 "description": "Enqueue train; action=enqueue_train project_id= base_weights= model_name= epochs= imgsz= (ships export zip to worker)",
                 "parameters": {
                     "type": "object",
-                    "required": ["project_id"],
+                    "required": [
+                        "project_id"
+                    ],
                     "properties": {
-                        "action": { "type": "string", "const": "enqueue_train" },
-                        "project_id": { "type": "integer" },
-                        "base_weights": { "type": "string" },
-                        "model_name": { "type": "string" },
-                        "epochs": { "type": "integer" },
-                        "imgsz": { "type": "integer" }
+                        "action": {
+                            "type": "string",
+                            "const": "enqueue_train"
+                        },
+                        "project_id": {
+                            "type": "integer"
+                        },
+                        "base_weights": {
+                            "type": "string"
+                        },
+                        "model_name": {
+                            "type": "string"
+                        },
+                        "epochs": {
+                            "type": "integer"
+                        },
+                        "imgsz": {
+                            "type": "integer"
+                        }
                     }
                 }
             },
@@ -298,13 +364,28 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "regenerate_token": { "type": "boolean" },
-                        "worker_token": { "type": "string" },
-                        "retention_days": { "type": "integer" },
-                        "max_storage_mb": { "type": "integer" },
-                        "keep_alert_media": { "type": "boolean" },
-                        "latest_frame_ring": { "type": "integer" },
-                        "purge_mode": { "type": "string", "description": "default|alerts_only" }
+                        "regenerate_token": {
+                            "type": "boolean"
+                        },
+                        "worker_token": {
+                            "type": "string"
+                        },
+                        "retention_days": {
+                            "type": "integer"
+                        },
+                        "max_storage_mb": {
+                            "type": "integer"
+                        },
+                        "keep_alert_media": {
+                            "type": "boolean"
+                        },
+                        "latest_frame_ring": {
+                            "type": "integer"
+                        },
+                        "purge_mode": {
+                            "type": "string",
+                            "description": "default|alerts_only"
+                        }
                     }
                 }
             },
@@ -398,5 +479,29 @@
             "jobs"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "wizard",
+                "title": "video.setup.step.wizard",
+                "description": "video.setup.step.wizard_help",
+                "href": "/video",
+                "ask_user": "video.setup.ask.wizard",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "video.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

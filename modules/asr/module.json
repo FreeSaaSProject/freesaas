@@ -2,7 +2,7 @@
     "id": "asr",
     "name": "asr.module.name",
     "description": "asr.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -61,5 +61,29 @@
             "jobs"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "asr.setup.step.config",
+                "description": "asr.setup.step.config_help",
+                "href": "/asr/settings",
+                "ask_user": "asr.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "asr.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

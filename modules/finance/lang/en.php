@@ -168,4 +168,8 @@ return [
     'finance.funds.coverage' => 'Coverage %',
     'finance.assistant.hint' => 'Balance / P&L / OPIU — only via finance.balance, path /finance/balance (not /finance).',
     'finance.assistant.hint_absent' => 'Balance / P&L / OPIU / ODDS screens are not in your tools — do not invent URLs. Do not mention those areas unless the user asks; if they ask — briefly: no tool, without listing other people’s permissions.',
+    'finance.setup.step.ready' => 'Module is ready after enable.',
+    'finance.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'finance.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'finance.setup.choice.open' => 'Open module',
 ];

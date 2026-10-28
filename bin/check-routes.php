@@ -42,6 +42,7 @@ $allowed = [
     '/agent/modules' => ['methods' => ['GET'], 'why' => 'agent modules list'],
     '/agent/modules/{id}' => ['methods' => ['GET'], 'why' => 'agent module inspect'],
     '/agent/modules/{id}/enable' => ['methods' => ['POST'], 'why' => 'agent module enable'],
+    '/agent/modules/{id}/activate' => ['methods' => ['GET', 'POST'], 'why' => 'agent module activate snapshot/apply'],
     '/agent/modules/{id}/disable' => ['methods' => ['POST'], 'why' => 'agent module disable'],
     '/agent/modules/{id}/install' => ['methods' => ['POST'], 'why' => 'agent module install'],
     '/agent/modules/{id}/uninstall' => ['methods' => ['POST'], 'why' => 'agent module uninstall'],

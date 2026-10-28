@@ -75,4 +75,8 @@ return [
     'funds.accrual.col.status' => 'Статус',
     'funds.moves.err.not_found' => 'Движение #{id} не найдено',
     'funds.perm.delete' => 'Удаление фондов / движений',
+    'funds.setup.step.ready' => 'После включения модуль готов к работе.',
+    'funds.setup.step.ready_help' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'funds.setup.ask.ready' => 'Секреты не нужны — откройте список и при необходимости создайте первые записи.',
+    'funds.setup.choice.open' => 'Открыть модуль',
 ];

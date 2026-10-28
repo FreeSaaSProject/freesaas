@@ -2,7 +2,7 @@
     "id": "bots",
     "name": "bots.module.name",
     "description": "bots.module.description",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -193,5 +193,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "bots.setup.step.config",
+                "description": "bots.setup.step.config_help",
+                "href": "/bots",
+                "ask_user": "bots.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "bots.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

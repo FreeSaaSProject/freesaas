@@ -2,7 +2,7 @@
     "id": "orders",
     "name": "orders.module.name",
     "description": "orders.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -77,13 +77,27 @@
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "id": { "type": "integer" },
-                        "id_cosmetolog": { "type": "integer", "description": "Assigned master (staff user id)" },
-                        "status": { "type": "string" },
-                        "dt_event": { "type": "string", "description": "Y-m-d H:i" },
-                        "comment": { "type": "string" }
+                        "id": {
+                            "type": "integer"
+                        },
+                        "id_cosmetolog": {
+                            "type": "integer",
+                            "description": "Assigned master (staff user id)"
+                        },
+                        "status": {
+                            "type": "string"
+                        },
+                        "dt_event": {
+                            "type": "string",
+                            "description": "Y-m-d H:i"
+                        },
+                        "comment": {
+                            "type": "string"
+                        }
                     },
-                    "required": ["id"]
+                    "required": [
+                        "id"
+                    ]
                 }
             },
             {
@@ -98,46 +112,118 @@
         "relations": [
             {
                 "id": "orders.vacation_orders",
-                "when": ["vacations.create", "vacations.update"],
+                "when": [
+                    "vacations.create",
+                    "vacations.update"
+                ],
                 "from": "vacations.get",
                 "check": "orders.list",
-                "args": { "staff": "{user_id}", "date_from": "{dt_start|date}", "date_to": "{dt_end|date}", "active": "1", "page": "all" },
-                "suggest": ["orders.update"],
-                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "args": {
+                    "staff": "{user_id}",
+                    "date_from": "{dt_start|date}",
+                    "date_to": "{dt_end|date}",
+                    "active": "1",
+                    "page": "all"
+                },
+                "suggest": [
+                    "orders.update"
+                ],
+                "fields": [
+                    "dt_event_date",
+                    "dt_event_time",
+                    "client_name",
+                    "phone",
+                    "status",
+                    "summ_real"
+                ],
                 "hint": "orders.relation.absence_orders",
                 "notice": "orders.relation.absence_orders.notice"
             },
             {
                 "id": "orders.shift_removed_orders",
-                "when": ["workweeks.delete"],
+                "when": [
+                    "workweeks.delete"
+                ],
                 "from": "workweeks.get",
                 "check": "orders.list",
-                "args": { "staff": "{from.id_operator}", "date_from": "{from.date}", "date_to": "{from.date}", "active": "1", "page": "all" },
-                "suggest": ["orders.update"],
-                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "args": {
+                    "staff": "{from.id_operator}",
+                    "date_from": "{from.date}",
+                    "date_to": "{from.date}",
+                    "active": "1",
+                    "page": "all"
+                },
+                "suggest": [
+                    "orders.update"
+                ],
+                "fields": [
+                    "dt_event_date",
+                    "dt_event_time",
+                    "client_name",
+                    "phone",
+                    "status",
+                    "summ_real"
+                ],
                 "hint": "orders.relation.absence_orders",
                 "notice": "orders.relation.absence_orders.notice"
             },
             {
                 "id": "orders.shift_reassigned_orders",
-                "when": ["workweeks.update"],
-                "if": { "id_operator": "changed" },
+                "when": [
+                    "workweeks.update"
+                ],
+                "if": {
+                    "id_operator": "changed"
+                },
                 "from": "workweeks.get",
                 "check": "orders.list",
-                "args": { "staff": "{from.id_operator}", "date_from": "{from.date}", "date_to": "{from.date}", "active": "1", "page": "all" },
-                "suggest": ["orders.update"],
-                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "args": {
+                    "staff": "{from.id_operator}",
+                    "date_from": "{from.date}",
+                    "date_to": "{from.date}",
+                    "active": "1",
+                    "page": "all"
+                },
+                "suggest": [
+                    "orders.update"
+                ],
+                "fields": [
+                    "dt_event_date",
+                    "dt_event_time",
+                    "client_name",
+                    "phone",
+                    "status",
+                    "summ_real"
+                ],
                 "hint": "orders.relation.shift_reassigned_orders",
                 "notice": "orders.relation.shift_reassigned_orders.notice"
             },
             {
                 "id": "orders.user_disabled_orders",
-                "when": ["core.users.update"],
-                "if": { "enabled": "0" },
+                "when": [
+                    "core.users.update"
+                ],
+                "if": {
+                    "enabled": "0"
+                },
                 "check": "orders.list",
-                "args": { "staff": "{id}", "date_from": "{today}", "active": "1", "page": "all" },
-                "suggest": ["orders.update"],
-                "fields": ["dt_event_date", "dt_event_time", "client_name", "phone", "status", "summ_real"],
+                "args": {
+                    "staff": "{id}",
+                    "date_from": "{today}",
+                    "active": "1",
+                    "page": "all"
+                },
+                "suggest": [
+                    "orders.update"
+                ],
+                "fields": [
+                    "dt_event_date",
+                    "dt_event_time",
+                    "client_name",
+                    "phone",
+                    "status",
+                    "summ_real"
+                ],
                 "hint": "orders.relation.absence_orders",
                 "notice": "orders.relation.absence_orders.notice"
             }
@@ -186,5 +272,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "orders.setup.step.config",
+                "description": "orders.setup.step.config_help",
+                "href": "/orders/settings",
+                "ask_user": "orders.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "orders.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

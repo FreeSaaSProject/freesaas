@@ -11,7 +11,6 @@ return [
     'procents.filter.all_months' => 'All months in range',
     'procents.filter.recent' => 'Recent (current + previous)',
     'procents.load_more' => 'Load older months',
-
     'procents.empty' => 'No data to calculate',
     'procents.pick_operator' => 'Select a staff member',
     'procents.rates_set' => 'Rate set',
@@ -61,4 +60,8 @@ return [
     'procents.audit.role.sales' => 'Sales',
     'procents.audit.role.audio' => 'Audio',
     'procents.audit.role.scripts' => 'Scripts',
+    'procents.setup.step.ready' => 'Module is ready after enable.',
+    'procents.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'procents.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'procents.setup.choice.open' => 'Open module',
 ];

@@ -75,4 +75,8 @@ return [
     'funds.accrual.col.status' => 'Status',
     'funds.moves.err.not_found' => 'Movement #{id} not found',
     'funds.perm.delete' => 'Delete funds / movements',
+    'funds.setup.step.ready' => 'Module is ready after enable.',
+    'funds.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'funds.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'funds.setup.choice.open' => 'Open module',
 ];

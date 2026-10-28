@@ -2,7 +2,7 @@
     "id": "wellness",
     "name": "wellness.module.name",
     "description": "wellness.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -1144,5 +1144,31 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "wellness.setup.step.ready",
+                "description": "wellness.setup.step.ready_help",
+                "href": "/wellness",
+                "ask_user": "wellness.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "wellness.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

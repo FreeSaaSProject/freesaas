@@ -15,8 +15,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import requests
 import urllib3
 
-from max_notify import send_message as max_send_message
-
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 CLIENT_ROOT_EARLY = Path(__file__).resolve().parent
@@ -26,10 +24,23 @@ if str(_REPO_ROOT) not in sys.path:
 
 try:
 	from workers.core.status import StatusWriter
+	from workers.core.i18n import t as _i18n_t
+	from workers.core.notify import NotifySettings, load_notify_settings, send as notify_send
 except ImportError:  # pragma: no cover
 	StatusWriter = None  # type: ignore
+	NotifySettings = None  # type: ignore
+	load_notify_settings = None  # type: ignore
+	notify_send = None  # type: ignore
+
+	def _i18n_t(key: str, **kwargs: Any) -> str:  # type: ignore
+		return key
 
 _STATUS_WRITER: Any = None
+
+
+def tl(key: str, **kwargs: Any) -> str:
+	"""Translate whisper plugin string (locale from FREESAAS_WORKERS_LOCALE / host)."""
+	return _i18n_t(key, plugin="whisper", **kwargs)
 
 
 def set_activity(phase: str, detail: str = "") -> None:
@@ -44,6 +55,19 @@ def status_update(**kwargs: Any) -> None:
 	if _STATUS_WRITER is None:
 		return
 	_STATUS_WRITER.update(**kwargs)
+
+
+def idle_sleep(total_sec: int) -> None:
+	"""Sleep with heartbeat so dashboard/logs do not look frozen during idle."""
+	total = max(1, int(total_sec))
+	chunk = 15
+	left = total
+	while left > 0:
+		set_activity("idle", tl("activity.idle_sleep", sec=left))
+		step = min(chunk, left)
+		time.sleep(step)
+		left -= step
+
 
 # Настройки клиента (заполняются из JSON через load_config / --config)
 # FreeSaaS: claim/result/stem + X-Audio-Token (см. docs/agents/audio_pipeline.md).
@@ -69,6 +93,8 @@ WHISPER_AUTO_NOVAD_FALLBACK = True
 WHISPER_START_SCRIPT = Path(__file__).resolve().parent / "start_whisper_server.sh"
 WHISPER_HEALTH_WAIT_SEC = 180.0
 WHISPER_RESTART_SETTLE_SEC = 2.0
+WHISPER_INFERENCE_TIMEOUT_SEC = 1800.0
+STEM_TIMEOUT_SEC = 90.0
 # Текущий режим сервера (после авто-рестарта клиентом). До первого рестарта — предполагаем VAD.
 WHISPER_MODE_VAD = True
 WS_FORM_PARAMS: Dict[str, str] = {}
@@ -80,11 +106,10 @@ RETRY_TEMPERATURES_ON_EMPTY_RESPONSE: Tuple[float, ...] = RETRY_TEMPERATURES_ON_
 LOOP_SLEEP_SECONDS_IDLE = 180
 LOOP_SLEEP_SECONDS_RUN = 1
 SLEEP_HOUR = 24
-MAX_TOKEN = ""
-MAX_CHAT_ID = ""
-MAX_NOTIFY_WHISPER_DOWN = True
-MAX_NOTIFY_RECOGNITION_SUMMARY = True
-MAX_NOTIFY_NOVAD_FALLBACK = True
+NOTIFY_SETTINGS: Any = None
+NOTIFY_WHISPER_DOWN = True
+NOTIFY_RECOGNITION_SUMMARY = True
+NOTIFY_NOVAD_FALLBACK = True
 
 # Copy configs/example.json → configs/local.json (gitignored) and fill secrets.
 DEFAULT_CONFIG_PATH = Path(__file__).resolve().parent / "configs" / "local.json"
@@ -119,11 +144,11 @@ def load_config(config_path: Path) -> None:
 	global WHISPER_DOWN_RECHECK_SEC, WS_FORM_PARAMS
 	global WHISPER_AUTO_NOVAD_FALLBACK, WHISPER_START_SCRIPT
 	global WHISPER_HEALTH_WAIT_SEC, WHISPER_RESTART_SETTLE_SEC, WHISPER_MODE_VAD
+	global WHISPER_INFERENCE_TIMEOUT_SEC, STEM_TIMEOUT_SEC
 	global GARBAGE_MIN_LETTERS, GARBAGE_CJK_RATIO, GARBAGE_MIN_CJK_CHARS
 	global RETRY_TEMPERATURES_ON_GARBAGE, RETRY_TEMPERATURES_ON_EMPTY_RESPONSE
 	global LOOP_SLEEP_SECONDS_IDLE, LOOP_SLEEP_SECONDS_RUN, SLEEP_HOUR
-	global MAX_TOKEN, MAX_CHAT_ID, MAX_NOTIFY_WHISPER_DOWN, MAX_NOTIFY_RECOGNITION_SUMMARY
-	global MAX_NOTIFY_NOVAD_FALLBACK
+	global NOTIFY_SETTINGS, NOTIFY_WHISPER_DOWN, NOTIFY_RECOGNITION_SUMMARY, NOTIFY_NOVAD_FALLBACK
 
 	with open(config_path, "r", encoding="utf-8") as f:
 		cfg = json.load(f)
@@ -171,6 +196,8 @@ def load_config(config_path: Path) -> None:
 	WHISPER_AUTO_NOVAD_FALLBACK = bool(wh.get("auto_novad_fallback", True))
 	WHISPER_HEALTH_WAIT_SEC = float(wh.get("health_wait_sec", 180))
 	WHISPER_RESTART_SETTLE_SEC = float(wh.get("restart_settle_sec", 2.0))
+	WHISPER_INFERENCE_TIMEOUT_SEC = float(wh.get("inference_timeout_sec", 1800))
+	STEM_TIMEOUT_SEC = float(an.get("stem_timeout_sec", wh.get("stem_timeout_sec", 90)))
 	script_raw = str(wh.get("start_script") or "start_whisper_server.sh").strip()
 	script_path = Path(script_raw).expanduser()
 	if not script_path.is_absolute():
@@ -195,13 +222,19 @@ def load_config(config_path: Path) -> None:
 	LOOP_SLEEP_SECONDS_RUN = int(lp.get("sleep_seconds_run", 1))
 	SLEEP_HOUR = int(lp.get("sleep_hour", 24))
 
-	mx = cfg.get("max") or {}
-	MAX_TOKEN = str(mx.get("token") or "").strip()
-	MAX_CHAT_ID = str(mx.get("chat_id") or "").strip()
-	notify = mx.get("notify") or {}
-	MAX_NOTIFY_WHISPER_DOWN = bool(notify.get("whisper_down", True))
-	MAX_NOTIFY_RECOGNITION_SUMMARY = bool(notify.get("recognition_summary", True))
-	MAX_NOTIFY_NOVAD_FALLBACK = bool(notify.get("novad_fallback", True))
+	if load_notify_settings is not None:
+		NOTIFY_SETTINGS = load_notify_settings()
+		NOTIFY_WHISPER_DOWN = bool(NOTIFY_SETTINGS.events.get("whisper_down", True))
+		NOTIFY_RECOGNITION_SUMMARY = bool(NOTIFY_SETTINGS.events.get("recognition_summary", True))
+		NOTIFY_NOVAD_FALLBACK = bool(NOTIFY_SETTINGS.events.get("novad_fallback", True))
+	else:
+		# Legacy fallback if core.notify unavailable
+		mx = cfg.get("max") or {}
+		notify = mx.get("notify") or {}
+		NOTIFY_WHISPER_DOWN = bool(notify.get("whisper_down", True))
+		NOTIFY_RECOGNITION_SUMMARY = bool(notify.get("recognition_summary", True))
+		NOTIFY_NOVAD_FALLBACK = bool(notify.get("novad_fallback", True))
+		NOTIFY_SETTINGS = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -219,16 +252,11 @@ def parse_args() -> argparse.Namespace:
 def log(*args):
 	print(f"[{datetime.now().strftime('%H:%M:%S')}] ", *args, flush=True)
 
-def notify_max(text: str) -> None:
-	"""Отправка в Max; при пустых credentials — no-op. Ошибки только в лог."""
-	if not MAX_TOKEN or not MAX_CHAT_ID:
-		log("ℹ️ Max: token/chat_id не заданы — уведомление пропущено.")
+def notify_ops(text: str, event: str) -> None:
+	"""Ops alert via host notify (Max and/or Telegram). No-op if disabled."""
+	if notify_send is None or NOTIFY_SETTINGS is None:
 		return
-	ok, msg = max_send_message(MAX_TOKEN, MAX_CHAT_ID, text)
-	if ok:
-		log("📨 Max: уведомление отправлено.")
-	else:
-		log("⚠️ Max: не удалось отправить:", msg)
+	notify_send(text, event=event, settings=NOTIFY_SETTINGS, log=log)
 
 def format_duration(seconds: float) -> str:
 	total = max(0, int(seconds))
@@ -373,12 +401,13 @@ def fatal_whisper_server_down(detail: str) -> None:
 		f"FATAL: проверка {WHISPER_SERVER_HEALTH_URL} не прошла. "
 		"Локальный сервер не оживёт сам — чините процесс и стартуйте заново."
 	)
-	if MAX_NOTIFY_WHISPER_DOWN:
-		notify_max(
+	if NOTIFY_WHISPER_DOWN:
+		notify_ops(
 			"❌ Whisper-server недоступен — клиент остановлен<br>"
 			f"Сервер: {SERVER}<br>"
 			f"Whisper: {WHISPER_SERVER_BASE}<br>"
-			f"Деталь: {detail}"
+			f"Деталь: {detail}",
+			"whisper_down",
 		)
 	raise SystemExit(2)
 
@@ -433,12 +462,13 @@ def recover_crash_with_novad(
 		)
 
 	fname = Path(file_name).name
-	if MAX_NOTIFY_NOVAD_FALLBACK:
-		notify_max(
+	if NOTIFY_NOVAD_FALLBACK:
+		notify_ops(
 			"⚠️ Whisper-server упал (вероятно VAD) — переключаюсь на novad<br>"
 			f"Сервер: {SERVER}<br>"
 			f"Файл: {fname}<br>"
-			f"Деталь: {crash_detail}"
+			f"Деталь: {crash_detail}",
+			"novad_fallback",
 		)
 
 	log("🔁 Fallback: перезапуск whisper-server БЕЗ VAD для проблемного файла...")
@@ -464,39 +494,43 @@ def recover_crash_with_novad(
 
 	# Вернуть VAD для следующих файлов
 	log("🔁 Возвращаем whisper-server С VAD...")
-	if MAX_NOTIFY_NOVAD_FALLBACK:
-		notify_max(
+	if NOTIFY_NOVAD_FALLBACK:
+		notify_ops(
 			"ℹ️ Файл обработан на novad, возвращаю VAD<br>"
 			f"Сервер: {SERVER}<br>"
-			f"Файл: {fname}"
+			f"Файл: {fname}",
+			"novad_fallback",
 		)
 	if not restart_whisper_server(vad=True):
 		# Файл уже сдан на бэкенд; остаёмся на novad если он ещё жив, иначе fatal.
 		if whisper_server_health_ok() or wait_whisper_health(timeout_sec=5):
 			log("⚠️ VAD не поднялся — продолжаем на текущем (novad) сервере.")
-			if MAX_NOTIFY_NOVAD_FALLBACK:
-				notify_max(
+			if NOTIFY_NOVAD_FALLBACK:
+				notify_ops(
 					"⚠️ Не удалось вернуть VAD — продолжаю на novad<br>"
-					f"Сервер: {SERVER}"
+					f"Сервер: {SERVER}",
+					"novad_fallback",
 				)
 		else:
 			# Попытка хотя бы novad
 			if restart_whisper_server(vad=False):
 				log("⚠️ VAD не поднялся, снова на novad.")
-				if MAX_NOTIFY_NOVAD_FALLBACK:
-					notify_max(
+				if NOTIFY_NOVAD_FALLBACK:
+					notify_ops(
 						"⚠️ Не удалось вернуть VAD — работаю на novad<br>"
-						f"Сервер: {SERVER}"
+						f"Сервер: {SERVER}",
+						"novad_fallback",
 					)
 			else:
 				fatal_whisper_server_down(
 					f"Файл {fname} обработан, но whisper-server не поднялся ни с VAD, ни без."
 				)
 	else:
-		if MAX_NOTIFY_NOVAD_FALLBACK:
-			notify_max(
+		if NOTIFY_NOVAD_FALLBACK:
+			notify_ops(
 				"✅ Whisper-server снова на VAD, продолжаем<br>"
-				f"Сервер: {SERVER}"
+				f"Сервер: {SERVER}",
+				"novad_fallback",
 			)
 
 	return "ok"
@@ -1034,7 +1068,7 @@ def post_to_whisper_server(audio_path: Path, temperature: Optional[float] = None
 			WHISPER_SERVER_URL,
 			files=files,
 			data=form_data,
-			timeout=None,
+			timeout=WHISPER_INFERENCE_TIMEOUT_SEC,
 		)
 	if resp.status_code != 200:
 		raise RuntimeError(f"whisper-server HTTP {resp.status_code}: {resp.text[:500]}")
@@ -1167,22 +1201,23 @@ def run_analytics() -> bool:
 	url = ANALYTICS_URL
 	sep = "&" if ("?" in url) else "?"
 	url = f"{url}{sep}day={day}"
-	log(f"📊 Запускаем stem (аналитика): {url}")
+	log(tl("log.stem_start", url=url))
+	set_activity("stem", tl("activity.stem"))
 	try:
 		r = requests.post(
 			url,
 			headers=backend_headers(),
 			verify=tls_verify(),
-			timeout=600,
+			timeout=STEM_TIMEOUT_SEC,
 		)
 		body = (r.text or "")[:240]
-		log(f"📊 Stem завершился HTTP {r.status_code}: {body}")
+		log(tl("log.stem_done", code=r.status_code, body=body))
 		if r.status_code == 409:
-			log("ℹ️ Stem занят (blocked_run) — предыдущий прогон ещё держит lock, слот не тратим.")
+			log(tl("log.stem_busy"))
 			return False
 		return True
 	except Exception as e:
-		log("⚠️ Ошибка запуска stem:", e)
+		log(tl("log.stem_err", err=e))
 		return True
 
 # ---------- Основной цикл ----------
@@ -1219,28 +1254,28 @@ def main():
 	log(f"⚙️  stem={ANALYTICS_URL}")
 	log(f"⚙️  X-Audio-Token={token_mask}")
 	if not token_ok:
-		log("⚠️ worker_token пуст — FreeSaaS вернёт 401/503 на claim/result/stem")
+		log(tl("log.token_missing"))
 	if TLS_VERIFY is False:
-		log("⚠️ TLS verify=OFF — X-Audio-Token уязвим к MITM; включите tls.verify или tls.ca_bundle")
+		log("⚠️ TLS verify=OFF — enable tls.verify or tls.ca_bundle")
 	else:
 		log(f"⚙️  TLS verify={TLS_VERIFY}")
 	log(f"⚙️  whisper={WHISPER_SERVER_BASE} language={WS_FORM_PARAMS.get('language')}")
 	log(
 		f"⚙️  auto_novad_fallback={WHISPER_AUTO_NOVAD_FALLBACK} "
 		f"start_script={WHISPER_START_SCRIPT.name} "
-		f"health_wait={WHISPER_HEALTH_WAIT_SEC:.0f}s"
+		f"health_wait={WHISPER_HEALTH_WAIT_SEC:.0f}s "
+		f"stem_timeout={STEM_TIMEOUT_SEC:.0f}s "
+		f"infer_timeout={WHISPER_INFERENCE_TIMEOUT_SEC:.0f}s"
 	)
-	log(
-		f"⚙️  Max notify: whisper_down={MAX_NOTIFY_WHISPER_DOWN} "
-		f"summary={MAX_NOTIFY_RECOGNITION_SUMMARY} "
-		f"novad_fallback={MAX_NOTIFY_NOVAD_FALLBACK} "
-		f"chat={'yes' if MAX_CHAT_ID else 'no'}"
-	)
+	if NOTIFY_SETTINGS is not None:
+		log(f"⚙️  Notify: {NOTIFY_SETTINGS.summary()}")
+	else:
+		log("⚙️  Notify: core unavailable")
 
 	while True:
 		try:
-			log("📡 Проверка наличия файла на сервере...")
-			set_activity("claim", "polling FreeSaaS")
+			log(tl("log.check_file"))
+			set_activity("claim", tl("activity.claim"))
 			r = requests.get(
 				GET_FILE_URL,
 				headers=backend_headers(),
@@ -1257,7 +1292,7 @@ def main():
 					idle_window_active = True
 					analytics_runs_in_window = 0
 					last_analytics_ts = None
-					log("🟡 Началось окно простоя (idle). Готовимся к запуску аналитики.")
+					log(tl("log.idle_window"))
 
 				# условия запуска аналитики (до 2 раз в это окно, с интервалом)
 				now_ts = time.time()
@@ -1266,19 +1301,19 @@ def main():
 
 				if may_run and interval_ok:
 					if (
-						MAX_NOTIFY_RECOGNITION_SUMMARY
+						NOTIFY_RECOGNITION_SUMMARY
 						and session_processed > 1
 					):
 						started = session_started_at or now_ts
-						notify_max(
+						notify_ops(
 							"✅ Распознавание завершено<br>"
 							f"Сервер: {SERVER}<br>"
 							f"Файлов: {session_processed}<br>"
-							f"Длительность: {format_duration(now_ts - started)}"
+							f"Длительность: {format_duration(now_ts - started)}",
+							"recognition_summary",
 						)
 						session_processed = 0
 						session_started_at = None
-					set_activity("stem", "idle analytics / stem")
 					if run_analytics():
 						analytics_runs_in_window += 1
 						last_analytics_ts = now_ts
@@ -1287,11 +1322,11 @@ def main():
 						last_analytics_ts = now_ts
 				else:
 					if not may_run:
-						log("ℹ️ Лимит запусков аналитики в этом idle-окне исчерпан.")
+						log(tl("log.analytics_limit"))
 					else:
 						left = int(ANALYTICS_MIN_INTERVAL_SEC - (now_ts - last_analytics_ts))
 						if left > 0:
-							log(f"⏳ До следующего запуска аналитики: ~{left} сек.")
+							log(tl("log.analytics_wait", sec=left))
 
 				# ночной сон
 				now = datetime.now()
@@ -1300,9 +1335,8 @@ def main():
 					sleep_mac()
 					break
 
-				set_activity("idle", "no files")
-				log(f"😴 Файлов нет. Ждём {LOOP_SLEEP_SECONDS_IDLE} секунд...")
-				time.sleep(LOOP_SLEEP_SECONDS_IDLE)
+				log(tl("log.no_files_wait", sec=LOOP_SLEEP_SECONDS_IDLE))
+				idle_sleep(LOOP_SLEEP_SECONDS_IDLE)
 				continue
 
 			# если файл есть — выходим из режима idle и сбрасываем окно
@@ -1313,19 +1347,18 @@ def main():
 				last_analytics_ts = None
 
 			full_url = f"{FTPSERVER}{filename}"
-			log(f"🎧 Получен файл: {filename}")
+			log(tl("log.got_file", name=filename))
 			base_name = Path(filename).name
 
 			file_done = False
 			try:
 				# Re-POST text left after a previous unacked save (no re-whisper).
-				set_activity("upload", f"pending retry {base_name}")
+				set_activity("upload", tl("activity.upload_pending", name=base_name))
 				if try_upload_pending(filename):
 					file_done = True
 			except BackendUploadError as up_err:
-				log("❌ Повтор pending не подтверждён:", up_err)
-				# Keep pending on disk; skip Whisper this cycle.
-				log(f"⏳ Цикл завершён, ждём {LOOP_SLEEP_SECONDS_RUN} сек...\n")
+				log("❌ pending re-upload not acked:", up_err)
+				log(tl("log.cycle_wait", sec=LOOP_SLEEP_SECONDS_RUN))
 				time.sleep(LOOP_SLEEP_SECONDS_RUN)
 				continue
 
@@ -1334,19 +1367,19 @@ def main():
 					session_started_at = time.time()
 				session_processed += 1
 				status_update(counters={"files_ok": session_processed})
-				log(f"⏳ Цикл завершён, ждём {LOOP_SLEEP_SECONDS_RUN} сек...\n")
+				log(tl("log.cycle_wait", sec=LOOP_SLEEP_SECONDS_RUN))
 				time.sleep(LOOP_SLEEP_SECONDS_RUN)
 				continue
 
 			with tempfile.TemporaryDirectory() as tmpdir:
 				tmp_path = Path(tmpdir) / Path(filename).name
-				set_activity("download", base_name)
+				set_activity("download", tl("activity.download", name=base_name))
 				download_file(full_url, tmp_path)
 				playtime, volume = probe_audio_metadata(tmp_path)
 
 				try:
-					log("🧠 Отправляем в whisper-server (output=srt)...")
-					set_activity("transcribe", base_name)
+					log(tl("log.send_whisper"))
+					set_activity("transcribe", tl("activity.transcribe", name=base_name))
 					transcribe_upload_srt(
 						tmp_path, filename, playtime=playtime, volume=volume
 					)
@@ -1435,11 +1468,11 @@ def main():
 
 
 		except Exception as e:
-			log("❌ Ошибка:", e)
+			log("❌ Error:", e)
 			set_activity("error", str(e)[:200])
 			status_update(ok=False)
 
-		log(f"⏳ Цикл завершён, ждём {LOOP_SLEEP_SECONDS_RUN} сек...\n")
+		log(tl("log.cycle_wait", sec=LOOP_SLEEP_SECONDS_RUN))
 		time.sleep(LOOP_SLEEP_SECONDS_RUN)
 
 if __name__ == "__main__":

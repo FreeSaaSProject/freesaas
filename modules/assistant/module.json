@@ -2,7 +2,7 @@
     "id": "assistant",
     "name": "assistant.module.name",
     "description": "assistant.module.description",
-    "version": "1.0.6",
+    "version": "1.0.12",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -119,6 +119,7 @@
         "publish": [
             "bots.send",
             "assistant.write.preview",
+            "assistant.write.preflight",
             "assistant.system.hints"
         ]
     },
@@ -129,5 +130,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "assistant.setup.step.config",
+                "description": "assistant.setup.step.config_help",
+                "href": "/assistant",
+                "ask_user": "assistant.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "assistant.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

@@ -15,7 +15,8 @@
   },
   "analytics": {
     "max_runs_per_idle": 2,
-    "min_interval_sec": 300
+    "min_interval_sec": 300,
+    "stem_timeout_sec": 90
   },
   "whisper": {
     "host": "127.0.0.1",
@@ -25,6 +26,7 @@
     "start_script": "start_whisper_server.sh",
     "health_wait_sec": 180,
     "restart_settle_sec": 2.0,
+    "inference_timeout_sec": 1800,
     "form_params": {
       "language": "ru",
       "task": "transcribe",
@@ -44,13 +46,5 @@
     "sleep_seconds_run": 1,
     "sleep_hour": 24
   },
-  "max": {
-    "token": "",
-    "chat_id": "",
-    "notify": {
-      "whisper_down": true,
-      "recognition_summary": true,
-      "novad_fallback": true
-    }
-  }
+  "comment_notify": "Ops alerts live in workers/host.local.json → notify (Max + Telegram). Legacy max{} here is still read as fallback until migrated."
 }

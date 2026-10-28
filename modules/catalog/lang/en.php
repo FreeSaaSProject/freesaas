@@ -125,4 +125,8 @@ return [
     'catalog.assistant.preview.delete' => 'Delete this product',
     'catalog.assistant.preview.category' => 'Category: {v}',
     'catalog.assistant.preview.category_create' => 'New category: {v}',
+    'catalog.setup.step.ready' => 'Module is ready after enable.',
+    'catalog.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'catalog.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'catalog.setup.choice.open' => 'Open module',
 ];

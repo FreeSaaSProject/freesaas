@@ -103,4 +103,8 @@ return [
     'staff_reports.err.no_profile' => 'Нет включённого профиля для должности сотрудника',
     'staff_reports.module.description' => 'Дневные отчёты качества сотрудников (светофор по должностям); награды в audio-календаре.',
     'staff_reports.module.summary' => 'Publisher quality-отчётов в заявки + маркеры на календаре. Гейты и бонус — на скриптах (DAY_BONUS/GATE_*). Публикация после Re-®. Настройки publisher на /audio/settings.',
+    'staff_reports.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/staff_reports.ini).',
+    'staff_reports.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'staff_reports.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'staff_reports.setup.choice.open' => 'Открыть настройки',
 ];

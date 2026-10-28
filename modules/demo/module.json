@@ -2,7 +2,7 @@
     "id": "demo",
     "name": "demo.module.name",
     "description": "demo.module.description",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "type": "product",
     "catalog": {
         "categories": [
@@ -71,5 +71,29 @@
         ],
         "publish": []
     },
-    "bulkActions": []
+    "bulkActions": [],
+    "setup": {
+        "steps": [
+            {
+                "id": "readonly",
+                "title": "demo.setup.step.readonly",
+                "description": "demo.setup.step.readonly_help",
+                "href": "/modules",
+                "ask_user": "demo.setup.ask.readonly",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "demo.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
 }

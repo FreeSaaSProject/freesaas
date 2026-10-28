@@ -166,4 +166,8 @@ return [
     'bots.plugin.my_tasks.line' => '#{id} {name}',
     'bots.plugin.news' => 'News',
     'bots.module.summary' => 'Enable for messenger delivery and inbound webhooks. Soft clients. Soft-used by core staff fields and procedures. Configure bot tokens in cfg/modules/bots.ini. Domain adapters via BotPlugins / bots.send.',
+    'bots.setup.step.config' => 'Copy or fill module settings (cfg/modules/bots.ini).',
+    'bots.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'bots.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'bots.setup.choice.open' => 'Open settings',
 ];

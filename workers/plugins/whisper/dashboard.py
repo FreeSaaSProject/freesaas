@@ -1,11 +1,11 @@
-"""Whisper plugin widgets: server health, pending results, loop hints."""
+"""Whisper plugin widgets: server health, pending, ASR hint (compact)."""
 from __future__ import annotations
 
 import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict
 from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parent
@@ -43,32 +43,25 @@ def _whisper_health(cfg: Dict[str, Any]) -> Dict[str, Any]:
         req = Request(url, method="GET")
         with urlopen(req, timeout=2.0) as resp:  # noqa: S310
             code = int(getattr(resp, "status", 200) or 200)
-            body = resp.read(200).decode("utf-8", errors="replace")
-        return {"ok": 200 <= code < 300, "url": url, "body": body[:120], "code": code}
+            body = resp.read(120).decode("utf-8", errors="replace")
+        return {"ok": 200 <= code < 300, "url": url, "body": body, "code": code}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "url": url, "error": str(e)}
-
-
-def _pending_count() -> int:
-    if not PENDING_DIR.is_dir():
-        return 0
-    return sum(1 for p in PENDING_DIR.iterdir() if p.is_file())
 
 
 def snapshot(ctx: Dict[str, Any]) -> Dict[str, Any]:
     cfg = _load_json(DEFAULT_CONFIG)
     st = _load_json(STATUS_PATH)
+    pending = sum(1 for p in PENDING_DIR.iterdir() if p.is_file()) if PENDING_DIR.is_dir() else 0
+    wh = cfg.get("whisper") if isinstance(cfg.get("whisper"), dict) else {}
+    fp = wh.get("form_params") if isinstance(wh.get("form_params"), dict) else {}
     return {
         "status": st,
         "health": _whisper_health(cfg),
-        "pending": _pending_count(),
-        "config": {
-            "server": cfg.get("server"),
-            "ftp_server": cfg.get("ftp_server"),
-            "loop": cfg.get("loop") or {},
-            "whisper": cfg.get("whisper") or {},
-        },
-        "runtime": ctx.get("runtime") or {},
+        "pending": pending,
+        "asr_language": str(fp.get("language") or "ru"),
+        "server": cfg.get("server"),
+        "stem_timeout": (cfg.get("analytics") or {}).get("stem_timeout_sec", 90) if isinstance(cfg.get("analytics"), dict) else 90,
     }
 
 
@@ -76,29 +69,19 @@ def render_html(snap: Dict[str, Any], ctx: Dict[str, Any]) -> str:
     h = snap.get("health") or {}
     st = snap.get("status") or {}
     act = st.get("activity") or {}
-    cfg = snap.get("config") or {}
     health_cls = "ok" if h.get("ok") else "bad"
     health_txt = "up" if h.get("ok") else "DOWN"
     return f"""
-<div class="row">
-  <div>
-    <div class="muted">whisper-server</div>
-    <div class="{health_cls}"><b>{health_txt}</b> {_esc(h.get('url'))}</div>
-    <div class="muted">{_esc(h.get('error') or h.get('body') or '')}</div>
-  </div>
-  <div>
-    <div class="muted">Activity</div>
-    <div class="activity"><span class="phase">{_esc(act.get('phase'))}</span>
-      <div class="muted">{_esc(act.get('detail'))}</div></div>
-    <div class="muted">pending uploads: {_esc(snap.get('pending'))}</div>
-  </div>
+<div class="muted">
+  <span class="{health_cls}"><b>whisper-server {health_txt}</b></span>
+  · ASR <code>{_esc(snap.get('asr_language'))}</code>
+  · pending {_esc(snap.get('pending'))}
+  · stem_timeout {_esc(snap.get('stem_timeout'))}s
+  <button type="button" data-act="restart_whisper_server" data-plugin="whisper">Restart server</button>
 </div>
-<p class="muted">FreeSaaS {_esc(cfg.get('server'))} · files {_esc(cfg.get('ftp_server'))}</p>
-<div class="toolbar">
-  <button type="button" data-act="restart_whisper_server" data-plugin="whisper">Restart whisper-server</button>
-</div>
-<p class="muted">Live client log: use the Log panel above (source=worker). Prefer
-<code>python -m workers.core logs whisper -f</code> instead of an open Terminal window.</p>
+<div class="activity" style="margin-top:4px"><span class="phase">{_esc(act.get('phase'))}</span>
+  <span class="muted">{_esc(act.get('detail'))}</span></div>
+<div class="muted" style="margin-top:2px">{_esc(snap.get('server'))}</div>
 """
 
 
@@ -112,9 +95,8 @@ def handle_action(action: str, payload: Dict[str, Any], ctx: Dict[str, Any]) -> 
     if not script.is_absolute():
         script = (ROOT / script).resolve()
     if not script.is_file():
-        return f"start script missing: {script} (copy start_whisper_server.example.sh)"
+        return f"start script missing: {script}"
     env = os.environ.copy()
-    # Prefer VAD off only if payload says so
     if str(payload.get("novad") or "") in ("1", "true", "yes"):
         env["WHISPER_VAD"] = "0"
     try:

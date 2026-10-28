@@ -92,4 +92,8 @@ return [
     'poll_invites.module.description' => 'Poll invite instances and staff fill (base_poll_invites); hooks for bots/site.',
     'poll_invites.module.summary' => 'Enable to send/fill poll invites. Requires polls. Soft clients/bonuses/calendar/procedures. “Review asked” button on calendar procedure chips. Publishes poll_invites.* for bots and site channels.',
     'poll_invites.perm.delete' => 'Delete poll invites',
+    'poll_invites.setup.step.config' => 'Copy or fill module settings (cfg/modules/poll_invites.ini).',
+    'poll_invites.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'poll_invites.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'poll_invites.setup.choice.open' => 'Open settings',
 ];

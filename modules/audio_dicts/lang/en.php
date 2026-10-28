@@ -302,4 +302,8 @@ return [
     'audio_dicts.module.description' => 'Recognition dicts, keys, scripts, and trash for ASR.',
     'audio_dicts.module.summary' => 'Enable for ASR dictionaries and scripts. Requires audio. Required by pipeline, reports, audio_llm, staff_reports. Configure before turning on workers.',
     'audio_dicts.perm.delete' => 'Delete dicts / keys / scripts',
+    'audio_dicts.setup.step.ready' => 'Module is ready after enable.',
+    'audio_dicts.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'audio_dicts.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'audio_dicts.setup.choice.open' => 'Open module',
 ];

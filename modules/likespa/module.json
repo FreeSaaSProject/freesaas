@@ -2,7 +2,7 @@
     "id": "likespa",
     "name": "likespa.module.name",
     "description": "likespa.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -213,5 +213,29 @@
         "maturity": "release",
         "tags": [],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "likespa.setup.step.config",
+                "description": "likespa.setup.step.config_help",
+                "href": "/likespa/settings",
+                "ask_user": "likespa.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "likespa.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

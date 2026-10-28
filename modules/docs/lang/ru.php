@@ -16,7 +16,6 @@ return [
     'docs.perm.manage' => 'Шаблоны документов (конструктор)',
     'docs.perm.sign' => 'Подпись в архиве (QR)',
     'docs.confirm_delete' => 'Удалить выбранные документы? Напечатанные удалить нельзя — только аннулировать.',
-
     'docs.kind.consent' => 'Согласие / уведомление',
     'docs.kind.contract' => 'Договор',
     'docs.kind.check' => 'Чек / бланк',
@@ -54,7 +53,6 @@ return [
     'docs.orientation.landscape' => 'альбомная',
     'docs.value.yes' => 'да',
     'docs.value.no' => 'нет',
-
     'docs.field.kind' => 'Вид',
     'docs.field.status' => 'Статус',
     'docs.field.client' => 'Клиент',
@@ -62,11 +60,9 @@ return [
     'docs.field.def' => 'Документ',
     'docs.field.dt_create' => 'Создан',
     'docs.field.dt_print' => 'Напечатан',
-
     'docs.list.new' => 'Создать',
     'docs.list.any' => 'Любой',
     'docs.list.empty' => 'Документов нет',
-
     'docs.edit.title_new' => 'Новый: {name}',
     'docs.edit.title' => '{name} #{id}',
     'docs.edit.version' => 'шаблон v{n}',
@@ -85,14 +81,12 @@ return [
     'docs.edit.revise' => 'Новая редакция',
     'docs.edit.void' => 'Аннулировать',
     'docs.edit.void_confirm' => 'Аннулировать документ?',
-
     'docs.msg.voided' => 'Документ аннулирован',
     'docs.msg.accepted' => 'Значение принято',
     'docs.msg.rejected' => 'Предложение отклонено',
     'docs.msg.segments_proposed' => 'Предложено интервалов: {n}',
     'docs.msg.segments_none' => 'Записей в окне визита не найдено',
     'docs.msg.no_changes' => 'Изменений нет',
-
     'docs.err.not_found' => 'Документ #{id} не найден',
     'docs.err.no_medical' => 'Нет доступа к медицинским картам',
     'docs.err.no_version' => 'У шаблона {code} нет версии',
@@ -108,21 +102,17 @@ return [
     'docs.err.proposal_not_found' => 'Предложение не найдено или уже обработано',
     'docs.err.proposal_mismatch' => 'Предложение не относится к этому документу',
     'docs.err.proposal_field' => 'Поле {id} отсутствует в шаблоне документа',
-
     'docs.proposals.title' => 'Предложения автозаполнения ({n})',
     'docs.proposals.current' => 'Сейчас',
     'docs.proposals.proposed' => 'Предложено',
     'docs.proposals.accept' => 'Принять',
     'docs.proposals.reject' => 'Отклонить',
-
     'docs.segments.note' => 'Комментарий',
     'docs.segments.remove' => 'Удалить',
     'docs.segments.add' => 'Добавить интервал',
-
     'docs.client.dossier' => 'Печать медкарты',
     'docs.client.profile' => 'Медкарта (профиль)',
     'docs.client.docs' => 'Документы: {n}',
-
     'docs.print.qr_caption' => 'Документ #{id} — проверка в архиве',
     'docs.print.dossier_profile' => 'Анамнез и объективный статус',
     'docs.print.dossier_visit' => 'Посещение {date}',
@@ -137,7 +127,6 @@ return [
     'docs.print.frozen' => 'Зафиксирован {date}',
     'docs.print.freeze' => 'Зафиксировать и печатать',
     'docs.print.preview_hint' => 'Предпросмотр. После фиксации документ нельзя изменить.',
-
     'docs.qr.not_found' => 'Документ не найден в архиве',
     'docs.qr.signed_ok' => 'Документ подписан в архиве',
     'docs.qr.title' => 'Проверка документа',
@@ -149,7 +138,6 @@ return [
     'docs.qr.not_signed' => 'не подписан',
     'docs.qr.sign' => 'Подписать как архивариус',
     'docs.qr.open' => 'Открыть документ',
-
     'docs.defs.new' => 'Новый шаблон',
     'docs.defs.empty' => 'Шаблонов нет',
     'docs.def.title' => 'Шаблон: {name}',
@@ -181,7 +169,8 @@ return [
     'docs.def.f_label' => 'Подпись',
     'docs.def.f_type' => 'Тип',
     'docs.def.f_options' => 'Варианты (значение=подпись, по строке)',
-    'docs.def.f_options_ph' => "a=Вариант A\nb=Вариант B",
+    'docs.def.f_options_ph' => 'a=Вариант A
+b=Вариант B',
     'docs.def.f_add' => 'Добавить поле',
     'docs.def.schema_json' => 'JSON схемы',
     'docs.def.sec_template' => 'Шаблон печати',
@@ -202,12 +191,10 @@ return [
     'docs.def.err.code_taken' => 'Код {code} уже занят',
     'docs.def.err.kind' => 'Неизвестный вид документа',
     'docs.def.err.name' => 'Укажите название',
-
     'docs.settings.sec_qr' => 'QR-архив',
     'docs.settings.qr_archive' => 'Печатать QR-код архива на документах',
     'docs.settings.qr_hint' => 'QR ведёт на страницу проверки (без персональных данных); сотрудник с правом подписи отмечает документ в архиве. При выключении QR не печатается, страница проверки недоступна.',
     'docs.settings.qr_no_lib' => 'Библиотека QR не найдена (входит в модуль stickers) — код печататься не будет.',
-
     'docs.event.sec' => 'Документы',
     'docs.event.medcard_blocking' => 'Лист посещения медкарты не заполнен — документы с этим условием не напечатаются.',
     'docs.event.empty' => 'Документов по визиту нет',
@@ -215,11 +202,9 @@ return [
     'docs.procedure.sec' => 'Лист посещения медкарты',
     'docs.procedure.create' => 'Создать лист посещения',
     'docs.procedure.empty' => 'Листа посещения нет',
-
     'docs.def.export' => 'Скачать файл',
     'docs.def.gender_f' => 'жен',
     'docs.def.gender_m' => 'муж',
-
     'docs.import.title' => 'Импорт шаблонов',
     'docs.import.library' => 'Библиотека шаблонов',
     'docs.import.library_hint' => 'Готовые шаблоны лежат файлами в модуле и попадают в БД только при импорте. Реквизиты прежнего предприятия заменены плейсхолдерами {org.*} — заполните их в настройках документов.',
@@ -242,7 +227,6 @@ return [
     'docs.import.err.file' => 'Выберите файл шаблона (до 5 МБ)',
     'docs.import.err.format' => 'Файл не похож на шаблон документа FreeSaaS',
     'docs.import.err.nothing' => 'Не выбрано ни одного шаблона',
-
     'docs.sample.open' => 'Образец',
     'docs.sample.title' => 'Образец: {name}',
     'docs.sample.hint' => 'Образец с демо-данными — ничего не сохраняется. Реквизиты берутся из настроек, пустые — примером.',
@@ -288,7 +272,6 @@ return [
     'docs.sample.org.corr_account' => '30101810000000000000',
     'docs.sample.org.bik' => '044500000',
     'docs.sample.org.signature' => '/путь/к/подписи.png',
-
     'docs.settings.sec_org' => 'Реквизиты организации',
     'docs.settings.org_hint' => 'Подставляются в шаблоны как {org.*}. Импортированные шаблоны используют их вместо данных прежнего предприятия.',
     'docs.org.name' => 'Полное наименование',
@@ -319,7 +302,6 @@ return [
     'docs.org.corr_account' => 'Корр. счёт',
     'docs.org.bik' => 'БИК',
     'docs.org.signature' => 'Факсимиле подписи (URL картинки)',
-
     'docs.seed.name.medcard_profile' => 'Медицинская карта: анамнез',
     'docs.seed.name.medcard_visit' => 'Лист посещения',
     'docs.seed.name.medcard_dossier' => 'Медицинская карта',
@@ -534,4 +516,8 @@ return [
     'docs.seed.tpl.consent_body' => 'Мне разъяснены цели, методы, возможные риски и альтернативы, я имел(а) возможность задать вопросы и получил(а) ответы.',
     'docs.seed.tpl.sign_client' => 'Подпись пациента',
     'docs.seed.tpl.valid_until' => 'Действительно до',
+    'docs.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/docs.ini).',
+    'docs.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'docs.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'docs.setup.choice.open' => 'Открыть настройки',
 ];

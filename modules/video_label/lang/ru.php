@@ -70,4 +70,8 @@ return [
     'video_label.flash.predictions_cleared' => 'Cache модели очищен. Запустите «Модель на все» для peeks.',
     'video_label.flash.deleted' => 'Удалено.',
     'video_label.empty.projects' => 'Проектов пока нет',
+    'video_label.setup.step.workspace' => 'Откройте workspace разметки и создайте проект.',
+    'video_label.setup.step.workspace_help' => 'Без проекта и классов обучение невозможно.',
+    'video_label.setup.ask.workspace' => 'Без проекта и классов обучение невозможно.',
+    'video_label.setup.choice.open' => 'Открыть workspace',
 ];

@@ -47,4 +47,8 @@ return [
     'stocks.module.description' => 'Warehouses (base_stocks) and leftovers report.',
     'stocks.module.summary' => 'Enable for warehouse cards and leftovers. Soft cabinets/stickers/catalog/norms. Required by stickers. Use when inventory locations matter beyond a single implicit stock.',
     'stocks.perm.delete' => 'Delete stocks',
+    'stocks.setup.step.ready' => 'Module is ready after enable.',
+    'stocks.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'stocks.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'stocks.setup.choice.open' => 'Open module',
 ];

@@ -442,4 +442,8 @@ return [
     'sites.llms.shop_note' => 'services and prices',
     'sites.llms.cart' => 'Cart and booking',
     'sites.llms.cart_note' => 'online booking for a human in the browser',
+    'sites.setup.step.hosts' => 'Configure storefront hosts / MCP for this module.',
+    'sites.setup.step.hosts_help' => 'Without hosts the public surface stays inactive.',
+    'sites.setup.ask.hosts' => 'Without hosts the public surface stays inactive.',
+    'sites.setup.choice.open' => 'Open hosts',
 ];

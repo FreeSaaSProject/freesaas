@@ -219,4 +219,8 @@ return [
     'video.empty.jobs' => 'No jobs yet',
     'video.empty.models' => 'No models registered',
     'video.empty.alerts' => 'No alerts yet',
+    'video.setup.step.wizard' => 'Complete the module setup wizard.',
+    'video.setup.step.wizard_help' => 'Walk through the wizard so the module can connect and run.',
+    'video.setup.ask.wizard' => 'Walk through the wizard so the module can connect and run.',
+    'video.setup.choice.open' => 'Open wizard',
 ];

@@ -69,4 +69,8 @@ return [
     'sheets.reconcile.applied' => 'Pairs fixed: {fixed}, returns created: {created}. Balances: terms {terms}, laundry {laundry}.',
     'sheets.reconcile.skip_insufficient' => '{day}: need {qty}, laundry left {left} — skipped',
     'sheets.reconcile.fix_descr' => 'Ticket reconcile, comment #{id}: {text}',
+    'sheets.setup.step.config' => 'Copy or fill module settings (cfg/modules/sheets.ini).',
+    'sheets.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'sheets.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'sheets.setup.choice.open' => 'Open settings',
 ];

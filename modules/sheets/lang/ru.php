@@ -69,4 +69,8 @@ return [
     'sheets.reconcile.applied' => 'Исправлено пар: {fixed}, создано возвратов: {created}. Остатки: термы {terms}, стирка {laundry}.',
     'sheets.reconcile.skip_insufficient' => '{day}: нужно {qty}, на стирке осталось {left} — пропущено',
     'sheets.reconcile.fix_descr' => 'Сверка заявки, коммент #{id}: {text}',
+    'sheets.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/sheets.ini).',
+    'sheets.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'sheets.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'sheets.setup.choice.open' => 'Открыть настройки',
 ];

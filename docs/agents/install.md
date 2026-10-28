@@ -12,6 +12,8 @@ Bring up a FreeSaaS instance with **no SSH** (shared hosting) or with CLI. After
 
 Module product secrets (optional): copy `modules/<id>/config.example.ini` → `cfg/modules/<id>.ini` when needed.
 
+**Module defaults:** absent `[modules] <id>` = **disabled**. Pin every module you want on with `=1`. After download use `/modules/{id}/activate` or `GET|POST /agent/modules/{id}/activate` (enable → grant → `setup.steps` with recommended choices). Upgrade helper: `php bin/freesaas.php module pin-effective` (then run migrations).
+
 ### Shared hosting web root
 
 - Prefer `DirectoryIndex index.php index.html` so a leftover host `index.html` does not hide the app.

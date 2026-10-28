@@ -2,7 +2,7 @@
     "id": "audio_phrases",
     "name": "audio_phrases.module.name",
     "description": "audio_phrases.module.description",
-    "version": "0.1.20",
+    "version": "0.1.21",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -96,5 +96,29 @@
             "jobs"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "audio_phrases.setup.step.config",
+                "description": "audio_phrases.setup.step.config_help",
+                "href": "/audio_phrases/settings",
+                "ask_user": "audio_phrases.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "audio_phrases.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

@@ -119,4 +119,8 @@ return [
     'updates.settings.frozen' => 'Frozen modules',
     'updates.settings.frozen_help' => 'Updates never write files of checked modules — use for modules you changed yourself. Edited files in other modules are detected automatically and kept.',
     'updates.job.bad_json' => 'Bad JSON response',
+    'updates.setup.step.source' => 'Configure the update repository source.',
+    'updates.setup.step.source_help' => 'Needed to check and install updates.',
+    'updates.setup.ask.source' => 'Needed to check and install updates.',
+    'updates.setup.choice.open' => 'Open update settings',
 ];

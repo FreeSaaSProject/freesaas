@@ -52,4 +52,8 @@ return [
     'clientics.settings.secret_empty' => 'not set',
     'clientics.settings.current' => 'current: {masked}',
     'clientics.module.summary' => 'Enable to import clients from Clientics into FreeSaaS. Requires clients. Soft calendar/procedures/workweeks for day-scoped pulls. Configure tokens in cfg/modules/clientics.ini. Beta — expect sync edge cases; diagnose locally if import fails.',
+    'clientics.setup.step.config' => 'Copy or fill module settings (cfg/modules/clientics.ini).',
+    'clientics.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'clientics.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'clientics.setup.choice.open' => 'Open settings',
 ];

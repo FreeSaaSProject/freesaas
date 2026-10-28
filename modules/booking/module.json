@@ -2,7 +2,7 @@
     "id": "booking",
     "name": "booking.module.name",
     "description": "booking.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -180,5 +180,29 @@
             "journal"
         ],
         "screenshots": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "availability",
+                "title": "booking.setup.step.availability",
+                "description": "booking.setup.step.availability_help",
+                "href": "/booking",
+                "ask_user": "booking.setup.ask.availability",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "booking.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
     }
 }

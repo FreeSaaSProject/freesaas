@@ -51,4 +51,8 @@ return [
     'audio_pipeline.settings.flag_ok_hint' => 'Role flag DISABLE_NON_PROCEDURE_TIME is on — idle disable can run after collect / Re-®.',
     'audio_pipeline.settings.flag_warn_position' => 'Override saved, but this role lacks DISABLE_NON_PROCEDURE_TIME. Without it StemRunner will not disable records.',
     'audio_pipeline.settings.flag_warn_admin' => 'Override saved, but this staffer’s role lacks DISABLE_NON_PROCEDURE_TIME. Without it StemRunner will not disable records.',
+    'audio_pipeline.setup.step.ready' => 'Module is ready after enable.',
+    'audio_pipeline.setup.step.ready_help' => 'No secrets required — open the list and create first records if needed.',
+    'audio_pipeline.setup.ask.ready' => 'No secrets required — open the list and create first records if needed.',
+    'audio_pipeline.setup.choice.open' => 'Open module',
 ];

@@ -48,4 +48,8 @@ return [
     'yclients.settings.secret_empty' => 'не задан',
     'yclients.settings.current' => 'сейчас: {masked}',
     'yclients.module.summary' => 'Включайте для синхронизации клиентов из YClients. Требует clients. Мягко calendar/procedures/workweeks. Ключи — cfg/modules/yclients.ini. Beta: проверьте матчинг телефонов до опоры на прод-дни.',
+    'yclients.setup.step.config' => 'Скопируйте или заполните настройки модуля (cfg/modules/yclients.ini).',
+    'yclients.setup.step.config_help' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'yclients.setup.ask.config' => 'Откройте настройки и укажите нужные значения (токены, endpoints).',
+    'yclients.setup.choice.open' => 'Открыть настройки',
 ];

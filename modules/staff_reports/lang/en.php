@@ -103,4 +103,8 @@ return [
     'staff_reports.err.no_profile' => 'No enabled profile for employee position',
     'staff_reports.module.description' => 'Staff quality day reports (traffic lights by position); rewards on audio calendar.',
     'staff_reports.module.summary' => 'Publishes quality reports to tickets + calendar markers. Gates/bonus live on scripts (DAY_BONUS/GATE_*). Publishes after Re-®. Publisher settings on /audio/settings.',
+    'staff_reports.setup.step.config' => 'Copy or fill module settings (cfg/modules/staff_reports.ini).',
+    'staff_reports.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'staff_reports.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'staff_reports.setup.choice.open' => 'Open settings',
 ];

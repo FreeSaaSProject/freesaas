@@ -2,12 +2,19 @@
     "id": "assistant_groups",
     "name": "assistant_groups.module.name",
     "description": "assistant_groups.module.description",
-    "version": "1.0.6",
+    "version": "1.0.18",
     "type": "product",
     "catalog": {
-        "categories": ["integrations", "communications"],
+        "categories": [
+            "integrations",
+            "communications"
+        ],
         "maturity": "release",
-        "tags": ["llm", "transport", "settings"]
+        "tags": [
+            "llm",
+            "transport",
+            "settings"
+        ]
     },
     "requires": {
         "core": ">=1.0.0",
@@ -85,6 +92,30 @@
         "subscribe": [
             "bots.inbound",
             "bots.ready"
+        ]
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "assistant_groups.setup.step.config",
+                "description": "assistant_groups.setup.step.config_help",
+                "href": "/assistant_groups/settings",
+                "ask_user": "assistant_groups.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "assistant_groups.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
         ]
     }
 }

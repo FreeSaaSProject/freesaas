@@ -3,7 +3,7 @@
     "name": "gcal.module.name",
     "description": "gcal.module.description",
     "summary": "gcal.module.summary",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "type": "product",
     "catalog": {
         "categories": [
@@ -135,5 +135,29 @@
     "jobs": [
         "platform Cron::register gcal.queue_drain → /cron/tick",
         "POST /gcal/work (session)"
-    ]
+    ],
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "gcal.setup.step.config",
+                "description": "gcal.setup.step.config_help",
+                "href": "/gcal",
+                "ask_user": "gcal.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "gcal.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
 }

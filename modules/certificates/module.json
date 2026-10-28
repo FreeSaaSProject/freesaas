@@ -2,7 +2,7 @@
     "id": "certificates",
     "name": "certificates.module.name",
     "description": "certificates.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -170,5 +170,31 @@
     },
     "uninstall": {
         "strategy": "drop_owned"
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "certificates.setup.step.ready",
+                "description": "certificates.setup.step.ready_help",
+                "href": "/certificates",
+                "ask_user": "certificates.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "certificates.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
     }
 }

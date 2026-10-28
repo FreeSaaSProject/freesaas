@@ -519,9 +519,54 @@ final class AgentOps
     {
         $r = UpdateEngine::installModule($id);
         if (!empty($r['ok'])) {
-            $r['hint'] = 'Module downloaded to modules/' . $id . ' and left disabled ([modules] ' . $id . '=0); enable via module enable (accept_risk if alpha/beta)';
+            $r['hint'] = 'Module downloaded to modules/' . $id . ' and left disabled ([modules] ' . $id . '=0). Next: GET /agent/modules/' . $id . '/activate (snapshot) or UI /modules/' . $id . '/activate — then apply enable/grant/setup with recommended choices.';
+            $r['activate_ui'] = '/modules/' . $id . '/activate';
+            $r['activate_agent'] = '/agent/modules/' . $id . '/activate';
         }
         return $r;
+    }
+
+    /**
+     * Activate wizard snapshot (enable / grant / setup.steps).
+     *
+     * @return array<string,mixed>
+     */
+    public static function moduleActivateSnapshot(string $id): array
+    {
+        require_once base_path('modules/core/lib/ModulesActivate.php');
+        require_once base_path('modules/core/lib/StatusesRepository.php');
+        require_once base_path('modules/core/lib/UsersRepository.php');
+        return ModulesActivate::snapshot($id);
+    }
+
+    /**
+     * Activate wizard apply: enable|grant|setup_step|setup_defer_all|leave_disabled|finish.
+     *
+     * @param array<string,mixed> $opts
+     * @return array<string,mixed>
+     */
+    public static function moduleActivateApply(string $id, string $action, array $opts = []): array
+    {
+        require_once base_path('modules/core/lib/ModulesActivate.php');
+        require_once base_path('modules/core/lib/StatusesRepository.php');
+        require_once base_path('modules/core/lib/UsersRepository.php');
+        return ModulesActivate::apply($id, $action, $opts);
+    }
+
+    /**
+     * Pin on-disk modules missing [modules] keys to =1 (legacy absent=on upgrade).
+     *
+     * @return array<string,mixed>
+     */
+    public static function modulePinEffective(): array
+    {
+        $report = Config::pinEffectiveModules();
+        return [
+            'ok' => true,
+            'pinned' => $report['pinned'],
+            'skipped' => $report['skipped'],
+            'http' => 200,
+        ];
     }
 
     /** Hide (dismiss=true) or restore an installable module in the "available to install" list. */

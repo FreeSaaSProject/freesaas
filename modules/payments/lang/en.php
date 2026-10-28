@@ -124,7 +124,6 @@ return [
     'payments.err.descr_required' => 'Enter a description',
     'payments.err.forbidden' => 'Not allowed to view other staff payments',
     'payments.err.delete_linked' => 'Delete blocked: linked account moves exist',
-
     'payments.alloc.title' => 'Settlements (link to move)',
     'payments.alloc.hint' => 'Link several open payouts to one ledger move (e.g. payroll batch). Creating a move from the payment card remains available.',
     'payments.alloc.move_sum' => 'Move amount',
@@ -151,14 +150,12 @@ return [
     'payments.contract.paid' => 'Paid',
     'payments.module.description' => 'Staff settlements (base_payments); contracts pay CTA; auto-DPS with ledger.',
     'payments.module.summary' => 'Enable for paying specialists and settlement docs. Soft ledger (auto-DPS), spa instance pack, procents (auto % MONTH or daily accruals). Use with contracts for pay CTAs.',
-
     'payments.bot.day_pay.unavailable' => 'Cash requests are unavailable — contact the director.',
     'payments.bot.day_pay.after_shift' => 'You can schedule a payout after today’s shift ends.',
     'payments.bot.day_pay.only_daily' => 'Available to staff with daily payroll only.',
     'payments.bot.day_pay.pending_exists' => 'You already have an open payout request.',
     'payments.bot.day_pay.busy' => 'Another payout operation is in progress — try again in a moment.',
     'payments.bot.day_pay.lock_failed' => 'Could not lock the payout row — try again. InnoDB is required for cash payouts.',
-
     'payments.bot.day_pay.low_balance' => 'Balance too low (need at least 100).',
     'payments.bot.day_pay.bad_date' => 'Selected date is not available.',
     'payments.bot.day_pay.bad_issuer' => 'Selected issuer is not available on that date.',
@@ -199,4 +196,8 @@ return [
     'payments.assistant.preview.dir_in' => 'credit',
     'payments.assistant.preview.dir_out' => 'debit',
     'payments.assistant.hint_fot' => '«ФОТ» means payroll / staff pay (payments.* tools), never «photos».',
+    'payments.setup.step.config' => 'Copy or fill module settings (cfg/modules/payments.ini).',
+    'payments.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'payments.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'payments.setup.choice.open' => 'Open settings',
 ];

@@ -79,7 +79,6 @@ return [
     'audio_llm.module.description' => 'LLM studies on audio records: cyclic templates and staff day-report spawn.',
     'audio_llm.module.summary' => 'Enable for AI analysis of recordings. Requires llm + audio + audio_dicts. Soft staff_reports/comments/procedures/contracts. Turn on after llm keys and audio dicts are ready.',
     'audio_llm.perm.delete' => 'Delete LLM studies',
-
     'audio_llm.moderation.title' => 'LLM moderation',
     'audio_llm.moderation.lede' => 'Quick scan of the pack: only significant one-liners with record IDs (skimmable in seconds).',
     'audio_llm.moderation.btn_run' => 'Run moderation',
@@ -111,4 +110,8 @@ return [
     'audio_llm.moderation.settings.reset_fields' => 'Fill fields with default',
     'audio_llm.moderation.settings.reset_save' => 'Reset and save default',
     'audio_llm.moderation.settings.reset_confirm' => 'Clear saved prompts and use the built-in default again?',
+    'audio_llm.setup.step.config' => 'Copy or fill module settings (cfg/modules/audio_llm.ini).',
+    'audio_llm.setup.step.config_help' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio_llm.setup.ask.config' => 'Open settings and enter required values (tokens, endpoints).',
+    'audio_llm.setup.choice.open' => 'Open settings',
 ];

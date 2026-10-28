@@ -7,9 +7,6 @@ declare(strict_types=1);
  */
 final class AssistantGroupsBotHandler
 {
-    private const CB_OK = 'ag:ok:';
-    private const CB_NO = 'ag:no:';
-
     public static function register(): void
     {
         if (!ModuleManager::isEnabled('bots')) {
@@ -84,13 +81,13 @@ final class AssistantGroupsBotHandler
             $user = BotIdentity::findStaffByChat('max', $fromId);
         }
         if ($user === null) {
-            self::reply($token, $chatId, t('assistant_groups.bot.need_link'));
+            AssistantGroupsKeyboards::reply($token, $chatId, t('assistant_groups.bot.need_link'));
             return $payload;
         }
 
         $uid = (int)($user['id'] ?? 0);
         if ($uid < 1) {
-            self::reply($token, $chatId, t('assistant_groups.bot.need_link'));
+            AssistantGroupsKeyboards::reply($token, $chatId, t('assistant_groups.bot.need_link'));
             return $payload;
         }
 
@@ -98,7 +95,7 @@ final class AssistantGroupsBotHandler
         if ($clean === '') {
             if ($isReplyToBot) {
                 // Bare reply with only a mention stripped — still empty.
-                self::reply($token, $chatId, t('assistant_groups.bot.empty_after_mention'));
+                AssistantGroupsKeyboards::reply($token, $chatId, t('assistant_groups.bot.empty_after_mention'));
             }
             return $payload;
         }
@@ -111,12 +108,23 @@ final class AssistantGroupsBotHandler
             }
         }
 
+        // Soft option as plain text ("1") after LLM listed numbered variants without a draft.
+        $softPick = null;
+        if (preg_match('/^[1-9]$/u', $clean)) {
+            $softMap = AssistantGroupsDialog::getSoftOptions($chatId);
+            $n = (int)$clean;
+            if (isset($softMap[$n])) {
+                $softPick = ['n' => $n, 'label' => (string)$softMap[$n]];
+                AssistantGroupsDialog::clearSoftOptions($chatId);
+            }
+        }
+
         $speaker = trim((string)($user['name'] ?? $user['login'] ?? ''));
         if ($speaker !== '') {
             $clean = t('assistant_groups.bot.user_prefix', ['name' => $speaker]) . $clean;
         }
 
-        self::runDraft($token, $chatId, $uid, $user, $clean, $isReplyToBot);
+        self::runDraft($token, $chatId, $uid, $user, $clean, $isReplyToBot, $softPick);
         return $payload;
     }
 
@@ -197,7 +205,7 @@ final class AssistantGroupsBotHandler
                 'action' => $action,
             ];
         }
-        self::stripKeyboards($apiToken, $chatId);
+        AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
         $done = isset($result['done'])
             ? AssistantHarness::formatConfirmBatchDone($result)
             : ($action === 'cancel'
@@ -230,26 +238,162 @@ final class AssistantGroupsBotHandler
             BotClient::answerCallback('max', $token, $callbackId);
         }
 
-        if (strpos($data, self::CB_OK) !== 0 && strpos($data, self::CB_NO) !== 0) {
+        $isOk = strpos($data, AssistantGroupsKeyboards::CB_OK) === 0;
+        $isNo = strpos($data, AssistantGroupsKeyboards::CB_NO) === 0;
+        $isProb = strpos($data, AssistantGroupsKeyboards::CB_PROB) === 0;
+        $isCh = strpos($data, AssistantGroupsKeyboards::CB_CH) === 0;
+        $isNum = strpos($data, AssistantGroupsKeyboards::CB_NUM) === 0;
+        $isSoftNo = $data === AssistantGroupsKeyboards::CB_SOFT_NO;
+        $isSoftProb = $data === AssistantGroupsKeyboards::CB_SOFT_PROB;
+        if (!$isOk && !$isNo && !$isProb && !$isCh && !$isNum && !$isSoftNo && !$isSoftProb) {
             return false;
         }
-        $action = strpos($data, self::CB_OK) === 0 ? 'confirm' : 'cancel';
-        $pendingToken = substr($data, strlen(self::CB_OK));
-        if ($action === 'cancel') {
-            $pendingToken = substr($data, strlen(self::CB_NO));
-        }
         $callbackMid = trim((string)($payload['message_id'] ?? ''));
-        if (!preg_match('/^[a-f0-9]{16}$/', $pendingToken)) {
-            self::stripKeyboards($token, $chatId, $callbackMid);
-            return true;
-        }
         if ($user === null) {
-            self::reply($token, $chatId, t('assistant_groups.bot.need_link'));
+            AssistantGroupsKeyboards::reply($token, $chatId, t('assistant_groups.bot.need_link'));
             return true;
         }
         $uid = (int)($user['id'] ?? 0);
+
+        if ($isSoftNo || $isSoftProb) {
+            AssistantGroupsChoices::resolveSoftDismiss(
+                $token,
+                $chatId,
+                $uid,
+                $user,
+                $isSoftProb ? 'problem' : 'cancel',
+                $callbackMid
+            );
+            return true;
+        }
+
+        if ($isNum) {
+            $n = (int)substr($data, strlen(AssistantGroupsKeyboards::CB_NUM));
+            if ($n < 1 || $n > 9) {
+                AssistantGroupsKeyboards::stripKeyboards($token, $chatId, $callbackMid);
+                return true;
+            }
+            AssistantGroupsKeyboards::stripKeyboards($token, $chatId, $callbackMid);
+            $softMap = AssistantGroupsDialog::getSoftOptions($chatId);
+            $label = (string)($softMap[$n] ?? '');
+            AssistantGroupsDialog::clearSoftOptions($chatId);
+            $speaker = trim((string)($user['name'] ?? $user['login'] ?? ''));
+            $pick = (string)$n;
+            if ($speaker !== '') {
+                $pick = t('assistant_groups.bot.user_prefix', ['name' => $speaker]) . $pick;
+            }
+            $softPick = $label !== '' ? ['n' => $n, 'label' => $label] : ['n' => $n, 'label' => (string)$n];
+            // Continue the same task as a reply (no @mention required).
+            self::runDraft($token, $chatId, $uid, $user, $pick, true, $softPick);
+            return true;
+        }
+
+        if ($isCh) {
+            $rest = substr($data, strlen(AssistantGroupsKeyboards::CB_CH));
+            if (!preg_match('/^([a-f0-9]{16}):([1-9])$/', $rest, $m)) {
+                AssistantGroupsKeyboards::stripKeyboards($token, $chatId, $callbackMid);
+                return true;
+            }
+            AssistantGroupsChoices::applyChoice(
+                $token,
+                $chatId,
+                $m[1],
+                (int)$m[2],
+                $uid,
+                $user,
+                $callbackMid
+            );
+            return true;
+        }
+
+        if ($isOk) {
+            $action = 'confirm';
+            $pendingToken = substr($data, strlen(AssistantGroupsKeyboards::CB_OK));
+        } elseif ($isProb) {
+            $action = 'problem';
+            $pendingToken = substr($data, strlen(AssistantGroupsKeyboards::CB_PROB));
+        } else {
+            $action = 'cancel';
+            $pendingToken = substr($data, strlen(AssistantGroupsKeyboards::CB_NO));
+        }
+        if (!preg_match('/^[a-f0-9]{16}$/', $pendingToken)) {
+            AssistantGroupsKeyboards::stripKeyboards($token, $chatId, $callbackMid);
+            return true;
+        }
+        if ($action === 'problem') {
+            self::resolveProblem($token, $chatId, $pendingToken, $uid, $user, $callbackMid);
+            return true;
+        }
+        if ($action === 'cancel') {
+            AssistantGroupsDialog::clearChoices($chatId, $pendingToken);
+        }
         self::resolveAndAnnounce($token, $chatId, $pendingToken, $action, $uid, $user, $callbackMid);
         return true;
+    }
+
+    /**
+     * Cancel pending and file a problem case (distinct from «changed mind» Cancel).
+     *
+     * @param array<string,mixed> $user
+     */
+    public static function resolveProblem(
+        string $apiToken,
+        string $chatId,
+        string $pendingToken,
+        int $actorId,
+        array $user,
+        string $callbackMid = ''
+    ): void {
+        $row = class_exists('PendingActionsRepository', false)
+            ? PendingActionsRepository::findByToken($pendingToken)
+            : null;
+        $opId = is_array($row) ? (string)($row['OP_ID'] ?? '') : '';
+        $summary = is_array($row) ? trim((string)($row['SUMMARY'] ?? '')) : '';
+        $args = is_array($row) && class_exists('PendingActionsRepository', false)
+            ? PendingActionsRepository::decodeArgs($row)
+            : [];
+
+        $history = class_exists('AssistantGroupsDialog', false)
+            ? AssistantGroupsDialog::getHistory($chatId)
+            : [];
+        $userText = '';
+        for ($i = count($history) - 1; $i >= 0; $i--) {
+            if (($history[$i]['role'] ?? '') === 'user') {
+                $userText = trim((string)($history[$i]['content'] ?? ''));
+                break;
+            }
+        }
+
+        try {
+            Auth::runAs($actorId, static function () use ($pendingToken, $actorId) {
+                return AssistantHarness::resolvePlan($pendingToken, 'cancel', $actorId);
+            });
+        } catch (Throwable $e) {
+            error_log('[assistant_groups] problem cancel: ' . $e->getMessage());
+        }
+        AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId, $callbackMid);
+        AssistantGroupsDialog::clearChoices($chatId, $pendingToken);
+
+        $name = trim((string)($user['name'] ?? $user['login'] ?? ('#' . $actorId)));
+        $saved = class_exists('AssistantGroupsProblemStore', false)
+            ? AssistantGroupsProblemStore::save([
+                'chat_id' => $chatId,
+                'user_id' => $actorId,
+                'user_name' => $name,
+                'pending_token' => $pendingToken,
+                'op_id' => $opId,
+                'args' => $args,
+                'summary' => $summary,
+                'user_text' => $userText,
+                'bot_mid' => $callbackMid,
+            ])
+            : ['ok' => false, 'error' => 'store missing', 'id' => ''];
+
+        $msg = !empty($saved['ok'])
+            ? t('assistant_groups.bot.problem_filed', ['id' => (string)($saved['id'] ?? '')])
+            : t('assistant_groups.bot.problem_filed_fail');
+        $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $msg);
+        self::appendDialogNote($chatId, $msg, $mid);
     }
 
     /**
@@ -265,9 +409,9 @@ final class AssistantGroupsBotHandler
         $action = strtolower(trim($action)) === 'cancel' ? 'cancel' : 'confirm';
         $row = PendingActionsRepository::findLatestPendingForGroup($chatId, 'max');
         if ($row === null) {
-            self::stripKeyboards($token, $chatId);
+            AssistantGroupsKeyboards::stripKeyboards($token, $chatId);
             $msg = t('assistant_groups.bot.no_pending');
-            $mid = self::reply($token, $chatId, $msg);
+            $mid = AssistantGroupsKeyboards::reply($token, $chatId, $msg);
             self::appendDialogNote($chatId, $msg, $mid);
             return;
         }
@@ -278,7 +422,7 @@ final class AssistantGroupsBotHandler
     /**
      * @param array<string,mixed> $user
      */
-    private static function resolveAndAnnounce(
+    public static function resolveAndAnnounce(
         string $apiToken,
         string $chatId,
         string $pendingToken,
@@ -293,8 +437,8 @@ final class AssistantGroupsBotHandler
             });
         } catch (Throwable $e) {
             error_log('[assistant_groups] resolve: ' . $e->getMessage());
-            self::stripKeyboards($apiToken, $chatId, $callbackMid);
-            self::reply($apiToken, $chatId, t('assistant.chat.error'));
+            AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId, $callbackMid);
+            AssistantGroupsKeyboards::reply($apiToken, $chatId, t('assistant.chat.error'));
             return;
         }
 
@@ -302,7 +446,7 @@ final class AssistantGroupsBotHandler
         $needPerm = (string)($result['required_permission'] ?? '');
         $keepButtons = $needPerm !== '' && !empty($result['forbidden_capability']);
         if (!$keepButtons) {
-            self::stripKeyboards($apiToken, $chatId, $callbackMid);
+            AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId, $callbackMid);
         }
 
         if (!empty($result['ok']) && $action === 'confirm') {
@@ -314,7 +458,7 @@ final class AssistantGroupsBotHandler
                 'name' => $name,
                 'done' => $done,
             ]);
-            $mid = self::reply($apiToken, $chatId, $msg);
+            $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $msg);
             self::appendDialogNote($chatId, $msg, $mid);
             return;
         }
@@ -322,7 +466,7 @@ final class AssistantGroupsBotHandler
             $msg = isset($result['done'])
                 ? AssistantHarness::formatConfirmBatchDone($result)
                 : t('assistant.confirm.cancelled');
-            $mid = self::reply($apiToken, $chatId, $msg);
+            $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $msg);
             self::appendDialogNote($chatId, $msg, $mid);
             return;
         }
@@ -331,18 +475,25 @@ final class AssistantGroupsBotHandler
         if ($keepButtons) {
             $err = t('assistant_groups.bot.no_permission', ['perm' => $needPerm]);
             // Replace old keyboards with a fresh prompt for someone with rights.
-            self::stripKeyboards($apiToken, $chatId);
-            $kb = self::confirmKeyboard($pendingToken);
-            $mid = self::reply($apiToken, $chatId, $err, $kb);
+            AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
+            $kb = AssistantGroupsKeyboards::draftKeyboard($pendingToken, true);
+            $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $err, $kb);
             self::appendDialogNote($chatId, $err, $mid);
             return;
         }
-        $mid = self::reply($apiToken, $chatId, $err);
+        if (!empty($result['preflight_blocked']) && $action === 'confirm') {
+            AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
+            $kb = AssistantGroupsKeyboards::draftKeyboard($pendingToken, false);
+            $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $err, $kb);
+            self::appendDialogNote($chatId, $err, $mid);
+            return;
+        }
+        $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $err);
         self::appendDialogNote($chatId, $err, $mid);
     }
 
     /** Record confirm/cancel outcome in group history so the next draft does not invent a live queue. */
-    private static function appendDialogNote(string $chatId, string $text, ?string $mid): void
+    public static function appendDialogNote(string $chatId, string $text, ?string $mid): void
     {
         $text = trim($text);
         if ($text === '') {
@@ -357,26 +508,34 @@ final class AssistantGroupsBotHandler
     /**
      * @param array<string,mixed> $user
      */
+    /**
+     * @param array{n?:int,label?:string}|null $softPick user chose a soft numbered option
+     */
     private static function runDraft(
         string $apiToken,
         string $chatId,
         int $uid,
         array $user,
         string $text,
-        bool $isReplyToBot = false
+        bool $isReplyToBot = false,
+        ?array $softPick = null
     ): void {
         $ops = AssistantGroupsCatalog::opsForGroup();
         // Always has dialog.clear; product tools from group_ops (may be empty).
 
         // New @mention / task — remove stale Confirm buttons from older bot messages.
-        self::stripKeyboards($apiToken, $chatId);
+        AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
+        if ($softPick === null) {
+            // Fresh task text (not a soft pick) — drop stale soft option map.
+            AssistantGroupsDialog::clearSoftOptions($chatId);
+        }
 
         $livePending = class_exists('PendingActionsRepository', false)
             ? PendingActionsRepository::findLatestPendingForGroup($chatId, 'max')
             : null;
 
         $name = class_exists('AssistantConfig', false) ? AssistantConfig::displayName() : 'Assistant';
-        self::reply($apiToken, $chatId, t('assistant_groups.bot.working', ['name' => $name]));
+        AssistantGroupsKeyboards::reply($apiToken, $chatId, t('assistant_groups.bot.working', ['name' => $name]));
 
         $history = AssistantGroupsDialog::getHistory($chatId);
         if ($isReplyToBot && $history !== []) {
@@ -404,6 +563,14 @@ final class AssistantGroupsBotHandler
         } else {
             $systemExtra .= "\n" . t('assistant_groups.bot.system_chat_id', ['chat_id' => $chatId]);
         }
+        if (is_array($softPick) && (int)($softPick['n'] ?? 0) > 0) {
+            $systemExtra .= "\n" . t('assistant_groups.bot.system_soft_pick', [
+                'n' => (string)(int)$softPick['n'],
+                'label' => trim((string)($softPick['label'] ?? '')) !== ''
+                    ? trim((string)$softPick['label'])
+                    : (string)(int)$softPick['n'],
+            ]);
+        }
         if ($livePending !== null) {
             $systemExtra .= "\n" . t('assistant_groups.bot.system_live_pending', [
                 'op' => (string)($livePending['OP_ID'] ?? ''),
@@ -414,7 +581,7 @@ final class AssistantGroupsBotHandler
         }
         $toolStubs = [
             AssistantGroupsCatalog::OP_CLEAR => static function () use ($apiToken, $chatId, $uid): array {
-                self::stripKeyboards($apiToken, $chatId);
+                AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
                 self::cancelGroupPendings($chatId, $uid);
                 AssistantGroupsDialog::clear($chatId);
                 return [
@@ -447,7 +614,7 @@ final class AssistantGroupsBotHandler
             });
         } catch (Throwable $e) {
             error_log('[assistant_groups] draft: ' . $e->getMessage());
-            self::reply($apiToken, $chatId, t('assistant.chat.error'));
+            AssistantGroupsKeyboards::reply($apiToken, $chatId, t('assistant.chat.error'));
             return;
         }
 
@@ -455,7 +622,7 @@ final class AssistantGroupsBotHandler
 
         if (empty($result['ok'])) {
             $err = (string)($result['error'] ?? t('assistant.chat.error'));
-            $mid = self::reply($apiToken, $chatId, $err);
+            $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $err);
             self::persistHistory($chatId, $history, $err, $mid, $cleared);
             return;
         }
@@ -471,15 +638,33 @@ final class AssistantGroupsBotHandler
             if ($liveNow !== null && !$cleared) {
                 $tok = (string)($liveNow['TOKEN'] ?? '');
                 $sum = trim((string)($liveNow['SUMMARY'] ?? ''));
-                $out = t('assistant_groups.bot.resent_pending', [
+                $planId = trim((string)($liveNow['PLAN_ID'] ?? ''));
+                $liveRows = $planId !== ''
+                    ? array_values(array_filter(
+                        PendingActionsRepository::listByPlan($planId),
+                        static function (array $r): bool {
+                            return strtolower(trim((string)($r['STATUS'] ?? ''))) === 'pending';
+                        }
+                    ))
+                    : [$liveNow];
+                $confirmable = class_exists('AssistantHarness', false)
+                    ? AssistantHarness::dbRowsConfirmable($liveRows)
+                    : true;
+                $outKey = $confirmable
+                    ? 'assistant_groups.bot.resent_pending'
+                    : 'assistant_groups.bot.resent_blocked';
+                $out = t($outKey, [
                     'summary' => $sum !== '' ? $sum : (string)($liveNow['OP_ID'] ?? ''),
                 ]);
                 if ($replyText !== '') {
                     $out = $replyText . "\n\n" . $out;
                 }
-                self::stripKeyboards($apiToken, $chatId);
-                $kb = $tok !== '' ? self::confirmKeyboard($tok) : null;
-                $mid = self::reply($apiToken, $chatId, $out, $kb);
+                AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
+                $resentChoices = ($tok !== '' && !$confirmable)
+                    ? AssistantGroupsDialog::getChoices($chatId, $tok)
+                    : [];
+                $kb = $tok !== '' ? AssistantGroupsKeyboards::draftKeyboard($tok, $confirmable, $resentChoices) : null;
+                $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $out, $kb);
                 self::persistHistory($chatId, $history, $out, $mid, false);
                 return;
             }
@@ -488,11 +673,129 @@ final class AssistantGroupsBotHandler
                     ? t('assistant_groups.bot.cleared')
                     : t('assistant_groups.bot.dm_only');
             }
-            $mid = self::reply($apiToken, $chatId, $replyText);
+            // Model invented «Draft ready / press Confirm» without queueing a write — do not lie.
+            if (!$cleared && AssistantGroupsKeyboards::looksLikeFakeDraft($replyText)) {
+                // One automatic retry when the user just picked a soft option.
+                if (is_array($softPick) && (int)($softPick['n'] ?? 0) > 0) {
+                    $retry = self::runHarnessOnce(
+                        $history,
+                        $ops,
+                        $uid,
+                        $chatId,
+                        $systemExtra . "\n" . t('assistant_groups.bot.system_soft_pick', [
+                            'n' => (string)(int)$softPick['n'],
+                            'label' => trim((string)($softPick['label'] ?? '')) !== ''
+                                ? trim((string)$softPick['label'])
+                                : (string)(int)$softPick['n'],
+                        ]),
+                        $toolStubs
+                    );
+                    if (is_array($retry) && !empty($retry['ok'])) {
+                        $pendingRetry = is_array($retry['pending_actions'] ?? null) ? $retry['pending_actions'] : [];
+                        if ($pendingRetry !== []) {
+                            self::announcePendingDraft(
+                                $apiToken,
+                                $chatId,
+                                $uid,
+                                $user,
+                                $history,
+                                $ops,
+                                $pendingRetry,
+                                trim((string)($retry['text'] ?? '')),
+                                $livePending,
+                                false
+                            );
+                            return;
+                        }
+                    }
+                }
+                $replyText = t('assistant_groups.bot.fake_draft');
+                AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
+                $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $replyText);
+                self::persistHistory($chatId, $history, $replyText, $mid, false);
+                return;
+            }
+            // LLM listed 1/2/… without a draft — still offer tap buttons (skip Cancel-like lines).
+            AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
+            $softMap = AssistantGroupsKeyboards::parseNumberedOptions($replyText);
+            if ($softMap !== []) {
+                AssistantGroupsDialog::setSoftOptions($chatId, $softMap);
+            } else {
+                AssistantGroupsDialog::clearSoftOptions($chatId);
+            }
+            $kb = $softMap !== [] ? AssistantGroupsKeyboards::numberPickKeyboard(array_keys($softMap)) : null;
+            $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $replyText, $kb);
             self::persistHistory($chatId, $history, $replyText, $mid, $cleared);
             return;
         }
 
+        AssistantGroupsDialog::clearSoftOptions($chatId);
+        self::announcePendingDraft(
+            $apiToken,
+            $chatId,
+            $uid,
+            $user,
+            $history,
+            $ops,
+            $pending,
+            $replyText,
+            $livePending,
+            $cleared
+        );
+    }
+
+    /**
+     * @param list<array{role:string,content:string}> $history
+     * @param list<array<string,mixed>> $ops
+     * @param array<string,callable> $toolStubs
+     * @return array<string,mixed>|null
+     */
+    private static function runHarnessOnce(
+        array $history,
+        array $ops,
+        int $uid,
+        string $chatId,
+        string $systemExtra,
+        array $toolStubs
+    ): ?array {
+        try {
+            return Auth::runAs($uid, static function () use ($history, $ops, $uid, $chatId, $systemExtra, $toolStubs) {
+                return AssistantHarness::run($history, [
+                    'user_id' => $uid,
+                    'ops' => $ops,
+                    'group_mode' => true,
+                    'group_chat_id' => $chatId,
+                    'group_platform' => 'max',
+                    'confirm_mode' => 'capability',
+                    'read_unrestricted' => AssistantGroupsConfig::readUnrestricted(),
+                    'system_extra' => $systemExtra,
+                    'tool_stubs' => $toolStubs,
+                ]);
+            });
+        } catch (Throwable $e) {
+            error_log('[assistant_groups] harness retry: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * @param list<array{role:string,content:string}> $history
+     * @param list<array<string,mixed>> $ops
+     * @param list<array<string,mixed>> $pending
+     * @param array<string,mixed>|null $livePending
+     */
+    private static function announcePendingDraft(
+        string $apiToken,
+        string $chatId,
+        int $uid,
+        array $user,
+        array $history,
+        array $ops,
+        array $pending,
+        string $replyText,
+        ?array $livePending,
+        bool $cleared
+    ): void {
         // New draft replaces any previous live pending in this chat (one Confirm at a time).
         // Cancel only the pre-existing token — do not sweep the just-queued plan.
         if ($livePending !== null) {
@@ -543,31 +846,52 @@ final class AssistantGroupsBotHandler
                 $perms[$label] = true;
             }
         }
+        $confirmable = class_exists('AssistantHarness', false)
+            ? AssistantHarness::pendingConfirmable($pending)
+            : true;
         if (count($steps) > 1) {
             $numbered = [];
             foreach ($steps as $i => $s) {
                 $numbered[] = ($i + 1) . '. ' . $s;
             }
-            $lines[] = t('assistant_groups.bot.plan_header', ['n' => (string)count($steps)])
+            $headerKey = $confirmable
+                ? 'assistant_groups.bot.plan_header'
+                : 'assistant_groups.bot.plan_header_blocked';
+            $lines[] = t($headerKey, ['n' => (string)count($steps)])
                 . "\n" . implode("\n", $numbered);
         } elseif ($steps !== []) {
             $lines[] = $steps[0];
         }
-        $lines[] = t('assistant_groups.bot.need_manager', [
-            'perm' => $perms !== [] ? implode(' + ', array_keys($perms)) : '…',
-        ]);
+        $lines[] = t(
+            $confirmable ? 'assistant_groups.bot.need_manager' : 'assistant_groups.bot.blocked_footer',
+            ['perm' => $perms !== [] ? implode(' + ', array_keys($perms)) : '…']
+        );
         $out = implode("\n\n", $lines);
         $firstToken = (string)($pending[0]['token'] ?? '');
+        $choices = class_exists('AssistantHarness', false)
+            ? AssistantHarness::pendingChoices($pending)
+            : [];
         // Ensure only this confirm message keeps buttons.
-        self::stripKeyboards($apiToken, $chatId);
-        $kb = $firstToken !== '' ? self::confirmKeyboard($firstToken) : null;
-        $mid = self::reply($apiToken, $chatId, $out, $kb);
+        AssistantGroupsKeyboards::stripKeyboards($apiToken, $chatId);
+        if ($firstToken !== '' && $choices !== []) {
+            AssistantGroupsDialog::setChoices($chatId, $firstToken, $choices);
+        }
+        $kb = $firstToken !== '' ? AssistantGroupsKeyboards::draftKeyboard($firstToken, $confirmable, $choices) : null;
+        // Preflight empty but model listed 1/2 in text → soft taps above Cancel/Problem.
+        if ($choices === [] && !$confirmable && $kb !== null) {
+            $softNums = AssistantGroupsKeyboards::parseNumberedOptionNs($out);
+            if ($softNums !== []) {
+                $numRows = AssistantGroupsKeyboards::numberPickRows($softNums);
+                $kb['inline_keyboard'] = array_merge(
+                    $numRows,
+                    $kb['inline_keyboard'] ?? []
+                );
+            }
+        }
+        $mid = AssistantGroupsKeyboards::reply($apiToken, $chatId, $out, $kb);
         self::persistHistory($chatId, $history, $out, $mid, $cleared);
     }
 
-    /**
-     * @param list<array{role:string,content:string}> $history
-     */
     private static function persistHistory(
         string $chatId,
         array $history,
@@ -624,84 +948,14 @@ final class AssistantGroupsBotHandler
         return '';
     }
 
-    /** @return array{inline_keyboard:list<list<array<string,string>>>} */
-    private static function confirmKeyboard(string $token): array
-    {
-        return [
-            'inline_keyboard' => [[
-                ['text' => t('assistant.confirm.btn'), 'callback_data' => self::CB_OK . $token],
-                ['text' => t('assistant.confirm.cancel'), 'callback_data' => self::CB_NO . $token],
-            ]],
-        ];
-    }
-
     /**
-     * Remove inline keyboards from tracked bot messages (text stays).
-     * $extraMid — e.g. the message the user just clicked (may predate keyboard_mids tracking).
+     * Confirmable → Confirm + Cancel + Problem.
+     * Blocked → optional choice buttons 1..n (not Cancel) + Cancel + Problem.
+     *
+     * @param list<array{label?:string}> $choices
+     * @return array{inline_keyboard:list<list<array<string,string>>>}
      */
-    private static function stripKeyboards(string $token, string $chatId, string $extraMid = ''): void
-    {
-        $token = trim($token);
-        $chatId = trim($chatId);
-        $mids = AssistantGroupsDialog::takeKeyboardMids($chatId);
-        $extraMid = trim($extraMid);
-        if ($extraMid !== '') {
-            $mids[] = $extraMid;
-        }
-        $mids = array_values(array_unique(array_filter($mids)));
-        if ($token === '' || $chatId === '' || !class_exists('BotClient', false)) {
-            return;
-        }
-        foreach ($mids as $mid) {
-            try {
-                BotClient::clearMessageKeyboard('max', $token, $chatId, $mid);
-            } catch (Throwable $e) {
-                error_log('[assistant_groups] strip keyboard ' . $mid . ': ' . $e->getMessage());
-            }
-        }
-    }
 
-    /**
-     * @param array{inline_keyboard?:list}|null $replyMarkup
-     * @return string|null sent Max message mid
-     */
-    private static function reply(string $token, string $chatId, string $text, ?array $replyMarkup = null): ?string
-    {
-        $text = trim($text);
-        if ($text === '' || $token === '' || $chatId === '') {
-            return null;
-        }
-        $hasKeyboard = $replyMarkup !== null && !empty($replyMarkup['inline_keyboard']);
-        if (class_exists('BotClient', false)) {
-            $res = BotClient::sendKeepMessage('max', $token, $chatId, $text, $replyMarkup, 'html');
-            $mid = BotClient::extractMessageId('max', is_array($res['data'] ?? null) ? $res['data'] : null);
-            if ($mid !== null && $mid !== '') {
-                AssistantGroupsDialog::rememberBotMid($chatId, $mid);
-                if ($hasKeyboard) {
-                    AssistantGroupsDialog::rememberKeyboardMid($chatId, $mid);
-                }
-                return $mid;
-            }
-            return null;
-        }
-        $res = MaxGroupSpike::request($token, 'POST', '/messages', ['chat_id' => $chatId], [
-            'text' => $text,
-            'format' => 'html',
-        ]);
-        $mid = null;
-        if ($res['ok'] && is_array($res['data'] ?? null)) {
-            $mid = (string)($res['data']['message']['body']['mid'] ?? '');
-            if ($mid !== '') {
-                AssistantGroupsDialog::rememberBotMid($chatId, $mid);
-                if ($hasKeyboard) {
-                    AssistantGroupsDialog::rememberKeyboardMid($chatId, $mid);
-                }
-            }
-        }
-        return $mid !== '' ? $mid : null;
-    }
-
-    /** @return array{user_id:int,username:string,name:string} */
     private static function botIdentity(string $token): array
     {
         static $cache = null;
@@ -764,7 +1018,7 @@ final class AssistantGroupsBotHandler
         if ($uid > 0 && (strpos($text, 'max://user/' . $uid) !== false || strpos($text, '@' . $uid) !== false)) {
             return true;
         }
-        // Persona name mention (e.g. @Макс) — soft match when username absent in text clients
+        // Persona name mention (e.g. @Max) — soft match when username absent in text clients
         $persona = class_exists('AssistantConfig', false) ? AssistantConfig::displayName() : '';
         if ($persona !== '' && preg_match('/@' . preg_quote($persona, '/') . '\b/iu', $text)) {
             return true;
