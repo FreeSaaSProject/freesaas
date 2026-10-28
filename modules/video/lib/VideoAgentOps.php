@@ -94,7 +94,7 @@ final class VideoAgentOps
         ];
         if ($token !== '' && ($token !== $had || !empty($body['regenerate_token']))) {
             $out['new_token'] = $token;
-            $out['note'] = 'Copy new_token once into Mac workers/video/configs/local.json worker_token';
+            $out['note'] = 'Copy new_token once into Mac workers/plugins/video/configs/local.json worker_token';
         }
 
         return $out;
@@ -228,7 +228,7 @@ final class VideoAgentOps
         ];
         if ($tokenOut !== null && $tokenOut !== '') {
             $out['new_token'] = $tokenOut;
-            $out['note'] = 'Copy new_token into Mac workers/video/configs/local.json worker_token';
+            $out['note'] = 'Copy new_token into Mac workers/plugins/video/configs/local.json worker_token';
         }
 
         return $out;

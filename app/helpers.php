@@ -434,7 +434,10 @@ function security_headers_send(): void
     );
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: strict-origin-when-cross-origin');
-    if (class_exists('DemoMode', false) && DemoMode::readonly()) {
+    // Demo stands + admin front controller (index.php). Storefront site.php stays indexable.
+    $noIndex = (class_exists('DemoMode', false) && DemoMode::readonly())
+        || (class_exists('AppRuntime', false) && AppRuntime::isAdmin());
+    if ($noIndex) {
         header('X-Robots-Tag: noindex, nofollow');
     }
 }

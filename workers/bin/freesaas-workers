@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# FreeSaaS Mac workers CLI — run from anywhere.
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+REPO="$(cd "$ROOT/.." && pwd)"
+export PYTHONPATH="${REPO}${PYTHONPATH:+:$PYTHONPATH}"
+PY="${ROOT}/.venv/bin/python"
+if [[ ! -x "$PY" ]]; then
+  PY="${PYTHON:-python3}"
+fi
+exec "$PY" -m workers.core "$@"

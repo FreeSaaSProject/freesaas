@@ -33,6 +33,9 @@
         return classes[i].label || classes[i].name || fallback;
       }
     }
+    if (fallback && /^\?+$/.test(String(fallback))) {
+      return '#' + cid;
+    }
     return fallback;
   }
 
@@ -71,7 +74,11 @@
       list.forEach(function (d) {
         if (!d || typeof d !== 'object') return;
         var cid = parseInt(d.class_id, 10) || 0;
-        var cname = d.class_name || d.class || classDisplay(classes, cid, '#' + cid);
+        var rawName = d.class_name || d.class || '';
+        var cname = classDisplay(classes, cid, rawName || '#' + cid);
+        if (/^\?+$/.test(String(cname))) {
+          cname = classDisplay(classes, cid, '#' + cid);
+        }
         var conf = Number(d.confidence != null ? d.confidence : d.conf) || 0;
         var color = d.color || classColor(classes, cid, '#888888');
         html +=
@@ -84,6 +91,48 @@
           '%</td></tr>';
       });
       tbody.innerHTML = html;
+    }
+
+    function formatAgo(ts) {
+      ts = parseInt(ts, 10) || 0;
+      if (ts <= 0) return '—';
+      var d = Math.max(0, Math.floor(Date.now() / 1000 - ts));
+      if (d < 5) return live.getAttribute('data-i18n-just') || 'just now';
+      if (d < 60) return d + 's';
+      if (d < 3600) return Math.floor(d / 60) + 'm';
+      if (d < 86400) return Math.floor(d / 3600) + 'h';
+      return Math.floor(d / 86400) + 'd';
+    }
+
+    function updateSeen(ts) {
+      var el = live.querySelector('.video-live-seen');
+      var text = live.querySelector('.video-live-seen-text');
+      if (!el || !text) return;
+      ts = parseInt(ts, 10) || 0;
+      el.setAttribute('data-last-seen', String(ts));
+      if (ts <= 0) {
+        text.textContent = '—';
+        return;
+      }
+      var abs = new Date(ts * 1000);
+      var pad = function (n) {
+        return (n < 10 ? '0' : '') + n;
+      };
+      text.textContent =
+        abs.getFullYear() +
+        '-' +
+        pad(abs.getMonth() + 1) +
+        '-' +
+        pad(abs.getDate()) +
+        ' ' +
+        pad(abs.getHours()) +
+        ':' +
+        pad(abs.getMinutes()) +
+        ':' +
+        pad(abs.getSeconds()) +
+        ' (' +
+        formatAgo(ts) +
+        ')';
     }
 
     function applyPayload(data) {
@@ -101,7 +150,14 @@
         }
       }
       renderDetections(data.detections, data.classes);
+      if (data.last_seen != null) updateSeen(data.last_seen);
     }
+
+    setInterval(function () {
+      var el = live.querySelector('.video-live-seen');
+      if (!el) return;
+      updateSeen(el.getAttribute('data-last-seen'));
+    }, 5000);
 
     function softRefresh() {
       if (!pollUrl || document.hidden) return;

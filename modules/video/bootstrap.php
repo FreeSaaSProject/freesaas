@@ -13,6 +13,12 @@ require_once __DIR__ . '/lib/VideoJobsRepository.php';
 require_once __DIR__ . '/lib/VideoWorkersRepository.php';
 require_once __DIR__ . '/lib/VideoCamerasRepository.php';
 require_once __DIR__ . '/lib/VideoModelsRepository.php';
+require_once __DIR__ . '/lib/VideoTime.php';
+try {
+    VideoModelsRepository::ensureStockYolo();
+} catch (Throwable $e) {
+    // Table may be missing before first migrate.
+}
 require_once __DIR__ . '/lib/VideoAlertsRepository.php';
 require_once __DIR__ . '/lib/VideoDetectionsRepository.php';
 require_once __DIR__ . '/lib/VideoPurge.php';

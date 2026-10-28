@@ -1,5 +1,0 @@
-# Local secrets — keep only *.example.json / example.json in git
-*
-!.gitignore
-!example.json
-!*.example.json

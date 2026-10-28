@@ -82,7 +82,7 @@ $staleSec = 120;
         <td><?= e((string)$w['WORKER_KEY']) ?></td>
         <td><?= e((string)$w['HOSTNAME']) ?></td>
         <td><span class="video-badge <?= $on ? 'is-ok' : 'is-stale' ?>"><?= $on ? te('video.badge.online') : te('video.badge.offline') ?></span></td>
-        <td><?= e(date('Y-m-d H:i:s', $ls)) ?></td>
+        <td title="<?= e(date('Y-m-d H:i:s', $ls)) ?>"><?= e(VideoTime::ago($ls, $now)) ?></td>
       </tr>
     <?php endforeach; ?>
     <?php if ($workers === []): ?>

@@ -40,10 +40,15 @@ final class VideoDiagnose
             ];
         }
         if ($online < 1) {
+            $lastHb = 0;
+            foreach ($workers as $w) {
+                $lastHb = max($lastHb, (int)($w['LAST_SEEN'] ?? 0));
+            }
+            $ago = class_exists(VideoTime::class, false) ? VideoTime::ago($lastHb) : 'n/a';
             $issues[] = [
                 'code' => 'no_worker_online',
                 'severity' => 'warn',
-                'message' => 'No worker heartbeat in the last 120s — start workers/video on the Mac',
+                'message' => 'No worker heartbeat in the last 120s (last seen: ' . $ago . ') — start workers/plugins/video on the Mac (see docs/agents/workers.md)',
             ];
         }
         if ($enabledCams < 1) {
@@ -136,7 +141,7 @@ final class VideoDiagnose
                 $steps[] = 'POST /agent/video/setup with camera_name + rtsp_url (+ model_id)';
             }
             if ($code === 'no_worker_online') {
-                $steps[] = 'On Mac Studio: ~/video-worker — VPN up, then .venv/bin/python video_worker.py -c configs/local.json (see docs/agents/video-worker.md)';
+                $steps[] = 'On Mac: ./workers/bin/freesaas-workers start video (see docs/agents/workers.md)';
             }
         }
         if ($online > 0 && $enabledCams > 0 && $models > 0) {

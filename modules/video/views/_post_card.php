@@ -29,6 +29,9 @@ $id = (int)$card['ID'];
       <span class="video-badge <?= $fresh ? 'is-ok' : 'is-stale' ?>">
         <?= $fresh ? te('video.badge.fresh') : te('video.badge.stale') ?>
       </span>
+      <?php if ($seen > 0): ?>
+        <span class="video-post-hero-ago" title="<?= e(date('Y-m-d H:i:s', $seen)) ?>"><?= e(VideoTime::ago($seen, $now)) ?></span>
+      <?php endif; ?>
       <span class="video-post-hero-n"><?= te('video.posts.cameras_n', ['n' => (string)count($cams)]) ?></span>
     </span>
   </a>

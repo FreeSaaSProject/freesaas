@@ -9,6 +9,7 @@ import logging
 import os
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -22,6 +23,22 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 CLIENT_ROOT = Path(__file__).resolve().parent
 DEFAULT_CONFIG = CLIENT_ROOT / "configs" / "local.json"
+
+# Allow `import workers.core` when run as a plugin process.
+_REPO_ROOT = CLIENT_ROOT.parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+try:
+    from workers.core.status import activity as make_activity
+    from workers.core.status import utc_iso
+except ImportError:  # pragma: no cover
+
+    def utc_iso() -> str:
+        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+    def make_activity(phase: str, detail: str = "", **_kw: Any) -> Dict[str, Any]:
+        return {"phase": phase, "detail": detail, "started_at": utc_iso()}
 
 SERVER = ""
 WORKER_TOKEN = ""
@@ -38,6 +55,8 @@ LIVE: Dict[str, Any] = {}
 log = logging.getLogger("video_worker")
 STATUS_PATH = CLIENT_ROOT / "logs" / "status.json"
 _STATUS: Dict[str, Any] = {
+    "plugin": "video",
+    "ok": True,
     "updated_at": 0,
     "started_at": 0,
     "pid": 0,
@@ -52,6 +71,7 @@ _STATUS: Dict[str, Any] = {
     "current_job": None,
     "last_job": None,
     "last_train": None,
+    "activity": make_activity("starting", "boot"),
     "counters": {
         "jobs_ok": 0,
         "jobs_err": 0,
@@ -311,14 +331,50 @@ def class_bgr(class_id: int, classes_meta: Optional[List[dict]] = None) -> Tuple
 
 
 def load_yolo(weights: str):
+    """Load Ultralytics weights; auto-download stock names like yolo11n.pt on first use."""
     from ultralytics import YOLO
 
-    path = Path(weights).expanduser()
+    raw = (weights or "").strip() or "yolo11n.pt"
+    path = Path(raw).expanduser()
     if not path.is_absolute():
         cand = (CLIENT_ROOT / path).resolve()
         if cand.is_file():
-            path = cand
-    return YOLO(str(path))
+            return YOLO(str(cand))
+        models_dir = CLIENT_ROOT / "models"
+        models_dir.mkdir(parents=True, exist_ok=True)
+        local = models_dir / path.name
+        if local.is_file():
+            return YOLO(str(local))
+        # Ultralytics downloads hub weights (yolo11n.pt, …) into CWD — prefer models/
+        prev = Path.cwd()
+        try:
+            os.chdir(models_dir)
+            model = YOLO(path.name)
+            return model
+        finally:
+            try:
+                os.chdir(prev)
+            except OSError:
+                pass
+    if path.is_file():
+        return YOLO(str(path))
+    return YOLO(raw)
+
+
+def ascii_label(text: str) -> str:
+    """OpenCV putText cannot draw Cyrillic — keep ASCII for burned-in overlays."""
+    s = (text or "").strip()
+    out = []
+    for ch in s:
+        o = ord(ch)
+        if 32 <= o < 127:
+            out.append(ch)
+        elif ch in "·•":
+            out.append("-")
+        else:
+            out.append("?")
+    cleaned = "".join(out).replace("??", "?").strip(" ?")
+    return cleaned or "?"
 
 
 def run_infer_bytes(
@@ -353,11 +409,14 @@ def run_infer_bytes(
                 bh = max(0.0, y2 - y1)
                 cx = x1 + bw / 2
                 cy = y1 + bh / 2
-                cname = names.get(cls_id, str(cls_id))
+                cname = str(names.get(cls_id, str(cls_id)))
+                draw_name = cname
                 if classes_meta:
                     for c in classes_meta:
                         if int(c.get("id", -1)) == cls_id:
+                            # UI / JSON: prefer human label; overlay: stable Latin name (OpenCV).
                             cname = str(c.get("label") or c.get("name") or cname)
+                            draw_name = str(c.get("name") or c.get("label") or draw_name)
                             break
                 color = class_bgr(cls_id, classes_meta)
                 boxes.append(
@@ -375,7 +434,7 @@ def run_infer_bytes(
                     }
                 )
                 cv2.rectangle(annotated, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
-                label = f"{cname} {conf_v:.2f}"
+                label = f"{ascii_label(draw_name)} {conf_v:.2f}"
                 ty = max(15, int(y1) - 5)
                 (tw, th), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
                 cv2.rectangle(
@@ -802,17 +861,26 @@ def job_model_info(typ: str, job: dict) -> Dict[str, Any]:
     }
 
 
+def set_activity(phase: str, detail: str = "") -> None:
+    _STATUS["activity"] = make_activity(phase, detail)
+    _status_save()
+
+
 def process_job(job: dict) -> None:
     typ = str(job.get("type") or "")
     job_id = int(job.get("id") or 0)
     log.info("job %s type=%s", job_id, typ)
     model_info = job_model_info(typ, job)
+    cam = model_info.get("camera_id")
+    detail = f"job#{job_id} {typ}" + (f" cam={cam}" if cam else "")
+    phase = "train" if typ in ("train", "train_session_tick") else ("infer" if typ.startswith("infer") or typ in ("monitor_tick", "capture_frame", "on_demand") else typ or "job")
     _STATUS["current_job"] = {
         "id": job_id,
         "type": typ,
         "started_at": int(time.time()),
         **model_info,
     }
+    _STATUS["activity"] = make_activity(phase, detail)
     _status_save()
     t0 = time.time()
     err: Optional[str] = None
@@ -865,6 +933,7 @@ def process_job(job: dict) -> None:
                 "ms": ms,
                 **model_info,
             }
+        _STATUS["activity"] = make_activity("idle", "waiting for claim")
         _status_save()
 
 
@@ -883,6 +952,9 @@ def main() -> int:
     _STATUS["worker_key"] = WORKER_KEY
     _STATUS["server"] = SERVER
     _STATUS["tunnel_enabled"] = bool(TUNNEL.get("enabled"))
+    _STATUS["plugin"] = "video"
+    _STATUS["ok"] = True
+    _STATUS["activity"] = make_activity("idle", "waiting for claim")
     _status_save()
     tunnel_up()
     cameras: List[dict] = []
@@ -896,10 +968,14 @@ def main() -> int:
             now = time.time()
             if now - last_hello >= hello_every:
                 try:
+                    set_activity("hello", "heartbeat")
                     hello(cameras)
                     last_hello = now
+                    set_activity("idle", "waiting for claim")
                 except Exception as e:  # noqa: BLE001
                     log.warning("hello failed: %s", e)
+                    _STATUS["ok"] = False
+                    set_activity("error", f"hello: {e}")
             if LIVE.get("push_enabled") and cameras:
                 fps = float(LIVE.get("fps") or 2)
                 if now - last_live >= max(0.2, 1.0 / max(0.1, fps)):
@@ -914,12 +990,15 @@ def main() -> int:
                     last_live = now
             job = None
             try:
+                set_activity("claim", "polling FreeSaaS")
                 job = claim()
             except Exception as e:  # noqa: BLE001
                 log.warning("claim failed: %s", e)
+                set_activity("error", f"claim: {e}")
                 time.sleep(idle)
                 continue
             if not job:
+                set_activity("idle", "no job")
                 if args.once:
                     return 0
                 time.sleep(idle)

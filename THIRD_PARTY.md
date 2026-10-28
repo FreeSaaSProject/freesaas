@@ -40,9 +40,9 @@ first-party storefront theme.
 
 | Component | Location | License (as found) | Notes |
 |---|---|---|---|
-| **Ultralytics YOLO** | `workers/video/requirements.txt` (`ultralytics>=8.4.0`) | **AGPL-3.0** (Ultralytics upstream; confirm current terms at install time) | Optional Mac/GPU worker for video analytics (`docs/agents/video-worker.md`). **Not** bundled in the PHP app tarball; installed by the operator on the worker host. FreeSaaS public AGPL distribution may use it when Ultralytics AGPL obligations are met on that worker. A FreeSaaS **commercial** license does **not** by itself grant rights to Ultralytics — closed/on-prem deployments that ship or run Ultralytics need a separate Ultralytics commercial license **or** must exclude/disable the video worker integration. |
-| OpenCV (`opencv-python-headless`), Pillow, requests, urllib3 | `workers/video/requirements.txt` | Apache-2.0 / HPND / Apache-2.0 / MIT (typical) | Supporting libs for the video worker only. |
-| requests, urllib3 | `workers/whisper/requirements.txt` | Apache-2.0 / MIT (typical) | Whisper pull client only; not in PHP zip. |
+| **Ultralytics YOLO** | `workers/plugins/video/requirements.txt` (`ultralytics>=8.4.0`) | **AGPL-3.0** (Ultralytics upstream; confirm current terms at install time) | Optional Mac/GPU worker for video analytics (`docs/agents/workers.md`). **Not** bundled in the PHP app tarball; installed by the operator on the worker host. FreeSaaS public AGPL distribution may use it when Ultralytics AGPL obligations are met on that worker. A FreeSaaS **commercial** license does **not** by itself grant rights to Ultralytics — closed/on-prem deployments that ship or run Ultralytics need a separate Ultralytics commercial license **or** must exclude/disable the video worker integration. |
+| OpenCV (`opencv-python-headless`), Pillow, requests, urllib3 | `workers/plugins/video/requirements.txt` | Apache-2.0 / HPND / Apache-2.0 / MIT (typical) | Supporting libs for the video worker only. |
+| requests, urllib3, psutil | `workers/core/requirements.txt`, `workers/plugins/whisper/requirements.txt` | Apache-2.0 / MIT / BSD (typical) | Workers host + Whisper pull client; not in PHP zip. |
 
 ## Intentionally not shipped
 
@@ -64,7 +64,7 @@ first-party storefront theme.
 
 - No GPL-only libraries are currently vendored in the public PHP tree.
 - Ultralytics is an **optional AGPL worker dependency** (not vendored); commercial FreeSaaS
-  licensees must license Ultralytics separately or omit `workers/video`.
+  licensees must license Ultralytics separately or omit `workers/plugins/video`.
 - Private / instance themes are out of scope for this file.
 - No outstanding public review items for unclear-provenance code.
 - phpMorphy (LGPL-2.1+) and phpqrcode (LGPL-3.0-or-later) stay manageable if

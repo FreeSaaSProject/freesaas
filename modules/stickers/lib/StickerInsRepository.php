@@ -252,10 +252,11 @@ final class StickerInsRepository
             $row = $st->fetch(PDO::FETCH_ASSOC);
             return $row ? ['id' => (int)$row['id'], 'name' => (string)$row['name']] : null;
         }
+        // Case-insensitive (Cyrillic-safe via LOWER); prefers is_material when several match.
         $tries = [
-            ['SELECT id, name FROM base_products WHERE name = ? ORDER BY is_material DESC, id ASC LIMIT 1', [$q]],
-            ['SELECT id, name FROM base_products WHERE name LIKE ? ORDER BY is_material DESC, id ASC LIMIT 2', [$q . '%']],
-            ['SELECT id, name FROM base_products WHERE name LIKE ? ORDER BY is_material DESC, id ASC LIMIT 2', ['%' . $q . '%']],
+            ['SELECT id, name FROM base_products WHERE LOWER(name) = LOWER(?) ORDER BY is_material DESC, id ASC LIMIT 1', [$q]],
+            ['SELECT id, name FROM base_products WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_material DESC, id ASC LIMIT 2', [$q . '%']],
+            ['SELECT id, name FROM base_products WHERE LOWER(name) LIKE LOWER(?) ORDER BY is_material DESC, id ASC LIMIT 2', ['%' . $q . '%']],
         ];
         foreach ($tries as [$sql, $params]) {
             $st = $pdo->prepare($sql);
@@ -264,7 +265,7 @@ final class StickerInsRepository
             if (count($rows) === 1) {
                 return ['id' => (int)$rows[0]['id'], 'name' => (string)$rows[0]['name']];
             }
-            if (count($rows) > 1 && strpos($sql, 'name = ?') !== false) {
+            if (count($rows) > 1 && strpos($sql, 'LOWER(name) = LOWER(?)') !== false) {
                 return ['id' => (int)$rows[0]['id'], 'name' => (string)$rows[0]['name']];
             }
             // Ambiguous prefix/contains — keep LIKE filter, do not pin id_good.

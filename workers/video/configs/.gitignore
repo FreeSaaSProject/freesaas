@@ -1,6 +1,0 @@
-local.json
-*.key
-*.pem
-*.ovpn
-*.conf
-!example.json

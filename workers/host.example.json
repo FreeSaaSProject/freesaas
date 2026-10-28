@@ -1,0 +1,15 @@
+{
+  "enabled_plugins": ["video", "whisper"],
+  "dashboard": {
+    "host": "127.0.0.1",
+    "port": 8766
+  },
+  "shared": {
+    "server": "https://freesaas.example.tld",
+    "tls": {
+      "verify": true,
+      "ca_bundle": ""
+    }
+  },
+  "comment": "Copy to host.local.json (gitignored). Secrets stay in plugins/<id>/configs/local.json."
+}

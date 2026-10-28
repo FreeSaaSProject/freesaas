@@ -13,6 +13,7 @@ $jsI18n = I18n::jsDict(['crm.reply_hint', 'crm.link_prompt', 'core.layout.nav_lo
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
   <?= class_exists('Csrf', false) ? Csrf::metaTag() : '' ?>
   <title><?= e($title ?? t('core.login.submit')) ?> · <?= e($titleSuffix) ?></title>
   <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">

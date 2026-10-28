@@ -1,6 +1,0 @@
-.venv/
-__pycache__/
-*.pyc
-start_whisper_server.sh
-logs/
-var/

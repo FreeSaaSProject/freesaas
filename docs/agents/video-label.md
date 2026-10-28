@@ -43,7 +43,7 @@ Mac worker twin (no session): `POST /video/worker/dataset-ingest` with `X-Video-
 
 After export, train from video: `POST /video/models` `action=enqueue_train&project_id=` (ships zip to Mac worker).
 
-**Collect on Mac, label in web:** prefer Studio `dataset_collect.py` / Video Worker Status → Upload zip. Do not stream train JPEGs to hosting (see [video-worker.md](video-worker.md)).
+**Collect on Mac, label in web:** prefer `workers/plugins/video/dataset_collect.py` / workers dashboard → Upload. Do not stream train JPEGs to hosting (see [workers.md](workers.md)).
 
 ## UI
 

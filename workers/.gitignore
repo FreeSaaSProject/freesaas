@@ -1,0 +1,8 @@
+.venv/
+host.local.json
+var/run/*.pid
+var/log/*.log
+var/log/*.log.1
+**/__pycache__/
+**/*.pyc
+.DS_Store

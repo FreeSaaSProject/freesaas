@@ -1,0 +1,7 @@
+.venv/
+logs/
+var/
+configs/local.json
+start_whisper_server.sh
+__pycache__/
+*.pyc

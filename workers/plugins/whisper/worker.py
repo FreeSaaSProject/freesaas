@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import sys
 import time
 import warnings
 from pathlib import Path
@@ -17,6 +18,32 @@ import urllib3
 from max_notify import send_message as max_send_message
 
 warnings.filterwarnings("ignore", category=FutureWarning)
+
+CLIENT_ROOT_EARLY = Path(__file__).resolve().parent
+_REPO_ROOT = CLIENT_ROOT_EARLY.parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+	sys.path.insert(0, str(_REPO_ROOT))
+
+try:
+	from workers.core.status import StatusWriter
+except ImportError:  # pragma: no cover
+	StatusWriter = None  # type: ignore
+
+_STATUS_WRITER: Any = None
+
+
+def set_activity(phase: str, detail: str = "") -> None:
+	global _STATUS_WRITER
+	if _STATUS_WRITER is None:
+		return
+	_STATUS_WRITER.set_activity(phase, detail)
+
+
+def status_update(**kwargs: Any) -> None:
+	global _STATUS_WRITER
+	if _STATUS_WRITER is None:
+		return
+	_STATUS_WRITER.update(**kwargs)
 
 # Настройки клиента (заполняются из JSON через load_config / --config)
 # FreeSaaS: claim/result/stem + X-Audio-Token (см. docs/agents/audio_pipeline.md).
@@ -1161,6 +1188,7 @@ def run_analytics() -> bool:
 # ---------- Основной цикл ----------
 
 def main():
+	global _STATUS_WRITER
 	# состояние «окна простоя»
 	idle_window_active = False
 	analytics_runs_in_window = 0
@@ -1168,6 +1196,15 @@ def main():
 	# сессия распознавания между idle-окнами
 	session_processed = 0
 	session_started_at: Optional[float] = None
+
+	if StatusWriter is not None:
+		_STATUS_WRITER = StatusWriter(CLIENT_ROOT / "logs" / "status.json", "whisper")
+		_STATUS_WRITER.update(
+			ok=True,
+			meta={"server": SERVER, "whisper": WHISPER_SERVER_BASE},
+			counters={"files_ok": 0, "files_err": 0},
+		)
+		set_activity("idle", "boot")
 
 	token_ok = bool(WORKER_TOKEN)
 	token_mask = (
@@ -1203,6 +1240,7 @@ def main():
 	while True:
 		try:
 			log("📡 Проверка наличия файла на сервере...")
+			set_activity("claim", "polling FreeSaaS")
 			r = requests.get(
 				GET_FILE_URL,
 				headers=backend_headers(),
@@ -1240,6 +1278,7 @@ def main():
 						)
 						session_processed = 0
 						session_started_at = None
+					set_activity("stem", "idle analytics / stem")
 					if run_analytics():
 						analytics_runs_in_window += 1
 						last_analytics_ts = now_ts
@@ -1257,9 +1296,11 @@ def main():
 				# ночной сон
 				now = datetime.now()
 				if now.hour >= SLEEP_HOUR:
+					set_activity("sleep", f"sleep_hour={SLEEP_HOUR}")
 					sleep_mac()
 					break
 
+				set_activity("idle", "no files")
 				log(f"😴 Файлов нет. Ждём {LOOP_SLEEP_SECONDS_IDLE} секунд...")
 				time.sleep(LOOP_SLEEP_SECONDS_IDLE)
 				continue
@@ -1273,10 +1314,12 @@ def main():
 
 			full_url = f"{FTPSERVER}{filename}"
 			log(f"🎧 Получен файл: {filename}")
+			base_name = Path(filename).name
 
 			file_done = False
 			try:
 				# Re-POST text left after a previous unacked save (no re-whisper).
+				set_activity("upload", f"pending retry {base_name}")
 				if try_upload_pending(filename):
 					file_done = True
 			except BackendUploadError as up_err:
@@ -1290,17 +1333,20 @@ def main():
 				if session_started_at is None:
 					session_started_at = time.time()
 				session_processed += 1
+				status_update(counters={"files_ok": session_processed})
 				log(f"⏳ Цикл завершён, ждём {LOOP_SLEEP_SECONDS_RUN} сек...\n")
 				time.sleep(LOOP_SLEEP_SECONDS_RUN)
 				continue
 
 			with tempfile.TemporaryDirectory() as tmpdir:
 				tmp_path = Path(tmpdir) / Path(filename).name
+				set_activity("download", base_name)
 				download_file(full_url, tmp_path)
 				playtime, volume = probe_audio_metadata(tmp_path)
 
 				try:
 					log("🧠 Отправляем в whisper-server (output=srt)...")
+					set_activity("transcribe", base_name)
 					transcribe_upload_srt(
 						tmp_path, filename, playtime=playtime, volume=volume
 					)
@@ -1390,6 +1436,8 @@ def main():
 
 		except Exception as e:
 			log("❌ Ошибка:", e)
+			set_activity("error", str(e)[:200])
+			status_update(ok=False)
 
 		log(f"⏳ Цикл завершён, ждём {LOOP_SLEEP_SECONDS_RUN} сек...\n")
 		time.sleep(LOOP_SLEEP_SECONDS_RUN)

@@ -98,7 +98,9 @@ $gateFloating = (string)($layoutGate['floating'] ?? '');
 $gateMainPrefix = (string)($layoutGate['main_prefix'] ?? '');
 $gateDemoBanner = (string)($layoutGate['demo_banner'] ?? '');
 $pageContextJson = (string)($layoutGate['page_context_json'] ?? '');
-$demoNoIndex = class_exists('DemoMode', false) && DemoMode::readonly();
+// Admin UI and demo stands stay out of search; storefront (site.php) uses theme layouts, not this one.
+$demoNoIndex = (class_exists('DemoMode', false) && DemoMode::readonly())
+    || (class_exists('AppRuntime', false) && AppRuntime::isAdmin());
 $showTimingPanel = $timingHtml !== ''
     && !(class_exists('DemoMode', false) && DemoMode::readonly())
     && Auth::capability('SUPERADMIN_ACCESS');

@@ -100,7 +100,7 @@ Creates a queue flag; Cron creates `base_records` rows awaiting Whisper (`/audio
 
 ## Whisper cabin worker (cutover)
 
-**Deploy the in-repo client:** [whisper-worker.md](whisper-worker.md) (`workers/whisper/`).
+**Deploy the in-repo client:** [workers.md](workers.md) (plugin `whisper`).
 
 Handoff for updating an external Mac/Whisper pull worker and post-ASR parse.
 
@@ -162,4 +162,4 @@ curl -sS -H "X-Audio-Token: …" 'https://<host>/audio/jobs/stem?day=2026-10-16'
 
 Messenger voice queue is separate: `/asr/voice-transcribe/worker` (same token).
 
-Full Mac/GPU install (venv, config, whisper.cpp, smoke): [whisper-worker.md](whisper-worker.md).
+Full Mac/GPU install (venv, config, whisper.cpp, smoke): [workers.md](workers.md).

@@ -1,0 +1,28 @@
+{
+  "id": "video",
+  "title": "Video (YOLO)",
+  "version": "0.2.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": ["ffmpeg"],
+  "models": [
+    {
+      "id": "yolo11n",
+      "path": "models/yolo11n.pt",
+      "source": "ultralytics",
+      "optional": true
+    }
+  ],
+  "widgets": ["vpn", "cameras", "jobs", "dataset"],
+  "actions": [
+    "vpn_up",
+    "vpn_down",
+    "dataset_start_rtsp",
+    "dataset_start_video",
+    "dataset_stop",
+    "dataset_upload",
+    "save_loop"
+  ],
+  "log_sources": {}
+}

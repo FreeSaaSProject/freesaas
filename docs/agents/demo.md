@@ -8,12 +8,14 @@ Thin guards stay in core (`app/DemoMode.php`: readonly Router, fail-closed modul
 
 | Key | Default | Effect when `1` |
 |-----|---------|-----------------|
-| `demo_readonly` | off | Deny `POST\|PUT\|PATCH\|DELETE` except `/login`, `/logout`, `/locale`, `/cron/*`, `/agent/*`. Missing `[modules]` keys → **disabled** (fail-closed). `noindex`. |
+| `demo_readonly` | off | Deny `POST\|PUT\|PATCH\|DELETE` except `/login`, `/logout`, `/locale`, `/cron/*`, `/agent/*`. Missing `[modules]` keys → **disabled** (fail-closed). `noindex` (meta + `X-Robots-Tag`). |
 | `demo_auto_login` | off | After bootstrap, if no session → `Auth::establishSession` for `demo_auto_login_user` |
 | `demo_auto_login_user` | `demo` | Login used by auto-login |
 | `currency` | `RUB` | Platform ISO 4217 (Settings). demoru=`RUB`, demoen=`USD`. |
 
 Module ini (`cfg/modules/demo.ini` `[demo]`): optional `frozen_at` — see below.
+
+**Indexing:** `index.php` (admin) and `layout_auth` always send `noindex`. Public storefront (`site.php` / theme layouts) stays indexable — do not put `demo_readonly` on a customer vitrine host if you want SEO there.
 
 Leave `agent_token` empty/`CHANGE_ME` on public stands if you do not need `/agent/*` after bootstrap; keep `cron_token` for `/cron/tick`. Mutation audit: [`docs/demo-audit.md`](../demo-audit.md) (`php bin/check-demo-mutations.php`).
 

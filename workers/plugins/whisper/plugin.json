@@ -1,0 +1,20 @@
+{
+  "id": "whisper",
+  "title": "Whisper (cabin ASR)",
+  "version": "0.2.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": ["ffmpeg", "whisper-server"],
+  "models": [
+    {
+      "id": "ggml-large-v3",
+      "path": "",
+      "optional": true,
+      "comment": "Place under $WHISPER_CPP_DIR/models/ggml-large-v3.bin — not downloaded by install (large)."
+    }
+  ],
+  "widgets": ["health", "pending", "loop"],
+  "actions": ["restart_whisper_server"],
+  "log_sources": {}
+}

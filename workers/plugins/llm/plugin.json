@@ -1,0 +1,22 @@
+{
+  "id": "llm",
+  "title": "Local LLM (stub)",
+  "version": "0.0.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": [],
+  "models": [
+    {
+      "id": "example-gguf",
+      "path": "models/example.gguf",
+      "url": "",
+      "optional": true,
+      "comment": "Future: point url at a GGUF/MLX weight. Not enabled in host.example.json."
+    }
+  ],
+  "widgets": ["stub"],
+  "actions": [],
+  "log_sources": {},
+  "comment": "Stub only — do not add to enabled_plugins until a real worker exists."
+}

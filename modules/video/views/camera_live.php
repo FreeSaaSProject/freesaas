@@ -22,6 +22,10 @@ $frameRel = $ann !== '' ? $ann : $raw;
       <button type="submit" class="btn-primary btn-sm"><?= te('video.cameras.run_ondemand') ?></button>
     </form>
     <button type="button" class="btn-secondary btn-sm video-live-soft-refresh"><?= te('video.live.refresh') ?></button>
+    <span class="muted video-live-seen" data-last-seen="<?= (int)($row['LAST_SEEN'] ?? 0) ?>">
+      <?= te('video.live.frame_at') ?>:
+      <strong class="video-live-seen-text"><?= e(VideoTime::stamp((int)($row['LAST_SEEN'] ?? 0))) ?></strong>
+    </span>
   </p>
 
   <?php if ($classes !== []): ?>
@@ -64,24 +68,30 @@ $frameRel = $ann !== '' ? $ann : $raw;
       $cid = (int)($d['class_id'] ?? 0);
       $conf = (float)($d['confidence'] ?? $d['conf'] ?? 0);
       $color = (string)($d['color'] ?? '');
-      if ($color === '' && isset($classes[$cid])) {
-          $color = (string)$classes[$cid]['color'];
-      }
-      if ($color === '') {
-          foreach ($classes as $cl) {
-              if ((int)$cl['id'] === $cid) {
-                  $color = (string)$cl['color'];
-                  break;
-              }
+      foreach ($classes as $cl) {
+          if ((int)($cl['id'] ?? -1) !== $cid) {
+              continue;
           }
+          if ($color === '') {
+              $color = (string)($cl['color'] ?? '');
+          }
+          // Prefer project label; ignore burned-in "????" from OpenCV overlays.
+          $disp = VideoColors::displayName($cl);
+          if ($disp !== '' && ($cname === '' || preg_match('/^\?+$/', $cname))) {
+              $cname = $disp;
+          }
+          break;
       }
       if ($color === '') {
           $color = VideoColors::defaultColor($cid);
       }
+      if ($cname === '' || preg_match('/^\?+$/', $cname)) {
+          $cname = '#' . $cid;
+      }
       ?>
       <tr>
         <td><span class="video-swatch" style="background:<?= e($color) ?>"></span></td>
-        <td><?= e($cname !== '' ? $cname : ('#' . $cid)) ?></td>
+        <td><?= e($cname) ?></td>
         <td><?= e(number_format($conf * 100, 1)) ?>%</td>
       </tr>
     <?php endforeach; ?>

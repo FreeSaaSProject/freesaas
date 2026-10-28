@@ -212,7 +212,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 | `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |
 | `banks` | Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) → link `base_accounts`, sync statements into ДПС; soft `llm` classify; disableable |
-| `video` | Posts (N cameras), schedule gate, YOLO via Mac worker, interactive train (person→class + coverage); soft `bots`/`video_label`; alpha — [`docs/agents/video.md`](docs/agents/video.md) |
+| `video` | Posts (N cameras), schedule gate, YOLO via Mac worker, interactive train (person→class + coverage); soft `bots`/`video_label`; alpha — [`docs/agents/video.md`](docs/agents/video.md); Mac host [`docs/agents/workers.md`](docs/agents/workers.md) |
 | `video_label` | YOLO labeling projects + workspace; requires `video`; alpha — [`docs/agents/video-label.md`](docs/agents/video-label.md) |
 
 Prefer extending these via hooks before forking page logic.

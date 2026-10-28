@@ -46,7 +46,7 @@
             <?= !empty($c['ENABLED']) ? te('core.common.yes') : te('core.common.no') ?>
           </span>
         </td>
-        <td><?= $seen > 0 ? e(date('Y-m-d H:i:s', $seen)) : '—' ?></td>
+        <td title="<?= $seen > 0 ? e(date('Y-m-d H:i:s', $seen)) : '' ?>"><?= $seen > 0 ? e(VideoTime::ago($seen)) : '—' ?></td>
         <td class="row-actions">
           <a class="btn-ghost btn-sm" href="/video/cameras/<?= (int)$c['ID'] ?>/live"><?= te('video.live.crumb') ?></a>
           <form method="post" class="inline">

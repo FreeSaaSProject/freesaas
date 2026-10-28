@@ -40,15 +40,12 @@ $stocks = is_array($stocks ?? null) ? $stocks : [];
       </select>
     </label>
     <?php endif; ?>
-    <label><?= te('stickers.col.good') ?>
-      <input type="search" name="good_q" value="<?= e($goodQ) ?>" list="stickers-good-pick" autocomplete="off"
-             placeholder="<?= te('stickers.ins.good_search_ph') ?>" required>
+    <label class="stickers-good-field"><?= te('stickers.col.good') ?>
+      <input type="search" name="good_q" value="<?= e($goodQ) ?>" autocomplete="off"
+             placeholder="<?= te('stickers.ins.good_search_ph') ?>" required
+             aria-autocomplete="list" aria-controls="stickers-good-suggest">
       <input type="hidden" name="id_good" value="<?= (int)($row['id_good'] ?? 0) > 0 ? (int)$row['id_good'] : '' ?>">
-      <datalist id="stickers-good-pick">
-        <?php foreach ($products as $pid => $pname): ?>
-          <option value="<?= e($pname) ?>" data-id="<?= (int)$pid ?>"></option>
-        <?php endforeach; ?>
-      </datalist>
+      <ul id="stickers-good-suggest" class="stickers-good-suggest" hidden></ul>
     </label>
     <label><?= te('stickers.col.qty') ?>
       <input type="number" min="1" name="qty" value="<?= e((string)($row['qty'] ?? 1)) ?>"<?= !$isNew ? ' readonly' : '' ?> required>
@@ -57,7 +54,7 @@ $stocks = is_array($stocks ?? null) ? $stocks : [];
       <input name="qty_qtyu_rate" value="<?= e((string)($row['qty_qtyu_rate'] ?? '1')) ?>" required>
     </label>
     <label><?= te('stickers.col.price') ?>
-      <input name="price" value="<?= e((string)($row['price'] ?? '0')) ?>">
+      <input name="price" inputmode="decimal" value="<?= e(isset($row['price']) ? (string)$row['price'] : '') ?>" placeholder="0">
     </label>
     <label><?= te('stickers.col.descr') ?>
       <input name="descr" maxlength="255" value="<?= e((string)($row['descr'] ?? '')) ?>">
@@ -101,20 +98,124 @@ $stocks = is_array($stocks ?? null) ? $stocks : [];
     <?php endif; ?>
   </div>
 </form>
-<style>.sticker-act-fixed{margin:0 0 0.75rem}</style>
+<style>
+.sticker-act-fixed{margin:0 0 0.75rem}
+.stickers-good-field{position:relative}
+.stickers-good-suggest{
+  position:absolute;z-index:20;left:0;right:0;top:100%;
+  max-height:14rem;overflow:auto;margin:0.15rem 0 0;padding:0.25rem 0;
+  list-style:none;background:var(--bg,#fff);border:1px solid var(--line,#ccc);border-radius:0.35rem;
+  box-shadow:0 0.35rem 0.85rem rgba(0,0,0,.08);
+}
+.stickers-good-suggest button{
+  display:block;width:100%;text-align:left;border:0;background:transparent;
+  padding:0.45rem 0.7rem;font:inherit;cursor:pointer;
+}
+.stickers-good-suggest button:hover,
+.stickers-good-suggest button.is-active{background:var(--bg-muted,rgba(0,0,0,.06))}
+</style>
+<script type="application/json" id="stickers-good-data"><?= json_encode(
+    array_map(static function ($id, $name): array {
+        return ['id' => (int)$id, 'name' => (string)$name];
+    }, array_keys($products), array_values($products)),
+    JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS
+) ?></script>
 <script>
 (function () {
   var good = document.querySelector('input[name="good_q"]');
   var hid = document.querySelector('input[name="id_good"]');
-  var list = document.getElementById('stickers-good-pick');
-  if (!good || !hid || !list) return;
-  good.addEventListener('input', function () {
-    var v = good.value.trim();
-    var hit = null;
-    for (var i = 0; i < list.options.length; i++) {
-      if (list.options[i].value === v) { hit = list.options[i]; break; }
+  var box = document.getElementById('stickers-good-suggest');
+  var raw = document.getElementById('stickers-good-data');
+  var price = document.querySelector('input[name="price"]');
+  if (price) {
+    price.addEventListener('focus', function () {
+      if (price.value === '0') price.select();
+    });
+  }
+  if (!good || !hid || !box || !raw) return;
+  var products = [];
+  try { products = JSON.parse(raw.textContent || '[]') || []; } catch (e) { products = []; }
+  var active = -1;
+  function fold(s) {
+    try { return String(s || '').toLocaleLowerCase('ru'); }
+    catch (e) { return String(s || '').toLowerCase(); }
+  }
+  function exactHit(v) {
+    var f = fold(v);
+    for (var i = 0; i < products.length; i++) {
+      if (fold(products[i].name) === f) return products[i];
     }
-    hid.value = hit && hit.getAttribute('data-id') ? hit.getAttribute('data-id') : '';
+    return null;
+  }
+  function matches(q) {
+    var f = fold(q);
+    if (f === '') return [];
+    var out = [];
+    for (var i = 0; i < products.length; i++) {
+      if (fold(products[i].name).indexOf(f) !== -1) {
+        out.push(products[i]);
+        if (out.length >= 40) break;
+      }
+    }
+    return out;
+  }
+  function pick(item) {
+    good.value = item.name;
+    hid.value = String(item.id);
+    hide();
+  }
+  function hide() {
+    box.hidden = true;
+    box.innerHTML = '';
+    active = -1;
+  }
+  function render(items) {
+    box.innerHTML = '';
+    active = -1;
+    if (!items.length) { box.hidden = true; return; }
+    items.forEach(function (item, idx) {
+      var li = document.createElement('li');
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = item.name;
+      btn.addEventListener('mousedown', function (e) { e.preventDefault(); pick(item); });
+      li.appendChild(btn);
+      box.appendChild(li);
+      if (idx === 0) { active = 0; btn.classList.add('is-active'); }
+    });
+    box.hidden = false;
+  }
+  function syncHidden() {
+    var hit = exactHit(good.value.trim());
+    hid.value = hit ? String(hit.id) : '';
+  }
+  function moveActive(delta) {
+    var btns = box.querySelectorAll('button');
+    if (!btns.length) return;
+    if (active >= 0 && btns[active]) btns[active].classList.remove('is-active');
+    active = (active + delta + btns.length) % btns.length;
+    btns[active].classList.add('is-active');
+    btns[active].scrollIntoView({ block: 'nearest' });
+  }
+  good.addEventListener('input', function () {
+    syncHidden();
+    render(matches(good.value.trim()));
   });
+  good.addEventListener('keydown', function (e) {
+    if (box.hidden) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); moveActive(1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); moveActive(-1); }
+    else if (e.key === 'Enter' && active >= 0) {
+      var btns = box.querySelectorAll('button');
+      if (btns[active]) {
+        e.preventDefault();
+        btns[active].dispatchEvent(new Event('mousedown'));
+      }
+    } else if (e.key === 'Escape') {
+      hide();
+    }
+  });
+  good.addEventListener('blur', function () { setTimeout(hide, 120); });
+  syncHidden();
 })();
 </script>

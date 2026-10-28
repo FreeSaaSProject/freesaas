@@ -23,7 +23,7 @@ Permissions: `asr.view`.
 - Soft `bots`: voice-transcribe BotPlugin when bots enabled.
 - Worker auth: `X-Audio-Token` (shared with audio pipeline), not staff session.
 - Token UI: `/audio/settings` — auto-generate if missing, regenerate with confirm; plaintext shown once. Persists to `cfg/modules/asr.ini` `[asr] worker_token`.
-- Cabin Mac worker (claim → whisper.cpp → result → stem): [whisper-worker.md](whisper-worker.md), code in `workers/whisper/`.
+- Cabin Mac worker (claim → whisper.cpp → result → stem): [workers.md](workers.md), code in `workers/plugins/whisper/`.
 
 ## Agent JSON
 

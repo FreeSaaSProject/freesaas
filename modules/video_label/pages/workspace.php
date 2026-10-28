@@ -183,6 +183,58 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
         VideoLabelImagesRepository::delete((int)($_POST['image_id'] ?? 0));
         redirect('/video-label/' . $projectId . '/workspace');
     }
+    if ($action === 'bulk') {
+        $idsRaw = $_POST['ids'] ?? [];
+        if (is_string($idsRaw)) {
+            $decoded = json_decode($idsRaw, true);
+            $idsRaw = is_array($decoded) ? $decoded : (preg_split('/\s*,\s*/', $idsRaw) ?: []);
+        }
+        $ids = [];
+        foreach ((array)$idsRaw as $v) {
+            $id = (int)$v;
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        $ids = array_values(array_unique($ids));
+        $op = (string)($_POST['bulk_op'] ?? '');
+        $n = 0;
+        if ($op === 'split') {
+            $n = VideoLabelImagesRepository::setSplitMany($ids, (string)($_POST['split'] ?? 'train'));
+            flash_set('ok', t('video_label.flash.bulk_done', ['n' => (string)$n]));
+        } elseif ($op === 'auto_split') {
+            $stats = VideoLabelImagesRepository::autoSplitMany($ids);
+            $n = (int)$stats['n'];
+            flash_set('ok', t('video_label.flash.auto_split', [
+                'n' => (string)$n,
+                'train' => (string)$stats['train'],
+                'val' => (string)$stats['val'],
+                'test' => (string)$stats['test'],
+            ]));
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'bulk_op' => $op] + $stats);
+                return;
+            }
+            redirect('/video-label/' . $projectId . '/workspace');
+        } elseif ($op === 'clear_labels') {
+            $n = VideoLabelImagesRepository::clearLabelsMany($ids);
+            flash_set('ok', t('video_label.flash.bulk_done', ['n' => (string)$n]));
+        } elseif ($op === 'clear_preds') {
+            $n = VideoLabelImagesRepository::clearPredictionsMany($ids);
+            flash_set('ok', t('video_label.flash.bulk_done', ['n' => (string)$n]));
+        } elseif ($op === 'delete') {
+            $n = VideoLabelImagesRepository::deleteMany($ids);
+            flash_set('ok', t('video_label.flash.bulk_done', ['n' => (string)$n]));
+        } else {
+            $n = 0;
+            flash_set('ok', t('video_label.flash.bulk_done', ['n' => '0']));
+        }
+        if ($wantsJson) {
+            AgentHttp::emit(['ok' => true, 'n' => $n, 'bulk_op' => $op]);
+            return;
+        }
+        redirect('/video-label/' . $projectId . '/workspace');
+    }
 }
 
 // One-time heal: zip ingest used to mirror labels into predictions without conf.
@@ -210,13 +262,33 @@ $payload = [
         'iou' => (float)$proj['IOU_THRESHOLD'],
     ],
     'images' => array_map(static function (array $img): array {
+        $labels = json_decode((string)($img['LABELS_JSON'] ?? ''), true) ?: [];
+        $preds = json_decode((string)($img['PREDICTIONS_JSON'] ?? ''), true) ?: [];
+        if (!is_array($labels)) {
+            $labels = [];
+        }
+        if (!is_array($preds)) {
+            $preds = [];
+        }
+        $classCounts = [];
+        foreach ($labels as $b) {
+            if (!is_array($b)) {
+                continue;
+            }
+            $cid = (int)($b['class_id'] ?? 0);
+            $classCounts[$cid] = ($classCounts[$cid] ?? 0) + 1;
+        }
+
         return [
             'id' => (int)$img['ID'],
             'filename' => (string)$img['FILENAME'],
             'url' => '/video-label/media?rel=' . rawurlencode((string)$img['PATH']),
             'split' => (string)$img['SPLIT'],
-            'labels' => json_decode((string)($img['LABELS_JSON'] ?? ''), true) ?: [],
-            'predictions' => json_decode((string)($img['PREDICTIONS_JSON'] ?? ''), true) ?: [],
+            'label_count' => count($labels),
+            'has_preds' => $preds !== [],
+            'class_counts' => $classCounts,
+            'labels' => $labels,
+            'predictions' => $preds,
         ];
     }, $images),
     'current_id' => $currentId,
@@ -233,6 +305,7 @@ View::render('workspace', [
         ['label' => t('video_label.menu.projects'), 'href' => '/video-label'],
         ['label' => (string)$proj['NAME'], 'current' => true],
     ]),
+    'main_flush' => true,
     'project' => $proj,
     'images' => $images,
     'current' => $current,

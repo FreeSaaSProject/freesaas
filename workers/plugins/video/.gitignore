@@ -1,8 +1,7 @@
 .venv/
-__pycache__/
-*.pyc
 logs/
 datasets/
 models/*.pt
-!models/.gitkeep
 configs/local.json
+__pycache__/
+*.pyc

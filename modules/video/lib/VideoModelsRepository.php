@@ -7,12 +7,41 @@ declare(strict_types=1);
  */
 final class VideoModelsRepository
 {
+    public const STOCK_WEIGHTS = 'yolo11n.pt';
+    public const STOCK_NAME = 'YOLO11n (stock)';
+
     /** @return list<array<string, mixed>> */
     public static function listAll(): array
     {
+        self::ensureStockYolo();
         $rows = Database::pdo()->query('SELECT * FROM base_video_models ORDER BY ID DESC')->fetchAll(PDO::FETCH_ASSOC);
 
         return $rows ?: [];
+    }
+
+    /**
+     * Always keep a stock Ultralytics weight entry. Worker downloads yolo11n.pt on first use.
+     */
+    public static function ensureStockYolo(): int
+    {
+        $pdo = Database::pdo();
+        $st = $pdo->prepare('SELECT ID FROM base_video_models WHERE WEIGHTS_PATH = ? LIMIT 1');
+        $st->execute([self::STOCK_WEIGHTS]);
+        $id = (int)$st->fetchColumn();
+        if ($id > 0) {
+            return $id;
+        }
+        // COCO person-focused starter; labeling projects remap classes later.
+        $classes = [
+            ['id' => 0, 'name' => 'person', 'label' => 'person', 'color' => '#e6194b'],
+        ];
+
+        return self::save(0, self::STOCK_NAME, self::STOCK_WEIGHTS, $classes, 'Auto stock model — worker downloads weights on first infer', true);
+    }
+
+    public static function isStock(array $row): bool
+    {
+        return (string)($row['WEIGHTS_PATH'] ?? '') === self::STOCK_WEIGHTS;
     }
 
     /** @return array<string, mixed>|null */

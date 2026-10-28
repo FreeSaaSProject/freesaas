@@ -95,12 +95,17 @@ $ledgerOn = !empty($ledgerOn);
       <th><?= te('stickers.col.good') ?></th>
       <th><?= te('stickers.col.qty') ?></th>
       <th><?= te('stickers.col.price') ?></th>
+      <th title="<?= te('stickers.col.summ') ?>">Σ</th>
       <th><?= te('stickers.col.rate') ?></th>
       <th><?= te('stickers.col.expire') ?></th>
       <th><?= te('stickers.col.left') ?></th>
       <th></th>
     </tr></thead>
     <tbody>
+    <?php
+      $linesSum = 0.0;
+      $linesQty = 0;
+    ?>
     <?php foreach ($stickers as $s): ?>
       <?php
         $twins = max(1, (int)($s['twin_count'] ?? $s['qty'] ?? 1));
@@ -110,6 +115,10 @@ $ledgerOn = !empty($ledgerOn);
             $rate = 1.0;
         }
         $price = (float)($s['price'] ?? 0);
+        // Act SUMM = Σ PRICE per sticker row → line subtotal = price × twin count.
+        $lineSum = round($price * $twins, 2);
+        $linesSum += $lineSum;
+        $linesQty += $twins;
         $left = round((float)$s['qtyu_in'] - (float)$s['qtyu_out'], 3);
         $pu = $productUnits[(int)$s['id_good']] ?? ['unit' => '', 'unitu' => ''];
         $unitu = $pu['unitu'] !== '' ? $pu['unitu'] : t('stickers.col.ue');
@@ -121,10 +130,11 @@ $ledgerOn = !empty($ledgerOn);
         <td>
           <b><?= e($products[(int)$s['id_good']] ?? ('#' . (int)$s['id_good'])) ?></b>
           <?php if ($descr !== ''): ?><div class="muted"><?= e($descr) ?></div><?php endif; ?>
-          <div class="muted">#<?= (int)$s['id'] ?><?php if ($twins > 1): ?> · <?= te('stickers.receipt.twins', ['n' => $twins]) ?><?php endif; ?></div>
+          <div class="muted">#<?= (int)$s['id'] ?></div>
         </td>
         <td><?= (int)$qty ?> <?= e($unit) ?></td>
-        <td><?= e((string)$price) ?> <span class="muted">(<?= e((string)round($price / $rate, 2)) ?>/<?= e($unitu) ?>)</span></td>
+        <td><?= e((string)$price) ?></td>
+        <td><b><?= e((string)$lineSum) ?></b></td>
         <td><?= e((string)$rate) ?> <?= e($unitu) ?>/<?= e($unit) ?></td>
         <td><?= $exp > 0 ? e(date('d.m.Y', $exp)) : '—' ?></td>
         <td><b><?= e((string)$left) ?></b> <?= e($unitu) ?>
@@ -138,18 +148,17 @@ $ledgerOn = !empty($ledgerOn);
         </td>
       </tr>
     <?php endforeach; ?>
-    <?php if (!$stickers): ?><tr><td colspan="7" class="muted"><?= te('stickers.list.empty') ?></td></tr><?php endif; ?>
+    <?php if (!$stickers): ?><tr><td colspan="8" class="muted"><?= te('stickers.list.empty') ?></td></tr><?php endif; ?>
       <tr class="st-totals">
         <td><b><?= te('stickers.list.totals') ?></b>
           <div class="muted"><?= te('stickers.list.totals_rows', ['n' => $sumsTotal]) ?></div>
         </td>
-        <td><?= e((string)$sums['qty']) ?></td>
-        <td><?= e((string)$sums['price']) ?> Σ
-          <div class="muted"><b><?= e((string)$sums['summ']) ?></b></div>
-        </td>
+        <td><?= e((string)$linesQty) ?></td>
         <td class="muted"><?= te('stickers.list.totals_unit_avg') ?>:
           <?= e((string)($sumsTotal > 0 ? round((float)$sums['unit_price_sum'] / $sumsTotal, 2) : 0)) ?>
         </td>
+        <td><b><?= e((string)round($linesSum, 2)) ?></b></td>
+        <td></td>
         <td></td>
         <td>
           <b><?= e((string)$sums['qtyu_left']) ?></b>

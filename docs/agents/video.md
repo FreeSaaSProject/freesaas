@@ -70,7 +70,7 @@ Alpha tone: «модуль экспериментальный; чиним по �
 1. **Status first:** `GET /agent/video/status` — explain `issues[]` (no token / no worker / no cameras). Never paste RTSP passwords or tokens into chat logs.
 2. **Ask only what you cannot invent:** RTSP, `.pt` path on Mac, VPN if off-LAN, approval to regenerate token.
 3. **Setup:** `POST /agent/video/setup` with `post_name` + model + camera (+ optional `schedule_mode`). Or UI wizard `/video/wizard/setup`.
-4. **Worker:** [video-worker.md](video-worker.md). Confirm `workers_online >= 1`.
+4. **Worker:** [workers.md](workers.md) (plugin `video`). Confirm `workers_online >= 1`.
 5. **Smoke:** `POST /agent/video/enqueue` → `/video/cameras/{id}/live` or post card.
 6. **Train:** create label project with RU labels → `POST /agent/video/session` `action=start` → coach coverage → `phase_other` → `finish` → enqueue train from Models / session page.
 
