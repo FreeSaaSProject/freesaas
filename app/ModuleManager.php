@@ -459,7 +459,9 @@ final class ModuleManager
             'can_toggle' => !$isCore,
             'can_enable' => !$isCore && !$configEnabled && $depsOk,
             'can_disable' => !$isCore && $configEnabled && $requiredBy === [],
-            'can_uninstall' => !$isCore && $strategy === 'drop_owned' && $requiredBy === [] && $hasOwnedTables,
+            // Uninstall (DROP) is the step after disable — never while the module is still on.
+            'can_uninstall' => !$isCore && !$configEnabled && $strategy === 'drop_owned'
+                && $requiredBy === [] && $hasOwnedTables,
             'uninstall_strategy' => $strategy,
             'block_reason' => $block,
             'requires' => $requires,

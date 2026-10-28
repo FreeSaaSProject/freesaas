@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "1.0.21",
+    "version": "1.0.22",
     "type": "platform",
     "requires": [],
     "optionalRequires": {

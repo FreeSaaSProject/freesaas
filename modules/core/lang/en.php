@@ -517,6 +517,8 @@ return [
     'core.modules.setup.choice.defer' => 'Configure later',
     'core.modules.setup.ask_default' => 'How should we handle “{step}”?',
     'core.modules.btn_activate' => 'Activate',
+    'core.modules.more_disabled' => '{n} more available in this category',
+    'core.modules.back_to_enabled' => '← Back to enabled modules',
     'core.modules.msg.catalog_refreshed' => 'Catalog refreshed. Available to install: {n}.',
     'core.modules.err.superadmin' => 'Only SUPERADMIN can install modules.',
     'core.modules.err.catalog' => 'Could not fetch the module catalog from the repository.',

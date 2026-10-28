@@ -231,16 +231,18 @@ final class ModuleCatalog
                 $uncategorized[] = $card;
                 continue;
             }
-            $placed = false;
+            // One section only — primary (first) category. Multi-bucket listing confuses the catalog.
+            $primary = '';
             foreach ($cats as $c) {
                 $c = (string)$c;
-                if (!isset($buckets[$c])) {
-                    continue;
+                if ($c !== '' && isset($buckets[$c])) {
+                    $primary = $c;
+                    break;
                 }
-                $buckets[$c][] = $card;
-                $placed = true;
             }
-            if (!$placed) {
+            if ($primary !== '') {
+                $buckets[$primary][] = $card;
+            } else {
                 $uncategorized[] = $card;
             }
         }
@@ -351,7 +353,47 @@ final class ModuleCatalog
     }
 
     /**
-     * @param array{q?:string,category?:string,tag?:string,status?:string,maturity?:string} $filters
+     * Primary (first valid) catalog category, or '' if none.
+     *
+     * @param array<string,mixed> $card
+     */
+    public static function primaryCategory(array $card): string
+    {
+        $cats = $card['catalog']['categories'] ?? [];
+        if (!is_array($cats)) {
+            return '';
+        }
+        foreach ($cats as $c) {
+            $c = (string)$c;
+            if ($c !== '' && self::isValidCategory($c)) {
+                return $c;
+            }
+        }
+        return '';
+    }
+
+    /**
+     * Disabled/blocked counts keyed by primary category (for “N more in this category” links).
+     *
+     * @return array<string,int>
+     */
+    public static function disabledCountsByPrimaryCategory(): array
+    {
+        $counts = [];
+        foreach (self::list(['status' => 'all']) as $card) {
+            $st = (string)($card['status'] ?? '');
+            if ($st !== 'disabled' && $st !== 'blocked') {
+                continue;
+            }
+            $primary = self::primaryCategory($card);
+            $key = $primary !== '' ? $primary : '';
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
+        }
+        return $counts;
+    }
+
+    /**
+     * @param array{q?:string,category?:string,tag?:string,status?:string,maturity?:string,primary_category_only?:bool} $filters
      */
     public static function matches(array $card, array $filters): bool
     {
@@ -373,8 +415,8 @@ final class ModuleCatalog
 
         $category = trim((string)($filters['category'] ?? ''));
         if ($category !== '') {
-            $cats = $card['catalog']['categories'] ?? [];
-            if (!is_array($cats) || !in_array($category, $cats, true)) {
+            // Same rule as sections(): primary category only.
+            if (self::primaryCategory($card) !== $category) {
                 return false;
             }
         }
@@ -388,7 +430,7 @@ final class ModuleCatalog
         }
 
         $status = trim((string)($filters['status'] ?? ''));
-        if ($status !== '') {
+        if ($status !== '' && $status !== 'all') {
             if ((string)($card['status'] ?? '') !== $status) {
                 return false;
             }

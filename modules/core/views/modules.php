@@ -6,6 +6,7 @@ declare(strict_types=1);
 /** @var bool $updatesConfigured */
 /** @var bool $canInstall */
 /** @var array{q:string,category:string,tag:string,status:string,maturity:string} $filters */
+/** @var array<string,int> $disabledByCategory */
 /** @var list<string> $categories */
 /** @var list<string> $tags */
 /** @var list<string> $maturities */
@@ -74,11 +75,11 @@ $showNav = count($sections) > 1 || $installable !== [];
   <label>
     <span class="muted"><?= te('core.modules.filter_status') ?></span>
     <select name="status" data-modules-filter-auto>
-      <option value=""><?= te('core.modules.filter_any') ?></option>
       <option value="enabled"<?= $filters['status'] === 'enabled' ? ' selected' : '' ?>><?= te('core.modules.state_enabled') ?></option>
       <option value="disabled"<?= $filters['status'] === 'disabled' ? ' selected' : '' ?>><?= te('core.modules.state_disabled') ?></option>
       <option value="blocked"<?= $filters['status'] === 'blocked' ? ' selected' : '' ?>><?= te('core.modules.state_blocked') ?></option>
       <option value="available"<?= $filters['status'] === 'available' ? ' selected' : '' ?>><?= te('core.modules.state_available') ?></option>
+      <option value="all"<?= $filters['status'] === 'all' ? ' selected' : '' ?>><?= te('core.modules.filter_any') ?></option>
     </select>
   </label>
   <label>
@@ -155,18 +156,35 @@ $showNav = count($sections) > 1 || $installable !== [];
   <p class="muted"><?= te('core.modules.empty') ?></p>
 <?php endif; ?>
 
-<?php foreach ($sections as $sec):
+<?php
+$disabledByCategory = is_array($disabledByCategory ?? null) ? $disabledByCategory : [];
+foreach ($sections as $sec):
     $secId = (string)$sec['id'];
     $anchor = $secId !== '' ? 'mod-cat-' . $secId : 'mod-cat-other';
     $label = $secId !== ''
         ? ModuleCatalog::categoryLabel($secId)
         : t('core.modules.category_uncategorized');
     $secCards = $sec['cards'];
+    $moreOff = (int)($disabledByCategory[$secId] ?? 0);
+    $moreHref = '';
+    if ($moreOff > 0 && ($filters['status'] ?? '') === 'enabled') {
+        $moreQ = ['status' => 'disabled'];
+        if ($secId !== '') {
+            $moreQ['category'] = $secId;
+        }
+        if ($filters['q'] !== '') {
+            $moreQ['q'] = $filters['q'];
+        }
+        $moreHref = '/modules?' . http_build_query($moreQ);
+    }
     ?>
   <section class="modules-section" id="<?= e($anchor) ?>">
     <header class="modules-section-head">
       <h2 class="modules-section-title"><?= e($label) ?></h2>
       <span class="muted"><?= te('core.modules.section_count', ['n' => count($secCards)]) ?></span>
+      <?php if ($moreHref !== ''): ?>
+        <a class="muted modules-section-more" href="<?= e($moreHref) ?>"><?= te('core.modules.more_disabled', ['n' => $moreOff]) ?></a>
+      <?php endif; ?>
     </header>
     <div class="modules-grid">
       <?php foreach ($secCards as $card):
@@ -176,6 +194,10 @@ $showNav = count($sections) > 1 || $installable !== [];
     </div>
   </section>
 <?php endforeach; ?>
+
+<?php if (($filters['status'] ?? '') === 'disabled' || ($filters['status'] ?? '') === 'blocked'): ?>
+  <p class="muted"><a href="/modules"><?= te('core.modules.back_to_enabled') ?></a></p>
+<?php endif; ?>
 
 <script>
 (function () {

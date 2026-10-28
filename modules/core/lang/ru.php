@@ -517,6 +517,8 @@ return [
     'core.modules.setup.choice.defer' => 'Настрою позднее',
     'core.modules.setup.ask_default' => 'Как поступить с шагом «{step}»?',
     'core.modules.btn_activate' => 'Активировать',
+    'core.modules.more_disabled' => 'доступны ещё {n} в этой категории',
+    'core.modules.back_to_enabled' => '← К включённым модулям',
     'core.modules.msg.catalog_refreshed' => 'Каталог обновлён. Доступно к установке: {n}.',
     'core.modules.err.superadmin' => 'Устанавливать модули может только SUPERADMIN.',
     'core.modules.err.catalog' => 'Не удалось получить каталог модулей с репозитория.',

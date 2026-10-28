@@ -52,17 +52,13 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
   <?php endif; ?>
 
   <div class="modules-card-meta">
-    <?php foreach ($cardCats as $c):
-        $c = (string)$c;
-        if ($sectionCategory !== '' && $c === $sectionCategory) {
-            continue;
-        }
-        ?>
-      <span class="pill"><?= e(ModuleCatalog::categoryLabel($c)) ?></span>
-    <?php endforeach; ?>
-    <?php foreach ($cardTags as $tg): ?>
-      <span class="pill"><?= e((string)$tg) ?></span>
-    <?php endforeach; ?>
+    <?php
+      // Always show primary category; omit duplicates of the section heading only.
+      $primaryCat = ModuleCatalog::primaryCategory($card);
+      if ($primaryCat !== '' && ($sectionCategory === '' || $primaryCat !== $sectionCategory)):
+    ?>
+      <span class="pill"><?= e(ModuleCatalog::categoryLabel($primaryCat)) ?></span>
+    <?php endif; ?>
   </div>
 
   <div class="modules-deps">
