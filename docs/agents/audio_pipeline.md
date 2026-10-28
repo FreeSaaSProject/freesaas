@@ -89,6 +89,8 @@ Host still needs `*/5` → `/cron/tick` — see [cron.md](cron.md).
 
 ## Uploader → auto-recognition
 
+**In-repo badge client:** [audioloader.md](audioloader.md) / [workers.md](workers.md) plugin `audioloader` (Windows USB → FTP → this ingest URL). Do not invent a second upload API.
+
 After files land in the audio inbox, call ingest (safe GET — no body):
 
 ```bash
@@ -96,7 +98,7 @@ curl -sS "https://<host>/audio/jobs/ingest?token=WORKER_TOKEN"
 # → {"ok":true,"message":"ingest_queued",…} HTTP 202
 ```
 
-Creates a queue flag; Cron creates `base_records` rows awaiting Whisper (`/audio/asr/claim`). Copy-paste GET URL with token: `/audio/settings`.
+Creates a queue flag; Cron creates `base_records` rows awaiting Whisper (`/audio/asr/claim`). Copy-paste GET URL with token: `/audio/settings` → paste into audioloader `post_upload_webhook_url` (or set `server` + `worker_token` in `configs/local.json`).
 
 ## Whisper cabin worker (cutover)
 

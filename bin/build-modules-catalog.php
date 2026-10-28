@@ -121,7 +121,7 @@ foreach (glob($root . '/modules/*/module.json') ?: [] as $manifestPath) {
     $descKey = (string)($meta['description'] ?? '');
     $summaryKey = $id . '.module.summary';
 
-    $modules[] = [
+    $entry = [
         'id' => $id,
         'version' => (string)($meta['version'] ?? '0.0.0'),
         'type' => $type,
@@ -136,6 +136,15 @@ foreach (glob($root . '/modules/*/module.json') ?: [] as $manifestPath) {
             'tags' => array_values(array_unique($tags)),
         ],
     ];
+
+    // Public help path for catalog / marketing (same allowlist as HelpDocs).
+    $docsRel = trim((string)(($meta['agent'] ?? [])['docs'] ?? ''));
+    if ($docsRel !== '' && preg_match('#^docs/agents/[a-z0-9][a-z0-9._-]*\.md$#i', $docsRel)
+        && is_file($root . '/' . $docsRel)) {
+        $entry['agent'] = ['docs' => $docsRel];
+    }
+
+    $modules[] = $entry;
 }
 
 usort($modules, static function (array $a, array $b): int {

@@ -1,14 +1,16 @@
 """Localhost-only status UI + JSON API for agents (compact, i18n)."""
 from __future__ import annotations
 
+import hmac
 import json
+import secrets
 import sys
 import threading
 import time
 import urllib.parse
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Tuple
 
 from .. import supervisor
 from ..config import load_host, load_json, save_json
@@ -25,10 +27,79 @@ from ..paths import HOST_LOCAL
 from ..plugin import load_plugin
 from . import widgets as widgets_mod
 
+_LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
 
 def _client_ok(handler: BaseHTTPRequestHandler) -> bool:
     host = handler.client_address[0]
     return host in ("127.0.0.1", "::1", "localhost")
+
+
+def _split_host_port(raw: str) -> Tuple[str, Optional[int]]:
+    raw = (raw or "").strip().lower()
+    if not raw:
+        return "", None
+    if raw.startswith("["):
+        end = raw.find("]")
+        if end < 0:
+            return raw, None
+        host = raw[1:end]
+        rest = raw[end + 1 :]
+        if rest.startswith(":") and rest[1:].isdigit():
+            return host, int(rest[1:])
+        return host, None
+    if raw.count(":") == 1:
+        host, _, port_s = raw.partition(":")
+        if port_s.isdigit():
+            return host, int(port_s)
+    return raw, None
+
+
+def _url_is_local_dashboard(url: str, listen_port: int) -> bool:
+    try:
+        u = urllib.parse.urlparse(url)
+    except ValueError:
+        return False
+    if u.scheme not in ("http", "https"):
+        return False
+    host, port = _split_host_port(u.netloc)
+    if host not in _LOOPBACK_HOSTS:
+        return False
+    if port is None:
+        port = 443 if u.scheme == "https" else 80
+    return int(port) == int(listen_port)
+
+
+def _host_header_ok(handler: BaseHTTPRequestHandler, listen_port: int) -> bool:
+    host, port = _split_host_port(handler.headers.get("Host") or "")
+    if host not in _LOOPBACK_HOSTS:
+        return False
+    if port is None:
+        return True
+    return int(port) == int(listen_port)
+
+
+def _origin_ok(handler: BaseHTTPRequestHandler, listen_port: int) -> bool:
+    """Reject cross-site browser CSRF. Missing Origin/Referer OK (curl) if CSRF passes."""
+    origin = (handler.headers.get("Origin") or "").strip()
+    if origin:
+        return _url_is_local_dashboard(origin, listen_port)
+    referer = (handler.headers.get("Referer") or "").strip()
+    if referer:
+        return _url_is_local_dashboard(referer, listen_port)
+    return True
+
+
+def _csrf_ok(handler: BaseHTTPRequestHandler, payload: Dict[str, Any]) -> bool:
+    expected = getattr(handler, "csrf_token", "") or ""
+    if not expected:
+        return False
+    got = (handler.headers.get("X-CSRF-Token") or "").strip()
+    if not got:
+        got = str(payload.get("csrf") or "").strip()
+    if not got:
+        return False
+    return hmac.compare_digest(got, expected)
 
 
 def _json_bytes(data: Any) -> bytes:
@@ -230,7 +301,7 @@ button[hidden] { display:none !important; }
 """
 
 
-def render_page() -> str:
+def render_page(*, csrf_token: str) -> str:
     host = load_host()
     locale = get_locale(host)
     i18n = catalog_for_js(locale)
@@ -240,6 +311,7 @@ def render_page() -> str:
         f'<option value="{c}"{" selected" if c == asr else ""}>{c}</option>'
         for c in ("ru", "en", "auto")
     )
+    csrf_js = json.dumps(csrf_token)
     return f"""<!DOCTYPE html>
 <html lang="{locale}">
 <head>
@@ -323,6 +395,7 @@ def render_page() -> str:
 </main>
 <script>
 window.I18N = {json.dumps(i18n, ensure_ascii=False)};
+window.CSRF = {csrf_js};
 const $ = (id) => document.getElementById(id);
 const tt = (k) => (window.I18N && window.I18N[k]) || k;
 let pause = false;
@@ -334,8 +407,11 @@ async function api(path) {{
 async function postAction(action, payload={{}}) {{
   const r = await fetch('/action', {{
     method: 'POST',
-    headers: {{ 'Content-Type': 'application/json' }},
-    body: JSON.stringify({{ action, ...payload }}),
+    headers: {{
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': window.CSRF || '',
+    }},
+    body: JSON.stringify({{ action, csrf: window.CSRF || '', ...payload }}),
   }});
   return r.json();
 }}
@@ -555,32 +631,50 @@ setInterval(refreshLogs, 1500);
 
 
 class Handler(BaseHTTPRequestHandler):
+    listen_port: int = 8766
+    csrf_token: str = ""
+
     def log_message(self, fmt: str, *args: Any) -> None:  # noqa: A003
         sys.stderr.write("%s - %s\n" % (self.address_string(), fmt % args))
 
-    def _forbid(self) -> None:
+    def _forbid(self, reason: str = "localhost only") -> None:
         self.send_response(403)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
         self.end_headers()
-        self.wfile.write(b"forbidden: localhost only\n")
+        self.wfile.write(("forbidden: %s\n" % reason).encode("utf-8"))
 
     def _send(self, code: int, body: bytes, content_type: str) -> None:
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(body)))
+        # Never grant cross-origin browser access.
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(body)
+
+    def _mutate_ok(self, payload: Dict[str, Any]) -> Optional[str]:
+        if not _host_header_ok(self, self.listen_port):
+            return "bad Host"
+        if not _origin_ok(self, self.listen_port):
+            return "bad Origin"
+        if not _csrf_ok(self, payload):
+            return "bad CSRF"
+        return None
 
     def do_GET(self) -> None:  # noqa: N802
         if not _client_ok(self):
             self._forbid()
             return
+        if not _host_header_ok(self, self.listen_port):
+            self._forbid("bad Host")
+            return
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         qs = urllib.parse.parse_qs(parsed.query)
         if path in ("/", "/index.html"):
-            self._send(200, render_page().encode("utf-8"), "text/html; charset=utf-8")
+            page = render_page(csrf_token=self.csrf_token)
+            self._send(200, page.encode("utf-8"), "text/html; charset=utf-8")
             return
         if path == "/api/status":
             plugin = (qs.get("plugin") or [""])[0]
@@ -603,6 +697,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._send(404, b'{"error":"not found"}\n', "application/json; charset=utf-8")
 
+    def do_OPTIONS(self) -> None:  # noqa: N802
+        # No CORS: cross-site preflight must fail closed.
+        self._forbid("no CORS")
+
     def do_POST(self) -> None:  # noqa: N802
         if not _client_ok(self):
             self._forbid()
@@ -610,6 +708,10 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
         length = int(self.headers.get("Content-Length") or 0)
+        # Cap body to avoid abuse (actions are small JSON).
+        if length < 0 or length > 1_000_000:
+            self._forbid("body too large")
+            return
         raw = self.rfile.read(length) if length else b"{}"
         try:
             payload = json.loads(raw.decode("utf-8") or "{}")
@@ -617,6 +719,10 @@ class Handler(BaseHTTPRequestHandler):
             payload = {}
         if not isinstance(payload, dict):
             payload = {}
+        bad = self._mutate_ok(payload)
+        if bad:
+            self._forbid(bad)
+            return
         if path == "/action":
             action = str(payload.get("action") or "")
             msg = do_core_action(action, payload)
@@ -632,9 +738,11 @@ def run_dashboard(*, host: str = "127.0.0.1", port: int = 8766, open_browser: bo
         psutil.cpu_percent(interval=None)
     except Exception:  # noqa: BLE001
         pass
+    Handler.listen_port = int(port)
+    Handler.csrf_token = secrets.token_urlsafe(32)
     server = ThreadingHTTPServer((host, port), Handler)
     url = f"http://{host}:{port}/"
-    print(f"FreeSaaS workers dashboard: {url} (localhost only)", flush=True)
+    print(f"FreeSaaS workers dashboard: {url} (localhost only, CSRF on)", flush=True)
     if open_browser:
         threading.Timer(0.4, lambda: webbrowser.open(url)).start()
     try:

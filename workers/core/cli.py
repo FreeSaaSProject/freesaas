@@ -126,11 +126,13 @@ def cmd_autostart(args: argparse.Namespace) -> int:
         _print_json(auto.status())
         return 0
     if action in ("on", "enable", "install"):
-        _print_json(auto.enable())
-        return 0 if auto.is_loaded() or auto.is_plist_installed() else 1
+        result = auto.enable()
+        _print_json(result)
+        return 0 if result.get("ok") else 1
     if action in ("off", "disable", "uninstall"):
-        _print_json(auto.disable())
-        return 0
+        result = auto.disable()
+        _print_json(result)
+        return 0 if result.get("ok") else 1
     print(f"unknown autostart action: {action}", file=sys.stderr)
     return 1
 
@@ -138,7 +140,7 @@ def cmd_autostart(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="workers.core",
-        description="FreeSaaS Mac workers host (see docs/agents/workers.md)",
+        description="FreeSaaS edge workers host — Mac/Windows (see docs/agents/workers.md)",
     )
     p.add_argument("--root", help=argparse.SUPPRESS)  # reserved
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -181,7 +183,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--open", action="store_true", help="open browser")
     s.set_defaults(func=cmd_dashboard)
 
-    s = sub.add_parser("autostart", help="macOS LaunchAgent on login (plugins + dashboard)")
+    s = sub.add_parser(
+        "autostart",
+        help="login autostart: macOS LaunchAgent or Windows Task Scheduler (plugins + dashboard)",
+    )
     s.add_argument(
         "action",
         nargs="?",

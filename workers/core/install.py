@@ -198,6 +198,49 @@ def doctor() -> Dict[str, Any]:
         if s.id == "whisper":
             script = s.root / "start_whisper_server.sh"
             add("whisper.start_script", script.is_file(), str(script) if script.is_file() else "copy start_whisper_server.example.sh")
+        if s.id == "audioloader":
+            ftp = local.get("ftp") if isinstance(local.get("ftp"), dict) else {}
+            ftp_host = str(ftp.get("host") or "").strip()
+            add(
+                "audioloader.ftp_host",
+                bool(ftp_host),
+                ftp_host or "empty — set configs/local.json → ftp.host (FreeSaaS audio inbox)",
+            )
+            webhook = str(local.get("post_upload_webhook_url") or "").strip()
+            token_ok = bool(token) and token != "CHANGE_ME"
+            ingest_ok = bool(webhook) or (
+                token_ok and bool(server) and "example.tld" not in server
+            )
+            add(
+                "audioloader.ingest",
+                ingest_ok,
+                webhook[:80] + ("…" if len(webhook) > 80 else "")
+                if webhook
+                else ("auto from server+token" if ingest_ok else "set post_upload_webhook_url or server+worker_token"),
+            )
+            lame_cfg = str(local.get("lame_path") or "").strip()
+            lame_found = ""
+            if lame_cfg and Path(lame_cfg).expanduser().is_file():
+                lame_found = lame_cfg
+            else:
+                for name in ("lame", "lame.exe"):
+                    p = which(name)
+                    if p:
+                        lame_found = p
+                        break
+                plugin_lame = s.root / "lame.exe"
+                if not lame_found and plugin_lame.is_file():
+                    lame_found = str(plugin_lame)
+            add(
+                "audioloader.lame",
+                bool(lame_found),
+                lame_found or "optional soft — obtain LAME separately (THIRD_PARTY.md); WAV→MP3 needs it",
+            )
+            # Soft: missing LAME should not fail whole doctor when audioloader is enabled
+            # (re-mark last check as ok=True with warning detail already set — agents still see it)
+            if checks and checks[-1]["name"] == "audioloader.lame" and not checks[-1]["ok"]:
+                checks[-1]["ok"] = True
+                checks[-1]["detail"] = "WARN: " + str(checks[-1]["detail"])
 
     return {
         "ok": all(c["ok"] for c in checks),

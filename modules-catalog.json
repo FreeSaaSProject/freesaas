@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-28T20:34:47+00:00",
+    "generated_at": "2026-10-28T21:22:35+00:00",
     "modules": [
         {
             "id": "asr",
@@ -33,6 +33,9 @@
                     "integration",
                     "jobs"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/asr.md"
             }
         },
         {
@@ -69,6 +72,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/assistant.md"
             }
         },
         {
@@ -107,11 +113,14 @@
                     "transport",
                     "settings"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/assistant-groups.md"
             }
         },
         {
             "id": "audio",
-            "version": "1.0.7",
+            "version": "1.0.8",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -144,6 +153,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/audio.md"
             }
         },
         {
@@ -176,6 +188,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/audio_dicts.md"
             }
         },
         {
@@ -212,6 +227,9 @@
                 ],
                 "maturity": "beta",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/audio_llm.md"
             }
         },
         {
@@ -247,6 +265,9 @@
                 "tags": [
                     "jobs"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/audio_phrases.md"
             }
         },
         {
@@ -280,6 +301,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/audio_pipeline.md"
             }
         },
         {
@@ -315,6 +339,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/audio-summaries.md"
             }
         },
         {
@@ -352,6 +379,9 @@
                 "tags": [
                     "llm"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/audio_script_coach.md"
             }
         },
         {
@@ -390,6 +420,9 @@
                     "sync",
                     "llm"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/banks.md"
             }
         },
         {
@@ -421,6 +454,9 @@
                 "tags": [
                     "report"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/bi.md"
             }
         },
         {
@@ -454,6 +490,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/bonuses.md"
             }
         },
         {
@@ -493,6 +532,9 @@
                 "tags": [
                     "journal"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/booking.md"
             }
         },
         {
@@ -525,6 +567,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/bots.md"
             }
         },
         {
@@ -553,6 +598,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/cabinets.md"
             }
         },
         {
@@ -594,6 +642,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/calendar.md"
             }
         },
         {
@@ -628,6 +679,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/catalog.md"
             }
         },
         {
@@ -664,6 +718,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/certificates.md"
             }
         },
         {
@@ -702,6 +759,9 @@
                     "integration",
                     "llm"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/client-mcp.md"
             }
         },
         {
@@ -741,6 +801,9 @@
                     "sync",
                     "jobs"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/clientics.md"
             }
         },
         {
@@ -772,6 +835,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/clients.md"
             }
         },
         {
@@ -800,6 +866,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/comments.md"
             }
         },
         {
@@ -831,6 +900,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/contracts.md"
             }
         },
         {
@@ -880,6 +952,9 @@
                 "tags": [
                     "settings"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/demo.md"
             }
         },
         {
@@ -916,6 +991,9 @@
                 ],
                 "maturity": "beta",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/docs.md"
             }
         },
         {
@@ -949,6 +1027,9 @@
                 "tags": [
                     "report"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/finance.md"
             }
         },
         {
@@ -980,6 +1061,9 @@
                 "tags": [
                     "journal"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/funds.md"
             }
         },
         {
@@ -1015,6 +1099,9 @@
                     "oauth",
                     "sync"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/gcal.md"
             }
         },
         {
@@ -1043,6 +1130,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/laundry.md"
             }
         },
         {
@@ -1081,6 +1171,9 @@
                     "journal",
                     "payments"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/ledger.md"
             }
         },
         {
@@ -1121,6 +1214,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/likespa-restores.md"
             }
         },
         {
@@ -1157,6 +1253,9 @@
                     "integration",
                     "sync"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/liquid_assets.md"
             }
         },
         {
@@ -1187,6 +1286,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/llm.md"
             }
         },
         {
@@ -1216,6 +1318,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/norms.md"
             }
         },
         {
@@ -1252,6 +1357,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/orders.md"
             }
         },
         {
@@ -1287,6 +1395,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/payments.md"
             }
         },
         {
@@ -1322,6 +1433,9 @@
                 ],
                 "maturity": "beta",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/poll_invites.md"
             }
         },
         {
@@ -1353,6 +1467,9 @@
                 ],
                 "maturity": "beta",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/polls.md"
             }
         },
         {
@@ -1390,6 +1507,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/procedures.md"
             }
         },
         {
@@ -1423,6 +1543,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/procents.md"
             }
         },
         {
@@ -1454,11 +1577,14 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/rates.md"
             }
         },
         {
             "id": "remittances",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Remittances",
@@ -1491,6 +1617,9 @@
                     "journal",
                     "payments"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/remittances.md"
             }
         },
         {
@@ -1519,6 +1648,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/sheets.md"
             }
         },
         {
@@ -1555,6 +1687,9 @@
                 "tags": [
                     "embed"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/sites.md"
             }
         },
         {
@@ -1594,6 +1729,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/staff_reports.md"
             }
         },
         {
@@ -1630,6 +1768,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/stickers-qr.md"
             }
         },
         {
@@ -1664,6 +1805,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/stocks.md"
             }
         },
         {
@@ -1692,6 +1836,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/suppliers.md"
             }
         },
         {
@@ -1722,6 +1869,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/tables.md"
             }
         },
         {
@@ -1757,6 +1907,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/terminals.md"
             }
         },
         {
@@ -1785,6 +1938,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/units.md"
             }
         },
         {
@@ -1816,6 +1972,9 @@
                     "settings",
                     "jobs"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/update.md"
             }
         },
         {
@@ -1846,6 +2005,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/vacations.md"
             }
         },
         {
@@ -1880,6 +2042,9 @@
                     "integration",
                     "jobs"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/video.md"
             }
         },
         {
@@ -1911,6 +2076,9 @@
                 "tags": [
                     "jobs"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/video-label.md"
             }
         },
         {
@@ -1922,8 +2090,8 @@
                 "ru": "Здоровье и фитнес"
             },
             "description": {
-                "en": "Personal food, workout and health diary. Entries are visible only to their author — not to managers and not even to the superadmin.",
-                "ru": "Личный дневник питания, тренировок и здоровья. Записи видит только их автор — доступа нет ни у руководителя, ни у суперадмина."
+                "en": "Personal food, workout, weight and wellbeing diary: macros and targets, own foods and recipes, calendar. Visible only to the author.",
+                "ru": "Личный дневник еды, тренировок, веса и самочувствия: КБЖУ и цели, свои продукты и рецепты, календарь. Данные видит только автор."
             },
             "summary": {
                 "en": "Enable to give staff a personal health diary inside the corporate system. Data is strictly personal: everyone sees only their own entries and there is no SUPERADMIN_ACCESS bypass, so personal data stays personal. Features: food diary with calories/macros and the daily remainder against your own fitness targets (workout burn included); your own food tables and recipes with per-portion macros; workouts; weight; wellbeing diary with symptom and medicine lists; doctor prescriptions; monthly calendar overview. Quick add right from the diary, food entry via the «Food & sport» bot (soft bots, voice via asr) and via the assistant. Requires core only.",
@@ -1942,6 +2110,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/wellness.md"
             }
         },
         {
@@ -1978,6 +2149,9 @@
                 ],
                 "maturity": "release",
                 "tags": []
+            },
+            "agent": {
+                "docs": "docs/agents/workweeks.md"
             }
         },
         {
@@ -2017,6 +2191,9 @@
                     "sync",
                     "jobs"
                 ]
+            },
+            "agent": {
+                "docs": "docs/agents/yclients.md"
             }
         }
     ]

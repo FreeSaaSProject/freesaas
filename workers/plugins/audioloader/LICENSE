@@ -1,0 +1,13 @@
+GNU AFFERO GENERAL PUBLIC LICENSE
+Version 3, 19 November 2007
+
+This FreeSaaS workers plugin (AudioLoader) is licensed under the GNU Affero
+General Public License version 3 or later, the same terms as the FreeSaaS
+platform. The full license text is in the repository root file LICENSE:
+
+  ../../../LICENSE
+
+Copyright (C) FreeSaaS contributors.
+
+Third-party tools (LAME, FFmpeg) are not part of this license grant — see
+THIRD_PARTY.md.

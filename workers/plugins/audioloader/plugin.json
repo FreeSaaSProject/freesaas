@@ -1,0 +1,15 @@
+{
+  "id": "audioloader",
+  "title": "AudioLoader (badge USB → FTP → ingest)",
+  "version": "0.1.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": ["ffmpeg"],
+  "models": [],
+  "widgets": ["health", "queue"],
+  "actions": [],
+  "log_sources": {},
+  "platforms": ["win32", "darwin"],
+  "comment": "Windows USB badges primary; Mac /Volumes adapter is wave 2. LAME is external (not vendored) — doctor soft-checks lame.exe or ffmpeg libmp3lame."
+}

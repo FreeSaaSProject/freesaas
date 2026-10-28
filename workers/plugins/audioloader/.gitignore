@@ -1,0 +1,17 @@
+logs/
+var/
+__pycache__/
+*.pyc
+.DS_Store
+lame.exe
+lame_enc.dll
+python-*.exe
+audioloader.ini
+LikeSpaDatas/
+wav/
+ogg/
+mp3/
+backup_beacons/
+*.local.json
+configs/local.json
+configs/local.ini

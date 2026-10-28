@@ -1,6 +1,7 @@
 """Filesystem roots for the workers host."""
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 CORE_DIR = Path(__file__).resolve().parent
@@ -12,7 +13,15 @@ LOG_DIR = VAR_DIR / "log"
 HOST_EXAMPLE = WORKERS_ROOT / "host.example.json"
 HOST_LOCAL = WORKERS_ROOT / "host.local.json"
 VENV_DIR = WORKERS_ROOT / ".venv"
-VENV_PYTHON = VENV_DIR / "bin" / "python"
+
+
+def _venv_python() -> Path:
+    if sys.platform == "win32":
+        return VENV_DIR / "Scripts" / "python.exe"
+    return VENV_DIR / "bin" / "python"
+
+
+VENV_PYTHON = _venv_python()
 
 
 def ensure_var_dirs() -> None:

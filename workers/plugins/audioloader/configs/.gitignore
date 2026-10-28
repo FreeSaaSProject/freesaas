@@ -1,0 +1,5 @@
+*
+!.gitignore
+!example.json
+!*.example.json
+!audioloader.example.ini

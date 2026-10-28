@@ -1,0 +1,33 @@
+{
+  "server": "https://freesaas.example.tld",
+  "worker_token": "CHANGE_ME",
+  "post_upload_webhook_url": "",
+  "comment_webhook": "Leave post_upload_webhook_url empty to build GET {server}/audio/jobs/ingest?token={worker_token} automatically.",
+  "ftp": {
+    "host": "",
+    "port": 21,
+    "user": "",
+    "password": "",
+    "folder": "audio"
+  },
+  "excluded_drives": ["C"],
+  "poll_interval_sec": 120,
+  "drive_stable_delay_sec": 3,
+  "drive_access_timeout_sec": 15,
+  "slice_duration_sec": 360,
+  "mp3_name_template": "EM_CARD_{date}-{time}_NML_{serial}.mp3",
+  "lame_path": "",
+  "debug": false,
+  "messenger": {
+    "target": "telegram",
+    "telegram_token": "",
+    "telegram_chat_id": "",
+    "max_token": "",
+    "max_chat_id": ""
+  },
+  "pc_recording": {
+    "enabled": false
+  },
+  "gui": false,
+  "comment": "Copy to local.json (chmod 600). Match FTP to FreeSaaS /audio/settings [storage]. Paste ingest URL from settings into post_upload_webhook_url or set server+worker_token."
+}

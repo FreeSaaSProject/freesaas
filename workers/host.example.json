@@ -37,5 +37,5 @@
       }
     }
   },
-  "comment": "Copy to host.local.json. Set locale (ru|en) to match FreeSaaS instance. ASR language is plugins/whisper/configs/local.json → whisper.form_params.language. Ops alerts: notify (Max and/or Telegram) — editable from dashboard; off by default."
+  "comment": "Copy to host.local.json. Edge host for Mac and Windows. Plugins: video, whisper (ASR), audioloader (badge USB→FTP→ingest). Enable audioloader on the Windows PC that receives badges. Set locale (ru|en). ASR language: plugins/whisper/configs/local.json → whisper.form_params.language. Ops alerts: notify (Max/Telegram) — off by default."
 }

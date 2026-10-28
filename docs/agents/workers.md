@@ -1,10 +1,19 @@
-# FreeSaaS Mac workers (modular host)
+# FreeSaaS edge workers (modular host)
 
-Canonical runbook for agents deploying **video** (YOLO) and/or **whisper** (cabin ASR) on a clean Mac. Code: [`workers/`](../../workers/) — shared **core** + **plugins**.
+Canonical runbook for agents deploying **video** (YOLO), **whisper** (cabin ASR), and/or **audioloader** (badge USB → FTP → ingest) on **Mac or Windows**. Code: [`workers/`](../../workers/) — shared **core** + **plugins**.
 
-Workers dial **out** to FreeSaaS (no inbound ports to the Mac). Local UI/API is **localhost only**.
+Workers dial **out** to FreeSaaS (no inbound ports to the edge host). Local UI/API is **localhost only**.
 
-Related product docs: [video.md](video.md), [video-label.md](video-label.md), [audio_pipeline.md](audio_pipeline.md), [asr.md](asr.md).
+Related product docs: [video.md](video.md), [video-label.md](video-label.md), [audio_pipeline.md](audio_pipeline.md), [asr.md](asr.md), [audioloader.md](audioloader.md).
+
+| Plugin | Role | Typical OS (MVP) |
+|--------|------|------------------|
+| `video` | YOLO cameras | Mac |
+| `whisper` | Cabin ASR claim/result/stem | Mac |
+| `audioloader` | Badge USB → MP3 → FTP inbox → ingest GET | Windows |
+| `llm` | stub — leave disabled | — |
+
+**Roadmap (not MVP):** Mac `/Volumes` adapter for `audioloader`; `whisper` / `video` on Windows (CUDA/CPU notes + win autostart already shared).
 
 ---
 
@@ -13,12 +22,14 @@ Related product docs: [video.md](video.md), [video-label.md](video-label.md), [a
 ```
 workers/
   host.example.json          → copy to host.local.json
-  core/                      # supervisor, dashboard, install, CLI
+  core/                      # supervisor, dashboard, install, CLI, autostart
   plugins/
     video/                   # YOLO + ffmpeg + optional camera VPN
     whisper/                 # claim → whisper.cpp → result → stem
+    audioloader/             # badge USB → FTP → GET /audio/jobs/ingest
     llm/                     # stub only — do not enable yet
-  bin/freesaas-workers
+  bin/freesaas-workers       # Unix
+  bin/freesaas-workers.cmd   # Windows
   var/run/  var/log/         # pidfiles + captured stdout
 ```
 
@@ -26,6 +37,8 @@ CLI (from **repo root**, `PYTHONPATH=.` or use the bin wrapper):
 
 ```bash
 ./workers/bin/freesaas-workers install|doctor|download-models|start|stop|status|logs|dashboard
+# Windows:
+workers\bin\freesaas-workers.cmd install
 # equivalent:
 PYTHONPATH=. python3 -m workers.core …
 ```
@@ -36,14 +49,15 @@ PYTHONPATH=. python3 -m workers.core …
 
 Pick plugins from the instance stack:
 
-| Need | Enable modules | Token |
-|------|----------------|-------|
+| Need | Enable modules | Token / config |
+|------|----------------|----------------|
 | Video / YOLO | `video` (+ optional `video_label`) | `video.worker_token` → header `X-Video-Token`. UI `/video/settings` or `POST /agent/video/setup` (`new_token`) |
 | Cabin ASR | `asr`, `audio`, `audio_dicts`, `audio_pipeline` (risk ack if alpha/beta) | `[asr] worker_token` → `X-Audio-Token`. UI `/audio/settings` |
+| Badge loader | `audio` + `audio_pipeline` (+ ASR stack to recognize) | Same audio token; FTP/`audio_inbox` on `/audio/settings`; paste **Ingest URL** into audioloader `post_upload_webhook_url` (or set `server`+`worker_token`) |
 
-Never paste tokens into chat logs. Copy once into Mac `plugins/<id>/configs/local.json`.
+Never paste tokens into chat logs. Copy once into edge `plugins/<id>/configs/local.json`.
 
-Smoke (server-side) before starting Mac clients:
+Smoke (server-side) before starting edge clients:
 
 ```bash
 # Video
@@ -60,14 +74,15 @@ Health: `php bin/freesaas.php health --module=video` / `--module=asr` / `--modul
 
 ---
 
-## 2. Prefight — Mac
+## 2. Prefight — edge host
 
 | Need | Notes |
 |------|--------|
-| macOS + disk for models | YOLO `.pt`; whisper ggml tens of GB |
-| Xcode CLT / Homebrew | `xcode-select --install`; `brew install ffmpeg` |
-| Python 3.9+ | `python3 --version` |
-| Outbound HTTPS | FreeSaaS + (whisper) HTTP file host |
+| OS | Mac for video/whisper today; **Windows** for `audioloader` (USB badges) |
+| Disk for models | YOLO `.pt`; whisper ggml tens of GB (Mac ASR) |
+| Toolchain | Mac: Xcode CLT / Homebrew `ffmpeg`. Win: FFmpeg on PATH; optional **LAME** (`lame.exe`) for AudioLoader — not vendored ([`THIRD_PARTY.md`](../../workers/plugins/audioloader/THIRD_PARTY.md)) |
+| Python 3.9+ | `python3 --version` / `py -3` |
+| Outbound HTTPS | FreeSaaS + (whisper) HTTP file host; FTP to audio inbox for audioloader |
 | whisper.cpp (if whisper) | Build `whisper-server`; models under `$WHISPER_CPP_DIR/models/` |
 
 ---
@@ -78,11 +93,12 @@ Health: `php bin/freesaas.php health --module=video` / `--module=asr` / `--modul
 # Clone or rsync FreeSaaS; work from repo root
 cd /path/to/freesaas
 cp workers/host.example.json workers/host.local.json
-# Edit enabled_plugins: ["video"], ["whisper"], or both
+# Edit enabled_plugins: ["video"], ["whisper"], ["audioloader"], or combinations
 # Edit shared.server to the FreeSaaS base URL (no trailing slash)
 # Set locale (see below) to match the FreeSaaS instance language
 
 ./workers/bin/freesaas-workers install
+# Windows: workers\bin\freesaas-workers.cmd install
 # creates workers/.venv, pip (core + enabled plugins), copies plugin configs/example → local.json,
 # attempts model download where url/source allows, runs doctor
 ```
@@ -254,7 +270,7 @@ Not part of `/cron/tick`. Messenger voice queue (`/asr/voice-transcribe/*`) is a
 | Claim always `None` (audio) | No rows `DT_TRANSCRIBED < 1`; ingest |
 | Download 404 (audio) | `ftp_server` base vs `FILENAME` prefix |
 | High CPU / OOM | `status` RSS; stop other plugin; smaller YOLO / whisper model |
-| Dashboard 403 | Must use 127.0.0.1, not LAN IP |
+| Dashboard 403 | Must use 127.0.0.1, not LAN IP; POST `/action` needs CSRF from the page (`X-CSRF-Token`) + local Origin/Host |
 
 Always start with: `status <plugin>` + `logs <plugin> --tail 80`.
 
@@ -281,24 +297,45 @@ Always start with: `status <plugin>` + `logs <plugin> --tail 80`.
 
 ---
 
-## 10. Autostart (macOS login)
+## 10. Autostart (login)
 
-LaunchAgent `ru.freesaas.workers` runs `bin/freesaas-workers-boot.sh`: `start` all enabled plugins, then keep **dashboard** in foreground (`KeepAlive`).
+**macOS:** LaunchAgent `ru.freesaas.workers` runs `bin/freesaas-workers-boot.sh`: `start` all enabled plugins, then keep **dashboard** in foreground (`KeepAlive`).
+
+**Windows:** Task Scheduler task `FreeSaaSWorkers` runs `bin/freesaas-workers-boot.cmd` (same idea: `start` then `dashboard`).
 
 ```bash
 ./workers/bin/freesaas-workers autostart status
-./workers/bin/freesaas-workers autostart on    # install + load LaunchAgent
-./workers/bin/freesaas-workers autostart off    # unload + remove plist
+./workers/bin/freesaas-workers autostart on    # install + load LaunchAgent / schtasks
+./workers/bin/freesaas-workers autostart off
 ```
 
-Same toggle in the dashboard **Autostart** card. State also stored in `host.local.json` → `autostart.enabled`. Logs: `var/log/boot.log`, `launchd.*.log`.
+Same toggle in the dashboard **Autostart** card. State also stored in `host.local.json` → `autostart.enabled`. Logs: `var/log/boot.log` (+ `launchd.*.log` on Mac).
 
 ---
 
-## 11. Follow-ups
+## 11. Plugin `audioloader` (badge loader)
+
+Thin product pointer: [audioloader.md](audioloader.md). Contract: drop MP3 into FreeSaaS audio inbox (FTP/`audio_inbox`) → `GET /audio/jobs/ingest?token=…` (copy-paste on `/audio/settings`).
+
+```bash
+# host.local.json → enabled_plugins includes "audioloader"
+./workers/bin/freesaas-workers install
+# edit plugins/audioloader/configs/local.json (ftp + server/token or post_upload_webhook_url)
+./workers/bin/freesaas-workers start audioloader
+./workers/bin/freesaas-workers status audioloader
+# optional desktop UI:
+PYTHONPATH=. python workers/plugins/audioloader/worker.py --gui
+```
+
+LAME is an **external** dependency (subprocess); do not commit `lame.exe`. FFmpeg required for Speechmate/CHINA3.
+
+---
+
+## 12. Follow-ups
 
 - Working local-LLM plugin
 - Single shared worker token across plugins
+- Mac volume adapter for `audioloader`; Whisper/YOLO plugins on Windows
 
 ---
 

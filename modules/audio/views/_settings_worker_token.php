@@ -53,5 +53,10 @@ $ingestUrl = (string)($ingestUrl ?? '');
     </div>
   <?php endif; ?>
 
+  <div style="margin-top:1rem">
+    <h3 class="subhead" style="font-size:1rem;margin:0 0 .35rem"><?= te('audio.settings.audioloader.title') ?></h3>
+    <p class="muted"><?= te('audio.settings.audioloader.help') ?></p>
+  </div>
+
   <p class="muted" style="margin-top:.5rem"><?= te('audio.settings.worker_token.save_note') ?></p>
 </fieldset>

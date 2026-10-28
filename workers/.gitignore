@@ -6,3 +6,11 @@ var/log/*.log.1
 **/__pycache__/
 **/*.pyc
 .DS_Store
+# AudioLoader runtime / external binaries (never commit)
+plugins/audioloader/lame.exe
+plugins/audioloader/lame_enc.dll
+plugins/audioloader/python-*.exe
+plugins/audioloader/audioloader.ini
+plugins/audioloader/var/
+plugins/audioloader/logs/*.log
+plugins/audioloader/logs/status.json

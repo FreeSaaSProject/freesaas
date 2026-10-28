@@ -87,9 +87,10 @@ final class Config
     }
 
     /**
-     * One-shot upgrade helper: pin every on-disk product module to an explicit [modules] 0|1
-     * using the legacy rule (absent or truthy → on). Call before relying on absent=off so
-     * existing installs do not go dark. Idempotent when all ids already have keys.
+     * Pin every on-disk product module that still lacks a [modules] key to explicit =0.
+     * Matches fail-closed defaults (absent = off). Never auto-enables — activate / enable
+     * (with accept_risk for alpha/beta) remains the only path to =1.
+     * Idempotent when all ids already have keys.
      *
      * @return array{pinned:array<string,int>,skipped:list<string>}
      */
@@ -113,9 +114,8 @@ final class Config
                 $skipped[] = $id;
                 continue;
             }
-            // Legacy absent = enabled → pin on so the flip to absent=off keeps the instance working.
-            self::setModuleEnabled($id, true);
-            $pinned[$id] = 1;
+            self::setModuleEnabled($id, false);
+            $pinned[$id] = 0;
         }
         return ['pinned' => $pinned, 'skipped' => $skipped];
     }

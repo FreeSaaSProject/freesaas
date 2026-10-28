@@ -140,9 +140,15 @@ def start_plugin(spec: PluginSpec, *, extra_args: Optional[List[str]] = None) ->
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     prev = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = repo_root + (os.pathsep + prev if prev else "")
+    # Repo root (workers.*) + plugin root (audioloader package under plugins/<id>/)
+    path_parts = [repo_root, str(spec.root)]
+    if prev:
+        path_parts.append(prev)
+    env["PYTHONPATH"] = os.pathsep.join(path_parts)
     env["FREESAAS_WORKERS_ROOT"] = str(WORKERS_ROOT)
     env["FREESAAS_PLUGIN_ID"] = spec.id
+    if spec.id == "audioloader":
+        env["FREESAAS_AUDIOLOADER_ROOT"] = str(spec.root)
     try:
         from .i18n import get_locale
 

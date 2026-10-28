@@ -13,11 +13,18 @@ final class RemittanceReconcile
     /**
      * Sync / refresh batch for a move. Returns batch row or null if no agreement.
      *
+     * Badge / edit chrome must pass $applySupplier=false: never mutate ledger moves on GET.
+     * Explicit remittance actions (POST) keep the default and may fill empty counterparty.
+     *
      * @param array<string,mixed>|null $move
      * @return array<string,mixed>|null
      */
-    public static function syncMove(int $moveId, ?array $move = null, bool $force = false): ?array
-    {
+    public static function syncMove(
+        int $moveId,
+        ?array $move = null,
+        bool $force = false,
+        bool $applySupplier = true
+    ): ?array {
         if ($moveId < 1) {
             return null;
         }
@@ -59,7 +66,9 @@ final class RemittanceReconcile
                 'parse_error' => (string)$parsed['error'],
                 'ignored' => 0,
             ]);
-            self::maybeSetSupplier($move, $agreement);
+            if ($applySupplier) {
+                self::maybeSetSupplier($move, $agreement);
+            }
             $out = RemittanceBatchesRepository::findByMoveId($moveId);
             return $out ?? ['id' => $batchId];
         }
@@ -100,7 +109,9 @@ final class RemittanceReconcile
             'parse_error' => '',
             'ignored' => 0,
         ]);
-        self::maybeSetSupplier($move, $agreement);
+        if ($applySupplier) {
+            self::maybeSetSupplier($move, $agreement);
+        }
         return RemittanceBatchesRepository::findByMoveId($moveId);
     }
 
@@ -146,7 +157,8 @@ final class RemittanceReconcile
                 if (RemittanceMatcher::findAgreementForMove($move) === null) {
                     continue;
                 }
-                $batch = self::syncMove($mid, $move);
+                // View-only path: refresh remittance batch chip, never touch ledger supplier.
+                $batch = self::syncMove($mid, $move, false, false);
             }
             if ($batch === null) {
                 continue;
@@ -208,7 +220,7 @@ final class RemittanceReconcile
             return '';
         }
         if ($batch === null && $agreement !== null) {
-            $batch = self::syncMove($moveId, $move);
+            $batch = self::syncMove($moveId, $move, false, false);
         }
         if ($batch === null) {
             return '';
@@ -252,6 +264,10 @@ final class RemittanceReconcile
         if (empty($agreement['auto_set_supplier'])) {
             return;
         }
+        // Never write ledger moves without edit permission (badges only require ledger.view).
+        if (!Auth::can('ledger.edit')) {
+            return;
+        }
         $moveId = (int)($move['id'] ?? 0);
         $supplierId = (int)($agreement['supplier_id'] ?? 0);
         if ($moveId < 1 || $supplierId < 1) {
@@ -263,27 +279,11 @@ final class RemittanceReconcile
         if (!class_exists('LedgerMovesRepository', false)) {
             return;
         }
-        $full = LedgerMovesRepository::find($moveId);
-        if ($full === null) {
-            return;
+        try {
+            LedgerMovesRepository::setSupplierId($moveId, $supplierId);
+        } catch (Throwable $e) {
+            // Type may not allow counterparty — leave move unchanged.
         }
-        LedgerMovesRepository::update($moveId, [
-            'account_id' => (int)$full['account_id'],
-            'type_id' => (int)$full['type_id'],
-            'direction' => (int)$full['direction'],
-            'summ' => $full['summ'],
-            'descr' => (string)$full['descr'],
-            'dt' => (int)$full['dt'],
-            'unconfirmed' => (int)$full['unconfirmed'],
-            'payment_id' => (int)$full['payment_id'],
-            'supplier_id' => $supplierId,
-            'user_payment' => (int)$full['user_payment'],
-            'fund_movement_id' => (int)$full['fund_movement_id'],
-            'act2_in' => (int)($full['act2_in'] ?? 0),
-            'act2_not_req' => (int)($full['act2_not_req'] ?? 0),
-            'dt_promised' => (int)($full['dt_promised'] ?? 0),
-            'promise_executed' => (int)($full['promise_executed'] ?? 0),
-        ]);
     }
 
     public static function fmtMoney(float $n): string

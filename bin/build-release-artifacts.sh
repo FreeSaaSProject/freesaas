@@ -122,10 +122,21 @@ else
       --exclude='./**/*.sql' \
       --exclude='./**/*.dump' \
       --exclude='./assets/uploads/logo/*' \
+      --exclude='./workers/host.local.json' \
+      --exclude='./workers/.venv' \
+      --exclude='./workers/var' \
       . \
     | (cd "$stage" && tar -xf -)
   )
 fi
+
+# Always strip Mac worker secrets / runtime (gitignored files can still enter working-tree stage).
+rm -f "$stage/workers/host.local.json"
+find "$stage/workers" -type f -path '*/configs/local.json' -delete 2>/dev/null || true
+find "$stage/workers" -type d -name '.venv' -prune -exec rm -rf {} + 2>/dev/null || true
+rm -rf "$stage/workers/var" 2>/dev/null || true
+find "$stage/workers" -type d -name 'var' -path '*/plugins/*/var' -prune -exec rm -rf {} + 2>/dev/null || true
+find "$stage/workers" -type f \( -name '*.pt' -o -name '*.onnx' -o -name '*.bin' \) -delete 2>/dev/null || true
 
 if [[ -n "${PRIVATE_MODULES//[[:space:],]/}" ]]; then
   IFS=',' read -r -a priv <<< "$PRIVATE_MODULES"

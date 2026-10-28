@@ -195,9 +195,9 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `rates` | Specialist commission rates (`base_procent_history`); requires `procedures` |
 | `procents` | Read-only commission accrual report; requires `rates` + `procedures` + `workweeks` |
 | `asr` | Voice queue + shared Whisper worker token (`/asr/voice-transcribe/*`); requires `core` only; soft `bots` |
-| `audio` | Cabin records + badges + FileStorage; soft `workweeks` |
+| `audio` | Cabin records + badges + FileStorage; soft `workweeks`; badge USB loader = workers plugin `audioloader` ([`docs/agents/audioloader.md`](docs/agents/audioloader.md)) |
 | `audio_dicts` | Dicts/keys/scripts/trash for recognition; requires `audio` |
-| `audio_pipeline` | Cabin ingest/ASR/stem/collect workers; requires `asr` + `audio` + `audio_dicts` |
+| `audio_pipeline` | Cabin ingest/ASR/stem/collect jobs; requires `asr` + `audio` + `audio_dicts`; edge host [`docs/agents/workers.md`](docs/agents/workers.md) |
 | `audio_reports` | Records calendar + summary reports; requires `audio` + `audio_dicts` + `workweeks` |
 | `llm` | OpenAI-compatible LLM client + token profiles UI (`cfg/modules/llm.ini`); shared by studies/bots/agents |
 | `bots` | Telegram/Max transport + `base_telegram_sends` queue + `base_bot_links` identities + webhooks; domain adapters via `BotPlugins` / `bots.send` |
@@ -212,7 +212,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `finance` | Balance/ODDS report (no inflation, no amort schedule); soft `funds` for FUND_MATRIX |
 | `liquid_assets` | Liquid assets report + T-Invest accounts/sync (broker snapshots); requires `ledger`; soft `funds` for REVAL; disableable |
 | `banks` | Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) → link `base_accounts`, sync statements into ДПС; soft `llm` classify; disableable |
-| `video` | Posts (N cameras), schedule gate, YOLO via Mac worker, interactive train (person→class + coverage); soft `bots`/`video_label`; alpha — [`docs/agents/video.md`](docs/agents/video.md); Mac host [`docs/agents/workers.md`](docs/agents/workers.md) |
+| `video` | Posts (N cameras), schedule gate, YOLO via edge worker, interactive train (person→class + coverage); soft `bots`/`video_label`; alpha — [`docs/agents/video.md`](docs/agents/video.md); edge host [`docs/agents/workers.md`](docs/agents/workers.md) |
 | `video_label` | YOLO labeling projects + workspace; requires `video`; alpha — [`docs/agents/video-label.md`](docs/agents/video-label.md) |
 
 Prefer extending these via hooks before forking page logic.

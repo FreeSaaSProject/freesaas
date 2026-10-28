@@ -10,7 +10,9 @@ declare(strict_types=1);
 
 final class VideoLabelZipIngest
 {
-    public const MAX_BYTES = 524288000; // 500 MiB
+    public const MAX_BYTES = 524288000; // 500 MiB compressed upload
+    public const MAX_ENTRIES = 50000;
+    public const MAX_UNCOMPRESSED = 1073741824; // 1 GiB total uncompressed
 
     /**
      * @return array{ok:bool,imported:int,labeled:int,skipped:int,error?:string}
@@ -49,7 +51,19 @@ final class VideoLabelZipIngest
 
             return ['ok' => false, 'imported' => 0, 'labeled' => 0, 'skipped' => 0, 'error' => 'cannot open zip'];
         }
-        $zip->extractTo($work);
+        $budget = self::assertZipBudget($zip);
+        if ($budget !== null) {
+            $zip->close();
+            self::rmTree($work);
+
+            return ['ok' => false, 'imported' => 0, 'labeled' => 0, 'skipped' => 0, 'error' => $budget];
+        }
+        if (!self::extractZipSafe($zip, $work)) {
+            $zip->close();
+            self::rmTree($work);
+
+            return ['ok' => false, 'imported' => 0, 'labeled' => 0, 'skipped' => 0, 'error' => 'zip path unsafe or extract failed'];
+        }
         $zip->close();
 
         $imagesDir = self::findImagesDir($work);
@@ -142,6 +156,84 @@ final class VideoLabelZipIngest
         }
 
         return $out;
+    }
+
+    /** @return string|null error message or null if OK */
+    private static function assertZipBudget(ZipArchive $zip): ?string
+    {
+        $n = (int)$zip->numFiles;
+        if ($n < 1) {
+            return 'zip empty';
+        }
+        if ($n > self::MAX_ENTRIES) {
+            return 'zip has too many entries (>' . self::MAX_ENTRIES . ')';
+        }
+        $total = 0;
+        for ($i = 0; $i < $n; $i++) {
+            $stat = $zip->statIndex($i);
+            if (!is_array($stat)) {
+                continue;
+            }
+            $name = str_replace('\\', '/', (string)($stat['name'] ?? ''));
+            if ($name === '' || strpos($name, "\0") !== false) {
+                return 'zip entry name invalid';
+            }
+            if ($name[0] === '/' || preg_match('#(^|/)\.\.(/|$)#', $name) === 1) {
+                return 'zip path traversal blocked';
+            }
+            $total += (int)($stat['size'] ?? 0);
+            if ($total > self::MAX_UNCOMPRESSED) {
+                return 'zip uncompressed size >1GB';
+            }
+        }
+
+        return null;
+    }
+
+    private static function extractZipSafe(ZipArchive $zip, string $destDir): bool
+    {
+        $destReal = realpath($destDir);
+        if ($destReal === false) {
+            return false;
+        }
+        $n = (int)$zip->numFiles;
+        for ($i = 0; $i < $n; $i++) {
+            $stat = $zip->statIndex($i);
+            if (!is_array($stat)) {
+                continue;
+            }
+            $name = str_replace('\\', '/', (string)($stat['name'] ?? ''));
+            if ($name === '' || substr($name, -1) === '/') {
+                $dir = $destReal . '/' . rtrim($name, '/');
+                if ($name !== '' && !is_dir($dir) && !@mkdir($dir, 0775, true) && !is_dir($dir)) {
+                    return false;
+                }
+                continue;
+            }
+            $target = $destReal . '/' . $name;
+            $parent = dirname($target);
+            if (!is_dir($parent) && !@mkdir($parent, 0775, true) && !is_dir($parent)) {
+                return false;
+            }
+            $parentReal = realpath($parent);
+            if ($parentReal === false || strpos($parentReal . '/', $destReal . '/') !== 0) {
+                return false;
+            }
+            if ($zip->extractTo($destDir, $name) !== true) {
+                return false;
+            }
+            $written = realpath($target);
+            $prefix = $destReal . DIRECTORY_SEPARATOR;
+            if ($written === false || strncmp($written, $prefix, strlen($prefix)) !== 0) {
+                if (is_file($target)) {
+                    @unlink($target);
+                }
+
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static function findImagesDir(string $root): ?string

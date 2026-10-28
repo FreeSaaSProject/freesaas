@@ -44,7 +44,8 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [clientics.md](clientics.md) | Clientics pull: settings tokens, session ping, day import, webhook |
 | [cron.md](cron.md) | Platform hard cron: `/cron/tick`, `Cron::register`, journal |
 | [debugging.md](debugging.md) | Health, blocked modules, workers |
-| [workers.md](workers.md) | Mac workers host (video + whisper plugins; dashboard / logs / agent API) |
+| [workers.md](workers.md) | Edge workers host Mac/Windows (video + whisper + audioloader; dashboard / logs) |
+| [audioloader.md](audioloader.md) | Pointer → workers.md (badge USB → FTP → ingest plugin) |
 | [video-worker.md](video-worker.md) | Pointer → workers.md (video plugin) |
 | [whisper-worker.md](whisper-worker.md) | Pointer → workers.md (whisper plugin) |
 | [core.md](core.md) | Platform core: users, news, modules, help (`core.help.*`) |

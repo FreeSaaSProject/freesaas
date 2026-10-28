@@ -63,10 +63,17 @@ foreach ($docsOnly as $name) {
     }
 }
 
-// Every top-level package in workers/*/requirements.txt must appear in THIRD_PARTY.md.
-$reqFiles = glob($root . '/workers/*/requirements.txt') ?: [];
+// Every top-level package in workers requirements must appear in THIRD_PARTY.md
+// (core + plugins/<id>/ + legacy workers/<id>/).
+$reqFiles = array_merge(
+    glob($root . '/workers/core/requirements.txt') ?: [],
+    glob($root . '/workers/plugins/*/requirements.txt') ?: [],
+    glob($root . '/workers/*/requirements.txt') ?: []
+);
+$reqFiles = array_values(array_unique($reqFiles));
 $workerPackages = [];
 foreach ($reqFiles as $reqFile) {
+    $rel = ltrim(str_replace('\\', '/', substr($reqFile, strlen($root))), '/');
     $lines = file($reqFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
     foreach ($lines as $line) {
         $line = trim($line);
@@ -77,10 +84,10 @@ foreach ($reqFiles as $reqFile) {
             continue;
         }
         $pkg = strtolower($m[1]);
-        $workerPackages[$pkg] = basename(dirname($reqFile));
+        $workerPackages[$pkg] = $rel;
     }
 }
-foreach ($workerPackages as $pkg => $worker) {
+foreach ($workerPackages as $pkg => $reqRel) {
     // Normalize common aliases for doc search.
     $aliases = [$pkg];
     if ($pkg === 'opencv-python-headless') {
@@ -101,7 +108,7 @@ foreach ($workerPackages as $pkg => $worker) {
         }
     }
     if (!$hit) {
-        echo "FAIL THIRD_PARTY.md missing worker dep {$pkg} (from workers/{$worker}/requirements.txt)\n";
+        echo "FAIL THIRD_PARTY.md missing worker dep {$pkg} (from {$reqRel})\n";
         $failed++;
     } else {
         echo "OK  worker dep {$pkg} documented\n";
@@ -117,11 +124,11 @@ foreach ($mustMention as $name => $path) {
         'path' => $path,
     ];
 }
-foreach ($workerPackages as $pkg => $worker) {
+foreach ($workerPackages as $pkg => $reqRel) {
     $components[] = [
         'type' => 'library',
         'name' => $pkg,
-        'path' => 'workers/' . $worker . '/requirements.txt',
+        'path' => $reqRel,
     ];
 }
 $components[] = [

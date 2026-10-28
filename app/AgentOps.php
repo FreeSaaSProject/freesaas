@@ -554,7 +554,7 @@ final class AgentOps
     }
 
     /**
-     * Pin on-disk modules missing [modules] keys to =1 (legacy absent=on upgrade).
+     * Pin on-disk modules missing [modules] keys to =0 (fail-closed; never auto-enables).
      *
      * @return array<string,mixed>
      */
@@ -565,6 +565,7 @@ final class AgentOps
             'ok' => true,
             'pinned' => $report['pinned'],
             'skipped' => $report['skipped'],
+            'hint' => 'Absent keys pinned to 0 only. Enable via module activate / enable (accept_risk for alpha/beta).',
             'http' => 200,
         ];
     }

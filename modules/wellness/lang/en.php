@@ -143,7 +143,7 @@ return [
     'wellness.col.descr' => 'Notes',
     'wellness.col.doctor' => 'Doctor',
     'wellness.col.data' => 'Prescription',
-    'wellness.module.description' => 'Personal food, workout and health diary. Entries are visible only to their author — not to managers and not even to the superadmin.',
+    'wellness.module.description' => 'Personal food, workout, weight and wellbeing diary: macros and targets, own foods and recipes, calendar. Visible only to the author.',
     'wellness.module.summary' => 'Enable to give staff a personal health diary inside the corporate system. Data is strictly personal: everyone sees only their own entries and there is no SUPERADMIN_ACCESS bypass, so personal data stays personal. Features: food diary with calories/macros and the daily remainder against your own fitness targets (workout burn included); your own food tables and recipes with per-portion macros; workouts; weight; wellbeing diary with symptom and medicine lists; doctor prescriptions; monthly calendar overview. Quick add right from the diary, food entry via the «Food & sport» bot (soft bots, voice via asr) and via the assistant. Requires core only.',
     'wellness.bot.title' => 'Food & sport',
     'wellness.bot.totals' => 'Total: C:{c}/P:{p}/F:{f}/Cb:{u}',

@@ -1,19 +1,21 @@
-"""macOS LaunchAgent: start plugins + dashboard on login."""
+"""Login autostart: macOS LaunchAgent or Windows Task Scheduler."""
 from __future__ import annotations
 
 import os
-import plistlib
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .config import load_host, save_json
-from .paths import HOST_LOCAL, WORKERS_ROOT, ensure_var_dirs
+from .paths import HOST_LOCAL, VENV_PYTHON, WORKERS_ROOT, ensure_var_dirs
 
 LABEL = "ru.freesaas.workers"
+WIN_TASK = "FreeSaaSWorkers"
 BOOT_SCRIPT = WORKERS_ROOT / "bin" / "freesaas-workers-boot.sh"
+BOOT_CMD = WORKERS_ROOT / "bin" / "freesaas-workers-boot.cmd"
 CLI_SCRIPT = WORKERS_ROOT / "bin" / "freesaas-workers"
+CLI_CMD = WORKERS_ROOT / "bin" / "freesaas-workers.cmd"
 
 
 def launch_agents_dir() -> Path:
@@ -28,13 +30,25 @@ def _uid() -> str:
     return str(os.getuid())
 
 
-def _run(cmd: List[str]) -> tuple[int, str]:
+def _run(cmd: List[str], *, creationflags: int = 0) -> tuple[int, str]:
     try:
-        p = subprocess.run(cmd, capture_output=True, text=True, check=False)
+        p = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            check=False,
+            creationflags=creationflags,
+        )
         out = ((p.stdout or "") + (p.stderr or "")).strip()
         return int(p.returncode), out
     except OSError as e:
         return 1, str(e)
+
+
+def _win_flags() -> int:
+    if sys.platform != "win32":
+        return 0
+    return getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 
 def _pythonpath_repo() -> str:
@@ -75,7 +89,32 @@ exec "$CLI" dashboard
     return BOOT_SCRIPT
 
 
+def write_boot_cmd() -> Path:
+    """Windows boot: start plugins, then keep dashboard in foreground."""
+    ensure_var_dirs()
+    BOOT_CMD.parent.mkdir(parents=True, exist_ok=True)
+    (WORKERS_ROOT / "var" / "log").mkdir(parents=True, exist_ok=True)
+    repo = _pythonpath_repo()
+    py = str(VENV_PYTHON) if VENV_PYTHON.is_file() else "python"
+    body = f"""@echo off
+setlocal
+set "ROOT={WORKERS_ROOT}"
+set "REPO={repo}"
+set "PYTHONPATH=%REPO%;%PYTHONPATH%"
+set "FREESAAS_WORKERS_ROOT=%ROOT%"
+cd /d "%REPO%"
+set "LOG=%ROOT%\\var\\log\\boot.log"
+echo %DATE% %TIME% boot start>>"%LOG%"
+"{py}" -m workers.core start >>"%LOG%" 2>&1
+"{py}" -m workers.core dashboard >>"%LOG%" 2>&1
+"""
+    BOOT_CMD.write_text(body, encoding="utf-8")
+    return BOOT_CMD
+
+
 def build_plist() -> Dict[str, Any]:
+    import plistlib  # noqa: F401 — used by enable()
+
     log_out = str(WORKERS_ROOT / "var" / "log" / "launchd.out.log")
     log_err = str(WORKERS_ROOT / "var" / "log" / "launchd.err.log")
     return {
@@ -99,9 +138,19 @@ def is_plist_installed() -> bool:
     return plist_path().is_file()
 
 
+def is_win_task_installed() -> bool:
+    if sys.platform != "win32":
+        return False
+    code, _ = _run(["schtasks", "/query", "/tn", WIN_TASK], creationflags=_win_flags())
+    return code == 0
+
+
 def is_loaded() -> bool:
-    # macOS 13+: launchctl print gui/$UID/label
-    code, out = _run(["launchctl", "print", f"gui/{_uid()}/{LABEL}"])
+    if sys.platform == "win32":
+        return is_win_task_installed()
+    if sys.platform != "darwin":
+        return False
+    code, _out = _run(["launchctl", "print", f"gui/{_uid()}/{LABEL}"])
     if code == 0:
         return True
     code2, out2 = _run(["launchctl", "list", LABEL])
@@ -118,22 +167,38 @@ def set_host_autostart(enabled: bool) -> None:
     host = load_host()
     a = dict(host.get("autostart") or {}) if isinstance(host.get("autostart"), dict) else {}
     a["enabled"] = bool(enabled)
-    a["label"] = LABEL
+    a["label"] = WIN_TASK if sys.platform == "win32" else LABEL
     host["autostart"] = a
     save_json(HOST_LOCAL, host)
 
 
 def status() -> Dict[str, Any]:
-    return {
-        "label": LABEL,
+    base: Dict[str, Any] = {
         "wanted": host_autostart_wanted(),
-        "plist_path": str(plist_path()),
-        "plist_installed": is_plist_installed(),
-        "loaded": is_loaded(),
-        "boot_script": str(BOOT_SCRIPT),
-        "boot_script_exists": BOOT_SCRIPT.is_file(),
         "platform": sys.platform,
+        "boot_script": str(BOOT_SCRIPT if sys.platform != "win32" else BOOT_CMD),
+        "boot_script_exists": (BOOT_CMD if sys.platform == "win32" else BOOT_SCRIPT).is_file(),
+        "loaded": is_loaded(),
     }
+    if sys.platform == "win32":
+        base.update(
+            {
+                "label": WIN_TASK,
+                "plist_path": "",
+                "plist_installed": False,
+                "task_name": WIN_TASK,
+                "task_installed": is_win_task_installed(),
+            }
+        )
+    else:
+        base.update(
+            {
+                "label": LABEL,
+                "plist_path": str(plist_path()),
+                "plist_installed": is_plist_installed(),
+            }
+        )
+    return base
 
 
 def _dashboard_port_busy(port: int = 8766) -> bool:
@@ -147,9 +212,9 @@ def _dashboard_port_busy(port: int = 8766) -> bool:
         return False
 
 
-def enable(*, start_now: bool = True) -> Dict[str, Any]:
-    if sys.platform != "darwin":
-        return {"ok": False, "error": "autostart is macOS-only", **status()}
+def _enable_darwin(*, start_now: bool = True) -> Dict[str, Any]:
+    import plistlib
+
     write_boot_script()
     ensure_var_dirs()
     (WORKERS_ROOT / "var" / "log").mkdir(parents=True, exist_ok=True)
@@ -159,12 +224,10 @@ def enable(*, start_now: bool = True) -> Dict[str, Any]:
     with path.open("wb") as f:
         plistlib.dump(data, f)
 
-    # unload old if present, then bootstrap/load
     _run(["launchctl", "bootout", f"gui/{_uid()}/{LABEL}"])
     _run(["launchctl", "unload", str(path)])
     code, out = _run(["launchctl", "bootstrap", f"gui/{_uid()}", str(path)])
     if code != 0:
-        # older macOS fallback
         code2, out2 = _run(["launchctl", "load", "-w", str(path)])
         if code2 != 0:
             set_host_autostart(True)
@@ -194,7 +257,52 @@ def enable(*, start_now: bool = True) -> Dict[str, Any]:
     return st
 
 
-def disable(*, remove_plist: bool = True) -> Dict[str, Any]:
+def _enable_win32(*, start_now: bool = True) -> Dict[str, Any]:
+    boot = write_boot_cmd()
+    tr = str(boot)
+    code, out = _run(
+        [
+            "schtasks",
+            "/create",
+            "/tn",
+            WIN_TASK,
+            "/tr",
+            tr,
+            "/sc",
+            "onlogon",
+            "/rl",
+            "limited",
+            "/f",
+        ],
+        creationflags=_win_flags(),
+    )
+    if code != 0:
+        set_host_autostart(True)
+        return {
+            "ok": False,
+            "error": out or "schtasks create failed (try elevated shell)",
+            **status(),
+        }
+    note = ""
+    if start_now:
+        _run(["schtasks", "/run", "/tn", WIN_TASK], creationflags=_win_flags())
+        note = " (started now)"
+    set_host_autostart(True)
+    st = status()
+    st["ok"] = True
+    st["message"] = f"autostart enabled ({WIN_TASK}){note}"
+    return st
+
+
+def enable(*, start_now: bool = True) -> Dict[str, Any]:
+    if sys.platform == "darwin":
+        return _enable_darwin(start_now=start_now)
+    if sys.platform == "win32":
+        return _enable_win32(start_now=start_now)
+    return {"ok": False, "error": f"autostart unsupported on {sys.platform}", **status()}
+
+
+def _disable_darwin(*, remove_plist: bool = True) -> Dict[str, Any]:
     path = plist_path()
     _run(["launchctl", "bootout", f"gui/{_uid()}/{LABEL}"])
     _run(["launchctl", "unload", "-w", str(path)])
@@ -208,6 +316,34 @@ def disable(*, remove_plist: bool = True) -> Dict[str, Any]:
     st = status()
     st["ok"] = True
     st["message"] = "autostart disabled"
+    return st
+
+
+def _disable_win32() -> Dict[str, Any]:
+    if is_win_task_installed():
+        code, out = _run(
+            ["schtasks", "/delete", "/tn", WIN_TASK, "/f"],
+            creationflags=_win_flags(),
+        )
+        if code != 0 and is_win_task_installed():
+            set_host_autostart(False)
+            return {"ok": False, "error": out or "schtasks delete failed", **status()}
+    set_host_autostart(False)
+    st = status()
+    st["ok"] = True
+    st["message"] = "autostart disabled"
+    return st
+
+
+def disable(*, remove_plist: bool = True) -> Dict[str, Any]:
+    if sys.platform == "darwin":
+        return _disable_darwin(remove_plist=remove_plist)
+    if sys.platform == "win32":
+        return _disable_win32()
+    set_host_autostart(False)
+    st = status()
+    st["ok"] = True
+    st["message"] = "autostart disabled (noop)"
     return st
 
 

@@ -112,7 +112,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
   module inspect|install|uninstall --confirm|enable [--accept-risk]|disable|validate|bump|create|add-migration …
   module activate <id> [--action=enable|grant|setup_step|…] [--accept-risk] [--access=view|full] …
-  module pin-effective   pin absent [modules] keys to =1 (upgrade helper)
+  module pin-effective   pin absent [modules] keys to =0 (never auto-enables)
   module create <id> [--title=…]
   module add-migration <id> <slug>
   module bump <id> [--patch|--minor|--major|--set=x.y.z]
