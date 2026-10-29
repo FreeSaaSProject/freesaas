@@ -386,15 +386,25 @@ final class BulkActions
         return '</form>';
     }
 
-    public static function bar(string $listId): string
+    /**
+     * @param string $selectedAction Optional action id to preselect (ignored if unknown).
+     * Extra trailing args are ignored (legacy call sites).
+     */
+    public static function bar(string $listId, string $selectedAction = '', ...$unused): string
     {
+        unset($unused);
         $actions = self::visibleActions($listId);
         if ($actions === []) {
             return '';
         }
+        $selectedAction = trim($selectedAction);
+        if ($selectedAction !== '' && !isset($actions[$selectedAction])) {
+            $selectedAction = '';
+        }
         $html = '<div class="bulk-bar" data-bulk-bar>';
         $html .= '<select name="bulk_action" data-bulk-action aria-label="' . te('core.bulk.with_selected') . '">';
-        $html .= '<option value="0">' . te('core.bulk.with_selected') . '</option>';
+        $html .= '<option value="0"' . ($selectedAction === '' ? ' selected' : '') . '>'
+            . te('core.bulk.with_selected') . '</option>';
 
         $ungrouped = [];
         $grouped = [];
@@ -410,9 +420,12 @@ final class BulkActions
             $grouped[$groupKey][$id] = $def;
         }
 
-        $renderOption = static function (string $id, array $def): string {
+        $renderOption = static function (string $id, array $def) use ($selectedAction): string {
             $confirm = trim((string)($def['confirm'] ?? ''));
             $attrs = ' value="' . e($id) . '"';
+            if ($selectedAction !== '' && $id === $selectedAction) {
+                $attrs .= ' selected';
+            }
             if ($confirm !== '') {
                 $attrs .= ' data-confirm="' . te($confirm) . '"';
             }

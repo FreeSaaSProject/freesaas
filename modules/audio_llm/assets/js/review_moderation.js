@@ -13,7 +13,15 @@
       .replace(/"/g, '&quot;');
   }
 
-  /** Escape + light markdown: **bold**, __bold__, blank lines → paragraphs, - lists. */
+  function isQuoteLine(ln) {
+    return /^\s*[«"„]/.test(ln) || /^\s*>\s+/.test(ln);
+  }
+
+  function isListLead(ln) {
+    return /^\s*[-*•]\s+/.test(ln) || /^\s*\d+\.\s+/.test(ln);
+  }
+
+  /** Escape + light markdown: **bold**, quotes, blank lines → paragraphs / lists. */
   function formatReportHtml(text) {
     var raw = String(text || '').replace(/\r\n/g, '\n').trim();
     if (!raw) return '';
@@ -25,29 +33,52 @@
       if (!block) continue;
 
       var lines = block.split('\n');
-      var listItems = [];
-      var allList = lines.length > 0 && lines.every(function (ln) {
-        return /^\s*[-*•]\s+/.test(ln) || /^\s*\d+\.\s+/.test(ln);
-      });
-
-      if (allList) {
+      // Event item: "1. summary…" + optional «quote» lines
+      if (lines.length >= 1 && isListLead(lines[0])
+          && lines.every(function (ln, i) {
+            return i === 0 ? isListLead(ln) : (isQuoteLine(ln) || isListLead(ln) || /^\s*$/.test(ln));
+          })) {
         var ol = /^\s*\d+\.\s+/.test(lines[0]);
         var tag = ol ? 'ol' : 'ul';
+        var items = [];
+        var cur = null;
         for (var li = 0; li < lines.length; li++) {
-          var item = lines[li].replace(/^\s*[-*•]\s+/, '').replace(/^\s*\d+\.\s+/, '');
-          listItems.push('<li>' + inlineMd(item) + '</li>');
+          var ln = lines[li];
+          if (/^\s*$/.test(ln)) continue;
+          if (isListLead(ln)) {
+            if (cur) items.push(cur);
+            cur = {
+              head: ln.replace(/^\s*[-*•]\s+/, '').replace(/^\s*\d+\.\s+/, ''),
+              quotes: []
+            };
+          } else if (cur && isQuoteLine(ln)) {
+            cur.quotes.push(ln.replace(/^\s*>\s+/, '').trim());
+          }
         }
-        html.push('<' + tag + '>' + listItems.join('') + '</' + tag + '>');
+        if (cur) items.push(cur);
+        var listHtml = items.map(function (it) {
+          var body = '<div class="arm-item-head">' + inlineMd(it.head) + '</div>';
+          for (var qi = 0; qi < it.quotes.length; qi++) {
+            body += '<blockquote class="arm-quote">' + inlineMd(it.quotes[qi]) + '</blockquote>';
+          }
+          return '<li>' + body + '</li>';
+        }).join('');
+        html.push('<' + tag + ' class="arm-events">' + listHtml + '</' + tag + '>');
         continue;
       }
 
       var para = lines.map(function (ln) {
+        if (isQuoteLine(ln)) {
+          return '<blockquote class="arm-quote">' + inlineMd(ln.replace(/^\s*>\s+/, '').trim()) + '</blockquote>';
+        }
         return inlineMd(ln);
       }).join('<br>');
+      // Flatten accidental <br> around blockquotes
+      para = para.replace(/(?:<br>)*<blockquote/g, '<blockquote').replace(/<\/blockquote>(?:<br>)*/g, '</blockquote>');
       if (/^(ЕСТЬ СОБЫТИЯ|ЗНАЧИМЫХ СОБЫТИЙ НЕТ|THERE ARE EVENTS|NO SIGNIFICANT EVENTS)/i.test(block.replace(/\*+/g, ''))) {
         html.push('<p class="arm-verdict">' + para + '</p>');
       } else {
-        html.push('<p>' + para + '</p>');
+        html.push('<div class="arm-block">' + para + '</div>');
       }
     }
     return html.join('');

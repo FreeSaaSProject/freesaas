@@ -220,7 +220,7 @@ if ($pageFlash && trim((string)($pageFlash['message'] ?? '')) !== ''):
 <?= $pager ?>
 
 <?= BulkActions::beginForm($listId, ListQuery::url($path, $filters, [])) ?>
-<?= BulkActions::bar($listId) ?>
+<?= BulkActions::bar($listId, $review === 'pending' ? 'review' : '') ?>
 
 <div class="table-wrap audio-records-wrap">
   <table class="data audio-records-table">

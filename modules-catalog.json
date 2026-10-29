@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-28T21:22:35+00:00",
+    "generated_at": "2026-10-29T06:20:18+00:00",
     "modules": [
         {
             "id": "asr",
@@ -120,7 +120,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.8",
+            "version": "1.0.9",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -195,7 +195,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.10",
+            "version": "0.1.11",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",

@@ -48,3 +48,22 @@
 .audio-review-moderation-result strong {
   font-weight: 650;
 }
+
+.audio-review-moderation-result .arm-events {
+  list-style-position: outside;
+}
+
+.audio-review-moderation-result .arm-item-head {
+  margin: 0 0 0.2rem;
+}
+
+.audio-review-moderation-result .arm-quote {
+  margin: 0.15rem 0 0.35rem;
+  padding: 0.25rem 0.55rem;
+  border-left: 3px solid var(--border-strong, #bbb);
+  background: var(--surface, #fff);
+  color: var(--muted, #555);
+  font-size: 0.88em;
+  font-style: italic;
+  border-radius: 0 3px 3px 0;
+}
