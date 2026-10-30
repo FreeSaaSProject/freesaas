@@ -156,6 +156,38 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 Config::set('app', 'agent_allow_delete', $allowDel);
             }
 
+            if (Auth::capability('SUPERADMIN_ACCESS')
+                && (!$wantsJson || array_key_exists('session_cookie_domain', $_POST)
+                    || array_key_exists('session_name', $_POST)
+                    || array_key_exists('session_remember_days', $_POST)
+                    || array_key_exists('session_idle_minutes', $_POST))
+            ) {
+                if (!$wantsJson || array_key_exists('session_cookie_domain', $_POST)) {
+                    $domain = Auth::validateSessionCookieDomain(
+                        (string)($_POST['session_cookie_domain'] ?? '')
+                    );
+                    Config::set('app', 'session_cookie_domain', $domain);
+                }
+                if (!$wantsJson || array_key_exists('session_name', $_POST)) {
+                    $sname = Auth::validateSessionName((string)($_POST['session_name'] ?? ''));
+                    Config::set('app', 'session_name', $sname);
+                }
+                if (!$wantsJson || array_key_exists('session_remember_days', $_POST)) {
+                    $days = (int)($_POST['session_remember_days'] ?? 7);
+                    if ($days < 1 || $days > 365) {
+                        throw new RuntimeException(t('core.settings.session.err.remember_days'));
+                    }
+                    Config::set('app', 'session_remember_days', (string)$days);
+                }
+                if (!$wantsJson || array_key_exists('session_idle_minutes', $_POST)) {
+                    $idle = (int)($_POST['session_idle_minutes'] ?? 120);
+                    if ($idle < 0 || $idle > 7 * 24 * 60) {
+                        throw new RuntimeException(t('core.settings.session.err.idle_minutes'));
+                    }
+                    Config::set('app', 'session_idle_minutes', (string)$idle);
+                }
+            }
+
             EventBus::emit('core.settings.save', [
                 'post' => $_POST,
                 'files' => $_FILES,
@@ -174,6 +206,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'currency' => $currency,
                     'currency_symbol' => I18n::currencySymbol($currency),
                     'agent_allow_delete' => AgentHttp::allowsDelete(),
+                    'session_cookie_domain' => Auth::normalizeSessionCookieDomain(
+                        (string)Config::get('app', 'session_cookie_domain', '')
+                    ),
+                    'session_name' => (string)Config::get('app', 'session_name', ''),
+                    'session_remember_days' => (int)Config::get('app', 'session_remember_days', '7'),
+                    'session_idle_minutes' => (int)Config::get('app', 'session_idle_minutes', '120'),
                 ]);
             }
         }
@@ -202,6 +240,13 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'has_logo' => SystemLogo::has(),
         'agent_token_configured' => AgentAuth::isConfigured(),
         'agent_allow_delete' => AgentHttp::allowsDelete(),
+        'session_cookie_domain' => Auth::normalizeSessionCookieDomain(
+            (string)Config::get('app', 'session_cookie_domain', '')
+        ),
+        'session_name' => (string)Config::get('app', 'session_name', ''),
+        'session_remember_days' => (int)Config::get('app', 'session_remember_days', '7'),
+        'session_idle_minutes' => (int)Config::get('app', 'session_idle_minutes', '120'),
+        'session_cookie_name_effective' => Auth::sessionCookieName(),
     ]);
 }
 
@@ -215,6 +260,7 @@ $agentHtml = is_array($sections) ? (string)($sections['agent_html'] ?? '') : '';
 
 $agentConfigured = AgentAuth::isConfigured();
 $canManageAgentToken = Auth::capability('SUPERADMIN_ACCESS');
+$canManageSession = $canManageAgentToken;
 // Never expose the plaintext token to non-superadmins (Copy / flash after generate).
 if (!$canManageAgentToken) {
     $agentTokenPlain = '';
@@ -229,6 +275,22 @@ if ($agentConfigured && $canManageAgentToken && $agentTokenPlain !== '') {
         ? str_repeat('•', $len)
         : (substr($agentTokenPlain, 0, 4) . '…' . substr($agentTokenPlain, -4));
 }
+
+$sessionCookieDomain = Auth::normalizeSessionCookieDomain(
+    (string)Config::get('app', 'session_cookie_domain', '')
+);
+$sessionName = (string)Config::get('app', 'session_name', '');
+$sessionRememberDays = (int)Config::get('app', 'session_remember_days', '7');
+if ($sessionRememberDays < 1) {
+    $sessionRememberDays = 7;
+}
+$sessionIdleMinutes = (int)Config::get('app', 'session_idle_minutes', '120');
+if ($sessionIdleMinutes < 0) {
+    $sessionIdleMinutes = 120;
+}
+$adminHost = class_exists('AppRuntime', false) ? AppRuntime::adminHost() : '';
+$publicHost = class_exists('AppRuntime', false) ? AppRuntime::publicHost() : '';
+$sessionCookieDomainSuggested = Auth::suggestSessionCookieDomain($adminHost, $publicHost);
 
 View::render('settings', [
     'title' => t('core.menu.settings'),
@@ -248,5 +310,12 @@ View::render('settings', [
     'agentTokenPlain' => $agentTokenPlain,
     'agentTokenJustGenerated' => $agentTokenJustGenerated,
     'canManageAgentToken' => $canManageAgentToken,
+    'canManageSession' => $canManageSession,
+    'sessionCookieDomain' => $sessionCookieDomain,
+    'sessionCookieDomainSuggested' => $sessionCookieDomainSuggested,
+    'sessionName' => $sessionName,
+    'sessionCookieNameEffective' => Auth::sessionCookieName(),
+    'sessionRememberDays' => $sessionRememberDays,
+    'sessionIdleMinutes' => $sessionIdleMinutes,
     'agentAllowDelete' => AgentHttp::allowsDelete(),
 ]);

@@ -132,7 +132,7 @@ return [
     'stickers.settings.sec.session' => 'Session for warehouse QR',
     'stickers.settings.session_intro' => 'QR opens on the public host. If admin is on another host, set a shared cookie Domain — otherwise a phone scan lands on the storefront as a guest.',
     'stickers.settings.cookie_domain' => 'session_cookie_domain',
-    'stickers.settings.cookie_domain_hint' => 'E.g. .example.com — stored in cfg/config.ini [app]. Empty = host-only cookie. Do not reuse one parent Domain across two FreeSaaS installs.',
+    'stickers.settings.cookie_domain_hint' => 'E.g. .example.com — stored in cfg/config.ini [app]. Empty = host-only cookie. Same field as System → Settings → Sessions. Do not reuse one parent Domain across two FreeSaaS installs without distinct session_name.',
     'stickers.settings.cookie_domain_suggest' => 'Suggested: {suggest}',
     'stickers.settings.relogin_note' => 'After changing Domain, every staff member must log out and log in again.',
     'stickers.settings.sec.public_print' => 'Anonymous print',

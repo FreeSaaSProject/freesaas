@@ -144,6 +144,8 @@ return [
     'calendar.widget.board.empty' => 'На сегодня пока пусто',
     'calendar.widget.board.order' => 'Заказ',
     'calendar.day.order_unassigned' => 'Специалист не назначен',
+    'calendar.day.order_free_ticket' => 'Без билета',
+    'calendar.day.order_free_ticket_warn' => 'Внимание! Без билета в термы!',
     'calendar.settings.lede' => 'Календарь, заказы, онлайн-запись и шаг таймслотов по каналам — в одном месте (секции orders/booking/instance pack/terminals/sites появляются при включённых модулях). Только для суперадминистратора.',
     'calendar.settings.work_hours' => 'Рабочие часы календаря',
     'calendar.settings.work_hours_hint' => 'Ось времени в календаре (включительно). Эти же часы использует онлайн-запись.',

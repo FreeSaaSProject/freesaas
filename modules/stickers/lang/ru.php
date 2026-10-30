@@ -132,7 +132,7 @@ return [
     'stickers.settings.sec.session' => 'Сессия для QR склада',
     'stickers.settings.session_intro' => 'QR открывается на public host. Если админка на другом хосте — задайте общий Domain cookie, иначе телефон после скана увидит витрину как гость.',
     'stickers.settings.cookie_domain' => 'session_cookie_domain',
-    'stickers.settings.cookie_domain_hint' => 'Например .example.com — пишется в cfg/config.ini [app]. Пусто = cookie только на текущем хосте. Не ставьте один Domain на две разные установки FreeSaaS.',
+    'stickers.settings.cookie_domain_hint' => 'Например .example.com — пишется в cfg/config.ini [app]. Пусто = cookie только на текущем хосте. То же поле: Система → Настройки → Сессии. Не ставьте один Domain на два инстанса без разных session_name.',
     'stickers.settings.cookie_domain_suggest' => 'Рекомендуется: {suggest}',
     'stickers.settings.relogin_note' => 'После смены Domain все сотрудники должны выйти и войти снова.',
     'stickers.settings.sec.public_print' => 'Анонимная печать',

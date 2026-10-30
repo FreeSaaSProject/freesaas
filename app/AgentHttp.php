@@ -170,6 +170,10 @@ final class AgentHttp
             http_response_code(500);
         }
         echo $json;
+        // exit() skips Auth::runAs finally — discard so a bearer token cannot stick as a cookie session.
+        if (class_exists('Auth', false)) {
+            Auth::discardSessionWriteIfRunAs();
+        }
         exit;
     }
 

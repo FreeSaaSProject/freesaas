@@ -16,6 +16,13 @@ declare(strict_types=1);
 /** @var string $agentTokenPlain */
 /** @var bool $agentTokenJustGenerated */
 /** @var bool $canManageAgentToken */
+/** @var bool $canManageSession */
+/** @var string $sessionCookieDomain */
+/** @var string $sessionCookieDomainSuggested */
+/** @var string $sessionName */
+/** @var string $sessionCookieNameEffective */
+/** @var int $sessionRememberDays */
+/** @var int $sessionIdleMinutes */
 /** @var bool $agentAllowDelete */
 $logoUrl = isset($logoUrl) ? $logoUrl : null;
 $hasLogo = !empty($hasLogo);
@@ -30,6 +37,13 @@ $agentTokenMasked = (string)($agentTokenMasked ?? '');
 $agentTokenPlain = (string)($agentTokenPlain ?? '');
 $agentTokenJustGenerated = !empty($agentTokenJustGenerated);
 $canManageAgentToken = !empty($canManageAgentToken);
+$canManageSession = !empty($canManageSession);
+$sessionCookieDomain = (string)($sessionCookieDomain ?? '');
+$sessionCookieDomainSuggested = (string)($sessionCookieDomainSuggested ?? '');
+$sessionName = (string)($sessionName ?? '');
+$sessionCookieNameEffective = (string)($sessionCookieNameEffective ?? '');
+$sessionRememberDays = (int)($sessionRememberDays ?? 7);
+$sessionIdleMinutes = (int)($sessionIdleMinutes ?? 120);
 $agentAllowDelete = !empty($agentAllowDelete);
 
 $timezoneGroups = [];
@@ -110,6 +124,46 @@ foreach ($timezoneOptions as $opt) {
   </fieldset>
 
   <?= $extraHtml ?? '' ?>
+
+  <fieldset class="form-fieldset settings-session-fieldset">
+    <legend><?= te('core.settings.session.title') ?></legend>
+    <p class="muted"><?= te('core.settings.session.help') ?></p>
+    <?php if ($canManageSession): ?>
+      <label><?= te('core.settings.session.cookie_domain') ?>
+        <input name="session_cookie_domain" value="<?= e($sessionCookieDomain) ?>"
+               placeholder=".example.com" autocomplete="off" spellcheck="false">
+        <span class="field-hint muted"><?= te('core.settings.session.cookie_domain_hint') ?></span>
+      </label>
+      <?php if ($sessionCookieDomainSuggested !== ''): ?>
+        <p class="muted"><?= te('core.settings.session.cookie_domain_suggest', ['suggest' => $sessionCookieDomainSuggested]) ?></p>
+      <?php endif; ?>
+      <label><?= te('core.settings.session.session_name') ?>
+        <input name="session_name" value="<?= e($sessionName) ?>"
+               placeholder="freesaas_mf" autocomplete="off" spellcheck="false"
+               pattern="[a-z0-9_]{0,48}">
+        <span class="field-hint muted"><?= te('core.settings.session.session_name_hint') ?></span>
+      </label>
+      <p class="muted"><?= te('core.settings.session.effective_name') ?>
+        <code><?= e($sessionCookieNameEffective) ?></code>
+      </p>
+      <label><?= te('core.settings.session.remember_days') ?>
+        <input type="number" name="session_remember_days" min="1" max="365" step="1"
+               value="<?= (int)$sessionRememberDays ?>">
+        <span class="field-hint muted"><?= te('core.settings.session.remember_days_hint') ?></span>
+      </label>
+      <label><?= te('core.settings.session.idle_minutes') ?>
+        <input type="number" name="session_idle_minutes" min="0" max="10080" step="1"
+               value="<?= (int)$sessionIdleMinutes ?>">
+        <span class="field-hint muted"><?= te('core.settings.session.idle_minutes_hint') ?></span>
+      </label>
+      <p class="muted"><?= te('core.settings.session.relogin_note') ?></p>
+    <?php else: ?>
+      <p class="muted"><?= te('core.settings.session.superadmin_only') ?></p>
+      <p class="muted"><?= te('core.settings.session.effective_name') ?>
+        <code><?= e($sessionCookieNameEffective) ?></code>
+      </p>
+    <?php endif; ?>
+  </fieldset>
 
   <fieldset class="form-fieldset settings-agent-fieldset">
     <legend><?= te('core.settings.agent.title') ?></legend>

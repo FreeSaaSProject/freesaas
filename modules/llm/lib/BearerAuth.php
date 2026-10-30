@@ -10,9 +10,7 @@ final class BearerAuth
     public static function resolve(): ?array
     {
         $header = OAuthServer::requestAuthorizationHeader();
-        if ($header === '' && isset($_GET['access_token'])) {
-            $header = 'Bearer ' . (string)$_GET['access_token'];
-        }
+        // Access tokens only from Authorization header (never ?access_token= — logs/Referer).
         if (!preg_match('/^Bearer\s+(\S+)/i', $header, $m)) {
             return null;
         }

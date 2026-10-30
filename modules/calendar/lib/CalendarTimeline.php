@@ -441,7 +441,13 @@ final class CalendarTimeline
             $cosmName = $op > 0 ? trim((string)($cosmNames[$op] ?? '')) : '';
             $cartSummary = self::orderCartSummary($ord);
 
+            // FREE_TICKET lives on base_orders (orders module); no likespa/terminals coupling.
+            $freeTicket = !empty($ord['free_ticket']);
+
             $label = date('H:i', $ts) . ' ' . t('calendar.widget.board.order');
+            if ($freeTicket) {
+                $label .= ' · ' . t('calendar.day.order_free_ticket');
+            }
             if ($cartSummary['short'] !== '') {
                 $label .= ' ' . $cartSummary['short'];
             }
@@ -467,6 +473,9 @@ final class CalendarTimeline
             $info = '<div class="calendar-info-head">' . t('calendar.widget.board.order')
                 . ' #' . (int)($ord['id'] ?? 0) . '</div>'
                 . '<div>' . date('H:i', $ts) . ' – ' . date('H:i', $end) . '</div>';
+            if ($freeTicket) {
+                $info .= '<div class="calendar-info-warn">' . t('calendar.day.order_free_ticket_warn') . '</div>';
+            }
             if ($cosmName !== '') {
                 $info .= '<div>' . $cosmName . '</div>';
             } elseif (!$laneOk) {
@@ -495,6 +504,8 @@ final class CalendarTimeline
                 'bg' => $chipBg,
                 'fg' => $chipFg,
                 'is_block' => false,
+                'free_ticket' => $freeTicket ? 1 : 0,
+                'class' => $freeTicket ? 'is-free-ticket' : '',
                 'label' => $label,
                 'title' => $label,
                 'info' => $info,
@@ -861,6 +872,7 @@ final class CalendarTimeline
                 'name' => trim((string)($row['name'] ?? $row['client_name'] ?? '')),
                 'phone' => trim((string)($row['phone'] ?? $row['tel'] ?? '')),
                 'sum' => isset($row['sum']) ? (float)$row['sum'] : (isset($row['summ']) ? (float)$row['summ'] : null),
+                'free_ticket' => !empty($row['free_ticket']) ? 1 : 0,
                 'dt' => $dt,
                 'dt_iso' => $dt > 0 ? date('Y-m-d\TH:i', $dt) : '',
             ];

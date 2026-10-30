@@ -12,10 +12,11 @@ ModuleManager::registerRoute('/contracts', [
     },
 ]);
 
+// Auth only: each action is gated by ContractsRepository::availableActions
+// (IS_ACCEPTOR / ticket acceptor / CONTROL — not contracts.manage).
 ModuleManager::registerRoute('/contracts/action', [
     'module' => 'contracts',
     'methods' => ['POST'],
-    'permission' => 'contracts.manage',
     'handler' => static function (): void {
         require base_path('modules/contracts/pages/action.php');
     },

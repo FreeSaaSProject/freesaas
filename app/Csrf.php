@@ -105,6 +105,10 @@ final class Csrf
             '/cron/status',
             '/clientics/webhook',
             '/gcal/oauth',
+            // Machine OAuth endpoints (no browser session CSRF). Consent UI is NOT exempt.
+            '/oauth/token',
+            '/oauth/revoke',
+            '/oauth/register',
         ];
         if (in_array($path, $exact, true)) {
             return true;
@@ -113,7 +117,6 @@ final class Csrf
             '/agent/',
             '/bots/webhook/',
             '/assistant-groups/webhook/',
-            '/oauth/',
             '/.well-known/',
             '/asr/',
             '/audio/jobs/',

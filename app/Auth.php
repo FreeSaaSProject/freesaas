@@ -149,7 +149,9 @@ final class Auth
     {
         $domain = '';
         if (class_exists('Config', false)) {
-            $raw = trim((string)Config::get('app', 'session_cookie_domain', ''));
+            $raw = self::normalizeSessionCookieDomain(
+                (string)Config::get('app', 'session_cookie_domain', '')
+            );
             // Leading dot optional; reject hostnames with path/scheme.
             if ($raw !== '' && preg_match('/^\.?[a-z0-9.-]+$/i', $raw) && strpos($raw, '/') === false) {
                 $domain = $raw;
@@ -163,6 +165,96 @@ final class Auth
             'httponly' => true,
             'samesite' => 'Lax',
         ];
+    }
+
+    public static function normalizeSessionCookieDomain(string $raw): string
+    {
+        $raw = strtolower(trim($raw));
+        if ($raw === '') {
+            return '';
+        }
+        if (strpos($raw, '://') !== false) {
+            $host = (string)(parse_url($raw, PHP_URL_HOST) ?: '');
+            $raw = $host !== '' ? $host : $raw;
+        }
+        if (strpos($raw, '/') !== false) {
+            $raw = explode('/', $raw, 2)[0];
+        }
+        if (strpos($raw, ':') !== false && preg_match('/:\d+$/', $raw)) {
+            $raw = preg_replace('/:\d+$/', '', $raw) ?? $raw;
+        }
+
+        return $raw;
+    }
+
+    /**
+     * Empty string clears the setting. Non-empty must be a host/domain (optional leading dot).
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function validateSessionCookieDomain(string $raw): string
+    {
+        $raw = self::normalizeSessionCookieDomain($raw);
+        if ($raw === '') {
+            return '';
+        }
+        if (!preg_match('/^\.?[a-z0-9.-]+$/i', $raw) || strpos($raw, '..') !== false) {
+            throw new InvalidArgumentException(t('core.settings.session.err.cookie_domain'));
+        }
+        $bare = ltrim($raw, '.');
+        if ($bare === '' || strpos($bare, '.') === false) {
+            if (isset($raw[0]) && $raw[0] === '.') {
+                throw new InvalidArgumentException(t('core.settings.session.err.cookie_domain_parent'));
+            }
+        }
+
+        return $raw;
+    }
+
+    /** Suggest parent Domain when admin_host and public_host share a registrable suffix. */
+    public static function suggestSessionCookieDomain(string $adminHost, string $publicHost): string
+    {
+        $adminHost = self::normalizeSessionCookieDomain($adminHost);
+        $publicHost = self::normalizeSessionCookieDomain($publicHost);
+        if ($adminHost === '' || $publicHost === '' || strcasecmp($adminHost, $publicHost) === 0) {
+            return '';
+        }
+        $a = explode('.', $adminHost);
+        $b = explode('.', $publicHost);
+        $common = [];
+        while ($a !== [] && $b !== []) {
+            $la = $a[count($a) - 1];
+            $lb = $b[count($b) - 1];
+            if (strcasecmp($la, $lb) !== 0) {
+                break;
+            }
+            array_unshift($common, $la);
+            array_pop($a);
+            array_pop($b);
+        }
+        if (count($common) < 2) {
+            return '';
+        }
+
+        return '.' . implode('.', $common);
+    }
+
+    /**
+     * Optional fixed cookie name (a-z0-9_, max 48). Empty = freesaas_<host-or-domain-slug>.
+     *
+     * @throws InvalidArgumentException
+     */
+    public static function validateSessionName(string $raw): string
+    {
+        $raw = strtolower(trim($raw));
+        if ($raw === '') {
+            return '';
+        }
+        if (!preg_match('/^[a-z0-9_]{1,48}$/', $raw)) {
+            throw new InvalidArgumentException(t('core.settings.session.err.session_name'));
+        }
+
+        return $raw;
     }
 
     private static function isHttps(): bool
@@ -275,8 +367,11 @@ final class Auth
             return true;
         }
         $now = time();
+        // "Remember me" opts out of idle logout: cookie lifetime (session_remember_days)
+        // is the long bound. Without remember, idle still applies (default 120 min).
+        $remember = !empty($_SESSION['remember']);
         $idle = self::idleSeconds();
-        if ($idle > 0) {
+        if (!$remember && $idle > 0) {
             $seen = (int)($_SESSION['_seen_at'] ?? 0);
             if ($seen > 0 && ($now - $seen) > $idle) {
                 self::$lastCheckFail = 'idle';
@@ -308,6 +403,11 @@ final class Auth
                 // After output (CLI checks / early echo) regenerate_id cannot run — still bump stamp.
                 if (session_status() === PHP_SESSION_ACTIVE && !headers_sent()) {
                     session_regenerate_id(true);
+                    // session_set_cookie_params was lifetime=0; without this, regenerate
+                    // replaces the sliding remember cookie with a browser-session cookie.
+                    if ($remember) {
+                        self::touchSessionCookie();
+                    }
                 }
                 $_SESSION['_regen_at'] = $now;
             }
@@ -788,6 +888,13 @@ final class Auth
             return 'bad_credentials';
         }
 
+        // Per-IP budget (file bucket). Same opaque response as bad password.
+        if (self::isIpThrottled()) {
+            self::verifyPassword($password, self::dummyPasswordHash());
+
+            return 'bad_credentials';
+        }
+
         $cols = 'id, login, password, name, ID_STATUS, status, enabled, expire, retries';
         if (Database::columnExists('base_users', 'ID_STATUS2')) {
             $cols .= ', ID_STATUS2';
@@ -807,7 +914,23 @@ final class Auth
         $st->execute([$login]);
         $row = $st->fetch();
 
-        // Always verify (dummy hash when login missing) before revealing account state.
+        // Expired lock leftover: clear retries so the next failures get a full budget.
+        if (is_array($row) && !self::isLockedRow($row)
+            && isset($row['locked_until']) && $row['locked_until'] !== null && (string)$row['locked_until'] !== ''
+        ) {
+            self::clearLoginFailures((int)$row['id']);
+            $row['locked_until'] = null;
+            $row['retries'] = 0;
+        }
+
+        // Locked before password check — no oracle (correct password must not differ).
+        if (is_array($row) && self::isLockedRow($row)) {
+            self::verifyPassword($password, self::dummyPasswordHash());
+
+            return 'locked';
+        }
+
+        // Always verify (dummy hash when login missing) for roughly constant timing.
         $dummy = self::dummyPasswordHash();
         $stored = is_array($row) ? (string)$row['password'] : $dummy;
         if ($stored === '') {
@@ -816,9 +939,10 @@ final class Auth
         $passwordOk = self::verifyPassword($password, $stored);
 
         if (!is_array($row) || !$passwordOk) {
-            if (is_array($row) && !$passwordOk && !self::isLockedRow($row)) {
+            if (is_array($row) && !$passwordOk) {
                 self::recordFailedLogin((int)$row['id']);
             }
+            self::noteIpFailure();
 
             return 'bad_credentials';
         }
@@ -827,15 +951,13 @@ final class Auth
         if ((string)$row['enabled'] !== '1') {
             return 'disabled';
         }
-        if (self::isLockedRow($row)) {
-            return 'locked';
-        }
         $expire = (int)$row['expire'];
         if ($expire > 0 && $expire < time()) {
             return 'expired';
         }
 
         self::clearLoginFailures((int)$row['id']);
+        self::clearIpThrottle();
 
         if (self::needsRehash((string)$row['password'])) {
             try {
@@ -898,17 +1020,20 @@ final class Auth
         $hasLast = Database::columnExists('base_users', 'last_failed_at');
         $threshold = self::LOCK_THRESHOLD;
         $minutes = self::LOCK_MINUTES;
+        // MySQL evaluates SET left→right using already-updated columns, so after
+        // `retries = retries + 1` the IF must use `retries >= ?` (not retries+1)
+        // or the lock fires one attempt early.
         if ($hasLock && $hasLast) {
             $sql = 'UPDATE base_users SET
                 retries = LEAST(255, retries + 1),
                 last_failed_at = NOW(),
-                locked_until = IF(retries + 1 >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until)
+                locked_until = IF(retries >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until)
                 WHERE id = ?';
             Database::pdo()->prepare($sql)->execute([$threshold, $minutes, $userId]);
         } elseif ($hasLock) {
             $sql = 'UPDATE base_users SET
                 retries = LEAST(255, retries + 1),
-                locked_until = IF(retries + 1 >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until)
+                locked_until = IF(retries >= ?, DATE_ADD(NOW(), INTERVAL ? MINUTE), locked_until)
                 WHERE id = ?';
             Database::pdo()->prepare($sql)->execute([$threshold, $minutes, $userId]);
         } else {
@@ -1030,6 +1155,115 @@ final class Auth
                 self::clearSessionCookie();
             }
             session_destroy();
+        }
+    }
+
+    /** Current Auth::runAs nesting (0 = normal request). */
+    public static function runAsDepth(): int
+    {
+        return self::$runAsDepth;
+    }
+
+    /**
+     * Before exit() during runAs (AgentHttp::emit): discard session writes so the
+     * borrowed identity is not persisted into the browser session cookie.
+     * PHP skips finally blocks on exit, so callers must invoke this explicitly.
+     */
+    public static function discardSessionWriteIfRunAs(): void
+    {
+        if (self::$runAsDepth < 1) {
+            return;
+        }
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            // Abort keeps the on-disk session as it was at session_start (pre-runAs).
+            session_abort();
+        }
+    }
+
+    /** Client IP for login throttle (honours first X-Forwarded-For hop when present). */
+    private static function clientIp(): string
+    {
+        $fwd = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+        if ($fwd !== '') {
+            $parts = explode(',', $fwd);
+            $ip = trim($parts[0]);
+            if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
+                return $ip;
+            }
+        }
+        $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+
+        return $ip !== '' ? $ip : '0.0.0.0';
+    }
+
+    private static function ipThrottlePath(): string
+    {
+        $dir = function_exists('base_path') ? base_path('var/auth_throttle') : (sys_get_temp_dir() . '/freesaas_auth_throttle');
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0700, true);
+        }
+        $key = hash('sha256', self::clientIp());
+
+        return rtrim($dir, '/\\') . '/' . $key . '.json';
+    }
+
+    /** Max failed logins per IP inside the lock window before opaque refusal. */
+    private const IP_THROTTLE_MAX = 30;
+
+    private static function isIpThrottled(): bool
+    {
+        $path = self::ipThrottlePath();
+        if (!is_file($path)) {
+            return false;
+        }
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || $raw === '') {
+            return false;
+        }
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            return false;
+        }
+        $until = (int)($data['until'] ?? 0);
+        $count = (int)($data['count'] ?? 0);
+        if ($until > 0 && $until < time()) {
+            @unlink($path);
+
+            return false;
+        }
+
+        return $count >= self::IP_THROTTLE_MAX && $until >= time();
+    }
+
+    private static function noteIpFailure(): void
+    {
+        $path = self::ipThrottlePath();
+        $count = 0;
+        $until = time() + (self::LOCK_MINUTES * 60);
+        if (is_file($path)) {
+            $raw = @file_get_contents($path);
+            $data = is_string($raw) ? json_decode($raw, true) : null;
+            if (is_array($data)) {
+                $prevUntil = (int)($data['until'] ?? 0);
+                if ($prevUntil >= time()) {
+                    $count = (int)($data['count'] ?? 0);
+                    $until = max($until, $prevUntil);
+                }
+            }
+        }
+        $count++;
+        @file_put_contents(
+            $path,
+            json_encode(['count' => $count, 'until' => $until], JSON_UNESCAPED_UNICODE),
+            LOCK_EX
+        );
+    }
+
+    private static function clearIpThrottle(): void
+    {
+        $path = self::ipThrottlePath();
+        if (is_file($path)) {
+            @unlink($path);
         }
     }
 

@@ -66,6 +66,10 @@ if (!Auth::check()) {
 $grantedScope = OAuthServer::intersectScopes($scope, (string)$client['scopes']);
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+    // Browser consent POST is session-authenticated — require CSRF (path no longer exempt).
+    if (!Csrf::verify()) {
+        Csrf::deny('oauth_authorize');
+    }
     $action = (string)($_POST['action'] ?? '');
     if ($action === 'deny') {
         $errorRedirect('access_denied', 'User denied the request');
@@ -77,6 +81,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
     if ($challenge === '') {
         $errorRedirect('invalid_request', 'code_challenge (PKCE) required');
+    }
+    if (strtoupper($challengeMethod) !== 'S256') {
+        $errorRedirect('invalid_request', 'code_challenge_method must be S256');
     }
     $codeRow = OAuthTokensRepository::createCode(
         $clientId,

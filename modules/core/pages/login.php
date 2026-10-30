@@ -32,7 +32,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     unset($_SESSION['auth_redirect_reason']);
     $login = (string)($_POST['login'] ?? '');
     $password = (string)($_POST['password'] ?? '');
-    $remember = isset($_POST['remember']) && (string)$_POST['remember'] !== '0';
+    // Default: long session. Checkbox "ephemeral" = shared device / do not remember.
+    $remember = !(isset($_POST['ephemeral']) && (string)$_POST['ephemeral'] !== '0');
     if (!Database::tableExists('base_users')) {
         $error = t('core.login.error.no_table');
     } else {

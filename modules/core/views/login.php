@@ -44,9 +44,9 @@ $formId = 'login-form-' . $host;
           </button>
         </span>
       </label>
-      <label class="auth-remember" for="auth-remember">
-        <input type="checkbox" name="remember" id="auth-remember" value="1" checked>
-        <span><?= te('core.login.remember') ?></span>
+      <label class="auth-remember" for="auth-ephemeral" title="<?= te('core.login.ephemeral_hint') ?>">
+        <input type="checkbox" name="ephemeral" id="auth-ephemeral" value="1">
+        <span><?= te('core.login.ephemeral') ?></span>
       </label>
       <button type="submit" class="btn-primary"><?= te('core.login.submit') ?></button>
     </form>

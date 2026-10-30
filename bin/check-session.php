@@ -221,8 +221,18 @@ try {
     $check('session_cleared', empty($_SESSION['user_id']));
 
     // Re-hydrate after logout destroyed the PHP session (in-request $_SESSION write is enough for idle).
+    // Remember-me must skip idle (cookie lifetime is the long bound).
+    // Run before idle_timeout: logout() destroys the PHP session.
     $_SESSION['user_id'] = $uid;
     $_SESSION['auth_epoch'] = $epoch;
+    $_SESSION['remember'] = 1;
+    $_SESSION['_seen_at'] = time() - (8 * 86400);
+    $_SESSION['_guard_at'] = time();
+    $check('remember_skips_idle', Auth::check(false));
+
+    $_SESSION['user_id'] = $uid;
+    $_SESSION['auth_epoch'] = $epoch;
+    $_SESSION['remember'] = 0;
     $_SESSION['_seen_at'] = time() - (8 * 86400);
     $_SESSION['_guard_at'] = time();
     $check('idle_timeout', !Auth::check(false));

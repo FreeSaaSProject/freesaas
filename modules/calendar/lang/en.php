@@ -144,6 +144,8 @@ return [
     'calendar.widget.board.empty' => 'Nothing on the board for today',
     'calendar.widget.board.order' => 'Order',
     'calendar.day.order_unassigned' => 'No specialist assigned',
+    'calendar.day.order_free_ticket' => 'No ticket',
+    'calendar.day.order_free_ticket_warn' => 'Warning! No thermal ticket required!',
     'calendar.settings.lede' => 'Calendar, website orders, online booking and per-channel slot steps in one place (orders/booking/instance pack/terminals/sites sections appear when those modules are enabled). Superadministrator only.',
     'calendar.settings.work_hours' => 'Calendar working hours',
     'calendar.settings.work_hours_hint' => 'Timeline axis in the calendar (inclusive). Online booking uses the same hours.',

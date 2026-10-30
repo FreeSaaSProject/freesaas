@@ -214,21 +214,7 @@ final class StickersDiagnose
 
     public static function normalizeCookieDomain(string $raw): string
     {
-        $raw = strtolower(trim($raw));
-        if ($raw === '') {
-            return '';
-        }
-        if (strpos($raw, '://') !== false) {
-            $host = (string)(parse_url($raw, PHP_URL_HOST) ?: '');
-            $raw = $host !== '' ? $host : $raw;
-        }
-        if (strpos($raw, '/') !== false) {
-            $raw = explode('/', $raw, 2)[0];
-        }
-        if (strpos($raw, ':') !== false && preg_match('/:\d+$/', $raw)) {
-            $raw = preg_replace('/:\d+$/', '', $raw) ?? $raw;
-        }
-        return $raw;
+        return Auth::normalizeSessionCookieDomain($raw);
     }
 
     /**
@@ -238,47 +224,19 @@ final class StickersDiagnose
      */
     public static function validateCookieDomain(string $raw): string
     {
-        $raw = self::normalizeCookieDomain($raw);
-        if ($raw === '') {
-            return '';
-        }
-        if (!preg_match('/^\.?[a-z0-9.-]+$/i', $raw) || strpos($raw, '..') !== false) {
-            throw new InvalidArgumentException(t('stickers.settings.err.cookie_domain'));
-        }
-        $bare = ltrim($raw, '.');
-        if ($bare === '' || strpos($bare, '.') === false) {
-            // Allow bare TLD-less local names only without leading-dot parent form.
-            if ($raw[0] === '.') {
+        try {
+            return Auth::validateSessionCookieDomain($raw);
+        } catch (InvalidArgumentException $e) {
+            if ($e->getMessage() === t('core.settings.session.err.cookie_domain_parent')) {
                 throw new InvalidArgumentException(t('stickers.settings.err.cookie_domain_parent'));
             }
+            throw new InvalidArgumentException(t('stickers.settings.err.cookie_domain'));
         }
-        return $raw;
     }
 
     public static function suggestCookieDomain(string $adminHost, string $publicHost): string
     {
-        $adminHost = self::normalizeHost($adminHost);
-        $publicHost = self::normalizeHost($publicHost);
-        if ($adminHost === '' || $publicHost === '' || strcasecmp($adminHost, $publicHost) === 0) {
-            return '';
-        }
-        $a = explode('.', $adminHost);
-        $b = explode('.', $publicHost);
-        $common = [];
-        while ($a !== [] && $b !== []) {
-            $la = $a[count($a) - 1];
-            $lb = $b[count($b) - 1];
-            if (strcasecmp($la, $lb) !== 0) {
-                break;
-            }
-            array_unshift($common, $la);
-            array_pop($a);
-            array_pop($b);
-        }
-        if (count($common) < 2) {
-            return '';
-        }
-        return '.' . implode('.', $common);
+        return Auth::suggestSessionCookieDomain($adminHost, $publicHost);
     }
 
     public static function cookieDomainCovers(string $cookieDomain, string $host): bool

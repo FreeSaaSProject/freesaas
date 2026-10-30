@@ -2,7 +2,7 @@
     "id": "contracts",
     "name": "contracts.module.name",
     "description": "contracts.module.description",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -47,8 +47,8 @@
                 "id": "contracts.action",
                 "method": "POST",
                 "path": "/contracts/action",
-                "permission": "contracts.manage",
-                "description": "Contract workflow on a comment: action=accept_offer|accept_work|refuse|cancel_work_accept|extend_deadline; comment_id, optional news_id. extend_deadline (acceptor/control only) sets DT_DEADLINE to end of today for overdue new offers",
+                "permission": "",
+                "description": "Contract workflow (session auth; ACL via IS_ACCEPTOR/CONTROL, not contracts.manage): action=accept_offer|accept_work|refuse|cancel_work_accept|extend_deadline; comment_id, optional news_id. extend_deadline sets DT_DEADLINE to end of today for overdue new offers (acceptor only; not offer author)",
                 "parameters": {
                     "type": "object",
                     "properties": {

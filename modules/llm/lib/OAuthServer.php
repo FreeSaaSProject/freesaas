@@ -387,9 +387,7 @@ final class OAuthServer
         if ($verifier === '' || $challenge === '') {
             return false;
         }
-        if ($method === '' || $method === 'PLAIN') {
-            return hash_equals($challenge, $verifier);
-        }
+        // Metadata advertises S256 only — reject plain (and unknown methods).
         if ($method === 'S256') {
             $calc = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
             return hash_equals($challenge, $calc);
