@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-30T09:53:07+00:00",
+    "generated_at": "2026-10-30T11:09:51+00:00",
     "modules": [
         {
             "id": "asr",
@@ -120,7 +120,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.9",
+            "version": "1.0.10",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -160,7 +160,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.17",
+            "version": "1.0.18",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -273,7 +273,7 @@
         },
         {
             "id": "audio_pipeline",
-            "version": "1.0.9",
+            "version": "1.0.11",
             "type": "product",
             "name": {
                 "en": "Audio pipeline",
@@ -309,7 +309,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.11",
+            "version": "1.0.13",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -1475,7 +1475,7 @@
         },
         {
             "id": "procedures",
-            "version": "1.0.15",
+            "version": "1.0.18",
             "type": "product",
             "name": {
                 "en": "Treatments",
@@ -1500,7 +1500,10 @@
                 "procents": ">=1.0.0",
                 "workweeks": ">=1.0.0",
                 "assistant": ">=1.0.0",
-                "bi": ">=1.0.0"
+                "bi": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0",
+                "audio_reports": ">=1.0.0",
+                "audio_dicts": ">=1.0.0"
             },
             "catalog": {
                 "categories": [

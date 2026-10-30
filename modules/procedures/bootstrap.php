@@ -11,9 +11,39 @@ require_once __DIR__ . '/lib/AssignedProceduresBotPlugin.php';
 require_once __DIR__ . '/lib/ProceduresAssistantPreview.php';
 require_once __DIR__ . '/lib/ProceduresAssignPreflight.php';
 require_once __DIR__ . '/lib/ProceduresBiContrib.php';
+require_once __DIR__ . '/lib/ProcedureCreatedCollect.php';
 
 EventBus::on('bi.datasets', [ProceduresBiContrib::class, 'onDatasets']);
 EventBus::on('bi.recipes', [ProceduresBiContrib::class, 'onRecipes']);
+
+// Soft: attach CRM procedure creates (TYPE + DTCREATE) to audio script collections.
+EventBus::on('audio_pipeline.collect.after_admin', [ProcedureCreatedCollect::class, 'onCollectAfterAdmin']);
+
+EventBus::on('audio_reports.day_quality.part_metric', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    if ((string)($payload['cond_type'] ?? '') !== ProcedureCreatedCollect::COND_TYPE) {
+        return $payload;
+    }
+    $adminId = (int)($payload['admin_id'] ?? 0);
+    $date = (string)($payload['date'] ?? '');
+    $scriptId = (int)($payload['script_id'] ?? 0);
+    if ($adminId < 1 || $date === '' || $scriptId < 1) {
+        return $payload;
+    }
+    $m = ProcedureCreatedCollect::matchedForScript($adminId, $date, $scriptId);
+    if (empty($m['available'])) {
+        return $payload;
+    }
+    $payload['available'] = true;
+    $payload['numerator'] = (int)($m['matched'] ?? 0);
+    $payload['denominator'] = (int)($m['sessions'] ?? 0);
+    $payload['percent'] = (float)($m['percent'] ?? 0);
+    $payload['window_sec'] = (int)($m['window_sec'] ?? 0);
+
+    return $payload;
+});
 
 EventBus::on('assistant.write.preview', static function ($payload) {
     if (!is_array($payload)) {

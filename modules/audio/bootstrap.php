@@ -210,6 +210,19 @@ BulkActions::register('audio_records', 'reset_strings', [
         return ['done' => RecordsRepository::resetStringsByIds($ids), 'skipped' => []];
     },
 ]);
+BulkActions::register('audio_records', 'fix_playtime', [
+    'label' => 'audio.bulk.fix_playtime',
+    'group' => 'audio.bulk.group.resetters',
+    'permission' => 'audio.edit',
+    'confirm' => 'audio.bulk.confirm_fix_playtime',
+    'run' => static function (array $ids, array $params): array {
+        if (!class_exists('AsrService', false) && !class_exists('AsrService')) {
+            return ['done' => 0, 'skipped' => $ids];
+        }
+
+        return AsrService::fixPlaytimeFromTranscriptByIds($ids);
+    },
+]);
 BulkActions::register('audio_records', 'delete', [
     'label' => 'audio.bulk.delete',
     'permission' => 'audio.delete',

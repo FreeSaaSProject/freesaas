@@ -291,8 +291,8 @@ final class CollectRunner
                 }
                 $cond = $hasCond ? trim((string)($row['COND_TYPE'] ?? '')) : '';
                 $dicts = self::parseIds((string)($row['IDS_DICTONARYS'] ?? ''));
-                // Metric-only parts are not keyed.
-                if ($cond !== '' && $dicts === []) {
+                // Any COND_TYPE part is not keyed (proc_created reuses IDS as TYPE ids).
+                if ($cond !== '') {
                     continue;
                 }
                 foreach ($dicts as $did) {

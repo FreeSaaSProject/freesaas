@@ -39,6 +39,7 @@ Record chip summary lives on `base_records.KEY_TYPES` (legacy name = dict ids) �
 - Scripts tree: `/audio/scripts/{id}` + parts / download pack / list upload import. Same-DB copy remains via bulk and `/audio/scripts/{id}/copy`.
 - Day bonus roots may define `DAY_GATES` (JSON list of `{metric,op,threshold,label}`) for volume thresholds: builtins `audio_playtime`, `script_starts`, `script_finishes`, `proc_ratio`. Unavailable metrics skip (not red).
 - Unique bracelet scans are a script **part**: `COND_TYPE=term_scan_unique` + `GATE_*` as **count** thresholds. Unavailable when term_scans off (part skipped, not red). Collect ignores this COND_TYPE. Provider: EventBus `audio_reports.day_quality.part_metric`.
+- CRM procedure creates: `COND_TYPE=proc_created` + type ids in `IDS_DICTONARYS` (`#1#,#40#`) + `TIMEOUT` window around the collection (`DTCREATE ∈ [start−T, end+T]`, `0` → 1800s). Same admin (`ID_ADMIN`). Collect ignores this COND_TYPE; `procedures` attaches hits via `audio_pipeline.collect.after_admin` and day-quality via `part_metric` (% collections matched). Soft: procedures off → part skipped, not red.
 
 | Path | Permission |
 |------|------------|

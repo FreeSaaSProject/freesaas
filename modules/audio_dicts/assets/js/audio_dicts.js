@@ -176,9 +176,14 @@
       strings_gt: i18n.condStringsGt,
       strings_lt: i18n.condStringsLt,
       term_scan_unique: i18n.condTermScanUnique,
-      term_scan_conversion: i18n.condTermScanUnique
+      term_scan_conversion: i18n.condTermScanUnique,
+      proc_created: i18n.condProcCreated
     };
     return map[type] || type || '';
+  }
+
+  function isProcCreated(part) {
+    return !!(part && part.cond_type === 'proc_created');
   }
 
   function dictNames(part, dicts) {
@@ -196,6 +201,7 @@
   function sharedDictSet(parts) {
     var counts = {};
     (parts || []).forEach(function (p) {
+      if (p.cond_type) return; // metric / proc_created — not real dictionaries
       (p.dict_ids || []).forEach(function (id) {
         var n = parseInt(id, 10);
         if (n > 0) counts[n] = (counts[n] || 0) + 1;
@@ -212,6 +218,7 @@
   function usedDictSet(parts) {
     var used = {};
     (parts || []).forEach(function (p) {
+      if (p.cond_type) return;
       (p.dict_ids || []).forEach(function (id) {
         var n = parseInt(id, 10);
         if (n > 0) used[n] = true;
@@ -367,17 +374,26 @@
       badges.className = 'scripts-flow-badges';
       badges.innerHTML = roleBadgeHtml(part, roles) + timeoutBadgesHtml(part, i18n, opts);
       node.appendChild(badges);
-      var dnHtml = dictNamesHtml(part, dicts, shared);
-      if (dnHtml) {
-        var d = document.createElement('div');
-        d.className = 'scripts-flow-dicts';
-        d.innerHTML = dnHtml;
-        node.appendChild(d);
-      } else if (part.cond_type) {
-        var c = document.createElement('div');
-        c.className = 'scripts-flow-dicts muted';
-        c.textContent = condLabel(part.cond_type, i18n) + (part.cond_value ? ' ' + part.cond_value : '');
-        node.appendChild(c);
+      if (isProcCreated(part)) {
+        var pc = document.createElement('div');
+        pc.className = 'scripts-flow-dicts muted';
+        var typeIds = (part.dict_ids || []).filter(function (id) { return parseInt(id, 10) > 0; });
+        pc.textContent = condLabel(part.cond_type, i18n)
+          + (typeIds.length ? ': ' + typeIds.join(',') : '');
+        node.appendChild(pc);
+      } else {
+        var dnHtml = dictNamesHtml(part, dicts, shared);
+        if (dnHtml) {
+          var d = document.createElement('div');
+          d.className = 'scripts-flow-dicts';
+          d.innerHTML = dnHtml;
+          node.appendChild(d);
+        } else if (part.cond_type) {
+          var c = document.createElement('div');
+          c.className = 'scripts-flow-dicts muted';
+          c.textContent = condLabel(part.cond_type, i18n) + (part.cond_value ? ' ' + part.cond_value : '');
+          node.appendChild(c);
+        }
       }
       if (part.score_rate) {
         var sr = document.createElement('div');
@@ -589,7 +605,13 @@
             alert(i18n.needName);
             return false;
           }
-          if (!(parts[i].dict_ids || []).length && !(parts[i].cond_type || '')) {
+          var pct = parts[i].cond_type || '';
+          if (pct === 'proc_created') {
+            if (!(parts[i].dict_ids || []).length) {
+              alert(i18n.needProcTypes || i18n.needDict);
+              return false;
+            }
+          } else if (!(parts[i].dict_ids || []).length && !pct) {
             alert(i18n.needDict);
             return false;
           }
@@ -797,19 +819,34 @@
         ['volume_lt', i18n.condVolumeLt || 'volume_lt'],
         ['strings_gt', i18n.condStringsGt || 'strings_gt'],
         ['strings_lt', i18n.condStringsLt || 'strings_lt'],
-        ['term_scan_unique', i18n.condTermScanUnique || 'term_scan_unique']
+        ['term_scan_unique', i18n.condTermScanUnique || 'term_scan_unique'],
+        ['proc_created', i18n.condProcCreated || 'proc_created']
       ];
       var isMetric = !!(part.cond_type && part.cond_type !== '');
-      var isDayQualityMetric = part.cond_type === 'term_scan_unique'
+      var isProc = isProcCreated(part);
+      var isScanMetric = part.cond_type === 'term_scan_unique'
         || part.cond_type === 'term_scan_conversion';
+      var isDayQualityMetric = isScanMetric || isProc;
       var needsCondValue = part.cond_type === 'volume_gt' || part.cond_type === 'volume_lt'
         || part.cond_type === 'strings_gt' || part.cond_type === 'strings_lt';
+      var hideDicts = isMetric && !isProc;
+      var typeIdsStr = isProc
+        ? (part.dict_ids || []).filter(function (id) { return parseInt(id, 10) > 0; }).join(',')
+        : '';
       var isTrigger = hasRole(part, 'trigger');
       var condSelect = '<select data-field="cond_type"' + (canEdit ? '' : ' disabled') + '>';
       condOpts.forEach(function (o) {
         condSelect += '<option value="' + esc(o[0]) + '"' + (part.cond_type === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>';
       });
       condSelect += '</select>';
+      var timeoutLabel = isProc
+        ? (i18n.procWindow || i18n.timeout || 'Window, s')
+        : (isDayQualityMetric ? (i18n.scanWindow || i18n.timeout || 'Window, s') : (i18n.timeout || 'TIMEOUT'));
+      var timeoutHint = isProc
+        ? (i18n.procWindowHint || i18n.condProcCreatedHint || '')
+        : (isDayQualityMetric
+          ? (i18n.scanWindowHint || i18n.condTermScanConversionHint || i18n.timeoutHint || '')
+          : (i18n.timeoutHint || ''));
 
       panelBody.innerHTML =
         '<div class="scripts-panel-section scripts-panel-name">' +
@@ -818,14 +855,21 @@
         roleTableHtml(part, roles, hints, i18n, canEdit) + '</div>' +
         '<div class="scripts-panel-section"><h3>' + esc(i18n.activator || i18n.dicts || 'Activator') + '</h3>' +
         '<label>' + esc(i18n.activatorField || i18n.condType || 'Type') + condSelect + '</label>' +
-        '<p class="scripts-field-hint">' + esc(i18n.activatorHint || i18n.condTypeHint || '') + '</p>' +
-        '<div data-dicts-wrap' + (isMetric ? ' hidden' : '') + '>' +
+        '<p class="scripts-field-hint">' + esc(isProc
+          ? (i18n.condProcCreatedHint || i18n.activatorHint || '')
+          : (i18n.activatorHint || i18n.condTypeHint || '')) + '</p>' +
+        '<div data-dicts-wrap' + (hideDicts ? ' hidden' : (isProc ? ' hidden' : '')) + '>' +
         '<div class="scripts-dict-grid">' + dictChecks + '</div>' +
         '<div data-dict-thresholds-wrap>' +
         '<label>' + esc(i18n.diversity) + '<input type="number" min="0" data-field="diversity" value="' + esc(part.diversity || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
         '<p class="scripts-field-hint">' + esc(i18n.diversityHint || '') + '</p>' +
         '<label>' + esc(i18n.instMin) + '<input type="number" min="0" data-field="instances_min" value="' + esc(part.instances_min || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
         '<p class="scripts-field-hint">' + esc(i18n.instMinHint || '') + '</p></div></div>' +
+        '<div data-proc-types-wrap' + (isProc ? '' : ' hidden') + '>' +
+        '<label>' + esc(i18n.procTypes || 'Procedure types') +
+        '<input type="text" data-field="proc_type_ids" value="' + esc(typeIdsStr) + '"' +
+        ' placeholder="1,40"' + (canEdit ? '' : ' readonly') + '></label>' +
+        '<p class="scripts-field-hint">' + esc(i18n.procTypesHint || '') + '</p></div>' +
         '<div data-cond-value-wrap' + (needsCondValue ? '' : ' hidden') + '>' +
         '<label>' + esc(i18n.condValue || 'value') + '<input type="number" data-field="cond_value" value="' + esc(part.cond_value || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
         '</div>' +
@@ -841,11 +885,9 @@
           : '') +
         '</div>' +
         '<div class="scripts-panel-section"><h3>' + esc(i18n.timeoutsSec || 'Timeouts') + '</h3>' +
-        '<label>' + esc(isDayQualityMetric ? (i18n.scanWindow || i18n.timeout || 'Window, s') : (i18n.timeout || 'TIMEOUT')) +
+        '<label>' + esc(timeoutLabel) +
         '<input type="number" min="0" data-field="timeout" value="' + esc(part.timeout || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-        '<p class="scripts-field-hint">' + esc(isDayQualityMetric
-          ? (i18n.scanWindowHint || i18n.condTermScanConversionHint || i18n.timeoutHint || '')
-          : (i18n.timeoutHint || '')) + '</p>' +
+        '<p class="scripts-field-hint">' + esc(timeoutHint) + '</p>' +
         (hasRole(part, 'breaker')
           ? '<div data-break-gap-wrap>' +
             '<label>' + esc(i18n.breakGap || 'BREAK gap') +
@@ -865,15 +907,17 @@
           : '') +
         (dayBonusEnabled()
           ? '<h3 class="scripts-panel-subhead">' + esc(i18n.qualitySec || 'Quality') + '</h3>' +
-            (isDayQualityMetric
+            (isScanMetric
               ? '<p class="scripts-field-hint">' + esc(i18n.condTermScanConversionHint || '') + '</p>'
-              : '') +
-            '<label>' + esc(isDayQualityMetric ? (i18n.gateRedMaxScan || i18n.gateRedMax || 'red') : (i18n.gateRedMax || 'red %')) +
-            '<input type="number" min="0" step="' + (isDayQualityMetric ? '1' : '0.1') + '" data-field="gate_red_max" value="' + esc(part.gate_red_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-            '<p class="scripts-field-hint">' + esc(isDayQualityMetric ? (i18n.gateRedMaxHintScan || i18n.gateRedMaxHint || '') : (i18n.gateRedMaxHint || '')) + '</p>' +
-            '<label>' + esc(isDayQualityMetric ? (i18n.gateYellowMaxScan || i18n.gateYellowMax || 'yellow') : (i18n.gateYellowMax || 'yellow %')) +
-            '<input type="number" min="0" step="' + (isDayQualityMetric ? '1' : '0.1') + '" data-field="gate_yellow_max" value="' + esc(part.gate_yellow_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
-            '<p class="scripts-field-hint">' + esc(isDayQualityMetric ? (i18n.gateYellowMaxHintScan || i18n.gateYellowMaxHint || '') : (i18n.gateYellowMaxHint || '')) + '</p>'
+              : (isProc
+                ? '<p class="scripts-field-hint">' + esc(i18n.condProcCreatedHint || '') + '</p>'
+                : '')) +
+            '<label>' + esc(isScanMetric ? (i18n.gateRedMaxScan || i18n.gateRedMax || 'red') : (i18n.gateRedMax || 'red %')) +
+            '<input type="number" min="0" step="' + (isScanMetric ? '1' : '0.1') + '" data-field="gate_red_max" value="' + esc(part.gate_red_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(isScanMetric ? (i18n.gateRedMaxHintScan || i18n.gateRedMaxHint || '') : (i18n.gateRedMaxHint || '')) + '</p>' +
+            '<label>' + esc(isScanMetric ? (i18n.gateYellowMaxScan || i18n.gateYellowMax || 'yellow') : (i18n.gateYellowMax || 'yellow %')) +
+            '<input type="number" min="0" step="' + (isScanMetric ? '1' : '0.1') + '" data-field="gate_yellow_max" value="' + esc(part.gate_yellow_max || 0) + '"' + (canEdit ? '' : ' readonly') + '></label>' +
+            '<p class="scripts-field-hint">' + esc(isScanMetric ? (i18n.gateYellowMaxHintScan || i18n.gateYellowMaxHint || '') : (i18n.gateYellowMaxHint || '')) + '</p>'
           : '') +
         '<label class="checkbox"><input type="checkbox" data-field="hide_from_reports" value="1"' + (part.hide_from_reports ? ' checked' : '') + (canEdit ? '' : ' disabled') + '> ' + esc(i18n.hideFromReports || 'Hide from reports') + '</label>' +
         '<p class="scripts-field-hint">' + esc(i18n.hideFromReportsHint || '') + '</p>' +
@@ -901,15 +945,18 @@
           if (field === 'cond_type') {
             var ct = parts[selected].cond_type || '';
             var metricOn = !!ct;
+            var procOn = ct === 'proc_created';
             var showValue = ct === 'volume_gt' || ct === 'volume_lt' || ct === 'strings_gt' || ct === 'strings_lt';
             var dictsWrap = panelBody.querySelector('[data-dicts-wrap]');
             var valueWrap = panelBody.querySelector('[data-cond-value-wrap]');
             var dictThrWrap = panelBody.querySelector('[data-dict-thresholds-wrap]');
+            var procWrap = panelBody.querySelector('[data-proc-types-wrap]');
             if (dictsWrap) dictsWrap.hidden = metricOn;
             if (valueWrap) valueWrap.hidden = !showValue;
             if (dictThrWrap) dictThrWrap.hidden = metricOn;
-            if (metricOn) {
-              // Metric activator excludes dictionaries (CollectRunner requires empty dicts).
+            if (procWrap) procWrap.hidden = !procOn;
+            if (metricOn && !procOn) {
+              // Recording-metric activator excludes dictionaries.
               parts[selected].dict_ids = [];
               parts[selected].diversity = 0;
               parts[selected].instances_min = 0;
@@ -921,11 +968,37 @@
               if (divInp) divInp.value = '0';
               if (instInp) instInp.value = '0';
             }
-            if (!showValue) {
+            if (procOn) {
+              // Do not reuse dictionary ids as procedure TYPE ids.
+              parts[selected].dict_ids = [];
+              parts[selected].diversity = 0;
+              parts[selected].instances_min = 0;
+              parts[selected].cond_value = 0;
+              var divInp2 = panelBody.querySelector('[data-field="diversity"]');
+              var instInp2 = panelBody.querySelector('[data-field="instances_min"]');
+              if (divInp2) divInp2.value = '0';
+              if (instInp2) instInp2.value = '0';
+              var cv0 = panelBody.querySelector('[data-field="cond_value"]');
+              if (cv0) cv0.value = '0';
+            }
+            if (!showValue && !procOn) {
               parts[selected].cond_value = 0;
               var cv = panelBody.querySelector('[data-field="cond_value"]');
               if (cv) cv.value = '0';
             }
+            // Rebuild panel so timeout labels / hints match the activator.
+            renderPanel();
+            return;
+          }
+          if (field === 'proc_type_ids') {
+            var raw = String(inp.value || '');
+            var ids = [];
+            raw.split(/[,;\s#]+/).forEach(function (tok) {
+              var n = parseInt(tok, 10);
+              if (n > 0 && ids.indexOf(n) < 0) ids.push(n);
+            });
+            parts[selected].dict_ids = ids;
+            syncHidden();
             refreshFlow();
             return;
           }
@@ -936,6 +1009,10 @@
         inp.addEventListener('change', apply);
         if (inp.type === 'text') {
           inp.addEventListener('input', function () {
+            if (field === 'proc_type_ids') {
+              apply();
+              return;
+            }
             parts[selected][field] = inp.value;
             syncHidden();
             refreshFlow();

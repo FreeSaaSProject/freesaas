@@ -163,6 +163,54 @@ final class AsrService
     }
 
     /**
+     * Recalc PLAYTIME from transcript cue ends for selected ids (UI bulk).
+     * Only updates rows with PLAYTIME < 1 that have a non-empty transcript.
+     *
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<int>}
+     */
+    public static function fixPlaytimeFromTranscriptByIds(array $ids): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static fn ($i) => $i > 0)));
+        if ($ids === [] || !Database::tableExists('base_records')) {
+            return ['done' => 0, 'skipped' => []];
+        }
+        $in = implode(',', array_fill(0, count($ids), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT ID, TRANSCRIPTION, COALESCE(PLAYTIME, 0) AS playtime
+             FROM base_records WHERE ID IN ($in)"
+        );
+        $st->execute($ids);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $upd = Database::pdo()->prepare(
+            'UPDATE base_records SET PLAYTIME = ? WHERE ID = ? AND COALESCE(PLAYTIME, 0) < 1'
+        );
+        $done = 0;
+        $skipped = [];
+        foreach ($rows as $row) {
+            $id = (int)$row['ID'];
+            if ((int)$row['playtime'] >= 1) {
+                $skipped[] = $id;
+                continue;
+            }
+            $tr = trim((string)($row['TRANSCRIPTION'] ?? ''));
+            if ($tr === '') {
+                $skipped[] = $id;
+                continue;
+            }
+            $pt = self::playtimeFromTranscript($tr);
+            if ($pt === null) {
+                $skipped[] = $id;
+                continue;
+            }
+            $upd->execute([$pt, $id]);
+            $done++;
+        }
+
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
+    /**
      * @return array{ok:bool|string,diag:string}
      */
     public static function saveResult(string $fileName, string $result, ?string $playtime, ?string $volume): array

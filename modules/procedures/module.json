@@ -2,7 +2,7 @@
     "id": "procedures",
     "name": "procedures.module.name",
     "description": "procedures.module.description",
-    "version": "1.0.15",
+    "version": "1.0.18",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -16,7 +16,10 @@
         "procents": ">=1.0.0",
         "workweeks": ">=1.0.0",
         "assistant": ">=1.0.0",
-        "bi": ">=1.0.0"
+        "bi": ">=1.0.0",
+        "audio_pipeline": ">=1.0.0",
+        "audio_reports": ">=1.0.0",
+        "audio_dicts": ">=1.0.0"
     },
     "provides": [
         "procedures.list",
@@ -257,7 +260,9 @@
             "assistant.write.preflight",
             "assistant.system.hints",
             "bi.datasets",
-            "bi.recipes"
+            "bi.recipes",
+            "audio_pipeline.collect.after_admin",
+            "audio_reports.day_quality.part_metric"
         ],
         "publish": [
             "bots.send",

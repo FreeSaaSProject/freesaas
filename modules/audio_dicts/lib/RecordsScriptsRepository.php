@@ -18,6 +18,7 @@ final class RecordsScriptsRepository
             'volume_gt', 'volume_lt',
             'strings_gt', 'strings_lt',
             'term_scan_unique',
+            'proc_created',
         ];
     }
 
@@ -754,16 +755,22 @@ final class RecordsScriptsRepository
             }
             $cleanDicts = array_values(array_filter(array_map('intval', $dictIds), static fn ($i) => $i > 0));
             // Activator is exclusive: metric COND_* OR dictionaries (CollectRunner).
+            // Exception: proc_created stores procedure TYPE ids in IDS_DICTONARYS.
             $condValue = (int)($row['cond_value'] ?? 0);
             $diversity = max(0, (int)($row['diversity'] ?? 0));
             $instancesMin = max(0, (int)($row['instances_min'] ?? 0));
             if ($condType !== '') {
-                $cleanDicts = [];
                 $diversity = 0;
                 $instancesMin = 0;
-                // intersect / no_intersect are boolean — no threshold
-                if ($condType === 'intersect' || $condType === 'no_intersect') {
+                if ($condType === 'proc_created') {
                     $condValue = 0;
+                    // Keep type ids; empty list is invalid for this activator.
+                } else {
+                    $cleanDicts = [];
+                    // intersect / no_intersect are boolean — no threshold
+                    if ($condType === 'intersect' || $condType === 'no_intersect') {
+                        $condValue = 0;
+                    }
                 }
             } else {
                 $condValue = 0;

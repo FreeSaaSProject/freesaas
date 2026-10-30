@@ -211,6 +211,15 @@
   background: rgba(220, 53, 69, 0.08);
 }
 
+.is-zero-playtime td {
+  background: rgba(217, 119, 6, 0.10);
+}
+
+.audio-meta-playtime.is-zero {
+  color: #b45309;
+  font-weight: 700;
+}
+
 .audio-main-head {
   display: flex;
   flex-wrap: wrap;

@@ -573,6 +573,12 @@ final class CollectionsRepository
             $keyHits = [];
             $recIds = [];
             $hasIntersect = false;
+            $dtStart = (int)$row['dt_start'];
+            $dtEnd = (int)$row['dt_end'] > 0 ? (int)$row['dt_end'] : $dtStart;
+            // Soft-attached hits (CRM opener + phrase) may sit outside the
+            // stored CRM create span; widen so transcript ±15s still covers keys.
+            $spanMin = $dtStart > 0 ? $dtStart : 0;
+            $spanMax = $dtEnd > 0 ? $dtEnd : $spanMin;
 
             foreach ($datas as $d) {
                 $pid = $d['id_part'];
@@ -585,6 +591,15 @@ final class CollectionsRepository
                     ];
                     if ((int)$meta['finish'] > 0) {
                         $finished = true;
+                    }
+                }
+                $hitDt = (int)$d['dt_start'];
+                if ($hitDt > 0) {
+                    if ($spanMin < 1 || $hitDt < $spanMin) {
+                        $spanMin = $hitDt;
+                    }
+                    if ($hitDt > $spanMax) {
+                        $spanMax = $hitDt;
                     }
                 }
                 $kid = $d['id_key'];
@@ -613,6 +628,10 @@ final class CollectionsRepository
                     }
                 }
             }
+            if ($spanMin > 0) {
+                $dtStart = $spanMin;
+                $dtEnd = max($spanMax, $spanMin);
+            }
 
             $scriptName = $scriptNames[$sid]['name'] ?? '';
             if ($scriptName === '') {
@@ -621,8 +640,8 @@ final class CollectionsRepository
 
             $out[] = [
                 'id' => $cid,
-                'dt_start' => (int)$row['dt_start'],
-                'dt_end' => (int)$row['dt_end'],
+                'dt_start' => $dtStart,
+                'dt_end' => $dtEnd,
                 'id_admin' => $aid,
                 'admin_name' => $adminNames[$aid] ?? ('#' . $aid),
                 'id_script' => $sid,
@@ -636,7 +655,7 @@ final class CollectionsRepository
                 'keys' => array_values($keyHits),
                 'record_ids' => array_keys($recIds),
                 'has_intersect' => $hasIntersect,
-                'duration' => max(0, (int)$row['dt_end'] - (int)$row['dt_start']),
+                'duration' => max(0, $dtEnd - $dtStart),
             ];
         }
 

@@ -51,7 +51,8 @@ final class RecordsRepository
                        FILENAME AS filename, PLAYTIME AS playtime, SCORE AS score,
                        DISABLED AS disabled, QUALITY AS quality, ERROR_TRANS AS error_trans,
                        KEY_TYPES AS key_dicts, STRINGS AS strings, STRINGS_NOK AS strings_nok,
-                       VOLUME AS volume, OFFERS AS offers";
+                       VOLUME AS volume, OFFERS AS offers,
+                       (CASE WHEN TRANSCRIPTION IS NOT NULL AND TRIM(TRANSCRIPTION) <> '' THEN 1 ELSE 0 END) AS has_transcription";
         if (!empty($opts['with_transcription'])) {
             $sql .= ', TRANSCRIPTION AS transcription';
         }

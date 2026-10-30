@@ -239,11 +239,17 @@ if ($pageFlash && trim((string)($pageFlash['message'] ?? '')) !== ''):
         $kt = TranscriptHighlighter::parseKeyDicts(isset($r['key_dicts']) ? (string)$r['key_dicts'] : null);
         $fn = basename((string)($r['filename'] ?? ''));
         $rowClass = [];
+        $pt = max(0, (int)($r['playtime'] ?? 0));
+        $hasTr = !empty($r['has_transcription']);
+        $zeroPlayWithTr = $hasTr && $pt < 1;
         if (!empty($r['disabled'])) {
             $rowClass[] = 'is-muted';
         }
         if (!empty($r['error_trans'])) {
             $rowClass[] = 'is-error-row';
+        }
+        if ($zeroPlayWithTr) {
+            $rowClass[] = 'is-zero-playtime';
         }
         $markFromUrl = ListQuery::url($path, $filters, ['range_from' => (string)$dt, 'page' => 1]);
         $markToUrl = ListQuery::url($path, $filters, ['range_to' => (string)$dt, 'page' => 1]);
@@ -274,7 +280,8 @@ if ($pageFlash && trim((string)($pageFlash['message'] ?? '')) !== ''):
                 <span class="audio-meta-fav" title="<?= te('audio.review.favorite_badge') ?>">★</span>
               <?php endif; ?>
               <span title="<?= te('audio.col.score') ?>">S<?= (int)$r['score'] ?></span>
-              <span title="<?= te('audio.col.playtime') ?>"><?= (int)$r['playtime'] ?>s</span>
+              <span class="<?= $zeroPlayWithTr ? 'audio-meta-playtime is-zero' : 'audio-meta-playtime' ?>"
+                    title="<?= $zeroPlayWithTr ? te('audio.list.zero_playtime_hint') : te('audio.col.playtime') ?>"><?= $pt ?>s</span>
               <?php if ($tr && (int)$tr['trash'] > 0): ?>
                 <span class="audio-meta-trash" title="<?= te('audio.transcript.trash_count', ['n' => (int)$tr['trash']]) ?>">T<?= (int)$tr['trash'] ?></span>
               <?php else: ?>

@@ -15,7 +15,7 @@ Permissions: `procedures.view`, `procedures.edit`, `procedures.types`.
 ## Dependencies
 
 - Requires: `core` >=0.3.0, `clients` >=0.1.0, `catalog` >=0.1.0
-- Soft: `tables` >=0.1.0, `bots` >=0.1.0, `procents` >=0.1.0
+- Soft: `tables` >=0.1.0, `bots` >=0.1.0, `procents` >=0.1.0, `audio_pipeline` / `audio_reports` / `audio_dicts` (script activator `proc_created`)
 
 ## Tables
 
@@ -62,3 +62,4 @@ curl -sS -b jar.txt 'https://example/procedure-types?format=json'
 ## Notes
 
 - Schema includes `base_procedure_restores`; restore product UI is in the optional spa instance pack.
+- Soft audio hook: `ProcedureCreatedCollect` listens to `audio_pipeline.collect.after_admin` and `audio_reports.day_quality.part_metric` for script parts with `COND_TYPE=proc_created`. Matches `base_procedures` by `ID_ADMIN` + `TYPE` (ids from part `IDS_DICTONARYS`) + `DTCREATE`. When the part is a trigger (`IS_REQ`), unmatched creates **seed** openings (CRM-as-opener); same-client creates within `TIMEOUT` glue into one episode. Sibling dictionary parts (e.g. upsell speech) attach from instances in the same window. No hard require on audio modules — disable this module and the activator becomes a skipped day-quality part.

@@ -452,7 +452,9 @@ final class DayQualityReport
     /** Day-quality metric parts (not CollectRunner session activators). */
     private static function isDayQualityPartMetric(string $condType): bool
     {
-        return $condType === 'term_scan_unique' || $condType === 'term_scan_conversion';
+        return $condType === 'term_scan_unique'
+            || $condType === 'term_scan_conversion'
+            || $condType === 'proc_created';
     }
 
     /**
