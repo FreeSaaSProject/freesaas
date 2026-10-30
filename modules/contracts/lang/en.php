@@ -23,6 +23,7 @@ return [
     'contracts.err.deny_accept_work' => 'You are not allowed to accept this work',
     'contracts.err.deny_refuse' => 'You are not allowed to step down as curator',
     'contracts.err.deny_cancel_accept' => 'You are not allowed to cancel the acceptance',
+    'contracts.err.deny_extend_deadline' => 'You are not allowed to extend this offer deadline',
     'contracts.err.paid_no_cancel' => 'Payment exists — can\'t be cancelled',
     'contracts.err.delete_has_payment' => 'Cannot delete a contract that has a settlement (DPS)',
     'contracts.warn.payment_mismatch' => 'Settlement #{id} of {pay} does not match offer {offer} — check after Re-®',
@@ -45,6 +46,7 @@ return [
 
 Failure: {pct}% of the time used (>40%).',
     'contracts.actions.cancel_accept' => 'Cancel acceptance',
+    'contracts.actions.extend_deadline' => 'Extend?',
     'contracts.notice.mine_short' => 'C-WIP:{n}',
     'contracts.notice.mine_title' => 'My contracts in progress',
     'contracts.notice.accept_short' => 'C-REVIEW:{n}',

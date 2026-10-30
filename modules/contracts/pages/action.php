@@ -35,6 +35,9 @@ try {
         case 'cancel_work_accept':
             ContractsRepository::cancelWorkAccept($commentId, $uid);
             break;
+        case 'extend_deadline':
+            ContractsRepository::extendDeadlineToToday($commentId, $uid);
+            break;
         default:
             throw new InvalidArgumentException(t('contracts.err.unknown_action'));
     }

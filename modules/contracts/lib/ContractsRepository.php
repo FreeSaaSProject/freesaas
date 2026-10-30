@@ -150,7 +150,7 @@ final class ContractsRepository
 
     /**
      * What the current user can do with this offer comment.
-     * @return array{accept_offer:bool,accept_work:bool,refuse:bool,cancel_work:bool,warn_fail:bool,fail_pct:int}
+     * @return array{accept_offer:bool,accept_work:bool,refuse:bool,cancel_work:bool,extend_deadline:bool,warn_fail:bool,fail_pct:int}
      */
     public static function availableActions(array $comment, int $uid): array
     {
@@ -159,6 +159,7 @@ final class ContractsRepository
             'accept_work' => false,
             'refuse' => false,
             'cancel_work' => false,
+            'extend_deadline' => false,
             'warn_fail' => false,
             'fail_pct' => 0,
         ];
@@ -183,11 +184,18 @@ final class ContractsRepository
         if ($ticketAcceptor > 0) {
             $canAcceptOffers = $ticketAcceptor === $uid;
         }
+        $control = Auth::capability('CONTROL_ACCESS');
 
         if (!$offerAt) {
             $offerOk = $dl <= 0 || $dl > time();
             if ($canAcceptOffers && $offerOk && ($acceptor === 0 || $acceptor === $uid)) {
                 $out['accept_offer'] = true;
+            }
+            // Overdue new offer: acceptor (or control) may extend DL to end of today.
+            if ($failAt < 1 && $dl > 0 && $dl < time()
+                && ($canAcceptOffers || $control)
+                && ($acceptor === 0 || $acceptor === $uid || $control)) {
+                $out['extend_deadline'] = true;
             }
             return $out;
         }
@@ -233,6 +241,22 @@ final class ContractsRepository
     private static function dayEnd(int $ts): int
     {
         return (int)mktime(23, 59, 59, (int)date('n', $ts), (int)date('j', $ts), (int)date('Y', $ts));
+    }
+
+    /** Set offer DT_DEADLINE to end of today (acceptor-only; not the offer author). */
+    public static function extendDeadlineToToday(int $commentId, int $uid): void
+    {
+        $c = CommentsRepository::find($commentId);
+        if (!$c) {
+            throw new RuntimeException(t('comments.err.not_found'));
+        }
+        $actions = self::availableActions($c, $uid);
+        if (empty($actions['extend_deadline'])) {
+            throw new RuntimeException(t('contracts.err.deny_extend_deadline'));
+        }
+        $todayEnd = self::dayEnd(time());
+        $st = Database::pdo()->prepare('UPDATE base_comments SET DT_DEADLINE = ? WHERE ID = ?');
+        $st->execute([$todayEnd, $commentId]);
     }
 
     public static function acceptOffer(int $commentId, int $uid): void
@@ -644,6 +668,15 @@ final class ContractsRepository
             $meta .= '<span class="pill status-pill contract-status' . $tone . '">' . e($info['label']) . '</span>';
             if ($info['detail'] !== '') {
                 $meta .= ' <span class="muted contract-status-detail">' . e($info['detail']) . '</span>';
+            }
+            if (!empty($actions['extend_deadline'])) {
+                $meta .= ' ' . self::actionForm(
+                    $cid,
+                    $newsId,
+                    'extend_deadline',
+                    t('contracts.actions.extend_deadline'),
+                    'contract-extend-link'
+                );
             }
         }
         $acceptor = (int)($comment['ID_ACCEPTOR'] ?? 0);

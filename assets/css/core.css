@@ -2509,6 +2509,17 @@ table.data tr.is-disabled td a {
   background: color-mix(in srgb, var(--warn, #b78103) 18%, transparent);
   color: var(--warn, #b78103);
 }
+.contract-extend-link {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--link, #2563eb);
+  text-decoration: underline;
+  cursor: pointer;
+}
 .contract-status.is-bad {
   background: color-mix(in srgb, var(--danger, #c0392b) 16%, transparent);
   color: var(--danger, #c0392b);

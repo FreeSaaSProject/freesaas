@@ -46,3 +46,4 @@ curl -sS -b jar.txt 'https://example/payments/settings?format=json'
 - Depends on `core` + `comments`.
 - Payments module can show pay CTA when enabled.
 - `cfg/modules/contracts.ini` → `[contracts] deadline_penalty` is written from `/payments/settings`.
+- Overdue new offers: acceptor (or `CONTROL_ACCESS`) can POST `action=extend_deadline` to set `DT_DEADLINE` to end of today; offer author cannot.

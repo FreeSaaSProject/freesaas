@@ -23,6 +23,7 @@ return [
     'contracts.err.deny_accept_work' => 'Нет права принять работу',
     'contracts.err.deny_refuse' => 'Нет права отказаться от курирования',
     'contracts.err.deny_cancel_accept' => 'Нет права отменить приёмку',
+    'contracts.err.deny_extend_deadline' => 'Нет права продлить дедлайн этого предложения',
     'contracts.err.paid_no_cancel' => 'Есть оплата — отмена невозможна',
     'contracts.err.delete_has_payment' => 'Нельзя удалить контракт с взаиморасчётом (ДПС)',
     'contracts.warn.payment_mismatch' => 'Взаиморасчёт #{id} на {pay} ₽ не совпадает с оффером {offer} ₽ — проверьте после Re-®',
@@ -45,6 +46,7 @@ return [
 
 Провал: использовано {pct}% срока (>40%).',
     'contracts.actions.cancel_accept' => 'Отменить приёмку',
+    'contracts.actions.extend_deadline' => 'Продлить?',
     'contracts.notice.mine_short' => 'КвР:{n}',
     'contracts.notice.mine_title' => 'Мои контракты в работе',
     'contracts.notice.accept_short' => 'КкП:{n}',
