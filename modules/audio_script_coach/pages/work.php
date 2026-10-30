@@ -19,7 +19,8 @@ $stream = !$wantsJson && !empty($_POST['stream']);
 $action = trim((string)($_POST['action'] ?? 'tick'));
 $runId = max(0, (int)($_POST['run_id'] ?? 0));
 
-@set_time_limit(180);
+@set_time_limit(300);
+@ini_set('memory_limit', '256M');
 
 if ($stream) {
     CoachProgress::start(t('audio_script_coach.progress.title'));
@@ -135,35 +136,53 @@ if ($runId < 1) {
 }
 
 // Tick: one phase. Stream drain: loop remaining phases with marks between.
-$max = $stream ? 4 : 1;
+$phaseTotal = count(CoachRunner::phases());
+$max = $stream ? $phaseTotal : 1;
 $last = null;
-for ($i = 0; $i < $max; $i++) {
-    $last = CoachRunner::processNext($runId, false);
-    $phase = (string)($last['phase'] ?? '');
-    if (!empty($last['ok'])) {
-        CoachProgress::mark(t('audio_script_coach.progress.phase', [
-            'phase' => $phase !== '' ? $phase : '—',
-            'done' => (string)(int)($last['phases_done'] ?? 0),
-            'total' => (string)(int)($last['phases_total'] ?? 4),
-        ]));
-    } else {
-        CoachProgress::note(
-            t('audio_script_coach.progress.phase_fail', [
+try {
+    for ($i = 0; $i < $max; $i++) {
+        $last = CoachRunner::processNext($runId, false);
+        $phase = (string)($last['phase'] ?? '');
+        if (!empty($last['ok'])) {
+            CoachProgress::mark(t('audio_script_coach.progress.phase', [
                 'phase' => $phase !== '' ? $phase : '—',
-                'msg' => (string)($last['error'] ?? ''),
-            ]),
-            '#fca5a5'
-        );
-        break;
+                'done' => (string)(int)($last['phases_done'] ?? 0),
+                'total' => (string)(int)($last['phases_total'] ?? $phaseTotal),
+            ]));
+        } else {
+            CoachProgress::note(
+                t('audio_script_coach.progress.phase_fail', [
+                    'phase' => $phase !== '' ? $phase : '—',
+                    'msg' => (string)($last['error'] ?? ''),
+                ]),
+                '#fca5a5'
+            );
+            break;
+        }
+        if (!empty($last['done'])) {
+            CoachProgress::mark(t('audio_script_coach.progress.done', [
+                'n' => (string)(int)($last['proposals'] ?? 0),
+            ]));
+            break;
+        }
+        if (!$stream) {
+            break;
+        }
     }
-    if (!empty($last['done'])) {
-        CoachProgress::mark(t('audio_script_coach.progress.done', [
-            'n' => (string)(int)($last['proposals'] ?? 0),
-        ]));
-        break;
-    }
-    if (!$stream) {
-        break;
+} catch (Throwable $e) {
+    CoachProgress::note($e->getMessage(), '#fca5a5');
+    $last = CoachRunner::tickMeta($runId, [
+        'ok' => false,
+        'error' => $e->getMessage(),
+        'status' => CoachRunsRepository::STATUS_ERROR,
+        'phase' => (string)(($last['phase'] ?? '') ?: ''),
+        'done' => false,
+        'proposals' => 0,
+    ]);
+    try {
+        CoachRunsRepository::setError($runId, $e->getMessage());
+    } catch (Throwable $ignored) {
+        // keep JSON error path
     }
 }
 

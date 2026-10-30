@@ -13,6 +13,7 @@ final class CoachLlm
      * @param array<string,mixed> $catalog
      * @param array<string,mixed> $facts
      * @param array<string,mixed> $windows
+     * @param array<string,mixed>|null $verdicts
      * @return array{
      *   proposals:list<array<string,mixed>>,
      *   raw:list<array<string,mixed>>,
@@ -20,17 +21,51 @@ final class CoachLlm
      *   filter:array<string,mixed>
      * }
      */
-    public static function build(array $catalog, array $facts, array $windows): array
-    {
+    public static function build(
+        array $catalog,
+        array $facts,
+        array $windows,
+        ?array $verdicts = null
+    ): array {
         $filter = self::emptyFilterStats();
         $out = ['proposals' => [], 'raw' => [], 'errors' => [], 'filter' => $filter];
+
+        // Prefer semantic windows from verdicts; skip LLM entirely when none.
+        $semanticOnly = [];
+        foreach (is_array($windows['windows'] ?? null) ? $windows['windows'] : [] as $w) {
+            if (!is_array($w)) {
+                continue;
+            }
+            if ((string)($w['kind'] ?? '') === 'semantic') {
+                $semanticOnly[] = $w;
+            }
+        }
+        $hasQualityRed = is_array($facts['quality_red'] ?? null) && $facts['quality_red'] !== [];
+        if ($hasQualityRed || (is_array($verdicts) && !empty($verdicts['semantic_windows']))) {
+            $windows = ['windows' => $semanticOnly];
+            if ($semanticOnly === []) {
+                $filter['skip_reason'] = 'no_semantic';
+                $filter['scripts_needing_work'] = (int)($verdicts['summary']['semantic'] ?? 0);
+                $out['filter'] = $filter;
+
+                return $out;
+            }
+        }
+
         $llmReady = class_exists('ModuleManager', false) && ModuleManager::isEnabled('llm')
             && class_exists('LlmClient', false)
             && class_exists('LlmConfig', false)
             && LlmConfig::hasReadyProfile();
         if (!$llmReady) {
-            $out['errors'][] = t('audio_script_coach.err.llm_missing');
-            $filter['skip_reason'] = 'llm_missing';
+            // asr_near proposals still apply without LLM; only warn when semantic needed.
+            if ($semanticOnly !== [] || (!$hasQualityRed && is_array($windows['windows'] ?? null)
+                && ($windows['windows'] ?? []) !== [])
+            ) {
+                $out['errors'][] = t('audio_script_coach.err.llm_missing');
+                $filter['skip_reason'] = 'llm_missing';
+            } else {
+                $filter['skip_reason'] = 'nothing_to_enrich';
+            }
             $out['filter'] = $filter;
 
             return $out;
@@ -64,16 +99,24 @@ final class CoachLlm
             if (!is_array($sf)) {
                 continue;
             }
-            $needsWork = !empty($sf['silent']) || !empty($sf['trigger_gap']) || !empty($sf['weak_start'])
-                || (is_array($sf['missed_starts'] ?? null) && $sf['missed_starts'] !== [])
-                || (is_array($sf['incomplete'] ?? null) && $sf['incomplete'] !== [])
-                || (is_array($sf['stage_gaps'] ?? null) && $sf['stage_gaps'] !== [])
-                || !empty($sf['force_enrich']);
+            $scriptWindows = $windowsByScript[$sid] ?? [];
+            if ($hasQualityRed) {
+                // Only scripts that still have semantic windows.
+                if ($scriptWindows === []) {
+                    continue;
+                }
+                $needsWork = true;
+            } else {
+                $needsWork = !empty($sf['silent']) || !empty($sf['trigger_gap']) || !empty($sf['weak_start'])
+                    || (is_array($sf['missed_starts'] ?? null) && $sf['missed_starts'] !== [])
+                    || (is_array($sf['incomplete'] ?? null) && $sf['incomplete'] !== [])
+                    || (is_array($sf['stage_gaps'] ?? null) && $sf['stage_gaps'] !== [])
+                    || !empty($sf['force_enrich']);
+            }
             if (!$needsWork) {
                 continue;
             }
             $scriptsNeedingWork++;
-            $scriptWindows = $windowsByScript[$sid] ?? [];
             if ($scriptWindows === []) {
                 $scriptsMissingWindows++;
                 continue;
@@ -209,6 +252,7 @@ final class CoachLlm
                 'overlap' => 0, // exact only (legacy counter name)
                 'overlap_exact' => 0,
                 'overlap_soft_kept' => 0, // contains/contained — kept for ASR short forms
+                'stem_conflict' => 0,
                 'cap' => 0,
                 'bad_action' => 0,
                 'bad_dict' => 0,
@@ -222,6 +266,7 @@ final class CoachLlm
                 'bad_action' => 0,
                 'no_phrases' => 0,
                 'bad_dict' => 0,
+                'stem_conflict' => 0,
                 'duplicate' => 0,
             ],
             'skip_reason' => '',
@@ -241,11 +286,15 @@ final class CoachLlm
             . 'When a line matches the intent (descr) but wording/ASR differs from samples, '
             . 'propose add_key with the transcript form (short phrase, 2–8 words). '
             . 'Do not invent unrelated topics; stay close to descr + samples and the open windows. '
+            . 'Windows of kind=semantic are leftovers after deterministic near-miss / conflict checks: '
+            . 'only propose paraphrases that still match the red part_id intent. '
+            . 'Never propose a phrase that would stem-eat another role dictionary (shared prefix/join). '
+            . 'If nothing fits, return {"proposals":[]}. '
             . 'Return JSON object {"proposals":[...]} only. '
             . 'Each proposal: action ("add_key" or "add_dict_with_keys"), '
             . 'dict_id (int, for add_key), new_dict_name (string, for add_dict_with_keys), '
             . 'part_id (int), phrases (string array, 1-8 items), rationale (short), confidence (0-1), '
-            . 'link_part (bool — attach new dict to the part). '
+            . 'link_part (bool — attach new dict to the part), verdict ("semantic"). '
             . 'Prefer add_key into an existing dict whose samples match the intent. '
             . 'For kind=missed_start, only enrich start-gate / trigger parts. '
             . 'For kind=stage_gap, focus on the listed missed part_ids (mid/late stages). '
@@ -292,7 +341,14 @@ final class CoachLlm
             }
         }
         $hasMissedStarts = is_array($facts['missed_starts'] ?? null) && $facts['missed_starts'] !== [];
-        $sampleLimit = $hasMissedStarts ? 10 : 12;
+        $hasSemantic = false;
+        foreach ($scriptWindows as $wCheck) {
+            if ((string)($wCheck['kind'] ?? '') === 'semantic') {
+                $hasSemantic = true;
+                break;
+            }
+        }
+        $sampleLimit = $hasMissedStarts || $hasSemantic ? 10 : 12;
 
         $dictPayload = [];
         foreach (array_keys($usedDicts) as $did) {
@@ -329,7 +385,13 @@ final class CoachLlm
         $hasStageGaps = is_array($facts['stage_gaps'] ?? null) && $facts['stage_gaps'] !== [];
         $forceEnrich = !empty($facts['force_enrich']);
         $task = 'Suggest dictionary enrichments so this script can detect staff phrases next time.';
-        if ($hasMissedStarts) {
+        if ($hasSemantic) {
+            $task = 'These semantic windows are leftover after deterministic ASR near-miss checks. '
+                . 'A red day-bonus part is still missing. Propose transcript phrases that match '
+                . 'sample_keys / descr intent for the listed part_ids but use different wording. '
+                . 'Skip stem-conflict risk (do not propose prefixes/joins that eat other role keys). '
+                . 'If nothing fits, return empty proposals.';
+        } elseif ($hasMissedStarts) {
             $task = 'Paid procedures have audio but no start-gate dictionary hits nearby. '
                 . 'For each trigger dictionary, use sample_keys as the intended phrases. '
                 . 'In missed_start transcript windows, find lines that mean the same as a sample '
@@ -469,6 +531,31 @@ final class CoachLlm
             }
         }
 
+        // Stem-conflict gate: drop phrases that would eat sibling role dictionaries.
+        if ($action === 'add_key' && $dictId > 0 && class_exists('KeyStemConflict', false)) {
+            $safe = [];
+            foreach ($phrases as $ph) {
+                if (KeyStemConflict::hasConflicts($ph, $dictId)) {
+                    $filter['phrases_dropped']['stem_conflict'] =
+                        (int)($filter['phrases_dropped']['stem_conflict'] ?? 0) + 1;
+                    continue;
+                }
+                $safe[] = $ph;
+            }
+            $phrases = $safe;
+            if ($phrases === []) {
+                $filter['proposals_dropped']['stem_conflict'] =
+                    (int)($filter['proposals_dropped']['stem_conflict'] ?? 0) + 1;
+
+                return null;
+            }
+        }
+
+        $verdict = trim((string)($p['verdict'] ?? 'semantic'));
+        if ($verdict === '') {
+            $verdict = 'semantic';
+        }
+
         return [
             'id_script' => (int)$script['id'],
             'id_part' => $partId,
@@ -479,6 +566,7 @@ final class CoachLlm
             'rationale' => mb_substr(trim((string)($p['rationale'] ?? '')), 0, 500),
             'confidence' => max(0.0, min(1.0, (float)($p['confidence'] ?? 0.5))),
             'link_part' => !empty($p['link_part']) ? 1 : ($action === 'add_dict_with_keys' ? 1 : 0),
+            'verdict' => $verdict,
         ];
     }
 

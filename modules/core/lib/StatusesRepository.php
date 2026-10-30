@@ -126,9 +126,15 @@ final class StatusesRepository
             }
             $fields = [];
             foreach ($g['fields'] as $f) {
-                if (Database::columnExists('base_admin_statuses', (string)$f['key'])) {
-                    $fields[] = $f;
+                $key = (string)$f['key'];
+                if (!Database::columnExists('base_admin_statuses', $key)) {
+                    continue;
                 }
+                // SUPERADMIN_ACCESS is director-only (route also gated); hide from non-superadmin payloads.
+                if ($key === 'SUPERADMIN_ACCESS' && !Auth::capability('SUPERADMIN_ACCESS')) {
+                    continue;
+                }
+                $fields[] = $f;
             }
             if ($fields) {
                 $g['fields'] = $fields;
@@ -277,6 +283,10 @@ final class StatusesRepository
                     $data[$key] = trim((string)($post[$key] ?? ''));
                 }
             }
+        }
+        // Defense in depth: non-superadmin must not set SUPERADMIN_ACCESS (column left unchanged on update).
+        if (!Auth::capability('SUPERADMIN_ACCESS')) {
+            unset($data['SUPERADMIN_ACCESS']);
         }
         if (Database::columnExists('base_admin_statuses', 'PERMISSIONS')
             && isset($post['permissions'])

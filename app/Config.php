@@ -73,6 +73,16 @@ final class Config
         return is_array($s) ? $s : [];
     }
 
+    /**
+     * When app.modules_absent_off=1: missing [modules] key = disabled (fail-closed).
+     * When unset/0: legacy missing key = enabled — keeps installs alive until core migrate
+     * pins keys and sets the flag (no “half modules vanished” window after code deploy).
+     */
+    public static function modulesAbsentDefaultsOff(): bool
+    {
+        return self::truthyFlag(self::get('app', 'modules_absent_off', '0'));
+    }
+
     public static function moduleEnabled(string $moduleId): bool
     {
         if ($moduleId === 'core') {
@@ -80,19 +90,25 @@ final class Config
         }
         $mods = self::section('modules');
         if (!array_key_exists($moduleId, $mods)) {
-            // Absent key = disabled (fail-closed). New overlays / git-dropped packs stay off until activate.
+            // Demo stands stay fail-closed even before the upgrade flag.
+            if (class_exists('DemoMode', false) && DemoMode::readonly()) {
+                return false;
+            }
+            if (!self::modulesAbsentDefaultsOff()) {
+                return true;
+            }
             return false;
         }
         return self::truthyFlag($mods[$moduleId]);
     }
 
     /**
-     * Pin every on-disk product module that still lacks a [modules] key to explicit =0.
-     * Matches fail-closed defaults (absent = off). Never auto-enables — activate / enable
-     * (with accept_risk for alpha/beta) remains the only path to =1.
-     * Idempotent when all ids already have keys.
+     * One-shot upgrade: write explicit =1 for every on-disk product module with no [modules] key
+     * (legacy absent meant on), then set app.modules_absent_off=1 so future absent keys stay off.
      *
-     * @return array{pinned:array<string,int>,skipped:list<string>}
+     * Already-listed keys are untouched. Review [modules] afterwards; disable unused packs.
+     *
+     * @return array{pinned:array<string,int>,skipped:list<string>,flag_set:bool}
      */
     public static function pinEffectiveModules(): array
     {
@@ -101,7 +117,8 @@ final class Config
         $skipped = [];
         $root = base_path('modules');
         if (!is_dir($root)) {
-            return ['pinned' => [], 'skipped' => []];
+            self::ensureModulesAbsentOffFlag();
+            return ['pinned' => [], 'skipped' => [], 'flag_set' => true];
         }
         foreach (scandir($root) ?: [] as $id) {
             if ($id === '.' || $id === '..' || $id === 'core') {
@@ -114,10 +131,63 @@ final class Config
                 $skipped[] = $id;
                 continue;
             }
-            self::setModuleEnabled($id, false);
-            $pinned[$id] = 0;
+            self::setModuleEnabled($id, true);
+            $pinned[$id] = 1;
+            $mods[$id] = '1';
         }
-        return ['pinned' => $pinned, 'skipped' => $skipped];
+        self::ensureModulesAbsentOffFlag();
+        return ['pinned' => $pinned, 'skipped' => $skipped, 'flag_set' => true];
+    }
+
+    /** Persist app.modules_absent_off=1 (idempotent). */
+    public static function ensureModulesAbsentOffFlag(): void
+    {
+        if (self::modulesAbsentDefaultsOff()) {
+            return;
+        }
+        self::set('app', 'modules_absent_off', '1');
+    }
+
+    /**
+     * Re-enable modules that are currently off but listed as =1 in cfg/config.example.ini.
+     *
+     * @return array{enabled:list<string>,skipped:list<string>,missing:list<string>}
+     */
+    public static function recoverEnabledFromExample(): array
+    {
+        $example = dirname(self::$path !== '' ? self::$path : base_path('cfg/config.ini')) . '/config.example.ini';
+        if (!is_file($example)) {
+            $example = base_path('cfg/config.example.ini');
+        }
+        if (!is_file($example)) {
+            throw new RuntimeException('cfg/config.example.ini not found');
+        }
+        $parsed = parse_ini_file($example, true, INI_SCANNER_RAW);
+        $want = is_array($parsed['modules'] ?? null) ? $parsed['modules'] : [];
+        $enabled = [];
+        $skipped = [];
+        $missing = [];
+        foreach ($want as $id => $val) {
+            $id = trim((string)$id);
+            if ($id === '' || $id === 'core') {
+                continue;
+            }
+            if (!self::truthyFlag($val)) {
+                $skipped[] = $id;
+                continue;
+            }
+            if (!is_file(base_path('modules/' . $id . '/module.json'))) {
+                $missing[] = $id;
+                continue;
+            }
+            if (self::moduleEnabled($id)) {
+                $skipped[] = $id;
+                continue;
+            }
+            self::setModuleEnabled($id, true);
+            $enabled[] = $id;
+        }
+        return ['enabled' => $enabled, 'skipped' => $skipped, 'missing' => $missing];
     }
 
     /**

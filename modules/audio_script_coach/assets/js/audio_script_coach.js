@@ -19,6 +19,7 @@
   var logEl = document.getElementById('asc-job-log');
   var okBtn = document.getElementById('asc-job-ok');
   var abortBtn = document.getElementById('asc-job-abort');
+  var retryBtn = document.getElementById('asc-job-retry');
   var busy = false;
   var aborted = false;
 
@@ -27,7 +28,7 @@
   }
 
   function setProgress(done, total) {
-    total = Math.max(1, total || 4);
+    total = Math.max(1, total || 5);
     done = Math.max(0, Math.min(done || 0, total));
     var pct = Math.round((100 * done) / total);
     if (pctEl) {
@@ -79,15 +80,15 @@
     if (okBtn) {
       okBtn.hidden = true;
     }
+    if (retryBtn) {
+      retryBtn.hidden = true;
+    }
     if (abortBtn) {
       abortBtn.hidden = false;
     }
-    if (logEl) {
-      logEl.innerHTML = '';
-    }
   }
 
-  function finishOverlay(ok, finalMsg) {
+  function finishOverlay(ok, finalMsg, canRetry) {
     busy = false;
     if (msgEl && finalMsg) {
       msgEl.textContent = finalMsg;
@@ -101,11 +102,61 @@
         window.location.reload();
       };
     }
+    if (retryBtn) {
+      retryBtn.hidden = !canRetry;
+      if (canRetry) {
+        retryBtn.onclick = function () {
+          if (busy) {
+            return;
+          }
+          if (retryBtn) {
+            retryBtn.hidden = true;
+          }
+          if (okBtn) {
+            okBtn.hidden = true;
+          }
+          continueDrain();
+        };
+      }
+    }
     if (ok) {
       window.setTimeout(function () {
         window.location.href = '/audio/script-coach/run/' + runId;
       }, 400);
     }
+  }
+
+  function parseTickResponse(r) {
+    return r.text().then(function (text) {
+      var data = null;
+      var trim = (text || '').replace(/^\uFEFF/, '').trim();
+      if (trim !== '') {
+        try {
+          data = JSON.parse(trim);
+        } catch (e) {
+          var snippet = trim.replace(/\s+/g, ' ').slice(0, 180);
+          var err = new Error(
+            'HTTP ' + r.status + (snippet ? ': ' + snippet : ' (empty/non-JSON)')
+          );
+          err.httpStatus = r.status;
+          err.bodySnippet = snippet;
+          throw err;
+        }
+      }
+      if (!r.ok) {
+        var msg =
+          (data && (data.error || data.message)) ||
+          ('HTTP ' + r.status);
+        var err2 = new Error(String(msg));
+        err2.httpStatus = r.status;
+        err2.data = data;
+        throw err2;
+      }
+      if (!data || typeof data !== 'object') {
+        throw new Error('HTTP ' + r.status + ' (empty JSON)');
+      }
+      return data;
+    });
   }
 
   function tickOnce() {
@@ -118,12 +169,10 @@
       credentials: 'same-origin',
       headers: { Accept: 'application/json', 'X-CSRF-Token': csrf() },
       body: body,
-    }).then(function (r) {
-      return r.json();
-    });
+    }).then(parseTickResponse);
   }
 
-  function drain() {
+  function continueDrain() {
     if (busy || runId < 1) {
       return;
     }
@@ -132,24 +181,26 @@
     if (msgEl) {
       msgEl.textContent = root.getAttribute('data-asc-msg-working') || '…';
     }
-    var total = parseInt(root.getAttribute('data-asc-phases-total') || '4', 10) || 4;
+    var total = parseInt(root.getAttribute('data-asc-phases-total') || '5', 10) || 5;
     setProgress(parseInt(root.getAttribute('data-asc-phases-done') || '0', 10) || 0, total);
 
     function step() {
       if (aborted) {
-        finishOverlay(false, root.getAttribute('data-asc-msg-aborted') || 'Aborted');
+        finishOverlay(false, root.getAttribute('data-asc-msg-aborted') || 'Aborted', true);
         return;
       }
       tickOnce()
         .then(function (data) {
           if (!data || data.ok === false) {
             logLine((data && data.error) || 'error', true);
-            finishOverlay(false, (data && data.error) || 'error');
+            finishOverlay(false, (data && data.error) || 'error', true);
             return;
           }
           var done = parseInt(data.phases_done || 0, 10) || 0;
           total = parseInt(data.phases_total || total, 10) || total;
           setProgress(done, total);
+          root.setAttribute('data-asc-phases-done', String(done));
+          root.setAttribute('data-asc-phases-total', String(total));
           if (Array.isArray(data.stages) && data.stages.length) {
             logStages(data.stages);
           } else {
@@ -160,18 +211,26 @@
           }
           if (data.done) {
             setProgress(total, total);
-            finishOverlay(true, root.getAttribute('data-asc-msg-done') || 'Done');
+            finishOverlay(true, root.getAttribute('data-asc-msg-done') || 'Done', false);
             return;
           }
           step();
         })
         .catch(function (err) {
-          logLine(String(err && err.message ? err.message : err), true);
-          finishOverlay(false, String(err && err.message ? err.message : err));
+          var msg = String(err && err.message ? err.message : err);
+          logLine(msg, true);
+          finishOverlay(false, msg, true);
         });
     }
 
     step();
+  }
+
+  function drain() {
+    if (logEl) {
+      logEl.innerHTML = '';
+    }
+    continueDrain();
   }
 
   var drainBtn = root.querySelector('[data-asc-drain]');

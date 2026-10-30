@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/lib/RecordsTrashesRepository.php';
 require_once __DIR__ . '/lib/RecordsDictsRepository.php';
 require_once __DIR__ . '/lib/RecordsKeysRepository.php';
+require_once __DIR__ . '/lib/KeyStemConflict.php';
 require_once __DIR__ . '/lib/RecordsTagsRepository.php';
 require_once __DIR__ . '/lib/RecordsScriptsRepository.php';
 require_once __DIR__ . '/lib/ScriptPack.php';

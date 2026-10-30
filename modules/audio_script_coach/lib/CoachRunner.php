@@ -12,7 +12,7 @@ final class CoachRunner
     /** @return list<string> */
     public static function phases(): array
     {
-        return ['catalog', 'facts', 'windows', 'llm'];
+        return ['catalog', 'facts', 'verdicts', 'windows', 'llm'];
     }
 
     /**
@@ -153,7 +153,7 @@ final class CoachRunner
             $donePhases[(string)$ap['phase']] = true;
         }
 
-        $maxSteps = $untilDone ? 4 : 1;
+        $maxSteps = $untilDone ? count(self::phases()) : 1;
         for ($step = 0; $step < $maxSteps; $step++) {
             $next = null;
             foreach (self::phases() as $ph) {
@@ -240,13 +240,26 @@ final class CoachRunner
 
             return;
         }
-        if ($phase === 'windows') {
+        if ($phase === 'verdicts') {
             $catalog = CoachRunsRepository::artifact($runId, 'catalog');
             $facts = CoachRunsRepository::artifact($runId, 'facts');
             if ($catalog === null || $facts === null) {
                 throw new RuntimeException('catalog/facts missing');
             }
-            $payload = CoachWindows::build($catalog, $facts);
+            $payload = CoachVerdicts::build($catalog, $facts);
+            self::noteArtifactSize('verdicts', $payload);
+            CoachRunsRepository::saveArtifact($runId, 'verdicts', $payload);
+
+            return;
+        }
+        if ($phase === 'windows') {
+            $catalog = CoachRunsRepository::artifact($runId, 'catalog');
+            $facts = CoachRunsRepository::artifact($runId, 'facts');
+            $verdicts = CoachRunsRepository::artifact($runId, 'verdicts');
+            if ($catalog === null || $facts === null) {
+                throw new RuntimeException('catalog/facts missing');
+            }
+            $payload = CoachWindows::build($catalog, $facts, is_array($verdicts) ? $verdicts : null);
             self::noteArtifactSize('windows', $payload);
             CoachRunsRepository::saveArtifact($runId, 'windows', $payload);
 
@@ -256,6 +269,7 @@ final class CoachRunner
             $catalog = CoachRunsRepository::artifact($runId, 'catalog');
             $facts = CoachRunsRepository::artifact($runId, 'facts');
             $windows = CoachRunsRepository::artifact($runId, 'windows');
+            $verdicts = CoachRunsRepository::artifact($runId, 'verdicts');
             if ($catalog === null || $facts === null || $windows === null) {
                 throw new RuntimeException('prior artifacts missing');
             }
@@ -267,15 +281,30 @@ final class CoachRunner
                     'windows_n' => (string)count(is_array($windows['windows'] ?? null) ? $windows['windows'] : []),
                 ]), '#93c5fd');
             }
-            $payload = CoachLlm::build($catalog, $facts, $windows);
+            $payload = CoachLlm::build($catalog, $facts, $windows, is_array($verdicts) ? $verdicts : null);
+            // Deterministic asr_near proposals (no LLM).
+            $asr = is_array($verdicts['asr_proposals'] ?? null) ? $verdicts['asr_proposals'] : [];
+            $merged = array_merge($asr, $payload['proposals']);
             CoachRunsRepository::saveArtifact($runId, 'llm', [
                 'errors' => $payload['errors'],
                 'raw_count' => count($payload['raw']),
-                'proposal_count' => count($payload['proposals']),
+                'proposal_count' => count($merged),
+                'asr_proposal_count' => count($asr),
                 'filter' => is_array($payload['filter'] ?? null) ? $payload['filter'] : [],
             ]);
             CoachRunsRepository::clearProposals($runId);
-            foreach ($payload['proposals'] as $p) {
+            foreach ($merged as $p) {
+                if (!is_array($p)) {
+                    continue;
+                }
+                $verdict = trim((string)($p['verdict'] ?? ''));
+                if ($verdict !== '') {
+                    $rationale = trim((string)($p['rationale'] ?? ''));
+                    $tag = '[' . $verdict . ']';
+                    if (strpos($rationale, $tag) !== 0) {
+                        $p['rationale'] = trim($tag . ' ' . $rationale);
+                    }
+                }
                 CoachRunsRepository::insertProposal($runId, $p);
             }
 

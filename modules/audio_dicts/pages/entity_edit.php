@@ -49,6 +49,7 @@ $listId = $listIdMap[$entity] ?? 'audio_dicts';
 
 $error = '';
 $keyOverlaps = [];
+$keyStemConflicts = [];
 $keyForceChecked = false;
 
 if (!$isNew && EntityDelete::tryHandle($listId, $id, $path, [
@@ -83,16 +84,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $data = $repo::dataFromPost($_POST);
         if ($entity === 'keys') {
             $keyForceChecked = !empty($_POST['force']);
-            // Phrase unchanged → skip overlap gate (dict/flags/looklike-only edits).
+            // Phrase/dict unchanged → skip overlap/stem gate (flags/looklike-only edits).
             $prevName = !$isNew && is_array($row) ? trim((string)($row['name'] ?? '')) : '';
+            $prevDict = !$isNew && is_array($row) ? (int)($row['id_dictonary'] ?? 0) : 0;
             $nameChanged = $isNew
                 || mb_strtolower((string)$data['name']) !== mb_strtolower($prevName);
-            if ($nameChanged) {
+            $dictChanged = $isNew
+                || (int)($data['id_dictonary'] ?? 0) !== $prevDict;
+            if ($nameChanged || $dictChanged) {
+                $excludeKey = $isNew ? 0 : $id;
                 $keyOverlaps = RecordsKeysRepository::findOverlaps(
                     (string)$data['name'],
-                    $isNew ? 0 : $id,
+                    $excludeKey,
                     12
                 );
+                $dictForStem = max(0, (int)($data['id_dictonary'] ?? 0));
+                $keyStemConflicts = [];
+                if ($dictForStem > 0 && class_exists('KeyStemConflict', false)) {
+                    $keyStemConflicts = KeyStemConflict::find(
+                        (string)$data['name'],
+                        $dictForStem,
+                        $excludeKey,
+                        12
+                    );
+                }
                 $hasExact = false;
                 foreach ($keyOverlaps as $ov) {
                     if ((string)($ov['relation'] ?? '') === 'exact') {
@@ -104,15 +119,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new InvalidArgumentException(t('audio_dicts.keys.err_exact'));
                 }
                 // Soft "contains" (existing key is wider) — allow without force, same as coach apply.
-                $softOnly = RecordsKeysRepository::isSoftContainsOnly($keyOverlaps);
-                if ($keyOverlaps !== [] && !$softOnly && !$keyForceChecked) {
-                    if ((int)($data['id_looklike'] ?? 0) < 1) {
-                        $data['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
+                // Stem-eating conflicts always need an explicit force (conscious eat).
+                $softOnly = RecordsKeysRepository::isSoftContainsOnly($keyOverlaps)
+                    && $keyStemConflicts === [];
+                $hardOverlap = ($keyOverlaps !== [] && !RecordsKeysRepository::isSoftContainsOnly($keyOverlaps))
+                    || $keyStemConflicts !== [];
+                if ($hardOverlap && !$keyForceChecked) {
+                    $lookSrc = $keyStemConflicts[0] ?? $keyOverlaps[0] ?? null;
+                    if ((int)($data['id_looklike'] ?? 0) < 1 && is_array($lookSrc)) {
+                        $data['id_looklike'] = (int)($lookSrc['id'] ?? 0);
                     }
-                    throw new InvalidArgumentException(t('audio_dicts.keys.err_overlap'));
+                    throw new InvalidArgumentException(
+                        $keyStemConflicts !== []
+                            ? t('audio_dicts.keys.err_stem_conflict')
+                            : t('audio_dicts.keys.err_overlap')
+                    );
                 }
-                if ($keyOverlaps !== [] && ($keyForceChecked || $softOnly) && (int)($data['id_looklike'] ?? 0) < 1) {
-                    $data['id_looklike'] = (int)($keyOverlaps[0]['id'] ?? 0);
+                if (($keyOverlaps !== [] || $keyStemConflicts !== [])
+                    && ($keyForceChecked || $softOnly)
+                    && (int)($data['id_looklike'] ?? 0) < 1
+                ) {
+                    $lookSrc = $keyOverlaps[0] ?? $keyStemConflicts[0] ?? null;
+                    if (is_array($lookSrc)) {
+                        $data['id_looklike'] = (int)($lookSrc['id'] ?? 0);
+                    }
                 }
             }
         }
@@ -210,10 +240,27 @@ if ($entity === 'dicts') {
 }
 if ($entity === 'keys') {
     $viewData['dictOptions'] = RecordsDictsRepository::options(true);
-    $viewData['overlaps'] = $keyOverlaps;
+    // Merge stem conflicts into the overlap list for the form panel.
+    $stemLabels = [
+        'stem_prefix_eats' => t('audio_dicts.keys.stem_prefix_eats'),
+        'stem_prefix_eaten' => t('audio_dicts.keys.stem_prefix_eaten'),
+        'stem_join_eats' => t('audio_dicts.keys.stem_join_eats'),
+        'stem_join_eaten' => t('audio_dicts.keys.stem_join_eaten'),
+    ];
+    $mergedOverlaps = $keyOverlaps;
+    foreach ($keyStemConflicts as $sc) {
+        $rel = (string)($sc['relation'] ?? '');
+        $mergedOverlaps[] = array_merge($sc, [
+            'relation_label' => $stemLabels[$rel] ?? $rel,
+            'kind' => 'stem',
+        ]);
+    }
+    $viewData['overlaps'] = $mergedOverlaps;
+    $viewData['stemConflicts'] = $keyStemConflicts;
     $viewData['forceChecked'] = $keyForceChecked;
-    $viewData['forceNeeded'] = $keyOverlaps !== []
-        && !RecordsKeysRepository::isSoftContainsOnly($keyOverlaps);
+    $viewData['forceNeeded'] = ($keyOverlaps !== []
+            && !RecordsKeysRepository::isSoftContainsOnly($keyOverlaps))
+        || $keyStemConflicts !== [];
     if ($isNew) {
         $viewData['title'] = t('audio_dicts.keys.title_new');
         $viewData['breadcrumbs'] = Breadcrumbs::withHome([

@@ -1,15 +1,18 @@
 <?php
 declare(strict_types=1);
 /** @var list<array> $items */
+$canEditStatuses = Auth::capability('SUPERADMIN_ACCESS');
 ?>
 <section class="page-head">
   <div class="page-head-row">
     <div>
       <p class="lede"><?= t('core.statuses.lede') ?></p>
     </div>
+    <?php if ($canEditStatuses): ?>
     <div class="page-actions">
       <a class="btn-primary" href="/statuses/new"><?= te('core.common.add') ?></a>
     </div>
+    <?php endif; ?>
   </div>
 </section>
 
@@ -43,7 +46,7 @@ $filters = $filters ?? [];
         $type = !empty($s['ASSIST_STA']) ? t('core.statuses.type_partner') : t('core.statuses.type_staff');
       ?>
       <tr>
-        <td class="muted"><a href="/statuses/<?= (int)$s['ID'] ?>/edit"><?= (int)$s['ID'] ?></a></td>
+        <td class="muted"><?php if ($canEditStatuses): ?><a href="/statuses/<?= (int)$s['ID'] ?>/edit"><?= (int)$s['ID'] ?></a><?php else: ?><?= (int)$s['ID'] ?><?php endif; ?></td>
         <td>
           <?= e((string)$s['NAME']) ?>
           <?php if (empty($s['ENABLED'])): ?>

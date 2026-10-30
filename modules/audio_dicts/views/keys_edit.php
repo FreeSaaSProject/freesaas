@@ -25,6 +25,10 @@ $relLabels = [
     'exact' => t('audio_dicts.keys.overlap_exact'),
     'contains' => t('audio_dicts.keys.overlap_contains'),
     'contained' => t('audio_dicts.keys.overlap_contained'),
+    'stem_prefix_eats' => t('audio_dicts.keys.stem_prefix_eats'),
+    'stem_prefix_eaten' => t('audio_dicts.keys.stem_prefix_eaten'),
+    'stem_join_eats' => t('audio_dicts.keys.stem_join_eats'),
+    'stem_join_eaten' => t('audio_dicts.keys.stem_join_eaten'),
 ];
 ?>
 <?php if ($flash !== null && ($flash['message'] ?? '') !== ''): ?>
@@ -47,6 +51,7 @@ $relLabels = [
           'checking' => t('audio_dicts.keys.overlap_checking'),
           'none' => t('audio_dicts.keys.overlap_none'),
           'softOnly' => t('audio_dicts.keys.overlap_soft_ok'),
+          'stemWarn' => t('audio_dicts.keys.stem_warn'),
       ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)) ?>">
 
   <h2 class="form-section-title"><?= te('audio_dicts.keys.sec_main') ?></h2>
@@ -120,7 +125,7 @@ $relLabels = [
   <label class="check" id="key-force-wrap"<?= !$forceNeeded ? ' hidden' : '' ?>>
     <input type="checkbox" name="force" value="1" id="key-force"<?= $forceChecked ? ' checked' : '' ?>>
     <?= te('audio_dicts.keys.force') ?>
-    <span class="muted small"><?= te('audio_dicts.keys.force_hint') ?></span>
+    <span class="muted small" id="key-force-hint"><?= te('audio_dicts.keys.force_hint') ?></span>
   </label>
 
   <div class="form-actions">

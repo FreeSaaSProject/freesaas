@@ -55,15 +55,15 @@ $pages = [
     '/modules' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules.php'],
     '/modules/{id}' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules_detail.php'],
     '/modules/{id}/activate' => ['permission' => 'core.modules', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'modules_activate.php'],
-    '/db' => ['permission' => 'core.db', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
+    '/db' => ['permission' => 'core.db', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
 
     '/users' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'users.php'],
     '/users/new' => ['permission' => 'core.users', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
     '/users/{id}' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'user.php'],
     '/users/{id}/edit' => ['permission' => 'core.users', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],
     '/statuses' => ['permission' => 'core.statuses', 'methods' => ['GET'], 'file' => 'statuses.php'],
-    '/statuses/new' => ['permission' => 'core.statuses', 'methods' => ['GET', 'POST'], 'file' => 'status_edit.php'],
-    '/statuses/{id}/edit' => ['permission' => 'core.statuses', 'methods' => ['GET', 'POST'], 'file' => 'status_edit.php'],
+    '/statuses/new' => ['permission' => 'core.statuses', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'status_edit.php'],
+    '/statuses/{id}/edit' => ['permission' => 'core.statuses', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'status_edit.php'],
     '/settings' => ['permission' => 'core.settings', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/locale' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 'locale.php'],
     '/health' => ['public' => true, 'methods' => ['GET'], 'file' => 'health.php'],
@@ -200,6 +200,7 @@ BulkActions::register('core_users', 'delete', [
 BulkActions::register('core_statuses', 'delete', [
     'label' => 'core.bulk.delete',
     'permission' => 'core.statuses.delete',
+    'capability' => 'SUPERADMIN_ACCESS',
     'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return StatusesRepository::deleteByIds($ids);

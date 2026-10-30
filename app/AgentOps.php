@@ -554,7 +554,7 @@ final class AgentOps
     }
 
     /**
-     * Pin on-disk modules missing [modules] keys to =0 (fail-closed; never auto-enables).
+     * Pin absent [modules] keys to =1 and set app.modules_absent_off=1 (safe upgrade).
      *
      * @return array<string,mixed>
      */
@@ -565,9 +565,33 @@ final class AgentOps
             'ok' => true,
             'pinned' => $report['pinned'],
             'skipped' => $report['skipped'],
-            'hint' => 'Absent keys pinned to 0 only. Enable via module activate / enable (accept_risk for alpha/beta).',
+            'flag_set' => !empty($report['flag_set']),
+            'modules_absent_off' => Config::modulesAbsentDefaultsOff(),
+            'hint' => 'Absent keys pinned to 1; modules_absent_off=1. Review [modules]; disable unused packs. Future absent keys stay off.',
             'http' => 200,
         ];
+    }
+
+    /**
+     * Re-enable modules marked =1 in cfg/config.example.ini that are currently off.
+     *
+     * @return array<string,mixed>
+     */
+    public static function moduleRecoverFromExample(): array
+    {
+        try {
+            $report = Config::recoverEnabledFromExample();
+            return [
+                'ok' => true,
+                'enabled' => $report['enabled'],
+                'skipped' => $report['skipped'],
+                'missing' => $report['missing'],
+                'hint' => 'Flags set to 1 from config.example.ini. Schema runs on next enable path / migrate; review beta risk manually.',
+                'http' => 200,
+            ];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage(), 'http' => 500];
+        }
     }
 
     /** Hide (dismiss=true) or restore an installable module in the "available to install" list. */

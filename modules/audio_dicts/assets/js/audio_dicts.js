@@ -1480,16 +1480,18 @@
     });
   }
 
-  /** Keys edit: live overlap probe (same rules as list add-key / api_dict). */
+  /** Keys edit: live overlap + stem-conflict probe (same rules as list add-key / api_dict). */
   function initKeyOverlapForm() {
     var form = document.getElementById('audio-key-form');
     if (!form) return;
     var nameInp = document.getElementById('key-name');
+    var dictInp = document.getElementById('key-dict');
     var lookInp = document.getElementById('key-looklike');
     var panel = document.getElementById('key-overlap-panel');
     var list = document.getElementById('key-overlap-list');
     var status = document.getElementById('key-overlap-status');
     var forceWrap = document.getElementById('key-force-wrap');
+    var forceHint = document.getElementById('key-force-hint');
     var url = form.getAttribute('data-overlap-url') || '/audio/keys/check-overlap';
     var exclude = parseInt(form.getAttribute('data-exclude') || '0', 10) || 0;
     var i18n = parseJson(form, 'data-i18n', {});
@@ -1504,16 +1506,21 @@
         .replace(/"/g, '&quot;');
     }
 
-    /** Soft "contains" only — existing key is wider; save allowed without force. */
+    function isStemRel(rel) {
+      return String(rel || '').indexOf('stem_') === 0;
+    }
+
+    /** Soft "contains" only — existing key is wider; save allowed without force (no stem hits). */
     function softContainsOnly(overlaps) {
       if (!overlaps || !overlaps.length) return true;
       for (var i = 0; i < overlaps.length; i++) {
-        if (String(overlaps[i].relation || '') !== 'contains') return false;
+        var rel = String(overlaps[i].relation || '');
+        if (rel !== 'contains') return false;
       }
       return true;
     }
 
-    function render(overlaps) {
+    function render(overlaps, forceNeededFlag) {
       if (!panel || !list) return;
       list.innerHTML = '';
       if (!overlaps || !overlaps.length) {
@@ -1523,8 +1530,19 @@
         return;
       }
       panel.hidden = false;
-      var needForce = !softContainsOnly(overlaps);
+      var hasStem = false;
+      overlaps.forEach(function (o) {
+        if (isStemRel(o.relation) || o.kind === 'stem') hasStem = true;
+      });
+      var needForce = typeof forceNeededFlag === 'boolean'
+        ? forceNeededFlag
+        : (!softContainsOnly(overlaps) || hasStem);
       if (forceWrap) forceWrap.hidden = !needForce;
+      if (forceHint) {
+        forceHint.textContent = hasStem
+          ? (i18n.stemWarn || i18n.forceHint || '')
+          : (i18n.forceHint || '');
+      }
       overlaps.forEach(function (o) {
         var li = document.createElement('li');
         var id = parseInt(o.id, 10) || 0;
@@ -1536,10 +1554,17 @@
           '<a href="/audio/keys/' + id + '/edit" target="_blank" rel="noopener">#' + id +
           ' «' + esc(o.name || '') + '»</a>' + dict +
           '<span class="audio-key-overlap-rel">— ' + esc(rel) + '</span>';
+        if (isStemRel(o.relation) || o.kind === 'stem') {
+          li.className = 'audio-key-stem-conflict';
+        }
         list.appendChild(li);
       });
       if (status) {
-        status.textContent = needForce ? '' : (i18n.softOnly || '');
+        if (hasStem) {
+          status.textContent = i18n.stemWarn || '';
+        } else {
+          status.textContent = needForce ? '' : (i18n.softOnly || '');
+        }
       }
       if (lookInp && (!lookInp.value || lookInp.value === '0') && overlaps[0]) {
         lookInp.value = String(parseInt(overlaps[0].id, 10) || 0);
@@ -1552,15 +1577,16 @@
         render([]);
         return;
       }
+      var dict = parseInt(dictInp && dictInp.value || '0', 10) || 0;
       var my = ++seq;
       if (status) status.textContent = i18n.checking || '…';
-      var q = url + '?name=' + encodeURIComponent(name) + '&exclude=' + exclude;
+      var q = url + '?name=' + encodeURIComponent(name) + '&exclude=' + exclude + '&dict=' + dict;
       fetch(q, {
         credentials: 'same-origin',
         headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
       }).then(function (r) { return r.json(); }).then(function (data) {
         if (my !== seq) return;
-        render((data && data.overlaps) || []);
+        render((data && data.overlaps) || [], !!(data && data.force_needed));
       }).catch(function () {
         if (my !== seq) return;
         if (status) status.textContent = '';
@@ -1576,6 +1602,9 @@
       if (String(nameInp.value || '').trim().length >= 2) {
         check();
       }
+    }
+    if (dictInp) {
+      dictInp.addEventListener('change', check);
     }
   }
 

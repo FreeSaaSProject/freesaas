@@ -5,11 +5,14 @@ declare(strict_types=1);
  * @var list<array<string,mixed>> $proposals
  * @var list<array<string,mixed>> $artifacts
  * @var array<string,mixed>|null $facts
+ * @var array<string,mixed>|null $verdictsArt
+ * @var array<string,mixed>|null $whatIf
  * @var array<int,string> $scriptNames
  * @var array<int,string> $dictNames
  * @var array<int,string> $partNames
  * @var bool $canEdit
  * @var string $dayHref
+ * @var string $dayReportHref
  * @var string $reparseHint
  * @var list<string> $llmErrors
  * @var array<string,mixed>|null $llmFilter
@@ -21,10 +24,13 @@ declare(strict_types=1);
  */
 $status = (int)($run['status'] ?? 0);
 $autoDrain = !empty($autoDrain);
-$phasesTotal = max(1, (int)($phasesTotal ?? 4));
+$phasesTotal = max(1, (int)($phasesTotal ?? 5));
 $phasesDone = max(0, (int)($phasesDone ?? 0));
 $llmErrors = is_array($llmErrors ?? null) ? $llmErrors : [];
 $llmFilter = is_array($llmFilter ?? null) ? $llmFilter : null;
+$verdictsArt = is_array($verdictsArt ?? null) ? $verdictsArt : null;
+$whatIf = is_array($whatIf ?? null) ? $whatIf : null;
+$dayReportHref = (string)($dayReportHref ?? '');
 $proposalsEmptyReason = isset($proposalsEmptyReason) ? (string)$proposalsEmptyReason : '';
 $showReparseHint = !empty($showReparseHint);
 ?>
@@ -42,11 +48,15 @@ $showReparseHint = !empty($showReparseHint);
       </p>
     </div>
     <div class="page-actions">
+      <?php if ($dayReportHref !== ''): ?>
+        <a class="btn-secondary" href="<?= e($dayReportHref) ?>"><?= te('audio_script_coach.day.back_report') ?></a>
+      <?php endif; ?>
       <a class="btn-secondary" href="<?= e($dayHref) ?>"><?= te('audio_script_coach.day.title', [
           'name' => '#' . (int)$run['id_admin'],
           'date' => (string)$run['day'],
       ]) ?></a>
-      <a class="btn-secondary" href="<?= e($reparseHint) ?>"><?= te('audio_script_coach.run.open_calendar') ?></a>
+      <a class="btn-secondary" href="<?= e($reparseHint) ?>"
+         onclick="return confirm(<?= tj('audio_script_coach.run.reparse_confirm') ?>);"><?= te('audio_script_coach.run.reparse_admin') ?></a>
     </div>
   </div>
 </section>
@@ -63,7 +73,8 @@ $showReparseHint = !empty($showReparseHint);
        data-asc-phases-total="<?= (int)$phasesTotal ?>"
        data-asc-msg-working="<?= e(t('audio_script_coach.progress.working')) ?>"
        data-asc-msg-done="<?= e(t('audio_script_coach.progress.done_short')) ?>"
-       data-asc-msg-aborted="<?= e(t('audio_script_coach.progress.aborted')) ?>">
+       data-asc-msg-aborted="<?= e(t('audio_script_coach.progress.aborted')) ?>"
+       data-asc-msg-retry="<?= e(t('audio_script_coach.progress.retry')) ?>">
     <?php if ($status !== 2): ?>
       <form method="post" action="/audio/script-coach/run/<?= (int)$run['id'] ?>" class="inline">
         <?= Csrf::field() ?>
@@ -104,6 +115,7 @@ $showReparseHint = !empty($showReparseHint);
       <div id="asc-job-log" class="asc-job-log" aria-live="polite"></div>
       <div class="asc-job-actions actions">
         <button type="button" class="btn-secondary" id="asc-job-abort" hidden><?= te('audio_script_coach.progress.abort') ?></button>
+        <button type="button" class="btn-secondary" id="asc-job-retry" hidden><?= te('audio_script_coach.progress.retry') ?></button>
         <button type="button" class="btn-primary" id="asc-job-ok" hidden><?= te('audio_script_coach.progress.ok') ?></button>
       </div>
     </div>
@@ -127,6 +139,15 @@ $showReparseHint = !empty($showReparseHint);
   <section class="asc-facts">
     <h2><?= te('audio_script_coach.run.facts_title') ?></h2>
     <p class="muted"><?= te('audio_script_coach.run.records', ['n' => (string)(int)($facts['record_count'] ?? 0)]) ?></p>
+    <?php
+      $redN = count(is_array($facts['quality_red'] ?? null) ? $facts['quality_red'] : []);
+    ?>
+    <?php if ($redN > 0): ?>
+      <p class="asc-badge asc-badge--warn"><?= te('audio_script_coach.run.quality_red', [
+          'n' => (string)$redN,
+          'bonus' => (string)(int)($facts['quality_bonus_missed'] ?? 0),
+      ]) ?></p>
+    <?php endif; ?>
     <ul class="asc-script-facts">
       <?php foreach (is_array($facts['scripts'] ?? null) ? $facts['scripts'] : [] as $sf): ?>
         <li>
@@ -165,6 +186,94 @@ $showReparseHint = !empty($showReparseHint);
         </li>
       <?php endforeach; ?>
     </ul>
+  </section>
+<?php endif; ?>
+
+<?php if (is_array($verdictsArt) && is_array($verdictsArt['verdicts'] ?? null) && $verdictsArt['verdicts'] !== []): ?>
+  <?php $sum = is_array($verdictsArt['summary'] ?? null) ? $verdictsArt['summary'] : []; ?>
+  <section class="asc-verdicts">
+    <h2><?= te('audio_script_coach.run.verdicts_title') ?></h2>
+    <p class="muted">
+      <?= te('audio_script_coach.run.verdicts_summary', [
+          'total' => (string)(int)($sum['total'] ?? count($verdictsArt['verdicts'])),
+          'asr' => (string)(int)($sum['asr_near'] ?? 0),
+          'semantic' => (string)(int)($sum['semantic'] ?? 0),
+          'conflict' => (string)(int)($sum['stem_conflict'] ?? 0),
+          'not_said' => (string)(int)($sum['not_said'] ?? 0),
+          'no_audio' => (string)(int)($sum['no_audio'] ?? 0),
+          'session_gap' => (string)(int)($sum['session_gap'] ?? 0),
+      ]) ?>
+    </p>
+    <table class="table asc-verdicts-table">
+      <thead>
+        <tr>
+          <th><?= te('audio_script_coach.run.verdict_col_part') ?></th>
+          <th><?= te('audio_script_coach.run.verdict_col_verdict') ?></th>
+          <th><?= te('audio_script_coach.run.verdict_col_quote') ?></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($verdictsArt['verdicts'] as $v): ?>
+          <?php if (!is_array($v)) {
+              continue;
+          } ?>
+          <tr>
+            <td>
+              <strong><?= e((string)($v['part_name'] ?? '')) ?></strong>
+              <div class="muted small"><?= e((string)($v['script_name'] ?? '')) ?></div>
+            </td>
+            <td>
+              <span class="asc-badge"><?= te('audio_script_coach.verdict.' . (string)($v['verdict'] ?? 'not_said')) ?></span>
+              <?php if (!empty($v['candidate_phrase'])): ?>
+                <div class="muted small">→ <?= e((string)$v['candidate_phrase']) ?></div>
+              <?php endif; ?>
+            </td>
+            <td class="small"><?= e(mb_substr((string)($v['quote'] ?? ''), 0, 160)) ?></td>
+            <td class="nowrap">
+              <?php if (!empty($v['href_record'])): ?>
+                <a href="<?= e((string)$v['href_record']) ?>"><?= te('audio_script_coach.run.open_record') ?></a>
+              <?php endif; ?>
+              <?php if (!empty($v['href_collection'])): ?>
+                · <a href="<?= e((string)$v['href_collection']) ?>"><?= te('audio_script_coach.run.open_collection') ?></a>
+              <?php endif; ?>
+            </td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
+  </section>
+<?php endif; ?>
+
+<?php if (is_array($whatIf) && !empty($whatIf['ok']) && is_array($whatIf['parts'] ?? null) && $whatIf['parts'] !== []): ?>
+  <section class="asc-whatif">
+    <h2><?= te('audio_script_coach.run.whatif_title') ?></h2>
+    <p class="muted"><?= te('audio_script_coach.run.whatif_hint') ?></p>
+    <ul>
+      <?php foreach ($whatIf['parts'] as $wp): ?>
+        <?php if (!is_array($wp)) {
+            continue;
+        } ?>
+        <li>
+          <strong><?= e((string)($wp['part_name'] ?? '')) ?></strong>:
+          <?= e((string)(int)($wp['numerator_before'] ?? 0)) ?>/<?= e((string)(int)($wp['denominator'] ?? 0)) ?>
+          (<?= e((string)($wp['color_before'] ?? '')) ?>)
+          →
+          <?= e((string)(int)($wp['numerator_after'] ?? 0)) ?>/<?= e((string)(int)($wp['denominator'] ?? 0)) ?>
+          (<?= e((string)($wp['color_after'] ?? '')) ?>)
+          <?php if ((int)($wp['sessions_flipped'] ?? 0) > 0): ?>
+            <span class="asc-badge"><?= te('audio_script_coach.run.whatif_flip', [
+                'n' => (string)(int)$wp['sessions_flipped'],
+            ]) ?></span>
+          <?php endif; ?>
+        </li>
+      <?php endforeach; ?>
+    </ul>
+    <?php if ((int)($whatIf['bonus_delta_est'] ?? 0) > 0): ?>
+      <p><?= te('audio_script_coach.run.whatif_bonus', [
+          'n' => (string)(int)$whatIf['bonus_delta_est'],
+      ]) ?></p>
+    <?php endif; ?>
   </section>
 <?php endif; ?>
 
@@ -241,6 +350,8 @@ $showReparseHint = !empty($showReparseHint);
           $emptyKey = 'audio_script_coach.run.proposals_nothing';
       } elseif ($proposalsEmptyReason === 'no_windows') {
           $emptyKey = 'audio_script_coach.run.proposals_no_windows';
+      } elseif ($proposalsEmptyReason === 'verdicts_only') {
+          $emptyKey = 'audio_script_coach.run.proposals_verdicts_only';
       }
     ?>
     <p class="muted"><?= te($emptyKey) ?></p>

@@ -57,12 +57,22 @@ final class CoachApply
             return $out;
         }
 
-        $annotated = CoachPhraseCheck::annotate($selected);
+        $dictHint = 0;
+        if ((string)($proposal['action'] ?? '') === 'add_key') {
+            $dictHint = max(0, (int)($proposal['id_dict'] ?? 0));
+        } elseif ((string)($proposal['action'] ?? '') === 'add_dict_with_keys') {
+            $prevMetaHint = is_array($proposal['apply_meta'] ?? null) ? $proposal['apply_meta'] : [];
+            $dictHint = max(0, (int)($prevMetaHint['dict_id'] ?? 0));
+        }
+        $annotated = CoachPhraseCheck::annotate($selected, $dictHint);
         $creatable = [];
         foreach ($annotated as $row) {
+            $stem = is_array($row['stem_conflicts'] ?? null) ? $row['stem_conflicts'] : [];
             // Soft "contains" (existing key is wider) is creatable without force —
             // that is the coach enrich case (short ASR form under a long sample).
-            if ($row['ok'] || $force || CoachPhraseCheck::isOnlyWiderExisting($row['overlaps'] ?? [])) {
+            // Stem-eating conflicts always need force.
+            $softOk = CoachPhraseCheck::isOnlyWiderExisting($row['overlaps'] ?? []) && $stem === [];
+            if ($row['ok'] || $force || ($softOk && empty($row['needs_force']))) {
                 $creatable[] = $row['name'];
             }
         }
@@ -361,19 +371,32 @@ final class CoachApply
         foreach ($annotated as $row) {
             $name = (string)$row['name'];
             $overlaps = is_array($row['overlaps'] ?? null) ? $row['overlaps'] : [];
-            $softWider = CoachPhraseCheck::isOnlyWiderExisting($overlaps);
-            if ($overlaps !== [] && !$force && !$softWider) {
+            $stem = is_array($row['stem_conflicts'] ?? null) ? $row['stem_conflicts'] : [];
+            // Re-check stem against the final dict (new dicts get id after create).
+            if ($stem === [] && $dictId > 0 && class_exists('KeyStemConflict', false)) {
+                foreach (KeyStemConflict::find($name, $dictId, 0, 8) as $sc) {
+                    $stem[] = [
+                        'id' => (int)$sc['id'],
+                        'name' => (string)$sc['name'],
+                        'relation' => (string)($sc['relation'] ?? ''),
+                        'dict_name' => (string)($sc['dict_name'] ?? ''),
+                    ];
+                }
+            }
+            $softWider = CoachPhraseCheck::isOnlyWiderExisting($overlaps) && $stem === [];
+            if ((($overlaps !== [] && !$softWider) || $stem !== []) && !$force) {
                 $created[] = [
                     'id' => 0,
                     'name' => $name,
-                    'skipped' => 'overlap',
+                    'skipped' => $stem !== [] ? 'stem_conflict' : 'overlap',
                     'overlaps' => $overlaps,
+                    'stem_conflicts' => $stem,
                 ];
                 continue;
             }
             $looklike = 0;
-            if ($overlaps !== [] && ($force || $softWider)) {
-                $looklike = (int)($overlaps[0]['id'] ?? 0);
+            if (($overlaps !== [] || $stem !== []) && ($force || $softWider)) {
+                $looklike = (int)(($overlaps[0]['id'] ?? 0) ?: ($stem[0]['id'] ?? 0));
             }
             $id = (int)RecordsKeysRepository::create([
                 'name' => mb_substr($name, 0, 255),

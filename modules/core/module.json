@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "1.0.24",
+    "version": "1.0.26",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -552,6 +552,7 @@
                 "method": "GET",
                 "path": "/statuses/{id}/edit",
                 "permission": "core.statuses",
+                "capability": "SUPERADMIN_ACCESS",
                 "description": "One position + field groups. When workweeks on: shift_options + DEFAULT_PRICE_COL (default nazop lane; 0=lane I)"
             },
             {
@@ -559,6 +560,7 @@
                 "method": "POST",
                 "path": "/statuses/new",
                 "permission": "core.statuses",
+                "capability": "SUPERADMIN_ACCESS",
                 "side_effect": "write",
                 "description": "Create staff position; include DEFAULT_PRICE_COL when setting masseur default shift lane"
             },
@@ -567,6 +569,7 @@
                 "method": "POST",
                 "path": "/statuses/{id}/edit",
                 "permission": "core.statuses",
+                "capability": "SUPERADMIN_ACCESS",
                 "side_effect": "write",
                 "description": "Update position flags; DEFAULT_PRICE_COL=lane id from workweeks.settings (0=lane I on nazop)"
             },
@@ -575,6 +578,7 @@
                 "method": "GET",
                 "path": "/db",
                 "permission": "core.db",
+                "capability": "SUPERADMIN_ACCESS",
                 "description": "DB hub status: schema setup, owned tables, dumps (?format=json)",
                 "assistant": false
             },
@@ -583,6 +587,7 @@
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
+                "capability": "SUPERADMIN_ACCESS",
                 "description": "Apply all pending schema migrations (POST action=schema&format=json)",
                 "assistant": false
             },
@@ -591,6 +596,7 @@
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
+                "capability": "SUPERADMIN_ACCESS",
                 "description": "Dump owned tables (POST action=db_dump&format=json)",
                 "assistant": false
             },
@@ -599,6 +605,7 @@
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
+                "capability": "SUPERADMIN_ACCESS",
                 "description": "Restore dump file (POST action=db_restore&file=…&format=json; owned allow-list in normal mode)",
                 "assistant": false
             },
@@ -607,6 +614,7 @@
                 "method": "POST",
                 "path": "/db",
                 "permission": "core.db",
+                "capability": "SUPERADMIN_ACCESS",
                 "description": "Upload .sql/.sql.gz into var/db_dumps/ (multipart field dump, action=db_upload; does not restore)",
                 "assistant": false
             },

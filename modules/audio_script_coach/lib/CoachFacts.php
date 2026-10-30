@@ -213,6 +213,8 @@ final class CoachFacts
             ];
         }
 
+        $qualityPack = self::buildQualityRed($adminId, $date, $catalog, $scriptsOut);
+
         return [
             'admin_id' => $adminId,
             'date' => $date,
@@ -222,7 +224,229 @@ final class CoachFacts
             'record_count' => $recordCount,
             'record_ids' => $recordIds,
             'scripts' => $scriptsOut,
+            'quality_red' => $qualityPack['parts'],
+            'quality_bonus_missed' => $qualityPack['bonus_missed'],
         ];
+    }
+
+    /**
+     * Red scoring day-quality parts with rated sessions that missed them.
+     *
+     * @param array<string,mixed> $catalog
+     * @param list<array<string,mixed>> $scriptsOut
+     * @return array{parts:list<array<string,mixed>>,bonus_missed:int}
+     */
+    private static function buildQualityRed(
+        int $adminId,
+        string $date,
+        array $catalog,
+        array $scriptsOut
+    ): array {
+        $empty = ['parts' => [], 'bonus_missed' => 0];
+        if ($adminId < 1 || !class_exists('DayQualityReport', false)) {
+            return $empty;
+        }
+        try {
+            $quality = DayQualityReport::build($adminId, $date);
+        } catch (Throwable $e) {
+            return $empty;
+        }
+        if (empty($quality['ok']) || empty($quality['enabled'])) {
+            return $empty;
+        }
+        $partsById = [];
+        foreach (is_array($catalog['scripts'] ?? null) ? $catalog['scripts'] : [] as $script) {
+            $sid = (int)($script['id'] ?? 0);
+            foreach (is_array($script['parts'] ?? null) ? $script['parts'] : [] as $part) {
+                $pid = (int)($part['id'] ?? 0);
+                if ($pid > 0) {
+                    $partsById[$pid] = [
+                        'script_id' => $sid,
+                        'script_name' => (string)($script['name'] ?? ''),
+                        'dict_ids' => is_array($part['dict_ids'] ?? null) ? $part['dict_ids'] : [],
+                        'name' => (string)($part['name'] ?? ''),
+                        'role' => (string)($part['role'] ?? 'ordinary'),
+                        'start_gate' => (int)($part['start_gate'] ?? 0),
+                    ];
+                }
+            }
+        }
+
+        $collByScript = [];
+        foreach ($scriptsOut as $sf) {
+            $sid = (int)($sf['id'] ?? 0);
+            foreach (['incomplete', 'stage_gaps', 'force_sessions'] as $bucket) {
+                foreach (is_array($sf[$bucket] ?? null) ? $sf[$bucket] : [] as $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $collByScript[$sid][] = $row;
+                }
+            }
+        }
+
+        $out = [];
+        $bonusMissed = (int)($quality['bonus_sum_missed'] ?? 0);
+        foreach (is_array($quality['scripts'] ?? null) ? $quality['scripts'] : [] as $qs) {
+            if (empty($qs['has_red'])) {
+                continue;
+            }
+            $sid = (int)($qs['script_id'] ?? 0);
+            $scriptName = (string)($qs['name'] ?? '');
+            foreach (is_array($qs['parts'] ?? null) ? $qs['parts'] : [] as $qp) {
+                if (($qp['color'] ?? '') !== 'red' || empty($qp['is_scoring'])) {
+                    continue;
+                }
+                if ((string)($qp['part_kind'] ?? '') === 'day_metric') {
+                    continue;
+                }
+                $pid = (int)($qp['part_id'] ?? 0);
+                if ($pid < 1) {
+                    continue;
+                }
+                $meta = $partsById[$pid] ?? [
+                    'script_id' => $sid,
+                    'script_name' => $scriptName,
+                    'dict_ids' => [],
+                    'name' => (string)($qp['name'] ?? ''),
+                    'role' => 'ordinary',
+                    'start_gate' => 0,
+                ];
+                $missedSessions = self::missedSessionsForPart(
+                    $pid,
+                    $meta,
+                    $collByScript[$sid] ?? []
+                );
+                if ($missedSessions === []) {
+                    $missedSessions = self::loadMissedRatedSessions($adminId, $sid, $pid, $date);
+                }
+                $out[] = [
+                    'script_id' => $sid,
+                    'script_name' => $scriptName !== '' ? $scriptName : (string)$meta['script_name'],
+                    'part_id' => $pid,
+                    'part_name' => (string)($qp['name'] ?? $meta['name']),
+                    'numerator' => (int)($qp['numerator'] ?? 0),
+                    'denominator' => (int)($qp['denominator'] ?? 0),
+                    'percent' => (float)($qp['percent'] ?? 0),
+                    'gate_red_max' => (float)($qp['gate_red_max'] ?? 0),
+                    'dict_ids' => array_values(array_map('intval', $meta['dict_ids'] ?? [])),
+                    'missed_sessions' => $missedSessions,
+                ];
+            }
+        }
+
+        return ['parts' => $out, 'bonus_missed' => $bonusMissed];
+    }
+
+    /**
+     * @param array<string,mixed> $partMeta
+     * @param list<array<string,mixed>> $knownSessions
+     * @return list<array<string,mixed>>
+     */
+    private static function missedSessionsForPart(
+        int $partId,
+        array $partMeta,
+        array $knownSessions
+    ): array {
+        $out = [];
+        foreach ($knownSessions as $sess) {
+            $missIds = is_array($sess['miss_part_ids'] ?? null) ? $sess['miss_part_ids'] : [];
+            $missSet = [];
+            foreach ($missIds as $mid) {
+                $missSet[(int)$mid] = true;
+            }
+            $hit = true;
+            if (isset($missSet[$partId])) {
+                $hit = false;
+            } else {
+                // Check chain if present.
+                foreach (is_array($sess['chain'] ?? null) ? $sess['chain'] : [] as $chip) {
+                    if ((int)($chip['part_id'] ?? 0) === $partId) {
+                        $hit = !empty($chip['hit']);
+                        break;
+                    }
+                }
+            }
+            if ($hit) {
+                continue;
+            }
+            $chain = is_array($sess['chain'] ?? null) ? $sess['chain'] : [];
+            // Enrich chain chips with role from part meta when missing.
+            foreach ($chain as &$chip) {
+                if ((int)($chip['part_id'] ?? 0) === $partId) {
+                    $chip['role'] = (string)($partMeta['role'] ?? 'ordinary');
+                    $chip['start_gate'] = (int)($partMeta['start_gate'] ?? 0);
+                }
+            }
+            unset($chip);
+            $out[] = [
+                'collection_id' => (int)($sess['collection_id'] ?? 0),
+                'dt_start' => (int)($sess['dt_start'] ?? 0),
+                'dt_end' => (int)($sess['dt_end'] ?? 0),
+                'chain' => $chain,
+                'miss_part_ids' => $missIds,
+            ];
+            if (count($out) >= 20) {
+                break;
+            }
+        }
+
+        return $out;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    private static function loadMissedRatedSessions(
+        int $adminId,
+        int $scriptId,
+        int $partId,
+        string $date
+    ): array {
+        if ($adminId < 1 || $scriptId < 1 || $partId < 1
+            || !Database::tableExists('base_records_collections')
+        ) {
+            return [];
+        }
+        $bounds = self::dayWindow($date);
+        $ratedCond = Database::columnExists('base_records_collections', 'RATED')
+            ? 'AND RATED = 1' : '';
+        $st = Database::pdo()->prepare(
+            "SELECT ID AS id, DT_START AS dt_start, DT_END AS dt_end
+             FROM base_records_collections
+             WHERE ID_ADMIN=? AND ID_SCRIPT=? {$ratedCond}
+               AND DT_START <= ? AND (DT_END = 0 OR DT_END >= ?)
+             ORDER BY DT_START ASC
+             LIMIT 40"
+        );
+        $st->execute([$adminId, $scriptId, $bounds['end'], $bounds['start']]);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($rows === []) {
+            return [];
+        }
+        $ids = array_map(static fn ($r) => (int)$r['id'], $rows);
+        $hits = self::collectionPartHits($ids);
+        $out = [];
+        foreach ($rows as $row) {
+            $cid = (int)$row['id'];
+            if (isset($hits[$cid][$partId])) {
+                continue;
+            }
+            $chain = [];
+            foreach (($hits[$cid] ?? []) as $pid => $_) {
+                $chain[] = ['part_id' => (int)$pid, 'hit' => true, 'role' => 'ordinary'];
+            }
+            $chain[] = ['part_id' => $partId, 'hit' => false, 'role' => 'ordinary'];
+            $out[] = [
+                'collection_id' => $cid,
+                'dt_start' => (int)$row['dt_start'],
+                'dt_end' => (int)$row['dt_end'],
+                'chain' => $chain,
+                'miss_part_ids' => [$partId],
+            ];
+        }
+
+        return $out;
     }
 
     /** @return array{start:int,end:int} */

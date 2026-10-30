@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-29T06:20:18+00:00",
+    "generated_at": "2026-10-30T07:53:30+00:00",
     "modules": [
         {
             "id": "asr",
@@ -160,7 +160,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.15",
+            "version": "1.0.17",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -180,6 +180,7 @@
             },
             "optionalRequires": {
                 "audio_reports": ">=1.0.0",
+                "audio_pipeline": ">=1.0.0",
                 "llm": ">=1.0.0"
             },
             "catalog": {
@@ -308,7 +309,7 @@
         },
         {
             "id": "audio_reports",
-            "version": "1.0.10",
+            "version": "1.0.11",
             "type": "product",
             "name": {
                 "en": "Audio reports",
@@ -346,7 +347,7 @@
         },
         {
             "id": "audio_script_coach",
-            "version": "0.1.15",
+            "version": "0.2.2",
             "type": "product",
             "name": {
                 "en": "Script coach",
@@ -605,7 +606,7 @@
         },
         {
             "id": "calendar",
-            "version": "1.0.4",
+            "version": "1.0.6",
             "type": "product",
             "name": {
                 "en": "Calendar",

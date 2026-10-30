@@ -55,6 +55,7 @@ if ($closedIdle) {
 $artifacts = CoachRunsRepository::artifactPhases($runId);
 $catalog = CoachRunsRepository::artifact($runId, 'catalog');
 $facts = CoachRunsRepository::artifact($runId, 'facts');
+$verdictsArt = CoachRunsRepository::artifact($runId, 'verdicts');
 $windows = CoachRunsRepository::artifact($runId, 'windows');
 $llmMeta = CoachRunsRepository::artifact($runId, 'llm');
 $scriptNames = [];
@@ -139,7 +140,10 @@ if (is_array($llmMeta) && is_array($llmMeta['filter'] ?? null)) {
     ];
 }
 $needsWork = false;
-if (is_array($facts) && is_array($facts['scripts'] ?? null)) {
+if (is_array($facts) && is_array($facts['quality_red'] ?? null) && $facts['quality_red'] !== []) {
+    $needsWork = true;
+}
+if (!$needsWork && is_array($facts) && is_array($facts['scripts'] ?? null)) {
     foreach ($facts['scripts'] as $sf) {
         if (!is_array($sf)) {
             continue;
@@ -158,19 +162,60 @@ if (is_array($facts) && is_array($facts['scripts'] ?? null)) {
 $windowCount = (is_array($windows) && is_array($windows['windows'] ?? null))
     ? count($windows['windows'])
     : 0;
+$asrProposalCount = is_array($verdictsArt)
+    ? count(is_array($verdictsArt['asr_proposals'] ?? null) ? $verdictsArt['asr_proposals'] : [])
+    : 0;
+$skipReason = is_array($llmFilter) ? (string)($llmFilter['skip_reason'] ?? '') : '';
 
 $proposalsEmptyReason = null;
 if ($proposals === []) {
     if (!$hasLlmPhase) {
         $proposalsEmptyReason = 'need_llm';
-    } elseif ($llmErrors !== []) {
+    } elseif ($asrProposalCount < 1 && $skipReason === 'no_semantic' && $needsWork) {
+        $proposalsEmptyReason = 'verdicts_only';
+    } elseif ($llmErrors !== [] && $asrProposalCount < 1) {
         $proposalsEmptyReason = 'llm_errors';
     } elseif (!$needsWork) {
         $proposalsEmptyReason = 'nothing_to_enrich';
-    } elseif ($windowCount < 1) {
+    } elseif ($windowCount < 1 && $asrProposalCount < 1) {
         $proposalsEmptyReason = 'no_windows';
     } else {
         $proposalsEmptyReason = 'empty';
+    }
+}
+
+$whatIf = null;
+if ($canEdit && $hasLlmPhase && class_exists('CoachWhatIf', false)) {
+    $pendingPhrases = [];
+    foreach ($proposals as $prop) {
+        if ((int)($prop['status'] ?? -1) !== CoachRunsRepository::PROP_PENDING) {
+            continue;
+        }
+        $partId = (int)($prop['id_part'] ?? 0);
+        $phrases = is_array($prop['phrases'] ?? null) ? $prop['phrases'] : [];
+        if ($phrases === [] && !empty($prop['phrases_json'])) {
+            $decoded = json_decode((string)$prop['phrases_json'], true);
+            $phrases = is_array($decoded) ? $decoded : [];
+        }
+        foreach ($phrases as $ph) {
+            $ph = trim((string)$ph);
+            if ($ph === '') {
+                continue;
+            }
+            $pendingPhrases[] = [
+                'part_id' => $partId,
+                'phrase' => $ph,
+                'dict_id' => (int)($prop['id_dict'] ?? 0),
+            ];
+        }
+    }
+    if ($pendingPhrases !== []) {
+        $whatIf = CoachWhatIf::simulate(
+            (int)$run['id_admin'],
+            (string)$run['day'],
+            $pendingPhrases,
+            is_array($facts) ? $facts : []
+        );
     }
 }
 
@@ -194,8 +239,16 @@ foreach ($proposals as $prop) {
 
 $y = (int)substr((string)$run['day'], 0, 4);
 $m = (int)substr((string)$run['day'], 5, 2);
-$reparseHint = '/audio/calendar?' . http_build_query(['year' => $y, 'month' => $m]);
+$reparseHint = '/audio/calendar/reparse?' . http_build_query([
+    'date' => (string)$run['day'],
+    'admin' => (int)$run['id_admin'],
+    'ret' => '/audio/script-coach/run/' . $runId,
+]);
 $dayHref = '/audio/script-coach/day?' . http_build_query([
+    'admin' => (int)$run['id_admin'],
+    'date' => (string)$run['day'],
+]);
+$dayReportHref = '/audio/calendar/day-report?' . http_build_query([
     'admin' => (int)$run['id_admin'],
     'date' => (string)$run['day'],
 ]);
@@ -206,6 +259,8 @@ if (class_exists('AgentHttp', false) && AgentHttp::wantsJson()) {
         'run' => $run,
         'artifacts' => $artifacts,
         'facts' => $facts,
+        'verdicts' => $verdictsArt,
+        'what_if' => $whatIf,
         'proposals' => $proposals,
         'llm_errors' => $llmErrors,
         'llm_filter' => $llmFilter,
@@ -227,11 +282,14 @@ View::render('run', [
     'proposals' => $proposals,
     'artifacts' => $artifacts,
     'facts' => $facts,
+    'verdictsArt' => $verdictsArt,
+    'whatIf' => $whatIf,
     'scriptNames' => $scriptNames,
     'dictNames' => $dictNames,
     'partNames' => $partNames,
     'canEdit' => $canEdit,
     'dayHref' => $dayHref,
+    'dayReportHref' => $dayReportHref,
     'reparseHint' => $reparseHint,
     'llmErrors' => $llmErrors,
     'llmFilter' => $llmFilter,

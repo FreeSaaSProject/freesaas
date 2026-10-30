@@ -98,6 +98,9 @@ final class RecordsKeysRepository
             $data['id_dictonary'], $data['id_looklike'],
         ]);
         self::clearOverlapCatalogCache();
+        if (class_exists('KeyStemConflict', false)) {
+            KeyStemConflict::clearCache();
+        }
         EventBus::emit('audio_dicts.changed', ['entity' => 'keys']);
         return (int)Database::pdo()->lastInsertId();
     }
@@ -113,6 +116,9 @@ final class RecordsKeysRepository
             $data['id_dictonary'], $data['id_looklike'], $id,
         ]);
         self::clearOverlapCatalogCache();
+        if (class_exists('KeyStemConflict', false)) {
+            KeyStemConflict::clearCache();
+        }
         EventBus::emit('audio_dicts.changed', ['entity' => 'keys', 'id' => $id]);
     }
 
@@ -274,6 +280,9 @@ final class RecordsKeysRepository
         $st = Database::pdo()->prepare('UPDATE base_records_keys SET DISABLED = ? WHERE ID = ?');
         $st->execute([$disabled ? 1 : 0, $id]);
         self::clearOverlapCatalogCache();
+        if (class_exists('KeyStemConflict', false)) {
+            KeyStemConflict::clearCache();
+        }
         EventBus::emit('audio_dicts.changed', ['entity' => 'keys', 'id' => $id]);
     }
 

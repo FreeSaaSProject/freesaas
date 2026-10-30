@@ -15,6 +15,7 @@ declare(strict_types=1);
 /** @var string $agentTokenMasked */
 /** @var string $agentTokenPlain */
 /** @var bool $agentTokenJustGenerated */
+/** @var bool $canManageAgentToken */
 /** @var bool $agentAllowDelete */
 $logoUrl = isset($logoUrl) ? $logoUrl : null;
 $hasLogo = !empty($hasLogo);
@@ -28,6 +29,7 @@ $agentTokenConfigured = !empty($agentTokenConfigured);
 $agentTokenMasked = (string)($agentTokenMasked ?? '');
 $agentTokenPlain = (string)($agentTokenPlain ?? '');
 $agentTokenJustGenerated = !empty($agentTokenJustGenerated);
+$canManageAgentToken = !empty($canManageAgentToken);
 $agentAllowDelete = !empty($agentAllowDelete);
 
 $timezoneGroups = [];
@@ -122,7 +124,7 @@ foreach ($timezoneOptions as $opt) {
     <div class="settings-agent-token" style="margin-top:1rem">
       <h3 class="subhead" style="font-size:1rem;margin:0 0 .35rem"><?= te('core.settings.agent_token.title') ?></h3>
       <p class="muted"><?= te('core.settings.agent_token.help') ?></p>
-      <?php if ($agentTokenJustGenerated && $agentTokenPlain !== ''): ?>
+      <?php if ($canManageAgentToken && $agentTokenJustGenerated && $agentTokenPlain !== ''): ?>
         <div class="flash flash-ok">
           <?= te('core.settings.agent_token.generated_once') ?>
           <p style="margin:.5rem 0 0;word-break:break-all">
@@ -135,15 +137,21 @@ foreach ($timezoneOptions as $opt) {
       <?php elseif ($agentTokenConfigured): ?>
         <p>
           <?= te('core.settings.agent_token.status_ok') ?>
-          <code><?= e($agentTokenMasked) ?></code>
-          <?php if ($agentTokenPlain !== ''): ?>
-            <button type="button" class="btn-secondary" data-copy-text="<?= e($agentTokenPlain) ?>"><?= te('core.settings.agent_token.btn_copy') ?></button>
+          <?php if ($canManageAgentToken && $agentTokenMasked !== ''): ?>
+            <code><?= e($agentTokenMasked) ?></code>
+            <?php if ($agentTokenPlain !== ''): ?>
+              <button type="button" class="btn-secondary" data-copy-text="<?= e($agentTokenPlain) ?>"><?= te('core.settings.agent_token.btn_copy') ?></button>
+            <?php endif; ?>
           <?php endif; ?>
         </p>
       <?php else: ?>
         <p class="muted"><?= te('core.settings.agent_token.status_missing') ?></p>
       <?php endif; ?>
-      <p class="muted" style="margin-top:.5rem"><?= te('core.settings.agent_token.save_note') ?></p>
+      <?php if ($canManageAgentToken): ?>
+        <p class="muted" style="margin-top:.5rem"><?= te('core.settings.agent_token.save_note') ?></p>
+      <?php else: ?>
+        <p class="muted" style="margin-top:.5rem"><?= te('core.settings.agent_token.superadmin_only') ?></p>
+      <?php endif; ?>
     </div>
   </fieldset>
 
@@ -152,6 +160,7 @@ foreach ($timezoneOptions as $opt) {
   </div>
 </form>
 
+<?php if ($canManageAgentToken): ?>
 <form method="post" class="actions settings-agent-token-gen" style="margin-top:.75rem"
       onsubmit="return <?= $agentTokenConfigured ? 'confirm(' . tj('core.settings.agent_token.confirm_regen') . ')' : 'true' ?>;">
   <input type="hidden" name="action" value="agent_token_generate">
@@ -159,7 +168,9 @@ foreach ($timezoneOptions as $opt) {
     <?= te($agentTokenConfigured ? 'core.settings.agent_token.btn_regen' : 'core.settings.agent_token.btn_generate') ?>
   </button>
 </form>
+<?php endif; ?>
 
+<?php if ($canManageAgentToken): ?>
 <script>
 (function () {
   var copied = <?= json_encode(t('core.settings.agent_token.copied'), JSON_UNESCAPED_UNICODE) ?>;
@@ -185,3 +196,4 @@ foreach ($timezoneOptions as $opt) {
   });
 })();
 </script>
+<?php endif; ?>

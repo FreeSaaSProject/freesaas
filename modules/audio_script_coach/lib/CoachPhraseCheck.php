@@ -6,17 +6,18 @@ declare(strict_types=1);
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-/** Overlap checks matching manual key create (RecordsKeysRepository::findOverlaps). */
+/** Overlap + stem-conflict checks matching manual key create. */
 final class CoachPhraseCheck
 {
     /**
      * @return list<array{
      *   name:string,
      *   ok:bool,
-     *   overlaps:list<array{id:int,name:string,relation:string}>
+     *   overlaps:list<array{id:int,name:string,relation:string}>,
+     *   stem_conflicts:list<array{id:int,name:string,relation:string,dict_name?:string}>
      * }>
      */
-    public static function annotate(array $phrases): array
+    public static function annotate(array $phrases, int $dictId = 0): array
     {
         $out = [];
         foreach ($phrases as $ph) {
@@ -34,10 +35,24 @@ final class CoachPhraseCheck
                     ];
                 }
             }
+            $stem = [];
+            if ($dictId > 0 && class_exists('KeyStemConflict', false)) {
+                foreach (KeyStemConflict::find($name, $dictId, 0, 8) as $sc) {
+                    $stem[] = [
+                        'id' => (int)$sc['id'],
+                        'name' => (string)$sc['name'],
+                        'relation' => (string)($sc['relation'] ?? ''),
+                        'dict_name' => (string)($sc['dict_name'] ?? ''),
+                    ];
+                }
+            }
+            $softOk = self::isOnlyWiderExisting($overlaps) && $stem === [];
             $out[] = [
                 'name' => $name,
-                'ok' => $overlaps === [],
+                'ok' => $overlaps === [] && $stem === [],
                 'overlaps' => $overlaps,
+                'stem_conflicts' => $stem,
+                'needs_force' => !$softOk && ($overlaps !== [] || $stem !== []),
             ];
         }
 

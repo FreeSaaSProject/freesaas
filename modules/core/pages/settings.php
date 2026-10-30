@@ -104,6 +104,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if ($wantsJson) {
                 AgentHttp::error('agent_token_generate is UI-only', 403);
             }
+            if (!Auth::capability('SUPERADMIN_ACCESS')) {
+                throw new RuntimeException(t('core.settings.agent_token.forbidden'));
+            }
             $token = bin2hex(random_bytes(32));
             Config::set('app', 'agent_token', $token);
             $agentTokenPlain = $token;
@@ -211,11 +214,16 @@ $extraHtml = is_array($sections) ? (string)($sections['html'] ?? '') : '';
 $agentHtml = is_array($sections) ? (string)($sections['agent_html'] ?? '') : '';
 
 $agentConfigured = AgentAuth::isConfigured();
-if ($agentTokenPlain === '' && $agentConfigured) {
+$canManageAgentToken = Auth::capability('SUPERADMIN_ACCESS');
+// Never expose the plaintext token to non-superadmins (Copy / flash after generate).
+if (!$canManageAgentToken) {
+    $agentTokenPlain = '';
+    $agentTokenJustGenerated = false;
+} elseif ($agentTokenPlain === '' && $agentConfigured) {
     $agentTokenPlain = AgentAuth::configuredToken();
 }
 $agentTokenMasked = '';
-if ($agentConfigured && $agentTokenPlain !== '') {
+if ($agentConfigured && $canManageAgentToken && $agentTokenPlain !== '') {
     $len = strlen($agentTokenPlain);
     $agentTokenMasked = $len <= 12
         ? str_repeat('•', $len)
@@ -239,5 +247,6 @@ View::render('settings', [
     'agentTokenMasked' => $agentTokenMasked,
     'agentTokenPlain' => $agentTokenPlain,
     'agentTokenJustGenerated' => $agentTokenJustGenerated,
+    'canManageAgentToken' => $canManageAgentToken,
     'agentAllowDelete' => AgentHttp::allowsDelete(),
 ]);

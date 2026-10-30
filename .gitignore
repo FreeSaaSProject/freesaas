@@ -13,6 +13,9 @@ dist/
 assets/uploads/logo/*
 !assets/uploads/logo/.gitkeep
 
+# Legacy instance media (storefront images, PDFs, videos)
+/UserFiles/
+
 # Licensed / instance storefront skins — private repos only (themes/default stays public)
 #   https://github.com/ilcommm/freesaas-theme-likespa
 #   https://github.com/ilcommm/freesaas-theme-balance

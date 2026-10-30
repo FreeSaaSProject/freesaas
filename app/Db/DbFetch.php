@@ -82,151 +82,262 @@ final class DbFetch
     }
 
     /**
-     * @return array{ok:bool,code:int,headers:string,body:string,errno:int,error:string}
+     * Block SSRF: scheme/host/DNS must resolve to a public address (http allowed for public hosts).
+     *
+     * @return array{ok:bool,error:string,host:string,ip:string,port:int}
      */
+    public static function assertSafeOutboundUrl(string $url): array
+    {
+        $v = SafeHttp::validateOutboundUrl($url, false);
+        if (!$v['ok']) {
+            throw new InvalidArgumentException(t('core.db.err.fetch_ssrf', [
+                'reason' => (string)$v['error'],
+            ]));
+        }
+        return $v;
+    }
+
+    /** @return array{ok:bool,code:int,headers:string,body:string,errno:int,error:string} */
     private static function httpFetchChunk(string $url, int $bytesDone, int $maxRead): array
     {
-        if (function_exists('curl_init')) {
-            $ch = curl_init($url);
-            if ($ch === false) {
-                return ['ok' => false, 'code' => 0, 'headers' => '', 'body' => '', 'errno' => -1, 'error' => 'curl_init failed'];
+        $current = $url;
+        $maxRedirects = 5;
+        for ($hop = 0; $hop <= $maxRedirects; $hop++) {
+            try {
+                $v = self::assertSafeOutboundUrl($current);
+            } catch (InvalidArgumentException $e) {
+                return [
+                    'ok' => false,
+                    'code' => 0,
+                    'headers' => '',
+                    'body' => '',
+                    'errno' => -1,
+                    'error' => $e->getMessage(),
+                ];
             }
-            $headers = '';
-            curl_setopt_array($ch, [
-                CURLOPT_FOLLOWLOCATION => true,
-                CURLOPT_MAXREDIRS => 5,
-                CURLOPT_CONNECTTIMEOUT => 15,
-                CURLOPT_TIMEOUT => 25,
-                CURLOPT_USERAGENT => 'FreeSaaS-DbFetch/1.0',
-                CURLOPT_SSL_VERIFYPEER => true,
-                CURLOPT_SSL_VERIFYHOST => 2,
-                CURLOPT_HEADERFUNCTION => static function ($ch, string $line) use (&$headers): int {
-                    $headers .= $line;
-                    return strlen($line);
-                },
-            ]);
-            if ($bytesDone > 0) {
-                curl_setopt($ch, CURLOPT_RANGE, $bytesDone . '-');
-            }
-            // Cap body read via write callback stop — CURLOPT_RANGE already limits start;
-            // still limit per-tick bytes with a write function.
-            $body = '';
-            $stopped = false;
-            curl_setopt($ch, CURLOPT_WRITEFUNCTION, static function ($ch, string $chunk) use (&$body, &$stopped, $maxRead): int {
-                if ($stopped) {
-                    return 0; // abort
-                }
-                $body .= $chunk;
-                if (strlen($body) >= $maxRead) {
-                    $body = substr($body, 0, $maxRead);
-                    $stopped = true;
-                    return 0;
-                }
-                return strlen($chunk);
-            });
-            $ok = curl_exec($ch);
-            $errno = (int)curl_errno($ch);
-            $error = (string)curl_error($ch);
-            $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            // Aborting via write fn yields CURLE_WRITE_ERROR — treat as success if we have bytes.
-            if ($stopped && ($errno === 23 || $errno === 0) && $body !== '') {
-                $ok = true;
-                $errno = 0;
-                $error = '';
-            }
-            curl_close($ch);
-            return [
-                'ok' => $ok !== false && $errno === 0,
-                'code' => $code,
-                'headers' => $headers,
-                'body' => $body,
-                'errno' => $errno,
-                'error' => $error,
-            ];
-        }
 
-        $reqHeaders = "User-Agent: FreeSaaS-DbFetch/1.0\r\n";
-        if ($bytesDone > 0) {
-            $reqHeaders .= "Range: bytes={$bytesDone}-\r\n";
-        }
-        $ctx = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => 25,
-                'header' => $reqHeaders,
-                'follow_location' => 1,
-                'max_redirects' => 5,
-                'ignore_errors' => true,
-            ],
-            'ssl' => [
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-            ],
-        ]);
-        $remote = @fopen($url, 'rb', false, $ctx);
-        if ($remote === false) {
-            $last = error_get_last();
-            return [
-                'ok' => false,
-                'code' => 0,
-                'headers' => '',
-                'body' => '',
-                'errno' => -1,
-                'error' => is_array($last) ? (string)($last['message'] ?? 'fopen failed') : 'fopen failed',
-            ];
-        }
-        $wrapper = [];
-        $meta = stream_get_meta_data($remote);
-        if (is_array($meta['wrapper_data'] ?? null)) {
-            $wrapper = $meta['wrapper_data'];
-        }
-        $headerText = '';
-        $code = 0;
-        foreach ($wrapper as $line) {
-            if (!is_string($line)) {
+            if (function_exists('curl_init')) {
+                $ch = curl_init($current);
+                if ($ch === false) {
+                    return ['ok' => false, 'code' => 0, 'headers' => '', 'body' => '', 'errno' => -1, 'error' => 'curl_init failed'];
+                }
+                $headers = '';
+                $body = '';
+                $stopped = false;
+                $pin = self::curlResolvePin((string)$v['host'], (int)$v['port'], (string)$v['ip']);
+                curl_setopt_array($ch, [
+                    CURLOPT_FOLLOWLOCATION => false,
+                    CURLOPT_CONNECTTIMEOUT => 15,
+                    CURLOPT_TIMEOUT => 25,
+                    CURLOPT_USERAGENT => 'FreeSaaS-DbFetch/1.0',
+                    CURLOPT_SSL_VERIFYPEER => true,
+                    CURLOPT_SSL_VERIFYHOST => 2,
+                    CURLOPT_RESOLVE => [$pin],
+                    CURLOPT_HEADERFUNCTION => static function ($ch, string $line) use (&$headers): int {
+                        $headers .= $line;
+                        return strlen($line);
+                    },
+                    CURLOPT_WRITEFUNCTION => static function ($ch, string $chunk) use (&$body, &$stopped, $maxRead): int {
+                        if ($stopped) {
+                            return 0;
+                        }
+                        $body .= $chunk;
+                        if (strlen($body) >= $maxRead) {
+                            $body = substr($body, 0, $maxRead);
+                            $stopped = true;
+                            return 0;
+                        }
+                        return strlen($chunk);
+                    },
+                ]);
+                if ($bytesDone > 0) {
+                    curl_setopt($ch, CURLOPT_RANGE, $bytesDone . '-');
+                }
+                $ok = curl_exec($ch);
+                $errno = (int)curl_errno($ch);
+                $error = (string)curl_error($ch);
+                $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                if ($stopped && ($errno === 23 || $errno === 0) && $body !== '') {
+                    $ok = true;
+                    $errno = 0;
+                    $error = '';
+                }
+                curl_close($ch);
+
+                if ($code >= 300 && $code < 400) {
+                    $loc = self::headerValue($headers, 'Location');
+                    if ($loc === '' || $hop >= $maxRedirects) {
+                        return [
+                            'ok' => false,
+                            'code' => $code,
+                            'headers' => $headers,
+                            'body' => '',
+                            'errno' => -1,
+                            'error' => 'redirect refused',
+                        ];
+                    }
+                    $current = self::resolveRedirect($current, $loc);
+                    continue;
+                }
+
+                return [
+                    'ok' => $ok !== false && $errno === 0,
+                    'code' => $code,
+                    'headers' => $headers,
+                    'body' => $body,
+                    'errno' => $errno,
+                    'error' => $error,
+                ];
+            }
+
+            // Stream fallback: no automatic redirects (would skip SSRF re-check).
+            $reqHeaders = "User-Agent: FreeSaaS-DbFetch/1.0\r\n";
+            if ($bytesDone > 0) {
+                $reqHeaders .= "Range: bytes={$bytesDone}-\r\n";
+            }
+            $ctx = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'timeout' => 25,
+                    'header' => $reqHeaders,
+                    'follow_location' => 0,
+                    'max_redirects' => 0,
+                    'ignore_errors' => true,
+                ],
+                'ssl' => [
+                    'verify_peer' => true,
+                    'verify_peer_name' => true,
+                ],
+            ]);
+            $remote = @fopen($current, 'rb', false, $ctx);
+            if ($remote === false) {
+                $last = error_get_last();
+                return [
+                    'ok' => false,
+                    'code' => 0,
+                    'headers' => '',
+                    'body' => '',
+                    'errno' => -1,
+                    'error' => is_array($last) ? (string)($last['message'] ?? 'fopen failed') : 'fopen failed',
+                ];
+            }
+            $wrapper = [];
+            $meta = stream_get_meta_data($remote);
+            if (is_array($meta['wrapper_data'] ?? null)) {
+                $wrapper = $meta['wrapper_data'];
+            }
+            $headerText = '';
+            $code = 0;
+            foreach ($wrapper as $line) {
+                if (!is_string($line)) {
+                    continue;
+                }
+                $headerText .= $line . "\r\n";
+                if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/', $line, $m)) {
+                    $code = (int)$m[1];
+                }
+            }
+            if ($code >= 300 && $code < 400) {
+                fclose($remote);
+                $loc = self::headerValue($headerText, 'Location');
+                if ($loc === '' || $hop >= $maxRedirects) {
+                    return [
+                        'ok' => false,
+                        'code' => $code,
+                        'headers' => $headerText,
+                        'body' => '',
+                        'errno' => -1,
+                        'error' => 'redirect refused',
+                    ];
+                }
+                $current = self::resolveRedirect($current, $loc);
                 continue;
             }
-            $headerText .= $line . "\r\n";
-            if (preg_match('/^HTTP\/\S+\s+(\d{3})\b/', $line, $m)) {
-                $code = (int)$m[1];
+            $isPartial = $code === 206;
+            if ($bytesDone > 0 && !$isPartial) {
+                $skipped = 0;
+                while ($skipped < $bytesDone && !feof($remote)) {
+                    $need = min(65536, $bytesDone - $skipped);
+                    $chunk = fread($remote, $need);
+                    if ($chunk === false || $chunk === '') {
+                        break;
+                    }
+                    $skipped += strlen($chunk);
+                }
             }
-        }
-        // Full response when Range ignored — skip already-downloaded bytes.
-        $isPartial = $code === 206;
-        if ($bytesDone > 0 && !$isPartial) {
-            $skipped = 0;
-            while ($skipped < $bytesDone && !feof($remote)) {
-                $need = min(65536, $bytesDone - $skipped);
-                $chunk = fread($remote, $need);
+            $body = '';
+            $deadline = microtime(true) + 8.0;
+            while (!feof($remote) && strlen($body) < $maxRead && microtime(true) < $deadline) {
+                $chunk = fread($remote, min(256 * 1024, $maxRead - strlen($body)));
                 if ($chunk === false || $chunk === '') {
                     break;
                 }
-                $skipped += strlen($chunk);
+                $body .= $chunk;
             }
-        }
-        $body = '';
-        $deadline = microtime(true) + 8.0;
-        while (!feof($remote) && strlen($body) < $maxRead && microtime(true) < $deadline) {
-            $chunk = fread($remote, min(256 * 1024, $maxRead - strlen($body)));
-            if ($chunk === false || $chunk === '') {
-                break;
+            $eofHint = feof($remote);
+            fclose($remote);
+            if ($eofHint) {
+                $headerText .= "X-FreeSaaS-Eof: 1\r\n";
             }
-            $body .= $chunk;
+            return [
+                'ok' => true,
+                'code' => $code,
+                'headers' => $headerText,
+                'body' => $body,
+                'errno' => 0,
+                'error' => '',
+            ];
         }
-        $eofHint = feof($remote);
-        fclose($remote);
-        // Encode eof in headers comment for caller (hack-free: use trailing marker).
-        if ($eofHint) {
-            $headerText .= "X-FreeSaaS-Eof: 1\r\n";
-        }
+
         return [
-            'ok' => true,
-            'code' => $code,
-            'headers' => $headerText,
-            'body' => $body,
-            'errno' => 0,
-            'error' => '',
+            'ok' => false,
+            'code' => 0,
+            'headers' => '',
+            'body' => '',
+            'errno' => -1,
+            'error' => 'too many redirects',
         ];
+    }
+
+    private static function curlResolvePin(string $host, int $port, string $ip): string
+    {
+        $host = trim($host, '[]');
+        $ip = trim($ip, '[]');
+        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+            $ip = '[' . $ip . ']';
+        }
+        return $host . ':' . $port . ':' . $ip;
+    }
+
+    private static function headerValue(string $headers, string $name): string
+    {
+        if (preg_match('/(?:^|\r\n)' . preg_quote($name, '/') . ':\s*(.+?)(?:\r\n|$)/i', $headers, $m)) {
+            return trim($m[1]);
+        }
+        return '';
+    }
+
+    private static function resolveRedirect(string $base, string $location): string
+    {
+        $location = trim($location);
+        if ($location === '') {
+            return $base;
+        }
+        if (preg_match('#^https?://#i', $location)) {
+            return $location;
+        }
+        $bp = parse_url($base);
+        if (!is_array($bp) || empty($bp['scheme']) || empty($bp['host'])) {
+            return $location;
+        }
+        $origin = $bp['scheme'] . '://' . $bp['host']
+            . (isset($bp['port']) ? ':' . $bp['port'] : '');
+        if (isset($location[0]) && $location[0] === '/') {
+            return $origin . $location;
+        }
+        $path = (string)($bp['path'] ?? '/');
+        $dir = preg_replace('#/[^/]*$#', '/', $path) ?: '/';
+        return $origin . $dir . $location;
     }
 
     private static function throwFetchHttpError(int $code, string $detail = ''): void

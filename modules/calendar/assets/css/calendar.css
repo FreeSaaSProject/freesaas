@@ -694,8 +694,16 @@ tr.is-block td { opacity: 0.75; }
   text-align: left;
   font: inherit;
 }
+/* Website orders: brighter frame than events/procs so advance bookings stand out. */
 .calendar-tl-chip-order {
-  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.35);
+  z-index: 4;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.55);
+}
+[data-theme="dark"] .calendar-tl-chip-order,
+:root:not([data-theme="light"]) .calendar-tl-chip-order {
+  border-color: #fbbf24;
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.65);
 }
 
 /* Day footer stats (procedures / orders / future modules) */

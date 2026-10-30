@@ -16,11 +16,30 @@ final class CoachWindows
     /**
      * @param array<string,mixed> $catalog
      * @param array<string,mixed> $facts
+     * @param array<string,mixed>|null $verdicts from CoachVerdicts::build
      * @return array{windows:list<array<string,mixed>>}
      */
-    public static function build(array $catalog, array $facts): array
+    public static function build(array $catalog, array $facts, ?array $verdicts = null): array
     {
         $windows = [];
+        // Prefer semantic leftovers from verdicts (LLM only for those).
+        if (is_array($verdicts)) {
+            foreach (is_array($verdicts['semantic_windows'] ?? null) ? $verdicts['semantic_windows'] : [] as $sw) {
+                if (!is_array($sw) || empty($sw['lines'])) {
+                    continue;
+                }
+                $windows[] = $sw;
+                if (count($windows) >= self::MAX_WINDOWS) {
+                    return ['windows' => $windows];
+                }
+            }
+            // When quality_red drove the run, do not flood with legacy trigger windows.
+            $hasRed = is_array($facts['quality_red'] ?? null) && $facts['quality_red'] !== [];
+            if ($hasRed) {
+                return ['windows' => $windows];
+            }
+        }
+
         $recordIds = is_array($facts['record_ids'] ?? null) ? $facts['record_ids'] : [];
         $scriptsById = [];
         foreach (is_array($catalog['scripts'] ?? null) ? $catalog['scripts'] : [] as $s) {

@@ -112,7 +112,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   module list [--q=] [--category=] [--tag=] [--status=enabled|disabled|blocked|available] [--maturity=alpha|beta|release]
   module inspect|install|uninstall --confirm|enable [--accept-risk]|disable|validate|bump|create|add-migration …
   module activate <id> [--action=enable|grant|setup_step|…] [--accept-risk] [--access=view|full] …
-  module pin-effective   pin absent [modules] keys to =0 (never auto-enables)
+  module pin-effective        pin absent keys to =1 + set app.modules_absent_off=1
+  module recover-from-example re-enable modules that are =1 in config.example.ini
   module create <id> [--title=…]
   module add-migration <id> <slug>
   module bump <id> [--patch|--minor|--major|--set=x.y.z]
@@ -698,6 +699,9 @@ function freesaas_cmd_module(string $sub, array $args, array $opts = []): void
     }
     if ($sub === 'pin-effective') {
         freesaas_emit_ops(AgentOps::modulePinEffective());
+    }
+    if ($sub === 'recover-from-example') {
+        freesaas_emit_ops(AgentOps::moduleRecoverFromExample());
     }
     if ($sub === 'validate') {
         $id = $args[2] ?? '';

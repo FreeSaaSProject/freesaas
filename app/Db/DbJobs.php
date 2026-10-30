@@ -101,6 +101,7 @@ final class DbJobs
                 throw new InvalidArgumentException(t('core.db.err.fetch_url'));
             }
             DbFetch::assertFetchableUrl($parts);
+            DbFetch::assertSafeOutboundUrl($url);
             $hostSafe = DbFetch::sanitizeHostMarker((string)$parts['host']);
             $pathPart = (string)($parts['path'] ?? '');
             $ext = '.sql.gz';

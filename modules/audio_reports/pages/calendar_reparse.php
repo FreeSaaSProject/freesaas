@@ -14,6 +14,7 @@ require_once base_path('modules/audio_pipeline/lib/CollectRunner.php');
 require_once base_path('modules/audio_reports/lib/ReparseCost.php');
 
 $date = trim((string)($_GET['date'] ?? $_POST['date'] ?? ''));
+$adminFilter = max(0, (int)($_GET['admin'] ?? $_POST['admin'] ?? 0));
 $json = !empty($_GET['json']) || !empty($_POST['json']);
 $step = trim((string)($_GET['step'] ?? $_POST['step'] ?? 'auto'));
 $ret = NavContext::sanitize((string)($_GET['ret'] ?? $_POST['ret'] ?? '/audio/calendar'));
@@ -81,12 +82,17 @@ $liveCost = static function (string $prefix = 'cost') use ($json, $cost, $liveMa
     $liveMark($cost->line($prefix));
 };
 
-$selfUrl = static function (string $nextStep) use ($date, $ret, $cost): string {
-    return '/audio/calendar/reparse?' . http_build_query(array_merge([
+$selfUrl = static function (string $nextStep) use ($date, $ret, $cost, $adminFilter): string {
+    $q = array_merge([
         'date' => $date,
         'ret' => $ret,
         'step' => $nextStep,
-    ], $cost->queryParams()));
+    ], $cost->queryParams());
+    if ($adminFilter > 0) {
+        $q['admin'] = $adminFilter;
+    }
+
+    return '/audio/calendar/reparse?' . http_build_query($q);
 };
 
 $renderCostBox = static function (?int $pendingLeft = null) use ($cost, $date): void {
@@ -121,7 +127,10 @@ try {
     if ($step === 'auto' || $step === 'reset') {
         $cost->mark('reset');
         $liveMark(t('audio_reports.calendar.reparse_step_reset'));
-        $reset = StemRunner::resetDay($range['start'], $range['end']);
+        if ($adminFilter > 0) {
+            $liveMark('admin_filter=' . $adminFilter);
+        }
+        $reset = StemRunner::resetDay($range['start'], $range['end'], $adminFilter);
         $liveMark(t('audio_reports.calendar.reparse_reset_stats', [
             'records' => (string)(int)($reset['records'] ?? 0),
             'instances' => (string)(int)($reset['instances'] ?? 0),
@@ -135,6 +144,7 @@ try {
                 'ok' => true,
                 'message' => 'reset_done',
                 'reset' => $reset,
+                'admin' => $adminFilter,
                 'cost' => $cost->toArray(),
             ], JSON_UNESCAPED_UNICODE);
             return;
@@ -167,13 +177,17 @@ try {
             $batchNum++;
             $pendingBatchStart = $pendingAfter;
             try {
-                $result = StemRunner::run([
+                $stemOpts = [
                     'day' => $date,
                     'unparsed_only' => true,
                     'collect' => false,
                     'limit' => $batchLimit,
                     'time_budget_sec' => max(15, (int)ceil($deadline - microtime(true))),
-                ]);
+                ];
+                if ($adminFilter > 0) {
+                    $stemOpts['admin'] = $adminFilter;
+                }
+                $result = StemRunner::run($stemOpts);
             } catch (Throwable $e) {
                 $liveMark('ERROR: ' . $e->getMessage());
                 $result = [
@@ -283,7 +297,9 @@ try {
     }
 
     if ($step === 'collect') {
-        $admins = StemRunner::adminIdsForDay($date);
+        $admins = $adminFilter > 0
+            ? [$adminFilter]
+            : StemRunner::adminIdsForDay($date);
         $cost->mark('collect');
         $liveMark(t('audio_reports.calendar.reparse_step_collect', [
             'admins' => (string)count($admins),
@@ -301,9 +317,8 @@ try {
         $disabledN = StemRunner::disableOutsideCoverageAfterCollect(
             (int)$range['start'],
             (int)$range['end'],
-            0
-        );
-        if ($disabledN > 0) {
+            $adminFilter
+        );        if ($disabledN > 0) {
             $liveMark('disabled_records=' . $disabledN);
         }
         $cost->endMark();

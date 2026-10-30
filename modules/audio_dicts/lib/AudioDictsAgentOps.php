@@ -348,8 +348,13 @@ final class AudioDictsAgentOps
             return ['ok' => false, 'error' => 'name= required', 'http' => 400];
         }
         $exclude = (int)($in['exclude_id'] ?? 0);
+        $dictId = (int)($in['dict'] ?? $in['id_dictonary'] ?? 0);
         $hits = RecordsKeysRepository::findOverlaps($name, $exclude, 40);
-        $soft = RecordsKeysRepository::isSoftContainsOnly($hits);
+        $stem = [];
+        if ($dictId > 0 && class_exists('KeyStemConflict', false)) {
+            $stem = KeyStemConflict::find($name, $dictId, $exclude, 40);
+        }
+        $soft = RecordsKeysRepository::isSoftContainsOnly($hits) && $stem === [];
         $hasExact = false;
         foreach ($hits as $ov) {
             if ((string)($ov['relation'] ?? '') === 'exact') {
@@ -362,9 +367,10 @@ final class AudioDictsAgentOps
             'name' => $name,
             'normalized' => RecordsKeysRepository::normalizeName($name),
             'overlaps' => $hits,
+            'stem_conflicts' => $stem,
             'has_exact' => $hasExact,
             'soft_contains_only' => $soft,
-            'force_needed' => $hits !== [] && !$soft && !$hasExact,
+            'force_needed' => ($hits !== [] && !$soft && !$hasExact) || $stem !== [],
             'http' => 200,
         ];
     }
@@ -406,11 +412,21 @@ final class AudioDictsAgentOps
 
         $force = !empty($in['force'])
             && !in_array(strtolower((string)$in['force']), ['0', 'false', 'no'], true);
+        $excludeKey = $isNew ? 0 : $id;
         $overlaps = RecordsKeysRepository::findOverlaps(
             (string)$data['name'],
-            $isNew ? 0 : $id,
+            $excludeKey,
             40
         );
+        $stem = [];
+        if (class_exists('KeyStemConflict', false)) {
+            $stem = KeyStemConflict::find(
+                (string)$data['name'],
+                (int)$data['id_dictonary'],
+                $excludeKey,
+                40
+            );
+        }
         $hasExact = false;
         foreach ($overlaps as $ov) {
             if ((string)($ov['relation'] ?? '') === 'exact') {
@@ -423,25 +439,35 @@ final class AudioDictsAgentOps
                 'ok' => false,
                 'error' => 'exact_duplicate',
                 'overlaps' => $overlaps,
+                'stem_conflicts' => $stem,
                 'http' => 409,
             ];
         }
-        $softOnly = RecordsKeysRepository::isSoftContainsOnly($overlaps);
-        if ($overlaps !== [] && !$softOnly && !$force) {
-            if ((int)$data['id_looklike'] < 1) {
-                $data['id_looklike'] = (int)($overlaps[0]['id'] ?? 0);
+        $softOnly = RecordsKeysRepository::isSoftContainsOnly($overlaps) && $stem === [];
+        $hard = ($overlaps !== [] && !RecordsKeysRepository::isSoftContainsOnly($overlaps))
+            || $stem !== [];
+        if ($hard && !$force) {
+            $lookSrc = $stem[0] ?? $overlaps[0] ?? null;
+            if ((int)$data['id_looklike'] < 1 && is_array($lookSrc)) {
+                $data['id_looklike'] = (int)($lookSrc['id'] ?? 0);
             }
             return [
                 'ok' => false,
-                'error' => 'overlap_force_required',
+                'error' => $stem !== [] ? 'stem_conflict_force_required' : 'overlap_force_required',
                 'force_needed' => true,
                 'overlaps' => $overlaps,
-                'hint' => 'Retry with force=1 to create despite nesting; or pick a non-overlapping name',
+                'stem_conflicts' => $stem,
+                'hint' => $stem !== []
+                    ? 'Retry with force=1 to consciously allow stem eating; or change the phrase'
+                    : 'Retry with force=1 to create despite nesting; or pick a non-overlapping name',
                 'http' => 409,
             ];
         }
-        if ($overlaps !== [] && ($force || $softOnly) && (int)$data['id_looklike'] < 1) {
-            $data['id_looklike'] = (int)($overlaps[0]['id'] ?? 0);
+        if (($overlaps !== [] || $stem !== []) && ($force || $softOnly) && (int)$data['id_looklike'] < 1) {
+            $lookSrc = $overlaps[0] ?? $stem[0] ?? null;
+            if (is_array($lookSrc)) {
+                $data['id_looklike'] = (int)($lookSrc['id'] ?? 0);
+            }
         }
 
         try {
@@ -466,7 +492,8 @@ final class AudioDictsAgentOps
             'id' => $id,
             'key' => $row,
             'overlaps' => $overlaps,
-            'forced' => $force && $overlaps !== [] && !$softOnly,
+            'stem_conflicts' => $stem,
+            'forced' => $force && $hard,
             'http' => 200,
         ];
     }
