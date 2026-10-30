@@ -123,6 +123,7 @@ $allowed = [
     '/agent/audio_pipeline/collection' => ['methods' => ['GET'], 'why' => 'agent_token audio collection+datas'],
     '/agent/audio_pipeline/instances' => ['methods' => ['GET'], 'why' => 'agent_token audio key instances'],
     '/agent/audio_pipeline/day-reparse' => ['methods' => ['POST'], 'why' => 'agent_token audio day reparse'],
+    '/agent/audio_pipeline/backfill-playtime' => ['methods' => ['POST'], 'why' => 'agent_token audio playtime backfill'],
     '/agent/audio_dicts/scripts' => ['methods' => ['GET'], 'why' => 'agent_token audio scripts list'],
     '/agent/audio_dicts/script' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token audio script get/save'],
     '/agent/audio_dicts/script/part' => ['methods' => ['POST'], 'why' => 'agent_token audio script part upsert'],

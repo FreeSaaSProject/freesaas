@@ -77,6 +77,92 @@ final class AsrService
     }
 
     /**
+     * End of last cue in custom `[mm:ss->mm:ss]` or SRT `--> HH:MM:SS,mmm`.
+     * Returns whole seconds ≥ 1, or null.
+     */
+    public static function playtimeFromTranscript(string $result): ?int
+    {
+        $best = 0;
+        if (preg_match_all('/\[(\d+):(\d{2})->(\d+):(\d{2})\]/u', $result, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $end = ((int)$m[3]) * 60 + (int)$m[4];
+                if ($end > $best) {
+                    $best = $end;
+                }
+            }
+        }
+        if (preg_match_all('/-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})/', $result, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $m) {
+                $end = ((int)$m[1]) * 3600 + ((int)$m[2]) * 60 + (int)$m[3];
+                if ($end > $best) {
+                    $best = $end;
+                }
+            }
+        }
+
+        return $best >= 1 ? $best : null;
+    }
+
+    /**
+     * Backfill PLAYTIME=0 rows that already have a transcript with cue end times.
+     *
+     * @return array{ok:bool,scanned:int,updated:int,skipped:int,dry_run:bool,error?:string}
+     */
+    public static function backfillPlaytimeFromTranscripts(
+        ?string $dayYmd = null,
+        ?int $adminId = null,
+        bool $dryRun = true,
+        int $limit = 5000
+    ): array {
+        if (!Database::tableExists('base_records')) {
+            return ['ok' => false, 'scanned' => 0, 'updated' => 0, 'skipped' => 0, 'dry_run' => $dryRun, 'error' => 'no_table'];
+        }
+        $limit = max(1, min(50000, $limit));
+        $where = ['COALESCE(PLAYTIME, 0) < 1', 'TRANSCRIPTION IS NOT NULL', "TRIM(TRANSCRIPTION) <> ''"];
+        $params = [];
+        if ($adminId !== null && $adminId > 0) {
+            $where[] = 'ID_ADMIN = ?';
+            $params[] = $adminId;
+        }
+        if ($dayYmd !== null && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dayYmd) === 1) {
+            $from = strtotime($dayYmd . ' 00:00:00');
+            $to = $from + 86400;
+            if ($from > 0) {
+                $where[] = 'DT_RECORDED >= ? AND DT_RECORDED < ?';
+                $params[] = $from;
+                $params[] = $to;
+            }
+        }
+        $sql = 'SELECT ID, TRANSCRIPTION FROM base_records WHERE ' . implode(' AND ', $where)
+            . ' ORDER BY ID ASC LIMIT ' . $limit;
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $updated = 0;
+        $skipped = 0;
+        $upd = Database::pdo()->prepare('UPDATE base_records SET PLAYTIME = ? WHERE ID = ? AND COALESCE(PLAYTIME, 0) < 1');
+        foreach ($rows as $row) {
+            $pt = self::playtimeFromTranscript((string)($row['TRANSCRIPTION'] ?? ''));
+            if ($pt === null) {
+                $skipped++;
+                continue;
+            }
+            if (!$dryRun) {
+                $upd->execute([$pt, (int)$row['ID']]);
+            }
+            $updated++;
+        }
+
+        return [
+            'ok' => true,
+            'scanned' => count($rows),
+            'updated' => $updated,
+            'skipped' => $skipped,
+            'dry_run' => $dryRun,
+        ];
+    }
+
+    /**
      * @return array{ok:bool|string,diag:string}
      */
     public static function saveResult(string $fileName, string $result, ?string $playtime, ?string $volume): array
@@ -108,11 +194,23 @@ final class AsrService
             $diagChunk .= ' ASR_ERROR_CLEARED=1';
         }
 
+        $ptInt = ($playtime !== null && $playtime !== '' && is_numeric($playtime)) ? (int)$playtime : 0;
+        if ($ptInt < 1 && $result !== '') {
+            $fromTr = self::playtimeFromTranscript($result);
+            if ($fromTr !== null) {
+                $playtime = (string)$fromTr;
+                $ptInt = $fromTr;
+                $diagChunk .= ' PLAYTIME_FROM_TRANSCRIPT=1';
+            }
+        }
+        // Never write PLAYTIME=0 from a bad probe — leave existing or omit.
+        $writePlaytime = $ptInt >= 1;
+
         if ($dtTrans === 1) {
             // Chunk mode: do not overwrite TRANSCRIPTION
-            if ($playtime !== null && $playtime !== '') {
+            if ($writePlaytime) {
                 $sets[] = 'PLAYTIME = ?';
-                $params[] = (int)$playtime;
+                $params[] = $ptInt;
             }
             if ($volume !== null && $volume !== '' && is_numeric($volume)) {
                 $sets[] = 'VOLUME = ?';
@@ -131,9 +229,9 @@ final class AsrService
             $sets[] = 'DT_TRANSCRIBED = ?';
             // Stamp even when clearing ASR error text — otherwise claim loops forever.
             $params[] = time();
-            if ($playtime !== null && $playtime !== '') {
+            if ($writePlaytime) {
                 $sets[] = 'PLAYTIME = ?';
-                $params[] = (int)$playtime;
+                $params[] = $ptInt;
             }
             if ($volume !== null && $volume !== '' && is_numeric($volume)) {
                 $sets[] = 'VOLUME = ?';
@@ -144,7 +242,7 @@ final class AsrService
         $sql = 'UPDATE base_records SET ' . implode(', ', $sets) . ' WHERE FILENAME = ?';
         $ok = Database::pdo()->prepare($sql)->execute($params);
         $diag = 'TRANSCRIPTION=' . mb_strlen($result, 'UTF-8');
-        $diag .= ' PLAYTIME=' . (($playtime !== null && $playtime !== '') ? (int)$playtime : 'NO');
+        $diag .= ' PLAYTIME=' . ($writePlaytime ? $ptInt : 'NO');
         $diag .= ' VOLUME=' . (($volume !== null && $volume !== '') ? $volume : 'NO');
         $diag .= $diagChunk;
         if ($ok && $dtTrans !== 1) {

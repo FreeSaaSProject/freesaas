@@ -41,6 +41,11 @@ $dirRaw = $row['direction'] ?? '';
 $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
 $showAct = $hasType && $stickersEnabled && !empty($type['act_in_enabled']);
 $supplierRequired = $hasType && !empty($type['supplier_enabled']);
+$convertOpen = $canConvertToTransfer
+    && $error !== ''
+    && (string)($_POST['action'] ?? '') === 'convert_to_transfer';
+$postedTransferTypeId = $convertOpen ? (int)($_POST['transfer_type_id'] ?? 0) : 0;
+$postedTransferAccountTo = $convertOpen ? (int)($_POST['transfer_account_to'] ?? 0) : 0;
 ?>
 <section class="page-head"><h1><?= $isNew ? te('ledger.moves.edit_new') : e('#' . (int)($row['id'] ?? 0)) ?><?= $moveBadgeHtml ?? '' ?></h1></section>
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e_nl($message) ?></div><?php endif; ?>
@@ -191,13 +196,18 @@ $supplierRequired = $hasType && !empty($type['supplier_enabled']);
     <button class="btn-primary" type="submit" name="action" value="save" data-ledger-save<?= $hasType ? '' : ' hidden' ?>><?= te('core.common.save') ?></button>
     <p class="muted" data-ledger-type-hint<?= $hasType ? ' hidden' : '' ?>><?= te('ledger.moves.type_pick_hint') ?></p>
     <a class="btn-secondary" href="/ledger/moves"><?= te('core.common.cancel') ?></a>
+    <?php if ($canConvertToTransfer): ?>
+      <button type="button" class="btn-secondary" data-ledger-convert-open<?= $convertOpen ? ' hidden' : '' ?>>
+        <?= te('ledger.moves.convert_title') ?>
+      </button>
+    <?php endif; ?>
   </div>
 </form>
 <?php if (!empty($extraSectionsHtml)): ?>
   <?= $extraSectionsHtml ?>
 <?php endif; ?>
 <?php if ($canConvertToTransfer): ?>
-<section class="ledger-convert-transfer">
+<section class="ledger-convert-transfer" data-ledger-convert-panel<?= $convertOpen ? '' : ' hidden' ?>>
   <h2><?= te('ledger.moves.convert_title') ?></h2>
   <p class="muted"><?= te('ledger.moves.convert_hint') ?></p>
   <form method="post" class="form-grid form-wide" onsubmit="return confirm(<?= tj('ledger.moves.convert_confirm') ?>);">
@@ -206,7 +216,7 @@ $supplierRequired = $hasType && !empty($type['supplier_enabled']);
       <select name="transfer_type_id" required>
         <option value=""><?= te('ledger.moves.type_pick') ?></option>
         <?php foreach ($transferTypes as $tid => $tname): ?>
-          <option value="<?= (int)$tid ?>"><?= e($tname) ?></option>
+          <option value="<?= (int)$tid ?>"<?= $postedTransferTypeId === (int)$tid ? ' selected' : '' ?>><?= e($tname) ?></option>
         <?php endforeach; ?>
       </select>
     </label>
@@ -217,7 +227,7 @@ $supplierRequired = $hasType && !empty($type['supplier_enabled']);
           <?php if ((int)$aid === $fromAccountId) {
               continue;
           } ?>
-          <option value="<?= (int)$aid ?>"><?= e($aname) ?></option>
+          <option value="<?= (int)$aid ?>"<?= $postedTransferAccountTo === (int)$aid ? ' selected' : '' ?>><?= e($aname) ?></option>
         <?php endforeach; ?>
       </select>
     </label>

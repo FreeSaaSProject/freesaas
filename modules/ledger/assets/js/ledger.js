@@ -201,9 +201,30 @@
     }
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initMoveForms);
-  } else {
+  function initConvertReveal() {
+    var openBtn = document.querySelector('[data-ledger-convert-open]');
+    var panel = document.querySelector('[data-ledger-convert-panel]');
+    if (!openBtn || !panel) {
+      return;
+    }
+    openBtn.addEventListener('click', function () {
+      openBtn.setAttribute('hidden', 'hidden');
+      panel.removeAttribute('hidden');
+      var first = panel.querySelector('select, input, button');
+      if (first && typeof first.focus === 'function') {
+        first.focus();
+      }
+    });
+  }
+
+  function init() {
     initMoveForms();
+    initConvertReveal();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
 })();

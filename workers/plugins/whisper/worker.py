@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+import shutil
 import sys
 import time
 import warnings
@@ -721,7 +722,7 @@ def convert_audio_to_mp3(input_path: Path) -> Path:
 	out_path = input_path.with_suffix(".mp3")
 
 	cmd = [
-		"ffmpeg",
+		_resolve_media_bin("ffmpeg"),
 		"-y",
 		"-loglevel",
 		"error",
@@ -752,9 +753,22 @@ def convert_audio_to_mp3(input_path: Path) -> Path:
 
 	return out_path
 
+def _resolve_media_bin(name: str) -> str:
+	"""Prefer PATH, then Homebrew /usr/local (LaunchAgent often has a slim PATH)."""
+	found = shutil.which(name)
+	if found:
+		return found
+	for prefix in ("/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"):
+		cand = Path(prefix) / name
+		if cand.is_file() and os.access(cand, os.X_OK):
+			return str(cand)
+	return name
+
+
 def _run_ffprobe_json(audio_path: Path) -> Dict[str, Any]:
+	ffprobe = _resolve_media_bin("ffprobe")
 	cmd = [
-		"ffprobe",
+		ffprobe,
 		"-v",
 		"quiet",
 		"-print_format",
@@ -766,7 +780,7 @@ def _run_ffprobe_json(audio_path: Path) -> Dict[str, Any]:
 	try:
 		p = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
 	except FileNotFoundError:
-		raise RuntimeError("ffprobe не найден (нужен для PLAYTIME/VOLUME)")
+		raise RuntimeError(f"ffprobe не найден (искали {ffprobe}; нужен для PLAYTIME/VOLUME)")
 	except subprocess.TimeoutExpired:
 		raise RuntimeError("ffprobe timeout")
 
@@ -845,10 +859,58 @@ def _replaygain_db_from_tags(tags: Dict[str, str]) -> Optional[float]:
 			return gain
 	return None
 
+def playtime_from_transcript(text: str) -> Optional[float]:
+	"""
+	End time of last cue: custom `[mm:ss->mm:ss]` or SRT `--> HH:MM:SS,mmm`.
+	Used when ffprobe is missing / returns empty / sub-second junk.
+	"""
+	best = 0.0
+	for m in re.finditer(r"\[(\d+):(\d{2})->(\d+):(\d{2})\]", text or ""):
+		try:
+			end = int(m.group(3)) * 60 + int(m.group(4))
+			best = max(best, float(end))
+		except ValueError:
+			continue
+	for m in re.finditer(
+		r"-->\s*(\d{2}):(\d{2}):(\d{2}),(\d{3})",
+		text or "",
+	):
+		try:
+			end = (
+				int(m.group(1)) * 3600
+				+ int(m.group(2)) * 60
+				+ int(m.group(3))
+				+ int(m.group(4)) / 1000.0
+			)
+			best = max(best, end)
+		except ValueError:
+			continue
+	return best if best >= 1.0 else None
+
+
+def effective_playtime(
+	probe_pt: Optional[float],
+	transcript: str = "",
+) -> Optional[float]:
+	"""Prefer probe ≥1s; else transcript end; never promote sub-second probe to PLAYTIME=0."""
+	if probe_pt is not None and probe_pt >= 1.0:
+		return probe_pt
+	from_tr = playtime_from_transcript(transcript)
+	if from_tr is not None:
+		log(
+			f"ℹ️ PLAYTIME from transcript end={from_tr:.1f}s "
+			f"(probe={'—' if probe_pt is None else f'{probe_pt:.3f}s'})"
+		)
+		return from_tr
+	if probe_pt is not None and 0 < probe_pt < 1.0:
+		log(f"⚠️ PLAYTIME probe sub-second discarded: {probe_pt:.4f}s")
+	return None
+
+
 def _mean_volume_db_ffmpeg(audio_path: Path) -> Optional[float]:
 	"""Запасной вариант, если ReplayGain в тегах нет."""
 	cmd = [
-		"ffmpeg",
+		_resolve_media_bin("ffmpeg"),
 		"-hide_banner",
 		"-nostats",
 		"-i",
@@ -980,11 +1042,13 @@ def upload_transcription(
 	Retries the same text (no re-whisper) on transient failure; keeps a local
 	pending copy until ack so a later claim can re-POST without re-ASR.
 	"""
+	playtime = effective_playtime(playtime, text)
 	save_pending_result(file_name, text, playtime=playtime, volume=volume)
 	log(f"📤 Отправляем результат для {file_name}")
 	data = {"file_name": file_name, "result": text}
-	if playtime is not None and playtime > 0:
-		data["PLAYTIME"] = str(int(round(playtime)))
+	# Only send whole seconds ≥1 — never POST PLAYTIME=0 (would lock a bad probe).
+	if playtime is not None and playtime >= 1.0:
+		data["PLAYTIME"] = str(max(1, int(round(playtime))))
 	if volume is not None:
 		data["VOLUME"] = f"{volume:.2f}".rstrip("0").rstrip(".")
 

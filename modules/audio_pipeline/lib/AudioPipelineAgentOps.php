@@ -38,6 +38,10 @@ final class AudioPipelineAgentOps
                 'description' => 'Reset+stem+collect for admin+date (confirm=1); optional time_budget_sec',
                 'body' => ['admin', 'date', 'confirm', 'reset', 'time_budget_sec'],
             ]],
+            ['POST', '/agent/audio_pipeline/backfill-playtime', 'audio_pipeline.backfill_playtime', [self::class, 'backfillPlaytime'], [
+                'description' => 'Set PLAYTIME from transcript cue end where PLAYTIME=0 (confirm=1; dry_run=1 default)',
+                'body' => ['admin', 'date', 'confirm', 'dry_run', 'limit'],
+            ]],
         ];
         foreach ($ops as [$method, $path, $opId, $handler, $meta]) {
             AgentOps::registerModuleOp($method, $path, $opId, $handler, $meta);
@@ -51,6 +55,7 @@ final class AudioPipelineAgentOps
             '/agent/audio_pipeline/collection' => ['GET'],
             '/agent/audio_pipeline/instances' => ['GET'],
             '/agent/audio_pipeline/day-reparse' => ['POST'],
+            '/agent/audio_pipeline/backfill-playtime' => ['POST'],
         ];
         foreach ($routes as $path => $methods) {
             ModuleManager::registerRoute($path, [
@@ -644,6 +649,39 @@ final class AudioPipelineAgentOps
             $lock->release();
         }
         return $out;
+    }
+
+    /**
+     * Backfill PLAYTIME from transcript cue ends where PLAYTIME is 0.
+     *
+     * @return array<string,mixed>
+     */
+    public static function backfillPlaytime(): array
+    {
+        $in = AgentOps::requestInput();
+        $dry = !isset($in['dry_run']) || !in_array(strtolower((string)$in['dry_run']), ['0', 'false', 'no'], true);
+        if (!$dry && !self::confirmed($in)) {
+            return ['ok' => false, 'error' => 'confirm=1 required when dry_run=0', 'http' => 400];
+        }
+        $admin = isset($in['admin']) ? (int)$in['admin'] : null;
+        if ($admin !== null && $admin < 1) {
+            $admin = null;
+        }
+        $date = trim((string)($in['date'] ?? ''));
+        if ($date !== '' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) !== 1) {
+            return ['ok' => false, 'error' => 'date=YYYY-MM-DD', 'http' => 400];
+        }
+        if ($date === '') {
+            $date = null;
+        }
+        $limit = max(1, min(50000, (int)($in['limit'] ?? 5000)));
+        if (!class_exists('AsrService', false)) {
+            return ['ok' => false, 'error' => 'AsrService missing', 'http' => 500];
+        }
+        $res = AsrService::backfillPlaytimeFromTranscripts($date, $admin, $dry, $limit);
+        $res['http'] = !empty($res['ok']) ? 200 : 500;
+
+        return $res;
     }
 
     /**

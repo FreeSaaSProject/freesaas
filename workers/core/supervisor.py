@@ -139,6 +139,10 @@ def start_plugin(spec: PluginSpec, *, extra_args: Optional[List[str]] = None) ->
     repo_root = str(WORKERS_ROOT.parent)
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
+    # Ensure Homebrew ffprobe/ffmpeg exist even under a slim LaunchAgent PATH.
+    path_prepend = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+    prev_path = env.get("PATH", "")
+    env["PATH"] = path_prepend + (os.pathsep + prev_path if prev_path else "")
     prev = env.get("PYTHONPATH", "")
     # Repo root (workers.*) + plugin root (audioloader package under plugins/<id>/)
     path_parts = [repo_root, str(spec.root)]

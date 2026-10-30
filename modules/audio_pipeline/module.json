@@ -37,7 +37,8 @@
             "/agent/audio_pipeline/collections",
             "/agent/audio_pipeline/collection",
             "/agent/audio_pipeline/instances",
-            "/agent/audio_pipeline/day-reparse"
+            "/agent/audio_pipeline/day-reparse",
+            "/agent/audio_pipeline/backfill-playtime"
         ]
     },
     "agent": {
@@ -99,6 +100,15 @@
                 "assistant": false,
                 "side_effect": "write",
                 "description": "Agent-token: reset+stem+collect for admin+date; body confirm=1"
+            },
+            {
+                "id": "audio_pipeline.backfill_playtime",
+                "method": "POST",
+                "path": "/agent/audio_pipeline/backfill-playtime",
+                "permission": "public",
+                "assistant": false,
+                "side_effect": "write",
+                "description": "Agent-token: backfill PLAYTIME=0 from transcript cue end; body date=, admin=, dry_run=1|0, confirm=1 when writing"
             },
             {
                 "id": "audio_pipeline.asr.claim",
