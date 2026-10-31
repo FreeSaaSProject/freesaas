@@ -125,6 +125,41 @@ final class PaymentsRepository
     }
 
     /**
+     * Running balance after each payment (oper «Баланс после применения»).
+     * Chronological ASC over the same filters as the list; opening = sum before dt_from when set.
+     * Positive = company owes staff; negative = staff owes company (same sign as monthly debt).
+     *
+     * @param array{q?:string,user_id?:int,account?:int|null,direction?:int|null,scope_user_id?:int,dt_from?:int|null,dt_to?:int|null} $opts
+     * @return array<int,float> payment id => balance after that row
+     */
+    public static function runningBalances(array $opts = []): array
+    {
+        if (!Database::tableExists('base_payments')) {
+            return [];
+        }
+        $opening = 0.0;
+        $dtFrom = isset($opts['dt_from']) ? (int)$opts['dt_from'] : 0;
+        if ($dtFrom > 0) {
+            $opening = self::sumBalanceBefore($opts);
+        }
+        [$sqlWhere, $params] = self::buildWhere($opts);
+        $st = Database::pdo()->prepare(
+            "SELECT p.ID AS id, p.DIRECTION AS direction, p.SUM AS sum
+             FROM base_payments p
+             WHERE $sqlWhere
+             ORDER BY p.DT ASC, p.ID ASC"
+        );
+        $st->execute($params);
+        $running = round($opening, 2);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $running = round($running + ((int)$row['direction'] * (float)$row['sum']), 2);
+            $out[(int)$row['id']] = $running;
+        }
+        return $out;
+    }
+
+    /**
      * Group payment rows into monthly blocks (oper mode=2 parity).
      *
      * @param list<array<string,mixed>> $items Must be sorted ASC by DT for correct debt_start/debt_end

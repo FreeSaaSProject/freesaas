@@ -66,6 +66,7 @@ return [
     'payments.col.direction' => 'Направление',
     'payments.col.sum' => 'Сумма',
     'payments.col.account' => 'Счёт',
+    'payments.col.balance_after' => 'Баланс после',
     'payments.col.signed' => 'Статус',
     'payments.col.dps' => 'ДПС',
     'payments.dps.none_cash' => 'НЕТ (нал.)!',

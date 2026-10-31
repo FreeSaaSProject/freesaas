@@ -141,22 +141,37 @@ if ($mode === 'monthly' || !empty($lq['show_all'])) {
 
 BulkActions::tryHandle('payments', '/payments', $filters);
 
-// Eager procents → current-month accrual row when one staff is in scope and view covers this month.
+// Eager payroll sync when one staff is in scope.
+// DayPayroll already limits UPDATEs to the current calendar month — do not also gate on the
+// list year/month filter (staff often open September/history and would skip sync forever).
 $syncUserId = $canSeeOthers ? $userId : Auth::userId();
+// PAY_DAILY staff always sync themselves when opening /payments (even if a director filter
+// is empty — canSeeOthers + user_id=0 would otherwise skip).
+if ($syncUserId < 1 && class_exists('DayPayroll', false) && DayPayroll::isDailyPayStaff($me)) {
+    $syncUserId = $me;
+}
 $cy = (int)date('Y');
 $cm = (int)date('n');
 $coversCurrentMonth = ($mode === 'monthly' && $year === $cy && ($month === 0 || $month === $cm))
     || ($mode !== 'monthly' && ($year < 1 || ($year === $cy && ($month < 1 || $month === $cm))));
-if ($syncUserId > 0 && $coversCurrentMonth) {
-    if (class_exists('DayPayroll', false) && DayPayroll::isDailyPayStaff($syncUserId)) {
-        DayPayroll::syncOperator($syncUserId, Auth::userId());
-    } elseif (ModuleManager::isEnabled('procents')) {
-        $repoLib = base_path('modules/procents/lib/ProcentsRepository.php');
-        $syncLib = base_path('modules/procents/lib/ProcentsPaymentSync.php');
-        if (is_file($repoLib) && is_file($syncLib)) {
-            require_once $repoLib;
-            require_once $syncLib;
-            ProcentsPaymentSync::syncStaffCurrentMonth($syncUserId);
+if ($syncUserId > 0) {
+    try {
+        if (class_exists('DayPayroll', false) && DayPayroll::isDailyPayStaff($syncUserId)) {
+            DayPayroll::syncOperator($syncUserId, Auth::userId());
+        } elseif ($coversCurrentMonth && ModuleManager::isEnabled('procents')) {
+            $repoLib = base_path('modules/procents/lib/ProcentsRepository.php');
+            $syncLib = base_path('modules/procents/lib/ProcentsPaymentSync.php');
+            if (is_file($repoLib) && is_file($syncLib)) {
+                require_once $repoLib;
+                require_once $syncLib;
+                ProcentsPaymentSync::syncStaffCurrentMonth($syncUserId);
+            }
+        }
+    } catch (Throwable $e) {
+        AgentHttp::rethrowIfCapture($e);
+        error_log('[payments] payroll sync user=' . $syncUserId . ' ' . $e->getMessage());
+        if ($dayPayError === '') {
+            $dayPayError = $e->getMessage();
         }
     }
 }
@@ -220,6 +235,21 @@ if ($mode === 'monthly') {
     $result = PaymentsRepository::list($listOpts);
     $items = $result['items'];
     $total = $result['total'];
+}
+
+// Linear: running «balance after» for a single staff (oper totalSummsArray parity).
+$runningBalances = [];
+$showBalanceCol = false;
+if ($mode !== 'monthly') {
+    $balanceUserId = $canSeeOthers ? $userId : Auth::userId();
+    $showBalanceCol = $balanceUserId > 0;
+    if ($showBalanceCol) {
+        $balOpts = $listOpts;
+        unset($balOpts['limit'], $balOpts['offset'], $balOpts['order']);
+        $balOpts['user_id'] = $balanceUserId;
+        $balOpts['scope_user_id'] = 0;
+        $runningBalances = PaymentsRepository::runningBalances($balOpts);
+    }
 }
 
 $staff = [];
@@ -294,6 +324,10 @@ if ($wantsJson) {
         $payload['page'] = $lq['page'];
         $payload['per_page'] = $lq['per_page'];
         $payload['show_all'] = !empty($lq['show_all']);
+        $payload['show_balance_col'] = $showBalanceCol;
+        if ($showBalanceCol) {
+            $payload['running_balances'] = $runningBalances;
+        }
     }
     if ($ledgerEnabled) {
         $payload['dps_by_payment'] = $dpsByPayment;
@@ -327,6 +361,8 @@ View::render('list', [
     'months' => $months,
     'items' => $items,
     'total' => $total,
+    'showBalanceCol' => $showBalanceCol,
+    'runningBalances' => $runningBalances,
     'q' => $q,
     'userId' => $userId,
     'account' => $account,

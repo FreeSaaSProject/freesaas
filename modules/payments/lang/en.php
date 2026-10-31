@@ -66,6 +66,7 @@ return [
     'payments.col.direction' => 'Direction',
     'payments.col.sum' => 'Amount',
     'payments.col.account' => 'Account',
+    'payments.col.balance_after' => 'Balance after',
     'payments.col.signed' => 'Status',
     'payments.col.dps' => 'Ledger',
     'payments.dps.none_cash' => 'NONE (cash)!',

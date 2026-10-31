@@ -27,6 +27,8 @@ declare(strict_types=1);
 /** @var array|null $bulkFlash */
 /** @var array<string,mixed>|null $dayPayPanel */
 /** @var string $actionUrl */
+/** @var bool $showBalanceCol */
+/** @var array<int,float> $runningBalances */
 $path = '/payments';
 $maskDescr = static function (string $descr): string {
     return class_exists('DayPayroll', false) ? DayPayroll::maskDescr($descr) : $descr;
@@ -39,6 +41,8 @@ $isSuperadmin = !empty($isSuperadmin);
 $canEdit = !empty($canEdit);
 $ledgerEnabled = !empty($ledgerEnabled);
 $canViewLedger = !empty($canViewLedger);
+$showBalanceCol = !empty($showBalanceCol) && !$isMonthly;
+$runningBalances = is_array($runningBalances ?? null) ? $runningBalances : [];
 $dpsByPayment = is_array($dpsByPayment ?? null) ? $dpsByPayment : [];
 $months = is_array($months ?? null) ? $months : [];
 $yearOptions = is_array($yearOptions ?? null) ? $yearOptions : [];
@@ -107,7 +111,7 @@ $monthNames = [
 $pager = $isMonthly
     ? ''
     : ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
-$colSpan = 6 + BulkActions::colSpanExtra($listId);
+$colSpan = 6 + ($showBalanceCol ? 1 : 0) + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
 ?>
 <section class="page-head">
@@ -334,23 +338,39 @@ $actionUrl = ListQuery::url($path, $filters, []);
         <th><?= te('payments.col.descr') ?></th>
         <?= ListQuery::sortTh(t('payments.col.sum'), 'sum', $sort, $dir, $path, $filters) ?>
         <th><?= te('payments.col.account') ?></th>
+        <?php if ($showBalanceCol): ?>
+          <th><?= te('payments.col.balance_after') ?></th>
+        <?php endif; ?>
       </tr>
     </thead>
     <tbody>
     <?php foreach ($items as $r): ?>
+      <?php
+        $pid = (int)$r['id'];
+        $rowBalance = $showBalanceCol ? ($runningBalances[$pid] ?? null) : null;
+      ?>
       <tr>
-        <?= BulkActions::td($listId, (int)$r['id']) ?>
+        <?= BulkActions::td($listId, $pid) ?>
         <td class="muted">
           <?php if ($canEdit): ?>
-            <a href="/payments/<?= (int)$r['id'] ?>/edit"><?= (int)$r['id'] ?></a>
+            <a href="/payments/<?= $pid ?>/edit"><?= $pid ?></a>
           <?php else: ?>
-            <?= (int)$r['id'] ?>
+            <?= $pid ?>
           <?php endif; ?>
         </td>
         <td><?= $dtStaffHtml($r, $canEdit) ?></td>
         <td><?= e($maskDescr((string)$r['descr'])) ?></td>
         <td><?= money_signed_html((float)$r['sum'], (int)$r['direction']) ?></td>
         <td><?php $ad = $accountDpsHtml($r); echo $ad !== '' ? $ad : '<span class="muted">—</span>'; ?></td>
+        <?php if ($showBalanceCol): ?>
+          <td class="payments-balance-after">
+            <?php if ($rowBalance !== null): ?>
+              <?= money_signed_html(abs((float)$rowBalance), (float)$rowBalance >= 0 ? 1 : -1) ?>
+            <?php else: ?>
+              <span class="muted">—</span>
+            <?php endif; ?>
+          </td>
+        <?php endif; ?>
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>

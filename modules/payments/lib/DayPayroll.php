@@ -166,7 +166,16 @@ final class DayPayroll
         if ($userId < 1 || $dayTs < 1) {
             return 0.0;
         }
-        if (!ModuleManager::isEnabled('procents') || !class_exists('ProcentsRepository', false)) {
+        if (!ModuleManager::isEnabled('procents')) {
+            return 0.0;
+        }
+        if (!class_exists('ProcentsRepository', false)) {
+            $repoLib = base_path('modules/procents/lib/ProcentsRepository.php');
+            if (is_file($repoLib)) {
+                require_once $repoLib;
+            }
+        }
+        if (!class_exists('ProcentsRepository', false)) {
             return 0.0;
         }
         if (!ModuleManager::isEnabled('procedures') || !class_exists('ProceduresRepository', false)) {
@@ -204,14 +213,29 @@ final class DayPayroll
         if ($userId < 1 || !self::isDailyPayStaff($userId) || !Database::tableExists('base_payments')) {
             return $log;
         }
-        if (!ModuleManager::isEnabled('procents') || !class_exists('ProcentsRepository', false)) {
+        if (!ModuleManager::isEnabled('procents')) {
+            return $log;
+        }
+        // Defensive load — same as monthly ProcentsPaymentSync path (class_exists false = no autoload).
+        if (!class_exists('ProcentsRepository', false)) {
+            $repoLib = base_path('modules/procents/lib/ProcentsRepository.php');
+            if (is_file($repoLib)) {
+                require_once $repoLib;
+            }
+        }
+        if (!class_exists('ProcentsRepository', false)) {
             return $log;
         }
 
         $locked = self::withUserLock('sync', $userId, 15, static function () use ($userId, $actorId): array {
             return self::syncOperatorUnlocked($userId, $actorId);
         });
-        return $locked ?? $log;
+        if ($locked !== null) {
+            return $locked;
+        }
+        // Lock busy (parallel tab / bot): still sync — accrual_key unique + upsert logic are race-safe.
+        error_log('[payments] DayPayroll::syncOperator lock busy user=' . $userId . '; syncing unlocked');
+        return self::syncOperatorUnlocked($userId, $actorId);
     }
 
     /** Caller must already hold a per-user payroll lock (or accept races). */
