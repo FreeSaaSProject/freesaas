@@ -1288,6 +1288,72 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Bulk set ledger account (bank/cash) on single-side moves; transfers skipped.
+     *
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function setAccountByIds(array $ids, int $accountId): array
+    {
+        $done = 0;
+        $skipped = [];
+        $ids = self::sanitizeIds($ids);
+        if ($ids === []) {
+            return ['done' => 0, 'skipped' => []];
+        }
+        if ($accountId < 1) {
+            foreach ($ids as $id) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.bulk.err.account_required')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        $account = LedgerAccountsRepository::find($accountId);
+        if (!$account || (int)($account['enabled'] ?? 0) < 1) {
+            foreach ($ids as $id) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.account')];
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+        $uid = Auth::userId() ?: 0;
+        $now = time();
+        $st = Database::pdo()->prepare(
+            'UPDATE base_account_moves
+             SET ID_ACCOUNT = ?, ID_USER_UPDATE = ?, DT_UPDATE = ?
+             WHERE ID = ? AND DELETED = 0 AND ID_MOVEMENT_LINKED = 0'
+        );
+        $touchedAccounts = [$accountId => true];
+        foreach ($ids as $id) {
+            $row = self::find($id);
+            if (!$row || (int)($row['deleted'] ?? 0) > 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.not_found', ['id' => $id])];
+                continue;
+            }
+            if (self::isTransferMove($row)) {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.use_transfer_form')];
+                continue;
+            }
+            $oldAccountId = (int)($row['account_id'] ?? 0);
+            if ($oldAccountId === $accountId) {
+                $done++;
+                continue;
+            }
+            $st->execute([$accountId, $uid, $now, $id]);
+            if ($st->rowCount() > 0) {
+                $done++;
+                if ($oldAccountId > 0) {
+                    $touchedAccounts[$oldAccountId] = true;
+                }
+            } else {
+                $skipped[] = ['id' => $id, 'reason' => t('ledger.moves.err.use_transfer_form')];
+            }
+        }
+        foreach (array_keys($touchedAccounts) as $aid) {
+            LedgerReconciliationsRepository::refreshTodaySystemBalance((int)$aid);
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
+    /**
      * Bulk set counterparty on moves whose type requires one.
      *
      * @param list<int> $ids

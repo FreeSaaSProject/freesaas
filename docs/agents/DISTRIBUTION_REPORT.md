@@ -1,6 +1,6 @@
 # Distribution report — Agent Skills MVP
 
-Date: 2026-11-01. Scope: three portable skills under [`.agents/skills/`](../../.agents/skills/), not the full 10-skill TZ.
+Date: 2026-11-01 (updated after push). Scope: three portable skills under [`.agents/skills/`](../../.agents/skills/).
 
 ## Skills created
 
@@ -10,59 +10,44 @@ Date: 2026-11-01. Scope: three portable skills under [`.agents/skills/`](../../.
 | `freesaas-deploy` | `.agents/skills/freesaas-deploy/` | Bootstrap, doctor/smoke, `/agent/*` |
 | `freesaas-module-config` | `.agents/skills/freesaas-module-config/` | Enable sets + maturity risk |
 
-Install (after this tree is on the public default branch):
-
 ```bash
 npx skills add FreeSaaSProject/freesaas
+# or: npx skills add freesaasproject/freesaas --skill freesaas-discovery
 ```
-
-Local checkout verified: `npx skills add . --list` → 3 skills; global install to `~/.agents/skills/` succeeded from the local path.
 
 ## Catalog / channel status
 
 | Площадка | URL | Состояние | Проверка установки | Проверка поиска |
 |----------|-----|-----------|--------------------|-----------------|
-| GitHub (canonical skills) | https://github.com/FreeSaaSProject/freesaas/tree/main/.agents/skills | Prepared — tree ready in working copy; public URL live after merge/push to default branch | `npx skills add . --list` OK locally; `FreeSaaSProject/freesaas` remote install pending push | N/A until published |
-| README install docs | https://github.com/FreeSaaSProject/freesaas#agent-skills | Prepared — section added in repo | One-liner documented | — |
-| skills.sh | https://skills.sh/ | Prepared — listing via install telemetry after public `npx skills add FreeSaaSProject/freesaas` | Local global install done (path source; may not attribute to GitHub owner) | `npx skills find freesaas` — FreeSaaS not listed yet (expected) |
-| MCP Registry | https://registry.modelcontextprotocol.io/ | Not supported (MVP) — no global public MCP server; per-instance `/llm/mcp` and storefront `/mcp` only | — | — |
-| Other skill directories | — | Not supported (MVP) — skills.sh + GitHub first | — | — |
-
-States: **Published** = live for others; **Submitted** = awaiting review; **Prepared** = ready, owner/push action; **Not supported** = out of MVP; **Failed** = attempt failed.
+| GitHub (canonical skills) | https://github.com/FreeSaaSProject/freesaas/tree/main/.agents/skills | Published (`1a77acd` on `main`) | `npx skills add FreeSaaSProject/freesaas --list` → 3 skills | Browse tree OK |
+| README install docs | https://github.com/FreeSaaSProject/freesaas#agent-skills | Published | One-liner in README | — |
+| skills.sh (repo) | https://skills.sh/freesaasproject/freesaas | Published — 3 skills listed | `npx skills add FreeSaaSProject/freesaas -g -y` OK | Card live; install count may lag |
+| skills.sh (discovery skill) | https://skills.sh/freesaasproject/freesaas/freesaas-discovery | Published | Install command on card | `npx skills find freesaas` still weak / lagging vs keyword peers |
+| MCP Registry | https://registry.modelcontextprotocol.io/ | Not supported (MVP) | — | — |
+| Other skill directories | — | Not supported (MVP) | — | — |
 
 ## Validation
 
 | Check | Result |
 |-------|--------|
-| `php bin/check-agent-skills.php` | OK (3 skills) |
-| `npx skills-ref validate` each skill | Valid |
-| CI | `php bin/check-agent-skills.php` added to `.github/workflows/ci.yml` static job |
-| Secrets in skills | None (placeholder passwords only) |
+| `php bin/check-agent-skills.php` | OK |
+| `npx skills-ref validate` | Valid (all 3) |
+| CI | `check-agent-skills.php` in static job |
+| Public clone install | OK after push |
 
-## Test A (skills installed) — smoke matrix
+## Test A / B
 
-Prompt → expected skill mapping: [skill-activation-matrix.md](skill-activation-matrix.md) (14 prompts: fit, deploy/config, partial/non-fit).
+- Test A matrix: [skill-activation-matrix.md](skill-activation-matrix.md)
+- Test B (cold web discovery): not claimed; skills catalog ≠ product discoverability
 
-Full multi-client LLM runs were not executed in this MVP pass; matrix is the acceptance checklist for manual agent smoke after install.
+## Remaining owner actions
 
-## Test B (cold discovery)
-
-Not claimed. Without skills + without a FreeSaaS URL, agents rely on web/GitHub. Skills must not be counted as proof of product discoverability.
-
-## Automated
-
-- Frontmatter + relative-link CI (`bin/check-agent-skills.php`)
-- Links to existing `modules-catalog.json`, cases, QUICKSTART (no runbook fork)
-
-## Manual / owner follow-up
-
-1. Merge/push `.agents/skills/` to `main` on FreeSaaSProject/freesaas.
-2. Seed installs: `npx skills add FreeSaaSProject/freesaas -g -y` from a few machines so skills.sh telemetry indexes the repo.
-3. Re-check `npx skills find` for keywords: self-hosted CRM, booking, staff scheduling, FreeSaaS.
-4. Optional: GitHub topics (`agent-skills`, `mcp`, …) via repo settings.
-5. Phase 2 skills (`finance`, `mcp`, …) only if discovery/deploy get installs/activation.
+1. More seed installs from other machines/agents to grow skills.sh install counts and improve `npx skills find`.
+2. Optional GitHub topics (`agent-skills`, …).
+3. Phase 2 domain skills only if this MVP gets real installs/activation.
+4. Commit this report update if desired.
 
 ## Recommendations
 
-- Keep skills thin; regenerate capability awareness from `modules-catalog.json`.
-- Higher cold-discovery ROI still: product `llms.txt`, MCP directory URLs in [mcp-catalog.md](mcp-catalog.md), LAUNCH cases.
+- Keep skills thin; capability map tracks `modules-catalog.json`.
+- Cold discovery: still prioritize `llms.txt` / MCP directory URLs / LAUNCH cases alongside skills.sh.

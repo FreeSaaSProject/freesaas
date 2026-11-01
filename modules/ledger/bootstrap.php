@@ -66,6 +66,7 @@ BulkActions::register('ledger_types', 'delete', [
 
 BulkActions::register('ledger_moves', 'set_type', [
     'label' => 'ledger.moves.bulk.set_type',
+    'group' => 'ledger.moves.bulk.group.setters',
     'permission' => 'ledger.edit',
     'fields' => [
         [
@@ -82,8 +83,28 @@ BulkActions::register('ledger_moves', 'set_type', [
     },
 ]);
 
+BulkActions::register('ledger_moves', 'set_account', [
+    'label' => 'ledger.moves.bulk.set_account',
+    'group' => 'ledger.moves.bulk.group.setters',
+    'permission' => 'ledger.edit',
+    'fields' => [
+        [
+            'name' => 'account_id',
+            'type' => 'select',
+            'label' => 'ledger.moves.bulk.account',
+            'options' => static function (): array {
+                return LedgerAccountsRepository::names(true);
+            },
+        ],
+    ],
+    'run' => static function (array $ids, array $params): array {
+        return LedgerMovesRepository::setAccountByIds($ids, (int)($params['account_id'] ?? 0));
+    },
+]);
+
 BulkActions::register('ledger_moves', 'set_supplier', [
     'label' => 'ledger.moves.bulk.set_supplier',
+    'group' => 'ledger.moves.bulk.group.setters',
     'permission' => 'ledger.edit',
     'fields' => [
         [
@@ -105,6 +126,7 @@ BulkActions::register('ledger_moves', 'set_supplier', [
 
 BulkActions::register('ledger_moves', 'confirm', [
     'label' => 'ledger.moves.bulk.confirm',
+    'group' => 'ledger.moves.bulk.group.status',
     'permission' => 'ledger.edit',
     'run' => static function (array $ids, array $params): array {
         return ['done' => LedgerMovesRepository::setUnconfirmedByIds($ids, 0), 'skipped' => []];
@@ -113,31 +135,16 @@ BulkActions::register('ledger_moves', 'confirm', [
 
 BulkActions::register('ledger_moves', 'unconfirm', [
     'label' => 'ledger.moves.bulk.unconfirm',
+    'group' => 'ledger.moves.bulk.group.status',
     'permission' => 'ledger.edit',
     'run' => static function (array $ids, array $params): array {
         return ['done' => LedgerMovesRepository::setUnconfirmedByIds($ids, 1), 'skipped' => []];
     },
 ]);
 
-BulkActions::register('ledger_moves', 'soft_delete', [
-    'label' => 'ledger.moves.bulk.soft_delete',
-    'permission' => 'ledger.delete',
-    'confirm' => 'core.bulk.confirm_delete',
-    'run' => static function (array $ids, array $params): array {
-        return LedgerMovesRepository::softDeleteByIds($ids);
-    },
-]);
-BulkActions::register('ledger_moves', 'delete', [
-    'label' => 'core.bulk.delete',
-    'permission' => 'ledger.delete',
-    'confirm' => 'ledger.moves.confirm_delete',
-    'run' => static function (array $ids, array $params): array {
-        return LedgerMovesRepository::softDeleteByIds($ids);
-    },
-]);
-
 BulkActions::register('ledger_moves', 'copy_enter', [
     'label' => 'ledger.moves.bulk.copy_enter',
+    'group' => 'ledger.moves.bulk.group.copy',
     'permission' => 'ledger.edit',
     'max_selection' => 1,
     'run' => static function (array $ids, array $params): array {
@@ -158,6 +165,25 @@ BulkActions::register('ledger_moves', 'copy_enter', [
                 'skipped' => [['id' => $id, 'reason' => $e->getMessage()]],
             ];
         }
+    },
+]);
+
+BulkActions::register('ledger_moves', 'soft_delete', [
+    'label' => 'ledger.moves.bulk.soft_delete',
+    'group' => 'ledger.moves.bulk.group.delete',
+    'permission' => 'ledger.delete',
+    'confirm' => 'core.bulk.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return LedgerMovesRepository::softDeleteByIds($ids);
+    },
+]);
+BulkActions::register('ledger_moves', 'delete', [
+    'label' => 'core.bulk.delete',
+    'group' => 'ledger.moves.bulk.group.delete',
+    'permission' => 'ledger.delete',
+    'confirm' => 'ledger.moves.confirm_delete',
+    'run' => static function (array $ids, array $params): array {
+        return LedgerMovesRepository::softDeleteByIds($ids);
     },
 ]);
 
