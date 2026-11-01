@@ -841,18 +841,27 @@ final class DayPayroll
             || (method_exists($e, 'getCode') && (string)$e->getCode() === '23000');
     }
 
+    /**
+     * True when a non-payout write-off exists on the calendar day (manual corrections).
+     * Cash FL pickup rows (Выдача ФЛ…) must not freeze day accruals — pickup date often
+     * coincides with a work shift day.
+     */
     private static function hasDayWriteoff(int $userId, int $dayTs): bool
     {
         $dayStart = self::dayStart($dayTs);
         $dayEnd = $dayStart + 86400 - 1;
         $st = Database::pdo()->prepare(
-            'SELECT ID FROM base_payments
+            'SELECT ID, DESCR AS descr FROM base_payments
              WHERE ID_USER = ? AND CAST(DIRECTION AS SIGNED) < 0
-               AND DT >= ? AND DT <= ?
-             LIMIT 1'
+               AND DT >= ? AND DT <= ?'
         );
         $st->execute([$userId, $dayStart, $dayEnd]);
-        return (int)$st->fetchColumn() > 0;
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            if (!self::isPayoutDescr((string)($row['descr'] ?? ''))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static function forceDeletePayment(int $paymentId): void
