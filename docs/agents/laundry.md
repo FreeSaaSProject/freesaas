@@ -1,13 +1,13 @@
 # Laundry
 
-Product module `laundry`: clean linen ledger for the wash cycle (ship → laundry → accept). Stock by account × item type. Catalog maturity: `beta`.
+Product module `laundry`: clean linen ledger for the wash cycle (ship → laundry → accept). Stock by account × item type. Catalog maturity: `release`.
 
 Does **not** use or migrate `sheets` / `base_sheet_*`. Legacy sheets can be removed later.
 
 ## Enable
 
 ```bash
-php bin/freesaas.php module enable laundry --accept-risk --format=json
+php bin/freesaas.php module enable laundry --format=json
 ```
 
 Or `[modules] laundry=1` in `cfg/config.ini`.
@@ -24,7 +24,7 @@ Permissions: `laundry.view`, `laundry.ship`, `laundry.accounts`, `laundry.edit`,
 
 ## Dependencies
 
-- Requires: `core` >=0.3.0
+- Requires: `core` >=1.0.0
 
 ## Tables
 
