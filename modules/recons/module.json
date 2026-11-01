@@ -1,0 +1,146 @@
+{
+    "id": "recons",
+    "name": "recons.module.name",
+    "description": "recons.module.description",
+    "version": "1.0.0",
+    "type": "product",
+    "catalog": {
+        "categories": [
+            "finance"
+        ],
+        "maturity": "release",
+        "tags": [
+            "report",
+            "journal"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0",
+        "ledger": ">=1.0.0"
+    },
+    "optionalRequires": {},
+    "provides": [
+        "recons.day"
+    ],
+    "permissions": [
+        {
+            "id": "recons.view",
+            "label": "recons.perm.view"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/recons",
+            "/recons/day"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/recons.md",
+        "ops": [
+            {
+                "id": "recons.day",
+                "method": "GET",
+                "path": "/recons/day",
+                "permission": "recons.view",
+                "side_effect": "read",
+                "description": "Day board of account reconciliations (all accounts). Optional day=Y-m-d; omit for landing (today or latest day with data). Returns board.rows/status/stale flags.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "Calendar day Y-m-d; omit to use landing resolution"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "recons.day.write",
+                "method": "POST",
+                "path": "/recons/day",
+                "permission": "ledger.reconcile",
+                "side_effect": "write",
+                "description": "Create/update/delete reconciliation on the board. Query day=Y-m-d (today or latest recon day only). Body: recon_action=save|update|delete + recon_account_id; bank_balance / recon_id as needed.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "recon_action",
+                        "recon_account_id",
+                        "day"
+                    ],
+                    "properties": {
+                        "day": {
+                            "type": "string",
+                            "description": "Target day Y-m-d (must be editable: today or latest recon day)"
+                        },
+                        "recon_action": {
+                            "type": "string",
+                            "enum": [
+                                "save",
+                                "update",
+                                "delete"
+                            ]
+                        },
+                        "recon_account_id": {
+                            "type": "integer",
+                            "description": "Ledger account id"
+                        },
+                        "bank_balance": {
+                            "type": "string",
+                            "description": "Bank/statement balance (required for save/update); clipboard-friendly"
+                        },
+                        "recon_id": {
+                            "type": "integer",
+                            "description": "Existing reconciliation id (update/delete)"
+                        }
+                    }
+                }
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.finance",
+            "num": 32,
+            "path": "/recons/day",
+            "title": "recons.menu.day"
+        }
+    ],
+    "configSchema": [],
+    "tables": [],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "assistant.system.hints"
+        ],
+        "publish": []
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "ready",
+                "title": "recons.setup.step.ready",
+                "description": "recons.setup.step.ready_help",
+                "href": "/recons/day",
+                "ask_user": "recons.setup.ask.ready",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "recons.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": [
+                    "mark_done"
+                ]
+            }
+        ]
+    }
+}

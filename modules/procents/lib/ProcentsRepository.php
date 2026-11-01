@@ -926,20 +926,70 @@ final class ProcentsRepository
         ];
     }
 
-    /** @return array{start:int,end:int}|null */
+    /**
+     * Activity window for default «recent» clamp: procedures (specialist/admin),
+     * workweek shifts, and cabin audio records. Desk / senior-admin months after
+     * the last procedure (shift fix and/or audio hours) must still appear.
+     *
+     * @return array{start:int,end:int}|null
+     */
     private static function procedureBounds(int $operatorId): ?array
     {
-        $st = Database::pdo()->prepare(
-            'SELECT MIN(DTSTART) AS mn, MAX(DTSTART) AS mx
-             FROM base_procedures
-             WHERE (ID_OPERATOR = ? OR ID_ADMIN = ?) AND DTSTART > 0'
-        );
-        $st->execute([$operatorId, $operatorId]);
-        $row = $st->fetch(PDO::FETCH_ASSOC);
-        if (!$row || (int)($row['mn'] ?? 0) < 1) {
+        if ($operatorId < 1) {
             return null;
         }
-        return ['start' => (int)$row['mn'], 'end' => (int)$row['mx']];
+        $mn = 0;
+        $mx = 0;
+        $expand = static function (int $a, int $b) use (&$mn, &$mx): void {
+            if ($a > 0 && ($mn < 1 || $a < $mn)) {
+                $mn = $a;
+            }
+            if ($b > $mx) {
+                $mx = $b;
+            }
+        };
+        if (Database::tableExists('base_procedures')) {
+            $st = Database::pdo()->prepare(
+                'SELECT MIN(DTSTART) AS mn, MAX(DTSTART) AS mx
+                 FROM base_procedures
+                 WHERE (ID_OPERATOR = ? OR ID_ADMIN = ?) AND DTSTART > 0'
+            );
+            $st->execute([$operatorId, $operatorId]);
+            $row = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+            if ($row !== null) {
+                $expand((int)($row['mn'] ?? 0), (int)($row['mx'] ?? 0));
+            }
+        }
+        if (Database::tableExists('base_workweeks')) {
+            $st = Database::pdo()->prepare(
+                'SELECT MIN(DT) AS mn, MAX(DT) AS mx
+                 FROM base_workweeks
+                 WHERE ID_OPERATOR = ? AND DT > 0'
+            );
+            $st->execute([$operatorId]);
+            $row = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+            if ($row !== null) {
+                $expand((int)($row['mn'] ?? 0), (int)($row['mx'] ?? 0));
+            }
+        }
+        if (Database::tableExists('base_records')
+            && Database::columnExists('base_records', 'ID_ADMIN')
+            && Database::columnExists('base_records', 'DT_RECORDED')) {
+            $st = Database::pdo()->prepare(
+                'SELECT MIN(DT_RECORDED) AS mn, MAX(DT_RECORDED) AS mx
+                 FROM base_records
+                 WHERE ID_ADMIN = ? AND DT_RECORDED > 0'
+            );
+            $st->execute([$operatorId]);
+            $row = $st->fetch(PDO::FETCH_ASSOC) ?: null;
+            if ($row !== null) {
+                $expand((int)($row['mn'] ?? 0), (int)($row['mx'] ?? 0));
+            }
+        }
+        if ($mn < 1 || $mx < 1) {
+            return null;
+        }
+        return ['start' => $mn, 'end' => $mx];
     }
 
     /**

@@ -38,6 +38,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [clients.md](clients.md) | Client CRM: list/get/create/update + statuses/tags JSON |
 | [bonuses.md](bonuses.md) | Client loyalty ledger + event apply (JSON) |
 | [ledger.md](ledger.md) | Company accounts / ДПС / recon / promised payments (JSON) |
+| [recons.md](recons.md) | Day board of account reconciliations (`recons`) |
 | [ledger-chart.md](ledger-chart.md) | Agent-led chart seeding (interview, FOT + act_in, no hardcoded tree) |
 | [bots.md](bots.md) | Telegram/Max transport, queue, webhooks, BotPlugins; `/agent/bots/*` repair |
 | [gcal.md](gcal.md) | Google Calendar sync; `/agent/gcal/*` diagnose/repair |
@@ -99,6 +100,7 @@ Staff/MCP how-to uses these via `core.help.search` / `core.help.get`. Keep **Hum
 | [procedures.md](procedures.md) | `procedures` |
 | [procents.md](procents.md) | `procents` |
 | [rates.md](rates.md) | `rates` |
+| [recons.md](recons.md) | `recons` |
 | [remittances.md](remittances.md) | `remittances` |
 | [sheets.md](sheets.md) | `sheets` (legacy; prefer laundry) |
 | [laundry.md](laundry.md) | `laundry` |

@@ -280,6 +280,33 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Balances by account. When $onOrBeforeDt is set, only moves with DT <= that instant.
+     *
+     * @return array<int,float>
+     */
+    public static function balancesByAccount(?int $onOrBeforeDt = null): array
+    {
+        if (!Database::tableExists('base_account_moves')) {
+            return [];
+        }
+        $sql = 'SELECT ID_ACCOUNT AS account_id, COALESCE(SUM(DIRECTION * SUMM), 0) AS bal
+                FROM base_account_moves WHERE DELETED = 0';
+        $params = [];
+        if ($onOrBeforeDt !== null) {
+            $sql .= ' AND DT <= ?';
+            $params[] = max(0, $onOrBeforeDt);
+        }
+        $sql .= ' GROUP BY ID_ACCOUNT';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $out[(int)$row['account_id']] = (float)$row['bal'];
+        }
+        return $out;
+    }
+
+    /**
      * Newest move id for current list filters (DT DESC, ID DESC).
      *
      * @param array{q?:string,account_id?:int,type_id?:int,year?:int,month?:int,payment_id?:int,supplier_id?:int} $opts

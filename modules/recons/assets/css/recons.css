@@ -1,0 +1,141 @@
+.recons-day-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.recons-nav-disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.recons-day-nav-hint {
+  margin-left: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.recons-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.95rem;
+}
+
+.recons-summary-matched {
+  color: var(--success, #1e7e34);
+  font-weight: 600;
+}
+
+.recons-summary-progress {
+  color: var(--warning, #b8860b);
+  font-weight: 600;
+}
+
+.recons-summary-missing {
+  color: var(--muted, #666);
+}
+
+.recons-summary-stale {
+  color: var(--warning, #b8860b);
+  font-weight: 600;
+}
+
+.recons-stale-mark {
+  color: var(--warning, #b8860b);
+  font-weight: 700;
+  margin-left: 0.15rem;
+}
+
+.recons-stale-note {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--muted, #666);
+}
+
+.recons-row-stale .recons-stale-mark {
+  cursor: help;
+}
+
+.recons-cta {
+  margin: 0 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border, #ddd);
+  background: var(--surface-2, #f7f7f7);
+}
+
+.recons-cta .btn,
+.recons-cta .btn-secondary {
+  margin-left: 0.5rem;
+}
+
+.recons-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.recons-table th,
+.recons-table td {
+  padding: 0.4rem 0.55rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  text-align: left;
+}
+
+.recons-table th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.recons-table .recons-num {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.recons-status-matched {
+  color: var(--success, #1e7e34);
+  font-weight: 600;
+}
+
+.recons-status-in_progress {
+  color: var(--danger, #c0392b);
+  font-weight: 600;
+}
+
+.recons-status-missing {
+  color: var(--muted, #777);
+}
+
+.recons-delta-ok {
+  font-weight: 700;
+  color: var(--success, #1e7e34);
+}
+
+.recons-delta-bad {
+  font-weight: 600;
+  color: var(--danger, #c0392b);
+}
+
+.recons-row-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.recons-row-form input[name="bank_balance"] {
+  width: 8rem;
+}
+
+.recons-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.recons-disabled-account {
+  opacity: 0.75;
+}

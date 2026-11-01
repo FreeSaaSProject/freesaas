@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-01T18:45:34+00:00",
+    "generated_at": "2026-11-01T19:39:37+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1518,7 +1518,7 @@
         },
         {
             "id": "procents",
-            "version": "1.0.1",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Commission accruals",
@@ -1584,6 +1584,41 @@
             },
             "agent": {
                 "docs": "docs/agents/rates.md"
+            }
+        },
+        {
+            "id": "recons",
+            "version": "1.0.0",
+            "type": "product",
+            "name": {
+                "en": "Reconciliations board",
+                "ru": "Доска сверок"
+            },
+            "description": {
+                "en": "Day board of ledger account reconciliations: what matched, what is still open, and edit today's figures.",
+                "ru": "Доска сверок счетов ledger по датам: что совпало, что ещё в процессе, правка сегодняшних сведений."
+            },
+            "summary": {
+                "en": "Enable for a cross-account day view of bank/cash reconciliations from ledger. Requires ledger. Staff with ledger.reconcile can create/update/delete reconciliations on today or the latest recon day; older days are read-only.",
+                "ru": "Включайте для сводного вида сверок по всем счетам за день. Требует ledger. Право ledger.reconcile нужно, чтобы создавать/менять/удалять сведения за сегодня или день последней сверки; более старые дни только просмотр."
+            },
+            "requires": {
+                "core": ">=1.0.0",
+                "ledger": ">=1.0.0"
+            },
+            "optionalRequires": [],
+            "catalog": {
+                "categories": [
+                    "finance"
+                ],
+                "maturity": "release",
+                "tags": [
+                    "report",
+                    "journal"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/recons.md"
             }
         },
         {

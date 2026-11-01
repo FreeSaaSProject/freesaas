@@ -72,7 +72,9 @@ With `account_id`, JSON includes `balance`, `recon_today`, `recs_by_move_id`, `o
 
 Advisory bank-balance markers only — they do **not** lock create/edit/delete of moves.
 
-POST `/ledger/moves` with `recon_action`:
+Embedded on `/ledger/moves?account_id=…` (single account). Cross-account **day board**: optional module [`recons`](recons.md) (`/recons/day`, ops `recons.day` / `recons.day.write`).
+
+POST `/ledger/moves` with `recon_action` (op `ledger.moves.recon`):
 
 | Action | Fields |
 |--------|--------|
