@@ -152,6 +152,9 @@ jobs:
       - name: Public route allow-list
         run: php bin/check-routes.php
 
+      - name: Agent Skills (frontmatter + local refs)
+        run: php bin/check-agent-skills.php
+
       - name: Semgrep PHP security (SAST)
         if: matrix.php == '8.2'
         run: |

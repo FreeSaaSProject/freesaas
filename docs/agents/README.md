@@ -13,6 +13,9 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [upstream.md](upstream.md) | Doctor → issue → CLA → PR flywheel |
 | [mcp-catalog.md](mcp-catalog.md) | How to list instance MCP in external catalogs |
 | [../LAUNCH.md](../LAUNCH.md) | Maintainer launch narrative |
+| [DISTRIBUTION_REPORT.md](DISTRIBUTION_REPORT.md) | Agent Skills / skills.sh distribution status |
+| [skill-activation-matrix.md](skill-activation-matrix.md) | Prompt → skill smoke matrix (test A) |
+| [../../.agents/skills/](../../.agents/skills/) | Portable Agent Skills (discovery, deploy, module-config) |
 | [install.md](install.md) | Greenfield / shared-host bootstrap (first admin + token + migrate) |
 | [sites.md](sites.md) | Public storefront (`site.php`): hosts, themes, cart, **`sites.status` diagnose**, agent JSON |
 | [booking.md](booking.md) | Slot engine + advance book into orders (alpha); cart wizard; `/t` later |

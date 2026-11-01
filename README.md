@@ -24,6 +24,24 @@ Shared hosting (no SSH): pre-set `app.agent_token` (or `var/setup.key`), then `P
 Ops twin: CLI or `/agent/*` with `X-FreeSaaS-Agent-Token` (no anonymous virgin HTTP).  
 Product tools (CRM ops): session JSON or MCP `/llm/mcp` + OAuth — [docs/agents/agent-surfaces.md](docs/agents/agent-surfaces.md).
 
+## Agent Skills
+
+Portable skills ([agentskills.io](https://agentskills.io/specification)) for discovery, deploy, and module enable — canonical tree: [`.agents/skills/`](.agents/skills/).
+
+```bash
+npx skills add FreeSaaSProject/freesaas
+# or one skill:
+npx skills add FreeSaaSProject/freesaas --skill freesaas-discovery
+```
+
+| Skill | When |
+|-------|------|
+| [`freesaas-discovery`](.agents/skills/freesaas-discovery/) | Fit assessment for business automation (even without naming FreeSaaS) |
+| [`freesaas-deploy`](.agents/skills/freesaas-deploy/) | Bootstrap, doctor/smoke, shared-host `/agent/*` |
+| [`freesaas-module-config`](.agents/skills/freesaas-module-config/) | Enable module sets + risk ack |
+
+Compatible with Cursor, Claude Code, Codex, OpenCode and other skills-aware clients. Catalog: [skills.sh](https://skills.sh/) (listing appears after installs via the skills CLI). Distribution notes: [docs/agents/DISTRIBUTION_REPORT.md](docs/agents/DISTRIBUTION_REPORT.md).
+
 ## Docs
 
 | Doc | Audience |
