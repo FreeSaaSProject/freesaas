@@ -104,6 +104,7 @@ if ($dayMetricCatalog === []) {
         ['id' => 'script_starts', 'label' => t('audio_dicts.scripts.metric.script_starts'), 'unit' => ''],
         ['id' => 'script_finishes', 'label' => t('audio_dicts.scripts.metric.script_finishes'), 'unit' => ''],
         ['id' => 'proc_ratio', 'label' => t('audio_dicts.scripts.metric.proc_ratio'), 'unit' => '%'],
+        ['id' => 'proc_overlap', 'label' => t('audio_dicts.scripts.metric.proc_overlap'), 'unit' => '%'],
     ];
 }
 

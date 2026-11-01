@@ -59,6 +59,11 @@ final class DayQualityMetrics
                 'label' => t('audio_reports.day_quality.metric.proc_ratio'),
                 'unit' => '%',
             ],
+            [
+                'id' => 'proc_overlap',
+                'label' => t('audio_reports.day_quality.metric.proc_overlap'),
+                'unit' => '%',
+            ],
         ];
         $payload = EventBus::emit('audio_reports.day_quality.metrics.catalog', [
             'items' => $items,
@@ -91,7 +96,12 @@ final class DayQualityMetrics
      * Missing / unavailable metrics are omitted (gate skip).
      *
      * @param array<string,mixed>|null $coverage AudioCoverageConfig::forAdmin
-     * @return array<string,float|int>
+     * @param list<array<string,mixed>>|null $sessions rated day sessions (for proc_overlap)
+     * @param array<string,mixed>|null $proceduresCompare DayRatingReport procedures block
+     * @return array{
+     *   metrics:array<string,float|int>,
+     *   fractions:array<string,array{numerator:int,denominator:int}>
+     * }
      */
     public static function resolve(
         int $adminId,
@@ -99,15 +109,18 @@ final class DayQualityMetrics
         int $scriptId,
         int $sessionCount,
         ?array $coverage = null,
-        ?int $procedureCount = null
+        ?int $procedureCount = null,
+        ?array $sessions = null,
+        ?array $proceduresCompare = null
     ): array {
         $metrics = [];
+        $fractions = [];
         if ($adminId < 1 || $date === '' || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
-            return $metrics;
+            return ['metrics' => $metrics, 'fractions' => $fractions];
         }
         $dayStart = strtotime($date . ' 00:00:00');
         if ($dayStart === false) {
-            return $metrics;
+            return ['metrics' => $metrics, 'fractions' => $fractions];
         }
         $dayEnd = (int)$dayStart + 86399;
 
@@ -116,16 +129,46 @@ final class DayQualityMetrics
         $metrics['script_starts'] = $counts['starts'];
         $metrics['script_finishes'] = $counts['finishes'];
 
+        $sessOrStarts = $sessionCount > 0 ? $sessionCount : $counts['starts'];
         $procRatio = self::procRatio(
             $adminId,
             (int)$dayStart,
             $dayEnd,
-            $sessionCount > 0 ? $sessionCount : $counts['starts'],
+            $sessOrStarts,
             $coverage,
             $procedureCount
         );
         if ($procRatio !== null) {
             $metrics['proc_ratio'] = $procRatio;
+            $procDen = $procedureCount;
+            if ($procDen === null || $procDen < 1) {
+                $procDen = self::countPaidProcedures(
+                    $adminId,
+                    (int)$dayStart,
+                    $dayEnd,
+                    (int)(($coverage ?? [])['min_procedure_sec'] ?? 360)
+                );
+            }
+            if ($procDen > 0) {
+                $fractions['proc_ratio'] = [
+                    'numerator' => max(0, $sessOrStarts),
+                    'denominator' => (int)$procDen,
+                ];
+            }
+        }
+
+        $overlap = self::procOverlap(
+            $scriptId,
+            is_array($sessions) ? $sessions : [],
+            is_array($proceduresCompare) ? $proceduresCompare : null,
+            $coverage
+        );
+        if ($overlap !== null) {
+            $metrics['proc_overlap'] = $overlap['percent'];
+            $fractions['proc_overlap'] = [
+                'numerator' => $overlap['covered'],
+                'denominator' => $overlap['total'],
+            ];
         }
 
         $payload = EventBus::emit('audio_reports.day_quality.metrics', [
@@ -138,6 +181,7 @@ final class DayQualityMetrics
             'script_starts' => $counts['starts'],
             'script_finishes' => $counts['finishes'],
             'metrics' => $metrics,
+            'fractions' => $fractions,
         ]);
         $merged = is_array($payload['metrics'] ?? null) ? $payload['metrics'] : $metrics;
         $out = [];
@@ -151,8 +195,20 @@ final class DayQualityMetrics
             }
             $out[$id] = (float)$val;
         }
+        $fracOut = is_array($payload['fractions'] ?? null) ? $payload['fractions'] : $fractions;
+        $fractionsClean = [];
+        foreach ($fracOut as $key => $row) {
+            $id = trim((string)$key);
+            if ($id === '' || !is_array($row)) {
+                continue;
+            }
+            $fractionsClean[$id] = [
+                'numerator' => max(0, (int)($row['numerator'] ?? 0)),
+                'denominator' => max(0, (int)($row['denominator'] ?? 0)),
+            ];
+        }
 
-        return $out;
+        return ['metrics' => $out, 'fractions' => $fractionsClean];
     }
 
     /** Human label for a metric id (catalog / i18n); empty if unknown. */
@@ -181,9 +237,10 @@ final class DayQualityMetrics
      *
      * @param list<array<string,mixed>> $gates
      * @param array<string,float|int> $metrics
+     * @param array<string,array{numerator?:int,denominator?:int}> $fractions
      * @return list<array<string,mixed>>
      */
-    public static function evaluateGates(array $gates, array $metrics): array
+    public static function evaluateGates(array $gates, array $metrics, array $fractions = []): array
     {
         $rows = [];
         foreach ($gates as $gate) {
@@ -197,6 +254,10 @@ final class DayQualityMetrics
             }
             $threshold = (float)($gate['threshold'] ?? 0);
             $label = trim((string)($gate['label'] ?? ''));
+            // Legacy misleading label for volume ratio — prefer catalog i18n.
+            if ($metric === 'proc_ratio' && ($label === 'Покрытие' || strcasecmp($label, 'Coverage') === 0)) {
+                $label = '';
+            }
             if ($label === '' && $metric !== '') {
                 $label = self::metricLabel($metric);
             }
@@ -209,12 +270,20 @@ final class DayQualityMetrics
                 $ok = self::compare($value, $op, $threshold);
                 $color = $ok ? 'green' : 'red';
             }
+            $num = null;
+            $den = null;
+            if (isset($fractions[$metric]) && is_array($fractions[$metric])) {
+                $num = max(0, (int)($fractions[$metric]['numerator'] ?? 0));
+                $den = max(0, (int)($fractions[$metric]['denominator'] ?? 0));
+            }
             $rows[] = [
                 'metric' => $metric,
                 'op' => $op,
                 'threshold' => $threshold,
                 'label' => $label !== '' ? $label : $metric,
                 'value' => $value,
+                'numerator' => $num,
+                'denominator' => $den,
                 'available' => $available && $metric !== '',
                 'skipped' => $skipped,
                 'ok' => $ok,
@@ -311,6 +380,100 @@ final class DayQualityMetrics
         }
 
         return ['starts' => $starts, 'finishes' => $finishes];
+    }
+
+    /**
+     * % of paid CRM procedures whose window hard-overlaps (≥ min_hard) any rated
+     * episode of this script. One long episode may cover many procedures
+     * (unlike exclusive bind matched_slots).
+     *
+     * @param list<array<string,mixed>> $sessions
+     * @param array<string,mixed>|null $proceduresCompare
+     * @param array<string,mixed>|null $coverage
+     * @return array{percent:float,covered:int,total:int}|null
+     */
+    public static function procOverlap(
+        int $scriptId,
+        array $sessions,
+        ?array $proceduresCompare,
+        ?array $coverage = null
+    ): ?array {
+        if ($scriptId < 1) {
+            return null;
+        }
+        if (!is_array($proceduresCompare)) {
+            return null;
+        }
+        $matchOn = !empty($proceduresCompare['enabled'])
+            || !empty($coverage['match_procedures']);
+        if (!$matchOn) {
+            return null;
+        }
+        $slots = is_array($proceduresCompare['slots'] ?? null) ? $proceduresCompare['slots'] : [];
+        $total = count($slots);
+        if ($total < 1) {
+            $total = (int)($proceduresCompare['procedure_count'] ?? 0);
+            if ($total < 1) {
+                return null;
+            }
+            // No slot detail → cannot measure window overlap.
+            return null;
+        }
+        $minHard = max(1, (int)($proceduresCompare['min_hard_overlap_sec']
+            ?? ($coverage['min_hard_overlap_sec'] ?? 60)));
+        $windows = [];
+        foreach ($sessions as $sess) {
+            if (!is_array($sess)) {
+                continue;
+            }
+            $sid = (int)($sess['script_id'] ?? $sess['id_script'] ?? 0);
+            if ($sid !== $scriptId) {
+                continue;
+            }
+            $cs = (int)($sess['dt_start'] ?? 0);
+            $ce = (int)($sess['dt_end'] ?? 0);
+            if ($cs < 1 || $ce < $cs) {
+                continue;
+            }
+            $windows[] = [$cs, $ce];
+        }
+        if ($windows === []) {
+            return [
+                'percent' => 0.0,
+                'covered' => 0,
+                'total' => $total,
+            ];
+        }
+        $covered = 0;
+        foreach ($slots as $slot) {
+            if (!is_array($slot)) {
+                continue;
+            }
+            $ps = (int)($slot['dt_start'] ?? 0);
+            $pe = (int)($slot['dt_end'] ?? 0);
+            if ($ps < 1) {
+                continue;
+            }
+            if ($pe < $ps) {
+                $pe = $ps;
+            }
+            $best = 0;
+            foreach ($windows as [$cs, $ce]) {
+                $o = max(0, min($pe, $ce) - max($ps, $cs));
+                if ($o > $best) {
+                    $best = $o;
+                }
+            }
+            if ($best >= $minHard) {
+                $covered++;
+            }
+        }
+
+        return [
+            'percent' => round(100.0 * $covered / $total, 1),
+            'covered' => $covered,
+            'total' => $total,
+        ];
     }
 
     /**

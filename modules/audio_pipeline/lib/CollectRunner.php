@@ -464,7 +464,10 @@ final class CollectRunner
                 } else {
                     $sinse = $dtStart - $open[$scriptId]['last'];
                     $limit = $open[$scriptId]['timeout'];
-                    if ($limit > 0 && $sinse > $limit) {
+                    // Idle TIMEOUT only splits bags that already passed the save gate.
+                    // Flushing mid-only (save=0) discards audio until alt/primary starts —
+                    // that erased CRM-overlapping speech on script 32 after TIMEOUT was set.
+                    if ($limit > 0 && $sinse > $limit && !empty($open[$scriptId]['save'])) {
                         $flushed = self::flushOpen($adminId, $scriptId, $open[$scriptId], $scripts);
                         $saved += $flushed['saved'];
                         $offersTotal += $flushed['offers'];

@@ -129,18 +129,22 @@ final class DayQualityReport
             $sid = (int)$script['id'];
             $sessN = (int)($byScriptSessions[$sid] ?? 0);
             $gatesCfg = is_array($script['day_gates'] ?? null) ? $script['day_gates'] : [];
-            $metrics = class_exists('DayQualityMetrics', false)
+            $resolved = class_exists('DayQualityMetrics', false)
                 ? DayQualityMetrics::resolve(
                     $adminId,
                     $date,
                     $sid,
                     $sessN,
                     $coverage,
-                    $matchProc ? $procCount : null
+                    $matchProc ? $procCount : null,
+                    $sessions,
+                    $matchProc ? $proceduresCompare : null
                 )
-                : [];
+                : ['metrics' => [], 'fractions' => []];
+            $metrics = is_array($resolved['metrics'] ?? null) ? $resolved['metrics'] : [];
+            $fractions = is_array($resolved['fractions'] ?? null) ? $resolved['fractions'] : [];
             $gateRows = class_exists('DayQualityMetrics', false)
-                ? DayQualityMetrics::evaluateGates($gatesCfg, $metrics)
+                ? DayQualityMetrics::evaluateGates($gatesCfg, $metrics, $fractions)
                 : [];
 
             $sum = max(0, (int)($script['day_bonus_sum'] ?? 0));
@@ -163,13 +167,17 @@ final class DayQualityReport
             $procRatioOk = true;
             $procRatioColor = 'ok';
             foreach ($gateRows as $gr) {
-                if (($gr['metric'] ?? '') !== 'proc_ratio' || !empty($gr['skipped'])) {
+                $gm = (string)($gr['metric'] ?? '');
+                if (!in_array($gm, ['proc_ratio', 'proc_overlap'], true) || !empty($gr['skipped'])) {
                     continue;
                 }
-                $procRatioMin = (int)round((float)($gr['threshold'] ?? 0));
-                $procRatioPct = $gr['value'];
-                $procRatioOk = !empty($gr['ok']);
-                $procRatioColor = (string)($gr['color'] ?? 'ok');
+                // Prefer overlap for legacy display when that is the configured gate.
+                if ($gm === 'proc_overlap' || $procRatioPct === null) {
+                    $procRatioMin = (int)round((float)($gr['threshold'] ?? 0));
+                    $procRatioPct = $gr['value'];
+                    $procRatioOk = !empty($gr['ok']);
+                    $procRatioColor = (string)($gr['color'] ?? 'ok');
+                }
             }
 
             $scriptStarts = (int)round((float)($metrics['script_starts'] ?? 0));

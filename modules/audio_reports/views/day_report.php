@@ -380,9 +380,20 @@ $statHint = static function (string $hintKey): void {
                   <span><?= e($dgLabel) ?></span>
                   <span class="muted"><?= te('audio_reports.day_report.quality_gate_skip') ?></span>
                 <?php else: ?>
+                  <?php
+                  $dgNum = isset($dg['numerator']) ? (int)$dg['numerator'] : null;
+                  $dgDen = isset($dg['denominator']) ? (int)$dg['denominator'] : null;
+                  $dgFrac = ($dgNum !== null && $dgDen !== null && $dgDen > 0)
+                      ? te('audio_reports.day_report.quality_gate_frac', [
+                          'n' => (string)$dgNum,
+                          'm' => (string)$dgDen,
+                          'pct' => (string)$dgVal,
+                      ])
+                      : ((string)$dgVal);
+                  ?>
                   <span aria-hidden="true"><?= e($qualityEmoji($dgColor === 'green' ? 'green' : ($dgColor === 'red' ? 'red' : 'none'))) ?></span>
                   <span><?= e($dgLabel) ?></span>
-                  <span class="muted"><?= e((string)$dgVal) ?> <?= e($dgOpSym) ?> <?= e((string)$dgThr) ?></span>
+                  <span class="muted"><?= e($dgFrac) ?> <?= e($dgOpSym) ?> <?= e((string)$dgThr) ?></span>
                 <?php endif; ?>
               </li>
             <?php endforeach; ?>
@@ -437,6 +448,11 @@ $statHint = static function (string $hintKey): void {
         'matched' => (string)(int)($procedures['matched_slots'] ?? 0),
         'orphan' => (string)(int)($procedures['orphan_slots'] ?? 0),
         'min' => (string)(int)($procedures['min_procedure_sec'] ?? 300),
+    ]) ?>
+    · <?= te('audio_reports.day_report.procedures_bind_hint', [
+        'matched' => (string)(int)($procedures['matched_slots'] ?? 0),
+        'procs' => (string)(int)($procedures['procedure_count'] ?? 0),
+        'orphan' => (string)(int)($procedures['orphan_slots'] ?? 0),
     ]) ?>
     <?php if (($procedures['match_mode'] ?? '') === 'procedure_first'): ?>
       · <?= te('audio_reports.day_report.procedures_match_mode_first', [

@@ -113,9 +113,17 @@ When `match_procedures=1` (coverage settings), day-report attaches paid procedur
 - **Pre-start:** episode ending before the procedure start within the gap is still gathered.
 - **Pass 2:** leftover episodes stay unbound (`orphan_session_ids`); orphan procedures keep `near_session_id` + `near_gap_sec`.
 - JSON: `procedures.slots[].binds[]` (`session_id` / `overlap_sec` / `match_kind`), plus primary `session_id` / `session_ids`.
-- **`proc_ratio` ≠ match rate.** Quality gate `proc_ratio` is `rated_sessions / paid_procedures` (count ratio). Episode header coverage is accounted audio vs rated collections. Neither means every procedure is linked.
+- **Day-gate metrics (do not confuse with badge wear):**
+  - **`proc_ratio`** — `rated_sessions / paid_procedures` (volume count). Mislabeling it «Покрытие» confuses staff.
+  - **`proc_overlap`** (preferred for reception scripts) — `% of paid procedures whose window hard-overlaps (≥ min_hard) any rated episode of that script`. One long episode may cover many CRM slots. UI shows `N/M (pct%)`.
+  - **Episode header «Покрытие эпизодами»** — accounted audio seconds vs rated collections (`work_sec` / (`work_sec`+`idle_sec`)), not a quality gate.
+- Exclusive bind (`matched_slots`) still uses `usedSessions` (1 session → 1 primary procedure); orphan rows can sit inside a long episode with `near_gap_sec=0` while `proc_overlap` still counts them covered.
+
+**Collect idle TIMEOUT:** only flushes open bags that already passed the save gate. Mid-only bags (`save=0`) are not discarded on TIMEOUT (otherwise CRM-overlapping speech disappears until alt starts). Prefer non-zero `TIMEOUT` on mid parts after save; BREAK after farewell for guest boundaries.
 
 Orphans with `near_gap_sec=0` usually share a window with an episode already taken by a better-overlap neighbour, or sit inside a long collection with no separate episode. Gaps with records but no collection → collect/script starters (see collection + day-records), not the matcher.
+
+**Example (admin=53, 2026-10-25, script 32):** `proc_ratio` 8/13=61.5% (red at 80); exclusive matched 7/13; `proc_overlap` 11/13=84.6% (green). Mega-episode ~11:51–15:49 opened on mid keys with former `TIMEOUT=0`; two CRM windows 17:15–18:30 had **0s** overlap (true collect gap).
 
 **Collect-gap examples (admin=58, 2026-10-16, after hard bind):**
 
