@@ -200,7 +200,7 @@ final class PaymentsRepository
                 'total_in' => $totalIn,
                 'total_out' => $totalOut,
                 'internal_out' => $internalOut,
-                'balanced' => abs($totalIn - $totalOut) < 0.01,
+                'balanced' => abs($debtEnd) < 0.01 && ($totalIn >= 0.01 || $totalOut >= 0.01),
                 'debt_start' => $debt,
                 'debt_end' => $debtEnd,
             ];

@@ -48,7 +48,7 @@ return [
     'payments.month.11' => 'Ноябрь',
     'payments.month.12' => 'Декабрь',
     'payments.month.label' => 'Месяц: {ym}',
-    'payments.month.balanced' => 'Начислено совпадает с выплаченным',
+    'payments.month.balanced' => 'Месяц погашен: долг на конец месяца 0',
     'payments.month.debt_start_staff' => 'На начало мес. сотрудник должен: {sum}',
     'payments.month.debt_start_org' => 'На начало мес. организация должна: {sum}',
     'payments.month.debt_end_staff' => 'На конец мес. сотрудник должен: {sum}',

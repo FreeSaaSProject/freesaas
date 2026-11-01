@@ -48,7 +48,7 @@ return [
     'payments.month.11' => 'November',
     'payments.month.12' => 'December',
     'payments.month.label' => 'Month: {ym}',
-    'payments.month.balanced' => 'Accrued matches issued',
+    'payments.month.balanced' => 'Month settled: closing balance is 0',
     'payments.month.debt_start_staff' => 'Opening: staff owes {sum}',
     'payments.month.debt_start_org' => 'Opening: company owes {sum}',
     'payments.month.debt_end_staff' => 'Closing: staff owes {sum}',
