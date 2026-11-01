@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 final class ReconsDayBoard
 {
+    /** Idle zero accounts: no moves in this many months (calendar). */
+    public const IDLE_MONTHS = 3;
+
     /**
      * @return array{
      *   day:string,
@@ -12,6 +15,8 @@ final class ReconsDayBoard
      *   is_latest_recon_day:bool,
      *   is_editable:bool,
      *   stale_vs_today:bool,
+     *   show_zeros:bool,
+     *   hidden_zero_count:int,
      *   latest_recon_day:?string,
      *   prev_day:?string,
      *   next_day:?string,
@@ -20,7 +25,7 @@ final class ReconsDayBoard
      *   summary:array{matched:int,in_progress:int,missing:int,stale:int}
      * }
      */
-    public static function build(string $dayYmd): array
+    public static function build(string $dayYmd, bool $showZeros = false): array
     {
         $today = date('Y-m-d');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dayYmd)) {
@@ -85,13 +90,15 @@ final class ReconsDayBoard
 
         // Missing rows: live only for calendar today; otherwise balance as of that day.
         $balances = LedgerMovesRepository::balancesByAccount($isToday ? null : $dayEnd);
-        // Live today — to mark rows whose recon snapshot is no longer current.
-        $liveToday = ($isLatestReconDay || $isToday)
-            ? LedgerMovesRepository::balancesByAccount(null)
-            : [];
+        // Live ledger balances (idle-zero filter + stale markers).
+        $liveToday = LedgerMovesRepository::balancesByAccount(null);
+
+        $sinceDt = strtotime('-' . self::IDLE_MONTHS . ' months') ?: (time() - self::IDLE_MONTHS * 30 * 86400);
+        $activeSince = LedgerMovesRepository::accountIdsWithMovesSince($sinceDt);
 
         $rows = [];
         $summary = ['matched' => 0, 'in_progress' => 0, 'missing' => 0, 'stale' => 0];
+        $hiddenZeroCount = 0;
         $sortedIds = array_keys($ids);
         usort($sortedIds, static function (int $a, int $b) use ($accountMap): int {
             $na = (string)($accountMap[$a]['name'] ?? ('#' . $a));
@@ -106,7 +113,15 @@ final class ReconsDayBoard
             $enabled = $acc !== null ? ((int)($acc['enabled'] ?? 0) > 0) : false;
             $rec = $byAccount[$aid] ?? null;
             $asOf = (float)($balances[$aid] ?? 0.0);
-            $live = (float)($liveToday[$aid] ?? ($isToday ? $asOf : 0.0));
+            $live = (float)($liveToday[$aid] ?? 0.0);
+            $hasRecon = $rec !== null;
+            $hasRecentMoves = isset($activeSince[$aid]);
+            // Idle zero: current ledger balance ~0 and no ДПС in last N months (still show if recon that day).
+            $isIdleZero = !$hasRecon && abs($live) < 0.005 && !$hasRecentMoves;
+            if ($isIdleZero && !$showZeros) {
+                $hiddenZeroCount++;
+                continue;
+            }
 
             if ($rec === null) {
                 $stale = $staleVsToday && abs($asOf - $live) >= 0.005;
@@ -123,6 +138,7 @@ final class ReconsDayBoard
                     'saved_system' => null,
                     'live_today' => $live,
                     'stale' => $stale,
+                    'idle_zero' => $isIdleZero,
                     'delta' => null,
                     'status' => 'missing',
                     'dt' => 0,
@@ -153,6 +169,7 @@ final class ReconsDayBoard
                 'saved_system' => $savedSystem,
                 'live_today' => $live,
                 'stale' => $stale,
+                'idle_zero' => false,
                 'delta' => $delta,
                 'status' => $status,
                 'dt' => (int)$rec['dt'],
@@ -167,6 +184,8 @@ final class ReconsDayBoard
             'is_latest_recon_day' => $isLatestReconDay,
             'is_editable' => $isEditable,
             'stale_vs_today' => $staleVsToday,
+            'show_zeros' => $showZeros,
+            'hidden_zero_count' => $hiddenZeroCount,
             'latest_recon_day' => $latestReconDay,
             'prev_day' => $prevDay,
             'next_day' => $nextDay,

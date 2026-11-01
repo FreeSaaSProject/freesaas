@@ -8,6 +8,8 @@ declare(strict_types=1);
 /** @var string $today */
 /** @var bool $isToday */
 /** @var bool $staleVsToday */
+/** @var bool $showZeros */
+/** @var int $hiddenZeroCount */
 /** @var list<array<string,mixed>> $rows */
 /** @var array{matched:int,in_progress:int,missing:int,stale?:int} $summary */
 /** @var bool $showCreateTodayCta */
@@ -15,11 +17,20 @@ declare(strict_types=1);
 /** @var bool $canEdit */
 /** @var string $flashError */
 
-$urlPrev = $prevDay !== null && $prevDay !== '' ? ListQuery::url($path, ['day' => $prevDay], []) : '';
-$urlNext = $nextDay !== null && $nextDay !== '' ? ListQuery::url($path, ['day' => $nextDay], []) : '';
-$urlToday = ListQuery::url($path, ['day' => $today], []);
+$navQ = static function (string $dayYmd) use ($showZeros): array {
+    $q = ['day' => $dayYmd];
+    if (!empty($showZeros)) {
+        $q['show_zeros'] = '1';
+    }
+    return $q;
+};
+$urlPrev = $prevDay !== null && $prevDay !== '' ? ListQuery::url($path, $navQ($prevDay), []) : '';
+$urlNext = $nextDay !== null && $nextDay !== '' ? ListQuery::url($path, $navQ($nextDay), []) : '';
+$urlToday = ListQuery::url($path, $navQ($today), []);
+$urlShowZeros = ListQuery::url($path, ['day' => $day, 'show_zeros' => '1'], []);
+$urlHideZeros = ListQuery::url($path, ['day' => $day], []);
 $dayLabel = date('d.m.Y', strtotime($day) ?: time());
-$formAction = ListQuery::url($path, ['day' => $day], []);
+$formAction = ListQuery::url($path, $navQ($day), []);
 
 
 $pagerAttrs = '';
@@ -68,6 +79,11 @@ if ($urlNext !== '') {
   <span class="recons-summary-missing"><?= te('recons.day.summary_missing', ['n' => (string)(int)$summary['missing']]) ?></span>
   <?php if ((int)($summary['stale'] ?? 0) > 0): ?>
     <span class="recons-summary-stale"><?= te('recons.day.summary_stale', ['n' => (string)(int)$summary['stale']]) ?></span>
+  <?php endif; ?>
+  <?php if (!empty($showZeros)): ?>
+    <a class="btn-secondary" href="<?= e($urlHideZeros) ?>"><?= te('recons.day.hide_zeros') ?></a>
+  <?php elseif ($hiddenZeroCount > 0): ?>
+    <a class="btn-secondary" href="<?= e($urlShowZeros) ?>"><?= te('recons.day.show_zeros', ['n' => (string)$hiddenZeroCount]) ?></a>
   <?php endif; ?>
 </div>
 

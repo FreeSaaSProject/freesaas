@@ -6,6 +6,11 @@ $path = '/recons/day';
 $today = date('Y-m-d');
 $flashError = '';
 
+$showZeros = isset($_GET['show_zeros']) && (string)$_GET['show_zeros'] !== '0' && (string)$_GET['show_zeros'] !== '';
+if (!$showZeros && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
+    $showZeros = isset($_POST['show_zeros']) && (string)$_POST['show_zeros'] !== '0' && (string)$_POST['show_zeros'] !== '';
+}
+
 // Prefer explicit day from query; POST writes may also pass day in the body (assistant tools).
 $dayParam = trim((string)($_GET['day'] ?? ''));
 if ($dayParam === '' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') {
@@ -27,6 +32,11 @@ if ($landing) {
     }
 }
 
+$queryBase = ['day' => $day];
+if ($showZeros) {
+    $queryBase['show_zeros'] = '1';
+}
+
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (string)($_POST['recon_action'] ?? '') !== '') {
     if (!Auth::can('ledger.reconcile')) {
         if ($wantsJson) {
@@ -36,7 +46,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (string)($_POST['recon_acti
     } else {
         $action = (string)$_POST['recon_action'];
         try {
-            $boardGate = ReconsDayBoard::build($day);
+            $boardGate = ReconsDayBoard::build($day, $showZeros);
             if (empty($boardGate['is_editable'])) {
                 throw new InvalidArgumentException(t('recons.day.err.not_editable'));
             }
@@ -98,11 +108,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (string)($_POST['recon_acti
                     'action' => $action,
                     'recon_id' => $reconId,
                     'account_id' => $reconAccountId,
-                    'board' => ReconsDayBoard::build($day),
+                    'board' => ReconsDayBoard::build($day, $showZeros),
                 ]);
                 return;
             }
-            redirect(ListQuery::url($path, ['day' => $day], []));
+            redirect(ListQuery::url($path, $queryBase, []));
         } catch (Throwable $e) {
             if ($wantsJson) {
                 AgentHttp::error($e->getMessage(), 400);
@@ -112,7 +122,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' && (string)($_POST['recon_acti
     }
 }
 
-$board = ReconsDayBoard::build($day);
+$board = ReconsDayBoard::build($day, $showZeros);
 $canRecon = Auth::can('ledger.reconcile');
 $canEdit = $canRecon && !empty($board['is_editable']);
 
@@ -121,6 +131,7 @@ if ($wantsJson) {
         'ok' => true,
         'board' => $board,
         'show_create_today_cta' => $showCreateTodayCta,
+        'show_zeros' => $showZeros,
         'can_recon' => $canRecon,
         'can_edit' => $canEdit,
     ]);
@@ -142,6 +153,8 @@ View::render('day', [
     'isToday' => $board['is_today'],
     'isLatestReconDay' => !empty($board['is_latest_recon_day']),
     'staleVsToday' => !empty($board['stale_vs_today']),
+    'showZeros' => $showZeros,
+    'hiddenZeroCount' => (int)($board['hidden_zero_count'] ?? 0),
     'rows' => $board['rows'],
     'summary' => $board['summary'],
     'showCreateTodayCta' => $showCreateTodayCta,

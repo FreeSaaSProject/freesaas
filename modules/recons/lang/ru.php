@@ -18,6 +18,9 @@ return [
     'recons.day.summary_progress' => 'В процессе: {n}',
     'recons.day.summary_missing' => 'Не начато: {n}',
     'recons.day.summary_stale' => 'Не актуально на сегодня: {n}',
+    'recons.day.show_zeros' => 'Показать нулевые ({n})',
+    'recons.day.hide_zeros' => 'Скрыть нулевые счета',
+
     'recons.day.stale_title' => 'Последняя сверка не за сегодня — данные могут быть неактуальны',
     'recons.day.stale_note' => '* Последняя сверка не за сегодня: в колонке «Система» снимок на дату сверки. Звездочка у строки — текущий остаток уже другой.',
     'recons.day.stale_row_title' => 'Сейчас в системе: {live}',

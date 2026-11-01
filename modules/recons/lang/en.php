@@ -18,6 +18,9 @@ return [
     'recons.day.summary_progress' => 'In progress: {n}',
     'recons.day.summary_missing' => 'Not started: {n}',
     'recons.day.summary_stale' => 'Not current for today: {n}',
+    'recons.day.show_zeros' => 'Show zero accounts ({n})',
+    'recons.day.hide_zeros' => 'Hide zero accounts',
+
     'recons.day.stale_title' => 'Latest reconciliation is not for today — figures may be outdated',
     'recons.day.stale_note' => '* Latest reconciliation is not for today: System shows the snapshot from that day. A star on a row means the live balance has changed since then.',
     'recons.day.stale_row_title' => 'Live system now: {live}',

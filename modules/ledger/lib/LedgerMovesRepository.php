@@ -307,6 +307,31 @@ final class LedgerMovesRepository
     }
 
     /**
+     * Account ids that have at least one non-deleted move with DT >= $sinceDt.
+     *
+     * @return array<int,true>
+     */
+    public static function accountIdsWithMovesSince(int $sinceDt): array
+    {
+        if (!Database::tableExists('base_account_moves')) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT DISTINCT ID_ACCOUNT AS account_id FROM base_account_moves
+             WHERE DELETED = 0 AND DT >= ?'
+        );
+        $st->execute([max(0, $sinceDt)]);
+        $out = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $aid = (int)$row['account_id'];
+            if ($aid > 0) {
+                $out[$aid] = true;
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Newest move id for current list filters (DT DESC, ID DESC).
      *
      * @param array{q?:string,account_id?:int,type_id?:int,year?:int,month?:int,payment_id?:int,supplier_id?:int} $opts

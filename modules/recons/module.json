@@ -2,7 +2,7 @@
     "id": "recons",
     "name": "recons.module.name",
     "description": "recons.module.description",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "product",
     "catalog": {
         "categories": [
@@ -44,13 +44,17 @@
                 "path": "/recons/day",
                 "permission": "recons.view",
                 "side_effect": "read",
-                "description": "Day board of account reconciliations (all accounts). Optional day=Y-m-d; omit for landing (today or latest day with data). Returns board.rows/status/stale flags.",
+                "description": "Day board of account reconciliations (all accounts). Optional day=Y-m-d; omit for landing (today or latest day with data). Idle zero accounts (balance 0, no moves in 3 months) hidden unless show_zeros=1.",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "day": {
                             "type": "string",
                             "description": "Calendar day Y-m-d; omit to use landing resolution"
+                        },
+                        "show_zeros": {
+                            "type": "string",
+                            "description": "Set to 1 to include idle zero accounts (balance 0 and no ДПС in last 3 months)"
                         }
                     }
                 }

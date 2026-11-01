@@ -73,11 +73,14 @@ Session auth; `?format=json` or `Accept: application/json`. See `module.json` â†
 
 ### GET `recons.day`
 
-Params: optional `day=Y-m-d` (omit for landing resolution).
+Params: optional `day=Y-m-d` (omit for landing resolution); optional `show_zeros=1`.
+
+By default the board **hides idle zero accounts**: live balance â‰ˆ 0 and no non-deleted moves in the last 3 months. Accounts with a reconciliation on the selected day always stay visible. Use `show_zeros=1` to include them (`board.hidden_zero_count` when hidden).
 
 ```bash
 curl -sS -b jar.txt 'https://example/recons/day?format=json'
 curl -sS -b jar.txt 'https://example/recons/day?day=2026-10-31&format=json'
+curl -sS -b jar.txt 'https://example/recons/day?day=2026-10-31&show_zeros=1&format=json'
 ```
 
 Response (shape):
