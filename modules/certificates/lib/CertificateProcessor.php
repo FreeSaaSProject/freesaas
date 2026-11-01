@@ -562,6 +562,64 @@ final class CertificateProcessor
         return ['ok' => true, 'ledger_id' => $id];
     }
 
+    /**
+     * Keep certificate ledger in sync when FACE_VALUE is edited after issue.
+     *
+     * @return array{ok:bool,error?:string,ledger_id:int,delta:float}
+     */
+    public static function adjustFaceValue(int $certId, float $oldFace, float $newFace, ?int $operatorId = null): array
+    {
+        $oldFace = round($oldFace, 2);
+        $newFace = round($newFace, 2);
+        $delta = round($newFace - $oldFace, 2);
+        if (abs($delta) < 0.01) {
+            return ['ok' => true, 'ledger_id' => 0, 'delta' => 0.0];
+        }
+        if ($newFace < 0) {
+            return ['ok' => false, 'error' => t('certificates.err.face_required'), 'ledger_id' => 0, 'delta' => 0.0];
+        }
+        $cert = CertificatesRepository::find($certId);
+        if ($cert === null) {
+            return ['ok' => false, 'error' => t('certificates.err.not_found', ['id' => $certId]), 'ledger_id' => 0, 'delta' => 0.0];
+        }
+        if (!CertificateLedgerRepository::hasIssue($certId)) {
+            // Not issued yet — FACE_VALUE alone is enough until issue().
+            return ['ok' => true, 'ledger_id' => 0, 'delta' => 0.0];
+        }
+        $bal = CertificateLedgerRepository::balance($certId);
+        if ($delta < 0 && $bal + $delta < -0.009) {
+            return [
+                'ok' => false,
+                'error' => t('certificates.err.face_below_used'),
+                'ledger_id' => 0,
+                'delta' => 0.0,
+            ];
+        }
+        $ledgerId = CertificateLedgerRepository::insert([
+            'id_cert' => $certId,
+            'id_operator' => $operatorId ?? (int)(Auth::userId() ?? 0),
+            'id_client' => (int)$cert['id_buyer'],
+            'direction' => $delta > 0
+                ? CertificateLedgerRepository::DIR_CREDIT
+                : CertificateLedgerRepository::DIR_DEBIT,
+            'amount' => abs($delta),
+            'reason' => CertificateLedgerRepository::REASON_ADJUST,
+            'descr' => t('certificates.ledger.adjust', [
+                'old' => number_format($oldFace, 2, '.', ''),
+                'new' => number_format($newFace, 2, '.', ''),
+            ]),
+        ]);
+        $newBal = CertificateLedgerRepository::balance($certId);
+        $used = max(0.0, round($newFace - $newBal, 2));
+        CertificatesRepository::updateUsage(
+            $certId,
+            min($used, $newFace),
+            $used + 0.009 >= $newFace ? 1 : (int)$cert['expired'],
+            (array)$cert['content_used']
+        );
+        return ['ok' => true, 'ledger_id' => $ledgerId, 'delta' => $delta];
+    }
+
     /** @return array{ok:bool,error?:string,ledger_id:int} */
     public static function undoSpend(int $ledgerId, ?int $operatorId = null): array
     {

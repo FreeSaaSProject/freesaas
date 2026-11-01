@@ -43,8 +43,8 @@ $pages = [
     '/banks/oauth/{provider}/start' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_start.php'],
     '/banks/oauth/{provider}/callback' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_callback.php'],
     '/banks/connections/{id}' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'connection.php'],
-    '/banks/connections/{id}/sync' => ['permission' => 'banks.sync', 'methods' => ['POST', 'GET'], 'file' => 'sync.php'],
-    '/banks/sync-account' => ['permission' => 'banks.sync', 'methods' => ['POST', 'GET'], 'file' => 'sync_account.php'],
+    '/banks/connections/{id}/sync' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'sync.php'],
+    '/banks/sync-account' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'sync_account.php'],
     '/banks/jobs/sync' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_sync.php'],
 ];
 

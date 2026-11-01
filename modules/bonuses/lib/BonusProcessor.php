@@ -145,6 +145,8 @@ final class BonusProcessor
         if (!$bonusUse) {
             $requested = 0.0;
         }
+        // Never spend more than current balance (allocate only caps by goods %).
+        $requested = min($requested, max(0.0, $balance));
 
         $built = self::buildGoods($event);
         $bonusAdd = self::clientBonusAddPercent($clientId);
@@ -191,83 +193,136 @@ final class BonusProcessor
         if (!class_exists('EventsRepository', false)) {
             return $fail(t('bonuses.err.event_not_found', ['id' => $eventId]));
         }
-        $event = EventsRepository::find($eventId);
-        if (!$event) {
-            return $fail(t('bonuses.err.event_not_found', ['id' => $eventId]));
+
+        $pdo = Database::pdo();
+        $startedTx = false;
+        try {
+            if (!$pdo->inTransaction()) {
+                $pdo->beginTransaction();
+                $startedTx = true;
+            }
+
+            // Serialize apply for this event (and peer applies that lock the same client).
+            $stEv = $pdo->prepare('SELECT ID, ID_USER FROM base_events WHERE ID = ? LIMIT 1 FOR UPDATE');
+            $stEv->execute([$eventId]);
+            $evLock = $stEv->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($evLock)) {
+                if ($startedTx) {
+                    $pdo->rollBack();
+                }
+                return $fail(t('bonuses.err.event_not_found', ['id' => $eventId]));
+            }
+            if (BonusMovesRepository::eventHasSettlement($eventId)) {
+                if ($startedTx) {
+                    $pdo->rollBack();
+                }
+                return $fail(t('bonuses.err.already_applied'));
+            }
+
+            $clientId = (int)($evLock['ID_USER'] ?? 0);
+            if ($clientId < 1) {
+                if ($startedTx) {
+                    $pdo->rollBack();
+                }
+                return $fail(t('bonuses.err.no_client'));
+            }
+            if (Database::tableExists('base_clients')) {
+                $stCl = $pdo->prepare('SELECT ID FROM base_clients WHERE ID = ? LIMIT 1 FOR UPDATE');
+                $stCl->execute([$clientId]);
+                $stCl->fetchColumn();
+            }
+
+            $event = EventsRepository::find($eventId);
+            if (!$event) {
+                if ($startedTx) {
+                    $pdo->rollBack();
+                }
+                return $fail(t('bonuses.err.event_not_found', ['id' => $eventId]));
+            }
+
+            $quote = self::quote($eventId, $event);
+            if (empty($quote['ok'])) {
+                if ($startedTx) {
+                    $pdo->rollBack();
+                }
+                return $fail((string)($quote['error'] ?? t('bonuses.err.apply_failed')));
+            }
+
+            $spend = (float)$quote['spend'];
+            $accrue = (float)$quote['accrue'];
+            $toPay = (float)$quote['to_pay'];
+            $contentSum = (float)$quote['content_sum'];
+            $bonusUse = !empty($quote['bonus_use']);
+            $bonusAvg = (float)$quote['bonus_avg'];
+            $now = time();
+
+            $debitId = 0;
+            $creditId = 0;
+
+            if ($bonusUse && $spend > 0) {
+                $debitId = BonusMovesRepository::create([
+                    'client_id' => $clientId,
+                    'direction' => -1,
+                    'amount' => $spend,
+                    'kind' => BonusMovesRepository::KIND_EVENT_SPEND,
+                    'ref_type' => BonusMovesRepository::REF_EVENT,
+                    'ref_id' => $eventId,
+                    'created_at' => $now,
+                    'expires_at' => null,
+                    'note' => t('bonuses.note.event_spend', [
+                        'event' => $eventId,
+                        'sum' => (string)(int)round($contentSum),
+                    ]),
+                    'dismissed' => 0,
+                ]);
+            }
+
+            if ($accrue > 0) {
+                $creditId = BonusMovesRepository::create([
+                    'client_id' => $clientId,
+                    'direction' => 1,
+                    'amount' => $accrue,
+                    'kind' => BonusMovesRepository::KIND_EVENT_ACCRUE,
+                    'ref_type' => BonusMovesRepository::REF_EVENT,
+                    'ref_id' => $eventId,
+                    'created_at' => $now,
+                    'expires_at' => $now + self::ACCRUE_TTL_SEC,
+                    'note' => t('bonuses.note.event_accrue', [
+                        'event' => $eventId,
+                        'pay' => (string)(int)round($toPay),
+                        'pct' => (string)(int)round($bonusAvg),
+                    ]),
+                    'dismissed' => 0,
+                ]);
+            }
+
+            self::updateEventMoney($eventId, $spend, max(0.0, $contentSum - $spend));
+
+            if ($startedTx) {
+                $pdo->commit();
+            }
+
+            return [
+                'ok' => true,
+                'event_id' => $eventId,
+                'spend' => $spend,
+                'accrue' => $accrue,
+                'to_pay' => $toPay,
+                'debit_id' => $debitId,
+                'credit_id' => $creditId,
+            ];
+        } catch (Throwable $e) {
+            if ($startedTx && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            $sqlState = ($e instanceof PDOException) ? (string)($e->errorInfo[0] ?? '') : '';
+            $msg = $e->getMessage();
+            if ($sqlState === '23000' || stripos($msg, 'Duplicate') !== false) {
+                return $fail(t('bonuses.err.already_applied'));
+            }
+            error_log('[bonuses] applyForEvent event=' . $eventId . ' ' . $msg);
+            return $fail(t('bonuses.err.apply_failed'));
         }
-        if (BonusMovesRepository::eventHasSettlement($eventId)) {
-            return $fail(t('bonuses.err.already_applied'));
-        }
-
-        $clientId = (int)($event['id_user'] ?? 0);
-        if ($clientId < 1) {
-            return $fail(t('bonuses.err.no_client'));
-        }
-
-        $quote = self::quote($eventId, $event);
-        if (empty($quote['ok'])) {
-            return $fail((string)($quote['error'] ?? t('bonuses.err.apply_failed')));
-        }
-
-        $spend = (float)$quote['spend'];
-        $accrue = (float)$quote['accrue'];
-        $toPay = (float)$quote['to_pay'];
-        $contentSum = (float)$quote['content_sum'];
-        $bonusUse = !empty($quote['bonus_use']);
-        $bonusAvg = (float)$quote['bonus_avg'];
-        $now = time();
-
-        $debitId = 0;
-        $creditId = 0;
-
-        if ($bonusUse && $spend > 0) {
-            $debitId = BonusMovesRepository::create([
-                'client_id' => $clientId,
-                'direction' => -1,
-                'amount' => $spend,
-                'kind' => BonusMovesRepository::KIND_EVENT_SPEND,
-                'ref_type' => BonusMovesRepository::REF_EVENT,
-                'ref_id' => $eventId,
-                'created_at' => $now,
-                'expires_at' => null,
-                'note' => t('bonuses.note.event_spend', [
-                    'event' => $eventId,
-                    'sum' => (string)(int)round($contentSum),
-                ]),
-                'dismissed' => 0,
-            ]);
-        }
-
-        if ($accrue > 0) {
-            $creditId = BonusMovesRepository::create([
-                'client_id' => $clientId,
-                'direction' => 1,
-                'amount' => $accrue,
-                'kind' => BonusMovesRepository::KIND_EVENT_ACCRUE,
-                'ref_type' => BonusMovesRepository::REF_EVENT,
-                'ref_id' => $eventId,
-                'created_at' => $now,
-                'expires_at' => $now + self::ACCRUE_TTL_SEC,
-                'note' => t('bonuses.note.event_accrue', [
-                    'event' => $eventId,
-                    'pay' => (string)(int)round($toPay),
-                    'pct' => (string)(int)round($bonusAvg),
-                ]),
-                'dismissed' => 0,
-            ]);
-        }
-
-        self::updateEventMoney($eventId, $spend, max(0.0, $contentSum - $spend));
-
-        return [
-            'ok' => true,
-            'event_id' => $eventId,
-            'spend' => $spend,
-            'accrue' => $accrue,
-            'to_pay' => $toPay,
-            'debit_id' => $debitId,
-            'credit_id' => $creditId,
-        ];
     }
 
     public static function clientBonusAddPercent(int $clientId): float

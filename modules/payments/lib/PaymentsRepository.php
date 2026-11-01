@@ -334,13 +334,17 @@ final class PaymentsRepository
             && PaymentMoveLinksRepository::isPaymentLinked($paymentId)) {
             return true;
         }
-        if (!Database::tableExists('base_account_moves')) {
+        // Soft-deleted DPS keep ID_PAYMENT for audit — only live moves block delete.
+        if (!Database::tableExists('base_account_moves')
+            || !Database::columnExists('base_account_moves', 'ID_PAYMENT')) {
             return false;
         }
-        if (!Database::columnExists('base_account_moves', 'ID_PAYMENT')) {
-            return false;
+        $sql = 'SELECT 1 FROM base_account_moves WHERE ID_PAYMENT = ?';
+        if (Database::columnExists('base_account_moves', 'DELETED')) {
+            $sql .= ' AND DELETED = 0';
         }
-        $st = Database::pdo()->prepare('SELECT 1 FROM base_account_moves WHERE ID_PAYMENT = ? LIMIT 1');
+        $sql .= ' LIMIT 1';
+        $st = Database::pdo()->prepare($sql);
         $st->execute([$paymentId]);
         return (bool)$st->fetchColumn();
     }
@@ -463,8 +467,10 @@ final class PaymentsRepository
             throw new InvalidArgumentException(t('payments.err.sum_required'));
         }
         $sum = money_parse($sumRaw);
-        if (abs($sum) < 0.00001) {
-            throw new InvalidArgumentException(t('payments.err.sum_required'));
+        // Amount must be strictly positive; sign lives only in DIRECTION.
+        // (direction=-1 with a negative SUM would inflate balance as a hidden accrual.)
+        if ($sum <= 0) {
+            throw new InvalidArgumentException(t('payments.err.sum_positive'));
         }
         $directionRaw = $post['direction'] ?? '';
         if ($directionRaw === '' || $directionRaw === null) {
@@ -473,6 +479,11 @@ final class PaymentsRepository
         $direction = (int)$directionRaw;
         if (!in_array($direction, [-1, 1], true)) {
             throw new InvalidArgumentException(t('payments.err.direction_required'));
+        }
+        // Without CAN_SEE_SUM_OTHERS staff may only post write-offs / payout requests for self,
+        // not open accruals that raise DayPayroll balance.
+        if ($direction === 1 && !self::canSeeOthers()) {
+            throw new InvalidArgumentException(t('payments.err.accrual_forbidden'));
         }
         $account = (int)($post['account'] ?? 0);
         if (!in_array($account, [0, 1, 2], true)) {

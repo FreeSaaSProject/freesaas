@@ -150,12 +150,15 @@ final class BonusMovesRepository
         if ($clientId < 1 || !self::tableReady()) {
             return 0.0;
         }
+        $now = time();
+        // Credits past expires_at do not count; debits always count (expires_at NULL).
         $st = Database::pdo()->prepare(
             'SELECT COALESCE(SUM(direction * amount), 0)
              FROM base_bonus_moves
-             WHERE client_id = ? AND dismissed = 0'
+             WHERE client_id = ? AND dismissed = 0
+               AND (expires_at IS NULL OR expires_at = 0 OR expires_at > ? OR direction < 0)'
         );
-        $st->execute([$clientId]);
+        $st->execute([$clientId, $now]);
         return round((float)$st->fetchColumn(), 2);
     }
 

@@ -12,9 +12,17 @@ if (!$conn) {
     redirect('/banks');
 }
 
-$dateFrom = trim((string)($_POST['date_from'] ?? $_GET['date_from'] ?? date('Y-m-d', strtotime('-7 days'))));
-$dateTo = trim((string)($_POST['date_to'] ?? $_GET['date_to'] ?? date('Y-m-d')));
-$linkId = (int)($_POST['link_id'] ?? $_GET['link_id'] ?? 0);
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    if ($wantsJson) {
+        AgentHttp::error(t('banks.err.sync'), 405);
+    }
+    flash_set('error', t('banks.err.sync'));
+    redirect('/banks/connections/' . $id);
+}
+
+$dateFrom = trim((string)($_POST['date_from'] ?? date('Y-m-d', strtotime('-7 days'))));
+$dateTo = trim((string)($_POST['date_to'] ?? date('Y-m-d')));
+$linkId = (int)($_POST['link_id'] ?? 0);
 
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) {
     if ($wantsJson) {

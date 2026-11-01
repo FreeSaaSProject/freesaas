@@ -124,15 +124,19 @@ final class RemittanceBatchesRepository
         $st->execute([$ignored ? 1 : 0, $status, time(), (int)$batch['id']]);
     }
 
-    public static function setFeeMoveId(int $batchId, int $feeMoveId): void
+    /** Bind fee move once; returns false if already set (lost race). */
+    public static function setFeeMoveId(int $batchId, int $feeMoveId): bool
     {
-        if ($batchId < 1) {
-            return;
+        if ($batchId < 1 || $feeMoveId < 1) {
+            return false;
         }
         $st = Database::pdo()->prepare(
-            'UPDATE base_remittance_batches SET ID_FEE_MOVE = ?, DT_UPDATE = ? WHERE ID = ?'
+            'UPDATE base_remittance_batches
+             SET ID_FEE_MOVE = ?, DT_UPDATE = ?
+             WHERE ID = ? AND (ID_FEE_MOVE IS NULL OR ID_FEE_MOVE = 0)'
         );
         $st->execute([$feeMoveId, time(), $batchId]);
+        return $st->rowCount() > 0;
     }
 
     /** @param array<string,mixed> $row */

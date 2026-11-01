@@ -154,9 +154,6 @@ final class SberFlClient
                 continue;
             }
             $id = (string)($tx['transactionId'] ?? $tx['TransactionId'] ?? $tx['id'] ?? '');
-            if ($id === '') {
-                $id = sha1(json_encode($tx));
-            }
             $creditDebit = strtoupper((string)($tx['creditDebitIndicator'] ?? $tx['CreditDebitIndicator'] ?? ''));
             $direction = ($creditDebit === 'CREDIT' || $creditDebit === 'CRDT') ? 1 : -1;
             $amountRaw = $tx['Amount']['amount'] ?? $tx['amount']['amount'] ?? $tx['Amount'] ?? $tx['amount'] ?? 0;
@@ -169,17 +166,29 @@ final class SberFlClient
             }
             $dtStr = (string)($tx['BookingDateTime'] ?? $tx['bookingDateTime'] ?? '');
             $dt = $dtStr !== '' ? (int)strtotime($dtStr) : time();
+            $dtFinal = $dt > 0 ? $dt : time();
             $purpose = (string)($tx['transactionInformation'] ?? $tx['description'] ?? '');
             if (is_array($purpose)) {
                 $purpose = implode(' ', $purpose);
+            }
+            $purpose = trim($purpose);
+            $cpName = trim((string)($tx['merchantName'] ?? $tx['CreditorName'] ?? $tx['DebtorName'] ?? ''));
+            if ($id === '') {
+                $id = BankTxMapRepository::fingerprint([
+                    'direction' => $direction,
+                    'amount' => $amount,
+                    'dt' => $dtFinal,
+                    'purpose' => $purpose,
+                    'counterparty_name' => $cpName,
+                ]);
             }
             $out[] = [
                 'external_id' => $id,
                 'direction' => $direction,
                 'amount' => $amount,
-                'dt' => $dt > 0 ? $dt : time(),
-                'purpose' => trim($purpose),
-                'counterparty_name' => trim((string)($tx['merchantName'] ?? $tx['CreditorName'] ?? $tx['DebtorName'] ?? '')),
+                'dt' => $dtFinal,
+                'purpose' => $purpose,
+                'counterparty_name' => $cpName,
                 'counterparty_inn' => '',
                 'raw' => $tx,
             ];

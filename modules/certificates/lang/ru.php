@@ -82,6 +82,8 @@ return [
     'certificates.ledger.credit' => 'Начисление',
     'certificates.ledger.debit' => 'Списание',
     'certificates.ledger.issue' => 'Выпуск сертификата',
+    'certificates.ledger.adjust' => 'Корректировка номинала {old} → {new}',
+    'certificates.err.face_below_used' => 'Новый номинал меньше уже использованной суммы',
     'certificates.ledger.spend_event' => 'Списание на событие #:id',
     'certificates.ledger.spend_order' => 'Списание на заказ #:id',
     'certificates.ledger.expire' => 'Списание просроченного остатка',

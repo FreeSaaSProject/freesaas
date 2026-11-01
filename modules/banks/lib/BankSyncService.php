@@ -192,7 +192,12 @@ final class BankSyncService
         $providerLabel = BanksConfig::providerLabel($provider);
         foreach ($txs as $tx) {
             $extId = (string)$tx['external_id'];
-            if (BankTxMapRepository::moveIdFor($provider, $extId) > 0) {
+            if (BankTxMapRepository::moveIdFor($provider, $extId, $linkId) !== 0) {
+                $skipped++;
+                continue;
+            }
+            $claimKey = BankTxMapRepository::tryClaim($provider, $extId, $linkId, $connectionId);
+            if ($claimKey === '') {
                 $skipped++;
                 continue;
             }
@@ -209,7 +214,7 @@ final class BankSyncService
                 );
                 if (count($candidates) === 1) {
                     $moveId = (int)$candidates[0]['id'];
-                    BankTxMapRepository::remember($provider, $extId, $moveId, $linkId, $connectionId);
+                    BankTxMapRepository::bindMove($provider, $claimKey, $moveId);
                     $note = t('banks.sync.linked_note', [
                         'provider' => $providerLabel,
                         'ext_id' => $extId,
@@ -253,9 +258,10 @@ final class BankSyncService
                     'linked_id' => 0,
                     'account_to' => 0,
                 ]);
-                BankTxMapRepository::remember($provider, $extId, $moveId, $linkId, $connectionId);
+                BankTxMapRepository::bindMove($provider, $claimKey, $moveId);
                 $created++;
             } catch (Throwable $e) {
+                BankTxMapRepository::releaseClaim($provider, $claimKey);
                 $errors++;
                 $messages[] = $extId . ': ' . $e->getMessage();
             }

@@ -82,6 +82,8 @@ return [
     'certificates.ledger.credit' => 'Credit',
     'certificates.ledger.debit' => 'Debit',
     'certificates.ledger.issue' => 'Certificate issued',
+    'certificates.ledger.adjust' => 'Face value adjust {old} → {new}',
+    'certificates.err.face_below_used' => 'New face value is below the amount already spent',
     'certificates.ledger.spend_event' => 'Spend on event #:id',
     'certificates.ledger.spend_order' => 'Spend on order #:id',
     'certificates.ledger.expire' => 'Expired remainder written off',

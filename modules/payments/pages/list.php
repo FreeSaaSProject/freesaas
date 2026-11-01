@@ -291,6 +291,16 @@ if ($wantsJson) {
             $sumIssued += $s;
         }
     }
+    $jsonItems = [];
+    foreach ($items as $it) {
+        if (!is_array($it)) {
+            continue;
+        }
+        if (class_exists('DayPayroll', false) && isset($it['descr'])) {
+            $it['descr'] = DayPayroll::maskDescr((string)$it['descr']);
+        }
+        $jsonItems[] = $it;
+    }
     $payload = [
         'ok' => true,
         'mode' => $mode,
@@ -306,7 +316,7 @@ if ($wantsJson) {
                 return is_array($it) && (int)($it['direction'] ?? 0) !== 1;
             })),
         ],
-        'items' => $items,
+        'items' => $jsonItems,
         'filters' => [
             'q' => $q,
             'user_id' => $userId > 0 ? $userId : null,

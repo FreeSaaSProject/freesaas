@@ -122,6 +122,8 @@ return [
     'payments.err.user_required' => 'Select a staff member',
     'payments.err.direction_required' => 'Choose direction: accrual or write-off',
     'payments.err.sum_required' => 'Enter an amount',
+    'payments.err.sum_positive' => 'Amount must be greater than zero (use direction for sign)',
+    'payments.err.accrual_forbidden' => 'You cannot create accruals for yourself — ask a payroll admin',
     'payments.err.descr_required' => 'Enter a description',
     'payments.err.forbidden' => 'Not allowed to view other staff payments',
     'payments.err.delete_linked' => 'Delete blocked: linked account moves exist',

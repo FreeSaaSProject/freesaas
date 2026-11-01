@@ -2,12 +2,20 @@
 declare(strict_types=1);
 
 $wantsJson = AgentHttp::wantsJson();
-$accountId = (int)($_POST['account_id'] ?? $_GET['account_id'] ?? 0);
-$dateFrom = trim((string)($_POST['date_from'] ?? $_GET['date_from'] ?? date('Y-m-d', strtotime('-7 days'))));
-$dateTo = trim((string)($_POST['date_to'] ?? $_GET['date_to'] ?? date('Y-m-d')));
+$accountId = (int)($_POST['account_id'] ?? 0);
+$dateFrom = trim((string)($_POST['date_from'] ?? date('Y-m-d', strtotime('-7 days'))));
+$dateTo = trim((string)($_POST['date_to'] ?? date('Y-m-d')));
 $fallback = $accountId > 0
     ? ListQuery::url('/ledger/moves', ['account_id' => (string)$accountId], [])
     : '/ledger/moves';
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+    if ($wantsJson) {
+        AgentHttp::error(t('banks.err.sync'), 405);
+    }
+    flash_set('error', t('banks.err.sync'));
+    redirect(NavContext::backOr($fallback));
+}
 
 if ($accountId < 1
     || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)

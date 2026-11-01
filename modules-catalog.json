@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-10-31T11:23:21+00:00",
+    "generated_at": "2026-10-31T11:39:23+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1138,7 +1138,7 @@
         },
         {
             "id": "ledger",
-            "version": "1.0.8",
+            "version": "1.0.9",
             "type": "product",
             "name": {
                 "en": "Account ledger",
@@ -1365,7 +1365,7 @@
         },
         {
             "id": "payments",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Settlements",

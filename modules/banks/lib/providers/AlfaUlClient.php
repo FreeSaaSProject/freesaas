@@ -345,9 +345,6 @@ final class AlfaUlClient
     private static function normalizeTx(array $tx, string $ymd): ?array
     {
         $id = (string)($tx['uuid'] ?? $tx['id'] ?? $tx['operationId'] ?? $tx['paymentId'] ?? '');
-        if ($id === '') {
-            $id = sha1($ymd . json_encode($tx));
-        }
         $dirRaw = (string)($tx['direction'] ?? $tx['creditDebitIndicator'] ?? '');
         $amount = abs((float)($tx['amount']['amount'] ?? $tx['amount'] ?? $tx['sum'] ?? $tx['Sum'] ?? 0));
         if ($amount <= 0) {
@@ -369,17 +366,28 @@ final class AlfaUlClient
         }
         $dtStr = (string)($tx['operationDate'] ?? $tx['date'] ?? $tx['bookingDate'] ?? $ymd);
         $dt = (int)strtotime($dtStr);
-        $purpose = (string)($tx['paymentPurpose'] ?? $tx['purpose'] ?? $tx['description'] ?? $tx['narration'] ?? '');
-        $cpName = (string)($tx['counterpartyName'] ?? $tx['payeeName'] ?? $tx['payerName'] ?? $tx['rurTransfer']['payeeName'] ?? '');
-        $cpInn = (string)($tx['counterpartyInn'] ?? $tx['inn'] ?? $tx['rurTransfer']['payeeInn'] ?? '');
+        $dtFinal = $dt > 0 ? $dt : (int)strtotime($ymd);
+        $purpose = trim((string)($tx['paymentPurpose'] ?? $tx['purpose'] ?? $tx['description'] ?? $tx['narration'] ?? ''));
+        $cpName = trim((string)($tx['counterpartyName'] ?? $tx['payeeName'] ?? $tx['payerName'] ?? $tx['rurTransfer']['payeeName'] ?? ''));
+        $cpInn = trim((string)($tx['counterpartyInn'] ?? $tx['inn'] ?? $tx['rurTransfer']['payeeInn'] ?? ''));
+        if ($id === '') {
+            $id = BankTxMapRepository::fingerprint([
+                'direction' => $direction,
+                'amount' => $amount,
+                'dt' => $dtFinal,
+                'purpose' => $purpose,
+                'counterparty_inn' => $cpInn,
+                'counterparty_name' => $cpName,
+            ]);
+        }
         return [
             'external_id' => $id,
             'direction' => $direction,
             'amount' => $amount,
-            'dt' => $dt > 0 ? $dt : (int)strtotime($ymd),
-            'purpose' => trim($purpose),
-            'counterparty_name' => trim($cpName),
-            'counterparty_inn' => trim($cpInn),
+            'dt' => $dtFinal,
+            'purpose' => $purpose,
+            'counterparty_name' => $cpName,
+            'counterparty_inn' => $cpInn,
             'raw' => $tx,
         ];
     }

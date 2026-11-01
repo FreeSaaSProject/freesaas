@@ -126,10 +126,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if ($isNew) {
                 $newId = PaymentsRepository::create($data);
                 if ($wantsJson) {
+                    $created = PaymentsRepository::find($newId);
+                    if (is_array($created) && class_exists('DayPayroll', false) && isset($created['descr'])) {
+                        $created['descr'] = DayPayroll::maskDescr((string)$created['descr']);
+                    }
                     AgentHttp::emit([
                         'ok' => true,
                         'id' => $newId,
-                        'row' => PaymentsRepository::find($newId),
+                        'row' => $created,
                     ]);
                     return;
                 }
@@ -139,10 +143,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             PaymentsRepository::update($id, $data);
             $row = PaymentsRepository::find($id) ?: $row;
             if ($wantsJson) {
+                $saved = $row;
+                if (is_array($saved) && class_exists('DayPayroll', false) && isset($saved['descr'])) {
+                    $saved['descr'] = DayPayroll::maskDescr((string)$saved['descr']);
+                }
                 AgentHttp::emit([
                     'ok' => true,
                     'id' => $id,
-                    'row' => $row,
+                    'row' => $saved,
                 ]);
                 return;
             }
@@ -190,11 +198,15 @@ $showCashMarks = (int)($row['direction'] ?? 0) < 0 && (int)($row['account'] ?? 0
 $canViewLedger = $ledgerEnabled && Auth::can('ledger.view');
 
 if ($wantsJson) {
+    $jsonRow = $row;
+    if (is_array($jsonRow) && class_exists('DayPayroll', false) && isset($jsonRow['descr'])) {
+        $jsonRow['descr'] = DayPayroll::maskDescr((string)$jsonRow['descr']);
+    }
     AgentHttp::emit([
         'ok' => true,
         'is_new' => $isNew,
         'id' => $isNew ? null : $id,
-        'row' => $row,
+        'row' => $jsonRow,
         'staff' => $staff,
         'can_see_others' => $canSeeOthers,
         'ledger_enabled' => $ledgerEnabled,

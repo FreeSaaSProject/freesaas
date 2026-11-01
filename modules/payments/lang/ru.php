@@ -122,6 +122,8 @@ return [
     'payments.err.user_required' => 'Выберите сотрудника',
     'payments.err.direction_required' => 'Укажите направление: начисление или списание',
     'payments.err.sum_required' => 'Укажите сумму',
+    'payments.err.sum_positive' => 'Сумма должна быть больше нуля (знак задаётся направлением)',
+    'payments.err.accrual_forbidden' => 'Нельзя самому начислять себе — попросите администратора выплат',
     'payments.err.descr_required' => 'Укажите описание',
     'payments.err.forbidden' => 'Недостаточно прав для просмотра чужих платежей',
     'payments.err.delete_linked' => 'Удаление запрещено: есть движения по счетам',

@@ -110,6 +110,7 @@ return [
     'calendar.event.err.dtstart_required' => 'Укажите время начала',
     'calendar.event.err.range' => 'Окончание должно быть позже начала',
     'calendar.event.err.operator_required' => 'Выберите исполнителя',
+    'calendar.event.err.operator_not_allowed' => 'Нельзя назначить этого сотрудника (нет в смене / не назначаемый на процедуры)',
     'calendar.event.err.content_required' => 'Выберите хотя бы одну услугу (или отметьте блок)',
     'calendar.event.err.overlap' => 'Пересечение с событиями: {list}',
     'calendar.event.err.no_create' => 'Нет права создавать события',

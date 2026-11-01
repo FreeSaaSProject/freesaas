@@ -193,9 +193,6 @@ final class TbankUlClient
     private static function normalizeTx(array $tx): ?array
     {
         $id = (string)($tx['operationId'] ?? $tx['id'] ?? $tx['trxnId'] ?? $tx['paymentId'] ?? '');
-        if ($id === '') {
-            $id = sha1(json_encode($tx));
-        }
         $amount = abs((float)($tx['amount']['amount'] ?? $tx['amount'] ?? $tx['operationAmount'] ?? $tx['drawDateAmount'] ?? 0));
         if (isset($tx['operationAmount']) && is_array($tx['operationAmount'])) {
             $amount = abs((float)($tx['operationAmount']['amount'] ?? $amount));
@@ -216,17 +213,28 @@ final class TbankUlClient
         }
         $dtStr = (string)($tx['operationDate'] ?? $tx['trxnPostDate'] ?? $tx['authorizationDate'] ?? $tx['date'] ?? '');
         $dt = $dtStr !== '' ? (int)strtotime($dtStr) : time();
-        $purpose = (string)($tx['paymentPurpose'] ?? $tx['description'] ?? $tx['purpose'] ?? '');
-        $cpName = (string)($tx['counterParty']['name'] ?? $tx['payee'] ?? $tx['payer'] ?? $tx['merchant']['name'] ?? '');
-        $cpInn = (string)($tx['counterParty']['inn'] ?? $tx['payeeInn'] ?? $tx['payerInn'] ?? '');
+        $dtFinal = $dt > 0 ? $dt : time();
+        $purpose = trim((string)($tx['paymentPurpose'] ?? $tx['description'] ?? $tx['purpose'] ?? ''));
+        $cpName = trim((string)($tx['counterParty']['name'] ?? $tx['payee'] ?? $tx['payer'] ?? $tx['merchant']['name'] ?? ''));
+        $cpInn = trim((string)($tx['counterParty']['inn'] ?? $tx['payeeInn'] ?? $tx['payerInn'] ?? ''));
+        if ($id === '') {
+            $id = BankTxMapRepository::fingerprint([
+                'direction' => $direction,
+                'amount' => $amount,
+                'dt' => $dtFinal,
+                'purpose' => $purpose,
+                'counterparty_inn' => $cpInn,
+                'counterparty_name' => $cpName,
+            ]);
+        }
         return [
             'external_id' => $id,
             'direction' => $direction,
             'amount' => $amount,
-            'dt' => $dt > 0 ? $dt : time(),
-            'purpose' => trim($purpose),
-            'counterparty_name' => trim($cpName),
-            'counterparty_inn' => trim($cpInn),
+            'dt' => $dtFinal,
+            'purpose' => $purpose,
+            'counterparty_name' => $cpName,
+            'counterparty_inn' => $cpInn,
             'raw' => $tx,
         ];
     }

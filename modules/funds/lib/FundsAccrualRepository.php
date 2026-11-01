@@ -87,8 +87,9 @@ final class FundsAccrualRepository
         }
         $pdo = Database::pdo();
         $funds = $pdo->query('SELECT ID, NAME, TYPE FROM base_funds WHERE PID > 0 ORDER BY NAME ASC')->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        // Half-open [monthStart, nextMonthStart): old monthEnd = last-day 00:00 dropped the 31st.
         $monthStart = mktime(0, 0, 0, (int)date('n'), 1) ?: time();
-        $monthEnd = mktime(0, 0, 0, (int)date('n') + 1, 0) ?: time();
+        $monthEnd = mktime(0, 0, 0, (int)date('n') + 1, 1) ?: ($monthStart + 86400 * 32);
         $now = time();
         $bot = self::BOT_USER;
         $rows = [];
@@ -113,7 +114,7 @@ final class FundsAccrualRepository
                     $stDel = $pdo->prepare(
                         'DELETE FROM base_fund_movements
                          WHERE ID_FUND = ? AND ID_USER_CREATE = ? AND DIRECTION > 0
-                           AND DT_AMORT_START > ? AND DT_AMORT_START < ?'
+                           AND DT_AMORT_START >= ? AND DT_AMORT_START < ?'
                     );
                     $stDel->execute([$fundId, $bot, $monthStart, $monthEnd]);
                     $bal = self::getFundBalance($fundId, $fundType);
@@ -141,7 +142,7 @@ final class FundsAccrualRepository
                     $stC = $pdo->prepare(
                         'SELECT COUNT(*) FROM base_fund_movements
                          WHERE ID_FUND = ? AND ID_USER_CREATE = ? AND DIRECTION > 0
-                           AND DT_AMORT_START > ? AND DT_AMORT_START < ?'
+                           AND DT_AMORT_START >= ? AND DT_AMORT_START < ?'
                     );
                     $stC->execute([$fundId, $bot, $monthStart, $monthEnd]);
                     if ((int)$stC->fetchColumn() > 0) {
@@ -300,12 +301,12 @@ final class FundsAccrualRepository
             return 0.0;
         }
         $monthStart = mktime(0, 0, 0, (int)date('n'), 1) ?: 0;
-        $monthEnd = mktime(0, 0, 0, (int)date('n') + 1, 0) ?: 0;
+        $monthEnd = mktime(0, 0, 0, (int)date('n') + 1, 1) ?: 0;
         $ph = implode(',', array_fill(0, count($payers), '?'));
         $params = array_merge($payers, [$monthStart, $monthEnd]);
         $st = $pdo->prepare(
             "SELECT COALESCE(SUM(SUMM), 0) FROM base_account_moves
-             WHERE ID_TYPE IN ($ph) AND DT > ? AND DT < ? AND DELETED = 0"
+             WHERE ID_TYPE IN ($ph) AND DT >= ? AND DT < ? AND DELETED = 0"
         );
         $st->execute($params);
         $cashIn = (float)$st->fetchColumn();
@@ -317,7 +318,7 @@ final class FundsAccrualRepository
             $params2 = array_merge($discounters, [$monthStart, $monthEnd]);
             $st2 = $pdo->prepare(
                 "SELECT COALESCE(SUM(SUMM), 0) FROM base_account_moves
-                 WHERE ID_TYPE IN ($ph2) AND DT > ? AND DT < ? AND DELETED = 0"
+                 WHERE ID_TYPE IN ($ph2) AND DT >= ? AND DT < ? AND DELETED = 0"
             );
             $st2->execute($params2);
             $discount = (float)$st2->fetchColumn();

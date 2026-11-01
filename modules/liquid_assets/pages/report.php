@@ -8,9 +8,16 @@ $ym = $period['ym'];
 
 $syncFlash = null;
 $syncPending = [];
-$do = (string)($_GET['do'] ?? $_POST['do'] ?? '');
+$do = (string)($_POST['do'] ?? '');
 
 if ($do === 'sync' || $do === 'sync_confirm') {
+    if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
+        if ($wantsJson) {
+            AgentHttp::error(t('liquid_assets.err.forbidden'), 405);
+            return;
+        }
+        redirect('/liquid-assets?ym=' . rawurlencode($ym));
+    }
     if (!Auth::can('liquid_assets.edit')) {
         if ($wantsJson) {
             AgentHttp::error(t('liquid_assets.err.forbidden'), 403);

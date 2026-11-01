@@ -14,6 +14,17 @@ final class PaymentMoveLinksRepository
         if ($paymentId < 1 || !self::ready()) {
             return 0;
         }
+        // Drop stale rows after soft-delete of DPS (EventBus usually unlinks; this is defensive).
+        if (Database::tableExists('base_account_moves')) {
+            self::pruneOrphanLinks([$paymentId]);
+            $st = Database::pdo()->prepare(
+                'SELECT l.ID_MOVE FROM base_payment_move_links l
+                 INNER JOIN base_account_moves m ON m.ID = l.ID_MOVE AND m.DELETED = 0
+                 WHERE l.ID_PAYMENT = ? LIMIT 1'
+            );
+            $st->execute([$paymentId]);
+            return (int)$st->fetchColumn();
+        }
         $st = Database::pdo()->prepare(
             'SELECT ID_MOVE FROM base_payment_move_links WHERE ID_PAYMENT = ? LIMIT 1'
         );

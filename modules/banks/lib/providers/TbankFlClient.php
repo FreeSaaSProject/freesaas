@@ -151,9 +151,6 @@ final class TbankFlClient
                 continue;
             }
             $id = (string)($tx['operationId'] ?? $tx['id'] ?? '');
-            if ($id === '') {
-                $id = sha1(json_encode($tx));
-            }
             $amount = abs((float)($tx['amount']['amount'] ?? $tx['amount'] ?? 0));
             if ($amount <= 0) {
                 continue;
@@ -164,14 +161,28 @@ final class TbankFlClient
             }
             $dtStr = (string)($tx['operationDate'] ?? $tx['date'] ?? '');
             $dt = $dtStr !== '' ? (int)strtotime($dtStr) : time();
+            $dtFinal = $dt > 0 ? $dt : time();
+            $purpose = trim((string)($tx['paymentPurpose'] ?? $tx['description'] ?? ''));
+            $cpName = trim((string)($tx['counterParty']['name'] ?? ''));
+            $cpInn = trim((string)($tx['counterParty']['inn'] ?? ''));
+            if ($id === '') {
+                $id = BankTxMapRepository::fingerprint([
+                    'direction' => $direction,
+                    'amount' => $amount,
+                    'dt' => $dtFinal,
+                    'purpose' => $purpose,
+                    'counterparty_inn' => $cpInn,
+                    'counterparty_name' => $cpName,
+                ]);
+            }
             $out[] = [
                 'external_id' => $id,
                 'direction' => $direction,
                 'amount' => $amount,
-                'dt' => $dt > 0 ? $dt : time(),
-                'purpose' => trim((string)($tx['paymentPurpose'] ?? $tx['description'] ?? '')),
-                'counterparty_name' => trim((string)($tx['counterParty']['name'] ?? '')),
-                'counterparty_inn' => trim((string)($tx['counterParty']['inn'] ?? '')),
+                'dt' => $dtFinal,
+                'purpose' => $purpose,
+                'counterparty_name' => $cpName,
+                'counterparty_inn' => $cpInn,
                 'raw' => $tx,
             ];
         }

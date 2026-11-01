@@ -69,11 +69,22 @@ if (!$isNew) {
     if (!empty(Auth::statusFlags()['EVT_MY_ONLY'])) {
         $staffHint = Auth::userId();
     }
+    // Never default to the current admin when they are not assignable —
+    // otherwise keepOperator injects them into the dropdown and blocks land on admins.
+    $defaultOp = 0;
+    if ($staffHint > 0) {
+        $defaultOp = $staffHint;
+    } else {
+        $dayChoices = EventsRepository::staffChoicesForDay($startTs, 0);
+        if ($dayChoices !== []) {
+            $defaultOp = (int)array_key_first($dayChoices);
+        }
+    }
     $forceBlock = CalendarConfig::isBlocksMode() || !empty($_GET['block']);
     $row = [
         'dtstart' => $startTs,
         'dtend' => $startTs + 3600,
-        'id_operator' => $staffHint > 0 ? $staffHint : Auth::userId(),
+        'id_operator' => $defaultOp,
         'id_user' => 0,
         'content_ids' => [],
         'content_price_map' => [],
@@ -158,6 +169,14 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             if (!empty(Auth::statusFlags()['EVT_MY_ONLY'])) {
                 $data['id_operator'] = Auth::userId();
             }
+            // Server-side gate: only staffChoicesForDay (shift / CAN_BE_ASSIGNED / keep current).
+            // Blocks POST of an admin id that is absent from the select.
+            $keepOpGate = $isNew ? 0 : (int)($row['id_operator'] ?? 0);
+            EventsRepository::assertOperatorAllowed(
+                (int)$data['id_operator'],
+                (int)$data['dtstart'],
+                $keepOpGate
+            );
             if ($isNew) {
                 $newId = EventsRepository::create($data);
                 if (is_array($saved) && isset($saved['_bonus_persist']) && class_exists('EventBonusRepository', false)) {

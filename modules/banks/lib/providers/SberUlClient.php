@@ -250,9 +250,6 @@ final class SberUlClient
     private static function normalizeTx(array $tx, string $ymd): ?array
     {
         $id = (string)($tx['uuid'] ?? $tx['operationId'] ?? $tx['id'] ?? $tx['transactionId'] ?? '');
-        if ($id === '') {
-            $id = sha1($ymd . json_encode($tx));
-        }
         $amount = 0.0;
         $direction = 1;
         if (isset($tx['amount']['amount'])) {
@@ -281,14 +278,28 @@ final class SberUlClient
         }
         $dtStr = (string)($tx['operationDate'] ?? $tx['date'] ?? $tx['transactionDate'] ?? $ymd);
         $dt = (int)strtotime($dtStr);
+        $dtFinal = $dt > 0 ? $dt : (int)strtotime($ymd);
+        $purpose = trim((string)($tx['paymentPurpose'] ?? $tx['purpose'] ?? $tx['description'] ?? ''));
+        $cpName = trim((string)($tx['rurTransfer']['payeeName'] ?? $tx['payeeName'] ?? $tx['payerName'] ?? $tx['counterpartName'] ?? ''));
+        $cpInn = trim((string)($tx['rurTransfer']['payeeInn'] ?? $tx['payeeInn'] ?? $tx['payerInn'] ?? ''));
+        if ($id === '') {
+            $id = BankTxMapRepository::fingerprint([
+                'direction' => $direction,
+                'amount' => $amount,
+                'dt' => $dtFinal,
+                'purpose' => $purpose,
+                'counterparty_inn' => $cpInn,
+                'counterparty_name' => $cpName,
+            ]);
+        }
         return [
             'external_id' => $id,
             'direction' => $direction,
             'amount' => $amount,
-            'dt' => $dt > 0 ? $dt : (int)strtotime($ymd),
-            'purpose' => trim((string)($tx['paymentPurpose'] ?? $tx['purpose'] ?? $tx['description'] ?? '')),
-            'counterparty_name' => trim((string)($tx['rurTransfer']['payeeName'] ?? $tx['payeeName'] ?? $tx['payerName'] ?? $tx['counterpartName'] ?? '')),
-            'counterparty_inn' => trim((string)($tx['rurTransfer']['payeeInn'] ?? $tx['payeeInn'] ?? $tx['payerInn'] ?? '')),
+            'dt' => $dtFinal,
+            'purpose' => $purpose,
+            'counterparty_name' => $cpName,
+            'counterparty_inn' => $cpInn,
             'raw' => $tx,
         ];
     }

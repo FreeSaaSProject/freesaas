@@ -110,6 +110,7 @@ return [
     'calendar.event.err.dtstart_required' => 'Start time is required',
     'calendar.event.err.range' => 'End must be after start',
     'calendar.event.err.operator_required' => 'Select a performer',
+    'calendar.event.err.operator_not_allowed' => 'This staff member cannot be assigned (not on shift / not assignable)',
     'calendar.event.err.content_required' => 'Select at least one service (or mark as block)',
     'calendar.event.err.overlap' => 'Overlaps with: {list}',
     'calendar.event.err.no_create' => 'Not allowed to create events',

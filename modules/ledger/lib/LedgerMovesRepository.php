@@ -513,8 +513,19 @@ final class LedgerMovesRepository
         if ($paymentId < 1) {
             return false;
         }
-        // Multi-allocation table owned by payments (base_*); soft check keeps createFromPayment idempotent.
-        if (Database::tableExists('base_payment_move_links')) {
+        // Multi-allocation table owned by payments (base_*); ignore links to soft-deleted DPS.
+        if (Database::tableExists('base_payment_move_links')
+            && Database::tableExists('base_account_moves')) {
+            $st = Database::pdo()->prepare(
+                'SELECT 1 FROM base_payment_move_links l
+                 INNER JOIN base_account_moves m ON m.ID = l.ID_MOVE AND m.DELETED = 0
+                 WHERE l.ID_PAYMENT = ? LIMIT 1'
+            );
+            $st->execute([$paymentId]);
+            if ((bool)$st->fetchColumn()) {
+                return true;
+            }
+        } elseif (Database::tableExists('base_payment_move_links')) {
             $st = Database::pdo()->prepare(
                 'SELECT 1 FROM base_payment_move_links WHERE ID_PAYMENT = ? LIMIT 1'
             );

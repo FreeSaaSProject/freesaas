@@ -84,13 +84,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             redirect('/certificates/' . $newId . '/edit?saved=1');
             return;
         }
+        $oldFace = (float)($row['face_value'] ?? 0);
+        $newFace = (float)($data['face_value'] ?? 0);
         CertificatesRepository::update($id, $data);
+        $adj = CertificateProcessor::adjustFaceValue(
+            $id,
+            $oldFace,
+            $newFace,
+            (int)($data['id_operator'] ?? Auth::userId() ?? 0)
+        );
+        if (empty($adj['ok'])) {
+            // Roll face back so UI/DB stay consistent with ledger.
+            $data['face_value'] = $oldFace;
+            CertificatesRepository::update($id, $data);
+            throw new RuntimeException((string)($adj['error'] ?? t('certificates.err.apply_failed')));
+        }
         if ($wantsJson) {
             AgentHttp::emit([
                 'ok' => true,
                 'action' => 'update',
                 'id' => $id,
                 'row' => CertificatesRepository::find($id),
+                'face_adjust' => $adj,
             ]);
             return;
         }

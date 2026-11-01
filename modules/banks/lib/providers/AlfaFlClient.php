@@ -359,9 +359,6 @@ final class AlfaFlClient
     private static function normalizePpOperation(array $op): ?array
     {
         $id = (string)($op['id'] ?? '');
-        if ($id === '') {
-            $id = sha1(json_encode($op));
-        }
         $dirRaw = strtoupper((string)($op['direction'] ?? $op['operationDirection'] ?? ''));
         $direction = ($dirRaw === 'INCOME' || $dirRaw === 'CREDIT' || $dirRaw === 'CRDT') ? 1 : -1;
         $amountRaw = $op['amount']['value'] ?? $op['amount']['amount'] ?? $op['amount'] ?? 0;
@@ -379,14 +376,25 @@ final class AlfaFlClient
         }
         $dtStr = (string)($op['dateTime'] ?? $op['datetime'] ?? '');
         $dt = $dtStr !== '' ? (int)strtotime($dtStr) : time();
+        $dtFinal = $dt > 0 ? $dt : time();
         $purpose = trim((string)($op['title'] ?? $op['comment'] ?? $op['description'] ?? ''));
+        $cpName = trim((string)($op['merchantName'] ?? $op['category']['name'] ?? ''));
+        if ($id === '') {
+            $id = BankTxMapRepository::fingerprint([
+                'direction' => $direction,
+                'amount' => $amount,
+                'dt' => $dtFinal,
+                'purpose' => $purpose,
+                'counterparty_name' => $cpName,
+            ]);
+        }
         return [
             'external_id' => $id,
             'direction' => $direction,
             'amount' => $amount,
-            'dt' => $dt > 0 ? $dt : time(),
+            'dt' => $dtFinal,
             'purpose' => $purpose,
-            'counterparty_name' => trim((string)($op['merchantName'] ?? $op['category']['name'] ?? '')),
+            'counterparty_name' => $cpName,
             'counterparty_inn' => '',
             'raw' => $op,
         ];
@@ -399,9 +407,6 @@ final class AlfaFlClient
     private static function normalizeObTx(array $tx): ?array
     {
         $id = (string)($tx['transactionId'] ?? $tx['TransactionId'] ?? $tx['id'] ?? '');
-        if ($id === '') {
-            $id = sha1(json_encode($tx));
-        }
         $creditDebit = strtoupper((string)($tx['creditDebitIndicator'] ?? $tx['CreditDebitIndicator'] ?? ''));
         $direction = ($creditDebit === 'CREDIT' || $creditDebit === 'CRDT') ? 1 : -1;
         $amountRaw = $tx['Amount']['amount'] ?? $tx['amount']['amount'] ?? $tx['Amount'] ?? $tx['amount'] ?? 0;
@@ -414,17 +419,29 @@ final class AlfaFlClient
         }
         $dtStr = (string)($tx['BookingDateTime'] ?? $tx['bookingDateTime'] ?? '');
         $dt = $dtStr !== '' ? (int)strtotime($dtStr) : time();
+        $dtFinal = $dt > 0 ? $dt : time();
         $purpose = (string)($tx['transactionInformation'] ?? $tx['description'] ?? $tx['remittanceInformation'] ?? '');
         if (is_array($purpose)) {
             $purpose = implode(' ', $purpose);
+        }
+        $purpose = trim($purpose);
+        $cpName = trim((string)($tx['merchantName'] ?? $tx['CreditorName'] ?? $tx['DebtorName'] ?? ''));
+        if ($id === '') {
+            $id = BankTxMapRepository::fingerprint([
+                'direction' => $direction,
+                'amount' => $amount,
+                'dt' => $dtFinal,
+                'purpose' => $purpose,
+                'counterparty_name' => $cpName,
+            ]);
         }
         return [
             'external_id' => $id,
             'direction' => $direction,
             'amount' => $amount,
-            'dt' => $dt > 0 ? $dt : time(),
-            'purpose' => trim($purpose),
-            'counterparty_name' => trim((string)($tx['merchantName'] ?? $tx['CreditorName'] ?? $tx['DebtorName'] ?? '')),
+            'dt' => $dtFinal,
+            'purpose' => $purpose,
+            'counterparty_name' => $cpName,
             'counterparty_inn' => '',
             'raw' => $tx,
         ];

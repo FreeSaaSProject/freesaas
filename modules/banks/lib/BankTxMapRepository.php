@@ -8,17 +8,121 @@ final class BankTxMapRepository
         return Database::tableExists('base_bank_tx_map');
     }
 
-    public static function moveIdFor(string $provider, string $externalTxId): int
+    /**
+     * Map key scoped to account link so same bank tx id on two own accounts
+     * (transfer) does not collapse. Also accepts bare legacy ids.
+     */
+    public static function mapKey(string $externalTxId, int $linkId): string
+    {
+        $externalTxId = trim($externalTxId);
+        if ($externalTxId === '') {
+            return '';
+        }
+        if ($linkId > 0 && strpos($externalTxId, 'L' . $linkId . ':') !== 0) {
+            return 'L' . $linkId . ':' . $externalTxId;
+        }
+        return $externalTxId;
+    }
+
+    /**
+     * Stable fallback when the bank API omits a real transaction id.
+     * Do not hash the whole raw payload (status flips → new id → duplicate move).
+     *
+     * @param array{direction?:int,amount?:float,dt?:int,purpose?:string,counterparty_inn?:string,counterparty_name?:string} $parts
+     */
+    public static function fingerprint(array $parts): string
+    {
+        $stable = [
+            'd' => (int)($parts['direction'] ?? 0) >= 0 ? 1 : -1,
+            'a' => round((float)($parts['amount'] ?? 0), 2),
+            't' => (int)($parts['dt'] ?? 0),
+            'p' => trim((string)($parts['purpose'] ?? '')),
+            'i' => trim((string)($parts['counterparty_inn'] ?? '')),
+            'n' => trim((string)($parts['counterparty_name'] ?? '')),
+        ];
+        return 'fp:' . sha1((string)json_encode($stable, JSON_UNESCAPED_UNICODE));
+    }
+
+    public static function moveIdFor(string $provider, string $externalTxId, int $linkId = 0): int
     {
         if ($externalTxId === '' || !self::ready()) {
             return 0;
+        }
+        $keys = [$externalTxId];
+        if ($linkId > 0) {
+            $scoped = self::mapKey($externalTxId, $linkId);
+            if ($scoped !== '' && $scoped !== $externalTxId) {
+                array_unshift($keys, $scoped);
+            }
         }
         $st = Database::pdo()->prepare(
             'SELECT ID_MOVE FROM base_bank_tx_map
              WHERE PROVIDER = ? AND EXTERNAL_TX_ID = ? LIMIT 1'
         );
-        $st->execute([$provider, $externalTxId]);
-        return (int)$st->fetchColumn();
+        foreach ($keys as $key) {
+            $st->execute([$provider, $key]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if ($row === false) {
+                continue;
+            }
+            $moveId = (int)($row['ID_MOVE'] ?? 0);
+            // >0 linked; 0 = claimed by parallel sync — treat as present (-1).
+            return $moveId > 0 ? $moveId : -1;
+        }
+        return 0;
+    }
+
+    /**
+     * Atomically reserve (PROVIDER, EXTERNAL_TX_ID) before creating a ledger move.
+     * Returns the stored map key on success, '' if already claimed/linked.
+     */
+    public static function tryClaim(
+        string $provider,
+        string $externalTxId,
+        int $linkId,
+        int $connectionId
+    ): string {
+        if ($externalTxId === '' || !self::ready()) {
+            return '';
+        }
+        $key = self::mapKey($externalTxId, $linkId);
+        if ($key === '') {
+            return '';
+        }
+        if (self::moveIdFor($provider, $externalTxId, $linkId) !== 0) {
+            return '';
+        }
+        try {
+            Database::pdo()->prepare(
+                'INSERT INTO base_bank_tx_map
+                 (PROVIDER, EXTERNAL_TX_ID, ID_MOVE, ID_LINK, ID_CONNECTION, DT_CREATE)
+                 VALUES (?, ?, 0, ?, ?, ?)'
+            )->execute([$provider, $key, $linkId, $connectionId, time()]);
+            return $key;
+        } catch (PDOException $e) {
+            return '';
+        }
+    }
+
+    public static function bindMove(string $provider, string $mapKey, int $moveId): void
+    {
+        if ($mapKey === '' || $moveId < 1 || !self::ready()) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_bank_tx_map SET ID_MOVE = ? WHERE PROVIDER = ? AND EXTERNAL_TX_ID = ?'
+        )->execute([$moveId, $provider, $mapKey]);
+    }
+
+    public static function releaseClaim(string $provider, string $mapKey): void
+    {
+        if ($mapKey === '' || !self::ready()) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'DELETE FROM base_bank_tx_map
+             WHERE PROVIDER = ? AND EXTERNAL_TX_ID = ? AND ID_MOVE = 0'
+        )->execute([$provider, $mapKey]);
     }
 
     public static function remember(
@@ -31,12 +135,13 @@ final class BankTxMapRepository
         if ($externalTxId === '' || $moveId < 1 || !self::ready()) {
             return;
         }
+        $key = self::mapKey($externalTxId, $linkId);
         Database::pdo()->prepare(
             'INSERT INTO base_bank_tx_map
              (PROVIDER, EXTERNAL_TX_ID, ID_MOVE, ID_LINK, ID_CONNECTION, DT_CREATE)
              VALUES (?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE ID_MOVE = VALUES(ID_MOVE)'
-        )->execute([$provider, $externalTxId, $moveId, $linkId, $connectionId, time()]);
+             ON DUPLICATE KEY UPDATE ID_MOVE = VALUES(ID_MOVE), ID_LINK = VALUES(ID_LINK)'
+        )->execute([$provider, $key, $moveId, $linkId, $connectionId, time()]);
     }
 
     public static function isMoveLinked(int $moveId): bool

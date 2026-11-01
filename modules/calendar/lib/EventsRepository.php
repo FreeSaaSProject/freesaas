@@ -323,6 +323,21 @@ final class EventsRepository
     }
 
     /**
+     * Reject operators who are not in the day picker (shift / CAN_BE_ASSIGNED).
+     * $keepOperatorId allows saving an already-assigned person who is off-shift that day.
+     */
+    public static function assertOperatorAllowed(int $operatorId, int $dayTs, int $keepOperatorId = 0): void
+    {
+        if ($operatorId < 1) {
+            throw new InvalidArgumentException(t('calendar.event.err.operator_required'));
+        }
+        $choices = self::staffChoicesForDay($dayTs, $keepOperatorId);
+        if (!isset($choices[$operatorId])) {
+            throw new InvalidArgumentException(t('calendar.event.err.operator_not_allowed'));
+        }
+    }
+
+    /**
      * @param list<array{id_good:int,qty?:int}> $items
      */
     private static function assertOperatorCanPerform(int $operatorId, array $items, int $dayTs): void

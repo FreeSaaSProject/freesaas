@@ -65,8 +65,9 @@ final class TinvestApiClient
             'Authorization: Bearer ' . $token,
         ]);
         curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        // Default curl TLS verify (peer + host). Do not disable — token rides this channel.
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, 2);
         $raw = curl_exec($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $cerr = curl_error($ch);

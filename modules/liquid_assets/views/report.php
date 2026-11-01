@@ -75,9 +75,12 @@ $mfOutFin = $flows['out_by_cat'][3] ?? 0;
     </li>
   <?php endforeach; ?>
   </ul>
-  <p>
-    <a class="btn-primary" href="/liquid-assets?ym=<?= e(urlencode($ym)) ?>&do=sync_confirm"><?= te('liquid_assets.sync.confirm_yes') ?></a>
-    &nbsp;
+  <p class="liquid-assets-sync-actions">
+    <form method="post" action="/liquid-assets" class="inline-form">
+      <input type="hidden" name="ym" value="<?= e($ym) ?>">
+      <input type="hidden" name="do" value="sync_confirm">
+      <button type="submit" class="btn-primary"><?= te('liquid_assets.sync.confirm_yes') ?></button>
+    </form>
     <a class="btn-secondary" href="/liquid-assets?ym=<?= e(urlencode($ym)) ?>"><?= te('liquid_assets.sync.confirm_no') ?></a>
   </p>
 </div>
@@ -108,7 +111,11 @@ $mfOutFin = $flows['out_by_cat'][3] ?? 0;
 <?php if ((int)$report['tinvest_count'] < 1): ?>
   <span class="muted"><a href="/liquid-assets/accounts/new"><?= te('liquid_assets.report.no_accounts') ?></a></span>
 <?php elseif ($period['is_current'] && $canEdit): ?>
-  <a class="btn-primary" href="/liquid-assets?ym=<?= e(urlencode($ym)) ?>&do=sync"><?= te('liquid_assets.report.sync') ?></a>
+  <form method="post" action="/liquid-assets" class="inline-form">
+    <input type="hidden" name="ym" value="<?= e($ym) ?>">
+    <input type="hidden" name="do" value="sync">
+    <button type="submit" class="btn-primary"><?= te('liquid_assets.report.sync') ?></button>
+  </form>
   <span class="muted"><?= te('liquid_assets.report.sync_hint') ?></span>
 <?php elseif (!$period['is_current']): ?>
   <span class="muted"><?= te('liquid_assets.report.sync_past') ?></span>
