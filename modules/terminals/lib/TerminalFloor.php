@@ -378,7 +378,9 @@ final class TerminalFloor
                     'onec_bracelet' => $bracelet,
                     'token' => $itemToken,
                     'disable_1c' => $disable1c,
-                    'lead_sec' => TerminalsConfig::leadSec(),
+                    // Oper parity: listing uses lead_sec; commit does not re-apply lead
+                    // (slot may slip inside the window while staff confirms).
+                    'lead_sec' => 0,
                     'skip_chill' => true,
                     'price' => (float)$priced['price'],
                     'price_list' => $listPrice,

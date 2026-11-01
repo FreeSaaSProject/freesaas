@@ -16,6 +16,7 @@ final class LikespaLegacyApi
 
     public static function assertKey(): void
     {
+        self::assertAllowedIp();
         $key = trim(LikespaConfig::string('legacy_api_key', ''));
         if ($key === '') {
             return;
@@ -24,6 +25,72 @@ final class LikespaLegacyApi
         if (!hash_equals($key, $got)) {
             self::json(['error' => 'unauthorized'], 401);
         }
+    }
+
+    /** Optional IP/CIDR allowlist (REMOTE_ADDR). Empty list = no IP gate. */
+    private static function assertAllowedIp(): void
+    {
+        $allow = LikespaConfig::legacyApiAllowedIps();
+        if ($allow === []) {
+            return;
+        }
+        $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+        if ($ip === '' || !self::ipInAllowlist($ip, $allow)) {
+            self::json(['error' => 'forbidden'], 403);
+        }
+    }
+
+    /**
+     * @param list<string> $allow exact IPs or CIDR (e.g. 10.0.0.0/8)
+     */
+    private static function ipInAllowlist(string $ip, array $allow): bool
+    {
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+            return false;
+        }
+        $ipBin = @inet_pton($ip);
+        if ($ipBin === false) {
+            return false;
+        }
+        foreach ($allow as $rule) {
+            $rule = trim($rule);
+            if ($rule === '') {
+                continue;
+            }
+            if (strpos($rule, '/') === false) {
+                if (strcasecmp($ip, $rule) === 0) {
+                    return true;
+                }
+                continue;
+            }
+            [$subnet, $bitsRaw] = explode('/', $rule, 2);
+            $subnet = trim($subnet);
+            $bits = (int)$bitsRaw;
+            if (filter_var($subnet, FILTER_VALIDATE_IP) === false) {
+                continue;
+            }
+            $subBin = @inet_pton($subnet);
+            if ($subBin === false || strlen($subBin) !== strlen($ipBin)) {
+                continue;
+            }
+            $maxBits = strlen($ipBin) * 8;
+            if ($bits < 0 || $bits > $maxBits) {
+                continue;
+            }
+            $bytes = intdiv($bits, 8);
+            $rem = $bits % 8;
+            if ($bytes > 0 && substr($ipBin, 0, $bytes) !== substr($subBin, 0, $bytes)) {
+                continue;
+            }
+            if ($rem === 0) {
+                return true;
+            }
+            $mask = (0xFF << (8 - $rem)) & 0xFF;
+            if ((ord($ipBin[$bytes]) & $mask) === (ord($subBin[$bytes]) & $mask)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static function dispatchTermy(): void
@@ -181,9 +248,12 @@ final class LikespaLegacyApi
             $issues[] = 'clients_missing';
         }
         $key = trim(LikespaConfig::string('legacy_api_key', ''));
+        $ips = LikespaConfig::legacyApiAllowedIps();
         return [
             'legacy_api_enabled' => $enabled,
             'legacy_api_key_set' => $key !== '',
+            'legacy_api_allowed_ips' => $ips,
+            'legacy_api_ip_gate' => $ips !== [],
             'termy_category' => LikespaConfig::int('legacy_api_termy_category', 16),
             'routes' => ['/api_termy.php', '/api.php', '/api1c.php', '/api1c.php/{*path}'],
             'soft_deps' => [

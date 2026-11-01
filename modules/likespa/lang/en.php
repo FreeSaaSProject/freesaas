@@ -128,6 +128,8 @@ return [
     'likespa.settings.legacy_api_key_hint' => 'Leave blank to keep current. ',
     'likespa.settings.legacy_api_key_set' => 'A key is currently set.',
     'likespa.settings.legacy_api_key_empty' => 'No key (open).',
+    'likespa.settings.legacy_api_allowed_ips' => 'Allowed IPs (optional)',
+    'likespa.settings.legacy_api_allowed_ips_hint' => 'Comma-separated IPs or CIDRs. Empty = no IP gate. Checked against REMOTE_ADDR.',
     'likespa.settings.lead_sec_api' => 'Ordinary API lead (seconds)',
     'likespa.settings.lead_sec_api_hint' => 'Default 600 (10 min) for /api.php phones/personnel.',
     'likespa.settings.lead_sec_termy' => 'api_termy lead (seconds)',

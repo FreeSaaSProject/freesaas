@@ -51,6 +51,11 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
         <?= $c('legacy_api_key_set', '0') === '1' ? te('likespa.settings.legacy_api_key_set') : te('likespa.settings.legacy_api_key_empty') ?>
       </span>
     </label>
+    <label><?= te('likespa.settings.legacy_api_allowed_ips') ?>
+      <input type="text" name="legacy_api_allowed_ips" value="<?= e($c('legacy_api_allowed_ips')) ?>"
+             autocomplete="off" placeholder="203.0.113.10, 10.0.0.0/8">
+      <span class="muted"><?= te('likespa.settings.legacy_api_allowed_ips_hint') ?></span>
+    </label>
     <label><?= te('likespa.settings.lead_sec_api') ?>
       <input type="number" name="lead_sec_api" min="0" max="7200" step="60"
              value="<?= (int)$c('lead_sec_api', '600') ?>">

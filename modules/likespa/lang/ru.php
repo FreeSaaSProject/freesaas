@@ -127,6 +127,8 @@ return [
     'likespa.settings.legacy_api_key_hint' => 'Пустое поле — не менять. ',
     'likespa.settings.legacy_api_key_set' => 'Ключ задан.',
     'likespa.settings.legacy_api_key_empty' => 'Ключа нет (открыто).',
+    'likespa.settings.legacy_api_allowed_ips' => 'Разрешённые IP (опционально)',
+    'likespa.settings.legacy_api_allowed_ips_hint' => 'Список IP или CIDR через запятую. Пусто — без ограничения по IP. Проверяется REMOTE_ADDR.',
     'likespa.settings.lead_sec_api' => 'Lead обычного API (секунды)',
     'likespa.settings.lead_sec_api_hint' => 'По умолчанию 600 (10 мин) для /api.php телефоны/персонал.',
     'likespa.settings.lead_sec_termy' => 'Lead api_termy (секунды)',

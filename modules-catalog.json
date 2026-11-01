@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-01T14:20:34+00:00",
+    "generated_at": "2026-11-01T14:55:02+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1179,7 +1179,7 @@
         },
         {
             "id": "likespa",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -1880,7 +1880,7 @@
         },
         {
             "id": "terminals",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

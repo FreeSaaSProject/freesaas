@@ -51,6 +51,8 @@ When `max_notify_enabled=1` and `max_notify_chat_id` set (`cfg/modules/orders.in
 
 Needs `bots` enabled and `staff_max_token` (bot must be in the Max group). Message body includes raw `Источник: api_termy` (etc.). Optional single title overrides: `max_notify_title` / `max_notify_title_cancel`.
 
+Same path covers storefront checkout (`source=site`) and `/api_termy.php` book (`source=api_termy`) — no extra wiring. Procedure-mode `/api.php` → `TerminalBooking` does not insert `base_orders`, so order Max notify does not fire there.
+
 Events: `orders.created`, `orders.cancelled`.
 
 ```bash

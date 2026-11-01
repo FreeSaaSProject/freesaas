@@ -17,6 +17,7 @@ final class LikespaConfig
             'legacy_api_enabled' => '0',
             'legacy_api_termy_category' => 16,
             'legacy_api_key' => '',
+            'legacy_api_allowed_ips' => '',
             'lead_sec_api' => 600,
             'lead_sec_termy' => 1200,
             'slot_interval_min_api' => 15,
@@ -119,6 +120,11 @@ final class LikespaConfig
         if ($apiKey !== '') {
             Config::set('likespa', 'legacy_api_key', $apiKey);
         }
+        Config::set(
+            'likespa',
+            'legacy_api_allowed_ips',
+            self::normalizeIpAllowlist((string)($post['legacy_api_allowed_ips'] ?? ''))
+        );
         Config::set('likespa', 'lead_sec_api', (string)max(0, min(7200, (int)($post['lead_sec_api'] ?? 600))));
         Config::set('likespa', 'lead_sec_termy', (string)max(0, min(7200, (int)($post['lead_sec_termy'] ?? 1200))));
         self::saveSlotIntervalsFromPost($post);
@@ -269,6 +275,27 @@ final class LikespaConfig
         return self::slotIntervalMinTermy() * 60;
     }
 
+    /**
+     * Optional allowlist for legacy HTTP API (exact IP or CIDR). Empty = no IP gate.
+     *
+     * @return list<string>
+     */
+    public static function legacyApiAllowedIps(): array
+    {
+        $raw = self::normalizeIpAllowlist(self::string('legacy_api_allowed_ips', ''));
+        if ($raw === '') {
+            return [];
+        }
+        $out = [];
+        foreach (preg_split('/[\s,;]+/', $raw) ?: [] as $part) {
+            $part = trim($part);
+            if ($part !== '') {
+                $out[] = $part;
+            }
+        }
+        return array_values(array_unique($out));
+    }
+
     public static function termScansEnabled(): bool
     {
         return self::flag('term_scans_enabled', true);
@@ -362,5 +389,35 @@ final class LikespaConfig
         $h = max(0, min(23, (int)$m[1]));
         $min = max(0, min(59, (int)$m[2]));
         return sprintf('%02d:%02d', $h, $min);
+    }
+
+    /** Keep only plausible IP / CIDR tokens for storage. */
+    private static function normalizeIpAllowlist(string $raw): string
+    {
+        $out = [];
+        foreach (preg_split('/[\s,;]+/', trim($raw)) ?: [] as $part) {
+            $part = trim($part);
+            if ($part === '') {
+                continue;
+            }
+            if (strpos($part, '/') !== false) {
+                [$ip, $bits] = explode('/', $part, 2);
+                $ip = trim($ip);
+                $bits = (int)$bits;
+                if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
+                    continue;
+                }
+                $max = strpos($ip, ':') !== false ? 128 : 32;
+                if ($bits < 0 || $bits > $max) {
+                    continue;
+                }
+                $out[] = $ip . '/' . $bits;
+                continue;
+            }
+            if (filter_var($part, FILTER_VALIDATE_IP) !== false) {
+                $out[] = $part;
+            }
+        }
+        return implode(',', array_values(array_unique($out)));
     }
 }

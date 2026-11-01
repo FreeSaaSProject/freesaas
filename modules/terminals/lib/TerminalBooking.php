@@ -191,6 +191,40 @@ final class TerminalBooking
             }
         }
 
+        // Local schedule before 1C: never charge if slot already dead.
+        // lead_sec from caller: /t passes 0 (oper parity — lead only on list UI);
+        // /terminals/floor keeps lead_sec_api.
+        if (class_exists(BookingValidate::class, false)) {
+            try {
+                BookingValidate::assertSlot(
+                    [$productId],
+                    $operatorId,
+                    $dtStart,
+                    null,
+                    false,
+                    $leadSec,
+                    null,
+                    $slotOpts
+                );
+            } catch (Throwable $e) {
+                return [
+                    'ok' => false,
+                    'error' => $e->getMessage(),
+                    'product_name' => $productName,
+                    'price' => $price,
+                    'stack' => $stack,
+                ];
+            }
+        } elseif ($dtStart < time() - 120) {
+            return [
+                'ok' => false,
+                'error' => 'dt_start in the past',
+                'product_name' => $productName,
+                'price' => $price,
+                'stack' => $stack,
+            ];
+        }
+
         $onecClient = trim((string)($input['onec_client_id'] ?? ''));
         // Pre-paid sale (legacy api.php: document_id = idSale after api1c.php/payment).
         $preSaleId = trim((string)($input['sale_id'] ?? $input['document_id'] ?? ''));
@@ -287,7 +321,7 @@ final class TerminalBooking
             'restored' => 0,
         ];
 
-        // Assert + insert under shared lock (same name as BookingBook) — 1C sale stays outside.
+        // Re-assert + insert under shared lock (race after 1C) — sale stays outside lock.
         $lockFn = static function () use (
             $productId,
             $operatorId,
@@ -713,8 +747,9 @@ final class TerminalBooking
             return;
         }
         $u = OnecClient::unsale($saleId, false);
+        // key "unsale" — same as cancel stack; t.php renders terminals.t.stack.unsale_*.
         $stack[] = [
-            'key' => 'unsale_after_fail',
+            'key' => 'unsale',
             'ok' => !empty($u['ok']),
             'sale_id' => $saleId,
             'detail' => (string)($u['error'] ?? ''),
