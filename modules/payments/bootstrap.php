@@ -139,6 +139,41 @@ BulkActions::register('payments', 'create_dps', [
     },
 ]);
 
+BulkActions::register('payments', 'resync_day', [
+    'label' => 'payments.bulk.resync_day',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'confirm' => 'payments.bulk.resync_confirm',
+    'run' => static function (array $ids, array $params): array {
+        return DayPayroll::resyncAccrualsByIds($ids, Auth::userId());
+    },
+]);
+
+EventBus::on('core.bulk.check_item', static function (array $payload): array {
+    if (!empty($payload['blocked'])) {
+        return $payload;
+    }
+    if ((string)($payload['list_id'] ?? '') !== 'payments'
+        || (string)($payload['action'] ?? '') !== 'resync_day') {
+        return $payload;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    if ($id < 1) {
+        return $payload;
+    }
+    $row = PaymentsRepository::find($id);
+    if ($row === null) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('payments.bulk.resync_not_found');
+        return $payload;
+    }
+    if (!DayPayroll::isAccrualDescr((string)($row['descr'] ?? ''))
+        || (int)($row['direction'] ?? 0) <= 0) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('payments.bulk.resync_not_accrual');
+    }
+    return $payload;
+});
+
 EventBus::on('ledger.moves.edit.sections', static function ($payload) {
     if (!is_array($payload)) {
         return $payload;

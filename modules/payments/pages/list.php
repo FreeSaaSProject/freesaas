@@ -365,6 +365,8 @@ View::render('list', [
     ]),
     'mode' => $mode,
     'isSuperadmin' => $isSuperadmin,
+    'dayPayMessage' => $dayPayMessage,
+    'dayPayError' => $dayPayError,
     'year' => $year,
     'month' => $month,
     'yearOptions' => $yearOptions,

@@ -204,6 +204,7 @@ final class DayPayroll
 
     /**
      * Upsert day accruals for PAY_DAILY staff (oper sync_operator).
+     * Rewrites only the current calendar month; past months need explicit bulk resync.
      *
      * @return list<string> log lines (empty when skipped)
      */
@@ -213,17 +214,7 @@ final class DayPayroll
         if ($userId < 1 || !self::isDailyPayStaff($userId) || !Database::tableExists('base_payments')) {
             return $log;
         }
-        if (!ModuleManager::isEnabled('procents')) {
-            return $log;
-        }
-        // Defensive load — same as monthly ProcentsPaymentSync path (class_exists false = no autoload).
-        if (!class_exists('ProcentsRepository', false)) {
-            $repoLib = base_path('modules/procents/lib/ProcentsRepository.php');
-            if (is_file($repoLib)) {
-                require_once $repoLib;
-            }
-        }
-        if (!class_exists('ProcentsRepository', false)) {
+        if (!self::ensureProcentsRepository()) {
             return $log;
         }
 
@@ -236,6 +227,81 @@ final class DayPayroll
         // Lock busy (parallel tab / bot): still sync — accrual_key unique + upsert logic are race-safe.
         error_log('[payments] DayPayroll::syncOperator lock busy user=' . $userId . '; syncing unlocked');
         return self::syncOperatorUnlocked($userId, $actorId);
+    }
+
+    /**
+     * Force-recalculate selected day-accrual payment rows (superadmin bulk).
+     * Only marked IDs; days with a real (non-payout) write-off stay frozen.
+     *
+     * @param list<int> $ids
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function resyncAccrualsByIds(array $ids, int $actorId = 0): array
+    {
+        $done = 0;
+        $skipped = [];
+        $actorId = $actorId > 0 ? $actorId : Auth::userId();
+        if (!self::ensureProcentsRepository()) {
+            foreach ($ids as $rawId) {
+                $id = (int)$rawId;
+                if ($id > 0) {
+                    $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_no_procents')];
+                }
+            }
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+
+        $seenDays = [];
+        foreach ($ids as $rawId) {
+            $id = (int)$rawId;
+            if ($id < 1) {
+                continue;
+            }
+            $row = PaymentsRepository::find($id);
+            if ($row === null) {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_not_found')];
+                continue;
+            }
+            $descr = (string)($row['descr'] ?? '');
+            if (!self::isAccrualDescr($descr) || (int)($row['direction'] ?? 0) <= 0) {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_not_accrual')];
+                continue;
+            }
+            $userId = (int)($row['user_id'] ?? 0);
+            if ($userId < 1 || !self::isDailyPayStaff($userId)) {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_not_daily')];
+                continue;
+            }
+            $dayTs = self::dayStart((int)($row['dt'] ?? 0));
+            $dayKey = $userId . ':' . $dayTs;
+            if (isset($seenDays[$dayKey])) {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_dup_day')];
+                continue;
+            }
+            $seenDays[$dayKey] = true;
+
+            if (self::hasDayWriteoff($userId, $dayTs)) {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_frozen')];
+                continue;
+            }
+
+            $result = self::withUserLock('sync', $userId, 15, static function () use ($row, $userId, $dayTs): string {
+                return self::rewriteAccrualRow($row, $userId, $dayTs);
+            });
+            if ($result === null) {
+                // Lock busy — try unlocked (same as syncOperator).
+                $result = self::rewriteAccrualRow($row, $userId, $dayTs);
+            }
+            if ($result === 'updated') {
+                $done++;
+            } elseif ($result === 'unchanged') {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_unchanged')];
+            } else {
+                $skipped[] = ['id' => $id, 'reason' => t('payments.bulk.resync_failed')];
+            }
+        }
+
+        return ['done' => $done, 'skipped' => $skipped];
     }
 
     /** Caller must already hold a per-user payroll lock (or accept races). */
@@ -254,10 +320,11 @@ final class DayPayroll
             $existing = self::findAccrual($userId, $dayTs);
             $inCurrentMonth = $dayTs >= $monthStart;
             $hasWriteoff = self::hasDayWriteoff($userId, $dayTs);
+            $canRewrite = !$hasWriteoff && $inCurrentMonth;
 
             // Correct zero: clear previous positive accrual (do not skip before lookup).
             if ($sum <= 0) {
-                if ($existing !== null && $inCurrentMonth && !$hasWriteoff) {
+                if ($existing !== null && $canRewrite) {
                     $oldSum = round((float)$existing['sum'], 2);
                     if ($oldSum >= 0.01) {
                         self::forceDeletePayment((int)$existing['id']);
@@ -268,25 +335,10 @@ final class DayPayroll
             }
 
             if ($existing !== null) {
-                if ($inCurrentMonth && !$hasWriteoff) {
+                if ($canRewrite) {
                     $oldSum = round((float)$existing['sum'], 2);
                     if (abs($oldSum - $sum) >= 0.01) {
-                        PaymentsRepository::update((int)$existing['id'], [
-                            'user_id' => $userId,
-                            'dt' => (int)$existing['dt'],
-                            'descr' => (string)$existing['descr'],
-                            'direction' => 1,
-                            'sum' => $sum,
-                            'account' => 0,
-                            'comment_id' => (int)($existing['comment_id'] ?? 0),
-                            'is_partner' => (int)($existing['is_partner'] ?? 0),
-                            'admin_inworked' => (int)($existing['admin_inworked'] ?? 0),
-                            'dt_admin_inworked' => (int)($existing['dt_admin_inworked'] ?? 0),
-                            'admin_signed' => (int)($existing['admin_signed'] ?? 0),
-                            'dt_admin_signed' => (int)($existing['dt_admin_signed'] ?? 0),
-                            'accept_user' => (int)($existing['accept_user'] ?? 0),
-                            'dt_accept' => (int)($existing['dt_accept'] ?? 0),
-                        ]);
+                        self::updateAccrualSum($existing, $userId, $sum);
                         $log[] = date('j.m.Y', $dayTs) . ': ' . $oldSum . ' → ' . $sum;
                     }
                 }
@@ -324,6 +376,69 @@ final class DayPayroll
             }
         }
         return $log;
+    }
+
+    private static function ensureProcentsRepository(): bool
+    {
+        if (!ModuleManager::isEnabled('procents')) {
+            return false;
+        }
+        if (!class_exists('ProcentsRepository', false)) {
+            $repoLib = base_path('modules/procents/lib/ProcentsRepository.php');
+            if (is_file($repoLib)) {
+                require_once $repoLib;
+            }
+        }
+        return class_exists('ProcentsRepository', false);
+    }
+
+    /**
+     * @param array<string,mixed> $row payment row (selected accrual)
+     * @return 'updated'|'unchanged'|'failed'
+     */
+    private static function rewriteAccrualRow(array $row, int $userId, int $dayTs): string
+    {
+        $sum = self::calcDaySalary($userId, $dayTs, true);
+        $oldSum = round((float)($row['sum'] ?? 0), 2);
+        $id = (int)($row['id'] ?? 0);
+        if ($id < 1) {
+            return 'failed';
+        }
+
+        if ($sum <= 0) {
+            if ($oldSum < 0.01) {
+                return 'unchanged';
+            }
+            self::forceDeletePayment($id);
+            return 'updated';
+        }
+
+        if (abs($oldSum - $sum) < 0.01) {
+            return 'unchanged';
+        }
+        self::updateAccrualSum($row, $userId, $sum);
+        return 'updated';
+    }
+
+    /** @param array<string,mixed> $existing */
+    private static function updateAccrualSum(array $existing, int $userId, float $sum): void
+    {
+        PaymentsRepository::update((int)$existing['id'], [
+            'user_id' => $userId,
+            'dt' => (int)$existing['dt'],
+            'descr' => (string)$existing['descr'],
+            'direction' => 1,
+            'sum' => $sum,
+            'account' => 0,
+            'comment_id' => (int)($existing['comment_id'] ?? 0),
+            'is_partner' => (int)($existing['is_partner'] ?? 0),
+            'admin_inworked' => (int)($existing['admin_inworked'] ?? 0),
+            'dt_admin_inworked' => (int)($existing['dt_admin_inworked'] ?? 0),
+            'admin_signed' => (int)($existing['admin_signed'] ?? 0),
+            'dt_admin_signed' => (int)($existing['dt_admin_signed'] ?? 0),
+            'accept_user' => (int)($existing['accept_user'] ?? 0),
+            'dt_accept' => (int)($existing['dt_accept'] ?? 0),
+        ]);
     }
     /** @return list<array<string,mixed>> */
     public static function pendingRequests(int $operatorId = 0): array

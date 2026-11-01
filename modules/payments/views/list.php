@@ -29,6 +29,8 @@ declare(strict_types=1);
 /** @var string $actionUrl */
 /** @var bool $showBalanceCol */
 /** @var array<int,float> $runningBalances */
+/** @var string $dayPayMessage */
+/** @var string $dayPayError */
 $path = '/payments';
 $maskDescr = static function (string $descr): string {
     return class_exists('DayPayroll', false) ? DayPayroll::maskDescr($descr) : $descr;
@@ -38,6 +40,8 @@ $listId = 'payments';
 $showAll = !empty($showAll);
 $isMonthly = ($mode ?? 'monthly') === 'monthly';
 $isSuperadmin = !empty($isSuperadmin);
+$dayPayMessage = (string)($dayPayMessage ?? '');
+$dayPayError = (string)($dayPayError ?? '');
 $canEdit = !empty($canEdit);
 $ledgerEnabled = !empty($ledgerEnabled);
 $canViewLedger = !empty($canViewLedger);
@@ -124,6 +128,13 @@ $actionUrl = ListQuery::url($path, $filters, []);
   </div>
   <?php endif; ?>
 </section>
+
+<?php if ($dayPayMessage !== '' && empty($dayPayPanel)): ?>
+  <div class="flash flash-ok"><?= e($dayPayMessage) ?></div>
+<?php endif; ?>
+<?php if ($dayPayError !== '' && empty($dayPayPanel)): ?>
+  <div class="flash flash-warn"><?= e($dayPayError) ?></div>
+<?php endif; ?>
 
 <?php if (!$ledgerEnabled): ?>
   <div class="flash flash-warn"><?= te('payments.flash.dps_stub') ?></div>
