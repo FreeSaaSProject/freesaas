@@ -146,7 +146,8 @@ final class AssistantTools
     }
 
     /**
-     * Invoke using a prebuilt op row (group draft catalog may skip Auth::can).
+     * Invoke using a prebuilt op row (e.g. group draft catalog).
+     * dispatchOp enforces capability always; permission unless group_draft + read_unrestricted.
      *
      * @param array<string,mixed> $opMeta
      * @param array<string,mixed> $args
@@ -166,7 +167,7 @@ final class AssistantTools
     }
 
     /**
-     * Resolve op from a provided catalog (does not re-check Auth::can).
+     * Resolve op from a provided catalog, then dispatch (see dispatchOp Auth gates).
      *
      * @param list<array<string,mixed>> $ops
      * @param array<string,mixed> $args
@@ -283,6 +284,15 @@ final class AssistantTools
             return ['ok' => false, 'data' => null, 'error' => 'Route has no handler: ' . $pattern];
         }
 
+        // Same gates as Router::dispatch. Group drafts may skip permission when
+        // assistant_groups.group_read_unrestricted=1 (allowlist is the gate; writes still confirm).
+        $perm = $route['permission'] ?? null;
+        $skipPerm = !empty($op['group_draft'])
+            && class_exists('AssistantGroupsConfig', false)
+            && AssistantGroupsConfig::readUnrestricted();
+        if (is_string($perm) && $perm !== '' && !$skipPerm && !Auth::can($perm)) {
+            return ['ok' => false, 'data' => null, 'error' => 'Missing permission: ' . $perm];
+        }
         $cap = $route['capability'] ?? null;
         if (is_string($cap) && $cap !== '' && !Auth::capability($cap)) {
             return ['ok' => false, 'data' => null, 'error' => 'Missing capability: ' . $cap];

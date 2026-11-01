@@ -53,6 +53,7 @@ Spike shape (proven):
 - Author prepares the draft; linked staff who satisfy the requirement may confirm (`Auth::can` or `Auth::capability`); invoke runs as the confirmer.
 - Wrong clicker → localized «no rights…» + buttons again.
 - Fallback: mention + confirm phrase → latest pending for that group.
+- **RBAC:** `group_ops` is the tool allowlist. **Writes** stay visible without write rights (queue → confirm). **Reads:** with `group_read_unrestricted=1` (default) the allowlist is the gate (author need not hold the module permission; also unrestricted list scope via `AgentHttp::withUnrestrictedRead`). Set `group_read_unrestricted=0` for strict per-actor `Auth::can` on reads. Capability-gated ops (`SUPERADMIN_ACCESS`, …) always require the actor’s capability.
 
 ## Verify
 

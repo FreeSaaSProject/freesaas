@@ -167,12 +167,14 @@ final class AssistantGroupsConfig
     }
 
     /**
-     * Drafts may read beyond the author's role scope (e.g. other staff vacations).
+     * Group drafts: allowlist (`group_ops`) is the read gate, not the author's Auth::can.
+     * Also enables AgentHttp unrestricted read scope (e.g. other staff vacations).
      * Writes still need a manager with the op permission to confirm.
+     * Default on — turn off for strict per-actor RBAC on reads.
      */
     public static function readUnrestricted(): bool
     {
-        return (int)Config::get('assistant_groups', 'group_read_unrestricted', '0') === 1;
+        return (int)Config::get('assistant_groups', 'group_read_unrestricted', '1') === 1;
     }
 
     /** Auto-append chat_id to allowlist on bot_added / first sight. */

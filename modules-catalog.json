@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-01T12:21:31+00:00",
+    "generated_at": "2026-11-01T13:42:01+00:00",
     "modules": [
         {
             "id": "asr",
@@ -40,7 +40,7 @@
         },
         {
             "id": "assistant",
-            "version": "1.0.12",
+            "version": "1.0.14",
             "type": "product",
             "name": {
                 "en": "Assistant",
@@ -79,7 +79,7 @@
         },
         {
             "id": "assistant_groups",
-            "version": "1.0.18",
+            "version": "1.0.20",
             "type": "product",
             "name": {
                 "en": "Assistant in groups",

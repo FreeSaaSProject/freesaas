@@ -3,7 +3,8 @@ declare(strict_types=1);
 
 /**
  * Build a tool catalog for group drafts from group_ops allowlist.
- * Skips Auth::can so requesters without write rights can still queue capability-pending.
+ * Write ops always skip Auth::can (queue → manager confirm).
+ * Read ops: skip Auth::can when group_read_unrestricted (default); otherwise filter like personal assistant.
  */
 final class AssistantGroupsCatalog
 {
@@ -24,6 +25,7 @@ final class AssistantGroupsCatalog
         if ($patterns === []) {
             return $out;
         }
+        $actorRbacReads = !AssistantGroupsConfig::readUnrestricted();
         foreach (AgentHttp::allOps() as $op) {
             if (empty($op['assistant'])) {
                 continue;
@@ -40,6 +42,16 @@ final class AssistantGroupsCatalog
                 $method = strtoupper((string)($op['method'] ?? 'GET'));
                 $side = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) ? 'write' : 'read';
             }
+            $perm = (string)($op['permission'] ?? '');
+            $cap = trim((string)($op['capability'] ?? ''));
+            // Capability-gated ops stay director-only even with unrestricted group reads.
+            if ($cap !== '' && !Auth::capability($cap)) {
+                continue;
+            }
+            // Strict mode: reads need the actor's permission (personal-assistant style).
+            if ($actorRbacReads && $side === 'read' && $perm !== '' && !Auth::can($perm)) {
+                continue;
+            }
             $params = class_exists('AssistantTools', false)
                 ? AssistantTools::parametersForOp($op)
                 : ['type' => 'object', 'properties' => new stdClass()];
@@ -51,7 +63,7 @@ final class AssistantGroupsCatalog
                 'id' => $id,
                 'method' => (string)$op['method'],
                 'path' => (string)$op['path'],
-                'permission' => (string)($op['permission'] ?? ''),
+                'permission' => $perm,
                 'description' => $desc,
                 'side_effect' => $side,
                 'parameters' => $params,
@@ -59,7 +71,6 @@ final class AssistantGroupsCatalog
                 'module' => (string)($op['module'] ?? ''),
                 'group_draft' => true,
             ];
-            $cap = trim((string)($op['capability'] ?? ''));
             if ($cap !== '') {
                 $item['capability'] = $cap;
             }
