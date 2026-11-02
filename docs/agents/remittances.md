@@ -33,7 +33,7 @@ No separate Excel-style report screen.
 
 ## Parser slots
 
-Named PCRE slots on the agreement: `period_from`, `period_to`, `gross`, `fee` (capture group 1 each). Preset `volga_termy_agency_v1` matches Volga Termy agency purpose text (period + Сумма + возмещаемых расходов). Apply preset, then edit slots if wording drifts — no code change.
+Named PCRE slots on the agreement: `period_from`, `period_to`, `gross`, `fee` (capture group 1 each). Preset `volga_termy_agency_v1` matches Volga Termy agency purpose text (period + Сумма + fee). Fee slot accepts both full «возмещаемых расходов» and bank-abbreviated «возмещ.расходов» (migration `002_widen_volga_fee_pattern`). Period-from allows optional «с»; if «по …» is missing, `period_to` falls back to `period_from` (single-day purpose). Badge **ВТ?** / `status=unparsed` means a slot missed — widen patterns (or re-apply preset). List/edit **re-parses `unparsed` batches automatically** after settings change; `ok`/`mismatch` stay until explicit `POST …/moves/{id}/action` `action=sync`.
 
 ## Expected revenue
 

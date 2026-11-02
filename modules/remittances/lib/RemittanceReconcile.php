@@ -130,9 +130,12 @@ final class RemittanceReconcile
         }
 
         $existing = RemittanceBatchesRepository::byMoveIds($moveIds);
+        // Fresh moves + stuck unparsed: re-parse on list view after pattern/settings changes.
+        // ok/mismatch/ignored batches stay as stored until explicit «Пересчитать».
         $needLoad = [];
         foreach ($moveIds as $mid) {
-            if (!isset($existing[$mid])) {
+            $batch = $existing[$mid] ?? null;
+            if ($batch === null || (string)($batch['status'] ?? '') === 'unparsed') {
                 $needLoad[] = $mid;
             }
         }
@@ -149,16 +152,21 @@ final class RemittanceReconcile
         $out = [];
         foreach ($moveIds as $mid) {
             $batch = $existing[$mid] ?? null;
-            if ($batch === null) {
+            $status = (string)($batch['status'] ?? '');
+            if ($batch === null || $status === 'unparsed') {
                 $move = $movesById[$mid] ?? null;
                 if ($move === null) {
                     continue;
                 }
                 if (RemittanceMatcher::findAgreementForMove($move) === null) {
-                    continue;
+                    if ($batch === null) {
+                        continue;
+                    }
+                    // Keep showing stale unparsed chip if agreement no longer matches.
+                } else {
+                    // View-only path: refresh remittance batch chip, never touch ledger supplier.
+                    $batch = self::syncMove($mid, $move, true, false);
                 }
-                // View-only path: refresh remittance batch chip, never touch ledger supplier.
-                $batch = self::syncMove($mid, $move, false, false);
             }
             if ($batch === null) {
                 continue;
@@ -219,8 +227,11 @@ final class RemittanceReconcile
         if ($agreement === null && $batch === null) {
             return '';
         }
-        if ($batch === null && $agreement !== null) {
-            $batch = self::syncMove($moveId, $move, false, false);
+        $needSync = $agreement !== null && (
+            $batch === null || (string)($batch['status'] ?? '') === 'unparsed'
+        );
+        if ($needSync) {
+            $batch = self::syncMove($moveId, $move, true, false);
         }
         if ($batch === null) {
             return '';

@@ -31,13 +31,26 @@ final class ProceduresBiContrib
                 ['id' => 'id_admin', 'col' => 'ID_ADMIN', 'type' => 'int'],
                 ['id' => 'id_user', 'col' => 'ID_USER', 'type' => 'int'],
                 ['id' => 'id_good', 'col' => 'ID_GOOD', 'type' => 'int'],
+                ['id' => 'type', 'col' => 'TYPE', 'type' => 'int'],
                 ['id' => 'restored', 'col' => 'RESTORED', 'type' => 'int'],
             ],
             'joins' => [
                 ['dataset' => 'users_staff', 'left' => 'id_operator', 'right' => 'id'],
                 ['dataset' => 'users_staff', 'left' => 'id_admin', 'right' => 'id'],
                 ['dataset' => 'products', 'left' => 'id_good', 'right' => 'id'],
+                ['dataset' => 'procedure_types', 'left' => 'type', 'right' => 'id'],
             ],
+        ]);
+        $list[] = BiDatasetCatalog::define('procedure_types', 'Procedure types', 'base_procedure_types', 'procedures', [
+            'period_field' => null,
+            'period_kind' => null,
+            'filters' => [],
+            'fields' => [
+                ['id' => 'id', 'col' => 'ID', 'type' => 'int'],
+                ['id' => 'code', 'col' => 'TYPE', 'type' => 'string'],
+                ['id' => 'descr', 'col' => 'DESCR', 'type' => 'string'],
+            ],
+            'joins' => [],
         ]);
         $payload['datasets'] = $list;
         return $payload;

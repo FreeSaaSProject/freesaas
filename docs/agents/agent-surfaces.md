@@ -12,7 +12,7 @@ FreeSaaS exposes **two** machine interfaces on purpose (not four). CLI and HTTP 
 | **Auth** | `X-FreeSaaS-Agent-Token` = `app.agent_token` in `cfg/config.ini` (always required for `/agent/*`) |
 | **First install** | HTTP: pre-set `agent_token` **or** `var/setup.key` + `X-FreeSaaS-Setup-Key` — **no** anonymous bootstrap. CLI: `freesaas.php bootstrap` (no HTTP gate). See [install.md](install.md) |
 
-Typical ops: `bootstrap`, `system status`, `module list/inspect/enable/install/disable/validate`, `migrate`, `db *`, `health`, `doctor`, `update *`, plus module-registered repair ops under `/agent/bots/*`, `/agent/gcal/*`, `/agent/llm/*`, `/agent/banks/*` (`AgentOps::registerModuleOp` from enabled-module bootstrap).
+Typical ops: `bootstrap`, `system status`, `module list/inspect/enable/install/disable/validate`, `migrate`, `db *`, `health`, `doctor`, `update *`, plus module-registered repair ops under `/agent/bots/*`, `/agent/gcal/*`, `/agent/llm/*`, `/agent/banks/*`, `/agent/bi/*` (BI legend / family validate-save / run — [`bi.md`](bi.md)) (`AgentOps::registerModuleOp` from enabled-module bootstrap).
 
 Docs: [remote-api.md](remote-api.md), [install.md](install.md), [QUICKSTART.md](QUICKSTART.md), [bots.md](bots.md), [gcal.md](gcal.md), [llm.md](llm.md).
 
@@ -56,9 +56,12 @@ Need to bootstrap / enable module / run migrations / update code /
 repair webhook secrets / fill LLM api_key / diagnose gcal app?
   → Surface A (CLI or agent_token)
 
-Need to call booking/clients/orders / BI reports as a staff role?
+Need to call booking/clients/orders as a staff role?
   → Surface B (session cookie, or OAuth → /llm/mcp)
-  → BI playbook: [bi.md](bi.md) (`bi.manage`)
+
+Need to deploy/validate/run BI recipes remotely without a staff session?
+  → Surface A `/agent/bi/*` (agent_token) — [bi.md](bi.md)
+  → UI/MCP twin still Surface B (`bi.manage`)
 ```
 
 Do **not** send `X-FreeSaaS-Agent-Token` to `/llm/mcp`, and do **not** expect OAuth Bearer to authorize `/agent/modules/*/enable`.

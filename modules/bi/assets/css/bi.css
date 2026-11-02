@@ -16,6 +16,9 @@
   align-self: center;
   margin-left: 0.25rem;
 }
+.bi-xlsx-btn {
+  margin-left: auto;
+}
 .bi-nav-btn {
   min-width: 2.4rem;
   align-self: flex-end;

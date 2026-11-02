@@ -40,7 +40,7 @@ if (!$canManage) {
     }
 }
 
-if ($action !== 'run') {
+if ($action !== 'run' && $action !== 'xlsx') {
     if ($wantsJson) {
         AgentHttp::error('unknown_action', 400);
     }
@@ -65,6 +65,12 @@ if ($share !== null) {
         if ($wantsJson) {
             AgentHttp::error(t('bi.share.rate_limit'), 429);
         }
+        if ($action === 'xlsx') {
+            http_response_code(429);
+            header('Content-Type: text/plain; charset=utf-8');
+            echo t('bi.share.rate_limit');
+            return;
+        }
         ReportProgress::start((string)$family->titleKey());
         ReportProgress::note(t('bi.share.rate_limit'), '#fbbf24');
         ReportProgress::done(['ok' => false, 'error' => t('bi.share.rate_limit')]);
@@ -79,6 +85,10 @@ if ($share !== null) {
 }
 
 try {
+    if ($action === 'xlsx') {
+        BiXlsxExport::runAndSend($familyId, $params);
+        return;
+    }
     if ($wantsJson) {
         ReportProgress::beginCollect();
         try {

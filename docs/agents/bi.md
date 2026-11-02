@@ -27,6 +27,41 @@ Use `BiDatasetCatalog::define($id, $label, $table, $moduleId, $extra)`. No arbit
 
 ## Agent workflow (build → edit → run → share)
 
+Two ways to deploy recipes:
+
+| Surface | Auth | Paths |
+|---------|------|-------|
+| **A (preferred for remote agents)** | `X-FreeSaaS-Agent-Token` = `app.agent_token` | `/agent/bi/*` |
+| **B (UI / MCP)** | staff session + `bi.manage` (or OAuth MCP) | `/bi/*` + CSRF on raw cookie POSTs |
+
+### Surface A — platform token
+
+```bash
+TOK='…'  # app.agent_token
+H=(-H "X-FreeSaaS-Agent-Token: $TOK" -H 'Accept: application/json' -H 'Content-Type: application/json')
+
+# 1) Legend
+curl -sS "${H[@]}" 'https://example/agent/bi/legend'
+
+# 2) List / get
+curl -sS "${H[@]}" 'https://example/agent/bi/families'
+curl -sS "${H[@]}" 'https://example/agent/bi/family?id=masseur_shifts'
+
+# 3) Validate (no write)
+curl -sS "${H[@]}" -X POST 'https://example/agent/bi/family/validate' \
+  -d '{"family_id":"my_report","name":"My report","recipe":{...}}'
+
+# 4) Save (upsert base_bi_family_defs)
+curl -sS "${H[@]}" -X POST 'https://example/agent/bi/family/save' \
+  -d '{"family_id":"my_report","name":"My report","enabled":1,"recipe":{...}}'
+
+# 5) Run
+curl -sS "${H[@]}" -X POST 'https://example/agent/bi/run' \
+  -d '{"family":"my_report","year":2026,"month":10}'
+```
+
+### Surface B — staff session
+
 Always send `Accept: application/json` or `?format=json` with a staff session that has `bi.manage`.
 
 ```bash
@@ -58,6 +93,15 @@ curl -sS -b jar.txt -H 'Accept: application/json' -H 'Content-Type: application/
 # 7) Shares
 curl -sS -b jar.txt -H 'Accept: application/json' 'https://example/bi/shares'
 ```
+
+### Excel download
+
+UI button «Скачать Excel» on `/bi/run` and share pages. Same access rules as a run (`bi.manage`, staff share, or guest share with rate limit):
+
+- `GET /bi/work?action=xlsx&family=…&year=…&month=…[&share=…]`
+- `GET /bi/s/{token}?action=xlsx&year=…&month=…`
+
+Returns `.xlsx` (one sheet: title, period, then sections — metrics as label/value pairs, tables with header row, text). Writer is pure PHP (`BiXlsxWriter`, no ext-zip). Agents should keep reading JSON from `/bi/work` or `/agent/bi/run`.
 
 ### Reading results
 

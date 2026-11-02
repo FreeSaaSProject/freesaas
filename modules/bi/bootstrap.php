@@ -20,6 +20,11 @@ require_once __DIR__ . '/lib/BiShippedRecipes.php';
 require_once __DIR__ . '/lib/FamilyValidator.php';
 require_once __DIR__ . '/lib/ReportRegistry.php';
 require_once __DIR__ . '/lib/BiFilterOptions.php';
+require_once __DIR__ . '/lib/BiAgentOps.php';
+require_once __DIR__ . '/lib/BiXlsxWriter.php';
+require_once __DIR__ . '/lib/BiXlsxExport.php';
+
+BiAgentOps::register();
 
 EventBus::on('assistant.system.hints', static function ($payload) {
     if (!is_array($payload)) {

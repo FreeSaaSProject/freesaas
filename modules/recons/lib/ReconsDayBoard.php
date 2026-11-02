@@ -176,6 +176,18 @@ final class ReconsDayBoard
             ];
         }
 
+        // Order: matched → in_progress → missing; within group by account name.
+        $statusRank = ['matched' => 0, 'in_progress' => 1, 'missing' => 2];
+        usort($rows, static function (array $a, array $b) use ($statusRank): int {
+            $ra = $statusRank[(string)($a['status'] ?? 'missing')] ?? 9;
+            $rb = $statusRank[(string)($b['status'] ?? 'missing')] ?? 9;
+            if ($ra !== $rb) {
+                return $ra <=> $rb;
+            }
+            $cmp = strcasecmp((string)($a['account_name'] ?? ''), (string)($b['account_name'] ?? ''));
+            return $cmp !== 0 ? $cmp : ((int)$a['account_id'] <=> (int)$b['account_id']);
+        });
+
         return [
             'day' => $dayYmd,
             'day_start' => $dayStart,

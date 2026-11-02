@@ -21,10 +21,12 @@ final class RemittanceParser
             self::PRESET_VOLGA_TERMY_V1 => [
                 'label_key' => 'remittances.preset.volga_termy_v1',
                 // Capture groups: first group = value. Dates DD.MM.YY; money with spaces + comma decimals.
-                'period_from' => '/период\\s+с\\s+(\\d{2}\\.\\d{2}\\.\\d{2})/ui',
+                // Optional «с» — bank sometimes writes «за период 31.07.26» without «с».
+                'period_from' => '/период\\s+(?:с\\s+)?(\\d{2}\\.\\d{2}\\.\\d{2})/ui',
                 'period_to' => '/по\\s+(\\d{2}\\.\\d{2}\\.\\d{2})/ui',
                 'gross' => '/Сумма\\s+([0-9\\s\\x{00A0}]+,\\d{2})\\s*руб/ui',
-                'fee' => '/возмещаемых\\s+расходов\\s+([0-9\\s\\x{00A0}]+,\\d{2})\\s*руб/ui',
+                // Bank may abbreviate «возмещаемых» → «возмещ.» (seen on later remittance DESCR).
+                'fee' => '/возмещ(?:аемых|\\.)\\s*расходов\\s*([0-9\\s\\x{00A0}]+,\\d{2})\\s*руб/ui',
             ],
         ];
     }
@@ -90,9 +92,13 @@ final class RemittanceParser
         $grossRaw = self::firstCapture($descr, $grossPat);
         $feeRaw = self::firstCapture($descr, $feePat);
 
-        if ($fromRaw === null || $toRaw === null) {
+        if ($fromRaw === null) {
             $empty['error'] = 'period_not_found';
             return $empty;
+        }
+        // Single-day purpose («за период 31.07.26» without «по …»): use from as to.
+        if ($toRaw === null) {
+            $toRaw = $fromRaw;
         }
         if ($grossRaw === null) {
             $empty['error'] = 'gross_not_found';

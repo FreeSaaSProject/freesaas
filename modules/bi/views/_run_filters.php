@@ -51,6 +51,7 @@ $showEntityFilters = !$shareMode || (class_exists('Auth', false) && Auth::check(
     </label>
     <button type="button" class="btn-secondary bi-nav-btn" data-bi-nav-dir="1" title="<?= te('bi.run.next_month') ?>" aria-label="<?= te('bi.run.next_month') ?>">»</button>
     <span class="muted bi-nav-hint"><?= te('bi.run.keyboard') ?></span>
+    <button type="button" class="btn-secondary bi-xlsx-btn" data-bi-xlsx><?= te('bi.run.xlsx') ?></button>
   </div>
 
   <div class="bi-run-grid">

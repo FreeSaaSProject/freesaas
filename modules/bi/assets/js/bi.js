@@ -109,11 +109,11 @@
     }
   };
 
-  function buildWorkUrl(cfg, form) {
+  function buildWorkUrl(cfg, form, action) {
     var fd = new FormData(form);
     var params = new URLSearchParams();
-    params.set('action', cfg.action || 'run');
-    params.set('stream', '1');
+    params.set('action', action || cfg.action || 'run');
+    if (!action || action === 'run') params.set('stream', '1');
     if (cfg.family) params.set('family', cfg.family);
     if (cfg.shareToken) params.set('share', cfg.shareToken);
     fd.forEach(function (v, k) {
@@ -176,6 +176,13 @@
       el.addEventListener('change', function () {
         syncNavAttrs(form);
         startRun(cfg, form, false);
+      });
+    });
+
+    form.querySelectorAll('[data-bi-xlsx]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        syncNavAttrs(form);
+        window.location.href = buildWorkUrl(cfg, form, 'xlsx');
       });
     });
 

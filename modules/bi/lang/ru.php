@@ -72,6 +72,8 @@ return [
     'bi.run.prev_month' => 'Предыдущий месяц',
     'bi.run.next_month' => 'Следующий месяц',
     'bi.run.keyboard' => '← → на клавиатуре',
+    'bi.run.xlsx' => 'Скачать Excel',
+    'bi.run.period' => 'Период',
     'bi.month.1' => 'Январь',
     'bi.month.2' => 'Февраль',
     'bi.month.3' => 'Март',

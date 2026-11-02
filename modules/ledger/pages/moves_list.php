@@ -212,10 +212,19 @@ if ($showRecon) {
             }
         }
         $recons = LedgerReconciliationsRepository::listActiveSince($accountId, $minDt);
+        $todayYmd = date('Y-m-d');
         // Attach only if the rightful owner (newest DPS with DT <= recon DT globally)
         // is on this page. If newer DPS exist on other pages — do not glue recons here.
+        // Exception: today's open recon always sticks to the globally newest DPS so create/edit
+        // stay on the top row after new moves arrive (otherwise edit is stuck on an older row).
         foreach ($recons as $rec) {
-            $targetId = LedgerMovesRepository::newestMoveIdOnOrBefore($listOpts, (int)$rec['dt']);
+            $recDt = (int)$rec['dt'];
+            $isRecToday = date('Y-m-d', $recDt) === $todayYmd;
+            if ($isRecToday && $newestGlobalId !== null && isset($pageIds[$newestGlobalId])) {
+                $targetId = $newestGlobalId;
+            } else {
+                $targetId = LedgerMovesRepository::newestMoveIdOnOrBefore($listOpts, $recDt);
+            }
             if ($targetId === null || !isset($pageIds[$targetId])) {
                 continue;
             }

@@ -54,6 +54,25 @@ $req = array_merge($_GET, $_POST);
 $doRun = !empty($req['run']) || ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST' || !empty($req['action']);
 $action = trim((string)($req['action'] ?? ''));
 
+if ($action === 'xlsx') {
+    $runTicket = BiSharesRepository::beginRun($share);
+    if ($runTicket === null) {
+        http_response_code(429);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo t('bi.share.rate_limit');
+        return;
+    }
+    try {
+        BiXlsxExport::runAndSend(
+            $familyId,
+            ReportParams::mergeWithConstraints($req, is_array($share['params'] ?? null) ? $share['params'] : [])
+        );
+    } finally {
+        BiSharesRepository::endRun($runTicket);
+    }
+    return;
+}
+
 // Work iframe / JSON run under share token.
 if ($action === 'run' || ($doRun && ($wantsJson || !empty($req['stream'])))) {
     $runTicket = BiSharesRepository::beginRun($share);

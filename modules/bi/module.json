@@ -2,7 +2,7 @@
     "id": "bi",
     "name": "bi.module.name",
     "description": "bi.module.description",
-    "version": "1.0.2",
+    "version": "1.0.4",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -32,7 +32,14 @@
             "/bi/legend",
             "/bi/families/new",
             "/bi/families/{id}",
-            "/bi/s/{token}"
+            "/bi/s/{token}",
+            "/agent/bi/legend",
+            "/agent/bi/families",
+            "/agent/bi/family",
+            "/agent/bi/family/validate",
+            "/agent/bi/family/save",
+            "/agent/bi/family/delete",
+            "/agent/bi/run"
         ]
     },
     "agent": {
@@ -192,7 +199,7 @@
                 "path": "/bi/work",
                 "permission": "",
                 "side_effect": "read",
-                "description": "Run family and return report.sections (+ section_summary, html, stages). bi.manage: any family; staff: only with share=token from bi.families.list. Prefer report JSON, not html. Staff UI link = open_url from list, not /bi/shares.",
+                "description": "Run family and return report.sections (+ section_summary, html, stages). bi.manage: any family; staff: only with share=token from bi.families.list. Prefer report JSON, not html. Staff UI link = open_url from list, not /bi/shares. Excel download for humans: GET /bi/work?action=xlsx&family=&year=&month= (or /bi/s/{token}?action=xlsx) — binary .xlsx, not for agent JSON.",
                 "parameters": {
                     "type": "object",
                     "properties": {

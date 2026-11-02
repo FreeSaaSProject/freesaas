@@ -58,4 +58,38 @@ final class BiSafeHtml
         }
         return $html;
     }
+
+    /**
+     * Plain text for exports: badge tokens become the staff name.
+     */
+    public static function plainCell($value): string
+    {
+        $s = (string)$value;
+        if ($s === '' || strpos($s, self::RS . 'bi_badge:') === false) {
+            return $s;
+        }
+        $out = preg_replace_callback(
+            '/' . preg_quote(self::RS, '/') . 'bi_badge:(\d+)' . preg_quote(self::RS, '/') . '/',
+            static function (array $m): string {
+                return self::userName((int)$m[1]);
+            },
+            $s
+        );
+        return $out ?? $s;
+    }
+
+    public static function userName(int $userId): string
+    {
+        if ($userId < 1) {
+            return '—';
+        }
+        if (class_exists('UsersRepository', false)) {
+            $u = UsersRepository::find($userId);
+            if (is_array($u)) {
+                $name = trim((string)($u['name'] ?? ''));
+                return $name !== '' ? $name : (string)($u['login'] ?? ('[' . $userId . ']'));
+            }
+        }
+        return '[' . $userId . ']';
+    }
 }

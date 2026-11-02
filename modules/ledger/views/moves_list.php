@@ -181,10 +181,12 @@ $dateSortTh = static function (string $key, string $label) use ($sort, $dir, $pa
 <?php endif; ?>
 
 <?php if ($showRecon && $sysBalance !== null): ?>
-  <p class="ledger-account-balance">
-    <strong><?= e((string)($accounts[$accountId] ?? '')) ?></strong>:
-    <?= e(number_format($sysBalance, 2, '.', ' ')) ?>
-  </p>
+  <div class="ledger-account-balance">
+    <p>
+      <strong><?= e((string)($accounts[$accountId] ?? '')) ?></strong>:
+      <?= e(number_format($sysBalance, 2, '.', ' ')) ?>
+    </p>
+  </div>
 <?php endif; ?>
 
 <?= $pager ?>

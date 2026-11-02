@@ -63,19 +63,51 @@ final class Auth
     }
 
     /**
-     * Scope for cookie name + session files: cookie Domain (if set) else HTTP_HOST.
+     * Scope for cookie name + session files: effective cookie Domain (if set) else HTTP_HOST.
      * Using Domain keeps admin_host + public_host on one install sharing a session.
+     * Foreign public hosts (e.g. balance-spa.ru while Domain=likespa.ru) fall back to HTTP_HOST.
      */
     private static function sessionScopeSlug(): string
     {
-        $raw = '';
-        if (class_exists('Config', false)) {
-            $raw = trim((string)Config::get('app', 'session_cookie_domain', ''));
-        }
+        $raw = self::effectiveSessionCookieDomain();
         if ($raw === '') {
             $raw = (string)($_SERVER['HTTP_HOST'] ?? '');
         }
         return self::hostSlug($raw);
+    }
+
+    /**
+     * Configured session Domain only when HTTP_HOST is that domain or a subdomain.
+     * Otherwise browsers reject Set-Cookie (e.g. balance-spa.ru + Domain=likespa.ru) —
+     * cart/CSRF break because the session never sticks.
+     */
+    public static function effectiveSessionCookieDomain(): string
+    {
+        if (!class_exists('Config', false)) {
+            return '';
+        }
+        $raw = self::normalizeSessionCookieDomain(
+            (string)Config::get('app', 'session_cookie_domain', '')
+        );
+        if ($raw === '' || !preg_match('/^\.?[a-z0-9.-]+$/i', $raw) || strpos($raw, '/') !== false) {
+            return '';
+        }
+        $bare = strtolower(ltrim($raw, '.'));
+        $host = strtolower(trim((string)($_SERVER['HTTP_HOST'] ?? '')));
+        if (strpos($host, ':') !== false) {
+            $host = explode(':', $host, 2)[0];
+        }
+        if ($host === '' || $bare === '') {
+            return '';
+        }
+        $hostOk = hash_equals($bare, $host)
+            || (strlen($host) > strlen($bare) + 1
+                && substr($host, -(strlen($bare) + 1)) === '.' . $bare);
+        if (!$hostOk) {
+            return '';
+        }
+
+        return $raw;
     }
 
     /** Sanitize host/domain to a-z0-9_ (max ~40 chars). */
@@ -112,17 +144,7 @@ final class Auth
             return;
         }
         $params = self::cookieParams(0);
-        $opts = [
-            'expires' => time() - 42000,
-            'path' => $params['path'],
-            'secure' => $params['secure'],
-            'httponly' => $params['httponly'],
-            'samesite' => $params['samesite'],
-        ];
-        if ($params['domain'] !== '') {
-            $opts['domain'] = $params['domain'];
-        }
-        setcookie(self::SESSION_NAME_PREFIX, '', $opts);
+        setcookie(self::SESSION_NAME_PREFIX, '', self::setCookieOptions(time() - 42000, $params));
         unset($_COOKIE[self::SESSION_NAME_PREFIX]);
     }
 
@@ -147,24 +169,34 @@ final class Auth
     /** @return array{lifetime:int,path:string,domain:string,secure:bool,httponly:bool,samesite:string} */
     private static function cookieParams(int $lifetime): array
     {
-        $domain = '';
-        if (class_exists('Config', false)) {
-            $raw = self::normalizeSessionCookieDomain(
-                (string)Config::get('app', 'session_cookie_domain', '')
-            );
-            // Leading dot optional; reject hostnames with path/scheme.
-            if ($raw !== '' && preg_match('/^\.?[a-z0-9.-]+$/i', $raw) && strpos($raw, '/') === false) {
-                $domain = $raw;
-            }
-        }
         return [
             'lifetime' => $lifetime,
             'path' => '/',
-            'domain' => $domain,
+            'domain' => self::effectiveSessionCookieDomain(),
             'secure' => self::isHttps(),
             'httponly' => true,
             'samesite' => 'Lax',
         ];
+    }
+
+    /**
+     * Options for setcookie(); omits empty Domain so the cookie is host-only.
+     *
+     * @return array{expires:int,path:string,secure:bool,httponly:bool,samesite:string,domain?:string}
+     */
+    private static function setCookieOptions(int $expires, array $params): array
+    {
+        $opts = [
+            'expires' => $expires,
+            'path' => $params['path'],
+            'secure' => $params['secure'],
+            'httponly' => $params['httponly'],
+            'samesite' => $params['samesite'],
+        ];
+        if ($params['domain'] !== '') {
+            $opts['domain'] = $params['domain'];
+        }
+        return $opts;
     }
 
     public static function normalizeSessionCookieDomain(string $raw): string
@@ -321,27 +353,13 @@ final class Auth
         }
         $lifetime = self::rememberLifetimeSeconds();
         $params = self::cookieParams($lifetime);
-        setcookie(session_name(), session_id(), [
-            'expires' => time() + $lifetime,
-            'path' => $params['path'],
-            'domain' => $params['domain'],
-            'secure' => $params['secure'],
-            'httponly' => $params['httponly'],
-            'samesite' => $params['samesite'],
-        ]);
+        setcookie(session_name(), session_id(), self::setCookieOptions(time() + $lifetime, $params));
     }
 
     private static function clearSessionCookie(): void
     {
         $params = self::cookieParams(0);
-        setcookie(session_name(), '', [
-            'expires' => time() - 42000,
-            'path' => $params['path'],
-            'domain' => $params['domain'],
-            'secure' => $params['secure'],
-            'httponly' => $params['httponly'],
-            'samesite' => $params['samesite'],
-        ]);
+        setcookie(session_name(), '', self::setCookieOptions(time() - 42000, $params));
     }
 
     /** Why the last Auth::check() returned false (empty when the last check passed). */
@@ -1111,14 +1129,7 @@ final class Auth
         } else {
             $params = self::cookieParams(0);
             if (!headers_sent()) {
-                setcookie(session_name(), session_id(), [
-                    'expires' => 0,
-                    'path' => $params['path'],
-                    'domain' => $params['domain'],
-                    'secure' => $params['secure'],
-                    'httponly' => $params['httponly'],
-                    'samesite' => $params['samesite'],
-                ]);
+                setcookie(session_name(), session_id(), self::setCookieOptions(0, $params));
             }
         }
 
