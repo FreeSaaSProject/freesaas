@@ -283,7 +283,7 @@ View::render('edit', [
     'error' => $error,
     'returnUrl' => $returnUrl,
     'typeNames' => ProcedureTypesRepository::names(),
-    'productNames' => ProductsRepository::names(true),
+    'productNames' => ProductsRepository::namesIncluding([(int)($row['id_good'] ?? 0)]),
     'staffNames' => $staffNames,
     'clientLabel' => $clientLabel,
     'showChainMove' => $showChainMove,

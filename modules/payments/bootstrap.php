@@ -53,6 +53,7 @@ $pages = [
         'file' => 'settings.php',
     ],
     '/payments/new' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/payments/transfer/new' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'transfer.php'],
     '/payments/{id}/edit' => ['permission' => 'payments.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/payments/move-links/{moveId}' => ['permission' => 'payments.edit', 'methods' => ['POST'], 'file' => 'move_links.php'],
 ];

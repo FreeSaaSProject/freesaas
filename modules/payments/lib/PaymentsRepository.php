@@ -75,6 +75,9 @@ final class PaymentsRepository
         }
         $limit = max(0, (int)($opts['limit'] ?? 50));
         $offset = max(0, (int)($opts['offset'] ?? 0));
+        $userToCol = Database::columnExists('base_payments', 'ID_USER_TO')
+            ? ', p.ID_USER_TO AS user_to'
+            : ', 0 AS user_to';
         $sql = "SELECT p.ID AS id, p.ID_USER AS user_id, p.DT AS dt, p.DESCR AS descr,
                        p.DIRECTION AS direction, p.SUM AS sum,
                        p.ACCOUNT AS account, p.DT_CREATE AS dt_create,
@@ -83,8 +86,9 @@ final class PaymentsRepository
                        p.ID_ADMIN_INWORKED AS admin_inworked, p.DT_ADMIN_INWORKED AS dt_admin_inworked,
                        p.ID_ADMIN_SIGNED AS admin_signed, p.DT_ADMIN_SIGNED AS dt_admin_signed,
                        p.ID_ACCEPT_USER_SIGNED AS accept_user, p.DT_ACCEPT_USER_SIGNED AS dt_accept,
-                       p.ID_MOVEMENT_LINKED AS movement_linked
-                FROM base_payments p
+                       p.ID_MOVEMENT_LINKED AS movement_linked"
+            . $userToCol
+            . " FROM base_payments p
                 WHERE $sqlWhere ORDER BY $order";
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit . ' OFFSET ' . $offset;
@@ -305,6 +309,9 @@ final class PaymentsRepository
         $accrualCol = Database::columnExists('base_payments', 'ACCRUAL_KEY')
             ? ', ACCRUAL_KEY AS accrual_key'
             : '';
+        $userToCol = Database::columnExists('base_payments', 'ID_USER_TO')
+            ? ', ID_USER_TO AS user_to'
+            : ', 0 AS user_to';
         $sql = 'SELECT ID AS id, ID_USER AS user_id, DT AS dt, DESCR AS descr,
                        DIRECTION AS direction, SUM AS sum,
                        ACCOUNT AS account, DT_CREATE AS dt_create,
@@ -314,6 +321,7 @@ final class PaymentsRepository
                        ID_ADMIN_SIGNED AS admin_signed, DT_ADMIN_SIGNED AS dt_admin_signed,
                        ID_ACCEPT_USER_SIGNED AS accept_user, DT_ACCEPT_USER_SIGNED AS dt_accept,
                        ID_MOVEMENT_LINKED AS movement_linked'
+            . $userToCol
             . $accrualCol
             . ' FROM base_payments WHERE ID = ? LIMIT 1';
         if ($forUpdate) {
@@ -558,6 +566,245 @@ final class PaymentsRepository
             'dt_accept' => $dtAccept,
             'movement_linked' => (int)($existing['movement_linked'] ?? 0),
         ];
+    }
+
+    private const TRANSFER_CREDIT_PREFIX = 'Парное движение от перемещения - #';
+    private const TRANSFER_CREDIT_SUFFIX = '#';
+
+    public static function transferCreditDescr(string $origDescr): string
+    {
+        return self::TRANSFER_CREDIT_PREFIX . $origDescr . self::TRANSFER_CREDIT_SUFFIX;
+    }
+
+    public static function isTransferCreditDescr(string $descr): bool
+    {
+        $descr = trim($descr);
+        $prefix = self::TRANSFER_CREDIT_PREFIX;
+        $suffix = self::TRANSFER_CREDIT_SUFFIX;
+        return $descr !== ''
+            && strpos($descr, $prefix) === 0
+            && substr($descr, -strlen($suffix)) === $suffix
+            && strlen($descr) > strlen($prefix) + strlen($suffix);
+    }
+
+    public static function transferOrigDescrFromCredit(string $creditDescr): string
+    {
+        if (!self::isTransferCreditDescr($creditDescr)) {
+            return '';
+        }
+        $prefix = self::TRANSFER_CREDIT_PREFIX;
+        $suffix = self::TRANSFER_CREDIT_SUFFIX;
+        return substr($creditDescr, strlen($prefix), -strlen($suffix));
+    }
+
+    /**
+     * Oper staff-to-staff «перемещение»: debit (ACCOUNT=0, ID_USER_TO) + credit pair.
+     *
+     * @return array{debit_id:int,credit_id:int}
+     */
+    public static function createTransfer(
+        int $fromId,
+        int $toId,
+        float $sum,
+        int $dt,
+        string $descr,
+        int $actorId = 0
+    ): array {
+        if ($fromId < 1 || $toId < 1) {
+            throw new InvalidArgumentException(t('payments.transfer.err.staff'));
+        }
+        if ($fromId === $toId) {
+            throw new InvalidArgumentException(t('payments.transfer.err.same_user'));
+        }
+        $sum = round($sum, 2);
+        if ($sum < 0.01) {
+            throw new InvalidArgumentException(t('payments.transfer.err.sum'));
+        }
+        $descr = trim($descr);
+        if ($descr === '') {
+            throw new InvalidArgumentException(t('payments.transfer.err.descr'));
+        }
+        if (!Database::tableExists('base_payments')
+            || !Database::columnExists('base_payments', 'ID_USER_TO')) {
+            throw new RuntimeException(t('payments.transfer.err.unavailable'));
+        }
+        if (UsersRepository::find($fromId) === null || UsersRepository::find($toId) === null) {
+            throw new InvalidArgumentException(t('payments.transfer.err.staff'));
+        }
+        if ($dt < 1) {
+            $dt = time();
+        }
+        $actorId = $actorId > 0 ? $actorId : Auth::userId();
+        $now = time();
+        $base = [
+            'dt' => $dt,
+            'sum' => $sum,
+            'account' => 0,
+            'dt_create' => $now,
+            'user_signed' => $actorId,
+            'comment_id' => 0,
+            'is_partner' => 0,
+            'admin_inworked' => $actorId,
+            'dt_admin_inworked' => $now,
+            'admin_signed' => $actorId,
+            'dt_admin_signed' => $now,
+            'accept_user' => $actorId,
+            'dt_accept' => $now,
+            'movement_linked' => 0,
+        ];
+
+        $pdo = Database::pdo();
+        $pdo->beginTransaction();
+        try {
+            $debitId = self::create(array_merge($base, [
+                'user_id' => $fromId,
+                'descr' => $descr,
+                'direction' => -1,
+                'user_to' => $toId,
+            ]));
+            $creditId = self::create(array_merge($base, [
+                'user_id' => $toId,
+                'descr' => self::transferCreditDescr($descr),
+                'direction' => 1,
+                'user_to' => 0,
+            ]));
+            $pdo->commit();
+            return ['debit_id' => $debitId, 'credit_id' => $creditId];
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            throw $e;
+        }
+    }
+
+    /**
+     * @return array{debit:array<string,mixed>,credit:array<string,mixed>}|null
+     */
+    public static function findTransferPair(int $paymentId): ?array
+    {
+        if ($paymentId < 1) {
+            return null;
+        }
+        $row = self::find($paymentId);
+        if ($row === null) {
+            return null;
+        }
+        $dir = (int)$row['direction'];
+        $sum = round((float)$row['sum'], 2);
+        $dt = (int)$row['dt'];
+        $descr = (string)$row['descr'];
+
+        if ($dir < 0 && (int)($row['user_to'] ?? 0) > 0) {
+            $toId = (int)$row['user_to'];
+            $creditDescr = self::transferCreditDescr($descr);
+            $credit = self::findTransferCounterpart(
+                $toId,
+                1,
+                $sum,
+                $dt,
+                $creditDescr,
+                $paymentId
+            );
+            if ($credit === null) {
+                return null;
+            }
+            return ['debit' => $row, 'credit' => $credit];
+        }
+
+        if ($dir > 0 && self::isTransferCreditDescr($descr)) {
+            $orig = self::transferOrigDescrFromCredit($descr);
+            if ($orig === '') {
+                return null;
+            }
+            $debit = self::findTransferDebitForCredit($row, $orig);
+            if ($debit === null) {
+                return null;
+            }
+            return ['debit' => $debit, 'credit' => $row];
+        }
+
+        return null;
+    }
+
+    public static function isTransferLeg(array $row): bool
+    {
+        if ((int)($row['direction'] ?? 0) < 0 && (int)($row['user_to'] ?? 0) > 0) {
+            return true;
+        }
+        return (int)($row['direction'] ?? 0) > 0
+            && self::isTransferCreditDescr((string)($row['descr'] ?? ''));
+    }
+
+    /**
+     * Expand selection so deleting one transfer leg removes both.
+     *
+     * @param list<int> $ids
+     * @return list<int>
+     */
+    public static function expandTransferDeleteIds(array $ids): array
+    {
+        $out = [];
+        foreach ($ids as $raw) {
+            $id = (int)$raw;
+            if ($id < 1) {
+                continue;
+            }
+            $out[$id] = true;
+            $pair = self::findTransferPair($id);
+            if ($pair !== null) {
+                $out[(int)$pair['debit']['id']] = true;
+                $out[(int)$pair['credit']['id']] = true;
+            }
+        }
+        return array_map('intval', array_keys($out));
+    }
+
+    /** @return array<string,mixed>|null */
+    private static function findTransferCounterpart(
+        int $userId,
+        int $direction,
+        float $sum,
+        int $dt,
+        string $descr,
+        int $excludeId
+    ): ?array {
+        if ($userId < 1 || !Database::tableExists('base_payments')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_payments
+             WHERE ID_USER = ? AND CAST(DIRECTION AS SIGNED) = ? AND SUM = ? AND DT = ? AND DESCR = ?
+               AND ID <> ?
+             ORDER BY ID ASC LIMIT 1'
+        );
+        $st->execute([$userId, $direction, $sum, $dt, $descr, $excludeId]);
+        $id = (int)$st->fetchColumn();
+        return $id > 0 ? self::find($id) : null;
+    }
+
+    /**
+     * @param array<string,mixed> $credit
+     * @return array<string,mixed>|null
+     */
+    private static function findTransferDebitForCredit(array $credit, string $origDescr): ?array
+    {
+        $toId = (int)($credit['user_id'] ?? 0);
+        $sum = round((float)($credit['sum'] ?? 0), 2);
+        $dt = (int)($credit['dt'] ?? 0);
+        $creditId = (int)($credit['id'] ?? 0);
+        if ($toId < 1 || $dt < 1 || !Database::columnExists('base_payments', 'ID_USER_TO')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT ID FROM base_payments
+             WHERE ID_USER_TO = ? AND CAST(DIRECTION AS SIGNED) < 0 AND SUM = ? AND DT = ? AND DESCR = ?
+               AND ID <> ?
+             ORDER BY ID ASC LIMIT 1'
+        );
+        $st->execute([$toId, $sum, $dt, $origDescr, $creditId]);
+        $id = (int)$st->fetchColumn();
+        return $id > 0 ? self::find($id) : null;
     }
 
     /** @param array<string,mixed> $data */
@@ -814,6 +1061,7 @@ final class PaymentsRepository
     {
         $done = 0;
         $skipped = [];
+        $ids = self::expandTransferDeleteIds($ids);
         foreach (self::scopeOwnedIds($ids) as $id) {
             if (self::hasLinkedMoves($id)) {
                 $skipped[] = ['id' => $id, 'reason' => t('payments.err.delete_linked')];
@@ -839,11 +1087,19 @@ final class PaymentsRepository
             return 0;
         }
         $ids = self::scopeOwnedIds($ids);
-        if ($ids === []) {
+        $allowed = [];
+        foreach ($ids as $id) {
+            $row = self::find($id);
+            if ($row === null || self::isTransferLeg($row)) {
+                continue;
+            }
+            $allowed[] = $id;
+        }
+        if ($allowed === []) {
             return 0;
         }
-        $ph = implode(',', array_fill(0, count($ids), '?'));
-        $params = array_merge([$account], $ids);
+        $ph = implode(',', array_fill(0, count($allowed), '?'));
+        $params = array_merge([$account], $allowed);
         $st = Database::pdo()->prepare("UPDATE base_payments SET ACCOUNT = ? WHERE ID IN ($ph)");
         $st->execute($params);
         return $st->rowCount();
@@ -917,7 +1173,7 @@ final class PaymentsRepository
     private static function castRow(array $row): array
     {
         foreach ([
-            'id', 'user_id', 'dt', 'account', 'dt_create', 'user_signed', 'comment_id',
+            'id', 'user_id', 'user_to', 'dt', 'account', 'dt_create', 'user_signed', 'comment_id',
             'is_partner', 'admin_inworked', 'dt_admin_inworked', 'admin_signed', 'dt_admin_signed',
             'accept_user', 'dt_accept', 'movement_linked',
         ] as $k) {
@@ -964,6 +1220,10 @@ final class PaymentsRepository
                 continue;
             }
             try {
+                if (self::isTransferLeg($row)) {
+                    $skipped[] = ['id' => $id, 'reason' => t('payments.transfer.err.no_dps')];
+                    continue;
+                }
                 if (class_exists('PaymentMoveLinksRepository', false)
                     && PaymentMoveLinksRepository::isPaymentLinked($id)) {
                     $skipped[] = ['id' => $id, 'reason' => t('payments.flash.dps_none')];

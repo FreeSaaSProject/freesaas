@@ -29,6 +29,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 ## Human UI
 
 - `/payments` — staff settlements.
+- `/payments/transfer/new` — staff-to-staff transfer (oper «перемещение»): debit `ACCOUNT=0` + `ID_USER_TO`, credit `Парное движение от перемещения - #{descr}#`. Requires `payments.edit` and `CAN_SEE_SUM_OTHERS`. Delete either leg removes both.
 - `/payments/settings` — payroll settings (superadmin): auto commission accrual, daily payroll (`day_pay_*` in `payments.ini`), soft contracts `deadline_penalty`.
 - Role edit: flag **Daily payroll** (`PAY_DAILY`) on `base_admin_statuses`.
 - Contract pay CTA when contracts enabled; auto-DPS when ledger on.
@@ -36,6 +37,7 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 | Path | Permission |
 |------|------------|
 | `/payments` | `payments.view` |
+| `/payments/transfer/new` | `payments.edit` (+ see others) |
 | `/payments/settings` | `SUPERADMIN_ACCESS` |
 
 ## Daily payroll (`DayPayroll`)
@@ -63,3 +65,4 @@ curl -sS -b jar.txt 'https://example/payments/settings?format=json'
 - Links to ledger moves via `/payments/move-links/{moveId}`.
 - Soft from `procents`: when `auto_procent_accrual=1` and one monthly staff is selected, upserts `% {MONTH_RU} {YYYY}` (ФОТ). Toggle on `/payments/settings`.
 - Soft from `contracts`: `deadline_penalty` edited here (writes `cfg/modules/contracts.ini`). Legacy `/contracts/settings` redirects here.
+- Staff transfers stay on `ACCOUNT=0` (no DPS). Monthly «Internal» subtotal still counts all `ACCOUNT=0` write-offs, not only transfers.

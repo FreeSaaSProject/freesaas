@@ -14,9 +14,15 @@ declare(strict_types=1);
 /** @var string $message */
 /** @var string $error */
 /** @var string $warn */
+/** @var bool $isTransferLeg */
+/** @var int $transferOtherId */
+/** @var int $transferOtherUserId */
 $linkedMoveIds = is_array($linkedMoveIds ?? null) ? $linkedMoveIds : [];
 $canViewLedger = !empty($canViewLedger);
 $showCommentId = !empty($showCommentId);
+$isTransferLeg = !empty($isTransferLeg);
+$transferOtherId = (int)($transferOtherId ?? 0);
+$transferOtherUserId = (int)($transferOtherUserId ?? 0);
 $userId = (int)($row['user_id'] ?? 0);
 $dirRaw = $row['direction'] ?? '';
 $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
@@ -28,6 +34,17 @@ $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 <?php if ($warn !== ''): ?><div class="flash flash-warn"><?= e($warn) ?></div><?php endif; ?>
+<?php if ($isTransferLeg): ?>
+  <div class="flash flash-warn">
+    <?= te('payments.transfer.edit_locked') ?>
+    <?php if ($transferOtherId > 0): ?>
+      <a href="/payments/<?= $transferOtherId ?>/edit"><?= te('payments.transfer.other_leg', ['id' => $transferOtherId]) ?></a>
+      <?php if ($transferOtherUserId > 0): ?>
+        · <a href="/payments?user_id=<?= $transferOtherUserId ?>"><?= te('payments.transfer.open_from') ?></a>
+      <?php endif; ?>
+    <?php endif; ?>
+  </div>
+<?php endif; ?>
 <?php if (!empty($linkedMoves)): ?><div class="flash flash-warn"><?= te('payments.flash.linked_moves') ?></div><?php endif; ?>
 <?php if ($canViewLedger && $linkedMoveIds !== []): ?>
   <p class="payments-dps-links">
@@ -38,9 +55,9 @@ $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
   </p>
 <?php endif; ?>
 
-<form method="post" class="form-grid form-wide">
+<form method="post" class="form-grid form-wide"<?= $isTransferLeg ? ' onsubmit="return false;"' : '' ?>>
   <label><?= te('payments.col.user') ?>
-    <?php if ($canSeeOthers): ?>
+    <?php if ($canSeeOthers && !$isTransferLeg): ?>
       <select name="user_id" required>
         <option value=""><?= te('payments.edit.user_pick') ?></option>
         <?php foreach ($staff as $sid => $sname): ?>
@@ -54,11 +71,11 @@ $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
   </label>
 
   <label><?= te('payments.col.dt') ?>
-    <input type="datetime-local" name="dt" value="<?= e($dtValue) ?>" required>
+    <input type="datetime-local" name="dt" value="<?= e($dtValue) ?>" required<?= $isTransferLeg ? ' disabled' : '' ?>>
   </label>
 
   <label><?= te('payments.col.account') ?>
-    <select name="account">
+    <select name="account"<?= $isTransferLeg ? ' disabled' : '' ?>>
       <?php foreach ([0, 1, 2] as $a): ?>
         <option value="<?= $a ?>"<?= (int)($row['account'] ?? 0) === $a ? ' selected' : '' ?><?= $a !== 0 && !$ledgerEnabled ? ' disabled' : '' ?>><?= e(PaymentsRepository::accountLabel($a)) ?></option>
       <?php endforeach; ?>
@@ -71,7 +88,7 @@ $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
     $showDescr = $isDayPayout ? DayPayroll::maskDescr($rawDescr) : $rawDescr;
   ?>
   <label><?= te('payments.col.descr') ?>
-    <input name="descr" value="<?= e($showDescr) ?>" required<?= $isDayPayout ? ' readonly' : '' ?>>
+    <input name="descr" value="<?= e($showDescr) ?>" required<?= ($isDayPayout || $isTransferLeg) ? ' readonly' : '' ?>>
   </label>
   <?php if ($isDayPayout): ?>
     <p class="muted"><?= te('payments.edit.day_pay_descr_locked') ?></p>
@@ -100,26 +117,28 @@ $dirSelected = ($dirRaw === '' || $dirRaw === null) ? null : (int)$dirRaw;
   <div class="payments-dir-sum-row">
     <div class="payments-dir-switch" role="radiogroup" aria-label="<?= te('payments.col.direction') ?>">
       <label class="payments-dir-opt payments-dir-in<?= $dirSelected === 1 ? ' is-selected' : '' ?>">
-        <input type="radio" name="direction" value="1" required<?= $dirSelected === 1 ? ' checked' : '' ?>>
+        <input type="radio" name="direction" value="1" required<?= $dirSelected === 1 ? ' checked' : '' ?><?= $isTransferLeg ? ' disabled' : '' ?>>
         <span class="payments-dir-sign" aria-hidden="true">+</span>
         <span class="payments-dir-label"><?= te('payments.dir.1') ?></span>
       </label>
       <label class="payments-dir-opt payments-dir-out<?= $dirSelected === -1 ? ' is-selected' : '' ?>">
-        <input type="radio" name="direction" value="-1" required<?= $dirSelected === -1 ? ' checked' : '' ?>>
+        <input type="radio" name="direction" value="-1" required<?= $dirSelected === -1 ? ' checked' : '' ?><?= $isTransferLeg ? ' disabled' : '' ?>>
         <span class="payments-dir-sign" aria-hidden="true">−</span>
         <span class="payments-dir-label"><?= te('payments.dir.-1') ?></span>
       </label>
     </div>
     <label class="payments-sum-field"><?= te('payments.col.sum') ?>
       <input type="number" name="sum" inputmode="decimal" step="0.01" min="0.01"
-             value="<?= e((string)($row['sum'] ?? '')) ?>" required>
+             value="<?= e((string)($row['sum'] ?? '')) ?>" required<?= $isTransferLeg ? ' disabled' : '' ?>>
     </label>
   </div>
 
   <div class="page-actions">
-    <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+    <?php if (!$isTransferLeg): ?>
+      <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
+    <?php endif; ?>
     <a class="btn-secondary" href="/payments"><?= te('core.common.cancel') ?></a>
-    <?php if (!$isNew && !empty($ledgerEnabled) && (int)($row['account'] ?? 0) > 0 && (int)($row['direction'] ?? 0) < 0): ?>
+    <?php if (!$isNew && !$isTransferLeg && !empty($ledgerEnabled) && (int)($row['account'] ?? 0) > 0 && (int)($row['direction'] ?? 0) < 0): ?>
       <?php if (!empty($linkedMoves)): ?>
         <?php if ($canViewLedger && $linkedMoveIds !== []): ?>
           <?php foreach ($linkedMoveIds as $mid): ?>

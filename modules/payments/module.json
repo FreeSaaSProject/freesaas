@@ -2,7 +2,7 @@
     "id": "payments",
     "name": "payments.module.name",
     "description": "payments.module.description",
-    "version": "1.0.9",
+    "version": "1.0.10",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
@@ -38,6 +38,7 @@
             "/payments",
             "/payments/settings",
             "/payments/new",
+            "/payments/transfer/new",
             "/payments/{id}/edit",
             "/payments/move-links/{moveId}"
         ]
@@ -79,6 +80,13 @@
                 "path": "/payments/new",
                 "permission": "payments.edit",
                 "description": "Create payment; optional id_comment prefill query"
+            },
+            {
+                "id": "payments.transfer",
+                "method": "POST",
+                "path": "/payments/transfer/new",
+                "permission": "payments.edit",
+                "description": "Staff-to-staff transfer (from_id, to_id, sum, descr, dt); creates debit+credit ACCOUNT=0 pair; requires CAN_SEE_SUM_OTHERS"
             },
             {
                 "id": "payments.update",

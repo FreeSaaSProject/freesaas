@@ -286,8 +286,6 @@ if ($dayForStaff <= 0) {
 $keepOp = (int)($row['id_operator'] ?? 0);
 $staffNames = EventsRepository::staffChoicesForDay($dayForStaff, $keepOp);
 
-$productNames = ProductsRepository::names(true);
-$productPrices = ProductsRepository::priceMap(true);
 $staffForGoods = (int)($row['id_operator'] ?? 0);
 $dayForGoods = (int)($row['dtstart'] ?? 0);
 if ($dayForGoods <= 0) {
@@ -300,6 +298,8 @@ foreach (is_array($row['content_ids'] ?? null) ? $row['content_ids'] : [] as $gi
         $keepGoodIds[] = $gid;
     }
 }
+$productNames = ProductsRepository::namesIncluding($keepGoodIds);
+$productPrices = ProductsRepository::priceMap(true);
 $frequentGoods = EventItemsRepository::frequentGoods(12, $staffForGoods, $dayForGoods, $keepGoodIds);
 
 $selectedItems = [];

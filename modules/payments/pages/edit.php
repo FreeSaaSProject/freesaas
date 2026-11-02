@@ -80,20 +80,25 @@ if (!$isNew) {
 $message = '';
 $error = '';
 $warn = '';
+$transferPair = (!$isNew && is_array($row)) ? PaymentsRepository::findTransferPair($id) : null;
+$isTransferLeg = $transferPair !== null;
 
 if (!PaymentsRepository::ledgerEnabled()) {
     $warn = t('payments.flash.dps_stub');
 }
 
-
 if (!$isNew && EntityDelete::tryHandle('payments', $id, '/payments', [
     'stay_path' => '/payments/' . $id . '/edit',
+    'confirm' => $isTransferLeg ? 'payments.transfer.confirm_delete' : 'core.entity.confirm_delete',
 ])) {
     return;
 }
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     try {
+        if (!$isNew && $isTransferLeg) {
+            throw new RuntimeException(t('payments.transfer.err.edit_locked'));
+        }
         if (!$isNew && !empty($_POST['create_dps']) && PaymentsRepository::ledgerEnabled()) {
             $res = PaymentsRepository::createDpsByIds([$id]);
             $row = PaymentsRepository::find($id) ?: $row;
@@ -215,6 +220,20 @@ if ($wantsJson) {
     return;
 }
 
+$transferOtherId = 0;
+$transferOtherUserId = 0;
+if ($transferPair !== null) {
+    $debitId = (int)$transferPair['debit']['id'];
+    $creditId = (int)$transferPair['credit']['id'];
+    if ($id === $debitId) {
+        $transferOtherId = $creditId;
+        $transferOtherUserId = (int)$transferPair['credit']['user_id'];
+    } else {
+        $transferOtherId = $debitId;
+        $transferOtherUserId = (int)$transferPair['debit']['user_id'];
+    }
+}
+
 View::render('edit', [
     'title' => $isNew
         ? t('payments.edit.title_new')
@@ -237,6 +256,9 @@ View::render('edit', [
     'linkedMoveIds' => $linkedMoveIds,
     'showCashMarks' => $showCashMarks,
     'showCommentId' => $isNew && $commentId > 0,
+    'isTransferLeg' => $isTransferLeg,
+    'transferOtherId' => $transferOtherId,
+    'transferOtherUserId' => $transferOtherUserId,
     'message' => $message,
     'error' => $error,
     'warn' => $warn,

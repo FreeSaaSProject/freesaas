@@ -98,6 +98,46 @@ $dtStaffHtml = static function (array $r, bool $canEdit): string {
     }
     return $html;
 };
+/**
+ * Transfer pair badge under description (debit → recipient / credit pair hint).
+ *
+ * @param array<string,mixed> $r
+ */
+$transferHintHtml = static function (array $r): string {
+    $userTo = (int)($r['user_to'] ?? 0);
+    $descr = (string)($r['descr'] ?? '');
+    if ((int)($r['direction'] ?? 0) < 0 && $userTo > 0) {
+        $name = UsersRepository::nameById($userTo);
+        if ($name === '') {
+            $name = '#' . $userTo;
+        }
+        return '<div class="muted payments-transfer-hint">'
+            . e(t('payments.transfer.to_badge', ['name' => $name]))
+            . '</div>';
+    }
+    if ((int)($r['direction'] ?? 0) > 0 && PaymentsRepository::isTransferCreditDescr($descr)) {
+        $orig = PaymentsRepository::transferOrigDescrFromCredit($descr);
+        $pair = PaymentsRepository::findTransferPair((int)($r['id'] ?? 0));
+        $fromId = $pair !== null ? (int)$pair['debit']['user_id'] : 0;
+        $fromName = $fromId > 0 ? UsersRepository::nameById($fromId) : '';
+        if ($fromName === '' && $fromId > 0) {
+            $fromName = '#' . $fromId;
+        }
+        $label = $fromId > 0
+            ? t('payments.transfer.from_badge', ['name' => $fromName])
+            : t('payments.transfer.pair_badge');
+        $html = '<div class="muted payments-transfer-hint">' . e($label);
+        if ($fromId > 0) {
+            $html .= ' <a href="/payments?user_id=' . $fromId . '">' . e(t('payments.transfer.open_from')) . '</a>';
+        }
+        if ($orig !== '') {
+            $html .= '<br><span class="muted">' . e($orig) . '</span>';
+        }
+        $html .= '</div>';
+        return $html;
+    }
+    return '';
+};
 $monthNames = [
     1 => t('payments.month.1'),
     2 => t('payments.month.2'),
@@ -123,6 +163,9 @@ $actionUrl = ListQuery::url($path, $filters, []);
   <div class="page-head-row">
     <div></div>
     <div class="page-actions">
+      <?php if ($canSeeOthers): ?>
+        <a class="btn-secondary" href="/payments/transfer/new<?= $userId > 0 ? '?user_id=' . (int)$userId : '' ?>"><?= te('payments.transfer.btn') ?></a>
+      <?php endif; ?>
       <a class="btn-primary" href="/payments/new<?= $userId > 0 ? '?user_id=' . (int)$userId : '' ?>"><?= te('core.common.add') ?></a>
     </div>
   </div>
@@ -134,6 +177,9 @@ $actionUrl = ListQuery::url($path, $filters, []);
 <?php endif; ?>
 <?php if ($dayPayError !== '' && empty($dayPayPanel)): ?>
   <div class="flash flash-warn"><?= e($dayPayError) ?></div>
+<?php endif; ?>
+<?php if (!empty($_GET['transferred'])): ?>
+  <div class="flash flash-ok"><?= te('payments.transfer.flash_ok') ?></div>
 <?php endif; ?>
 
 <?php if (!$ledgerEnabled): ?>
@@ -284,7 +330,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
               <tr>
                 <?= BulkActions::td($listId, (int)$r['id']) ?>
                 <td><?= $dtStaffHtml($r, $canEdit) ?></td>
-                <td><?= e($maskDescr((string)$r['descr'])) ?></td>
+                <td><?= e($maskDescr((string)$r['descr'])) ?><?= $transferHintHtml($r) ?></td>
                 <td><?= money_signed_html((float)$r['sum'], 1) ?></td>
               </tr>
             <?php endforeach; ?>
@@ -313,7 +359,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
               <tr>
                 <?= BulkActions::td($listId, (int)$r['id']) ?>
                 <td><?= $dtStaffHtml($r, $canEdit) ?></td>
-                <td><?= e($maskDescr((string)$r['descr'])) ?>
+                <td><?= e($maskDescr((string)$r['descr'])) ?><?= $transferHintHtml($r) ?>
                   <?php $ad = $accountDpsHtml($r); if ($ad !== ''): ?>
                     <br><?= $ad ?>
                   <?php endif; ?>
@@ -370,7 +416,7 @@ $actionUrl = ListQuery::url($path, $filters, []);
           <?php endif; ?>
         </td>
         <td><?= $dtStaffHtml($r, $canEdit) ?></td>
-        <td><?= e($maskDescr((string)$r['descr'])) ?></td>
+        <td><?= e($maskDescr((string)$r['descr'])) ?><?= $transferHintHtml($r) ?></td>
         <td><?= money_signed_html((float)$r['sum'], (int)$r['direction']) ?></td>
         <td><?php $ad = $accountDpsHtml($r); echo $ad !== '' ? $ad : '<span class="muted">—</span>'; ?></td>
         <?php if ($showBalanceCol): ?>

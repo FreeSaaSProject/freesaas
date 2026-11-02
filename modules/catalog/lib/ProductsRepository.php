@@ -158,6 +158,36 @@ final class ProductsRepository
         return $out;
     }
 
+    /**
+     * Enabled product names for selects; always include $extraIds (e.g. disabled linked product).
+     * Disabled extras are marked so the current value stays selectable without switching service.
+     *
+     * @param list<int> $extraIds
+     * @return array<int,string> id => label
+     */
+    public static function namesIncluding(array $extraIds = []): array
+    {
+        $out = self::names(true);
+        foreach ($extraIds as $id) {
+            $id = (int)$id;
+            if ($id < 1 || isset($out[$id])) {
+                continue;
+            }
+            $p = self::find($id);
+            if (!$p) {
+                $out[$id] = '#' . $id;
+                continue;
+            }
+            $label = trim((string)($p['name'] ?? ''));
+            if ($label === '') {
+                $label = '#' . $id;
+            }
+            $enabled = !empty($p['enabled']);
+            $out[$id] = $label . ($enabled ? '' : ' (' . t('catalog.product.filter_disabled') . ')');
+        }
+        return $out;
+    }
+
     /** @return array<int,string> enabled consumables (is_material=1) */
     public static function materialNames(): array
     {
