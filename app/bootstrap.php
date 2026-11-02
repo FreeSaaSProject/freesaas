@@ -24,6 +24,7 @@ require_once __DIR__ . '/StageTiming.php';
 require_once __DIR__ . '/Cli.php';
 require_once __DIR__ . '/Health.php';
 require_once __DIR__ . '/Cron.php';
+require_once __DIR__ . '/FtpClient.php';
 require_once __DIR__ . '/ModuleValidator.php';
 require_once __DIR__ . '/ModuleCatalog.php';
 require_once __DIR__ . '/ModuleScaffold.php';

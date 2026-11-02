@@ -206,7 +206,8 @@
             "core.layout.gate",
             "core.auth.before_logout",
             "core.notices.collect",
-            "bi.datasets"
+            "bi.datasets",
+            "backups.sources"
         ],
         "publish": [
             "audio.settings.sections",

@@ -8,7 +8,11 @@ declare(strict_types=1);
 $path = request_path();
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 // Break-glass: valid var/setup.key unlocks rescue / bootstrap (never a free virgin door).
-$allowSetupKey = ($method === 'POST' && ($path === '/agent/rescue' || $path === '/agent/bootstrap'));
+$allowSetupKey = ($method === 'POST' && (
+    $path === '/agent/rescue'
+    || $path === '/agent/bootstrap'
+    || $path === '/agent/bootstrap-from-backup'
+));
 
 // JSON body may carry setup_key — promote before the gate (php://input is cached).
 if ($allowSetupKey && SetupKey::providedKey() === '') {
@@ -117,6 +121,18 @@ function agent_api_dispatch(string $path, string $method, string $id): array
             $opts['modules'] = array_filter(array_map('trim', explode(',', $_POST['modules'])));
         }
         return AgentOps::bootstrap($opts);
+    }
+    if ($path === '/agent/bootstrap-from-backup' && $method === 'POST') {
+        $opts = agent_api_json_body();
+        foreach (['url', 'file', 'remote_path', 'passphrase'] as $k) {
+            if (!isset($opts[$k]) && isset($_POST[$k])) {
+                $opts[$k] = $_POST[$k];
+            }
+        }
+        if (isset($_POST['migrate'])) {
+            $opts['migrate'] = !in_array(strtolower((string)$_POST['migrate']), ['0', 'false', 'no'], true);
+        }
+        return AgentOps::bootstrapFromBackup($opts);
     }
     if ($path === '/agent/rescue' && $method === 'POST') {
         $opts = agent_api_json_body();

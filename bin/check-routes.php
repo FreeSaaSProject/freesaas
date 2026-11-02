@@ -31,6 +31,7 @@ $allowed = [
     // Platform agent HTTP (token / setup.key gated in handler)
     '/agent' => ['methods' => ['GET'], 'why' => 'agent catalog'],
     '/agent/bootstrap' => ['methods' => ['POST'], 'why' => 'virgin bootstrap'],
+    '/agent/bootstrap-from-backup' => ['methods' => ['POST'], 'why' => 'empty-DB deploy from backup pack'],
     '/agent/rescue' => ['methods' => ['POST'], 'why' => 'break-glass rescue'],
     '/agent/system/status' => ['methods' => ['GET'], 'why' => 'agent system status'],
     '/agent/doctor' => ['methods' => ['GET'], 'why' => 'agent doctor'],

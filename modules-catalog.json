@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-02T12:49:31+00:00",
+    "generated_at": "2026-11-02T15:13:55+00:00",
     "modules": [
         {
             "id": "asr",
@@ -383,6 +383,44 @@
             },
             "agent": {
                 "docs": "docs/agents/audio_script_coach.md"
+            }
+        },
+        {
+            "id": "backups",
+            "version": "0.2.0",
+            "type": "product",
+            "name": {
+                "en": "Backups",
+                "ru": "Резервные копии"
+            },
+            "description": {
+                "en": "Scheduled DB and file backups uploaded to FTP/FTPS with retention and restore helpers.",
+                "ru": "Плановые копии БД и файлов с выгрузкой на FTP/FTPS, ротацией и помощником восстановления."
+            },
+            "summary": {
+                "en": "Enable for automatic off-site backups. Configure FTP, sources, encryption and notifications. Soft-depends on bots for messenger alerts; audio may share FTP credentials.",
+                "ru": "Включайте для автоматических копий на удалённую площадку. Настройте FTP, состав, шифрование и уведомления. Мягко зависит от bots; FTP можно взять из audio."
+            },
+            "requires": {
+                "core": ">=1.0.0"
+            },
+            "optionalRequires": {
+                "bots": ">=1.0.0",
+                "audio": ">=1.0.0",
+                "video": ">=0.1.0"
+            },
+            "catalog": {
+                "categories": [
+                    "platform"
+                ],
+                "maturity": "alpha",
+                "tags": [
+                    "settings",
+                    "jobs"
+                ]
+            },
+            "agent": {
+                "docs": "docs/agents/backups.md"
             }
         },
         {

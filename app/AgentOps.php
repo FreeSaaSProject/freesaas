@@ -1536,6 +1536,56 @@ final class AgentOps
      * } $opts
      * @return array<string,mixed>
      */
+    /**
+     * Greenfield restore from a single backup pack (.tar / .tar.enc) via URL, local file, or FTP path.
+     * Refuses when the connect DB already has any rows. Loads backups libs even if module is off.
+     *
+     * @param array{url?:string,file?:string,remote_path?:string,passphrase?:string,migrate?:bool} $opts
+     * @return array<string,mixed>
+     */
+    public static function bootstrapFromBackup(array $opts): array
+    {
+        self::requireBackupLibs();
+        try {
+            return BackupRestore::deploy($opts);
+        } catch (Throwable $e) {
+            $code = (stripos($e->getMessage(), 'not empty') !== false
+                || stripos($e->getMessage(), 'не пуст') !== false) ? 409 : 400;
+            return [
+                'ok' => false,
+                'error' => $e->getMessage(),
+                'http' => $code,
+                'available' => BackupRestore::databaseIsEmpty(),
+            ];
+        }
+    }
+
+    /** Load backups module libs without requiring the module to be enabled. */
+    public static function requireBackupLibs(): void
+    {
+        $base = base_path('modules/backups/lib');
+        foreach ([
+            'BackupConfig.php',
+            'BackupRepository.php',
+            'BackupTarget.php',
+            'BackupFtpTarget.php',
+            'BackupTarWriter.php',
+            'BackupCrypto.php',
+            'BackupSources.php',
+            'BackupNotify.php',
+            'BackupRunner.php',
+            'BackupRestore.php',
+        ] as $f) {
+            $path = $base . '/' . $f;
+            if (is_file($path)) {
+                require_once $path;
+            }
+        }
+        if (!class_exists('BackupRestore', false)) {
+            throw new RuntimeException('backups module libraries missing on disk');
+        }
+    }
+
     public static function bootstrap(array $opts): array
     {
         require_once base_path('modules/core/lib/UsersRepository.php');

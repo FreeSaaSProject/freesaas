@@ -464,7 +464,9 @@
     ],
     "migrators": [],
     "hooks": {
-        "subscribe": [],
+        "subscribe": [
+            "backups.sources"
+        ],
         "publish": [
             "video.alert.created"
         ]

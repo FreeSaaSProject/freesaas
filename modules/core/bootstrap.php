@@ -73,6 +73,7 @@ $pages = [
     '/help/{id}' => ['permission' => 'core.home', 'methods' => ['GET'], 'file' => 'help_get.php'],
     '/agent' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],
     '/agent/bootstrap' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
+    '/agent/bootstrap-from-backup' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
     '/agent/rescue' => ['public' => true, 'methods' => ['POST'], 'file' => 'agent_api.php'],
 
     '/agent/system/status' => ['public' => true, 'methods' => ['GET'], 'file' => 'agent_api.php'],

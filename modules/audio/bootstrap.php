@@ -385,3 +385,41 @@ EventBus::on('bots.ready', static function ($payload) use ($registerAudioBots) {
     $registerAudioBots();
     return is_array($payload) ? $payload : [];
 });
+
+EventBus::on('backups.sources', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $cfg = AudioSettingsRepository::storageConfig();
+    if (($cfg['mode'] ?? 'local') !== 'local') {
+        return $payload;
+    }
+    $base = rtrim(base_path(), '/');
+    $inbox = trim((string)($cfg['audio_inbox'] ?? 'audio'), '/');
+    $parsed = trim((string)($cfg['audio_parsed'] ?? 'audioParsed'), '/');
+    $chunks = trim((string)($cfg['audio_chunks'] ?? 'audiochunks'), '/');
+    $paths = [];
+    foreach ([$inbox, $parsed, $chunks] as $rel) {
+        if ($rel === '') {
+            continue;
+        }
+        $full = $base . '/' . $rel;
+        if (is_dir($full)) {
+            $paths[] = $full;
+        }
+    }
+    if ($paths === []) {
+        return $payload;
+    }
+    $sources = is_array($payload['sources'] ?? null) ? $payload['sources'] : [];
+    $sources[] = [
+        'id' => 'audio_local',
+        'label_key' => 'backups.source.audio_local',
+        'kind' => 'files',
+        'paths' => $paths,
+        'excludes' => [],
+        'default' => false,
+    ];
+    $payload['sources'] = $sources;
+    return $payload;
+});

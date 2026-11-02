@@ -1,0 +1,170 @@
+{
+    "id": "backups",
+    "name": "backups.module.name",
+    "description": "backups.module.description",
+    "version": "0.2.0",
+    "type": "product",
+    "catalog": {
+        "categories": [
+            "platform"
+        ],
+        "maturity": "alpha",
+        "tags": [
+            "settings",
+            "jobs"
+        ],
+        "screenshots": []
+    },
+    "requires": {
+        "core": ">=1.0.0"
+    },
+    "optionalRequires": {
+        "bots": ">=1.0.0",
+        "audio": ">=1.0.0",
+        "video": ">=0.1.0"
+    },
+    "provides": [
+        "backups.sets"
+    ],
+    "migrations": "migrations/",
+    "uninstall": {
+        "strategy": "drop_owned"
+    },
+    "permissions": [
+        {
+            "id": "backups.view",
+            "label": "backups.perm.view"
+        },
+        {
+            "id": "backups.manage",
+            "label": "backups.perm.manage"
+        }
+    ],
+    "routes": {
+        "pages": [
+            "/backups",
+            "/backups/settings",
+            "/backups/run",
+            "/backups/remote",
+            "/backups/notify/test",
+            "/backups/restore"
+        ]
+    },
+    "agent": {
+        "docs": "docs/agents/backups.md",
+        "ops": [
+            {
+                "id": "backups.list",
+                "method": "GET",
+                "path": "/backups",
+                "permission": "backups.view",
+                "description": "Recent backup runs + running progress"
+            },
+            {
+                "id": "backups.run",
+                "method": "POST",
+                "path": "/backups/run",
+                "permission": "backups.manage",
+                "side_effect": "write",
+                "description": "Start a backup run now (advances one tick)"
+            },
+            {
+                "id": "backups.remote",
+                "method": "GET",
+                "path": "/backups/remote",
+                "permission": "backups.view",
+                "description": "List remote FTP sets under instance/"
+            },
+            {
+                "id": "backups.notify.test",
+                "method": "POST",
+                "path": "/backups/notify/test",
+                "permission": "backups.manage",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Send test notification per current settings"
+            },
+            {
+                "id": "backups.settings.get",
+                "method": "GET",
+                "path": "/backups/settings",
+                "permission": "backups.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Backup settings (secrets masked)"
+            },
+            {
+                "id": "backups.settings.save",
+                "method": "POST",
+                "path": "/backups/settings",
+                "permission": "backups.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Save backups.ini; actions: save|test_ftp|copy_ftp_audio"
+            },
+            {
+                "id": "backups.restore",
+                "method": "POST",
+                "path": "/backups/restore",
+                "permission": "backups.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "Restore wizard step: download|decrypt|db|files; body: remote_path, passphrase, local_dir, job_id"
+            }
+        ]
+    },
+    "jobs": [],
+    "menu": [
+        {
+            "group": "core.menu.group.system",
+            "num": 40,
+            "path": "/backups",
+            "title": "backups.menu.list",
+            "kind": "settings"
+        },
+        {
+            "group": "core.menu.group.system",
+            "num": 41,
+            "path": "/backups/settings",
+            "title": "backups.menu.settings",
+            "kind": "settings"
+        }
+    ],
+    "configSchema": [],
+    "tables": [
+        "base_backup_runs"
+    ],
+    "migrators": [],
+    "hooks": {
+        "subscribe": [
+            "core.notices.collect"
+        ],
+        "publish": [
+            "backups.sources",
+            "bots.send"
+        ]
+    },
+    "setup": {
+        "steps": [
+            {
+                "id": "config",
+                "title": "backups.setup.step.config",
+                "description": "backups.setup.step.config_help",
+                "href": "/backups/settings",
+                "ask_user": "backups.setup.ask.config",
+                "choices": [
+                    {
+                        "id": "open",
+                        "label": "backups.setup.choice.open",
+                        "recommended": true
+                    },
+                    {
+                        "id": "defer",
+                        "label": "core.modules.setup.choice.defer",
+                        "recommended": false
+                    }
+                ],
+                "agent_can": []
+            }
+        ]
+    }
+}

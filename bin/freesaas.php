@@ -31,6 +31,9 @@ try {
         case 'bootstrap':
             freesaas_cmd_bootstrap($opts);
             break;
+        case 'bootstrap-from-backup':
+            freesaas_cmd_bootstrap_from_backup($opts);
+            break;
         case 'setup-key':
             freesaas_cmd_setup_key($sub, $opts);
             break;
@@ -581,6 +584,22 @@ function freesaas_cmd_bootstrap(array $opts): void
         }
     }
     freesaas_emit_ops(AgentOps::bootstrap($payload));
+}
+
+/** @param array<string, string|bool> $opts */
+function freesaas_cmd_bootstrap_from_backup(array $opts): void
+{
+    $payload = [
+        'url' => isset($opts['url']) ? (string)$opts['url'] : '',
+        'file' => isset($opts['file']) ? (string)$opts['file'] : '',
+        'remote_path' => isset($opts['remote-path']) ? (string)$opts['remote-path'] : (isset($opts['remote_path']) ? (string)$opts['remote_path'] : ''),
+        'passphrase' => isset($opts['passphrase']) ? (string)$opts['passphrase'] : '',
+        'migrate' => !isset($opts['no-migrate']),
+    ];
+    if ($payload['url'] === '' && $payload['file'] === '' && $payload['remote_path'] === '') {
+        Cli::usage('Usage: bootstrap-from-backup --url=https://…/stamp.tar.enc|--file=/path/stamp.tar[--remote-path=instance/stamp.tar] [--passphrase=…] [--no-migrate]');
+    }
+    freesaas_emit_ops(AgentOps::bootstrapFromBackup($payload));
 }
 
 /** @param array<string, string|bool> $opts */

@@ -220,3 +220,24 @@ EventBus::on('video.alert.created', static function (array $payload): array {
 
     return $payload;
 });
+
+EventBus::on('backups.sources', static function ($payload) {
+    if (!is_array($payload)) {
+        return $payload;
+    }
+    $dir = base_path('var/video');
+    if (!is_dir($dir)) {
+        return $payload;
+    }
+    $sources = is_array($payload['sources'] ?? null) ? $payload['sources'] : [];
+    $sources[] = [
+        'id' => 'video',
+        'label_key' => 'backups.source.video',
+        'kind' => 'files',
+        'paths' => [$dir],
+        'excludes' => [],
+        'default' => false,
+    ];
+    $payload['sources'] = $sources;
+    return $payload;
+});

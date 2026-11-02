@@ -3,20 +3,14 @@ declare(strict_types=1);
 
 /**
  * Local / FTP abstraction for audio inbox, parsed, and chunk directories.
- * Port of oper FileStorage — ftp_pass from AudioSettingsRepository (cfg/modules/audio.ini).
+ * FTP transport via platform {@see FtpClient}; credentials from AudioSettingsRepository.
  */
 final class FileStorage
 {
     private string $mode;
     private string $documentRoot;
-    private ?string $ftpHost = null;
-    private int $ftpPort = 21;
-    private ?string $ftpUser = null;
-    private ?string $ftpPass = null;
-    private string $ftpBasePath = '/';
     private string $ftpHttpUrl = '';
-    /** @var resource|null */
-    private $ftpConnection = null;
+    private ?FtpClient $ftp = null;
     /** @var list<string> */
     private array $tempFiles = [];
 
@@ -26,11 +20,15 @@ final class FileStorage
         $this->mode = ($config['mode'] ?? 'local') === 'ftp' ? 'ftp' : 'local';
         $this->documentRoot = rtrim(base_path(), '/');
         if ($this->mode === 'ftp') {
-            $this->ftpHost = (string)($config['ftp_host'] ?? '');
-            $this->ftpPort = (int)($config['ftp_port'] ?? 21);
-            $this->ftpUser = (string)($config['ftp_user'] ?? '');
-            $this->ftpPass = (string)($config['ftp_pass'] ?? '');
-            $this->ftpBasePath = (string)($config['ftp_base_path'] ?? '/');
+            $this->ftp = new FtpClient([
+                'host' => (string)($config['ftp_host'] ?? ''),
+                'port' => (int)($config['ftp_port'] ?? 21),
+                'user' => (string)($config['ftp_user'] ?? ''),
+                'pass' => (string)($config['ftp_pass'] ?? ''),
+                'ssl' => false,
+                'passive' => true,
+                'base_path' => (string)($config['ftp_base_path'] ?? '/'),
+            ]);
             $this->ftpHttpUrl = (string)($config['ftp_http_url'] ?? '');
         }
     }
@@ -50,25 +48,24 @@ final class FileStorage
         return $this->documentRoot;
     }
 
-    private function ftpConnect(): bool
+    private function ftpReady(): bool
     {
-        if ($this->ftpConnection) {
+        if ($this->ftp === null) {
+            return false;
+        }
+        try {
+            $this->ftp->connect();
             return true;
-        }
-        if ($this->ftpHost === null || $this->ftpHost === '') {
+        } catch (Throwable $e) {
             return false;
         }
-        $conn = @ftp_connect($this->ftpHost, $this->ftpPort);
-        if ($conn === false) {
-            return false;
-        }
-        if (!@ftp_login($conn, (string)$this->ftpUser, (string)$this->ftpPass)) {
-            @ftp_close($conn);
-            return false;
-        }
-        ftp_pasv($conn, true);
-        $this->ftpConnection = $conn;
-        return true;
+    }
+
+    /** Relative path under document root → path relative to FTP base. */
+    private function toFtpRelative(string $path): string
+    {
+        $relative = str_replace($this->documentRoot, '', $path);
+        return ltrim(str_replace('\\', '/', $relative), '/');
     }
 
     /** @return list<string> */
@@ -80,25 +77,22 @@ final class FileStorage
             $found = glob($fullPath . '/' . $pattern) ?: [];
             return array_values($found);
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return [];
         }
-        $ftpPath = rtrim($this->ftpBasePath, '/') . $path;
-        $files = @ftp_nlist($this->ftpConnection, $ftpPath);
-        if ($files === false) {
-            return [];
-        }
+        $rel = ltrim($path, '/');
+        $files = $this->ftp->nlist($rel);
         if ($pattern !== '*') {
             $regex = '/^' . str_replace('\*', '.*', preg_quote($pattern, '/')) . '$/';
-            $files = array_filter($files, static function ($file) use ($regex) {
-                return (bool)preg_match($regex, basename((string)$file));
-            });
+            $files = array_values(array_filter($files, static function ($file) use ($regex) {
+                return (bool)preg_match($regex, (string)$file);
+            }));
         }
         $out = [];
         foreach ($files as $file) {
             $out[] = $path . '/' . basename((string)$file);
         }
-        return array_values($out);
+        return $out;
     }
 
     public function exists(string $path): bool
@@ -106,17 +100,10 @@ final class FileStorage
         if ($this->mode === 'local') {
             return file_exists($path);
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return false;
         }
-        $relativePath = str_replace($this->documentRoot, '', $path);
-        $ftpPath = rtrim($this->ftpBasePath, '/') . $relativePath;
-        $size = @ftp_size($this->ftpConnection, $ftpPath);
-        if ($size !== -1) {
-            return true;
-        }
-        $list = @ftp_nlist($this->ftpConnection, $ftpPath);
-        return $list !== false;
+        return $this->ftp->exists($this->toFtpRelative($path));
     }
 
     public function mkdir(string $path, int $mode = 0755, bool $recursive = true): bool
@@ -127,27 +114,15 @@ final class FileStorage
             }
             return @mkdir($path, $mode, $recursive);
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return false;
         }
-        $relativePath = str_replace($this->documentRoot, '', $path);
-        $ftpPath = rtrim($this->ftpBasePath, '/') . $relativePath;
-        if (!$recursive) {
-            return @ftp_mkdir($this->ftpConnection, $ftpPath) !== false;
+        try {
+            $this->ftp->mkdirs($this->toFtpRelative($path));
+            return true;
+        } catch (Throwable $e) {
+            return false;
         }
-        $parts = explode('/', trim($ftpPath, '/'));
-        $currentPath = '';
-        foreach ($parts as $part) {
-            if ($part === '') {
-                continue;
-            }
-            $currentPath .= '/' . $part;
-            $list = @ftp_nlist($this->ftpConnection, $currentPath);
-            if ($list === false && @ftp_mkdir($this->ftpConnection, $currentPath) === false) {
-                return false;
-            }
-        }
-        return true;
     }
 
     public function rename(string $source, string $destination): bool
@@ -155,12 +130,15 @@ final class FileStorage
         if ($this->mode === 'local') {
             return @rename($source, $destination);
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return false;
         }
-        $ftpSrc = rtrim($this->ftpBasePath, '/') . str_replace($this->documentRoot, '', $source);
-        $ftpDst = rtrim($this->ftpBasePath, '/') . str_replace($this->documentRoot, '', $destination);
-        return @ftp_rename($this->ftpConnection, $ftpSrc, $ftpDst);
+        try {
+            $this->ftp->rename($this->toFtpRelative($source), $this->toFtpRelative($destination));
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     /** @return int|false */
@@ -170,12 +148,11 @@ final class FileStorage
             $sz = @filesize($path);
             return $sz === false ? false : (int)$sz;
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return false;
         }
-        $ftpPath = rtrim($this->ftpBasePath, '/') . str_replace($this->documentRoot, '', $path);
-        $size = @ftp_size($this->ftpConnection, $ftpPath);
-        return $size !== -1 ? $size : false;
+        $sz = $this->ftp->size($this->toFtpRelative($path));
+        return $sz >= 0 ? $sz : false;
     }
 
     public function unlink(string $path): bool
@@ -183,11 +160,15 @@ final class FileStorage
         if ($this->mode === 'local') {
             return @unlink($path);
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return false;
         }
-        $ftpPath = rtrim($this->ftpBasePath, '/') . str_replace($this->documentRoot, '', $path);
-        return @ftp_delete($this->ftpConnection, $ftpPath);
+        try {
+            $this->ftp->delete($this->toFtpRelative($path));
+            return true;
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
     public function getPlaybackUrl(string $relativePath): string
@@ -210,21 +191,22 @@ final class FileStorage
             $full = $this->documentRoot . $relativePath;
             return @file_get_contents($full);
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return false;
         }
-        $ftpPath = rtrim($this->ftpBasePath, '/') . $relativePath;
         $tempFile = tempnam(sys_get_temp_dir(), 'ftp_');
         if ($tempFile === false) {
             return false;
         }
-        if (@ftp_get($this->ftpConnection, $tempFile, $ftpPath, FTP_BINARY)) {
+        try {
+            $this->ftp->get(ltrim($relativePath, '/'), $tempFile);
             $contents = file_get_contents($tempFile);
             @unlink($tempFile);
             return $contents;
+        } catch (Throwable $e) {
+            @unlink($tempFile);
+            return false;
         }
-        @unlink($tempFile);
-        return false;
     }
 
     /** @return string|false */
@@ -233,11 +215,10 @@ final class FileStorage
         if ($this->mode === 'local') {
             return $path;
         }
-        if (!$this->ftpConnect()) {
+        if (!$this->ftpReady() || $this->ftp === null) {
             return false;
         }
-        $relativePath = str_replace($this->documentRoot, '', $path);
-        $ftpPath = rtrim($this->ftpBasePath, '/') . $relativePath;
+        $relativePath = $this->toFtpRelative($path);
         $extension = pathinfo($relativePath, PATHINFO_EXTENSION);
         $tempFile = tempnam(sys_get_temp_dir(), 'ftp_');
         if ($tempFile === false) {
@@ -248,12 +229,14 @@ final class FileStorage
             @rename($tempFile, $named);
             $tempFile = $named;
         }
-        if (@ftp_get($this->ftpConnection, $tempFile, $ftpPath, FTP_BINARY)) {
+        try {
+            $this->ftp->get($relativePath, $tempFile);
             $this->tempFiles[] = $tempFile;
             return $tempFile;
+        } catch (Throwable $e) {
+            @unlink($tempFile);
+            return false;
         }
-        @unlink($tempFile);
-        return false;
     }
 
     public function cleanupTempFile(string $path): bool
@@ -271,9 +254,8 @@ final class FileStorage
 
     public function close(): void
     {
-        if ($this->ftpConnection) {
-            @ftp_close($this->ftpConnection);
-            $this->ftpConnection = null;
+        if ($this->ftp !== null) {
+            $this->ftp->close();
         }
     }
 
