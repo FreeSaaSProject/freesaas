@@ -43,11 +43,29 @@ final class LedgerReconciliationsRepository
      */
     public static function latestToday(int $accountId): ?array
     {
-        if ($accountId < 1 || !Database::tableExists('base_account_reconciliations')) {
+        $todayStart = mktime(0, 0, 0) ?: time();
+        return self::latestOnDay($accountId, $todayStart);
+    }
+
+    /**
+     * Active reconciliation on a calendar day (local midnight → end of day).
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function latestOnDay(int $accountId, int $dayStart): ?array
+    {
+        if ($accountId < 1 || $dayStart < 1 || !Database::tableExists('base_account_reconciliations')) {
             return null;
         }
-        $todayStart = mktime(0, 0, 0) ?: time();
-        $todayEnd = $todayStart + 86400 - 1;
+        $dayStart = (int)(mktime(
+            0,
+            0,
+            0,
+            (int)date('n', $dayStart),
+            (int)date('j', $dayStart),
+            (int)date('Y', $dayStart)
+        ) ?: $dayStart);
+        $dayEnd = $dayStart + 86400 - 1;
         $st = Database::pdo()->prepare(
             'SELECT ID AS id, ID_ACCOUNT AS account_id, BANK_BALANCE AS bank_balance,
                     SYSTEM_BALANCE AS system_balance, DT_RECONCILIATION AS dt,
@@ -59,7 +77,7 @@ final class LedgerReconciliationsRepository
              ORDER BY DT_RECONCILIATION DESC, ID DESC
              LIMIT 1'
         );
-        $st->execute([$accountId, $todayStart, $todayEnd]);
+        $st->execute([$accountId, $dayStart, $dayEnd]);
         $row = $st->fetch(PDO::FETCH_ASSOC);
         return $row ?: null;
     }
@@ -241,8 +259,16 @@ final class LedgerReconciliationsRepository
             );
             $st->execute([$bankBalance, $id, $accountId]);
         }
+        // MySQL "Changed: 0" when values already match — not an error.
         if ($st->rowCount() < 1) {
-            throw new InvalidArgumentException(t('ledger.recon.err.not_found'));
+            $check = Database::pdo()->prepare(
+                'SELECT 1 FROM base_account_reconciliations
+                 WHERE ID = ? AND ID_ACCOUNT = ? AND DISABLED = 0 LIMIT 1'
+            );
+            $check->execute([$id, $accountId]);
+            if (!$check->fetchColumn()) {
+                throw new InvalidArgumentException(t('ledger.recon.err.not_found'));
+            }
         }
     }
 

@@ -3,7 +3,10 @@ declare(strict_types=1);
 /** @var list<array<string,mixed>> $items */
 /** @var list<array{id:string,label:string,configured:bool,connection_id:int,setup_status?:string,setup_step?:string}> $providers */
 /** @var bool $canConnect */
+/** @var bool $canSync */
 /** @var bool $canSettings */
+/** @var list<array<string,mixed>> $fileLinks */
+/** @var array<int,string> $ledgerAccounts */
 /** @var list<array<string,mixed>> $alfaIntegrations */
 /** @var bool $autoSyncOn */
 /** @var array{job_id:string,enabled:int,last_status:string,last_message:string,last_finished_at:int,every:?int}|null $cronStatus */
@@ -70,6 +73,10 @@ $showSetupNeeded = !$anyConfigured && !$hasConnections;
         <?php endforeach; ?>
       </select>
     </label>
+    <label><?= te('banks.settings.file_skip_purpose_regex') ?>
+      <input type="text" name="file_skip_purpose_regex" value="<?= e((string)($cfg['file_skip_purpose_regex'] ?? '')) ?>" placeholder="<?= te('banks.settings.file_skip_purpose_regex_ph') ?>" autocomplete="off">
+      <span class="muted"><?= te('banks.settings.file_skip_purpose_regex_hint') ?></span>
+    </label>
     <label class="check">
       <input type="checkbox" name="auto_sync_enabled" value="1"<?= ($cfg['auto_sync_enabled'] ?? '0') === '1' ? ' checked' : '' ?>>
       <?= te('banks.settings.auto_sync_enabled') ?>
@@ -120,6 +127,92 @@ $showSetupNeeded = !$anyConfigured && !$hasConnections;
       </div>
     <?php endforeach; ?>
   </div>
+</section>
+<?php endif; ?>
+
+<?php if (!empty($canConnect) || !empty($canSync)): ?>
+<section class="banks-connect-panel banks-file-import-panel">
+  <h2><?= te('banks.import.hub_title') ?></h2>
+  <p class="muted"><?= te('banks.import.hub_hint') ?></p>
+
+  <?php if (!empty($canConnect)): ?>
+  <h3 class="banks-file-subhead"><?= te('banks.import.bind_heading') ?></h3>
+  <form class="banks-sync-form banks-import-form" method="post" action="/banks/file-link">
+    <input type="hidden" name="action" value="bind">
+    <input type="hidden" name="provider" value="psb_card">
+    <label><?= te('banks.import.account') ?>
+      <select name="account_id" required>
+        <option value="">—</option>
+        <?php foreach (($ledgerAccounts ?? []) as $aid => $aname): ?>
+          <option value="<?= (int)$aid ?>"><?= e((string)$aname) ?> (#<?= (int)$aid ?>)</option>
+        <?php endforeach; ?>
+      </select>
+    </label>
+    <label><?= te('banks.import.account_number') ?>
+      <input type="text" name="account_number" placeholder="<?= te('banks.import.account_number_ph') ?>" autocomplete="off">
+    </label>
+    <button type="submit" class="btn-primary"><?= te('banks.import.bind_submit') ?></button>
+  </form>
+  <?php endif; ?>
+
+  <?php if (!empty($fileLinks) && is_array($fileLinks)): ?>
+    <h3 class="banks-file-subhead"><?= te('banks.import.linked_heading') ?></h3>
+    <div class="table-wrap"><table class="data banks-file-links-table">
+      <thead><tr>
+        <th><?= te('banks.list.col.provider') ?></th>
+        <th><?= te('banks.import.account') ?></th>
+        <th><?= te('banks.import.account_number') ?></th>
+        <th><?= te('banks.list.col.updated') ?></th>
+        <th></th>
+      </tr></thead>
+      <tbody>
+      <?php foreach ($fileLinks as $fl):
+        $flAid = (int)($fl['account_id'] ?? 0);
+        $flName = (string)(($ledgerAccounts[$flAid] ?? '') !== '' ? $ledgerAccounts[$flAid] : ('#' . $flAid));
+        ?>
+        <tr>
+          <td><?= e(BanksConfig::providerLabel((string)($fl['provider'] ?? ''))) ?></td>
+          <td>
+            <a href="<?= e(ListQuery::url('/ledger/moves', ['account_id' => (string)$flAid], [])) ?>">
+              <?= e($flName) ?>
+            </a>
+          </td>
+          <td class="muted"><?= e(trim((string)($fl['account_number'] ?? '')) !== ''
+              ? (string)$fl['account_number']
+              : (string)($fl['external_account_id'] ?? '—')) ?></td>
+          <td class="muted"><?= (int)($fl['last_sync_at'] ?? 0) > 0
+              ? e(date('d.m.Y H:i', (int)$fl['last_sync_at']))
+              : '—' ?></td>
+          <td class="banks-file-link-actions">
+            <?php if (!empty($canSync)): ?>
+            <form class="banks-import-form banks-import-form--inline" method="post" action="/banks/import-file" enctype="multipart/form-data">
+              <input type="hidden" name="account_id" value="<?= $flAid ?>">
+              <input type="file" name="statement" accept=".csv,text/csv,text/plain" required>
+              <button type="submit" class="btn-secondary"><?= te('banks.import.submit') ?></button>
+            </form>
+            <form method="post" action="/banks/relink-orphans" class="banks-import-form--inline"
+                  title="<?= te('banks.relink.hint') ?>">
+              <input type="hidden" name="account_id" value="<?= $flAid ?>">
+              <input type="hidden" name="provider" value="<?= e((string)($fl['provider'] ?? 'psb_card')) ?>">
+              <input type="hidden" name="day_slack" value="3">
+              <button type="submit" class="btn-secondary"><?= te('banks.relink.submit') ?></button>
+            </form>
+            <?php endif; ?>
+            <?php if (!empty($canConnect)): ?>
+            <form method="post" action="/banks/file-link" onsubmit="return confirm(<?= tj('banks.import.unbind_confirm') ?>);">
+              <input type="hidden" name="action" value="unbind">
+              <input type="hidden" name="link_id" value="<?= (int)($fl['id'] ?? 0) ?>">
+              <button type="submit" class="btn-secondary"><?= te('banks.import.unbind') ?></button>
+            </form>
+            <?php endif; ?>
+          </td>
+        </tr>
+      <?php endforeach; ?>
+      </tbody>
+    </table></div>
+  <?php else: ?>
+    <p class="muted"><?= te('banks.import.no_links') ?></p>
+  <?php endif; ?>
 </section>
 <?php endif; ?>
 

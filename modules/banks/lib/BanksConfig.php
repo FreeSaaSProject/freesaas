@@ -13,6 +13,11 @@ final class BanksConfig
         'sber_fl',
     ];
 
+    /** File-statement adapters (no OAuth/API). Not listed on hub OAuth cards. */
+    public const FILE_PROVIDERS = [
+        'psb_card',
+    ];
+
     /** Shown in hub but not production-proven yet (UI chip). */
     public const UNVERIFIED_PROVIDERS = [
         'tbank_ul',
@@ -29,6 +34,36 @@ final class BanksConfig
     public static function defaultMoveTypeId(): int
     {
         return max(0, (int)self::get('default_move_type_id', 0));
+    }
+
+    /**
+     * Optional PCRE against bank purpose: match → do not create a new ledger move
+     * (still try unique same-amount link; otherwise acknowledge in tx_map without DPS).
+     * Empty = create moves for all unmatched rows.
+     */
+    public static function fileSkipPurposeRegex(): string
+    {
+        return trim((string)self::get('file_skip_purpose_regex', ''));
+    }
+
+    /** Validate and return pattern, or '' if empty/invalid. */
+    public static function fileSkipPurposeRegexSafe(): string
+    {
+        $raw = self::fileSkipPurposeRegex();
+        if ($raw === '') {
+            return '';
+        }
+        // Delimiter-free: wrap as /…/u if user pasted bare pattern.
+        $pattern = $raw;
+        if ($pattern[0] !== '/') {
+            $pattern = '/' . str_replace('/', '\\/', $pattern) . '/u';
+        }
+        set_error_handler(static function (): bool {
+            return true;
+        });
+        $ok = @preg_match($pattern, '') !== false;
+        restore_error_handler();
+        return $ok ? $pattern : '';
     }
 
     /** Cron banks.sync: when false, handler no-ops. */
@@ -199,11 +234,20 @@ final class BanksConfig
         return $creds;
     }
 
+    public static function isFileProvider(string $provider): bool
+    {
+        $p = strtolower(trim($provider));
+        return in_array($p, self::FILE_PROVIDERS, true);
+    }
+
     public static function providerConfigured(string $provider): bool
     {
         $p = self::normalizeProvider($provider);
         if ($p === '') {
             return false;
+        }
+        if (self::isFileProvider($p)) {
+            return true;
         }
         if ($p === 'tochka' && (int)self::get('tochka_sandbox', 0) === 1) {
             return true;
@@ -235,7 +279,10 @@ final class BanksConfig
     public static function normalizeProvider(string $provider): string
     {
         $p = strtolower(trim($provider));
-        return in_array($p, self::PROVIDERS, true) ? $p : '';
+        if (in_array($p, self::PROVIDERS, true) || in_array($p, self::FILE_PROVIDERS, true)) {
+            return $p;
+        }
+        return '';
     }
 
     public static function providerLabel(string $provider): string
@@ -395,6 +442,7 @@ final class BanksConfig
     {
         return [
             'default_move_type_id',
+            'file_skip_purpose_regex',
             'auto_sync_enabled',
             'auto_sync_lookback_days',
             'worker_token',
@@ -521,6 +569,7 @@ final class BanksConfig
         if ($tab === 'common') {
             return [
                 'default_move_type_id',
+                'file_skip_purpose_regex',
                 'auto_sync_enabled',
                 'auto_sync_lookback_days',
                 'worker_token',
@@ -610,6 +659,22 @@ final class BanksConfig
             }
             if ($key === 'default_move_type_id') {
                 Config::set('banks', $key, (string)max(0, (int)($post[$key] ?? 0)));
+                continue;
+            }
+            if ($key === 'file_skip_purpose_regex') {
+                $raw = trim((string)($post[$key] ?? ''));
+                if ($raw !== '') {
+                    $test = $raw[0] !== '/' ? ('/' . str_replace('/', '\\/', $raw) . '/u') : $raw;
+                    set_error_handler(static function (): bool {
+                        return true;
+                    });
+                    $ok = @preg_match($test, '') !== false;
+                    restore_error_handler();
+                    if (!$ok) {
+                        throw new InvalidArgumentException(t('banks.import.err.bad_regex'));
+                    }
+                }
+                Config::set('banks', $key, $raw);
                 continue;
             }
             if ($key === 'auto_sync_lookback_days') {

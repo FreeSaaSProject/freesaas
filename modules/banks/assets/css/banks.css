@@ -192,6 +192,41 @@ input.banks-redirect-uri {
   margin-right: 0.25rem;
 }
 
+.banks-import-form .banks-import-file {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+}
+
+.banks-import-form input[type="file"] {
+  max-width: 16rem;
+  font-size: 0.85rem;
+}
+
+.banks-file-subhead {
+  margin: 1rem 0 0.5rem;
+  font-size: 1rem;
+}
+
+.banks-file-link-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.banks-import-form--inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0;
+}
+
+.banks-import-bound {
+  margin: 0.35rem 0 0.35rem;
+}
+
 .banks-last-sync {
   margin: 0 0 1rem;
   padding: 0.65rem 0.85rem;

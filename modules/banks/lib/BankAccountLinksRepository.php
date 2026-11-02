@@ -104,7 +104,7 @@ final class BankAccountLinksRepository
     }
 
     /**
-     * Sync-enabled links for a ledger account on active connections.
+     * Sync-enabled API links for a ledger account on active connections (excludes file providers).
      *
      * @return list<array<string,mixed>>
      */
@@ -126,7 +126,106 @@ final class BankAccountLinksRepository
              ORDER BY l.ID ASC'
         );
         $st->execute([$accountId, 'active']);
+        $rows = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $out = [];
+        foreach ($rows as $row) {
+            if (BanksConfig::isFileProvider((string)($row['provider'] ?? ''))) {
+                continue;
+            }
+            $out[] = $row;
+        }
+        return $out;
+    }
+
+    /**
+     * All active file-provider links (for hub UI).
+     *
+     * @return list<array<string,mixed>>
+     */
+    public static function listFileLinks(): array
+    {
+        if (!self::ready() || !Database::tableExists('base_bank_connections')) {
+            return [];
+        }
+        $providers = BanksConfig::FILE_PROVIDERS;
+        if ($providers === []) {
+            return [];
+        }
+        $in = implode(',', array_fill(0, count($providers), '?'));
+        $st = Database::pdo()->prepare(
+            "SELECT l.ID AS id, l.ID_CONNECTION AS connection_id,
+                    l.EXTERNAL_ACCOUNT_ID AS external_account_id,
+                    l.ACCOUNT_NUMBER AS account_number, l.CURRENCY AS currency,
+                    l.REMOTE_NAME AS remote_name, l.ID_ACCOUNT AS account_id,
+                    l.SYNC_ENABLED AS sync_enabled, l.LAST_SYNC_AT AS last_sync_at,
+                    c.PROVIDER AS provider, c.LABEL AS connection_label
+             FROM base_bank_account_links l
+             INNER JOIN base_bank_connections c ON c.ID = l.ID_CONNECTION
+             WHERE c.PROVIDER IN ($in) AND c.STATUS = 'active' AND l.ID_ACCOUNT > 0
+             ORDER BY c.PROVIDER ASC, l.ID ASC"
+        );
+        $st->execute(array_values($providers));
         return $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
+    /**
+     * File-provider link for a ledger account (any SYNC_ENABLED), active connection.
+     *
+     * @return array<string,mixed>|null
+     */
+    public static function fileLinkForLedgerAccount(int $accountId, string $provider): ?array
+    {
+        $provider = BanksConfig::normalizeProvider($provider);
+        if ($accountId < 1 || !BanksConfig::isFileProvider($provider)
+            || !self::ready() || !Database::tableExists('base_bank_connections')) {
+            return null;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT l.ID AS id, l.ID_CONNECTION AS connection_id,
+                    l.EXTERNAL_ACCOUNT_ID AS external_account_id,
+                    l.ACCOUNT_NUMBER AS account_number, l.CURRENCY AS currency,
+                    l.REMOTE_NAME AS remote_name, l.ID_ACCOUNT AS account_id,
+                    l.SYNC_ENABLED AS sync_enabled, l.LAST_SYNC_AT AS last_sync_at,
+                    l.CURSOR_VAL AS cursor_val, c.PROVIDER AS provider
+             FROM base_bank_account_links l
+             INNER JOIN base_bank_connections c ON c.ID = l.ID_CONNECTION
+             WHERE l.ID_ACCOUNT = ? AND c.PROVIDER = ? AND c.STATUS = ?
+             ORDER BY l.ID ASC
+             LIMIT 1'
+        );
+        $st->execute([$accountId, $provider, 'active']);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
+    public static function setSyncEnabled(int $linkId, bool $enabled): void
+    {
+        if ($linkId < 1) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_bank_account_links SET SYNC_ENABLED = ?, DT_UPDATE = ? WHERE ID = ?'
+        )->execute([$enabled ? 1 : 0, time(), $linkId]);
+    }
+
+    public static function updateAccountNumber(int $linkId, string $accountNumber): void
+    {
+        if ($linkId < 1) {
+            return;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_bank_account_links SET ACCOUNT_NUMBER = ?, DT_UPDATE = ? WHERE ID = ?'
+        )->execute([$accountNumber, time(), $linkId]);
+    }
+
+    public static function updateExternalId(int $linkId, string $externalId): void
+    {
+        if ($linkId < 1 || trim($externalId) === '') {
+            return;
+        }
+        Database::pdo()->prepare(
+            'UPDATE base_bank_account_links SET EXTERNAL_ACCOUNT_ID = ?, DT_UPDATE = ? WHERE ID = ?'
+        )->execute([trim($externalId), time(), $linkId]);
     }
 
     /**
@@ -210,6 +309,18 @@ final class BankAccountLinksRepository
         Database::pdo()->prepare(
             'UPDATE base_bank_account_links SET ID_ACCOUNT = 0, DT_UPDATE = ? WHERE ID = ?'
         )->execute([time(), $linkId]);
+    }
+
+    /** Hard-delete one link row (file-provider unbind). */
+    public static function delete(int $linkId): void
+    {
+        if ($linkId < 1 || !self::ready()) {
+            return;
+        }
+        if (Database::tableExists('base_bank_tx_map')) {
+            Database::pdo()->prepare('DELETE FROM base_bank_tx_map WHERE ID_LINK = ?')->execute([$linkId]);
+        }
+        Database::pdo()->prepare('DELETE FROM base_bank_account_links WHERE ID = ?')->execute([$linkId]);
     }
 
     /** @return array{remote:int,linked:int,syncing:int} */

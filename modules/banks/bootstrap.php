@@ -18,6 +18,7 @@ require_once __DIR__ . '/lib/providers/SberFlClient.php';
 require_once __DIR__ . '/lib/BankOAuth.php';
 require_once __DIR__ . '/lib/BankClassifyService.php';
 require_once __DIR__ . '/lib/BankSyncService.php';
+require_once __DIR__ . '/lib/parsers/PsbCardStatementParser.php';
 require_once __DIR__ . '/lib/BankBadges.php';
 require_once __DIR__ . '/lib/BankLedgerSyncUi.php';
 require_once __DIR__ . '/lib/BanksCertStorage.php';
@@ -45,6 +46,9 @@ $pages = [
     '/banks/connections/{id}' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'connection.php'],
     '/banks/connections/{id}/sync' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'sync.php'],
     '/banks/sync-account' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'sync_account.php'],
+    '/banks/import-file' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'import_file.php'],
+    '/banks/file-link' => ['permission' => 'banks.connect', 'methods' => ['POST'], 'file' => 'file_link.php'],
+    '/banks/relink-orphans' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'relink_orphans.php'],
     '/banks/jobs/sync' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_sync.php'],
 ];
 
@@ -148,6 +152,9 @@ Health::register('banks.auto_sync', 'banks', static function (): array {
             continue;
         }
         $provider = (string)($conn['provider'] ?? '');
+        if (BanksConfig::isFileProvider($provider)) {
+            continue;
+        }
         $access = trim((string)($conn['access_token'] ?? ''));
         $refresh = trim((string)($conn['refresh_token'] ?? ''));
         $expires = (int)($conn['expires_at'] ?? 0);

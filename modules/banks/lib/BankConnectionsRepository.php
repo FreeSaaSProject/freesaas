@@ -155,6 +155,31 @@ final class BankConnectionsRepository
         Database::pdo()->prepare('DELETE FROM base_bank_connections WHERE ID = ?')->execute([$id]);
     }
 
+    /** Active connection for a provider (most recently updated). */
+    public static function findActiveByProvider(string $provider): ?array
+    {
+        $provider = BanksConfig::normalizeProvider($provider);
+        if ($provider === '' || !self::ready()) {
+            return null;
+        }
+        $hasInt = self::hasIntegrationColumn();
+        $intCol = $hasInt ? ', ID_INTEGRATION AS integration_id' : ', 0 AS integration_id';
+        $st = Database::pdo()->prepare(
+            'SELECT ID AS id, PROVIDER AS provider, STATUS AS status,
+                    EXTERNAL_PARTY AS external_party, CONSENT_ID AS consent_id,
+                    LABEL AS label, ID_USER AS user_id, EXPIRES_AT AS expires_at,
+                    DT_CREATE AS dt_create, DT_UPDATE AS dt_update, META AS meta'
+            . $intCol . '
+             FROM base_bank_connections
+             WHERE PROVIDER = ? AND STATUS = ?
+             ORDER BY DT_UPDATE DESC, ID DESC
+             LIMIT 1'
+        );
+        $st->execute([$provider, 'active']);
+        $row = $st->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
+
     /**
      * Drop connection + its bank account links + tx_map rows for this connection.
      * Does not touch ledger accounts, banks.ini, or mTLS files under banks-certs/.

@@ -6,11 +6,12 @@ final class BankClassifyService
 {
     /**
      * @param array{purpose?:string,counterparty_name?:string,counterparty_inn?:string,direction?:int,amount?:float} $tx
+     * @param bool $allowLlm When false (bulk file import), use default type only — avoids FastCGI idle timeouts.
      */
-    public static function resolve(array $tx): int
+    public static function resolve(array $tx, bool $allowLlm = true): int
     {
         $default = BanksConfig::defaultMoveTypeId();
-        if (ModuleManager::isEnabled('llm') && class_exists('LlmClient')) {
+        if ($allowLlm && ModuleManager::isEnabled('llm') && class_exists('LlmClient')) {
             $typed = self::viaLlm($tx);
             if ($typed > 0) {
                 return $typed;

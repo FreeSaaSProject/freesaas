@@ -125,6 +125,56 @@ final class BankTxMapRepository
         )->execute([$provider, $mapKey]);
     }
 
+    /**
+     * Drop unbound claims (ID_MOVE=0) for a link so the next file import can
+     * re-evaluate skip-regex / match window after settings change or rollback.
+     */
+    public static function releaseUnboundForLink(string $provider, int $linkId): int
+    {
+        if ($provider === '' || $linkId < 1 || !self::ready()) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            'DELETE FROM base_bank_tx_map
+             WHERE PROVIDER = ? AND ID_LINK = ? AND ID_MOVE = 0'
+        );
+        $st->execute([$provider, $linkId]);
+        return (int)$st->rowCount();
+    }
+
+    /**
+     * Bare external_tx ids already seen for this link (strip L{id}: scope prefix).
+     *
+     * @return array<string,true> set for O(1) lookup
+     */
+    public static function knownExternalIdSet(string $provider, int $linkId): array
+    {
+        if ($provider === '' || $linkId < 1 || !self::ready()) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT EXTERNAL_TX_ID FROM base_bank_tx_map
+             WHERE PROVIDER = ? AND ID_LINK = ?'
+        );
+        $st->execute([$provider, $linkId]);
+        $prefix = 'L' . $linkId . ':';
+        $plen = strlen($prefix);
+        $out = [];
+        while (($row = $st->fetch(PDO::FETCH_ASSOC)) !== false) {
+            $raw = (string)($row['EXTERNAL_TX_ID'] ?? '');
+            if ($raw === '') {
+                continue;
+            }
+            if (strpos($raw, $prefix) === 0) {
+                $raw = substr($raw, $plen);
+            }
+            if ($raw !== '') {
+                $out[$raw] = true;
+            }
+        }
+        return $out;
+    }
+
     public static function remember(
         string $provider,
         string $externalTxId,
@@ -157,8 +207,8 @@ final class BankTxMapRepository
     }
 
     /**
-     * Manual ДПС candidates: same account, amount, direction; bank day matches DT or DT_PROMISED.
-     * Skips moves already in tx_map. Returns up to $limit rows (id ASC).
+     * Manual ДПС candidates: same account, amount, direction; bank day (±slack) matches DT or DT_PROMISED.
+     * Skips moves already in tx_map. Ordered by closest date to bankDt.
      *
      * @return list<array{id:int,descr:string,dt:int,dt_promised:int}>
      */
@@ -167,18 +217,20 @@ final class BankTxMapRepository
         float $amount,
         int $direction,
         int $bankDt,
-        int $limit = 5
+        int $limit = 5,
+        int $daySlack = 0
     ): array {
         if ($accountId < 1 || $amount <= 0 || $bankDt < 1 || !Database::tableExists('base_account_moves')) {
             return [];
         }
         $dir = $direction >= 0 ? 1 : -1;
+        $daySlack = max(0, min(31, $daySlack));
         $dayStart = mktime(
             0,
             0,
             0,
             (int)date('n', $bankDt),
-            (int)date('j', $bankDt),
+            (int)date('j', $bankDt) - $daySlack,
             (int)date('Y', $bankDt)
         );
         if ($dayStart === false) {
@@ -189,11 +241,11 @@ final class BankTxMapRepository
             0,
             0,
             (int)date('n', $bankDt),
-            (int)date('j', $bankDt) + 1,
+            (int)date('j', $bankDt) + $daySlack + 1,
             (int)date('Y', $bankDt)
         );
         if ($dayEnd === false) {
-            $dayEnd = $dayStart + 86400;
+            $dayEnd = $dayStart + (86400 * ($daySlack * 2 + 1));
         }
         $sum = round($amount, 2);
         $limit = max(1, min(20, $limit));
@@ -213,7 +265,13 @@ final class BankTxMapRepository
                 SELECT 1 FROM base_bank_tx_map map WHERE map.ID_MOVE = m.ID
              )';
         }
-        $sql .= ' ORDER BY m.ID ASC LIMIT ' . $limit;
+        $sql .= ' ORDER BY LEAST(
+                    ABS(CAST(m.DT AS SIGNED) - ?),
+                    CASE WHEN m.DT_PROMISED > 0 THEN ABS(CAST(m.DT_PROMISED AS SIGNED) - ?) ELSE 2147483647 END
+                 ) ASC, m.ID ASC
+                 LIMIT ' . $limit;
+        $params[] = $bankDt;
+        $params[] = $bankDt;
         $st = Database::pdo()->prepare($sql);
         $st->execute($params);
         $out = [];
@@ -226,6 +284,20 @@ final class BankTxMapRepository
             ];
         }
         return $out;
+    }
+
+    /** Point an existing map row at another move (orphan → manual ДПС). */
+    public static function retargetMove(string $provider, int $fromMoveId, int $toMoveId): bool
+    {
+        if ($provider === '' || $fromMoveId < 1 || $toMoveId < 1 || !self::ready()) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'UPDATE base_bank_tx_map SET ID_MOVE = ?
+             WHERE PROVIDER = ? AND ID_MOVE = ?'
+        );
+        $st->execute([$toMoveId, $provider, $fromMoveId]);
+        return $st->rowCount() > 0;
     }
 
     /**

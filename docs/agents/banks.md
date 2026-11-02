@@ -36,7 +36,18 @@ There is **no primary connection**. Each row in `/banks` is independent:
 Deleting a connection removes its `base_bank_connections` row, its `base_bank_account_links`, and related `base_bank_tx_map` rows. It does **not** delete `cfg/modules/banks-certs/` or ledger accounts.
 | `/banks/connections/{id}/sync` | Manual sync |
 | `/banks/sync-account` | Sync by ledger `account_id` |
+| `/banks/import-file` | **File import**: PSB CardAccountStatement CSV → ledger moves (multipart `account_id` + `statement`). Same ingest/dedupe/classify as API sync; provider `psb_card` (no OAuth). Shown on `/ledger/moves` toolbar when an account is selected. |
 | `/banks/jobs/sync` | Cron; header `X-Banks-Token` |
+
+### File import (PSB card)
+
+Banks without Open Banking can feed `base_account_moves` via CSV. Adapter lives in `banks` (shared ingest/`base_bank_tx_map`) — **not** a separate product module. UI appears only after an explicit bind.
+
+1. **Bind** on `/banks` → **File import**: pick ledger account → **Save binding** (`POST /banks/file-link`, permission `banks.connect`). Creates `psb_card` connection + link (`SYNC_ENABLED=0`).
+2. **Upload** CSV on the same hub row, or on `/ledger/moves?account_id=…` (import form shows **only** for bound accounts; permission `banks.sync`).
+3. Ingest uses **LLM off** (default move type). Review via `/ledger/moves?bank_review=1` if needed.
+
+Unbind removes the link and its `base_bank_tx_map` rows. Re-upload is **incremental** from `base_bank_tx_map` (not `CURSOR_VAL` alone — a stale cursor after map rollback would skip the whole file). Unbound claims (`ID_MOVE=0`) are re-evaluated each import. Header **Исходящий остаток** writes/updates reconciliation for the statement end day (`updateBank` tolerates MySQL “Changed: 0”). Optional `banks.file_skip_purpose_regex` (PSB cashouts: `Выдача RUS|MCC 6011|Снятие наличных`): purpose match → no new ДПС; unique same-amount link (±14 days) still runs. **Recon caveat:** if ФОТ Нал on the same account is SoT for payroll cash, total ATM ≠ total ФОТ (N:M / date gaps) → closing delta remains until those are linked or ФОТ is not booked on the card account. Other file formats are not supported yet. Set `banks.default_move_type_id` before importing.
 
 **Egress IP:** Connect, OAuth start, and probe refuse loopback/private IPs (`BanksEgressIp`). Whitelist the public IP shown in the wizard **Server IP** step (and on status).
 

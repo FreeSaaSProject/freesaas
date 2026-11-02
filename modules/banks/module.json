@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.22",
+    "version": "0.1.29",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -62,6 +62,9 @@
             "/banks/connections/{id}",
             "/banks/connections/{id}/sync",
             "/banks/sync-account",
+            "/banks/import-file",
+            "/banks/file-link",
+            "/banks/relink-orphans",
             "/banks/jobs/sync",
             "/agent/banks/status",
             "/agent/banks/settings",
@@ -328,6 +331,65 @@
                         },
                         "date_to": {
                             "type": "string"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "banks.file_link",
+                "method": "POST",
+                "path": "/banks/file-link",
+                "permission": "banks.connect",
+                "side_effect": "write",
+                "description": "Bind or unbind a ledger account for PSB card file import (no OAuth). Body: action=bind|unbind; bind needs account_id, optional account_number, provider=psb_card; unbind needs link_id.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "bind",
+                                "unbind"
+                            ]
+                        },
+                        "account_id": {
+                            "type": "integer"
+                        },
+                        "account_number": {
+                            "type": "string"
+                        },
+                        "provider": {
+                            "type": "string"
+                        },
+                        "link_id": {
+                            "type": "integer"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "banks.import.file",
+                "method": "POST",
+                "path": "/banks/import-file",
+                "permission": "banks.sync",
+                "side_effect": "write",
+                "description": "Import PSB CardAccountStatement CSV into ledger moves. Requires prior bind via POST /banks/file-link. Multipart: account_id, statement (file).",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "account_id",
+                        "statement"
+                    ],
+                    "properties": {
+                        "account_id": {
+                            "type": "integer"
+                        },
+                        "statement": {
+                            "type": "string",
+                            "description": "CSV file upload (multipart)"
                         }
                     }
                 }

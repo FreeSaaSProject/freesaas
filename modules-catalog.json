@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-02T16:16:37+00:00",
+    "generated_at": "2026-11-02T20:25:42+00:00",
     "modules": [
         {
             "id": "asr",
@@ -425,19 +425,19 @@
         },
         {
             "id": "banks",
-            "version": "0.1.22",
+            "version": "0.1.29",
             "type": "product",
             "name": {
                 "en": "Banks",
                 "ru": "Банки"
             },
             "description": {
-                "en": "Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL): link accounts to ledger and sync statements into account moves.",
-                "ru": "OAuth/token-подключения банков (Точка, Альфа, Т-Банк, Сбер — ЮЛ/ФЛ): связь со счетами ledger и синхронизация выписок в ДПС."
+                "en": "Bank OAuth/token (Tochka, Alfa, T-Bank, Sber — UL/FL) and file import (PSB card): link accounts to ledger and land statements as moves.",
+                "ru": "OAuth/token-подключения банков (Точка, Альфа, Т-Банк, Сбер — ЮЛ/ФЛ) и файловый импорт (ПСБ карта): связь со счетами ledger и выписки в ДПС."
             },
             "summary": {
-                "en": "Enable to connect Alfa (business/personal) or Tochka via OAuth, map remote accounts to ledger accounts, and sync statements into account moves. Requires ledger. Optional llm improves move-type classification. Use when staff need bank statement import instead of manual ledger entry.",
-                "ru": "Включайте, чтобы подключить Альфа (ЮЛ/ФЛ) или Точку по OAuth, привязать удалённые счета к счетам ledger и забирать выписки в ДПС. Требует ledger. Опциональный llm улучшает классификацию типов движений. Нужен, когда выписки важнее ручного ввода ДПС."
+                "en": "Enable to connect Alfa (business/personal) or Tochka via OAuth, map remote accounts to ledger accounts, and sync statements into account moves; or upload a PSB card CSV from the ledger moves screen. Requires ledger. Optional llm improves move-type classification.",
+                "ru": "Включайте, чтобы подключить Альфа (ЮЛ/ФЛ) или Точку по OAuth, привязать удалённые счета к счетам ledger и забирать выписки в ДПС; либо загружать карточную CSV ПСБ с экрана ДПС. Требует ledger. Опциональный llm улучшает классификацию типов движений."
             },
             "requires": {
                 "core": ">=1.0.0",

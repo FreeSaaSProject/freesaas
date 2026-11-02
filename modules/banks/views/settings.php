@@ -114,6 +114,10 @@ $redirectField = static function (string $provider) use ($cfg): void {
         <?php endforeach; ?>
       </select>
     </label>
+    <label><?= te('banks.settings.file_skip_purpose_regex') ?>
+      <input type="text" name="file_skip_purpose_regex" value="<?= e((string)($cfg['file_skip_purpose_regex'] ?? '')) ?>" placeholder="<?= te('banks.settings.file_skip_purpose_regex_ph') ?>" autocomplete="off">
+      <span class="muted"><?= te('banks.settings.file_skip_purpose_regex_hint') ?></span>
+    </label>
     <label class="check">
       <input type="checkbox" name="auto_sync_enabled" value="1"<?= ($cfg['auto_sync_enabled'] ?? '1') === '1' ? ' checked' : '' ?>>
       <?= te('banks.settings.auto_sync_enabled') ?>

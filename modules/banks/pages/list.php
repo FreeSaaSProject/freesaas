@@ -108,17 +108,25 @@ if ($flash && $message === '' && $error === '') {
     }
 }
 
+$fileLinks = BankAccountLinksRepository::listFileLinks();
+$ledgerAccounts = class_exists('LedgerAccountsRepository', false)
+    ? LedgerAccountsRepository::names(true)
+    : [];
+
 View::render('list', [
     'title' => t('banks.list.title'),
     'items' => $items,
     'providers' => $providers,
     'alfaIntegrations' => $alfaIntegrations,
     'canConnect' => Auth::can('banks.connect'),
+    'canSync' => Auth::can('banks.sync'),
     'canSettings' => $canSettings,
     'autoSyncOn' => $autoSyncOn,
     'cronStatus' => $cronStatus,
     'cfg' => $cfg,
     'moveTypes' => $moveTypes,
+    'fileLinks' => $fileLinks,
+    'ledgerAccounts' => $ledgerAccounts,
     'message' => $message,
     'error' => $error,
     'breadcrumbs' => Breadcrumbs::withHome([

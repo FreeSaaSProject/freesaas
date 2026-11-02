@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-/** Compact sync form for ledger moves list toolbar. */
+/** Compact sync / file-import forms for ledger moves list toolbar. */
 final class BankLedgerSyncUi
 {
     /**
@@ -12,13 +12,45 @@ final class BankLedgerSyncUi
         if ($accountId < 1 || !Auth::can('banks.sync')) {
             return '';
         }
+
+        $ret = ListQuery::url('/ledger/moves', $listFilters, []);
+        $parts = [];
+
+        $apiHtml = self::apiSyncFormHtml($accountId, $listFilters, $ret);
+        if ($apiHtml !== '') {
+            $parts[] = $apiHtml;
+        }
+
+        // File CSV only when this ledger account was explicitly bound on /banks.
+        $fileLink = BankAccountLinksRepository::fileLinkForLedgerAccount($accountId, 'psb_card');
+        if ($fileLink) {
+            $num = trim((string)($fileLink['account_number'] ?? ''));
+            if ($num === '') {
+                $num = (string)($fileLink['external_account_id'] ?? '');
+            }
+            $parts[] = '<p class="muted banks-import-bound">'
+                . e(t('banks.import.bound', [
+                    'provider' => BanksConfig::providerLabel('psb_card'),
+                    'num' => $num !== '' ? $num : '—',
+                ]))
+                . '</p>';
+            $parts[] = self::importFormHtml($accountId, $ret);
+        }
+
+        return implode("\n", $parts);
+    }
+
+    /**
+     * @param array<string,mixed> $listFilters
+     */
+    private static function apiSyncFormHtml(int $accountId, array $listFilters, string $ret): string
+    {
         $links = BankAccountLinksRepository::forLedgerAccount($accountId);
         if ($links === []) {
             return '';
         }
 
         [$dateFrom, $dateTo] = self::defaultDates($listFilters);
-        $ret = ListQuery::url('/ledger/moves', $listFilters, []);
         $providers = [];
         foreach ($links as $link) {
             $p = (string)($link['provider'] ?? '');
@@ -41,6 +73,23 @@ final class BankLedgerSyncUi
     <input type="date" name="date_to" value="<?= e($dateTo) ?>">
   </label>
   <button type="submit" class="btn-secondary"><?= te('banks.conn.sync') ?></button>
+</form>
+        <?php
+        return (string)ob_get_clean();
+    }
+
+    private static function importFormHtml(int $accountId, string $ret): string
+    {
+        ob_start();
+        ?>
+<form class="banks-sync-form banks-sync-form--ledger banks-import-form" method="post" action="/banks/import-file" enctype="multipart/form-data">
+  <input type="hidden" name="account_id" value="<?= (int)$accountId ?>">
+  <input type="hidden" name="ret" value="<?= e($ret) ?>">
+  <span class="muted banks-sync-form-label"><?= te('banks.import.label') ?></span>
+  <label class="banks-import-file">
+    <input type="file" name="statement" accept=".csv,text/csv,text/plain" required>
+  </label>
+  <button type="submit" class="btn-secondary"><?= te('banks.import.submit') ?></button>
 </form>
         <?php
         return (string)ob_get_clean();
