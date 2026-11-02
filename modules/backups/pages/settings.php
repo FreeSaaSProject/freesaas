@@ -4,6 +4,8 @@ declare(strict_types=1);
 $wantsJson = AgentHttp::wantsJson();
 $message = '';
 $error = '';
+$passphrasePlain = '';
+$passphraseJustGenerated = false;
 
 if (!Auth::capability('SUPERADMIN_ACCESS')) {
     if ($wantsJson) {
@@ -22,7 +24,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             return;
         }
         $action = (string)($_POST['action'] ?? 'save');
-        if ($action === 'test_ftp') {
+        if ($action === 'passphrase_generate') {
+            if ($wantsJson) {
+                AgentHttp::error('passphrase_generate is UI-only', 403);
+                return;
+            }
+            $pass = bin2hex(random_bytes(24));
+            BackupConfig::set('passphrase', $pass);
+            BackupConfig::set('encrypt', '1');
+            $passphrasePlain = $pass;
+            $passphraseJustGenerated = true;
+            $message = t('backups.settings.passphrase_generated');
+        } elseif ($action === 'test_ftp') {
             BackupConfig::saveFromPost($_POST);
             $t = BackupFtpTarget::fromConfig();
             try {
@@ -87,7 +100,13 @@ $staff = UsersRepository::listEnabledStaff();
 $botsEnabled = ModuleManager::isEnabled('bots');
 $recommendedPath = BackupConfig::recommendedFtpBasePath();
 
+// SUPERADMIN-only page: allow Copy of current passphrase (same idea as agent_token).
+if ($passphrasePlain === '') {
+    $passphrasePlain = BackupConfig::passphrase();
+}
+
 if ($wantsJson) {
+    // Never put passphrase plaintext in AgentHttp JSON.
     AgentHttp::emit([
         'ok' => true,
         'settings' => $cfg,
@@ -111,4 +130,6 @@ View::render('settings', [
     'staff' => $staff,
     'bots_enabled' => $botsEnabled,
     'recommended_ftp_base' => $recommendedPath,
+    'passphrasePlain' => $passphrasePlain,
+    'passphraseJustGenerated' => $passphraseJustGenerated,
 ], 'layout', 'backups');

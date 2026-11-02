@@ -49,7 +49,8 @@ foreach ($pages as $path => $def) {
 Cron::register('backups.tick', [
     'module' => 'backups',
     'label' => 'backups.cron.tick',
-    'every' => 5,
+    // 1 min while a run is in progress — shared hosting still advances via /cron/tick.
+    'every' => 1,
     'handler' => static function (): array {
         return BackupRunner::cronTick();
     },

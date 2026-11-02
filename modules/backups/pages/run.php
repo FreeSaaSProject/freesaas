@@ -11,11 +11,11 @@ try {
     $existing = BackupRepository::findRunning();
     if ($existing !== null) {
         $id = (int)$existing['id'];
-        $r = BackupRunner::advance($id);
     } else {
         $id = BackupRunner::start('manual');
-        $r = BackupRunner::advance($id);
     }
+    // Keep pumping for ~50s so light phases (cfg/pack) do not wait for the next cron minute.
+    $r = BackupRunner::advanceUntil($id, 50);
     if ($wantsJson) {
         AgentHttp::emit([
             'ok' => empty($r['error']) && (($r['status'] ?? '') !== 'error'),

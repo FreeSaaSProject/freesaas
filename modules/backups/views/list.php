@@ -26,8 +26,10 @@ $statusLabel = static function (string $s): string {
 </section>
 
 <?php if (is_array($running)): ?>
-  <div class="flash flash-warn"><?= te('backups.list.running') ?>
+  <div class="flash flash-warn">
+    <?= te('backups.list.running') ?>
     #<?= (int)$running['id'] ?> · <?= e((string)$running['phase']) ?>
+    <p class="muted" style="margin:.35rem 0 0"><?= te('backups.list.running_hint') ?></p>
   </div>
 <?php endif; ?>
 

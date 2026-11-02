@@ -111,6 +111,32 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
       <input type="checkbox" name="encrypt" value="1"<?= $on('encrypt') ? ' checked' : '' ?>>
       <?= te('backups.settings.encrypt') ?>
     </label>
+    <?php
+    /** @var string $passphrasePlain */
+    /** @var bool $passphraseJustGenerated */
+    $pp = (string)($passphrasePlain ?? '');
+    $ppNew = !empty($passphraseJustGenerated);
+    ?>
+    <?php if ($ppNew && $pp !== ''): ?>
+      <div class="flash flash-ok">
+        <?= te('backups.settings.passphrase_generated_once') ?>
+        <p style="margin:.5rem 0 0;word-break:break-all">
+          <code id="backups-passphrase-value"><?= e($pp) ?></code>
+        </p>
+        <p class="actions" style="margin-top:.5rem">
+          <button type="button" class="btn-secondary" data-copy-text="<?= e($pp) ?>"><?= te('backups.settings.passphrase_btn_copy') ?></button>
+        </p>
+      </div>
+    <?php elseif ($pp !== ''): ?>
+      <p>
+        <?= te('backups.settings.passphrase_status_ok') ?>
+        <code><?= e($c('passphrase_masked')) ?></code>
+        <button type="button" class="btn-secondary" data-copy-text="<?= e($pp) ?>"><?= te('backups.settings.passphrase_btn_copy') ?></button>
+      </p>
+      <p class="muted"><?= te('backups.settings.passphrase_copy_hint') ?></p>
+    <?php else: ?>
+      <p class="muted"><?= te('backups.settings.passphrase_status_missing') ?></p>
+    <?php endif; ?>
     <label><?= te('backups.settings.passphrase') ?>
       <input type="password" name="passphrase" value="" autocomplete="new-password" placeholder="<?= e($c('passphrase_masked')) ?>">
     </label>
@@ -184,3 +210,37 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     <a class="btn" href="/backups"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
+
+<form method="post" class="actions" style="margin-top:.75rem"
+      onsubmit="return <?= $pp !== '' ? 'confirm(' . tj('backups.settings.passphrase_confirm_regen') . ')' : 'true' ?>;">
+  <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+  <button class="btn-secondary" type="submit" name="action" value="passphrase_generate">
+    <?= te($pp !== '' ? 'backups.settings.passphrase_btn_regen' : 'backups.settings.passphrase_btn_generate') ?>
+  </button>
+</form>
+
+<script>
+(function () {
+  var copied = <?= json_encode(t('backups.settings.passphrase_copied'), JSON_UNESCAPED_UNICODE) ?>;
+  var promptLabel = <?= json_encode(t('backups.settings.passphrase_copy_prompt'), JSON_UNESCAPED_UNICODE) ?>;
+  document.querySelectorAll('[data-copy-text]').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy-text') || '';
+      if (!text) return;
+      var label = btn.textContent;
+      function done() {
+        btn.textContent = copied;
+        setTimeout(function () { btn.textContent = label; }, 1600);
+      }
+      function fallback() {
+        window.prompt(promptLabel, text);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+})();
+</script>

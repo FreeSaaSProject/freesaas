@@ -118,6 +118,28 @@ final class BackupRunner
         return $id;
     }
 
+    /**
+     * Keep advancing a run until done/error or wall-clock budget (manual «Run now»).
+     *
+     * @return array<string,mixed>
+     */
+    public static function advanceUntil(int $id, int $wallSec = 50): array
+    {
+        $wallSec = max(5, min(120, $wallSec));
+        $t0 = microtime(true);
+        $r = ['status' => 'running'];
+        while ((microtime(true) - $t0) < $wallSec) {
+            $r = self::advance($id);
+            $st = (string)($r['status'] ?? '');
+            if ($st !== 'running') {
+                return $r;
+            }
+            // Yield briefly so long dumps don't look wedged to the OS.
+            usleep(20000);
+        }
+        return $r;
+    }
+
     /** @return array<string,mixed> */
     public static function advance(int $id): array
     {
@@ -310,7 +332,8 @@ final class BackupRunner
         $detail = is_array($state['phase_detail'] ?? null) ? $state['phase_detail'] : [];
         $localDir = (string)$state['local_dir'];
         $out = $localDir . '/cfg.tar';
-        if (empty($detail['files'])) {
+        // isset: empty inventory [] must not re-scan forever (empty() is true for []).
+        if (!isset($detail['files'])) {
             $base = rtrim(base_path(), '/');
             $paths = [$base . '/cfg'];
             $files = BackupTarWriter::inventory($paths, BackupSources::globalExcludes());
@@ -318,11 +341,12 @@ final class BackupRunner
             $detail['tar'] = [];
             $state['phase_detail'] = $detail;
         }
+        // cfg is tiny — burn remaining budget in one go (should be <1s).
         $r = BackupTarWriter::tick(
             $out,
             is_array($detail['files']) ? $detail['files'] : [],
             is_array($detail['tar'] ?? null) ? $detail['tar'] : [],
-            (int)max(5, $budgetLeft)
+            (int)max(15, $budgetLeft)
         );
         $detail['tar'] = $r['state'];
         $state['phase_detail'] = $detail;
@@ -371,7 +395,7 @@ final class BackupRunner
         $localDir = (string)$state['local_dir'];
         $out = $localDir . '/files-' . $id . '.tar';
         $detail = is_array($state['phase_detail'] ?? null) ? $state['phase_detail'] : [];
-        if (empty($detail['files'])) {
+        if (!isset($detail['files'])) {
             $detail['files'] = BackupTarWriter::inventory(
                 is_array($item['paths'] ?? null) ? $item['paths'] : [],
                 is_array($item['excludes'] ?? null) ? $item['excludes'] : []
