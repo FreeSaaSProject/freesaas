@@ -33,7 +33,10 @@ $groupChats[] = ['chat_id' => '', 'title' => '', 'description' => ''];
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
-<form method="post" class="form-grid ag-settings" style="max-width:52rem">
+<form method="post" class="form-grid ag-settings" style="max-width:52rem"
+      data-ag-msg-ok="<?= e(t('assistant_groups.settings.fetch_one_ok')) ?>"
+      data-ag-msg-fail="<?= e(t('assistant_groups.settings.fetch_one_fail')) ?>"
+      data-ag-msg-working="<?= e(t('assistant_groups.settings.fetch_working')) ?>">
   <?= Csrf::field() ?>
   <input type="hidden" name="group_ops_catalog" value="1">
 
@@ -63,7 +66,7 @@ $groupChats[] = ['chat_id' => '', 'title' => '', 'description' => ''];
     <legend><?= te('assistant_groups.settings.sec.chats') ?></legend>
     <p class="muted"><?= te('assistant_groups.settings.chats_intro') ?></p>
     <p class="muted"><?= te('assistant_groups.settings.chats_meta_hint') ?></p>
-    <div class="ag-chat-rows">
+    <div class="ag-chat-rows" data-ag-chat-rows>
       <?php foreach ($groupChats as $i => $gc):
         if (!is_array($gc)) {
             continue;
@@ -72,23 +75,37 @@ $groupChats[] = ['chat_id' => '', 'title' => '', 'description' => ''];
         $gtitle = (string)($gc['title'] ?? '');
         $gdescr = (string)($gc['description'] ?? '');
         ?>
-        <div class="ag-chat-row" style="border:1px solid var(--border, #ddd);padding:0.75rem;margin-bottom:0.75rem;border-radius:4px">
+        <div class="ag-chat-row" data-ag-chat-row style="border:1px solid var(--border, #ddd);padding:0.75rem;margin-bottom:0.75rem;border-radius:4px">
           <label>
             <?= te('assistant_groups.settings.chat_id') ?>
             <input name="group_chat[<?= (int)$i ?>][id]" value="<?= e($cid) ?>"
+                   data-ag-chat-id
                    placeholder="-8024…" autocomplete="off" spellcheck="false">
           </label>
           <label>
             <?= te('assistant_groups.settings.chat_title') ?>
-            <input name="group_chat[<?= (int)$i ?>][title]" value="<?= e($gtitle) ?>"
-                   maxlength="120" autocomplete="off">
+            <span class="ag-chat-title-row" style="display:flex;gap:0.5rem;align-items:center">
+              <input name="group_chat[<?= (int)$i ?>][title]" value="<?= e($gtitle) ?>"
+                     data-ag-chat-title
+                     maxlength="120" autocomplete="off" style="flex:1">
+              <button type="button" class="btn" data-ag-fetch-title
+                      title="<?= te('assistant_groups.settings.fetch_one_hint') ?>">
+                <?= te('assistant_groups.settings.fetch_one') ?>
+              </button>
+            </span>
           </label>
           <label>
             <?= te('assistant_groups.settings.chat_description') ?>
-            <textarea name="group_chat[<?= (int)$i ?>][description]" rows="2" maxlength="500"><?= e($gdescr) ?></textarea>
+            <textarea name="group_chat[<?= (int)$i ?>][description]" rows="2" maxlength="500"
+                      data-ag-chat-description><?= e($gdescr) ?></textarea>
           </label>
+          <p class="muted ag-chat-fetch-status" data-ag-fetch-status hidden></p>
         </div>
       <?php endforeach; ?>
+    </div>
+    <div class="form-actions" style="margin:0.25rem 0 0.75rem">
+      <button type="submit" class="btn" name="action" value="fetch_titles"><?= te('assistant_groups.settings.fetch_all') ?></button>
+      <span class="muted"><?= te('assistant_groups.settings.fetch_all_hint') ?></span>
     </div>
     <details>
       <summary><?= te('assistant_groups.settings.chat_ids_advanced') ?></summary>

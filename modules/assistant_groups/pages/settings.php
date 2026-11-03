@@ -58,6 +58,47 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 : [];
             AssistantGroupsChats::dismiss($ids);
             $message = t('assistant_groups.settings.discovered_dismissed');
+        } elseif ($action === 'lookup_chat') {
+            // AJAX: resolve one chat title without saving the whole form.
+            $look = AssistantGroupsChats::lookup(trim((string)($_POST['chat_id'] ?? '')));
+            if ($wantsJson) {
+                if (!$look['ok']) {
+                    AgentHttp::error(
+                        t('assistant_groups.settings.fetch_one_fail', [
+                            'id' => (string)($look['chat_id'] ?? ''),
+                            'error' => (string)($look['error'] ?? ''),
+                        ]),
+                        400
+                    );
+                    return;
+                }
+                AgentHttp::emit([
+                    'ok' => true,
+                    'chat_id' => $look['chat_id'],
+                    'title' => $look['title'],
+                    'description' => $look['description'],
+                ]);
+                return;
+            }
+            throw new RuntimeException(t('assistant_groups.settings.fetch_need_json'));
+        } elseif ($action === 'fetch_titles') {
+            $enriched = AssistantGroupsConfig::enrichChatTitlesFromMax($_POST);
+            AssistantGroupsConfig::saveFromPost($enriched['post']);
+            $failN = count($enriched['failed']);
+            if ((int)$enriched['updated'] > 0 && $failN < 1) {
+                $message = t('assistant_groups.settings.fetch_ok', [
+                    'n' => (string)(int)$enriched['updated'],
+                ]);
+            } elseif ((int)$enriched['updated'] > 0) {
+                $message = t('assistant_groups.settings.fetch_partial', [
+                    'n' => (string)(int)$enriched['updated'],
+                    'fail' => (string)$failN,
+                ]);
+            } else {
+                throw new RuntimeException(t('assistant_groups.settings.fetch_none', [
+                    'fail' => (string)max(1, $failN),
+                ]));
+            }
         } else {
             AssistantGroupsConfig::saveFromPost($_POST);
             $message = t('core.common.saved');

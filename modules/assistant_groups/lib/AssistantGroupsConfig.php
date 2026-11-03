@@ -71,6 +71,60 @@ final class AssistantGroupsConfig
     }
 
     /**
+     * @param array<string, array{title:string,description:string}> $meta
+     */
+    public static function setGroupChatMeta(array $meta): void
+    {
+        Config::set('assistant_groups', 'group_chat_meta', self::encodeMeta($meta));
+    }
+
+    /**
+     * Fill titles (and empty descriptions) from Max for chat ids present in the settings form.
+     *
+     * @param array<string,mixed> $post
+     * @return array{ok:bool,updated:int,failed:list<string>,post:array<string,mixed>,error:string}
+     */
+    public static function enrichChatTitlesFromMax(array $post): array
+    {
+        $rows = $post['group_chat'] ?? null;
+        if (!is_array($rows)) {
+            return ['ok' => false, 'updated' => 0, 'failed' => [], 'post' => $post, 'error' => 'no_rows'];
+        }
+        $updated = 0;
+        $failed = [];
+        foreach ($rows as $i => $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $id = trim((string)($row['id'] ?? ''));
+            if ($id === '' || !isset($id[0]) || $id[0] !== '-') {
+                continue;
+            }
+            $look = AssistantGroupsChats::lookup($id);
+            if (!$look['ok']) {
+                $failed[] = $id;
+                continue;
+            }
+            if ($look['title'] !== '') {
+                $rows[$i]['title'] = $look['title'];
+                $updated++;
+            }
+            $curDescr = trim((string)($row['description'] ?? ''));
+            if ($curDescr === '' && $look['description'] !== '') {
+                $rows[$i]['description'] = $look['description'];
+            }
+        }
+        $post['group_chat'] = $rows;
+        return [
+            'ok' => $updated > 0 || $failed === [],
+            'updated' => $updated,
+            'failed' => $failed,
+            'post' => $post,
+            'error' => '',
+        ];
+    }
+
+    /**
      * Allowlisted chats with title/description (for settings UI + bots.recipients).
      *
      * @return list<array{chat_id:string,title:string,description:string}>

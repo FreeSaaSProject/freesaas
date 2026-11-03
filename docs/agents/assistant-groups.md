@@ -20,6 +20,7 @@ UI: **Assistant groups** (`/assistant-groups/settings`, SUPERADMIN).
 | `group_enabled` | Process allowlisted Max groups |
 | `group_require_mention` | Ignore messages without `@botusername` |
 | `group_chat_ids` | Comma-separated negative chat ids (allowlist) |
+| `group_chat_meta` | JSON map chat_id → `{title,description}` (bot context + recipient picker). Settings: per-row **From Max** (`GET /chats/{id}`) or **Fetch titles from Max** for all rows |
 | `auto_add_groups` | `1` = on `bot_added` append chat_id automatically |
 | `group_ops` | Allowlisted `agent.ops` (exact or `module.*`); else “only in private”. Include `stickers.receipts.*`,`stickers.ins.*`,`stocks.list`,`suppliers.list`,`catalog.browse` for warehouse inbound (“receive stock”). Include `procedures.set_admin` (+ `procedures.list`/`procedures.get_edit`, `core.users.list`) to reassign procedure desk admin; `procedures.update` (+ `procedures.list`) to move massage/break times (“move … from 21:20 to 22:20” — journal, not calendar.events). Confirm for set_admin: `PARTNER_STA`. |
 | `max_token` | Dedicated bot token (`cfg/modules/assistant_groups.ini`, gitignored) |

@@ -35,6 +35,60 @@ final class AssistantGroupsChats
         return $out;
     }
 
+    /**
+     * Resolve Max group title/description by chat id (bot must be a member).
+     *
+     * @return array{ok:bool,chat_id:string,title:string,description:string,error:string}
+     */
+    public static function lookup(string $chatId): array
+    {
+        $chatId = trim($chatId);
+        $empty = [
+            'ok' => false,
+            'chat_id' => $chatId,
+            'title' => '',
+            'description' => '',
+            'error' => '',
+        ];
+        if ($chatId === '' || !isset($chatId[0]) || $chatId[0] !== '-') {
+            $empty['error'] = 'invalid_chat_id';
+            return $empty;
+        }
+        $token = AssistantGroupsConfig::maxToken();
+        if ($token === '') {
+            $empty['error'] = 'no_token';
+            return $empty;
+        }
+        $info = MaxGroupSpike::request($token, 'GET', '/chats/' . rawurlencode($chatId));
+        if (!$info['ok'] || !is_array($info['data'] ?? null)) {
+            $empty['error'] = $info['error'] !== '' ? $info['error'] : 'lookup_failed';
+            return $empty;
+        }
+        $data = $info['data'];
+        $title = trim((string)($data['title'] ?? $data['name'] ?? ''));
+        $descr = trim((string)($data['description'] ?? $data['about'] ?? $data['status'] ?? ''));
+        if (function_exists('mb_substr')) {
+            $title = mb_substr($title, 0, 120, 'UTF-8');
+            $descr = mb_substr($descr, 0, 500, 'UTF-8');
+        } else {
+            $title = substr($title, 0, 120);
+            $descr = substr($descr, 0, 500);
+        }
+        if ($title === '' && $descr === '') {
+            $empty['error'] = 'empty_title';
+            return $empty;
+        }
+        // Keep discovered cache warm for the settings «caught» list.
+        self::remember($chatId, 'lookup', $title);
+        return [
+            'ok' => true,
+            'chat_id' => $chatId,
+            'title' => $title,
+            'description' => $descr,
+            'error' => '',
+        ];
+    }
+
     public static function remember(string $chatId, string $source = 'event', string $title = ''): void
     {
         $chatId = trim($chatId);
@@ -70,6 +124,9 @@ final class AssistantGroupsChats
         $cur = AssistantGroupsConfig::groupChatIds();
         $set = array_fill_keys($cur, true);
         $n = 0;
+        $discovered = self::load();
+        $meta = AssistantGroupsConfig::groupChatMeta();
+        $metaChanged = false;
         foreach ($chatIds as $id) {
             $id = trim((string)$id);
             if ($id === '' || isset($set[$id])) {
@@ -80,11 +137,22 @@ final class AssistantGroupsChats
             }
             $set[$id] = true;
             $n++;
+            $title = trim((string)($discovered[$id]['title'] ?? ''));
+            if ($title !== '' && trim((string)($meta[$id]['title'] ?? '')) === '') {
+                $meta[$id] = [
+                    'title' => $title,
+                    'description' => (string)($meta[$id]['description'] ?? ''),
+                ];
+                $metaChanged = true;
+            }
         }
         if ($n < 1) {
             return 0;
         }
         Config::set('assistant_groups', 'group_chat_ids', implode(',', array_keys($set)));
+        if ($metaChanged) {
+            AssistantGroupsConfig::setGroupChatMeta($meta);
+        }
         return $n;
     }
 

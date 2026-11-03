@@ -15,34 +15,50 @@ $statusLabel = static function (string $s): string {
   <p class="lede"><?= te('backups.list.lede') ?></p>
   <?php if (!empty($canManage)): ?>
   <div class="page-actions">
-    <form method="post" action="/backups/run" class="inline">
-      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-      <input type="hidden" name="kind" value="light">
-      <button type="submit" class="btn-primary"><?= te('backups.list.run_light') ?></button>
-    </form>
-    <form method="post" action="/backups/run" class="inline">
-      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-      <input type="hidden" name="kind" value="full">
-      <button type="submit" class="btn"><?= te('backups.list.run_now') ?></button>
-    </form>
-    <form method="post" action="/backups/run" class="inline">
-      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-      <input type="hidden" name="kind" value="incr">
-      <button type="submit" class="btn"><?= te('backups.list.run_incr') ?></button>
-    </form>
+    <?php if (is_array($running)): ?>
+      <form method="post" action="/backups/run" class="inline">
+        <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+        <button type="submit" class="btn-primary"><?= te('backups.list.continue_now') ?></button>
+      </form>
+      <form method="post" action="/backups/cancel" class="inline"
+            onsubmit="return confirm(<?= tj('backups.list.cancel_confirm') ?>);">
+        <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+        <button type="submit" class="btn"><?= te('backups.list.cancel_run') ?></button>
+      </form>
+    <?php else: ?>
+      <form method="post" action="/backups/run" class="inline">
+        <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+        <input type="hidden" name="kind" value="light">
+        <button type="submit" class="btn-primary"><?= te('backups.list.run_light') ?></button>
+      </form>
+      <form method="post" action="/backups/run" class="inline">
+        <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+        <input type="hidden" name="kind" value="full">
+        <button type="submit" class="btn"><?= te('backups.list.run_now') ?></button>
+      </form>
+      <form method="post" action="/backups/run" class="inline">
+        <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+        <input type="hidden" name="kind" value="incr">
+        <button type="submit" class="btn"><?= te('backups.list.run_incr') ?></button>
+      </form>
+    <?php endif; ?>
     <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
       <a class="btn" href="/backups/check"><?= te('backups.doctor.run') ?></a>
+      <a class="btn" href="/backups/settings"><?= te('backups.menu.settings') ?></a>
+      <a class="btn" href="/backups/restore"><?= te('backups.menu.restore') ?></a>
     <?php endif; ?>
-    <a class="btn" href="/backups/settings"><?= te('backups.menu.settings') ?></a>
-    <a class="btn" href="/backups/restore"><?= te('backups.menu.restore') ?></a>
   </div>
+  <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
+    <p class="muted" style="margin:.35rem 0 0"><?= te('backups.list.restore_hint') ?></p>
+  <?php endif; ?>
   <?php endif; ?>
 </section>
 
 <?php if (is_array($running)): ?>
   <div class="flash flash-warn">
     <?= te('backups.list.running') ?>
-    #<?= (int)$running['id'] ?> · <?= e((string)$running['phase']) ?>
+    #<?= (int)$running['id'] ?> · <?= e((string)($running['kind'] ?? '')) ?>
+    · <?= e((string)$running['phase']) ?>
     <p class="muted" style="margin:.35rem 0 0"><?= te('backups.list.running_hint') ?></p>
   </div>
 <?php endif; ?>

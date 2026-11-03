@@ -19,6 +19,7 @@ require_once __DIR__ . '/lib/BackupAgentOps.php';
 $pages = [
     '/backups' => ['permission' => 'backups.view', 'methods' => ['GET'], 'file' => 'list.php'],
     '/backups/run' => ['permission' => 'backups.manage', 'methods' => ['POST'], 'file' => 'run.php'],
+    '/backups/cancel' => ['permission' => 'backups.manage', 'methods' => ['POST'], 'file' => 'cancel.php'],
     '/backups/remote' => ['permission' => 'backups.view', 'methods' => ['GET'], 'file' => 'remote.php'],
     '/backups/notify/test' => ['permission' => 'backups.manage', 'methods' => ['POST'], 'file' => 'notify_test.php'],
     '/backups/check' => [
