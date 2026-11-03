@@ -1,0 +1,211 @@
+.price-list-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 1rem;
+}
+.price-list-presets .btn-secondary.is-active {
+  outline: 2px solid currentColor;
+}
+.price-list-config fieldset {
+  border: 1px solid var(--border, #ccc);
+  padding: 0.75rem 1rem 1rem;
+  margin: 0 0 1.25rem;
+  display: grid;
+  gap: 0.75rem;
+  max-width: 40rem;
+}
+.price-list-config label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.price-list-config label.check {
+  flex-direction: row;
+  align-items: center;
+}
+.price-list-orient {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+.price-list-orient legend {
+  padding: 0;
+  margin: 0 0 0.25rem;
+  font-weight: 600;
+}
+.price-list-sheet {
+  background: #fff;
+  color: #222;
+  padding: 1rem 1.5%;
+}
+.price-list-heading {
+  text-align: center;
+  margin: 0 0 1rem;
+}
+.price-list-brand {
+  margin: 0;
+  color: #633300;
+  font-size: 1.75rem;
+  letter-spacing: 0.02em;
+}
+.price-list-subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.95rem;
+  color: #633300;
+  font-weight: 600;
+}
+.price-list-columns {
+  display: flex;
+  gap: 1%;
+  align-items: flex-start;
+}
+.price-list-col--left,
+.price-list-col--right {
+  width: 49.5%;
+}
+.price-list-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 0.85rem;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.price-list-cat {
+  background: #de5f35;
+  color: #fff;
+  letter-spacing: 0.12em;
+  text-align: center;
+  font-size: 0.85rem;
+  padding: 0.35rem 0.4rem;
+}
+.price-list-h-name,
+.price-list-h-price,
+.price-list-h-sale {
+  background: #de5f35;
+  color: #fff;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.35rem;
+  border-left: 2px solid #fff;
+}
+.price-list-h-name {
+  border-left: 0;
+  text-align: left;
+}
+.price-list-h-price,
+.price-list-h-sale {
+  width: 3.5rem;
+  text-align: center;
+}
+.price-list-h-sale {
+  background: #e57a7c;
+}
+.price-list-row--alt td {
+  background: #ededed;
+}
+.price-list-name,
+.price-list-main,
+.price-list-strike {
+  font-size: 0.85rem;
+  padding: 0.2rem 0.35rem;
+  vertical-align: top;
+  border-bottom: 1px solid transparent;
+}
+.price-list-main {
+  color: #e57a7c;
+  text-align: right;
+  white-space: nowrap;
+  width: 3.5rem;
+}
+.price-list-strike {
+  text-align: right;
+  white-space: nowrap;
+  width: 3.5rem;
+  font-size: 0.75rem;
+}
+.price-list-strike-wrap {
+  position: relative;
+  display: inline-block;
+  color: #222;
+}
+.price-list-strike-wrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  background: #e57a7c;
+  transform: translateY(-50%) rotate(-15deg);
+}
+.price-list-pct {
+  color: #e57a7c;
+  margin-left: 0.35rem;
+  white-space: nowrap;
+}
+.price-list-desc {
+  font-size: 0.7rem;
+  font-weight: normal;
+}
+.price-list-hide-btn {
+  display: none;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.65rem;
+  background: #dc3545;
+  color: #fff;
+  border: 0;
+  border-radius: 3px;
+  cursor: pointer;
+}
+.price-list-sheet:not(.price-list-sheet--print) .price-list-row:hover .price-list-hide-btn {
+  display: inline-block;
+}
+.price-list-sheet--portrait .price-list-name,
+.price-list-sheet--portrait .price-list-main {
+  font-size: 0.75rem;
+  padding-top: 0.4rem;
+  padding-bottom: 0.4rem;
+}
+.price-list-sheet--landscape .price-list-brand {
+  font-size: 2rem;
+}
+
+@media print {
+  .no-print,
+  .rail,
+  .topbar,
+  nav,
+  header,
+  footer,
+  .breadcrumbs,
+  .page-actions,
+  .page-head,
+  .price-list-config,
+  .price-list-presets,
+  .price-list-hide-btn {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #000;
+    margin: 0;
+    padding: 0;
+  }
+  main,
+  .content {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+  }
+  .price-list-sheet {
+    padding: 0 2%;
+  }
+  .price-list-sheet--landscape .price-list-columns {
+    display: flex;
+  }
+}

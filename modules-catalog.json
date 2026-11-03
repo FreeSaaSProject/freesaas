@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-02T20:25:42+00:00",
+    "generated_at": "2026-11-03T08:02:20+00:00",
     "modules": [
         {
             "id": "asr",
@@ -387,7 +387,7 @@
         },
         {
             "id": "backups",
-            "version": "0.2.1",
+            "version": "0.2.2",
             "type": "product",
             "name": {
                 "en": "Backups",
@@ -688,7 +688,7 @@
         },
         {
             "id": "catalog",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Catalog",
@@ -709,6 +709,7 @@
                 "units": ">=1.0.0",
                 "suppliers": ">=1.0.0",
                 "procedures": ">=1.0.0",
+                "sites": ">=1.0.0",
                 "assistant": ">=1.0.0",
                 "bi": ">=1.0.0"
             },

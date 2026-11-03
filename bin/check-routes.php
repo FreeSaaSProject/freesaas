@@ -150,6 +150,7 @@ $allowed = [
     '/agent/llm/tokens' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token llm tokens'],
     '/agent/llm/tokens/delete' => ['methods' => ['POST'], 'why' => 'agent_token llm token delete'],
     '/agent/llm/ping' => ['methods' => ['POST'], 'why' => 'agent_token llm ping'],
+    '/agent/backups/check' => ['methods' => ['GET'], 'why' => 'agent_token backups host readiness'],
     '/agent/banks/status' => ['methods' => ['GET'], 'why' => 'agent_token banks status'],
     '/agent/banks/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token banks settings'],
     '/agent/banks/certs' => ['methods' => ['POST'], 'why' => 'agent_token banks mTLS upload'],

@@ -11,12 +11,20 @@ require_once __DIR__ . '/lib/BackupSources.php';
 require_once __DIR__ . '/lib/BackupNotify.php';
 require_once __DIR__ . '/lib/BackupRunner.php';
 require_once __DIR__ . '/lib/BackupRestore.php';
+require_once __DIR__ . '/lib/BackupDoctor.php';
+require_once __DIR__ . '/lib/BackupAgentOps.php';
 
 $pages = [
     '/backups' => ['permission' => 'backups.view', 'methods' => ['GET'], 'file' => 'list.php'],
     '/backups/run' => ['permission' => 'backups.manage', 'methods' => ['POST'], 'file' => 'run.php'],
     '/backups/remote' => ['permission' => 'backups.view', 'methods' => ['GET'], 'file' => 'remote.php'],
     '/backups/notify/test' => ['permission' => 'backups.manage', 'methods' => ['POST'], 'file' => 'notify_test.php'],
+    '/backups/check' => [
+        'permission' => 'backups.manage',
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'check.php',
+    ],
     '/backups/settings' => [
         'permission' => 'backups.manage',
         'capability' => 'SUPERADMIN_ACCESS',
@@ -45,6 +53,8 @@ foreach ($pages as $path => $def) {
     }
     ModuleManager::registerRoute($path, $opts);
 }
+
+BackupAgentOps::register();
 
 Cron::register('backups.tick', [
     'module' => 'backups',

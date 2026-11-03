@@ -2,7 +2,7 @@
     "id": "backups",
     "name": "backups.module.name",
     "description": "backups.module.description",
-    "version": "0.2.1",
+    "version": "0.2.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -47,12 +47,22 @@
             "/backups/run",
             "/backups/remote",
             "/backups/notify/test",
-            "/backups/restore"
+            "/backups/restore",
+            "/backups/check",
+            "/agent/backups/check"
         ]
     },
     "agent": {
         "docs": "docs/agents/backups.md",
         "ops": [
+            {
+                "id": "backups.check",
+                "method": "GET",
+                "path": "/backups/check",
+                "permission": "backups.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Host readiness: MySQL triggers/grants, FTP, cron, disk, PHP (also GET /agent/backups/check)"
+            },
             {
                 "id": "backups.list",
                 "method": "GET",

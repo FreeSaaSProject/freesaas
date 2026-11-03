@@ -4,11 +4,21 @@ Alpha module: scheduled DB + file sets packed into **one** `.tar` / `.tar.enc`, 
 
 **Settings:** `/backups/settings` (SUPERADMIN). Live config: `cfg/modules/backups.ini` (see `modules/backups/config.example.ini`).
 
-**Runs:** `/backups`. Cron job `backups.tick` every 5 minutes advances an in-progress run (~40s budget) or starts one when `enabled=1` and local time ≥ `daily_at` with no run started after that stamp.
+**Runs:** `/backups`. Cron job `backups.tick` every 1 minute advances an in-progress run (~40s budget) or starts one when `enabled=1` and local time ≥ `daily_at` with no run started after that stamp.
 
-**Agent ops (module session):** `GET /backups`, `POST /backups/run`, `GET /backups/remote`, `POST /backups/notify/test`, `GET|POST /backups/settings`, `POST /backups/restore`.
+**Host check (permanent):** button on settings → `/backups/check`. Verifies PHP extensions/limits, disk, MySQL grants + **live CREATE TRIGGER probe**, PK coverage, CDC trigger coverage (warn until CDC installed), FTP write probe, encryption, last success age, cron freshness. Safe to re-run; probe table is dropped.
 
-**Platform (empty DB only):** `POST /agent/bootstrap-from-backup` (agent_token or `var/setup.key`) and CLI `php bin/freesaas.php bootstrap-from-backup …`.
+```bash
+php bin/freesaas.php backups check --format=json
+# HTTP twin (agent_token):
+curl -sS -H "X-FreeSaaS-Agent-Token: $TOKEN" "https://host/agent/backups/check"
+# Session JSON:
+curl -sS -b jar.txt 'https://host/backups/check?format=json'
+```
+
+**Agent ops (module session):** `GET /backups/check`, `GET /backups`, `POST /backups/run`, `GET /backups/remote`, `POST /backups/notify/test`, `GET|POST /backups/settings`, `POST /backups/restore`.
+
+**Platform:** `GET /agent/backups/check` (agent_token). Empty-DB deploy: `POST /agent/bootstrap-from-backup` (agent_token or `var/setup.key`) and CLI `php bin/freesaas.php bootstrap-from-backup …`.
 
 ## Remote layout (single pack)
 

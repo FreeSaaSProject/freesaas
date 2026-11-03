@@ -2,7 +2,7 @@
     "id": "catalog",
     "name": "catalog.module.name",
     "description": "catalog.module.description",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "type": "product",
     "runtime": "both",
     "requires": {
@@ -12,6 +12,7 @@
         "units": ">=1.0.0",
         "suppliers": ">=1.0.0",
         "procedures": ">=1.0.0",
+        "sites": ">=1.0.0",
         "assistant": ">=1.0.0",
         "bi": ">=1.0.0"
     },
@@ -38,6 +39,7 @@
         "pages": [
             "/catalog",
             "/catalog/{id}",
+            "/catalog/prices/print",
             "/categories",
             "/categories/new",
             "/categories/{id}/edit",
@@ -126,6 +128,13 @@
                 "permission": "catalog.delete",
                 "side_effect": "write",
                 "description": "Delete product; POST action=delete if no FK refs"
+            },
+            {
+                "id": "catalog.prices_print",
+                "method": "GET",
+                "path": "/catalog/prices/print",
+                "permission": "catalog.view",
+                "description": "Printable price list; query: title, roots, host, kind, main, strike, hide_descr, show_discount, cols, hidden, print"
             }
         ]
     },
@@ -136,6 +145,13 @@
             "num": 1,
             "path": "/catalog",
             "title": "catalog.menu.browse"
+        },
+        {
+            "group": "core.menu.group.dictionaries",
+            "num": 2,
+            "kind": "settings",
+            "path": "/catalog/prices/print",
+            "title": "catalog.menu.prices"
         }
     ],
     "configSchema": [],

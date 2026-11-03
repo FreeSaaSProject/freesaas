@@ -21,6 +21,18 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
+<fieldset class="form-grid" style="margin-bottom:1.25rem">
+  <legend><?= te('backups.doctor.sec') ?></legend>
+  <p class="muted"><?= te('backups.doctor.lede') ?></p>
+  <div class="page-actions">
+    <form method="post" action="/backups/check" style="display:inline">
+      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+      <button class="btn-primary" type="submit"><?= te('backups.doctor.run') ?></button>
+    </form>
+    <a class="btn" href="/backups/check"><?= te('backups.doctor.open') ?></a>
+  </div>
+</fieldset>
+
 <form method="post" class="form-grid">
   <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
 

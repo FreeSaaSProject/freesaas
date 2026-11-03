@@ -19,6 +19,9 @@ $statusLabel = static function (string $s): string {
       <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
       <button type="submit" class="btn-primary"><?= te('backups.list.run_now') ?></button>
     </form>
+    <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
+      <a class="btn" href="/backups/check"><?= te('backups.doctor.run') ?></a>
+    <?php endif; ?>
     <a class="btn" href="/backups/settings"><?= te('backups.menu.settings') ?></a>
     <a class="btn" href="/backups/restore"><?= te('backups.menu.restore') ?></a>
   </div>
