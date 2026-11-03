@@ -98,12 +98,20 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
       <input type="checkbox" name="cdc_enabled" value="1"<?= $on('cdc_enabled') ? ' checked' : '' ?>>
       <?= te('backups.settings.cdc_enabled') ?>
     </label>
+    <label><?= te('backups.settings.incr_mode') ?>
+      <select name="incr_mode">
+        <option value="differential"<?= $c('incr_mode', 'differential') === 'differential' ? ' selected' : '' ?>><?= te('backups.settings.incr_mode.differential') ?></option>
+        <option value="chain"<?= $c('incr_mode', 'differential') === 'chain' ? ' selected' : '' ?>><?= te('backups.settings.incr_mode.chain') ?></option>
+      </select>
+    </label>
+    <p class="field-help"><?= te('backups.settings.incr_mode_hint') ?></p>
     <label><?= te('backups.settings.incr_every_hours') ?>
       <input type="number" name="incr_every_hours" min="0" max="168" value="<?= e($c('incr_every_hours', '1')) ?>">
     </label>
     <label><?= te('backups.settings.keep_incr') ?>
       <input type="number" name="keep_incr" min="1" max="168" value="<?= e($c('keep_incr', '48')) ?>">
     </label>
+    <p class="field-help"><?= te('backups.settings.keep_incr_hint') ?></p>
     <label><?= te('backups.settings.cdc_exclude') ?>
       <input type="text" name="cdc_exclude" value="<?= e($c('cdc_exclude')) ?>" autocomplete="off">
     </label>

@@ -24,7 +24,8 @@ curl -sS -b jar.txt 'https://host/backups/check?format=json'
 
 Hard full: `{ftp_base_path}/{instance}/{YYYY-MM-DD_HH-MM-SS}.tar` (or `.tar.enc`)  
 Light: `{ftp_base_path}/{instance}/{YYYY-MM-DD_HH-MM-SS}.light.tar` (or `.tar.enc`)  
-Incr: `{ftp_base_path}/{instance}/{YYYY-MM-DD_HH-MM-SS}.incr.tar` (or `.tar.enc`)
+CDC differential (default): `{stamp}.diff.sNNN.tar` (or `.tar.enc`) — `s001`, `s002`, … since last light/full  
+CDC chain (optional): `{stamp}.incr.sNNN.tar` — same numbering; **every** `s001…sNNN` required
 
 ### Schedule (defaults)
 
@@ -32,7 +33,7 @@ Incr: `{ftp_base_path}/{instance}/{YYYY-MM-DD_HH-MM-SS}.incr.tar` (or `.tar.enc`
 |------|------|----------|
 | **light** | Every night after `daily_at` (`light_nightly=1`, default on) | `db.sql.gz` + `cfg.tar` only |
 | **full** (hard) | Only if `hard_enabled=1`, every `full_every_days` (default 7) | db + cfg + checked file sources (video/audio off by default) |
-| **incr** | Every `incr_every_hours` when CDC on | Changed rows only |
+| **CDC** | Every `incr_every_hours` when CDC on | Changed rows (`incr.sql.gz`) |
 
 Hard is **off by default**. If hard runs the same night, light is skipped.
 
@@ -45,17 +46,26 @@ Hard full pack contents:
 
 Light pack: same without `files-*` (`format: 3`, `kind: light`).
 
-Incr pack contents:
+CDC pack contents:
 
 - `incr.sql.gz` (REPLACE/DELETE for changed PKs)
-- `manifest.json` (`format: 2`, `kind: incr`, `base_full`, `cursor_from`/`cursor_to`)
+- `manifest.json` (`format: 2`, `kind: incr`, `incr_mode`, `incr_seq`, `base_full`, `cursor_from`/`cursor_to`)
 
-## CDC hourly increments
+### CDC modes (`incr_mode`)
+
+| Mode | File tag | What each pack holds | Restore / standby |
+|------|----------|----------------------|-------------------|
+| **differential** (default) | `.diff.sNNN` | All journal changes **since last light/full** | Baseline + **latest** `.diff.sNNN` |
+| **chain** | `.incr.sNNN` | Only the slice since previous pack | Baseline + **unbroken** `s001…sNNN` (gap = fail) |
+
+Seq resets to `s001` after each successful light/full. Listing FTP shows missing numbers immediately (no time guessing).
+
+## CDC hourly packs
 
 1. Run host check (`/backups/check`) — need `mysql.trigger_probe` ok.
-2. Migrate → Settings → **Install CDC triggers** (`cdc_enabled=1`, `incr_every_hours=1`).
-3. At least one light or hard pack once (baseline for the incr chain).
-4. Cron starts incr when journal has rows past `incr_cursor`.
+2. Migrate → Settings → **Install CDC triggers** (`cdc_enabled=1`, `incr_every_hours=1`, `incr_mode=differential`).
+3. At least one light or hard pack once (baseline).
+4. Cron starts a CDC pack when journal has rows past `incr_cursor`.
 
 ```bash
 php bin/freesaas.php backups cdc-install --format=json

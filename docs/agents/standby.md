@@ -6,9 +6,9 @@ Requires module `backups` ≥ 0.3 with CDC triggers on the **primary**.
 
 ## Topology
 
-1. **Primary**: normal FreeSaaS; `cdc_enabled=1`; nightly `.light.tar[.enc]` (db+cfg), weekly hard full, hourly `.incr.tar[.enc]` → FTP.
+1. **Primary**: normal FreeSaaS; `cdc_enabled=1`; nightly `.light.tar[.enc]` (db+cfg), weekly hard full, hourly CDC packs (default `.diff.sNNN.tar[.enc]`, or chain `.incr.sNNN.tar[.enc]`) → FTP.
 2. **Standby PC**: same code; `cfg/config.ini` → `app.standby=passive`, distinct `session_name`, LAN `app.base_url`, same FTP + passphrase as primary. Cron `/cron/tick` or `php bin/freesaas.php cron tick`.
-3. Every ~15 min on PC: `php bin/freesaas.php backups standby-sync --format=json` (or host cron).
+3. Every ~15 min on PC: `php bin/freesaas.php backups standby-sync --format=json` (or host cron). Differential: applies latest `.diff` after baseline. Chain: applies `sNNN` in order and errors on gaps.
 
 ## First bring-up on PC
 

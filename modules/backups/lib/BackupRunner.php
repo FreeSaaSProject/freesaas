@@ -224,8 +224,11 @@ final class BackupRunner
         if (!is_dir($localDir)) {
             @mkdir($localDir, 0755, true);
         }
+        $incrMode = BackupConfig::incrMode();
+        $incrSeq = 0;
         if ($kind === 'incr') {
-            $packName = $stamp . '.incr.tar';
+            $incrSeq = BackupConfig::incrSeq() + 1;
+            $packName = BackupFtpTarget::cdcPackName($stamp, $incrMode, $incrSeq, false);
         } elseif ($kind === 'light') {
             $packName = $stamp . '.light.tar';
         } else {
@@ -244,8 +247,14 @@ final class BackupRunner
             'phase_detail' => [],
         ];
         if ($kind === 'incr') {
-            $state['cursor_from'] = BackupConfig::incrCursor();
+            $state['incr_mode'] = $incrMode;
+            $state['incr_seq'] = $incrSeq;
             $state['cursor_to'] = BackupCdc::maxJournalId();
+            if ($incrMode === 'differential') {
+                $state['cursor_from'] = BackupConfig::incrBaselineCursor();
+            } else {
+                $state['cursor_from'] = BackupConfig::incrCursor();
+            }
             $base = BackupRepository::findLastSuccessBaseline();
             $state['base_full'] = BackupConfig::lastFullRemote();
             if ($state['base_full'] === '' && $base !== null) {
@@ -343,6 +352,7 @@ final class BackupRunner
                         $remote = (string)($state['remote_file'] ?? $state['remote_dir'] ?? '');
                         BackupRepository::markDone($id, $bytes, $remote);
                         BackupConfig::setIncrCursor((int)($state['cursor_to'] ?? BackupConfig::incrCursor()));
+                        BackupConfig::setIncrSeq((int)($state['incr_seq'] ?? BackupConfig::incrSeq()));
                         $done = BackupRepository::find($id);
                         if (is_array($done)) {
                             BackupNotify::onSuccess($done);
@@ -433,11 +443,13 @@ final class BackupRunner
                     BackupRepository::markDone($id, $bytes, $remote);
                     BackupConfig::setLastFullRemote($remote);
                     BackupConfig::setLastFullAt(time());
-                    // Align incr cursor to journal head; drop applied history.
+                    // New baseline: freeze differential from=, reset seq, drop applied journal.
                     if (BackupCdc::journalReady()) {
                         $maxJ = BackupCdc::maxJournalId();
-                        BackupConfig::setIncrCursor($maxJ);
+                        BackupConfig::resetIncrAfterBaseline($maxJ);
                         BackupCdc::pruneJournal($maxJ);
+                    } else {
+                        BackupConfig::resetIncrAfterBaseline(BackupConfig::incrCursor());
                     }
                     $done = BackupRepository::find($id);
                     if (is_array($done)) {
@@ -908,6 +920,8 @@ final class BackupRunner
             $manifest['base_full'] = (string)($state['base_full'] ?? '');
             $manifest['cursor_from'] = (int)($state['cursor_from'] ?? 0);
             $manifest['cursor_to'] = (int)($state['cursor_to'] ?? 0);
+            $manifest['incr_mode'] = (string)($state['incr_mode'] ?? BackupConfig::incrMode());
+            $manifest['incr_seq'] = (int)($state['incr_seq'] ?? 0);
             $manifest['incr_stats'] = is_array($state['incr_stats'] ?? null) ? $state['incr_stats'] : [];
             // Schema fingerprint for standby
             try {

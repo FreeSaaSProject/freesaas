@@ -16,6 +16,8 @@ final class BackupStandby
             'standby_mode' => StandbyMode::mode(),
             'applied_full' => BackupConfig::standbyAppliedFull(),
             'applied_cursor' => BackupConfig::standbyAppliedCursor(),
+            'applied_seq' => BackupConfig::standbyAppliedSeq(),
+            'incr_mode' => BackupConfig::incrMode(),
             'probe_url' => trim((string)Config::get('app', 'standby_probe_url', '')),
             'cdc' => BackupCdc::status(),
         ];
@@ -76,13 +78,24 @@ final class BackupStandby
                     }
                     BackupConfig::setStandbyAppliedFull($name);
                     BackupConfig::setStandbyAppliedCursor(0);
+                    BackupConfig::setStandbyAppliedSeq(0);
                     $appliedFull = $name;
                 }
             }
 
-            // Apply incr packs newer than applied cursor (by manifest cursor_to)
-            $incrsChrono = array_reverse($incrs); // oldest first
-            foreach ($incrsChrono as $set) {
+            // CDC packs: differential → only newest superseding pack; chain → unbroken s001…sNNN
+            $pending = self::selectPendingCdcPacks(
+                $incrs,
+                BackupConfig::standbyAppliedCursor(),
+                BackupConfig::standbyAppliedSeq()
+            );
+            if (!empty($pending['error'])) {
+                $errors[] = (string)$pending['error'];
+            }
+            foreach ((array)($pending['packs'] ?? []) as $set) {
+                if (!is_array($set)) {
+                    continue;
+                }
                 $local = self::downloadAndOpenPack((string)$set['path']);
                 if (empty($local['ok'])) {
                     $errors[] = (string)($local['error'] ?? 'download failed');
@@ -91,32 +104,32 @@ final class BackupStandby
                 $manifest = is_array($local['manifest'] ?? null) ? $local['manifest'] : [];
                 $cursorTo = (int)($manifest['cursor_to'] ?? 0);
                 $cursorFrom = (int)($manifest['cursor_from'] ?? 0);
+                $mode = (string)($manifest['incr_mode'] ?? ($set['cdc_mode'] ?? 'chain'));
+                $seq = (int)($manifest['incr_seq'] ?? ($set['seq'] ?? 0));
                 $baseFull = basename((string)($manifest['base_full'] ?? ''));
                 $appliedCursor = BackupConfig::standbyAppliedCursor();
                 if ($cursorTo <= $appliedCursor) {
                     self::rmTree((string)$local['dir']);
+                    if ($seq > BackupConfig::standbyAppliedSeq()) {
+                        BackupConfig::setStandbyAppliedSeq($seq);
+                    }
                     continue;
                 }
                 if ($baseFull !== '' && $appliedFull !== '' && $baseFull !== $appliedFull
                     && strpos($appliedFull, $baseFull) === false
                     && strpos($baseFull, preg_replace('/\.tar(\.enc)?$/i', '', $appliedFull) ?? '') === false
                 ) {
-                    // base mismatch — need newer full first
                     self::rmTree((string)$local['dir']);
                     $errors[] = 'incr base_full mismatch: ' . $baseFull . ' vs applied ' . $appliedFull;
                     break;
                 }
-                if ($cursorFrom > 0 && $cursorFrom < $appliedCursor) {
-                    // overlap ok
-                }
-                if ($cursorFrom > $appliedCursor && $appliedCursor > 0) {
+                if ($mode !== 'differential' && $cursorFrom > $appliedCursor && $appliedCursor > 0) {
                     self::rmTree((string)$local['dir']);
                     $errors[] = 'incr gap: cursor_from=' . $cursorFrom . ' applied=' . $appliedCursor;
                     break;
                 }
                 $sqlGz = (string)($local['dir'] . '/incr.sql.gz');
                 if (!is_file($sqlGz)) {
-                    // maybe still inside nested extract
                     $sqlGz = self::findFile((string)$local['dir'], 'incr.sql.gz');
                 }
                 if ($sqlGz === '' || !is_file($sqlGz)) {
@@ -135,8 +148,10 @@ final class BackupStandby
                 $ap = BackupCdc::applyIncrSqlFile($sqlPath);
                 self::rmTree((string)$local['dir']);
                 $applied[] = [
-                    'type' => 'incr',
+                    'type' => $mode === 'differential' ? 'diff' : 'incr',
                     'path' => $set['path'],
+                    'incr_mode' => $mode,
+                    'incr_seq' => $seq,
                     'cursor_from' => $cursorFrom,
                     'cursor_to' => $cursorTo,
                     'result' => $ap,
@@ -146,6 +161,9 @@ final class BackupStandby
                     break;
                 }
                 BackupConfig::setStandbyAppliedCursor($cursorTo);
+                if ($seq > 0) {
+                    BackupConfig::setStandbyAppliedSeq($seq);
+                }
             }
         } finally {
             $target->close();
@@ -228,6 +246,91 @@ final class BackupStandby
             'url' => $url,
             'body_sample' => mb_substr($body, 0, 200),
         ];
+    }
+
+    /**
+     * Pick CDC packs to apply after baseline.
+     * Differential: one newest pack (supersedes older diffs).
+     * Chain: consecutive sNNN after applied_seq, fail on gaps.
+     *
+     * @param list<array<string,mixed>> $incrs Newest-first listing
+     * @return array{packs:list<array<string,mixed>>,error:string}
+     */
+    private static function selectPendingCdcPacks(array $incrs, int $appliedCursor, int $appliedSeq): array
+    {
+        if ($incrs === []) {
+            return ['packs' => [], 'error' => ''];
+        }
+        $diffs = [];
+        $chains = [];
+        foreach ($incrs as $set) {
+            if (!is_array($set)) {
+                continue;
+            }
+            $mode = (string)($set['cdc_mode'] ?? '');
+            if ($mode === '') {
+                $parsed = BackupFtpTarget::parsePackName((string)($set['name'] ?? ''));
+                $mode = (string)($parsed['cdc_mode'] ?? 'chain');
+                $set['cdc_mode'] = $mode;
+                $set['seq'] = (int)($parsed['seq'] ?? ($set['seq'] ?? 0));
+            }
+            if ($mode === 'differential') {
+                $diffs[] = $set;
+            } else {
+                $chains[] = $set;
+            }
+        }
+
+        if ($diffs !== []) {
+            // Newest first; skip if filename seq already applied.
+            foreach ($diffs as $set) {
+                $seq = (int)($set['seq'] ?? 0);
+                if ($seq > 0 && $seq <= $appliedSeq) {
+                    continue;
+                }
+                return ['packs' => [$set], 'error' => ''];
+            }
+            return ['packs' => [], 'error' => ''];
+        }
+
+        $chrono = array_reverse($chains);
+        $out = [];
+        $expectSeq = $appliedSeq > 0 ? $appliedSeq + 1 : 0;
+        $sawNumbered = false;
+        foreach ($chrono as $set) {
+            $seq = (int)($set['seq'] ?? 0);
+            if ($seq > 0) {
+                $sawNumbered = true;
+                if ($seq <= $appliedSeq) {
+                    continue;
+                }
+                if ($expectSeq === 0) {
+                    $expectSeq = 1;
+                }
+                if ($seq > $expectSeq) {
+                    return [
+                        'packs' => $out,
+                        'error' => 'incr chain gap: missing s' . sprintf('%03d', $expectSeq)
+                            . ' (have s' . sprintf('%03d', $seq) . ')',
+                    ];
+                }
+                if ($seq === $expectSeq) {
+                    $out[] = $set;
+                    $expectSeq = $seq + 1;
+                }
+            } else {
+                if ($sawNumbered) {
+                    return [
+                        'packs' => $out,
+                        'error' => 'incr chain mixes numbered and legacy packs',
+                    ];
+                }
+                // Legacy unnumbered: chronological; cursor skip in apply.
+                $out[] = $set;
+            }
+        }
+        unset($appliedCursor);
+        return ['packs' => $out, 'error' => ''];
     }
 
     /** @return array<string,mixed> */

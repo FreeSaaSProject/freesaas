@@ -150,9 +150,65 @@ final class BackupFtpTarget implements BackupTarget
     }
 
     /**
+     * Build CDC pack filename: `{stamp}.diff.s003.tar` or `{stamp}.incr.s003.tar`.
+     */
+    public static function cdcPackName(string $stamp, string $mode, int $seq, bool $encrypt = false): string
+    {
+        $stamp = preg_replace('/[^0-9_\-]/', '', $stamp) ?? $stamp;
+        $tag = $mode === 'chain' ? 'incr' : 'diff';
+        $seq = max(1, min(999, $seq));
+        $name = sprintf('%s.%s.s%03d.tar', $stamp, $tag, $seq);
+        return $encrypt ? ($name . '.enc') : $name;
+    }
+
+    /**
+     * Parse pack basename for kind / CDC mode / sequence.
+     *
+     * @return array{kind:string,cdc_mode:string,seq:int,stamp:string}
+     */
+    public static function parsePackName(string $name): array
+    {
+        $base = basename($name);
+        // New: stamp.diff.s003.tar[.enc] / stamp.incr.s003.tar[.enc]
+        if (preg_match(
+            '/^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.(diff|incr)\.s(\d{3})\.tar(\.enc)?$/i',
+            $base,
+            $m
+        )) {
+            $tag = strtolower($m[2]);
+            return [
+                'kind' => 'incr',
+                'cdc_mode' => $tag === 'diff' ? 'differential' : 'chain',
+                'seq' => (int)$m[3],
+                'stamp' => $m[1],
+            ];
+        }
+        // Legacy without seq: stamp.incr.tar[.enc]
+        if (preg_match(
+            '/^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})\.incr\.tar(\.enc)?$/i',
+            $base,
+            $m
+        )) {
+            return [
+                'kind' => 'incr',
+                'cdc_mode' => 'chain',
+                'seq' => 0,
+                'stamp' => $m[1],
+            ];
+        }
+        if (preg_match('/\.light\.tar(\.enc)?$/i', $base)) {
+            return ['kind' => 'light', 'cdc_mode' => '', 'seq' => 0, 'stamp' => ''];
+        }
+        if (preg_match('/\.tar(\.enc)?$/i', $base)) {
+            return ['kind' => 'pack', 'cdc_mode' => '', 'seq' => 0, 'stamp' => ''];
+        }
+        return ['kind' => 'unknown', 'cdc_mode' => '', 'seq' => 0, 'stamp' => ''];
+    }
+
+    /**
      * List backup packs under instance/ (single .tar / .tar.enc; legacy dirs with manifest).
      *
-     * @return list<array{name:string,path:string,has_manifest:bool,kind:string,bytes:int}>
+     * @return list<array{name:string,path:string,has_manifest:bool,kind:string,bytes:int,cdc_mode?:string,seq?:int}>
      */
     public function listSets(string $instance): array
     {
@@ -166,20 +222,15 @@ final class BackupFtpTarget implements BackupTarget
                     'has_manifest' => false,
                     'kind' => 'part',
                     'bytes' => $this->size($instance . '/' . $name),
+                    'cdc_mode' => '',
+                    'seq' => 0,
                 ];
                 continue;
             }
-            $isIncr = (bool)preg_match('/\.incr\.tar(\.enc)?$/i', $name);
-            $isLight = (bool)preg_match('/\.light\.tar(\.enc)?$/i', $name);
-            $isTar = (bool)preg_match('/\.tar(\.enc)?$/i', $name);
-            if (!$isTar) {
+            $parsed = self::parsePackName($name);
+            $kind = (string)$parsed['kind'];
+            if ($kind === 'unknown') {
                 continue;
-            }
-            $kind = 'pack';
-            if ($isIncr) {
-                $kind = 'incr';
-            } elseif ($isLight) {
-                $kind = 'light';
             }
             $out[] = [
                 'name' => $name,
@@ -187,6 +238,8 @@ final class BackupFtpTarget implements BackupTarget
                 'has_manifest' => true,
                 'kind' => $kind,
                 'bytes' => $this->size($instance . '/' . $name),
+                'cdc_mode' => (string)$parsed['cdc_mode'],
+                'seq' => (int)$parsed['seq'],
             ];
         }
         // Legacy: stamp directories with manifest.json
@@ -199,10 +252,20 @@ final class BackupFtpTarget implements BackupTarget
                 'has_manifest' => $has,
                 'kind' => 'dir',
                 'bytes' => 0,
+                'cdc_mode' => '',
+                'seq' => 0,
             ];
         }
         usort($out, static function (array $a, array $b): int {
-            return strcmp($b['name'], $a['name']);
+            // Prefer higher seq among CDC packs when stamps collide; else name desc.
+            $sa = (int)($a['seq'] ?? 0);
+            $sb = (int)($b['seq'] ?? 0);
+            if ($sa > 0 && $sb > 0 && $sa !== $sb
+                && (($a['kind'] ?? '') === 'incr') && (($b['kind'] ?? '') === 'incr')
+            ) {
+                return $sb <=> $sa;
+            }
+            return strcmp((string)$b['name'], (string)$a['name']);
         });
         return $out;
     }

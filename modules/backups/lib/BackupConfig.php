@@ -232,6 +232,57 @@ final class BackupConfig
         self::set('incr_cursor', (string)max(0, $id));
     }
 
+    /**
+     * CDC pack mode: differential (all changes since last light/full — recommended)
+     * or chain (classic incremental slices; needs unbroken seq on FTP).
+     */
+    public static function incrMode(): string
+    {
+        $m = strtolower(trim(self::get('incr_mode', 'differential')));
+        return $m === 'chain' ? 'chain' : 'differential';
+    }
+
+    public static function isIncrDifferential(): bool
+    {
+        return self::incrMode() === 'differential';
+    }
+
+    /** Journal cursor frozen at last light/full (differential from=). */
+    public static function incrBaselineCursor(): int
+    {
+        $v = (int)self::get('incr_baseline_cursor', '0');
+        if ($v > 0) {
+            return $v;
+        }
+        // Upgrade path: treat current incr_cursor as baseline until next light/full.
+        return self::incrCursor();
+    }
+
+    public static function setIncrBaselineCursor(int $id): void
+    {
+        self::set('incr_baseline_cursor', (string)max(0, $id));
+    }
+
+    /** Last published CDC pack sequence for current baseline (0 = none yet). */
+    public static function incrSeq(): int
+    {
+        return max(0, (int)self::get('incr_seq', '0'));
+    }
+
+    public static function setIncrSeq(int $seq): void
+    {
+        self::set('incr_seq', (string)max(0, $seq));
+    }
+
+    /** After light/full: freeze baseline, reset seq, prune-ready cursor. */
+    public static function resetIncrAfterBaseline(int $maxJournalId): void
+    {
+        $maxJournalId = max(0, $maxJournalId);
+        self::setIncrCursor($maxJournalId);
+        self::setIncrBaselineCursor($maxJournalId);
+        self::setIncrSeq(0);
+    }
+
     public static function lastFullRemote(): string
     {
         return trim(self::get('last_full_remote', ''));
@@ -256,6 +307,16 @@ final class BackupConfig
     public static function standbyAppliedFull(): string
     {
         return trim(self::get('standby_applied_full', ''));
+    }
+
+    public static function standbyAppliedSeq(): int
+    {
+        return max(0, (int)self::get('standby_applied_seq', '0'));
+    }
+
+    public static function setStandbyAppliedSeq(int $seq): void
+    {
+        self::set('standby_applied_seq', (string)max(0, $seq));
     }
 
     public static function setStandbyAppliedFull(string $name): void
@@ -310,6 +371,7 @@ final class BackupConfig
             'notify_platform' => self::notifyPlatform(),
             'cdc_enabled' => self::cdcEnabled() ? '1' : '0',
             'cdc_exclude' => self::get('cdc_exclude', ''),
+            'incr_mode' => self::incrMode(),
             'incr_every_hours' => (string)self::incrEveryHours(),
             'keep_incr' => (string)self::keepIncr(),
             'full_every_days' => (string)self::fullEveryDays(),
@@ -317,6 +379,8 @@ final class BackupConfig
             'keep_light' => (string)self::keepLight(),
             'hard_enabled' => self::hardEnabled() ? '1' : '0',
             'incr_cursor' => (string)self::incrCursor(),
+            'incr_baseline_cursor' => (string)self::incrBaselineCursor(),
+            'incr_seq' => (string)self::incrSeq(),
             'last_full_remote' => self::lastFullRemote(),
             'cdc_installed_at' => self::get('cdc_installed_at', '0'),
         ];
@@ -422,6 +486,8 @@ final class BackupConfig
 
         self::set('cdc_enabled', !empty($post['cdc_enabled']) ? '1' : '0');
         self::set('cdc_exclude', trim((string)($post['cdc_exclude'] ?? '')));
+        $incrMode = strtolower(trim((string)($post['incr_mode'] ?? 'differential')));
+        self::set('incr_mode', $incrMode === 'chain' ? 'chain' : 'differential');
         self::set('incr_every_hours', (string)max(0, min(168, (int)($post['incr_every_hours'] ?? 1))));
         self::set('keep_incr', (string)max(1, min(168, (int)($post['keep_incr'] ?? 48))));
         self::set('full_every_days', (string)max(1, min(30, (int)($post['full_every_days'] ?? 7))));
