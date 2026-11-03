@@ -207,7 +207,7 @@ Declare `catalog.maturity` in `module.json`. Catalog UI badges + filter; list/in
 | `bonuses` | Client loyalty ledger (`base_bonus_moves`) + event settle (allocate/apply); EventBus on calendar event edit |
 | `vacations` | Leave register (`base_vacations`) + sign workflow |
 | `ledger` | Accounts + move types + ДПС + transfers + reconciliations (`base_accounts*`) |
-| `backups` | Scheduled DB+files → FTP/FTPS (`base_backup_runs`); encrypt optional; restore wizard; alpha — [`docs/agents/backups.md`](docs/agents/backups.md) |
+| `backups` | Scheduled DB+files → FTP/FTPS (`base_backup_runs`); CDC hourly incr (`base_backup_changes`); encrypt optional; restore wizard; warm standby — [`docs/agents/backups.md`](docs/agents/backups.md) [`docs/agents/standby.md`](docs/agents/standby.md) |
 | `recons` | Day board of account reconciliations (`tables: []`, uses ledger `base_account_reconciliations`); `/recons/day` |
 | `remittances` | Agency/acquiring remittance agreements; parse ДПС purpose; badges on `/ledger/moves`; expected via EventBus (likespa `spa_ops`); beta |
 | `funds` | Fund tree + CAPUSE/REFUND movements (`base_funds*`); requires `ledger` |

@@ -2,7 +2,7 @@
     "id": "backups",
     "name": "backups.module.name",
     "description": "backups.module.description",
-    "version": "0.2.2",
+    "version": "0.3.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -49,7 +49,12 @@
             "/backups/notify/test",
             "/backups/restore",
             "/backups/check",
-            "/agent/backups/check"
+            "/agent/backups/check",
+            "/agent/backups/cdc",
+            "/agent/backups/cdc/install",
+            "/agent/backups/cdc/uninstall",
+            "/agent/backups/standby",
+            "/agent/backups/standby/sync"
         ]
     },
     "agent": {
@@ -62,6 +67,20 @@
                 "permission": "backups.manage",
                 "capability": "SUPERADMIN_ACCESS",
                 "description": "Host readiness: MySQL triggers/grants, FTP, cron, disk, PHP (also GET /agent/backups/check)"
+            },
+            {
+                "id": "backups.cdc.status",
+                "method": "GET",
+                "path": "/agent/backups/cdc",
+                "permission": "backups.manage",
+                "description": "CDC status (agent_token twin)"
+            },
+            {
+                "id": "backups.standby.status",
+                "method": "GET",
+                "path": "/agent/backups/standby",
+                "permission": "backups.manage",
+                "description": "Standby applied full/cursor"
             },
             {
                 "id": "backups.list",
@@ -141,7 +160,8 @@
     ],
     "configSchema": [],
     "tables": [
-        "base_backup_runs"
+        "base_backup_runs",
+        "base_backup_changes"
     ],
     "migrators": [],
     "hooks": {

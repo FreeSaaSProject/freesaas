@@ -17,7 +17,18 @@ $statusLabel = static function (string $s): string {
   <div class="page-actions">
     <form method="post" action="/backups/run" class="inline">
       <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-      <button type="submit" class="btn-primary"><?= te('backups.list.run_now') ?></button>
+      <input type="hidden" name="kind" value="light">
+      <button type="submit" class="btn-primary"><?= te('backups.list.run_light') ?></button>
+    </form>
+    <form method="post" action="/backups/run" class="inline">
+      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+      <input type="hidden" name="kind" value="full">
+      <button type="submit" class="btn"><?= te('backups.list.run_now') ?></button>
+    </form>
+    <form method="post" action="/backups/run" class="inline">
+      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+      <input type="hidden" name="kind" value="incr">
+      <button type="submit" class="btn"><?= te('backups.list.run_incr') ?></button>
     </form>
     <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
       <a class="btn" href="/backups/check"><?= te('backups.doctor.run') ?></a>

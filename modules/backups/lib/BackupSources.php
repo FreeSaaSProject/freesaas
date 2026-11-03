@@ -48,7 +48,7 @@ final class BackupSources
                 'kind' => 'files',
                 'paths' => [$base . '/UserFiles'],
                 'excludes' => [],
-                'default' => true,
+                'default' => false,
             ],
             [
                 'id' => 'uploads',
@@ -56,7 +56,7 @@ final class BackupSources
                 'kind' => 'files',
                 'paths' => [$base . '/assets/uploads'],
                 'excludes' => [],
-                'default' => true,
+                'default' => false,
             ],
             [
                 'id' => 'themes',
@@ -64,7 +64,7 @@ final class BackupSources
                 'kind' => 'files',
                 'paths' => [$base . '/themes'],
                 'excludes' => [],
-                'default' => true,
+                'default' => false,
             ],
             [
                 'id' => 'log',

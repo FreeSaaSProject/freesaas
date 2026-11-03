@@ -12,7 +12,8 @@ try {
     if ($existing !== null) {
         $id = (int)$existing['id'];
     } else {
-        $id = BackupRunner::start('manual');
+        $kind = BackupRepository::normalizeKind((string)($_POST['kind'] ?? 'full'));
+        $id = BackupRunner::start('manual', $kind);
     }
     // Keep pumping for ~50s so light phases (cfg/pack) do not wait for the next cron minute.
     $r = BackupRunner::advanceUntil($id, 50);

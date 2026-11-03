@@ -152,6 +152,14 @@ final class Cron
                     ];
                     continue;
                 }
+                if (class_exists('StandbyMode', false) && !StandbyMode::allowsCron((string)$jobId)) {
+                    $skipped[] = [
+                        'job_id' => $jobId,
+                        'status' => self::STATUS_SKIPPED,
+                        'message' => 'standby_' . StandbyMode::mode(),
+                    ];
+                    continue;
+                }
                 $state = self::loadState($jobId);
                 if ((int)($state['enabled'] ?? 1) !== 1 && $onlyJobId === null) {
                     $skipped[] = [

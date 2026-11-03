@@ -52,7 +52,7 @@ final class BackupConfig
     /** @return list<string> */
     public static function sourceIds(): array
     {
-        $raw = self::get('sources', 'db,cfg,userfiles,uploads,themes');
+        $raw = self::get('sources', 'db,cfg');
         $parts = preg_split('/\s*,\s*/', $raw) ?: [];
         $out = [];
         foreach ($parts as $p) {
@@ -168,6 +168,111 @@ final class BackupConfig
         self::set('last_stale_notified_at', (string)max(0, $ts));
     }
 
+    public static function cdcEnabled(): bool
+    {
+        return self::get('cdc_enabled', '0') === '1';
+    }
+
+    /** Extra exclude tables (comma-separated) beyond BackupDoctor::CDC_EXCLUDE. */
+    public static function cdcExcludeExtra(): array
+    {
+        $raw = self::get('cdc_exclude', '');
+        $parts = preg_split('/\s*,\s*/', $raw) ?: [];
+        $out = [];
+        foreach ($parts as $p) {
+            $p = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$p) ?? '';
+            if ($p !== '' && !in_array($p, $out, true)) {
+                $out[] = $p;
+            }
+        }
+        return $out;
+    }
+
+    /** Hours between incr packs (0 = off). */
+    public static function incrEveryHours(): int
+    {
+        return max(0, min(168, (int)self::get('incr_every_hours', '1')));
+    }
+
+    public static function keepIncr(): int
+    {
+        return max(1, min(168, (int)self::get('keep_incr', '48')));
+    }
+
+    /** Hard full (all file sources) at most every N days. */
+    public static function fullEveryDays(): int
+    {
+        return max(1, min(30, (int)self::get('full_every_days', '7')));
+    }
+
+    /** Nightly light pack (db+cfg only). Default on. */
+    public static function lightNightly(): bool
+    {
+        return self::get('light_nightly', '1') === '1';
+    }
+
+    public static function keepLight(): int
+    {
+        return max(1, min(90, (int)self::get('keep_light', '7')));
+    }
+
+    /** Optional hard full with file sources. Default off. */
+    public static function hardEnabled(): bool
+    {
+        return self::get('hard_enabled', '0') === '1';
+    }
+
+    public static function incrCursor(): int
+    {
+        return max(0, (int)self::get('incr_cursor', '0'));
+    }
+
+    public static function setIncrCursor(int $id): void
+    {
+        self::set('incr_cursor', (string)max(0, $id));
+    }
+
+    public static function lastFullRemote(): string
+    {
+        return trim(self::get('last_full_remote', ''));
+    }
+
+    public static function setLastFullRemote(string $path): void
+    {
+        self::set('last_full_remote', trim($path));
+    }
+
+    public static function lastFullAt(): int
+    {
+        return max(0, (int)self::get('last_full_at', '0'));
+    }
+
+    public static function setLastFullAt(int $ts): void
+    {
+        self::set('last_full_at', (string)max(0, $ts));
+    }
+
+    /** Standby applied cursor / full (local state on reserve host). */
+    public static function standbyAppliedFull(): string
+    {
+        return trim(self::get('standby_applied_full', ''));
+    }
+
+    public static function setStandbyAppliedFull(string $name): void
+    {
+        self::set('standby_applied_full', trim($name));
+    }
+
+    public static function standbyAppliedCursor(): int
+    {
+        return max(0, (int)self::get('standby_applied_cursor', '0'));
+    }
+
+    public static function setStandbyAppliedCursor(int $id): void
+    {
+        self::set('standby_applied_cursor', (string)max(0, $id));
+    }
+
     /** @return array<string,mixed> */
     public static function forUi(): array
     {
@@ -203,6 +308,17 @@ final class BackupConfig
             'notify_staff_ids' => implode(',', array_map('strval', self::notifyStaffIds())),
             'notify_chat_id' => self::notifyChatId(),
             'notify_platform' => self::notifyPlatform(),
+            'cdc_enabled' => self::cdcEnabled() ? '1' : '0',
+            'cdc_exclude' => self::get('cdc_exclude', ''),
+            'incr_every_hours' => (string)self::incrEveryHours(),
+            'keep_incr' => (string)self::keepIncr(),
+            'full_every_days' => (string)self::fullEveryDays(),
+            'light_nightly' => self::lightNightly() ? '1' : '0',
+            'keep_light' => (string)self::keepLight(),
+            'hard_enabled' => self::hardEnabled() ? '1' : '0',
+            'incr_cursor' => (string)self::incrCursor(),
+            'last_full_remote' => self::lastFullRemote(),
+            'cdc_installed_at' => self::get('cdc_installed_at', '0'),
         ];
     }
 
@@ -303,6 +419,15 @@ final class BackupConfig
         self::set('notify_chat_id', trim((string)($post['notify_chat_id'] ?? '')));
         $plat = strtolower(trim((string)($post['notify_platform'] ?? 'max')));
         self::set('notify_platform', in_array($plat, ['max', 'telegram'], true) ? $plat : 'max');
+
+        self::set('cdc_enabled', !empty($post['cdc_enabled']) ? '1' : '0');
+        self::set('cdc_exclude', trim((string)($post['cdc_exclude'] ?? '')));
+        self::set('incr_every_hours', (string)max(0, min(168, (int)($post['incr_every_hours'] ?? 1))));
+        self::set('keep_incr', (string)max(1, min(168, (int)($post['keep_incr'] ?? 48))));
+        self::set('full_every_days', (string)max(1, min(30, (int)($post['full_every_days'] ?? 7))));
+        self::set('light_nightly', !empty($post['light_nightly']) ? '1' : '0');
+        self::set('keep_light', (string)max(1, min(90, (int)($post['keep_light'] ?? 7))));
+        self::set('hard_enabled', !empty($post['hard_enabled']) ? '1' : '0');
     }
 
     public static function recommendedFtpBasePath(string $audioBase = ''): string

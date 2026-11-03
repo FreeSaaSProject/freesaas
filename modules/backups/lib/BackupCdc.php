@@ -1,0 +1,457 @@
+<?php
+declare(strict_types=1);
+
+/**
+ * CDC-lite: AFTER I/U/D triggers → base_backup_changes; export collapsed rows for incr packs.
+ */
+final class BackupCdc
+{
+    public const JOURNAL = 'base_backup_changes';
+
+    /**
+     * @return list<string>
+     */
+    public static function excludeTables(): array
+    {
+        $base = BackupDoctor::CDC_EXCLUDE;
+        $extra = BackupConfig::cdcExcludeExtra();
+        $out = [];
+        foreach (array_merge($base, $extra) as $t) {
+            $t = preg_replace('/[^a-zA-Z0-9_]/', '', (string)$t) ?? '';
+            if ($t !== '' && !in_array($t, $out, true)) {
+                $out[] = $t;
+            }
+        }
+        return $out;
+    }
+
+    public static function journalReady(): bool
+    {
+        return Database::tableExists(self::JOURNAL);
+    }
+
+    /**
+     * @return list<string> base_* tables that should receive triggers
+     */
+    public static function targetTables(): array
+    {
+        $pdo = Database::pdo();
+        $rows = $pdo->query(
+            "SELECT TABLE_NAME FROM information_schema.TABLES
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 'base\\_%'
+               AND TABLE_TYPE = 'BASE TABLE'
+             ORDER BY TABLE_NAME"
+        )->fetchAll(PDO::FETCH_COLUMN);
+        $exclude = array_fill_keys(self::excludeTables(), true);
+        $exclude[self::JOURNAL] = true;
+        $exclude['base_backup_probe'] = true;
+        $out = [];
+        foreach ($rows as $t) {
+            $t = (string)$t;
+            if (isset($exclude[$t])) {
+                continue;
+            }
+            if (self::primaryKeyColumns($t) === []) {
+                continue;
+            }
+            $out[] = $t;
+        }
+        return $out;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function primaryKeyColumns(string $table): array
+    {
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return [];
+        }
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            "SELECT COLUMN_NAME FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND CONSTRAINT_NAME = 'PRIMARY'
+             ORDER BY ORDINAL_POSITION"
+        );
+        $st->execute([$table]);
+        $cols = [];
+        foreach ($st->fetchAll(PDO::FETCH_COLUMN) as $c) {
+            $c = (string)$c;
+            if (preg_match('/^[A-Za-z0-9_]+$/', $c)) {
+                $cols[] = $c;
+            }
+        }
+        return $cols;
+    }
+
+    public static function triggerName(string $table, string $suffix): string
+    {
+        // MySQL identifier max 64
+        $raw = 'bk_' . $table . '_' . $suffix;
+        if (strlen($raw) <= 64) {
+            return $raw;
+        }
+        return 'bk_' . substr(hash('sha256', $table . '_' . $suffix), 0, 50) . '_' . $suffix;
+    }
+
+    /**
+     * Install or refresh all CDC triggers (idempotent).
+     *
+     * @return array{ok:bool,tables:int,triggers:int,errors:list<string>}
+     */
+    public static function install(): array
+    {
+        if (!self::journalReady()) {
+            return ['ok' => false, 'tables' => 0, 'triggers' => 0, 'errors' => ['journal missing — migrate first']];
+        }
+        $pdo = Database::pdo();
+        $tables = self::targetTables();
+        $errors = [];
+        $triggers = 0;
+        foreach ($tables as $table) {
+            foreach (['ai' => 'INSERT', 'au' => 'UPDATE', 'ad' => 'DELETE'] as $suf => $event) {
+                $name = self::triggerName($table, $suf);
+                try {
+                    $pdo->exec('DROP TRIGGER IF EXISTS `' . $name . '`');
+                    $sql = self::createTriggerSql($table, $name, $event, $suf === 'ad' ? 'OLD' : 'NEW');
+                    $pdo->exec($sql);
+                    $triggers++;
+                } catch (Throwable $e) {
+                    $errors[] = $table . '/' . $suf . ': ' . $e->getMessage();
+                }
+            }
+        }
+        // Drop triggers for tables no longer targeted
+        self::dropOrphanTriggers($tables);
+        BackupConfig::set('cdc_installed_at', (string)time());
+        return [
+            'ok' => $errors === [],
+            'tables' => count($tables),
+            'triggers' => $triggers,
+            'errors' => $errors,
+        ];
+    }
+
+    /**
+     * @return array{ok:bool,dropped:int,errors:list<string>}
+     */
+    public static function uninstall(): array
+    {
+        $pdo = Database::pdo();
+        $errors = [];
+        $dropped = 0;
+        try {
+            $rows = $pdo->query(
+                "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS
+                 WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME LIKE 'bk\\_%'"
+            )->fetchAll(PDO::FETCH_COLUMN);
+        } catch (Throwable $e) {
+            return ['ok' => false, 'dropped' => 0, 'errors' => [$e->getMessage()]];
+        }
+        foreach ($rows as $name) {
+            $name = (string)$name;
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+                continue;
+            }
+            try {
+                $pdo->exec('DROP TRIGGER IF EXISTS `' . $name . '`');
+                $dropped++;
+            } catch (Throwable $e) {
+                $errors[] = $name . ': ' . $e->getMessage();
+            }
+        }
+        BackupConfig::set('cdc_installed_at', '0');
+        return ['ok' => $errors === [], 'dropped' => $dropped, 'errors' => $errors];
+    }
+
+    /**
+     * @return array{ok:bool,installed:bool,tables:int,triggers:int,journal_rows:int,cursor:int,max_id:int}
+     */
+    public static function status(): array
+    {
+        $tables = self::targetTables();
+        $pdo = Database::pdo();
+        $trig = 0;
+        try {
+            $trig = (int)$pdo->query(
+                "SELECT COUNT(*) FROM information_schema.TRIGGERS
+                 WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME LIKE 'bk\\_%'"
+            )->fetchColumn();
+        } catch (Throwable $e) {
+            $trig = 0;
+        }
+        $rows = 0;
+        $maxId = 0;
+        if (self::journalReady()) {
+            try {
+                $r = $pdo->query('SELECT COUNT(*) AS c, COALESCE(MAX(ID),0) AS m FROM ' . self::JOURNAL)->fetch(PDO::FETCH_ASSOC);
+                $rows = (int)($r['c'] ?? 0);
+                $maxId = (int)($r['m'] ?? 0);
+            } catch (Throwable $e) {
+                // ignore
+            }
+        }
+        $expected = count($tables) * 3;
+        return [
+            'ok' => $trig >= $expected && $expected > 0,
+            'installed' => $trig > 0,
+            'tables' => count($tables),
+            'triggers' => $trig,
+            'expected_triggers' => $expected,
+            'journal_rows' => $rows,
+            'cursor' => BackupConfig::incrCursor(),
+            'max_id' => $maxId,
+            'cdc_enabled' => BackupConfig::cdcEnabled(),
+        ];
+    }
+
+    /**
+     * Collapse journal (cursor_from, cursor_to] into last op per (tbl, pk).
+     *
+     * @return list<array{tbl:string,pk_json:string,op:string}>
+     */
+    public static function collapsedChanges(int $cursorFrom, int $cursorTo): array
+    {
+        if (!self::journalReady() || $cursorTo <= $cursorFrom) {
+            return [];
+        }
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            'SELECT TBL AS tbl, PK_JSON AS pk_json,
+                    SUBSTRING_INDEX(GROUP_CONCAT(OP ORDER BY ID DESC SEPARATOR \',\'), \',\', 1) AS op
+             FROM ' . self::JOURNAL . '
+             WHERE ID > ? AND ID <= ?
+             GROUP BY TBL, PK_JSON'
+        );
+        $st->execute([$cursorFrom, $cursorTo]);
+        $out = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $out[] = [
+                'tbl' => (string)$row['tbl'],
+                'pk_json' => (string)$row['pk_json'],
+                'op' => (string)$row['op'],
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Write incr SQL file (REPLACE/DELETE) for collapsed keys. Returns counts.
+     *
+     * @param list<array{tbl:string,pk_json:string,op:string}> $changes
+     * @return array{rows_out:int,deletes:int,replaces:int,skipped:int}
+     */
+    public static function writeIncrSql(string $outPath, array $changes): array
+    {
+        $fh = fopen($outPath, 'wb');
+        if ($fh === false) {
+            throw new RuntimeException('Cannot write incr SQL');
+        }
+        fwrite($fh, "-- FreeSaaS backup incr\nSET NAMES utf8mb4;\nSET FOREIGN_KEY_CHECKS=0;\n");
+        $replaces = 0;
+        $deletes = 0;
+        $skipped = 0;
+        $pdo = Database::pdo();
+        foreach ($changes as $ch) {
+            $tbl = (string)($ch['tbl'] ?? '');
+            $pkJson = (string)($ch['pk_json'] ?? '');
+            $op = (string)($ch['op'] ?? '');
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $tbl) || $pkJson === '') {
+                $skipped++;
+                continue;
+            }
+            $pkVals = json_decode($pkJson, true);
+            if (!is_array($pkVals)) {
+                $skipped++;
+                continue;
+            }
+            $cols = self::primaryKeyColumns($tbl);
+            if ($cols === [] || count($cols) !== count($pkVals)) {
+                $skipped++;
+                continue;
+            }
+            $where = [];
+            $bind = [];
+            foreach ($cols as $i => $col) {
+                $where[] = '`' . $col . '` = ?';
+                $bind[] = $pkVals[$i];
+            }
+            $whereSql = implode(' AND ', $where);
+            if ($op === 'D') {
+                fwrite($fh, 'DELETE FROM `' . $tbl . '` WHERE ' . self::sqlLiteralWhere($cols, $pkVals) . ";\n");
+                $deletes++;
+                continue;
+            }
+            $st = $pdo->prepare('SELECT * FROM `' . $tbl . '` WHERE ' . $whereSql . ' LIMIT 1');
+            $st->execute($bind);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!is_array($row)) {
+                // vanished → delete
+                fwrite($fh, 'DELETE FROM `' . $tbl . '` WHERE ' . self::sqlLiteralWhere($cols, $pkVals) . ";\n");
+                $deletes++;
+                continue;
+            }
+            fwrite($fh, self::sqlReplace($tbl, $row) . "\n");
+            $replaces++;
+        }
+        fwrite($fh, "SET FOREIGN_KEY_CHECKS=1;\n");
+        fclose($fh);
+        return [
+            'rows_out' => $replaces + $deletes,
+            'deletes' => $deletes,
+            'replaces' => $replaces,
+            'skipped' => $skipped,
+        ];
+    }
+
+    /** Prune journal rows with ID <= $throughId. */
+    public static function pruneJournal(int $throughId): int
+    {
+        if (!self::journalReady() || $throughId < 1) {
+            return 0;
+        }
+        $pdo = Database::pdo();
+        $st = $pdo->prepare('DELETE FROM ' . self::JOURNAL . ' WHERE ID <= ?');
+        $st->execute([$throughId]);
+        return (int)$st->rowCount();
+    }
+
+    public static function maxJournalId(): int
+    {
+        if (!self::journalReady()) {
+            return 0;
+        }
+        return (int)Database::pdo()->query('SELECT COALESCE(MAX(ID),0) FROM ' . self::JOURNAL)->fetchColumn();
+    }
+
+    /**
+     * Apply incr SQL file against current DB (standby).
+     *
+     * @return array{ok:bool,statements:int,error:string}
+     */
+    public static function applyIncrSqlFile(string $path): array
+    {
+        if (!is_file($path)) {
+            return ['ok' => false, 'statements' => 0, 'error' => 'file missing'];
+        }
+        $sql = (string)file_get_contents($path);
+        if ($sql === '') {
+            return ['ok' => true, 'statements' => 0, 'error' => ''];
+        }
+        $pdo = Database::pdo();
+        $n = 0;
+        try {
+            // Split on ;\n — statements we generate are single-line
+            $parts = preg_split('/;\s*\n/', $sql) ?: [];
+            foreach ($parts as $stmt) {
+                $stmt = trim($stmt);
+                if ($stmt === '' || strpos($stmt, '--') === 0) {
+                    continue;
+                }
+                $pdo->exec($stmt);
+                $n++;
+            }
+            return ['ok' => true, 'statements' => $n, 'error' => ''];
+        } catch (Throwable $e) {
+            return ['ok' => false, 'statements' => $n, 'error' => $e->getMessage()];
+        }
+    }
+
+    private static function createTriggerSql(string $table, string $name, string $event, string $rowAlias): string
+    {
+        $cols = self::primaryKeyColumns($table);
+        $args = [];
+        foreach ($cols as $c) {
+            $args[] = $rowAlias . '.`' . $c . '`';
+        }
+        $jsonExpr = 'JSON_ARRAY(' . implode(', ', $args) . ')';
+        $op = $event === 'INSERT' ? 'I' : ($event === 'UPDATE' ? 'U' : 'D');
+        return 'CREATE TRIGGER `' . $name . '` AFTER ' . $event . ' ON `' . $table . '`
+FOR EACH ROW BEGIN
+  INSERT INTO `' . self::JOURNAL . '` (`TBL`, `PK_JSON`, `OP`, `TS`)
+  VALUES (' . Database::pdo()->quote($table) . ', CAST(' . $jsonExpr . ' AS CHAR(512)), '
+            . Database::pdo()->quote($op) . ', NOW());
+END';
+    }
+
+    /**
+     * @param list<string> $keepTables
+     */
+    private static function dropOrphanTriggers(array $keepTables): void
+    {
+        $pdo = Database::pdo();
+        $keepNames = [];
+        foreach ($keepTables as $t) {
+            foreach (['ai', 'au', 'ad'] as $suf) {
+                $keepNames[self::triggerName($t, $suf)] = true;
+            }
+        }
+        try {
+            $rows = $pdo->query(
+                "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS
+                 WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME LIKE 'bk\\_%'"
+            )->fetchAll(PDO::FETCH_COLUMN);
+        } catch (Throwable $e) {
+            return;
+        }
+        foreach ($rows as $name) {
+            $name = (string)$name;
+            if (isset($keepNames[$name]) || !preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+                continue;
+            }
+            try {
+                $pdo->exec('DROP TRIGGER IF EXISTS `' . $name . '`');
+            } catch (Throwable $e) {
+                // ignore
+            }
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $row
+     */
+    private static function sqlReplace(string $table, array $row): string
+    {
+        $cols = [];
+        $vals = [];
+        foreach ($row as $k => $v) {
+            if (!preg_match('/^[A-Za-z0-9_]+$/', (string)$k)) {
+                continue;
+            }
+            $cols[] = '`' . $k . '`';
+            $vals[] = self::sqlQuote($v);
+        }
+        return 'REPLACE INTO `' . $table . '` (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ');';
+    }
+
+    /**
+     * @param list<string> $cols
+     * @param list<mixed> $vals
+     */
+    private static function sqlLiteralWhere(array $cols, array $vals): string
+    {
+        $parts = [];
+        foreach ($cols as $i => $c) {
+            $parts[] = '`' . $c . '` = ' . self::sqlQuote($vals[$i] ?? null);
+        }
+        return implode(' AND ', $parts);
+    }
+
+    /** @param mixed $v */
+    private static function sqlQuote($v): string
+    {
+        if ($v === null) {
+            return 'NULL';
+        }
+        if (is_bool($v)) {
+            return $v ? '1' : '0';
+        }
+        if (is_int($v) || is_float($v)) {
+            return (string)$v;
+        }
+        return Database::pdo()->quote((string)$v);
+    }
+}

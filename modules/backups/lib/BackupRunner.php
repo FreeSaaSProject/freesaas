@@ -11,7 +11,7 @@ final class BackupRunner
 {
     public const BUDGET_SEC = 40;
 
-    /** Cron entry: advance running job or start scheduled / check stale. */
+    /** Cron entry: advance running job or start scheduled full/incr / check stale. */
     public static function cronTick(): array
     {
         if (!BackupRepository::tableReady()) {
@@ -28,6 +28,7 @@ final class BackupRunner
                 'run_id' => (int)$running['id'],
                 'phase' => (string)($r['phase'] ?? ''),
                 'status' => (string)($r['status'] ?? ''),
+                'kind' => (string)($running['kind'] ?? 'full'),
             ];
         }
 
@@ -37,47 +38,168 @@ final class BackupRunner
             return ['ok' => true, 'processed' => 0, 'message' => 'disabled'];
         }
 
-        if (!self::isDueToday()) {
-            return ['ok' => true, 'processed' => 0, 'message' => 'not due'];
+        // Nightly: prefer weekly hard full; else light (db+cfg); else hourly incr.
+        if (self::isHardFullDue()) {
+            $id = self::start('cron', 'full');
+            $r = self::advance($id);
+            return [
+                'ok' => empty($r['error']),
+                'processed' => 1,
+                'message' => 'started_full',
+                'run_id' => $id,
+                'phase' => (string)($r['phase'] ?? ''),
+                'status' => (string)($r['status'] ?? ''),
+                'kind' => 'full',
+            ];
         }
 
-        $id = self::start('cron');
-        $r = self::advance($id);
-        return [
-            'ok' => empty($r['error']),
-            'processed' => 1,
-            'message' => 'started',
-            'run_id' => $id,
-            'phase' => (string)($r['phase'] ?? ''),
-            'status' => (string)($r['status'] ?? ''),
-        ];
+        if (self::isLightDue()) {
+            $id = self::start('cron', 'light');
+            $r = self::advance($id);
+            return [
+                'ok' => empty($r['error']),
+                'processed' => 1,
+                'message' => 'started_light',
+                'run_id' => $id,
+                'phase' => (string)($r['phase'] ?? ''),
+                'status' => (string)($r['status'] ?? ''),
+                'kind' => 'light',
+            ];
+        }
+
+        if (self::isIncrDue()) {
+            $id = self::start('cron', 'incr');
+            $r = self::advance($id);
+            return [
+                'ok' => empty($r['error']),
+                'processed' => 1,
+                'message' => 'started_incr',
+                'run_id' => $id,
+                'phase' => (string)($r['phase'] ?? ''),
+                'status' => (string)($r['status'] ?? ''),
+                'kind' => 'incr',
+            ];
+        }
+
+        return ['ok' => true, 'processed' => 0, 'message' => 'not due'];
     }
 
-    /**
-     * True when local time ≥ daily_at and no run (success or fail) was started after today's daily_at.
-     * Avoids restarting every 5 minutes after a failure.
-     */
-    public static function isDueToday(): bool
+    /** Today’s daily_at timestamp, or false. */
+    private static function todayDueTs()
     {
         $at = BackupConfig::dailyAt();
         [$hh, $mm] = array_map('intval', explode(':', $at));
-        $dueTs = mktime($hh, $mm, 0);
-        if ($dueTs === false) {
+        return mktime($hh, $mm, 0);
+    }
+
+    /**
+     * Hard full (all file sources): after daily_at, last kind=full older than full_every_days.
+     */
+    public static function isHardFullDue(): bool
+    {
+        if (!BackupConfig::hardEnabled()) {
             return false;
         }
-        if (time() < $dueTs) {
+        $dueTs = self::todayDueTs();
+        if ($dueTs === false || time() < $dueTs) {
+            return false;
+        }
+        $lastFull = BackupRepository::findLastSuccessKind('full');
+        $lastAt = $lastFull !== null
+            ? (int)($lastFull['finished_at'] ?? $lastFull['started_at'] ?? 0)
+            : 0;
+        // lastFullAt may be from light — only count hard fulls for weekly cadence
+        $minAge = BackupConfig::fullEveryDays() * 86400;
+        if ($lastAt > 0 && (time() - $lastAt) < $minAge) {
             return false;
         }
         $last = BackupRepository::findLast();
-        if ($last === null) {
-            return true;
+        if ($last !== null && ($last['kind'] ?? '') === 'full') {
+            $started = (int)($last['started_at'] ?? 0);
+            $st = (string)($last['status'] ?? '');
+            if ($started >= $dueTs && $st !== 'done') {
+                return false;
+            }
         }
-        $started = (int)($last['started_at'] ?? 0);
-        return $started < $dueTs;
+        return true;
     }
 
-    public static function start(string $triggeredBy = 'manual'): int
+    /**
+     * Nightly light (db+cfg only): after daily_at, once per night unless hard full already covers tonight.
+     */
+    public static function isLightDue(): bool
     {
+        if (!BackupConfig::lightNightly()) {
+            return false;
+        }
+        $dueTs = self::todayDueTs();
+        if ($dueTs === false || time() < $dueTs) {
+            return false;
+        }
+        // Already have a DB baseline (light or hard) started/finished after today's daily_at
+        $base = BackupRepository::findLastSuccessBaseline();
+        if ($base !== null) {
+            $fin = (int)($base['finished_at'] ?? 0);
+            $start = (int)($base['started_at'] ?? 0);
+            if (max($fin, $start) >= $dueTs) {
+                return false;
+            }
+        }
+        $last = BackupRepository::findLast();
+        if ($last !== null) {
+            $k = (string)($last['kind'] ?? '');
+            if ($k === 'light' || $k === 'full') {
+                $started = (int)($last['started_at'] ?? 0);
+                $st = (string)($last['status'] ?? '');
+                if ($started >= $dueTs && $st !== 'done') {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /** @deprecated use isHardFullDue / isLightDue */
+    public static function isFullDue(): bool
+    {
+        return self::isHardFullDue();
+    }
+
+    /** @deprecated */
+    public static function isDueToday(): bool
+    {
+        return self::isHardFullDue() || self::isLightDue();
+    }
+
+    public static function isIncrDue(): bool
+    {
+        if (!BackupConfig::cdcEnabled() || BackupConfig::incrEveryHours() < 1) {
+            return false;
+        }
+        if (!BackupCdc::journalReady()) {
+            return false;
+        }
+        $cursor = BackupConfig::incrCursor();
+        $maxId = BackupCdc::maxJournalId();
+        if ($maxId <= $cursor) {
+            return false;
+        }
+        $lastIncr = BackupRepository::findLastSuccessKind('incr');
+        $lastAt = $lastIncr !== null ? (int)($lastIncr['finished_at'] ?? 0) : 0;
+        $every = BackupConfig::incrEveryHours() * 3600;
+        if ($lastAt > 0 && (time() - $lastAt) < $every) {
+            return false;
+        }
+        // Need a DB baseline (light or hard) to chain from
+        if (BackupConfig::lastFullRemote() === '' && BackupRepository::findLastSuccessBaseline() === null) {
+            return false;
+        }
+        return true;
+    }
+
+    public static function start(string $triggeredBy = 'manual', string $kind = 'full'): int
+    {
+        $kind = BackupRepository::normalizeKind($kind);
         $running = BackupRepository::findRunning();
         if ($running !== null) {
             return (int)$running['id'];
@@ -95,25 +217,41 @@ final class BackupRunner
                 throw new RuntimeException(t('backups.err.disk_space'));
             }
         }
-        $id = BackupRepository::start($triggeredBy);
+        $id = BackupRepository::start($triggeredBy, $kind);
         $stamp = date('Y-m-d_H-i-s');
         $instance = BackupConfig::instance();
         $localDir = BackupConfig::workDir() . '/run-' . $id;
         if (!is_dir($localDir)) {
             @mkdir($localDir, 0755, true);
         }
-        $packName = $stamp . '.tar';
+        if ($kind === 'incr') {
+            $packName = $stamp . '.incr.tar';
+        } elseif ($kind === 'light') {
+            $packName = $stamp . '.light.tar';
+        } else {
+            $packName = $stamp . '.tar';
+        }
         $state = [
+            'kind' => $kind,
             'stamp' => $stamp,
             'instance' => $instance,
             'local_dir' => $localDir,
             'pack_name' => $packName,
             'remote_file' => $instance . '/' . $packName,
-            'remote_dir' => $instance . '/' . $packName, // legacy key = remote path shown in UI
+            'remote_dir' => $instance . '/' . $packName,
             'encrypt' => BackupConfig::encryptEnabled(),
             'artifacts' => [],
             'phase_detail' => [],
         ];
+        if ($kind === 'incr') {
+            $state['cursor_from'] = BackupConfig::incrCursor();
+            $state['cursor_to'] = BackupCdc::maxJournalId();
+            $base = BackupRepository::findLastSuccessBaseline();
+            $state['base_full'] = BackupConfig::lastFullRemote();
+            if ($state['base_full'] === '' && $base !== null) {
+                $state['base_full'] = (string)($base['remote_dir'] ?? '');
+            }
+        }
         BackupRepository::update($id, 'init', $state, 0, (string)$state['remote_file']);
         return $id;
     }
@@ -152,10 +290,78 @@ final class BackupRunner
         }
         $state = is_array($run['state'] ?? null) ? $run['state'] : [];
         $phase = (string)($run['phase'] ?? 'init');
+        $kind = BackupRepository::normalizeKind((string)($state['kind'] ?? $run['kind'] ?? 'full'));
+        $state['kind'] = $kind;
         try {
             $budget = self::BUDGET_SEC;
             $t0 = microtime(true);
             while ((microtime(true) - $t0) < $budget) {
+                if ($kind === 'incr') {
+                    if ($phase === 'init' || $phase === '') {
+                        $phase = 'incr_sql';
+                        $state['phase_detail'] = [];
+                    } elseif ($phase === 'incr_sql') {
+                        $r = self::phaseIncrSql($state);
+                        $state = $r['state'];
+                        $phase = 'pack';
+                        $state['phase_detail'] = [];
+                    } elseif ($phase === 'pack') {
+                        $r = self::phasePack($state, $budget - (microtime(true) - $t0));
+                        $state = $r['state'];
+                        if (!empty($r['done'])) {
+                            $phase = !empty($state['encrypt']) ? 'encrypt' : 'upload';
+                            $state['phase_detail'] = [];
+                        } else {
+                            break;
+                        }
+                    } elseif ($phase === 'encrypt') {
+                        $r = self::phaseEncryptPack($state, $budget - (microtime(true) - $t0));
+                        $state = $r['state'];
+                        if (!empty($r['done'])) {
+                            $phase = 'upload';
+                            $state['phase_detail'] = [];
+                        } else {
+                            break;
+                        }
+                    } elseif ($phase === 'upload') {
+                        $r = self::phaseUploadPack($state, $budget - (microtime(true) - $t0));
+                        $state = $r['state'];
+                        if (!empty($r['done'])) {
+                            $phase = 'verify';
+                            $state['phase_detail'] = [];
+                        } else {
+                            break;
+                        }
+                    } elseif ($phase === 'verify') {
+                        $r = self::phaseVerifyPack($state);
+                        $state = $r['state'];
+                        $phase = 'prune';
+                        $state['phase_detail'] = [];
+                    } elseif ($phase === 'prune') {
+                        self::phasePrune($state);
+                        $bytes = (int)($state['pack_bytes'] ?? self::totalBytes($state));
+                        $remote = (string)($state['remote_file'] ?? $state['remote_dir'] ?? '');
+                        BackupRepository::markDone($id, $bytes, $remote);
+                        BackupConfig::setIncrCursor((int)($state['cursor_to'] ?? BackupConfig::incrCursor()));
+                        $done = BackupRepository::find($id);
+                        if (is_array($done)) {
+                            BackupNotify::onSuccess($done);
+                        }
+                        self::cleanupLocal($state);
+                        return $done ?? ['status' => 'done', 'phase' => 'done', 'kind' => 'incr'];
+                    } else {
+                        break;
+                    }
+                    BackupRepository::update(
+                        $id,
+                        $phase,
+                        $state,
+                        (int)($state['pack_bytes'] ?? self::totalBytes($state)),
+                        (string)($state['remote_file'] ?? $state['remote_dir'] ?? '')
+                    );
+                    continue;
+                }
+
                 if ($phase === 'init' || $phase === '') {
                     $phase = 'db';
                     $state['phase_detail'] = [];
@@ -225,12 +431,20 @@ final class BackupRunner
                     $bytes = (int)($state['pack_bytes'] ?? self::totalBytes($state));
                     $remote = (string)($state['remote_file'] ?? $state['remote_dir'] ?? '');
                     BackupRepository::markDone($id, $bytes, $remote);
+                    BackupConfig::setLastFullRemote($remote);
+                    BackupConfig::setLastFullAt(time());
+                    // Align incr cursor to journal head; drop applied history.
+                    if (BackupCdc::journalReady()) {
+                        $maxJ = BackupCdc::maxJournalId();
+                        BackupConfig::setIncrCursor($maxJ);
+                        BackupCdc::pruneJournal($maxJ);
+                    }
                     $done = BackupRepository::find($id);
                     if (is_array($done)) {
                         BackupNotify::onSuccess($done);
                     }
                     self::cleanupLocal($state);
-                    return $done ?? ['status' => 'done', 'phase' => 'done'];
+                    return $done ?? ['status' => 'done', 'phase' => 'done', 'kind' => $kind];
                 } else {
                     break;
                 }
@@ -259,6 +473,43 @@ final class BackupRunner
             }
             return $failed ?? ['status' => 'error', 'error' => $e->getMessage(), 'phase' => $phase];
         }
+    }
+
+    /**
+     * Build incr.sql.gz from CDC journal between cursor_from and cursor_to.
+     *
+     * @param array<string,mixed> $state
+     * @return array{done:bool,state:array<string,mixed>}
+     */
+    private static function phaseIncrSql(array $state): array
+    {
+        $from = (int)($state['cursor_from'] ?? 0);
+        $to = (int)($state['cursor_to'] ?? 0);
+        if ($to <= $from) {
+            throw new RuntimeException(t('backups.err.incr_empty'));
+        }
+        $changes = BackupCdc::collapsedChanges($from, $to);
+        $localDir = (string)$state['local_dir'];
+        $sqlPath = $localDir . '/incr.sql';
+        $stats = BackupCdc::writeIncrSql($sqlPath, $changes);
+        $gzPath = $sqlPath . '.gz';
+        $raw = (string)file_get_contents($sqlPath);
+        $gz = gzencode($raw, 6);
+        if ($gz === false || file_put_contents($gzPath, $gz) === false) {
+            throw new RuntimeException('incr gzip failed');
+        }
+        @unlink($sqlPath);
+        $arts = is_array($state['artifacts'] ?? null) ? $state['artifacts'] : [];
+        $arts[] = [
+            'name' => 'incr.sql.gz',
+            'path' => $gzPath,
+            'sha256' => hash_file('sha256', $gzPath),
+            'bytes' => (int)filesize($gzPath),
+        ];
+        $state['artifacts'] = $arts;
+        $state['incr_stats'] = $stats;
+        $state['phase_detail'] = [];
+        return ['done' => true, 'state' => $state];
     }
 
     /** @param array<string,mixed> $state @return array{done:bool,state:array<string,mixed>} */
@@ -368,6 +619,10 @@ final class BackupRunner
     /** @param array<string,mixed> $state @return list<array{id:string,paths:list<string>,excludes:list<string>}> */
     private static function filesQueue(array $state): array
     {
+        // Nightly light = db + cfg only (no media / userfiles).
+        if (($state['kind'] ?? '') === 'light') {
+            return [];
+        }
         $q = [];
         foreach (BackupSources::selected() as $s) {
             if (($s['kind'] ?? '') !== 'files') {
@@ -600,7 +855,15 @@ final class BackupRunner
     {
         $target = BackupFtpTarget::fromConfig();
         try {
-            $target->prune((string)($state['instance'] ?? BackupConfig::instance()), BackupConfig::keepRemote());
+            $instance = (string)($state['instance'] ?? BackupConfig::instance());
+            $kind = (string)($state['kind'] ?? 'full');
+            if ($kind === 'incr') {
+                $target->pruneIncr($instance, BackupConfig::keepIncr());
+            } elseif ($kind === 'light') {
+                $target->pruneLight($instance, BackupConfig::keepLight());
+            } else {
+                $target->prune($instance, BackupConfig::keepRemote());
+            }
         } finally {
             $target->close();
         }
@@ -628,8 +891,10 @@ final class BackupRunner
                 'encrypted' => !empty($a['encrypted']),
             ];
         }
-        return [
-            'format' => 1,
+        $kind = (string)($state['kind'] ?? 'full');
+        $manifest = [
+            'format' => $kind === 'incr' ? 2 : ($kind === 'light' ? 3 : 1),
+            'kind' => $kind,
             'created_at' => date('c'),
             'instance' => (string)($state['instance'] ?? ''),
             'stamp' => (string)($state['stamp'] ?? ''),
@@ -639,6 +904,22 @@ final class BackupRunner
             'db_scope' => BackupConfig::dbScope(),
             'files' => $files,
         ];
+        if ($kind === 'incr') {
+            $manifest['base_full'] = (string)($state['base_full'] ?? '');
+            $manifest['cursor_from'] = (int)($state['cursor_from'] ?? 0);
+            $manifest['cursor_to'] = (int)($state['cursor_to'] ?? 0);
+            $manifest['incr_stats'] = is_array($state['incr_stats'] ?? null) ? $state['incr_stats'] : [];
+            // Schema fingerprint for standby
+            try {
+                $mig = Database::pdo()->query(
+                    'SELECT module_id, migration_id FROM base_schema_migrations ORDER BY module_id, migration_id'
+                )->fetchAll(PDO::FETCH_ASSOC);
+                $manifest['schema_migrations'] = $mig;
+            } catch (Throwable $e) {
+                $manifest['schema_migrations'] = [];
+            }
+        }
+        return $manifest;
     }
 
     /** @param array<string,mixed> $state */

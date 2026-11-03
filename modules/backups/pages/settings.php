@@ -77,6 +77,28 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 ]);
                 return;
             }
+        } elseif ($action === 'cdc_install') {
+            BackupConfig::set('cdc_enabled', '1');
+            $r = BackupCdc::install();
+            $message = t('backups.flash.cdc_install', [
+                'tables' => (string)($r['tables'] ?? 0),
+                'triggers' => (string)($r['triggers'] ?? 0),
+            ]);
+            if (!empty($r['errors'])) {
+                $error = implode('; ', array_slice($r['errors'], 0, 5));
+            }
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => !empty($r['ok']), 'cdc' => $r, 'message' => $message, 'error' => $error]);
+                return;
+            }
+        } elseif ($action === 'cdc_uninstall') {
+            $r = BackupCdc::uninstall();
+            BackupConfig::set('cdc_enabled', '0');
+            $message = t('backups.flash.cdc_uninstall', ['n' => (string)($r['dropped'] ?? 0)]);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => !empty($r['ok']), 'cdc' => $r, 'message' => $message]);
+                return;
+            }
         } else {
             BackupConfig::saveFromPost($_POST);
             $message = t('backups.settings.saved');
@@ -99,6 +121,7 @@ $sources = BackupSources::catalog();
 $staff = UsersRepository::listEnabledStaff();
 $botsEnabled = ModuleManager::isEnabled('bots');
 $recommendedPath = BackupConfig::recommendedFtpBasePath();
+$cdcStatus = BackupCdc::status();
 
 // SUPERADMIN-only page: allow Copy of current passphrase (same idea as agent_token).
 if ($passphrasePlain === '') {
@@ -113,6 +136,8 @@ if ($wantsJson) {
         'sources' => $sources,
         'bots_enabled' => $botsEnabled,
         'recommended_ftp_base' => $recommendedPath,
+        'cdc' => $cdcStatus,
+        'standby_mode' => StandbyMode::mode(),
     ]);
     return;
 }
@@ -132,4 +157,5 @@ View::render('settings', [
     'recommended_ftp_base' => $recommendedPath,
     'passphrasePlain' => $passphrasePlain,
     'passphraseJustGenerated' => $passphraseJustGenerated,
+    'cdc' => $cdcStatus,
 ], 'layout', 'backups');

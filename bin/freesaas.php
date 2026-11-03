@@ -147,7 +147,8 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   bot link-code <login|client:<id>> [--ttl=600] [--format=json]
   bot subscribe --audience=staff|client --platform=telegram|max [--url=https://…] [--format=json]
   assistant eval [--live=0|1] [--format=json]
-  backups check [--format=json]
+  backups check|cdc-status|cdc-install|cdc-uninstall [--format=json]
+  backups standby-status|standby-sync [--format=json]
 TXT;
 }
 
@@ -158,38 +159,66 @@ TXT;
  */
 function freesaas_cmd_backups(string $sub, array $opts): void
 {
-    if ($sub !== 'check') {
-        Cli::usage('Usage: backups check [--format=json]');
+    $allowed = [
+        'check', 'cdc-status', 'cdc-install', 'cdc-uninstall',
+        'standby-status', 'standby-sync',
+    ];
+    if (!in_array($sub, $allowed, true)) {
+        Cli::usage(
+            "Usage:\n  backups check [--format=json]\n"
+            . "  backups cdc-status|cdc-install|cdc-uninstall [--format=json]\n"
+            . '  backups standby-status|standby-sync [--format=json]'
+        );
     }
     if (!ModuleManager::isEnabled('backups')) {
         Cli::fail('module backups is disabled; enable it first (alpha: --accept-risk)', Cli::EXIT_FAIL);
     }
-    if (!class_exists('BackupDoctor', false)) {
-        require_once base_path('modules/backups/lib/BackupDoctor.php');
-        require_once base_path('modules/backups/lib/BackupConfig.php');
-        require_once base_path('modules/backups/lib/BackupRepository.php');
-        require_once base_path('modules/backups/lib/BackupNotify.php');
-        require_once base_path('modules/backups/lib/BackupTarget.php');
-        require_once base_path('modules/backups/lib/BackupFtpTarget.php');
-    }
-    $report = BackupDoctor::run();
-    if (!Cli::isJson()) {
-        $sum = $report['summary'] ?? ['ok' => 0, 'warn' => 0, 'fail' => 0];
-        $head = !empty($report['ok']) ? 'OK' : 'ISSUES';
-        echo $head . ' — ok=' . (int)$sum['ok'] . ' warn=' . (int)$sum['warn'] . ' fail=' . (int)$sum['fail'] . "\n";
-        foreach (($report['checks'] ?? []) as $c) {
-            if (!is_array($c)) {
-                continue;
+    AgentOps::requireBackupLibs();
+    if ($sub === 'check') {
+        $report = BackupDoctor::run();
+        if (!Cli::isJson()) {
+            $sum = $report['summary'] ?? ['ok' => 0, 'warn' => 0, 'fail' => 0];
+            $head = !empty($report['ok']) ? 'OK' : 'ISSUES';
+            echo $head . ' — ok=' . (int)$sum['ok'] . ' warn=' . (int)$sum['warn'] . ' fail=' . (int)$sum['fail'] . "\n";
+            foreach (($report['checks'] ?? []) as $c) {
+                if (!is_array($c)) {
+                    continue;
+                }
+                $st = strtoupper((string)($c['status'] ?? '?'));
+                $line = '[' . $st . '] ' . (string)($c['id'] ?? '') . ' — ' . (string)($c['detail'] ?? '');
+                if ((string)($c['hint'] ?? '') !== '') {
+                    $line .= ' (' . (string)$c['hint'] . ')';
+                }
+                echo $line . "\n";
             }
-            $st = strtoupper((string)($c['status'] ?? '?'));
-            $line = '[' . $st . '] ' . (string)($c['id'] ?? '') . ' — ' . (string)($c['detail'] ?? '');
-            if ((string)($c['hint'] ?? '') !== '') {
-                $line .= ' (' . (string)$c['hint'] . ')';
-            }
-            echo $line . "\n";
         }
+        freesaas_emit_ops(array_merge(['ok' => !empty($report['ok'])], $report));
+        return;
     }
-    freesaas_emit_ops(array_merge(['ok' => !empty($report['ok'])], $report));
+    if ($sub === 'cdc-status') {
+        freesaas_emit_ops(array_merge(['ok' => true], BackupCdc::status()));
+        return;
+    }
+    if ($sub === 'cdc-install') {
+        BackupConfig::set('cdc_enabled', '1');
+        $r = BackupCdc::install();
+        freesaas_emit_ops(array_merge(['ok' => !empty($r['ok'])], $r));
+        return;
+    }
+    if ($sub === 'cdc-uninstall') {
+        $r = BackupCdc::uninstall();
+        BackupConfig::set('cdc_enabled', '0');
+        freesaas_emit_ops(array_merge(['ok' => !empty($r['ok'])], $r));
+        return;
+    }
+    if ($sub === 'standby-status') {
+        freesaas_emit_ops(BackupStandby::status());
+        return;
+    }
+    if ($sub === 'standby-sync') {
+        freesaas_emit_ops(BackupStandby::sync(true));
+        return;
+    }
 }
 
 /**

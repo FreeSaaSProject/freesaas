@@ -11,24 +11,110 @@ final class BackupRepository
     /**
      * @param array<string,mixed> $state
      */
-    public static function start(string $triggeredBy = 'cron'): int
+    public static function start(string $triggeredBy = 'cron', string $kind = 'full'): int
     {
+        $kind = self::normalizeKind($kind);
         $pdo = Database::pdo();
-        $st = $pdo->prepare(
-            'INSERT INTO base_backup_runs (STARTED_AT, FINISHED_AT, STATUS, PHASE, STATE_JSON, BYTES, REMOTE_DIR, ERROR, TRIGGERED_BY)
-             VALUES (?, 0, ?, ?, ?, 0, ?, ?, ?)'
-        );
-        $state = ['phase' => 'init'];
-        $st->execute([
-            time(),
-            'running',
-            'init',
-            json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-            '',
-            '',
-            $triggeredBy,
-        ]);
+        $hasKind = self::hasKindColumn();
+        if ($hasKind) {
+            $st = $pdo->prepare(
+                'INSERT INTO base_backup_runs (STARTED_AT, FINISHED_AT, STATUS, KIND, PHASE, STATE_JSON, BYTES, REMOTE_DIR, ERROR, TRIGGERED_BY)
+                 VALUES (?, 0, ?, ?, ?, ?, 0, ?, ?, ?)'
+            );
+            $state = ['phase' => 'init', 'kind' => $kind];
+            $st->execute([
+                time(),
+                'running',
+                $kind,
+                'init',
+                json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                '',
+                '',
+                $triggeredBy,
+            ]);
+        } else {
+            $st = $pdo->prepare(
+                'INSERT INTO base_backup_runs (STARTED_AT, FINISHED_AT, STATUS, PHASE, STATE_JSON, BYTES, REMOTE_DIR, ERROR, TRIGGERED_BY)
+                 VALUES (?, 0, ?, ?, ?, 0, ?, ?, ?)'
+            );
+            $state = ['phase' => 'init', 'kind' => $kind];
+            $st->execute([
+                time(),
+                'running',
+                'init',
+                json_encode($state, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                '',
+                '',
+                $triggeredBy,
+            ]);
+        }
         return (int)$pdo->lastInsertId();
+    }
+
+    public static function normalizeKind(string $kind): string
+    {
+        $kind = strtolower(trim($kind));
+        if ($kind === 'incr' || $kind === 'light') {
+            return $kind;
+        }
+        return 'full';
+    }
+
+    public static function hasKindColumn(): bool
+    {
+        static $cached = null;
+        if ($cached !== null) {
+            return $cached;
+        }
+        try {
+            $st = Database::pdo()->query("SHOW COLUMNS FROM base_backup_runs LIKE 'KIND'");
+            $cached = $st && $st->fetch() !== false;
+        } catch (Throwable $e) {
+            $cached = false;
+        }
+        return $cached;
+    }
+
+    /** @return array<string,mixed>|null */
+    public static function findLastSuccessKind(string $kind): ?array
+    {
+        if (!self::tableReady()) {
+            return null;
+        }
+        $kind = self::normalizeKind($kind);
+        if (self::hasKindColumn()) {
+            $st = Database::pdo()->prepare(
+                "SELECT * FROM base_backup_runs WHERE STATUS = 'done' AND KIND = ? ORDER BY FINISHED_AT DESC, ID DESC LIMIT 1"
+            );
+            $st->execute([$kind]);
+        } else {
+            $st = Database::pdo()->query(
+                "SELECT * FROM base_backup_runs WHERE STATUS = 'done' ORDER BY FINISHED_AT DESC, ID DESC LIMIT 1"
+            );
+        }
+        $row = $st ? $st->fetch(PDO::FETCH_ASSOC) : false;
+        return is_array($row) ? self::hydrate($row) : null;
+    }
+
+    /** Last successful DB baseline (hard full or nightly light). */
+    public static function findLastSuccessBaseline(): ?array
+    {
+        if (!self::tableReady()) {
+            return null;
+        }
+        if (self::hasKindColumn()) {
+            $st = Database::pdo()->query(
+                "SELECT * FROM base_backup_runs
+                 WHERE STATUS = 'done' AND KIND IN ('full','light')
+                 ORDER BY FINISHED_AT DESC, ID DESC LIMIT 1"
+            );
+        } else {
+            $st = Database::pdo()->query(
+                "SELECT * FROM base_backup_runs WHERE STATUS = 'done' ORDER BY FINISHED_AT DESC, ID DESC LIMIT 1"
+            );
+        }
+        $row = $st ? $st->fetch(PDO::FETCH_ASSOC) : false;
+        return is_array($row) ? self::hydrate($row) : null;
     }
 
     /** @return array<string,mixed>|null */
@@ -161,11 +247,17 @@ final class BackupRepository
                 $state = $decoded;
             }
         }
+        $kind = (string)($row['KIND'] ?? '');
+        if ($kind === '' && is_array($state)) {
+            $kind = (string)($state['kind'] ?? 'full');
+        }
+        $kind = self::normalizeKind($kind);
         return [
             'id' => (int)($row['ID'] ?? 0),
             'started_at' => (int)($row['STARTED_AT'] ?? 0),
             'finished_at' => (int)($row['FINISHED_AT'] ?? 0),
             'status' => (string)($row['STATUS'] ?? ''),
+            'kind' => $kind,
             'phase' => (string)($row['PHASE'] ?? ''),
             'state' => $state,
             'bytes' => (int)($row['BYTES'] ?? 0),

@@ -45,17 +45,79 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     <label><?= te('backups.settings.daily_at') ?>
       <input type="text" name="daily_at" value="<?= e($c('daily_at', '03:30')) ?>" pattern="\d{1,2}:\d{2}" required>
     </label>
-    <label><?= te('backups.settings.keep_remote') ?>
-      <input type="number" name="keep_remote" min="1" max="90" value="<?= e($c('keep_remote', '7')) ?>">
-    </label>
     <label><?= te('backups.settings.keep_local') ?>
       <input type="number" name="keep_local" min="0" max="30" value="<?= e($c('keep_local', '1')) ?>">
     </label>
   </fieldset>
 
   <fieldset>
+    <legend><?= te('backups.settings.sec.light') ?></legend>
+    <p class="muted"><?= te('backups.settings.light_lede') ?></p>
+    <label class="check">
+      <input type="checkbox" name="light_nightly" value="1"<?= $on('light_nightly') || $c('light_nightly', '1') === '1' ? ' checked' : '' ?>>
+      <?= te('backups.settings.light_nightly') ?>
+    </label>
+    <p class="field-help"><?= te('backups.settings.light_nightly_hint') ?></p>
+    <label><?= te('backups.settings.keep_light') ?>
+      <input type="number" name="keep_light" min="1" max="90" value="<?= e($c('keep_light', '7')) ?>">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend><?= te('backups.settings.sec.hard') ?></legend>
+    <p class="muted"><?= te('backups.settings.hard_lede') ?></p>
+    <label class="check">
+      <input type="checkbox" name="hard_enabled" value="1"<?= $on('hard_enabled') ? ' checked' : '' ?>>
+      <?= te('backups.settings.hard_enabled') ?>
+    </label>
+    <p class="field-help"><?= te('backups.settings.hard_enabled_hint') ?></p>
+    <label><?= te('backups.settings.full_every_days') ?>
+      <input type="number" name="full_every_days" min="1" max="30" value="<?= e($c('full_every_days', '7')) ?>">
+    </label>
+    <p class="field-help"><?= te('backups.settings.full_every_days_hint') ?></p>
+    <label><?= te('backups.settings.keep_remote') ?>
+      <input type="number" name="keep_remote" min="1" max="90" value="<?= e($c('keep_remote', '7')) ?>">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend><?= te('backups.settings.sec.cdc') ?></legend>
+    <p class="muted"><?= te('backups.settings.cdc_hint') ?></p>
+    <?php
+    /** @var array<string,mixed> $cdc */
+    $cdc = is_array($cdc ?? null) ? $cdc : [];
+    ?>
+    <p>
+      <?= te('backups.settings.cdc_status', [
+          'triggers' => (string)(int)($cdc['triggers'] ?? 0),
+          'tables' => (string)(int)($cdc['tables'] ?? 0),
+          'rows' => (string)(int)($cdc['journal_rows'] ?? 0),
+      ]) ?>
+    </p>
+    <label class="check">
+      <input type="checkbox" name="cdc_enabled" value="1"<?= $on('cdc_enabled') ? ' checked' : '' ?>>
+      <?= te('backups.settings.cdc_enabled') ?>
+    </label>
+    <label><?= te('backups.settings.incr_every_hours') ?>
+      <input type="number" name="incr_every_hours" min="0" max="168" value="<?= e($c('incr_every_hours', '1')) ?>">
+    </label>
+    <label><?= te('backups.settings.keep_incr') ?>
+      <input type="number" name="keep_incr" min="1" max="168" value="<?= e($c('keep_incr', '48')) ?>">
+    </label>
+    <label><?= te('backups.settings.cdc_exclude') ?>
+      <input type="text" name="cdc_exclude" value="<?= e($c('cdc_exclude')) ?>" autocomplete="off">
+    </label>
+    <p class="field-help"><?= te('backups.settings.cdc_exclude_hint') ?></p>
+    <div class="page-actions">
+      <button class="btn" type="submit" name="action" value="cdc_install"><?= te('backups.settings.cdc_install') ?></button>
+      <button class="btn" type="submit" name="action" value="cdc_uninstall"><?= te('backups.settings.cdc_uninstall') ?></button>
+    </div>
+  </fieldset>
+
+  <fieldset>
     <legend><?= te('backups.settings.sec.sources') ?></legend>
     <p class="muted"><?= te('backups.settings.sources_hint') ?></p>
+    <p class="field-help"><?= te('backups.settings.sources_hard_only') ?></p>
     <label><?= te('backups.settings.db_scope') ?>
       <select name="db_scope">
         <option value="owned"<?= $c('db_scope') === 'owned' ? ' selected' : '' ?>><?= te('backups.settings.db_scope.owned') ?></option>

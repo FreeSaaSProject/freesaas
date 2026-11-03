@@ -169,15 +169,23 @@ final class BackupFtpTarget implements BackupTarget
                 ];
                 continue;
             }
+            $isIncr = (bool)preg_match('/\.incr\.tar(\.enc)?$/i', $name);
+            $isLight = (bool)preg_match('/\.light\.tar(\.enc)?$/i', $name);
             $isTar = (bool)preg_match('/\.tar(\.enc)?$/i', $name);
             if (!$isTar) {
                 continue;
+            }
+            $kind = 'pack';
+            if ($isIncr) {
+                $kind = 'incr';
+            } elseif ($isLight) {
+                $kind = 'light';
             }
             $out[] = [
                 'name' => $name,
                 'path' => $instance . '/' . $name,
                 'has_manifest' => true,
-                'kind' => 'pack',
+                'kind' => $kind,
                 'bytes' => $this->size($instance . '/' . $name),
             ];
         }
@@ -199,17 +207,51 @@ final class BackupFtpTarget implements BackupTarget
         return $out;
     }
 
-    /** Keep newest complete packs; drop .part and older extras (files + legacy dirs). */
+    /** Keep newest hard full packs; drop .part and older extras (files + legacy dirs). Leaves .incr.* / .light.* alone. */
     public function prune(string $instance, int $keep): int
+    {
+        return $this->pruneByKind($instance, $keep, ['pack', 'dir']);
+    }
+
+    /** Keep newest incr packs. */
+    public function pruneIncr(string $instance, int $keep): int
+    {
+        return $this->pruneByKind($instance, $keep, ['incr']);
+    }
+
+    /** Keep newest nightly light packs. */
+    public function pruneLight(string $instance, int $keep): int
+    {
+        return $this->pruneByKind($instance, $keep, ['light']);
+    }
+
+    /**
+     * @param list<string> $kinds
+     */
+    private function pruneByKind(string $instance, int $keep, array $kinds): int
     {
         $keep = max(1, $keep);
         $sets = $this->listSets($instance);
         $complete = [];
         $deleted = 0;
+        $kindSet = array_fill_keys($kinds, true);
         foreach ($sets as $set) {
+            $k = (string)($set['kind'] ?? '');
+            if ($k === 'part') {
+                try {
+                    $this->delete((string)$set['path']);
+                    $deleted++;
+                } catch (Throwable $e) {
+                    // continue
+                }
+                continue;
+            }
+            if (!isset($kindSet[$k])) {
+                continue;
+            }
             if (empty($set['has_manifest'])) {
                 try {
-                    if (($set['kind'] ?? '') === 'dir') {
+                    if ($k === 'dir') {
                         $this->deleteTree((string)$set['path']);
                     } else {
                         $this->delete((string)$set['path']);

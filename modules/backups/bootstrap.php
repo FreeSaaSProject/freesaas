@@ -12,6 +12,8 @@ require_once __DIR__ . '/lib/BackupNotify.php';
 require_once __DIR__ . '/lib/BackupRunner.php';
 require_once __DIR__ . '/lib/BackupRestore.php';
 require_once __DIR__ . '/lib/BackupDoctor.php';
+require_once __DIR__ . '/lib/BackupCdc.php';
+require_once __DIR__ . '/lib/BackupStandby.php';
 require_once __DIR__ . '/lib/BackupAgentOps.php';
 
 $pages = [
@@ -63,6 +65,33 @@ Cron::register('backups.tick', [
     'every' => 1,
     'handler' => static function (): array {
         return BackupRunner::cronTick();
+    },
+]);
+
+Cron::register('backups.cdc_refresh', [
+    'module' => 'backups',
+    'label' => 'backups.cron.cdc_refresh',
+    'daily_at' => '04:15',
+    'handler' => static function (): array {
+        if (!BackupConfig::cdcEnabled()) {
+            return ['ok' => true, 'processed' => 0, 'message' => 'cdc_off'];
+        }
+        $r = BackupCdc::install();
+        return [
+            'ok' => !empty($r['ok']),
+            'processed' => (int)($r['triggers'] ?? 0),
+            'message' => 'tables=' . (int)($r['tables'] ?? 0),
+            'errors' => $r['errors'] ?? [],
+        ];
+    },
+]);
+
+Cron::register('backups.standby_health', [
+    'module' => 'backups',
+    'label' => 'backups.cron.standby_health',
+    'every' => 5,
+    'handler' => static function (): array {
+        return BackupStandby::healthProbe();
     },
 ]);
 
