@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-03T09:21:49+00:00",
+    "generated_at": "2026-11-03T10:28:53+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1404,7 +1404,7 @@
         },
         {
             "id": "payments",
-            "version": "1.0.10",
+            "version": "1.0.12",
             "type": "product",
             "name": {
                 "en": "Settlements",

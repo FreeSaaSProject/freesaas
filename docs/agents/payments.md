@@ -44,12 +44,20 @@ Exclusive ownership in `module.json` → `tables` (uninstall DROP). Alters `base
 
 For staff whose role has `PAY_DAILY=1`:
 
-1. Opening `/payments` (one staff, current month) or the staff bot runs `DayPayroll::syncOperator` — upserts day lines `Начисление ЗП ФЛ {j.m.Y}` from procents day totals (floor + `day_pay_min_pay`).
+1. Opening `/payments` (one staff) or the staff bot runs `DayPayroll::syncOperator` — upserts day lines `Начисление ЗП ФЛ {j.m.Y}` from procents day totals (floor + `day_pay_min_pay`). Window: **current month**, plus **previous month only if that month has no monthly `% …`** (so the 31st is still closed on the 1st for pure PAY_DAILY). Older months never auto-backfill — bulk «Recalculate day accruals» for selected rows.
 2. Monthly `% МЕСЯЦ YYYY` sync is **skipped** for these staff.
 3. Cash request on `/payments` (and optionally bot `shift_salary`): pick issuer shift day (≥ today+2) + issuer; PIN shown in UI; confirm on the same page (issuer role) or bot `day_payroll_issuer`.
 4. Settings: `day_pay_min_pay`, `day_pay_payout_account_id`, `day_pay_issuer_status2`.
 
 Machine DESCR prefixes keep legacy history markers (`Начисление ЗП ФЛ`, `Выдача ФЛ на`).
+
+One-shot cleanup if day lines were backfilled alongside monthly `%`:
+
+```bash
+php bin/data-migrate.php --module=payments --id=purge_day_accruals_with_monthly
+```
+
+Then remove that migrator from `module.json` / `migrators/` after all envs have run it.
 
 ## Agent JSON
 

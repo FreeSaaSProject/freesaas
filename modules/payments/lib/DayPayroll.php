@@ -204,7 +204,9 @@ final class DayPayroll
 
     /**
      * Upsert day accruals for PAY_DAILY staff (oper sync_operator).
-     * Rewrites only the current calendar month; past months need explicit bulk resync.
+     * Current calendar month always; previous month only when there is no monthly
+     * «% МЕСЯЦ YYYY» for that staff (so the 31st is still synced on the 1st).
+     * Older months never auto-backfill — use bulk resync.
      *
      * @return list<string> log lines (empty when skipped)
      */
@@ -304,27 +306,38 @@ final class DayPayroll
         return ['done' => $done, 'skipped' => $skipped];
     }
 
-    /** Caller must already hold a per-user payroll lock (or accept races). */
+    /**
+     * Caller must already hold a per-user payroll lock (or accept races).
+     * Window: current month + previous month only if no monthly % for that prev month
+     * (PAY_DAILY closing day on the 1st). Never auto-backfill older months.
+     */
     private static function syncOperatorUnlocked(int $userId, int $actorId = 0): array
     {
         $log = [];
         $actorId = $actorId > 0 ? $actorId : ($userId > 0 ? $userId : Auth::userId());
         $monthStart = (int)mktime(0, 0, 0, (int)date('n'), 1, (int)date('Y'));
+        $prevMonthStart = (int)mktime(0, 0, 0, (int)date('n') - 1, 1, (int)date('Y'));
         $todayEnd = (int)mktime(23, 59, 59, (int)date('n'), (int)date('j'), (int)date('Y'));
-        $syncFrom = self::dayStart(time()) - 180 * 86400;
+        // On the 1st, still close the previous month's last shift days unless that
+        // month already has staff monthly % (avoid reviving dual-payroll debt).
+        $syncFrom = $monthStart;
+        if (!self::hasMonthlyPercentAccrual($userId, $prevMonthStart)) {
+            $syncFrom = $prevMonthStart;
+        }
         foreach (self::staffShiftDays($userId) as $dayTs) {
             if ($dayTs < $syncFrom || $dayTs > $todayEnd) {
                 continue;
             }
             $sum = self::calcDaySalary($userId, $dayTs, true);
             $existing = self::findAccrual($userId, $dayTs);
-            $inCurrentMonth = $dayTs >= $monthStart;
             $hasWriteoff = self::hasDayWriteoff($userId, $dayTs);
-            $canRewrite = !$hasWriteoff && $inCurrentMonth;
+            if ($hasWriteoff) {
+                continue;
+            }
 
             // Correct zero: clear previous positive accrual (do not skip before lookup).
             if ($sum <= 0) {
-                if ($existing !== null && $canRewrite) {
+                if ($existing !== null) {
                     $oldSum = round((float)$existing['sum'], 2);
                     if ($oldSum >= 0.01) {
                         self::forceDeletePayment((int)$existing['id']);
@@ -335,12 +348,10 @@ final class DayPayroll
             }
 
             if ($existing !== null) {
-                if ($canRewrite) {
-                    $oldSum = round((float)$existing['sum'], 2);
-                    if (abs($oldSum - $sum) >= 0.01) {
-                        self::updateAccrualSum($existing, $userId, $sum);
-                        $log[] = date('j.m.Y', $dayTs) . ': ' . $oldSum . ' → ' . $sum;
-                    }
+                $oldSum = round((float)$existing['sum'], 2);
+                if (abs($oldSum - $sum) >= 0.01) {
+                    self::updateAccrualSum($existing, $userId, $sum);
+                    $log[] = date('j.m.Y', $dayTs) . ': ' . $oldSum . ' → ' . $sum;
                 }
                 continue;
             }
@@ -389,7 +400,62 @@ final class DayPayroll
                 require_once $repoLib;
             }
         }
+        if (!class_exists('ProcentsPaymentSync', false)) {
+            $syncLib = base_path('modules/procents/lib/ProcentsPaymentSync.php');
+            if (is_file($syncLib)) {
+                require_once $syncLib;
+            }
+        }
         return class_exists('ProcentsRepository', false);
+    }
+
+    /** True when staff already has a monthly «% МЕСЯЦ YYYY» accrual in that calendar month. */
+    private static function hasMonthlyPercentAccrual(int $userId, int $monthStartTs): bool
+    {
+        if ($userId < 1 || $monthStartTs < 1 || !Database::tableExists('base_payments')) {
+            return false;
+        }
+        $y = (int)date('Y', $monthStartTs);
+        $m = (int)date('n', $monthStartTs);
+        $monthEnd = (int)mktime(23, 59, 59, $m, (int)date('t', $monthStartTs), $y);
+        if (Database::columnExists('base_payments', 'ACCRUAL_KEY')
+            && class_exists('ProcentsPaymentSync', false)
+        ) {
+            $key = ProcentsPaymentSync::monthAccrualKey($y, $m);
+            $st = Database::pdo()->prepare(
+                'SELECT 1 FROM base_payments
+                 WHERE ID_USER = ? AND ACCRUAL_KEY = ? AND CAST(DIRECTION AS SIGNED) > 0
+                 LIMIT 1'
+            );
+            $st->execute([$userId, $key]);
+            if ($st->fetchColumn()) {
+                return true;
+            }
+        }
+        $descr = class_exists('ProcentsPaymentSync', false)
+            ? ProcentsPaymentSync::monthDescr($y, $m)
+            : '';
+        if ($descr !== '') {
+            $st = Database::pdo()->prepare(
+                'SELECT 1 FROM base_payments
+                 WHERE ID_USER = ? AND DESCR = ? AND CAST(DIRECTION AS SIGNED) > 0
+                   AND DT >= ? AND DT <= ?
+                 LIMIT 1'
+            );
+            $st->execute([$userId, $descr, $monthStartTs, $monthEnd]);
+            if ($st->fetchColumn()) {
+                return true;
+            }
+        }
+        // Fallback: any «% …» credit in that month (legacy spelling variants).
+        $st = Database::pdo()->prepare(
+            "SELECT 1 FROM base_payments
+             WHERE ID_USER = ? AND CAST(DIRECTION AS SIGNED) > 0
+               AND DT >= ? AND DT <= ? AND DESCR LIKE '\\% %'
+             LIMIT 1"
+        );
+        $st->execute([$userId, $monthStartTs, $monthEnd]);
+        return (bool)$st->fetchColumn();
     }
 
     /**

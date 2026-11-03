@@ -147,6 +147,7 @@ return [
     'payments.transfer.err.unavailable' => 'Переводы недоступны: нет колонки ID_USER_TO',
     'payments.transfer.err.edit_locked' => 'Ногу перевода нельзя редактировать — удалите пару',
     'payments.transfer.err.no_dps' => 'У перевода между сотрудниками нет ДПС (ACCOUNT=0)',
+    'payments.migrator.purge_day_accruals_with_monthly' => 'Одноразово: удалить прошлые дневные начисления ФЛ в месяцах, где уже есть месячный % (двойной контур штат/PAY_DAILY). Текущий месяц не трогает.',
     'payments.action.create_dps' => 'Создать ДПС',
     'payments.action.view_dps' => 'Открыть ДПС',
     'payments.err.not_found' => 'Платёж #{id} не найден',

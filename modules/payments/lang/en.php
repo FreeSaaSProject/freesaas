@@ -147,6 +147,7 @@ return [
     'payments.transfer.err.unavailable' => 'Transfers unavailable: ID_USER_TO column missing',
     'payments.transfer.err.edit_locked' => 'Transfer legs cannot be edited — delete the pair',
     'payments.transfer.err.no_dps' => 'Staff transfers have no ledger move (ACCOUNT=0)',
+    'payments.migrator.purge_day_accruals_with_monthly' => 'One-shot: delete past day accruals in months that also have a monthly % line (staff/PAY_DAILY double payroll). Current month untouched.',
     'payments.action.create_dps' => 'Create ledger move',
     'payments.action.view_dps' => 'Open ledger move',
     'payments.err.not_found' => 'Payment #{id} not found',
