@@ -10,6 +10,7 @@ return [
     'bots.perm.message' => 'Боты (писать сотрудникам / в группы)',
     'bots.recipients.title' => 'Получатели мессенджера',
     'bots.recipients.chat.orders' => 'Группа уведомлений заказов',
+    'bots.recipients.chat.vacations' => 'Группа напоминаний об отпусках',
     'bots.message.err.empty' => 'Пустой текст сообщения',
     'bots.message.err.too_long' => 'Текст слишком длинный (макс. 3500)',
     'bots.message.err.target' => 'Укажите user_id (сотрудник), client_id (клиент) или chat_id (группа)',

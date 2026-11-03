@@ -2,13 +2,15 @@
     "id": "vacations",
     "name": "vacations.module.name",
     "description": "vacations.module.description",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0"
     },
     "optionalRequires": {
-        "bi": ">=1.0.0"
+        "bi": ">=1.0.0",
+        "bots": ">=1.0.0",
+        "assistant_groups": ">=0.1.0"
     },
     "provides": [
         "vacations.list"
@@ -32,7 +34,8 @@
         "pages": [
             "/vacations",
             "/vacations/new",
-            "/vacations/{id}/edit"
+            "/vacations/{id}/edit",
+            "/vacations/settings"
         ]
     },
     "agent": {
@@ -92,16 +95,41 @@
                         "id"
                     ]
                 }
+            },
+            {
+                "id": "vacations.settings.get",
+                "method": "GET",
+                "path": "/vacations/settings",
+                "permission": "vacations.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Group remind settings (cfg/modules/vacations.ini)"
+            },
+            {
+                "id": "vacations.settings.save",
+                "method": "POST",
+                "path": "/vacations/settings",
+                "permission": "vacations.edit",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Save remind_* settings; action=test_remind enqueues a test group message"
             }
         ]
     },
-    "jobs": [],
+    "jobs": [
+        "platform Cron::register vacations.upcoming_remind → /cron/tick (daily_at from remind_daily_at)"
+    ],
     "menu": [
         {
             "group": "core.menu.group.team",
             "num": 4,
             "path": "/vacations",
             "title": "vacations.menu.list"
+        },
+        {
+            "group": "core.menu.group.team",
+            "num": 5,
+            "path": "/vacations/settings",
+            "title": "vacations.menu.settings",
+            "kind": "settings"
         }
     ],
     "configSchema": [],
@@ -115,7 +143,9 @@
             "bi.datasets",
             "assistant.write.preview"
         ],
-        "publish": []
+        "publish": [
+            "bots.send"
+        ]
     },
     "bulkActions": [
         {

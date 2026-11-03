@@ -178,6 +178,64 @@ final class VacationsRepository
         return ['items' => $items, 'total' => $total];
     }
 
+    /**
+     * Vacations whose DT_START falls in [fromTs, toTs).
+     *
+     * @param array{types?:list<int>,show_user_only?:bool,limit?:int} $opts
+     * @return list<array<string,mixed>>
+     */
+    public static function listStartingBetween(int $fromTs, int $toTs, array $opts = []): array
+    {
+        if ($fromTs < 1 || $toTs <= $fromTs || !Database::tableExists('base_vacations')) {
+            return [];
+        }
+        $where = ['v.DT_START >= ?', 'v.DT_START < ?'];
+        $params = [$fromTs, $toTs];
+
+        if (!empty($opts['show_user_only'])) {
+            $where[] = 'v.SHOW_USER = 1';
+        }
+        $types = $opts['types'] ?? null;
+        if (is_array($types) && $types !== []) {
+            $clean = [];
+            foreach ($types as $t) {
+                $n = (int)$t;
+                if (in_array($n, [1, 2, 3], true) && !in_array($n, $clean, true)) {
+                    $clean[] = $n;
+                }
+            }
+            if ($clean !== []) {
+                $ph = implode(',', array_fill(0, count($clean), '?'));
+                $where[] = "v.ID_TYPE IN ($ph)";
+                foreach ($clean as $n) {
+                    $params[] = $n;
+                }
+            }
+        }
+
+        $sqlWhere = implode(' AND ', $where);
+        $limit = max(0, min(500, (int)($opts['limit'] ?? 200)));
+        $sql = "SELECT v.ID AS id, v.ID_OPERATOR AS operator_id, v.ID_USER AS user_id,
+                       v.ID_USER_SIGN AS user_sign, v.SIGN_REQ AS sign_req,
+                       v.DT_CREATE AS dt_create, v.DT_START AS dt_start, v.DT_END AS dt_end,
+                       v.DESCR AS descr, v.DAYS_LONG AS days_long,
+                       v.DAYS_PAID_AMOUNT AS days_paid, v.DAYS_UNPAID_AMOUNT AS days_unpaid,
+                       v.ID_TYPE AS id_type, v.DIRECTION AS direction, v.SHOW_USER AS show_user
+                FROM base_vacations v
+                WHERE $sqlWhere
+                ORDER BY v.DT_START ASC, v.ID ASC";
+        if ($limit > 0) {
+            $sql .= ' LIMIT ' . $limit;
+        }
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($params);
+        $items = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $items[] = self::castRow($row);
+        }
+        return $items;
+    }
+
     public static function find(int $id): ?array
     {
         if ($id < 1 || !Database::tableExists('base_vacations')) {

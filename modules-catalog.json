@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-03T10:28:53+00:00",
+    "generated_at": "2026-11-03T13:07:09+00:00",
     "modules": [
         {
             "id": "asr",
@@ -578,7 +578,7 @@
         },
         {
             "id": "bots",
-            "version": "1.0.2",
+            "version": "1.0.3",
             "type": "product",
             "name": {
                 "en": "Messenger bots",
@@ -2057,7 +2057,7 @@
         },
         {
             "id": "vacations",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Vacations",
@@ -2075,7 +2075,9 @@
                 "core": ">=1.0.0"
             },
             "optionalRequires": {
-                "bi": ">=1.0.0"
+                "bi": ">=1.0.0",
+                "bots": ">=1.0.0",
+                "assistant_groups": ">=0.1.0"
             },
             "catalog": {
                 "categories": [

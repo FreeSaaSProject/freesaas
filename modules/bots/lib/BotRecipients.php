@@ -130,7 +130,7 @@ final class BotRecipients
     }
 
     /**
-     * Known outbound group chats (allowlisted assistant_groups + discovered titles + orders notify).
+     * Known outbound group chats (assistant_groups + orders/vacations notify chats).
      *
      * @return list<array{chat_id:string,platform:string,title:string,description?:string,source:string}>
      */
@@ -198,6 +198,14 @@ final class BotRecipients
             $oid = trim((string)OrdersConfig::maxNotifyChatId());
             if ($oid !== '') {
                 $add($oid, 'max', t('bots.recipients.chat.orders'), 'orders');
+            }
+        }
+
+        if (class_exists('VacationsConfig', false) && ModuleManager::isEnabled('vacations')) {
+            $vid = trim((string)VacationsConfig::remindChatId());
+            if ($vid !== '') {
+                $platform = VacationsConfig::remindPlatform();
+                $add($vid, $platform, t('bots.recipients.chat.vacations'), 'vacations');
             }
         }
 

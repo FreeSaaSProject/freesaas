@@ -10,6 +10,7 @@ return [
     'bots.perm.message' => 'Bots (message staff / groups)',
     'bots.recipients.title' => 'Messenger recipients',
     'bots.recipients.chat.orders' => 'Orders notify group',
+    'bots.recipients.chat.vacations' => 'Vacations remind group',
     'bots.message.err.empty' => 'Empty message text',
     'bots.message.err.too_long' => 'Text too long (max 3500)',
     'bots.message.err.target' => 'Pass user_id (staff), client_id (client), or chat_id (group)',

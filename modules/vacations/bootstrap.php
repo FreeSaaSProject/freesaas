@@ -2,9 +2,20 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/lib/VacationsRepository.php';
+require_once __DIR__ . '/lib/VacationsConfig.php';
+require_once __DIR__ . '/lib/VacationsGroupNotify.php';
 require_once __DIR__ . '/lib/VacationsBiContrib.php';
 
 EventBus::on('bi.datasets', [VacationsBiContrib::class, 'onDatasets']);
+
+Cron::register('vacations.upcoming_remind', [
+    'module' => 'vacations',
+    'label' => 'vacations.cron.upcoming_remind',
+    'daily_at' => VacationsConfig::remindDailyAt(),
+    'handler' => static function (): array {
+        return VacationsGroupNotify::cronRun();
+    },
+]);
 
 EventBus::on('assistant.write.preview', static function ($payload) {
     if (!is_array($payload)) {
@@ -48,18 +59,28 @@ $pages = [
     '/vacations' => ['permission' => 'vacations.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/vacations/new' => ['permission' => 'vacations.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/vacations/{id}/edit' => ['permission' => 'vacations.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
+    '/vacations/settings' => [
+        'permission' => 'vacations.edit',
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'settings.php',
+    ],
 ];
 
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
-    ModuleManager::registerRoute($path, [
+    $route = [
         'module' => 'vacations',
         'methods' => $def['methods'],
         'permission' => $def['permission'],
         'handler' => static function () use ($file): void {
             require base_path('modules/vacations/pages/' . $file);
         },
-    ]);
+    ];
+    if (!empty($def['capability'])) {
+        $route['capability'] = (string)$def['capability'];
+    }
+    ModuleManager::registerRoute($path, $route);
 }
 
 BulkActions::register('vacations', 'delete', [
