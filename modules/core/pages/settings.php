@@ -74,8 +74,25 @@ $timezone = (string)Config::get('app', 'timezone', 'UTC');
 if ($timezone === '') {
     $timezone = 'UTC';
 }
+$baseUrl = rtrim(trim((string)Config::get('app', 'base_url', '')), '/');
 $currency = I18n::currencyCode();
 $currencyChoices = I18n::currencyChoices();
+
+/** Normalize/validate optional public origin (https://host). Empty allowed. */
+$coreNormalizeBaseUrl = static function (string $raw): string {
+    $url = rtrim(trim($raw), '/');
+    if ($url === '') {
+        return '';
+    }
+    if (!preg_match('#^https?://#i', $url)) {
+        throw new RuntimeException(t('core.settings.base_url.invalid'));
+    }
+    $parts = parse_url($url);
+    if (!is_array($parts) || empty($parts['host'])) {
+        throw new RuntimeException(t('core.settings.base_url.invalid'));
+    }
+    return $url;
+};
 
 if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     $raw = file_get_contents('php://input');
@@ -132,6 +149,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 }
                 Config::set('app', 'currency', $cur);
                 $currency = $cur;
+            }
+
+            if (!$wantsJson || array_key_exists('base_url', $_POST)) {
+                $baseUrl = $coreNormalizeBaseUrl((string)($_POST['base_url'] ?? ''));
+                Config::set('app', 'base_url', $baseUrl);
             }
 
             // HTML always posts company; JSON may omit to keep current.
@@ -203,6 +225,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'message' => $message,
                     'company' => (string)($row['company'] ?? ''),
                     'timezone' => $timezone,
+                    'base_url' => $baseUrl,
                     'currency' => $currency,
                     'currency_symbol' => I18n::currencySymbol($currency),
                     'agent_allow_delete' => AgentHttp::allowsDelete(),
@@ -220,6 +243,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         $agentTokenJustGenerated = false;
         $row = SystemRepository::basics();
         $timezone = (string)Config::get('app', 'timezone', 'UTC');
+        $baseUrl = rtrim(trim((string)Config::get('app', 'base_url', '')), '/');
         $currency = I18n::currencyCode();
         if ($wantsJson) {
             AgentHttp::error($error, 400);
@@ -233,6 +257,7 @@ if ($wantsJson && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET') {
         'action' => 'status',
         'company' => (string)($row['company'] ?? ''),
         'timezone' => $timezone,
+        'base_url' => $baseUrl,
         'currency' => $currency,
         'currency_symbol' => I18n::currencySymbol($currency),
         'currencies' => $currencyChoices,
@@ -303,6 +328,7 @@ View::render('settings', [
     'agentHtml' => $agentHtml,
     'timezone' => $timezone,
     'timezoneOptions' => $coreTimezoneOptions($timezone),
+    'baseUrl' => $baseUrl,
     'currency' => $currency,
     'currencyChoices' => $currencyChoices,
     'agentTokenConfigured' => $agentConfigured,

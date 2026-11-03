@@ -71,11 +71,15 @@ final class BackupNotify
         if (!BackupConfig::notifyOnFail()) {
             return;
         }
+        $stats = self::runStats($run);
         self::sendBots(
             t('backups.notify.fail', [
                 'id' => (string)($run['id'] ?? ''),
+                'kind' => $stats['kind'],
                 'error' => mb_substr((string)($run['error'] ?? ''), 0, 200),
                 'phase' => (string)($run['phase'] ?? ''),
+                'duration' => $stats['duration'],
+                'bytes' => $stats['bytes'],
             ]),
             'backups.fail.' . (int)($run['id'] ?? 0)
         );
@@ -86,14 +90,60 @@ final class BackupNotify
         if (!BackupConfig::notifyOnSuccess()) {
             return;
         }
+        $stats = self::runStats($run);
         self::sendBots(
             t('backups.notify.success', [
                 'id' => (string)($run['id'] ?? ''),
-                'bytes' => self::formatBytes((int)($run['bytes'] ?? 0)),
+                'kind' => $stats['kind'],
+                'bytes' => $stats['bytes'],
+                'duration' => $stats['duration'],
                 'remote' => (string)($run['remote_dir'] ?? ''),
             ]),
             'backups.ok.' . (int)($run['id'] ?? 0)
         );
+    }
+
+    /**
+     * @param array<string,mixed> $run
+     * @return array{kind:string,bytes:string,duration:string,duration_sec:int}
+     */
+    private static function runStats(array $run): array
+    {
+        $kind = (string)($run['kind'] ?? '');
+        if ($kind === '' && is_array($run['state'] ?? null)) {
+            $kind = (string)(($run['state']['kind'] ?? '') ?: 'full');
+        }
+        if ($kind === '') {
+            $kind = 'full';
+        }
+        $started = (int)($run['started_at'] ?? 0);
+        $finished = (int)($run['finished_at'] ?? 0);
+        if ($finished < 1) {
+            $finished = time();
+        }
+        $sec = $started > 0 ? max(0, $finished - $started) : 0;
+        return [
+            'kind' => $kind,
+            'bytes' => self::formatBytes((int)($run['bytes'] ?? 0)),
+            'duration' => self::formatDuration($sec),
+            'duration_sec' => $sec,
+        ];
+    }
+
+    public static function formatDuration(int $seconds): string
+    {
+        $seconds = max(0, $seconds);
+        if ($seconds < 60) {
+            return $seconds . 's';
+        }
+        $m = intdiv($seconds, 60);
+        $s = $seconds % 60;
+        if ($m < 60) {
+            return $s > 0 ? ($m . 'm ' . $s . 's') : ($m . 'm');
+        }
+        $h = intdiv($m, 60);
+        $m = $m % 60;
+        return $m > 0 ? ($h . 'h ' . $m . 'm') : ($h . 'h');
     }
 
     public static function checkStale(): void

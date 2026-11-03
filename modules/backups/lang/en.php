@@ -80,7 +80,7 @@ return [
     'backups.settings.sources_hard_only' => 'Leave video/audio/uploads unchecked unless you really need them off-site.',
     'backups.settings.sec.ftp' => 'FTP target',
     'backups.settings.instance' => 'Instance folder name',
-    'backups.settings.instance_hint' => 'Remote path: {base}/{instance}/{stamp}/. Empty = host from base_url.',
+    'backups.settings.instance_hint' => 'Remote path: {base}/{instance}/{stamp}/. Empty = host from Settings → Public URL (base_url).',
     'backups.settings.ftp_host' => 'Host',
     'backups.settings.ftp_port' => 'Port',
     'backups.settings.ftp_user' => 'User',
@@ -140,8 +140,8 @@ return [
     'backups.notice.stale_title' => 'Backup overdue',
     'backups.notice.stale_short' => 'No successful backup for {hours}h+',
 
-    'backups.notify.fail' => "[backups] Run #{id} failed at {phase}: {error}",
-    'backups.notify.success' => '[backups] Run #{id} OK ({bytes}) → {remote}',
+    'backups.notify.fail' => '[backups] #{id} {kind} failed at {phase} after {duration}, pack {bytes}: {error}',
+    'backups.notify.success' => '[backups] #{id} {kind} OK · {bytes} · {duration} → {remote}',
     'backups.notify.stale' => '[backups] No successful backup for {hours}+ hours',
     'backups.notify.test' => '[backups] Test notification at {at}',
 

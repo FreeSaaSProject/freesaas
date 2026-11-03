@@ -90,6 +90,18 @@ final class PriceListPrinter
             $cols = 2;
         }
 
+        // Default: hide descriptions (denser sheet). Form sends hide_descr=0|1 explicitly.
+        $hideDescr = array_key_exists('hide_descr', $get)
+            ? !empty($get['hide_descr'])
+            : true;
+
+        // Font scale percent 50..200 (100 = default). Absent → 0 = auto-fit in print mode.
+        $scaleExplicit = array_key_exists('scale', $get) && (string)$get['scale'] !== '';
+        $scalePct = $scaleExplicit ? (int)$get['scale'] : 0;
+        if ($scaleExplicit) {
+            $scalePct = max(50, min(200, $scalePct));
+        }
+
         return [
             'title' => $title !== '' ? mb_substr($title, 0, 200) : t('catalog.prices.default_title'),
             'roots' => $roots,
@@ -97,10 +109,12 @@ final class PriceListPrinter
             'kind' => $kind,
             'main_col' => $main,
             'strike_col' => $strike,
-            'hide_descr' => !empty($get['hide_descr']),
+            'hide_descr' => $hideDescr,
             'show_discount' => !empty($get['show_discount']),
             'cols' => $cols,
             'print_mode' => !empty($get['print']),
+            'scale' => $scalePct > 0 ? $scalePct : 100,
+            'scale_auto' => !$scaleExplicit,
             'hidden' => self::parseIdList((string)($get['hidden'] ?? '')),
             'num_left_max' => max(0, (int)($get['num_left_max'] ?? 50)),
             'num_right_min' => max(0, (int)($get['num_right_min'] ?? 51)),
@@ -259,11 +273,13 @@ final class PriceListPrinter
             'strike' => (string)($merged['strike_col'] ?? 'none'),
             'cols' => (int)($merged['cols'] ?? 2),
         ];
-        if (!empty($merged['hide_descr'])) {
-            $params['hide_descr'] = 1;
-        }
+        $params['hide_descr'] = !empty($merged['hide_descr']) ? 1 : 0;
         if (!empty($merged['show_discount'])) {
             $params['show_discount'] = 1;
+        }
+        // Persist scale only when user set it (or after autofit wrote it).
+        if (empty($merged['scale_auto']) && isset($merged['scale'])) {
+            $params['scale'] = max(50, min(200, (int)$merged['scale']));
         }
         if (!empty($merged['print_mode']) || !empty($merged['print'])) {
             $params['print'] = 1;
@@ -603,9 +619,12 @@ final class PriceListPrinter
         if ($products === []) {
             return null;
         }
+        $leaf = isset($cats[$catId]) ? (string)$cats[$catId]['name'] : '';
+        $path = self::categoryPath($catId, $cats);
         return [
             'category_id' => $catId,
-            'category_name' => self::categoryPath($catId, $cats),
+            'category_name' => $leaf !== '' ? $leaf : $path,
+            'category_path' => $path,
             'has_strike' => $hasStrike,
             'products' => $products,
         ];

@@ -572,7 +572,7 @@ final class BackupDoctor
                 'app.base_url',
                 'warn',
                 'app.base_url empty',
-                'Set app.base_url for absolute links and instance naming fallback.'
+                'Set Settings → Public URL (app.base_url), e.g. https://your-host'
             );
         } else {
             self::add($checks, 'app.base_url', 'ok', $baseUrl);

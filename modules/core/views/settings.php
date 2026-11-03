@@ -9,6 +9,7 @@ declare(strict_types=1);
 /** @var string $agentHtml */
 /** @var string $timezone */
 /** @var list<array{id:string,label:string,group?:string}> $timezoneOptions */
+/** @var string $baseUrl */
 /** @var string $currency */
 /** @var list<string> $currencyChoices */
 /** @var bool $agentTokenConfigured */
@@ -30,6 +31,7 @@ $extraHtml = (string)($extraHtml ?? '');
 $agentHtml = (string)($agentHtml ?? '');
 $timezone = (string)($timezone ?? 'UTC');
 $timezoneOptions = is_array($timezoneOptions ?? null) ? $timezoneOptions : [];
+$baseUrl = (string)($baseUrl ?? '');
 $currency = (string)($currency ?? I18n::currencyCode());
 $currencyChoices = is_array($currencyChoices ?? null) ? $currencyChoices : I18n::currencyChoices();
 $agentTokenConfigured = !empty($agentTokenConfigured);
@@ -104,6 +106,12 @@ foreach ($timezoneOptions as $opt) {
       <?php endforeach; ?>
     </select>
     <span class="field-hint muted"><?= te('core.settings.field_currency_hint') ?></span>
+  </label>
+
+  <label><?= te('core.settings.field_base_url') ?>
+    <input name="base_url" type="url" value="<?= e($baseUrl) ?>"
+           placeholder="https://admin.example.com" autocomplete="off" spellcheck="false">
+    <span class="field-hint muted"><?= te('core.settings.field_base_url_hint') ?></span>
   </label>
 
   <fieldset class="form-fieldset logo-fieldset">

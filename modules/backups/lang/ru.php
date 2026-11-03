@@ -80,7 +80,7 @@ return [
     'backups.settings.sources_hard_only' => 'Видео/аудио/uploads лучше не отмечать, если они не нужны на FTP.',
     'backups.settings.sec.ftp' => 'FTP',
     'backups.settings.instance' => 'Имя папки инстанса',
-    'backups.settings.instance_hint' => 'Путь: {base}/{instance}/{stamp}/. Пусто = хост из base_url.',
+    'backups.settings.instance_hint' => 'Путь: {base}/{instance}/{stamp}/. Пусто = хост из Настройки → Публичный URL (base_url).',
     'backups.settings.ftp_host' => 'Хост',
     'backups.settings.ftp_port' => 'Порт',
     'backups.settings.ftp_user' => 'Пользователь',
@@ -140,8 +140,8 @@ return [
     'backups.notice.stale_title' => 'Копия просрочена',
     'backups.notice.stale_short' => 'Нет успешной копии {hours}ч+',
 
-    'backups.notify.fail' => '[backups] Запуск #{id} ошибка на {phase}: {error}',
-    'backups.notify.success' => '[backups] Запуск #{id} OK ({bytes}) → {remote}',
+    'backups.notify.fail' => '[backups] #{id} {kind} ошибка на {phase} за {duration}, pack {bytes}: {error}',
+    'backups.notify.success' => '[backups] #{id} {kind} OK · {bytes} · {duration} → {remote}',
     'backups.notify.stale' => '[backups] Нет успешной копии {hours}+ часов',
     'backups.notify.test' => '[backups] Тест уведомления {at}',
 

@@ -1,35 +1,42 @@
 <?php
 declare(strict_types=1);
 /** @var array<string,mixed> $opts */
-/** @var array{left:list<array<string,mixed>>,right:list<array<string,mixed>>,product_count:int} $data */
+/** @var array{left:list<array<string,mixed>>,right:list<array<string,mixed>>,product_count:int} $price_list */
 /** @var list<array{id:int,label:string,title:string,roots:list<int>,href:string}> $presets */
 /** @var array<int,string> $root_choices */
 /** @var string $query_string */
 /** @var string $print_query_string */
 /** @var bool $procedures */
 $opts = is_array($opts ?? null) ? $opts : [];
-$data = is_array($data ?? null) ? $data : ['left' => [], 'right' => [], 'product_count' => 0];
+$priceList = is_array($price_list ?? null) ? $price_list : ['left' => [], 'right' => [], 'product_count' => 0];
 $presets = is_array($presets ?? null) ? $presets : [];
 $rootChoices = is_array($root_choices ?? null) ? $root_choices : [];
 $printMode = !empty($opts['print_mode']);
 $cols = (int)($opts['cols'] ?? 2);
 $hideDescr = !empty($opts['hide_descr']);
+$scalePct = max(50, min(200, (int)($opts['scale'] ?? 100)));
+$scaleAuto = !empty($opts['scale_auto']);
 $selectedRoots = array_fill_keys(array_map('intval', $opts['roots'] ?? []), true);
+$productCount = (int)($priceList['product_count'] ?? 0);
+$leftSections = is_array($priceList['left'] ?? null) ? $priceList['left'] : [];
+$rightSections = is_array($priceList['right'] ?? null) ? $priceList['right'] : [];
+$scaleFactor = round($scalePct / 100, 3);
 
 $renderSection = static function (array $sec) use ($hideDescr, $printMode): void {
     $hasStrike = !empty($sec['has_strike']);
     $products = is_array($sec['products'] ?? null) ? $sec['products'] : [];
+    $catLabel = (string)($sec['category_name'] ?? '');
+    $catPath = (string)($sec['category_path'] ?? $catLabel);
     ?>
     <table class="price-list-table">
       <thead>
         <tr>
-          <th class="price-list-cat" colspan="<?= $hasStrike ? 3 : 2 ?>"><?= e(mb_strtoupper((string)($sec['category_name'] ?? ''))) ?></th>
-        </tr>
-        <tr>
-          <th class="price-list-h-name"><?= te('catalog.prices.col.name') ?></th>
-          <th class="price-list-h-price"><?= te('catalog.prices.col.price') ?></th>
+          <th class="price-list-cat" title="<?= e($catPath) ?>"><?= e(mb_strtoupper($catLabel)) ?></th>
           <?php if ($hasStrike): ?>
+            <th class="price-list-h-price"><?= te('catalog.prices.col.price') ?></th>
             <th class="price-list-h-sale"><?= te('catalog.prices.col.sale') ?></th>
+          <?php else: ?>
+            <th class="price-list-h-price"><?= te('catalog.prices.col.price') ?></th>
           <?php endif; ?>
         </tr>
       </thead>
@@ -43,27 +50,24 @@ $renderSection = static function (array $sec) use ($hideDescr, $printMode): void
           ?>
           <tr class="price-list-row<?= $alt ? ' price-list-row--alt' : '' ?>" data-good-id="<?= $pid ?>">
             <td class="price-list-name">
-              <b><?= e((string)($p['label'] ?? '')) ?></b>
+              <span class="price-list-label"><?= e((string)($p['label'] ?? '')) ?></span>
               <?php if (!$printMode): ?>
                 <button type="button" class="price-list-hide-btn no-print" data-good-id="<?= $pid ?>"><?= te('catalog.prices.hide_item') ?></button>
               <?php endif; ?>
               <?php if (!$hideDescr && trim((string)($p['description'] ?? '')) !== ''): ?>
-                <br><i class="price-list-desc"><?= e((string)$p['description']) ?></i>
+                <div class="price-list-desc"><?= e((string)$p['description']) ?></div>
               <?php endif; ?>
             </td>
             <?php if ($strike !== null && $main !== null): ?>
               <td class="price-list-strike">
-                <span class="price-list-strike-wrap"><?= e((string)(int)$strike) ?>
-                  <?php if ((int)($p['discount_pct'] ?? 0) > 0): ?>
-                    <small class="price-list-pct">−<?= (int)$p['discount_pct'] ?>%</small>
-                  <?php endif; ?>
-                </span>
+                <span class="price-list-strike-wrap"><?= e((string)(int)$strike) ?></span>
+                <?php if ((int)($p['discount_pct'] ?? 0) > 0): ?>
+                  <small class="price-list-pct">−<?= (int)$p['discount_pct'] ?>%</small>
+                <?php endif; ?>
               </td>
-              <td class="price-list-main"><b><?= e((string)(int)$main) ?></b></td>
+              <td class="price-list-main"><?= e((string)(int)$main) ?></td>
             <?php else: ?>
-              <td class="price-list-main"<?= $hasStrike ? ' colspan="2"' : '' ?>>
-                <b><?= $main !== null ? e((string)(int)$main) : '—' ?></b>
-              </td>
+              <td class="price-list-main"<?= $hasStrike ? ' colspan="2"' : '' ?>><?= $main !== null ? e((string)(int)$main) : '—' ?></td>
             <?php endif; ?>
           </tr>
         <?php endforeach; ?>
@@ -76,10 +80,9 @@ $renderSection = static function (array $sec) use ($hideDescr, $printMode): void
 <?php if (!$printMode): ?>
 <section class="page-head no-print">
   <h1><?= te('catalog.prices.title') ?></h1>
-  <p class="muted"><?= te('catalog.prices.lede', ['n' => (int)$data['product_count']]) ?></p>
+  <p class="muted"><?= te('catalog.prices.lede', ['n' => $productCount]) ?></p>
   <div class="page-actions">
     <a class="btn-primary" href="/catalog/prices/print?<?= e($print_query_string) ?>"><?= te('catalog.prices.print_mode') ?></a>
-    <button type="button" class="btn-secondary" onclick="window.print()"><?= te('catalog.prices.print_now') ?></button>
   </div>
 </section>
 
@@ -141,6 +144,7 @@ $renderSection = static function (array $sec) use ($hideDescr, $printMode): void
         <?php endforeach; ?>
       </select>
     </label>
+    <input type="hidden" name="hide_descr" value="0">
     <label class="check"><input type="checkbox" name="hide_descr" value="1"<?= $hideDescr ? ' checked' : '' ?>> <?= te('catalog.prices.hide_descr') ?></label>
     <label class="check"><input type="checkbox" name="show_discount" value="1"<?= !empty($opts['show_discount']) ? ' checked' : '' ?>> <?= te('catalog.prices.show_discount') ?></label>
     <fieldset class="price-list-orient">
@@ -148,6 +152,10 @@ $renderSection = static function (array $sec) use ($hideDescr, $printMode): void
       <label class="check"><input type="radio" name="cols" value="1"<?= $cols === 1 ? ' checked' : '' ?>> <?= te('catalog.prices.orient_portrait') ?></label>
       <label class="check"><input type="radio" name="cols" value="2"<?= $cols === 2 ? ' checked' : '' ?>> <?= te('catalog.prices.orient_landscape') ?></label>
     </fieldset>
+    <label><?= te('catalog.prices.scale') ?>
+      <input type="number" name="scale" min="50" max="200" step="5" value="<?= $scaleAuto ? '' : (int)$scalePct ?>" placeholder="auto">
+      <span class="muted"><?= te('catalog.prices.scale_hint') ?></span>
+    </label>
     <?php if (($opts['hidden'] ?? []) !== []): ?>
       <input type="hidden" name="hidden" value="<?= e(implode(',', array_map('intval', $opts['hidden']))) ?>">
       <p class="muted"><?= te('catalog.prices.hidden_n', ['n' => count($opts['hidden'])]) ?>
@@ -160,11 +168,15 @@ $renderSection = static function (array $sec) use ($hideDescr, $printMode): void
   </fieldset>
 </form>
 <?php else: ?>
-<section class="page-head no-print">
+<section class="page-head no-print price-list-print-toolbar">
   <p class="muted"><?= te('catalog.prices.print_mode_hint') ?></p>
-  <div class="page-actions">
+  <div class="page-actions price-list-scale-bar" data-price-scale-bar>
+    <button type="button" class="btn-secondary" data-price-scale-delta="-5" title="<?= te('catalog.prices.scale_down') ?>">−</button>
+    <span class="price-list-scale-label" data-price-scale-label><?= (int)$scalePct ?>%</span>
+    <button type="button" class="btn-secondary" data-price-scale-delta="5" title="<?= te('catalog.prices.scale_up') ?>">+</button>
+    <button type="button" class="btn-secondary" data-price-scale-autofit><?= te('catalog.prices.scale_autofit') ?></button>
     <button type="button" class="btn-primary" onclick="window.print()"><?= te('catalog.prices.print_now') ?></button>
-    <a class="btn-secondary" href="/catalog/prices/print?<?= e(PriceListPrinter::queryString($opts, ['print_mode' => false])) ?>"><?= te('catalog.prices.exit_print') ?></a>
+    <a class="btn-secondary" href="/catalog/prices/print?<?= e(PriceListPrinter::queryString($opts, ['print_mode' => false, 'scale_auto' => true])) ?>"><?= te('catalog.prices.exit_print') ?></a>
   </div>
 </section>
 <?php endif; ?>
@@ -172,30 +184,39 @@ $renderSection = static function (array $sec) use ($hideDescr, $printMode): void
 <div class="price-list-sheet<?= $cols === 1 ? ' price-list-sheet--portrait' : ' price-list-sheet--landscape' ?><?= $printMode ? ' price-list-sheet--print' : '' ?>"
      data-price-list
      data-hidden="<?= e(implode(',', array_map('intval', $opts['hidden'] ?? []))) ?>"
-     data-base-qs="<?= e($query_string) ?>">
+     data-base-qs="<?= e($query_string) ?>"
+     data-scale="<?= (int)$scalePct ?>"
+     data-scale-auto="<?= $scaleAuto ? '1' : '0' ?>"
+     data-landscape="<?= $cols === 2 ? '1' : '0' ?>"
+     style="--pl-scale: <?= e((string)$scaleFactor) ?>">
   <header class="price-list-heading">
     <h1 class="price-list-brand"><?= e((string)($opts['title'] ?? '')) ?></h1>
-    <p class="price-list-subtitle"><?= te('catalog.prices.sheet_subtitle') ?></p>
   </header>
 
-  <?php if ((int)$data['product_count'] < 1): ?>
+  <?php if ($productCount < 1): ?>
     <p class="muted"><?= te('catalog.prices.empty') ?></p>
   <?php elseif ($cols === 2): ?>
-    <div class="price-list-columns">
-      <div class="price-list-col price-list-col--left">
-        <?php foreach ($data['left'] as $sec): ?>
+    <?php
+      $leftEmpty = $leftSections === [];
+      $rightEmpty = $rightSections === [];
+      $singleSide = ($leftEmpty && !$rightEmpty) || (!$leftEmpty && $rightEmpty);
+    ?>
+    <div class="price-list-columns<?= $singleSide ? ' is-single-side' : '' ?>">
+      <div class="price-list-col price-list-col--left<?= $leftEmpty ? ' price-list-col--empty' : '' ?>">
+        <?php foreach ($leftSections as $sec): ?>
           <?php $renderSection($sec); ?>
         <?php endforeach; ?>
       </div>
-      <div class="price-list-col price-list-col--right">
-        <?php foreach ($data['right'] as $sec): ?>
+      <div class="price-list-col price-list-col--right<?= $rightEmpty ? ' price-list-col--empty' : '' ?>">
+        <?php foreach ($rightSections as $sec): ?>
           <?php $renderSection($sec); ?>
         <?php endforeach; ?>
       </div>
     </div>
   <?php else: ?>
-    <div class="price-list-col price-list-col--single">
-      <?php foreach (array_merge($data['left'], $data['right']) as $sec): ?>
+    <?php /* Portrait: CSS multi-column pack (oper kolonka) — fills one A4. */ ?>
+    <div class="price-list-flow">
+      <?php foreach (array_merge($leftSections, $rightSections) as $sec): ?>
         <?php $renderSection($sec); ?>
       <?php endforeach; ?>
     </div>
