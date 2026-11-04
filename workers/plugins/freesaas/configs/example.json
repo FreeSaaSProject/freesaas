@@ -6,10 +6,13 @@
   "cron_tick_every_sec": 300,
   "doctor_every_sec": 3600,
   "health_probe": true,
+  "heal_stack": true,
+  "heal_stack_every_sec": 300,
   "standby_sync": true,
   "cron_tick": true,
   "supervise_compose": false,
   "compose_file": "docker-compose.yml",
   "compose_up_cmd": ["docker", "compose", "up", "-d"],
-  "comment": "Empty freesaas_root = git repo root (parent of workers/). Opt-in: add \"freesaas\" to host.local.json enabled_plugins. Passphrase/FTP stay in cfg/modules/backups.ini on the local instance — plugin only runs php bin/freesaas.php."
+  "comment": "Empty freesaas_root = git repo root (parent of workers/). Opt-in: add \"freesaas\" to host.local.json enabled_plugins. Passphrase/FTP stay in cfg/modules/backups.ini — plugin only runs php bin/freesaas.php. heal_stack runs scripts/start_freesaas_stack.ps1 (or var/ override) when /health fails on Windows."
 }
+

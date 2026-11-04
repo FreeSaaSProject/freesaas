@@ -361,6 +361,10 @@ UI binds **127.0.0.1:8766** and rejects non-loopback clients (403). Open in a br
 
 Do **not** rely on `dashboard` started over SSH/WinRM or from a visible `cmd` window: closing that window (or the remote session) kills the process. Prefer `autostart on` (or `schtasks /Run /TN FreeSaaSWorkers` once).
 
+**Windows web stack (php-cgi + Caddy):** template [`workers/plugins/freesaas/scripts/start_freesaas_stack.ps1`](../../workers/plugins/freesaas/scripts/start_freesaas_stack.ps1) (optional copy → `var/start_freesaas_stack.ps1` for path tweaks). Register tasks once: `powershell -File workers/plugins/freesaas/scripts/register_stack_watchdog.ps1` → **FreeSaaSStack** (logon) + **FreeSaaSStackWatchdog** (every 5 min). Plugin `freesaas` also runs that script when `/health` fails (`heal_stack`, default on; rate-limit `heal_stack_every_sec`). Start php-cgi via `Win32_Process.Create` — not a long-lived `cmd` that `taskkill`s php-cgi/caddy (those wrappers leave the stack dead after the session ends).
+
+**Windows `update check/apply` SSL:** if check fails with `unable to get local issuer certificate`, set `curl.cainfo` / `openssl.cafile` in `php.ini` to a CA bundle (e.g. [cacert.pem](https://curl.se/ca/cacert.pem) under `C:\php\extras\ssl\`). After apply, if many `conflicts` (light restore / local patches), `php bin/freesaas.php update resolve --take=ours --all` takes upstream.
+
 Dashboard actions: Sync now, Doctor, Cron tick, Update (confirm), Promote active / Demote passive (confirm → edits `cfg/config.ini`). Autostart checkbox copy is OS-specific (macOS LaunchAgent vs Windows Task Scheduler).
 
 Insurance without the plugin: PHP cron `backups.standby_sync` every 15 min on standby hosts (see [standby.md](standby.md)).

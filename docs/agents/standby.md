@@ -59,6 +59,8 @@ cp workers/plugins/freesaas/configs/example.json workers/plugins/freesaas/config
 
 With `standby=passive` and `standby_probe_url=https://primary/health`, cron `backups.standby_health` every 5 min notifies via `bots.send` when primary flips from OK to fail (needs bots module + notify settings on standby).
 
+**Local UI 502 on Windows** usually means php-cgi died while Caddy stayed up — not a wiped DB. `standby-sync` via CLI still works. Fix: `schtasks /Run /TN FreeSaaSStack` (or Watchdog every 5 min); plugin `freesaas` auto-heals (`heal_stack`) via `var/start_freesaas_stack.ps1` or the shipped `workers/plugins/freesaas/scripts/start_freesaas_stack.ps1`. See [workers.md](workers.md) § Windows web stack.
+
 ## Cron on standby
 
 | Job | Every | Mode |

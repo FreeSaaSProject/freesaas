@@ -162,6 +162,55 @@ def maybe_compose_up(cfg: Dict[str, Any], root: Path) -> Optional[str]:
         return f"compose failed: {e}"
 
 
+def resolve_stack_ensure_cmd(cfg: Dict[str, Any], root: Path) -> Optional[List[str]]:
+    """Command that brings php-cgi/caddy (or compose) back when /health is down."""
+    raw = cfg.get("stack_ensure_cmd")
+    if isinstance(raw, list) and raw:
+        return [str(x) for x in raw]
+    if isinstance(raw, str) and raw.strip():
+        return [raw.strip()]
+    # Prefer instance override (var/ is gitignored); else shipped template under this plugin.
+    candidates = [
+        root / "var" / "start_freesaas_stack.ps1",
+        PLUGIN_ROOT / "scripts" / "start_freesaas_stack.ps1",
+    ]
+    for script in candidates:
+        if script.is_file():
+            return [
+                "powershell.exe",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-WindowStyle",
+                "Hidden",
+                "-File",
+                str(script),
+            ]
+    return None
+
+
+def maybe_heal_stack(cfg: Dict[str, Any], root: Path) -> Optional[str]:
+    """Run stack ensure once when local /health fails (php-cgi died, etc.)."""
+    if cfg.get("heal_stack", True) is False:
+        return None
+    cmd = resolve_stack_ensure_cmd(cfg, root)
+    if not cmd:
+        return None
+    try:
+        p = subprocess.run(
+            cmd,
+            cwd=str(root),
+            capture_output=True,
+            text=True,
+            timeout=90,
+            check=False,
+        )
+        out = ((p.stdout or "") + (p.stderr or "")).strip()
+        return f"heal code={p.returncode}: {out[-400:]}"
+    except (OSError, subprocess.TimeoutExpired) as e:
+        return f"heal failed: {e}"
+
+
 def do_standby_sync(cfg: Dict[str, Any], root: Path) -> Dict[str, Any]:
     php = str(cfg.get("php_bin") or "php")
     _set_activity("sync", "backups standby-sync")
@@ -264,6 +313,8 @@ def run_loop(cfg: Dict[str, Any]) -> int:
     next_cron = now
     next_doctor = now
     next_status = now
+    next_heal_ok = 0.0  # rate-limit stack heal
+    heal_every = max(60, int(cfg.get("heal_stack_every_sec") or 300))
 
     _log.info("freesaas plugin started root=%s sync_every=%ss", root, sync_every)
     _set_activity("idle", "boot")
@@ -276,6 +327,15 @@ def run_loop(cfg: Dict[str, Any]) -> int:
                 _status_update(local_health=health)
                 if not health.get("ok"):
                     _log.warning("local health fail: %s", health.get("error") or health.get("code"))
+                    if now >= next_heal_ok:
+                        note = maybe_heal_stack(cfg, root)
+                        if note:
+                            _log.warning("%s", note)
+                            _status_update(last_heal={"at": int(now), "note": note[:400]})
+                            next_heal_ok = now + heal_every
+                            # Re-probe once after ensure.
+                            health = http_probe(local_url)
+                            _status_update(local_health=health)
                 do_standby_status(cfg, root)
                 next_status = now + 60
 
