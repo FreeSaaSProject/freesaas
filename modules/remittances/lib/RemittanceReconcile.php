@@ -53,7 +53,6 @@ final class RemittanceReconcile
         if (!$parsed['ok']) {
             $batchId = RemittanceBatchesRepository::upsertForMove($moveId, [
                 'agreement_id' => (int)$agreement['id'],
-                'fee_move_id' => (int)($existing['fee_move_id'] ?? 0),
                 'period_from' => null,
                 'period_to' => null,
                 'gross' => 0,
@@ -96,7 +95,6 @@ final class RemittanceReconcile
 
         RemittanceBatchesRepository::upsertForMove($moveId, [
             'agreement_id' => (int)$agreement['id'],
-            'fee_move_id' => (int)($existing['fee_move_id'] ?? 0),
             'period_from' => $parsed['period_from'],
             'period_to' => $parsed['period_to'],
             'gross' => $gross,

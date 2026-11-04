@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-03T16:35:44+00:00",
+    "generated_at": "2026-11-04T19:19:53+00:00",
     "modules": [
         {
             "id": "asr",
@@ -387,7 +387,7 @@
         },
         {
             "id": "backups",
-            "version": "0.3.7",
+            "version": "0.3.12",
             "type": "product",
             "name": {
                 "en": "Backups",
@@ -1662,7 +1662,7 @@
         },
         {
             "id": "remittances",
-            "version": "0.1.5",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "Remittances",
@@ -1954,7 +1954,7 @@
         },
         {
             "id": "terminals",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Terminals & therms",

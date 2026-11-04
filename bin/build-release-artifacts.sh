@@ -125,6 +125,10 @@ else
       --exclude='./workers/host.local.json' \
       --exclude='./workers/.venv' \
       --exclude='./workers/var' \
+      --exclude='./cfg/passphrase.txt' \
+      --exclude='./workers/plugins/*/configs/local.ini' \
+      --exclude='./workers/plugins/*/audioloader.ini' \
+      --exclude='./workers/plugins/*/logs' \
       . \
     | (cd "$stage" && tar -xf -)
   )
@@ -132,7 +136,11 @@ fi
 
 # Always strip Mac worker secrets / runtime (gitignored files can still enter working-tree stage).
 rm -f "$stage/workers/host.local.json"
+rm -f "$stage/cfg/passphrase.txt"
 find "$stage/workers" -type f -path '*/configs/local.json' -delete 2>/dev/null || true
+find "$stage/workers" -type f -path '*/configs/local.ini' -delete 2>/dev/null || true
+find "$stage/workers" -type f -name 'audioloader.ini' -delete 2>/dev/null || true
+find "$stage/workers" -type d -path '*/plugins/*/logs' -prune -exec rm -rf {} + 2>/dev/null || true
 find "$stage/workers" -type d -name '.venv' -prune -exec rm -rf {} + 2>/dev/null || true
 rm -rf "$stage/workers/var" 2>/dev/null || true
 find "$stage/workers" -type d -name 'var' -path '*/plugins/*/var' -prune -exec rm -rf {} + 2>/dev/null || true

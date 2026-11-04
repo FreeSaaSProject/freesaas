@@ -567,7 +567,8 @@ final class AgentOps
             'skipped' => $report['skipped'],
             'flag_set' => !empty($report['flag_set']),
             'modules_absent_off' => Config::modulesAbsentDefaultsOff(),
-            'hint' => 'Absent keys pinned to 1; modules_absent_off=1. Review [modules]; disable unused packs. Future absent keys stay off.',
+            'mode' => $report['mode'] ?? null,
+            'hint' => 'mode=legacy_upgrade pins absent→1 then sets modules_absent_off; mode=fail_closed pins absent→0 only (never auto-enable).',
             'http' => 200,
         ];
     }

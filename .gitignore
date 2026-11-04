@@ -4,6 +4,7 @@ cfg/modules/*.ini
 cfg/modules/banks-certs/
 cfg/updates.ini
 cfg/updates.state.json
+cfg/passphrase.txt
 log/*.log
 var/
 dist/

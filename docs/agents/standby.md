@@ -38,12 +38,12 @@ cp workers/plugins/freesaas/configs/example.json workers/plugins/freesaas/config
 | Value | Meaning |
 |-------|---------|
 | _(empty)_ | Primary |
-| `passive` | Sync + health probe only; product cron muted |
-| `active` | Promote: terminals/1C cron allowed; backups may run for demote packs; messengers still muted unless `standby_allow_bots=1` |
+| `passive` | Pull packs from FTP (`standby-sync`) + health probe; product cron muted |
+| `active` | Promote: **incoming sync stops** (no primary overwrite); terminals/1C cron allowed; local backups may run for demote packs; messengers muted unless `standby_allow_bots=1` |
 
 ## Promote (hosting down)
 
-1. On PC: `app.standby=active` (restart php/apache if needed).
+1. On PC: `app.standby=active` (restart php/apache if needed). Incoming `standby-sync` / worker pull **stops** immediately so primary packs cannot overwrite local ops.
 2. Point LAN devices (Termy, terminals, 1C clients) at PC IP/hostname (`/t`, `/api_termy.php`, `/api.php`, `/api1c.php`).
 3. Staff open admin on LAN URL.
 4. Optional: enable `standby_allow_bots=1` if you need outbound staff alerts from PC.

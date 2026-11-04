@@ -469,14 +469,9 @@ final class BackupRunner
                     BackupRepository::markDone($id, $bytes, $remote);
                     BackupConfig::setLastFullRemote($remote);
                     BackupConfig::setLastFullAt(time());
-                    // New baseline: freeze differential from=, reset seq, drop applied journal.
-                    if (BackupCdc::journalReady()) {
-                        $maxJ = BackupCdc::maxJournalId();
-                        BackupConfig::resetIncrAfterBaseline($maxJ);
-                        BackupCdc::pruneJournal($maxJ);
-                    } else {
-                        BackupConfig::resetIncrAfterBaseline(BackupConfig::incrCursor());
-                    }
+                    // Baseline = CDC watermark taken at dump start (not current MAX after upload).
+                    // Prune only ≤ watermark so mid-dump/mid-upload journal rows survive into the next CDC pack.
+                    self::commitCdcBaselineAfterLightOrFull($state);
                     $done = BackupRepository::find($id);
                     if (is_array($done)) {
                         BackupNotify::onSuccess($done);
@@ -577,6 +572,8 @@ final class BackupRunner
             $restarts = (int)($detail['dump_restarts'] ?? 0);
             if ($restarts < 1 && (stripos($msg, 'Job not found') !== false || stripos($msg, 'Corrupt job') !== false)) {
                 $detail = ['dump_restarts' => $restarts + 1];
+                // New dump attempt → new consistency watermark.
+                unset($state['cdc_watermark']);
                 return self::phaseDbStartDump($state, $detail);
             }
             throw new RuntimeException(
@@ -621,6 +618,11 @@ final class BackupRunner
         if ($tables === []) {
             throw new RuntimeException(t('backups.err.no_tables'));
         }
+        // Consistency point for CDC: changes after this ID are not guaranteed in the dump
+        // (table already exported) and must remain in the journal for the next CDC pack.
+        if (BackupCdc::journalReady() && (int)($state['cdc_watermark'] ?? 0) < 1) {
+            $state['cdc_watermark'] = BackupCdc::maxJournalId();
+        }
         $job = DbJobs::jobStart('dump', [
             'tables' => $tables,
             'label' => 'backup-' . (string)($state['stamp'] ?? ''),
@@ -628,6 +630,28 @@ final class BackupRunner
         $detail['job_id'] = (string)$job['id'];
         $state['phase_detail'] = $detail;
         return ['done' => false, 'state' => $state];
+    }
+
+    /**
+     * After light/full success: freeze CDC baseline at dump-start watermark and prune only that prefix.
+     *
+     * @param array<string,mixed> $state
+     */
+    private static function commitCdcBaselineAfterLightOrFull(array $state): void
+    {
+        if (!BackupCdc::journalReady()) {
+            BackupConfig::resetIncrAfterBaseline(BackupConfig::incrCursor());
+            return;
+        }
+        $wm = (int)($state['cdc_watermark'] ?? 0);
+        if ($wm < 1) {
+            // In-flight / legacy run without watermark: do not prune — keep journal for next CDC pack.
+            // Baseline 0 makes the next differential re-export remaining journal (REPLACE-safe).
+            BackupConfig::resetIncrAfterBaseline(0);
+            return;
+        }
+        BackupConfig::resetIncrAfterBaseline($wm);
+        BackupCdc::pruneJournal($wm);
     }
 
     /** @param array<string,mixed> $state @return array{done:bool,state:array<string,mixed>} */

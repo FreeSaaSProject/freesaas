@@ -385,8 +385,24 @@ final class BackupRestore
             if (is_array($parsed)) {
                 $preserveConnect = is_array($parsed['connect'] ?? null) ? $parsed['connect'] : [];
                 $app = is_array($parsed['app'] ?? null) ? $parsed['app'] : [];
-                foreach (['base_url', 'session_name', 'session_cookie_domain', 'session_idle_minutes', 'session_remember_days', 'agent_token', 'cron_token'] as $k) {
-                    if (isset($app[$k])) {
+                foreach ([
+                    'base_url',
+                    'session_name',
+                    'session_cookie_domain',
+                    'session_idle_minutes',
+                    'session_remember_days',
+                    'agent_token',
+                    'cron_token',
+                    // Standby host identity — never inherit primary's empty/missing standby.
+                    'standby',
+                    'standby_probe_url',
+                    'standby_allow_bots',
+                    'standby_allow_banks',
+                    'standby_allow_gcal',
+                    'standby_allow_llm',
+                    'standby_allow_update',
+                ] as $k) {
+                    if (array_key_exists($k, $app)) {
                         $preserveApp[$k] = $app[$k];
                     }
                 }

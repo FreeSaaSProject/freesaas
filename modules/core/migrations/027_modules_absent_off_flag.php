@@ -2,20 +2,25 @@
 declare(strict_types=1);
 
 /**
- * Instances that already applied 025 before app.modules_absent_off existed: set the flag
- * and pin any remaining absent keys to =1. Idempotent.
+ * Ensure app.modules_absent_off=1 for installs that applied an older 025 without the flag.
+ *
+ * If the flag is already on (normal case after 025), pinEffectiveModules runs in fail_closed
+ * mode: absent on-disk modules get explicit =0 only — never =1. That prevents new packs
+ * (backups, recons, …) from booting without activate / accept_risk.
+ *
+ * Write failures abort the migration.
  *
  * @return callable(PDO):void
  */
 return static function (PDO $pdo): void {
-    try {
-        $report = Config::pinEffectiveModules();
-        $n = count($report['pinned']);
-        if ($n > 0) {
-            error_log('[core/027] pinned ' . $n . ' remaining absent module(s) to =1');
-        }
-        error_log('[core/027] app.modules_absent_off ensured');
-    } catch (Throwable $e) {
-        error_log('[core/027] modules_absent_off failed: ' . $e->getMessage());
+    $report = Config::pinEffectiveModules();
+    $n = count($report['pinned']);
+    $mode = (string)($report['mode'] ?? '');
+    if ($n > 0) {
+        error_log(
+            '[core/027] mode=' . $mode . ' pinned ' . $n . ' module(s): '
+            . implode(',', array_keys($report['pinned']))
+        );
     }
+    error_log('[core/027] app.modules_absent_off ensured (mode=' . $mode . ')');
 };

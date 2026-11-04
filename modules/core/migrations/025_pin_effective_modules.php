@@ -2,24 +2,26 @@
 declare(strict_types=1);
 
 /**
- * Safe flip to fail-closed module defaults:
- * 1) Pin every on-disk product module missing a [modules] key to =1 (legacy absent = on).
- * 2) Set app.modules_absent_off=1 so future absent keys stay disabled (new packs / overlays).
+ * First flip to fail-closed module defaults (only meaningful when app.modules_absent_off is unset):
+ * pin on-disk modules missing [modules] keys to =1 (legacy absent = on), then set the flag.
  *
- * Until this runs, Config::moduleEnabled keeps legacy absent=on so a code deploy cannot
- * turn off working modules before migrate. After this runs, only explicit =1 stays on.
+ * Until this runs, Config::moduleEnabled keeps legacy absent=on so a code deploy cannot turn off
+ * working modules before migrate. After the flag is set, pinEffectiveModules never auto-enables
+ * (see 027 / Config::pinEffectiveModules fail_closed mode).
+ *
+ * Write failures abort the migration (no silent log-only swallow).
  *
  * @return callable(PDO):void
  */
 return static function (PDO $pdo): void {
-    try {
-        $report = Config::pinEffectiveModules();
-        $n = count($report['pinned']);
-        if ($n > 0) {
-            error_log('[core/025] pinned ' . $n . ' module(s) to [modules]=1: ' . implode(',', array_keys($report['pinned'])));
-        }
-        error_log('[core/025] app.modules_absent_off=1 (absent keys now disabled)');
-    } catch (Throwable $e) {
-        error_log('[core/025] pinEffectiveModules failed: ' . $e->getMessage());
+    $report = Config::pinEffectiveModules();
+    $n = count($report['pinned']);
+    $mode = (string)($report['mode'] ?? '');
+    if ($n > 0) {
+        error_log(
+            '[core/025] mode=' . $mode . ' pinned ' . $n . ' module(s): '
+            . implode(',', array_keys($report['pinned']))
+        );
     }
+    error_log('[core/025] app.modules_absent_off=1');
 };

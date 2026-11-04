@@ -103,22 +103,33 @@ final class Config
     }
 
     /**
-     * One-shot upgrade: write explicit =1 for every on-disk product module with no [modules] key
-     * (legacy absent meant on), then set app.modules_absent_off=1 so future absent keys stay off.
+     * Safe module-key pinning after / during the absent-key policy flip.
      *
-     * Already-listed keys are untouched. Review [modules] afterwards; disable unused packs.
+     * - Before app.modules_absent_off: legacy upgrade — absent on-disk modules → explicit =1,
+     *   then set the fail-closed flag. Preserves installs that relied on sparse configs.
+     * - After the flag is already on: never auto-enable. Absent on-disk modules get explicit =0
+     *   (new packs from git/overlay stay off until activate / accept_risk).
      *
-     * @return array{pinned:array<string,int>,skipped:list<string>,flag_set:bool}
+     * Already-listed keys are untouched. Throws if config cannot be written.
+     *
+     * @return array{pinned:array<string,int>,skipped:list<string>,flag_set:bool,mode:string}
      */
     public static function pinEffectiveModules(): array
     {
+        $legacyUpgrade = !self::modulesAbsentDefaultsOff();
+        $pinOn = $legacyUpgrade;
         $mods = self::section('modules');
         $pinned = [];
         $skipped = [];
         $root = base_path('modules');
         if (!is_dir($root)) {
             self::ensureModulesAbsentOffFlag();
-            return ['pinned' => [], 'skipped' => [], 'flag_set' => true];
+            return [
+                'pinned' => [],
+                'skipped' => [],
+                'flag_set' => true,
+                'mode' => $legacyUpgrade ? 'legacy_upgrade' : 'fail_closed',
+            ];
         }
         foreach (scandir($root) ?: [] as $id) {
             if ($id === '.' || $id === '..' || $id === 'core') {
@@ -131,12 +142,17 @@ final class Config
                 $skipped[] = $id;
                 continue;
             }
-            self::setModuleEnabled($id, true);
-            $pinned[$id] = 1;
-            $mods[$id] = '1';
+            self::setModuleEnabled($id, $pinOn);
+            $pinned[$id] = $pinOn ? 1 : 0;
+            $mods[$id] = $pinOn ? '1' : '0';
         }
         self::ensureModulesAbsentOffFlag();
-        return ['pinned' => $pinned, 'skipped' => $skipped, 'flag_set' => true];
+        return [
+            'pinned' => $pinned,
+            'skipped' => $skipped,
+            'flag_set' => true,
+            'mode' => $legacyUpgrade ? 'legacy_upgrade' : 'fail_closed',
+        ];
     }
 
     /** Persist app.modules_absent_off=1 (idempotent). */

@@ -30,11 +30,15 @@ final class BackupStandby
      */
     public static function sync(bool $allowFullRedeploy = true): array
     {
-        if (!StandbyMode::isStandby()) {
+        // Incoming replication only while passive. Active = promoted: local writes must not
+        // be overwritten by newer primary packs / full redeploy.
+        if (!StandbyMode::isPassive()) {
             return [
                 'ok' => false,
-                'error' => 'not_standby',
-                'hint' => 'Set app.standby=passive|active on this host',
+                'error' => StandbyMode::isActive() ? 'standby_active' : 'not_standby',
+                'hint' => StandbyMode::isActive()
+                    ? 'Incoming sync disabled while app.standby=active (promoted). Set passive to resume pull, or demote via controlled failback.'
+                    : 'Set app.standby=passive on this host to pull packs',
                 'http' => 400,
             ];
         }
@@ -358,8 +362,7 @@ final class BackupStandby
     /** @return array<string,mixed> */
     private static function redeployFull(string $remotePath): array
     {
-        // Download/decrypt first — never wipe until the pack is local and openable.
-        // Otherwise a failed restore after emptyAllTables() leaves an unusable standby DB.
+        // Download/decrypt/validate dump BEFORE any DROP — a manifest-only pack must not wipe the DB.
         $dir = '';
         try {
             $opened = self::downloadAndOpenPack($remotePath);
@@ -374,10 +377,24 @@ final class BackupStandby
             if ($dir === '' || !is_dir($dir)) {
                 return ['ok' => false, 'error' => 'open pack dir missing', 'remote_path' => $remotePath];
             }
-            if (!BackupRestore::databaseIsEmpty()) {
-                self::emptyAllTables();
+            $dump = self::findDbDump($dir);
+            if ($dump === '') {
+                return [
+                    'ok' => false,
+                    'error' => 'pack has no db.sql.gz / db.sql (refuse DROP)',
+                    'remote_path' => $remotePath,
+                ];
             }
-            // Prepared extract dir — deploy accepts file= as file or directory.
+            if (!BackupRestore::databaseIsEmpty()) {
+                self::emptyOwnedTables();
+            }
+            if (!BackupRestore::databaseIsEmpty()) {
+                return [
+                    'ok' => false,
+                    'error' => 'database still not empty after dropping base_* (foreign tables present — use a dedicated standby schema)',
+                    'remote_path' => $remotePath,
+                ];
+            }
             $r = BackupRestore::deploy([
                 'file' => $dir,
                 'passphrase' => BackupConfig::passphrase(),
@@ -393,14 +410,35 @@ final class BackupStandby
         }
     }
 
-    private static function emptyAllTables(): void
+    /** Locate db dump under an unpacked pack (including one nesting level). */
+    private static function findDbDump(string $dir): string
+    {
+        foreach (['db.sql.gz', 'db.sql'] as $name) {
+            $p = $dir . '/' . $name;
+            if (is_file($p) && filesize($p) > 0) {
+                return $p;
+            }
+        }
+        $found = self::findFile($dir, 'db.sql.gz');
+        if ($found !== '' && is_file($found) && filesize($found) > 0) {
+            return $found;
+        }
+        $found = self::findFile($dir, 'db.sql');
+        if ($found !== '' && is_file($found) && filesize($found) > 0) {
+            return $found;
+        }
+        return '';
+    }
+
+    /** DROP only FreeSaaS base_* tables — never wipe unrelated schemas/tables in a shared DB. */
+    private static function emptyOwnedTables(): void
     {
         $pdo = Database::pdo();
         $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
         $st = $pdo->query('SHOW FULL TABLES WHERE Table_type = \'BASE TABLE\'');
         while ($st && ($row = $st->fetch(PDO::FETCH_NUM))) {
             $name = (string)($row[0] ?? '');
-            if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+            if (!preg_match('/^base_[A-Za-z0-9_]+$/', $name)) {
                 continue;
             }
             $pdo->exec('DROP TABLE IF EXISTS `' . $name . '`');

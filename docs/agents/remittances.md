@@ -49,7 +49,7 @@ out: { amount, channels: [{ code, amount, source }] }
 ## Fee posting
 
 `fee_posting=none` — reconcile only.  
-`fee_posting=expense_move` — button on move edit creates expense ДПС (idempotent via `base_remittance_batches.ID_FEE_MOVE`).
+`fee_posting=expense_move` — button on move edit creates expense ДПС (idempotent via `base_remittance_batches.ID_FEE_MOVE`). Binding is atomic (`setFeeMoveId`); parse refresh (`upsertForMove`) never clears an existing fee link.
 
 ## Agent JSON
 

@@ -102,8 +102,12 @@ Cron::register('backups.standby_sync', [
     'label' => 'backups.cron.standby_sync',
     'every' => 15,
     'handler' => static function (): array {
-        if (!StandbyMode::isStandby()) {
-            return ['ok' => true, 'processed' => 0, 'message' => 'not_standby'];
+        if (!StandbyMode::isPassive()) {
+            return [
+                'ok' => true,
+                'processed' => 0,
+                'message' => StandbyMode::isActive() ? 'standby_active_no_pull' : 'not_standby',
+            ];
         }
         $r = BackupStandby::sync(true);
         $applied = is_array($r['applied'] ?? null) ? $r['applied'] : [];

@@ -61,16 +61,56 @@ final class RemittanceBatchesRepository
         return $out;
     }
 
-    /** @param array<string,mixed> $data */
+    /**
+     * Refresh parse/totals for a move. Does **not** change ID_FEE_MOVE on UPDATE —
+     * that link is only written via setFeeMoveId() (or INSERT default 0) so a concurrent
+     * sync cannot wipe a fee move that postForMove just bound.
+     *
+     * @param array<string,mixed> $data
+     */
     public static function upsertForMove(int $moveId, array $data): int
     {
         $existing = self::findByMoveId($moveId);
         $now = time();
         $pdo = Database::pdo();
-        $fields = [
+        if ($existing !== null) {
+            $st = $pdo->prepare(
+                'UPDATE base_remittance_batches SET
+                 ID_AGREEMENT=?, ID_MOVE=?, PERIOD_FROM=?, PERIOD_TO=?,
+                 GROSS=?, FEE=?, NET=?, EXPECTED=?, DELTA_GROSS=?, DELTA_NET=?,
+                 STATUS=?, PARSE_ERROR=?, IGNORED=?, DT_UPDATE=?
+                 WHERE ID=?'
+            );
+            $st->execute([
+                (int)($data['agreement_id'] ?? 0),
+                $moveId,
+                $data['period_from'] ?? null,
+                $data['period_to'] ?? null,
+                round((float)($data['gross'] ?? 0), 2),
+                round((float)($data['fee'] ?? 0), 2),
+                round((float)($data['net'] ?? 0), 2),
+                round((float)($data['expected'] ?? 0), 2),
+                round((float)($data['delta_gross'] ?? 0), 2),
+                round((float)($data['delta_net'] ?? 0), 2),
+                (string)($data['status'] ?? 'unparsed'),
+                mb_substr((string)($data['parse_error'] ?? ''), 0, 512),
+                !empty($data['ignored']) ? 1 : (int)($existing['ignored'] ?? 0),
+                $now,
+                (int)$existing['id'],
+            ]);
+            return (int)$existing['id'];
+        }
+        $st = $pdo->prepare(
+            'INSERT INTO base_remittance_batches
+             (ID_AGREEMENT, ID_MOVE, ID_FEE_MOVE, PERIOD_FROM, PERIOD_TO,
+              GROSS, FEE, NET, EXPECTED, DELTA_GROSS, DELTA_NET,
+              STATUS, PARSE_ERROR, IGNORED, DT_CREATE, DT_UPDATE)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
+        );
+        $st->execute([
             (int)($data['agreement_id'] ?? 0),
             $moveId,
-            (int)($data['fee_move_id'] ?? ($existing['fee_move_id'] ?? 0)),
+            0,
             $data['period_from'] ?? null,
             $data['period_to'] ?? null,
             round((float)($data['gross'] ?? 0), 2),
@@ -81,28 +121,10 @@ final class RemittanceBatchesRepository
             round((float)($data['delta_net'] ?? 0), 2),
             (string)($data['status'] ?? 'unparsed'),
             mb_substr((string)($data['parse_error'] ?? ''), 0, 512),
-            !empty($data['ignored']) ? 1 : (int)($existing['ignored'] ?? 0),
+            !empty($data['ignored']) ? 1 : 0,
             $now,
-        ];
-        if ($existing !== null) {
-            $st = $pdo->prepare(
-                'UPDATE base_remittance_batches SET
-                 ID_AGREEMENT=?, ID_MOVE=?, ID_FEE_MOVE=?, PERIOD_FROM=?, PERIOD_TO=?,
-                 GROSS=?, FEE=?, NET=?, EXPECTED=?, DELTA_GROSS=?, DELTA_NET=?,
-                 STATUS=?, PARSE_ERROR=?, IGNORED=?, DT_UPDATE=?
-                 WHERE ID=?'
-            );
-            $st->execute(array_merge($fields, [(int)$existing['id']]));
-            return (int)$existing['id'];
-        }
-        $st = $pdo->prepare(
-            'INSERT INTO base_remittance_batches
-             (ID_AGREEMENT, ID_MOVE, ID_FEE_MOVE, PERIOD_FROM, PERIOD_TO,
-              GROSS, FEE, NET, EXPECTED, DELTA_GROSS, DELTA_NET,
-              STATUS, PARSE_ERROR, IGNORED, DT_CREATE, DT_UPDATE)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'
-        );
-        $st->execute(array_merge($fields, [$now]));
+            $now,
+        ]);
         return (int)$pdo->lastInsertId();
     }
 

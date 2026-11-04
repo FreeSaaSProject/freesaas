@@ -615,23 +615,21 @@ final class CalendarAggregates
             $sql .= ' AND c.ID_ADMIN = ?';
             $params[] = $adminFilter;
         }
-        if ($badgeFilter > 0
-            && Database::tableExists('base_records_collections_datas')
-            && Database::tableExists('base_records_instances')
-            && Database::tableExists('base_records')
-        ) {
-            $sql .= ' AND EXISTS (
-                SELECT 1 FROM base_records_collections_datas d
-                INNER JOIN base_records_instances i ON i.ID = d.ID_INSTANCE
-                INNER JOIN base_records r ON r.ID = i.ID_RECORD
-                WHERE d.ID_COLLECTION = c.ID AND r.ID_DICTOPHONE = ?
-            )';
-            $params[] = $badgeFilter;
+        // Badge: precomputed id set — a correlated EXISTS per collection is a full scan of datas each time.
+        $badgeCollections = $badgeFilter > 0 ? self::collectionIdsForBadge($badgeFilter, $fromTs, $toTs) : null;
+        if ($badgeCollections === []) {
+            return $out;
         }
 
         $st = $pdo->prepare($sql);
         $st->execute($params);
         $collections = $st->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        if ($badgeCollections !== null) {
+            $collections = array_values(array_filter(
+                $collections,
+                static fn (array $c): bool => isset($badgeCollections[(int)$c['id']])
+            ));
+        }
         if ($collections === []) {
             return $out;
         }
@@ -657,23 +655,14 @@ final class CalendarAggregates
                 $sqlFinish .= ' AND c.ID_ADMIN = ?';
                 $finishParams[] = $adminFilter;
             }
-            if ($badgeFilter > 0
-                && Database::tableExists('base_records_collections_datas')
-                && Database::tableExists('base_records_instances')
-                && Database::tableExists('base_records')
-            ) {
-                $sqlFinish .= ' AND EXISTS (
-                    SELECT 1 FROM base_records_collections_datas d2
-                    INNER JOIN base_records_instances i ON i.ID = d2.ID_INSTANCE
-                    INNER JOIN base_records r ON r.ID = i.ID_RECORD
-                    WHERE d2.ID_COLLECTION = c.ID AND r.ID_DICTOPHONE = ?
-                )';
-                $finishParams[] = $badgeFilter;
-            }
             $qf = $pdo->prepare($sqlFinish);
             $qf->execute($finishParams);
             while ($fr = $qf->fetch(PDO::FETCH_ASSOC)) {
-                $finishPartsByCollection[(int)$fr['id']][(int)$fr['id_part']] = true;
+                $fid = (int)$fr['id'];
+                if ($badgeCollections !== null && !isset($badgeCollections[$fid])) {
+                    continue;
+                }
+                $finishPartsByCollection[$fid][(int)$fr['id_part']] = true;
             }
         }
 
@@ -720,6 +709,40 @@ final class CalendarAggregates
             ];
         }
 
+        return $out;
+    }
+
+    /**
+     * Collection ids that contain at least one instance from a record of this badge.
+     * Path: records (DT_RECORDED range) → instances (ID_RECORD) → datas (ID_INSTANCE).
+     * Range starts a day earlier: a record that began before $fromTs can feed a collection inside it.
+     *
+     * @return array<int,true>
+     */
+    private static function collectionIdsForBadge(int $badge, int $fromTs, int $toTs): array
+    {
+        if ($badge < 1
+            || !Database::tableExists('base_records')
+            || !Database::tableExists('base_records_instances')
+            || !Database::tableExists('base_records_collections_datas')
+        ) {
+            return [];
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT DISTINCT d.ID_COLLECTION AS id
+             FROM base_records r
+             INNER JOIN base_records_instances i ON i.ID_RECORD = r.ID
+             INNER JOIN base_records_collections_datas d ON d.ID_INSTANCE = i.ID
+             WHERE r.DT_RECORDED >= ? AND r.DT_RECORDED <= ? AND r.ID_DICTOPHONE = ?'
+        );
+        $st->execute([$fromTs - 86400, $toTs, $badge]);
+        $out = [];
+        while (($id = $st->fetchColumn()) !== false) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $out[$id] = true;
+            }
+        }
         return $out;
     }
 

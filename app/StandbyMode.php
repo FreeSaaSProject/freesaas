@@ -14,6 +14,10 @@ final class StandbyMode
     /** Cron jobs always allowed on standby (any mode). */
     private const ALWAYS_CRON = [
         'backups.standby_health',
+    ];
+
+    /** Pull primary packs — passive only (never while promoted/active). */
+    private const PASSIVE_CRON = [
         'backups.standby_sync',
     ];
 
@@ -57,6 +61,9 @@ final class StandbyMode
             return true;
         }
         if (in_array($jobId, self::ALWAYS_CRON, true)) {
+            return true;
+        }
+        if ($mode === 'passive' && in_array($jobId, self::PASSIVE_CRON, true)) {
             return true;
         }
         if ($mode === 'active' && in_array($jobId, self::ACTIVE_CRON, true)) {

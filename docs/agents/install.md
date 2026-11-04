@@ -14,7 +14,7 @@ Module product secrets (optional): copy `modules/<id>/config.example.ini` → `c
 
 **Module defaults:** with `app.modules_absent_off=1` (set by core migrate `025`/`027`, and in `config.example.ini`), absent `[modules] <id>` = **disabled**. Pin every module you want on with `=1`. Activate via `/modules/{id}/activate` or agent activate.
 
-**Upgrade safety:** until that flag is set, absent keys still count as enabled (legacy), so deploying new code cannot turn off working modules before migrate. Migrate then (1) pins missing keys to `=1`, (2) sets `modules_absent_off=1`. Review `[modules]` and disable unused packs. Optional: `module recover-from-example` if something needed was left at `=0`.
+**Upgrade safety:** until that flag is set, absent keys still count as enabled (legacy), so deploying new code cannot turn off working modules before migrate. First migrate (`025`) pins missing keys to `=1` and sets the flag. Later migrate (`027`/`028`) with the flag already on only pins new absent ids to `=0` — never auto-enables new packs (no bypass of activate / alpha risk). Review `[modules]` after upgrade; disable anything that was wrongly left on. Optional: `module recover-from-example` if something needed was left at `=0`.
 
 ### Shared hosting web root
 

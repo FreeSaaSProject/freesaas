@@ -66,6 +66,7 @@ Seq resets to `s001` after each successful light/full. Listing FTP shows missing
 2. Migrate → Settings → **Install CDC triggers** (`cdc_enabled=1`, `incr_every_hours=1`, `incr_mode=differential`).
 3. At least one light or hard pack once (baseline).
 4. Cron starts a CDC pack when journal has rows past `incr_cursor`.
+5. After light/full, CDC baseline = journal watermark taken **at dump start** (not after upload). Mid-dump/mid-upload changes stay in the journal for the next CDC pack.
 
 ```bash
 php bin/freesaas.php backups cdc-install --format=json
