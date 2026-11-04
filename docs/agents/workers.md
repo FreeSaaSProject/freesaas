@@ -1,16 +1,17 @@
 # FreeSaaS edge workers (modular host)
 
-Canonical runbook for agents deploying **video** (YOLO), **whisper** (cabin ASR), and/or **audioloader** (badge USB → FTP → ingest) on **Mac or Windows**. Code: [`workers/`](../../workers/) — shared **core** + **plugins**.
+Canonical runbook for agents deploying **video** (YOLO), **whisper** (cabin ASR), **audioloader** (badge USB → FTP → ingest), and/or **freesaas** (local PC stack / warm standby orchestrator) on **Mac or Windows**. Code: [`workers/`](../../workers/) — shared **core** + **plugins**.
 
-Workers dial **out** to FreeSaaS (no inbound ports to the edge host). Local UI/API is **localhost only**.
+Most plugins dial **out** to FreeSaaS (no inbound ports to the edge host). Plugin `freesaas` instead drives a **local** FreeSaaS tree via PHP CLI. Local UI/API is **localhost only**.
 
-Related product docs: [video.md](video.md), [video-label.md](video-label.md), [audio_pipeline.md](audio_pipeline.md), [asr.md](asr.md), [audioloader.md](audioloader.md).
+Related product docs: [video.md](video.md), [video-label.md](video-label.md), [audio_pipeline.md](audio_pipeline.md), [asr.md](asr.md), [audioloader.md](audioloader.md), [standby.md](standby.md), [backups.md](backups.md).
 
 | Plugin | Role | Typical OS (MVP) |
 |--------|------|------------------|
 | `video` | YOLO cameras | Mac |
 | `whisper` | Cabin ASR claim/result/stem | Mac |
 | `audioloader` | Badge USB → MP3 → FTP inbox → ingest GET | Windows |
+| `freesaas` | Local FreeSaaS supervise + standby-sync + doctor/update (opt-in) | Mac / Windows PC |
 | `llm` | stub — leave disabled | — |
 
 **Roadmap (not MVP):** Mac `/Volumes` adapter for `audioloader`; `whisper` / `video` on Windows (CUDA/CPU notes + win autostart already shared).
@@ -27,6 +28,7 @@ workers/
     video/                   # YOLO + ffmpeg + optional camera VPN
     whisper/                 # claim → whisper.cpp → result → stem
     audioloader/             # badge USB → FTP → GET /audio/jobs/ingest
+    freesaas/                # PC local stack + standby orchestrator (opt-in)
     llm/                     # stub only — do not enable yet
   bin/freesaas-workers       # Unix
   bin/freesaas-workers.cmd   # Windows
@@ -331,7 +333,41 @@ LAME is an **external** dependency (subprocess); do not commit `lame.exe`. FFmpe
 
 ---
 
-## 12. Follow-ups
+## 12. Plugin `freesaas` (local PC / warm standby)
+
+**Opt-in.** Not in `host.example.json` `enabled_plugins` by default. Thin orchestrator for a FreeSaaS tree on the same machine: schedule `backups standby-sync`, `cron tick`, `doctor`, optional `update apply`, local `/health` probe, dashboard promote/demote (`app.standby`). Does **not** reimplement CDC/tar — calls `php bin/freesaas.php`.
+
+Bring-up: [standby.md](standby.md) (empty DB → `bootstrap-from-backup` → `app.standby=passive`), then:
+
+```bash
+# host.local.json → enabled_plugins includes "freesaas"
+cp workers/plugins/freesaas/configs/example.json workers/plugins/freesaas/configs/local.json
+# local_base_url = LAN URL of this PC; freesaas_root empty = repo root (parent of workers/)
+# Windows: set php_bin to full path (e.g. C:/php/php.exe)
+./workers/bin/freesaas-workers install          # Windows: workers\bin\freesaas-workers.cmd install
+./workers/bin/freesaas-workers start freesaas
+./workers/bin/freesaas-workers autostart on    # login agent: LaunchAgent (macOS) or Task Scheduler FreeSaaSWorkers (Windows)
+./workers/bin/freesaas-workers status freesaas
+```
+
+### Dashboard (localhost only)
+
+UI binds **127.0.0.1:8766** and rejects non-loopback clients (403). Open in a browser **on that machine** (AnyDesk/RDP OK): `http://127.0.0.1:8766/`. Tailscale/LAN IP will not work by design.
+
+| OS | Keep plugins + dashboard after login |
+|----|--------------------------------------|
+| macOS | `autostart on` → LaunchAgent `ru.freesaas.workers` (boot script → `start` + `dashboard`) |
+| Windows | `autostart on` → Task Scheduler **FreeSaaSWorkers** runs `freesaas-workers-boot.ps1` hidden (no CMD window); dashboard via `pythonw` so closing consoles does not kill it |
+
+Do **not** rely on `dashboard` started over SSH/WinRM or from a visible `cmd` window: closing that window (or the remote session) kills the process. Prefer `autostart on` (or `schtasks /Run /TN FreeSaaSWorkers` once).
+
+Dashboard actions: Sync now, Doctor, Cron tick, Update (confirm), Promote active / Demote passive (confirm → edits `cfg/config.ini`). Autostart checkbox copy is OS-specific (macOS LaunchAgent vs Windows Task Scheduler).
+
+Insurance without the plugin: PHP cron `backups.standby_sync` every 15 min on standby hosts (see [standby.md](standby.md)).
+
+---
+
+## 13. Follow-ups
 
 - Working local-LLM plugin
 - Single shared worker token across plugins
@@ -342,8 +378,13 @@ LAME is an **external** dependency (subprocess); do not commit `lame.exe`. FFmpe
 ## Shortcut
 
 ```bash
-# start dashboard in background and open browser
+# macOS: start dashboard in this terminal (Ctrl+C stops it) and open browser
 ./workers/bin/freesaas-workers dashboard --open
+
+# Prefer durable run after login:
+./workers/bin/freesaas-workers autostart on
 ```
 
-Optional: create a macOS `.command` that `cd`s to the repo and runs the line above.
+Windows: `workers\bin\freesaas-workers.cmd autostart on`, then browser on the PC → `http://127.0.0.1:8766/`.
+
+Optional: macOS `.command` that `cd`s to the repo and runs `dashboard --open` for a manual session.

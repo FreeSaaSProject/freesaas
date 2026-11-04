@@ -1,0 +1,14 @@
+{
+  "id": "freesaas",
+  "title": "FreeSaaS (local stack)",
+  "version": "0.1.0",
+  "entrypoint": "worker.py",
+  "requirements": "requirements.txt",
+  "status_file": "logs/status.json",
+  "depends_binaries": ["php"],
+  "models": [],
+  "widgets": ["stack", "standby", "maintain"],
+  "actions": ["sync_now", "doctor_now", "cron_tick", "update_apply", "promote_active", "demote_passive"],
+  "log_sources": {},
+  "comment": "Thin PC orchestrator: PHP CLI for standby-sync / doctor / cron / update. Opt-in — add to host.local.json enabled_plugins. Does not reimplement CDC."
+}

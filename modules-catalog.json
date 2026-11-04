@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-03T15:37:26+00:00",
+    "generated_at": "2026-11-03T16:35:44+00:00",
     "modules": [
         {
             "id": "asr",
@@ -387,7 +387,7 @@
         },
         {
             "id": "backups",
-            "version": "0.3.6",
+            "version": "0.3.7",
             "type": "product",
             "name": {
                 "en": "Backups",

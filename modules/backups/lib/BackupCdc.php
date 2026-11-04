@@ -344,6 +344,9 @@ final class BackupCdc
         $pdo = Database::pdo();
         $n = 0;
         try {
+            // Match producer preamble; keep FK off for the whole apply batch.
+            $pdo->exec('SET NAMES utf8mb4');
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
             // Split on ;\n — statements we generate are single-line
             $parts = preg_split('/;\s*\n/', $sql) ?: [];
             foreach ($parts as $stmt) {
@@ -357,6 +360,12 @@ final class BackupCdc
             return ['ok' => true, 'statements' => $n, 'error' => ''];
         } catch (Throwable $e) {
             return ['ok' => false, 'statements' => $n, 'error' => $e->getMessage()];
+        } finally {
+            try {
+                $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
+            } catch (Throwable $e) {
+                // ignore
+            }
         }
     }
 
@@ -411,6 +420,18 @@ END';
     }
 
     /**
+     * Quote a SQL identifier (supports legacy unicode column names, e.g. Cyrillic Е).
+     */
+    private static function quoteIdent(string $name): string
+    {
+        $name = str_replace("\0", '', $name);
+        if ($name === '') {
+            throw new RuntimeException('Empty SQL identifier');
+        }
+        return '`' . str_replace('`', '``', $name) . '`';
+    }
+
+    /**
      * @param array<string,mixed> $row
      */
     private static function sqlReplace(string $table, array $row): string
@@ -418,13 +439,19 @@ END';
         $cols = [];
         $vals = [];
         foreach ($row as $k => $v) {
-            if (!preg_match('/^[A-Za-z0-9_]+$/', (string)$k)) {
+            $k = (string)$k;
+            // Skip PDO numeric keys only; keep unicode / mixed-script names (legacy DBs).
+            if ($k === '' || ctype_digit($k)) {
                 continue;
             }
-            $cols[] = '`' . $k . '`';
+            $cols[] = self::quoteIdent($k);
             $vals[] = self::sqlQuote($v);
         }
-        return 'REPLACE INTO `' . $table . '` (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ');';
+        if ($cols === []) {
+            throw new RuntimeException('REPLACE INTO ' . $table . ': no columns');
+        }
+        return 'REPLACE INTO ' . self::quoteIdent($table)
+            . ' (' . implode(',', $cols) . ') VALUES (' . implode(',', $vals) . ');';
     }
 
     /**
@@ -435,7 +462,7 @@ END';
     {
         $parts = [];
         foreach ($cols as $i => $c) {
-            $parts[] = '`' . $c . '` = ' . self::sqlQuote($vals[$i] ?? null);
+            $parts[] = self::quoteIdent((string)$c) . ' = ' . self::sqlQuote($vals[$i] ?? null);
         }
         return implode(' AND ', $parts);
     }

@@ -1,0 +1,15 @@
+{
+  "freesaas_root": "",
+  "php_bin": "php",
+  "local_base_url": "http://127.0.0.1:8080",
+  "sync_every_sec": 900,
+  "cron_tick_every_sec": 300,
+  "doctor_every_sec": 3600,
+  "health_probe": true,
+  "standby_sync": true,
+  "cron_tick": true,
+  "supervise_compose": false,
+  "compose_file": "docker-compose.yml",
+  "compose_up_cmd": ["docker", "compose", "up", "-d"],
+  "comment": "Empty freesaas_root = git repo root (parent of workers/). Opt-in: add \"freesaas\" to host.local.json enabled_plugins. Passphrase/FTP stay in cfg/modules/backups.ini on the local instance — plugin only runs php bin/freesaas.php."
+}

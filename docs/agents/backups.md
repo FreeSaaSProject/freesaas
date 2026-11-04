@@ -4,7 +4,7 @@ Alpha module: scheduled DB + file sets packed into **one** `.tar` / `.tar.enc`, 
 
 **Settings:** `/backups/settings` (SUPERADMIN). Live config: `cfg/modules/backups.ini` (see `modules/backups/config.example.ini`).
 
-**Runs:** `/backups`. Cron job `backups.tick` every 1 minute advances an in-progress run (~40s budget) or starts one when `enabled=1` and local time ≥ `daily_at` with no run started after that stamp.
+**Runs:** `/backups`. Cron job `backups.tick` every 1 minute advances an in-progress run (~40s budget) or starts one when `enabled=1` and local time ≥ `daily_at` with no run started after that stamp. On warm-standby hosts, `backups.standby_sync` every 15 min pulls FTP packs (`StandbyMode` allowlist); preferred PC UX is workers plugin `freesaas` — [standby.md](standby.md), [workers.md](workers.md).
 
 **Host check (permanent):** button on settings → `/backups/check`. Verifies PHP extensions/limits, disk, MySQL grants + **live CREATE TRIGGER probe**, PK coverage, CDC trigger coverage (warn until CDC installed), FTP write probe, encryption, last success age, cron freshness. Safe to re-run; probe table is dropped.
 

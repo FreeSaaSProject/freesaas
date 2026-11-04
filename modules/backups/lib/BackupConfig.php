@@ -99,7 +99,19 @@ final class BackupConfig
 
     public static function passphrase(): string
     {
-        return self::get('passphrase', '');
+        $v = self::get('passphrase', '');
+        if ($v !== '') {
+            return $v;
+        }
+        // Optional off-ini secret file (standby / bootstrap hosts).
+        $file = base_path('cfg/passphrase.txt');
+        if (is_file($file)) {
+            $fromFile = trim((string)file_get_contents($file));
+            if ($fromFile !== '') {
+                return $fromFile;
+            }
+        }
+        return '';
     }
 
     public static function notifyUi(): bool

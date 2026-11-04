@@ -8,12 +8,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from .config import load_host, save_json
-from .paths import HOST_LOCAL, VENV_PYTHON, WORKERS_ROOT, ensure_var_dirs
+from .paths import HOST_LOCAL, VENV_DIR, VENV_PYTHON, WORKERS_ROOT, ensure_var_dirs
 
 LABEL = "ru.freesaas.workers"
 WIN_TASK = "FreeSaaSWorkers"
 BOOT_SCRIPT = WORKERS_ROOT / "bin" / "freesaas-workers-boot.sh"
 BOOT_CMD = WORKERS_ROOT / "bin" / "freesaas-workers-boot.cmd"
+BOOT_PS1 = WORKERS_ROOT / "bin" / "freesaas-workers-boot.ps1"
 CLI_SCRIPT = WORKERS_ROOT / "bin" / "freesaas-workers"
 CLI_CMD = WORKERS_ROOT / "bin" / "freesaas-workers.cmd"
 
@@ -89,24 +90,63 @@ exec "$CLI" dashboard
     return BOOT_SCRIPT
 
 
-def write_boot_cmd() -> Path:
-    """Windows boot: start plugins, then keep dashboard in foreground."""
+def _win_pythonw() -> str:
+    """Headless interpreter so Task Scheduler / Start-Process do not flash a console."""
+    if sys.platform == "win32":
+        pyw = VENV_DIR / "Scripts" / "pythonw.exe"
+        if pyw.is_file():
+            return str(pyw)
+    if VENV_PYTHON.is_file():
+        return str(VENV_PYTHON)
+    return "pythonw" if sys.platform == "win32" else "python"
+
+
+def write_boot_ps1() -> Path:
+    """Windows boot (no console window): start plugins, detach dashboard via pythonw."""
     ensure_var_dirs()
-    BOOT_CMD.parent.mkdir(parents=True, exist_ok=True)
+    BOOT_PS1.parent.mkdir(parents=True, exist_ok=True)
     (WORKERS_ROOT / "var" / "log").mkdir(parents=True, exist_ok=True)
     repo = _pythonpath_repo()
     py = str(VENV_PYTHON) if VENV_PYTHON.is_file() else "python"
+    pyw = _win_pythonw()
+    host = load_host()
+    dash = host.get("dashboard") if isinstance(host.get("dashboard"), dict) else {}
+    dash_host = "127.0.0.1"
+    dash_port = int(dash.get("port") or 8766)
+    # PowerShell: start plugins, then detach dashboard (closing nothing kills it).
+    body = f"""# FreeSaaS workers boot — run hidden via Task Scheduler (no CMD window).
+$ErrorActionPreference = 'Continue'
+$Root = '{WORKERS_ROOT}'
+$Repo = '{repo}'
+$Py = '{py}'
+$Pyw = '{pyw}'
+$env:PYTHONPATH = "$Repo;" + ($env:PYTHONPATH)
+$env:FREESAAS_WORKERS_ROOT = $Root
+$env:PYTHONIOENCODING = 'utf-8'
+Set-Location -LiteralPath $Repo
+$LogDir = Join-Path $Root 'var\\log'
+New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
+$Log = Join-Path $LogDir 'boot.log'
+Add-Content -LiteralPath $Log -Value ("{{0}} boot start" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'))
+& $Py -m workers.core start *>> $Log
+# pythonw + WindowStyle Hidden: no console; do not redirect stdio (breaks pythonw).
+Start-Process -FilePath $Pyw -ArgumentList @(
+  '-m', 'workers.core', 'dashboard',
+  '--host', '{dash_host}', '--port', '{dash_port}'
+) -WorkingDirectory $Repo -WindowStyle Hidden
+"""
+    BOOT_PS1.write_text(body, encoding="utf-8")
+    return BOOT_PS1
+
+
+def write_boot_cmd() -> Path:
+    """Legacy .cmd trampoline → hidden PowerShell boot (keeps old path references working)."""
+    ps1 = write_boot_ps1()
+    ensure_var_dirs()
+    BOOT_CMD.parent.mkdir(parents=True, exist_ok=True)
     body = f"""@echo off
-setlocal
-set "ROOT={WORKERS_ROOT}"
-set "REPO={repo}"
-set "PYTHONPATH=%REPO%;%PYTHONPATH%"
-set "FREESAAS_WORKERS_ROOT=%ROOT%"
-cd /d "%REPO%"
-set "LOG=%ROOT%\\var\\log\\boot.log"
-echo %DATE% %TIME% boot start>>"%LOG%"
-"{py}" -m workers.core start >>"%LOG%" 2>&1
-"{py}" -m workers.core dashboard >>"%LOG%" 2>&1
+REM Prefer freesaas-workers-boot.ps1 (no console). This .cmd is only a fallback trampoline.
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "{ps1}"
 """
     BOOT_CMD.write_text(body, encoding="utf-8")
     return BOOT_CMD
@@ -258,8 +298,13 @@ def _enable_darwin(*, start_now: bool = True) -> Dict[str, Any]:
 
 
 def _enable_win32(*, start_now: bool = True) -> Dict[str, Any]:
-    boot = write_boot_cmd()
-    tr = str(boot)
+    write_boot_cmd()  # also writes .ps1
+    ps1 = str(BOOT_PS1)
+    # Hidden PowerShell — no black CMD window; dashboard detached via pythonw.
+    tr = (
+        f'powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden '
+        f'-File "{ps1}"'
+    )
     code, out = _run(
         [
             "schtasks",

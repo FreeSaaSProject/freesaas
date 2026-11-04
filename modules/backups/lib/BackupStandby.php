@@ -87,7 +87,8 @@ final class BackupStandby
             $pending = self::selectPendingCdcPacks(
                 $incrs,
                 BackupConfig::standbyAppliedCursor(),
-                BackupConfig::standbyAppliedSeq()
+                BackupConfig::standbyAppliedSeq(),
+                $appliedFull
             );
             if (!empty($pending['error'])) {
                 $errors[] = (string)$pending['error'];
@@ -120,6 +121,11 @@ final class BackupStandby
                     && strpos($baseFull, preg_replace('/\.tar(\.enc)?$/i', '', $appliedFull) ?? '') === false
                 ) {
                     self::rmTree((string)$local['dir']);
+                    // Differential packs from a previous light are expected after nightly redeploy —
+                    // skip and try the next candidate instead of failing the whole sync.
+                    if ($mode === 'differential') {
+                        continue;
+                    }
                     $errors[] = 'incr base_full mismatch: ' . $baseFull . ' vs applied ' . $appliedFull;
                     break;
                 }
@@ -256,10 +262,18 @@ final class BackupStandby
      * @param list<array<string,mixed>> $incrs Newest-first listing
      * @return array{packs:list<array<string,mixed>>,error:string}
      */
-    private static function selectPendingCdcPacks(array $incrs, int $appliedCursor, int $appliedSeq): array
-    {
+    private static function selectPendingCdcPacks(
+        array $incrs,
+        int $appliedCursor,
+        int $appliedSeq,
+        string $appliedFull = ''
+    ): array {
         if ($incrs === []) {
             return ['packs' => [], 'error' => ''];
+        }
+        $baseStamp = '';
+        if (preg_match('/^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/', $appliedFull, $m)) {
+            $baseStamp = $m[1];
         }
         $diffs = [];
         $chains = [];
@@ -282,11 +296,19 @@ final class BackupStandby
         }
 
         if ($diffs !== []) {
-            // Newest first; skip if filename seq already applied.
+            // Newest first; skip if filename seq already applied, or pack stamp is older than current light.
             foreach ($diffs as $set) {
                 $seq = (int)($set['seq'] ?? 0);
                 if ($seq > 0 && $seq <= $appliedSeq) {
                     continue;
+                }
+                if ($baseStamp !== '') {
+                    $name = (string)($set['name'] ?? '');
+                    if (preg_match('/^(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})/', $name, $sm)
+                        && strcmp($sm[1], $baseStamp) < 0
+                    ) {
+                        continue;
+                    }
                 }
                 return ['packs' => [$set], 'error' => ''];
             }
@@ -336,19 +358,38 @@ final class BackupStandby
     /** @return array<string,mixed> */
     private static function redeployFull(string $remotePath): array
     {
-        // Destructive: wipe owned tables then restore — only on standby with empty-or-force.
-        // Use BackupRestore::deploy which requires empty DB. Caller must empty DB first OR we empty.
-        if (!BackupRestore::databaseIsEmpty()) {
-            self::emptyAllTables();
-        }
+        // Download/decrypt first — never wipe until the pack is local and openable.
+        // Otherwise a failed restore after emptyAllTables() leaves an unusable standby DB.
+        $dir = '';
         try {
-            return BackupRestore::deploy([
-                'remote_path' => $remotePath,
+            $opened = self::downloadAndOpenPack($remotePath);
+            if (empty($opened['ok'])) {
+                return [
+                    'ok' => false,
+                    'error' => (string)($opened['error'] ?? 'download/open failed'),
+                    'remote_path' => $remotePath,
+                ];
+            }
+            $dir = (string)($opened['dir'] ?? '');
+            if ($dir === '' || !is_dir($dir)) {
+                return ['ok' => false, 'error' => 'open pack dir missing', 'remote_path' => $remotePath];
+            }
+            if (!BackupRestore::databaseIsEmpty()) {
+                self::emptyAllTables();
+            }
+            // Prepared extract dir — deploy accepts file= as file or directory.
+            $r = BackupRestore::deploy([
+                'file' => $dir,
                 'passphrase' => BackupConfig::passphrase(),
                 'migrate' => true,
             ]);
+            return $r;
         } catch (Throwable $e) {
-            return ['ok' => false, 'error' => $e->getMessage()];
+            return ['ok' => false, 'error' => $e->getMessage(), 'remote_path' => $remotePath];
+        } finally {
+            if ($dir !== '' && is_dir($dir)) {
+                self::rmTree($dir);
+            }
         }
     }
 
@@ -373,7 +414,8 @@ final class BackupStandby
     private static function downloadAndOpenPack(string $remotePath): array
     {
         try {
-            $dl = BackupRestore::downloadRemote($remotePath, 120);
+            // Full/light packs are large; allow long FTP pull (legacy dir sets still respect budget).
+            $dl = BackupRestore::downloadRemote($remotePath, 900);
             if (empty($dl['ok'])) {
                 return ['ok' => false, 'error' => 'download failed'];
             }

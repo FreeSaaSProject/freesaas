@@ -160,12 +160,21 @@ def doctor() -> Dict[str, Any]:
 
     for s in specs:
         local = load_json(s.config_local)
-        token = str(local.get("worker_token") or local.get("audio_token") or "").strip()
         add(
             f"{s.id}.local.json",
             s.config_local.is_file(),
             str(s.config_local) if s.config_local.is_file() else "missing",
         )
+        if s.id == "freesaas":
+            # Local stack orchestrator — no remote worker_token; checks PHP CLI root.
+            root_raw = str(local.get("freesaas_root") or "").strip()
+            fs_root = Path(root_raw).expanduser().resolve() if root_raw else WORKERS_ROOT.parent
+            cli = fs_root / "bin" / "freesaas.php"
+            add(f"{s.id}.cli", cli.is_file(), str(cli) if cli.is_file() else f"missing {cli}")
+            php_bin = str(local.get("php_bin") or "php")
+            add(f"{s.id}.depends.php", bool(which(php_bin)), which(php_bin) or f"{php_bin} not on PATH")
+            continue
+        token = str(local.get("worker_token") or local.get("audio_token") or "").strip()
         add(
             f"{s.id}.token",
             bool(token) and token != "CHANGE_ME",

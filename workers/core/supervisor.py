@@ -48,6 +48,24 @@ def clear_pid(plugin_id: str) -> None:
 def is_running(pid: int) -> bool:
     if pid <= 0:
         return False
+    # Windows: os.kill(pid, 0) often raises WinError 87 / SystemError.
+    if sys.platform == "win32":
+        try:
+            import psutil  # type: ignore
+
+            return psutil.pid_exists(pid)
+        except Exception:  # noqa: BLE001
+            try:
+                import ctypes
+
+                SYNCHRONIZE = 0x00100000
+                handle = ctypes.windll.kernel32.OpenProcess(SYNCHRONIZE, 0, int(pid))
+                if handle:
+                    ctypes.windll.kernel32.CloseHandle(handle)
+                    return True
+                return False
+            except Exception:  # noqa: BLE001
+                return False
     try:
         os.kill(pid, 0)
         return True
@@ -61,8 +79,14 @@ def stop_plugin(plugin_id: str, *, timeout: float = 8.0) -> str:
         clear_pid(plugin_id)
         return f"{plugin_id}: not running"
     try:
-        os.kill(pid, signal.SIGTERM)
-    except OSError as e:
+        if sys.platform == "win32":
+            import psutil  # type: ignore
+
+            p = psutil.Process(pid)
+            p.terminate()
+        else:
+            os.kill(pid, signal.SIGTERM)
+    except Exception as e:  # noqa: BLE001
         clear_pid(plugin_id)
         return f"{plugin_id}: kill failed: {e}"
     deadline = time.time() + timeout
@@ -72,8 +96,13 @@ def stop_plugin(plugin_id: str, *, timeout: float = 8.0) -> str:
             return f"{plugin_id}: stopped pid={pid}"
         time.sleep(0.2)
     try:
-        os.kill(pid, signal.SIGKILL)
-    except OSError:
+        if sys.platform == "win32":
+            import psutil  # type: ignore
+
+            psutil.Process(pid).kill()
+        else:
+            os.kill(pid, signal.SIGKILL)
+    except Exception:  # noqa: BLE001
         pass
     clear_pid(plugin_id)
     return f"{plugin_id}: killed pid={pid}"
@@ -83,7 +112,8 @@ def _kill_orphan_workers(spec: PluginSpec, *, keep_pid: int = 0) -> List[str]:
     """Terminate leftover plugin workers not tracked by the pid file (avoids double notify)."""
     msgs: List[str] = []
     entry = str(spec.entrypoint_path.resolve())
-    needle = f"plugins/{spec.id}/"
+    needle_fwd = f"plugins/{spec.id}/"
+    needle_bwd = f"plugins\\{spec.id}\\"
     try:
         import psutil
     except ImportError:
@@ -96,7 +126,7 @@ def _kill_orphan_workers(spec: PluginSpec, *, keep_pid: int = 0) -> List[str]:
             cmd = " ".join(str(x) for x in (proc.info.get("cmdline") or []))
             if not cmd:
                 continue
-            if entry not in cmd and needle not in cmd:
+            if entry not in cmd and needle_fwd not in cmd and needle_bwd not in cmd:
                 continue
             if "worker.py" not in cmd and str(spec.entrypoint_path.name) not in cmd:
                 continue
@@ -167,21 +197,78 @@ def start_plugin(spec: PluginSpec, *, extra_args: Optional[List[str]] = None) ->
     # Prefer launching with cwd = plugin root so relative paths work.
     import subprocess
 
-    proc = subprocess.Popen(
-        cmd,
-        cwd=str(spec.root),
-        stdout=logf,
-        stderr=subprocess.STDOUT,
-        env=env,
-        start_new_session=True,
-    )
-    write_pid(spec.id, int(proc.pid))
+    popen_kwargs: Dict[str, Any] = {
+        "cwd": str(spec.root),
+        "stdout": logf,
+        "stderr": subprocess.STDOUT,
+        "env": env,
+        "start_new_session": True,
+    }
+    if sys.platform == "win32":
+        # Avoid flashing consoles; CREATE_NO_WINDOW keeps workers headless.
+        popen_kwargs["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+    proc = subprocess.Popen(cmd, **popen_kwargs)
+    live_pid = _resolve_worker_pid(proc, spec)
+    write_pid(spec.id, live_pid)
     prefix = ("; ".join(orphan_msgs) + "; ") if orphan_msgs else ""
     time.sleep(0.35)
-    if proc.poll() is not None:
+    if not is_running(live_pid) and proc.poll() is not None:
+        # Last chance: Windows venv shim may exit while child keeps running.
+        found = _find_worker_pid(spec)
+        if found:
+            write_pid(spec.id, found)
+            return f"{prefix}{spec.id}: started pid={found}"
         clear_pid(spec.id)
         return f"{prefix}{spec.id}: exited immediately code={proc.returncode} (see {log_file})"
-    return f"{prefix}{spec.id}: started pid={proc.pid}"
+    return f"{prefix}{spec.id}: started pid={live_pid}"
+
+
+def _find_worker_pid(spec: PluginSpec) -> int:
+    try:
+        import psutil
+    except ImportError:
+        return 0
+    entry = str(spec.entrypoint_path.resolve())
+    needle_bwd = f"plugins\\{spec.id}\\"
+    needle_fwd = f"plugins/{spec.id}/"
+    for proc in psutil.process_iter(["pid", "cmdline"]):
+        try:
+            pid = int(proc.info.get("pid") or 0)
+            cmd = " ".join(str(x) for x in (proc.info.get("cmdline") or []))
+            if not cmd or "worker.py" not in cmd:
+                continue
+            if entry in cmd or needle_fwd in cmd or needle_bwd in cmd:
+                return pid
+        except (psutil.Error, OSError, ValueError):
+            continue
+    return 0
+
+
+def _resolve_worker_pid(proc: Any, spec: PluginSpec, *, timeout: float = 2.0) -> int:
+    """On Windows a venv python.exe shim may exit; track the real worker child."""
+    pid = int(proc.pid)
+    if sys.platform != "win32":
+        return pid
+    try:
+        import psutil
+    except ImportError:
+        return pid
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        found = _find_worker_pid(spec)
+        if found:
+            return found
+        try:
+            if psutil.pid_exists(pid):
+                p = psutil.Process(pid)
+                cmd = " ".join(p.cmdline())
+                if "worker.py" in cmd:
+                    return pid
+        except (psutil.Error, OSError):
+            pass
+        time.sleep(0.1)
+    return pid
 
 
 def plugin_runtime(spec: PluginSpec, *, sample_cpu: bool = True) -> Dict[str, Any]:

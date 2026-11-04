@@ -376,11 +376,11 @@ def render_page(*, csrf_token: str) -> str:
   <section class="card">
     <h2>{t('dash.autostart', locale=locale)}</h2>
     <div class="notify-checks">
-      <label><input type="checkbox" id="aEnabled"/> {t('dash.autostart_enabled', locale=locale)}</label>
+      <label><input type="checkbox" id="aEnabled"/> {i18n.get('dash.autostart_enabled') or t('dash.autostart_enabled', locale=locale)}</label>
       <button type="button" id="btnAutostartSave" hidden>{t('dash.autostart_save', locale=locale)}</button>
       <span class="muted" id="autostartMeta"></span>
     </div>
-    <p class="muted" style="margin:6px 0 0;font-size:11px">{t('dash.autostart_hint', locale=locale)}</p>
+    <p class="muted" style="margin:6px 0 0;font-size:11px">{i18n.get('dash.autostart_hint') or t('dash.autostart_hint', locale=locale)}</p>
   </section>
   <section class="card">
     <h2>{t('dash.live_log', locale=locale)}</h2>
@@ -551,7 +551,15 @@ document.addEventListener('click', async (ev) => {{
   const act = t.getAttribute('data-act');
   if (!act) return;
   const plugin = t.getAttribute('data-plugin') || '';
-  const res = await postAction(act, {{ plugin }});
+  const conf = t.getAttribute('data-confirm');
+  if (conf && !window.confirm(conf)) return;
+  const payload = {{ plugin }};
+  for (const a of t.attributes) {{
+    if (!a.name.startsWith('data-')) continue;
+    if (a.name === 'data-act' || a.name === 'data-plugin' || a.name === 'data-confirm') continue;
+    payload[a.name.slice(5).replace(/-/g, '_')] = a.value;
+  }}
+  const res = await postAction(act, payload);
   if (res.message) console.log(res.message);
   refreshStatus();
 }});

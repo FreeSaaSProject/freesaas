@@ -14,6 +14,7 @@ final class StandbyMode
     /** Cron jobs always allowed on standby (any mode). */
     private const ALWAYS_CRON = [
         'backups.standby_health',
+        'backups.standby_sync',
     ];
 
     /** Extra cron allowed only in active (internal contour + local packs for demote). */

@@ -1,0 +1,1 @@
+# No extra pip deps — stdlib + workers.core only.

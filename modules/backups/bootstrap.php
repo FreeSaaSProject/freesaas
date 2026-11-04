@@ -96,6 +96,26 @@ Cron::register('backups.standby_health', [
     },
 ]);
 
+// Passive PC insurance when workers plugin is off — host still needs /cron/tick or CLI cron tick.
+Cron::register('backups.standby_sync', [
+    'module' => 'backups',
+    'label' => 'backups.cron.standby_sync',
+    'every' => 15,
+    'handler' => static function (): array {
+        if (!StandbyMode::isStandby()) {
+            return ['ok' => true, 'processed' => 0, 'message' => 'not_standby'];
+        }
+        $r = BackupStandby::sync(true);
+        $applied = is_array($r['applied'] ?? null) ? $r['applied'] : [];
+        return [
+            'ok' => !empty($r['ok']),
+            'processed' => count($applied),
+            'message' => (string)($r['error'] ?? $r['message'] ?? 'synced'),
+            'errors' => is_array($r['errors'] ?? null) ? $r['errors'] : [],
+        ];
+    },
+]);
+
 EventBus::on('core.notices.collect', static function ($notices) {
     return BackupNotify::collectNotices($notices);
 });

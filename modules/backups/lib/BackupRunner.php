@@ -11,6 +11,9 @@ final class BackupRunner
 {
     public const BUDGET_SEC = 40;
 
+    /** Fail a stuck run so a new light/full/incr can start (shared hosting / lost dump jobs). */
+    public const MAX_RUN_AGE_SEC = 10800; // 3h
+
     /** Cron entry: advance running job or start scheduled full/incr / check stale. */
     public static function cronTick(): array
     {
@@ -20,12 +23,35 @@ final class BackupRunner
 
         $running = BackupRepository::findRunning();
         if ($running !== null) {
-            $r = self::advance((int)$running['id']);
+            $id = (int)$running['id'];
+            $started = (int)($running['started_at'] ?? 0);
+            if ($started > 0 && (time() - $started) > self::MAX_RUN_AGE_SEC) {
+                $phase = (string)($running['phase'] ?? '');
+                $msg = t('backups.err.run_stale', [
+                    'hours' => (string)max(1, (int)floor((time() - $started) / 3600)),
+                    'phase' => $phase !== '' ? $phase : '?',
+                ]);
+                BackupRepository::markFailed($id, $msg, $phase !== '' ? $phase : 'timeout');
+                $failed = BackupRepository::find($id);
+                if (is_array($failed)) {
+                    BackupNotify::onFail($failed);
+                }
+                return [
+                    'ok' => false,
+                    'processed' => 1,
+                    'message' => 'stale_run_failed',
+                    'run_id' => $id,
+                    'phase' => $phase,
+                    'status' => 'error',
+                    'kind' => (string)($running['kind'] ?? 'full'),
+                ];
+            }
+            $r = self::advance($id);
             return [
                 'ok' => empty($r['error']),
                 'processed' => 1,
                 'message' => (string)($r['message'] ?? $r['phase'] ?? ''),
-                'run_id' => (int)$running['id'],
+                'run_id' => $id,
                 'phase' => (string)($r['phase'] ?? ''),
                 'status' => (string)($r['status'] ?? ''),
                 'kind' => (string)($running['kind'] ?? 'full'),
@@ -530,31 +556,34 @@ final class BackupRunner
         $detail = is_array($state['phase_detail'] ?? null) ? $state['phase_detail'] : [];
         $jobId = (string)($detail['job_id'] ?? '');
         if ($jobId === '') {
-            $tables = BackupConfig::dbScope() === 'all'
-                ? DbTools::allTables()
-                : DbTools::ownedTables();
-            if ($tables === []) {
-                throw new RuntimeException(t('backups.err.no_tables'));
-            }
-            $job = DbJobs::jobStart('dump', [
-                'tables' => $tables,
-                'label' => 'backup-' . (string)($state['stamp'] ?? ''),
-            ]);
-            $detail['job_id'] = (string)$job['id'];
-            $state['phase_detail'] = $detail;
-            return ['done' => false, 'state' => $state];
+            return self::phaseDbStartDump($state, $detail);
         }
         $t0 = microtime(true);
         $job = null;
-        while ((microtime(true) - $t0) < max(5.0, $budgetLeft)) {
-            $job = DbJobs::jobTick($jobId);
-            $st = (string)($job['status'] ?? '');
-            if ($st !== 'running') {
-                break;
+        try {
+            while ((microtime(true) - $t0) < max(5.0, $budgetLeft)) {
+                $job = DbJobs::jobTick($jobId);
+                $st = (string)($job['status'] ?? '');
+                if ($st !== 'running') {
+                    break;
+                }
             }
-        }
-        if ($job === null) {
-            $job = DbJobs::jobGet($jobId);
+            if ($job === null) {
+                $job = DbJobs::jobGet($jobId);
+            }
+        } catch (Throwable $e) {
+            // var/db_jobs/{id}.json lost (host cleanup, disk, crash) while backup run still "running".
+            $msg = $e->getMessage();
+            $restarts = (int)($detail['dump_restarts'] ?? 0);
+            if ($restarts < 1 && (stripos($msg, 'Job not found') !== false || stripos($msg, 'Corrupt job') !== false)) {
+                $detail = ['dump_restarts' => $restarts + 1];
+                return self::phaseDbStartDump($state, $detail);
+            }
+            throw new RuntimeException(
+                t('backups.err.dump_job_lost', ['id' => $jobId, 'msg' => $msg]),
+                0,
+                $e
+            );
         }
         $st = (string)($job['status'] ?? '');
         if ($st === 'error' || $st === 'cancelled') {
@@ -577,6 +606,28 @@ final class BackupRunner
         $state['artifacts'] = $arts;
         $state['phase_detail'] = [];
         return ['done' => true, 'state' => $state];
+    }
+
+    /**
+     * @param array<string,mixed> $state
+     * @param array<string,mixed> $detail
+     * @return array{done:bool,state:array<string,mixed>}
+     */
+    private static function phaseDbStartDump(array $state, array $detail): array
+    {
+        $tables = BackupConfig::dbScope() === 'all'
+            ? DbTools::allTables()
+            : DbTools::ownedTables();
+        if ($tables === []) {
+            throw new RuntimeException(t('backups.err.no_tables'));
+        }
+        $job = DbJobs::jobStart('dump', [
+            'tables' => $tables,
+            'label' => 'backup-' . (string)($state['stamp'] ?? ''),
+        ]);
+        $detail['job_id'] = (string)$job['id'];
+        $state['phase_detail'] = $detail;
+        return ['done' => false, 'state' => $state];
     }
 
     /** @param array<string,mixed> $state @return array{done:bool,state:array<string,mixed>} */

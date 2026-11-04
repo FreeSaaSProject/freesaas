@@ -11,10 +11,11 @@ workers/.venv/bin/pip install -r workers/core/requirements.txt
 cp workers/host.example.json workers/host.local.json
 # enable plugins in host.local.json, then:
 PYTHONPATH=. python3 -m workers.core install
-PYTHONPATH=. python3 -m workers.core dashboard --open
+./workers/bin/freesaas-workers autostart on   # durable: LaunchAgent (macOS)
+# manual session: ./workers/bin/freesaas-workers dashboard --open
 ```
 
-Windows: `workers\bin\freesaas-workers.cmd install` (uses `workers\.venv\Scripts\python.exe` when present).
+Windows: `workers\bin\freesaas-workers.cmd install` then `autostart on` (Task Scheduler **FreeSaaSWorkers**). Dashboard is **localhost-only** — open `http://127.0.0.1:8766/` in a browser on that PC (AnyDesk/RDP OK; Tailscale IP → 403). Processes started over SSH often die with the session; prefer autostart / `schtasks /Run /TN FreeSaaSWorkers`.
 
 Or: `./workers/bin/freesaas-workers doctor`
 

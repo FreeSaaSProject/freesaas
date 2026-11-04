@@ -1,8 +1,9 @@
-"""Locale helpers for Mac workers host (dashboard + worker logs)."""
+"""Locale helpers for workers host (dashboard + worker logs)."""
 from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -77,5 +78,29 @@ def t(key: str, locale: Optional[str] = None, plugin: str = "", **kwargs: Any) -
     return template
 
 
+def autostart_os_suffix() -> str:
+    """mac | win — for dash.autostart_*_{suffix} keys."""
+    return "win" if sys.platform == "win32" else "mac"
+
+
+def apply_autostart_os_labels(cat: Dict[str, str], locale: Optional[str] = None) -> Dict[str, str]:
+    """Remap generic autostart chrome keys to OS-specific copy for the current host."""
+    loc = locale or get_locale()
+    suf = autostart_os_suffix()
+    out = dict(cat)
+    for base in (
+        "dash.autostart_enabled",
+        "dash.autostart_hint",
+        "dash.autostart_loaded",
+        "dash.autostart_unloaded",
+    ):
+        specific = f"{base}_{suf}"
+        text = t(specific, locale=loc)
+        if text != specific:
+            out[base] = text
+    return out
+
+
 def catalog_for_js(locale: Optional[str] = None) -> Dict[str, str]:
-    return dict(_catalogs(locale or get_locale()))
+    loc = locale or get_locale()
+    return apply_autostart_os_labels(dict(_catalogs(loc)), loc)
