@@ -9,10 +9,20 @@ declare(strict_types=1);
  */
 final class BackupRunner
 {
+    /** Default wall budget per advance() (shared-hosting safe). */
     public const BUDGET_SEC = 40;
 
-    /** Fail a stuck run so a new light/full/incr can start (shared hosting / lost dump jobs). */
-    public const MAX_RUN_AGE_SEC = 10800; // 3h
+    /**
+     * Light packs are db+cfg only — keep working continuously (like /db dump), not 8 MiB crumbs.
+     * One cron invocation may run up to LIGHT_WALL_SEC of wall time.
+     */
+    public const BUDGET_SEC_LIGHT = 120;
+
+    /** Continuous wall for light (and manual Continue) — matches ~3–4 min /db dump+pack. */
+    public const LIGHT_WALL_SEC = 240;
+
+    /** Fail a truly stuck run so the next schedule can start (slow FTP / huge hard packs). */
+    public const MAX_RUN_AGE_SEC = 43200; // 12h
 
     /** Cron entry: advance running job or start scheduled full/incr / check stale. */
     public static function cronTick(): array
@@ -46,7 +56,11 @@ final class BackupRunner
                     'kind' => (string)($running['kind'] ?? 'full'),
                 ];
             }
-            $r = self::advance($id);
+            $kind = BackupRepository::normalizeKind((string)($running['kind'] ?? 'full'));
+            // Light: pump continuously (~/db dump duration), not one 40s crumb per host cron.
+            $r = $kind === 'light'
+                ? self::advanceUntil($id, self::LIGHT_WALL_SEC)
+                : self::advance($id);
             return [
                 'ok' => empty($r['error']),
                 'processed' => 1,
@@ -54,7 +68,7 @@ final class BackupRunner
                 'run_id' => $id,
                 'phase' => (string)($r['phase'] ?? ''),
                 'status' => (string)($r['status'] ?? ''),
-                'kind' => (string)($running['kind'] ?? 'full'),
+                'kind' => $kind,
             ];
         }
 
@@ -298,7 +312,7 @@ final class BackupRunner
      */
     public static function advanceUntil(int $id, int $wallSec = 50): array
     {
-        $wallSec = max(5, min(120, $wallSec));
+        $wallSec = max(5, min(300, $wallSec));
         $t0 = microtime(true);
         $r = ['status' => 'running'];
         while ((microtime(true) - $t0) < $wallSec) {
@@ -328,7 +342,7 @@ final class BackupRunner
         $kind = BackupRepository::normalizeKind((string)($state['kind'] ?? $run['kind'] ?? 'full'));
         $state['kind'] = $kind;
         try {
-            $budget = self::BUDGET_SEC;
+            $budget = $kind === 'light' ? self::BUDGET_SEC_LIGHT : self::BUDGET_SEC;
             $t0 = microtime(true);
             while ((microtime(true) - $t0) < $budget) {
                 if ($kind === 'incr') {

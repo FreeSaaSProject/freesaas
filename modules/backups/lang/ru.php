@@ -159,7 +159,7 @@ return [
     'backups.err.passphrase' => 'Шифрование включено, но пароль пуст',
     'backups.err.disk_space' => 'Меньше 100 МиБ свободно в var/backups',
     'backups.err.no_tables' => 'Нет таблиц для дампа',
-    'backups.err.run_stale' => 'Бэкап завис больше {hours} ч на фазе {phase} — отменён, чтобы мог стартовать следующий по расписанию',
+    'backups.err.run_stale' => 'Бэкап завис больше {hours} ч на фазе {phase} — отменён (лимит 12 ч), чтобы мог стартовать следующий по расписанию',
     'backups.err.dump_job_lost' => 'Файл дампа job {id} пропал из var/db_jobs ({msg})',
     'backups.err.verify_size' => 'Размер на FTP не совпал для {file}: ждали {expect}, получили {got}',
     'backups.err.verify_manifest' => 'Нет manifest.json после выгрузки',

@@ -9,14 +9,17 @@ if (class_exists('Csrf', false) && !Csrf::verify()) {
 
 try {
     $existing = BackupRepository::findRunning();
+    $kind = 'full';
     if ($existing !== null) {
         $id = (int)$existing['id'];
+        $kind = BackupRepository::normalizeKind((string)($existing['kind'] ?? 'full'));
     } else {
         $kind = BackupRepository::normalizeKind((string)($_POST['kind'] ?? 'full'));
         $id = BackupRunner::start('manual', $kind);
     }
-    // Keep pumping for ~50s so light phases (cfg/pack) do not wait for the next cron minute.
-    $r = BackupRunner::advanceUntil($id, 50);
+    // Light: pump ~4 min continuously (same ballpark as /db dump). Else ~50s crumb.
+    $wall = $kind === 'light' ? BackupRunner::LIGHT_WALL_SEC : 50;
+    $r = BackupRunner::advanceUntil($id, $wall);
     if ($wantsJson) {
         AgentHttp::emit([
             'ok' => empty($r['error']) && (($r['status'] ?? '') !== 'error'),

@@ -8,7 +8,8 @@ declare(strict_types=1);
  */
 final class BackupTarWriter
 {
-    public const BUDGET_BYTES = 8 * 1024 * 1024;
+    /** Soft cap per tick (time budget usually binds first). Was 8 MiB — too small for ~250+ MiB light packs. */
+    public const BUDGET_BYTES = 512 * 1024 * 1024;
 
     /**
      * Build file inventory under roots (relative names inside tar).

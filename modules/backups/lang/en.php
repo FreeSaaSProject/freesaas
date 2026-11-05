@@ -159,7 +159,7 @@ return [
     'backups.err.passphrase' => 'Encryption is on but passphrase is empty',
     'backups.err.disk_space' => 'Less than 100 MiB free under var/backups',
     'backups.err.no_tables' => 'No tables to dump',
-    'backups.err.run_stale' => 'Backup run stuck over {hours}h in phase {phase} — cancelled so the next schedule can run',
+    'backups.err.run_stale' => 'Backup run stuck over {hours}h in phase {phase} — cancelled (12h limit) so the next schedule can run',
     'backups.err.dump_job_lost' => 'DB dump job {id} missing under var/db_jobs ({msg})',
     'backups.err.verify_size' => 'Remote size mismatch for {file}: expected {expect}, got {got}',
     'backups.err.verify_manifest' => 'Remote manifest.json missing after upload',
