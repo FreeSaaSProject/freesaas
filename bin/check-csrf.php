@@ -104,6 +104,14 @@ if (is_array($tFloor)) {
     $methods = $tFloor['methods'] ?? [];
     $assert(in_array('GET', $methods, true) && in_array('POST', $methods, true), '/t allows GET+POST');
 }
+if (class_exists('TerminalFormGuard', false)) {
+    $ft = TerminalFormGuard::token('T1', 'B1', 'scan');
+    $assert(TerminalFormGuard::verify($ft, 'T1', 'B1', 'scan'), '/t form token ok');
+    $assert(!TerminalFormGuard::verify($ft, 'T1', 'B2', 'scan'), '/t form token bound to bracelet');
+    $assert(!TerminalFormGuard::verify($ft, 'T1', 'B1', ''), '/t form token needs scan token');
+    $stale = TerminalFormGuard::token('T1', 'B1', 'scan', time() - 2 * 86400);
+    $assert(!TerminalFormGuard::verify($stale, 'T1', 'B1', 'scan'), '/t form token expires');
+}
 
 // audio_llm may be disabled in config.example.ini — prefer runtime route, else manifest agent.ops.
 $work = $routes['/audio/llm-studies/work'] ?? null;

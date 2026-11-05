@@ -16,6 +16,7 @@ require_once __DIR__ . '/lib/TerminalBooking.php';
 require_once __DIR__ . '/lib/TerminalFloorHome.php';
 require_once __DIR__ . '/lib/TerminalFloorCatalog.php';
 require_once __DIR__ . '/lib/TerminalFloor.php';
+require_once __DIR__ . '/lib/TerminalFormGuard.php';
 require_once __DIR__ . '/lib/TerminalsBiContrib.php';
 
 EventBus::on('bi.datasets', [TerminalsBiContrib::class, 'onDatasets']);
@@ -43,7 +44,8 @@ $pages = [
     '/terminals/1c' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'onec.php'],
     '/terminals/1c/{mode}' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'onec.php'],
     '/terminals/floor' => ['permission' => 'terminals.edit', 'methods' => ['GET', 'POST'], 'file' => 'floor_book.php'],
-    '/t' => ['public' => true, 'methods' => ['GET', 'POST'], 'file' => 't.php'],
+    // CSRF in pages/t.php via TerminalFormGuard (WebView may drop the session cookie).
+    '/t' => ['public' => true, 'csrf' => false, 'methods' => ['GET', 'POST'], 'file' => 't.php'],
     '/terminals/jobs/load' => ['public' => true, 'methods' => ['POST'], 'file' => 'jobs_load.php'],
     '/terminals/jobs/tickets' => ['public' => true, 'methods' => ['POST'], 'file' => 'jobs_tickets.php'],
 ];
@@ -59,6 +61,9 @@ foreach ($pages as $path => $def) {
     ];
     if (!empty($def['public'])) {
         $route['public'] = true;
+    }
+    if (array_key_exists('csrf', $def)) {
+        $route['csrf'] = $def['csrf'];
     }
     if (!empty($def['capability'])) {
         $route['capability'] = $def['capability'];

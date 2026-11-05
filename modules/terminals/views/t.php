@@ -53,7 +53,7 @@ $cancelMeta = is_array($state['cancel'] ?? null) ? $state['cancel'] : [];
 /** @param array<string,scalar|null> $extra */
 $tPostFormOpen = static function (array $extra = []) use ($baseQ): void {
     echo '<form method="post" action="/t/" style="display:inline">';
-    echo Csrf::field();
+    echo TerminalFormGuard::fields($baseQ);
     foreach ($baseQ + $extra as $k => $v) {
         if ($v === null || $v === '') {
             continue;
@@ -169,7 +169,7 @@ $tPostFormClose = static function (): void {
         <div class="card">
             <h1 style="color:var(--danger)"><?= e(t('terminals.t.num_required')) ?></h1>
             <form class="num-form" method="post" action="/t/">
-                <?= Csrf::field() ?>
+                <?= TerminalFormGuard::fields($baseQ) ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -195,7 +195,7 @@ $tPostFormClose = static function (): void {
                 </p>
             <?php endif; ?>
             <form class="num-form" method="post" action="/t/">
-                <?= Csrf::field() ?>
+                <?= TerminalFormGuard::fields($baseQ) ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -213,7 +213,7 @@ $tPostFormClose = static function (): void {
         <div class="card">
             <h2><?= e(t('terminals.t.rename_label')) ?></h2>
             <form class="rename-form" method="post" action="/t/">
-                <?= Csrf::field() ?>
+                <?= TerminalFormGuard::fields($baseQ) ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -233,7 +233,7 @@ $tPostFormClose = static function (): void {
                     · <?= e(date('d.m.Y H:i', (int)($cancelMeta['dtstart'] ?? time()))) ?></p>
             <?php endif; ?>
             <form class="num-form" method="post" action="/t/">
-                <?= Csrf::field() ?>
+                <?= TerminalFormGuard::fields($baseQ) ?>
                 <?php foreach ($baseQ as $k => $v): ?>
                     <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                 <?php endforeach; ?>
@@ -299,7 +299,7 @@ $tPostFormClose = static function (): void {
         <?php if ($mode === 'rename' && $clientId > 0): ?>
             <div class="card">
                 <form class="rename-form" method="post" action="/t/">
-                    <?= Csrf::field() ?>
+                    <?= TerminalFormGuard::fields($baseQ) ?>
                     <?php foreach ($baseQ as $k => $v): ?>
                         <input type="hidden" name="<?= e($k) ?>" value="<?= e((string)$v) ?>">
                     <?php endforeach; ?>

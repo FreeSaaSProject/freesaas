@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+TerminalFormGuard::enforcePost();
+
 $tFloor = microtime(true);
 $state = TerminalFloor::process();
 if (class_exists('StageTiming', false)) {
