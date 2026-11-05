@@ -13,6 +13,14 @@ $on = static function (string $k) use ($cfg): bool {
     return ($cfg[$k] ?? '0') === '1';
 };
 $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_ids'] : [], true);
+/** @var string $settingsTab */
+$subTabs = ['schedule', 'contents', 'cdc', 'ftp', 'encrypt', 'notify', 'replica'];
+$settingsTab = in_array((string)($settingsTab ?? ''), $subTabs, true) ? (string)$settingsTab : 'schedule';
+$panel = static function (string $id) use ($settingsTab): string {
+    return ' data-bk-panel="' . $id . '"' . ($id === $settingsTab ? '' : ' hidden');
+};
+$backupsTab = 'settings';
+require __DIR__ . '/_nav.php';
 ?>
 <section class="page-head">
   <p class="lede"><?= te('backups.settings.lede') ?></p>
@@ -21,22 +29,18 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
-<fieldset class="form-grid" style="margin-bottom:1.25rem">
-  <legend><?= te('backups.doctor.sec') ?></legend>
-  <p class="muted"><?= te('backups.doctor.lede') ?></p>
-  <div class="page-actions">
-    <form method="post" action="/backups/check" style="display:inline">
-      <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-      <button class="btn-primary" type="submit"><?= te('backups.doctor.run') ?></button>
-    </form>
-    <a class="btn" href="/backups/check"><?= te('backups.doctor.open') ?></a>
-  </div>
-</fieldset>
+<nav class="type-tabs bk-subtabs" data-bk-tabs aria-label="<?= te('backups.settings.tabs_aria') ?>">
+  <?php foreach ($subTabs as $st): ?>
+    <a class="type-tab<?= $st === $settingsTab ? ' is-active' : '' ?>" href="/backups/settings?tab=<?= e($st) ?>"
+       data-bk-tab="<?= e($st) ?>"><?= te('backups.settings.tab.' . $st) ?></a>
+  <?php endforeach; ?>
+</nav>
 
 <form method="post" class="form-grid">
   <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+  <input type="hidden" name="tab" value="<?= e($settingsTab) ?>" data-bk-tab-input>
 
-  <fieldset>
+  <fieldset<?= $panel('schedule') ?>>
     <legend><?= te('backups.settings.sec.schedule') ?></legend>
     <label class="check">
       <input type="checkbox" name="enabled" value="1"<?= $on('enabled') ? ' checked' : '' ?>>
@@ -50,7 +54,7 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     </label>
   </fieldset>
 
-  <fieldset>
+  <fieldset<?= $panel('schedule') ?>>
     <legend><?= te('backups.settings.sec.light') ?></legend>
     <p class="muted"><?= te('backups.settings.light_lede') ?></p>
     <label class="check">
@@ -63,7 +67,7 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     </label>
   </fieldset>
 
-  <fieldset>
+  <fieldset<?= $panel('schedule') ?>>
     <legend><?= te('backups.settings.sec.hard') ?></legend>
     <p class="muted"><?= te('backups.settings.hard_lede') ?></p>
     <label class="check">
@@ -80,7 +84,7 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     </label>
   </fieldset>
 
-  <fieldset>
+  <fieldset<?= $panel('cdc') ?>>
     <legend><?= te('backups.settings.sec.cdc') ?></legend>
     <p class="muted"><?= te('backups.settings.cdc_hint') ?></p>
     <?php
@@ -117,12 +121,14 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     </label>
     <p class="field-help"><?= te('backups.settings.cdc_exclude_hint') ?></p>
     <div class="page-actions">
-      <button class="btn" type="submit" name="action" value="cdc_install"><?= te('backups.settings.cdc_install') ?></button>
-      <button class="btn" type="submit" name="action" value="cdc_uninstall"><?= te('backups.settings.cdc_uninstall') ?></button>
+      <button class="btn-secondary" type="submit" name="action" value="cdc_install"
+              data-bk-busy="<?= te('backups.ui.busy.cdc_install') ?>"><?= te('backups.settings.cdc_install') ?></button>
+      <button class="btn-secondary" type="submit" name="action" value="cdc_uninstall"
+              data-bk-busy="<?= te('backups.ui.busy.cdc_uninstall') ?>"><?= te('backups.settings.cdc_uninstall') ?></button>
     </div>
   </fieldset>
 
-  <fieldset>
+  <fieldset<?= $panel('contents') ?>>
     <legend><?= te('backups.settings.sec.sources') ?></legend>
     <p class="muted"><?= te('backups.settings.sources_hint') ?></p>
     <p class="field-help"><?= te('backups.settings.sources_hard_only') ?></p>
@@ -141,14 +147,16 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     <?php endforeach; ?>
   </fieldset>
 
-  <fieldset>
+  <fieldset<?= $panel('ftp') ?>>
     <legend><?= te('backups.settings.sec.ftp') ?></legend>
     <?php if (!$on('ftp_ssl') && !$on('encrypt')): ?>
       <div class="flash flash-warn"><?= te('backups.settings.ftp_plain_warn') ?></div>
     <?php endif; ?>
     <div class="page-actions" style="margin-bottom:1rem">
-      <button class="btn-primary" type="submit" name="action" value="copy_ftp_audio"><?= te('backups.settings.copy_audio') ?></button>
-      <button class="btn" type="submit" name="action" value="test_ftp"><?= te('backups.settings.test_ftp') ?></button>
+      <button class="btn-primary" type="submit" name="action" value="copy_ftp_audio"
+              data-bk-busy="<?= te('backups.ui.busy.copy_audio') ?>"><?= te('backups.settings.copy_audio') ?></button>
+      <button class="btn-secondary" type="submit" name="action" value="test_ftp"
+              data-bk-busy="<?= te('backups.ui.busy.ftp_test') ?>"><?= te('backups.settings.test_ftp') ?></button>
     </div>
     <p class="muted"><?= te('backups.settings.copy_audio_hint', ['path' => (string)($recommended_ftp_base ?? BackupConfig::RECOMMENDED_FOLDER)]) ?></p>
     <label><?= te('backups.settings.instance') ?>
@@ -186,7 +194,7 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     <p class="field-help"><?= te('backups.settings.ftp_base_hint') ?></p>
   </fieldset>
 
-  <fieldset>
+  <fieldset<?= $panel('encrypt') ?>>
     <legend><?= te('backups.settings.sec.encrypt') ?></legend>
     <div class="flash flash-warn"><?= te('backups.settings.encrypt_warn') ?></div>
     <label class="check">
@@ -229,7 +237,60 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
     </label>
   </fieldset>
 
-  <fieldset>
+  <fieldset<?= $panel('replica') ?>>
+    <legend><?= te('backups.settings.sec.replica') ?></legend>
+    <p class="muted"><?= te('backups.settings.replica_lede') ?></p>
+    <label class="check">
+      <input type="checkbox" name="replica_enabled" value="1"<?= $on('replica_enabled') ? ' checked' : '' ?>>
+      <?= te('backups.settings.replica_enabled') ?>
+    </label>
+    <p class="field-help"><?= te('backups.settings.replica_enabled_hint') ?></p>
+    <div class="page-actions" style="margin-bottom:1rem">
+      <button class="btn-secondary" type="submit" name="action" value="copy_ftp_replica"><?= te('backups.settings.replica_copy_ftp') ?></button>
+      <a class="btn-secondary" href="/backups/replica"><?= te('backups.replica.open') ?></a>
+    </div>
+    <label><?= te('backups.settings.replica_instance') ?>
+      <input type="text" name="replica_instance" value="<?= e($c('replica_instance')) ?>" autocomplete="off">
+    </label>
+    <label><?= te('backups.settings.ftp_host') ?>
+      <input type="text" name="replica_ftp_host" value="<?= e($c('replica_ftp_host')) ?>" autocomplete="off">
+    </label>
+    <label><?= te('backups.settings.ftp_port') ?>
+      <input type="number" name="replica_ftp_port" value="<?= e($c('replica_ftp_port', '21')) ?>">
+    </label>
+    <label><?= te('backups.settings.ftp_user') ?>
+      <input type="text" name="replica_ftp_user" value="<?= e($c('replica_ftp_user')) ?>" autocomplete="off">
+    </label>
+    <label><?= te('backups.settings.ftp_pass') ?>
+      <input type="password" name="replica_ftp_pass" value="" autocomplete="new-password" placeholder="<?= e($c('replica_ftp_pass_masked')) ?>">
+    </label>
+    <label class="check">
+      <input type="checkbox" name="replica_ftp_pass_clear" value="1">
+      <?= te('backups.settings.ftp_pass_clear') ?>
+    </label>
+    <label class="check">
+      <input type="checkbox" name="replica_ftp_ssl" value="1"<?= $on('replica_ftp_ssl') ? ' checked' : '' ?>>
+      <?= te('backups.settings.ftp_ssl') ?>
+    </label>
+    <label class="check">
+      <input type="checkbox" name="replica_ftp_passive" value="1"<?= $c('replica_ftp_passive', '1') === '1' ? ' checked' : '' ?>>
+      <?= te('backups.settings.ftp_passive') ?>
+    </label>
+    <label><?= te('backups.settings.ftp_base_path') ?>
+      <input type="text" name="replica_ftp_base_path" value="<?= e($c('replica_ftp_base_path', '/' . BackupConfig::RECOMMENDED_FOLDER)) ?>">
+    </label>
+    <p class="field-help"><?= te('backups.settings.replica_ftp_hint') ?></p>
+    <label><?= te('backups.settings.replica_passphrase') ?>
+      <input type="password" name="replica_passphrase" value="" autocomplete="new-password" placeholder="<?= e($c('replica_passphrase_masked')) ?>">
+    </label>
+    <p class="field-help"><?= te('backups.settings.replica_passphrase_hint') ?></p>
+    <label class="check">
+      <input type="checkbox" name="replica_passphrase_clear" value="1">
+      <?= te('backups.settings.passphrase_clear') ?>
+    </label>
+  </fieldset>
+
+  <fieldset<?= $panel('notify') ?>>
     <legend><?= te('backups.settings.sec.notify') ?></legend>
     <?php if (empty($bots_enabled)): ?>
       <div class="flash flash-warn"><?= te('backups.settings.bots_off') ?></div>
@@ -288,14 +349,16 @@ $selected = array_fill_keys(is_array($cfg['source_ids'] ?? null) ? $cfg['source_
 
   <div class="page-actions">
     <button class="btn-primary" type="submit" name="action" value="save"><?= te('core.common.save') ?></button>
-    <button class="btn" type="submit" name="action" value="test_notify"><?= te('backups.settings.test_notify') ?></button>
-    <a class="btn" href="/backups"><?= te('core.common.cancel') ?></a>
+    <button class="btn-secondary" type="submit" name="action" value="test_notify"<?= $panel('notify') ?>
+            data-bk-busy="<?= te('backups.ui.busy.notify_test') ?>"><?= te('backups.settings.test_notify') ?></button>
+    <a class="btn-secondary" href="/backups"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
 
-<form method="post" class="actions" style="margin-top:.75rem"
+<form method="post" class="actions" style="margin-top:.75rem"<?= $panel('encrypt') ?>
       onsubmit="return <?= $pp !== '' ? 'confirm(' . tj('backups.settings.passphrase_confirm_regen') . ')' : 'true' ?>;">
   <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+  <input type="hidden" name="tab" value="encrypt">
   <button class="btn-secondary" type="submit" name="action" value="passphrase_generate">
     <?= te($pp !== '' ? 'backups.settings.passphrase_btn_regen' : 'backups.settings.passphrase_btn_generate') ?>
   </button>

@@ -306,6 +306,79 @@ final class BackupRunner
     }
 
     /**
+     * UI progress snapshot for a run row: ordered phases, current index and in-phase percent (null = unknown).
+     *
+     * @param array<string,mixed> $run
+     * @return array{kind:string,phase:string,phases:list<string>,index:int,pct:?int}
+     */
+    public static function progress(array $run): array
+    {
+        $state = is_array($run['state'] ?? null) ? $run['state'] : [];
+        $kind = BackupRepository::normalizeKind((string)($state['kind'] ?? $run['kind'] ?? 'full'));
+        $phase = (string)($run['phase'] ?? 'init');
+        if ($kind === 'incr') {
+            $phases = ['incr_sql', 'pack'];
+        } elseif ($kind === 'light') {
+            $phases = ['db', 'cfg', 'pack'];
+        } else {
+            $phases = ['db', 'cfg', 'files', 'pack'];
+        }
+        if (!empty($state['encrypt'])) {
+            $phases[] = 'encrypt';
+        }
+        $phases = array_merge($phases, ['upload', 'verify', 'prune']);
+        $status = (string)($run['status'] ?? '');
+        $index = array_search($phase, $phases, true);
+        if ($status === 'done') {
+            $index = count($phases);
+        } elseif ($index === false) {
+            $index = 0;
+        }
+
+        $detail = is_array($state['phase_detail'] ?? null) ? $state['phase_detail'] : [];
+        $pct = null;
+        try {
+            if ($phase === 'db' && (string)($detail['job_id'] ?? '') !== '') {
+                $job = DbJobs::jobGet((string)$detail['job_id']);
+                $pct = (int)($job['progress_overall'] ?? $job['progress'] ?? 0);
+            } elseif ($phase === 'pack' && is_array($detail['tar_files'] ?? null)) {
+                $files = $detail['tar_files'];
+                $tar = is_array($detail['tar'] ?? null) ? $detail['tar'] : [];
+                $idx = (int)($tar['file_idx'] ?? 0);
+                $total = 0;
+                $done = 0;
+                foreach ($files as $i => $f) {
+                    $sz = (int)($f['size'] ?? 0);
+                    $total += $sz;
+                    if ($i < $idx) {
+                        $done += $sz;
+                    }
+                }
+                $done += (int)($tar['file_offset'] ?? 0);
+                $pct = $total > 0 ? (int)floor(min(1, $done / $total) * 100) : null;
+            } elseif ($phase === 'encrypt') {
+                $src = (string)($state['pack_path'] ?? '');
+                $size = $src !== '' && is_file($src) ? (int)filesize($src) : 0;
+                $off = (int)($detail['crypto']['offset'] ?? 0);
+                $pct = $size > 0 ? (int)floor(min(1, $off / $size) * 100) : null;
+            } elseif ($phase === 'upload') {
+                $size = (int)($state['pack_bytes'] ?? 0);
+                $sent = (int)($detail['put']['resume'] ?? 0);
+                $pct = $size > 0 ? (int)floor(min(1, max(0, $sent) / $size) * 100) : null;
+            }
+        } catch (Throwable $e) {
+            $pct = null;
+        }
+        return [
+            'kind' => $kind,
+            'phase' => $phase,
+            'phases' => $phases,
+            'index' => (int)$index,
+            'pct' => $pct,
+        ];
+    }
+
+    /**
      * Keep advancing a run until done/error or wall-clock budget (manual «Run now»).
      *
      * @return array<string,mixed>
@@ -316,7 +389,8 @@ final class BackupRunner
         $t0 = microtime(true);
         $r = ['status' => 'running'];
         while ((microtime(true) - $t0) < $wallSec) {
-            $r = self::advance($id);
+            $left = (int)ceil($wallSec - (microtime(true) - $t0));
+            $r = self::advance($id, max(5, $left));
             $st = (string)($r['status'] ?? '');
             if ($st !== 'running') {
                 return $r;
@@ -327,8 +401,11 @@ final class BackupRunner
         return $r;
     }
 
-    /** @return array<string,mixed> */
-    public static function advance(int $id): array
+    /**
+     * @param int $maxBudgetSec >0 caps the per-call budget (UI popup polls with short slices)
+     * @return array<string,mixed>
+     */
+    public static function advance(int $id, int $maxBudgetSec = 0): array
     {
         $run = BackupRepository::find($id);
         if ($run === null) {
@@ -343,6 +420,9 @@ final class BackupRunner
         $state['kind'] = $kind;
         try {
             $budget = $kind === 'light' ? self::BUDGET_SEC_LIGHT : self::BUDGET_SEC;
+            if ($maxBudgetSec > 0) {
+                $budget = min($budget, $maxBudgetSec);
+            }
             $t0 = microtime(true);
             while ((microtime(true) - $t0) < $budget) {
                 if ($kind === 'incr') {

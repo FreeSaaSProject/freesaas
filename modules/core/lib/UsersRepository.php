@@ -127,6 +127,34 @@ final class UsersRepository
         return '#' . implode('#,#', $ids) . '#';
     }
 
+    /**
+     * Full screen-permission map for a position pack (every known module.perm → 0|1).
+     * Empty pack → empty array (do not wipe the user blob).
+     *
+     * @return array<string,int>
+     */
+    public static function permissionsFromRolePack(int $statusId): array
+    {
+        if ($statusId < 1 || !class_exists(StatusesRepository::class, false)) {
+            return [];
+        }
+        $pack = StatusesRepository::defaultPermissions($statusId);
+        if ($pack === []) {
+            return [];
+        }
+        $merged = [];
+        foreach (self::availablePermissionKeys() as $group) {
+            foreach ($group['keys'] as $key) {
+                $pid = is_array($key) ? (string)$key['id'] : (string)$key;
+                if ($pid === '') {
+                    continue;
+                }
+                $merged[$pid] = !empty($pack[$pid]) ? 1 : 0;
+            }
+        }
+        return $merged;
+    }
+
     /** @return array<string,int> */
     public static function decodePermissions($raw): array
     {

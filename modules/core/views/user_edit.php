@@ -52,6 +52,17 @@ if ($newsAfterTs > 0) {
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
 <?php if ($error !== ''): ?><div class="flash flash-warn"><?= e($error) ?></div><?php endif; ?>
 
+<?php
+  $editBaseEarly = $isNew ? '/users/new' : ('/users/' . $uid . '/edit');
+  if (!$isNew):
+?>
+<form id="role-pack-apply-form" method="post" action="<?= e($editBaseEarly) ?>" hidden
+      onsubmit="return confirm(<?= tj('core.user_edit.role_pack_apply_confirm') ?>)">
+  <input type="hidden" name="action" value="apply_role_pack">
+  <input type="hidden" name="ID_STATUS" value="<?= (int)($user['ID_STATUS'] ?? 0) ?>">
+</form>
+<?php endif; ?>
+
 <form method="post" class="form-grid form-wide user-edit-form" id="user-edit-form" autocomplete="off">
 
   <h2 class="form-section-title"><?= te('core.user_edit.sec_personal') ?></h2>
@@ -197,7 +208,12 @@ if ($newsAfterTs > 0) {
       <p class="form-hint"><?= te('core.user_edit.role_pack_empty') ?></p>
     <?php else: ?>
       <p class="form-hint"><?= e(t('core.user_edit.role_pack_count', ['on' => $rolePackOn, 'total' => $rolePackTotal])) ?></p>
-      <a class="btn-ghost" href="<?= e($editBase) ?>?rolePack=1"><?= te('core.user_edit.role_pack_reset') ?></a>
+      <div class="page-actions" style="margin:0.35rem 0">
+        <?php if (!$isNew): ?>
+        <button type="submit" class="btn-secondary" form="role-pack-apply-form"><?= te('core.user_edit.role_pack_apply') ?></button>
+        <?php endif; ?>
+        <a class="btn-ghost" href="<?= e($editBase) ?>?rolePack=1"><?= te('core.user_edit.role_pack_reset') ?></a>
+      </div>
       <p class="form-hint"><?= te('core.user_edit.perms_override_hint') ?></p>
     <?php endif; ?>
   </div>

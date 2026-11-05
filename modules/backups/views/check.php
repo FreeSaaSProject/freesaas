@@ -3,6 +3,8 @@ declare(strict_types=1);
 /** @var array{ok:bool,summary:array{ok:int,warn:int,fail:int},checks:list<array<string,mixed>>,checked_at:int} $report */
 $sum = $report['summary'] ?? ['ok' => 0, 'warn' => 0, 'fail' => 0];
 $ok = !empty($report['ok']);
+$backupsTab = 'check';
+require __DIR__ . '/_nav.php';
 ?>
 <section class="page-head">
   <p class="lede"><?= te('backups.doctor.lede') ?></p>
@@ -17,11 +19,10 @@ $ok = !empty($report['ok']);
   <span class="muted"> · <?= e(date('Y-m-d H:i:s', (int)($report['checked_at'] ?? time()))) ?></span>
 </div>
 
-<form method="post" class="page-actions" style="margin-bottom:1rem">
+<form method="post" class="page-actions" style="margin-bottom:1rem"
+      data-bk-busy="<?= te('backups.ui.busy.doctor') ?>">
   <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
   <button class="btn-primary" type="submit"><?= te('backups.doctor.run') ?></button>
-  <a class="btn" href="/backups/settings"><?= te('backups.menu.settings') ?></a>
-  <a class="btn" href="/backups"><?= te('backups.menu.list') ?></a>
 </form>
 
 <table class="data-table">

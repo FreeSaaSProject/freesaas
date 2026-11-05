@@ -2,7 +2,7 @@
     "id": "backups",
     "name": "backups.module.name",
     "description": "backups.module.description",
-    "version": "0.3.13",
+    "version": "0.4.5",
     "type": "product",
     "catalog": {
         "categories": [
@@ -49,6 +49,8 @@
             "/backups/remote",
             "/backups/notify/test",
             "/backups/restore",
+            "/backups/replica",
+            "/backups/replica/tick",
             "/backups/check",
             "/agent/backups/check",
             "/agent/backups/cdc",
@@ -147,6 +149,41 @@
                 "side_effect": "write",
                 "assistant": false,
                 "description": "Restore wizard step: download|decrypt|db|files; body: remote_path, passphrase, local_dir, job_id"
+            },
+            {
+                "id": "backups.replica.status",
+                "method": "GET",
+                "path": "/backups/replica",
+                "permission": "backups.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "Test-copy replica: enabled/configured flags and last applied light + diff"
+            },
+            {
+                "id": "backups.replica.check",
+                "method": "POST",
+                "path": "/backups/replica",
+                "permission": "backups.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "description": "body action=check: source FTP reachability, latest baseline + CDC packs, passphrase probe"
+            },
+            {
+                "id": "backups.replica.pull",
+                "method": "POST",
+                "path": "/backups/replica",
+                "permission": "backups.manage",
+                "capability": "SUPERADMIN_ACCESS",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "body action=pull_start, confirm_wipe=1: start tick job (returns tick_token). Pump POST /backups/replica/tick. CLI: backups replica-pull"
+            },
+            {
+                "id": "backups.replica.tick",
+                "method": "POST",
+                "path": "/backups/replica/tick",
+                "permission": "public",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "body tick_token + wall: advance replica pull crumb (public; auth is tick_token after wipe)"
             }
         ]
     },

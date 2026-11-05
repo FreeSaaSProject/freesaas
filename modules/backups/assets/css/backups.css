@@ -1,0 +1,81 @@
+/* Backups: section tabs, settings sub-tabs, popups (shell = core .db-job-overlay) */
+
+.bk-subtabs {
+  margin-top: -0.25rem;
+}
+.bk-subtabs .type-tab {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.85rem;
+}
+[data-bk-panel][hidden] {
+  display: none !important;
+}
+
+.bk-busy-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin: 0.75rem 0 0.25rem;
+}
+.bk-busy-row .db-job-msg {
+  margin: 0;
+  min-height: 0;
+}
+.bk-spinner {
+  flex: 0 0 auto;
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  border: 3px solid var(--border, #ddd);
+  border-top-color: var(--accent, #2a6);
+  animation: bk-spin 0.8s linear infinite;
+}
+@keyframes bk-spin {
+  to { transform: rotate(360deg); }
+}
+
+.bk-steps {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.25rem 0 1rem;
+  padding: 0;
+  font-size: 0.82rem;
+}
+.bk-steps li {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border, #ddd);
+  color: var(--muted, #777);
+}
+.bk-steps li.is-done {
+  color: var(--text, #222);
+  background: color-mix(in srgb, var(--accent, #2a6) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent, #2a6) 40%, transparent);
+}
+.bk-steps li.is-done::before {
+  content: "\2713\00a0";
+}
+.bk-steps li.is-current {
+  color: var(--text, #222);
+  border-color: var(--accent, #2a6);
+  font-weight: 600;
+}
+
+.db-job-bar.is-indeterminate {
+  position: relative;
+}
+.db-job-bar.is-indeterminate .db-job-fill {
+  position: absolute;
+  width: 35% !important;
+  animation: bk-slide 1.2s ease-in-out infinite;
+}
+@keyframes bk-slide {
+  0% { left: -35%; }
+  100% { left: 100%; }
+}
+
+.bk-error {
+  color: var(--warn, #a60);
+}

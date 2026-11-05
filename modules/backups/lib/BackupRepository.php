@@ -234,6 +234,22 @@ final class BackupRepository
     }
 
     /**
+     * Cancel every 'running' row. Needed after restoring a primary dump: the dump captures
+     * the primary's in-progress run, and resuming it here would upload under the primary's instance.
+     */
+    public static function cancelAllRunning(): int
+    {
+        if (!self::tableReady()) {
+            return 0;
+        }
+        $st = Database::pdo()->prepare(
+            "UPDATE base_backup_runs SET STATUS = 'cancelled', FINISHED_AT = ? WHERE STATUS = 'running'"
+        );
+        $st->execute([time()]);
+        return (int)$st->rowCount();
+    }
+
+    /**
      * @param array<string,mixed> $row
      * @return array<string,mixed>
      */

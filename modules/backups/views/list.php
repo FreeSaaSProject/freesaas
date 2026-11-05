@@ -1,78 +1,91 @@
 <?php
 declare(strict_types=1);
+/** @var string $tab runs|remote */
 /** @var list<array<string,mixed>> $runs */
 /** @var array<string,mixed>|null $running */
+/** @var array<string,mixed>|null $runningProgress */
 /** @var list<array<string,mixed>> $remote */
 /** @var string $remoteError */
+/** @var string $instance */
 /** @var bool $canManage */
+$tab = (string)($tab ?? 'runs');
 $statusLabel = static function (string $s): string {
     $key = 'backups.status.' . $s;
     $t = t($key);
     return $t !== $key ? $t : $s;
 };
+$kindLabel = static function (string $k): string {
+    $key = 'backups.kind.' . $k;
+    $t = t($key);
+    return $t !== $key ? $t : $k;
+};
+$phaseLabel = static function (string $p): string {
+    $key = 'backups.phase.' . $p;
+    $t = t($key);
+    return $t !== $key ? $t : $p;
+};
+$backupsTab = $tab;
+require __DIR__ . '/_nav.php';
 ?>
+
+<?php if ($tab === 'runs'): ?>
 <section class="page-head">
   <p class="lede"><?= te('backups.list.lede') ?></p>
   <?php if (!empty($canManage)): ?>
   <div class="page-actions">
     <?php if (is_array($running)): ?>
-      <form method="post" action="/backups/run" class="inline">
+      <form method="post" action="/backups/run" class="inline" data-bk-run="continue">
         <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
         <button type="submit" class="btn-primary"><?= te('backups.list.continue_now') ?></button>
       </form>
       <form method="post" action="/backups/cancel" class="inline"
             onsubmit="return confirm(<?= tj('backups.list.cancel_confirm') ?>);">
         <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-        <button type="submit" class="btn"><?= te('backups.list.cancel_run') ?></button>
+        <button type="submit" class="btn-secondary"><?= te('backups.list.cancel_run') ?></button>
       </form>
     <?php else: ?>
-      <form method="post" action="/backups/run" class="inline">
+      <form method="post" action="/backups/run" class="inline" data-bk-run="light">
         <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
         <input type="hidden" name="kind" value="light">
         <button type="submit" class="btn-primary"><?= te('backups.list.run_light') ?></button>
       </form>
-      <form method="post" action="/backups/run" class="inline">
+      <form method="post" action="/backups/run" class="inline" data-bk-run="full">
         <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
         <input type="hidden" name="kind" value="full">
-        <button type="submit" class="btn"><?= te('backups.list.run_now') ?></button>
+        <button type="submit" class="btn-secondary"><?= te('backups.list.run_now') ?></button>
       </form>
-      <form method="post" action="/backups/run" class="inline">
+      <form method="post" action="/backups/run" class="inline" data-bk-run="incr">
         <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
         <input type="hidden" name="kind" value="incr">
-        <button type="submit" class="btn"><?= te('backups.list.run_incr') ?></button>
+        <button type="submit" class="btn-secondary"><?= te('backups.list.run_incr') ?></button>
       </form>
     <?php endif; ?>
-    <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
-      <a class="btn" href="/backups/check"><?= te('backups.doctor.run') ?></a>
-      <a class="btn" href="/backups/settings"><?= te('backups.menu.settings') ?></a>
-      <a class="btn" href="/backups/restore"><?= te('backups.menu.restore') ?></a>
-    <?php endif; ?>
   </div>
-  <?php if (Auth::capability('SUPERADMIN_ACCESS')): ?>
-    <p class="muted" style="margin:.35rem 0 0"><?= te('backups.list.restore_hint') ?></p>
-  <?php endif; ?>
   <?php endif; ?>
 </section>
 
 <?php if (is_array($running)): ?>
+  <?php $rp = is_array($runningProgress ?? null) ? $runningProgress : []; ?>
   <div class="flash flash-warn">
     <?= te('backups.list.running') ?>
-    #<?= (int)$running['id'] ?> · <?= e((string)($running['kind'] ?? '')) ?>
-    · <?= e((string)$running['phase']) ?>
+    #<?= (int)$running['id'] ?> · <?= e($kindLabel((string)($running['kind'] ?? ''))) ?>
+    · <?= e($phaseLabel((string)$running['phase'])) ?>
+    <?php if (isset($rp['pct']) && $rp['pct'] !== null): ?> · <?= (int)$rp['pct'] ?>%<?php endif; ?>
     <p class="muted" style="margin:.35rem 0 0"><?= te('backups.list.running_hint') ?></p>
   </div>
 <?php endif; ?>
 
 <section>
-  <h2><?= te('backups.list.title') ?></h2>
   <?php if ($runs === []): ?>
     <p class="muted"><?= te('backups.list.empty') ?></p>
   <?php else: ?>
+  <div class="table-wrap">
   <table class="data">
     <thead>
       <tr>
         <th><?= te('backups.list.col.id') ?></th>
         <th><?= te('backups.list.col.started') ?></th>
+        <th><?= te('backups.list.col.kind') ?></th>
         <th><?= te('backups.list.col.status') ?></th>
         <th><?= te('backups.list.col.phase') ?></th>
         <th><?= te('backups.list.col.bytes') ?></th>
@@ -86,8 +99,9 @@ $statusLabel = static function (string $s): string {
       <tr>
         <td><?= (int)$r['id'] ?></td>
         <td><?= e($r['started_at'] ? date('Y-m-d H:i', (int)$r['started_at']) : '—') ?></td>
+        <td><?= e($kindLabel((string)($r['kind'] ?? ''))) ?></td>
         <td><?= e($statusLabel((string)$r['status'])) ?></td>
-        <td><?= e((string)$r['phase']) ?></td>
+        <td><?= e($phaseLabel((string)$r['phase'])) ?></td>
         <td><?= e(BackupNotify::formatBytes((int)$r['bytes'])) ?></td>
         <td class="mono"><?= e((string)$r['remote_dir']) ?></td>
         <td><?= e((string)$r['triggered_by']) ?></td>
@@ -96,25 +110,47 @@ $statusLabel = static function (string $s): string {
     <?php endforeach; ?>
     </tbody>
   </table>
+  </div>
   <?php endif; ?>
 </section>
 
+<?php else: ?>
 <section>
-  <h2><?= te('backups.list.remote') ?></h2>
+  <p class="lede"><?= te('backups.list.remote_lede', ['instance' => $instance]) ?></p>
   <?php if ($remoteError !== ''): ?>
     <div class="flash flash-warn"><?= e($remoteError) ?></div>
   <?php elseif ($remote === []): ?>
     <p class="muted"><?= te('backups.list.remote_empty') ?></p>
   <?php else: ?>
-  <ul class="plain">
+  <div class="table-wrap">
+  <table class="data">
+    <thead>
+      <tr>
+        <th><?= te('backups.list.col.file') ?></th>
+        <th><?= te('backups.list.col.kind') ?></th>
+        <th><?= te('backups.list.col.bytes') ?></th>
+      </tr>
+    </thead>
+    <tbody>
     <?php foreach ($remote as $set): ?>
-      <li class="mono">
-        <?= e((string)$set['path']) ?>
-        <?php if (empty($set['has_manifest'])): ?>
-          <span class="muted">(<?= te('backups.list.remote_incomplete') ?>)</span>
-        <?php endif; ?>
-      </li>
+      <?php
+        $k = (string)($set['kind'] ?? '');
+        $kl = $k === 'pack' ? 'full' : ($k === 'incr' ? ((string)($set['cdc_mode'] ?? '') === 'differential' ? 'diff' : 'incr') : $k);
+      ?>
+      <tr>
+        <td class="mono">
+          <?= e((string)$set['name']) ?>
+          <?php if (empty($set['has_manifest'])): ?>
+            <span class="muted">(<?= te('backups.list.remote_incomplete') ?>)</span>
+          <?php endif; ?>
+        </td>
+        <td><?= e($kindLabel($kl)) ?></td>
+        <td><?= e(BackupNotify::formatBytes((int)($set['bytes'] ?? 0))) ?></td>
+      </tr>
     <?php endforeach; ?>
-  </ul>
+    </tbody>
+  </table>
+  </div>
   <?php endif; ?>
 </section>
+<?php endif; ?>

@@ -99,7 +99,10 @@ if ($turnon === '1' || $turnon === '0') {
 }
 
 if (!empty($_GET['rolePack']) && $rolePackPerms !== []) {
-    $userPerms = $rolePackPerms;
+    $userPerms = UsersRepository::permissionsFromRolePack($roleStatusId);
+    if ($userPerms === []) {
+        $userPerms = $rolePackPerms;
+    }
     $message = t('core.user_edit.role_pack_reset');
 }
 
@@ -193,7 +196,53 @@ if (!$isNew && EntityDelete::tryHandle('core_users', $id, '/users', [
     return;
 }
 
-if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
+// One-click: replace personal screen perms with the position pack and save.
+if (
+    !$isNew
+    && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST'
+    && (string)($_POST['action'] ?? '') === 'apply_role_pack'
+) {
+    try {
+        if (!$isSuper && $id === Auth::userId()) {
+            throw new RuntimeException(t('core.user_edit.err.forbidden_self_priv'));
+        }
+        $statusId = (int)($_POST['ID_STATUS'] ?? $user['ID_STATUS'] ?? 0);
+        if ($statusId < 1) {
+            $statusId = (int)($user['ID_STATUS'] ?? 0);
+        }
+        if (!$isSuper && UsersRepository::statusIsSuperadmin($statusId)) {
+            throw new RuntimeException(t('core.user_edit.err.forbidden_super'));
+        }
+        $packPerms = UsersRepository::permissionsFromRolePack($statusId);
+        if ($packPerms === []) {
+            throw new RuntimeException(t('core.user_edit.role_pack_empty'));
+        }
+        UsersRepository::update($id, [
+            'status_blob' => UsersRepository::encodeStatusBlob($user['status'] ?? null, $packPerms),
+        ]);
+        if ($wantsJson) {
+            AgentHttp::emit([
+                'ok' => true,
+                'id' => $id,
+                'role_pack_applied' => true,
+                'status_id' => $statusId,
+                'item' => UsersRepository::forAgent(UsersRepository::findForEdit($id), true),
+            ]);
+            return;
+        }
+        flash_set('ok', t('core.user_edit.role_pack_applied'));
+        redirect('/users/' . $id . '/edit');
+        return;
+    } catch (Throwable $e) {
+        if ($wantsJson) {
+            AgentHttp::error($e->getMessage(), 400);
+            return;
+        }
+        $error = $e->getMessage();
+    }
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST' && (string)($_POST['action'] ?? '') !== 'apply_role_pack') {
     try {
         $data = $buildData($_POST, $user, $isSuper, $isNew);
 
@@ -408,6 +457,12 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 if (isset($_GET['saved']) && $message === '') {
     $message = t('core.user_edit.saved');
+}
+if ($message === '' && function_exists('flash_take')) {
+    $flashOk = flash_take();
+    if (is_array($flashOk) && ($flashOk['type'] ?? '') === 'ok' && (string)($flashOk['message'] ?? '') !== '') {
+        $message = (string)$flashOk['message'];
+    }
 }
 if (!$isNew && !empty($_SESSION['core_user_created_secret']) && is_array($_SESSION['core_user_created_secret'])) {
     $flash = $_SESSION['core_user_created_secret'];

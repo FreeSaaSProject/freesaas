@@ -156,6 +156,8 @@ $allowed = [
     '/agent/backups/cdc/uninstall' => ['methods' => ['POST'], 'why' => 'agent_token backups CDC uninstall'],
     '/agent/backups/standby' => ['methods' => ['GET'], 'why' => 'agent_token backups standby status'],
     '/agent/backups/standby/sync' => ['methods' => ['POST'], 'why' => 'agent_token backups standby sync'],
+    // Replica pull crumbs after wipe (tick_token gated; session user is gone)
+    '/backups/replica/tick' => ['methods' => ['POST'], 'why' => 'replica pull job tick_token after base_* wipe'],
     '/agent/banks/status' => ['methods' => ['GET'], 'why' => 'agent_token banks status'],
     '/agent/banks/settings' => ['methods' => ['GET', 'POST'], 'why' => 'agent_token banks settings'],
     '/agent/banks/certs' => ['methods' => ['POST'], 'why' => 'agent_token banks mTLS upload'],

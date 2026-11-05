@@ -154,6 +154,11 @@ final class DbJobs
             $job['source_path'] = $path;
             $job['allowed'] = $allowed;
             $job['allow_any_valid'] = true;
+            // Optional soft wall for one tick (shared-hosting / replica pull crumbs).
+            $tickSec = (float)($opts['tick_seconds'] ?? 0);
+            if ($tickSec > 0) {
+                $job['tick_seconds'] = max(5.0, min(240.0, $tickSec));
+            }
             $job['byte_offset'] = 0;
             $job['decomp_offset'] = 0;
             $job['gzip'] = $isGz;

@@ -149,6 +149,7 @@ FreeSaaS CLI (HTTP: GET/POST /agent/* + header X-FreeSaaS-Agent-Token)
   assistant eval [--live=0|1] [--format=json]
   backups check|cdc-status|cdc-install|cdc-uninstall [--format=json]
   backups standby-status|standby-sync [--format=json]
+  backups replica-check|replica-pull [--format=json]
 TXT;
 }
 
@@ -162,12 +163,14 @@ function freesaas_cmd_backups(string $sub, array $opts): void
     $allowed = [
         'check', 'cdc-status', 'cdc-install', 'cdc-uninstall',
         'standby-status', 'standby-sync',
+        'replica-check', 'replica-pull',
     ];
     if (!in_array($sub, $allowed, true)) {
         Cli::usage(
             "Usage:\n  backups check [--format=json]\n"
             . "  backups cdc-status|cdc-install|cdc-uninstall [--format=json]\n"
-            . '  backups standby-status|standby-sync [--format=json]'
+            . "  backups standby-status|standby-sync [--format=json]\n"
+            . '  backups replica-check|replica-pull [--format=json]'
         );
     }
     if (!ModuleManager::isEnabled('backups')) {
@@ -217,6 +220,14 @@ function freesaas_cmd_backups(string $sub, array $opts): void
     }
     if ($sub === 'standby-sync') {
         freesaas_emit_ops(BackupStandby::sync(true));
+        return;
+    }
+    if ($sub === 'replica-check') {
+        freesaas_emit_ops(BackupReplica::check(true));
+        return;
+    }
+    if ($sub === 'replica-pull') {
+        freesaas_emit_ops(BackupReplica::pull());
         return;
     }
 }

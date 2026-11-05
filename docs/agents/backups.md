@@ -121,6 +121,31 @@ Steps: download → decrypt if needed → unpack → `DbJobs` restore → files 
 
 Then: `php bin/smoke.php`; log in with a user from the dump (no new admin from virgin bootstrap).
 
+## Test-copy replica (manual pull)
+
+A non-primary install (tests, demos) can follow the primary on demand. It reads the primary's FTP folder and never writes there. Unlike warm standby ([standby.md](standby.md)), no `app.standby` mode is used; cron and integrations behave as configured locally.
+
+Settings → **Replica** (`cfg/modules/backups.ini`, separate from this host's own backup target):
+
+| Key | Meaning |
+|-----|---------|
+| `replica_enabled` | Allow «Pull and apply». Never enable on the primary. |
+| `replica_ftp_*`, `replica_instance` | Source FTP + the primary's instance folder («Copy from backup FTP» prefills). A read-only FTP user is recommended. |
+| `replica_passphrase` | The primary's pack passphrase (for `.tar.enc`). |
+| `replica_applied_*` | State: last applied baseline, diff, timestamp. |
+
+Page `/backups/replica` (director):
+
+- **Check** lists the latest light/full and the CDC packs after it (differential: newest `.diff.sNNN`; chain: unbroken `s001…sNNN`). The passphrase is verified by decrypting the smallest pack.
+- **Pull and apply** (confirm checkbox): downloads and validates every pack first, refuses if non-`base_*` tables hold data, then drops `base_*`, restores **the database only**, applies CDC packs, runs `migrate`, removes CDC triggers (unless this host has `cdc_enabled=1`), cancels any `running` backup row captured in the dump, and ends the session. Log in with a primary account afterwards.
+
+The primary's `cfg.tar` and file trees are **not** applied. `config.ini`, `[modules]` and every `cfg/modules/*.ini` on the copy stay local, so the primary's bot/bank/1C keys and FTP target never land on the test host. Data inside the DB still references the outside world (bot send queue, bot links, bank tokens stored in tables). Keep `bots`, `banks` and `terminals` disabled on test copies or point them at test credentials.
+
+```bash
+php bin/freesaas.php backups replica-check --format=json
+php bin/freesaas.php backups replica-pull --format=json   # same tick job as UI; loops until done
+```
+
 ## Manual restore without FreeSaaS UI
 
 Same as before: decrypt → `tar xf` → `gunzip -c db.sql.gz | mysql …` → copy files → edit `cfg` (`salts.site` never rotate) → migrate + smoke.

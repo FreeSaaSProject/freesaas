@@ -6,6 +6,8 @@ declare(strict_types=1);
 /** @var array<string,mixed>|null $result */
 /** @var bool $available */
 /** @var bool $empty */
+$backupsTab = 'restore';
+require __DIR__ . '/_nav.php';
 ?>
 <section class="page-head">
   <p class="lede"><?= te('backups.restore.lede') ?></p>
@@ -19,10 +21,11 @@ declare(strict_types=1);
   <div class="flash flash-warn"><?= te('backups.restore.locked') ?></div>
   <p class="muted"><?= te('backups.restore.locked_hint') ?></p>
   <div class="page-actions">
-    <a class="btn" href="/backups"><?= te('core.common.cancel') ?></a>
+    <a class="btn-secondary" href="/backups"><?= te('core.common.cancel') ?></a>
   </div>
 <?php else: ?>
-<form method="post" class="form-grid" enctype="multipart/form-data">
+<form method="post" class="form-grid" enctype="multipart/form-data"
+      data-bk-busy="<?= te('backups.ui.busy.restore') ?>">
   <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
   <input type="hidden" name="step" value="deploy">
 
@@ -53,7 +56,7 @@ declare(strict_types=1);
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('backups.restore.run') ?></button>
-    <a class="btn" href="/backups"><?= te('core.common.cancel') ?></a>
+    <a class="btn-secondary" href="/backups"><?= te('core.common.cancel') ?></a>
   </div>
 </form>
 <?php endif; ?>

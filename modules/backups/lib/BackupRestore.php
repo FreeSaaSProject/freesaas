@@ -97,9 +97,10 @@ final class BackupRestore
      *
      * @return array{ok:bool,local_dir:string,pack_path:string,kind:string,manifest:?array}
      */
-    public static function downloadRemote(string $remotePath, int $budgetSec = 300): array
+    public static function downloadRemote(string $remotePath, int $budgetSec = 300, ?BackupFtpTarget $source = null): array
     {
-        $target = BackupFtpTarget::fromConfig();
+        $ownTarget = $source === null;
+        $target = $source ?? BackupFtpTarget::fromConfig();
         try {
             $stamp = preg_replace('/[^a-zA-Z0-9._-]/', '_', basename($remotePath)) ?? 'set';
             $localDir = BackupConfig::workDir() . '/restore-' . $stamp;
@@ -107,19 +108,32 @@ final class BackupRestore
                 @mkdir($localDir, 0755, true);
             }
 
-            // Single pack file
+            // Single pack file (budgeted resume — large lights must not hold one HTTP request)
             if (preg_match('/\.tar(\.enc)?$/i', $remotePath)) {
                 $localPack = $localDir . '/' . basename($remotePath);
                 $expect = $target->size($remotePath);
-                if (!is_file($localPack) || ($expect >= 0 && filesize($localPack) !== $expect)) {
-                    $target->get($remotePath, $localPack);
+                $done = is_file($localPack) && $expect >= 0 && filesize($localPack) === $expect;
+                $bytes = 0;
+                $localSize = is_file($localPack) ? (int)filesize($localPack) : 0;
+                if (!$done) {
+                    $r = $target->getBudgeted($remotePath, $localPack, max(5, $budgetSec));
+                    $done = !empty($r['done']);
+                    $bytes = (int)($r['bytes'] ?? 0);
+                    $localSize = (int)($r['local_size'] ?? $localSize);
+                    if ($expect < 0) {
+                        $expect = (int)($r['remote_size'] ?? -1);
+                    }
                 }
                 return [
-                    'ok' => is_file($localPack),
+                    'ok' => $done && is_file($localPack),
+                    'done' => $done,
                     'local_dir' => $localDir,
                     'pack_path' => $localPack,
                     'kind' => 'pack',
                     'manifest' => null,
+                    'bytes' => $bytes,
+                    'local_size' => $localSize,
+                    'remote_size' => $expect,
                 ];
             }
 
@@ -145,7 +159,9 @@ final class BackupRestore
                 'manifest' => $manifest,
             ];
         } finally {
-            $target->close();
+            if ($ownTarget) {
+                $target->close();
+            }
         }
     }
 
@@ -201,7 +217,9 @@ final class BackupRestore
     /**
      * Full deploy into empty DB: prepare → db restore (tick until done) → files/cfg.
      *
-     * @param array{url?:string,file?:string,remote_path?:string,passphrase?:string,migrate?:bool} $opts
+     * db_only=true restores only the database (skips cfg.tar merge and file trees).
+     *
+     * @param array{url?:string,file?:string,remote_path?:string,passphrase?:string,migrate?:bool,db_only?:bool} $opts
      * @return array<string,mixed>
      */
     public static function deploy(array $opts): array
@@ -283,8 +301,12 @@ final class BackupRestore
             ];
         }
 
-        $files = self::applyFiles($localDir);
-        $steps[] = ['step' => 'files', 'status' => 'ok', 'applied' => $files['applied'] ?? []];
+        if (!empty($opts['db_only'])) {
+            $steps[] = ['step' => 'files', 'status' => 'skipped', 'reason' => 'db_only'];
+        } else {
+            $files = self::applyFiles($localDir);
+            $steps[] = ['step' => 'files', 'status' => 'ok', 'applied' => $files['applied'] ?? []];
+        }
 
         $wantMigrate = !array_key_exists('migrate', $opts) || !empty($opts['migrate']);
         if ($wantMigrate) {
@@ -308,8 +330,10 @@ final class BackupRestore
 
     /**
      * Start DB restore from local db.sql.gz (or decrypted). Returns DbJobs id.
+     *
+     * @param float $tickSeconds Soft wall per DbJobs restore crumb (0 = default ~240s).
      */
-    public static function startDbRestore(string $localDir): string
+    public static function startDbRestore(string $localDir, float $tickSeconds = 0.0): string
     {
         $candidates = [$localDir . '/db.sql.gz', $localDir . '/db.sql'];
         $file = '';
@@ -329,7 +353,11 @@ final class BackupRestore
                 throw new RuntimeException('Cannot stage dump for restore');
             }
         }
-        $job = DbJobs::jobStart('restore', ['file' => $basename]);
+        $opts = ['file' => $basename];
+        if ($tickSeconds > 0) {
+            $opts['tick_seconds'] = $tickSeconds;
+        }
+        $job = DbJobs::jobStart('restore', $opts);
         return (string)$job['id'];
     }
 

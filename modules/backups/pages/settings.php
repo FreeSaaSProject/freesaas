@@ -6,6 +6,7 @@ $message = '';
 $error = '';
 $passphrasePlain = '';
 $passphraseJustGenerated = false;
+$settingsTab = preg_replace('/[^a-z]/', '', (string)($_POST['tab'] ?? $_GET['tab'] ?? 'schedule')) ?? 'schedule';
 
 if (!Auth::capability('SUPERADMIN_ACCESS')) {
     if ($wantsJson) {
@@ -75,6 +76,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     'message' => $message,
                     'error' => $error,
                 ]);
+                return;
+            }
+        } elseif ($action === 'copy_ftp_replica') {
+            BackupConfig::copyFtpToReplica();
+            $message = t('backups.flash.replica_ftp_copied', ['instance' => BackupConfig::replicaInstance()]);
+            if ($wantsJson) {
+                AgentHttp::emit(['ok' => true, 'settings' => BackupConfig::forUi(), 'message' => $message]);
                 return;
             }
         } elseif ($action === 'cdc_install') {
@@ -158,4 +166,5 @@ View::render('settings', [
     'passphrasePlain' => $passphrasePlain,
     'passphraseJustGenerated' => $passphraseJustGenerated,
     'cdc' => $cdcStatus,
+    'settingsTab' => $settingsTab,
 ], 'layout', 'backups');

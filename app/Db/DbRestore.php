@@ -66,7 +66,11 @@ final class DbRestore
 
         $written = (int)($job['inflate_bytes'] ?? 0);
         $est = max(1, (int)($job['byte_total'] ?? 1));
-        $deadline = microtime(true) + self::RESTORE_INFLATE_TICK_SECONDS;
+        $tickSec = (float)($job['tick_seconds'] ?? 0);
+        if ($tickSec <= 0) {
+            $tickSec = self::RESTORE_INFLATE_TICK_SECONDS;
+        }
+        $deadline = microtime(true) + max(5.0, min(self::RESTORE_INFLATE_TICK_SECONDS, $tickSec));
 
         if ($written === 0) {
             $bin = is_file('/usr/bin/gzip') ? '/usr/bin/gzip'
@@ -205,7 +209,11 @@ final class DbRestore
                 $job['byte_total'] = $fs;
             }
         }
-        $deadline = microtime(true) + self::RESTORE_TICK_SECONDS;
+        $tickSec = (float)($job['tick_seconds'] ?? 0);
+        if ($tickSec <= 0) {
+            $tickSec = self::RESTORE_TICK_SECONDS;
+        }
+        $deadline = microtime(true) + max(5.0, min(self::RESTORE_TICK_SECONDS, $tickSec));
         $executed = 0;
         $eof = false;
         $pos = $isGz ? (int)($job['decomp_offset'] ?? 0) : (int)($job['byte_offset'] ?? 0);

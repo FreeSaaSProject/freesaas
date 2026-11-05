@@ -14,7 +14,13 @@ require_once __DIR__ . '/lib/BackupRestore.php';
 require_once __DIR__ . '/lib/BackupDoctor.php';
 require_once __DIR__ . '/lib/BackupCdc.php';
 require_once __DIR__ . '/lib/BackupStandby.php';
+require_once __DIR__ . '/lib/BackupReplica.php';
 require_once __DIR__ . '/lib/BackupAgentOps.php';
+
+Assets::register('backups', [
+    'css' => ['backups.css'],
+    'js' => ['backups.js'],
+]);
 
 $pages = [
     '/backups' => ['permission' => 'backups.view', 'methods' => ['GET'], 'file' => 'list.php'],
@@ -40,6 +46,12 @@ $pages = [
         'methods' => ['GET', 'POST'],
         'file' => 'restore.php',
     ],
+    '/backups/replica' => [
+        'permission' => 'backups.manage',
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['GET', 'POST'],
+        'file' => 'replica.php',
+    ],
 ];
 foreach ($pages as $path => $def) {
     $file = (string)$def['file'];
@@ -57,6 +69,16 @@ foreach ($pages as $path => $def) {
     ModuleManager::registerRoute($path, $opts);
 }
 
+// After wipe the session user no longer exists — ticks continue with job tick_token only.
+ModuleManager::registerRoute('/backups/replica/tick', [
+    'module' => 'backups',
+    'methods' => ['POST'],
+    'public' => true,
+    'handler' => static function (): void {
+        require base_path('modules/backups/pages/replica_tick.php');
+    },
+]);
+
 BackupAgentOps::register();
 
 Cron::register('backups.tick', [
@@ -65,6 +87,10 @@ Cron::register('backups.tick', [
     // 1 min while a run is in progress — shared hosting still advances via /cron/tick.
     'every' => 1,
     'handler' => static function (): array {
+        $replica = BackupReplica::cronAdvance();
+        if ((int)($replica['processed'] ?? 0) > 0) {
+            return $replica;
+        }
         return BackupRunner::cronTick();
     },
 ]);

@@ -225,6 +225,19 @@ final class FtpClient
 
     public function get(string $relative, string $localPath): void
     {
+        $r = $this->getBudgeted($relative, $localPath, 3600);
+        if (empty($r['done'])) {
+            throw new RuntimeException('FTP get incomplete: ' . $this->resolve($relative));
+        }
+    }
+
+    /**
+     * Download with optional resume. Returns bytes transferred this call and whether finished.
+     *
+     * @return array{done:bool,bytes:int,local_size:int,remote_size:int}
+     */
+    public function getBudgeted(string $relative, string $localPath, int $budgetSec = 40): array
+    {
         $this->connect();
         $remote = $this->resolve($relative);
         $dir = dirname($localPath);
@@ -233,9 +246,60 @@ final class FtpClient
                 throw new RuntimeException('Cannot create local dir: ' . $dir);
             }
         }
-        if (!@ftp_get($this->conn, $localPath, $remote, FTP_BINARY)) {
-            throw new RuntimeException('FTP get failed: ' . $remote);
+
+        $remoteSize = @ftp_size($this->conn, $remote);
+        $localSize = is_file($localPath) ? (int)filesize($localPath) : 0;
+        if ($remoteSize >= 0 && $localSize > $remoteSize) {
+            @unlink($localPath);
+            $localSize = 0;
         }
+        if ($remoteSize >= 0 && $localSize >= $remoteSize && $remoteSize > 0) {
+            return [
+                'done' => true,
+                'bytes' => 0,
+                'local_size' => $localSize,
+                'remote_size' => $remoteSize,
+            ];
+        }
+
+        $fp = fopen($localPath, $localSize > 0 ? 'ab' : 'wb');
+        if ($fp === false) {
+            throw new RuntimeException('Cannot open local file for FTP get');
+        }
+
+        $start = microtime(true);
+        $ret = @ftp_nb_fget($this->conn, $fp, $remote, FTP_BINARY, $localSize);
+        $transferred = 0;
+        while ($ret === FTP_MOREDATA) {
+            if ((microtime(true) - $start) >= $budgetSec) {
+                break;
+            }
+            $ret = @ftp_nb_continue($this->conn);
+        }
+        $pos = ftell($fp);
+        if (is_int($pos) && $pos >= $localSize) {
+            $transferred = $pos - $localSize;
+        }
+        fclose($fp);
+
+        $newLocal = is_file($localPath) ? (int)filesize($localPath) : 0;
+        if ($ret === FTP_FINISHED) {
+            return [
+                'done' => true,
+                'bytes' => $transferred,
+                'local_size' => $newLocal,
+                'remote_size' => $remoteSize >= 0 ? $remoteSize : $newLocal,
+            ];
+        }
+        if ($ret === FTP_MOREDATA) {
+            return [
+                'done' => false,
+                'bytes' => $transferred,
+                'local_size' => $newLocal,
+                'remote_size' => $remoteSize >= 0 ? $remoteSize : $newLocal,
+            ];
+        }
+        throw new RuntimeException('FTP get failed: ' . $remote);
     }
 
     /**

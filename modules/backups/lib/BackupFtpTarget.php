@@ -15,6 +15,12 @@ final class BackupFtpTarget implements BackupTarget
         return new self(BackupConfig::ftpConfig());
     }
 
+    /** @param array{host:string,port:int,user:string,pass:string,ssl:bool,passive:bool,base_path:string} $ftp */
+    public static function fromArray(array $ftp): self
+    {
+        return new self($ftp);
+    }
+
     public function client(): FtpClient
     {
         return $this->ftp;
@@ -131,6 +137,16 @@ final class BackupFtpTarget implements BackupTarget
     public function get(string $remoteRelative, string $localPath): void
     {
         $this->ftp->get($remoteRelative, $localPath);
+    }
+
+    /**
+     * Budgeted download with resume (shared-hosting safe).
+     *
+     * @return array{done:bool,bytes:int,local_size:int,remote_size:int}
+     */
+    public function getBudgeted(string $remoteRelative, string $localPath, int $budgetSec = 40): array
+    {
+        return $this->ftp->getBudgeted($remoteRelative, $localPath, $budgetSec);
     }
 
     public function close(): void

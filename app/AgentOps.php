@@ -1579,6 +1579,7 @@ final class AgentOps
             'BackupDoctor.php',
             'BackupCdc.php',
             'BackupStandby.php',
+            'BackupReplica.php',
         ] as $f) {
             $path = $base . '/' . $f;
             if (is_file($path)) {

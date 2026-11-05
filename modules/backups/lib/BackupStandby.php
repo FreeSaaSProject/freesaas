@@ -266,7 +266,7 @@ final class BackupStandby
      * @param list<array<string,mixed>> $incrs Newest-first listing
      * @return array{packs:list<array<string,mixed>>,error:string}
      */
-    private static function selectPendingCdcPacks(
+    public static function selectPendingCdcPacks(
         array $incrs,
         int $appliedCursor,
         int $appliedSeq,
@@ -400,6 +400,9 @@ final class BackupStandby
                 'passphrase' => BackupConfig::passphrase(),
                 'migrate' => true,
             ]);
+            if (!empty($r['ok'])) {
+                BackupRepository::cancelAllRunning();
+            }
             return $r;
         } catch (Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage(), 'remote_path' => $remotePath];
@@ -411,7 +414,7 @@ final class BackupStandby
     }
 
     /** Locate db dump under an unpacked pack (including one nesting level). */
-    private static function findDbDump(string $dir): string
+    public static function findDbDump(string $dir): string
     {
         foreach (['db.sql.gz', 'db.sql'] as $name) {
             $p = $dir . '/' . $name;
@@ -431,7 +434,7 @@ final class BackupStandby
     }
 
     /** DROP only FreeSaaS base_* tables — never wipe unrelated schemas/tables in a shared DB. */
-    private static function emptyOwnedTables(): void
+    public static function emptyOwnedTables(): void
     {
         $pdo = Database::pdo();
         $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
@@ -472,7 +475,7 @@ final class BackupStandby
         }
     }
 
-    private static function findFile(string $dir, string $name): string
+    public static function findFile(string $dir, string $name): string
     {
         if (!is_dir($dir)) {
             return '';
@@ -489,7 +492,7 @@ final class BackupStandby
         return '';
     }
 
-    private static function rmTree(string $dir): void
+    public static function rmTree(string $dir): void
     {
         if ($dir === '' || !is_dir($dir)) {
             return;

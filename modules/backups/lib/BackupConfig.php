@@ -346,12 +346,79 @@ final class BackupConfig
         self::set('standby_applied_cursor', (string)max(0, $id));
     }
 
+    /** Test-copy replica: manual pull of primary light + CDC packs (button / CLI). */
+    public static function replicaEnabled(): bool
+    {
+        return self::get('replica_enabled', '0') === '1';
+    }
+
+    /** Primary's instance folder on the replica source FTP. */
+    public static function replicaInstance(): string
+    {
+        $v = trim(self::get('replica_instance', ''));
+        return $v === '' ? '' : (preg_replace('/[^a-zA-Z0-9._-]/', '_', $v) ?? '');
+    }
+
+    /** @return array{host:string,port:int,user:string,pass:string,ssl:bool,passive:bool,base_path:string} */
+    public static function replicaFtpConfig(): array
+    {
+        return [
+            'host' => self::get('replica_ftp_host', ''),
+            'port' => max(1, (int)self::get('replica_ftp_port', '21')),
+            'user' => self::get('replica_ftp_user', ''),
+            'pass' => self::get('replica_ftp_pass', ''),
+            'ssl' => self::get('replica_ftp_ssl', '0') === '1',
+            'passive' => self::get('replica_ftp_passive', '1') !== '0',
+            'base_path' => self::get('replica_ftp_base_path', '/' . self::RECOMMENDED_FOLDER),
+        ];
+    }
+
+    public static function replicaPassphrase(): string
+    {
+        return self::get('replica_passphrase', '');
+    }
+
+    /** @return array{full:string,diff:string,at:int} */
+    public static function replicaApplied(): array
+    {
+        return [
+            'full' => trim(self::get('replica_applied_full', '')),
+            'diff' => trim(self::get('replica_applied_diff', '')),
+            'at' => max(0, (int)self::get('replica_applied_at', '0')),
+        ];
+    }
+
+    public static function setReplicaApplied(string $full, string $diff): void
+    {
+        self::set('replica_applied_full', trim($full));
+        self::set('replica_applied_diff', trim($diff));
+        self::set('replica_applied_at', (string)time());
+    }
+
+    /** Copy this host's own backup FTP target (+ instance) into the replica source fields. */
+    public static function copyFtpToReplica(): void
+    {
+        $ftp = self::ftpConfig();
+        self::set('replica_ftp_host', $ftp['host']);
+        self::set('replica_ftp_port', (string)$ftp['port']);
+        self::set('replica_ftp_user', $ftp['user']);
+        if ($ftp['pass'] !== '') {
+            self::set('replica_ftp_pass', $ftp['pass']);
+        }
+        self::set('replica_ftp_ssl', $ftp['ssl'] ? '1' : '0');
+        self::set('replica_ftp_passive', $ftp['passive'] ? '1' : '0');
+        self::set('replica_ftp_base_path', $ftp['base_path']);
+        self::set('replica_instance', self::instance());
+    }
+
     /** @return array<string,mixed> */
     public static function forUi(): array
     {
         $ftp = self::ftpConfig();
         $passSet = $ftp['pass'] !== '';
         $phraseSet = self::passphrase() !== '';
+        $replicaFtp = self::replicaFtpConfig();
+        $replicaApplied = self::replicaApplied();
         return [
             'enabled' => self::enabled() ? '1' : '0',
             'daily_at' => self::dailyAt(),
@@ -395,6 +462,21 @@ final class BackupConfig
             'incr_seq' => (string)self::incrSeq(),
             'last_full_remote' => self::lastFullRemote(),
             'cdc_installed_at' => self::get('cdc_installed_at', '0'),
+            'replica_enabled' => self::replicaEnabled() ? '1' : '0',
+            'replica_instance' => self::get('replica_instance', ''),
+            'replica_ftp_host' => $replicaFtp['host'],
+            'replica_ftp_port' => (string)$replicaFtp['port'],
+            'replica_ftp_user' => $replicaFtp['user'],
+            'replica_ftp_pass_set' => $replicaFtp['pass'] !== '' ? '1' : '0',
+            'replica_ftp_pass_masked' => self::maskSecret($replicaFtp['pass']),
+            'replica_ftp_ssl' => $replicaFtp['ssl'] ? '1' : '0',
+            'replica_ftp_passive' => $replicaFtp['passive'] ? '1' : '0',
+            'replica_ftp_base_path' => $replicaFtp['base_path'],
+            'replica_passphrase_set' => self::replicaPassphrase() !== '' ? '1' : '0',
+            'replica_passphrase_masked' => self::maskSecret(self::replicaPassphrase()),
+            'replica_applied_full' => $replicaApplied['full'],
+            'replica_applied_diff' => $replicaApplied['diff'],
+            'replica_applied_at' => (string)$replicaApplied['at'],
         ];
     }
 
@@ -406,6 +488,10 @@ final class BackupConfig
         $action = (string)($post['action'] ?? 'save');
         if ($action === 'copy_ftp_audio') {
             self::copyFtpFromAudio();
+            return;
+        }
+        if ($action === 'copy_ftp_replica') {
+            self::copyFtpToReplica();
             return;
         }
 
@@ -506,6 +592,29 @@ final class BackupConfig
         self::set('light_nightly', !empty($post['light_nightly']) ? '1' : '0');
         self::set('keep_light', (string)max(1, min(90, (int)($post['keep_light'] ?? 7))));
         self::set('hard_enabled', !empty($post['hard_enabled']) ? '1' : '0');
+
+        self::set('replica_enabled', !empty($post['replica_enabled']) ? '1' : '0');
+        self::set('replica_instance', trim((string)($post['replica_instance'] ?? '')));
+        self::set('replica_ftp_host', trim((string)($post['replica_ftp_host'] ?? '')));
+        self::set('replica_ftp_port', (string)max(1, (int)($post['replica_ftp_port'] ?? 21)));
+        self::set('replica_ftp_user', trim((string)($post['replica_ftp_user'] ?? '')));
+        $rPass = (string)($post['replica_ftp_pass'] ?? '');
+        if ($rPass !== '') {
+            self::set('replica_ftp_pass', $rPass);
+        }
+        if (!empty($post['replica_ftp_pass_clear'])) {
+            self::set('replica_ftp_pass', '');
+        }
+        self::set('replica_ftp_ssl', !empty($post['replica_ftp_ssl']) ? '1' : '0');
+        self::set('replica_ftp_passive', !empty($post['replica_ftp_passive']) ? '1' : '0');
+        self::set('replica_ftp_base_path', trim((string)($post['replica_ftp_base_path'] ?? '/' . self::RECOMMENDED_FOLDER)));
+        $rPhrase = (string)($post['replica_passphrase'] ?? '');
+        if ($rPhrase !== '') {
+            self::set('replica_passphrase', $rPhrase);
+        }
+        if (!empty($post['replica_passphrase_clear'])) {
+            self::set('replica_passphrase', '');
+        }
     }
 
     public static function recommendedFtpBasePath(string $audioBase = ''): string
