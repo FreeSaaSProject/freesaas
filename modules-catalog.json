@@ -1,6 +1,6 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-06T08:54:25+00:00",
+    "generated_at": "2026-11-06T10:05:24+00:00",
     "modules": [
         {
             "id": "asr",
@@ -1218,7 +1218,7 @@
         },
         {
             "id": "likespa",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "type": "product",
             "name": {
                 "en": "LikeSpa",
@@ -2236,7 +2236,7 @@
         },
         {
             "id": "yclients",
-            "version": "0.1.4",
+            "version": "0.1.6",
             "type": "product",
             "name": {
                 "en": "YClients",

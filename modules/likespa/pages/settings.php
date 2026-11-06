@@ -34,6 +34,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
 
 $cfg = LikespaConfig::formValues();
 $flyerPromo = SystemFlyerPromo::load();
+$staffDebtsBraceletUsers = [];
+if (class_exists(StaffBraceletsRepository::class, false) && StaffBraceletsRepository::tableReady()) {
+    $staffDebtsBraceletUsers = StaffBraceletsRepository::listAll();
+}
 
 if ($wantsJson) {
     AgentHttp::emit([
@@ -41,6 +45,8 @@ if ($wantsJson) {
         'cfg' => $cfg,
         'flyer_promo' => $flyerPromo,
         'free_ticket_threshold' => FreeTicket::threshold(),
+        'staff_debts_exclude_user_ids' => LikespaConfig::staffDebtsExcludeUserIds(),
+        'staff_debts_bracelet_users' => $staffDebtsBraceletUsers,
     ]);
     return;
 }
@@ -54,6 +60,8 @@ View::render('settings', [
     'freeTicketThreshold' => FreeTicket::threshold(),
     'statusOptions' => SystemFlyerPromo::statusOptions(),
     'procedureTypeOptions' => SystemFlyerPromo::procedureTypeOptions(),
+    'staffDebtsBraceletUsers' => $staffDebtsBraceletUsers,
+    'staffDebtsExcludeIds' => array_fill_keys(LikespaConfig::staffDebtsExcludeUserIds(), true),
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('likespa.menu.settings'), 'current' => true],
     ]),

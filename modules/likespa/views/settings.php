@@ -6,6 +6,8 @@ declare(strict_types=1);
 /** @var array{flyer_enabled:int,flyer_discount:int,promo_position_ids:list<int>,promo_discounts:array<int,int|string>,discount_types?:array<int,int|string>} $flyerPromo */
 /** @var array<int,string> $statusOptions */
 /** @var array<int,string> $procedureTypeOptions */
+/** @var list<array{user_id:int,uid:string,updated_at:int,name:string}> $staffDebtsBraceletUsers */
+/** @var array<int,true> $staffDebtsExcludeIds */
 /** @var int $freeTicketThreshold */
 $c = static function (string $key, string $fallback = '') use ($cfg): string {
     return (string)($cfg[$key] ?? $fallback);
@@ -246,6 +248,35 @@ $discountTypes = is_array($flyerPromo['discount_types'] ?? null) ? $flyerPromo['
       <input type="text" name="staff_debts_daily_at" pattern="\d{1,2}:\d{2}" placeholder="08:00" value="<?= e($c('staff_debts_daily_at', '08:00')) ?>">
       <span class="muted"><?= te('likespa.settings.staff_debts_daily_at_hint') ?></span>
     </label>
+    <p class="muted"><?= te('likespa.settings.staff_debts_exclude_hint') ?></p>
+    <?php
+    /** @var list<array{user_id:int,uid:string,updated_at:int,name:string}> $staffDebtsBraceletUsers */
+    /** @var array<int,true> $staffDebtsExcludeIds */
+    $braceletUsers = is_array($staffDebtsBraceletUsers ?? null) ? $staffDebtsBraceletUsers : [];
+    $excludeIds = is_array($staffDebtsExcludeIds ?? null) ? $staffDebtsExcludeIds : [];
+    ?>
+    <?php if ($braceletUsers === []): ?>
+      <p class="muted"><?= te('likespa.settings.staff_debts_exclude_empty') ?></p>
+    <?php else: ?>
+      <div class="check-grid check-grid-tall likespa-staff-debts-exclude">
+        <?php foreach ($braceletUsers as $bu): ?>
+          <?php
+            $uidUser = (int)($bu['user_id'] ?? 0);
+            if ($uidUser < 1) {
+                continue;
+            }
+            $uname = trim((string)($bu['name'] ?? ''));
+            if ($uname === '') {
+                $uname = '#' . $uidUser;
+            }
+          ?>
+          <label class="check">
+            <input type="checkbox" name="staff_debts_exclude_user_ids[]" value="<?= $uidUser ?>"<?= !empty($excludeIds[$uidUser]) ? ' checked' : '' ?>>
+            <?= e($uname) ?> <span class="muted">#<?= $uidUser ?></span>
+          </label>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
     <?php if ($on('staff_debts_enabled')): ?>
       <p><a href="/likespa/staff-debts"><?= te('likespa.settings.staff_debts_run_link') ?></a></p>
     <?php endif; ?>

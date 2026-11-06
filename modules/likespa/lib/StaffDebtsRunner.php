@@ -14,6 +14,7 @@ final class StaffDebtsRunner
      *   with_debt:int,
      *   posted:int,
      *   errors:int,
+     *   excluded:int,
      *   message:string,
      *   lines:list<string>
      * }
@@ -28,6 +29,7 @@ final class StaffDebtsRunner
                 'with_debt' => 0,
                 'posted' => 0,
                 'errors' => 0,
+                'excluded' => 0,
                 'message' => $message,
                 'lines' => [],
             ];
@@ -68,10 +70,12 @@ final class StaffDebtsRunner
         }
 
         $rows = StaffBraceletsRepository::listAll();
+        $exclude = array_fill_keys(LikespaConfig::staffDebtsExcludeUserIds(), true);
         $scanned = 0;
         $withDebt = 0;
         $posted = 0;
         $errors = 0;
+        $excluded = 0;
         $lines = [];
 
         foreach ($rows as $row) {
@@ -82,6 +86,11 @@ final class StaffDebtsRunner
                 $name = '#' . $userId;
             }
             if ($uid === '') {
+                continue;
+            }
+            if ($userId > 0 && isset($exclude[$userId])) {
+                $excluded++;
+                $lines[] = t('likespa.staff_debts.line.excluded', ['name' => $name]);
                 continue;
             }
             $scanned++;
@@ -168,15 +177,17 @@ final class StaffDebtsRunner
             'with_debt' => (string)$withDebt,
             'posted' => (string)$posted,
             'errors' => (string)$errors,
+            'excluded' => (string)$excluded,
         ]);
 
         return [
             'ok' => $errors === 0,
-            'skipped' => 0,
+            'skipped' => $excluded,
             'scanned' => $scanned,
             'with_debt' => $withDebt,
             'posted' => $posted,
             'errors' => $errors,
+            'excluded' => $excluded,
             'message' => $message,
             'lines' => $lines,
         ];

@@ -37,6 +37,7 @@ final class LikespaConfig
             'staff_debts_news_id' => 0,
             'staff_debts_comment_user_id' => 0,
             'staff_debts_daily_at' => '08:00',
+            'staff_debts_exclude_user_ids' => '',
             // /t → 1C money: 0 = whole rubles (oper parity), 2 = kopeks.
             'terminal_price_decimals' => 0,
         ];
@@ -86,7 +87,7 @@ final class LikespaConfig
                 $out[$key] = (string)self::int($key, $default);
                 continue;
             }
-            if ($key === 'promo_script_ids' || $key === 'dops_position_ids') {
+            if ($key === 'promo_script_ids' || $key === 'dops_position_ids' || $key === 'staff_debts_exclude_user_ids') {
                 $list = self::intList($key, self::normalizeIdList((string)$default));
                 $out[$key] = implode(',', $list);
                 continue;
@@ -159,6 +160,17 @@ final class LikespaConfig
         Config::set('likespa', 'staff_debts_news_id', (string)max(0, (int)($post['staff_debts_news_id'] ?? 0)));
         Config::set('likespa', 'staff_debts_comment_user_id', (string)max(0, (int)($post['staff_debts_comment_user_id'] ?? 0)));
         Config::set('likespa', 'staff_debts_daily_at', self::normalizeDailyAt((string)($post['staff_debts_daily_at'] ?? '08:00')));
+        $excludeRaw = $post['staff_debts_exclude_user_ids'] ?? [];
+        if (is_array($excludeRaw)) {
+            $excludeIds = self::normalizeIdList(implode(',', array_map('strval', $excludeRaw)));
+        } else {
+            $excludeIds = self::normalizeIdList((string)$excludeRaw);
+        }
+        Config::set(
+            'likespa',
+            'staff_debts_exclude_user_ids',
+            $excludeIds !== [] ? implode(',', $excludeIds) : ''
+        );
 
         Config::set(
             'likespa',
@@ -352,6 +364,16 @@ final class LikespaConfig
     public static function staffDebtsDailyAt(): string
     {
         return self::normalizeDailyAt(self::string('staff_debts_daily_at', '08:00'));
+    }
+
+    /**
+     * User ids skipped by the staff debts 1C scanner (service / complex accounts).
+     *
+     * @return list<int>
+     */
+    public static function staffDebtsExcludeUserIds(): array
+    {
+        return self::intList('staff_debts_exclude_user_ids', []);
     }
 
     /**
