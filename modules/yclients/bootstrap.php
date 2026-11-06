@@ -8,6 +8,7 @@ require_once __DIR__ . '/lib/YclientsIdMapRepository.php';
 require_once __DIR__ . '/lib/YclientsSyncStateRepository.php';
 require_once __DIR__ . '/lib/YclientsApiClient.php';
 require_once __DIR__ . '/lib/YclientsClientsImporter.php';
+require_once __DIR__ . '/lib/YclientsStaffImporter.php';
 
 ModuleManager::registerMenuGroup('yclients.menu.group', 1225, '/yclients');
 

@@ -294,8 +294,12 @@ final class Auth
         if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
             return true;
         }
-        $fwd = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
-        return $fwd === 'https';
+        $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+        if ($remote !== '' && self::remoteIsTrustedProxy($remote)) {
+            $fwd = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
+            return $fwd === 'https';
+        }
+        return false;
     }
 
     private static function rememberDays(): int
@@ -1191,20 +1195,86 @@ final class Auth
         }
     }
 
-    /** Client IP for login throttle (honours first X-Forwarded-For hop when present). */
+    /**
+     * Client IP for login throttle.
+     * Honours X-Forwarded-For only when REMOTE_ADDR is listed in app.trusted_proxies
+     * (comma-separated IPs or CIDR). Otherwise clients can spoof the throttle key.
+     */
     private static function clientIp(): string
     {
-        $fwd = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
-        if ($fwd !== '') {
-            $parts = explode(',', $fwd);
-            $ip = trim($parts[0]);
-            if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
-                return $ip;
+        $remote = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
+        if ($remote !== '' && self::remoteIsTrustedProxy($remote)) {
+            $fwd = trim((string)($_SERVER['HTTP_X_FORWARDED_FOR'] ?? ''));
+            if ($fwd !== '') {
+                $parts = explode(',', $fwd);
+                $ip = trim($parts[0]);
+                if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP)) {
+                    return $ip;
+                }
             }
         }
-        $ip = trim((string)($_SERVER['REMOTE_ADDR'] ?? ''));
 
-        return $ip !== '' ? $ip : '0.0.0.0';
+        return $remote !== '' ? $remote : '0.0.0.0';
+    }
+
+    /** True when $ip matches app.trusted_proxies (exact IP or CIDR). */
+    private static function remoteIsTrustedProxy(string $ip): bool
+    {
+        if (!class_exists('Config', false) || !filter_var($ip, FILTER_VALIDATE_IP)) {
+            return false;
+        }
+        $raw = trim((string)Config::get('app', 'trusted_proxies', ''));
+        if ($raw === '') {
+            return false;
+        }
+        foreach (preg_split('/\s*,\s*/', $raw) ?: [] as $entry) {
+            $entry = trim((string)$entry);
+            if ($entry === '') {
+                continue;
+            }
+            if (strpos($entry, '/') !== false) {
+                if (self::ipInCidr($ip, $entry)) {
+                    return true;
+                }
+                continue;
+            }
+            if ($ip === $entry) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static function ipInCidr(string $ip, string $cidr): bool
+    {
+        $parts = explode('/', $cidr, 2);
+        if (count($parts) !== 2) {
+            return false;
+        }
+        $subnet = trim($parts[0]);
+        $mask = (int)$parts[1];
+        if (!filter_var($subnet, FILTER_VALIDATE_IP) || $mask < 0) {
+            return false;
+        }
+        $ipBin = @inet_pton($ip);
+        $subBin = @inet_pton($subnet);
+        if ($ipBin === false || $subBin === false || strlen($ipBin) !== strlen($subBin)) {
+            return false;
+        }
+        $bits = strlen($ipBin) * 8;
+        if ($mask > $bits) {
+            return false;
+        }
+        $bytes = intdiv($mask, 8);
+        $rem = $mask % 8;
+        if ($bytes > 0 && substr($ipBin, 0, $bytes) !== substr($subBin, 0, $bytes)) {
+            return false;
+        }
+        if ($rem === 0) {
+            return true;
+        }
+        $maskByte = chr((0xFF << (8 - $rem)) & 0xFF);
+        return ($ipBin[$bytes] & $maskByte) === ($subBin[$bytes] & $maskByte);
     }
 
     private static function ipThrottlePath(): string

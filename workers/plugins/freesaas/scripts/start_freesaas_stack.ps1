@@ -35,10 +35,25 @@ Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
     Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
   }
 
+# Kill only our php-cgi / caddy binaries (path match) — never every php-cgi/caddy on the box.
+function Stop-ScopedByExe([string]$exePath, [string]$label) {
+  if (-not $exePath) { return }
+  $exeNorm = [System.IO.Path]::GetFullPath($exePath)
+  Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+    Where-Object {
+      $_.ExecutablePath -and
+      ([System.IO.Path]::GetFullPath([string]$_.ExecutablePath) -ieq $exeNorm)
+    } |
+    ForEach-Object {
+      Log ("kill scoped {0} pid={1}" -f $label, $_.ProcessId)
+      Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # Win32_Process.Create — process outlives SSH/PowerShell parent (unlike start /B from a remote cmd).
 $phpListen = Get-NetTCPConnection -LocalPort 9000 -State Listen -ErrorAction SilentlyContinue
 if (-not $phpListen) {
-  Get-Process php-cgi -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+  Stop-ScopedByExe $phpCgi 'php-cgi'
   $null = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
     CommandLine = "`"$phpCgi`" -b 127.0.0.1:9000"
     CurrentDirectory = $phpDir
@@ -55,7 +70,7 @@ if (-not $caddyListen) {
   if (-not (Test-Path -LiteralPath $caddyfile)) {
     Log "missing Caddyfile: $caddyfile"
   } else {
-    Get-Process caddy -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+    Stop-ScopedByExe $caddyExe 'caddy'
     $null = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
       CommandLine = "`"$caddyExe`" run --config `"$caddyfile`" --adapter caddyfile"
       CurrentDirectory = $caddyDir

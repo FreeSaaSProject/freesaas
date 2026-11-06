@@ -79,10 +79,19 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                 return;
             }
         } elseif ($action === 'copy_ftp_replica') {
-            BackupConfig::copyFtpToReplica();
+            $copied = BackupConfig::copyFtpToReplica();
             $message = t('backups.flash.replica_ftp_copied', ['instance' => BackupConfig::replicaInstance()]);
+            if (!empty($copied['disabled_replica'])) {
+                $error = t('backups.flash.replica_disabled_same_target');
+            }
             if ($wantsJson) {
-                AgentHttp::emit(['ok' => true, 'settings' => BackupConfig::forUi(), 'message' => $message]);
+                AgentHttp::emit([
+                    'ok' => true,
+                    'settings' => BackupConfig::forUi(),
+                    'message' => $message,
+                    'error' => $error,
+                    'disabled_replica' => !empty($copied['disabled_replica']),
+                ]);
                 return;
             }
         } elseif ($action === 'cdc_install') {

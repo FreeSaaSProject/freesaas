@@ -131,9 +131,38 @@ final class YclientsConfig
 
     public static function apiReady(): bool
     {
-        return self::companyId() > 0
-            && trim(self::string('partner_token')) !== ''
-            && trim(self::string('user_token')) !== '';
+        return self::credentialGaps() === [];
+    }
+
+    /**
+     * Missing pieces for Bearer partner + User token + company_id.
+     * worker_token is FreeSaaS-only (cron) and is not required for API calls.
+     *
+     * @return list<string>
+     */
+    public static function credentialGaps(): array
+    {
+        $missing = [];
+        if (self::companyId() < 1) {
+            $missing[] = 'company_id';
+        }
+        if (trim(self::string('partner_token')) === '') {
+            $missing[] = 'partner_token';
+        }
+        if (trim(self::string('user_token')) === '') {
+            $missing[] = 'user_token';
+        }
+        return $missing;
+    }
+
+    /** Persist user_token after auth.login (never stores password). */
+    public static function saveUserToken(string $token): void
+    {
+        $token = trim($token);
+        if ($token === '') {
+            throw new InvalidArgumentException('user_token empty');
+        }
+        Config::set('yclients', 'user_token', $token);
     }
 
     /** @return array{company_id:int,partner_token:string,user_token:string,api_base:string,timeout:int} */
@@ -191,11 +220,23 @@ final class YclientsConfig
         }
 
         $next = [];
-        if ($missing !== []) {
+        if (in_array('partner_token', $missing, true)) {
+            $next[] = 'Save partner_token from YClients marketplace developer account (API key / Настройки аккаунта)';
+        }
+        if (in_array('user_token', $missing, true)) {
+            $next[] = 'POST /yclients/settings?format=json action=auth_login with login+password (saves user_token; password not stored), or paste user_token from app / auth';
+        }
+        if (in_array('company_id', $missing, true)) {
+            $next[] = 'Set company_id from YClients URL …/company/{id}/';
+        }
+        if ($missing !== [] && $next === []) {
             $next[] = 'POST /yclients/settings?format=json with missing fields (empty secret = keep previous)';
         }
+        if (!self::workerTokenConfigured()) {
+            $next[] = 'Set worker_token (FreeSaaS cron secret for /yclients/jobs/* — not from YClients)';
+        }
         if (!self::apiReady()) {
-            $next[] = 'After tokens: POST /yclients?format=json action=ping (session) to verify company';
+            $next[] = 'After tokens: POST /yclients?format=json action=ping';
         } else {
             $next[] = 'POST /yclients?format=json action=ping';
             $next[] = 'POST /yclients/import?format=json action=clients&dry_run=1';
@@ -207,6 +248,13 @@ final class YclientsConfig
             'worker_token_configured' => self::workerTokenConfigured(),
             'company_id' => self::companyId(),
             'missing' => $missing,
+            'credential_gaps' => self::credentialGaps(),
+            'token_hints' => [
+                'partner_token' => 'YClients marketplace developer API key (Bearer)',
+                'user_token' => 'Salon user key from POST /api/v1/auth or marketplace app system user — not the password',
+                'worker_token' => 'FreeSaaS-only secret for cron jobs (X-Yclients-Token)',
+                'company_id' => 'Filial id from yclients.com/company/{id}/',
+            ],
             'writable_fields' => [
                 'pull_enabled', 'company_id', 'partner_token', 'user_token',
                 'api_base', 'timeout_sec', 'page_size', 'worker_token',

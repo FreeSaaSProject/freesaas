@@ -16,8 +16,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         } else {
             $error = t('yclients.import.failed') . ': ' . (string)($report['error'] ?? '');
         }
+    } elseif ($action === 'staff') {
+        $report = YclientsStaffImporter::run($dryRun);
+        if (!empty($report['ok'])) {
+            $message = t('yclients.import.done');
+        } else {
+            $error = t('yclients.import.failed') . ': ' . (string)($report['error'] ?? '');
+        }
     } else {
-        $error = 'unknown action';
+        $error = 'unknown action; use clients|staff';
     }
     if ($wantsJson) {
         if ($error !== '' && ($report === null || empty($report['ok']))) {
@@ -29,14 +36,18 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     }
 }
 
-$last = YclientsSyncStateRepository::get('import_clients');
+$lastClients = YclientsSyncStateRepository::get('import_clients');
+$lastStaff = YclientsSyncStateRepository::get('import_staff');
 if ($wantsJson) {
     AgentHttp::emit([
         'ok' => true,
         'api_ready' => YclientsConfig::apiReady(),
         'pull_enabled' => YclientsConfig::pullEnabled(),
-        'last' => $last,
+        'last' => $lastClients,
+        'last_clients' => $lastClients,
+        'last_staff' => $lastStaff,
         'report' => $report,
+        'actions' => ['clients', 'staff'],
     ]);
     return;
 }
@@ -50,7 +61,8 @@ View::render('import', [
     'message' => $message,
     'error' => $error,
     'report' => $report,
-    'last' => $last,
+    'last' => $lastClients,
+    'last_staff' => $lastStaff,
     'api_ready' => YclientsConfig::apiReady(),
     'pull_enabled' => YclientsConfig::pullEnabled(),
 ], 'layout', 'yclients');

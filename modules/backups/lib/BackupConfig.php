@@ -373,6 +373,77 @@ final class BackupConfig
         ];
     }
 
+    /**
+     * Stable key for "same backup warehouse": host|port|base_path|instance.
+     * Empty string when host or instance is missing (not comparable).
+     *
+     * @param array{host?:string,port?:int|string,base_path?:string} $ftp
+     */
+    public static function ftpWarehouseKey(array $ftp, string $instance): string
+    {
+        $host = strtolower(trim((string)($ftp['host'] ?? '')));
+        $inst = strtolower(trim($instance, '/'));
+        if ($host === '' || $inst === '') {
+            return '';
+        }
+        $port = max(1, (int)($ftp['port'] ?? 21));
+        $base = strtolower(trim(str_replace('\\', '/', (string)($ftp['base_path'] ?? '')), '/'));
+        return $host . '|' . $port . '|' . $base . '|' . $inst;
+    }
+
+    /**
+     * True when this host's own backup target is the same warehouse as the replica source.
+     * That means "I am (or look like) the primary writing there" — refuse replica pull/enable.
+     * Test copies must point replica_* at the primary's folder while keeping a different
+     * local backup instance/path (or empty local FTP).
+     *
+     * @param array{host?:string,port?:int|string,base_path?:string}|null $backupFtp
+     * @param array{host?:string,port?:int|string,base_path?:string}|null $replicaFtp
+     * @return array{conflict:bool,backup_key:string,replica_key:string}
+     */
+    public static function replicaConflictsWithBackupWriter(
+        ?array $backupFtp = null,
+        ?string $backupInstance = null,
+        ?array $replicaFtp = null,
+        ?string $replicaInstance = null
+    ): array {
+        $backupFtp = $backupFtp ?? self::ftpConfig();
+        $replicaFtp = $replicaFtp ?? self::replicaFtpConfig();
+        $backupInstance = $backupInstance ?? self::instance();
+        $replicaInstance = $replicaInstance ?? self::replicaInstance();
+        $bk = self::ftpWarehouseKey($backupFtp, (string)$backupInstance);
+        $rk = self::ftpWarehouseKey($replicaFtp, (string)$replicaInstance);
+        return [
+            'conflict' => $bk !== '' && $rk !== '' && $bk === $rk,
+            'backup_key' => $bk,
+            'replica_key' => $rk,
+        ];
+    }
+
+    /**
+     * Role gate for enabling / pulling replica (not standby, not same warehouse as own backups).
+     *
+     * @return array{ok:bool,code:string,error:string}
+     */
+    public static function replicaRoleGuard(bool $requireEnabled = true): array
+    {
+        if ($requireEnabled && !self::replicaEnabled()) {
+            return ['ok' => false, 'code' => 'disabled', 'error' => t('backups.replica.err.disabled')];
+        }
+        if (class_exists('StandbyMode', false) && StandbyMode::isStandby()) {
+            return ['ok' => false, 'code' => 'standby', 'error' => t('backups.replica.err.standby')];
+        }
+        $same = self::replicaConflictsWithBackupWriter();
+        if (!empty($same['conflict'])) {
+            return [
+                'ok' => false,
+                'code' => 'same_target',
+                'error' => t('backups.replica.err.same_target'),
+            ];
+        }
+        return ['ok' => true, 'code' => '', 'error' => ''];
+    }
+
     public static function replicaPassphrase(): string
     {
         return self::get('replica_passphrase', '');
@@ -395,8 +466,14 @@ final class BackupConfig
         self::set('replica_applied_at', (string)time());
     }
 
-    /** Copy this host's own backup FTP target (+ instance) into the replica source fields. */
-    public static function copyFtpToReplica(): void
+    /**
+     * Copy this host's own backup FTP target (+ instance) into the replica source fields.
+     * Prefill only — change replica_instance to the primary's folder before enabling.
+     * If replica is already enabled and the copy creates a same-warehouse conflict, disable it.
+     *
+     * @return array{disabled_replica:bool}
+     */
+    public static function copyFtpToReplica(): array
     {
         $ftp = self::ftpConfig();
         self::set('replica_ftp_host', $ftp['host']);
@@ -409,6 +486,15 @@ final class BackupConfig
         self::set('replica_ftp_passive', $ftp['passive'] ? '1' : '0');
         self::set('replica_ftp_base_path', $ftp['base_path']);
         self::set('replica_instance', self::instance());
+        $disabled = false;
+        if (self::replicaEnabled()) {
+            $same = self::replicaConflictsWithBackupWriter();
+            if (!empty($same['conflict'])) {
+                self::set('replica_enabled', '0');
+                $disabled = true;
+            }
+        }
+        return ['disabled_replica' => $disabled];
     }
 
     /** @return array<string,mixed> */
@@ -593,10 +679,35 @@ final class BackupConfig
         self::set('keep_light', (string)max(1, min(90, (int)($post['keep_light'] ?? 7))));
         self::set('hard_enabled', !empty($post['hard_enabled']) ? '1' : '0');
 
-        self::set('replica_enabled', !empty($post['replica_enabled']) ? '1' : '0');
-        self::set('replica_instance', trim((string)($post['replica_instance'] ?? '')));
-        self::set('replica_ftp_host', trim((string)($post['replica_ftp_host'] ?? '')));
-        self::set('replica_ftp_port', (string)max(1, (int)($post['replica_ftp_port'] ?? 21)));
+        $wantReplica = !empty($post['replica_enabled']);
+        $replicaInstance = trim((string)($post['replica_instance'] ?? ''));
+        $replicaFtpHost = trim((string)($post['replica_ftp_host'] ?? ''));
+        $replicaFtpPort = max(1, (int)($post['replica_ftp_port'] ?? 21));
+        $replicaFtpBase = trim((string)($post['replica_ftp_base_path'] ?? '/' . self::RECOMMENDED_FOLDER));
+        // Own backup target already written above from the same POST.
+        if ($wantReplica) {
+            $same = self::replicaConflictsWithBackupWriter(
+                self::ftpConfig(),
+                self::instance(),
+                [
+                    'host' => $replicaFtpHost,
+                    'port' => $replicaFtpPort,
+                    'base_path' => $replicaFtpBase,
+                ],
+                $replicaInstance
+            );
+            if (!empty($same['conflict'])) {
+                throw new RuntimeException(t('backups.replica.err.same_target'));
+            }
+            if (class_exists('StandbyMode', false) && StandbyMode::isStandby()) {
+                throw new RuntimeException(t('backups.replica.err.standby'));
+            }
+        }
+
+        self::set('replica_enabled', $wantReplica ? '1' : '0');
+        self::set('replica_instance', $replicaInstance);
+        self::set('replica_ftp_host', $replicaFtpHost);
+        self::set('replica_ftp_port', (string)$replicaFtpPort);
         self::set('replica_ftp_user', trim((string)($post['replica_ftp_user'] ?? '')));
         $rPass = (string)($post['replica_ftp_pass'] ?? '');
         if ($rPass !== '') {
@@ -607,7 +718,7 @@ final class BackupConfig
         }
         self::set('replica_ftp_ssl', !empty($post['replica_ftp_ssl']) ? '1' : '0');
         self::set('replica_ftp_passive', !empty($post['replica_ftp_passive']) ? '1' : '0');
-        self::set('replica_ftp_base_path', trim((string)($post['replica_ftp_base_path'] ?? '/' . self::RECOMMENDED_FOLDER)));
+        self::set('replica_ftp_base_path', $replicaFtpBase);
         $rPhrase = (string)($post['replica_passphrase'] ?? '');
         if ($rPhrase !== '') {
             self::set('replica_passphrase', $rPhrase);

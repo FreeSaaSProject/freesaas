@@ -47,6 +47,81 @@ final class BackupRestore
         }
     }
 
+    /**
+     * Non-base_* tables that contain rows (shared-DB guard before DROP base_*).
+     *
+     * @return list<string>
+     */
+    public static function foreignTablesWithRows(): array
+    {
+        $pdo = Database::pdo();
+        $out = [];
+        $st = $pdo->query('SHOW FULL TABLES WHERE Table_type = \'BASE TABLE\'');
+        while ($st && ($row = $st->fetch(PDO::FETCH_NUM))) {
+            $name = (string)($row[0] ?? '');
+            if ($name === '' || preg_match('/^base_/', $name)) {
+                continue;
+            }
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+                $out[] = $name;
+                continue;
+            }
+            $cnt = (int)$pdo->query('SELECT COUNT(*) FROM `' . $name . '`')->fetchColumn();
+            if ($cnt > 0) {
+                $out[] = $name;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * True when path looks like a usable mysqldump (gzip magic + SQL head, or plain SQL).
+     * Rejects placeholder / "not gzip" text files that would wipe then fail restore.
+     */
+    public static function dumpLooksValid(string $path): bool
+    {
+        if ($path === '' || !is_file($path) || filesize($path) < 10) {
+            return false;
+        }
+        $fh = fopen($path, 'rb');
+        if ($fh === false) {
+            return false;
+        }
+        $head = fread($fh, 512);
+        fclose($fh);
+        if (!is_string($head) || $head === '') {
+            return false;
+        }
+        if (preg_match('/\.gz$/i', $path)) {
+            if (strlen($head) < 2 || $head[0] !== "\x1f" || $head[1] !== "\x8b") {
+                return false;
+            }
+            $gz = @gzopen($path, 'rb');
+            if ($gz === false) {
+                return false;
+            }
+            $sample = gzread($gz, 256);
+            gzclose($gz);
+            if (!is_string($sample) || $sample === '') {
+                return false;
+            }
+            return self::sqlHeadLooksValid($sample);
+        }
+        return self::sqlHeadLooksValid($head);
+    }
+
+    private static function sqlHeadLooksValid(string $head): bool
+    {
+        if (strncmp($head, "\xEF\xBB\xBF", 3) === 0) {
+            $head = substr($head, 3);
+        }
+        $trim = ltrim($head);
+        if ($trim === '') {
+            return false;
+        }
+        return (bool)preg_match('/^(--|\/\*|SET\s|CREATE\s|DROP\s|INSERT\s|REPLACE\s|USE\s)/i', $trim);
+    }
+
     /** @return array{empty:bool,available:bool} */
     public static function availability(): array
     {
@@ -454,7 +529,7 @@ final class BackupRestore
         }
     }
 
-    /** Minimal ustar extractor (files only). */
+    /** Minimal ustar extractor (files only). Streams file payloads to disk. */
     public static function extractTar(string $tarPath, string $destDir): void
     {
         $fh = fopen($tarPath, 'rb');
@@ -462,49 +537,98 @@ final class BackupRestore
             throw new RuntimeException('Cannot open tar');
         }
         $longName = null;
-        while (!feof($fh)) {
-            $header = fread($fh, 512);
-            if ($header === false || strlen($header) < 512) {
-                break;
-            }
-            if (trim($header, "\0") === '') {
-                break;
-            }
-            $name = $longName !== null ? $longName : rtrim(substr($header, 0, 100), "\0");
-            $longName = null;
-            $sizeOct = trim(substr($header, 124, 12), "\0 ");
-            $size = (int)octdec($sizeOct !== '' ? $sizeOct : '0');
-            $type = $header[156] ?? '0';
-            $payload = '';
-            if ($size > 0) {
-                $payload = fread($fh, $size);
-                if ($payload === false) {
-                    $payload = '';
+        try {
+            while (!feof($fh)) {
+                $header = fread($fh, 512);
+                if ($header === false || strlen($header) < 512) {
+                    break;
                 }
-                $pad = (512 - ($size % 512)) % 512;
+                if (trim($header, "\0") === '') {
+                    break;
+                }
+                $name = $longName !== null ? $longName : rtrim(substr($header, 0, 100), "\0");
+                $longName = null;
+                $sizeOct = trim(substr($header, 124, 12), "\0 ");
+                $size = (int)octdec($sizeOct !== '' ? $sizeOct : '0');
+                $type = $header[156] ?? '0';
+                $pad = $size > 0 ? ((512 - ($size % 512)) % 512) : 0;
+
+                if ($type === 'L') {
+                    // GNU long-name: small; keep in memory with a hard cap.
+                    if ($size > 1048576) {
+                        throw new RuntimeException('tar long name too large');
+                    }
+                    $payload = $size > 0 ? fread($fh, $size) : '';
+                    if ($payload === false) {
+                        $payload = '';
+                    }
+                    if ($pad > 0) {
+                        fread($fh, $pad);
+                    }
+                    $longName = rtrim($payload, "\0");
+                    continue;
+                }
+
+                if ($type !== '0' && $type !== "\0") {
+                    if ($size > 0) {
+                        self::streamDiscard($fh, $size + $pad);
+                    }
+                    continue;
+                }
+
+                $name = str_replace('\\', '/', $name);
+                if ($name === '' || strpos($name, '..') !== false) {
+                    if ($size > 0) {
+                        self::streamDiscard($fh, $size + $pad);
+                    }
+                    continue;
+                }
+                $out = $destDir . '/' . $name;
+                $dir = dirname($out);
+                if (!is_dir($dir)) {
+                    @mkdir($dir, 0755, true);
+                }
+                if ($size <= 0) {
+                    file_put_contents($out, '');
+                    continue;
+                }
+                $outFh = fopen($out, 'wb');
+                if ($outFh === false) {
+                    throw new RuntimeException('Cannot write ' . $name);
+                }
+                try {
+                    $left = $size;
+                    while ($left > 0) {
+                        $chunk = fread($fh, (int)min(1048576, $left));
+                        if ($chunk === false || $chunk === '') {
+                            throw new RuntimeException('Unexpected EOF in tar entry ' . $name);
+                        }
+                        fwrite($outFh, $chunk);
+                        $left -= strlen($chunk);
+                    }
+                } finally {
+                    fclose($outFh);
+                }
                 if ($pad > 0) {
                     fread($fh, $pad);
                 }
             }
-            if ($type === 'L') {
-                $longName = rtrim($payload, "\0");
-                continue;
-            }
-            if ($type !== '0' && $type !== "\0") {
-                continue;
-            }
-            $name = str_replace('\\', '/', $name);
-            if ($name === '' || strpos($name, '..') !== false) {
-                continue;
-            }
-            $out = $destDir . '/' . $name;
-            $dir = dirname($out);
-            if (!is_dir($dir)) {
-                @mkdir($dir, 0755, true);
-            }
-            file_put_contents($out, $payload);
+        } finally {
+            fclose($fh);
         }
-        fclose($fh);
+    }
+
+    /** @param resource $fh */
+    private static function streamDiscard($fh, int $bytes): void
+    {
+        $left = max(0, $bytes);
+        while ($left > 0) {
+            $chunk = fread($fh, (int)min(1048576, $left));
+            if ($chunk === false || $chunk === '') {
+                break;
+            }
+            $left -= strlen($chunk);
+        }
     }
 
     /** @return array<string,mixed>|null */

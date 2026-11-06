@@ -1705,6 +1705,47 @@ a.pager-chip:hover {
   min-width: 0;
   overflow: hidden;
 }
+.user-menu-preview {
+  margin-top: 0.9rem;
+}
+.user-menu-preview-group + .user-menu-preview-group {
+  margin-top: 0.85rem;
+}
+.user-menu-preview-group-title {
+  margin: 0 0 0.35rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.user-menu-preview-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.user-menu-preview-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.55rem;
+  padding: 0.2rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #ddd) 70%, transparent);
+}
+.user-menu-preview-item:last-child {
+  border-bottom: 0;
+}
+.user-menu-preview-perms {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.user-menu-preview-perm {
+  display: inline-block;
+  padding: 0.05rem 0.4rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--muted, #888) 14%, transparent);
+  color: var(--muted, #666);
+  font-size: 0.82em;
+  white-space: nowrap;
+}
 .kv {
   display: grid;
   grid-template-columns: 8rem minmax(0, 1fr);

@@ -12,6 +12,7 @@ declare(strict_types=1);
 /** @var bool $canSeeSensitive */
 /** @var bool $canBotLinkCode */
 /** @var array{type?:string,message?:string}|null $flash */
+/** @var array{available?:bool,groups?:array<string,list<array{title:string,path:string,permission:string,extras:list<array{id:string,label:string}>}>>}|null $menuPreview */
 $uid = (int)$user['id'];
 $profileChannelsHtml = (string)($profileChannelsHtml ?? '');
 $profileFlagsHtml = (string)($profileFlagsHtml ?? '');
@@ -21,6 +22,7 @@ $canEdit = !empty($canEdit);
 $canSeeSensitive = !empty($canSeeSensitive);
 $canBotLinkCode = !empty($canBotLinkCode);
 $flash = is_array($flash ?? null) ? $flash : null;
+$menuPreview = is_array($menuPreview ?? null) ? $menuPreview : null;
 ?>
 <section class="page-head">
   <div class="page-head-row">
@@ -114,3 +116,43 @@ $flash = is_array($flash ?? null) ? $flash : null;
   </div>
   <?php endif; ?>
 </div>
+
+<?php if ($canSeeSensitive && $menuPreview !== null): ?>
+<section class="widget user-menu-preview">
+  <h2><?= te('core.user.menu_preview') ?></h2>
+  <?php if (empty($menuPreview['available'])): ?>
+    <p class="muted"><?= te('core.user.menu_preview_disabled') ?></p>
+  <?php elseif (empty($menuPreview['groups'])): ?>
+    <p class="muted"><?= te('core.user.menu_preview_empty') ?></p>
+  <?php else: ?>
+    <?php foreach ($menuPreview['groups'] as $groupTitle => $items): ?>
+      <div class="user-menu-preview-group">
+        <h3 class="user-menu-preview-group-title"><?= e((string)$groupTitle) ?></h3>
+        <ul class="user-menu-preview-list">
+          <?php foreach ($items as $item): ?>
+            <?php
+            $itemPath = (string)($item['path'] ?? '');
+            $itemTitle = (string)($item['title'] ?? '');
+            $extras = is_array($item['extras'] ?? null) ? $item['extras'] : [];
+            ?>
+            <li class="user-menu-preview-item">
+              <?php if ($itemPath !== ''): ?>
+                <a href="<?= e($itemPath) ?>"><?= e($itemTitle) ?></a>
+              <?php else: ?>
+                <span><?= e($itemTitle) ?></span>
+              <?php endif; ?>
+              <?php if ($extras !== []): ?>
+                <span class="user-menu-preview-perms">
+                  <?php foreach ($extras as $extra): ?>
+                    <span class="user-menu-preview-perm" title="<?= e((string)($extra['id'] ?? '')) ?>">+<?= e((string)($extra['label'] ?? '')) ?></span>
+                  <?php endforeach; ?>
+                </span>
+              <?php endif; ?>
+            </li>
+          <?php endforeach; ?>
+        </ul>
+      </div>
+    <?php endforeach; ?>
+  <?php endif; ?>
+</section>
+<?php endif; ?>

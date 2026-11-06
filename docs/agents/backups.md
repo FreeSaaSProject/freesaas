@@ -66,7 +66,7 @@ Seq resets to `s001` after each successful light/full. Listing FTP shows missing
 2. Migrate → Settings → **Install CDC triggers** (`cdc_enabled=1`, `incr_every_hours=1`, `incr_mode=differential`).
 3. At least one light or hard pack once (baseline).
 4. Cron starts a CDC pack when journal has rows past `incr_cursor`.
-5. After light/full, CDC baseline = journal watermark taken **at dump start** (not after upload). Mid-dump/mid-upload changes stay in the journal for the next CDC pack.
+5. After light/full, CDC baseline = journal watermark taken **at dump start** (not after upload). Capture uses `LOCK TABLES base_backup_changes WRITE` so in-flight journal inserts commit before `MAX(ID)` is frozen (avoids AUTO_INCREMENT holes skipping a late commit). If the lock fails, baseline stays at 0 (no prune; next differential re-exports the whole journal). Mid-dump/mid-upload changes stay in the journal for the next CDC pack.
 
 ```bash
 php bin/freesaas.php backups cdc-install --format=json
@@ -129,10 +129,12 @@ Settings → **Replica** (`cfg/modules/backups.ini`, separate from this host's o
 
 | Key | Meaning |
 |-----|---------|
-| `replica_enabled` | Allow «Pull and apply». Never enable on the primary. |
-| `replica_ftp_*`, `replica_instance` | Source FTP + the primary's instance folder («Copy from backup FTP» prefills). A read-only FTP user is recommended. |
+| `replica_enabled` | Role flag: allow «Pull and apply». Never enable on the primary. |
+| `replica_ftp_*`, `replica_instance` | Source FTP + the primary's instance folder («Copy from backup FTP» prefills — then change `replica_instance` to the primary). A read-only FTP user is recommended. |
 | `replica_passphrase` | The primary's pack passphrase (for `.tar.enc`). |
 | `replica_applied_*` | State: last applied baseline, diff, timestamp. |
+
+**Safety (role guard):** pull and enabling `replica_enabled` are refused when this host's own backup warehouse (`ftp_*` + `instance`) equals the replica source (`replica_ftp_*` + `replica_instance`) — same host/port/base_path/instance. Also refused on `app.standby`. Test copies must keep a different local backup instance (or empty local FTP) while reading the primary's folder.
 
 Page `/backups/replica` (director):
 
@@ -157,5 +159,6 @@ Settings: UI chips + optional `bots.send` for fail / success / stale.
 ## Limits
 
 - Shared hosting: large packs span many 5-minute ticks; prefer CLI cron on VPS for multi-GB media.
+- After light/full **verify**, FTP retention + CDC journal prune are housekeeping: a MySQL kill on a huge `DELETE` (SQLSTATE 1317) must **not** mark the pack as failed — the `.tar.enc` is already on FTP. Journal prune is chunked (`LIMIT`); leftovers drain on later `backups.tick`.
 - Pack URL fetch requires public HTTPS (SafeHttp); use `--file` or FTP for private hosts.
 - Plain FTP is unencrypted; use FTPS and/or pack encryption.

@@ -307,16 +307,49 @@ final class BackupCdc
         ];
     }
 
-    /** Prune journal rows with ID <= $throughId. */
-    public static function pruneJournal(int $throughId): int
+    /**
+     * Prune journal rows with ID <= $throughId in small chunks.
+     * A single huge DELETE is killed on shared hosting (MySQL 1317 / max_statement_time).
+     *
+     * @return int rows deleted this call (may be partial if $budgetSec exhausted)
+     */
+    public static function pruneJournal(int $throughId, int $chunk = 2000, float $budgetSec = 25.0): int
     {
         if (!self::journalReady() || $throughId < 1) {
             return 0;
         }
+        $chunk = max(100, min(10000, $chunk));
+        $budgetSec = max(3.0, $budgetSec);
         $pdo = Database::pdo();
-        $st = $pdo->prepare('DELETE FROM ' . self::JOURNAL . ' WHERE ID <= ?');
+        $sql = 'DELETE FROM ' . self::JOURNAL . ' WHERE ID <= ? ORDER BY ID ASC LIMIT ' . $chunk;
+        $st = $pdo->prepare($sql);
+        $total = 0;
+        $t0 = microtime(true);
+        for ($i = 0; $i < 1000; $i++) {
+            if ((microtime(true) - $t0) >= $budgetSec) {
+                break;
+            }
+            $st->execute([$throughId]);
+            $n = (int)$st->rowCount();
+            $total += $n;
+            if ($n < $chunk) {
+                break;
+            }
+        }
+        return $total;
+    }
+
+    /** True when journal still holds rows at or below $throughId. */
+    public static function journalHasThrough(int $throughId): bool
+    {
+        if (!self::journalReady() || $throughId < 1) {
+            return false;
+        }
+        $st = Database::pdo()->prepare(
+            'SELECT 1 FROM ' . self::JOURNAL . ' WHERE ID <= ? LIMIT 1'
+        );
         $st->execute([$throughId]);
-        return (int)$st->rowCount();
+        return (bool)$st->fetchColumn();
     }
 
     public static function maxJournalId(): int
@@ -325,6 +358,48 @@ final class BackupCdc
             return 0;
         }
         return (int)Database::pdo()->query('SELECT COALESCE(MAX(ID),0) FROM ' . self::JOURNAL)->fetchColumn();
+    }
+
+    /**
+     * Consistent CDC boundary before a light/full dump.
+     *
+     * AUTO_INCREMENT can allocate IDs for in-flight transactions that are not yet
+     * visible: MAX(ID) alone can skip a late commit (e.g. ID=1 appears after watermark=2).
+     * LOCK TABLES … WRITE waits for those writers to finish, then freezes a visible MAX(ID).
+     *
+     * @return array{id:int,ts:string,locked:bool}
+     */
+    public static function captureWatermark(): array
+    {
+        if (!self::journalReady()) {
+            return ['id' => 0, 'ts' => '', 'locked' => false];
+        }
+        $pdo = Database::pdo();
+        $locked = false;
+        try {
+            $pdo->exec('LOCK TABLES `' . self::JOURNAL . '` WRITE');
+            $locked = true;
+        } catch (Throwable $e) {
+            error_log('[backups] cdc watermark LOCK TABLES failed: ' . $e->getMessage());
+        }
+        try {
+            $row = $pdo->query(
+                'SELECT COALESCE(MAX(ID),0) AS m, NOW() AS t FROM `' . self::JOURNAL . '`'
+            )->fetch(PDO::FETCH_ASSOC);
+            return [
+                'id' => (int)($row['m'] ?? 0),
+                'ts' => (string)($row['t'] ?? ''),
+                'locked' => $locked,
+            ];
+        } finally {
+            if ($locked) {
+                try {
+                    $pdo->exec('UNLOCK TABLES');
+                } catch (Throwable $e) {
+                    error_log('[backups] cdc watermark UNLOCK failed: ' . $e->getMessage());
+                }
+            }
+        }
     }
 
     /**

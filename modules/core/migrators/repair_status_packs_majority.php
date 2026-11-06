@@ -108,7 +108,7 @@ return static function (PDO $pdo, array $spec): array {
         }
 
         $n = count($voters);
-        $threshold = (int)ceil($n / 2); // majority (≥50% rounded up)
+        $threshold = (int)floor($n / 2) + 1; // strict majority (>50%)
         $counts = [];
         foreach (array_keys($catalog) as $pid) {
             $counts[$pid] = 0;

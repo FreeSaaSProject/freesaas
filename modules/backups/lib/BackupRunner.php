@@ -74,6 +74,23 @@ final class BackupRunner
 
         BackupNotify::checkStale();
 
+        // Finish journal DELETE left over after light/full (chunked; shared hosting kills one-shot DELETE).
+        $wm = BackupConfig::incrBaselineCursor();
+        if ($wm > 0 && BackupCdc::journalReady() && BackupCdc::journalHasThrough($wm)) {
+            try {
+                $n = BackupCdc::pruneJournal($wm, 2000, 20.0);
+                return [
+                    'ok' => true,
+                    'processed' => 1,
+                    'message' => 'cdc_journal_drain',
+                    'deleted' => $n,
+                    'pending' => BackupCdc::journalHasThrough($wm),
+                ];
+            } catch (Throwable $e) {
+                error_log('[backups] cdc journal drain: ' . $e->getMessage());
+            }
+        }
+
         if (!BackupConfig::enabled()) {
             return ['ok' => true, 'processed' => 0, 'message' => 'disabled'];
         }
@@ -467,12 +484,20 @@ final class BackupRunner
                         $phase = 'prune';
                         $state['phase_detail'] = [];
                     } elseif ($phase === 'prune') {
-                        self::phasePrune($state);
+                        try {
+                            self::phasePrune($state);
+                        } catch (Throwable $e) {
+                            error_log('[backups] #' . $id . ' incr ftp prune (non-fatal): ' . $e->getMessage());
+                            $state['housekeeping_ftp_error'] = $e->getMessage();
+                        }
                         $bytes = (int)($state['pack_bytes'] ?? self::totalBytes($state));
                         $remote = (string)($state['remote_file'] ?? $state['remote_dir'] ?? '');
                         BackupRepository::markDone($id, $bytes, $remote);
                         BackupConfig::setIncrCursor((int)($state['cursor_to'] ?? BackupConfig::incrCursor()));
                         BackupConfig::setIncrSeq((int)($state['incr_seq'] ?? BackupConfig::incrSeq()));
+                        if (!empty($state['housekeeping_ftp_error'])) {
+                            BackupRepository::update($id, 'done', $state, $bytes, $remote);
+                        }
                         $done = BackupRepository::find($id);
                         if (is_array($done)) {
                             BackupNotify::onSuccess($done);
@@ -557,15 +582,20 @@ final class BackupRunner
                     $phase = 'prune';
                     $state['phase_detail'] = [];
                 } elseif ($phase === 'prune') {
-                    self::phasePrune($state);
+                    // Pack already uploaded+verified. Housekeeping (FTP retention, CDC journal DELETE)
+                    // must not fail the run — shared hosting kills huge DELETEs (SQLSTATE 1317).
                     $bytes = (int)($state['pack_bytes'] ?? self::totalBytes($state));
                     $remote = (string)($state['remote_file'] ?? $state['remote_dir'] ?? '');
+                    self::runLightFullHousekeeping($id, $state);
                     BackupRepository::markDone($id, $bytes, $remote);
                     BackupConfig::setLastFullRemote($remote);
                     BackupConfig::setLastFullAt(time());
-                    // Baseline = CDC watermark taken at dump start (not current MAX after upload).
-                    // Prune only ≤ watermark so mid-dump/mid-upload journal rows survive into the next CDC pack.
-                    self::commitCdcBaselineAfterLightOrFull($state);
+                    // Persist soft housekeeping notes on the done row.
+                    if (!empty($state['housekeeping_ftp_error']) || !empty($state['housekeeping_cdc_error'])
+                        || !empty($state['cdc_journal_prune_pending'])
+                    ) {
+                        BackupRepository::update($id, 'done', $state, $bytes, $remote);
+                    }
                     $done = BackupRepository::find($id);
                     if (is_array($done)) {
                         BackupNotify::onSuccess($done);
@@ -712,10 +742,19 @@ final class BackupRunner
         if ($tables === []) {
             throw new RuntimeException(t('backups.err.no_tables'));
         }
-        // Consistency point for CDC: changes after this ID are not guaranteed in the dump
-        // (table already exported) and must remain in the journal for the next CDC pack.
-        if (BackupCdc::journalReady() && (int)($state['cdc_watermark'] ?? 0) < 1) {
-            $state['cdc_watermark'] = BackupCdc::maxJournalId();
+        // Consistency point for CDC: LOCK TABLES on the journal so in-flight inserts
+        // commit before we freeze MAX(ID). Without a lock, AUTO_INCREMENT holes can
+        // hide late commits from the next collapsedChanges range — fall back to wm=0
+        // (no prune; next differential re-exports the whole journal, REPLACE-safe).
+        if (BackupCdc::journalReady() && !isset($state['cdc_watermark'])) {
+            $wm = BackupCdc::captureWatermark();
+            if (!empty($wm['locked'])) {
+                $state['cdc_watermark'] = (int)$wm['id'];
+                $state['cdc_watermark_ts'] = (string)($wm['ts'] ?? '');
+            } else {
+                $state['cdc_watermark'] = 0;
+                $state['cdc_watermark_unlocked'] = 1;
+            }
         }
         $job = DbJobs::jobStart('dump', [
             'tables' => $tables,
@@ -728,24 +767,71 @@ final class BackupRunner
 
     /**
      * After light/full success: freeze CDC baseline at dump-start watermark and prune only that prefix.
+     * Journal DELETE is chunked; may need several advance() crumbs for a huge journal.
      *
      * @param array<string,mixed> $state
+     * @return array{done:bool,state:array<string,mixed>}
      */
-    private static function commitCdcBaselineAfterLightOrFull(array $state): void
+    private static function commitCdcBaselineAfterLightOrFull(array $state): array
     {
         if (!BackupCdc::journalReady()) {
             BackupConfig::resetIncrAfterBaseline(BackupConfig::incrCursor());
-            return;
+            return ['done' => true, 'state' => $state];
         }
         $wm = (int)($state['cdc_watermark'] ?? 0);
         if ($wm < 1) {
             // In-flight / legacy run without watermark: do not prune — keep journal for next CDC pack.
             // Baseline 0 makes the next differential re-export remaining journal (REPLACE-safe).
             BackupConfig::resetIncrAfterBaseline(0);
-            return;
+            return ['done' => true, 'state' => $state];
         }
-        BackupConfig::resetIncrAfterBaseline($wm);
-        BackupCdc::pruneJournal($wm);
+        if (empty($state['cdc_baseline_reset'])) {
+            BackupConfig::resetIncrAfterBaseline($wm);
+            $state['cdc_baseline_reset'] = 1;
+        }
+        BackupCdc::pruneJournal($wm, 2000, 20.0);
+        $left = BackupCdc::journalHasThrough($wm);
+        $state['cdc_journal_prune_pending'] = $left ? 1 : 0;
+        return ['done' => !$left, 'state' => $state];
+    }
+
+    /**
+     * Soft housekeeping after a verified light/full pack. Never throws to the run status machine.
+     *
+     * @param array<string,mixed> $state
+     */
+    private static function runLightFullHousekeeping(int $id, array &$state): void
+    {
+        try {
+            self::phasePrune($state);
+        } catch (Throwable $e) {
+            error_log('[backups] #' . $id . ' ftp prune (non-fatal): ' . $e->getMessage());
+            $state['housekeeping_ftp_error'] = $e->getMessage();
+        }
+        try {
+            $r = self::commitCdcBaselineAfterLightOrFull($state);
+            $state = $r['state'];
+            if (empty($r['done'])) {
+                // Drain remaining journal rows in this same wall budget when possible.
+                for ($i = 0; $i < 10 && BackupCdc::journalHasThrough((int)($state['cdc_watermark'] ?? 0)); $i++) {
+                    BackupCdc::pruneJournal((int)$state['cdc_watermark'], 2000, 15.0);
+                }
+                $state['cdc_journal_prune_pending'] = BackupCdc::journalHasThrough((int)($state['cdc_watermark'] ?? 0)) ? 1 : 0;
+            }
+        } catch (Throwable $e) {
+            error_log('[backups] #' . $id . ' cdc journal prune (non-fatal): ' . $e->getMessage());
+            $state['housekeeping_cdc_error'] = $e->getMessage();
+            // Cursor/seq must still advance so the next CDC pack is s001 against this light.
+            try {
+                $wm = (int)($state['cdc_watermark'] ?? 0);
+                if (empty($state['cdc_baseline_reset'])) {
+                    BackupConfig::resetIncrAfterBaseline($wm > 0 ? $wm : 0);
+                    $state['cdc_baseline_reset'] = 1;
+                }
+            } catch (Throwable $e2) {
+                error_log('[backups] #' . $id . ' cdc baseline reset: ' . $e2->getMessage());
+            }
+        }
     }
 
     /** @param array<string,mixed> $state @return array{done:bool,state:array<string,mixed>} */

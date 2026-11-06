@@ -46,6 +46,24 @@ final class BackupReplica
         if (!$cfg['ok']) {
             return ['ok' => false, 'error' => $cfg['error'], 'applied' => BackupConfig::replicaApplied()];
         }
+        // Same warehouse as own backups → fail even before enable (so settings mistakes surface early).
+        $same = BackupConfig::replicaConflictsWithBackupWriter();
+        if (!empty($same['conflict'])) {
+            return [
+                'ok' => false,
+                'error' => t('backups.replica.err.same_target'),
+                'code' => 'same_target',
+                'applied' => BackupConfig::replicaApplied(),
+            ];
+        }
+        if (StandbyMode::isStandby()) {
+            return [
+                'ok' => false,
+                'error' => t('backups.replica.err.standby'),
+                'code' => 'standby',
+                'applied' => BackupConfig::replicaApplied(),
+            ];
+        }
         $target = self::source();
         try {
             $plan = self::planFrom($target);
@@ -56,15 +74,24 @@ final class BackupReplica
             if ($verifyPassphrase) {
                 $passphrase = self::verifyPassphrase($target, $plan);
             }
+            // Check does not require replica_enabled (verify packs before turning the role on).
+            // Pull/preflight still uses replicaRoleGuard(true).
+            $role = BackupConfig::replicaRoleGuard(false);
+            $enabled = BackupConfig::replicaEnabled();
             return [
-                'ok' => $passphrase['ok'] !== false,
-                'error' => $passphrase['ok'] === false ? (string)$passphrase['error'] : '',
+                'ok' => $passphrase['ok'] !== false && !empty($role['ok']),
+                'error' => $passphrase['ok'] === false
+                    ? (string)$passphrase['error']
+                    : (empty($role['ok']) ? (string)$role['error'] : ''),
+                'code' => empty($role['ok']) ? (string)$role['code'] : '',
                 'instance' => BackupConfig::replicaInstance(),
                 'baseline' => $plan['baseline'],
                 'cdc' => $plan['cdc'],
                 'cdc_error' => $plan['cdc_error'],
                 'pull_mode' => (string)($plan['pull_mode'] ?? 'full'),
                 'passphrase' => $passphrase,
+                'role' => $role,
+                'replica_enabled' => $enabled,
                 'applied' => BackupConfig::replicaApplied(),
             ];
         } catch (Throwable $e) {
@@ -169,11 +196,9 @@ final class BackupReplica
      */
     public static function preflight(): array
     {
-        if (!BackupConfig::replicaEnabled()) {
-            return ['ok' => false, 'error' => t('backups.replica.err.disabled')];
-        }
-        if (StandbyMode::isStandby()) {
-            return ['ok' => false, 'error' => t('backups.replica.err.standby')];
+        $role = BackupConfig::replicaRoleGuard(true);
+        if (empty($role['ok'])) {
+            return ['ok' => false, 'error' => (string)$role['error'], 'code' => (string)$role['code']];
         }
         $cfg = self::configured();
         if (!$cfg['ok']) {
@@ -216,7 +241,7 @@ final class BackupReplica
         $pullMode = (string)($check['pull_mode'] ?? 'full');
         // Full redeploy drops base_* — refuse if shared-DB foreign tables hold rows.
         if ($pullMode === 'full') {
-            $foreign = self::foreignTablesWithRows();
+            $foreign = BackupRestore::foreignTablesWithRows();
             if ($foreign !== []) {
                 return [
                     'ok' => false,
@@ -722,7 +747,7 @@ final class BackupReplica
     private static function phaseWipe(array $job): array
     {
         // Re-check foreign tables right before DROP.
-        $foreign = self::foreignTablesWithRows();
+        $foreign = BackupRestore::foreignTablesWithRows();
         if ($foreign !== []) {
             throw new RuntimeException(t('backups.replica.err.foreign', [
                 'tables' => implode(', ', array_slice($foreign, 0, 5)),
@@ -1092,26 +1117,4 @@ final class BackupReplica
         }
     }
 
-    /** @return list<string> non-base_* tables that contain rows */
-    private static function foreignTablesWithRows(): array
-    {
-        $pdo = Database::pdo();
-        $out = [];
-        $st = $pdo->query('SHOW FULL TABLES WHERE Table_type = \'BASE TABLE\'');
-        while ($st && ($row = $st->fetch(PDO::FETCH_NUM))) {
-            $name = (string)($row[0] ?? '');
-            if ($name === '' || preg_match('/^base_/', $name)) {
-                continue;
-            }
-            if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) {
-                $out[] = $name;
-                continue;
-            }
-            $cnt = (int)$pdo->query('SELECT COUNT(*) FROM `' . $name . '`')->fetchColumn();
-            if ($cnt > 0) {
-                $out[] = $name;
-            }
-        }
-        return $out;
-    }
 }

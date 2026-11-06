@@ -9,6 +9,7 @@ $on = static function (string $key) use ($cfg): bool {
 ?>
 <section class="page-head">
   <h1><?= te('yclients.settings.title') ?></h1>
+  <p class="muted"><?= te('yclients.settings.lede') ?></p>
 </section>
 
 <?php if ($message !== ''): ?><div class="flash flash-ok"><?= e($message) ?></div><?php endif; ?>
@@ -25,14 +26,15 @@ $on = static function (string $key) use ($cfg): bool {
     <legend><?= te('yclients.settings.api') ?></legend>
     <label><?= te('yclients.settings.company_id') ?>
       <input name="company_id" value="<?= e((string)($cfg['company_id'] ?? '')) ?>">
+      <span class="muted"><?= te('yclients.settings.company_id_help') ?></span>
     </label>
     <label><?= te('yclients.settings.partner_token') ?>
       <input type="password" name="partner_token" value="" autocomplete="new-password">
-      <span class="muted"><?= te('yclients.settings.secret_keep') ?> — <?= te('yclients.settings.current', ['masked' => (string)($cfg['partner_token_masked'] ?? '')]) ?></span>
+      <span class="muted"><?= te('yclients.settings.partner_token_help') ?> — <?= te('yclients.settings.secret_keep') ?> — <?= te('yclients.settings.current', ['masked' => (string)($cfg['partner_token_masked'] ?? '')]) ?></span>
     </label>
     <label><?= te('yclients.settings.user_token') ?>
       <input type="password" name="user_token" value="" autocomplete="new-password">
-      <span class="muted"><?= te('yclients.settings.secret_keep') ?> — <?= te('yclients.settings.current', ['masked' => (string)($cfg['user_token_masked'] ?? '')]) ?></span>
+      <span class="muted"><?= te('yclients.settings.user_token_help') ?> — <?= te('yclients.settings.secret_keep') ?> — <?= te('yclients.settings.current', ['masked' => (string)($cfg['user_token_masked'] ?? '')]) ?></span>
     </label>
     <label><?= te('yclients.settings.api_base') ?>
       <input type="url" name="api_base" value="<?= e((string)($cfg['api_base'] ?? '')) ?>">
@@ -45,12 +47,33 @@ $on = static function (string $key) use ($cfg): bool {
     </label>
     <label><?= te('yclients.settings.worker_token') ?>
       <input type="password" name="worker_token" value="" autocomplete="new-password">
-      <span class="muted"><?= te('yclients.settings.secret_keep') ?> — <?= te('yclients.settings.current', ['masked' => (string)($cfg['worker_token_masked'] ?? '')]) ?></span>
+      <span class="muted"><?= te('yclients.settings.worker_token_help') ?> — <?= te('yclients.settings.secret_keep') ?> — <?= te('yclients.settings.current', ['masked' => (string)($cfg['worker_token_masked'] ?? '')]) ?></span>
     </label>
   </fieldset>
 
   <div class="page-actions">
     <button class="btn-primary" type="submit"><?= te('core.common.save') ?></button>
     <a class="btn-secondary" href="/yclients"><?= te('core.common.cancel') ?></a>
+  </div>
+</form>
+
+<form method="post" class="form-grid form-wide" style="margin-top:1.5rem">
+  <input type="hidden" name="action" value="auth_login">
+  <fieldset>
+    <legend><?= te('yclients.settings.auth_legend') ?></legend>
+    <p class="muted"><?= te('yclients.settings.auth_help') ?></p>
+    <label><?= te('yclients.settings.auth_login') ?>
+      <input name="login" type="text" autocomplete="username" value="">
+    </label>
+    <label><?= te('yclients.settings.auth_password') ?>
+      <input name="password" type="password" autocomplete="current-password" value="">
+    </label>
+    <label><?= te('yclients.settings.auth_code') ?>
+      <input name="code" type="text" inputmode="numeric" autocomplete="one-time-code" value="">
+      <span class="muted"><?= te('yclients.settings.auth_code_help') ?></span>
+    </label>
+  </fieldset>
+  <div class="page-actions">
+    <button class="btn-secondary" type="submit"><?= te('yclients.settings.auth_submit') ?></button>
   </div>
 </form>

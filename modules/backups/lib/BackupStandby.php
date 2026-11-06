@@ -75,6 +75,14 @@ final class BackupStandby
                             'hint' => 'Re-run with full redeploy allowed (empty DB / DROP+CREATE)',
                         ];
                     }
+                    if (!StandbyMode::isPassive()) {
+                        return [
+                            'ok' => false,
+                            'applied' => $applied,
+                            'error' => 'standby_promoted_mid_sync',
+                            'hint' => 'Promotion mid-sync; incoming apply aborted',
+                        ];
+                    }
                     $r = self::redeployFull((string)$latestFull['path']);
                     $applied[] = ['type' => 'full', 'path' => $latestFull['path'], 'result' => $r];
                     if (empty($r['ok'])) {
@@ -100,6 +108,10 @@ final class BackupStandby
             foreach ((array)($pending['packs'] ?? []) as $set) {
                 if (!is_array($set)) {
                     continue;
+                }
+                if (!StandbyMode::isPassive()) {
+                    $errors[] = 'standby_promoted_mid_sync';
+                    break;
                 }
                 $local = self::downloadAndOpenPack((string)$set['path']);
                 if (empty($local['ok'])) {
@@ -385,6 +397,31 @@ final class BackupStandby
                     'remote_path' => $remotePath,
                 ];
             }
+            if (!BackupRestore::dumpLooksValid($dump)) {
+                return [
+                    'ok' => false,
+                    'error' => 'db dump is not a valid gzip/SQL payload (refuse DROP)',
+                    'remote_path' => $remotePath,
+                    'dump' => basename($dump),
+                ];
+            }
+            // Shared-DB guard: refuse BEFORE DROP base_* (foreign check after DROP is too late).
+            $foreign = BackupRestore::foreignTablesWithRows();
+            if ($foreign !== []) {
+                return [
+                    'ok' => false,
+                    'error' => 'foreign tables with data — use a dedicated standby schema (refuse DROP)',
+                    'foreign_tables' => array_slice($foreign, 0, 10),
+                    'remote_path' => $remotePath,
+                ];
+            }
+            if (!StandbyMode::isPassive()) {
+                return [
+                    'ok' => false,
+                    'error' => 'standby_promoted_mid_sync',
+                    'remote_path' => $remotePath,
+                ];
+            }
             if (!BackupRestore::databaseIsEmpty()) {
                 self::emptyOwnedTables();
             }
@@ -413,21 +450,21 @@ final class BackupStandby
         }
     }
 
-    /** Locate db dump under an unpacked pack (including one nesting level). */
+    /** Locate a valid db dump under an unpacked pack (including one nesting level). */
     public static function findDbDump(string $dir): string
     {
         foreach (['db.sql.gz', 'db.sql'] as $name) {
             $p = $dir . '/' . $name;
-            if (is_file($p) && filesize($p) > 0) {
+            if (is_file($p) && filesize($p) > 0 && BackupRestore::dumpLooksValid($p)) {
                 return $p;
             }
         }
         $found = self::findFile($dir, 'db.sql.gz');
-        if ($found !== '' && is_file($found) && filesize($found) > 0) {
+        if ($found !== '' && is_file($found) && filesize($found) > 0 && BackupRestore::dumpLooksValid($found)) {
             return $found;
         }
         $found = self::findFile($dir, 'db.sql');
-        if ($found !== '' && is_file($found) && filesize($found) > 0) {
+        if ($found !== '' && is_file($found) && filesize($found) > 0 && BackupRestore::dumpLooksValid($found)) {
             return $found;
         }
         return '';

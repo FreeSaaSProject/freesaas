@@ -112,6 +112,73 @@ $profile = EventBus::emit('core.user_edit.profile', [
     'can_see_sensitive' => $canSeeSensitive,
 ]);
 
+$menuPreview = null;
+if ($canSeeSensitive) {
+    $menuPreview = [
+        'available' => false,
+        'groups' => [],
+    ];
+    if ((string)($user['enabled'] ?? '') === '1') {
+        $labelById = [];
+        foreach (UsersRepository::availablePermissionKeys() as $group) {
+            foreach ($group['keys'] as $key) {
+                $labelById[(string)$key['id']] = (string)$key['label'];
+            }
+        }
+        try {
+            $menuPreview = Auth::runAs($id, static function () use ($labelById): array {
+                $perms = Auth::permissions();
+                $groups = [];
+                foreach (ModuleManager::menuGrouped() as $groupTitle => $items) {
+                    $rows = [];
+                    foreach ($items as $item) {
+                        if (!is_array($item)) {
+                            continue;
+                        }
+                        $permission = isset($item['permission']) ? (string)$item['permission'] : '';
+                        $extras = [];
+                        if ($permission !== '' && preg_match('/^([a-z][a-z0-9_]*)\./', $permission, $m) === 1) {
+                            $prefix = $m[1] . '.';
+                            foreach ($perms as $permId => $on) {
+                                if ((int)$on !== 1) {
+                                    continue;
+                                }
+                                $permId = (string)$permId;
+                                if ($permId === $permission || strpos($permId, $prefix) !== 0) {
+                                    continue;
+                                }
+                                $labelKey = $labelById[$permId] ?? $permId;
+                                $extras[] = [
+                                    'id' => $permId,
+                                    'label' => t($labelKey),
+                                ];
+                            }
+                        }
+                        $rows[] = [
+                            'title' => (string)($item['title'] ?? ''),
+                            'path' => (string)($item['path'] ?? ''),
+                            'permission' => $permission,
+                            'extras' => $extras,
+                        ];
+                    }
+                    if ($rows !== []) {
+                        $groups[(string)$groupTitle] = $rows;
+                    }
+                }
+                return [
+                    'available' => true,
+                    'groups' => $groups,
+                ];
+            });
+        } catch (Throwable $e) {
+            $menuPreview = [
+                'available' => false,
+                'groups' => [],
+            ];
+        }
+    }
+}
+
 View::render('user', [
     'title' => $displayName,
     'user' => $user,
@@ -126,6 +193,7 @@ View::render('user', [
     'profileChannelsHtml' => is_array($profile) ? (string)($profile['html_channels'] ?? '') : '',
     'profileFlagsHtml' => is_array($profile) ? (string)($profile['html_flags'] ?? '') : '',
     'profileSiteHtml' => is_array($profile) ? (string)($profile['html_site'] ?? '') : '',
+    'menuPreview' => $menuPreview,
     'breadcrumbs' => Breadcrumbs::withHome([
         ['label' => t('core.menu.users'), 'href' => '/users'],
         ['label' => $displayName, 'current' => true],

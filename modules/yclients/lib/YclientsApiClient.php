@@ -5,12 +5,72 @@ declare(strict_types=1);
 final class YclientsApiClient
 {
     /**
-     * @return array{ok:bool,data?:array,error?:string,http?:int,raw?:string}
+     * Exchange salon login/password for user_token (needs partner_token only).
+     *
+     * @return array{ok:bool,user_token?:string,user?:array<string,mixed>,needs_2fa?:bool,error?:string,http?:int,data?:array}
+     */
+    public static function authLogin(string $login, string $password, string $code = ''): array
+    {
+        $partner = trim(YclientsConfig::string('partner_token'));
+        if ($partner === '') {
+            return ['ok' => false, 'error' => 'partner_token missing — copy API key from YClients marketplace developer account'];
+        }
+        $login = trim($login);
+        if ($login === '' || $password === '') {
+            return ['ok' => false, 'error' => 'login and password required'];
+        }
+        $body = ['login' => $login, 'password' => $password];
+        if (trim($code) !== '') {
+            $body['code'] = trim($code);
+        }
+        $res = self::requestPartner('POST', '/auth', $body);
+        if (!$res['ok']) {
+            return [
+                'ok' => false,
+                'error' => (string)($res['error'] ?? 'auth failed'),
+                'http' => (int)($res['http'] ?? 0),
+                'data' => is_array($res['data'] ?? null) ? $res['data'] : null,
+            ];
+        }
+        $data = is_array($res['data']['data'] ?? null) ? $res['data']['data'] : [];
+        $token = trim((string)($data['user_token'] ?? $data[0] ?? ''));
+        if ($token === '' && isset($data['uuid'], $data['flow'])) {
+            return [
+                'ok' => false,
+                'needs_2fa' => true,
+                'error' => '2fa code required',
+                'http' => (int)($res['http'] ?? 200),
+                'data' => $data,
+            ];
+        }
+        if ($token === '') {
+            return ['ok' => false, 'error' => 'auth ok but user_token missing in response', 'http' => (int)($res['http'] ?? 0), 'data' => $data];
+        }
+        return [
+            'ok' => true,
+            'user_token' => $token,
+            'user' => [
+                'id' => (int)($data['id'] ?? 0),
+                'name' => (string)($data['name'] ?? ''),
+                'login' => (string)($data['login'] ?? $login),
+                'email' => (string)($data['email'] ?? ''),
+            ],
+            'http' => (int)($res['http'] ?? 0),
+        ];
+    }
+
+    /**
+     * @return array{ok:bool,data?:array,error?:string,http?:int,raw?:string,missing?:list<string>}
      */
     public static function pingCompany(): array
     {
-        if (!YclientsConfig::apiReady()) {
-            return ['ok' => false, 'error' => 'yclients api config incomplete'];
+        $diag = YclientsConfig::credentialGaps();
+        if ($diag !== []) {
+            return [
+                'ok' => false,
+                'error' => 'yclients api config incomplete: ' . implode(', ', $diag),
+                'missing' => $diag,
+            ];
         }
         $cfg = YclientsConfig::api();
         return self::request('GET', '/company/' . $cfg['company_id'] . '/');
@@ -132,20 +192,62 @@ final class YclientsApiClient
     }
 
     /**
+     * Partner-only Authorization (auth / marketplace activation).
+     *
+     * @param array<string,mixed>|null $body
+     * @param array<string,scalar> $query
+     * @return array{ok:bool,data?:array,error?:string,http?:int,raw?:string}
+     */
+    public static function requestPartner(string $method, string $path, ?array $body = null, array $query = []): array
+    {
+        $partner = trim(YclientsConfig::string('partner_token'));
+        if ($partner === '') {
+            return ['ok' => false, 'error' => 'partner_token missing'];
+        }
+        return self::rawRequest($method, $path, 'Bearer ' . $partner, $body, $query);
+    }
+
+    /**
      * @param array<string,mixed>|null $body
      * @param array<string,scalar> $query
      * @return array{ok:bool,data?:array,error?:string,http?:int,raw?:string}
      */
     public static function request(string $method, string $path, ?array $body = null, array $query = []): array
     {
+        if (!YclientsConfig::apiReady()) {
+            $gaps = YclientsConfig::credentialGaps();
+            return [
+                'ok' => false,
+                'error' => 'yclients api config incomplete'
+                    . ($gaps !== [] ? (': ' . implode(', ', $gaps)) : ''),
+            ];
+        }
+        $cfg = YclientsConfig::api();
+        return self::rawRequest(
+            $method,
+            $path,
+            'Bearer ' . $cfg['partner_token'] . ', User ' . $cfg['user_token'],
+            $body,
+            $query
+        );
+    }
+
+    /**
+     * @param array<string,mixed>|null $body
+     * @param array<string,scalar> $query
+     * @return array{ok:bool,data?:array,error?:string,http?:int,raw?:string}
+     */
+    private static function rawRequest(
+        string $method,
+        string $path,
+        string $authorization,
+        ?array $body = null,
+        array $query = []
+    ): array {
         if (!function_exists('curl_init')) {
             return ['ok' => false, 'error' => 'curl extension missing'];
         }
-        if (!YclientsConfig::apiReady()) {
-            return ['ok' => false, 'error' => 'yclients api config incomplete'];
-        }
-        $cfg = YclientsConfig::api();
-        $url = $cfg['api_base'] . '/' . ltrim($path, '/');
+        $url = YclientsConfig::apiBase() . '/' . ltrim($path, '/');
         if ($query !== []) {
             $url .= (strpos($url, '?') === false ? '?' : '&') . http_build_query($query);
         }
@@ -157,11 +259,11 @@ final class YclientsApiClient
         $headers = [
             'Accept: application/vnd.yclients.v2+json',
             'Content-Type: application/json',
-            'Authorization: Bearer ' . $cfg['partner_token'] . ', User ' . $cfg['user_token'],
+            'Authorization: ' . $authorization,
         ];
         $opts = [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => $cfg['timeout'],
+            CURLOPT_TIMEOUT => YclientsConfig::timeoutSec(),
             CURLOPT_HTTPHEADER => $headers,
             CURLOPT_CUSTOMREQUEST => strtoupper($method),
         ];
@@ -179,11 +281,18 @@ final class YclientsApiClient
         curl_close($ch);
 
         $decoded = json_decode((string)$raw, true);
+        // Auth success is often HTTP 201.
         if ($http < 200 || $http >= 300) {
             $msg = is_array($decoded)
                 ? (string)($decoded['meta']['message'] ?? $decoded['message'] ?? ('http ' . $http))
                 : ('http ' . $http);
-            return ['ok' => false, 'error' => $msg, 'http' => $http, 'raw' => substr((string)$raw, 0, 500)];
+            return [
+                'ok' => false,
+                'error' => $msg,
+                'http' => $http,
+                'raw' => substr((string)$raw, 0, 500),
+                'data' => is_array($decoded) ? $decoded : null,
+            ];
         }
         if (!is_array($decoded)) {
             return ['ok' => false, 'error' => 'invalid json', 'http' => $http, 'raw' => substr((string)$raw, 0, 500)];

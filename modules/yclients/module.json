@@ -2,7 +2,7 @@
     "id": "yclients",
     "name": "yclients.module.name",
     "description": "yclients.module.description",
-    "version": "0.1.4",
+    "version": "0.1.6",
     "type": "product",
     "catalog": {
         "categories": [
@@ -129,6 +129,36 @@
                 }
             },
             {
+                "id": "yclients.import.staff",
+                "method": "POST",
+                "path": "/yclients/import",
+                "permission": "yclients.import",
+                "side_effect": "write",
+                "description": "Pull staff into base_users (entity=staff map). Prefer dry_run=1 first. Assigns first non-SUPERADMIN status.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "staff"
+                            ]
+                        },
+                        "dry_run": {
+                            "type": "string",
+                            "enum": [
+                                "0",
+                                "1"
+                            ],
+                            "description": "1 = count only, no DB writes"
+                        }
+                    }
+                }
+            },
+            {
                 "id": "yclients.settings.get",
                 "method": "GET",
                 "path": "/yclients/settings",
@@ -156,15 +186,15 @@
                         },
                         "company_id": {
                             "type": "string",
-                            "description": "YClients company id"
+                            "description": "YClients company id from …/company/{id}/"
                         },
                         "partner_token": {
                             "type": "string",
-                            "description": "Partner Bearer token; blank keeps current"
+                            "description": "Marketplace developer API key (Bearer); blank keeps current"
                         },
                         "user_token": {
                             "type": "string",
-                            "description": "User token; blank keeps current"
+                            "description": "Salon user token (not password); blank keeps current"
                         },
                         "api_base": {
                             "type": "string",
@@ -182,7 +212,43 @@
                         },
                         "worker_token": {
                             "type": "string",
-                            "description": "Cron job token (X-Yclients-Token); blank keeps current"
+                            "description": "FreeSaaS cron secret X-Yclients-Token (not from YClients); blank keeps current"
+                        }
+                    }
+                }
+            },
+            {
+                "id": "yclients.auth.login",
+                "method": "POST",
+                "path": "/yclients/settings",
+                "permission": "",
+                "side_effect": "write",
+                "description": "POST /api/v1/auth with partner_token + login/password; saves user_token only (password not stored). SUPERADMIN_ACCESS. Optional code= for 2FA.",
+                "parameters": {
+                    "type": "object",
+                    "required": [
+                        "action",
+                        "login",
+                        "password"
+                    ],
+                    "properties": {
+                        "action": {
+                            "type": "string",
+                            "enum": [
+                                "auth_login"
+                            ]
+                        },
+                        "login": {
+                            "type": "string",
+                            "description": "YClients login (email or phone)"
+                        },
+                        "password": {
+                            "type": "string",
+                            "description": "YClients password — not persisted"
+                        },
+                        "code": {
+                            "type": "string",
+                            "description": "2FA code when required"
                         }
                     }
                 }

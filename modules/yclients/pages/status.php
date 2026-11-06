@@ -13,20 +13,32 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             // fall through to HTML status with flash-like payload
         } elseif (!YclientsConfig::apiReady()) {
+            $gaps = YclientsConfig::credentialGaps();
+            $hint = 'api config incomplete (' . implode(', ', $gaps) . ') — POST /yclients/settings';
+            if (in_array('user_token', $gaps, true) && !in_array('partner_token', $gaps, true)) {
+                $hint .= ' or action=auth_login with salon login/password';
+            }
             if ($wantsJson) {
-                AgentHttp::error('api config incomplete — POST /yclients/settings first', 400, [
+                AgentHttp::error($hint, 400, [
+                    'missing' => $gaps,
                     'setup' => YclientsConfig::agentSetup(),
                 ]);
                 return;
             }
         } else {
             $res = YclientsApiClient::pingCompany();
+            $err = (string)($res['error'] ?? '');
+            $http = (int)($res['http'] ?? 0);
+            if ($http === 401 || $http === 403) {
+                $err = ($err !== '' ? $err . ' — ' : '')
+                    . 'check partner_token + user_token rights for this company_id';
+            }
             YclientsSyncStateRepository::mark(
                 'ping',
                 !empty($res['ok']),
-                (string)($res['error'] ?? ''),
+                $err,
                 [
-                    'http' => (int)($res['http'] ?? 0),
+                    'http' => $http,
                     'via' => 'session',
                     'title' => is_array($res['data']['data'] ?? null)
                         ? (string)($res['data']['data']['title'] ?? $res['data']['data']['company_name'] ?? '')
@@ -35,7 +47,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             );
             if ($wantsJson) {
                 if (empty($res['ok'])) {
-                    AgentHttp::error((string)($res['error'] ?? 'ping failed'), 502, ['detail' => $res]);
+                    AgentHttp::error($err !== '' ? $err : 'ping failed', 502, [
+                        'detail' => $res,
+                        'setup' => YclientsConfig::agentSetup(),
+                    ]);
                     return;
                 }
                 AgentHttp::emit([
