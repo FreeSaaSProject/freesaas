@@ -102,43 +102,59 @@ final class LongJob
     public static function tick(string $id, ?string $typeOrDir = null): array
     {
         $dir = self::dirForLookup($id, $typeOrDir);
-        $job = LongJobStore::get($id, $dir);
-        self::assertJobAccess($job);
-        if (($job['status'] ?? '') !== self::STATUS_RUNNING) {
+        // Non-blocking: concurrent tick (proxy retry) returns snapshot; cancel uses JSON CAS.
+        $lockFh = LongJobStore::acquireLock($id, $dir, LOCK_EX | LOCK_NB);
+        if ($lockFh === null) {
+            $job = LongJobStore::get($id, $dir);
+            self::assertJobAccess($job);
             return $job;
         }
-        $type = (string)($job['type'] ?? '');
-        if ($type === '' || !LongJobRegistry::has($type)) {
-            throw new RuntimeException('Job type not registered: ' . $type);
-        }
-        $meta = LongJobRegistry::get($type);
-        $tick = $meta['tick'] ?? null;
-        if ($tick === null) {
-            throw new RuntimeException('No tick handler for ' . $type);
-        }
         try {
-            @set_time_limit(0);
-            $job = LongJobRegistry::invoke($tick, [$job]);
-            if (!is_array($job)) {
-                throw new RuntimeException('LongJob tick must return job array');
+            $job = LongJobStore::get($id, $dir);
+            self::assertJobAccess($job);
+            if (($job['status'] ?? '') !== self::STATUS_RUNNING) {
+                return $job;
             }
-        } catch (Throwable $e) {
-            $job['status'] = self::STATUS_ERROR;
-            $job['error'] = $e->getMessage();
-            $job['message'] = $e->getMessage();
-            self::appendLog($job, $e->getMessage());
+            $type = (string)($job['type'] ?? '');
+            if ($type === '' || !LongJobRegistry::has($type)) {
+                throw new RuntimeException('Job type not registered: ' . $type);
+            }
+            $meta = LongJobRegistry::get($type);
+            $tick = $meta['tick'] ?? null;
+            if ($tick === null) {
+                throw new RuntimeException('No tick handler for ' . $type);
+            }
+            $storeDir = LongJobRegistry::storeDirFor($type) ?? $dir;
+            try {
+                @set_time_limit(0);
+                $job = LongJobRegistry::invoke($tick, [$job]);
+                if (!is_array($job)) {
+                    throw new RuntimeException('LongJob tick must return job array');
+                }
+            } catch (Throwable $e) {
+                $job['status'] = self::STATUS_ERROR;
+                $job['error'] = $e->getMessage();
+                $job['message'] = $e->getMessage();
+                self::appendLog($job, $e->getMessage());
+            }
+            $job['id'] = $id;
+            $job['type'] = $type;
+            $job['updated_at'] = time();
+            $job['elapsed'] = max(0, time() - (int)($job['created_at'] ?? time()));
+            // Never overwrite cancelled/done/error written by a concurrent cancel.
+            $out = LongJobStore::saveIfRunning($job, $storeDir, ['buffer', 'status_map']);
+            return $out['job'];
+        } finally {
+            LongJobStore::releaseLock($lockFh);
         }
-        $job['updated_at'] = time();
-        $job['elapsed'] = max(0, time() - (int)($job['created_at'] ?? time()));
-        $storeDir = LongJobRegistry::storeDirFor($type) ?? $dir;
-        LongJobStore::save($job, $storeDir, ['buffer', 'status_map']);
-        return $job;
     }
 
     /** @return array<string,mixed> */
     public static function cancel(string $id, ?string $typeOrDir = null): array
     {
         $dir = self::dirForLookup($id, $typeOrDir);
+        // Short exclusive lock on JSON transition; does not wait for tick handler (no deadlock
+        // if cancel is invoked from a tick callback). Tick save uses saveIfRunning CAS.
         $job = LongJobStore::get($id, $dir);
         self::assertJobAccess($job);
         if (($job['status'] ?? '') !== self::STATUS_RUNNING) {
@@ -153,6 +169,10 @@ final class LongJob
                 throw new RuntimeException('LongJob on_cancel must return job array');
             }
         }
+        $job['id'] = $id;
+        if ($type !== '') {
+            $job['type'] = $type;
+        }
         $job['status'] = self::STATUS_CANCELLED;
         if ((string)($job['message'] ?? '') === '') {
             $job['message'] = class_exists('I18n', false)
@@ -164,6 +184,7 @@ final class LongJob
         $storeDir = ($type !== '' && LongJobRegistry::has($type))
             ? (LongJobRegistry::storeDirFor($type) ?? $dir)
             : $dir;
+        // Force-write cancelled under file LOCK_EX (same as save); tick CAS will honor it.
         LongJobStore::save($job, $storeDir, ['buffer', 'status_map']);
         return $job;
     }
@@ -258,7 +279,10 @@ final class LongJob
         $job['message'] = $line;
     }
 
-    /** Persist helper for domain adapters that mutate job mid-tick. */
+    /**
+     * Persist helper for domain adapters that mutate job mid-tick.
+     * Running snapshots use CAS so a concurrent cancel is not overwritten.
+     */
     public static function save(array $job, ?string $dirOrNs = null): void
     {
         $type = (string)($job['type'] ?? '');
@@ -266,6 +290,10 @@ final class LongJob
             $dirOrNs = LongJobRegistry::storeDirFor($type);
         }
         $job['updated_at'] = time();
+        if ((string)($job['status'] ?? '') === self::STATUS_RUNNING) {
+            LongJobStore::saveIfRunning($job, $dirOrNs, ['buffer', 'status_map']);
+            return;
+        }
         LongJobStore::save($job, $dirOrNs, ['buffer', 'status_map']);
     }
 

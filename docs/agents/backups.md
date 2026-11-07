@@ -66,7 +66,9 @@ Seq resets to `s001` after each successful light/full. Listing FTP shows missing
 2. Migrate → Settings → **Install CDC triggers** (`cdc_enabled=1`, `incr_every_hours=1`, `incr_mode=differential`).
 3. At least one light or hard pack once (baseline).
 4. Cron starts a CDC pack when journal has rows past `incr_cursor`.
-5. After light/full, CDC baseline = journal watermark taken **at dump start** (not after upload). Capture uses `LOCK TABLES base_backup_changes WRITE` so in-flight journal inserts commit before `MAX(ID)` is frozen (avoids AUTO_INCREMENT holes skipping a late commit). If the lock fails, baseline stays at 0 (no prune; next differential re-exports the whole journal). Mid-dump/mid-upload changes stay in the journal for the next CDC pack.
+5. After light/full, CDC baseline = journal watermark taken **at dump start** (not after upload). Capture uses `LOCK TABLES base_backup_changes WRITE` so in-flight journal inserts commit before `MAX(ID)` is frozen (avoids AUTO_INCREMENT holes skipping a late commit). If the lock fails, baseline stays at 0 (no prune; next differential re-exports the whole journal). Mid-dump/mid-upload changes stay in the journal for the next CDC pack. CDC **incr** packs use the same locked watermark for `cursor_to` (start refuses the run if the lock fails — no orphaned `running` row).
+
+Standby/replica full redeploy refuses DROP unless `db.sql(.gz)` has gzip magic (when compressed) and a real `CREATE`/`INSERT`/`REPLACE`/`ALTER`/`DROP` after comment strip — comment-only payloads are rejected. Pre-DROP gate only; not a staging restore.
 
 ```bash
 php bin/freesaas.php backups cdc-install --format=json

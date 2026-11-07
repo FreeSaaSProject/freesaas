@@ -317,12 +317,13 @@ final class DbJobs
                 $job['message'] = $e->getMessage();
                 self::appendLog($job, t('core.db.job.log_error', ['msg' => $e->getMessage()]));
                 $job['updated_at'] = time();
-                self::jobSave($job);
-                return $job;
+                // CAS: do not overwrite a concurrent cancel.
+                $out = LongJobStore::saveIfRunning($job, DbFs::jobsDir(), ['buffer', 'status_map']);
+                return $out['job'];
             }
             $job['updated_at'] = time();
-            self::jobSave($job);
-            return $job;
+            $out = LongJobStore::saveIfRunning($job, DbFs::jobsDir(), ['buffer', 'status_map']);
+            return $out['job'];
         } finally {
             flock($lockFh, LOCK_UN);
             fclose($lockFh);

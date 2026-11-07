@@ -75,8 +75,9 @@ final class BackupRestore
     }
 
     /**
-     * True when path looks like a usable mysqldump (gzip magic + SQL head, or plain SQL).
-     * Rejects placeholder / "not gzip" text files that would wipe then fail restore.
+     * True when path looks like a usable mysqldump (gzip magic + real SQL, or plain SQL).
+     * Rejects placeholder / "not gzip" text and comment-only payloads that would wipe then fail restore.
+     * Not a substitute for staging restore — only a pre-DROP sanity gate.
      */
     public static function dumpLooksValid(string $path): bool
     {
@@ -92,6 +93,7 @@ final class BackupRestore
         if (!is_string($head) || $head === '') {
             return false;
         }
+        $sample = '';
         if (preg_match('/\.gz$/i', $path)) {
             if (strlen($head) < 2 || $head[0] !== "\x1f" || $head[1] !== "\x8b") {
                 return false;
@@ -100,26 +102,42 @@ final class BackupRestore
             if ($gz === false) {
                 return false;
             }
-            $sample = gzread($gz, 256);
+            // Read enough to skip long preamble comments and still see CREATE/INSERT.
+            $sample = (string)gzread($gz, 65536);
             gzclose($gz);
-            if (!is_string($sample) || $sample === '') {
+        } else {
+            $plain = fopen($path, 'rb');
+            if ($plain === false) {
                 return false;
             }
-            return self::sqlHeadLooksValid($sample);
+            $sample = (string)fread($plain, 65536);
+            fclose($plain);
         }
-        return self::sqlHeadLooksValid($head);
+        return self::sqlPayloadLooksValid($sample);
     }
 
-    private static function sqlHeadLooksValid(string $head): bool
+    /** Require at least one schema/data statement after stripping comments (not comment-only). */
+    private static function sqlPayloadLooksValid(string $sql): bool
     {
-        if (strncmp($head, "\xEF\xBB\xBF", 3) === 0) {
-            $head = substr($head, 3);
-        }
-        $trim = ltrim($head);
-        if ($trim === '') {
+        if ($sql === '') {
             return false;
         }
-        return (bool)preg_match('/^(--|\/\*|SET\s|CREATE\s|DROP\s|INSERT\s|REPLACE\s|USE\s)/i', $trim);
+        if (strncmp($sql, "\xEF\xBB\xBF", 3) === 0) {
+            $sql = substr($sql, 3);
+        }
+        $stripped = preg_replace('/\/\*.*?\*\//s', ' ', $sql);
+        if (!is_string($stripped)) {
+            return false;
+        }
+        $stripped = preg_replace('/--[^\n\r]*/', ' ', $stripped);
+        if (!is_string($stripped)) {
+            return false;
+        }
+        $stripped = preg_replace('/#[^\n\r]*/', ' ', $stripped);
+        if (!is_string($stripped) || trim($stripped) === '') {
+            return false;
+        }
+        return (bool)preg_match('/\b(CREATE|INSERT|REPLACE|ALTER|DROP)\s+/i', $stripped);
     }
 
     /** @return array{empty:bool,available:bool} */

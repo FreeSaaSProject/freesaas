@@ -274,6 +274,39 @@ final class BackupRunner
                 throw new RuntimeException(t('backups.err.disk_space'));
             }
         }
+
+        // Resolve incr boundary before opening a run row — lock failure / empty range must not leave STATUS=running.
+        $incrMode = BackupConfig::incrMode();
+        $incrSeq = 0;
+        $incrCursorFrom = 0;
+        $incrCursorTo = 0;
+        $incrWatermarkTs = '';
+        $incrBaseFull = '';
+        if ($kind === 'incr') {
+            // Same consistent boundary as light/full: LOCK so in-flight journal
+            // inserts commit before cursor_to. Bare MAX(ID) can skip a late commit.
+            $wm = BackupCdc::captureWatermark();
+            if (empty($wm['locked'])) {
+                throw new RuntimeException(t('backups.err.cdc_lock'));
+            }
+            $incrCursorTo = (int)$wm['id'];
+            $incrWatermarkTs = (string)($wm['ts'] ?? '');
+            $incrCursorFrom = $incrMode === 'differential'
+                ? BackupConfig::incrBaselineCursor()
+                : BackupConfig::incrCursor();
+            if ($incrCursorTo <= $incrCursorFrom) {
+                throw new RuntimeException(t('backups.err.incr_empty'));
+            }
+            $incrSeq = BackupConfig::incrSeq() + 1;
+            $incrBaseFull = BackupConfig::lastFullRemote();
+            if ($incrBaseFull === '') {
+                $base = BackupRepository::findLastSuccessBaseline();
+                if ($base !== null) {
+                    $incrBaseFull = (string)($base['remote_dir'] ?? '');
+                }
+            }
+        }
+
         $id = BackupRepository::start($triggeredBy, $kind);
         $stamp = date('Y-m-d_H-i-s');
         $instance = BackupConfig::instance();
@@ -281,10 +314,7 @@ final class BackupRunner
         if (!is_dir($localDir)) {
             @mkdir($localDir, 0755, true);
         }
-        $incrMode = BackupConfig::incrMode();
-        $incrSeq = 0;
         if ($kind === 'incr') {
-            $incrSeq = BackupConfig::incrSeq() + 1;
             $packName = BackupFtpTarget::cdcPackName($stamp, $incrMode, $incrSeq, false);
         } elseif ($kind === 'light') {
             $packName = $stamp . '.light.tar';
@@ -306,17 +336,10 @@ final class BackupRunner
         if ($kind === 'incr') {
             $state['incr_mode'] = $incrMode;
             $state['incr_seq'] = $incrSeq;
-            $state['cursor_to'] = BackupCdc::maxJournalId();
-            if ($incrMode === 'differential') {
-                $state['cursor_from'] = BackupConfig::incrBaselineCursor();
-            } else {
-                $state['cursor_from'] = BackupConfig::incrCursor();
-            }
-            $base = BackupRepository::findLastSuccessBaseline();
-            $state['base_full'] = BackupConfig::lastFullRemote();
-            if ($state['base_full'] === '' && $base !== null) {
-                $state['base_full'] = (string)($base['remote_dir'] ?? '');
-            }
+            $state['cursor_from'] = $incrCursorFrom;
+            $state['cursor_to'] = $incrCursorTo;
+            $state['cdc_watermark_ts'] = $incrWatermarkTs;
+            $state['base_full'] = $incrBaseFull;
         }
         BackupRepository::update($id, 'init', $state, 0, (string)$state['remote_file']);
         return $id;

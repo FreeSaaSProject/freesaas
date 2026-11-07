@@ -79,6 +79,7 @@ return [
     'backups.flash.cdc_install' => 'CDC installed: {triggers} triggers on {tables} tables.',
     'backups.flash.cdc_uninstall' => 'CDC removed ({n} triggers).',
     'backups.err.incr_empty' => 'No CDC journal changes to export',
+    'backups.err.cdc_lock' => 'Cannot lock CDC journal for a consistent pack boundary — retry later',
     'backups.cron.cdc_refresh' => 'Refresh CDC triggers',
     'backups.cron.standby_health' => 'Standby primary health probe',
     'backups.cron.standby_sync' => 'Standby pull packs from FTP',

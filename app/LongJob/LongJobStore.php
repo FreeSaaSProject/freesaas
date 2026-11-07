@@ -48,6 +48,44 @@ final class LongJobStore
         return self::resolveDir($dirOrNs) . '/' . $id . '.json';
     }
 
+    /** Sibling lock file for tick/cancel serialization (not the JSON itself). */
+    public static function lockPath(string $id, ?string $dirOrNs = null): string
+    {
+        $id = basename($id);
+        if ($id === '' || !preg_match(self::ID_PATTERN, $id)) {
+            throw new InvalidArgumentException('Invalid job id');
+        }
+        return self::resolveDir($dirOrNs) . '/' . $id . '.lock';
+    }
+
+    /**
+     * Exclusive flock on the job lock file.
+     * @return resource|null File handle holding the lock, or null if LOCK_NB and busy.
+     */
+    public static function acquireLock(string $id, ?string $dirOrNs = null, int $flags = LOCK_EX)
+    {
+        $path = self::lockPath($id, $dirOrNs);
+        $fh = @fopen($path, 'c');
+        if ($fh === false) {
+            return null;
+        }
+        if (!flock($fh, $flags)) {
+            fclose($fh);
+            return null;
+        }
+        return $fh;
+    }
+
+    /** @param resource|null $fh */
+    public static function releaseLock($fh): void
+    {
+        if (!is_resource($fh)) {
+            return;
+        }
+        flock($fh, LOCK_UN);
+        fclose($fh);
+    }
+
     /** @return array<string,mixed> */
     public static function get(string $id, ?string $dirOrNs = null): array
     {
@@ -78,6 +116,63 @@ final class LongJobStore
      */
     public static function save(array $job, ?string $dirOrNs = null, array $dropKeys = []): void
     {
+        $path = self::path((string)($job['id'] ?? ''), $dirOrNs);
+        $json = self::encode($job, $dropKeys);
+        if (file_put_contents($path, $json, LOCK_EX) === false) {
+            throw new RuntimeException('Cannot write job');
+        }
+    }
+
+    /**
+     * Write tick result only while disk status is still running.
+     * If cancel/done/error won the race, leave disk as-is and return that snapshot.
+     *
+     * @param array<string,mixed> $job
+     * @param list<string> $dropKeys
+     * @return array{saved:bool,job:array<string,mixed>}
+     */
+    public static function saveIfRunning(array $job, ?string $dirOrNs = null, array $dropKeys = []): array
+    {
+        $id = (string)($job['id'] ?? '');
+        $path = self::path($id, $dirOrNs);
+        $fh = @fopen($path, 'c+');
+        if ($fh === false) {
+            throw new RuntimeException('Cannot open job for save');
+        }
+        try {
+            if (!flock($fh, LOCK_EX)) {
+                throw new RuntimeException('Cannot lock job file');
+            }
+            rewind($fh);
+            $raw = stream_get_contents($fh);
+            $disk = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
+            if (!is_array($disk)) {
+                $disk = [];
+            }
+            $diskStatus = (string)($disk['status'] ?? '');
+            if ($diskStatus !== '' && $diskStatus !== 'running') {
+                return ['saved' => false, 'job' => $disk];
+            }
+            $json = self::encode($job, $dropKeys);
+            ftruncate($fh, 0);
+            rewind($fh);
+            if (fwrite($fh, $json) === false) {
+                throw new RuntimeException('Cannot write job');
+            }
+            fflush($fh);
+            return ['saved' => true, 'job' => $job];
+        } finally {
+            flock($fh, LOCK_UN);
+            fclose($fh);
+        }
+    }
+
+    /**
+     * @param array<string,mixed> $job
+     * @param list<string> $dropKeys
+     */
+    private static function encode(array $job, array $dropKeys = []): string
+    {
         $id = (string)($job['id'] ?? '');
         if ($id === '' || !preg_match(self::ID_PATTERN, $id)) {
             throw new RuntimeException('Invalid job id');
@@ -85,7 +180,6 @@ final class LongJobStore
         foreach ($dropKeys as $k) {
             unset($job[$k]);
         }
-        $path = self::path($id, $dirOrNs);
         $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
         if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
             $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
@@ -98,9 +192,7 @@ final class LongJobStore
         if ($json === false) {
             throw new RuntimeException('Cannot encode job');
         }
-        if (file_put_contents($path, $json, LOCK_EX) === false) {
-            throw new RuntimeException('Cannot write job');
-        }
+        return $json;
     }
 
     public static function delete(string $id, ?string $dirOrNs = null): void

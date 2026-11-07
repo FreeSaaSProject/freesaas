@@ -79,6 +79,7 @@ return [
     'backups.flash.cdc_install' => 'CDC установлен: {triggers} триггеров на {tables} таблицах.',
     'backups.flash.cdc_uninstall' => 'CDC снят ({n} триггеров).',
     'backups.err.incr_empty' => 'В журнале CDC нет изменений для выгрузки',
+    'backups.err.cdc_lock' => 'Не удалось заблокировать журнал CDC для согласованной границы пакета — повторите позже',
     'backups.cron.cdc_refresh' => 'Обновление CDC-триггеров',
     'backups.cron.standby_health' => 'Проба /health основного хоста (standby)',
     'backups.cron.standby_sync' => 'Standby: подтянуть паки с FTP',
