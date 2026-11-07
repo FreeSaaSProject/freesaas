@@ -10,6 +10,27 @@ $syncFlash = null;
 $syncPending = [];
 $do = (string)($_POST['do'] ?? '');
 
+// After LongJobPanel OK: restore pending confirm list from job result.
+$afterJobId = trim((string)($_GET['sync_job'] ?? ''));
+if ($afterJobId !== '' && $do === '' && Auth::can('liquid_assets.edit')) {
+    try {
+        $doneJob = LongJob::get($afterJobId, LiquidAssetsLongJob::TYPE_TINVEST_SYNC);
+        if (($doneJob['status'] ?? '') === LongJob::STATUS_DONE && is_array($doneJob['result'] ?? null)) {
+            $res = $doneJob['result'];
+            $syncPending = is_array($res['pending'] ?? null) ? $res['pending'] : [];
+            $lines = is_array($res['lines'] ?? null) ? $res['lines'] : [];
+            $syncFlash = [
+                'ok' => !empty($res['ok']),
+                'message' => t('liquid_assets.sync.snapshots')
+                    . ' (≤ ' . date('d.m.Y', TinvestSyncService::snapshotDt($period['month_end'])) . "):\n"
+                    . implode("\n", $lines),
+            ];
+        }
+    } catch (Throwable $e) {
+        // ignore stale job id
+    }
+}
+
 if ($do === 'sync' || $do === 'sync_confirm') {
     if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
         if ($wantsJson) {

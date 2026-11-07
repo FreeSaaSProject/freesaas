@@ -7,13 +7,28 @@ require_once __DIR__ . '/lib/TinvestAccountsRepository.php';
 require_once __DIR__ . '/lib/BrokerSnapshotsRepository.php';
 require_once __DIR__ . '/lib/TinvestSyncService.php';
 require_once __DIR__ . '/lib/LiquidAssetsReport.php';
+require_once __DIR__ . '/lib/LiquidAssetsLongJob.php';
 
 Assets::register('liquid_assets', [
     'css' => ['liquid_assets.css'],
 ]);
 
+LongJob::register(LiquidAssetsLongJob::TYPE_TINVEST_SYNC, [
+    'module' => 'liquid_assets',
+    'permission' => 'liquid_assets.edit',
+    'defaults' => ['tick_seconds' => 60],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 60],
+        'cli' => ['tick_seconds' => 120],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [LiquidAssetsLongJob::class, 'syncOnStart'],
+    'tick' => [LiquidAssetsLongJob::class, 'syncTick'],
+]);
+
 $pages = [
     '/liquid-assets' => ['permission' => 'liquid_assets.view', 'methods' => ['GET', 'POST'], 'file' => 'report.php'],
+    '/liquid-assets/longjob' => ['permission' => 'liquid_assets.edit', 'methods' => ['POST'], 'file' => 'longjob.php'],
     '/liquid-assets/accounts' => ['permission' => 'liquid_assets.view', 'methods' => ['GET', 'POST'], 'file' => 'accounts.php'],
     '/liquid-assets/accounts/new' => ['permission' => 'liquid_assets.edit', 'methods' => ['GET', 'POST'], 'file' => 'account_edit.php'],
     '/liquid-assets/accounts/{id}/edit' => ['permission' => 'liquid_assets.edit', 'methods' => ['GET', 'POST'], 'file' => 'account_edit.php'],

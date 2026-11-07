@@ -52,7 +52,6 @@ final class ClienticsAppointmentsImporter
             return $stats;
         }
 
-        $accountId = ClienticsConfig::accountId();
         $ts = strtotime($from . ' 00:00:00');
         $end = strtotime($to . ' 00:00:00');
         if ($ts === false || $end === false) {
@@ -67,54 +66,20 @@ final class ClienticsAppointmentsImporter
             return $stats;
         }
 
-        $seen = [];
         try {
-            for ($t = $ts; $t <= $end; $t += 86400) {
-                $day = date('Y-m-d', $t);
-                $stats['days']++;
-                $offset = 0;
-                $limit = ClienticsConfig::pageLimit();
-                while (true) {
-                    $res = ClienticsApiClient::listAppointmentsForDate($day, $offset, $limit);
-                    if (!$res['ok']) {
-                        $stats['error'] = (string)($res['error'] ?? 'fetch failed') . ' @' . $day;
-                        ClienticsSyncStateRepository::mark('import_appointments', false, (string)$stats['error'], $stats, $day);
-                        return $stats;
-                    }
-                    $items = $res['items'] ?? [];
-                    if ($items === []) {
-                        break;
-                    }
-                    foreach ($items as $row) {
-                        if (!is_array($row)) {
-                            continue;
-                        }
-                        $extId = (string)($row['id'] ?? '');
-                        if ($extId !== '' && isset($seen[$extId])) {
-                            continue;
-                        }
-                        if ($extId !== '') {
-                            $seen[$extId] = true;
-                        }
-                        $stats['fetched']++;
-                        try {
-                            $r = self::upsertOne($accountId, $row, $dryRun);
-                            $stats[$r]++;
-                        } catch (Throwable $e) {
-                            $stats['skipped']++;
-                            if (count($stats['sample_errors']) < 5) {
-                                $stats['sample_errors'][] = $e->getMessage();
-                            }
-                        }
-                    }
-                    if (count($items) < $limit) {
-                        break;
-                    }
-                    $offset += $limit;
-                    if ($offset > 100000) {
-                        break;
-                    }
+            $day = $from;
+            $offset = 0;
+            $stats['to'] = $to;
+            while (true) {
+                $chunk = self::importPage($day, $offset, $dryRun, $stats);
+                if (!$chunk['ok']) {
+                    return $stats;
                 }
+                if (!empty($chunk['done'])) {
+                    break;
+                }
+                $day = (string)$chunk['day'];
+                $offset = (int)$chunk['offset'];
             }
             $stats['ok'] = true;
             ClienticsSyncStateRepository::mark('import_appointments', true, '', $stats, $to);
@@ -124,6 +89,101 @@ final class ClienticsAppointmentsImporter
             ClienticsSyncStateRepository::mark('import_appointments', false, $e->getMessage(), $stats);
             return $stats;
         }
+    }
+
+    /**
+     * One API page for a day (LongJob crumb). Dedup via $stats['seen'].
+     *
+     * @param array<string,mixed> $stats
+     * @return array{ok:bool,done:bool,day:string,offset:int,error?:string}
+     */
+    public static function importPage(string $day, int $offset, bool $dryRun, array &$stats): array
+    {
+        $to = (string)($stats['to'] ?? $day);
+        $offset = max(0, $offset);
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) {
+            $stats['error'] = 'invalid day';
+            return ['ok' => false, 'done' => true, 'day' => $day, 'offset' => $offset, 'error' => (string)$stats['error']];
+        }
+        if ($day > $to) {
+            return ['ok' => true, 'done' => true, 'day' => $day, 'offset' => 0];
+        }
+
+        $accountId = ClienticsConfig::accountId();
+        if (!isset($stats['seen']) || !is_array($stats['seen'])) {
+            $stats['seen'] = [];
+        }
+        $seen = &$stats['seen'];
+        $limit = ClienticsConfig::pageLimit();
+        $stats['pages'] = (int)($stats['pages'] ?? 0) + 1;
+
+        $res = ClienticsApiClient::listAppointmentsForDate($day, $offset, $limit);
+        if (!$res['ok']) {
+            $stats['error'] = (string)($res['error'] ?? 'fetch failed') . ' @' . $day;
+            ClienticsSyncStateRepository::mark('import_appointments', false, (string)$stats['error'], $stats, $day);
+            return ['ok' => false, 'done' => true, 'day' => $day, 'offset' => $offset, 'error' => (string)$stats['error']];
+        }
+        $items = $res['items'] ?? [];
+        if ($items !== []) {
+            if (!isset($stats['days_seen']) || !is_array($stats['days_seen'])) {
+                $stats['days_seen'] = [];
+            }
+            if (empty($stats['days_seen'][$day])) {
+                $stats['days_seen'][$day] = true;
+                $stats['days'] = (int)($stats['days'] ?? 0) + 1;
+            }
+            foreach ($items as $row) {
+                if (!is_array($row)) {
+                    continue;
+                }
+                $extId = (string)($row['id'] ?? '');
+                if ($extId !== '' && isset($seen[$extId])) {
+                    continue;
+                }
+                if ($extId !== '') {
+                    $seen[$extId] = true;
+                }
+                $stats['fetched'] = (int)($stats['fetched'] ?? 0) + 1;
+                try {
+                    $r = self::upsertOne($accountId, $row, $dryRun);
+                    $stats[$r] = (int)($stats[$r] ?? 0) + 1;
+                } catch (Throwable $e) {
+                    $stats['skipped'] = (int)($stats['skipped'] ?? 0) + 1;
+                    if (!isset($stats['sample_errors']) || !is_array($stats['sample_errors'])) {
+                        $stats['sample_errors'] = [];
+                    }
+                    if (count($stats['sample_errors']) < 5) {
+                        $stats['sample_errors'][] = $e->getMessage();
+                    }
+                }
+            }
+        }
+
+        if ($items === [] || count($items) < $limit) {
+            $nextDay = self::nextDay($day);
+            if ($nextDay > $to) {
+                return ['ok' => true, 'done' => true, 'day' => $nextDay, 'offset' => 0];
+            }
+            return ['ok' => true, 'done' => false, 'day' => $nextDay, 'offset' => 0];
+        }
+        $nextOffset = $offset + $limit;
+        if ($nextOffset > 100000) {
+            $nextDay = self::nextDay($day);
+            if ($nextDay > $to) {
+                return ['ok' => true, 'done' => true, 'day' => $nextDay, 'offset' => 0];
+            }
+            return ['ok' => true, 'done' => false, 'day' => $nextDay, 'offset' => 0];
+        }
+        return ['ok' => true, 'done' => false, 'day' => $day, 'offset' => $nextOffset];
+    }
+
+    private static function nextDay(string $day): string
+    {
+        $ts = strtotime($day . ' 00:00:00');
+        if ($ts === false) {
+            return $day;
+        }
+        return date('Y-m-d', $ts + 86400);
     }
 
     /**

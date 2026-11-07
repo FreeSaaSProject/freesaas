@@ -121,11 +121,64 @@ require __DIR__ . '/_nav.php';
     </label>
     <p class="field-help"><?= te('backups.settings.cdc_exclude_hint') ?></p>
     <div class="page-actions">
-      <button class="btn-secondary" type="submit" name="action" value="cdc_install"
+      <button class="btn-secondary" type="button" data-cdc-longjob="install"
               data-bk-busy="<?= te('backups.ui.busy.cdc_install') ?>"><?= te('backups.settings.cdc_install') ?></button>
-      <button class="btn-secondary" type="submit" name="action" value="cdc_uninstall"
+      <button class="btn-secondary" type="button" data-cdc-longjob="uninstall"
               data-bk-busy="<?= te('backups.ui.busy.cdc_uninstall') ?>"><?= te('backups.settings.cdc_uninstall') ?></button>
     </div>
+    <?= View::capture('_longjob_panel', [
+      'longjobId' => 'bk-cdc',
+      'longjobTitle' => t('backups.ui.busy.cdc_install'),
+      'longjobDualBars' => false,
+      'longjobShowBytes' => false,
+    ], 'core') ?>
+    <script>
+    (function () {
+      function boot() {
+        var overlay = document.getElementById('bk-cdc-overlay');
+        if (!overlay) return;
+        if (!window.LongJobPanel) { setTimeout(boot, 30); return; }
+        if (overlay.getAttribute('data-bound') === '1') return;
+        overlay.setAttribute('data-bound', '1');
+        var types = {
+          install: <?= json_encode(BackupCdcLongJob::TYPE_INSTALL, JSON_UNESCAPED_UNICODE) ?>,
+          uninstall: <?= json_encode(BackupCdcLongJob::TYPE_UNINSTALL, JSON_UNESCAPED_UNICODE) ?>
+        };
+        var titles = {
+          install: <?= json_encode(t('backups.ui.busy.cdc_install'), JSON_UNESCAPED_UNICODE) ?>,
+          uninstall: <?= json_encode(t('backups.ui.busy.cdc_uninstall'), JSON_UNESCAPED_UNICODE) ?>
+        };
+        var panel = LongJobPanel.mount({
+          root: overlay,
+          startUrl: '/backups/cdc/longjob',
+          tickUrl: '/backups/cdc/longjob',
+          cancelUrl: '/backups/cdc/longjob',
+          dualBars: false,
+          showBytes: false,
+          reloadOnOk: true,
+          csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+          i18n: {
+            starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+            badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+            doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+            errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+            cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+            ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
+          }
+        });
+        document.querySelectorAll('[data-cdc-longjob]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            var kind = btn.getAttribute('data-cdc-longjob') || 'install';
+            var fd = new FormData();
+            fd.set('type', types[kind] || types.install);
+            panel.runFormData(fd, { title: titles[kind] || titles.install });
+          });
+        });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+      else boot();
+    })();
+    </script>
   </fieldset>
 
   <fieldset<?= $panel('contents') ?>>

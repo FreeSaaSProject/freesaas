@@ -10,6 +10,7 @@ require_once __DIR__ . '/lib/BitrixOutboxRepository.php';
 require_once __DIR__ . '/lib/BitrixWebhookEventsRepository.php';
 require_once __DIR__ . '/lib/BitrixApiClient.php';
 require_once __DIR__ . '/lib/BitrixImporter.php';
+require_once __DIR__ . '/lib/BitrixLongJob.php';
 require_once __DIR__ . '/lib/BitrixOutboxPusher.php';
 require_once __DIR__ . '/lib/BitrixWebhookApply.php';
 require_once __DIR__ . '/lib/BitrixWebhookIngest.php';
@@ -17,9 +18,24 @@ require_once __DIR__ . '/lib/BitrixOutboxListener.php';
 
 ModuleManager::registerMenuGroup('bitrix.menu.group', 1230, '/bitrix');
 
+LongJob::register(BitrixLongJob::TYPE_IMPORT, [
+    'module' => 'bitrix',
+    'permission' => 'bitrix.import',
+    'defaults' => ['tick_seconds' => 45],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 45],
+        'cli' => ['tick_seconds' => 90],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [BitrixLongJob::class, 'onStart'],
+    'tick' => [BitrixLongJob::class, 'tick'],
+    'on_cancel' => [BitrixLongJob::class, 'onCancel'],
+]);
+
 $pages = [
     '/bitrix' => ['permission' => 'bitrix.view', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],
     '/bitrix/import' => ['permission' => 'bitrix.import', 'methods' => ['GET', 'POST'], 'file' => 'import.php'],
+    '/bitrix/import/longjob' => ['permission' => 'bitrix.import', 'methods' => ['POST'], 'file' => 'longjob.php'],
     '/bitrix/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/bitrix/webhook' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'webhook.php'],
     '/bitrix/jobs/ping' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_ping.php'],

@@ -131,7 +131,7 @@ $modLabel = static function (string $modId): string {
     <?php endif; ?>
 
     <?php if ($pending > 0 && !empty($card['config_enabled'])): ?>
-      <form method="post" class="inline-form">
+      <form method="post" class="inline-form" data-schema-module-longjob="<?= e($id) ?>">
         <input type="hidden" name="module" value="<?= e($id) ?>">
         <input type="hidden" name="action" value="migrate">
         <input type="hidden" name="ret" value="<?= e($detailPath) ?>">
@@ -143,7 +143,8 @@ $modLabel = static function (string $modId): string {
 
     <?php if (!empty($card['can_uninstall']) && Auth::capability('SUPERADMIN_ACCESS')): ?>
       <form method="post" class="inline-form"
-        onsubmit="return confirm(<?= tj('core.modules.confirm_uninstall', ['module' => $name]) ?>);">
+            data-uninstall-longjob="<?= e($id) ?>"
+            data-uninstall-confirm="<?= e(t('core.modules.confirm_uninstall', ['module' => $name !== '' ? $name : $id])) ?>">
         <input type="hidden" name="module" value="<?= e($id) ?>">
         <input type="hidden" name="action" value="uninstall">
         <input type="hidden" name="confirm_uninstall" value="1">
@@ -331,3 +332,5 @@ $modLabel = static function (string $modId): string {
   });
 })();
 </script>
+<?php require base_path('modules/core/views/partials/modules_longjob.php'); ?>
+

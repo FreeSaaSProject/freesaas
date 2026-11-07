@@ -1350,211 +1350,79 @@
     });
   }
 
-  /** Bulk LLM descr: progressive overlay (one dict per request) — same idea as db-job / calendar reparse. */
+  /** Bulk LLM descr → LongJobPanel (one dict per tick). Module JS loads after core.js. */
   function initSuggestBulk() {
+    var boot = document.getElementById('audio-dicts-suggest-boot');
     var overlay = document.getElementById('audio-dicts-suggest-overlay');
-    if (!overlay) return;
-    var i18n = parseJson(overlay, 'data-i18n', {});
-    var msgEl = document.getElementById('audio-dicts-suggest-msg');
-    var logEl = document.getElementById('audio-dicts-suggest-log');
-    var fillEl = document.getElementById('audio-dicts-suggest-fill');
-    var barEl = document.getElementById('audio-dicts-suggest-bar');
-    var pctEl = document.getElementById('audio-dicts-suggest-pct');
-    var metaEl = document.getElementById('audio-dicts-suggest-meta');
-    var titleEl = document.getElementById('audio-dicts-suggest-title');
-    var abortBtn = document.getElementById('audio-dicts-suggest-abort');
-    var okBtn = document.getElementById('audio-dicts-suggest-ok');
-    var busy = false;
-    var abort = false;
+    if (!boot || !overlay) return;
 
-    function tpl(s, vars) {
-      var out = String(s || '');
-      Object.keys(vars || {}).forEach(function (k) {
-        out = out.split('{' + k + '}').join(String(vars[k]));
+    var tries = 0;
+    function start() {
+      if (!window.LongJobPanel) {
+        if (++tries < 80) setTimeout(start, 50);
+        return;
+      }
+      if (boot.getAttribute('data-bound') === '1') return;
+      boot.setAttribute('data-bound', '1');
+
+      var i18n = parseJson(boot, 'data-i18n', {});
+      var csrf = boot.getAttribute('data-csrf') || (window.freesaasCsrfToken ? window.freesaasCsrfToken() : '');
+      var busy = false;
+      var panel = LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/audio/dicts/longjob',
+        tickUrl: '/audio/dicts/longjob',
+        cancelUrl: '/audio/dicts/longjob',
+        dualBars: false,
+        showBytes: false,
+        reloadOnOk: true,
+        csrf: csrf,
+        i18n: i18n,
+        onFinish: function () { busy = false; }
       });
-      return out;
-    }
+      if (!panel) return;
 
-    function addLog(text, cls) {
-      if (!logEl) return;
-      var row = document.createElement('div');
-      if (cls) row.className = cls;
-      var t = new Date().toLocaleTimeString();
-      row.textContent = '[' + t + '] ' + text;
-      logEl.appendChild(row);
-      logEl.scrollTop = logEl.scrollHeight;
-    }
-
-    function setProgress(done, total) {
-      var pct = total > 0 ? Math.round((done / total) * 100) : 0;
-      if (fillEl) fillEl.style.width = pct + '%';
-      if (barEl) barEl.setAttribute('aria-valuenow', String(pct));
-      if (pctEl) pctEl.textContent = pct + '%';
-      if (metaEl) metaEl.textContent = done + ' / ' + total;
-    }
-
-    function csrfToken(form) {
-      var inp = form.querySelector('input[name="csrf"], input[name="_csrf"], input[name="csrf_token"]');
-      if (inp && inp.value) return { name: inp.name, value: inp.value };
-      var meta = document.querySelector('meta[name="csrf-token"]');
-      if (meta && meta.getAttribute('content')) {
-        return { name: 'csrf', value: meta.getAttribute('content') };
-      }
-      return null;
-    }
-
-    function finish(summary) {
-      busy = false;
-      if (titleEl) titleEl.textContent = i18n.doneTitle || 'Done';
-      if (msgEl) msgEl.textContent = summary || '';
-      if (abortBtn) abortBtn.hidden = true;
-      if (okBtn) {
-        okBtn.hidden = false;
-        okBtn.disabled = false;
-      }
-    }
-
-    function closeOverlay() {
-      overlay.hidden = true;
-      if (okBtn) {
-        okBtn.hidden = true;
-        okBtn.disabled = true;
-      }
-      if (abortBtn) abortBtn.hidden = false;
-      window.location.reload();
-    }
-
-    if (okBtn) {
-      okBtn.addEventListener('click', closeOverlay);
-    }
-    if (abortBtn) {
-      abortBtn.addEventListener('click', function () {
-        if (!busy) return;
-        abort = true;
-        if (msgEl) msgEl.textContent = i18n.aborted || 'Stopped';
-      });
-    }
-
-    function postOne(id, overwrite, csrf) {
-      var body = new FormData();
-      body.append('save', '1');
-      if (overwrite) body.append('overwrite', '1');
-      if (csrf) body.append(csrf.name, csrf.value);
-      return fetch('/audio/dicts/' + id + '/suggest-descr', {
-        method: 'POST',
-        body: body,
-        credentials: 'same-origin',
-        headers: {
-          'Accept': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest'
-        }
-      }).then(function (res) {
-        return res.text().then(function (txt) {
-          var data = null;
-          try { data = JSON.parse(txt); } catch (e) { data = null; }
-          return { http: res.status, data: data, raw: txt };
-        });
-      });
-    }
-
-    function run(ids, overwrite, csrf) {
-      busy = true;
-      abort = false;
-      if (logEl) logEl.innerHTML = '';
-      if (titleEl) titleEl.textContent = i18n.title || 'Generate descriptions';
-      if (msgEl) msgEl.textContent = i18n.running || 'Processing…';
-      if (abortBtn) abortBtn.hidden = false;
-      if (okBtn) {
-        okBtn.hidden = true;
-        okBtn.disabled = true;
-      }
-      overlay.hidden = false;
-      setProgress(0, ids.length);
-
-      var done = 0;
-      var skipped = 0;
-      var idx = 0;
-
-      function next() {
-        if (abort) {
-          addLog(i18n.aborted || 'Stopped', 'is-warn');
-          finish(tpl(i18n.summary || 'Done: {done}, skipped: {skip}', { done: done, skip: skipped }));
-          return;
-        }
-        if (idx >= ids.length) {
-          finish(tpl(i18n.summary || 'Done: {done}, skipped: {skip}', { done: done, skip: skipped }));
-          return;
-        }
-        var id = ids[idx++];
-        setProgress(idx - 1, ids.length);
-        postOne(id, overwrite, csrf).then(function (res) {
-          var data = res.data || {};
-          if (data.ok && data.saved) {
-            done++;
-            addLog(tpl(i18n.itemOk || '#{id}: saved', { id: id }), 'is-ok');
-          } else if (data.skipped) {
-            skipped++;
-            addLog(tpl(i18n.itemSkip || '#{id}: {reason}', {
-              id: id,
-              reason: data.skipped
-            }), 'is-warn');
-          } else {
-            skipped++;
-            var reason = (data && data.error) ? data.error
-              : tpl(i18n.http || 'HTTP {status}', { status: res.http });
-            addLog(tpl(i18n.itemErr || '#{id}: error — {reason}', {
-              id: id,
-              reason: reason
-            }), 'is-err');
-          }
-          setProgress(idx, ids.length);
-          next();
-        }).catch(function (err) {
-          skipped++;
-          addLog(tpl(i18n.itemErr || '#{id}: error — {reason}', {
-            id: id,
-            reason: (err && err.message) ? err.message : 'network'
-          }), 'is-err');
-          setProgress(idx, ids.length);
-          next();
-        });
-      }
-
-      next();
-    }
-
-    document.querySelectorAll('[data-bulk-form]').forEach(function (form) {
-      form.addEventListener('submit', function (e) {
+      // Document capture: runs before core.js form bubble (ids[] disable / nav bar).
+      document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (!form || !form.getAttribute || form.getAttribute('data-bulk-form') === null) return;
         var actionSel = form.querySelector('[data-bulk-action]');
         if (!actionSel || String(actionSel.value || '') !== 'suggest_descr') return;
         e.preventDefault();
         e.stopImmediatePropagation();
-
         if (busy) {
-          alert(i18n.busy || 'Busy');
+          window.alert(i18n.busy || 'Busy');
           return;
         }
         var confirmMsg = i18n.confirm || '';
         var opt = actionSel.options[actionSel.selectedIndex];
         if (opt && opt.getAttribute('data-confirm')) {
-          confirmMsg = opt.getAttribute('data-confirm');
+          confirmMsg = opt.getAttribute('data-confirm') || confirmMsg;
         }
         if (confirmMsg && !window.confirm(confirmMsg)) return;
 
         var ids = Array.prototype.slice.call(form.querySelectorAll('[data-bulk-id]'))
-          .filter(function (c) { return c.checked; })
+          .filter(function (c) { return c.checked && !c.disabled; })
           .map(function (c) { return parseInt(c.value, 10) || 0; })
           .filter(function (id) { return id > 0; });
         if (!ids.length) {
-          alert(i18n.empty || 'Empty');
+          window.alert(i18n.empty || 'Empty');
           return;
         }
         var overwriteField = form.querySelector('[data-bulk-field-for="suggest_descr"] input[name="overwrite"]');
         var overwrite = !!(overwriteField && overwriteField.checked && !overwriteField.disabled);
-        var csrf = csrfToken(form);
-        run(ids, overwrite, csrf);
+        busy = true;
+        var fd = new FormData();
+        fd.set('ids_csv', ids.join(','));
+        if (overwrite) fd.set('overwrite', '1');
+        panel.runFormData(fd, {}).then(function () {
+          busy = false;
+        }, function () {
+          busy = false;
+        });
       }, true);
-    });
+    }
+    start();
   }
 
   /** Keys edit: live overlap + stem-conflict probe (same rules as list add-key / api_dict). */

@@ -17,7 +17,8 @@ if (!Auth::capability('SUPERADMIN_ACCESS') || !Auth::can('audio_script_coach.edi
 $wantsJson = class_exists('AgentHttp', false) && AgentHttp::wantsJson();
 $stream = !$wantsJson && !empty($_POST['stream']);
 $action = trim((string)($_POST['action'] ?? 'tick'));
-$runId = max(0, (int)($_POST['run_id'] ?? 0));
+// LongJobPanel sends job_id on ticks; drain start uses run_id.
+$runId = max(0, (int)($_POST['run_id'] ?? $_POST['job_id'] ?? 0));
 
 @set_time_limit(300);
 @ini_set('memory_limit', '256M');
@@ -35,6 +36,43 @@ $emit = static function (array $payload) use ($wantsJson, $stream): void {
         return;
     }
     if ($wantsJson) {
+        $rid = max(0, (int)($payload['run_id'] ?? 0));
+        $done = !empty($payload['done']);
+        $ok = !empty($payload['ok']);
+        $phasesDone = (int)($payload['phases_done'] ?? 0);
+        $phasesTotal = max(1, (int)($payload['phases_total'] ?? count(CoachRunner::phases())));
+        $pct = $done ? 100 : (int)floor(100 * $phasesDone / $phasesTotal);
+        $status = !$ok
+            ? 'error'
+            : ($done ? 'done' : 'running');
+        $log = [];
+        foreach ((array)($payload['stages'] ?? []) as $s) {
+            if (is_array($s) && (string)($s['msg'] ?? '') !== '') {
+                $log[] = (string)$s['msg'];
+            }
+        }
+        $phase = (string)($payload['phase'] ?? '');
+        $payload['job'] = [
+            'id' => (string)max(1, $rid),
+            'type' => 'audio_script_coach.work',
+            'status' => $status,
+            'progress' => $pct,
+            'progress_overall' => $pct,
+            'message' => $status === 'error'
+                ? (string)($payload['error'] ?? '')
+                : ($phase !== '' ? ($phase . ' · ' . $phasesDone . '/' . $phasesTotal) : ''),
+            'error' => $status === 'error' ? (string)($payload['error'] ?? '') : null,
+            'phase' => $phase,
+            'log' => $log,
+            'result' => [
+                'run_id' => $rid,
+                'proposals' => (int)($payload['proposals'] ?? 0),
+                'phases_done' => $phasesDone,
+                'phases_total' => $phasesTotal,
+            ],
+        ];
+        // Transport ok — terminal state is job.status (LongJobPanel).
+        $payload['ok'] = true;
         CoachProgress::reset();
         AgentHttp::emit($payload);
         return;

@@ -15,11 +15,81 @@ require_once __DIR__ . '/lib/BackupDoctor.php';
 require_once __DIR__ . '/lib/BackupCdc.php';
 require_once __DIR__ . '/lib/BackupStandby.php';
 require_once __DIR__ . '/lib/BackupReplica.php';
+require_once __DIR__ . '/lib/BackupReplicaLongJob.php';
+require_once __DIR__ . '/lib/BackupRunLongJob.php';
+require_once __DIR__ . '/lib/BackupCdcLongJob.php';
 require_once __DIR__ . '/lib/BackupAgentOps.php';
 
 Assets::register('backups', [
     'css' => ['backups.css'],
     'js' => ['backups.js'],
+]);
+
+// Replica check = LongJob store. Pull domain state stays in BackupReplica (replica-job.json);
+// UI pumps /backups/replica/tick with tick_token after wipe. Budgets stay module-owned.
+LongJob::register(BackupReplicaLongJob::TYPE_CHECK, [
+    'module' => 'backups',
+    'permission' => 'backups.manage',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'defaults' => ['tick_seconds' => 25],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 25],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'blocking', 'assistant' => false],
+    'on_start' => [BackupReplicaLongJob::class, 'checkOnStart'],
+    'tick' => [BackupReplicaLongJob::class, 'checkTick'],
+]);
+LongJob::register(BackupReplicaLongJob::TYPE_PULL, [
+    'module' => 'backups',
+    'permission' => 'backups.manage',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'defaults' => ['tick_seconds' => BackupReplica::BUDGET_SEC],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 20],
+        'cron' => ['tick_seconds' => BackupReplica::BUDGET_SEC],
+        'cli' => ['tick_seconds' => 90],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [BackupReplicaLongJob::class, 'pullOnStart'],
+    'tick' => [BackupReplicaLongJob::class, 'pullTick'],
+]);
+LongJob::register(BackupRunLongJob::TYPE, [
+    'module' => 'backups',
+    'permission' => 'backups.manage',
+    'defaults' => ['tick_seconds' => BackupRunner::BUDGET_SEC],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 20],
+        'cron' => ['tick_seconds' => BackupRunner::BUDGET_SEC],
+        'cli' => ['tick_seconds' => BackupRunner::LIGHT_WALL_SEC],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+]);
+LongJob::register(BackupCdcLongJob::TYPE_INSTALL, [
+    'module' => 'backups',
+    'permission' => 'backups.manage',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'defaults' => ['tick_seconds' => 25],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 25],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [BackupCdcLongJob::class, 'installOnStart'],
+    'tick' => [BackupCdcLongJob::class, 'installTick'],
+]);
+LongJob::register(BackupCdcLongJob::TYPE_UNINSTALL, [
+    'module' => 'backups',
+    'permission' => 'backups.manage',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'defaults' => ['tick_seconds' => 25],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 25],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [BackupCdcLongJob::class, 'uninstallOnStart'],
+    'tick' => [BackupCdcLongJob::class, 'uninstallTick'],
 ]);
 
 $pages = [
@@ -39,6 +109,12 @@ $pages = [
         'capability' => 'SUPERADMIN_ACCESS',
         'methods' => ['GET', 'POST'],
         'file' => 'settings.php',
+    ],
+    '/backups/cdc/longjob' => [
+        'permission' => 'backups.manage',
+        'capability' => 'SUPERADMIN_ACCESS',
+        'methods' => ['POST'],
+        'file' => 'cdc_longjob.php',
     ],
     '/backups/restore' => [
         'permission' => 'backups.manage',

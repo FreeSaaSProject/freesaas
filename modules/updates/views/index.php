@@ -107,6 +107,9 @@ $jobI18n = [
     'foundEmpty' => t('updates.check.found_empty'),
     'foundLine' => t('updates.check.found_line'),
     'applyFound' => t('updates.btn_update_found'),
+    'starting' => t('core.longjob.starting'),
+    'abort' => t('updates.job.abort'),
+    'ok' => t('updates.job.ok'),
 ];
 ?>
 <div id="updates-app"
@@ -303,28 +306,17 @@ $jobI18n = [
   </p>
 </section>
 
-<div id="upd-job-overlay" class="upd-job-overlay" hidden>
-  <div class="upd-job-panel" role="dialog" aria-modal="true" aria-labelledby="upd-job-title">
-    <h3 id="upd-job-title" class="subhead"><?= te('updates.job.title') ?></h3>
-    <p id="upd-job-msg" class="upd-job-msg muted"></p>
-    <div class="upd-job-meta">
-      <span id="upd-job-pct">0%</span>
-      <span id="upd-job-meta" class="muted">0:00</span>
-    </div>
-    <div class="upd-job-bar" id="upd-job-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-      <div id="upd-job-fill" class="upd-job-fill"></div>
-    </div>
-    <div id="upd-job-found" class="upd-job-found" hidden>
-      <div id="upd-job-found-title" class="upd-job-found-title muted"></div>
-      <ul id="upd-job-found-list" class="upd-job-found-list"></ul>
-    </div>
-    <div class="upd-job-actions actions">
-      <button type="button" class="btn-secondary" id="upd-job-abort"><?= te('updates.job.abort') ?></button>
-      <?php if ($updateCanApply): ?>
-      <button type="button" class="btn-primary" id="upd-job-apply-found" hidden disabled><?= te('updates.btn_update_found') ?></button>
-      <?php endif; ?>
-      <button type="button" class="btn-secondary" id="upd-job-ok" hidden disabled><?= te('updates.job.ok') ?></button>
-    </div>
-  </div>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'upd-longjob',
+  'longjobTitle' => t('updates.job.title'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => false,
+], 'core') ?>
+<div id="upd-job-found" class="upd-job-found" hidden>
+  <div id="upd-job-found-title" class="upd-job-found-title muted"></div>
+  <ul id="upd-job-found-list" class="upd-job-found-list"></ul>
 </div>
+<?php if ($updateCanApply): ?>
+<button type="button" class="btn-primary" id="upd-job-apply-found" hidden disabled><?= te('updates.btn_update_found') ?></button>
+<?php endif; ?>
 </div>

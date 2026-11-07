@@ -11,7 +11,8 @@ final class BankSyncService
         int $connectionId,
         string $dateFrom,
         string $dateTo,
-        ?int $onlyLinkId = null
+        ?int $onlyLinkId = null,
+        bool $remember = true
     ): array {
         $conn = BankConnectionsRepository::find($connectionId, true);
         if (!$conn) {
@@ -65,14 +66,16 @@ final class BankSyncService
                 $stats['messages'][] = t('banks.sync.nothing_to_sync');
             }
         }
-        self::rememberLastSync($connectionId, $dateFrom, $dateTo, $stats);
+        if ($remember) {
+            self::rememberLastSync($connectionId, $dateFrom, $dateTo, $stats);
+        }
         return $stats;
     }
 
     /**
      * @param array{created:int,linked:int,skipped:int,errors:int,messages:list<string>} $stats
      */
-    private static function rememberLastSync(
+    public static function rememberLastSync(
         int $connectionId,
         string $dateFrom,
         string $dateTo,

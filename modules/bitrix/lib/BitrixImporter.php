@@ -23,69 +23,35 @@ final class BitrixImporter
             return ['ok' => false, 'entity' => $entity, 'error' => 'crm module required'];
         }
 
-        $portal = BitrixConfig::portal() !== '' ? BitrixConfig::portal() : 'default';
-        $method = match ($entity) {
-            'contact' => 'crm.contact.list',
-            'company' => 'crm.company.list',
-            'deal' => 'crm.deal.list',
-            'lead' => 'crm.lead.list',
-        };
-        $select = match ($entity) {
-            'contact' => ['ID', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'PHONE', 'EMAIL'],
-            'company' => ['ID', 'TITLE', 'PHONE', 'EMAIL', 'WEB', 'ADDRESS'],
-            'deal', 'lead' => ['ID', 'TITLE', 'STAGE_ID', 'CATEGORY_ID', 'OPPORTUNITY', 'CURRENCY_ID', 'COMMENTS', 'COMPANY_ID', 'CONTACT_ID'],
-        };
-
+        $stats = [
+            'entity' => $entity,
+            'dry_run' => $dryRun,
+            'fetched' => 0,
+            'created' => 0,
+            'updated' => 0,
+            'linked' => 0,
+            'skipped' => 0,
+            'pages' => 0,
+        ];
         $start = 0;
-        $pageSize = max(1, min(50, BitrixConfig::int('page_size', 50)));
-        $fetched = $created = $updated = $linked = $skipped = 0;
         $error = '';
 
         CrmSyncContext::begin('bitrix');
         try {
-            do {
-                $res = BitrixApiClient::call($method, [
-                    'select' => $select,
-                    'start' => $start,
-                ]);
-                if (!$res['ok']) {
-                    $error = (string)($res['error'] ?? 'api error');
+            while (true) {
+                $chunk = self::importPage($entity, $start, $dryRun, $stats);
+                if (!$chunk['ok']) {
+                    $error = (string)($stats['error'] ?? $chunk['error'] ?? 'api error');
                     break;
                 }
-                $rows = is_array($res['result'] ?? null) ? $res['result'] : [];
-                if ($rows === []) {
+                if (!empty($chunk['done'])) {
                     break;
                 }
-                foreach ($rows as $row) {
-                    if (!is_array($row)) {
-                        $skipped++;
-                        continue;
-                    }
-                    $fetched++;
-                    if ($dryRun) {
-                        continue;
-                    }
-                    $action = match ($entity) {
-                        'contact' => self::upsertContact($portal, $row),
-                        'company' => self::upsertCompany($portal, $row),
-                        'deal' => self::upsertDeal($portal, $row, 'sale'),
-                        'lead' => self::upsertDeal($portal, $row, 'lead'),
-                    };
-                    if ($action === 'created') {
-                        $created++;
-                    } elseif ($action === 'updated') {
-                        $updated++;
-                    } elseif ($action === 'linked') {
-                        $linked++;
-                    } else {
-                        $skipped++;
-                    }
-                }
-                $start += $pageSize;
-                if (count($rows) < $pageSize) {
+                $start = (int)$chunk['next_start'];
+                if ($start >= 10000) {
                     break;
                 }
-            } while ($start < 10000);
+            }
         } finally {
             CrmSyncContext::end();
         }
@@ -93,22 +59,98 @@ final class BitrixImporter
         $ok = $error === '';
         BitrixSyncStateRepository::mark('import_' . $entity, $ok, (string)$start, $error, [
             'dry_run' => $dryRun,
-            'fetched' => $fetched,
-            'created' => $created,
-            'updated' => $updated,
-            'linked' => $linked,
-            'skipped' => $skipped,
+            'fetched' => (int)$stats['fetched'],
+            'created' => (int)$stats['created'],
+            'updated' => (int)$stats['updated'],
+            'linked' => (int)$stats['linked'],
+            'skipped' => (int)$stats['skipped'],
         ]);
 
         return [
             'ok' => $ok,
             'entity' => $entity,
-            'fetched' => $fetched,
-            'created' => $created,
-            'updated' => $updated,
-            'linked' => $linked,
-            'skipped' => $skipped,
+            'fetched' => (int)$stats['fetched'],
+            'created' => (int)$stats['created'],
+            'updated' => (int)$stats['updated'],
+            'linked' => (int)$stats['linked'],
+            'skipped' => (int)$stats['skipped'],
             'error' => $error !== '' ? $error : null,
+        ];
+    }
+
+    /**
+     * One API page (LongJob crumb). Mutates $stats.
+     *
+     * @param array<string,mixed> $stats
+     * @return array{ok:bool,done:bool,next_start:int,error?:string}
+     */
+    public static function importPage(string $entity, int $start, bool $dryRun, array &$stats): array
+    {
+        $entity = strtolower(trim($entity));
+        $start = max(0, $start);
+        $portal = BitrixConfig::portal() !== '' ? BitrixConfig::portal() : 'default';
+        $method = match ($entity) {
+            'contact' => 'crm.contact.list',
+            'company' => 'crm.company.list',
+            'deal' => 'crm.deal.list',
+            'lead' => 'crm.lead.list',
+            default => '',
+        };
+        if ($method === '') {
+            $stats['error'] = 'unsupported entity';
+            return ['ok' => false, 'done' => true, 'next_start' => $start, 'error' => $stats['error']];
+        }
+        $select = match ($entity) {
+            'contact' => ['ID', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'PHONE', 'EMAIL'],
+            'company' => ['ID', 'TITLE', 'PHONE', 'EMAIL', 'WEB', 'ADDRESS'],
+            'deal', 'lead' => ['ID', 'TITLE', 'STAGE_ID', 'CATEGORY_ID', 'OPPORTUNITY', 'CURRENCY_ID', 'COMMENTS', 'COMPANY_ID', 'CONTACT_ID'],
+        };
+        $pageSize = max(1, min(50, BitrixConfig::int('page_size', 50)));
+
+        $res = BitrixApiClient::call($method, [
+            'select' => $select,
+            'start' => $start,
+        ]);
+        if (!$res['ok']) {
+            $stats['error'] = (string)($res['error'] ?? 'api error');
+            return ['ok' => false, 'done' => true, 'next_start' => $start, 'error' => $stats['error']];
+        }
+        $rows = is_array($res['result'] ?? null) ? $res['result'] : [];
+        $stats['pages'] = (int)($stats['pages'] ?? 0) + 1;
+        if ($rows === []) {
+            return ['ok' => true, 'done' => true, 'next_start' => $start];
+        }
+        foreach ($rows as $row) {
+            if (!is_array($row)) {
+                $stats['skipped'] = (int)($stats['skipped'] ?? 0) + 1;
+                continue;
+            }
+            $stats['fetched'] = (int)($stats['fetched'] ?? 0) + 1;
+            if ($dryRun) {
+                continue;
+            }
+            $action = match ($entity) {
+                'contact' => self::upsertContact($portal, $row),
+                'company' => self::upsertCompany($portal, $row),
+                'deal' => self::upsertDeal($portal, $row, 'sale'),
+                'lead' => self::upsertDeal($portal, $row, 'lead'),
+            };
+            if ($action === 'created') {
+                $stats['created'] = (int)($stats['created'] ?? 0) + 1;
+            } elseif ($action === 'updated') {
+                $stats['updated'] = (int)($stats['updated'] ?? 0) + 1;
+            } elseif ($action === 'linked') {
+                $stats['linked'] = (int)($stats['linked'] ?? 0) + 1;
+            } else {
+                $stats['skipped'] = (int)($stats['skipped'] ?? 0) + 1;
+            }
+        }
+        $nextStart = $start + $pageSize;
+        $done = count($rows) < $pageSize || $nextStart >= 10000;
+        return [
+            'ok' => true,
+            'done' => $done,
+            'next_start' => $nextStart,
         ];
     }
 

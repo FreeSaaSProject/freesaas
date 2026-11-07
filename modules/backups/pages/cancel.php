@@ -39,7 +39,22 @@ try {
         @rmdir($local);
     }
     if ($wantsJson) {
-        AgentHttp::emit(['ok' => true, 'cancelled' => true, 'run_id' => $id]);
+        $row = BackupRepository::find($id) ?? [
+            'id' => $id,
+            'status' => 'cancelled',
+            'phase' => '',
+            'kind' => '',
+            'bytes' => 0,
+            'remote_dir' => '',
+            'error' => '',
+        ];
+        $row['status'] = 'cancelled';
+        AgentHttp::emit([
+            'ok' => true,
+            'cancelled' => true,
+            'run_id' => $id,
+            'job' => BackupRunLongJob::publicFromRun($row),
+        ]);
         return;
     }
     redirect('/backups');

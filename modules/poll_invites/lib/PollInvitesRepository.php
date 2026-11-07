@@ -17,18 +17,16 @@ final class PollInvitesRepository
     }
 
     /**
+     * Shared list filter predicate (alias `i`).
+     *
      * @param array{
-     *   q?:string,id_poll?:int,progress?:string,id_operator?:int,id_resp?:int,
-     *   order?:string,limit?:int,offset?:int
+     *   q?:string,id_poll?:int|string,progress?:string,id_operator?:int|string,id_resp?:int|string,
+     *   user_id?:int
      * } $opts
-     * @return array{items:list<array<string,mixed>>,total:int}
+     * @return array{sql:string,params:list<mixed>}
      */
-    public static function list(array $opts = []): array
+    public static function listWhere(array $opts = []): array
     {
-        if (!Database::tableExists('base_poll_invites')) {
-            return ['items' => [], 'total' => 0];
-        }
-        $pdo = Database::pdo();
         $where = ['1=1'];
         $params = [];
         $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
@@ -83,13 +81,63 @@ final class PollInvitesRepository
             }
             if ($progress === 'done') {
                 $where[] = 'i.DT_COMPLETED > 0';
+            } elseif ($progress === 'unviewed') {
+                // Completed + current user is responsible + not yet marked viewed.
+                $token = '%#' . $uidScope . '#%';
+                $where[] = 'i.DT_COMPLETED > 0';
+                if ($hasProcStaff) {
+                    $where[] = '(i.RESP_USERS LIKE ? OR i.ID_PROC_OPERATOR = ? OR i.ID_PROC_ADMIN = ?)';
+                    $params[] = $token;
+                    $params[] = $uidScope;
+                    $params[] = $uidScope;
+                } else {
+                    $where[] = 'i.RESP_USERS LIKE ?';
+                    $params[] = $token;
+                }
+                $where[] = "(i.RESP_USERS_VIEWED = '' OR i.RESP_USERS_VIEWED NOT LIKE ?)";
+                $params[] = $token;
+            } elseif ($progress === 'unfilled') {
+                $where[] = '(' . self::unfilledWhereSql('i') . ')';
             } elseif ($progress === 'expired') {
                 $where[] = 'i.DT_COMPLETED = 0 AND i.STATUS != 2 AND i.DT_EXPIRE > 0 AND i.DT_EXPIRE < ?';
                 $params[] = $now;
             }
         }
 
-        $sqlWhere = implode(' AND ', $where);
+        return ['sql' => implode(' AND ', $where), 'params' => $params];
+    }
+
+    /**
+     * True when list filters narrow the set (safe for empty-selection purge).
+     *
+     * @param array<string,mixed> $filters
+     */
+    public static function hasListScope(array $filters): bool
+    {
+        return (int)($filters['id_poll'] ?? 0) > 0
+            || trim((string)($filters['progress'] ?? '')) !== ''
+            || trim((string)($filters['q'] ?? '')) !== ''
+            || (int)($filters['id_operator'] ?? 0) > 0
+            || (int)($filters['id_resp'] ?? 0) > 0;
+    }
+
+    /**
+     * @param array{
+     *   q?:string,id_poll?:int,progress?:string,id_operator?:int,id_resp?:int,
+     *   order?:string,limit?:int,offset?:int
+     * } $opts
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public static function list(array $opts = []): array
+    {
+        if (!Database::tableExists('base_poll_invites')) {
+            return ['items' => [], 'total' => 0];
+        }
+        $pdo = Database::pdo();
+        $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
+        $lw = self::listWhere($opts);
+        $sqlWhere = $lw['sql'];
+        $params = $lw['params'];
         $stc = $pdo->prepare("SELECT COUNT(*) FROM base_poll_invites i WHERE $sqlWhere");
         $stc->execute($params);
         $total = (int)$stc->fetchColumn();
@@ -215,6 +263,92 @@ final class PollInvitesRepository
         }
         $resp = (string)($invite['resp_users'] ?? '');
         return $resp !== '' && strpos($resp, '#' . $uid . '#') !== false;
+    }
+
+    /**
+     * Enabled staff with SUPERADMIN_ACCESS (directors) — always on the review queue.
+     *
+     * @return list<int>
+     */
+    public static function listDirectorUserIds(): array
+    {
+        if (!Database::tableExists('base_users')
+            || !Database::tableExists('base_admin_statuses')
+            || !Database::columnExists('base_admin_statuses', 'SUPERADMIN_ACCESS')
+        ) {
+            return [];
+        }
+        $st = Database::pdo()->query(
+            'SELECT u.ID AS id
+             FROM base_users u
+             INNER JOIN base_admin_statuses s ON s.ID = u.ID_STATUS
+             WHERE u.ENABLED > 0 AND IFNULL(s.SUPERADMIN_ACCESS, 0) > 0
+             ORDER BY u.ID ASC'
+        );
+        $ids = [];
+        foreach ($st->fetchAll(PDO::FETCH_ASSOC) ?: [] as $row) {
+            $id = (int)($row['id'] ?? 0);
+            if ($id > 0) {
+                $ids[] = $id;
+            }
+        }
+        return $ids;
+    }
+
+    /**
+     * Build RESP_USERS tokens: executor, admin, then directors (unique).
+     *
+     * @param list<int> $extraIds
+     */
+    public static function buildRespUsers(int $operatorId, int $adminId, array $extraIds = []): string
+    {
+        $ids = [];
+        foreach (array_merge([$operatorId, $adminId], $extraIds, self::listDirectorUserIds()) as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        if ($ids === []) {
+            return '';
+        }
+        $parts = [];
+        foreach ($ids as $id) {
+            $parts[] = '#' . $id . '#';
+        }
+        return implode(',', $parts);
+    }
+
+    /**
+     * Merge extra user ids into an existing RESP_USERS string (keeps order, unique).
+     *
+     * @param list<int> $extraIds
+     */
+    public static function mergeRespUsers(string $respUsers, array $extraIds): string
+    {
+        $ids = [];
+        if (preg_match_all('/#(\d+)#/', $respUsers, $m)) {
+            foreach ($m[1] as $raw) {
+                $id = (int)$raw;
+                if ($id > 0) {
+                    $ids[$id] = $id;
+                }
+            }
+        }
+        foreach ($extraIds as $id) {
+            $id = (int)$id;
+            if ($id > 0) {
+                $ids[$id] = $id;
+            }
+        }
+        if ($ids === []) {
+            return '';
+        }
+        $parts = [];
+        foreach ($ids as $id) {
+            $parts[] = '#' . $id . '#';
+        }
+        return implode(',', $parts);
     }
 
     /**
@@ -971,16 +1105,9 @@ final class PollInvitesRepository
         $idEventParent = (int)($proc['id_event_parent'] ?? 0);
         $idEvent = $idEventParent > 0 ? $idEventParent : $procId;
 
-        $respParts = [];
         $opId = (int)($proc['id_operator'] ?? 0);
         $admId = (int)($proc['id_admin'] ?? 0);
-        if ($opId > 0) {
-            $respParts[] = '#' . $opId . '#';
-        }
-        if ($admId > 0 && $admId !== $opId) {
-            $respParts[] = '#' . $admId . '#';
-        }
-        $respUsers = implode(',', $respParts);
+        $respUsers = self::buildRespUsers($opId, $admId);
 
         $uid = Auth::userId();
         $pollName = (string)($poll['name'] ?? '');
@@ -1180,6 +1307,15 @@ final class PollInvitesRepository
             . ($complete ? ' + complete' : '') . "\n";
 
         $meta = self::resolveProcStaffAndScores($invite, $dataOpts);
+        // Fresh completion → review queue: directors + staff, clear viewed marks.
+        $respUsers = (string)$meta['resp_users'];
+        $viewedSql = '';
+        $viewedParam = null;
+        if ($complete) {
+            $respUsers = self::mergeRespUsers($respUsers, self::listDirectorUserIds());
+            $viewedSql = ', RESP_USERS_VIEWED = ?';
+            $viewedParam = '';
+        }
         $hasProcStaff = Database::columnExists('base_poll_invites', 'ID_PROC_OPERATOR');
         if ($hasProcStaff) {
             $st = Database::pdo()->prepare(
@@ -1187,28 +1323,38 @@ final class PollInvitesRepository
                     DATA_OPTS = ?, DATA_TEXT = ?, DT_STARTED = ?, DT_COMPLETED = ?, DT_RECOMPLETED = ?,
                     LOG = ?, ID_OPERATOR_UPDATE = ?, DT_OPERATOR_UPDATE = ?,
                     ID_PROC_OPERATOR = ?, ID_PROC_ADMIN = ?, SCORE_STAFF = ?, SCORE_SERVICE = ?,
-                    RESP_USERS = ?
+                    RESP_USERS = ?' . $viewedSql . '
                  WHERE ID = ?'
             );
-            $st->execute([
+            $params = [
                 $optsEnc, $textEnc, $dtStarted, $dtCompleted, $dtRecompleted,
                 $log, $uid, $now,
                 $meta['id_proc_operator'], $meta['id_proc_admin'],
                 $meta['score_staff'], $meta['score_service'],
-                $meta['resp_users'],
-                $id,
-            ]);
+                $respUsers,
+            ];
+            if ($viewedParam !== null) {
+                $params[] = $viewedParam;
+            }
+            $params[] = $id;
+            $st->execute($params);
         } else {
             $st = Database::pdo()->prepare(
                 'UPDATE base_poll_invites SET
                     DATA_OPTS = ?, DATA_TEXT = ?, DT_STARTED = ?, DT_COMPLETED = ?, DT_RECOMPLETED = ?,
-                    LOG = ?, ID_OPERATOR_UPDATE = ?, DT_OPERATOR_UPDATE = ?
+                    LOG = ?, ID_OPERATOR_UPDATE = ?, DT_OPERATOR_UPDATE = ?,
+                    RESP_USERS = ?' . $viewedSql . '
                  WHERE ID = ?'
             );
-            $st->execute([
+            $params = [
                 $optsEnc, $textEnc, $dtStarted, $dtCompleted, $dtRecompleted,
-                $log, $uid, $now, $id,
-            ]);
+                $log, $uid, $now, $respUsers,
+            ];
+            if ($viewedParam !== null) {
+                $params[] = $viewedParam;
+            }
+            $params[] = $id;
+            $st->execute($params);
         }
 
         EventBus::emit('poll_invites.answer.saved', [
@@ -1288,16 +1434,10 @@ final class PollInvitesRepository
             }
         }
 
-        $respParts = [];
-        if ($opId > 0) {
-            $respParts[] = '#' . $opId . '#';
+        $respUsers = self::buildRespUsers($opId, $admId);
+        if ($respUsers === '') {
+            $respUsers = self::mergeRespUsers((string)($invite['resp_users'] ?? ''), self::listDirectorUserIds());
         }
-        if ($admId > 0 && $admId !== $opId) {
-            $respParts[] = '#' . $admId . '#';
-        }
-        $respUsers = $respParts !== []
-            ? implode(',', $respParts)
-            : (string)($invite['resp_users'] ?? '');
 
         return [
             'id_proc_operator' => $opId,
@@ -1306,6 +1446,46 @@ final class PollInvitesRepository
             'score_service' => $scoreService,
             'resp_users' => $respUsers,
         ];
+    }
+
+    /**
+     * Ensure completed invites are on the unviewed queue for staff + directors
+     * (clear RESP_USERS_VIEWED, merge director ids into RESP_USERS).
+     *
+     * @param list<int> $ids
+     */
+    public static function reopenForReview(array $ids): int
+    {
+        if (!Database::tableExists('base_poll_invites')) {
+            return 0;
+        }
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static function (int $id): bool {
+            return $id > 0;
+        })));
+        if ($ids === []) {
+            return 0;
+        }
+        $directors = self::listDirectorUserIds();
+        $pdo = Database::pdo();
+        $st = $pdo->prepare(
+            'SELECT ID AS id, RESP_USERS AS resp_users, DT_COMPLETED AS dt_completed
+             FROM base_poll_invites WHERE ID = ? LIMIT 1'
+        );
+        $upd = $pdo->prepare(
+            'UPDATE base_poll_invites SET RESP_USERS = ?, RESP_USERS_VIEWED = \'\' WHERE ID = ?'
+        );
+        $done = 0;
+        foreach ($ids as $id) {
+            $st->execute([$id]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!$row || (int)($row['dt_completed'] ?? 0) < 1) {
+                continue;
+            }
+            $resp = self::mergeRespUsers((string)($row['resp_users'] ?? ''), $directors);
+            $upd->execute([$resp, $id]);
+            $done++;
+        }
+        return $done;
     }
 
     /**
@@ -1360,6 +1540,69 @@ final class PollInvitesRepository
     }
 
     /**
+     * Never started / never completed / empty answers (created stub only).
+     */
+    public static function unfilledWhereSql(string $alias = ''): string
+    {
+        $p = $alias !== '' ? $alias . '.' : '';
+        $emptyOpts = static function (string $col) use ($p): string {
+            return '(' . $p . $col . " = '' OR " . $p . $col . " = '{}' OR "
+                . $p . $col . " = '[]' OR " . $p . $col . " = 'a:0:{}')";
+        };
+        $sql = $p . 'DT_COMPLETED = 0 AND ' . $p . 'DT_STARTED = 0'
+            . ' AND ' . $emptyOpts('DATA_OPTS')
+            . ' AND ' . $emptyOpts('DATA_TEXT');
+        if (Database::columnExists('base_poll_invites', 'SCORE_STAFF')) {
+            $sql .= ' AND IFNULL(' . $p . 'SCORE_STAFF, 0) = 0'
+                . ' AND IFNULL(' . $p . 'SCORE_SERVICE, 0) = 0';
+        }
+        return $sql;
+    }
+
+    /**
+     * @param array<string,mixed> $row find()/list row (lowercase keys) or raw DB row
+     */
+    public static function isUnfilledInvite(array $row): bool
+    {
+        $completed = (int)($row['dt_completed'] ?? $row['DT_COMPLETED'] ?? 0);
+        $started = (int)($row['dt_started'] ?? $row['DT_STARTED'] ?? 0);
+        if ($completed > 0 || $started > 0) {
+            return false;
+        }
+        $scoreStaff = (int)($row['score_staff'] ?? $row['SCORE_STAFF'] ?? 0);
+        $scoreService = (int)($row['score_service'] ?? $row['SCORE_SERVICE'] ?? 0);
+        if ($scoreStaff > 0 || $scoreService > 0) {
+            return false;
+        }
+        $opts = PollAnswersCodec::decode((string)($row['data_opts'] ?? $row['DATA_OPTS'] ?? ''));
+        $text = PollAnswersCodec::decode((string)($row['data_text'] ?? $row['DATA_TEXT'] ?? ''));
+        return $opts === [] && $text === [];
+    }
+
+    /**
+     * @param array<string,mixed> $filters List filters (q, id_poll, progress, …)
+     */
+    public static function countUnfilledMatching(array $filters = []): int
+    {
+        if (!Database::tableExists('base_poll_invites')) {
+            return 0;
+        }
+        $filters['user_id'] = (int)($filters['user_id'] ?? Auth::userId());
+        $lw = self::listWhere($filters);
+        $sql = 'SELECT COUNT(*) FROM base_poll_invites i WHERE (' . $lw['sql'] . ')'
+            . ' AND (' . self::unfilledWhereSql('i') . ')';
+        $st = Database::pdo()->prepare($sql);
+        $st->execute($lw['params']);
+        return (int)$st->fetchColumn();
+    }
+
+    /** @deprecated use countUnfilledMatching([]) */
+    public static function countUnfilled(): int
+    {
+        return self::countUnfilledMatching([]);
+    }
+
+    /**
      * @param list<int> $ids
      */
     public static function deleteByIds(array $ids): int
@@ -1374,6 +1617,153 @@ final class PollInvitesRepository
         $st = Database::pdo()->prepare("DELETE FROM base_poll_invites WHERE ID IN ($placeholders)");
         $st->execute($ids);
         return $st->rowCount();
+    }
+
+    /**
+     * Delete only invites that are still empty stubs. Filled / started rows are skipped.
+     * Optional $filters further restricts to the current list scope.
+     *
+     * @param list<int> $ids
+     * @param array<string,mixed> $filters
+     * @return array{done:int,skipped:list<array{id:int,reason:string}>}
+     */
+    public static function deleteUnfilledByIds(array $ids, array $filters = []): array
+    {
+        $ids = array_values(array_unique(array_filter(array_map('intval', $ids), static function (int $id): bool {
+            return $id > 0;
+        })));
+        if ($ids === [] || !Database::tableExists('base_poll_invites')) {
+            return ['done' => 0, 'skipped' => []];
+        }
+
+        $pdo = Database::pdo();
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $scoreCols = Database::columnExists('base_poll_invites', 'SCORE_STAFF')
+            ? ', i.SCORE_STAFF AS score_staff, i.SCORE_SERVICE AS score_service'
+            : ', 0 AS score_staff, 0 AS score_service';
+        $scopeSql = '';
+        $scopeParams = [];
+        if (self::hasListScope($filters)) {
+            $filters['user_id'] = (int)($filters['user_id'] ?? Auth::userId());
+            $lw = self::listWhere($filters);
+            $scopeSql = ' AND (' . $lw['sql'] . ')';
+            $scopeParams = $lw['params'];
+        }
+        $st = $pdo->prepare(
+            "SELECT i.ID AS id, i.DT_STARTED AS dt_started, i.DT_COMPLETED AS dt_completed,
+                    i.DATA_OPTS AS data_opts, i.DATA_TEXT AS data_text
+                    {$scoreCols}
+             FROM base_poll_invites i
+             WHERE i.ID IN ($placeholders){$scopeSql}"
+        );
+        $st->execute(array_merge($ids, $scopeParams));
+        $byId = [];
+        while ($row = $st->fetch(PDO::FETCH_ASSOC)) {
+            $byId[(int)$row['id']] = $row;
+        }
+
+        $allowed = [];
+        $skipped = [];
+        $reason = t('poll_invites.bulk.not_unfilled');
+        $outOfScope = t('poll_invites.bulk.out_of_filter');
+        foreach ($ids as $id) {
+            if (!isset($byId[$id])) {
+                $skipped[] = [
+                    'id' => $id,
+                    'reason' => self::hasListScope($filters)
+                        ? $outOfScope
+                        : t('poll_invites.err.not_found', ['id' => $id]),
+                ];
+                continue;
+            }
+            if (!self::isUnfilledInvite($byId[$id])) {
+                $skipped[] = ['id' => $id, 'reason' => $reason];
+                continue;
+            }
+            $allowed[] = $id;
+        }
+        if ($allowed === []) {
+            return ['done' => 0, 'skipped' => $skipped];
+        }
+
+        // Second guard in SQL so a concurrent fill cannot be wiped.
+        $ph = implode(',', array_fill(0, count($allowed), '?'));
+        $del = $pdo->prepare(
+            'DELETE i FROM base_poll_invites i WHERE i.ID IN (' . $ph . ')'
+            . ' AND (' . self::unfilledWhereSql('i') . ')' . $scopeSql
+        );
+        $del->execute(array_merge($allowed, $scopeParams));
+        $done = $del->rowCount();
+        if ($done < count($allowed)) {
+            // Race: some rows filled between SELECT and DELETE.
+            foreach ($allowed as $id) {
+                $chk = $pdo->prepare('SELECT 1 FROM base_poll_invites WHERE ID = ? LIMIT 1');
+                $chk->execute([$id]);
+                if ($chk->fetchColumn()) {
+                    $skipped[] = ['id' => $id, 'reason' => $reason];
+                }
+            }
+        }
+        return ['done' => $done, 'skipped' => $skipped];
+    }
+
+    /**
+     * Delete unfilled stubs that match the current list filters (chunked).
+     *
+     * @param array<string,mixed> $filters
+     */
+    /**
+     * One DELETE crumb for LongJob ticks. Returns deleted row count (0 = done).
+     *
+     * @param array<string,mixed> $filters
+     */
+    public static function deleteUnfilledMatchingChunk(array $filters, int $chunkSize = 500): int
+    {
+        if (!Database::tableExists('base_poll_invites')) {
+            return 0;
+        }
+        $filters['user_id'] = (int)($filters['user_id'] ?? Auth::userId());
+        $lw = self::listWhere($filters);
+        $chunkSize = max(50, min(2000, $chunkSize));
+        $pdo = Database::pdo();
+        $where = '(' . $lw['sql'] . ') AND (' . self::unfilledWhereSql('i') . ')';
+        // MySQL: DELETE with alias + LIMIT needs subquery or multi-table form.
+        $st = $pdo->prepare(
+            "DELETE FROM base_poll_invites WHERE ID IN (
+                SELECT id FROM (
+                    SELECT i.ID AS id FROM base_poll_invites i
+                    WHERE {$where}
+                    LIMIT {$chunkSize}
+                ) t
+            )"
+        );
+        $st->execute($lw['params']);
+        return $st->rowCount();
+    }
+
+    public static function deleteUnfilledMatching(array $filters, int $chunkSize = 2000): int
+    {
+        if (!Database::tableExists('base_poll_invites')) {
+            return 0;
+        }
+        if (function_exists('set_time_limit')) {
+            @set_time_limit(0);
+        }
+        $chunkSize = max(100, min(5000, $chunkSize));
+        $done = 0;
+        do {
+            $n = self::deleteUnfilledMatchingChunk($filters, $chunkSize);
+            $done += $n;
+        } while ($n >= $chunkSize);
+        return $done;
+    }
+
+    /**
+     * @deprecated use deleteUnfilledMatching([])
+     */
+    public static function deleteAllUnfilled(int $chunkSize = 2000): int
+    {
+        return self::deleteUnfilledMatching([], $chunkSize);
     }
 
     /**
@@ -1441,7 +1831,7 @@ final class PollInvitesRepository
         if ($unviewedN > 0) {
             $out[] = [
                 'short' => t('poll_invites.notice.unviewed_short', ['n' => $unviewedN]),
-                'href' => '/poll-invites/unviewed',
+                'href' => '/poll-invites?progress=unviewed',
                 'title' => t('poll_invites.notice.unviewed_title', ['n' => $unviewedN]),
                 'tone' => 'warn',
             ];

@@ -19,6 +19,7 @@ final class DbJobs
         $job = [
             'id' => $id,
             'op' => $op,
+            'type' => 'db.' . $op,
             'status' => 'running',
             'progress' => 0,
             'message' => '',
@@ -27,6 +28,8 @@ final class DbJobs
             'log' => [],
             'created_at' => time(),
             'updated_at' => time(),
+            'permission' => 'core.db',
+            'capability' => 'SUPERADMIN_ACCESS',
         ];
 
         if ($op === 'dump') {
@@ -154,11 +157,6 @@ final class DbJobs
             $job['source_path'] = $path;
             $job['allowed'] = $allowed;
             $job['allow_any_valid'] = true;
-            // Optional soft wall for one tick (shared-hosting / replica pull crumbs).
-            $tickSec = (float)($opts['tick_seconds'] ?? 0);
-            if ($tickSec > 0) {
-                $job['tick_seconds'] = max(5.0, min(240.0, $tickSec));
-            }
             $job['byte_offset'] = 0;
             $job['decomp_offset'] = 0;
             $job['gzip'] = $isGz;
@@ -224,6 +222,12 @@ final class DbJobs
             self::appendLog($job, (string)$job['message']);
         }
 
+        // Optional soft wall for one tick (UI ~20s under FastCGI idle; CLI/agent may omit).
+        $tickSec = (float)($opts['tick_seconds'] ?? 0);
+        if ($tickSec > 0) {
+            $job['tick_seconds'] = max(5.0, min(240.0, $tickSec));
+        }
+
         if ($op === 'dump') {
             self::appendLog($job, (string)$job['message']);
         } elseif ($op === 'restore') {
@@ -265,16 +269,7 @@ final class DbJobs
     /** @return array<string,mixed> */
     public static function jobGet(string $id): array
     {
-        $path = self::jobPath($id);
-        if (!is_file($path)) {
-            throw new RuntimeException('Job not found');
-        }
-        $raw = file_get_contents($path);
-        $data = is_string($raw) ? json_decode($raw, true) : null;
-        if (!is_array($data)) {
-            throw new RuntimeException('Corrupt job file');
-        }
-        return $data;
+        return LongJobStore::get($id, DbFs::jobsDir());
     }
 
     /** @return array<string,mixed> */
@@ -286,33 +281,52 @@ final class DbJobs
         if (($job['status'] ?? '') !== 'running') {
             return $job;
         }
-        try {
-            $op = (string)($job['op'] ?? '');
-            if ($op === 'dump') {
-                $job = DbDump::tickDump($job);
-            } elseif ($op === 'restore') {
-                $job = DbRestore::tickRestore($job);
-            } elseif ($op === 'diagnose') {
-                $job = DbMaint::tickDiagnose($job);
-            } elseif ($op === 'fetch') {
-                $job = DbFetch::tickFetch($job);
-            } elseif (in_array($op, ['optimize', 'repair', 'check'], true)) {
-                $job = DbMaint::tickMaint($job);
-            } else {
-                throw new RuntimeException('Unknown job op');
+        // Non-blocking lock: if a previous tick is still running (proxy timeout + JS retry),
+        // return the current snapshot instead of corrupting dump/restore state.
+        $lockPath = DbFs::jobsDir() . '/' . basename($id) . '.lock';
+        $lockFh = @fopen($lockPath, 'c');
+        if ($lockFh === false || !flock($lockFh, LOCK_EX | LOCK_NB)) {
+            if (is_resource($lockFh)) {
+                fclose($lockFh);
             }
-        } catch (Throwable $e) {
-            $job['status'] = 'error';
-            $job['error'] = $e->getMessage();
-            $job['message'] = $e->getMessage();
-            self::appendLog($job, t('core.db.job.log_error', ['msg' => $e->getMessage()]));
+            return $job;
+        }
+        try {
+            $job = self::jobGet($id);
+            if (($job['status'] ?? '') !== 'running') {
+                return $job;
+            }
+            try {
+                $op = (string)($job['op'] ?? '');
+                if ($op === 'dump') {
+                    $job = DbDump::tickDump($job);
+                } elseif ($op === 'restore') {
+                    $job = DbRestore::tickRestore($job);
+                } elseif ($op === 'diagnose') {
+                    $job = DbMaint::tickDiagnose($job);
+                } elseif ($op === 'fetch') {
+                    $job = DbFetch::tickFetch($job);
+                } elseif (in_array($op, ['optimize', 'repair', 'check'], true)) {
+                    $job = DbMaint::tickMaint($job);
+                } else {
+                    throw new RuntimeException('Unknown job op');
+                }
+            } catch (Throwable $e) {
+                $job['status'] = 'error';
+                $job['error'] = $e->getMessage();
+                $job['message'] = $e->getMessage();
+                self::appendLog($job, t('core.db.job.log_error', ['msg' => $e->getMessage()]));
+                $job['updated_at'] = time();
+                self::jobSave($job);
+                return $job;
+            }
             $job['updated_at'] = time();
             self::jobSave($job);
             return $job;
+        } finally {
+            flock($lockFh, LOCK_UN);
+            fclose($lockFh);
         }
-        $job['updated_at'] = time();
-        self::jobSave($job);
-        return $job;
     }
 
     /** @return array<string,mixed> */
@@ -376,54 +390,23 @@ final class DbJobs
                 }
             }
         }
-        return [
-            'id' => (string)($job['id'] ?? ''),
-            'op' => (string)($job['op'] ?? ''),
-            'status' => (string)($job['status'] ?? ''),
-            'progress' => (int)($job['progress'] ?? 0),
-            'progress_overall' => (int)($job['progress_overall'] ?? $job['progress'] ?? 0),
-            'progress_table' => (int)($job['progress_table'] ?? 0),
-            'message' => (string)($job['message'] ?? ''),
-            'error' => $job['error'] ?? null,
-            'result' => $job['result'] ?? null,
-            'elapsed' => (int)($job['elapsed'] ?? 0),
-            'eta_seconds' => isset($job['eta_seconds']) ? (int)$job['eta_seconds'] : null,
-            'bytes' => (int)($job['bytes'] ?? 0),
-            'table' => (string)($job['table'] ?? ''),
-            'table_idx' => (int)($job['table_idx'] ?? 0),
-            'tables_total' => (int)($job['tables_total'] ?? (is_array($job['tables'] ?? null) ? count($job['tables']) : (is_array($job['items'] ?? null) ? count($job['items']) : 0))),
-            'phase' => (string)($job['phase'] ?? ''),
-            'file' => (string)($job['file'] ?? ''),
-            'log' => $log,
-        ];
+        if (!isset($job['type']) && isset($job['op'])) {
+            $job['type'] = 'db.' . (string)$job['op'];
+        }
+        $pub = LongJob::public($job);
+        // Preserve legacy key used by /db UI.
+        $pub['progress_table'] = (int)($job['progress_table'] ?? $pub['progress_detail'] ?? 0);
+        if ($log !== []) {
+            $pub['log'] = $log;
+        }
+        return $pub;
     }
 
     /** @param array<string,mixed> $job */
     private static function jobSave(array $job): void
     {
-        $id = (string)($job['id'] ?? '');
-        if ($id === '' || !preg_match('/^[A-Za-z0-9_-]+$/', $id)) {
-            throw new RuntimeException('Invalid job id');
-        }
         // Never persist SQL carry-over in JSON (binary / multi‑MB → encode failures).
-        unset($job['buffer'], $job['status_map']);
-        $path = self::jobPath($id);
-        $flags = JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES;
-        if (defined('JSON_INVALID_UTF8_SUBSTITUTE')) {
-            $flags |= JSON_INVALID_UTF8_SUBSTITUTE;
-        }
-        $json = json_encode($job, $flags);
-        if ($json === false) {
-            // Last resort: drop bulky keys and retry.
-            unset($job['result'], $job['rows'], $job['table_rows'], $job['report']);
-            $json = json_encode($job, $flags);
-        }
-        if ($json === false) {
-            throw new RuntimeException('Cannot encode job');
-        }
-        if (file_put_contents($path, $json, LOCK_EX) === false) {
-            throw new RuntimeException('Cannot write job');
-        }
+        LongJobStore::save($job, DbFs::jobsDir(), ['buffer', 'status_map']);
     }
 
     public static function jobBufferPath(string $id): string
@@ -469,11 +452,7 @@ final class DbJobs
 
     private static function jobPath(string $id): string
     {
-        $id = basename($id);
-        if (!preg_match('/^[A-Za-z0-9_-]+$/', $id)) {
-            throw new InvalidArgumentException('Invalid job id');
-        }
-        return DbFs::jobsDir() . '/' . $id . '.json';
+        return LongJobStore::path($id, DbFs::jobsDir());
     }
 
     /**

@@ -208,11 +208,22 @@ final class SchemaMigrator
      */
     public static function pendingList(): array
     {
+        return self::pendingQueue(null);
+    }
+
+    /**
+     * Pending migrations in enable-order (core first). Optional single-module filter.
+     *
+     * @return list<array{module:string,id:string}>
+     */
+    public static function pendingQueue(?string $onlyModule = null): array
+    {
+        $onlyModule = $onlyModule !== null ? trim($onlyModule) : '';
+        $modules = $onlyModule !== ''
+            ? [$onlyModule]
+            : self::enabledModuleOrder();
         $out = [];
-        foreach (ModuleManager::all() as $id => $meta) {
-            if (empty($meta['_enabled'])) {
-                continue;
-            }
+        foreach ($modules as $id) {
             foreach (self::listModule($id) as $row) {
                 if (($row['status'] ?? '') === 'pending') {
                     $out[] = ['module' => $id, 'id' => (string)$row['id']];
@@ -220,6 +231,71 @@ final class SchemaMigrator
             }
         }
         return $out;
+    }
+
+    /**
+     * Apply one pending migration file (LongJob crumb). Stops on error like runModule.
+     *
+     * @return array{module:string,id:string,file:string,status:string,message?:string}
+     */
+    public static function applyOne(string $moduleId, string $migId): array
+    {
+        $meta = ModuleManager::get($moduleId);
+        if ($meta === null) {
+            return [
+                'module' => $moduleId,
+                'id' => $migId,
+                'file' => '',
+                'status' => 'error',
+                'message' => t('app.module.err.not_found', ['id' => $moduleId]),
+            ];
+        }
+        self::ensureLedger();
+        if (self::applied($moduleId, $migId)) {
+            return [
+                'module' => $moduleId,
+                'id' => $migId,
+                'file' => '',
+                'status' => 'skip',
+            ];
+        }
+        $file = rtrim((string)$meta['_dir'], '/') . '/migrations/' . $migId . '.php';
+        if (!is_file($file)) {
+            return [
+                'module' => $moduleId,
+                'id' => $migId,
+                'file' => $file,
+                'status' => 'error',
+                'message' => 'migration file missing',
+            ];
+        }
+        try {
+            /** @var callable $fn */
+            $fn = require $file;
+            if (!is_callable($fn)) {
+                throw new RuntimeException('Migration must return callable');
+            }
+            $fn(Database::pdo());
+            Database::clearSchemaCache();
+            self::markApplied($moduleId, $migId);
+            self::clearSetupStatusCache();
+            return [
+                'module' => $moduleId,
+                'id' => $migId,
+                'file' => $file,
+                'status' => 'ok',
+            ];
+        } catch (Throwable $e) {
+            self::clearSetupStatusCache();
+            Database::clearSchemaCache();
+            return [
+                'module' => $moduleId,
+                'id' => $migId,
+                'file' => $file,
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ];
+        }
     }
 
     /**

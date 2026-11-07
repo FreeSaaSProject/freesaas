@@ -389,6 +389,8 @@ if (Auth::check() && class_exists('SchemaMigrator', false)) {
       <?php if ($gateMainPrefix !== ''): ?>
         <?= $gateMainPrefix ?>
       <?php endif; ?>
+      <?php /* Before $content so inline page scripts can call LongJobPanel immediately. */ ?>
+      <script src="/assets/js/longjob.js?v=<?= (int)@filemtime(base_path('assets/js/longjob.js')) ?>"></script>
       <?= $content ?>
     </main>
     <footer class="app-footer">

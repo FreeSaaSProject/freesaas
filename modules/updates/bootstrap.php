@@ -6,6 +6,28 @@ Assets::register('updates', [
     'js' => ['updates.js'],
 ]);
 
+// Domain jobs under var/updates; UI pumps via LongJobPanel on /updates.
+LongJob::register('updates.apply', [
+    'module' => 'updates',
+    'permission' => 'updates.apply',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'defaults' => ['tick_seconds' => 60],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 45],
+        'cli' => ['tick_seconds' => 120],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+]);
+LongJob::register('updates.check', [
+    'module' => 'updates',
+    'permission' => 'updates.view',
+    'defaults' => ['tick_seconds' => 30],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 25],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+]);
+
 $pages = [
     '/updates' => ['permission' => 'updates.view', 'methods' => ['GET', 'POST'], 'file' => 'index.php'],
     '/updates/settings' => ['permission' => 'updates.view', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],

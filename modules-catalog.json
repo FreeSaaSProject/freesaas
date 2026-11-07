@@ -1,10 +1,10 @@
 {
     "schema": 1,
-    "generated_at": "2026-11-07T07:27:44+00:00",
+    "generated_at": "2026-11-07T11:16:37+00:00",
     "modules": [
         {
             "id": "amocrm",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "AmoCRM",
@@ -159,7 +159,7 @@
         },
         {
             "id": "audio",
-            "version": "1.0.10",
+            "version": "1.0.11",
             "type": "product",
             "name": {
                 "en": "Audio analytics",
@@ -199,7 +199,7 @@
         },
         {
             "id": "audio_dicts",
-            "version": "1.0.19",
+            "version": "1.0.21",
             "type": "product",
             "name": {
                 "en": "Audio dictionaries",
@@ -235,7 +235,7 @@
         },
         {
             "id": "audio_llm",
-            "version": "0.1.11",
+            "version": "0.1.13",
             "type": "product",
             "name": {
                 "en": "Audio LLM studies",
@@ -386,7 +386,7 @@
         },
         {
             "id": "audio_script_coach",
-            "version": "0.2.2",
+            "version": "0.2.3",
             "type": "product",
             "name": {
                 "en": "Script coach",
@@ -426,7 +426,7 @@
         },
         {
             "id": "backups",
-            "version": "0.4.8",
+            "version": "0.4.11",
             "type": "product",
             "name": {
                 "en": "Backups",
@@ -464,7 +464,7 @@
         },
         {
             "id": "banks",
-            "version": "0.1.29",
+            "version": "0.1.30",
             "type": "product",
             "name": {
                 "en": "Banks",
@@ -539,7 +539,7 @@
         },
         {
             "id": "bitrix",
-            "version": "0.1.1",
+            "version": "0.1.2",
             "type": "product",
             "name": {
                 "en": "Bitrix24 CRM",
@@ -884,7 +884,7 @@
         },
         {
             "id": "clientics",
-            "version": "0.2.0",
+            "version": "0.2.2",
             "type": "product",
             "name": {
                 "en": "Clientics",
@@ -1376,7 +1376,7 @@
         },
         {
             "id": "liquid_assets",
-            "version": "1.0.3",
+            "version": "1.0.4",
             "type": "product",
             "name": {
                 "en": "Liquid assets",
@@ -1557,7 +1557,7 @@
         },
         {
             "id": "poll_invites",
-            "version": "0.1.24",
+            "version": "0.1.30",
             "type": "product",
             "name": {
                 "en": "Poll invites",
@@ -1597,7 +1597,7 @@
         },
         {
             "id": "poll_speech",
-            "version": "0.1.15",
+            "version": "0.1.16",
             "type": "product",
             "name": {
                 "en": "Speech polls",
@@ -2181,7 +2181,7 @@
         },
         {
             "id": "updates",
-            "version": "1.0.1",
+            "version": "1.0.2",
             "type": "product",
             "name": {
                 "en": "Updates",
@@ -2394,7 +2394,7 @@
         },
         {
             "id": "yclients",
-            "version": "0.1.6",
+            "version": "0.1.7",
             "type": "product",
             "name": {
                 "en": "YClients",

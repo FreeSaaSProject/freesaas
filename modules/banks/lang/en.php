@@ -207,6 +207,7 @@ return [
     'banks.conn.no_remote' => 'No accounts — refresh or check consents.',
     'banks.conn.choose_account' => 'Choose account',
     'banks.conn.synced' => 'Moves created: {created}, linked: {linked}, skipped: {skipped}, errors: {errors}',
+    'banks.longjob.sync_start' => 'Bank sync: {n} accounts ({from}…{to})',
     'banks.conn.last_sync' => 'Last sync',
     'banks.conn.last_sync_no_detail' => 'Error text was not saved — run sync again.',
     'banks.sync.linked_note' => '[Bank {provider}] Linked to transaction {ext_id} dated {date}',

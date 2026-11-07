@@ -133,6 +133,89 @@ final class BackupCdc
     }
 
     /**
+     * Install triggers for one table (LongJob crumb). Does not finalize orphans / installed_at.
+     *
+     * @return array{ok:bool,triggers:int,errors:list<string>}
+     */
+    public static function installTable(string $table): array
+    {
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return ['ok' => false, 'triggers' => 0, 'errors' => ['bad table']];
+        }
+        if (!self::journalReady()) {
+            return ['ok' => false, 'triggers' => 0, 'errors' => ['journal missing — migrate first']];
+        }
+        $pdo = Database::pdo();
+        $errors = [];
+        $triggers = 0;
+        foreach (['ai' => 'INSERT', 'au' => 'UPDATE', 'ad' => 'DELETE'] as $suf => $event) {
+            $name = self::triggerName($table, $suf);
+            try {
+                $pdo->exec('DROP TRIGGER IF EXISTS `' . $name . '`');
+                $sql = self::createTriggerSql($table, $name, $event, $suf === 'ad' ? 'OLD' : 'NEW');
+                $pdo->exec($sql);
+                $triggers++;
+            } catch (Throwable $e) {
+                $errors[] = $table . '/' . $suf . ': ' . $e->getMessage();
+            }
+        }
+        return ['ok' => $errors === [], 'triggers' => $triggers, 'errors' => $errors];
+    }
+
+    /** After crumb install: drop orphans + stamp. */
+    public static function finalizeInstall(array $keepTables): void
+    {
+        self::dropOrphanTriggers($keepTables);
+        BackupConfig::set('cdc_installed_at', (string)time());
+    }
+
+    /** @return list<string> */
+    public static function listTriggerNames(): array
+    {
+        $pdo = Database::pdo();
+        try {
+            $rows = $pdo->query(
+                "SELECT TRIGGER_NAME FROM information_schema.TRIGGERS
+                 WHERE TRIGGER_SCHEMA = DATABASE() AND TRIGGER_NAME LIKE 'bk\\_%'"
+            )->fetchAll(PDO::FETCH_COLUMN);
+        } catch (Throwable $e) {
+            return [];
+        }
+        $out = [];
+        foreach ($rows as $name) {
+            $name = (string)$name;
+            if (preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+                $out[] = $name;
+            }
+        }
+        return $out;
+    }
+
+    /**
+     * @param list<string> $names
+     * @return array{dropped:int,errors:list<string>}
+     */
+    public static function dropTriggersChunk(array $names): array
+    {
+        $pdo = Database::pdo();
+        $dropped = 0;
+        $errors = [];
+        foreach ($names as $name) {
+            $name = (string)$name;
+            if (!preg_match('/^[A-Za-z0-9_]+$/', $name)) {
+                continue;
+            }
+            try {
+                $pdo->exec('DROP TRIGGER IF EXISTS `' . $name . '`');
+                $dropped++;
+            } catch (Throwable $e) {
+                $errors[] = $name . ': ' . $e->getMessage();
+            }
+        }
+        return ['dropped' => $dropped, 'errors' => $errors];
+    }
+
+    /**
      * @return array{ok:bool,dropped:int,errors:list<string>}
      */
     public static function uninstall(): array

@@ -10,15 +10,31 @@ require_once __DIR__ . '/lib/AmocrmOutboxRepository.php';
 require_once __DIR__ . '/lib/AmocrmWebhookEventsRepository.php';
 require_once __DIR__ . '/lib/AmocrmApiClient.php';
 require_once __DIR__ . '/lib/AmocrmImporter.php';
+require_once __DIR__ . '/lib/AmocrmLongJob.php';
 require_once __DIR__ . '/lib/AmocrmOutboxPusher.php';
 require_once __DIR__ . '/lib/AmocrmWebhookIngest.php';
 require_once __DIR__ . '/lib/AmocrmOutboxListener.php';
 
 ModuleManager::registerMenuGroup('amocrm.menu.group', 1235, '/amocrm');
 
+LongJob::register(AmocrmLongJob::TYPE_IMPORT, [
+    'module' => 'amocrm',
+    'permission' => 'amocrm.import',
+    'defaults' => ['tick_seconds' => 45],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 45],
+        'cli' => ['tick_seconds' => 90],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [AmocrmLongJob::class, 'onStart'],
+    'tick' => [AmocrmLongJob::class, 'tick'],
+    'on_cancel' => [AmocrmLongJob::class, 'onCancel'],
+]);
+
 $pages = [
     '/amocrm' => ['permission' => 'amocrm.view', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],
     '/amocrm/import' => ['permission' => 'amocrm.import', 'methods' => ['GET', 'POST'], 'file' => 'import.php'],
+    '/amocrm/import/longjob' => ['permission' => 'amocrm.import', 'methods' => ['POST'], 'file' => 'longjob.php'],
     '/amocrm/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/amocrm/webhook' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'webhook.php'],
     '/amocrm/jobs/ping' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_ping.php'],

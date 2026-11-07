@@ -138,7 +138,7 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     </ul>
   <?php endif; ?>
   <div class="actions">
-    <form method="post">
+    <form method="post" id="db-schema-form" data-schema-longjob>
       <input type="hidden" name="action" value="schema">
       <button class="btn-primary" type="submit">
         <?= te('core.db.btn_schema') ?>
@@ -146,6 +146,49 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
       </button>
     </form>
   </div>
+  <?= View::capture('_longjob_panel', [
+    'longjobId' => 'core-schema',
+    'longjobTitle' => t('core.db.btn_schema'),
+    'longjobDualBars' => false,
+    'longjobShowBytes' => false,
+  ], 'core') ?>
+  <script>
+  (function () {
+    function boot() {
+      var form = document.getElementById('db-schema-form');
+      var overlay = document.getElementById('core-schema-overlay');
+      if (!form || !overlay) return;
+      if (!window.LongJobPanel) { setTimeout(boot, 30); return; }
+      if (form.getAttribute('data-bound') === '1') return;
+      form.setAttribute('data-bound', '1');
+      var panel = LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/db/schema/longjob',
+        tickUrl: '/db/schema/longjob',
+        cancelUrl: '/db/schema/longjob',
+        dualBars: false,
+        showBytes: false,
+        reloadOnOk: true,
+        csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+        i18n: {
+          title: <?= json_encode(t('core.db.btn_schema'), JSON_UNESCAPED_UNICODE) ?>,
+          starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+          badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+          doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+          errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+          cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+          ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
+        }
+      });
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+        panel.runFormData(new FormData(), {});
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  })();
+  </script>
 </section>
 <?php endif; ?>
 
@@ -511,49 +554,13 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
 <?php endif; ?>
 
 <?php if ($canDb): ?>
-<div id="db-job-overlay" class="db-job-overlay" hidden>
-  <div class="db-job-panel" role="dialog" aria-modal="true" aria-labelledby="db-job-title">
-    <h3 id="db-job-title" class="subhead"><?= te('core.db.job.title') ?></h3>
-    <p id="db-job-msg" class="db-job-msg muted"></p>
-
-    <div class="db-job-bars">
-      <div class="db-job-bar-block">
-        <div class="db-job-bar-label">
-          <span id="db-job-table-label"><?= te('core.db.job.bar_table') ?></span>
-          <span id="db-job-pct-table">0%</span>
-        </div>
-        <div class="db-job-bar" id="db-job-bar-table" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div id="db-job-fill-table" class="db-job-fill db-job-fill-table"></div>
-        </div>
-      </div>
-      <div class="db-job-bar-block">
-        <div class="db-job-bar-label">
-          <span><?= te('core.db.job.bar_overall') ?></span>
-          <span id="db-job-pct-overall">0%</span>
-        </div>
-        <div class="db-job-bar" id="db-job-bar-overall" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div id="db-job-fill-overall" class="db-job-fill"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="db-job-metric" id="db-job-meta">
-      <span id="db-job-elapsed">0:00</span>
-      <span id="db-job-eta" class="muted"></span>
-      <span id="db-job-bytes" class="muted">0 MB</span>
-    </div>
-
-    <div class="db-job-log-wrap">
-      <div class="db-job-log-label muted"><?= te('core.db.job.log_heading') ?></div>
-      <div id="db-job-log" class="db-job-log" aria-live="polite"></div>
-    </div>
-
-    <div class="db-job-actions actions">
-      <button type="button" class="btn-secondary" id="db-job-abort"><?= te('core.db.job.abort') ?></button>
-      <button type="button" class="btn-primary" id="db-job-ok" hidden disabled><?= te('core.db.job.ok') ?></button>
-    </div>
-  </div>
-</div>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'db-job',
+  'longjobTitle' => t('core.db.job.title'),
+  'longjobDualBars' => true,
+  'longjobShowBytes' => true,
+  'longjobDetailLabel' => t('core.db.job.bar_table'),
+], 'core') ?>
 <script>
 (function () {
   function apply(scope, mode) {
@@ -573,54 +580,20 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     });
   });
 
-  var overlay = document.getElementById('db-job-overlay');
-  var msgEl = document.getElementById('db-job-msg');
-  var fillOverall = document.getElementById('db-job-fill-overall');
-  var fillTable = document.getElementById('db-job-fill-table');
-  var barOverall = document.getElementById('db-job-bar-overall');
-  var barTable = document.getElementById('db-job-bar-table');
-  var pctOverall = document.getElementById('db-job-pct-overall');
-  var pctTable = document.getElementById('db-job-pct-table');
-  var tableLabel = document.getElementById('db-job-table-label');
-  var elapsedEl = document.getElementById('db-job-elapsed');
-  var etaEl = document.getElementById('db-job-eta');
-  var bytesEl = document.getElementById('db-job-bytes');
-  var abortBtn = document.getElementById('db-job-abort');
-  var okBtn = document.getElementById('db-job-ok');
-  var titleEl = document.getElementById('db-job-title');
-  var logEl = document.getElementById('db-job-log');
-
-  var activeJobId = null;
-  var aborting = false;
-  var finished = false;
-  var timerIv = null;
-  var startedAt = 0;
-  var logLen = 0;
-
-  var i18n = {
-    starting: <?= json_encode(t('core.db.job.starting'), JSON_UNESCAPED_UNICODE) ?>,
-    badJson: <?= json_encode(t('core.db.job.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
-    eta: <?= json_encode(t('core.db.job.eta'), JSON_UNESCAPED_UNICODE) ?>,
-    barTable: <?= json_encode(t('core.db.job.bar_table'), JSON_UNESCAPED_UNICODE) ?>,
-    doneTitle: <?= json_encode(t('core.db.job.done_title'), JSON_UNESCAPED_UNICODE) ?>,
-    errorTitle: <?= json_encode(t('core.db.job.error_title'), JSON_UNESCAPED_UNICODE) ?>,
-    cancelledTitle: <?= json_encode(t('core.db.job.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+  var i18nCopy = {
     copied: <?= json_encode(t('core.db.copied_fetch'), JSON_UNESCAPED_UNICODE) ?>,
     copyPrompt: <?= json_encode(t('core.db.copy_fetch_prompt'), JSON_UNESCAPED_UNICODE) ?>
   };
-
   document.querySelectorAll('[data-copy-url]').forEach(function (btn) {
     btn.addEventListener('click', function () {
       var url = btn.getAttribute('data-copy-url') || '';
       if (!url) return;
       var label = btn.textContent;
       function done() {
-        btn.textContent = i18n.copied;
+        btn.textContent = i18nCopy.copied;
         setTimeout(function () { btn.textContent = label; }, 1600);
       }
-      function fallback() {
-        window.prompt(i18n.copyPrompt, url);
-      }
+      function fallback() { window.prompt(i18nCopy.copyPrompt, url); }
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(done).catch(fallback);
       } else {
@@ -629,263 +602,63 @@ $selectBar = static function (string $scope, bool $withNeed = false): void {
     });
   });
 
-  function fmtDur(sec) {
-    sec = Math.max(0, Math.floor(sec || 0));
-    var m = Math.floor(sec / 60);
-    var s = sec % 60;
-    return m + ':' + (s < 10 ? '0' : '') + s;
-  }
-  function fmtBytes(n) {
-    n = Math.max(0, n || 0);
-    if (n < 1024) return n + ' B';
-    if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
-    return (n / 1048576).toFixed(2) + ' MB';
-  }
-  function setBar(fill, bar, pctEl, pct) {
-    pct = Math.max(0, Math.min(100, pct || 0));
-    if (fill) fill.style.width = pct + '%';
-    if (pctEl) pctEl.textContent = Math.round(pct) + '%';
-    if (bar) bar.setAttribute('aria-valuenow', String(Math.round(pct)));
-  }
-  function updateClock() {
-    if (!startedAt || finished) return;
-    var elapsed = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
-    if (elapsedEl) elapsedEl.textContent = fmtDur(elapsed);
-  }
-  function setActionButtons(running) {
-    if (abortBtn) {
-      abortBtn.hidden = !running;
-      abortBtn.disabled = !running;
-      abortBtn.setAttribute('aria-hidden', running ? 'false' : 'true');
-    }
-    if (okBtn) {
-      okBtn.hidden = running;
-      okBtn.disabled = running;
-      okBtn.setAttribute('aria-hidden', running ? 'true' : 'false');
-    }
-  }
-  function clearLog() {
-    logLen = 0;
-    if (logEl) logEl.innerHTML = '';
-  }
-  function appendLogLines(lines) {
-    if (!logEl || !lines || !lines.length) return;
-    for (var i = 0; i < lines.length; i++) {
-      var line = document.createElement('div');
-      line.className = 'db-job-log-line';
-      line.textContent = String(lines[i]);
-      logEl.appendChild(line);
-    }
-    logLen += lines.length;
-    logEl.scrollTop = logEl.scrollHeight;
-  }
-  function syncLog(j) {
-    if (!j || !j.log || !j.log.length) return;
-    if (j.log.length < logLen) {
-      clearLog();
-    }
-    if (j.log.length > logLen) {
-      appendLogLines(j.log.slice(logLen));
-    }
-  }
-  function showJob() {
+  // longjob.js is loaded in layout footer AFTER this inline script — wait for it.
+  function bindLongJob() {
+    var overlay = document.getElementById('db-job-overlay');
     if (!overlay) return;
-    overlay.hidden = false;
-    document.body.classList.add('db-job-busy');
-    finished = false;
-    aborting = false;
-    startedAt = Date.now();
-    if (titleEl) titleEl.textContent = <?= json_encode(t('core.db.job.title'), JSON_UNESCAPED_UNICODE) ?>;
-    setActionButtons(true);
-    if (msgEl) msgEl.textContent = i18n.starting;
-    clearLog();
-    setBar(fillOverall, barOverall, pctOverall, 0);
-    setBar(fillTable, barTable, pctTable, 0);
-    if (bytesEl) bytesEl.textContent = '0 MB';
-    if (etaEl) etaEl.textContent = '';
-    if (elapsedEl) elapsedEl.textContent = '0:00';
-    if (timerIv) clearInterval(timerIv);
-    timerIv = setInterval(updateClock, 250);
-  }
-  function finishJob(status, message) {
-    finished = true;
-    activeJobId = null;
-    if (timerIv) { clearInterval(timerIv); timerIv = null; }
-    // Freeze elapsed at final client value (do not jump to server clock).
-    if (startedAt && elapsedEl) {
-      elapsedEl.textContent = fmtDur(Math.max(0, Math.floor((Date.now() - startedAt) / 1000)));
+    if (!window.LongJobPanel) {
+      setTimeout(bindLongJob, 30);
+      return;
     }
-    setActionButtons(false);
-    if (msgEl && message) msgEl.textContent = message;
-    if (titleEl) {
-      if (status === 'done') titleEl.textContent = i18n.doneTitle;
-      else if (status === 'cancelled') titleEl.textContent = i18n.cancelledTitle;
-      else titleEl.textContent = i18n.errorTitle;
-    }
-  }
-  function hideJob() {
-    if (!overlay) return;
-    overlay.hidden = true;
-    document.body.classList.remove('db-job-busy');
-    if (timerIv) { clearInterval(timerIv); timerIv = null; }
-    activeJobId = null;
-    setActionButtons(true);
-  }
-  function applyJob(j) {
-    if (!j) return;
-    if (msgEl) msgEl.textContent = j.message || '';
-    syncLog(j);
-    var overall = j.progress_overall != null ? j.progress_overall : (j.progress || 0);
-    var table = j.progress_table != null ? j.progress_table : 0;
-    setBar(fillOverall, barOverall, pctOverall, overall);
-    setBar(fillTable, barTable, pctTable, table);
-    if (tableLabel) {
-      tableLabel.textContent = j.table
-        ? (i18n.barTable + ': ' + j.table + (j.tables_total ? (' (' + ((j.table_idx || 0) + 1) + '/' + j.tables_total + ')') : ''))
-        : i18n.barTable;
-    }
-    if (bytesEl) {
-      bytesEl.textContent = fmtBytes(j.bytes || 0);
-    }
-    if (etaEl) {
-      if (j.eta_seconds != null && j.status === 'running' && !finished) {
-        etaEl.textContent = i18n.eta.replace('{eta}', fmtDur(j.eta_seconds));
-      } else {
-        etaEl.textContent = '';
-      }
-    }
-    // Elapsed is client-only — never overwrite from server (causes flicker).
-  }
-
-  function postForm(url, formData) {
-    return fetch(url, {
-      method: 'POST',
-      body: formData,
-      credentials: 'same-origin',
-      headers: { 'Accept': 'application/json' }
-    }).then(function (r) {
-      return r.text().then(function (text) {
-        var j = null;
-        try {
-          j = text ? JSON.parse(text) : null;
-        } catch (parseErr) {
-          var snippet = (text || '').replace(/\s+/g, ' ').slice(0, 180);
-          throw new Error(i18n.badJson + ' HTTP ' + r.status + (snippet ? (': ' + snippet) : ''));
+    LongJobPanel.bindForms({
+      root: overlay,
+      formSelector: 'form.db-job-form',
+      startUrl: '/db',
+      tickUrl: '/db',
+      cancelUrl: '/db',
+      startAction: 'db_job_start',
+      tickAction: 'db_job_tick',
+      cancelAction: 'db_job_cancel',
+      dualBars: true,
+      showBytes: true,
+      title: <?= json_encode(t('core.db.job.title'), JSON_UNESCAPED_UNICODE) ?>,
+      i18n: {
+        title: <?= json_encode(t('core.db.job.title'), JSON_UNESCAPED_UNICODE) ?>,
+        starting: <?= json_encode(t('core.db.job.starting'), JSON_UNESCAPED_UNICODE) ?>,
+        badJson: <?= json_encode(t('core.db.job.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+        eta: <?= json_encode(t('core.db.job.eta'), JSON_UNESCAPED_UNICODE) ?>,
+        barTable: <?= json_encode(t('core.db.job.bar_table'), JSON_UNESCAPED_UNICODE) ?>,
+        barDetail: <?= json_encode(t('core.db.job.bar_table'), JSON_UNESCAPED_UNICODE) ?>,
+        doneTitle: <?= json_encode(t('core.db.job.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+        errorTitle: <?= json_encode(t('core.db.job.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+        cancelledTitle: <?= json_encode(t('core.db.job.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>
+      },
+      mapFormExtras: function (form, ev) {
+        var kind = form.getAttribute('data-db-job') || '';
+        var op = form.querySelector('input[name="op"]');
+        var opVal = op ? op.value : kind;
+        var submitter = ev.submitter || document.activeElement;
+        if (submitter && submitter.getAttribute) {
+          var dop = submitter.getAttribute('data-db-op');
+          if (dop) opVal = dop;
         }
-        if (!r.ok || (j && j.ok === false)) {
-          throw new Error((j && (j.error || j.message)) || ('HTTP ' + r.status));
+        if (kind === 'dump') opVal = 'dump';
+        if (kind === 'restore') opVal = 'restore';
+        if (kind === 'diagnose') opVal = 'diagnose';
+        if (kind === 'fetch') opVal = 'fetch';
+        if (kind === 'data') opVal = 'data';
+        if (['dump', 'restore', 'check', 'repair', 'optimize', 'diagnose', 'fetch', 'data'].indexOf(opVal) === -1) {
+          return null;
         }
-        return j || {};
-      });
-    });
-  }
-
-  if (okBtn) {
-    okBtn.addEventListener('click', function () {
-      hideJob();
-      window.location.reload();
-    });
-  }
-  if (abortBtn) {
-    abortBtn.addEventListener('click', function () {
-      if (!activeJobId || finished || aborting) return;
-      aborting = true;
-      abortBtn.disabled = true;
-      var tfd = new FormData();
-      tfd.set('action', 'db_job_cancel');
-      tfd.set('job_id', activeJobId);
-      tfd.set('format', 'json');
-      postForm('/db', tfd).then(function (res) {
-        applyJob(res.job || {});
-        finishJob('cancelled', (res.job && res.job.message) || '');
-      }).catch(function (err) {
-        finishJob('error', err && err.message ? err.message : String(err));
-      });
-    });
-  }
-
-  function runJob(form, op) {
-    var fd = new FormData(form);
-    fd.set('action', 'db_job_start');
-    fd.set('op', op);
-    fd.set('format', 'json');
-    showJob();
-    return postForm('/db', fd).then(function (start) {
-      var job = start.job || {};
-      var id = job.id;
-      if (!id) throw new Error('No job id');
-      activeJobId = id;
-      applyJob(job);
-
-      var failStreak = 0;
-      function tick() {
-        if (finished || aborting) return;
-        var tfd = new FormData();
-        tfd.set('action', 'db_job_tick');
-        tfd.set('job_id', id);
-        tfd.set('format', 'json');
-        return postForm('/db', tfd).then(function (res) {
-          failStreak = 0;
-          if (finished || aborting) return;
-          var j = res.job || {};
-          applyJob(j);
-          if (j.status === 'done') {
-            setBar(fillOverall, barOverall, pctOverall, 100);
-            setBar(fillTable, barTable, pctTable, 100);
-            finishJob('done', j.message || '');
-            return;
-          }
-          if (j.status === 'cancelled') {
-            finishJob('cancelled', j.message || '');
-            return;
-          }
-          if (j.status === 'error') {
-            finishJob('error', j.error || j.message || 'Job failed');
-            return;
-          }
-          return tick();
-        }).catch(function (err) {
-          if (finished || aborting) return;
-          failStreak++;
-          if (failStreak <= 3) {
-            if (msgEl) msgEl.textContent = (err && err.message ? err.message : String(err)) + ' — retry ' + failStreak + '/3';
-            return new Promise(function (resolve) {
-              setTimeout(resolve, 800 * failStreak);
-            }).then(tick);
-          }
-          throw err;
-        });
+        return { op: opVal };
       }
-      return tick();
-    }).catch(function (err) {
-      finishJob('error', err && err.message ? err.message : String(err));
     });
   }
-
-  document.querySelectorAll('form.db-job-form').forEach(function (form) {
-    form.addEventListener('submit', function (ev) {
-      var kind = form.getAttribute('data-db-job');
-      if (!kind) return;
-      var submitter = ev.submitter || document.activeElement;
-      var op = form.querySelector('input[name="op"]');
-      var opVal = op ? op.value : kind;
-      if (submitter && submitter.getAttribute) {
-        var dop = submitter.getAttribute('data-db-op');
-        if (dop) opVal = dop;
-      }
-      if (kind === 'dump') opVal = 'dump';
-      if (kind === 'restore') opVal = 'restore';
-      if (kind === 'diagnose') opVal = 'diagnose';
-      if (kind === 'fetch') opVal = 'fetch';
-      if (kind === 'data') opVal = 'data';
-      if (['dump', 'restore', 'check', 'repair', 'optimize', 'diagnose', 'fetch', 'data'].indexOf(opVal) === -1) return;
-      ev.preventDefault();
-      ev.stopPropagation();
-      var conf = form.getAttribute('data-db-confirm');
-      if (conf && !window.confirm(conf)) return;
-      runJob(form, opVal);
-    }, true);
-  });
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindLongJob);
+  } else {
+    bindLongJob();
+  }
 })();
 </script>
 <?php endif; ?>

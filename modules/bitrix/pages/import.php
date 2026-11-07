@@ -41,4 +41,5 @@ View::render('import', [
     'report' => $report,
     'error' => $error,
     'apiReady' => BitrixConfig::apiReady(),
+    'pullEnabled' => BitrixConfig::pullEnabled(),
 ], 'layout', 'bitrix');

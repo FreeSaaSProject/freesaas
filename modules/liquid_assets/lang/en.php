@@ -107,6 +107,7 @@ return [
     'liquid_assets.sync.has_reval' => 'month reval exists #{id}',
     'liquid_assets.sync.no_reval' => 'no month reval yet',
     'liquid_assets.sync.funds_off' => 'Funds module is off — fund revaluation is unavailable.',
+    'liquid_assets.longjob.sync_start' => 'T-Invest sync: {n} accounts',
     'liquid_assets.accounts.title' => 'T-Invest accounts',
     'liquid_assets.accounts.add' => 'Add T-Invest account',
     'liquid_assets.accounts.to_report' => 'Report: liquid assets',

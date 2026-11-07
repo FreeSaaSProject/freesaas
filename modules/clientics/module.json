@@ -2,7 +2,7 @@
     "id": "clientics",
     "name": "clientics.module.name",
     "description": "clientics.module.description",
-    "version": "0.2.0",
+    "version": "0.2.2",
     "type": "product",
     "catalog": {
         "categories": [
@@ -55,6 +55,7 @@
         "pages": [
             "/clientics",
             "/clientics/import",
+            "/clientics/import/longjob",
             "/clientics/settings",
             "/clientics/jobs/ping",
             "/clientics/jobs/import-clients",

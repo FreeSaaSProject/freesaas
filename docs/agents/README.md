@@ -47,6 +47,7 @@ Operation-first guides (not project history). Platform standard: [`../agent-nati
 | [yclients.md](yclients.md) | YClients pull: settings tokens, session ping, clients import JSON |
 | [clientics.md](clientics.md) | Clientics dual-run: SoT appointments, clients/appointments pull, outbox push, inventory |
 | [cron.md](cron.md) | Platform hard cron: `/cron/tick`, `Cron::register`, journal |
+| [long-jobs.md](long-jobs.md) | Heavy ops: `LongJob` start/tick/cancel, module budgets, agent surfaces, UI overlay |
 | [debugging.md](debugging.md) | Health, blocked modules, workers |
 | [workers.md](workers.md) | Edge workers host Mac/Windows (video + whisper + audioloader; dashboard / logs) |
 | [audioloader.md](audioloader.md) | Pointer → workers.md (badge USB → FTP → ingest plugin) |

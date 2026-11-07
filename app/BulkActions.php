@@ -19,6 +19,8 @@ final class BulkActions
      *   permission?:string,
      *   capability?:string,
      *   confirm?:string,
+     *   confirm_empty?:string,
+     *   allow_empty_selection?:bool,
      *   max_selection?:int,
      *   fields?:list<array{name:string,type?:string,label?:string,options?:array<int|string,string>|callable}>,
      *   run:callable
@@ -26,6 +28,8 @@ final class BulkActions
      * Optional `group` is an i18n key for an <optgroup> label (oper-style action buckets).
      * Optional `max_selection` (e.g. 1) greys out the option when more rows are checked;
      * server rejects oversize selections. Run may return `redirect` for a post-action jump.
+     * Optional `allow_empty_selection`: Apply stays enabled with no rows; `run([])` is called.
+     * Optional `confirm_empty`: confirm i18n key used when no rows are checked.
      */
     public static function register(string $listId, string $actionId, array $def): void
     {
@@ -176,9 +180,10 @@ final class BulkActions
      * Handle bulk POST. Returns null if request is not a bulk action for this list.
      *
      * @param array<string,mixed> $post
+     * @param array<string,mixed> $listFilters Current list filters (passed to run as `_list_filters`)
      * @return array{done:int,skipped:list<array{id:int,reason:string}},action:string}|null
      */
-    public static function handlePost(string $listId, array $post): ?array
+    public static function handlePost(string $listId, array $post, array $listFilters = []): ?array
     {
         if (!isset($post['bulk_action'])) {
             return null;
@@ -230,7 +235,8 @@ final class BulkActions
             }
         }
         $ids = array_values($ids);
-        if ($ids === []) {
+        $allowEmpty = !empty($def['allow_empty_selection']);
+        if ($ids === [] && !$allowEmpty) {
             return [
                 'done' => 0,
                 'skipped' => [],
@@ -256,21 +262,28 @@ final class BulkActions
             }
             $params[$name] = $post[$name] ?? null;
         }
+        $params['_list_filters'] = $listFilters;
 
         $skipped = [];
         $allowedIds = [];
-        foreach ($ids as $id) {
-            $reason = self::checkItem($listId, $actionId, $id, $params);
-            if ($reason !== '') {
-                $skipped[] = ['id' => $id, 'reason' => $reason];
-                continue;
+        if ($ids === []) {
+            // Empty selection with allow_empty_selection: run handles scope itself.
+            $allowedIds = [];
+        } else {
+            foreach ($ids as $id) {
+                $reason = self::checkItem($listId, $actionId, $id, $params);
+                if ($reason !== '') {
+                    $skipped[] = ['id' => $id, 'reason' => $reason];
+                    continue;
+                }
+                $allowedIds[] = $id;
             }
-            $allowedIds[] = $id;
         }
 
         $done = 0;
         $redirect = '';
-        if ($allowedIds !== []) {
+        $runError = '';
+        if ($ids === [] || $allowedIds !== []) {
             /** @var callable $run */
             $run = $def['run'];
             $result = $run($allowedIds, $params);
@@ -279,6 +292,7 @@ final class BulkActions
             }
             $done = (int)($result['done'] ?? 0);
             $redirect = trim((string)($result['redirect'] ?? ''));
+            $runError = trim((string)($result['error'] ?? ''));
             foreach ($result['skipped'] ?? [] as $row) {
                 if (!is_array($row)) {
                     continue;
@@ -295,6 +309,9 @@ final class BulkActions
             'skipped' => $skipped,
             'action' => $actionId,
         ];
+        if ($runError !== '') {
+            $out['error'] = $runError;
+        }
         if ($redirect !== '') {
             $out['redirect'] = $redirect;
         }
@@ -422,12 +439,19 @@ final class BulkActions
 
         $renderOption = static function (string $id, array $def) use ($selectedAction): string {
             $confirm = trim((string)($def['confirm'] ?? ''));
+            $confirmEmpty = trim((string)($def['confirm_empty'] ?? ''));
             $attrs = ' value="' . e($id) . '"';
             if ($selectedAction !== '' && $id === $selectedAction) {
                 $attrs .= ' selected';
             }
             if ($confirm !== '') {
                 $attrs .= ' data-confirm="' . te($confirm) . '"';
+            }
+            if ($confirmEmpty !== '') {
+                $attrs .= ' data-confirm-empty="' . te($confirmEmpty) . '"';
+            }
+            if (!empty($def['allow_empty_selection'])) {
+                $attrs .= ' data-bulk-allow-empty="1"';
             }
             $maxSelection = (int)($def['max_selection'] ?? 0);
             if ($maxSelection > 0) {
@@ -544,7 +568,7 @@ final class BulkActions
         if (!isset($_POST['bulk_action'])) {
             return false;
         }
-        $result = self::handlePost($listId, $_POST);
+        $result = self::handlePost($listId, $_POST, $filters);
         if ($result === null) {
             return false;
         }

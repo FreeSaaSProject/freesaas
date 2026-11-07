@@ -18,6 +18,7 @@ require_once __DIR__ . '/lib/providers/SberFlClient.php';
 require_once __DIR__ . '/lib/BankOAuth.php';
 require_once __DIR__ . '/lib/BankClassifyService.php';
 require_once __DIR__ . '/lib/BankSyncService.php';
+require_once __DIR__ . '/lib/BanksLongJob.php';
 require_once __DIR__ . '/lib/parsers/PsbCardStatementParser.php';
 require_once __DIR__ . '/lib/BankBadges.php';
 require_once __DIR__ . '/lib/BankLedgerSyncUi.php';
@@ -33,6 +34,20 @@ Assets::register('banks', [
 
 BanksAgentOps::register();
 
+LongJob::register(BanksLongJob::TYPE_SYNC, [
+    'module' => 'banks',
+    'permission' => 'banks.sync',
+    'defaults' => ['tick_seconds' => 90],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 90],
+        'cron' => ['tick_seconds' => 120],
+        'cli' => ['tick_seconds' => 180],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [BanksLongJob::class, 'syncOnStart'],
+    'tick' => [BanksLongJob::class, 'syncTick'],
+]);
+
 $pages = [
     '/banks' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/banks/integrations/{id}' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'integration.php'],
@@ -45,6 +60,7 @@ $pages = [
     '/banks/oauth/{provider}/callback' => ['permission' => 'banks.connect', 'methods' => ['GET'], 'file' => 'oauth_callback.php'],
     '/banks/connections/{id}' => ['permission' => 'banks.view', 'methods' => ['GET', 'POST'], 'file' => 'connection.php'],
     '/banks/connections/{id}/sync' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'sync.php'],
+    '/banks/longjob' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'longjob.php'],
     '/banks/sync-account' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'sync_account.php'],
     '/banks/import-file' => ['permission' => 'banks.sync', 'methods' => ['POST'], 'file' => 'import_file.php'],
     '/banks/file-link' => ['permission' => 'banks.connect', 'methods' => ['POST'], 'file' => 'file_link.php'],

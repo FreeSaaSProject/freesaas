@@ -1,7 +1,7 @@
 {
     "id": "banks",
     "name": "banks.module.name",
-    "version": "0.1.29",
+    "version": "0.1.30",
     "type": "product",
     "description": "banks.module.description",
     "catalog": {
@@ -61,6 +61,7 @@
             "/banks/oauth/{provider}/callback",
             "/banks/connections/{id}",
             "/banks/connections/{id}/sync",
+            "/banks/longjob",
             "/banks/sync-account",
             "/banks/import-file",
             "/banks/file-link",

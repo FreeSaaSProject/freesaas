@@ -18,10 +18,68 @@ require_once __DIR__ . '/lib/DashboardWidgets.php';
 require_once __DIR__ . '/lib/MenuOrder.php';
 require_once __DIR__ . '/lib/ModulesActivate.php';
 require_once __DIR__ . '/lib/ModulesAdmin.php';
+require_once __DIR__ . '/lib/CoreSchemaLongJob.php';
+require_once __DIR__ . '/lib/CoreUninstallLongJob.php';
 
 Assets::register('core', [
     'css' => ['home-splash.css'],
     'js' => ['home-splash.js'],
+]);
+
+// LongJob metadata for db hub (domain ticks stay in DbJobs; budgets in app/Db/*).
+foreach (['dump', 'restore', 'fetch', 'diagnose', 'optimize', 'repair', 'check'] as $dbOp) {
+    LongJob::register('db.' . $dbOp, [
+        'module' => 'core',
+        'permission' => 'core.db',
+        'capability' => 'SUPERADMIN_ACCESS',
+        'store_dir' => class_exists('DbFs', false) ? DbFs::jobsDir() : 'var/db_jobs',
+        'defaults' => $dbOp === 'dump'
+            ? ['tick_seconds' => 60]
+            : ($dbOp === 'restore' ? ['tick_seconds' => 240] : []),
+        'contexts' => [
+            'ui' => $dbOp === 'restore' ? ['tick_seconds' => 25] : [],
+            'cli' => $dbOp === 'restore' ? ['tick_seconds' => 240] : [],
+        ],
+        'agent' => [
+            'mode' => 'blocking',
+            'assistant' => false,
+        ],
+        'tick' => static function (array $job): array {
+            return DbJobs::jobTick((string)$job['id']);
+        },
+        'on_cancel' => static function (array $job): array {
+            return DbJobs::jobCancel((string)$job['id']);
+        },
+    ]);
+}
+unset($dbOp);
+
+LongJob::register(CoreSchemaLongJob::TYPE, [
+    'module' => 'core',
+    'permission' => 'core.modules',
+    'defaults' => ['tick_seconds' => 25],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 25],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [CoreSchemaLongJob::class, 'onStart'],
+    'tick' => [CoreSchemaLongJob::class, 'tick'],
+]);
+
+
+LongJob::register(CoreUninstallLongJob::TYPE, [
+    'module' => 'core',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'defaults' => ['tick_seconds' => 25],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 25],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [CoreUninstallLongJob::class, 'onStart'],
+    'tick' => [CoreUninstallLongJob::class, 'tick'],
+    'on_cancel' => [CoreUninstallLongJob::class, 'onCancel'],
 ]);
 require_once __DIR__ . '/lib/MyTasksHabits.php';
 require_once __DIR__ . '/lib/MyTasksHabitsBot.php';
@@ -56,6 +114,9 @@ $pages = [
     '/modules/{id}' => ['permission' => 'core.modules', 'methods' => ['GET', 'POST'], 'file' => 'modules_detail.php'],
     '/modules/{id}/activate' => ['permission' => 'core.modules', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'modules_activate.php'],
     '/db' => ['permission' => 'core.db', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'db.php'],
+    '/db/schema/longjob' => ['permission' => 'core.modules', 'methods' => ['POST'], 'file' => 'schema_longjob.php'],
+
+    '/modules/uninstall/longjob' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['POST'], 'file' => 'uninstall_longjob.php'],
 
     '/users' => ['permission' => 'core.users', 'methods' => ['GET', 'POST'], 'file' => 'users.php'],
     '/users/new' => ['permission' => 'core.users', 'capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'user_edit.php'],

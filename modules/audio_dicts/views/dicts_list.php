@@ -104,44 +104,26 @@ $actionUrl = ListQuery::url($path, $filters, []);
 <?= $pager ?>
 
 <?php if (class_exists('ModuleManager', false) && ModuleManager::isEnabled('llm')): ?>
-<div id="audio-dicts-suggest-overlay" class="db-job-overlay" hidden
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'audio-dicts-suggest',
+  'longjobTitle' => t('audio_dicts.bulk.suggest_title'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => false,
+], 'core') ?>
+<div id="audio-dicts-suggest-boot" hidden
      data-audio-dicts-suggest
+     data-csrf="<?= e(class_exists('Csrf', false) ? Csrf::token() : '') ?>"
      data-i18n="<?= e(json_encode([
          'title' => t('audio_dicts.bulk.suggest_title'),
-         'running' => t('audio_dicts.bulk.suggest_running'),
+         'starting' => t('core.longjob.starting'),
+         'badJson' => t('core.longjob.bad_json'),
          'doneTitle' => t('audio_dicts.bulk.suggest_done_title'),
-         'busy' => t('audio_dicts.bulk.suggest_busy'),
-         'empty' => t('audio_dicts.bulk.suggest_empty'),
-         'itemOk' => t('audio_dicts.bulk.suggest_item_ok'),
-         'itemSkip' => t('audio_dicts.bulk.suggest_item_skip'),
-         'itemErr' => t('audio_dicts.bulk.suggest_item_err'),
-         'summary' => t('audio_dicts.bulk.suggest_summary'),
-         'aborted' => t('audio_dicts.bulk.suggest_aborted'),
-         'http' => t('audio_dicts.bulk.suggest_http'),
+         'errorTitle' => t('core.longjob.error_title'),
+         'cancelledTitle' => t('core.longjob.cancelled_title'),
+         'ok' => t('audio_dicts.bulk.suggest_close'),
+         'abort' => t('audio_dicts.bulk.suggest_abort'),
          'confirm' => t('audio_dicts.bulk.suggest_descr_confirm'),
-     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT)) ?>">
-  <div class="db-job-panel" role="dialog" aria-modal="true" aria-labelledby="audio-dicts-suggest-title">
-    <h3 id="audio-dicts-suggest-title" class="subhead"><?= te('audio_dicts.bulk.suggest_title') ?></h3>
-    <p id="audio-dicts-suggest-msg" class="db-job-msg muted"></p>
-    <div class="db-job-bars">
-      <div class="db-job-bar-block">
-        <div class="db-job-bar-label">
-          <span id="audio-dicts-suggest-meta">0 / 0</span>
-          <span id="audio-dicts-suggest-pct">0%</span>
-        </div>
-        <div class="db-job-bar" id="audio-dicts-suggest-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div id="audio-dicts-suggest-fill" class="db-job-fill"></div>
-        </div>
-      </div>
-    </div>
-    <div class="db-job-log-wrap">
-      <div class="db-job-log-label muted"><?= te('core.db.job.log_heading') ?></div>
-      <div id="audio-dicts-suggest-log" class="db-job-log" aria-live="polite"></div>
-    </div>
-    <div class="db-job-actions actions">
-      <button type="button" class="btn-secondary" id="audio-dicts-suggest-abort"><?= te('audio_dicts.bulk.suggest_abort') ?></button>
-      <button type="button" class="btn-primary" id="audio-dicts-suggest-ok" hidden disabled><?= te('audio_dicts.bulk.suggest_close') ?></button>
-    </div>
-  </div>
-</div>
+         'empty' => t('audio_dicts.bulk.suggest_empty'),
+         'busy' => t('audio_dicts.bulk.suggest_busy'),
+     ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?: '{}') ?>"></div>
 <?php endif; ?>

@@ -27,8 +27,9 @@ Permissions: `poll_invites.view`, `poll_invites.edit`, `poll_invites.delete`.
 
 ## Human UI
 
-- `/poll-invites` — invite list (transcript snippet, procedure, score); filters include responsible staff.
-- `/poll-invites/unviewed` — **group review** for responsible staff (`RESP_USERS` / procedure executor|admin). Shows answers + transcript **without** opening invite cards. Explicit «Viewed» writes `#uid#` into `RESP_USERS_VIEWED`. Notice chip `НО{n}` / `UF{n}`.
+- `/poll-invites` — invite list (transcript, procedure, score). Filter `progress=unviewed` for my unread; `progress=unfilled` for never-started stubs; filter `id_resp` by responsible staff. Rows show a **новое** badge + «Просмотрено» (writes `#uid#` into `RESP_USERS_VIEWED`). Notice chip → `?progress=unviewed`.
+- Bulk ops need `poll_invites.delete` (superadmin bypasses `Auth::can`): plain delete, plus **Delete unfilled** (confirm + checks: never started/completed, empty answers/scores). Empty selection deletes unfilled **only inside the current list filters** (poll / progress / q / …); without a filter the action errors. Selected rows are also constrained to that filter.
+- Legacy `/poll-invites/unviewed` redirects to the list filter (POST mark still works for old clients).
 - Invite cards `/poll-invites/{id}/edit` and `/fill` stay **director-only** (`SUPERADMIN_ACCESS` + edit).
 - Oral mark API: `POST /poll-invites/oral-asked` (body: `id_proc`, optional `id_poll`).
 
@@ -36,9 +37,8 @@ Permissions: `poll_invites.view`, `poll_invites.edit`, `poll_invites.delete`.
 
 | Op | Method | Path |
 |----|--------|------|
-| `poll_invites.list` | GET | `/poll-invites` |
-| `poll_invites.unviewed` | GET | `/poll-invites/unviewed` |
-| `poll_invites.unviewed.mark` | POST | `/poll-invites/unviewed` |
+| `poll_invites.list` | GET | `/poll-invites` (`progress=unviewed` …) |
+| `poll_invites.unviewed.mark` | POST | `/poll-invites` (`action=mark_viewed`) |
 | `poll_invites.create` | POST | `/poll-invites/new` |
 | `poll_invites.oral_asked` | POST | `/poll-invites/oral-asked` |
 | `poll_invites.fill` | POST | `/poll-invites/{id}/fill` |

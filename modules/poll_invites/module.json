@@ -2,7 +2,7 @@
     "id": "poll_invites",
     "name": "poll_invites.module.name",
     "description": "poll_invites.module.description",
-    "version": "0.1.24",
+    "version": "0.1.30",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -38,6 +38,7 @@
     "routes": {
         "pages": [
             "/poll-invites",
+            "/poll-invites/longjob",
             "/poll-invites/unviewed",
             "/poll-invites/new",
             "/poll-invites/oral-asked",
@@ -50,39 +51,49 @@
         "docs": "docs/agents/poll_invites.md",
         "ops": [
             {
+                "id": "poll_invites.longjob",
+                "method": "POST",
+                "path": "/poll-invites/longjob",
+                "permission": "poll_invites.delete",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "LongJob tick API for filter-wide delete_unfilled: action=job_start|job_tick|job_cancel; body filters_json / job_id. Pump ticks until done."
+            },
+            {
                 "id": "poll_invites.list",
                 "method": "GET",
                 "path": "/poll-invites",
                 "permission": "poll_invites.view",
-                "description": "List poll invites; filters: q, id_poll, progress, id_operator, id_resp",
+                "description": "List poll invites; filters: q, id_poll, progress (open|done|expired|unviewed|unfilled), id_operator, id_resp",
                 "parameters": {
                     "type": "object",
                     "properties": {
                         "q": { "type": "string" },
                         "id_poll": { "type": "integer" },
-                        "progress": { "type": "string" },
+                        "progress": {
+                            "type": "string",
+                            "description": "open|done|expired|unviewed|unfilled"
+                        },
                         "id_operator": { "type": "integer" },
                         "id_resp": { "type": "integer" }
                     }
                 }
             },
             {
-                "id": "poll_invites.unviewed",
-                "method": "GET",
-                "path": "/poll-invites/unviewed",
-                "permission": "poll_invites.view",
-                "description": "Group view of completed invites not yet marked viewed by the current responsible user"
-            },
-            {
                 "id": "poll_invites.unviewed.mark",
                 "method": "POST",
-                "path": "/poll-invites/unviewed",
+                "path": "/poll-invites",
                 "permission": "poll_invites.view",
                 "side_effect": "write",
-                "description": "Mark invites viewed (body: ids[] or mark_all=1); writes RESP_USERS_VIEWED",
+                "description": "Mark invites viewed (action=mark_viewed; body: id / ids[] / mark_all=1)",
                 "parameters": {
                     "type": "object",
                     "properties": {
+                        "action": {
+                            "type": "string",
+                            "description": "mark_viewed"
+                        },
+                        "id": { "type": "integer" },
                         "ids": {
                             "type": "array",
                             "items": { "type": "integer" }
@@ -91,7 +102,8 @@
                             "type": "string",
                             "description": "1 = mark all unviewed for current user"
                         }
-                    }
+                    },
+                    "required": ["action"]
                 }
             },
             {
@@ -138,13 +150,6 @@
     },
     "jobs": [],
     "menu": [
-        {
-            "group": "polls.menu.group",
-            "num": 15,
-            "path": "/poll-invites/unviewed",
-            "title": "poll_invites.menu.unviewed",
-            "kind": "work"
-        },
         {
             "group": "polls.menu.group",
             "num": 20,

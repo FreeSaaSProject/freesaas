@@ -2,6 +2,8 @@
 declare(strict_types=1);
 /** @var list<array<string,mixed>> $items */
 /** @var int $total */
+/** @var int $unviewedTotal */
+/** @var int $unfilledInFilter */
 /** @var string $q */
 /** @var int $idPoll */
 /** @var string $progress */
@@ -9,6 +11,7 @@ declare(strict_types=1);
 /** @var array<int,string> $pollNames */
 /** @var array<int,string> $staffNames */
 /** @var bool $canEdit */
+/** @var bool $canDelete */
 /** @var string $sort */
 /** @var string $dir */
 /** @var int $page */
@@ -20,10 +23,14 @@ $path = '/poll-invites';
 $listId = 'poll_invites';
 $showAll = !empty($showAll);
 $idResp = (int)($idResp ?? 0);
+$unviewedTotal = (int)($unviewedTotal ?? 0);
+$unfilledInFilter = (int)($unfilledInFilter ?? 0);
+$canDelete = !empty($canDelete);
 $staffNames = is_array($staffNames ?? null) ? $staffNames : [];
 $pager = ListQuery::pager((int)$total, (int)$page, (int)$perPage, $path, $filters, $showAll);
 $colSpan = 10 + BulkActions::colSpanExtra($listId);
 $actionUrl = ListQuery::url($path, $filters, []);
+$retPath = ListQuery::url($path, $filters, []);
 $staffBadge = static function (int $id): string {
     if ($id < 1) {
         return '—';
@@ -58,7 +65,12 @@ $procLabel = static function (array $u): string {
 <section class="page-head">
   <div class="page-head-row">
     <div>
-      <a class="btn-secondary" href="/poll-invites/unviewed"><?= te('poll_invites.menu.unviewed') ?></a>
+      <?php if ($unviewedTotal > 0): ?>
+        <a class="btn-secondary<?= $progress === 'unviewed' ? ' is-active' : '' ?>"
+           href="<?= e(ListQuery::url($path, array_merge($filters, ['progress' => 'unviewed', 'page' => '']), [])) ?>">
+          <?= te('poll_invites.list.unviewed_chip', ['n' => $unviewedTotal]) ?>
+        </a>
+      <?php endif; ?>
     </div>
     <?php if ($canEdit): ?>
     <div class="page-actions">
@@ -86,6 +98,8 @@ $procLabel = static function (array $u): string {
   <label><?= te('poll_invites.list.filter_progress') ?>
     <select name="progress">
       <option value=""<?= $progress === '' ? ' selected' : '' ?>><?= te('poll_invites.list.progress_all') ?></option>
+      <option value="unviewed"<?= $progress === 'unviewed' ? ' selected' : '' ?>><?= te('poll_invites.list.progress_unviewed') ?></option>
+      <option value="unfilled"<?= $progress === 'unfilled' ? ' selected' : '' ?>><?= te('poll_invites.list.progress_unfilled') ?></option>
       <option value="open"<?= $progress === 'open' ? ' selected' : '' ?>><?= te('poll_invites.list.progress_open') ?></option>
       <option value="done"<?= $progress === 'done' ? ' selected' : '' ?>><?= te('poll_invites.list.progress_done') ?></option>
       <option value="expired"<?= $progress === 'expired' ? ' selected' : '' ?>><?= te('poll_invites.list.progress_expired') ?></option>
@@ -101,7 +115,31 @@ $procLabel = static function (array $u): string {
   </label>
 </form>
 
+<?php if ($canDelete && $unfilledInFilter > 0): ?>
+  <p class="muted poll-invites-unfilled-hint">
+    <?= te('poll_invites.bulk.filter_hint', ['n' => $unfilledInFilter]) ?>
+  </p>
+<?php endif; ?>
+
+<?php if ($progress === 'unviewed' && $unviewedTotal > 0): ?>
+  <form method="post" action="<?= e($path) ?>" class="poll-invites-mark-all"
+        onsubmit="return confirm('<?= e(t('poll_invites.unviewed.mark_all_confirm')) ?>');">
+    <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+    <input type="hidden" name="action" value="mark_viewed">
+    <input type="hidden" name="mark_all" value="1">
+    <input type="hidden" name="ret" value="<?= e($retPath) ?>">
+    <button type="submit" class="btn-secondary"><?= te('poll_invites.unviewed.mark_all', ['n' => $unviewedTotal]) ?></button>
+  </form>
+<?php endif; ?>
+
 <?= $pager ?>
+
+<?php /* Mark-viewed lives outside the bulk form — nested <form> breaks bulk checkboxes. */ ?>
+<form id="poll-invites-mark-form" method="post" action="<?= e($path) ?>" class="poll-invites-mark-host" hidden>
+  <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
+  <input type="hidden" name="action" value="mark_viewed">
+  <input type="hidden" name="ret" value="<?= e($retPath) ?>">
+</form>
 
 <?= BulkActions::beginForm($listId, $actionUrl) ?>
 <?= BulkActions::bar($listId) ?>
@@ -131,10 +169,14 @@ $procLabel = static function (array $u): string {
         $askedAt = (int)($u['dt_create'] ?? 0);
         $doneAt = (int)($u['dt_completed'] ?? 0);
         $transcript = trim((string)($u['transcript'] ?? ''));
+        $unviewed = !empty($u['unviewed_for_me']);
       ?>
-      <tr>
+      <tr class="<?= $unviewed ? 'poll-invites-row-unviewed' : '' ?>">
         <?= BulkActions::td($listId, (int)$u['id']) ?>
         <td class="muted">
+          <?php if ($unviewed): ?>
+            <span class="poll-invites-new-mark" title="<?= te('poll_invites.list.unviewed_badge') ?>"><?= te('poll_invites.list.unviewed_badge') ?></span>
+          <?php endif; ?>
           <?php if ($canEdit): ?>
             <a href="/poll-invites/<?= (int)$u['id'] ?>/edit"><?= (int)$u['id'] ?></a>
           <?php else: ?>
@@ -169,6 +211,10 @@ $procLabel = static function (array $u): string {
           <div class="muted"><?= e(PollInvitesRepository::dtDisplay($doneAt)) ?></div>
         </td>
         <td class="nowrap">
+          <?php if ($unviewed): ?>
+            <button type="submit" form="poll-invites-mark-form" class="btn-secondary btn-small"
+                    name="id" value="<?= (int)$u['id'] ?>"><?= te('poll_invites.unviewed.mark') ?></button>
+          <?php endif; ?>
           <?php if ($canEdit): ?>
             <?php if ($doneAt < 1): ?>
               <a href="/poll-invites/<?= (int)$u['id'] ?>/fill"><?= te('poll_invites.action.fill') ?></a>
@@ -190,7 +236,13 @@ $procLabel = static function (array $u): string {
       </tr>
     <?php endforeach; ?>
     <?php if (!$items): ?>
-      <tr><td colspan="<?= (int)$colSpan ?>" class="muted"><?= te('poll_invites.list.empty') ?></td></tr>
+      <tr><td colspan="<?= (int)$colSpan ?>" class="muted">
+        <?= $progress === 'unviewed'
+          ? te('poll_invites.unviewed.empty')
+          : ($progress === 'unfilled'
+            ? te('poll_invites.list.empty_unfilled')
+            : te('poll_invites.list.empty')) ?>
+      </td></tr>
     <?php endif; ?>
     </tbody>
   </table>
@@ -198,3 +250,56 @@ $procLabel = static function (array $u): string {
 <?= BulkActions::endForm($listId) ?>
 
 <?= $pager ?>
+
+<?php if ($canDelete): ?>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'poll-invites-job',
+  'longjobTitle' => t('poll_invites.bulk.delete_unfilled'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => false,
+], 'core') ?>
+<?php
+$longjobPending = $longjobPending ?? null;
+if (is_array($longjobPending)):
+?>
+<script>
+(function () {
+  var filters = <?= json_encode($longjobPending['filters'] ?? [], JSON_UNESCAPED_UNICODE) ?>;
+  function boot() {
+    var overlay = document.getElementById('poll-invites-job-overlay');
+    if (!overlay) return;
+    if (!window.LongJobPanel) {
+      setTimeout(boot, 30);
+      return;
+    }
+    var panel = LongJobPanel.mount({
+      root: overlay,
+      startUrl: '/poll-invites/longjob',
+      tickUrl: '/poll-invites/longjob',
+      cancelUrl: '/poll-invites/longjob',
+      dualBars: false,
+      showBytes: false,
+      csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+      i18n: {
+        title: <?= json_encode(t('poll_invites.bulk.delete_unfilled'), JSON_UNESCAPED_UNICODE) ?>,
+        starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+        badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+        eta: <?= json_encode(t('core.longjob.eta'), JSON_UNESCAPED_UNICODE) ?>,
+        doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+        errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+        cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>
+      }
+    });
+    var fd = new FormData();
+    fd.set('filters_json', JSON.stringify(filters));
+    panel.runFormData(fd, {});
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+<?php endif; ?>
+<?php endif; ?>

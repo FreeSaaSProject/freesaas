@@ -2,7 +2,7 @@
     "id": "audio_dicts",
     "name": "audio_dicts.module.name",
     "description": "audio_dicts.module.description",
-    "version": "1.0.19",
+    "version": "1.0.21",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -34,6 +34,7 @@
             "/audio/dicts/new",
             "/audio/dicts/{id}/edit",
             "/audio/dicts/{id}/suggest-descr",
+            "/audio/dicts/longjob",
             "/audio/keys",
             "/audio/keys/new",
             "/audio/keys/{id}/edit",

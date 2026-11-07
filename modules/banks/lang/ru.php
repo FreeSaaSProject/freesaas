@@ -207,6 +207,7 @@ return [
     'banks.conn.no_remote' => 'Нет счетов — обновите список или проверьте согласия.',
     'banks.conn.choose_account' => 'Выберите счёт',
     'banks.conn.synced' => 'Создано ДПС: {created}, привязано: {linked}, пропущено: {skipped}, ошибок: {errors}',
+    'banks.longjob.sync_start' => 'Синхронизация банка: {n} счетов ({from}…{to})',
     'banks.conn.last_sync' => 'Последняя синхронизация',
     'banks.conn.last_sync_no_detail' => 'Текст ошибки не сохранён — запустите синхронизацию ещё раз.',
     'banks.sync.linked_note' => '[Банк {provider}] Привязано к операции {ext_id} от {date}',

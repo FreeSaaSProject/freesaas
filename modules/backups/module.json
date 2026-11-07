@@ -2,7 +2,7 @@
     "id": "backups",
     "name": "backups.module.name",
     "description": "backups.module.description",
-    "version": "0.4.8",
+    "version": "0.4.11",
     "type": "product",
     "catalog": {
         "categories": [
@@ -44,6 +44,7 @@
         "pages": [
             "/backups",
             "/backups/settings",
+            "/backups/cdc/longjob",
             "/backups/run",
             "/backups/cancel",
             "/backups/remote",
@@ -164,7 +165,7 @@
                 "path": "/backups/replica",
                 "permission": "backups.manage",
                 "capability": "SUPERADMIN_ACCESS",
-                "description": "body action=check: source FTP reachability, latest baseline + CDC packs, passphrase probe"
+                "description": "LongJob or sync: action=job_start&op=check (UI) or action=check (blocking). FTP + latest packs + passphrase probe"
             },
             {
                 "id": "backups.replica.pull",
@@ -174,7 +175,7 @@
                 "capability": "SUPERADMIN_ACCESS",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "body action=pull_start, confirm_wipe=1: start tick job (returns tick_token). Pump POST /backups/replica/tick. CLI: backups replica-pull"
+                "description": "action=job_start&op=pull&confirm_wipe=1 (or pull_start): start domain tick job, returns job.tick_token. Pump backups.replica.tick. CLI: backups replica-pull"
             },
             {
                 "id": "backups.replica.tick",
@@ -183,7 +184,7 @@
                 "permission": "public",
                 "side_effect": "write",
                 "assistant": false,
-                "description": "body tick_token + wall: advance replica pull crumb (public; auth is tick_token after wipe)"
+                "description": "body tick_token + wall: advance replica pull crumb; response.job is LongJob-shaped (public; auth is tick_token after wipe)"
             }
         ]
     },

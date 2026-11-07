@@ -6,16 +6,35 @@ require_once __DIR__ . '/lib/PollAnswersCodec.php';
 require_once __DIR__ . '/lib/PollWalkEngine.php';
 require_once __DIR__ . '/lib/PollInvitesConfig.php';
 require_once __DIR__ . '/lib/PollInvitesRepository.php';
+require_once __DIR__ . '/lib/PollInvitesLongJob.php';
 require_once __DIR__ . '/lib/PollInvitesBiContrib.php';
 
 Assets::register('poll_invites', [
     'css' => ['poll_invites.css'],
 ]);
 
+LongJob::register(PollInvitesLongJob::TYPE_DELETE_UNFILLED, [
+    'module' => 'poll_invites',
+    'permission' => 'poll_invites.delete',
+    'defaults' => ['tick_seconds' => 20, 'chunk' => PollInvitesLongJob::CHUNK],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 20],
+        'cli' => ['tick_seconds' => 60],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [PollInvitesLongJob::class, 'onStart'],
+    'tick' => [PollInvitesLongJob::class, 'tick'],
+]);
+
 EventBus::on('bi.datasets', [PollInvitesBiContrib::class, 'onDatasets']);
 
 $pages = [
     '/poll-invites' => ['permission' => 'poll_invites.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
+    '/poll-invites/longjob' => [
+        'permission' => 'poll_invites.delete',
+        'methods' => ['POST'],
+        'file' => 'longjob.php',
+    ],
     '/poll-invites/unviewed' => [
         'permission' => 'poll_invites.view',
         'methods' => ['GET', 'POST'],
@@ -81,11 +100,66 @@ ModuleManager::registerRoute('/poll-invites/{id}', [
 BulkActions::register('poll_invites', 'delete', [
     'label' => 'core.bulk.delete',
     'permission' => 'poll_invites.delete',
-        'confirm' => 'core.bulk.confirm_delete',
+    'confirm' => 'core.bulk.confirm_delete',
     'run' => static function (array $ids, array $params): array {
         return ['done' => PollInvitesRepository::deleteByIds($ids), 'skipped' => []];
     },
 ]);
+BulkActions::register('poll_invites', 'delete_unfilled', [
+    'label' => 'poll_invites.bulk.delete_unfilled',
+    'permission' => 'poll_invites.delete',
+    'confirm' => 'poll_invites.bulk.confirm_delete_unfilled',
+    'confirm_empty' => 'poll_invites.bulk.confirm_delete_unfilled_filter',
+    'allow_empty_selection' => true,
+    'run' => static function (array $ids, array $params): array {
+        $filters = is_array($params['_list_filters'] ?? null) ? $params['_list_filters'] : [];
+        if ($ids === []) {
+            if (!PollInvitesRepository::hasListScope($filters)) {
+                return [
+                    'done' => 0,
+                    'skipped' => [],
+                    'error' => t('poll_invites.bulk.need_filter'),
+                ];
+            }
+            $n = PollInvitesRepository::countUnfilledMatching($filters);
+            if ($n >= PollInvitesLongJob::ASYNC_THRESHOLD) {
+                // Hand off to LongJob UI (list page reads session flag).
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    $_SESSION['poll_invites_longjob'] = [
+                        'type' => PollInvitesLongJob::TYPE_DELETE_UNFILLED,
+                        'filters' => $filters,
+                        'at' => time(),
+                    ];
+                }
+                return [
+                    'done' => 0,
+                    'skipped' => [],
+                    'message' => t('poll_invites.longjob.delete_queued', ['n' => (string)$n]),
+                ];
+            }
+            $done = PollInvitesRepository::deleteUnfilledMatching($filters);
+            return ['done' => $done, 'skipped' => []];
+        }
+        return PollInvitesRepository::deleteUnfilledByIds($ids, $filters);
+    },
+]);
+EventBus::on('core.bulk.check_item', static function (array $payload): array {
+    if (($payload['list_id'] ?? '') !== 'poll_invites' || ($payload['action'] ?? '') !== 'delete_unfilled') {
+        return $payload;
+    }
+    $id = (int)($payload['id'] ?? 0);
+    $row = $id > 0 ? PollInvitesRepository::find($id) : null;
+    if ($row === null) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('poll_invites.err.not_found', ['id' => $id]);
+        return $payload;
+    }
+    if (!PollInvitesRepository::isUnfilledInvite($row)) {
+        $payload['blocked'] = true;
+        $payload['reason'] = t('poll_invites.bulk.not_unfilled');
+    }
+    return $payload;
+});
 
 EventBus::on('core.notices.collect', static function ($notices) {
     if (!is_array($notices)) {

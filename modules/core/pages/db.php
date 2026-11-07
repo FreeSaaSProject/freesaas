@@ -142,13 +142,15 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             }
             if ($action === 'db_job_start') {
                 $op = strtolower(trim((string)($_POST['op'] ?? '')));
+                // Browser FastCGI idle is often ~30s — keep UI ticks under that.
+                $uiTick = ['tick_seconds' => 20.0];
                 if ($op === 'dump') {
                     $posted = isset($_POST['tables']) && is_array($_POST['tables']) ? $_POST['tables'] : null;
                     $tables = $resolveTables($posted);
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_write_close();
                     }
-                    $job = DbTools::jobStart('dump', ['tables' => $tables]);
+                    $job = DbTools::jobStart('dump', array_merge(['tables' => $tables], $uiTick));
                 } elseif ($op === 'restore') {
                     $file = (string)($_POST['file'] ?? '');
                     $allowed = $isExpert
@@ -157,30 +159,30 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_write_close();
                     }
-                    $job = DbTools::jobStart('restore', ['file' => $file, 'allowed' => $allowed]);
+                    $job = DbTools::jobStart('restore', array_merge(['file' => $file, 'allowed' => $allowed], $uiTick));
                 } elseif ($op === 'fetch') {
                     $url = trim((string)($_POST['url'] ?? ''));
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_write_close();
                     }
-                    $job = DbTools::jobStart('fetch', ['url' => $url]);
+                    $job = DbTools::jobStart('fetch', array_merge(['url' => $url], $uiTick));
                 } elseif ($op === 'diagnose') {
                     // All tables (owned + foreign): feeds maintenance hints and inventory table.
                     $scope = $allTables !== [] ? $allTables : DbTools::allTables();
                     if ($scope === []) {
                         $scope = $ownedTables;
                     }
-                    $job = DbTools::jobStart('diagnose', [
+                    $job = DbTools::jobStart('diagnose', array_merge([
                         'tables' => $scope,
                         'owned' => $ownedTables,
-                    ]);
+                    ], $uiTick));
                 } elseif (in_array($op, ['optimize', 'repair', 'check'], true)) {
                     $posted = isset($_POST['tables']) && is_array($_POST['tables']) ? $_POST['tables'] : null;
                     $tables = $resolveTables($posted);
                     if (session_status() === PHP_SESSION_ACTIVE) {
                         session_write_close();
                     }
-                    $job = DbTools::jobStart($op, ['tables' => $tables]);
+                    $job = DbTools::jobStart($op, array_merge(['tables' => $tables], $uiTick));
                 } else {
                     AgentHttp::error('Unknown job op', 400);
                 }

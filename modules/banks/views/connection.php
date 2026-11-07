@@ -54,7 +54,8 @@ $label = trim((string)($conn['label'] ?? ''));
 </section>
 
 <?php if ($canSync): ?>
-<form class="banks-sync-form" method="post" action="/banks/connections/<?= $id ?>/sync">
+<form class="banks-sync-form" method="post" action="/banks/connections/<?= $id ?>/sync" id="banks-conn-sync-form"
+      data-connection-id="<?= (int)$id ?>">
   <label><?= te('banks.conn.sync_from') ?>
     <input type="date" name="date_from" value="<?= e(date('Y-m-d', strtotime('-7 days'))) ?>">
   </label>
@@ -63,6 +64,51 @@ $label = trim((string)($conn['label'] ?? ''));
   </label>
   <button type="submit" class="btn-primary"><?= te('banks.conn.sync') ?></button>
 </form>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'banks-sync',
+  'longjobTitle' => t('banks.conn.sync'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => false,
+], 'core') ?>
+<script>
+(function () {
+  function boot() {
+    var form = document.getElementById('banks-conn-sync-form');
+    var overlay = document.getElementById('banks-sync-overlay');
+    if (!form || !overlay) return;
+    if (!window.LongJobPanel) { setTimeout(boot, 30); return; }
+    if (overlay.getAttribute('data-bound') === '1') return;
+    overlay.setAttribute('data-bound', '1');
+    var panel = LongJobPanel.mount({
+      root: overlay,
+      startUrl: '/banks/longjob',
+      tickUrl: '/banks/longjob',
+      cancelUrl: '/banks/longjob',
+      dualBars: false,
+      showBytes: false,
+      reloadOnOk: true,
+      csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+      i18n: {
+        title: <?= json_encode(t('banks.conn.sync'), JSON_UNESCAPED_UNICODE) ?>,
+        starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+        badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+        doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+        errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+        cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+        ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
+      }
+    });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var fd = new FormData(form);
+      fd.set('connection_id', form.getAttribute('data-connection-id') || '0');
+      panel.runFormData(fd, {});
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
 <?php endif; ?>
 
 <?php

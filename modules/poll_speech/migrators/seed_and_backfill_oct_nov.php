@@ -164,6 +164,30 @@ return static function (PDO $pdo, array $spec): array {
         'errors' => is_array($fill2['errors'] ?? null) ? count($fill2['errors']) : 0,
     ];
 
+    // Put completed oral invites for the period onto the unviewed queue (staff + directors).
+    $reopened = 0;
+    $pollId = (int)$steps['oral_poll_10']['oral_poll_id'];
+    if ($pollId > 0 && class_exists('PollInvitesRepository', false)
+        && Database::tableExists('base_poll_invites')
+    ) {
+        $st = $pdo->prepare(
+            'SELECT ID AS id FROM base_poll_invites
+             WHERE ID_POLL = ? AND DT_COMPLETED > 0 AND ID_PROC > 0
+               AND DT_CREATE >= ? AND DT_CREATE <= ?
+             ORDER BY ID ASC'
+        );
+        $st->execute([$pollId, $fromTs, $toTs]);
+        $ids = array_map('intval', $st->fetchAll(PDO::FETCH_COLUMN) ?: []);
+        $reopened = PollInvitesRepository::reopenForReview($ids);
+    }
+    $steps['reopen_review'] = [
+        'ok' => true,
+        'reopened' => $reopened,
+        'directors' => class_exists('PollInvitesRepository', false)
+            ? count(PollInvitesRepository::listDirectorUserIds())
+            : 0,
+    ];
+
     $created = (int)$steps['fill_pass1']['created'] + (int)$steps['fill_pass2']['created'];
     $filled = (int)$steps['fill_pass1']['filled'] + (int)$steps['fill_pass2']['filled'];
     $mapAdded = (int)$steps['enrich_pass1']['map_added'] + (int)$steps['enrich_pass2']['map_added'];
@@ -174,12 +198,13 @@ return static function (PDO $pdo, array $spec): array {
     return [
         'ok' => $ok,
         'message' => sprintf(
-            'period %s…%s: invites created=%d filled=%d; map_added=%d; poll=#%d dict=#%d',
+            'period %s…%s: invites created=%d filled=%d; map_added=%d; reopened=%d; poll=#%d dict=#%d',
             $from,
             $to,
             $created,
             $filled,
             $mapAdded,
+            $reopened,
             (int)$steps['oral_poll_10']['oral_poll_id'],
             (int)$steps['seed_dict50_scores']['dict_id']
         ),
@@ -188,6 +213,7 @@ return static function (PDO $pdo, array $spec): array {
         'created' => $created,
         'filled' => $filled,
         'map_added' => $mapAdded,
+        'reopened' => $reopened,
         'oral_poll_id' => (int)$steps['oral_poll_10']['oral_poll_id'],
         'dict_id' => (int)$steps['seed_dict50_scores']['dict_id'],
         'steps' => $steps,

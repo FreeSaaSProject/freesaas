@@ -206,7 +206,12 @@ final class DbDump
         } catch (Throwable $e) {
             // ignore
         }
-        $deadline = microtime(true) + self::DUMP_TICK_SECONDS;
+        $tickSec = (float)($job['tick_seconds'] ?? 0);
+        if ($tickSec <= 0) {
+            $tickSec = self::DUMP_TICK_SECONDS;
+        }
+        // Cap at DUMP_TICK_SECONDS; UI passes ~20s to stay under typical FastCGI idle (30s).
+        $deadline = microtime(true) + max(5.0, min(self::DUMP_TICK_SECONDS, $tickSec));
         $unbuffered = false;
         $fh = null;
         /** @var (callable(bool):void)|null $flushWrite */

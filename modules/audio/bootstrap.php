@@ -14,6 +14,7 @@ require_once __DIR__ . '/lib/RecordsReviewsRepository.php';
 require_once __DIR__ . '/lib/TranscriptGarbage.php';
 require_once __DIR__ . '/lib/TranscriptHighlighter.php';
 require_once __DIR__ . '/lib/AudioBiContrib.php';
+require_once __DIR__ . '/lib/AudioIngestLongJob.php';
 
 
 EventBus::on('bi.datasets', [AudioBiContrib::class, 'onDatasets']);
@@ -23,6 +24,19 @@ Assets::register('audio', [
     'js' => ['audio.js'],
 ]);
 ModuleManager::registerMenuGroup('audio.menu.group', 500, '/audio/calendar');
+
+LongJob::register(AudioIngestLongJob::TYPE, [
+    'module' => 'audio',
+    'permission' => 'audio.edit',
+    'defaults' => ['tick_seconds' => 45],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 45],
+        'cli' => ['tick_seconds' => 90],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [AudioIngestLongJob::class, 'onStart'],
+    'tick' => [AudioIngestLongJob::class, 'tick'],
+]);
 
 StatusesRepository::registerFieldGroup([
     'title' => 'audio.statuses.group',

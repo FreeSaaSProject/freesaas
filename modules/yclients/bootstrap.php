@@ -9,12 +9,27 @@ require_once __DIR__ . '/lib/YclientsSyncStateRepository.php';
 require_once __DIR__ . '/lib/YclientsApiClient.php';
 require_once __DIR__ . '/lib/YclientsClientsImporter.php';
 require_once __DIR__ . '/lib/YclientsStaffImporter.php';
+require_once __DIR__ . '/lib/YclientsLongJob.php';
 
 ModuleManager::registerMenuGroup('yclients.menu.group', 1225, '/yclients');
+
+LongJob::register(YclientsLongJob::TYPE_IMPORT, [
+    'module' => 'yclients',
+    'permission' => 'yclients.import',
+    'defaults' => ['tick_seconds' => 45],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 45],
+        'cli' => ['tick_seconds' => 90],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [YclientsLongJob::class, 'onStart'],
+    'tick' => [YclientsLongJob::class, 'tick'],
+]);
 
 $pages = [
     '/yclients' => ['permission' => 'yclients.view', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],
     '/yclients/import' => ['permission' => 'yclients.import', 'methods' => ['GET', 'POST'], 'file' => 'import.php'],
+    '/yclients/import/longjob' => ['permission' => 'yclients.import', 'methods' => ['POST'], 'file' => 'longjob.php'],
     '/yclients/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/yclients/jobs/ping' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_ping.php'],
     '/yclients/jobs/import-clients' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_import_clients.php'],

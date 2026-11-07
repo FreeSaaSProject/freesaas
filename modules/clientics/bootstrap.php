@@ -19,12 +19,27 @@ require_once __DIR__ . '/lib/ClienticsWaitingListImporter.php';
 require_once __DIR__ . '/lib/ClienticsOutboxPusher.php';
 require_once __DIR__ . '/lib/ClienticsOutboxListener.php';
 require_once __DIR__ . '/lib/ClienticsWebhookIngest.php';
+require_once __DIR__ . '/lib/ClienticsLongJob.php';
 
 ModuleManager::registerMenuGroup('clientics.menu.group', 1250, '/clientics');
+
+LongJob::register(ClienticsLongJob::TYPE_IMPORT, [
+    'module' => 'clientics',
+    'permission' => 'clientics.import',
+    'defaults' => ['tick_seconds' => 45],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 45],
+        'cli' => ['tick_seconds' => 90],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [ClienticsLongJob::class, 'onStart'],
+    'tick' => [ClienticsLongJob::class, 'tick'],
+]);
 
 $pages = [
     '/clientics' => ['permission' => 'clientics.view', 'methods' => ['GET', 'POST'], 'file' => 'status.php'],
     '/clientics/import' => ['permission' => 'clientics.import', 'methods' => ['GET', 'POST'], 'file' => 'import.php'],
+    '/clientics/import/longjob' => ['permission' => 'clientics.import', 'methods' => ['POST'], 'file' => 'longjob.php'],
     '/clientics/settings' => ['capability' => 'SUPERADMIN_ACCESS', 'methods' => ['GET', 'POST'], 'file' => 'settings.php'],
     '/clientics/jobs/ping' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_ping.php'],
     '/clientics/jobs/import-clients' => ['public' => true, 'methods' => ['POST', 'GET'], 'file' => 'jobs_import_clients.php'],

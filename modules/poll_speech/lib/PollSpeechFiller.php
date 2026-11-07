@@ -571,15 +571,11 @@ final class PollSpeechFiller
         $idEventParent = (int)($proc['id_event_parent'] ?? 0);
         $idEvent = $idEventParent > 0 ? $idEventParent : $procId;
 
-        $respParts = [];
         $opId = (int)($proc['id_operator'] ?? 0);
         $admId = (int)($proc['id_admin'] ?? 0);
-        if ($opId > 0) {
-            $respParts[] = '#' . $opId . '#';
-        }
-        if ($admId > 0 && $admId !== $opId) {
-            $respParts[] = '#' . $admId . '#';
-        }
+        $respUsers = class_exists('PollInvitesRepository', false)
+            ? PollInvitesRepository::buildRespUsers($opId, $admId)
+            : '';
 
         $linked = (int)($snap['id_operator_linked'] ?? 0);
         if ($linked < 1) {
@@ -614,7 +610,7 @@ final class PollSpeechFiller
             'is_special_friend' => !empty($poll['is_special_friend']) ? 1 : 0,
             'sign_req' => 0,
             'code' => '',
-            'resp_users' => implode(',', $respParts),
+            'resp_users' => $respUsers,
             'is_result' => !empty($poll['is_result']) ? 1 : (!empty($snap['is_result']) ? 1 : 1),
             'source' => 'oral_asked',
             'id_proc_operator' => $opId,

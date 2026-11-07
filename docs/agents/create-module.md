@@ -50,6 +50,7 @@ Exit codes must be `0` (warnings OK on validate if no errors).
 - Put prose in `hooks.publish` / `hooks.subscribe`
 - Hardcode UI strings — use `t()` / `te()` / `tj()`
 - `require` another module’s `pages/` — use EventBus
+- Invent a private job poller / Progress class for heavy ops — use [`LongJob`](long-jobs.md) (`register` + module-owned `tick_seconds` contexts)
 
 ## Uninstall policy
 

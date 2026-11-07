@@ -1,6 +1,6 @@
 # Database hub (`/db`)
 
-Facade: [`app/DbTools.php`](../../app/DbTools.php). Implementation: [`app/Db/`](../../app/Db/) (`DbDump`, `DbRestore`, `DbJobs`, …).
+Facade: [`app/DbTools.php`](../../app/DbTools.php). Implementation: [`app/Db/`](../../app/Db/) (`DbDump`, `DbRestore`, `DbJobs`, …). Chunked UI jobs use the shared [`LongJob`](long-jobs.md) store/DTO overlay (`var/db_jobs/`); AgentOps `/agent/db/dump|restore` remain **blocking** loops over the same ticks.
 
 Schema migrations, SQL backups of FreeSaaS-owned tables, and CHECK/REPAIR/OPTIMIZE. Data migrators are not exposed on `/db` (cutover done; CLI `php bin/data-migrate.php` remains for rare one-offs — see [`migrations.md`](migrations.md)).
 

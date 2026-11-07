@@ -9,6 +9,7 @@ require_once __DIR__ . '/lib/RecordsTagsRepository.php';
 require_once __DIR__ . '/lib/RecordsScriptsRepository.php';
 require_once __DIR__ . '/lib/ScriptPack.php';
 require_once __DIR__ . '/lib/DictDescrSuggest.php';
+require_once __DIR__ . '/lib/AudioDictsLongJob.php';
 require_once __DIR__ . '/lib/AudioDictsAgentOps.php';
 
 AudioDictsAgentOps::register();
@@ -16,6 +17,19 @@ AudioDictsAgentOps::register();
 Assets::register('audio_dicts', [
     'css' => ['audio_dicts.css'],
     'js' => ['audio_dicts.js'],
+]);
+
+LongJob::register(AudioDictsLongJob::TYPE_SUGGEST_DESCR, [
+    'module' => 'audio_dicts',
+    'permission' => 'audio_dicts.edit',
+    'defaults' => ['tick_seconds' => 90],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 90],
+        'cli' => ['tick_seconds' => 120],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [AudioDictsLongJob::class, 'suggestOnStart'],
+    'tick' => [AudioDictsLongJob::class, 'suggestTick'],
 ]);
 
 $entities = [
@@ -112,8 +126,7 @@ BulkActions::register('audio_keys', 'disable', [
 
 // Soft: only when llm is enabled in config (profile check happens at run time).
 if (ModuleManager::isEnabled('llm')) {
-    // LLM per row is slow — UI runs progressive overlay (one id JSON call).
-    // Sync POST must not call LLM (timeout / Internal Server Error / hung workers).
+    // LLM per row is slow — LongJobPanel (one dict per tick). Sync bulk must not call LLM.
     BulkActions::register('audio_dicts', 'suggest_descr', [
         'label' => 'audio_dicts.bulk.suggest_descr',
         'permission' => 'audio_dicts.edit',
@@ -128,7 +141,6 @@ if (ModuleManager::isEnabled('llm')) {
         ],
         'run' => static function (array $ids, array $params): array {
             unset($params);
-            // Safety net if the progressive JS overlay did not intercept the form.
             $reason = t('audio_dicts.bulk.suggest_need_progress');
             $skipped = [];
             foreach ($ids as $id) {
@@ -149,6 +161,15 @@ ModuleManager::registerRoute('/audio/dicts/{id}/suggest-descr', [
     'permission' => 'audio_dicts.edit',
     'handler' => static function (): void {
         require base_path('modules/audio_dicts/pages/dicts_suggest_descr.php');
+    },
+]);
+
+ModuleManager::registerRoute('/audio/dicts/longjob', [
+    'module' => 'audio_dicts',
+    'methods' => ['POST'],
+    'permission' => 'audio_dicts.edit',
+    'handler' => static function (): void {
+        require base_path('modules/audio_dicts/pages/longjob.php');
     },
 ]);
 

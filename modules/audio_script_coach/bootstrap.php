@@ -23,6 +23,20 @@ Assets::register('audio_script_coach', [
     'js' => ['audio_script_coach.js'],
 ]);
 
+// UI: LongJobPanel → POST /audio/script-coach/work (one CoachRunner phase per tick).
+// StreamProgress remains available for optional stream=1 iframe; drain uses JSON ticks.
+LongJob::register('audio_script_coach.work', [
+    'module' => 'audio_script_coach',
+    'permission' => 'audio_script_coach.edit',
+    'capability' => 'SUPERADMIN_ACCESS',
+    'defaults' => ['tick_seconds' => 120],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 90],
+        'cli' => ['tick_seconds' => 180],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+]);
+
 $pages = [
     '/audio/script-coach' => ['permission' => 'audio_script_coach.view', 'methods' => ['GET'], 'file' => 'list.php'],
     '/audio/script-coach/day' => ['permission' => 'audio_script_coach.view', 'methods' => ['GET', 'POST'], 'file' => 'day.php'],

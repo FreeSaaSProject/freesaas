@@ -10,16 +10,42 @@ require_once __DIR__ . '/lib/CyclicDayRunner.php';
 require_once __DIR__ . '/lib/ReviewModerationConfig.php';
 require_once __DIR__ . '/lib/ReviewModerationBuilder.php';
 require_once __DIR__ . '/lib/ReviewModerationLlm.php';
+require_once __DIR__ . '/lib/AudioLlmLongJob.php';
 
 Assets::register('audio_llm', [
     'css' => ['review_moderation.css'],
     'js' => ['review_moderation.js'],
 ]);
 
+LongJob::register(AudioLlmLongJob::TYPE_STUDY, [
+    'module' => 'audio_llm',
+    'permission' => 'audio_llm.edit',
+    'defaults' => ['tick_seconds' => 90, 'batch' => 3],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 90],
+        'cli' => ['tick_seconds' => 180],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [AudioLlmLongJob::class, 'studyOnStart'],
+    'tick' => [AudioLlmLongJob::class, 'studyTick'],
+]);
+LongJob::register(AudioLlmLongJob::TYPE_MODERATION, [
+    'module' => 'audio_llm',
+    'permission' => 'audio.view',
+    'defaults' => ['tick_seconds' => 200],
+    'contexts' => [
+        'ui' => ['tick_seconds' => 200],
+    ],
+    'agent' => ['mode' => 'tick', 'assistant' => false],
+    'on_start' => [AudioLlmLongJob::class, 'moderationOnStart'],
+    'tick' => [AudioLlmLongJob::class, 'moderationTick'],
+]);
+
 $pages = [
     '/audio/llm-studies' => ['permission' => 'audio_llm.view', 'methods' => ['GET', 'POST'], 'file' => 'list.php'],
     '/audio/llm-studies/new' => ['permission' => 'audio_llm.edit', 'methods' => ['GET', 'POST'], 'file' => 'edit.php'],
     '/audio/llm-studies/work' => ['permission' => 'audio_llm.edit', 'methods' => ['POST'], 'file' => 'work.php'],
+    '/audio/llm-studies/longjob' => ['permission' => 'audio_llm.edit', 'methods' => ['POST'], 'file' => 'longjob.php'],
     '/audio/review-moderate' => ['permission' => 'audio.view', 'methods' => ['POST'], 'file' => 'review_moderate.php'],
 
     '/audio/llm-studies/{id}' => ['permission' => 'audio_llm.view', 'methods' => ['GET', 'POST'], 'file' => 'view.php'],

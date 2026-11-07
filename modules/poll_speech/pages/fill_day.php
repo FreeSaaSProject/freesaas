@@ -6,12 +6,13 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
         AgentHttp::error(t('poll_speech.err.method'), 405);
         return;
     }
-    flash('error', t('poll_speech.err.method'));
+    flash_set('error', t('poll_speech.err.method'));
     redirect('/poll-speech');
 }
 
-if (class_exists('Csrf', false) && !AgentHttp::wantsJson()) {
-    Csrf::requireValid();
+if (class_exists('Csrf', false) && !AgentHttp::wantsJson() && !Csrf::verify()) {
+    Csrf::deny('csrf');
+    return;
 }
 
 $recreate = !empty($_POST['recreate']) || !empty($_GET['recreate']);
@@ -26,7 +27,7 @@ if ($recreate) {
             AgentHttp::error(t('poll_speech.err.forbidden'), 403);
             return;
         }
-        flash('error', t('poll_speech.err.forbidden'));
+        flash_set('error', t('poll_speech.err.forbidden'));
         redirect('/poll-speech');
     }
     $result = PollSpeechFiller::recreateAllFromSpeech();
@@ -41,11 +42,11 @@ if ($recreate) {
         'skipped' => (string)(int)$result['skipped'],
     ]);
     if (!empty($result['errors'])) {
-        flash('error', t('poll_speech.fill.err', [
+        flash_set('error', t('poll_speech.fill.err', [
             'errors' => implode('; ', $result['errors']),
         ]));
     } else {
-        flash('ok', $msg);
+        flash_set('ok', $msg);
     }
     redirect('/poll-speech?progress=speech');
 }
@@ -63,10 +64,10 @@ $msg = t('poll_speech.fill.done', [
     'skipped' => (string)(int)$result['skipped'],
 ]);
 if (!empty($result['errors'])) {
-    flash('error', t('poll_speech.fill.err', [
+    flash_set('error', t('poll_speech.fill.err', [
         'errors' => implode('; ', $result['errors']),
     ]));
 } else {
-    flash('ok', $msg);
+    flash_set('ok', $msg);
 }
 redirect('/poll-speech?day=' . rawurlencode($day));

@@ -2,7 +2,7 @@
     "id": "audio_llm",
     "name": "audio_llm.module.name",
     "description": "audio_llm.module.description",
-    "version": "0.1.11",
+    "version": "0.1.13",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -39,6 +39,7 @@
             "/audio/llm-studies",
             "/audio/llm-studies/new",
             "/audio/llm-studies/work",
+            "/audio/llm-studies/longjob",
             "/audio/llm-studies/{id}",
             "/audio/review-moderate"
         ]
@@ -72,14 +73,24 @@
                 "method": "POST",
                 "path": "/audio/llm-studies/work",
                 "permission": "audio_llm.edit",
-                "description": "Process queue (POST + CSRF): study_id, limit; action=process|retry|reset|summary|process_all"
+                "description": "Process queue crumb (POST + CSRF): study_id, limit; action=process|retry|reset|summary. Prefer longjob for process-until-done."
+            },
+            {
+                "id": "audio_llm.studies.longjob",
+                "method": "POST",
+                "path": "/audio/llm-studies/longjob",
+                "permission": "audio_llm.edit",
+                "side_effect": "write",
+                "assistant": false,
+                "description": "LongJob for study drain: action=job_start|job_tick|job_cancel; type=audio_llm.study_process; body study_id. Pump ticks until done."
             },
             {
                 "id": "audio_llm.review_moderate",
                 "method": "POST",
                 "path": "/audio/review-moderate",
                 "permission": "audio.view",
-                "description": "LLM moderator assistant for pending-review queue (admin+day); returns plain-text analysis"
+                "assistant": false,
+                "description": "LLM moderation: legacy one-shot OR LongJob (action=job_start|job_tick|job_cancel; admin+year+month+day). Prefer tick pump."
             }
         ]
     },

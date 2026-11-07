@@ -255,3 +255,5 @@ foreach ($sections as $sec):
   });
 })();
 </script>
+<?php require base_path('modules/core/views/partials/modules_longjob.php'); ?>
+

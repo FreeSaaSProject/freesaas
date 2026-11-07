@@ -2,7 +2,7 @@
     "id": "amocrm",
     "name": "amocrm.module.name",
     "description": "amocrm.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -31,6 +31,7 @@
         "pages": [
             "/amocrm",
             "/amocrm/import",
+            "/amocrm/import/longjob",
             "/amocrm/settings",
             "/amocrm/webhook",
             "/amocrm/jobs/ping",

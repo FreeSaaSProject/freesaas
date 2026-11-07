@@ -111,12 +111,59 @@ $mfOutFin = $flows['out_by_cat'][3] ?? 0;
 <?php if ((int)$report['tinvest_count'] < 1): ?>
   <span class="muted"><a href="/liquid-assets/accounts/new"><?= te('liquid_assets.report.no_accounts') ?></a></span>
 <?php elseif ($period['is_current'] && $canEdit): ?>
-  <form method="post" action="/liquid-assets" class="inline-form">
-    <input type="hidden" name="ym" value="<?= e($ym) ?>">
-    <input type="hidden" name="do" value="sync">
-    <button type="submit" class="btn-primary"><?= te('liquid_assets.report.sync') ?></button>
-  </form>
+  <button type="button" class="btn-primary" id="la-tinvest-sync"><?= te('liquid_assets.report.sync') ?></button>
   <span class="muted"><?= te('liquid_assets.report.sync_hint') ?></span>
+  <?= View::capture('_longjob_panel', [
+    'longjobId' => 'la-tinvest',
+    'longjobTitle' => t('liquid_assets.report.sync'),
+    'longjobDualBars' => false,
+    'longjobShowBytes' => false,
+  ], 'core') ?>
+  <script>
+  (function () {
+    function boot() {
+      var btn = document.getElementById('la-tinvest-sync');
+      var overlay = document.getElementById('la-tinvest-overlay');
+      if (!btn || !overlay) return;
+      if (!window.LongJobPanel) { setTimeout(boot, 30); return; }
+      if (overlay.getAttribute('data-bound') === '1') return;
+      overlay.setAttribute('data-bound', '1');
+      var ym = <?= json_encode($ym, JSON_UNESCAPED_UNICODE) ?>;
+      var panel = LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/liquid-assets/longjob',
+        tickUrl: '/liquid-assets/longjob',
+        cancelUrl: '/liquid-assets/longjob',
+        dualBars: false,
+        showBytes: false,
+        reloadOnOk: false,
+        csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+        i18n: {
+          title: <?= json_encode(t('liquid_assets.report.sync'), JSON_UNESCAPED_UNICODE) ?>,
+          starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+          badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+          doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+          errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+          cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+          ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
+        },
+        onOk: function (job) {
+          var id = job && job.id ? String(job.id) : '';
+          var q = '/liquid-assets?ym=' + encodeURIComponent(ym);
+          if (id) q += '&sync_job=' + encodeURIComponent(id);
+          window.location.href = q;
+        }
+      });
+      btn.addEventListener('click', function () {
+        var fd = new FormData();
+        fd.set('ym', ym);
+        panel.runFormData(fd, {});
+      });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+    else boot();
+  })();
+  </script>
 <?php elseif (!$period['is_current']): ?>
   <span class="muted"><?= te('liquid_assets.report.sync_past') ?></span>
 <?php endif; ?>

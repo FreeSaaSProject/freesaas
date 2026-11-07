@@ -208,7 +208,7 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
     <?php endif; ?>
 
     <?php if ($pending > 0 && !empty($card['config_enabled'])): ?>
-      <form method="post" class="inline-form" action="/modules">
+      <form method="post" class="inline-form" action="/modules" data-schema-module-longjob="<?= e($id) ?>">
         <input type="hidden" name="module" value="<?= e($id) ?>">
         <input type="hidden" name="action" value="migrate">
         <input type="hidden" name="ret" value="<?= e($listPath) ?>">
@@ -220,7 +220,8 @@ $canInstallBtn = !empty($canInstall) && !empty($card['can_install']);
 
     <?php if (!empty($card['can_uninstall']) && Auth::capability('SUPERADMIN_ACCESS')): ?>
       <form method="post" class="inline-form" action="/modules"
-        onsubmit="return confirm(<?= tj('core.modules.confirm_uninstall', ['module' => $name !== '' ? $name : $id]) ?>);">
+            data-uninstall-longjob="<?= e($id) ?>"
+            data-uninstall-confirm="<?= e(t('core.modules.confirm_uninstall', ['module' => $name !== '' ? $name : $id])) ?>">
         <input type="hidden" name="module" value="<?= e($id) ?>">
         <input type="hidden" name="action" value="uninstall">
         <input type="hidden" name="confirm_uninstall" value="1">

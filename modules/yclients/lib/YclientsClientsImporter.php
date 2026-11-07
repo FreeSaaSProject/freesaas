@@ -53,52 +53,22 @@ final class YclientsClientsImporter
             return $stats;
         }
 
-        $companyId = YclientsConfig::companyId();
         $page = 1;
-        $pageSize = YclientsConfig::pageSize();
-        $totalKnown = null;
-
+        $pagesDone = 0;
         try {
             while (true) {
-                if ($maxPages > 0 && $page > $maxPages) {
+                if ($maxPages > 0 && $pagesDone >= $maxPages) {
                     break;
                 }
-                $res = YclientsApiClient::searchClients($page, $pageSize);
-                if (!$res['ok']) {
-                    $stats['error'] = (string)($res['error'] ?? 'fetch failed');
-                    YclientsSyncStateRepository::mark('import_clients', false, (string)$stats['error'], $stats);
+                $chunk = self::importPage($page, $dryRun, $stats);
+                if (!$chunk['ok']) {
                     return $stats;
                 }
-                $items = $res['items'] ?? [];
-                $stats['pages']++;
-                if ($totalKnown === null) {
-                    $totalKnown = (int)($res['total'] ?? 0);
-                }
-                if ($items === []) {
+                $pagesDone++;
+                if (!empty($chunk['done'])) {
                     break;
                 }
-                foreach ($items as $row) {
-                    if (!is_array($row)) {
-                        continue;
-                    }
-                    $stats['fetched']++;
-                    try {
-                        $r = self::upsertOne($companyId, $row, $dryRun);
-                        $stats[$r]++;
-                    } catch (Throwable $e) {
-                        $stats['skipped']++;
-                        if (count($stats['sample_errors']) < 5) {
-                            $stats['sample_errors'][] = $e->getMessage();
-                        }
-                    }
-                }
-                if (count($items) < $pageSize) {
-                    break;
-                }
-                if ($totalKnown > 0 && $stats['fetched'] >= $totalKnown) {
-                    break;
-                }
-                $page++;
+                $page = (int)$chunk['next_page'];
                 if ($page > 5000) {
                     break;
                 }
@@ -117,6 +87,58 @@ final class YclientsClientsImporter
             YclientsSyncStateRepository::mark('import_clients', false, $e->getMessage(), $stats);
             return $stats;
         }
+    }
+
+    /**
+     * One API page (LongJob crumb). Mutates/accumulates $stats by reference via merge return.
+     *
+     * @param array<string,mixed> $stats Accumulator (fetched/created/…)
+     * @return array{ok:bool,done:bool,next_page:int,error?:string}
+     */
+    public static function importPage(int $page, bool $dryRun, array &$stats): array
+    {
+        $page = max(1, $page);
+        $companyId = YclientsConfig::companyId();
+        $pageSize = YclientsConfig::pageSize();
+        $res = YclientsApiClient::searchClients($page, $pageSize);
+        if (!$res['ok']) {
+            $stats['error'] = (string)($res['error'] ?? 'fetch failed');
+            $stats['ok'] = false;
+            YclientsSyncStateRepository::mark('import_clients', false, (string)$stats['error'], $stats);
+            return ['ok' => false, 'done' => true, 'next_page' => $page, 'error' => (string)$stats['error']];
+        }
+        $items = $res['items'] ?? [];
+        $stats['pages'] = (int)($stats['pages'] ?? 0) + 1;
+        $totalKnown = (int)($res['total'] ?? 0);
+        if ($items === []) {
+            return ['ok' => true, 'done' => true, 'next_page' => $page];
+        }
+        foreach ($items as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $stats['fetched'] = (int)($stats['fetched'] ?? 0) + 1;
+            try {
+                $r = self::upsertOne($companyId, $row, $dryRun);
+                $stats[$r] = (int)($stats[$r] ?? 0) + 1;
+            } catch (Throwable $e) {
+                $stats['skipped'] = (int)($stats['skipped'] ?? 0) + 1;
+                if (!isset($stats['sample_errors']) || !is_array($stats['sample_errors'])) {
+                    $stats['sample_errors'] = [];
+                }
+                if (count($stats['sample_errors']) < 5) {
+                    $stats['sample_errors'][] = $e->getMessage();
+                }
+            }
+        }
+        $done = count($items) < $pageSize
+            || ($totalKnown > 0 && (int)$stats['fetched'] >= $totalKnown)
+            || $page >= 5000;
+        return [
+            'ok' => true,
+            'done' => $done,
+            'next_page' => $page + 1,
+        ];
     }
 
     /**

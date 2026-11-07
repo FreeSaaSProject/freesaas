@@ -2,7 +2,7 @@
     "id": "yclients",
     "name": "yclients.module.name",
     "description": "yclients.module.description",
-    "version": "0.1.6",
+    "version": "0.1.7",
     "type": "product",
     "catalog": {
         "categories": [
@@ -52,6 +52,7 @@
         "pages": [
             "/yclients",
             "/yclients/import",
+            "/yclients/import/longjob",
             "/yclients/settings",
             "/yclients/jobs/ping",
             "/yclients/jobs/import-clients"

@@ -56,10 +56,57 @@ $sid = (int)($study['ID'] ?? 0);
     <?= NavContext::hiddenField() ?>
     <input type="hidden" name="limit" value="5">
     <button class="btn" name="action" value="process"><?= te('audio_llm.action.process') ?></button>
-    <button class="btn" name="action" value="process_all"><?= te('audio_llm.action.process_all') ?></button>
+    <button type="button" class="btn" id="audio-llm-process-all" data-study-id="<?= (int)$study['ID'] ?>"><?= te('audio_llm.action.process_all') ?></button>
     <button class="btn btn-secondary" name="action" value="reset"><?= te('audio_llm.action.reset') ?></button>
     <button class="btn btn-secondary" name="action" value="summary"><?= te('audio_llm.action.summary') ?></button>
   </form>
+  <?= View::capture('_longjob_panel', [
+    'longjobId' => 'audio-llm-study',
+    'longjobTitle' => t('audio_llm.action.process_all'),
+    'longjobDualBars' => false,
+    'longjobShowBytes' => false,
+  ], 'core') ?>
+  <script>
+  (function () {
+    function boot() {
+      var btn = document.getElementById('audio-llm-process-all');
+      var overlay = document.getElementById('audio-llm-study-overlay');
+      if (!btn || !overlay) return;
+      if (!window.LongJobPanel) {
+        setTimeout(boot, 30);
+        return;
+      }
+      var panel = LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/audio/llm-studies/longjob',
+        tickUrl: '/audio/llm-studies/longjob',
+        cancelUrl: '/audio/llm-studies/longjob',
+        dualBars: false,
+        showBytes: false,
+        csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+        i18n: {
+          title: <?= json_encode(t('audio_llm.action.process_all'), JSON_UNESCAPED_UNICODE) ?>,
+          starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+          badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+          doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+          errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+          cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>
+        }
+      });
+      btn.addEventListener('click', function () {
+        var fd = new FormData();
+        fd.set('type', <?= json_encode(AudioLlmLongJob::TYPE_STUDY, JSON_UNESCAPED_UNICODE) ?>);
+        fd.set('study_id', btn.getAttribute('data-study-id') || '0');
+        panel.runFormData(fd, {});
+      });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', boot);
+    } else {
+      boot();
+    }
+  })();
+  </script>
 <?php endif; ?>
 
 <?php if (trim((string)($study['LLM_SUMMARY'] ?? '')) !== ''): ?>

@@ -2,7 +2,7 @@
     "id": "core",
     "name": "core.module.name",
     "description": "core.module.description",
-    "version": "1.0.34",
+    "version": "1.0.35",
     "type": "platform",
     "requires": [],
     "optionalRequires": {
@@ -85,8 +85,11 @@
             "/modules",
             "/modules/{id}",
             "/modules/{id}/activate",
+            "/modules/uninstall/longjob",
             "/db",
+            "/db/schema/longjob",
             "/users",
+
             "/users/new",
             "/users/{id}",
             "/users/{id}/edit",

@@ -9,29 +9,23 @@
   } catch (e) {
     i18n = {};
   }
+  var canApply = root.getAttribute('data-can-apply') === '1';
+  var csrf = '';
+  try {
+    csrf = (window.freesaasCsrfToken && window.freesaasCsrfToken()) || '';
+    if (!csrf) {
+      var inp = document.querySelector('input[name="csrf"]');
+      csrf = inp ? String(inp.value || '') : '';
+    }
+  } catch (ignore) { /* ignore */ }
 
-  var overlay = document.getElementById('upd-job-overlay');
-  var titleEl = document.getElementById('upd-job-title');
-  var msgEl = document.getElementById('upd-job-msg');
-  var fillEl = document.getElementById('upd-job-fill');
-  var barEl = document.getElementById('upd-job-bar');
-  var pctEl = document.getElementById('upd-job-pct');
-  var metaEl = document.getElementById('upd-job-meta');
-  var abortBtn = document.getElementById('upd-job-abort');
-  var okBtn = document.getElementById('upd-job-ok');
-  var applyFoundBtn = document.getElementById('upd-job-apply-found');
   var foundWrap = document.getElementById('upd-job-found');
   var foundTitle = document.getElementById('upd-job-found-title');
   var foundList = document.getElementById('upd-job-found-list');
-  var canApply = root.getAttribute('data-can-apply') === '1';
-
-  var activeJobId = null;
+  var applyFoundBtn = document.getElementById('upd-job-apply-found');
   var activeKind = 'apply';
-  var finished = false;
-  var aborting = false;
-  var startedAt = 0;
-  var timerIv = null;
   var lastFoundCount = 0;
+  var panel = null;
 
   function formatFoundLine(item) {
     var tpl = i18n.foundLine || '{name}: {local} → {remote}';
@@ -66,271 +60,122 @@
 
   function setApplyFoundVisible(show) {
     if (!applyFoundBtn) return;
-    var visible = !!(show && canApply && lastFoundCount > 0 && finished && activeKind === 'check');
+    var visible = !!(show && canApply && lastFoundCount > 0 && activeKind === 'check');
     applyFoundBtn.hidden = !visible;
     applyFoundBtn.disabled = !visible;
   }
 
-  function setBar(pct) {
-    pct = Math.max(0, Math.min(100, pct | 0));
-    if (fillEl) fillEl.style.width = pct + '%';
-    if (barEl) barEl.setAttribute('aria-valuenow', String(pct));
-    if (pctEl) pctEl.textContent = pct + '%';
-  }
-
-  function showJob(kind) {
-    activeKind = kind || 'apply';
-    finished = false;
-    aborting = false;
-    startedAt = Date.now();
-    lastFoundCount = 0;
-    if (overlay) overlay.hidden = false;
-    document.body.classList.add('upd-job-busy');
-    if (okBtn) { okBtn.hidden = true; okBtn.disabled = true; }
-    if (applyFoundBtn) {
-      applyFoundBtn.hidden = true;
-      applyFoundBtn.disabled = true;
-    }
-    if (abortBtn) { abortBtn.hidden = false; abortBtn.disabled = false; }
-    if (titleEl) {
-      titleEl.textContent = activeKind === 'check'
-        ? (i18n.checkTitle || 'Checking…')
-        : (i18n.title || 'Updating…');
-    }
-    renderFound([]);
-    setBar(0);
-    if (timerIv) clearInterval(timerIv);
-    timerIv = setInterval(function () {
-      if (!metaEl || finished) return;
-      var sec = Math.floor((Date.now() - startedAt) / 1000);
-      var m = Math.floor(sec / 60);
-      var s = sec % 60;
-      metaEl.textContent = m + ':' + (s < 10 ? '0' : '') + s;
-    }, 500);
-  }
-
-  function finishJob(status, message) {
-    finished = true;
-    if (timerIv) { clearInterval(timerIv); timerIv = null; }
-    if (abortBtn) abortBtn.hidden = true;
-    if (okBtn) { okBtn.hidden = false; okBtn.disabled = false; }
-    setApplyFoundVisible(status === 'done' && activeKind === 'check');
-    if (msgEl && message) msgEl.textContent = message;
-    if (titleEl) {
-      if (status === 'done') {
-        titleEl.textContent = activeKind === 'check'
-          ? (i18n.checkDoneTitle || i18n.doneTitle || 'Done')
-          : (i18n.doneTitle || 'Done');
-      } else if (status === 'cancelled') {
-        titleEl.textContent = i18n.cancelledTitle || 'Cancelled';
-      } else {
-        titleEl.textContent = i18n.errorTitle || 'Error';
+  function enrichJob(j) {
+    if (!j) return j;
+    j.progress_overall = j.progress_overall != null ? j.progress_overall : (j.progress || 0);
+    if (activeKind !== 'check' && (j.target_label || j.target)) {
+      var label = j.target_label || j.target;
+      var prefix = label + (j.targets_total ? (' (' + ((j.target_index || 0) + 1) + '/' + j.targets_total + ')') : '') + ': ';
+      if (j.message && j.message.indexOf(prefix) !== 0) {
+        j.message = prefix + (j.message || '');
       }
     }
-    if (status === 'done') setBar(100);
+    return j;
   }
 
-  function hideJob() {
-    if (overlay) overlay.hidden = true;
-    document.body.classList.remove('upd-job-busy');
-    if (timerIv) { clearInterval(timerIv); timerIv = null; }
-    activeJobId = null;
-  }
-
-  function applyJob(j) {
-    if (!j) return;
-    if (msgEl) {
-      var msg = j.message || '';
-      if (activeKind !== 'check' && (j.target_label || j.target)) {
-        var label = j.target_label || j.target;
-        msg = (label + (j.targets_total ? (' (' + ((j.target_index || 0) + 1) + '/' + j.targets_total + ')') : '') + ': ') + msg;
-      }
-      msgEl.textContent = msg;
+  function boot() {
+    var overlay = document.getElementById('upd-longjob-overlay');
+    if (!overlay) return;
+    if (!window.LongJobPanel) {
+      setTimeout(boot, 30);
+      return;
     }
-    if (activeKind === 'check') {
-      renderFound(j.found || []);
+
+    // Mount found UI inside LongJob panel actions area.
+    var panelBox = overlay.querySelector('.db-job-panel');
+    if (panelBox && foundWrap && foundWrap.parentNode !== panelBox) {
+      var actions = panelBox.querySelector('.db-job-actions');
+      if (actions) panelBox.insertBefore(foundWrap, actions);
+      else panelBox.appendChild(foundWrap);
+      if (applyFoundBtn && actions) actions.insertBefore(applyFoundBtn, actions.firstChild);
     }
-    setBar(j.progress || 0);
-  }
 
-  function postForm(fd) {
-    // Ensure CSRF even if core.js cache is stale (FormData + header).
-    try {
-      var tok = (window.freesaasCsrfToken && window.freesaasCsrfToken()) || '';
-      if (!tok) {
-        var inp = document.querySelector('input[name="csrf"]');
-        tok = inp ? String(inp.value || '') : '';
-      }
-      if (tok && fd && typeof fd.set === 'function' && !fd.has('csrf')) {
-        fd.set('csrf', tok);
-      }
-    } catch (ignore) { /* ignore */ }
-    return fetch('/updates', {
-      method: 'POST',
-      body: fd,
-      credentials: 'same-origin',
-      headers: { Accept: 'application/json', 'X-CSRF-Token': (window.freesaasCsrfToken && window.freesaasCsrfToken()) || '' }
-    }).then(function (r) {
-      return r.text().then(function (text) {
-        var j = null;
-        try { j = text ? JSON.parse(text) : null; } catch (err) {
-          throw new Error((i18n.badJson || 'Bad JSON') + ' HTTP ' + r.status);
-        }
-        if (!r.ok || (j && j.ok === false)) {
-          throw new Error((j && (j.error || j.message)) || ('HTTP ' + r.status));
-        }
-        return j || {};
-      });
-    });
-  }
-
-  if (okBtn) {
-    okBtn.addEventListener('click', function () {
-      hideJob();
-      window.location.reload();
-    });
-  }
-  if (applyFoundBtn) {
-    applyFoundBtn.addEventListener('click', function () {
-      if (!canApply || lastFoundCount < 1) return;
-      var confirmMsg = i18n.confirmApply || '';
-      if (confirmMsg && !window.confirm(confirmMsg)) return;
+    function makePanel(kind) {
+      activeKind = kind;
+      lastFoundCount = 0;
+      renderFound([]);
       setApplyFoundVisible(false);
-      if (okBtn) { okBtn.hidden = true; okBtn.disabled = true; }
-      runApply('all');
-    });
-  }
-  if (abortBtn) {
-    abortBtn.addEventListener('click', function () {
-      if (!activeJobId || finished || aborting) return;
-      aborting = true;
-      abortBtn.disabled = true;
+      return LongJobPanel.mount({
+        root: overlay,
+        startUrl: '/updates',
+        tickUrl: '/updates',
+        cancelUrl: '/updates',
+        startAction: kind === 'check' ? 'update_check_job_start' : 'update_job_start',
+        tickAction: kind === 'check' ? 'update_check_job_tick' : 'update_job_tick',
+        cancelAction: 'update_job_cancel',
+        dualBars: false,
+        showBytes: false,
+        tickPauseMs: kind === 'check' ? 50 : 200,
+        csrf: csrf,
+        title: kind === 'check' ? (i18n.checkTitle || i18n.title) : (i18n.title || ''),
+        i18n: {
+          title: kind === 'check' ? (i18n.checkTitle || '') : (i18n.title || ''),
+          starting: i18n.starting || '',
+          badJson: i18n.badJson || '',
+          doneTitle: kind === 'check' ? (i18n.checkDoneTitle || i18n.doneTitle) : (i18n.doneTitle || ''),
+          errorTitle: i18n.errorTitle || '',
+          cancelledTitle: i18n.cancelledTitle || '',
+          ok: i18n.ok || 'OK',
+          abort: i18n.abort || ''
+        },
+        onJob: function (j) {
+          enrichJob(j);
+          if (activeKind === 'check') renderFound(j.found || []);
+        },
+        onFinish: function (status) {
+          setApplyFoundVisible(status === 'done' && activeKind === 'check');
+        }
+      });
+    }
+
+    function runApply(target) {
+      panel = makePanel('apply');
       var fd = new FormData();
-      fd.set('action', 'update_job_cancel');
-      fd.set('job_id', activeJobId);
-      fd.set('format', 'json');
-      postForm(fd).then(function (res) {
-        applyJob(res.job || {});
-        finishJob('cancelled', (res.job && res.job.message) || '');
-      }).catch(function (err) {
-        finishJob('error', err && err.message ? err.message : String(err));
+      fd.set('target', target || 'all');
+      panel.runFormData(fd, {});
+    }
+
+    function runCheck(target) {
+      panel = makePanel('check');
+      var fd = new FormData();
+      if (target) fd.set('target', target);
+      panel.runFormData(fd, {});
+    }
+
+    if (applyFoundBtn) {
+      applyFoundBtn.addEventListener('click', function () {
+        if (!canApply || lastFoundCount < 1) return;
+        var confirmMsg = i18n.confirmApply || '';
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+        setApplyFoundVisible(false);
+        runApply('all');
+      });
+    }
+
+    document.querySelectorAll('[data-upd-apply]').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        var target = btn.getAttribute('data-upd-apply') || 'all';
+        var confirmMsg = i18n.confirmApply || '';
+        if (confirmMsg && !window.confirm(confirmMsg)) return;
+        runApply(target);
+      });
+    });
+
+    document.querySelectorAll('[data-upd-check]').forEach(function (btn) {
+      btn.addEventListener('click', function (ev) {
+        ev.preventDefault();
+        var target = btn.getAttribute('data-upd-check') || 'all';
+        runCheck(target === 'all' ? '' : target);
       });
     });
   }
 
-  function runLoop(startAction, tickAction, kind, target) {
-    var fd = new FormData();
-    fd.set('action', startAction);
-    fd.set('format', 'json');
-    if (target && target !== 'all') {
-      fd.set('target', target);
-    }
-    showJob(kind);
-    return postForm(fd).then(function (start) {
-      var job = start.job || {};
-      var id = job.id;
-      if (!id) throw new Error('No job id');
-      activeJobId = id;
-      applyJob(job);
-
-      function tick() {
-        if (finished || aborting) return;
-        var tfd = new FormData();
-        tfd.set('action', tickAction);
-        tfd.set('job_id', id);
-        tfd.set('format', 'json');
-        return postForm(tfd).then(function (res) {
-          if (finished || aborting) return;
-          var j = res.job || {};
-          applyJob(j);
-          if (j.status === 'done') {
-            finishJob('done', j.message || '');
-            return;
-          }
-          if (j.status === 'cancelled') {
-            finishJob('cancelled', j.message || '');
-            return;
-          }
-          if (j.status === 'error') {
-            finishJob('error', j.error || j.message || 'Job failed');
-            return;
-          }
-          return new Promise(function (resolve) { setTimeout(resolve, 50); }).then(tick);
-        });
-      }
-      return tick();
-    }).catch(function (err) {
-      finishJob('error', err && err.message ? err.message : String(err));
-    });
-  }
-
-  function runApply(target) {
-    var fd = new FormData();
-    fd.set('action', 'update_job_start');
-    fd.set('target', target || 'all');
-    fd.set('format', 'json');
-    showJob('apply');
-    return postForm(fd).then(function (start) {
-      var job = start.job || {};
-      var id = job.id;
-      if (!id) throw new Error('No job id');
-      activeJobId = id;
-      applyJob(job);
-
-      function tick() {
-        if (finished || aborting) return;
-        var tfd = new FormData();
-        tfd.set('action', 'update_job_tick');
-        tfd.set('job_id', id);
-        tfd.set('format', 'json');
-        return postForm(tfd).then(function (res) {
-          if (finished || aborting) return;
-          var j = res.job || {};
-          applyJob(j);
-          if (j.status === 'done') {
-            finishJob('done', j.message || '');
-            return;
-          }
-          if (j.status === 'cancelled') {
-            finishJob('cancelled', j.message || '');
-            return;
-          }
-          if (j.status === 'error') {
-            finishJob('error', j.error || j.message || 'Job failed');
-            return;
-          }
-          return new Promise(function (resolve) { setTimeout(resolve, 200); }).then(tick);
-        });
-      }
-      return tick();
-    }).catch(function (err) {
-      finishJob('error', err && err.message ? err.message : String(err));
-    });
-  }
-
-  function runCheck(target) {
-    return runLoop('update_check_job_start', 'update_check_job_tick', 'check', target || '');
-  }
-
-  document.querySelectorAll('[data-upd-apply]').forEach(function (btn) {
-    btn.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      var target = btn.getAttribute('data-upd-apply') || 'all';
-      var confirmMsg = i18n.confirmApply || '';
-      if (confirmMsg && !window.confirm(confirmMsg)) return;
-      runApply(target);
-    });
-  });
-
-  document.querySelectorAll('[data-upd-check]').forEach(function (btn) {
-    btn.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      var target = btn.getAttribute('data-upd-check') || 'all';
-      if (target === 'all' || target === '') {
-        runCheck('');
-      } else {
-        runCheck(target);
-      }
-    });
-  });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();

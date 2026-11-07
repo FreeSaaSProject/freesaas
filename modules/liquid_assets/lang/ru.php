@@ -107,6 +107,7 @@ return [
     'liquid_assets.sync.has_reval' => 'есть переоценка за месяц #{id}',
     'liquid_assets.sync.no_reval' => 'новой переоценки за месяц ещё нет',
     'liquid_assets.sync.funds_off' => 'Модуль funds выключен — переоценка фонда недоступна.',
+    'liquid_assets.longjob.sync_start' => 'Синхронизация T-Invest: {n} счетов',
     'liquid_assets.accounts.title' => 'T-Invest счета',
     'liquid_assets.accounts.add' => 'Добавить T-Invest счёт',
     'liquid_assets.accounts.to_report' => 'Отчёт: ликвидные активы',

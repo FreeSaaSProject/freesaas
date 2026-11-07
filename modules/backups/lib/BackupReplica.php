@@ -921,6 +921,21 @@ final class BackupReplica
     /**
      * Strip secrets before emitting to UI/agent.
      *
+     * @param array<string,mixed>|null $job
+     * @return array<string,mixed>
+     */
+    public static function jobPublic(?array $job = null): array
+    {
+        $job = $job ?? self::jobGet();
+        if ($job === null) {
+            return ['ok' => false, 'status' => 'error', 'error' => t('backups.replica.err.no_job')];
+        }
+        return self::publicJob($job);
+    }
+
+    /**
+     * Strip secrets before emitting to UI/agent.
+     *
      * @param array<string,mixed> $job
      * @return array<string,mixed>
      */

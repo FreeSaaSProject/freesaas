@@ -925,7 +925,8 @@
       var action = actionSel ? String(actionSel.value || '0') : '0';
       var selected = actionSel && actionSel.options[actionSel.selectedIndex];
       var actionOk = action !== '0' && !(selected && selected.disabled);
-      submitBtn.disabled = !(any && actionOk);
+      var allowEmpty = !!(selected && selected.getAttribute && selected.getAttribute('data-bulk-allow-empty') === '1');
+      submitBtn.disabled = !((any || allowEmpty) && actionOk);
     }
 
     function syncAll() {
@@ -1007,7 +1008,22 @@
         return;
       }
       var opt = actionSel.options[actionSel.selectedIndex];
-      var msg = opt && opt.getAttribute ? opt.getAttribute('data-confirm') : '';
+      var idList = rowChecks().filter(function (c) { return c.checked; }).map(function (c) {
+        return parseInt(c.value, 10) || 0;
+      }).filter(function (id) { return id > 0; });
+      var allowEmpty = !!(opt && opt.getAttribute && opt.getAttribute('data-bulk-allow-empty') === '1');
+      if (idList.length === 0 && !allowEmpty) {
+        e.preventDefault();
+        return;
+      }
+      var msg = '';
+      if (opt && opt.getAttribute) {
+        if (idList.length === 0) {
+          msg = opt.getAttribute('data-confirm-empty') || opt.getAttribute('data-confirm') || '';
+        } else {
+          msg = opt.getAttribute('data-confirm') || '';
+        }
+      }
       if (msg && !window.confirm(msg)) {
         e.preventDefault();
         return;
@@ -1022,9 +1038,6 @@
         packed.setAttribute('data-bulk-ids-json', '1');
         form.appendChild(packed);
       }
-      var idList = rowChecks().filter(function (c) { return c.checked; }).map(function (c) {
-        return parseInt(c.value, 10) || 0;
-      }).filter(function (id) { return id > 0; });
       packed.value = JSON.stringify(idList);
       rowChecks().forEach(function (c) {
         c.disabled = true; // exclude ids[] from POST

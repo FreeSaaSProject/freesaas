@@ -30,7 +30,13 @@ try {
             session_destroy();
         }
     }
-    AgentHttp::emit($job);
+    // LongJobPanel shape + legacy fields for older clients.
+    $shaped = BackupReplicaLongJob::publicFromDomain($job, $token);
+    AgentHttp::emit(array_merge($job, [
+        'ok' => ($shaped['status'] ?? '') !== 'error',
+        'job' => $shaped,
+        'tick_token' => $token,
+    ]));
 } catch (Throwable $e) {
     // Prefer structured JSON even on unexpected failures (proxy still may cut long ticks).
     if (!headers_sent()) {

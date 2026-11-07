@@ -62,7 +62,8 @@ final class BankLedgerSyncUi
 
         ob_start();
         ?>
-<form class="banks-sync-form banks-sync-form--ledger" method="post" action="/banks/sync-account">
+<form class="banks-sync-form banks-sync-form--ledger" method="post" action="/banks/sync-account"
+      data-banks-ledger-sync data-account-id="<?= (int)$accountId ?>">
   <input type="hidden" name="account_id" value="<?= (int)$accountId ?>">
   <input type="hidden" name="ret" value="<?= e($ret) ?>">
   <span class="muted banks-sync-form-label"><?= te('banks.conn.sync') ?><?= e($labelExtra) ?></span>
@@ -74,6 +75,51 @@ final class BankLedgerSyncUi
   </label>
   <button type="submit" class="btn-secondary"><?= te('banks.conn.sync') ?></button>
 </form>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'banks-ledger-sync',
+  'longjobTitle' => t('banks.conn.sync'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => false,
+], 'core') ?>
+<script>
+(function () {
+  function boot() {
+    var form = document.querySelector('form[data-banks-ledger-sync][data-account-id="<?= (int)$accountId ?>"]');
+    var overlay = document.getElementById('banks-ledger-sync-overlay');
+    if (!form || !overlay) return;
+    if (!window.LongJobPanel) { setTimeout(boot, 40); return; }
+    if (form.getAttribute('data-bound') === '1') return;
+    form.setAttribute('data-bound', '1');
+    var panel = LongJobPanel.mount({
+      root: overlay,
+      startUrl: '/banks/longjob',
+      tickUrl: '/banks/longjob',
+      cancelUrl: '/banks/longjob',
+      dualBars: false,
+      showBytes: false,
+      reloadOnOk: true,
+      csrf: <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>,
+      i18n: {
+        title: <?= json_encode(t('banks.conn.sync'), JSON_UNESCAPED_UNICODE) ?>,
+        starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+        badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+        doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+        errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+        cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+        ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>
+      }
+    });
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      var fd = new FormData(form);
+      fd.set('ledger_account_id', form.getAttribute('data-account-id') || '0');
+      panel.runFormData(fd, {});
+    });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+</script>
         <?php
         return (string)ob_get_clean();
     }

@@ -60,9 +60,10 @@ require __DIR__ . '/_nav.php';
 </section>
 
 <div class="page-actions">
-  <form method="post" class="inline" data-bk-busy="<?= te('backups.ui.busy.replica_check') ?>">
+  <form method="post" class="inline" id="replica-check-form" data-longjob-op="check">
     <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-    <input type="hidden" name="action" value="check">
+    <input type="hidden" name="action" value="job_start">
+    <input type="hidden" name="op" value="check">
     <button class="btn-secondary" type="submit"<?= empty($configured['ok']) ? ' disabled' : '' ?>><?= te('backups.replica.check') ?></button>
   </form>
 </div>
@@ -117,10 +118,11 @@ require __DIR__ . '/_nav.php';
   <?php else: ?>
     <div class="flash flash-ok"><?= te('backups.replica.pull_warn_incr') ?></div>
   <?php endif; ?>
-  <form method="post" class="form-grid" data-bk-replica-pull="1"
-        <?php if ($needsWipe): ?>onsubmit="return confirm(<?= tj('backups.replica.pull_confirm') ?>);"<?php endif; ?>>
+  <form method="post" class="form-grid" id="replica-pull-form" data-longjob-op="pull"
+        <?php if ($needsWipe): ?>data-longjob-confirm="<?= e(t('backups.replica.pull_confirm')) ?>"<?php endif; ?>>
     <?= class_exists('Csrf', false) ? Csrf::field() : '' ?>
-    <input type="hidden" name="action" value="pull_start">
+    <input type="hidden" name="action" value="job_start">
+    <input type="hidden" name="op" value="pull">
     <?php if ($needsWipe): ?>
       <label class="check">
         <input type="checkbox" name="confirm_wipe" value="1" required>
@@ -139,6 +141,95 @@ require __DIR__ . '/_nav.php';
 </section>
 <?php endif; ?>
 
-<?php if ($pull !== null && empty($pull['ok'])): ?>
-  <pre class="mono"><?= e(json_encode($pull, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) ?: '') ?></pre>
-<?php endif; ?>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'replica-check',
+  'longjobTitle' => t('backups.ui.busy.replica_check'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => false,
+], 'core') ?>
+<?= View::capture('_longjob_panel', [
+  'longjobId' => 'replica-pull',
+  'longjobTitle' => t('backups.ui.busy.replica_pull'),
+  'longjobDualBars' => false,
+  'longjobShowBytes' => true,
+], 'core') ?>
+
+<script>
+(function () {
+  var csrf = <?= json_encode(class_exists('Csrf', false) ? Csrf::token() : '', JSON_UNESCAPED_UNICODE) ?>;
+  var i18nBase = {
+    starting: <?= json_encode(t('core.longjob.starting'), JSON_UNESCAPED_UNICODE) ?>,
+    badJson: <?= json_encode(t('core.longjob.bad_json'), JSON_UNESCAPED_UNICODE) ?>,
+    eta: <?= json_encode(t('core.longjob.eta'), JSON_UNESCAPED_UNICODE) ?>,
+    doneTitle: <?= json_encode(t('core.longjob.done_title'), JSON_UNESCAPED_UNICODE) ?>,
+    errorTitle: <?= json_encode(t('core.longjob.error_title'), JSON_UNESCAPED_UNICODE) ?>,
+    cancelledTitle: <?= json_encode(t('core.longjob.cancelled_title'), JSON_UNESCAPED_UNICODE) ?>,
+    ok: <?= json_encode(t('core.longjob.ok'), JSON_UNESCAPED_UNICODE) ?>,
+    hide: <?= json_encode(t('backups.ui.hide'), JSON_UNESCAPED_UNICODE) ?>,
+    hideHint: <?= json_encode(t('backups.ui.replica_hide_hint'), JSON_UNESCAPED_UNICODE) ?>,
+    retry: <?= json_encode(t('backups.ui.retry'), JSON_UNESCAPED_UNICODE) ?>,
+    retrying: <?= json_encode(t('backups.ui.retrying'), JSON_UNESCAPED_UNICODE) ?>,
+    login: <?= json_encode(t('backups.ui.login'), JSON_UNESCAPED_UNICODE) ?>
+  };
+  function boot() {
+    if (!window.LongJobPanel) {
+      setTimeout(boot, 30);
+      return;
+    }
+    var checkRoot = document.getElementById('replica-check-overlay');
+    var pullRoot = document.getElementById('replica-pull-overlay');
+    if (checkRoot) {
+      LongJobPanel.bindForms({
+        root: checkRoot,
+        formSelector: '#replica-check-form',
+        startUrl: '/backups/replica',
+        tickUrl: '/backups/replica',
+        cancelUrl: '/backups/replica',
+        startAction: 'job_start',
+        tickAction: 'job_tick',
+        cancelAction: 'job_cancel',
+        dualBars: false,
+        showBytes: false,
+        csrf: csrf,
+        title: <?= json_encode(t('backups.ui.busy.replica_check'), JSON_UNESCAPED_UNICODE) ?>,
+        i18n: Object.assign({}, i18nBase, {
+          title: <?= json_encode(t('backups.ui.busy.replica_check'), JSON_UNESCAPED_UNICODE) ?>
+        }),
+        mapFormExtras: function () { return { op: 'check' }; },
+        tickExtra: { op: 'check' }
+      });
+    }
+    if (pullRoot) {
+      LongJobPanel.bindForms({
+        root: pullRoot,
+        formSelector: '#replica-pull-form',
+        startUrl: '/backups/replica',
+        tickUrl: '/backups/replica',
+        tickTokenUrl: '/backups/replica/tick',
+        tickTokenField: 'tick_token',
+        tickWallField: 'wall',
+        tickWall: 20,
+        startAction: 'job_start',
+        dualBars: false,
+        showBytes: true,
+        cancelMode: 'hide',
+        resumeOnPaused: true,
+        maxFailStreak: 12,
+        tickPauseMs: 400,
+        csrf: csrf,
+        title: <?= json_encode(t('backups.ui.busy.replica_pull'), JSON_UNESCAPED_UNICODE) ?>,
+        i18n: Object.assign({}, i18nBase, {
+          title: <?= json_encode(t('backups.ui.busy.replica_pull'), JSON_UNESCAPED_UNICODE) ?>,
+          doneTitle: <?= json_encode(t('backups.ui.replica_done_title'), JSON_UNESCAPED_UNICODE) ?>
+        }),
+        mapFormExtras: function () { return { op: 'pull' }; }
+      });
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+})();
+</script>

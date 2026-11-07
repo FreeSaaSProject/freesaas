@@ -2,7 +2,7 @@
     "id": "bitrix",
     "name": "bitrix.module.name",
     "description": "bitrix.module.description",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "type": "product",
     "requires": {
         "core": ">=1.0.0",
@@ -31,6 +31,7 @@
         "pages": [
             "/bitrix",
             "/bitrix/import",
+            "/bitrix/import/longjob",
             "/bitrix/settings",
             "/bitrix/webhook",
             "/bitrix/jobs/ping",

@@ -5,8 +5,9 @@ $wantsJson = AgentHttp::wantsJson();
 
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
     // Router CSRF already covers browser POSTs; assistant/MCP invokeHandler skips Router.
-    if (class_exists('Csrf', false) && !$wantsJson) {
-        Csrf::requireValid();
+    if (class_exists('Csrf', false) && !$wantsJson && !Csrf::verify()) {
+        Csrf::deny('csrf');
+        return;
     }
     try {
         $post = $_POST;
@@ -23,7 +24,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             AgentHttp::emit(['ok' => true, 'saved' => true, 'cfg' => PollSpeechConfig::formValues()]);
             return;
         }
-        flash('ok', t('poll_speech.settings.saved'));
+        flash_set('ok', t('poll_speech.settings.saved'));
         redirect('/poll-speech/settings');
     } catch (Throwable $e) {
         AgentHttp::rethrowIfCapture($e);
@@ -31,7 +32,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
             AgentHttp::error($e->getMessage(), 400);
             return;
         }
-        flash('error', $e->getMessage());
+        flash_set('error', $e->getMessage());
         redirect('/poll-speech/settings');
     }
 }

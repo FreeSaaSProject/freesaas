@@ -40,4 +40,5 @@ View::render('import', [
     'report' => $report,
     'error' => $error,
     'apiReady' => AmocrmConfig::apiReady(),
+    'pullEnabled' => AmocrmConfig::pullEnabled(),
 ], 'layout', 'amocrm');
